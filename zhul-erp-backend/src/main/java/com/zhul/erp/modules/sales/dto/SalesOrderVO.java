@@ -14,6 +14,10 @@ public class SalesOrderVO {
     /** 1-PI 转成、2-手动创建 */
     private Integer source;
     private java.time.LocalDate salesDate;
+    /** 约定付款日（手动订单、费用订单） */
+    private java.time.LocalDate paymentDueDate;
+    /** 已逾期天数：过了约定付款日还没付清时有值 */
+    private Long overdueDays;
     /** 1-新客户、2-老客户 */
     private Integer customerType;
     /** 1-现货、2-期货 */

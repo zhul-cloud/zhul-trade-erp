@@ -81,6 +81,7 @@ import {
   CreateFeeOrderModal,
   EditFeesModal,
   manualSteps,
+  PaymentDueDateModal,
   ProgressModal,
   PurchaserModal,
   SalesDateModal,
@@ -112,6 +113,7 @@ type Dialog =
   | 'progress'
   | 'purchaser'
   | 'salesDate'
+  | 'paymentDueDate'
   | 'slip'
   | 'confirm'
   | 'platform'
@@ -285,6 +287,25 @@ const OrderDetail: React.FC = () => {
             )}
           </>,
         )}
+        {manual &&
+          field(
+            '约定付款日',
+            <>
+              {o.paymentDueDate ?? '—'}
+              {editable && (
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<EditOutlined />}
+                  aria-label="修改约定付款日"
+                  onClick={() => setDialog('paymentDueDate')}
+                />
+              )}
+              {o.overdueDays != null && (
+                <Pill tone="red">已逾期 {o.overdueDays} 天</Pill>
+              )}
+            </>,
+          )}
         {field(
           '客户',
           <>
@@ -1509,8 +1530,9 @@ const OrderDetail: React.FC = () => {
             }
           />
           <div style={{ fontSize: 12, color: palette.mute, marginTop: 10 }}>
-            成交内容（型号、单价、费用）不能直接改：减少型号数量用「部分取消」，其他变更请取消订单（手动创建的订单，有「修改订单费用」权限的人可以改费用）；全部取消的型号保留显示，不再参与进度与货物状态。销售日期、进度、采购员、现货
-            / 期货可以随时改，改动写操作日志。
+            成交内容（型号、单价、费用）不能直接改：减少型号数量用「部分取消」，其他变更请取消订单（手动创建的订单，有「修改订单费用」权限的人可以改费用）；全部取消的型号保留显示，不再参与进度与货物状态。销售日期、
+            {manual ? '约定付款日、' : ''}进度、采购员、现货 /
+            期货可以随时改，改动写操作日志。
           </div>
           <PartialCancelRecords order={o} />
         </>
@@ -1840,6 +1862,12 @@ const OrderDetail: React.FC = () => {
       <SalesDateModal
         order={o}
         open={dialog === 'salesDate'}
+        onClose={() => setDialog(undefined)}
+        onDone={done}
+      />
+      <PaymentDueDateModal
+        order={o}
+        open={dialog === 'paymentDueDate'}
         onClose={() => setDialog(undefined)}
         onDone={done}
       />

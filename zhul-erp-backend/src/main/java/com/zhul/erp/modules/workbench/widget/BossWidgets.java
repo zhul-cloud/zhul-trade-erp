@@ -21,6 +21,7 @@ import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
 import com.zhul.erp.modules.sales.service.PiService;
 import com.zhul.erp.modules.sales.service.SalesOrderService;
 import com.zhul.erp.modules.sales.service.SalesStatsService;
+import com.zhul.erp.modules.sales.support.OrderOverdue;
 import com.zhul.erp.modules.sales.support.PiStore;
 import com.zhul.erp.modules.warehouse.service.DiscrepancyService;
 import com.zhul.erp.modules.warehouse.service.ShipmentService;
@@ -33,6 +34,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -86,20 +88,29 @@ public class BossWidgets {
                         outstanding = outstanding.add(left.multiply(W.num(p.getExchangeRate())));
                     }
                 }
+                // 过期未收款按原币分币种：过期 PI 按合计，逾期的手动订单、费用订单按剩余未收（spec system/workbench「老板看板」）
+                Map<String, BigDecimal> overdue = new LinkedHashMap<>();
+                OverduePiVO overduePis = piService.overdue();
+                if (overduePis.getTotals() != null) {
+                    overduePis.getTotals().forEach(t -> overdue.merge(t.getCurrencyCode(), W.num(t.getAmount()), BigDecimal::add));
+                }
+                LocalDate today = LocalDate.now();
                 // 手动订单、费用订单的收款记在订单上，同样计入（与收款工作台一致，audit BUS-081）
                 for (SalesOrderDO o : orders.selectList(unpaidReceiptOrders(scope))) {
                     BigDecimal left = W.num(o.getTotalAmount()).subtract(W.num(o.getReceivedAmount())).subtract(W.num(o.getFeeDiffAmount()));
                     if (left.signum() > 0) {
                         outstanding = outstanding.add(left.multiply(W.num(o.getExchangeRate())));
                     }
+                    if (OrderOverdue.days(o, o.getReceiptStatus(), left, today) != null) {
+                        overdue.merge(o.getCurrencyCode(), left, BigDecimal::add);
+                    }
                 }
-                OverduePiVO overdue = piService.overdue();
-                String overdueText = overdue.getTotals() == null || overdue.getTotals().isEmpty() ? "没有过期未收款的 PI"
-                        : "其中过期未收款 " + overdue.getTotals().stream()
-                        .map(t -> t.getCurrencyCode() + " " + money(t.getAmount()))
+                String overdueText = overdue.isEmpty() ? "没有过期未收款"
+                        : "其中过期未收款 " + overdue.entrySet().stream()
+                        .map(e -> e.getKey() + " " + money(e.getValue()))
                         .collect(Collectors.joining("、"));
                 items.add(W.link(W.tone(W.metric("应收未收", outstanding.setScale(2, RoundingMode.HALF_UP), "money", overdueText),
-                        overdue.getTotals() == null || overdue.getTotals().isEmpty() ? null : "red"), SalesWidgets.PIS));
+                        overdue.isEmpty() ? null : "red"), SalesWidgets.PIS));
             }
             if (perm.canAccessMenu(PurchaseLeadWidgets.PAYABLES)) {
                 PayableStatsVO s = payables.stats();
@@ -249,8 +260,9 @@ public class BossWidgets {
     /** 收款记在订单上（手动、费用订单）、有效且还没付清的订单 */
     private static LambdaQueryWrapper<SalesOrderDO> unpaidReceiptOrders(DataScopeResolver scope) {
         LambdaQueryWrapper<SalesOrderDO> w = new LambdaQueryWrapper<SalesOrderDO>()
-                .select(SalesOrderDO::getId, SalesOrderDO::getTotalAmount, SalesOrderDO::getReceivedAmount,
-                        SalesOrderDO::getFeeDiffAmount, SalesOrderDO::getExchangeRate)
+                .select(SalesOrderDO::getId, SalesOrderDO::getSource, SalesOrderDO::getStatus, SalesOrderDO::getReceiptStatus,
+                        SalesOrderDO::getCurrencyCode, SalesOrderDO::getTotalAmount, SalesOrderDO::getReceivedAmount,
+                        SalesOrderDO::getFeeDiffAmount, SalesOrderDO::getExchangeRate, SalesOrderDO::getPaymentDueDate)
                 .eq(SalesOrderDO::getTenantId, PiStore.tenantId())
                 .in(SalesOrderDO::getSource, SalesConstants.ORDER_RECEIPT_SOURCES)
                 .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)

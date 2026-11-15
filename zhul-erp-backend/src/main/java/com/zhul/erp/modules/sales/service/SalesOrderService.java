@@ -22,6 +22,9 @@ public interface SalesOrderService {
 
     SalesOrderVO updateSalesDate(Long id, java.time.LocalDate salesDate);
 
+    /** 修改或清空约定付款日（手动订单、费用订单） */
+    SalesOrderVO updatePaymentDueDate(Long id, java.time.LocalDate paymentDueDate);
+
     /** 修改手动订单的费用（「修改订单费用」权限） */
     SalesOrderVO updateFees(Long id, com.zhul.erp.modules.sales.dto.UpdateOrderFeesRequest req);
 

@@ -715,6 +715,10 @@ export interface Order {
   /** 1-PI 转成、2-手动创建、3-售后补发、4-费用订单 */
   source: number;
   salesDate?: string;
+  /** 约定付款日（手动订单、费用订单） */
+  paymentDueDate?: string;
+  /** 已逾期天数：过了约定付款日还没付清时有值 */
+  overdueDays?: number;
   /** 1-新客户、2-老客户 */
   customerType?: number;
   /** 1-现货、2-期货 */
@@ -1161,6 +1165,8 @@ export const orderApi = {
     customerId: number;
     currencyCode: string;
     salesDate: string;
+    /** 约定付款日，选填 */
+    paymentDueDate?: string;
     items: CreateOrderLine[];
     remark?: string;
     /** PI、合同、客户 PO 等附件：先上传拿到 ID */
@@ -1173,6 +1179,8 @@ export const orderApi = {
     id: number,
     body: {
       salesDate?: string;
+      /** 约定付款日，选填 */
+      paymentDueDate?: string;
       fees: OrderFeeInput[];
       remark?: string;
       attachmentIds?: number[];
@@ -1191,6 +1199,9 @@ export const orderApi = {
     send<Order>('POST', `${SO}/${id}/remark`, { remark }),
   salesDate: (id: number, salesDate: string) =>
     send<Order>('POST', `${SO}/${id}/sales-date`, { salesDate }),
+  /** 修改或清空约定付款日（手动订单、费用订单） */
+  paymentDueDate: (id: number, paymentDueDate: string | null) =>
+    send<Order>('POST', `${SO}/${id}/payment-due-date`, { paymentDueDate }),
   progress: (
     id: number,
     itemIds: number[],
