@@ -597,6 +597,7 @@ public class ReceiptService {
         media.retireDocument(AttachmentService.RECEIPT, id, r.getTenantId());
         media.retireDocument(AttachmentService.RECEIPT_DEFECT, id, r.getTenantId());
         List<PurchaseReceiptItemDO> items = itemsOf(List.of(id)).getOrDefault(id, List.of());
+        partialCancelHolds.withdrawAfterReversal(items.stream().map(PurchaseReceiptItemDO::getSoItemId).toList(), r, currentUser.resolve());
         touch.touch(items.stream().map(PurchaseReceiptItemDO::getRequirementId).toList());
         progress.sync(items.stream().map(PurchaseReceiptItemDO::getSoItemId).toList());
         logs.add(p.getId(), "冲销入库", r.getGrNo() + "，原因：" + why + "；发货单 " + s.getSdNo() + " 回到在途", currentUser.resolve());
