@@ -96,15 +96,38 @@ public class FieldSources {
         return mapper.selectList(new LambdaQueryWrapper<CustomerFieldSourceDO>().eq(CustomerFieldSourceDO::getCustomerId, customerId));
     }
 
-    /** 合并客户时把来源搬到保留客户（只搬保留客户没有的字段） */
+    /**
+     * 合并客户时把来源搬到保留客户（keys 是保留客户为空、用被合并客户的值补上的字段）。
+     * 保留客户已有同字段的来源行（如「已问、等回复」、清空过字段）时不整行搬，改为照搬来源到这一行，
+     * 避免撞 (customer_id, field_key) 唯一键（BUS-047）；字段已补上值，「已问、等回复」随之清除。
+     */
     public void moveMissing(Long fromCustomerId, Long toCustomerId, Collection<String> keys) {
         if (keys.isEmpty()) {
             return;
         }
-        mapper.update(null, new LambdaUpdateWrapper<CustomerFieldSourceDO>()
-                .eq(CustomerFieldSourceDO::getCustomerId, fromCustomerId)
-                .in(CustomerFieldSourceDO::getFieldKey, keys)
-                .set(CustomerFieldSourceDO::getCustomerId, toCustomerId));
+        Map<String, CustomerFieldSourceDO> from = byKey(fromCustomerId, keys);
+        Map<String, CustomerFieldSourceDO> to = byKey(toCustomerId, keys);
+        for (String key : keys) {
+            CustomerFieldSourceDO s = from.get(key);
+            CustomerFieldSourceDO t = to.get(key);
+            if (t == null) {
+                if (s != null) {
+                    mapper.update(null, new LambdaUpdateWrapper<CustomerFieldSourceDO>()
+                            .eq(CustomerFieldSourceDO::getId, s.getId())
+                            .set(CustomerFieldSourceDO::getCustomerId, toCustomerId));
+                }
+                continue;
+            }
+            if (s != null) {
+                t.setSource(s.getSource());
+                t.setReportId(s.getReportId());
+                t.setFollowupId(s.getFollowupId());
+                t.setOperatorId(s.getOperatorId());
+            }
+            t.setAskedBy(0L);
+            t.setAskedAt(null);
+            mapper.updateById(t);
+        }
     }
 
     /** 合并客户时联系人字段键里的联系人ID不变，整体搬到保留客户 */
