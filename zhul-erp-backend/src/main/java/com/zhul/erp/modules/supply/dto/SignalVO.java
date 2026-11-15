@@ -29,4 +29,9 @@ public class SignalVO {
     private LocalDateTime occurredAt;
     private Boolean cancelled;
     private String operatorName;
+    /** 列表固定的四列（audit UI-093） */
+    private LocalDateTime createTime;
+    private String createBy;
+    private LocalDateTime updateTime;
+    private String updateBy;
 }
