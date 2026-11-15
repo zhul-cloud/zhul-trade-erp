@@ -580,6 +580,40 @@ class ParseLargeTest(unittest.TestCase):
         self.assertEqual(got["E3Z-D61"]["confidence"], lp.CONFIDENCE_PENDING_VERIFY)
         self.assertIn("未联网核验", got["E3Z-D61"]["correctionNote"])
 
+    def test_verify_same_original_model_with_different_confirmed_models(self):
+        """AI-013：同一原型号在两个提取批里确认成不同型号，合并后保留两条且落在同一核验批；
+        每条要么采用核验结果，要么标待核实，不能留着提取阶段的结果"""
+        files = {"a.pdf": ([text_unit("《a.pdf》第 1 页", ("X1", 1)), text_unit("《a.pdf》第 2 页", ("X1", 2))], [])}
+
+        def run(keep):
+            model = FakeModel(self.server)
+
+            def call(cfg, system_prompt, text, attachments, schema, **kw):
+                result = model(cfg, system_prompt, text, attachments, schema, **kw)
+                items = result["groups"][0]["items"]
+                if not kw["web_search"]:
+                    suffix = "-A" if "第 1 / 2 部分" in text else "-B"
+                    for it in items:
+                        it["confirmedModel"] = it["originalModel"] + suffix
+                else:
+                    result["groups"][0]["items"] = [it for it in items if it["confirmedModel"] in keep]
+                return result
+
+            with mock.patch.object(lp, "BATCH_MAX_CHARS", 60), mock.patch("builtins.print"):
+                self.sent.clear()
+                status, output, error = self.run_job(files, call)
+            self.assertEqual(status, "success", error)
+            return self.models(output)
+
+        got = run({"X1-A", "X1-B"})
+        self.assertEqual(set(got), {"X1-A", "X1-B"})
+        for m in ("X1-A", "X1-B"):
+            self.assertEqual(got[m]["description"], "已核验", m)
+        got = run({"X1-B"})
+        self.assertEqual(got["X1-B"]["description"], "已核验", "按确认型号对回返回的那一条")
+        self.assertEqual(got["X1-A"]["confidence"], lp.CONFIDENCE_PENDING_VERIFY)
+        self.assertIn("未联网核验", got["X1-A"]["correctionNote"])
+
     def test_call_timeout_is_retried_with_a_fresh_deadline(self):
         """单次调用跑满期限只算这一批失败一次；重试重新计时，不把整个任务判超时（2026-11-10 实测发现）"""
         files = {"a.pdf": ([text_unit(f"《a.pdf》第 {p} 页", (f"M{p}", 1)) for p in range(1, 4)], [])}
