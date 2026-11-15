@@ -427,8 +427,11 @@ export interface RefineResult {
 const REFINE = `${BASE}/category-refine`;
 
 /** 商品品类细分（spec product/category-refine） */
+/** AI 细分、候选 AI 解析的任务查不到（不存在或不是自己提交的）时的错误码，页面据此停止跟踪 */
+export const AI_TASK_NOT_FOUND = 'AI_TASK_NOT_FOUND';
+
 export const refineApi = {
-  /** 有 ids 处理勾选的；没有时按 filter 取「待 AI 细分」最近更新的前 200 个。页面自己处理错误 */
+  /** 有 ids 处理勾选的；没有时按 filter 取「待 AI 细分」本公司能维护的前 200 个（没跑过的优先）。页面自己处理错误 */
   submit: (body: { ids?: number[]; filter?: ProductQuery }) =>
     call<RefineTask>(REFINE, { method: 'POST', data: body, ...quiet }),
   status: (taskId: number) => call<RefineTask>(`${REFINE}/${taskId}`, quiet),

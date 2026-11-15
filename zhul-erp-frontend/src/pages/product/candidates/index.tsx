@@ -22,7 +22,7 @@ import {
   Spin,
   Table,
 } from 'antd';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
@@ -35,6 +35,7 @@ import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { LIFECYCLE_OPTIONS } from '../constants';
 import {
+  AI_TASK_NOT_FOUND,
   type BrandOption,
   brandApi,
   type CategoryOption,
@@ -1119,10 +1120,20 @@ const Candidates: React.FC = () => {
     load();
   }, [load]);
 
-  // 从其他页面返回时重新取数（audit UI-055）
-
-  useOnReactivate(load);
+  // 从其他页面返回时列表和页签计数一起重新取（audit UI-055）
+  useOnReactivate(() => {
+    load();
+    refreshCount();
+  });
   useEffect(refreshCount, [refreshCount]);
+
+  // AI 解析跑完只刷新列表和计数，不关正在审核的抽屉（audit UI-062）；
+  // 轮询回调用最新的取数函数，按当前的页签、筛选、页码刷新（audit UI-083）
+  const reload = useRef(() => {});
+  reload.current = () => {
+    load();
+    refreshCount();
+  };
 
   const changed = () => {
     setViewing(undefined);
@@ -1148,9 +1159,10 @@ const Candidates: React.FC = () => {
           return;
         }
         setAiDone({ ...r, skipped: aiJob.skipped });
-        changed();
-      } catch {
-        // 任务查不到（如换了账号）：不再轮询
+        reload.current();
+      } catch (e) {
+        // 只有任务确实查不到（如换了账号）才停止跟踪；网络抖动、5xx 等下次继续查（audit UI-084）
+        if (readBizError(e).errorCode !== AI_TASK_NOT_FOUND) return;
         setAiJob(null);
         writeAiJob(null);
       }
