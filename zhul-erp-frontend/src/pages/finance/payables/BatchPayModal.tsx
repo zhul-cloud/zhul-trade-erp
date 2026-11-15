@@ -120,8 +120,21 @@ export const BatchPayModal: React.FC<{
         );
         if (!list.some((a) => a.id === v.bankAccountId)) {
           next[g.key] = {
-            ...v,
+            ...next[g.key],
             bankAccountId: (list.find((a) => a.isDefault) ?? list[0])?.id,
+          };
+        }
+        // 对方账户同样按方式过滤：原选择不在范围内时改选默认账户，没有就清空，不提交看不到的账户（audit UI-074）
+        const payees = v.payeeAccounts.filter(
+          (a) => a.accountType === (method === METHOD.PRIVATE ? 2 : 1),
+        );
+        if (
+          v.payeeAccountId !== undefined &&
+          !payees.some((a) => a.id === v.payeeAccountId)
+        ) {
+          next[g.key] = {
+            ...next[g.key],
+            payeeAccountId: payees.find((a) => a.defaultAccount)?.id,
           };
         }
       }
@@ -264,7 +277,7 @@ export const BatchPayModal: React.FC<{
                       {r.payableNo}
                       {r.nextDueDate ? ` · ${r.nextDueDate} 到期` : ''}
                     </span>
-                    {formatAmount(r.unpaidAmount)}
+                    {formatAmount(r.unpaidAmount, g.currency)}
                   </div>
                 ))}
               </div>
