@@ -85,9 +85,9 @@
 | [BUS-075](tasks/2026-11-15-BUS-042-incremental-audit.md) | 每日重算不加锁读取全部需求对象后整行回写，会覆盖期间用户改的优先级、覆盖状态和下一步 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-15 |
 | [BUS-076](tasks/2026-11-15-BUS-042-incremental-audit.md) | 记一次处理对每个所选型号都全量读取一遍租户的采购订单行，型号多时请求可能超时 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-15 |
 | [BUS-077](tasks/2026-11-15-BUS-042-incremental-audit.md) | 报价行供应提示和发送确认不跟随需求对象合并，被合并的型号报价时没有货源提示 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-15 |
-| [BUS-079](tasks/2026-11-15-BUS-042-incremental-audit.md) | 退货入库验收与作废销售退货的加锁顺序相反，并发时可能死锁回滚 | P3 | 待合并 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-16 |
-| [BUS-080](tasks/2026-11-15-BUS-042-incremental-audit.md) | 经营看板「应收未收」仍按 PI 合计减已到账，订单部分取消或补费用后口径不一致（BUS-049 同类） | P2 | 待合并 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-16 |
-| [BUS-081](tasks/2026-11-15-BUS-042-incremental-audit.md) | 经营看板「应收未收」只算 PI，收款记在订单上的手动订单、费用订单没有计入（收款工作台已计入） | P2 | 待合并 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-16 |
+| [BUS-079](tasks/2026-11-15-BUS-042-incremental-audit.md) | 退货入库验收与作废销售退货的加锁顺序相反，并发时可能死锁回滚 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-16 |
+| [BUS-080](tasks/2026-11-15-BUS-042-incremental-audit.md) | 经营看板「应收未收」仍按 PI 合计减已到账，订单部分取消或补费用后口径不一致（BUS-049 同类） | P2 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-16 |
+| [BUS-081](tasks/2026-11-15-BUS-042-incremental-audit.md) | 经营看板「应收未收」只算 PI，收款记在订单上的手动订单、费用订单没有计入（收款工作台已计入） | P2 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-16 |
 
 ## 前端
 
@@ -186,7 +186,7 @@
 | [UI-091](tasks/2026-11-15-BUS-042-incremental-audit.md) | 今日待办接口失败时显示「今天的都处理完了」，概览或团队接口失败时一直显示骨架屏 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-15 |
 | [UI-092](tasks/2026-11-15-BUS-042-incremental-audit.md) | 品牌和品类选项用模块级缓存，从不失效，首次加载失败后整段会话下拉一直为空 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-15 |
 | [UI-093](tasks/2026-11-15-BUS-042-incremental-audit.md) | 待归类信号列表缺少四个固定审计列，每页条数写死；型号清单和专项表格用 max-content 横向滚动 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-15 |
-| [UI-094](tasks/2026-11-15-BUS-042-incremental-audit.md) | 需求对象合并弹窗只说信号会并入，没有说明覆盖渠道和专项型号也会并到保留方 | P3 | 待合并 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-16 |
+| [UI-094](tasks/2026-11-15-BUS-042-incremental-audit.md) | 需求对象合并弹窗只说信号会并入，没有说明覆盖渠道和专项型号也会并到保留方 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-16 |
 
 ## AI 可靠性
 
