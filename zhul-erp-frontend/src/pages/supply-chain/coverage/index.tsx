@@ -1,6 +1,6 @@
 import { history, Link, useAccess } from '@umijs/max';
 import { Empty, Segmented, Select, Skeleton, Switch } from 'antd';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { PageTitle } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -28,13 +28,16 @@ const PERIODS = [
   { value: 90, label: '近 90 天' },
 ];
 
-const CoverCell: React.FC<{ c: Cell }> = ({ c }) => {
+/** 格子下钻到型号清单时带上的矩阵筛选，列表与格子数字同口径（audit UI-089） */
+type Drill = { ownerId?: number; priority?: number; stockoutDays?: number };
+
+const CoverCell: React.FC<{ c: Cell; drill: Drill }> = ({ c, drill }) => {
   const { palette } = useAppTheme();
   const colors = useCoverColors();
   const tint = colors[c.worst] ?? palette.hairline;
   return (
     <Link
-      to={PATHS.models(c.brandId, c.categoryId)}
+      to={PATHS.models(c.brandId, c.categoryId, drill)}
       style={{
         display: 'grid',
         gap: 8,
@@ -59,12 +62,12 @@ const CoverCell: React.FC<{ c: Cell }> = ({ c }) => {
   );
 };
 
-const StockoutCell: React.FC<{ c: Cell; max: number }> = ({ c, max }) => {
+const StockoutCell: React.FC<{ c: Cell; max: number; drill: Drill }> = ({ c, max, drill }) => {
   const { palette } = useAppTheme();
   const pct = Math.round(10 + (c.stockoutTimes / max) * 30);
   return (
     <Link
-      to={PATHS.models(c.brandId, c.categoryId)}
+      to={PATHS.models(c.brandId, c.categoryId, drill)}
       style={{
         display: 'grid',
         gap: 4,
@@ -141,9 +144,12 @@ const CoverageMatrixPage: React.FC = () => {
   const [error, setError] = useState('');
   const [projectScope, setProjectScope] = useState<{ brandId: number; categoryId?: number; dev?: boolean }>();
 
+  /** 只采用最后一次请求的结果，切换模式或筛选后旧请求迟到不覆盖（audit UI-090） */
+  const seq = useRef(0);
   const load = useCallback(() => {
     const stock = mode === 'stockout';
     const sup = mode === 'supplier';
+    const req = ++seq.current;
     supplyApi
       .matrix({
         mode,
@@ -156,10 +162,11 @@ const CoverageMatrixPage: React.FC = () => {
         gapsOnly: stock ? undefined : gapsOnly || undefined,
       })
       .then((m) => {
+        if (req !== seq.current) return;
         setData(m);
         setError('');
       })
-      .catch((e) => setError(readBizError(e).message));
+      .catch((e) => req === seq.current && setError(readBizError(e).message));
   }, [mode, period, parent, brandId, priority, ownerId, gapsOnly]);
   // 条件变了先清空再取；从其他页面返回时保留当前矩阵直接重取（audit UI-055）
   useEffect(() => {
@@ -183,6 +190,7 @@ const CoverageMatrixPage: React.FC = () => {
   const gapCells = (data?.cells ?? []).filter((c) => c.gap > 0);
   const gapSum = gapCells.reduce((s, c) => s + c.gap, 0);
   const gapColor = (g: number) => (g <= 0 ? palette.green : g === 1 ? palette.orange : palette.red);
+  const drill: Drill = stock ? { stockoutDays: period } : { ownerId, priority };
 
   return (
     <div>
@@ -388,7 +396,7 @@ const CoverageMatrixPage: React.FC = () => {
                               </>
                             ) : stock ? (
                               <>
-                                <StockoutCell c={c} max={max} />
+                                <StockoutCell c={c} max={max} drill={drill} />
                                 {canProject && !c.projectId && (
                                   <button
                                     type="button"
@@ -408,7 +416,7 @@ const CoverageMatrixPage: React.FC = () => {
                                 )}
                               </>
                             ) : (
-                              <CoverCell c={c} />
+                              <CoverCell c={c} drill={drill} />
                             )
                           ) : (
                             !stock && !sup && <span style={{ color: palette.faint, paddingLeft: 8 }}>—</span>

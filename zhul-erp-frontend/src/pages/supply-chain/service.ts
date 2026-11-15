@@ -113,9 +113,13 @@ export const PATHS = {
   coverage: '/supply-chain/coverage',
   demand: (id: number) => `/supply-chain/demands/${id}`,
   project: (id: number) => `/supply-chain/projects/${id}`,
-  /** categoryId 为 0 是未分类，也要带上 */
-  models: (brandId: number, categoryId?: number | null) =>
-    `/supply-chain/coverage/models?brandId=${brandId}${categoryId != null ? `&categoryId=${categoryId}` : ''}`,
+  /** categoryId 为 0 是未分类，也要带上；f 为格子所在矩阵的筛选，下钻后沿用（audit UI-089） */
+  models: (
+    brandId: number,
+    categoryId?: number | null,
+    f: { ownerId?: number; priority?: number; stockoutDays?: number } = {},
+  ) =>
+    `/supply-chain/coverage/models?brandId=${brandId}${categoryId != null ? `&categoryId=${categoryId}` : ''}${f.ownerId ? `&ownerId=${f.ownerId}` : ''}${f.priority ? `&priority=${f.priority}` : ''}${f.stockoutDays ? `&stockoutDays=${f.stockoutDays}` : ''}`,
   sourcingTask: (code: string) =>
     `/inquiry/sourcing-board?keyword=${encodeURIComponent(code)}`,
 };
@@ -445,6 +449,10 @@ export interface Signal {
   occurredAt: string;
   cancelled?: boolean;
   operatorName?: string;
+  createTime?: string;
+  createBy?: string;
+  updateTime?: string;
+  updateBy?: string;
 }
 
 export interface TimelineItem {
@@ -783,6 +791,9 @@ export const supplyApi = {
     coverage?: number;
     priority?: number;
     keyword?: string;
+    ownerId?: number;
+    /** 只看近 30 / 90 天有无货记录的 */
+    stockoutDays?: number;
     /** 含观察中的（记处理选型号用） */
     all?: boolean;
     page?: number;

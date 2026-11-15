@@ -2,13 +2,15 @@ import { BranchesOutlined, SearchOutlined } from '@ant-design/icons';
 import { Link, useLocation } from '@umijs/max';
 import { Input, Select, Table, type TableColumnsType } from 'antd';
 import dayjs from 'dayjs';
-import React, { useEffect, useMemo, useState } from 'react';
-import { usePageTitle } from '@/components/PageTabs/hooks';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { PageTitle } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
+import { liveRequests } from '@/utils/liveRequests';
 import { usePageSize } from '@/utils/pageSize';
-import { Card, CoverPill, NextCell, PriorityPill } from '../components';
+import { tableScrollX } from '@/utils/tableScroll';
+import { Card, CoverPill, NextCell, PriorityPill, useUsers } from '../components';
 import {
   COVER_NAMES,
   type Demand,
@@ -20,20 +22,38 @@ import {
   supplyApi,
 } from '../service';
 
+/** 列表筛选与页码放在一起：改筛选和回到第 1 页一次完成，不会先按旧页码多发一次请求（audit UI-090） */
+interface Filters {
+  priority?: number;
+  coverage?: number;
+  ownerId?: number;
+  /** 只看近 30 / 90 天无货的（矩阵「按无货」点格子带来） */
+  stockoutDays?: number;
+  keyword: string;
+  page: number;
+}
+
+/** 从覆盖矩阵格子带来的筛选（audit UI-089） */
+const fromUrl = (q: URLSearchParams): Filters => ({
+  priority: Number(q.get('priority')) || undefined,
+  ownerId: Number(q.get('ownerId')) || undefined,
+  stockoutDays: Number(q.get('stockoutDays')) || undefined,
+  keyword: '',
+  page: 1,
+});
+
 /** 覆盖矩阵 → 型号清单（F14）：某品牌（· 品类）下进入矩阵的型号 */
 const CoverageModelsPage: React.FC = () => {
   const { palette } = useAppTheme();
+  const users = useUsers();
   const { search } = useLocation();
   const q = useMemo(() => new URLSearchParams(search), [search]);
   const brandId = Number(q.get('brandId')) || undefined;
   const categoryId = q.has('categoryId')
     ? Number(q.get('categoryId'))
     : undefined;
-  const [priority, setPriority] = useState<number>();
-  const [coverage, setCoverage] = useState<number>();
+  const [f, setF] = useState<Filters>(() => fromUrl(q));
   const [keywordInput, setKeywordInput] = useState('');
-  const [keyword, setKeyword] = useState('');
-  const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<Demand[]>([]);
   const [total, setTotal] = useState(0);
@@ -41,11 +61,26 @@ const CoverageModelsPage: React.FC = () => {
   const [error, setError] = useState('');
   const [dist, setDist] = useState<{ total: number; coverage: Record<number, number> }>();
   const [scope, setScope] = useState<string>();
+  /** 从其他页面返回时加 1，静默重取列表与分布（audit UI-055） */
+  const [tick, setTick] = useState(0);
+  useOnReactivate(() => setTick((n) => n + 1));
+  const change = (patch: Partial<Filters>) => setF((o) => ({ ...o, ...patch, page: 1 }));
+
+  // 地址变了（从矩阵另一个格子进来）按新地址重置筛选
+  const firstUrl = useRef(true);
+  useEffect(() => {
+    if (firstUrl.current) {
+      firstUrl.current = false;
+      return;
+    }
+    setF(fromUrl(q));
+    setKeywordInput('');
+  }, [q]);
 
   useEffect(() => {
-    if (!brandId) return;
-    supplyApi
-      .matrix({ brandId })
+    if (!brandId) return undefined;
+    const { live, cancel } = liveRequests();
+    live(supplyApi.matrix({ brandId, ownerId: f.ownerId, priority: f.priority }))
       .then((m) => {
         const cells = m.cells.filter((c) => categoryId == null || c.categoryId === categoryId);
         const cov: Record<number, number> = {};
@@ -59,13 +94,26 @@ const CoverageModelsPage: React.FC = () => {
         );
       })
       .catch(() => setDist(undefined));
-  }, [brandId, categoryId]);
+    return cancel;
+  }, [brandId, categoryId, f.ownerId, f.priority, tick]);
 
-  useEffect(() => setPage(1), [priority, coverage, keyword]);
+  // 只采用最后一次请求的结果，迟到的旧响应丢弃（audit UI-090）
   useEffect(() => {
     setLoading(true);
-    supplyApi
-      .models({ brandId, categoryId, coverage, priority, keyword: keyword.trim() || undefined, page, size: pageSize })
+    const { live, cancel } = liveRequests();
+    live(
+      supplyApi.models({
+        brandId,
+        categoryId,
+        coverage: f.coverage,
+        priority: f.priority,
+        ownerId: f.ownerId,
+        stockoutDays: f.stockoutDays,
+        keyword: f.keyword.trim() || undefined,
+        page: f.page,
+        size: pageSize,
+      }),
+    )
       .then((r) => {
         setRows(r.records);
         setTotal(r.total);
@@ -73,7 +121,8 @@ const CoverageModelsPage: React.FC = () => {
       })
       .catch((e) => setError(readBizError(e).message))
       .finally(() => setLoading(false));
-  }, [brandId, categoryId, coverage, priority, keyword, page, pageSize]);
+    return cancel;
+  }, [brandId, categoryId, f, pageSize, tick]);
 
   const title = scope ?? (rows[0] ? scopeName({ brandName: rows[0].brandName, categoryName: categoryId ? rows[0].categoryName : undefined }) : '型号清单');
   usePageTitle(title);
@@ -155,17 +204,21 @@ const CoverageModelsPage: React.FC = () => {
         crumbs={['覆盖矩阵', title]}
         title={title}
         description={
-          dist && (
-            <span style={{ display: 'inline-flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              {dist.total} 个需求
-              {[4, 3, 2, 1]
-                .filter((k) => dist.coverage[k])
-                .map((k) => (
-                  <span key={k} style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
-                    <CoverPill status={k} /> {dist.coverage[k]}
-                  </span>
-                ))}
-            </span>
+          f.stockoutDays ? (
+            `近 ${f.stockoutDays} 天无货 ${total} 个型号`
+          ) : (
+            dist && (
+              <span style={{ display: 'inline-flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                {dist.total} 个需求
+                {[4, 3, 2, 1]
+                  .filter((k) => dist.coverage[k])
+                  .map((k) => (
+                    <span key={k} style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
+                      <CoverPill status={k} /> {dist.coverage[k]}
+                    </span>
+                  ))}
+              </span>
+            )
           )
         }
         actions={
@@ -174,17 +227,34 @@ const CoverageModelsPage: React.FC = () => {
               allowClear
               style={{ width: 120 }}
               placeholder="优先级"
-              value={priority}
-              onChange={setPriority}
+              value={f.priority}
+              onChange={(v) => change({ priority: v })}
               options={[3, 2, 1].map((k) => ({ value: k, label: PRIORITY_NAMES[k] }))}
             />
             <Select
               allowClear
               style={{ width: 150 }}
               placeholder="覆盖状态"
-              value={coverage}
-              onChange={setCoverage}
+              value={f.coverage}
+              onChange={(v) => change({ coverage: v })}
               options={[4, 3, 2, 1].map((k) => ({ value: k, label: COVER_NAMES[k] }))}
+            />
+            <Select
+              allowClear
+              style={{ width: 140 }}
+              placeholder="负责人"
+              showSearch={{ optionFilterProp: 'label' }}
+              value={f.ownerId}
+              onChange={(v) => change({ ownerId: v })}
+              options={users}
+            />
+            <Select
+              allowClear
+              style={{ width: 140 }}
+              placeholder="无货"
+              value={f.stockoutDays}
+              onChange={(v) => change({ stockoutDays: v })}
+              options={[30, 90].map((d) => ({ value: d, label: `近 ${d} 天无货` }))}
             />
             <Input
               allowClear
@@ -194,9 +264,9 @@ const CoverageModelsPage: React.FC = () => {
               value={keywordInput}
               onChange={(e) => {
                 setKeywordInput(e.target.value);
-                if (!e.target.value) setKeyword('');
+                if (!e.target.value && f.keyword) change({ keyword: '' });
               }}
-              onPressEnter={() => setKeyword(keywordInput)}
+              onPressEnter={() => change({ keyword: keywordInput })}
             />
           </>
         }
@@ -208,16 +278,16 @@ const CoverageModelsPage: React.FC = () => {
           loading={loading}
           columns={columns}
           dataSource={rows}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(columns) }}
           locale={{ emptyText: error || '没有符合条件的型号' }}
           pagination={{
-            current: page,
+            current: f.page,
             pageSize,
             total,
             showSizeChanger: true,
             showTotal: (t) => `共 ${t} 条`,
             onChange: (p, s) => {
-              setPage(s === pageSize ? p : 1);
+              setF((o) => ({ ...o, page: s === pageSize ? p : 1 }));
               setPageSize(s);
             },
           }}
