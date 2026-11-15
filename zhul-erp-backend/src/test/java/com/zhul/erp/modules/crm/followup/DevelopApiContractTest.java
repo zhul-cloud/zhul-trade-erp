@@ -16,11 +16,14 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -51,6 +54,7 @@ class DevelopApiContractTest extends IntegrationTestBase {
     @Autowired private StringRedisTemplate redis;
     @Autowired private ObjectMapper objectMapper;
     @Autowired private FollowupSync followupSync;
+    @Autowired private TransactionTemplate tx;
 
     @BeforeEach
     void setUp() {
@@ -332,6 +336,41 @@ class DevelopApiContractTest extends IntegrationTestBase {
         fails(res, "OPPORTUNITY_ALREADY_ACTIVE");
         assertEquals("OPP99500001", res.path("data").path("detail").path("opportunityCode").asText());
         assertNull(develop(C1).get("closed_at"), "整体回滚，开发记录不变");
+    }
+
+    /**
+     * audit BUS-045：同一个开发对象并发「转商机」。B 已结束开发记录、建好商机但还没提交时 A 也来转；
+     * A 必须等 B 提交后按最新值判断，提示开发对象已结束，不能再建第二条进行中的商机。
+     */
+    @Test
+    void convert_concurrentWithAnotherConvert_secondIsRejected() throws Exception {
+        String t = staff();
+        customer(C1, 0, 3);
+        contact(C1, "hans@example.com");
+        ok(join(t, C1));
+        ok(touch(t, C1, 3, ",\"signalText\":\"ACS580 5 台\""));
+        long itemId = developId(C1);
+
+        CountDownLatch bHoldsLock = new CountDownLatch(1);
+        Thread b = new Thread(() -> tx.executeWithoutResult(s -> {
+            jdbc.update("update followup_item set closed_at = now(), close_reason = 7 where id = ?", itemId);
+            jdbc.update("insert into opportunity (tenant_id, opportunity_code, customer_id, owner_id, stage_code, source_channel,"
+                    + " first_contact_date) values (0, 'OPP99500045', ?, ?, 'S1', 7, ?)", C1, SELF, TODAY);
+            bHoldsLock.countDown();
+            try {
+                Thread.sleep(800);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }), "develop-convert-b");
+        b.start();
+        assertTrue(bHoldsLock.await(10, TimeUnit.SECONDS));
+        JsonNode res = call(json(post(BASE + "/items/" + itemId + "/convert"), "{}"), t);
+        b.join(10_000);
+
+        fails(res, "FOLLOWUP_STAGE_MISMATCH");
+        assertEquals(1, jdbc.queryForObject("select count(*) from opportunity where tenant_id = 0 and customer_id = ? and closed_at is null"
+                + " and deleted_at is null", Integer.class, C1), "一个客户最多一条进行中的商机");
     }
 
     // ---------------------------------------------------------------- 停止与重新开发（tasks 3.5、3.2）

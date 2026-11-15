@@ -3,6 +3,7 @@ package com.zhul.erp.modules.masterdata.customerprofile.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.modules.crm.followup.constants.FollowupConstants;
 import com.zhul.erp.framework.security.DataScopeResolver;
 import com.zhul.erp.modules.masterdata.customerprofile.dto.DupGroupVO;
 import com.zhul.erp.modules.masterdata.customerprofile.dto.MergePreviewVO;
@@ -52,10 +53,13 @@ public class CustomerMergeService {
     static final Map<String, String> DOCUMENTS = linked(
             "opportunity", "商机", "customer_inquiry", "询盘", "inquiry_order", "旧版询盘", "quotation", "报价",
             "proforma_invoice", "PI", "sales_order", "销售订单", "outbound_order", "出库单", "logistics_shipment", "出运单",
-            "after_sales", "售后单", "customer_party", "单证主体");
+            "after_sales", "售后单", "customer_party", "单证主体", "customer_followup", "跟进记录",
+            "customer_background_report", "背调报告");
     /** 有这些记录时不能合并：属于财务记录，不在合并里改 */
     static final List<String> FINANCE = List.of("fin_customer_credit_entry", "fin_customer_refund");
 
+    /** 战略客户年度计划：一个客户一年一行，同一年两边都有时保留客户的为准（BUS-048） */
+    private static final String ANNUAL_PLAN = "customer_annual_plan";
     private static final int CANDIDATE_LIMIT = 20;
 
     private final CustomerService customerService;
@@ -69,6 +73,7 @@ public class CustomerMergeService {
     private final CustomerGradeService gradeService;
     private final LogService logService;
     private final JdbcTemplate jdbc;
+    private final com.zhul.erp.modules.crm.followup.support.FollowupSync followupSync;
 
     // ---------------------------------------------------------------- 疑似重复
 
@@ -101,9 +106,10 @@ public class CustomerMergeService {
                 }
             }
         }
+        // 标为「不是重复」的是这组客户本身（组键「原因:成员」取成员），换个成组原因也不再出现（BUS-060）
         Set<String> dismissed = dismissMapper.selectList(new LambdaQueryWrapper<CustomerDupDismissDO>()
                         .eq(CustomerDupDismissDO::getTenantId, tenantId).isNull(CustomerDupDismissDO::getDeletedAt))
-                .stream().map(CustomerDupDismissDO::getGroupKey).collect(Collectors.toSet());
+                .stream().map(d -> d.getGroupKey().substring(d.getGroupKey().indexOf(':') + 1)).collect(Collectors.toSet());
         List<DupGroupVO> out = new ArrayList<>();
         Set<String> seenMembers = new HashSet<>();
         collect(out, seenMembers, dismissed, name, "NAME", "名称与国家相同");
@@ -206,8 +212,12 @@ public class CustomerMergeService {
                 docs.put(label, n);
             }
         });
+        long plans = count(ANNUAL_PLAN, source);
+        if (plans > 0) {
+            docs.put("年度计划", plans);
+        }
         vo.setDocuments(docs);
-        vo.setBlocked(blocked(source));
+        vo.setBlocked(blocked(target, source));
         Set<String> targetKeys = contactKeys(target.getId());
         for (CustomerContactDO x : facts.contacts(source.getId())) {
             if (!duplicate(x, targetKeys)) {
@@ -240,6 +250,10 @@ public class CustomerMergeService {
             jdbc.update("UPDATE `" + table + "` SET customer_id = ? WHERE customer_id = ? AND tenant_id = ?",
                     target.getId(), source.getId(), source.getTenantId());
         }
+        // 客户级的跟进记录（客户经营、主动开发）关联单据就是客户本身，随之指向保留客户
+        jdbc.update("UPDATE customer_followup SET target_id = ? WHERE customer_id = ? AND target_type = ? AND target_id = ? AND tenant_id = ?",
+                target.getId(), target.getId(), FollowupConstants.TARGET_CUSTOMER, source.getId(), source.getTenantId());
+        moveAnnualPlans(target, source);
         Set<String> targetKeys = contactKeys(target.getId());
         for (CustomerContactDO x : facts.contacts(source.getId())) {
             if (duplicate(x, targetKeys)) {
@@ -269,6 +283,8 @@ public class CustomerMergeService {
                 .set(CustomerDO::getRemark, cut(remark + "已并入 " + target.getCustomerCode(), 500)));
         gradeService.detail(target);
         facts.refresh(target);
+        // 单据已改挂：保留客户的跟进对象随即重新推导（原客户名下同一单据的跟进对象转过来）
+        followupSync.customerChanged(target.getId());
         Map<String, Object> after = new LinkedHashMap<>();
         after.put("保留客户", target.getCustomerCode() + " " + target.getName());
         after.put("被合并客户", source.getCustomerCode() + " " + source.getName());
@@ -278,13 +294,36 @@ public class CustomerMergeService {
         logService.recordOperateLog("客户管理", "合并客户", null, after);
     }
 
-    private String blocked(CustomerDO source) {
+    private String blocked(CustomerDO target, CustomerDO source) {
         for (String table : FINANCE) {
             if (count(table, source) > 0) {
                 return "这个客户有客户余额或退款记录，请先联系财务处理";
             }
         }
+        // 一个客户最多一条进行中的商机（BUS-053）：两边都有时先由业务员结束其中一条
+        if (activeOpportunities(target) > 0 && activeOpportunities(source) > 0) {
+            return "两个客户都有进行中的商机，请先结束其中一条再合并";
+        }
         return null;
+    }
+
+    private long activeOpportunities(CustomerDO c) {
+        Long n = jdbc.queryForObject("SELECT COUNT(*) FROM opportunity WHERE customer_id = ? AND tenant_id = ? AND closed_at IS NULL"
+                + " AND deleted_at IS NULL", Long.class, c.getId(), c.getTenantId());
+        return n == null ? 0 : n;
+    }
+
+    /** 年度计划改挂到保留客户；唯一键含年份（含已删除的行），保留客户已有的年份不搬 */
+    private void moveAnnualPlans(CustomerDO target, CustomerDO source) {
+        List<Integer> years = jdbc.queryForList("SELECT plan_year FROM " + ANNUAL_PLAN + " WHERE customer_id = ? AND tenant_id = ?",
+                Integer.class, target.getId(), target.getTenantId());
+        StringBuilder sql = new StringBuilder("UPDATE " + ANNUAL_PLAN + " SET customer_id = ? WHERE customer_id = ? AND tenant_id = ?");
+        List<Object> args = new ArrayList<>(List.of(target.getId(), source.getId(), source.getTenantId()));
+        if (!years.isEmpty()) {
+            sql.append(" AND plan_year NOT IN (").append(years.stream().map(y -> "?").collect(Collectors.joining(","))).append(")");
+            args.addAll(years);
+        }
+        jdbc.update(sql.toString(), args.toArray());
     }
 
     private long count(String table, CustomerDO c) {
@@ -321,7 +360,7 @@ public class CustomerMergeService {
             }
             String members = ids.stream().map(String::valueOf).collect(Collectors.joining(","));
             String key = reason + ":" + members;
-            if (dismissed.contains(key) || !seenMembers.add(members)) {
+            if (dismissed.contains(members) || !seenMembers.add(members)) {
                 continue;
             }
             DupGroupVO g = new DupGroupVO();

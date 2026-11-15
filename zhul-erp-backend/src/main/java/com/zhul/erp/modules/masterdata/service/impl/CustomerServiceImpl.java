@@ -25,6 +25,8 @@ import com.zhul.erp.modules.masterdata.dto.SaveCustomerRequest;
 import com.zhul.erp.modules.masterdata.dto.UpdateCustomerRequest;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.customerprofile.support.CustomerProfileBits;
+import com.zhul.erp.modules.masterdata.customerprofile.support.FieldSources;
+import com.zhul.erp.modules.masterdata.customerprofile.support.ProfileFacts;
 import com.zhul.erp.modules.masterdata.entity.CustomerPartyDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import com.zhul.erp.modules.masterdata.support.AliLevels;
@@ -43,6 +45,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -89,6 +92,9 @@ public class CustomerServiceImpl implements CustomerService {
     private final BusinessUnitService businessUnitService;
     private final com.zhul.erp.modules.masterdata.customerprofile.support.PrimaryContactSync primaryContacts;
     private final com.zhul.erp.modules.crm.followup.support.FollowupSync followupSync;
+    private final FieldSources fieldSources;
+    /** 延迟取：ProfileFacts → 跟进钩子 → 商机服务 → 客户服务，直接注入会循环依赖 */
+    private final ObjectProvider<ProfileFacts> profileFacts;
 
     // ---------------------------------------------------------------- 新增 / 更新
 
@@ -132,6 +138,8 @@ public class CustomerServiceImpl implements CustomerService {
             partySync.sync(tenantId, customer.getId(), req.getParties());
         }
         primaryContacts.fromCustomer(customer);
+        // 档案完整度随即算好，列表的完整度与建档筛选不等夜间任务（BUS-062）
+        profileFacts.getObject().refresh(customer);
         return toVo(customer, ownerNames(List.of(customer)));
     }
 
@@ -144,6 +152,7 @@ public class CustomerServiceImpl implements CustomerService {
         String nameKey = CustomerNameNormalizer.normalize(req.getName());
         checkDuplicate(customer.getTenantId(), req.getCountry(), nameKey, id, scope);
 
+        Map<String, Object> before = profileValues(customer);
         applyFields(customer, req);
         customer.setNameKey(nameKey);
         customer.setCustomerRole(req.getCustomerRole());
@@ -153,8 +162,12 @@ public class CustomerServiceImpl implements CustomerService {
             partySync.sync(customer.getTenantId(), id, req.getParties());
         }
         primaryContacts.fromCustomer(customer);
-        // 主联系人的联系方式变化：主动开发阶段随之推导
-        followupSync.prospectChanged(id);
+        // 画像字段在客户表单里改了：来源改为人工，完整度随即重算（BUS-062）；
+        // 重算时主动开发阶段随之推导（含主联系人联系方式的变化）
+        Map<String, Object> after = profileValues(customer);
+        List<String> changed = before.keySet().stream().filter(k -> !Objects.equals(before.get(k), after.get(k))).toList();
+        fieldSources.record(customer.getTenantId(), id, changed, FieldSources.MANUAL, 0L, scope.selfId());
+        profileFacts.getObject().refresh(customer);
     }
 
     @Override
@@ -349,6 +362,18 @@ public class CustomerServiceImpl implements CustomerService {
                 p.setRemark(text(p.getRemark()));
             }
         }
+    }
+
+    /** 客户表单里也能改的画像字段（键同画像「按字段修改」），用于比较改动、记来源 */
+    private static Map<String, Object> profileValues(CustomerDO c) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("customerRole", c.getCustomerRole());
+        m.put("industry", c.getIndustry());
+        m.put("website", text(c.getWebsite()));
+        m.put("paymentMethod", c.getPaymentMethod() + "/" + c.getDepositRatio() + "/" + c.getPaymentDays());
+        m.put("city", text(c.getCity()));
+        m.put("timezone", text(c.getTimezone()));
+        return m;
     }
 
     private void applyFields(CustomerDO c, AbstractCustomerRequest req) {

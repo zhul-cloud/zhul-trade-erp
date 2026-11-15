@@ -113,7 +113,7 @@ public class OrderFollowupSync {
         Map<Long, OrderFacts> facts = load(orders);
         Map<String, Map<String, String>> actions = defaultActions();
         Set<Long> live = new HashSet<>();
-        int changes = 0;
+        int changes = takeOver(customerId, orders, rows);
         for (SalesOrderDO o : orders) {
             OrderFacts f = facts.get(o.getId());
             live.add(o.getId());
@@ -127,6 +127,43 @@ public class OrderFollowupSync {
             }
         }
         return changes;
+    }
+
+    /**
+     * 订单改挂到这个客户（如客户合并）：原客户名下同一张订单的跟进对象改归当前客户，唯一键按单据不按客户（BUS-033）。
+     * 原客户同步时因「订单不在了」结束的重新打开，下面按已有记录照常推导；其他原因结束的保持结束。
+     *
+     * @return 转过来的对象数
+     */
+    private int takeOver(Long customerId, List<SalesOrderDO> orders, Map<String, FollowupItemDO> rows) {
+        List<Long> missing = orders.stream().map(SalesOrderDO::getId)
+                .filter(id -> !rows.containsKey(FollowupConstants.BOARD_FULFIL + ":" + id)
+                        || !rows.containsKey(FollowupConstants.BOARD_AFTER_SALES + ":" + id))
+                .toList();
+        if (missing.isEmpty()) {
+            return 0;
+        }
+        int n = 0;
+        for (FollowupItemDO other : itemMapper.selectList(new LambdaQueryWrapper<FollowupItemDO>()
+                .in(FollowupItemDO::getBoard, FollowupConstants.BOARD_FULFIL, FollowupConstants.BOARD_AFTER_SALES)
+                .eq(FollowupItemDO::getTargetType, FollowupConstants.TARGET_ORDER)
+                .in(FollowupItemDO::getTargetId, missing)
+                .ne(FollowupItemDO::getCustomerId, customerId))) {
+            String key = other.getBoard() + ":" + other.getTargetId();
+            if (rows.containsKey(key)) {
+                continue;
+            }
+            log.info("订单跟进对象随订单改归客户，itemId={}，{} → {}", other.getId(), other.getCustomerId(), customerId);
+            other.setCustomerId(customerId);
+            if (other.getClosedAt() != null && Objects.equals(other.getCloseReason(), FollowupConstants.CLOSE_DOC_GONE)) {
+                other.setClosedAt(null);
+                other.setCloseReason(FollowupConstants.CLOSE_NONE);
+            }
+            itemMapper.updateById(other);
+            rows.put(key, other);
+            n++;
+        }
+        return n;
     }
 
     private int syncOrder(Integer tenantId, OrderFacts f, FollowupItemDO fulfil, FollowupItemDO after,

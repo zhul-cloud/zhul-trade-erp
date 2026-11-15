@@ -597,6 +597,24 @@ class CustomerBackgroundContractTest extends IntegrationTestBase {
         assertEquals("建议不存在，请刷新后重试", adopt(x[0], x[1], "[99]").path("message").asText());
     }
 
+    /**
+     * audit BUS-061：建议匹配到没有姓名、电话格式不规范的存量联系人时，只写入勾选的字段，
+     * 不因联系人其他存量字段的格式拒绝，也不连带同批的公司字段一起失败。
+     */
+    @Test
+    void adopt_existingContactWithoutNameOrValidPhone_writesOnlyAdoptedField() throws Exception {
+        long[] x = doneReport();
+        jdbc.update("insert into customer_contact (tenant_id, customer_id, is_primary, name, email, email_key, phone)"
+                + " values (0, ?, 0, '', 'eng@pacificcontrols.com.au', 'eng@pacificcontrols.com.au', '+61 2 9000 1234 ext. 55')", x[0]);
+        ok(adopt(x[0], x[1], "[0,5]"));
+        Map<String, Object> eng = jdbc.queryForMap("select name, job_role, phone from customer_contact where customer_id = ?"
+                + " and email = 'eng@pacificcontrols.com.au'", x[0]);
+        assertEquals(2, ((Number) eng.get("job_role")).intValue(), "职位类别写入「工程师」");
+        assertEquals("", eng.get("name"));
+        assertEquals("+61 2 9000 1234 ext. 55", eng.get("phone"), "存量电话保持原样");
+        assertEquals(2, jdbc.queryForObject("select company_size from customer where id = ?", Integer.class, x[0]), "同批公司字段一并写入");
+    }
+
     @Test
     void ignore_marksIgnoredAndCannotIgnoreAdopted() throws Exception {
         long[] x = doneReport();

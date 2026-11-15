@@ -67,6 +67,8 @@ public class BackgroundAdoptService {
         // 联系人建议按联系人分组：已有联系人用 ID，新联系人用邮箱或姓名
         Map<String, ContactRequest> contactReqs = new LinkedHashMap<>();
         Map<String, Long> contactIds = new LinkedHashMap<>();
+        // 已有联系人只校验采纳的字段：其余字段是存量值原样写回，不因存量格式（没有姓名、电话不规范）拒绝（BUS-061）
+        Map<String, Set<String>> adoptedProps = new LinkedHashMap<>();
         List<String> labels = new ArrayList<>();
         for (int i : distinct(indexes, all.size())) {
             BackgroundSuggestion s = all.get(i);
@@ -99,6 +101,9 @@ public class BackgroundAdoptService {
                 return n;
             });
             BackgroundAdoption.put(req, s.getField(), v.value());
+            if (matched != null) {
+                adoptedProps.computeIfAbsent(group, g -> new LinkedHashSet<>()).add(s.getField());
+            }
         }
         // 先写入档案，全部成功后才改建议状态
         if (!profile.getFields().isEmpty()) {
@@ -106,11 +111,14 @@ public class BackgroundAdoptService {
             profileService.update(customerId, profile, FieldSources.REPORT, r.getId(), "采纳背调建议");
         }
         for (Map.Entry<String, ContactRequest> e : contactReqs.entrySet()) {
-            validate(e.getValue());
             Long contactId = contactIds.get(e.getKey());
             if (contactId != null) {
+                for (String prop : adoptedProps.getOrDefault(e.getKey(), Set.of())) {
+                    check(validator.validateProperty(e.getValue(), prop));
+                }
                 contactService.update(customerId, contactId, e.getValue(), FieldSources.REPORT, r.getId());
             } else {
+                validate(e.getValue());
                 contactService.create(customerId, e.getValue(), FieldSources.REPORT, r.getId());
             }
         }
@@ -175,7 +183,10 @@ public class BackgroundAdoptService {
     }
 
     private <T> void validate(T req) {
-        Set<ConstraintViolation<T>> errors = validator.validate(req);
+        check(validator.validate(req));
+    }
+
+    private static <T> void check(Set<ConstraintViolation<T>> errors) {
         if (!errors.isEmpty()) {
             throw new BizException(errors.iterator().next().getMessage());
         }

@@ -112,9 +112,11 @@ const OpportunityPage: React.FC = () => {
     load();
   }, [load]);
 
-  // 从其他页面返回时重新取数（audit UI-055）
-
-  useOnReactivate(load);
+  // 从其他页面返回时表格与顶部统计卡片一起重新取数（audit UI-055）
+  useOnReactivate(() => {
+    load();
+    loadSummary();
+  });
 
   useEffect(() => {
     loadSummary();

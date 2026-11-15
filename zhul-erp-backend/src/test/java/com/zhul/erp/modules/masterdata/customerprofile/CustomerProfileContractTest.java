@@ -20,12 +20,15 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -52,6 +55,7 @@ class CustomerProfileContractTest extends IntegrationTestBase {
     @Autowired private ObjectMapper objectMapper;
     @Autowired private CustomerNightlyJob nightlyJob;
     @Autowired private ContactNameTranslations contactNameTranslations;
+    @Autowired private TransactionTemplate tx;
 
     private String admin;
 
@@ -77,6 +81,11 @@ class CustomerProfileContractTest extends IntegrationTestBase {
         jdbc.update("delete from customer_dup_dismiss where tenant_id = 0");
         jdbc.update("delete from country_profile where tenant_id = 0");
         jdbc.update("delete from customer_party where tenant_id = 0");
+        jdbc.update("delete from customer_followup where tenant_id = 0");
+        jdbc.update("delete from customer_annual_plan where tenant_id = 0");
+        jdbc.update("delete from customer_background_report where tenant_id = 0");
+        jdbc.update("delete from followup_item where tenant_id = 0");
+        jdbc.update("delete from opportunity where tenant_id = 0");
         jdbc.update("delete from customer where tenant_id = 0");
         jdbc.update("delete from exchange_rate where tenant_id = 0 and currency_code = 'USD'");
         jdbc.update("delete from ai_task where tenant_id = 0 and skill_id = ?", ContactNameTranslations.SKILL_ID);
@@ -419,5 +428,155 @@ class CustomerProfileContractTest extends IntegrationTestBase {
         assertTrue(jdbc.queryForObject("select remark from customer where id = ?", String.class, other).contains("已并入"));
         assertEquals(2, ok(call(get(BASE + "/merge-candidates").param("targetId", String.valueOf(keep)).param("keyword", "omega"), admin))
                 .path("members").size(), "并掉的客户不再出现");
+    }
+
+    private JsonNode merge(long keep, long dup) throws Exception {
+        return call(json(post(BASE + "/merge"), "{\"targetId\":" + keep + ",\"sourceId\":" + dup + "}"), admin);
+    }
+
+    /** audit BUS-047：保留客户的空字段已有来源行（已问、等回复），被合并客户同字段有值有来源，合并不撞唯一键 */
+    @Test
+    void merge_targetHasSourceRowForEmptyField_mergesAndMovesSource() throws Exception {
+        long keep = customer("Kappa Controls", "Chile", "Ana", null);
+        long dup = customer("Kappa Industrial", "Chile", "Luis", null);
+        jdbc.update("insert into customer_field_source (tenant_id, customer_id, field_key, source, asked_by, asked_at)"
+                + " values (0, ?, 'customsAbility', 1, 99000002, now())", keep);
+        ok(saveProfile(dup, "{\"fields\":[\"customsAbility\"],\"customsAbility\":1}"));
+        ok(merge(keep, dup));
+        assertEquals(1, jdbc.queryForObject("select customs_ability from customer where id = ?", Integer.class, keep), "空字段补上");
+        Map<String, Object> src = jdbc.queryForMap("select source, asked_by, asked_at from customer_field_source where customer_id = ?"
+                + " and field_key = 'customsAbility'", keep);
+        assertEquals(1, ((Number) src.get("source")).intValue());
+        assertEquals(0, ((Number) src.get("asked_by")).intValue(), "字段已有值，不再是「已问、等回复」");
+        assertTrue(src.get("asked_at") == null);
+    }
+
+    /** audit BUS-048：跟进记录、年度计划、背调报告随被合并客户归到保留客户，照搬过来的「背调报告」来源能打开 */
+    @Test
+    void merge_movesFollowupsPlansAndReports() throws Exception {
+        long keep = customer("Lambda Drives", "Peru", "Rosa", null);
+        long dup = customer("Lambda Drives SAC", "Peru", "Jorge", null);
+        jdbc.update("insert into customer_followup (tenant_id, record_type, customer_id, target_type, target_id, title)"
+                + " values (0, 1, ?, 6, ?, '')", dup, dup);
+        jdbc.update("insert into customer_annual_plan (tenant_id, customer_id, plan_year, target_amount, currency_code)"
+                + " values (0, ?, 2026, 1000.00, 'CNY'), (0, ?, 2026, 2000.00, 'CNY'), (0, ?, 2025, 3000.00, 'CNY')", keep, dup, dup);
+        jdbc.update("insert into customer_background_report (tenant_id, report_no, customer_id, status) values (0, 'BG20261115901', ?, 2)", dup);
+        long reportId = jdbc.queryForObject("select id from customer_background_report where report_no = 'BG20261115901'", Long.class);
+        jdbc.update("update customer set industry = 8 where id = ?", dup);
+        jdbc.update("insert into customer_field_source (tenant_id, customer_id, field_key, source, report_id) values (0, ?, 'industry', 2, ?)",
+                dup, reportId);
+
+        ok(merge(keep, dup));
+        assertEquals(keep, jdbc.queryForObject("select customer_id from customer_followup where tenant_id = 0", Long.class));
+        assertEquals(keep, jdbc.queryForObject("select target_id from customer_followup where tenant_id = 0", Long.class),
+                "客户级的跟进记录指向保留客户");
+        assertEquals(keep, jdbc.queryForObject("select customer_id from customer_annual_plan where plan_year = 2025", Long.class));
+        assertEquals(1000, jdbc.queryForObject("select target_amount from customer_annual_plan where customer_id = ? and plan_year = 2026",
+                java.math.BigDecimal.class, keep).intValue(), "同一年两边都有计划时保留客户的为准");
+        assertEquals(keep, jdbc.queryForObject("select customer_id from customer_background_report where id = ?", Long.class, reportId));
+        JsonNode src = profile(keep).path("sources").path("industry");
+        assertEquals("BG20261115901", src.path("reportNo").asText());
+        ok(call(get(BASE + "/" + keep + "/background-reports/" + reportId), admin));
+    }
+
+    /** audit BUS-053：两个客户都有进行中的商机时不能合并，避免一个客户挂两条进行中的商机 */
+    @Test
+    void merge_bothHaveActiveOpportunities_isBlocked() throws Exception {
+        long keep = customer("Mu Hydraulics", "Colombia", "Ana", null);
+        long dup = customer("Mu Fluid Power", "Colombia", "Pedro", null);
+        for (long[] x : new long[][] {{keep, 1}, {dup, 2}}) {
+            jdbc.update("insert into opportunity (tenant_id, opportunity_code, customer_id, owner_id, stage_code, source_channel,"
+                    + " first_contact_date) values (0, ?, ?, 99000002, 'S3', 1, ?)", "OPP9905300" + x[1], x[0], LocalDate.now());
+        }
+        String blocked = "两个客户都有进行中的商机，请先结束其中一条再合并";
+        JsonNode preview = ok(call(get(BASE + "/merge-preview").param("targetId", String.valueOf(keep))
+                .param("sourceId", String.valueOf(dup)), admin));
+        assertEquals(blocked, preview.path("blocked").asText());
+        assertEquals(blocked, merge(keep, dup).path("message").asText());
+        assertEquals(dup, jdbc.queryForObject("select customer_id from opportunity where opportunity_code = 'OPP99053002'", Long.class));
+
+        jdbc.update("update opportunity set stage_code = 'LOST', closed_at = now() where opportunity_code = 'OPP99053002'");
+        ok(merge(keep, dup));
+        assertEquals(keep, jdbc.queryForObject("select customer_id from opportunity where opportunity_code = 'OPP99053002'", Long.class),
+                "已结束的商机照常改挂");
+    }
+
+    /** audit BUS-060：一组客户标为「不是重复」后，不会换个成组原因（同邮箱、同电话）再次出现 */
+    @Test
+    void dismissedGroup_doesNotReappearUnderAnotherReason() throws Exception {
+        long a = customer("Nu Valves", "Ecuador", "Ana", "+593 99 100 2000");
+        long b = customer("Nu Valves Cia", "Ecuador", "Ana", "+593 99 100 2000");
+        jdbc.update("update customer set name_key = 'nuvalves' where id in (?, ?)", a, b);
+        JsonNode groups = ok(call(get(BASE + "/duplicates"), admin));
+        assertEquals(1, groups.size());
+        assertEquals("NAME", groups.path(0).path("reason").asText());
+        ok(call(json(post(BASE + "/duplicates/dismiss"), "{\"groupKey\":\"" + groups.path(0).path("groupKey").asText() + "\"}"), admin));
+        assertEquals(0, ok(call(get(BASE + "/duplicates"), admin)).size(), "同一组客户不再以「电话相同」出现");
+    }
+
+    /** audit BUS-062：客户表单修改画像字段后，完整度随即重算，字段来源改为人工 */
+    @Test
+    void customerForm_updateRefreshesCompletenessAndSources() throws Exception {
+        long id = customer("Xi Motion", "Argentina", "Sol", null);
+        ok(saveProfile(id, "{\"fields\":[\"website\",\"companySize\",\"potentialRating\"],"
+                + "\"website\":\"https://ximotion.ar\",\"companySize\":2,\"potentialRating\":4}"));
+        assertEquals(0, jdbc.queryForObject("select profile_mask from customer where id = ?", Integer.class, id) & 1, "还缺行业");
+        jdbc.update("insert into customer_field_source (tenant_id, customer_id, field_key, source, report_id) values (0, ?, 'industry', 2, 123)", id);
+
+        ok(call(json(put(BASE + "/" + id), "{\"name\":\"Xi Motion\",\"country\":\"Argentina\",\"customerRole\":2,\"status\":1,"
+                + "\"currency\":\"USD\",\"contactName\":\"Sol\",\"website\":\"https://ximotion.ar\",\"industry\":4}"), admin));
+        assertEquals(1, jdbc.queryForObject("select profile_mask from customer where id = ?", Integer.class, id) & 1,
+                "保存后基础画像即算完成，不等打开画像或夜间任务");
+        Map<String, Object> src = jdbc.queryForMap("select source, report_id from customer_field_source where customer_id = ?"
+                + " and field_key = 'industry'", id);
+        assertEquals(1, ((Number) src.get("source")).intValue(), "人工修改后来源为人工");
+        assertEquals(0L, ((Number) src.get("report_id")).longValue());
+    }
+
+    /** audit BUS-063：画像按字段保存只写改动的字段，不用旧值覆盖并发提交的负责人等修改 */
+    @Test
+    void profileUpdate_doesNotOverwriteConcurrentOwnerChange() throws Exception {
+        long id = customer("Omicron Pumps", "Uruguay", "Leo", null);
+        CountDownLatch bHoldsLock = new CountDownLatch(1);
+        Thread b = new Thread(() -> tx.executeWithoutResult(s -> {
+            jdbc.update("update customer set owner_id = 99000063, biz_grade_adjust = 1 where id = ?", id);
+            bHoldsLock.countDown();
+            try {
+                Thread.sleep(800);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }), "profile-owner-b");
+        b.start();
+        assertTrue(bHoldsLock.await(10, TimeUnit.SECONDS));
+        ok(saveProfile(id, "{\"fields\":[\"mainProducts\"],\"mainProducts\":\"Pumps\"}"));
+        b.join(10_000);
+        Map<String, Object> c = jdbc.queryForMap("select owner_id, biz_grade_adjust, main_products from customer where id = ?", id);
+        assertEquals(99000063L, ((Number) c.get("owner_id")).longValue(), "转移后的负责人不被改回");
+        assertEquals(1, ((Number) c.get("biz_grade_adjust")).intValue());
+        assertEquals("Pumps", c.get("main_products"));
+    }
+
+    /** audit BUS-064：售后补发订单、费用订单不算一次成交，不抬高 RFM 的近度和频次 */
+    @Test
+    void rfm_excludesReplacementAndFeeOrders() throws Exception {
+        jdbc.update("insert into exchange_rate (tenant_id, currency_code, rate) values (0, 'USD', 7.100000)");
+        LocalDate today = LocalDate.now();
+        long id = customer("Pi Robotics", "Paraguay", null, null);
+        order(id, "ITCPR1", today.minusDays(300), "USD", "1000.00", "7100.00", 1);
+        for (int source : new int[] {3, 4}) {
+            jdbc.update("insert into sales_order (tenant_id, so_no, source, sales_date, customer_id, owner_id, currency_code, total_amount, "
+                    + "total_amount_cny, status) values (0, ?, ?, ?, ?, 99000002, 'USD', 50.00, 355.00, 1)", "ITCPR" + (source + 10), source,
+                    today, id);
+        }
+        JsonNode r = ok(call(get(BASE + "/" + id + "/rfm"), admin));
+        assertEquals(300, r.path("daysSinceLast").asInt(), "最近成交按正常订单算");
+        assertEquals(1, r.path("ordersInYear").asInt());
+        int calc = r.path("calc").asInt();
+
+        jdbc.update("update customer set biz_grade_calc = 0, biz_grade = 0 where id = ?", id);
+        TenantContext.clear();
+        nightlyJob.run();
+        assertEquals(calc, jdbc.queryForObject("select biz_grade_calc from customer where id = ?", Integer.class, id), "每日重算口径一致");
     }
 }

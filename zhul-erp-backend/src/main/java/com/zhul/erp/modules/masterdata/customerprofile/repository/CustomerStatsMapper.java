@@ -8,7 +8,10 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
-/** 客户画像的只读统计：询盘常用品牌、订单汇总（RFM）。已取消的订单（status=2）不计 */
+/**
+ * 客户画像的只读统计：询盘常用品牌、订单汇总（RFM）。已取消的订单（status=2）不计；
+ * RFM 的近度与频次不计售后补发（source=3）、费用订单（source=4）（BUS-064）
+ */
 @Mapper
 public interface CustomerStatsMapper {
 
@@ -19,11 +22,12 @@ public interface CustomerStatsMapper {
     List<Map<String, Object>> topBrands(@Param("customerId") Long customerId, @Param("limit") int limit);
 
     @Select("SELECT customer_id, MIN(sales_date) AS first_date, MAX(sales_date) AS last_date FROM sales_order "
-            + "WHERE tenant_id = #{tenantId} AND status <> 2 AND deleted_at IS NULL GROUP BY customer_id")
+            + "WHERE tenant_id = #{tenantId} AND status <> 2 AND source NOT IN (3, 4) AND deleted_at IS NULL GROUP BY customer_id")
     List<Map<String, Object>> orderSpan(@Param("tenantId") int tenantId);
 
     @Select("SELECT customer_id, currency_code, COUNT(*) AS cnt, SUM(total_amount) AS amt, SUM(total_amount_cny) AS cny "
-            + "FROM sales_order WHERE tenant_id = #{tenantId} AND status <> 2 AND deleted_at IS NULL AND sales_date >= #{since} "
+            + "FROM sales_order WHERE tenant_id = #{tenantId} AND status <> 2 AND source NOT IN (3, 4) AND deleted_at IS NULL "
+            + "AND sales_date >= #{since} "
             + "GROUP BY customer_id, currency_code")
     List<Map<String, Object>> yearByCurrency(@Param("tenantId") int tenantId, @Param("since") LocalDate since);
 
