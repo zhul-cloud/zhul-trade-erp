@@ -303,6 +303,7 @@ export const CreateOrderDrawer: React.FC<{
   >([]);
   const [currency, setCurrency] = useState('USD');
   const [date, setDate] = useState<dayjs.Dayjs | null>(dayjs());
+  const [due, setDue] = useState<dayjs.Dayjs | null>(null);
   const [lines, setLines] = useState<Line[]>([newLine()]);
   const [files, setFiles] = useState<Attachment[]>([]);
   const [remark, setRemark] = useState('');
@@ -315,6 +316,7 @@ export const CreateOrderDrawer: React.FC<{
     setCustomerId(undefined);
     setCurrency('USD');
     setDate(dayjs());
+    setDue(null);
     setLines([newLine()]);
     setFiles([]);
     setRemark('');
@@ -357,6 +359,7 @@ export const CreateOrderDrawer: React.FC<{
         customerId,
         currencyCode: currency,
         salesDate: date.format('YYYY-MM-DD'),
+        paymentDueDate: due?.format('YYYY-MM-DD'),
         items: filled.map((l) => ({
           productId: l.productId as number,
           quantity: l.quantity ?? 1,
@@ -419,7 +422,7 @@ export const CreateOrderDrawer: React.FC<{
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1fr) 140px 180px',
+          gridTemplateColumns: 'minmax(0, 1fr) 140px 180px 180px',
           gap: 12,
           marginBottom: 20,
         }}
@@ -461,6 +464,18 @@ export const CreateOrderDrawer: React.FC<{
             disabledDate={(d) => d.isAfter(today())}
             aria-label="销售日期"
           />
+        </div>
+        <div>
+          {head('约定付款日', 'auto')}
+          <DatePicker
+            style={{ width: '100%', marginTop: 6 }}
+            value={due}
+            onChange={setDue}
+            placeholder="选填"
+            disabledDate={(d) => !!date && d.isBefore(date, 'day')}
+            aria-label="约定付款日"
+          />
+          <DueHint />
         </div>
       </div>
       <b style={{ display: 'block', marginBottom: 8 }}>
@@ -922,6 +937,106 @@ export const SalesDateModal: React.FC<{
         disabledDate={(d) => d.isAfter(today())}
         aria-label="销售日期"
       />
+    </Modal>
+  );
+};
+
+/** 约定付款日下方的说明 */
+const DueHint: React.FC = () => {
+  const { palette } = useAppTheme();
+  return (
+    <div style={{ fontSize: 12, color: palette.mute, marginTop: 4 }}>
+      过了这天没付清算逾期
+    </div>
+  );
+};
+
+/** 修改或清空约定付款日（手动订单、费用订单） */
+export const PaymentDueDateModal: React.FC<{
+  order?: Order;
+  open: boolean;
+  onClose: () => void;
+  onDone: (order: Order) => void;
+}> = ({ order, open, onClose, onDone }) => {
+  const { message } = App.useApp();
+  const { palette } = useAppTheme();
+  const [due, setDue] = useState<dayjs.Dayjs | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open)
+      setDue(order?.paymentDueDate ? dayjs(order.paymentDueDate) : null);
+  }, [open, order]);
+
+  if (!order) return null;
+  const cur = order.currencyCode;
+  const rows: [string, number][] = [
+    ['订单合计', order.totalAmount],
+    ['已到账', order.receivedAmount ?? 0],
+    ['剩余未收', order.remainingAmount ?? order.totalAmount],
+  ];
+  return (
+    <Modal
+      open={open}
+      onCancel={onClose}
+      width={440}
+      title="修改约定付款日"
+      okText="保存"
+      okButtonProps={{ loading: busy }}
+      onOk={async () => {
+        setBusy(true);
+        try {
+          onDone(
+            await orderApi.paymentDueDate(
+              order.id,
+              due ? due.format('YYYY-MM-DD') : null,
+            ),
+          );
+          message.success(due ? '约定付款日已修改' : '约定付款日已清空');
+        } catch (e) {
+          message.error(readBizError(e).message);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <div
+        style={{
+          display: 'grid',
+          gap: 8,
+          padding: 12,
+          borderRadius: 10,
+          background: palette.inset,
+          marginBottom: 16,
+        }}
+      >
+        {rows.map(([k, v]) => (
+          <div key={k} style={{ display: 'flex' }}>
+            <span style={{ color: palette.sub }}>{k}</span>
+            <b
+              style={{
+                marginLeft: 'auto',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {formatAmount(v, cur)}
+            </b>
+          </div>
+        ))}
+      </div>
+      <DatePicker
+        style={{ width: '100%' }}
+        value={due}
+        onChange={setDue}
+        placeholder="选择日期"
+        disabledDate={(d) =>
+          !!order.salesDate && d.isBefore(dayjs(order.salesDate), 'day')
+        }
+        aria-label="约定付款日"
+      />
+      <div style={{ fontSize: 12, color: palette.mute, marginTop: 6 }}>
+        不能早于销售日期 {order.salesDate}；清空后不再判断逾期
+      </div>
     </Modal>
   );
 };
@@ -1421,6 +1536,11 @@ export const EditFeesModal: React.FC<{
       message.error('请填写修改原因');
       return;
     }
+    // 费用订单没有型号，删光费用会成为 0 元订单（audit BUS-069）
+    if (order.source === 4 && toFeeInputs(rows).length === 0) {
+      message.error('费用订单至少要保留一行费用，不需要了请取消订单');
+      return;
+    }
     setBusy(true);
     try {
       const next = await orderApi.updateFees(order.id, {
@@ -1529,6 +1649,7 @@ export const CreateFeeOrderModal: React.FC<{
   const { palette } = useAppTheme();
   const [rows, setRows] = useState<FeeRow[]>([]);
   const [date, setDate] = useState<dayjs.Dayjs | null>(dayjs());
+  const [due, setDue] = useState<dayjs.Dayjs | null>(null);
   const [remark, setRemark] = useState('');
   const [files, setFiles] = useState<Attachment[]>([]);
   const [busy, setBusy] = useState(false);
@@ -1537,6 +1658,7 @@ export const CreateFeeOrderModal: React.FC<{
     if (!open) return;
     setRows([{ key: ++feeSeq, feeName: 'Shipping Cost', amount: null }]);
     setDate(dayjs());
+    setDue(null);
     setRemark('');
     setFiles([]);
   }, [open]);
@@ -1553,6 +1675,7 @@ export const CreateFeeOrderModal: React.FC<{
     try {
       const created = await orderApi.createFeeOrder(order.id, {
         salesDate: date.format('YYYY-MM-DD'),
+        paymentDueDate: due?.format('YYYY-MM-DD'),
         fees,
         remark: remark.trim() || undefined,
         attachmentIds: files.map((f) => f.id),
@@ -1635,14 +1758,36 @@ export const CreateFeeOrderModal: React.FC<{
           </span>
         )}
       </div>
-      {label('销售日期', true)}
-      <DatePicker
-        style={{ width: '100%' }}
-        value={date}
-        onChange={setDate}
-        allowClear={false}
-        aria-label="销售日期"
-      />
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          columnGap: 12,
+        }}
+      >
+        <div>
+          {label('销售日期', true)}
+          <DatePicker
+            style={{ width: '100%' }}
+            value={date}
+            onChange={setDate}
+            allowClear={false}
+            aria-label="销售日期"
+          />
+        </div>
+        <div>
+          {label('约定付款日')}
+          <DatePicker
+            style={{ width: '100%' }}
+            value={due}
+            onChange={setDue}
+            placeholder="选填"
+            disabledDate={(d) => !!date && d.isBefore(date, 'day')}
+            aria-label="约定付款日"
+          />
+          <DueHint />
+        </div>
+      </div>
       {label('备注')}
       <Input
         value={remark}

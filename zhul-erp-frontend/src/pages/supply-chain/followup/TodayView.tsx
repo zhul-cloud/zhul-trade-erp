@@ -7,6 +7,7 @@ import {
 import { Link } from '@umijs/max';
 import { Button, Skeleton } from 'antd';
 import React, { useState } from 'react';
+import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { BOARD_COLOR, Card, CoverPill, DueText, Pill } from '../components';
 import {
@@ -216,18 +217,37 @@ const DevItemView: React.FC<{
 /** 今日待办：已逾期、今天两组卡片（型号 + 供应商开发）；都处理完时显示本周剩余与去看缺口 */
 export const TodayView: React.FC<{
   today?: Today;
+  /** 取数失败的原因，有值时显示失败与重试 */
+  error?: string;
+  onRetry?: () => void;
   canEdit: boolean;
   onRecord: (c: TodayCard) => void;
   onDefer: (c: TodayCard) => void;
   onBrowse: () => void;
   onDev: (i: DevTodayItem) => void;
-}> = ({ today, canEdit, onRecord, onDefer, onBrowse, onDev }) => {
+}> = ({
+  today,
+  error,
+  onRetry,
+  canEdit,
+  onRecord,
+  onDefer,
+  onBrowse,
+  onDev,
+}) => {
   const { palette } = useAppTheme();
   const [filter, setFilter] = useState<'overdue' | 'today'>();
   if (!today)
     return (
       <Card style={{ padding: 20 }}>
-        <Skeleton active paragraph={{ rows: 6 }} />
+        {error ? (
+          <ErrorHint
+            message={`今日待办加载失败：${error}`}
+            onRetry={() => onRetry?.()}
+          />
+        ) : (
+          <Skeleton active paragraph={{ rows: 6 }} />
+        )}
       </Card>
     );
   const dev = today.devItems ?? [];

@@ -10,6 +10,7 @@ import com.zhul.erp.modules.crm.service.OpportunityService;
 import com.zhul.erp.modules.inquiry.constants.InquiryConstants;
 import com.zhul.erp.modules.inquiry.customerinquiry.entity.CustomerInquiryDO;
 import com.zhul.erp.modules.inquiry.customerinquiry.repository.CustomerInquiryMapper;
+import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import com.zhul.erp.modules.sales.constants.SalesConstants;
 import com.zhul.erp.modules.sales.dto.OverduePiVO;
@@ -61,7 +62,8 @@ public class SalesWidgets {
 
     @Bean
     public WorkbenchWidget myTodoWidget(PermissionChecker perm, DataScopeResolver scope, CustomerInquiryMapper inquiries,
-                                        ProformaInvoiceMapper pis, SalesOrderMapper orders, AfterSalesService afterSales) {
+                                        ProformaInvoiceMapper pis, SalesOrderMapper orders, AfterSalesService afterSales,
+                                        CurrentUserResolver currentUser) {
         return W.widget("my-todo", List.of(INQUIRIES, PIS, ORDERS, AFTER_SALES), () -> {
             List<WidgetData.Todo> todos = new ArrayList<>();
             if (perm.canAccessMenu(INQUIRIES)) {
@@ -87,8 +89,10 @@ public class SalesWidgets {
                         ORDERS + "?progressCode=" + SalesConstants.PROGRESS_RECEIVED));
             }
             if (perm.canAccessMenu(AFTER_SALES)) {
+                // 数字只算本人负责的，链接带上本人，主管点进去看到的也只是自己的单（audit UI-081）
+                Long me = currentUser.resolve();
                 todos.add(W.todo("alarm-clock", "red", "售后要更新客户", "已逾期或 1 小时内到期的售后单", afterSales.myDueCount(), true,
-                        AFTER_SALES + "?overdue=soon"));
+                        AFTER_SALES + "?overdue=soon" + (me == null ? "" : "&ownerId=" + me)));
             }
             return W.of(W.todos(todos));
         });

@@ -1239,7 +1239,8 @@ const NewQuotationModal: React.FC<{
   return (
     <Drawer
       open={open}
-      onClose={onClose}
+      // 批量已生成时，右上角关闭、点遮罩也刷新列表（audit UI-080）
+      onClose={result ? finishBatch : onClose}
       size={wide ? 1000 : '100%'}
       destroyOnHidden
       title={

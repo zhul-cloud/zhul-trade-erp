@@ -1,6 +1,6 @@
 import { PlusOutlined, TeamOutlined } from '@ant-design/icons';
 import { App, Button, Checkbox, Form, Input, Modal, Radio } from 'antd';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useDictOptions } from '@/utils/dict';
 import { Pill } from '../components';
@@ -67,13 +67,16 @@ export const ContactModal: React.FC<{
   const [form] = Form.useForm<ContactPayload>();
   const [saving, setSaving] = useState(false);
 
+  const latest = useRef({ contact, first });
+  latest.current = { contact, first };
+  const contactId = contact?.id;
+  // 只在打开或换了联系人时填表；打开期间档案刷新（联系人换成新对象）不覆盖正在编辑的表单（audit UI-069）
   useEffect(() => {
     if (!open) return;
+    const { contact: c, first: f } = latest.current;
     form.resetFields();
-    form.setFieldsValue(
-      contact ? { ...EMPTY, ...contact } : { ...EMPTY, primary: first },
-    );
-  }, [open, contact, first, form]);
+    form.setFieldsValue(c ? { ...EMPTY, ...c } : { ...EMPTY, primary: f });
+  }, [open, contactId, form]);
 
   const submit = async () => {
     const v = await form.validateFields();

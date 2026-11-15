@@ -10,8 +10,10 @@ import React, {
 } from 'react';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { PageTitle, useWide } from '@/pages/inquiry/shared/components';
+import { categoryGroups } from '@/pages/supplier/productScope';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
+import { usePageSize } from '@/utils/pageSize';
 import {
   Card,
   type FlowView,
@@ -99,7 +101,7 @@ const SupplyFollowupPage: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
   const wide = useWide();
-  const { brands, categories, tops } = useOptions();
+  const { brands, tree, categories, tops } = useOptions();
   const [params] = useSearchParams();
   const users = useUsers();
 
@@ -109,9 +111,13 @@ const SupplyFollowupPage: React.FC = () => {
   /** 自己名下没有需求时默认看全部，只判断一次 */
   const ownerChecked = useRef(false);
   const [overview, setOverview] = useState<Overview>();
+  const [overviewError, setOverviewError] = useState('');
   const [today, setToday] = useState<Today>();
+  const [todayError, setTodayError] = useState('');
   const [stage, setStage] = useState<string>();
   const [stockout, setStockout] = useState(false);
+  /** 无货统计期：团队视图「近 90 天」下钻时为 90 */
+  const [stockoutDays, setStockoutDays] = useState(30);
   const [pending, setPending] = useState(false);
   const [single, setSingle] = useState(false);
   const [brandId, setBrandId] = useState<number>();
@@ -122,6 +128,7 @@ const SupplyFollowupPage: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [groups, setGroups] = useState<GroupPage>();
   const [page, setPage] = useState(1);
+  const [signalSize, setSignalSize] = usePageSize(PAGE_SIZE, 'signals');
   const [signals, setSignals] = useState<{ total: number; records: Signal[] }>({
     total: 0,
     records: [],
@@ -177,20 +184,20 @@ const SupplyFollowupPage: React.FC = () => {
         }
         ownerChecked.current = true;
         setOverview(o);
+        setOverviewError('');
       })
-      .catch(() => setOverview(undefined));
+      .catch((e) => setOverviewError(readBizError(e).message));
+    // 取数失败显示失败与重试，不能显示成「都处理完了」（audit UI-091）
     supplyApi
       .today()
-      .then(setToday)
-      .catch(() =>
-        setToday({
-          overdue: 0,
-          dueToday: 0,
-          weekRest: 0,
-          overdueCards: [],
-          todayCards: [],
-        }),
-      );
+      .then((t) => {
+        setToday(t);
+        setTodayError('');
+      })
+      .catch((e) => {
+        setToday(undefined);
+        setTodayError(readBizError(e).message);
+      });
   }, [owner]);
 
   const loadList = useCallback(
@@ -223,7 +230,7 @@ const SupplyFollowupPage: React.FC = () => {
                 );
               })
           : unclassifiedView
-            ? supplyApi.unclassified(p, PAGE_SIZE, signalType).then((r) => {
+            ? supplyApi.unclassified(p, signalSize, signalType).then((r) => {
                 if (req !== reqRef.current) return;
                 setSignals(r);
                 setPage(p);
@@ -233,6 +240,7 @@ const SupplyFollowupPage: React.FC = () => {
                   board: flow,
                   stage,
                   stockout: stockout || undefined,
+                  stockoutDays: stockout ? stockoutDays : undefined,
                   pending: pending || undefined,
                   single: single || undefined,
                   keyword: keyword.trim() || undefined,
@@ -264,8 +272,10 @@ const SupplyFollowupPage: React.FC = () => {
       flow,
       unclassifiedView,
       signalType,
+      signalSize,
       stage,
       stockout,
+      stockoutDays,
       pending,
       single,
       keyword,
@@ -301,6 +311,23 @@ const SupplyFollowupPage: React.FC = () => {
   useEffect(() => {
     if (view === 'mine') loadList(1);
   }, [loadList, view]);
+  // 筛选条件变了清空勾选，批量操作只作用于看得见的型号（audit UI-086）
+  useEffect(() => {
+    setPicked(new Set());
+    setPickedSignals([]);
+  }, [
+    stage,
+    stockout,
+    stockoutDays,
+    pending,
+    single,
+    brandId,
+    categoryId,
+    priority,
+    keyword,
+    owner,
+    signalType,
+  ]);
   // 从其他页面返回时重新取数（audit UI-055）
   useOnReactivate(() => {
     if (view !== 'mine') return;
@@ -319,6 +346,7 @@ const SupplyFollowupPage: React.FC = () => {
     setFlow(f);
     setStage(s);
     setStockout(false);
+    setStockoutDays(30);
     setPending(false);
     setSingle(false);
     setGroups(undefined);
@@ -346,15 +374,20 @@ const SupplyFollowupPage: React.FC = () => {
       return n;
     });
 
+  /** 团队视图下钻：沿用统计口径（统计期、负责人），清掉与统计无关的关键词和优先级（audit UI-089） */
   const jump = (j: TeamJump) => {
     setView('mine');
-    setOwner(
-      j.ownerId != null ? (j.ownerId ? String(j.ownerId) : 'all') : 'all',
-    );
+    setOwner(j.ownerId ? String(j.ownerId) : 'all');
     switchFlow('cover');
     setBrandId(j.brandId);
     setCategoryId(j.categoryId);
-    if (j.brandId || j.categoryId) setStockout(true);
+    setPriority(undefined);
+    setKeyword('');
+    setKeywordInput('');
+    if (j.brandId || j.categoryId) {
+      setStockout(true);
+      setStockoutDays(j.days ?? 30);
+    }
   };
 
   const o = overview;
@@ -446,7 +479,9 @@ const SupplyFollowupPage: React.FC = () => {
           >
             记处理
           </Button>
-          <Button onClick={() => setDefer([...picked])}>延后</Button>
+          <Button onClick={() => setDefer(pickedDemands.map((d) => d.id))}>
+            延后
+          </Button>
         </>
       )}
       <Button
@@ -545,12 +580,16 @@ const SupplyFollowupPage: React.FC = () => {
         <>
           <SupplyFlow
             overview={overview}
+            error={overviewError}
+            onRetry={loadTop}
             active={flow}
             onSelect={(f) => f !== flow && switchFlow(f)}
           />
           {flow === 'today' ? (
             <TodayView
               today={today}
+              error={todayError}
+              onRetry={loadTop}
               canEdit={canEdit}
               onRecord={(c: TodayCard) =>
                 setRecord({ title: scopeName(c), demands: c.items })
@@ -605,6 +644,22 @@ const SupplyFollowupPage: React.FC = () => {
                     setCategoryId(undefined);
                   }}
                   options={tops}
+                />
+                {/* 从其他板块、待办或矩阵带进来的二级品类要看得见、能清掉（audit UI-087） */}
+                <Select
+                  allowClear
+                  style={{ width: 150 }}
+                  placeholder="二级品类"
+                  showSearch={{ optionFilterProp: 'label' }}
+                  value={categoryId}
+                  onChange={setCategoryId}
+                  options={
+                    parentCategoryId
+                      ? categoryGroups(
+                          tree.filter((t) => t.id === parentCategoryId),
+                        )
+                      : categories
+                  }
                 />
                 <Select
                   allowClear
@@ -702,9 +757,13 @@ const SupplyFollowupPage: React.FC = () => {
                   <>
                     <Chip
                       active={stockout}
-                      onClick={() => setStockout((v) => !v)}
+                      onClick={() => {
+                        setStockout((v) => !v);
+                        setStockoutDays(30);
+                      }}
                     >
-                      近 30 天无货 {o?.stockoutOpen ?? 0}
+                      近 {stockoutDays} 天无货{' '}
+                      {stockoutDays === 30 ? (o?.stockoutOpen ?? 0) : ''}
                     </Chip>
                     <Chip
                       active={pending}
@@ -786,11 +845,14 @@ const SupplyFollowupPage: React.FC = () => {
                         rows={signals.records}
                         total={signals.total}
                         page={page}
+                        pageSize={signalSize}
                         loading={loading}
                         picked={pickedSignals}
                         canEdit={canEdit}
                         onPick={setPickedSignals}
-                        onPage={loadList}
+                        onPage={(p, s) =>
+                          s === signalSize ? loadList(p) : setSignalSize(s)
+                        }
                         onClassify={setClassify}
                         onIgnore={setIgnore}
                       />

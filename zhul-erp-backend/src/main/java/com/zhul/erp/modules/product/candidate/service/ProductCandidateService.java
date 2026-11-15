@@ -200,6 +200,10 @@ public class ProductCandidateService {
                 skipped.add(new BatchApproveVO.Skipped(id, label(c), "品类未选"));
                 continue;
             }
+            if (!industryScope.categoryVisible(c.getCategoryId())) {
+                skipped.add(new BatchApproveVO.Skipped(id, label(c), "品类不属于本公司行业"));
+                continue;
+            }
             ApproveCandidateRequest req = new ApproveCandidateRequest();
             req.setBrandMode("EXISTING");
             req.setBrandId(c.getBrandId());
@@ -227,7 +231,8 @@ public class ProductCandidateService {
         }
         if (req.getCategoryId() != null) {
             ProductCategoryDO cat = categoryMapper.selectById(req.getCategoryId());
-            if (cat == null || cat.getDeletedAt() != null || !Objects.equals(cat.getStatus(), ProductConstants.STATUS_ENABLED)) {
+            if (cat == null || cat.getDeletedAt() != null || !Objects.equals(cat.getStatus(), ProductConstants.STATUS_ENABLED)
+                    || !industryScope.categoryVisible(cat.getId())) {
                 throw new BizException("请选择品类");
             }
         }
@@ -330,6 +335,10 @@ public class ProductCandidateService {
         Long brandId = resolveBrand(c, req);
         if (req.getCategoryId() == null) {
             throw new BizException("请选择品类");
+        }
+        // 建档跳过了商品新建的行业校验，这里补上（audit BUS-065）
+        if (!industryScope.categoryVisible(req.getCategoryId())) {
+            throw new BizException("品类不属于本公司行业");
         }
         String mpn = StringUtils.hasText(req.getMpnRaw()) ? req.getMpnRaw().trim() : c.getMpnRaw();
         ProductDO existing = productMapper.selectOne(new LambdaQueryWrapper<ProductDO>()

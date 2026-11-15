@@ -217,7 +217,20 @@ class WorkbenchContractTest extends TenantContractSupport {
             assertEquals(1, todos.size(), "只有售后管理权限：只给售后一项");
             assertEquals("售后要更新客户", todos.get(0).path("title").asText());
             assertEquals(3, todos.get(0).path("count").asInt(), "本人的已逾期 2 张 + 快到期 1 张；别人的、已结案的不算");
-            assertEquals("/sales/after-sales?overdue=soon", todos.get(0).path("link").asText());
+            assertEquals("/sales/after-sales?overdue=soon&ownerId=" + me, todos.get(0).path("link").asText());
+
+            // audit UI-081：数据范围为全部的主管，待办只算本人负责的，链接带上本人，列表与数字同口径
+            jdbc.update("delete from role where code = ?", ROLE);
+            jdbc.update("insert into role (tenant_id, code, name, permission_scope, workbench_template, status) values (0, ?, ?, 1, 'sales', 1)",
+                    ROLE, "IT工作台" + ROLE);
+            loginWithResources("it_wb_as", DASHBOARD, 100120);
+            String lead1 = token("it_wb_as", T);
+            JsonNode all = ok(call(get(API + "/widgets/my-todo"), lead1)).path("blocks").get(0).path("todos").get(0);
+            assertEquals(3, all.path("count").asInt(), "别人负责的到期单不算进「我的待办」");
+            assertEquals("/sales/after-sales?overdue=soon&ownerId=" + me, all.path("link").asText());
+            JsonNode listed = ok(call(json(post("/api/v1/sales/after-sales/page"),
+                    "{\"dueSoon\":true,\"ownerId\":" + me + "}"), lead1));
+            assertEquals(3, listed.path("total").asInt(), "按链接的筛选条件，列表条数与待办数字一致");
 
             jdbc.update("delete from role where code = ?", ROLE);
             role(ROLE, "sales_lead");

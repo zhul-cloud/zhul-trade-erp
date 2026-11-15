@@ -56,8 +56,10 @@ const SalesReturnDetail: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
-  // 从其他页面返回时重新取数（audit UI-055）
-  useOnReactivate(load);
+  // 从其他页面返回时重新取数（audit UI-055）；弹窗开着时不刷新，以免改过的退款金额被恢复成默认值（audit UI-065）
+  useOnReactivate(() => {
+    if (!dialog) load();
+  });
 
   if (error) return <ErrorHint message={error} onRetry={load} />;
   if (!r) return <Skeleton active paragraph={{ rows: 12 }} />;

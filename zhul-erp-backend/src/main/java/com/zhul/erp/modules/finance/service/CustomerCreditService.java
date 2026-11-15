@@ -45,6 +45,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -327,7 +328,7 @@ public class CustomerCreditService {
 
     // ---------------------------------------------------------------- 手工调整与转给客户
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public List<CreditEntryVO> adjust(AdjustCreditRequest req) {
         BigDecimal amount = req.getAmount().setScale(2, RoundingMode.HALF_UP);
         if (amount.signum() == 0) {
@@ -355,7 +356,7 @@ public class CustomerCreditService {
     }
 
     /** 转给客户：生成余额提现退款单与提现流水；锁定价值 − 实际转出人民币记为汇兑损益 */
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public RefundVO withdraw(WithdrawCreditRequest req) {
         Account a = new Account(req.getCustomerId(), req.getCurrencyCode(), req.getBusinessUnitId());
         return withdraw(a, req.getAmount(), req.getWithdrawDate(), req.getMethod(), req.getMethodName(), req.getPayeeAccount(),
@@ -404,7 +405,7 @@ public class CustomerCreditService {
         return pending;
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public List<OverpaidVO> processOverpaid(ProcessOverpaidRequest req) {
         Position p = position(req.getOwnerType(), req.getOwnerId());
         ledger.lock(p.customerId());

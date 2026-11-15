@@ -58,6 +58,7 @@ import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.LogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -115,11 +116,16 @@ public class AfterSalesService {
 
     // ---------------------------------------------------------------- 登记
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public AfterSalesVO create(SaveAfterSalesRequest req) {
         int tenant = PiStore.tenantId();
         CustomerDO customer = customerMapper.selectById(req.getCustomerId());
         if (customer == null || customer.getDeletedAt() != null || !Objects.equals(customer.getTenantId(), tenant)) {
+            throw new BizException("客户不存在");
+        }
+        // 数据范围（audit SEC-020）：选了订单按订单负责人，没选订单按客户负责人，与退款申请一致
+        DataScope scope = dataScopeResolver.current();
+        if (req.getSoId() == null && !scope.canSee(customer.getOwnerId())) {
             throw new BizException("客户不存在");
         }
         SalesOrderDO order = null;
@@ -129,6 +135,9 @@ public class AfterSalesService {
             if (order == null || order.getDeletedAt() != null || !Objects.equals(order.getTenantId(), tenant)
                     || !Objects.equals(order.getCustomerId(), customer.getId())) {
                 throw new BizException("订单不属于这个客户");
+            }
+            if (!scope.canSee(order.getOwnerId())) {
+                throw new BizException("订单不存在");
             }
             if (order.getStatus() != SalesConstants.SO_ACTIVE) {
                 throw new BizException("订单已取消，不能登记售后");
@@ -207,7 +216,7 @@ public class AfterSalesService {
 
     // ---------------------------------------------------------------- 跟进与处理
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public AfterSalesVO addNote(Long id, AfterSalesNoteRequest req) {
         AfterSalesDO a = lock(id);
         Long me = currentUserId();
@@ -233,7 +242,7 @@ public class AfterSalesService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public AfterSalesVO updatePlan(Long id, AfterSalesPlanRequest req) {
         AfterSalesDO a = lockEditable(id);
         Long me = currentUserId();
@@ -275,8 +284,10 @@ public class AfterSalesService {
             changes.add("负责人 " + users.getOrDefault(a.getOwnerId(), "—") + " → " + users.get(owner));
             a.setOwnerId(owner);
         }
-        String next = trim(req.getNextAction());
-        if (!next.equals(a.getNextAction()) || !Objects.equals(req.getNextUpdateAt(), a.getNextUpdateAt())) {
+        // 只改提交了的字段（audit BUS-052）：没带下一步时下一步与下次更新时间都不动；带了空字符串才是清空
+        String next = req.getNextAction() == null ? a.getNextAction() : req.getNextAction().trim();
+        if (req.getNextAction() != null
+                && (!next.equals(a.getNextAction()) || !Objects.equals(req.getNextUpdateAt(), a.getNextUpdateAt()))) {
             changes.add("下一步「" + (next.isEmpty() ? "—" : next) + "」" + (req.getNextUpdateAt() == null ? ""
                     : "，下次更新 " + req.getNextUpdateAt().toString().replace('T', ' ').substring(0, 16)));
             a.setNextAction(next);
@@ -291,7 +302,7 @@ public class AfterSalesService {
     }
 
     /** 处理中 ↔ 待客户确认 */
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public AfterSalesVO setStatus(Long id, int status) {
         if (status != AfterSalesConstants.AS_OPEN && status != AfterSalesConstants.AS_WAITING) {
             throw new BizException("状态不正确");
@@ -310,7 +321,7 @@ public class AfterSalesService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public AfterSalesVO close(Long id, AfterSalesCloseRequest req) {
         AfterSalesDO a = lockEditable(id);
         String reason = requireDict(AfterSalesConstants.DICT_REASON, req.getReasonCode(), "原因与责任");
@@ -356,7 +367,7 @@ public class AfterSalesService {
     }
 
     /** 发起补发（spec sales/after-sales「发起补发」）：锁售后单 → 建 0 元补发订单与采购需求 → 写跟进记录，同一事务 */
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public AfterSalesVO replace(Long id, com.zhul.erp.modules.aftersales.dto.ReplacementRequest req) {
         AfterSalesDO a = lockEditable(id);
         SalesOrderDO o = replacementOrders.create(a, req);
@@ -371,7 +382,7 @@ public class AfterSalesService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public AfterSalesVO cancel(Long id, String reason) {
         String why = trim(reason);
         if (why.isEmpty()) {
@@ -386,6 +397,12 @@ public class AfterSalesService {
         }
         if (!expensesOf(List.of(id)).isEmpty() || !refundsOf(id).isEmpty()) {
             throw new BizException("已有关联的退款或费用，不能撤销");
+        }
+        // 补发订单（取消的不算）还有效时不能撤销（audit BUS-043）
+        List<String> replacements = replacementOrders.of(id).stream()
+                .filter(o -> o.getStatus() == SalesConstants.SO_ACTIVE).map(SalesOrderDO::getSoNo).toList();
+        if (!replacements.isEmpty()) {
+            throw new BizException("已有补发订单 " + String.join("、", replacements) + "，请先取消补发订单");
         }
         a.setStatus(AfterSalesConstants.AS_CANCELLED);
         a.setCancelReason(why.length() > 200 ? why.substring(0, 200) : why);
@@ -408,6 +425,9 @@ public class AfterSalesService {
         }
         if (StringUtils.hasText(q.getLevelCode())) {
             w.eq(AfterSalesDO::getLevelCode, q.getLevelCode());
+        }
+        if (StringUtils.hasText(q.getReasonCode())) {
+            w.eq(AfterSalesDO::getReasonCode, q.getReasonCode());
         }
         if (q.getOwnerId() != null) {
             w.eq(AfterSalesDO::getOwnerId, q.getOwnerId());
@@ -853,6 +873,7 @@ public class AfterSalesService {
         return a;
     }
 
+    /** 先校验可见再加锁；写方法用读已提交，加锁后的重读拿到最新数据（audit BUS-035） */
     private AfterSalesDO lock(Long id) {
         visible(id);
         mapper.lockById(id);

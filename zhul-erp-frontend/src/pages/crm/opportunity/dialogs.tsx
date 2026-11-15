@@ -190,7 +190,7 @@ export const CloseModal: React.FC<{
           checked={nurture}
           onChange={(e) => setNurture(e.target.checked)}
         >
-          转入培育，{NURTURE_DEFAULT_DAYS} 天后提醒重新激活
+          {`转入培育，${detail.nurtureDefaultDays ?? NURTURE_DEFAULT_DAYS} 天后提醒重新激活`}
         </Checkbox>
       )}
     </Modal>

@@ -25,12 +25,16 @@ public interface SupplySourceMapper {
             + " WHERE (i.update_time >= #{since} OR ci.update_time >= #{since}) AND ci.inquiry_date >= #{floor}")
     List<SourceRow> inquiryRows(@Param("since") LocalDateTime since, @Param("floor") LocalDateTime floor);
 
-    /** 销售订单型号行；订单取消、删除或整行取消的算来源已取消。品牌型号优先取来源询盘型号行 */
+    /**
+     * 销售订单型号行；订单取消、删除或整行取消的算来源已取消。品牌型号优先取来源询盘型号行。
+     * 售后补发订单（source = 3）是原成交的免费重发，不算新的成交，与销售统计口径一致，也算来源已取消（audit BUS-054）
+     */
     @Select("SELECT s.id AS sourceId, so.id AS docId, so.so_no AS docNo, i.brand_id AS brandId,"
             + " COALESCE(i.brand, s.brand) AS brandRaw, i.category_id AS categoryId, COALESCE(s.product_id, i.product_id) AS productId,"
             + " s.model AS modelRaw, i.model_key AS modelKey, s.quantity AS quantity,"
             + " COALESCE(CAST(so.sales_date AS DATETIME), so.create_time) AS occurredAt,"
-            + " (so.status = 2 OR so.deleted_at IS NOT NULL OR s.deleted_at IS NOT NULL OR s.quantity = 0) AS cancelled"
+            + " (so.status = 2 OR so.source = 3 OR so.deleted_at IS NOT NULL OR s.deleted_at IS NOT NULL"
+            + " OR s.quantity = 0) AS cancelled"
             + " FROM sales_order_item s JOIN sales_order so ON so.id = s.so_id"
             + " LEFT JOIN inquiry_item i ON i.id = s.inquiry_item_id"
             + " WHERE (s.update_time >= #{since} OR so.update_time >= #{since}) AND so.create_time >= #{floor}")

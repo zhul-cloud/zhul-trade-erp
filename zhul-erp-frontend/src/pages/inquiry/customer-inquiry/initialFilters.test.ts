@@ -30,3 +30,13 @@ it('普通进入默认最近 3 个月', () => {
   expect(f.range).toBeTruthy();
   expect(f.status).toBeUndefined();
 });
+
+/** UI-088：需求详情「去询价」带型号关键词，进来按该型号筛，不限日期 */
+it('地址带关键词时按关键词筛、不限日期', () => {
+  window.history.pushState(
+    {},
+    '',
+    '/inquiry/customer-inquiries?keyword=ABC-123',
+  );
+  expect(initialFilters()).toEqual({ keyword: 'ABC-123' });
+});

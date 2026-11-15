@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 /**
  * 全项目排查（audit SEC-005 补全、SEC-016 补全、SEC-017）：报销、费用、付款类附件链接跟随单据规则；
@@ -33,6 +34,7 @@ class RelatedDocScopeContractTest extends TenantContractSupport {
     private static final int MENU_REIMBURSE = 100105;
     private static final int MENU_AFTER_SALES = 100120;
     private static final int MENU_REFUNDS = 100110;
+    private static final int MENU_PURCHASE_RETURNS = 110232;
     private static final int PERM_REIMBURSE_PAY = 110206;
 
     @Autowired private AttachmentService attachments;
@@ -180,5 +182,31 @@ class RelatedDocScopeContractTest extends TenantContractSupport {
         assertEquals("ITREL-AS2", list.get(0).path("asNo").asText());
         loginWithResources("it_rel_refund", MENU_REFUNDS);
         assertEquals(2, ok(call(get("/api/v1/sales/after-sales/order/" + so), token("it_rel_refund", 0))).size(), "财务看全部");
+    }
+
+    /** audit SEC-022：别人处理去向生成的采购退货单，采购订单的采购员（本人范围）也能看到并处理 */
+    @Test
+    void purchaseReturn_visibleToPurchaserOfItsOrder() throws Exception {
+        long minePo = po("ITREL-PO-R1", ME);
+        long othersPo = po("ITREL-PO-R2", SOMEONE_ELSE);
+        // 售后来源都有退货入库单，这里只要非空即可
+        jdbc.update("insert into purchase_return (tenant_id, return_no, supplier_id, source_type, owner_id, po_id, return_receipt_id) values "
+                + "(0, 'ITREL-R4', 1, 1, ?, ?, 0), (0, 'ITREL-R5', 1, 1, ?, ?, 0)", SOMEONE_ELSE, minePo, SOMEONE_ELSE, othersPo);
+        long mine = id("select id from purchase_return where return_no = 'ITREL-R4'");
+        long others = id("select id from purchase_return where return_no = 'ITREL-R5'");
+        long mineFile = attachment("PURCHASE_RETURN", mine, 0);
+        long othersFile = attachment("PURCHASE_RETURN", others, 0);
+
+        loginWithResources("it_rel_buyer", MENU_PO, MENU_PURCHASE_RETURNS);
+        String buyer = token("it_rel_buyer", 0);
+        assertEquals(1, ok(call(get("/api/v1/purchase/returns/of-order/" + minePo), buyer)).size(), "本人采购订单的采购退货");
+        assertEquals("ITREL-R4", ok(call(get("/api/v1/purchase/returns/" + mine), buyer)).path("returnNo").asText());
+        JsonNode page = ok(call(post("/api/v1/purchase/returns/page").contentType("application/json").content("{}"), buyer));
+        assertEquals(1, page.path("total").asInt(), "列表含本人采购订单的采购退货，不含别人的");
+        assertEquals("ITREL-R4", page.path("records").get(0).path("returnNo").asText());
+        assertEquals(1, ok(call(get("/api/v1/purchase/returns/counts"), buyer)).path("pending").asInt());
+        assertEquals(200, link(mineFile, buyer), "本人采购订单的采购退货附件");
+        assertEquals("采购退货单不存在", call(get("/api/v1/purchase/returns/" + others), buyer).path("message").asText());
+        assertEquals(403, link(othersFile, buyer), "别人的采购订单、别人负责的采购退货附件");
     }
 }

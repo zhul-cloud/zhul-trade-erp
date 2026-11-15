@@ -1,8 +1,16 @@
 package com.zhul.erp.modules.sales;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.modules.workbench.dto.WidgetData;
+import com.zhul.erp.modules.workbench.widget.WorkbenchWidget;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -22,6 +30,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 class SalesOrderPartialCancelContractTest extends SalesContractSupport {
 
     private static final String CREDIT = "/api/v1/finance/credits";
+
+    @Autowired @Qualifier("cashWidget") private WorkbenchWidget cashWidget;
     private static final String SHIP = "/api/v1/purchase/shipments";
     private static final String GR = "/api/v1/warehouse/receipts";
     private static final String HOLD = "/api/v1/warehouse/holds";
@@ -181,6 +191,73 @@ class SalesOrderPartialCancelContractTest extends SalesContractSupport {
         assertEquals(0, detail(so).path("items").get(0).path("purchaseReceivedQty").asInt());
     }
 
+    /** audit BUS-049：部分取消后 PI 已按订单合计收齐，PI 详情不再显示剩余，待确认工作台不再列出 */
+    @Test
+    void partialCancelSettlesPi_remainingAndDeskFollowOrderTotal() throws Exception {
+        long so = order(null, null, null, "750", l("A-1", 10, "100", "50"), l("B-1", 10, "100", "50"));
+        long pi = jdbc.queryForObject("select pi_id from sales_order where id = ?", Long.class, so);
+        money("250", ok(call(get(PI + "/" + pi), admin)).path("remainingAmount"));
+        assertEquals(1, ok(call(json(post(PI + "/receipt-desk"), "{}"), admin)).path("total").asInt());
+
+        ok(cancel(so, body("OUT_OF_STOCK", itemId(detail(so), 0), 5)));
+        JsonNode p = ok(call(get(PI + "/" + pi), admin));
+        assertEquals("已到账", p.path("receiptStatusName").asText());
+        money("0", p.path("remainingAmount"));
+        assertEquals(0, ok(call(json(post(PI + "/receipt-desk"), "{}"), admin)).path("total").asInt(), "已收齐，不再待处理");
+        JsonNode all = ok(call(json(post(PI + "/receipt-desk"), "{\"all\":true}"), admin)).path("records").get(0);
+        money("750", all.path("totalAmount"));
+        money("0", all.path("remainingAmount"));
+    }
+
+    /** audit BUS-080：部分取消后，老板看板「应收未收」按订单合计减已到账，与收款工作台、PI 详情同口径 */
+    @Test
+    void partialCancel_bossOutstandingFollowsOrderTotal() throws Exception {
+        long so = order(null, null, null, "750", l("A-1", 10, "100", "50"), l("B-1", 10, "100", "50"));
+        long pi = jdbc.queryForObject("select pi_id from sales_order where id = ?", Long.class, so);
+        BigDecimal rate = jdbc.queryForObject("select exchange_rate from proforma_invoice where id = ?", BigDecimal.class, pi);
+        BigDecimal before = bossOutstanding();
+
+        ok(cancel(so, body("OUT_OF_STOCK", itemId(detail(so), 0), 2)));
+        money("150", ok(call(get(PI + "/" + pi), admin)).path("remainingAmount"));
+        BigDecimal drop = before.subtract(bossOutstanding());
+
+        // 订单合计少了 2 × 50，应收未收按 PI 汇率折人民币同样少这么多（各 PI 折算后合计再舍入，容差 0.01）
+        BigDecimal expected = new BigDecimal("100").multiply(rate);
+        assertTrue(drop.subtract(expected).abs().compareTo(new BigDecimal("0.01")) <= 0,
+                "应收未收应减少 " + expected + "，实际减少 " + drop);
+    }
+
+    /** audit BUS-081：手动订单的收款记在订单上，老板看板「应收未收」同样计入（与收款工作台一致） */
+    @Test
+    void manualOrder_countedInBossOutstanding() throws Exception {
+        long c = customer("Manual Buyer", "Chile");
+        BigDecimal before = bossOutstanding();
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("customerId", c);
+        m.put("items", List.of(Map.of("productId", manualProduct("M-1"), "quantity", 4, "unitPrice", "100", "costPrice", "60")));
+        long so = ok(call(json(post(SO), write(m)), admin)).path("id").asLong();
+        BigDecimal rate = jdbc.queryForObject("select exchange_rate from sales_order where id = ?", BigDecimal.class, so);
+        BigDecimal rise = bossOutstanding().subtract(before);
+
+        BigDecimal expected = new BigDecimal("400").multiply(rate);
+        assertTrue(rise.subtract(expected).abs().compareTo(new BigDecimal("0.01")) <= 0,
+                "应收未收应增加 " + expected + "，实际增加 " + rise);
+    }
+
+    private BigDecimal bossOutstanding() {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("it_sales_admin", null, List.of()));
+        TenantContext.setTenantId(0);
+        try {
+            WidgetData d = (WidgetData) cashWidget.load();
+            return d.getBlocks().get(0).getMetrics().stream().filter(m -> "应收未收".equals(m.getLabel()))
+                    .findFirst().orElseThrow().getValue();
+        } finally {
+            TenantContext.clear();
+            SecurityContextHolder.clearContext();
+        }
+    }
+
     @Test
     void cancelFromUnplacedDraftAndWarehouse_inOrder() throws Exception {
         long sup = supplier("华东工控", null);
@@ -325,6 +402,36 @@ class SalesOrderPartialCancelContractTest extends SalesContractSupport {
         money("700", piRow.path("pending"));
         money("200", soRow.path("pending"));
         assertFalse(mc.path("partialCancels").isEmpty());
+    }
+
+    /**
+     * audit BUS-072：入库后部分取消，在仓的数量转入闲置库存（不挂在入库单上）；冲销这张入库单时一并撤回这部分闲置库存，
+     * 订单已入库数不变成负数；闲置库存已处置时不能冲销
+     */
+    @Test
+    void reverseReceipt_withdrawsHoldMovedAtCancel() throws Exception {
+        long sup = supplier("华北工控", null);
+        long so = order(sup, null, null, "1000", l("A-1", 10, "100", "50"));
+        long draft = draftPo(sup);
+        long a = itemId(detail(so), 0);
+        priceAndConfirm(draft, "100", admin);
+        long gr = receiveAll(draft, 100).path("receipt").path("id").asLong();
+        ok(cancel(so, body("OTHER", a, 4)));
+        JsonNode holds = ok(call(json(post(HOLD + "/page"), write(Map.of("sourceType", 2))), admin));
+        assertEquals(1, holds.path("total").asInt());
+        assertEquals(4, holds.path("records").get(0).path("quantity").asInt());
+
+        // 闲置库存已处置：不能冲销
+        long hold = holds.path("records").get(0).path("id").asLong();
+        jdbc.update("update stock_hold set status = 4 where id = ?", hold);
+        assertEquals("部分取消时转入的闲置库存已处置，不能冲销",
+                fail(call(json(post(GR + "/" + gr + "/reverse"), "{\"reason\":\"录错\"}"), admin)).path("message").asText());
+        jdbc.update("update stock_hold set status = 1 where id = ?", hold);
+
+        ok(call(json(post(GR + "/" + gr + "/reverse"), "{\"reason\":\"录错\"}"), admin));
+        assertEquals(0, ok(call(json(post(HOLD + "/page"), write(Map.of("sourceType", 2))), admin)).path("total").asInt(),
+                "冲销后货不在仓，部分取消时转入的闲置库存一并撤回");
+        assertEquals(0, detail(so).path("items").get(0).path("purchaseReceivedQty").asInt(), "订单已入库数不出现负数");
     }
 
     @Test

@@ -290,6 +290,8 @@ public class TenantServiceImpl implements TenantService {
                     .set(AccountLocalAuthDO::getPassword, BCrypt.hashpw(tempPassword, BCrypt.gensalt()))
                     .set(AccountLocalAuthDO::getFailCount, 0)
                     .set(AccountLocalAuthDO::getUnlockAt, null));
+            // 与员工管理重置密码一致（audit SEC-004#1）：撤销该管理员全部旧会话，含「记住我」的 RefreshToken
+            accountSessionService.revokeAllOfUser(adminUser.getId());
 
             ResetPasswordResultVO result = new ResetPasswordResultVO();
             result.setAdminEmail(account.getEmail());

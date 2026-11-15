@@ -47,6 +47,10 @@ class PayableContractTest extends SalesContractSupport {
     private PayableBackfill backfill;
     @Autowired
     private PayableSyncService payableSync;
+    @Autowired
+    private com.zhul.erp.modules.purchase.service.PurchaseOrderService purchaseOrderService;
+    @Autowired
+    private org.springframework.transaction.support.TransactionTemplate tx;
 
     private String lin;
     private long account;
@@ -523,6 +527,51 @@ class PayableContractTest extends SalesContractSupport {
                 fail(savePo(poId, body, admin)).path("message").asText());
         assertEquals("USD", jdbc.queryForObject("select currency_code from purchase_order where id = ?", String.class, poId));
         assertEquals("USD", jdbc.queryForObject("select currency_code from fin_payable where id = ?", String.class, apId));
+    }
+
+    /** audit BUS-050：采购订单已有采购退货单时不能改币种（退款或抵扣按采购退货单生成时的币种登记）；作废后可以改 */
+    @Test
+    void currencyChange_blockedWhilePurchaseReturnExists() throws Exception {
+        long sup = supplier("退货币种工控", null);
+        long poId = orderedPo(sup, "CUR-PR", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        jdbc.update("insert into purchase_return (tenant_id, return_no, supplier_id, source_type, po_id, status, currency_code, exchange_rate) "
+                + "values (0, 'ITBUS050', ?, 1, ?, 1, 'CNY', 1)", sup, poId);
+        Map<String, Object> body = poBody(po(poId, admin), null);
+        body.put("currencyCode", "USD");
+        assertEquals("这张采购订单已有采购退货单，退款或抵扣按原币种登记，不能修改币种",
+                fail(savePo(poId, body, admin)).path("message").asText());
+        assertEquals("CNY", jdbc.queryForObject("select currency_code from purchase_order where id = ?", String.class, poId));
+
+        jdbc.update("update purchase_return set status = 4 where return_no = 'ITBUS050'");
+        ok(savePo(poId, body, admin));
+        assertEquals("USD", jdbc.queryForObject("select currency_code from purchase_order where id = ?", String.class, poId),
+                "采购退货单作废后可以改币种");
+    }
+
+    /** audit BUS-071：付款时登记优惠先锁采购订单再读，不会把并发提交的采购订单修改用旧值写回去 */
+    @Test
+    void discountOnPayment_locksOrderBeforeReading() throws Exception {
+        long sup = supplier("并发优惠工控", null);
+        long poId = orderedPo(sup, "DIS-LOCK", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        java.util.concurrent.CountDownLatch held = new java.util.concurrent.CountDownLatch(1);
+        // 另一事务先改采购订单并持锁一会儿再提交（如登记已开票、撤销已开票这类不经过应付锁的写操作）
+        Thread other = new Thread(() -> tx.executeWithoutResult(st -> {
+            jdbc.update("update purchase_order set contract_no = 'IT-BUS071' where id = ?", poId);
+            held.countDown();
+            try {
+                Thread.sleep(800);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }), "bus071-other");
+        other.start();
+        assertTrue(held.await(10, java.util.concurrent.TimeUnit.SECONDS));
+        TenantContext.runAs(0, () -> purchaseOrderService.addDiscountOnPayment(poId, "平台优惠", new BigDecimal("5")));
+        other.join(10_000);
+        assertEquals("IT-BUS071", jdbc.queryForObject("select contract_no from purchase_order where id = ?", String.class, poId),
+                "登记优惠不能用读到的旧采购订单覆盖别人刚提交的修改");
+        assertEquals(1, jdbc.queryForObject("select count(*) from purchase_order_fee where po_id = ? and fee_type = 2 and deleted_at is null",
+                Integer.class, poId));
     }
 
     /** 反馈 11-05 第 13 条：采购订单记优惠，应付按实付结清；付款时可以顺手登记优惠 */

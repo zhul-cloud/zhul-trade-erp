@@ -4,9 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.framework.security.DataScopeResolver;
 import com.zhul.erp.framework.security.PermissionChecker;
 import com.zhul.erp.modules.finance.dto.FxPendingVO;
+import com.zhul.erp.modules.finance.dto.OrderCostVO;
 import com.zhul.erp.modules.finance.dto.OperatingReportVO;
 import com.zhul.erp.modules.finance.dto.PayableStatsVO;
 import com.zhul.erp.modules.finance.service.FxSettlementService;
+import com.zhul.erp.modules.finance.service.OrderCostService;
 import com.zhul.erp.modules.finance.service.OperatingReportService;
 import com.zhul.erp.modules.finance.service.PayableQueryService;
 import com.zhul.erp.modules.sales.constants.SalesConstants;
@@ -19,6 +21,7 @@ import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
 import com.zhul.erp.modules.sales.service.PiService;
 import com.zhul.erp.modules.sales.service.SalesOrderService;
 import com.zhul.erp.modules.sales.service.SalesStatsService;
+import com.zhul.erp.modules.sales.support.OrderOverdue;
 import com.zhul.erp.modules.sales.support.PiStore;
 import com.zhul.erp.modules.warehouse.service.DiscrepancyService;
 import com.zhul.erp.modules.warehouse.service.ShipmentService;
@@ -31,8 +34,10 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -67,24 +72,45 @@ public class BossWidgets {
 
     @Bean
     public WorkbenchWidget cashWidget(PermissionChecker perm, DataScopeResolver scope, ProformaInvoiceMapper pis,
-                                      PiService piService, PayableQueryService payables, FxSettlementService fx) {
+                                      SalesOrderMapper orders, PiService piService, PayableQueryService payables,
+                                      FxSettlementService fx) {
         return W.widget("cash", List.of(SalesWidgets.PIS, PurchaseLeadWidgets.PAYABLES, FX), () -> {
             List<WidgetData.Metric> items = new ArrayList<>();
             if (perm.canAccessMenu(SalesWidgets.PIS)) {
                 BigDecimal outstanding = BigDecimal.ZERO;
-                for (ProformaInvoiceDO p : pis.selectList(SalesWidgets.unpaidPis(scope))) {
-                    BigDecimal left = W.num(p.getTotalAmount()).subtract(W.num(p.getReceivedAmount()));
+                List<ProformaInvoiceDO> unpaid = pis.selectList(SalesWidgets.unpaidPis(scope));
+                Map<Long, BigDecimal> orderTotals = activeOrderTotals(orders, unpaid);
+                for (ProformaInvoiceDO p : unpaid) {
+                    // 与收款工作台同口径（audit BUS-049、BUS-080）：有有效订单时按订单合计，再减已到账与差额
+                    BigDecimal receivable = orderTotals.getOrDefault(p.getId(), W.num(p.getTotalAmount()));
+                    BigDecimal left = receivable.subtract(W.num(p.getReceivedAmount())).subtract(W.num(p.getFeeDiffAmount()));
                     if (left.signum() > 0) {
                         outstanding = outstanding.add(left.multiply(W.num(p.getExchangeRate())));
                     }
                 }
-                OverduePiVO overdue = piService.overdue();
-                String overdueText = overdue.getTotals() == null || overdue.getTotals().isEmpty() ? "没有过期未收款的 PI"
-                        : "其中过期未收款 " + overdue.getTotals().stream()
-                        .map(t -> t.getCurrencyCode() + " " + money(t.getAmount()))
+                // 过期未收款按原币分币种：过期 PI 按合计，逾期的手动订单、费用订单按剩余未收（spec system/workbench「老板看板」）
+                Map<String, BigDecimal> overdue = new LinkedHashMap<>();
+                OverduePiVO overduePis = piService.overdue();
+                if (overduePis.getTotals() != null) {
+                    overduePis.getTotals().forEach(t -> overdue.merge(t.getCurrencyCode(), W.num(t.getAmount()), BigDecimal::add));
+                }
+                LocalDate today = LocalDate.now();
+                // 手动订单、费用订单的收款记在订单上，同样计入（与收款工作台一致，audit BUS-081）
+                for (SalesOrderDO o : orders.selectList(unpaidReceiptOrders(scope))) {
+                    BigDecimal left = W.num(o.getTotalAmount()).subtract(W.num(o.getReceivedAmount())).subtract(W.num(o.getFeeDiffAmount()));
+                    if (left.signum() > 0) {
+                        outstanding = outstanding.add(left.multiply(W.num(o.getExchangeRate())));
+                    }
+                    if (OrderOverdue.days(o, o.getReceiptStatus(), left, today) != null) {
+                        overdue.merge(o.getCurrencyCode(), left, BigDecimal::add);
+                    }
+                }
+                String overdueText = overdue.isEmpty() ? "没有过期未收款"
+                        : "其中过期未收款 " + overdue.entrySet().stream()
+                        .map(e -> e.getKey() + " " + money(e.getValue()))
                         .collect(Collectors.joining("、"));
                 items.add(W.link(W.tone(W.metric("应收未收", outstanding.setScale(2, RoundingMode.HALF_UP), "money", overdueText),
-                        overdue.getTotals() == null || overdue.getTotals().isEmpty() ? null : "red"), SalesWidgets.PIS));
+                        overdue.isEmpty() ? null : "red"), SalesWidgets.PIS));
             }
             if (perm.canAccessMenu(PurchaseLeadWidgets.PAYABLES)) {
                 PayableStatsVO s = payables.stats();
@@ -159,7 +185,8 @@ public class BossWidgets {
 
     @Bean
     public WorkbenchWidget riskAlertsWidget(PermissionChecker perm, PiService piService, ShipmentService shipments,
-                                            DiscrepancyService discrepancies, DataScopeResolver scope, SalesOrderMapper orders) {
+                                            DiscrepancyService discrepancies, DataScopeResolver scope, SalesOrderMapper orders,
+                                            OrderCostService orderCost) {
         return W.widget("risk-alerts", List.of(SalesWidgets.PIS, PurchaserWidgets.SHIPMENTS, SalesWidgets.ORDERS), () -> {
             List<WidgetData.Todo> todos = new ArrayList<>();
             if (perm.canAccessMenu(SalesWidgets.PIS)) {
@@ -178,10 +205,14 @@ public class BossWidgets {
                         .eq(SalesOrderDO::getTenantId, PiStore.tenantId())
                         .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
                         .ge(SalesOrderDO::getSalesDate, W.monthStart())
-                        .lt(SalesOrderDO::getNetProfitCny, BigDecimal.ZERO)
                         .isNull(SalesOrderDO::getDeletedAt);
                 scope.current().apply(w, SalesOrderDO::getOwnerId);
-                todos.add(W.todo("down", "red", "毛利为负的订单", "本月成交里亏本的订单", orders.selectCount(w), true,
+                // 与订单列表「毛利」列、「毛利为负」筛选同一口径：按实际成本读时计算（audit BUS-070）
+                List<SalesOrderDO> month = orders.selectList(w);
+                Map<Long, OrderCostVO> costs = month.isEmpty() ? Map.of() : orderCost.of(month);
+                long loss = month.stream().map(o -> costs.get(o.getId()))
+                        .filter(c -> c != null && c.getProfit() != null && c.getProfit().signum() < 0).count();
+                todos.add(W.todo("down", "red", "毛利为负的订单", "本月成交里亏本的订单", loss, true,
                         SalesWidgets.ORDERS + "?loss=1&dateFrom=" + W.monthStart() + "&dateTo=" + LocalDate.now()));
             }
             return W.of(W.todos(todos));
@@ -224,6 +255,33 @@ public class BossWidgets {
         return report.year(d.getYear(), null).getRows().stream()
                 .filter(r -> r.getMonth() != null && r.getMonth() == d.getMonthValue())
                 .findFirst().orElse(null);
+    }
+
+    /** 收款记在订单上（手动、费用订单）、有效且还没付清的订单 */
+    private static LambdaQueryWrapper<SalesOrderDO> unpaidReceiptOrders(DataScopeResolver scope) {
+        LambdaQueryWrapper<SalesOrderDO> w = new LambdaQueryWrapper<SalesOrderDO>()
+                .select(SalesOrderDO::getId, SalesOrderDO::getSource, SalesOrderDO::getStatus, SalesOrderDO::getReceiptStatus,
+                        SalesOrderDO::getCurrencyCode, SalesOrderDO::getTotalAmount, SalesOrderDO::getReceivedAmount,
+                        SalesOrderDO::getFeeDiffAmount, SalesOrderDO::getExchangeRate, SalesOrderDO::getPaymentDueDate)
+                .eq(SalesOrderDO::getTenantId, PiStore.tenantId())
+                .in(SalesOrderDO::getSource, SalesConstants.ORDER_RECEIPT_SOURCES)
+                .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
+                .ne(SalesOrderDO::getReceiptStatus, SalesConstants.RECEIPT_PAID)
+                .isNull(SalesOrderDO::getDeletedAt);
+        return scope.current().apply(w, SalesOrderDO::getOwnerId);
+    }
+
+    /** PI 转成的有效订单合计（部分取消、改费用后与 PI 合计不同） */
+    private static Map<Long, BigDecimal> activeOrderTotals(SalesOrderMapper orders, List<ProformaInvoiceDO> pis) {
+        if (pis.isEmpty()) {
+            return Map.of();
+        }
+        return orders.selectList(new LambdaQueryWrapper<SalesOrderDO>()
+                        .select(SalesOrderDO::getPiId, SalesOrderDO::getTotalAmount)
+                        .in(SalesOrderDO::getPiId, pis.stream().map(ProformaInvoiceDO::getId).toList())
+                        .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
+                        .isNull(SalesOrderDO::getDeletedAt))
+                .stream().collect(Collectors.toMap(SalesOrderDO::getPiId, o -> W.num(o.getTotalAmount()), (a, b) -> a));
     }
 
     private static BigDecimal revenue(OperatingReportVO.Row r) {

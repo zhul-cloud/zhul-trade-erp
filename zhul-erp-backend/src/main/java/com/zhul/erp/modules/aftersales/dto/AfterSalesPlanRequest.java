@@ -6,7 +6,10 @@ import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** 修改售后单的处理信息：等级（改等级须写原因）、原因与责任、方案、负责人、下一步与下次更新时间 */
+/**
+ * 修改售后单的处理信息：等级（改等级须写原因）、原因与责任、方案、负责人、下一步与下次更新时间。
+ * 只提交改动的字段，为 null 的不改；下一步为 null 时下次更新时间也不改（audit BUS-052）
+ */
 @Data
 public class AfterSalesPlanRequest {
     private String levelCode;

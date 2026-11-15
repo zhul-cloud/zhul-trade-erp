@@ -10,6 +10,7 @@ import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
+import { liveRequests } from '@/utils/liveRequests';
 import { LIST_PATH, Pill } from '../components';
 import { readBizError } from '../service';
 import { type DupGroup, type MergePreview, profileApi } from './service';
@@ -54,13 +55,15 @@ export const MergeModal: React.FC<{
   }, [group]);
 
   useEffect(() => {
-    if (!pair) return;
+    if (!pair) return undefined;
     setPreview(undefined);
     setError(undefined);
-    profileApi
-      .mergePreview(pair[0].id, pair[1].id)
+    // 对调或换被合并方后，上一个方向迟到的预览丢弃（audit UI-056）
+    const { live, cancel } = liveRequests();
+    live(profileApi.mergePreview(pair[0].id, pair[1].id))
       .then(setPreview)
       .catch((e) => setError(readBizError(e).message));
+    return cancel;
   }, [pair]);
 
   const submit = async () => {

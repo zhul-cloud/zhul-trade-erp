@@ -31,6 +31,7 @@ import com.zhul.erp.modules.masterdata.service.CustomerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -118,8 +119,9 @@ public class FollowupDevelopService {
     /**
      * 转商机：先结束开发记录（转商机），再为客户建商机（S1、来源主动开发），写系统跟进记录，最后重新推导，
      * 客户随即出现在商机成交。已有进行中的商机时由商机服务抛 OPPORTUNITY_ALREADY_ACTIVE，开发记录不变（整体回滚）。
+     * 并发转同一个开发对象（BUS-045）：先锁开发记录再判断；读已提交，锁后查进行中的商机能看到对方刚提交的商机。
      */
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public DevelopCardVO convert(Long itemId, ConvertRequest req) {
         FollowupItemDO row = requireOpen(itemId);
         if (FollowupConstants.DEVELOP_STAGES.indexOf(row.getStageCode()) < FollowupConstants.DEVELOP_STAGES.indexOf("D4")) {
@@ -282,8 +284,10 @@ public class FollowupDevelopService {
         }
     }
 
+    /** 锁住开发记录再判断（FOR UPDATE 读最新提交）：并发的转商机、停止开发后到的看到已结束而失败 */
     private FollowupItemDO requireOpen(Long itemId) {
-        FollowupItemDO row = itemMapper.selectById(itemId);
+        FollowupItemDO row = itemId == null ? null : itemMapper.selectOne(new LambdaQueryWrapper<FollowupItemDO>()
+                .eq(FollowupItemDO::getId, itemId).last("FOR UPDATE"));
         if (row == null || row.getDeletedAt() != null || !Objects.equals(row.getBoard(), FollowupConstants.BOARD_DEVELOP)) {
             throw new BizException("开发对象不存在");
         }

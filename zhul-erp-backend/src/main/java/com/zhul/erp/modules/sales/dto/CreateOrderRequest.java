@@ -18,6 +18,8 @@ public class CreateOrderRequest {
     private String currencyCode;
     /** 不传时为当天 */
     private LocalDate salesDate;
+    /** 约定付款日，选填，不能早于销售日期 */
+    private LocalDate paymentDueDate;
     @Size(max = 500, message = "备注不能超过 500 字")
     private String remark;
     /** PI、合同、客户 PO 等附件：先上传拿到 ID */

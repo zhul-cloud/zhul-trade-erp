@@ -73,3 +73,67 @@ it('费用单的输入框都有可读名称', async () => {
   expect(screen.getByRole('combobox', { name: '费用类别' })).toBeTruthy();
   expect(screen.getByRole('textbox', { name: '收款方名称' })).toBeTruthy();
 });
+
+/** BUS-056：删除全部分摊后，不再提交已隐藏的关联售后单 */
+it('删光分摊后保存不带关联售后单', async () => {
+  const bodies: { afterSalesId?: number }[] = [];
+  (request as jest.Mock).mockImplementation(
+    (url: string, opts?: { method?: string; data?: unknown }) => {
+      if (url.includes('/sales/after-sales/order/')) {
+        return Promise.resolve({
+          data: [
+            { id: 5, asNo: 'AS001', statusName: '处理中', symptom: '坏件' },
+          ],
+        });
+      }
+      if (opts?.method === 'PUT') {
+        bodies.push(opts.data as { afterSalesId?: number });
+        return Promise.resolve({ data: {} });
+      }
+      return Promise.resolve({ data: [] });
+    },
+  );
+  const editing = {
+    id: 9,
+    expenseNo: 'FE001',
+    afterSalesId: 5,
+    name: '补寄运费',
+    category: 'ORDER',
+    amortizeMonths: 1,
+    occurDate: '2026-11-01',
+    payeeType: 4,
+    payeeName: '顺丰',
+    currencyCode: 'CNY',
+    amount: 100,
+    exchangeRate: 1,
+    amountCny: 100,
+    method: 1,
+    status: 1,
+    allocations: [
+      { soId: 3, soItemId: 31, soNo: 'SO001', model: 'M-1', amount: 100 },
+    ],
+  };
+  render(
+    React.createElement(
+      App,
+      null,
+      React.createElement(ExpenseDrawer, {
+        open: true,
+        editing: editing as never,
+        onClose: () => undefined,
+        onDone: () => undefined,
+      }),
+    ),
+  );
+  expect(
+    await screen.findByRole('combobox', { name: '关联售后单' }),
+  ).toBeTruthy();
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: '删除这一行' }));
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: /保\s*存/ }));
+  });
+  expect(bodies).toHaveLength(1);
+  expect(bodies[0].afterSalesId).toBeUndefined();
+});

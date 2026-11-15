@@ -30,6 +30,7 @@ import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount } from '@/utils/format';
+import { liveRequests } from '@/utils/liveRequests';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { AdjustModal, WithdrawModal } from './CreditModals';
@@ -489,7 +490,7 @@ const CreditPage: React.FC = () => {
 };
 
 /** 月度核对：期初 + 转入 − 抵扣 − 提现 = 期末，每格上面原币、下面人民币 */
-const ReconTab: React.FC<{
+export const ReconTab: React.FC<{
   unitsEnabled: boolean;
   units: { id: number; name: string }[];
 }> = ({ unitsEnabled, units }) => {
@@ -501,12 +502,14 @@ const ReconTab: React.FC<{
   const [data, setData] = useState<Recon | null>(null);
   const [exporting, setExporting] = useState(false);
 
+  // 切换月份、币种或事业部时丢弃上一次的迟到响应（audit UI-078）
   useEffect(() => {
+    const { live, cancel } = liveRequests();
     setData(null);
-    creditApi
-      .reconciliation(month.format('YYYY-MM'), currency, unitId)
+    live(creditApi.reconciliation(month.format('YYYY-MM'), currency, unitId))
       .then(setData)
       .catch((e) => message.error(readBizError(e).message));
+    return cancel;
   }, [month, currency, unitId, message]);
 
   const cell = (p: Pair, strong?: boolean) =>

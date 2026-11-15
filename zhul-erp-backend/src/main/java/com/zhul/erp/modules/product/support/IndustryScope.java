@@ -69,6 +69,11 @@ public class IndustryScope {
         return ids == null || brandId != null && ids.contains(brandId);
     }
 
+    public boolean categoryVisible(Long categoryId) {
+        Set<Long> ids = visibleCategoryIds();
+        return ids == null || categoryId != null && ids.contains(categoryId);
+    }
+
     public Set<Long> brandIdsOf(String industry) {
         return brandIndustryMapper.selectList(new LambdaQueryWrapper<ProductBrandIndustryDO>()
                         .select(ProductBrandIndustryDO::getBrandId)

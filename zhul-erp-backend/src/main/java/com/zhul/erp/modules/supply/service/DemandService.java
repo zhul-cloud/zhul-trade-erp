@@ -12,12 +12,16 @@ import com.zhul.erp.modules.supply.constants.SupplyConstants;
 import com.zhul.erp.modules.supply.dto.DemandVO;
 import com.zhul.erp.modules.supply.dto.SignalVO;
 import com.zhul.erp.modules.supply.dto.SupplyRequests;
+import com.zhul.erp.modules.supply.entity.ScCoverageChannelDO;
 import com.zhul.erp.modules.supply.entity.ScDemandDO;
 import com.zhul.erp.modules.supply.entity.ScDemandSignalDO;
+import com.zhul.erp.modules.supply.entity.ScGapProjectDO;
 import com.zhul.erp.modules.supply.entity.ScGapProjectItemDO;
+import com.zhul.erp.modules.supply.repository.ScCoverageChannelMapper;
 import com.zhul.erp.modules.supply.repository.ScDemandMapper;
 import com.zhul.erp.modules.supply.repository.ScDemandSignalMapper;
 import com.zhul.erp.modules.supply.repository.ScGapProjectItemMapper;
+import com.zhul.erp.modules.supply.repository.ScGapProjectMapper;
 import com.zhul.erp.modules.supply.support.DemandAssembler;
 import com.zhul.erp.modules.supply.support.DemandRecalc;
 import com.zhul.erp.modules.supply.support.DemandRegistry;
@@ -33,6 +37,7 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +54,8 @@ public class DemandService {
     private final ScDemandMapper demandMapper;
     private final ScDemandSignalMapper signalMapper;
     private final ScGapProjectItemMapper projectItemMapper;
+    private final ScGapProjectMapper projectMapper;
+    private final ScCoverageChannelMapper channelMapper;
     private final DemandRegistry registry;
     private final DemandRecalc recalc;
     private final DemandAssembler assembler;
@@ -163,17 +170,96 @@ public class DemandService {
                 .eq(ScDemandSignalDO::getDemandId, gone.getId())
                 .set(ScDemandSignalDO::getDemandId, keep.getId())
                 .set(ScDemandSignalDO::getUpdateTime, LocalDateTime.now()));
-        projectItemMapper.update(null, new LambdaUpdateWrapper<ScGapProjectItemDO>()
-                .eq(ScGapProjectItemDO::getDemandId, gone.getId()).isNull(ScGapProjectItemDO::getDeletedAt)
-                .set(ScGapProjectItemDO::getDeletedAt, LocalDateTime.now()));
+        mergeChannels(keep.getId(), gone.getId());
+        mergeProjectItems(keep, gone.getId());
         demandMapper.update(null, new LambdaUpdateWrapper<ScDemandDO>().eq(ScDemandDO::getId, gone.getId())
                 .set(ScDemandDO::getMergedIntoId, keep.getId())
                 .set(ScDemandDO::getDeletedAt, LocalDateTime.now())
                 .set(ScDemandDO::getUpdateTime, LocalDateTime.now()));
         String goneName = name(gone);
-        docLogs.add(DocumentType.SC, keep.getId(), "合并", "并入 " + goneName + " 的全部信号");
+        docLogs.add(DocumentType.SC, keep.getId(), "合并", "并入 " + goneName + " 的全部信号、渠道与专项型号");
         docLogs.add(DocumentType.SC, gone.getId(), "合并", "并到 " + name(keep));
         recalc.run(LocalDate.now(), Map.of(), List.of(keep.getId()));
+    }
+
+    /**
+     * 被合并方的渠道接到保留方后面（audit BUS-074）：同一供应商只留保留方的一条；保留方已有主渠道时被合并方的主渠道改为备选。
+     * 合并后备选超过上限时报错，由用户先调整渠道，不静默丢弃。
+     */
+    private void mergeChannels(Long keepId, Long goneId) {
+        List<ScCoverageChannelDO> theirs = liveChannels(goneId);
+        if (theirs.isEmpty()) {
+            return;
+        }
+        Set<Long> suppliers = new HashSet<>();
+        boolean hasPrimary = false;
+        int backups = 0;
+        int sort = 0;
+        for (ScCoverageChannelDO c : liveChannels(keepId)) {
+            suppliers.add(c.getSupplierId());
+            hasPrimary |= c.getRole() == SupplyConstants.CHANNEL_PRIMARY;
+            backups += c.getRole() == SupplyConstants.CHANNEL_BACKUP ? 1 : 0;
+            sort = Math.max(sort, c.getSortOrder() + 1);
+        }
+        LocalDateTime now = LocalDateTime.now();
+        for (ScCoverageChannelDO c : theirs) {
+            LambdaUpdateWrapper<ScCoverageChannelDO> u = new LambdaUpdateWrapper<ScCoverageChannelDO>()
+                    .eq(ScCoverageChannelDO::getId, c.getId()).set(ScCoverageChannelDO::getUpdateTime, now);
+            if (!suppliers.add(c.getSupplierId())) {
+                channelMapper.update(null, u.set(ScCoverageChannelDO::getDeletedAt, now));
+                continue;
+            }
+            int role = c.getRole() == SupplyConstants.CHANNEL_PRIMARY && !hasPrimary
+                    ? SupplyConstants.CHANNEL_PRIMARY : SupplyConstants.CHANNEL_BACKUP;
+            if (role == SupplyConstants.CHANNEL_PRIMARY) {
+                hasPrimary = true;
+            } else if (++backups > SupplyConstants.MAX_BACKUP_CHANNELS) {
+                throw new BizException("合并后备选渠道超过 " + SupplyConstants.MAX_BACKUP_CHANNELS + " 个，请先调整渠道再合并");
+            }
+            channelMapper.update(null, u.set(ScCoverageChannelDO::getDemandId, keepId)
+                    .set(ScCoverageChannelDO::getRole, role)
+                    .set(ScCoverageChannelDO::getSortOrder, sort++));
+        }
+    }
+
+    private List<ScCoverageChannelDO> liveChannels(Long demandId) {
+        return channelMapper.selectList(new LambdaQueryWrapper<ScCoverageChannelDO>()
+                .eq(ScCoverageChannelDO::getDemandId, demandId).isNull(ScCoverageChannelDO::getDeletedAt)
+                .orderByAsc(ScCoverageChannelDO::getRole).orderByAsc(ScCoverageChannelDO::getSortOrder));
+    }
+
+    /**
+     * 被合并方所在专项的型号换成保留方（audit BUS-074）；专项已含保留方，或保留方不在专项范围内（品牌、细分品类）、
+     * 已暂不覆盖的，只移出被合并方。
+     */
+    private void mergeProjectItems(ScDemandDO keep, Long goneId) {
+        List<ScGapProjectItemDO> items = projectItemMapper.selectList(new LambdaQueryWrapper<ScGapProjectItemDO>()
+                .eq(ScGapProjectItemDO::getDemandId, goneId).isNull(ScGapProjectItemDO::getDeletedAt));
+        if (items.isEmpty()) {
+            return;
+        }
+        Set<Long> keepIn = new HashSet<>();
+        projectItemMapper.selectList(new LambdaQueryWrapper<ScGapProjectItemDO>()
+                        .eq(ScGapProjectItemDO::getDemandId, keep.getId()).isNull(ScGapProjectItemDO::getDeletedAt))
+                .forEach(i -> keepIn.add(i.getProjectId()));
+        Map<Long, ScGapProjectDO> projects = new HashMap<>();
+        projectMapper.selectBatchIds(items.stream().map(ScGapProjectItemDO::getProjectId).distinct().toList())
+                .forEach(p -> projects.put(p.getId(), p));
+        LocalDateTime now = LocalDateTime.now();
+        for (ScGapProjectItemDO i : items) {
+            ScGapProjectDO p = projects.get(i.getProjectId());
+            boolean move = p != null && !keepIn.contains(p.getId()) && keep.getStatus() != SupplyConstants.DEMAND_PAUSED
+                    && keep.getBrandId().equals(p.getBrandId())
+                    && (p.getCategoryId() == null || p.getCategoryId() == 0 || p.getCategoryId().equals(keep.getCategoryId()));
+            LambdaUpdateWrapper<ScGapProjectItemDO> u = new LambdaUpdateWrapper<ScGapProjectItemDO>()
+                    .eq(ScGapProjectItemDO::getId, i.getId()).set(ScGapProjectItemDO::getUpdateTime, now);
+            if (move) {
+                keepIn.add(p.getId());
+                projectItemMapper.update(null, u.set(ScGapProjectItemDO::getDemandId, keep.getId()));
+            } else {
+                projectItemMapper.update(null, u.set(ScGapProjectItemDO::getDeletedAt, now));
+            }
+        }
     }
 
     @Transactional

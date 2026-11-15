@@ -480,6 +480,14 @@ const _ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
         reimburseApi.pendingTotal(),
       ]);
       setRows(res.records);
+      // 已勾选的换成最新数据，已不是待付款的剔除，批量登记已付不会带上已撤回、已付的（audit UI-055）
+      setPicked((cur) =>
+        cur.flatMap((p) => {
+          const fresh = res.records.find((r) => r.id === p.id);
+          if (!fresh) return [p];
+          return fresh.status === BX_STATUS.PENDING ? [fresh] : [];
+        }),
+      );
       setTotal(res.total);
       setPendingTotal(t);
     } catch (e) {
@@ -492,6 +500,9 @@ const _ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
   useEffect(() => {
     load();
   }, [load, refreshSignal]);
+
+  // 从详情撤回、登记或撤销已付后返回时重新取数（audit UI-055）
+  useOnReactivate(load);
 
   const columns: TableColumnsType<Reimbursement> = [
     {

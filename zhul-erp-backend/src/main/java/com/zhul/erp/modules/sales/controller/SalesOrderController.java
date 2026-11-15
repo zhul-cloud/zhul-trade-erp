@@ -10,6 +10,7 @@ import com.zhul.erp.modules.sales.dto.OrderAttachmentsRequest;
 import com.zhul.erp.modules.sales.dto.OrderItemsRequest;
 import com.zhul.erp.modules.sales.dto.OrderRemarkRequest;
 import com.zhul.erp.modules.sales.dto.SalesDateRequest;
+import com.zhul.erp.modules.sales.dto.PaymentDueDateRequest;
 import com.zhul.erp.modules.sales.dto.SalesOrderListVO;
 import com.zhul.erp.modules.sales.dto.SalesOrderPageQuery;
 import com.zhul.erp.modules.sales.dto.SalesOrderVO;
@@ -55,6 +56,12 @@ public class SalesOrderController {
     @PreAuthorize("@perm.canAccessMenu('/sales/orders')")
     public Result<SalesOrderVO> salesDate(@PathVariable Long id, @Valid @RequestBody SalesDateRequest req) {
         return Result.ok(service.updateSalesDate(id, req.getSalesDate()));
+    }
+
+    @PostMapping("/orders/{id}/payment-due-date")
+    @PreAuthorize("@perm.canAccessMenu('/sales/orders')")
+    public Result<SalesOrderVO> paymentDueDate(@PathVariable Long id, @RequestBody PaymentDueDateRequest req) {
+        return Result.ok(service.updatePaymentDueDate(id, req.getPaymentDueDate()));
     }
 
     @PostMapping("/orders/{id}/progress")

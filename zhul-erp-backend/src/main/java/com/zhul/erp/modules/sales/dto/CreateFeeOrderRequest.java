@@ -12,6 +12,8 @@ import java.util.List;
 public class CreateFeeOrderRequest {
     /** 不传时为当天，不能晚于当天 */
     private LocalDate salesDate;
+    /** 约定付款日，选填，不能早于销售日期 */
+    private LocalDate paymentDueDate;
     @Valid
     @Size(max = 10, message = "费用最多 10 行")
     private List<OrderFeeLine> fees;

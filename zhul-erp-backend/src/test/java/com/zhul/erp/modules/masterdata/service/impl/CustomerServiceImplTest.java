@@ -87,12 +87,23 @@ class CustomerServiceImplTest {
         MybatisPlusTestSupport.initTableInfo(CustomerDO.class);
     }
 
+    @SuppressWarnings("unchecked")
+    private static org.springframework.beans.factory.ObjectProvider<com.zhul.erp.modules.masterdata.customerprofile.support.ProfileFacts>
+            profileFacts() {
+        org.springframework.beans.factory.ObjectProvider<com.zhul.erp.modules.masterdata.customerprofile.support.ProfileFacts> p =
+                org.mockito.Mockito.mock(org.springframework.beans.factory.ObjectProvider.class);
+        when(p.getObject()).thenReturn(org.mockito.Mockito.mock(com.zhul.erp.modules.masterdata.customerprofile.support.ProfileFacts.class));
+        return p;
+    }
+
     @BeforeEach
     void setUp() {
         service = new CustomerServiceImpl(customerMapper, new CustomerPartySync(partyMapper), dataScopeResolver,
                 countryCatalog, userBasicMapper, departmentMapper, logService, dictItemService, businessUnitService,
                 org.mockito.Mockito.mock(com.zhul.erp.modules.masterdata.customerprofile.support.PrimaryContactSync.class),
-                org.mockito.Mockito.mock(com.zhul.erp.modules.crm.followup.support.FollowupSync.class));
+                org.mockito.Mockito.mock(com.zhul.erp.modules.crm.followup.support.FollowupSync.class),
+                org.mockito.Mockito.mock(com.zhul.erp.modules.masterdata.customerprofile.support.FieldSources.class),
+                profileFacts());
         TenantContext.setTenantId(1);
         when(dataScopeResolver.current()).thenReturn(new DataScope(DataScope.Type.SELF, SELF, Set.of(SELF)));
         when(countryCatalog.canonicalName(anyString())).thenAnswer(inv -> {

@@ -1,4 +1,5 @@
 import { InfoCircleOutlined } from '@ant-design/icons';
+import { history } from '@umijs/max';
 import {
   App,
   Button,
@@ -10,10 +11,12 @@ import {
   Radio,
   Segmented,
   Select,
+  Typography,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
+import { liveRequests } from '@/utils/liveRequests';
 import { CoverPill, useOptions, useUsers } from './components';
 import {
   classifyPlan,
@@ -30,6 +33,7 @@ import {
   HEAT_NAMES,
   modelName,
   newKey,
+  PATHS,
   PRIORITY_NAMES,
   readBizError,
   type Signal,
@@ -393,7 +397,13 @@ export const CoverageModal: React.FC<{
         <Button
           key="inquiry"
           type="link"
-          href={`/inquiry/customer-inquiries?keyword=${encodeURIComponent(d.model ?? '')}`}
+          onClick={() => {
+            // 站内跳转，在标签页里打开并按型号筛（audit UI-088）
+            onClose();
+            history.push(
+              `/inquiry/customer-inquiries?keyword=${encodeURIComponent(d.model ?? '')}`,
+            );
+          }}
         >
           去询价
         </Button>,
@@ -515,38 +525,51 @@ export const ProjectModal: React.FC<{
     setExpand(false);
     setDev(!!scope.dev);
     setWithItems(!scope.dev);
+    setName('');
   }, [scope]);
 
+  // 换范围时先清掉上一个范围的型号、勾选和进行中专项，迟到的响应丢弃（audit UI-056）
   useEffect(() => {
-    if (!scope || !brandId) return;
-    supplyApi
-      .candidates(brandId, categoryId)
+    setItems([]);
+    setChecked([]);
+    setActiveId(0);
+    if (!scope || !brandId) return undefined;
+    const { live, cancel } = liveRequests();
+    live(supplyApi.candidates(brandId, categoryId))
       .then((r) => {
         setItems(r.items);
         setChecked(r.items.map((d) => d.id));
         if (!scope.dev) setName(r.defaultName.replace(' · 全部品类', ''));
         setActiveId(r.activeProjectId);
       })
-      .catch(() => setItems([]));
+      .catch(() => undefined);
+    return cancel;
   }, [scope, brandId, categoryId]);
 
   useEffect(() => {
-    if (!scope || !brandId || !categoryId) {
-      setRange(undefined);
-      return;
-    }
-    supplyApi
-      .devScope(brandId, categoryId)
+    setRange(undefined);
+    setLeads(0);
+    if (!scope || !brandId || !categoryId) return undefined;
+    const { live, cancel } = liveRequests();
+    live(supplyApi.devScope(brandId, categoryId))
       .then((r) => {
         setRange(r);
         setTarget(defaultTarget(r.gap));
         if (scope.dev) setName(r.defaultName);
       })
-      .catch(() => setRange(undefined));
-    supplyApi
-      .devGroups({ brandId, categoryId, stage: 'all', ownerId: 0, size: 1 })
+      .catch(() => undefined);
+    live(
+      supplyApi.devGroups({
+        brandId,
+        categoryId,
+        stage: 'all',
+        ownerId: 0,
+        size: 1,
+      }),
+    )
       .then((r) => setLeads(r.groups[0]?.leads ?? 0))
-      .catch(() => setLeads(0));
+      .catch(() => undefined);
+    return cancel;
   }, [scope, brandId, categoryId]);
 
   if (!scope) return null;
@@ -698,7 +721,14 @@ export const ProjectModal: React.FC<{
         ) : (
           <Hint tone="warn">
             这个范围已有进行中的专项，
-            <a href={`/supply-chain/projects/${activeId}`}>去查看</a>
+            <Typography.Link
+              onClick={() => {
+                onClose();
+                history.push(PATHS.project(activeId));
+              }}
+            >
+              去查看
+            </Typography.Link>
           </Hint>
         ))}
       {!addTargetToActive && (
@@ -1368,8 +1398,13 @@ export const ProjectItemsModal: React.FC<{
     if (!p) return;
     const current = p.items ?? [];
     setChecked(current.map((d) => d.id));
+    // 全部品类的专项品类存为 0，按整个品牌取型号（audit BUS-051）
     supplyApi
-      .models({ brandId: p.brandId, categoryId: p.categoryId, size: 200 })
+      .models({
+        brandId: p.brandId,
+        categoryId: p.categoryId || undefined,
+        size: 200,
+      })
       .then((r) => {
         const extra = r.records.filter(
           (d) => !current.some((c) => c.id === d.id),

@@ -474,6 +474,9 @@ def _required_nullable_schema(schema):
                 walk(prop)
                 if name not in required:
                     prop["type"] = [prop["type"], "null"]
+                    if "enum" in prop:
+                        # enum 是独立约束，不加 null 时模型只能在枚举值里硬选一个（AI-012）
+                        prop["enum"] = [*prop["enum"], None]
             node["required"] = list(node["properties"])
             node["additionalProperties"] = False
 
@@ -1406,17 +1409,23 @@ def _parse_large(cfg, raw_content, refs, categories, work, progress, usages) -> 
                               [], OUTPUT_SCHEMA, model=cfg.parse_model, effort=cfg.parse_effort, web_search=True)
             collect_usage()
             # 按原文型号把核验结果对回提交的型号，不依赖返回顺序（实测模型会调换顺序，按位置对会张冠李戴）；
-            # 对不上的型号不采用核验结果，标待核实
+            # 对不上的型号不采用核验结果，标待核实。原文型号相同的可能有多条（各批确认成不同型号），
+            # 都登记，优先按确认型号对回，否则取最先提交的一条（AI-013）
             pending = {}
             for it in chunk:
-                pending.setdefault(lp.normalize_model(it.get("originalModel") or it.get("confirmedModel")), it)
+                pending.setdefault(lp.normalize_model(it.get("originalModel") or it.get("confirmedModel")), []).append(it)
             matched = []
             for g in result.get("groups", []):
                 for v in g.get("items", []):
-                    it = pending.pop(lp.normalize_model(v.get("originalModel")), None)
-                    if it is not None:
-                        matched.append((g, v, it))
-            for it in pending.values():
+                    same = pending.get(lp.normalize_model(v.get("originalModel")))
+                    if not same:
+                        continue
+                    confirmed = lp.normalize_model(v.get("confirmedModel"))
+                    it = next((x for x in same if lp.normalize_model(x.get("confirmedModel")) == confirmed), same[0])
+                    same.remove(it)
+                    matched.append((g, v, it))
+            pending = [it for same in pending.values() for it in same]
+            for it in pending:
                 it["confidence"] = lp.CONFIDENCE_PENDING_VERIFY
                 it["correctionNote"] = "；".join(x for x in (it.get("correctionNote"), "未联网核验") if x)
             if pending:

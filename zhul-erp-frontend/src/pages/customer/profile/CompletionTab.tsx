@@ -56,13 +56,15 @@ const MULTI = new Set(['protocols', 'voltages', 'certifications']);
 const DICTS = PROFILE_DICTS as Record<string, string>;
 type Option = { value: number; label: string };
 
+const CONTACT_NOT_READY = '联系人信息还没加载出来，请稍后再试或刷新页面';
+
 /** 编辑值的键：联系人字段加 c. 前缀，避免和客户字段（如 name）重名 */
 const valueKey = (i: CompletionItem) => `${i.contact ? 'c.' : ''}${i.key}`;
 
-/** 这一项能不能在向导里直接点选：字典项、公司类型、潜力评级；联系人字段要有联系人 */
-const inline = (i: CompletionItem, hasContact: boolean) =>
+/** 这一项能不能在向导里直接点选：字典项、公司类型、潜力评级；联系人字段要有联系人且已取到 */
+const inline = (i: CompletionItem, contactReady: boolean) =>
   i.contact
-    ? hasContact && !!DICTS[i.key]
+    ? contactReady && !!DICTS[i.key]
     : i.key === 'customerRole' || i.key === 'potentialRating' || !!DICTS[i.key];
 
 /** 点选：一排可切换的小按钮（第③步） */
@@ -404,12 +406,28 @@ const Wizard: React.FC<{
         if (target.startsWith('profile:')) {
           setEditModule(Number(target.slice('profile:'.length)));
         } else if (target === 'contact') {
-          setContactOpen(true);
+          if (contactMissing) message.error(CONTACT_NOT_READY);
+          else setContactOpen(true);
         }
       }
     : undefined;
 
-  useEffect(() => setValues({}), [w]);
+  // 刷新向导（勾「已经问了」、采纳建议、背调完成）时保留还没保存的点选，只去掉已经不缺的项（audit UI-069）；
+  // 换客户时 Wizard 按客户重新挂载，点选自然清空
+  useEffect(() => {
+    const keys = new Set(
+      w.steps
+        .filter((s) => s.step > 1)
+        .flatMap((s) => s.items)
+        .map(valueKey),
+    );
+    setValues((cur) => {
+      const kept = Object.entries(cur).filter(([k]) => keys.has(k));
+      return kept.length === Object.keys(cur).length
+        ? cur
+        : Object.fromEntries(kept);
+    });
+  }, [w]);
 
   // 背调完成后刷新向导，第②步出现字段建议
   const wasRunning = useRef(false);
@@ -426,13 +444,16 @@ const Wizard: React.FC<{
   const report = s2?.report;
   const hasContact = w.contactId != null;
   const contact = profile?.contacts.find((c) => c.id === w.contactId);
+  /** 有联系人但档案还没取到（或取数失败）：联系人项不能点选、不能编辑，免得保存时被丢掉（audit UI-060） */
+  const contactMissing = hasContact && !contact;
 
   const set = (i: CompletionItem, v?: number | number[]) =>
     setValues((cur) => ({ ...cur, [valueKey(i)]: v }));
 
   /** 不能直接点选的项：客户字段打开编辑弹窗（不在弹窗里的去编辑页），联系人字段打开联系人弹窗 */
   const openEditor = (i: CompletionItem) => {
-    if (i.contact) setContactOpen(true);
+    if (i.contact && contactMissing) message.error(CONTACT_NOT_READY);
+    else if (i.contact) setContactOpen(true);
     else if (ALL_FIELDS.includes(i.key)) setEditModule(i.module);
     else history.push(`${LIST_PATH}/${w.customerId}/edit`);
   };
@@ -458,6 +479,10 @@ const Wizard: React.FC<{
     const contactVals = entered.filter(([k]) => k.startsWith('c.'));
     if (entered.length === 0) {
       if (next) onSaved(true);
+      return;
+    }
+    if (contactVals.length && !contact) {
+      message.error(CONTACT_NOT_READY);
       return;
     }
     setSaving(next ? 'next' : 'save');
@@ -722,7 +747,7 @@ const Wizard: React.FC<{
               style={{ display: 'flex', alignItems: 'center', gap: 12 }}
             >
               {labelCell(i)}
-              {canEdit && inline(i, hasContact) ? (
+              {canEdit && inline(i, !!contact) ? (
                 <Choice
                   item={i}
                   variant="chips"
@@ -783,7 +808,7 @@ const Wizard: React.FC<{
                   "{i.question}"
                 </div>
               )}
-              {canEdit && inline(i, hasContact) ? (
+              {canEdit && inline(i, !!contact) ? (
                 <Choice
                   item={i}
                   variant="select"
@@ -910,29 +935,37 @@ const CompletionTab: React.FC = () => {
     return res.records;
   }, []);
 
-  useEffect(() => {
+  /** 首次加载与「重试」：成功后清掉错误并选中第一个（audit UI-070） */
+  const init = useCallback(() => {
     setLoading(true);
+    setError(undefined);
     loadQueue(1)
       .then((r) => setSelected(r[0]?.customerId))
       .catch((e) => setError(readBizError(e).message))
       .finally(() => setLoading(false));
   }, [loadQueue]);
+  useEffect(init, [init]);
 
+  /** 请求序号：换客户或重新加载后，之前发出的向导、档案请求迟到时丢弃（audit UI-060） */
+  const wizardReq = useRef(0);
   const loadWizard = useCallback(() => {
     if (!selected) return;
+    const req = ++wizardReq.current;
+    const live = () => req === wizardReq.current;
     setWizardError(undefined);
     completionApi
       .wizard(selected)
-      .then(setWizard)
-      .catch((e) => setWizardError(readBizError(e).message));
+      .then((w) => live() && setWizard(w))
+      .catch((e) => live() && setWizardError(readBizError(e).message));
     profileApi
       .get(selected)
-      .then(setProfile)
-      .catch(() => setProfile(undefined));
+      .then((p) => live() && setProfile(p))
+      .catch(() => live() && setProfile(undefined));
   }, [selected]);
 
   useEffect(() => {
     setWizard(undefined);
+    setProfile(undefined);
     loadWizard();
   }, [loadWizard]);
 
@@ -973,7 +1006,7 @@ const CompletionTab: React.FC = () => {
       </div>
     );
   }
-  if (error) return <ErrorHint message={error} onRetry={() => loadQueue(1)} />;
+  if (error) return <ErrorHint message={error} onRetry={init} />;
   if (rows.length === 0) {
     return (
       <EmptyHint
@@ -1018,8 +1051,11 @@ const CompletionTab: React.FC = () => {
           </div>
         ) : wizard ? (
           <Wizard
+            key={wizard.customerId}
             wizard={wizard}
-            profile={profile}
+            profile={
+              profile?.customerId === wizard.customerId ? profile : undefined
+            }
             grade={grade}
             onSaved={onSaved}
             onReload={loadWizard}

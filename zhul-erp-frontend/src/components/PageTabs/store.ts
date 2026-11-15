@@ -42,6 +42,13 @@ const go = (url?: string) => {
 
 let unlisten: (() => void) | undefined;
 
+/** 离开未保存页面前的确认（由标签页组件登记弹窗）；用户确认离开时调用 leave */
+let leaveConfirm: ((leave: () => void) => void) | undefined;
+
+export const setLeaveConfirm = (fn?: (leave: () => void) => void) => {
+  leaveConfirm = fn;
+};
+
 /**
  * 进入系统后初始化：按账号恢复上次的标签（浏览器刷新时），补上固定首页，再把当前地址归到标签里。
  * canOpen：当前账号能否打开某菜单。
@@ -77,6 +84,20 @@ export const initTabs = (opts: {
     const url = `${location.pathname}${location.search}${location.hash}`;
     const kind: M.NavKind =
       action === 'POP' ? 'pop' : action === 'REPLACE' ? 'replace' : 'push';
+    // 浏览器后退会让有未保存修改的栈顶出栈、页面卸载：先把地址放回当前页，确认后再离开（audit UI-004#1）
+    const cur = M.activeTab(state);
+    const prev = cur?.stack[cur.stack.length - 2];
+    if (
+      kind === 'pop' &&
+      cur &&
+      leaveConfirm &&
+      M.top(cur).dirty &&
+      prev?.url === url
+    ) {
+      history.push(M.top(cur).url);
+      leaveConfirm(() => tabsActions.back());
+      return;
+    }
     set(M.navigated(state, url, kind, menuOf));
   });
 };

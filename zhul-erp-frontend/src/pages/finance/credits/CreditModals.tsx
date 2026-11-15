@@ -440,10 +440,21 @@ export const AdjustModal: React.FC<{
     setFiles([]);
   }, [open, account]);
 
+  // 从页面顶部进入时默认选当前用户的事业部；信息晚到也只补空着的事业部（audit BUS-057）
+  useEffect(() => {
+    if (!open || account || !bu.enabled || bu.myUnitId == null) return;
+    setUnitId((cur) => cur ?? bu.myUnitId);
+  }, [open, account, bu.enabled, bu.myUnitId]);
+
   const reasonMissing = touched && !reason.trim();
   const submit = async () => {
     setTouched(true);
     if (!customerId || !amount || !reason.trim()) {
+      return;
+    }
+    // 启用事业部后余额按「客户 + 币种 + 事业部」隔离，不选事业部的余额哪张 PI 都抵扣不了
+    if (bu.enabled && !account && unitId == null) {
+      message.error('请选择事业部');
       return;
     }
     if (amount > 0 && !cny) {

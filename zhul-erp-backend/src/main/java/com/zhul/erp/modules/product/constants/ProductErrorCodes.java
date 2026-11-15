@@ -61,4 +61,7 @@ public final class ProductErrorCodes {
     public static final String RATE_LIMITED = "RATE_LIMITED";
 
     public static final String PARAM_INVALID = "PARAM_INVALID";
+
+    /** AI 细分、候选 AI 解析的任务查不到（不存在或不是自己提交的）：页面据此停止跟踪，其他错误继续轮询（audit UI-084） */
+    public static final String AI_TASK_NOT_FOUND = "AI_TASK_NOT_FOUND";
 }

@@ -29,6 +29,7 @@ import com.zhul.erp.modules.system.service.BankAccountService;
 import com.zhul.erp.modules.system.service.LogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -140,7 +141,7 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public void unclaim(Long id, String reason) {
         String why = requireReason(reason);
         PaymentReceiptDO found = require(id);

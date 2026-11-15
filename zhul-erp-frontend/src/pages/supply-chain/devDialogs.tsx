@@ -14,6 +14,7 @@ import React, { useEffect, useState } from 'react';
 import SupplierSelect from '@/pages/inquiry/my-tasks/SupplierSelect';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
+import { liveRequests } from '@/utils/liveRequests';
 import { DueText, Pill, useOptions, useUsers } from './components';
 import { Hint, InfoBox, iso, Label } from './dialogs';
 import { candidateNextOptional, candidateTone, evidenceText } from './rules';
@@ -63,13 +64,12 @@ export const ExpansionModal: React.FC<{
     setOwnerId(undefined);
   }, [open, scope]);
 
+  // 换品牌品类时先清掉上一个范围，迟到的响应丢弃，保存不会改到别的主动拓展（audit UI-056）
   useEffect(() => {
-    if (!open || !brandId || !categoryId) {
-      setRange(undefined);
-      return;
-    }
-    supplyApi
-      .devScope(brandId, categoryId)
+    setRange(undefined);
+    if (!open || !brandId || !categoryId) return undefined;
+    const { live, cancel } = liveRequests();
+    live(supplyApi.devScope(brandId, categoryId))
       .then((r) => {
         setRange(r);
         if (r.expansionId) {
@@ -78,7 +78,8 @@ export const ExpansionModal: React.FC<{
           setOwnerId(r.expansionOwnerId || undefined);
         }
       })
-      .catch(() => setRange(undefined));
+      .catch(() => undefined);
+    return cancel;
   }, [open, brandId, categoryId]);
 
   if (!open) return null;
