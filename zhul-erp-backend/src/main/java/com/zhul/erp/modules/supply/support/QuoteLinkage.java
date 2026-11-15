@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.supply.support;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.inquiry.constants.InquiryConstants;
@@ -172,6 +173,10 @@ public class QuoteLinkage {
             return;
         }
         if (withdrawn) {
+            // 补登只看得到当前状态：回到草稿的也可能是从未生效、被审核退回的回价（audit BUS-073），登记过回价的才算撤回
+            if (!withdrawnEvent && !registered(quoteId)) {
+                return;
+            }
             if (!log(d, SupplyConstants.LOG_SRC_WITHDRAWN, quoteId, task, "询价任务 " + task + " 回价已撤回")) {
                 return;
             }
@@ -198,6 +203,13 @@ public class QuoteLinkage {
                     .set(ScDemandDO::getDeferCount, 0)
                     .set(ScDemandDO::getUpdateTime, LocalDateTime.now()));
         }
+    }
+
+    /** 这条询价记录生效时登记过回价或无货 */
+    private boolean registered(long quoteId) {
+        return logMapper.exists(new LambdaQueryWrapper<ScFollowupLogDO>()
+                .in(ScFollowupLogDO::getSourceType, SupplyConstants.LOG_SRC_QUOTED, SupplyConstants.LOG_SRC_NO_STOCK)
+                .eq(ScFollowupLogDO::getSourceId, quoteId));
     }
 
     /** 写系统处理记录；同一来源已登记过返回 false */
