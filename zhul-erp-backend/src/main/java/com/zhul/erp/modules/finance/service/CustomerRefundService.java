@@ -427,8 +427,9 @@ public class CustomerRefundService {
     }
 
     private RefundableVO refundableOf(SalesOrderDO o, ReceiptPosition.Position pos) {
-        // PI 转成的订单按 PI 的到账算可退，已退的也按同一 PI 下所有订单（含取消重转前的旧订单）算（audit BUS-003）
-        List<Long> soIds = o.getPiId() == null ? List.of(o.getId())
+        // PI 转成的订单按 PI 的到账算可退，已退的也按同一 PI 下所有订单（含取消重转前的旧订单）算（audit BUS-003）。
+        // 手动、补发、迁移订单的 pi_id 存 0，不是 PI，只算本单（audit BUS-041）
+        List<Long> soIds = o.getPiId() == null || o.getPiId() <= 0 ? List.of(o.getId())
                 : orderMapper.selectList(new LambdaQueryWrapper<SalesOrderDO>()
                                 .select(SalesOrderDO::getId)
                                 .eq(SalesOrderDO::getPiId, o.getPiId()))
