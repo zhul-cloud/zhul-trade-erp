@@ -916,4 +916,88 @@ class AfterSalesContractTest extends SalesContractSupport {
         money("0", ok(call(get(SO + "/" + b), admin)).path("cost").path("refund"));
         assertEquals(0, ok(call(get(SO + "/" + b), admin)).path("cost").path("refunds").size());
     }
+
+    /**
+     * audit SEC-020：登记售后单按订单负责人（不选订单时按客户负责人）校验数据范围，
+     * 本人范围的业务员不能对别人的订单、别人的客户登记售后；负责人填自己也不行
+     */
+    @Test
+    void create_followsOrderAndCustomerScope() throws Exception {
+        bankAccount("USD");
+        long c = customer("Iberia Motion", "Spain");
+        long so = manualShipped(c);
+        jdbc.update("update sales_order set owner_id = ? where id = ?", BUYER_LIN, so);
+        jdbc.update("update customer set owner_id = ? where id = ?", BUYER_LIN, c);
+        loginWithResources("it_as_scope", MENU_AFTER_SALES, MENU_SO);
+        String staff = token("it_as_scope");
+        Map<String, Object> b = new HashMap<>();
+        b.put("customerId", c);
+        b.put("soId", so);
+        b.put("ownerId", ADMIN_USER);
+        b.put("items", List.of(Map.of("soItemId", soItem(so), "quantity", 1)));
+        b.put("symptom", "无法上电");
+        assertEquals("订单不存在", msg(call(json(post(AS), write(b)), staff)));
+        b.remove("soId");
+        b.put("items", List.of(Map.of("model", "A-9", "quantity", 1)));
+        assertEquals("客户不存在", msg(call(json(post(AS), write(b)), staff)));
+        assertEquals(0, jdbc.queryForObject("select count(*) from after_sales where tenant_id = 0", Integer.class));
+
+        // 订单、客户回到本人名下：正常登记
+        jdbc.update("update sales_order set owner_id = ? where id = ?", ADMIN_USER, so);
+        jdbc.update("update customer set owner_id = ? where id = ?", ADMIN_USER, c);
+        ok(call(json(post(AS), write(b)), staff));
+        b.put("soId", so);
+        b.put("items", List.of(Map.of("soItemId", soItem(so), "quantity", 1)));
+        ok(call(json(post(AS), write(b)), staff));
+    }
+
+    /** audit BUS-052：处理信息只提交改动的字段，没提交的原因、方案、负责人、下一步保持他人刚改的值 */
+    @Test
+    void plan_onlyChangedFields_keepsConcurrentEdits() throws Exception {
+        bankAccount("USD");
+        long so = manualShipped(customer("Andes Valves", "Peru"));
+        long asId = ok(create(so, 1, "S3")).path("id").asLong();
+        LocalDateTime next = LocalDateTime.now().plusDays(1).withNano(0).withSecond(0);
+        // B 先改负责人、原因与方案
+        ok(plan(asId, Map.of("ownerId", BUYER_LIN, "reasonCode", "QUALITY", "solutions", List.of("EXCHANGE"))));
+        // A 打开时的快照没改原因、方案、负责人，只改了下一步
+        Map<String, Object> a = new HashMap<>();
+        a.put("nextAction", "寄样品给客户");
+        a.put("nextUpdateAt", next.toString());
+        JsonNode r = ok(plan(asId, a));
+        assertEquals(BUYER_LIN, r.path("ownerId").asLong());
+        assertEquals("QUALITY", r.path("reasonCode").asText());
+        assertEquals("EXCHANGE", r.path("solutions").get(0).asText());
+        assertEquals("寄样品给客户", r.path("nextAction").asText());
+        // 只改负责人：下一步与下次更新时间不变
+        r = ok(plan(asId, Map.of("ownerId", ADMIN_USER)));
+        assertEquals(ADMIN_USER, r.path("ownerId").asLong());
+        assertEquals("寄样品给客户", r.path("nextAction").asText());
+        assertEquals(next, LocalDateTime.parse(r.path("nextUpdateAt").asText().replace(' ', 'T')));
+        // 下一步提交空字符串仍是清空
+        Map<String, Object> clear = new HashMap<>();
+        clear.put("nextAction", "");
+        clear.put("nextUpdateAt", null);
+        r = ok(plan(asId, clear));
+        assertEquals("", r.path("nextAction").asText());
+        assertTrue(r.path("nextUpdateAt").isNull() || r.path("nextUpdateAt").isMissingNode());
+    }
+
+    /** audit UI-067：售后管理列表可按原因与客户筛选 */
+    @Test
+    void page_filtersByReasonAndCustomer() throws Exception {
+        bankAccount("USD");
+        long c1 = customer("Gulf Automation", "UAE");
+        long c2 = customer("Delta Drives", "Vietnam");
+        long a1 = ok(create(manualShipped(c1), 1, "S3")).path("id").asLong();
+        long a2 = ok(create(manualShipped(c2), 1, "S3")).path("id").asLong();
+        ok(plan(a1, Map.of("reasonCode", "QUALITY")));
+        ok(plan(a2, Map.of("reasonCode", "TRANSPORT")));
+        JsonNode quality = ok(call(json(post(AS + "/page"), write(Map.of("reasonCode", "QUALITY"))), admin));
+        assertEquals(1, quality.path("total").asInt());
+        assertEquals(a1, quality.path("records").get(0).path("id").asLong());
+        JsonNode byCustomer = ok(call(json(post(AS + "/page"), write(Map.of("customerId", c2))), admin));
+        assertEquals(1, byCustomer.path("total").asInt());
+        assertEquals(a2, byCustomer.path("records").get(0).path("id").asLong());
+    }
 }

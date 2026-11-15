@@ -25,6 +25,7 @@ import { ellipsisRender } from '@/components/EllipsisText';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
+import { searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useDictTexts } from '@/utils/dict';
 import { usePageSize } from '@/utils/pageSize';
@@ -37,6 +38,7 @@ import {
   AS_STATUS_TONE,
   afterSalesApi,
   DICT_LEVEL,
+  DICT_REASON,
   LEVEL_TONE,
   levelShort,
 } from './service';
@@ -47,6 +49,7 @@ const AfterSalesPage: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
   const levels = useDictTexts(DICT_LEVEL);
+  const reasons = useDictTexts(DICT_REASON);
   const owners = useOwnerOptions();
   const [search] = useSearchParams();
   /** 工作台带过来：overdue=1 只看逾期，overdue=soon 已逾期或快到期 */
@@ -60,6 +63,11 @@ const AfterSalesPage: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [query, setQuery] = useState('');
   const [level, setLevel] = useState<string>();
+  const [reason, setReason] = useState<string>();
+  const [customerId, setCustomerId] = useState<number>();
+  const [customerOptions, setCustomerOptions] = useState<
+    { value: number; label: string }[]
+  >([]);
   const [ownerId, setOwnerId] = useState<number>();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
@@ -84,7 +92,9 @@ const AfterSalesPage: React.FC = () => {
           pageSize,
           status: status === 'all' ? undefined : status,
           keyword: query || undefined,
+          customerId,
           levelCode: level,
+          reasonCode: reason,
           ownerId,
           overdue: due === 'overdue' || undefined,
           dueSoon: due === 'soon' || undefined,
@@ -99,7 +109,18 @@ const AfterSalesPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, status, query, level, ownerId, due, message]);
+  }, [
+    page,
+    pageSize,
+    status,
+    query,
+    customerId,
+    level,
+    reason,
+    ownerId,
+    due,
+    message,
+  ]);
 
   useEffect(() => {
     load();
@@ -108,6 +129,17 @@ const AfterSalesPage: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
 
   useOnReactivate(load);
+
+  const searchCust = async (kw: string) => {
+    try {
+      const res = await searchCustomers(kw);
+      setCustomerOptions(
+        res.map((c) => ({ value: c.id, label: c.displayName ?? c.name })),
+      );
+    } catch {
+      setCustomerOptions([]);
+    }
+  };
 
   const sub = (t?: React.ReactNode, color?: string) =>
     t ? (
@@ -399,6 +431,20 @@ const AfterSalesPage: React.FC = () => {
             style={{ width: 240 }}
             aria-label="关键词"
           />
+          <Select<number>
+            allowClear
+            showSearch={{ filterOption: false, onSearch: searchCust }}
+            placeholder="全部客户"
+            value={customerId}
+            options={customerOptions}
+            onFocus={() => customerOptions.length === 0 && searchCust('')}
+            onChange={(v) => {
+              setCustomerId(v);
+              setPage(1);
+            }}
+            style={{ width: 200 }}
+            aria-label="客户"
+          />
           <Select
             allowClear
             placeholder="全部等级"
@@ -410,6 +456,18 @@ const AfterSalesPage: React.FC = () => {
             options={levels.map((l) => ({ value: l.code, label: l.name }))}
             style={{ width: 170 }}
             aria-label="等级"
+          />
+          <Select
+            allowClear
+            placeholder="全部原因"
+            value={reason}
+            onChange={(v) => {
+              setReason(v);
+              setPage(1);
+            }}
+            options={reasons.map((r) => ({ value: r.code, label: r.name }))}
+            style={{ width: 150 }}
+            aria-label="原因"
           />
           <Select
             allowClear

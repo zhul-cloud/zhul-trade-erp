@@ -452,7 +452,7 @@ public class RefundRequestService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public RefundRequestVO attach(Long id, Collection<Long> ids) {
         visible(id);
         attachments.attach(AttachmentService.REFUND_REQUEST, id, ids);
@@ -460,7 +460,7 @@ public class RefundRequestService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public RefundRequestVO removeAttachment(Long id, Long attachmentId) {
         visible(id);
         attachments.remove(AttachmentService.REFUND_REQUEST, id, attachmentId);
@@ -716,6 +716,7 @@ public class RefundRequestService {
         return q;
     }
 
+    /** 写方法用读已提交，加锁后的重读拿到其他事务已提交的最新状态（audit BUS-035） */
     private RefundRequestDO lock(Long id) {
         require(id);
         mapper.lockById(id);
