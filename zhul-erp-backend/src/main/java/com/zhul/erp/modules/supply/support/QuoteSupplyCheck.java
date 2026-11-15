@@ -148,7 +148,10 @@ public class QuoteSupplyCheck implements QuoteSupplyHints {
         return out;
     }
 
-    /** 品牌 + 归一化型号 → 需求对象（批量读一次）；品牌识别不到的行没有 */
+    /**
+     * 品牌 + 归一化型号 → 需求对象（批量读一次）；品牌识别不到的行没有。
+     * 合并掉的需求对象与 {@link DemandRegistry#find} 一样沿合并链找到保留方（audit BUS-077）。
+     */
     private Map<String, ScDemandDO> demands(List<Line> lines) {
         Map<String, ScDemandDO> out = new HashMap<>();
         List<String> scopes = lines.stream().map(l -> MpnNormalizer.normalize(l.model())).filter(StringUtils::hasText)
@@ -156,9 +159,30 @@ public class QuoteSupplyCheck implements QuoteSupplyHints {
         if (scopes.isEmpty()) {
             return out;
         }
-        for (ScDemandDO d : demandMapper.selectList(new LambdaQueryWrapper<ScDemandDO>()
-                .in(ScDemandDO::getScopeKey, scopes).isNull(ScDemandDO::getDeletedAt))) {
-            out.put(d.getBrandId() + "|" + d.getModelKey(), d);
+        // 键 → 还要沿合并链往下找的需求对象ID
+        Map<String, Long> merged = new HashMap<>();
+        for (ScDemandDO d : demandMapper.selectList(new LambdaQueryWrapper<ScDemandDO>().in(ScDemandDO::getScopeKey, scopes))) {
+            String key = d.getBrandId() + "|" + d.getModelKey();
+            if (d.getDeletedAt() == null) {
+                out.put(key, d);
+            } else if (d.getMergedIntoId() != null && d.getMergedIntoId() > 0) {
+                merged.put(key, d.getMergedIntoId());
+            }
+        }
+        merged.keySet().removeAll(out.keySet());
+        for (int i = 0; !merged.isEmpty() && i < 10; i++) {
+            Map<Long, ScDemandDO> next = new HashMap<>();
+            demandMapper.selectBatchIds(new java.util.HashSet<>(merged.values())).forEach(d -> next.put(d.getId(), d));
+            Map<String, Long> deeper = new HashMap<>();
+            merged.forEach((key, id) -> {
+                ScDemandDO d = next.get(id);
+                if (d != null && d.getDeletedAt() == null) {
+                    out.put(key, d);
+                } else if (d != null && d.getMergedIntoId() != null && d.getMergedIntoId() > 0) {
+                    deeper.put(key, d.getMergedIntoId());
+                }
+            });
+            merged = deeper;
         }
         return out;
     }
