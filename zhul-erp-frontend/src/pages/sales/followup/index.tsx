@@ -2,6 +2,7 @@ import { EditOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import { Button, Input, Segmented, Select } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { useWide } from '@/pages/inquiry/shared/components';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { getUserOptions } from '@/services/zhul/users';
@@ -210,6 +211,22 @@ const FollowupPage: React.FC = () => {
     loadTop();
     if (boardNo !== VIEW_TODAY) loadList(1);
   };
+
+  // 从售后单、订单等页面返回时重新取数（audit UI-055）；弹窗开着时不刷新，以免冲掉正在填的跟进
+  const dialogOpen =
+    recordOpen ||
+    batchOpen ||
+    quickOpen ||
+    prospectOpen ||
+    !!nurtureItem ||
+    !!convertItem ||
+    !!stop ||
+    !!inquiryCustomer;
+  useOnReactivate(() => {
+    if (view !== 'mine' || dialogOpen) return;
+    loadTop();
+    if (boardNo !== VIEW_TODAY) loadList(1);
+  });
 
   const openRecord = (item?: FollowupItem) => {
     setRecordTarget(item ? { item, customerId: item.customerId } : {});
