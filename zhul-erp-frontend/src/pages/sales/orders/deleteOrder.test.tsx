@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { App } from 'antd';
 import React from 'react';
 import { orderApi } from '../service';
@@ -101,4 +107,38 @@ it('不能删除：只列挡住的单据，没有原因和删除按钮', async (
   expect(screen.queryByLabelText('删除原因')).toBeNull();
   expect(screen.queryByRole('button', { name: /删\s*除/ })).toBeNull();
   expect(screen.getByRole('button', { name: '知道了' })).toBeTruthy();
+});
+
+/** audit UI-056：换了订单后，上一张订单迟到的删除检查不覆盖当前订单 */
+it('上一张订单迟到的检查结果被丢弃', async () => {
+  let resolveA!: (v: unknown) => void;
+  (orderApi.deleteCheck as jest.Mock)
+    .mockReturnValueOnce(new Promise((r) => (resolveA = r)))
+    .mockResolvedValueOnce({
+      level: 'BLOCKED',
+      blockers: [
+        { kind: '采购订单', no: 'PO-B', path: null, note: '先取消采购订单' },
+      ],
+      related: [],
+    });
+  const view = (id: number, soNo: string, open: boolean) =>
+    React.createElement(
+      App,
+      null,
+      React.createElement(DeleteOrderModal, {
+        order: { ...order, id, soNo } as never,
+        open,
+        onClose: () => undefined,
+        onDeleted: jest.fn(),
+      }),
+    );
+  const r = render(view(1, 'SO-A', true));
+  r.rerender(view(1, 'SO-A', false));
+  r.rerender(view(2, 'SO-B', true));
+  expect(await screen.findByText('订单 SO-B 不能删除')).toBeTruthy();
+  await act(async () =>
+    resolveA({ level: 'DIRECT', blockers: [], related: [] }),
+  );
+  expect(screen.getByText('订单 SO-B 不能删除')).toBeTruthy();
+  expect(screen.queryByText('没有关联单据，删除后不能恢复')).toBeNull();
 });

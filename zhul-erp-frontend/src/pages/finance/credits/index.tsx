@@ -23,6 +23,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerSub } from '@/components/DocFields';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, PageTitle, Pill, Stat } from '@/pages/inquiry/shared/components';
 import { EmptyHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/sales/service';
@@ -94,6 +95,10 @@ const CreditPage: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   const refresh = () => {
     load();

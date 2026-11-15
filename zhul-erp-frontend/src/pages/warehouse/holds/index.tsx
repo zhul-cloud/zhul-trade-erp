@@ -14,6 +14,7 @@ import {
   Table,
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { CARRIERS } from '@/pages/purchase/shipments/ShipmentDrawer';
@@ -74,6 +75,8 @@ const Holds: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+  // 从其他页面返回时重新取数（audit UI-055）
+  useOnReactivate(load);
 
   const columns: TableColumnsType<Hold> = [
     {

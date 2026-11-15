@@ -30,7 +30,7 @@ import DocModelCell, {
 } from '@/components/DocFields/DocModelCell';
 import SourceNos from '@/components/DocFields/SourceNos';
 import EllipsisText from '@/components/EllipsisText';
-import { usePageTitle } from '@/components/PageTabs/hooks';
+import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import RefundModal from '@/pages/finance/refunds/RefundModal';
 import { useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -163,6 +163,10 @@ const OrderDetail: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   /** 收款弹窗的操作对象（手动创建的订单才有；保持引用稳定） */
   const owner = useMemo(

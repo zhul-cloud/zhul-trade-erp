@@ -22,6 +22,7 @@ import {
   Space,
 } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
+import { useUnsavedGuard } from '@/components/PageTabs/hooks';
 import {
   ALI_LEVEL_OPTIONS,
   CHANNEL_ALIBABA,
@@ -222,6 +223,9 @@ const CustomerFormPage: React.FC = () => {
   const [tzMap, setTzMap] = useState<Record<string, string[]>>({});
   const [parties, setParties] = useState<CustomerParty[]>([]);
   const [partiesDirty, setPartiesDirty] = useState(false);
+  // 改过表单：关标签、刷新、点返回或离开浏览器页面前先确认（audit UI-057）；保存成功后清掉
+  const [touched, setTouched] = useState(false);
+  useUnsavedGuard(touched || partiesDirty);
   const [drawer, setDrawer] = useState<{ open: boolean; index?: number }>({
     open: false,
   });
@@ -364,7 +368,11 @@ const CustomerFormPage: React.FC = () => {
   };
 
   // ---------------- 提交 / 离开
-  const leave = () => history.push(backTo);
+  const leave = () => {
+    setTouched(false);
+    setPartiesDirty(false);
+    history.push(backTo);
+  };
 
   const cancel = () => {
     if (!form.isFieldsTouched() && !partiesDirty) {
@@ -521,6 +529,7 @@ const CustomerFormPage: React.FC = () => {
           onFinish={submit}
           onFinishFailed={onFinishFailed}
           onValuesChange={(changed) => {
+            setTouched(true);
             // 服务端返回的撞单 / 编码重复提示挂在字段上，用户改了相关字段就清掉，交给前端校验重新判断
             const stale = (['name', 'country', 'customerCode'] as const).filter(
               (k) => k in changed,

@@ -13,14 +13,22 @@ import com.zhul.erp.modules.aftersales.repository.ReturnReceiptMapper;
 import com.zhul.erp.modules.aftersales.repository.SalesReturnMapper;
 import com.zhul.erp.modules.attachment.entity.BizAttachmentDO;
 import com.zhul.erp.modules.finance.entity.CustomerCreditEntryDO;
+import com.zhul.erp.modules.finance.constants.FinanceConstants;
 import com.zhul.erp.modules.finance.entity.CustomerRefundDO;
+import com.zhul.erp.modules.finance.entity.ExpenseDO;
+import com.zhul.erp.modules.finance.entity.ReimbursementDO;
 import com.zhul.erp.modules.finance.entity.RefundRequestDO;
 import com.zhul.erp.modules.finance.repository.CustomerCreditEntryMapper;
 import com.zhul.erp.modules.finance.repository.CustomerRefundMapper;
+import com.zhul.erp.modules.finance.repository.ExpenseMapper;
+import com.zhul.erp.modules.finance.repository.ReimbursementMapper;
 import com.zhul.erp.modules.finance.repository.RefundRequestMapper;
+import com.zhul.erp.modules.finance.service.PaymentService;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
+import com.zhul.erp.modules.logistics.entity.CourierWaybillDO;
 import com.zhul.erp.modules.logistics.entity.LogisticsShipmentDO;
 import com.zhul.erp.modules.logistics.entity.OutboundOrderDO;
+import com.zhul.erp.modules.logistics.repository.CourierWaybillMapper;
 import com.zhul.erp.modules.logistics.repository.LogisticsShipmentMapper;
 import com.zhul.erp.modules.logistics.repository.OutboundOrderMapper;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
@@ -73,6 +81,10 @@ public class AttachmentOwnerScope {
     private final PurchaseReturnMapper purchaseReturnMapper;
     private final RefundRequestMapper refundRequestMapper;
     private final LogisticsShipmentMapper logisticsShipmentMapper;
+    private final PaymentService paymentService;
+    private final ReimbursementMapper reimbursementMapper;
+    private final ExpenseMapper expenseMapper;
+    private final CourierWaybillMapper waybillMapper;
 
     public boolean canSee(BizAttachmentDO a) {
         if (a.getOwnerId() == null || a.getOwnerId() == 0) {
@@ -116,11 +128,18 @@ public class AttachmentOwnerScope {
             // 出运单面单与单据：与出运单详情一致，按出运单负责人
             case AttachmentService.LOGISTICS, AttachmentService.LOGISTICS_DOC ->
                     logisticsVisible(logisticsShipmentMapper.selectById(id));
-            // 以下单据不按负责人限制，详情只校验租户（附件服务已校验租户）
+            // 付款单：与详情一致，另含报销里的垫付凭证与运费账单的付款
+            case AttachmentService.PAYMENT -> paymentService.attachmentVisible(id);
+            // 报销单与待报销项的凭证：没有报销付款权限的只看本人申请 / 本人垫付的，与报销页一致
+            case AttachmentService.REIMBURSE -> anyMenu("/finance/payments") || reimbursePayer()
+                    || mine(reimbursementApplicant(reimbursementMapper.selectById(id)));
+            case AttachmentService.EXPENSE -> anyMenu("/finance/expenses") || reimbursePayer()
+                    || mine(expenseAdvanceUser(expenseMapper.selectById(id)));
+            case AttachmentService.COURIER_PROOF -> reimbursePayer() || mine(waybillPayer(waybillMapper.selectById(id)));
+            case AttachmentService.RETURN_PROOF -> reimbursePayer() || returnProofVisible(purchaseReturnMapper.selectById(id));
+            // 以下单据不按负责人限制，详情只校验租户（附件服务已校验租户）；其他收入、应付、结汇只对财务菜单开放
             case AttachmentService.SHOOT, AttachmentService.NETWORK, AttachmentService.SOURCING_QUOTE,
-                 AttachmentService.PAYMENT, AttachmentService.COURIER_PROOF, AttachmentService.RETURN_PROOF,
-                 AttachmentService.EXPENSE, AttachmentService.REIMBURSE, AttachmentService.OTHER_INCOME,
-                 AttachmentService.PAYABLE, AttachmentService.FX_SETTLEMENT -> true;
+                 AttachmentService.OTHER_INCOME, AttachmentService.PAYABLE, AttachmentService.FX_SETTLEMENT -> true;
             default -> false;
         };
     }
@@ -164,6 +183,32 @@ public class AttachmentOwnerScope {
 
     private AfterSalesDO afterSalesOf(AfterSalesLogDO log) {
         return log == null || log.getAfterSalesId() == null ? null : afterSalesMapper.selectById(log.getAfterSalesId());
+    }
+
+    private boolean reimbursePayer() {
+        return perm.has(FinanceConstants.PERM_REIMBURSE_PAY);
+    }
+
+    private boolean mine(Long userId) {
+        Long me = currentUser.resolve();
+        return me != null && Objects.equals(userId, me);
+    }
+
+    private static Long reimbursementApplicant(ReimbursementDO r) {
+        return r == null ? null : r.getApplicantId();
+    }
+
+    private static Long expenseAdvanceUser(ExpenseDO e) {
+        return e == null ? null : e.getAdvanceUserId();
+    }
+
+    private static Long waybillPayer(CourierWaybillDO w) {
+        return w == null ? null : w.getPayerId();
+    }
+
+    /** 采购退货的退货运费凭证：采购退货按负责人可见，或本人垫付 */
+    private boolean returnProofVisible(PurchaseReturnDO p) {
+        return p != null && (mine(p.getPayerId()) || anyMenu("/purchase/returns") && purchaseReturnVisible(p));
     }
 
     private AfterSalesDO afterSalesOfReturn(SalesReturnDO r) {

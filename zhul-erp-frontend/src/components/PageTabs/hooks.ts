@@ -47,6 +47,22 @@ export const useTabDirty = (dirty: boolean) => {
   }, [entryKey, dirty, self]);
 };
 
+/**
+ * 有未保存修改时的完整保护（audit UI-057）：登记到所属标签（关标签、刷新、点返回先确认），
+ * 并在关闭或刷新浏览器页面时提示。页面里的表单、卡片里的就地编辑都用它
+ */
+export const useUnsavedGuard = (dirty: boolean) => {
+  useTabDirty(dirty);
+  useEffect(() => {
+    if (!dirty) return undefined;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+};
+
 /** 页面当前是否可见；后台标签里的轮询据此暂停 */
 export const useTabActive = () => useContext(PaneContext).active;
 

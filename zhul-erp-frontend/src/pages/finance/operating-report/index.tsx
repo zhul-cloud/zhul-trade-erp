@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Select, Table } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -45,6 +46,10 @@ const OperatingReportPage: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   /** 某月的日期范围（全年合计为整年） */
   const rangeOf = (r: OperatingRow) => {

@@ -17,20 +17,31 @@ import java.util.Map;
 public class DocLogs {
 
     private static final int MAX = 1000;
+    /** 没有登录用户（定时任务等）或系统自动改动时的操作人 ID */
+    private static final Long SYSTEM_OPERATOR = 0L;
 
     private final DocumentLogMapper mapper;
     private final CurrentUserResolver currentUser;
     private final InquiryLookups lookups;
 
     public void add(DocumentType type, Long docId, String action, String content) {
+        Long me = currentUser.resolve();
+        insert(type, docId, action, content, me == null ? 0L : me);
+    }
+
+    /** 系统自动做的改动（如按商品主数据补齐品类），操作人记为系统，即使发生在某个用户的请求里 */
+    public void addBySystem(DocumentType type, Long docId, String action, String content) {
+        insert(type, docId, action, content, SYSTEM_OPERATOR);
+    }
+
+    private void insert(DocumentType type, Long docId, String action, String content, Long operatorId) {
         DocumentLogDO l = new DocumentLogDO();
         l.setTenantId(PiStore.tenantId());
         l.setDocType(type.name());
         l.setDocId(docId);
         l.setAction(action);
         l.setContent(content == null ? "" : content.length() > MAX ? content.substring(0, MAX) : content);
-        Long me = currentUser.resolve();
-        l.setOperatorId(me == null ? 0L : me);
+        l.setOperatorId(operatorId);
         mapper.insert(l);
     }
 
@@ -48,7 +59,7 @@ public class DocLogs {
             v.setId(l.getId());
             v.setAction(l.getAction());
             v.setContent(l.getContent());
-            v.setOperatorName(users.get(l.getOperatorId()));
+            v.setOperatorName(SYSTEM_OPERATOR.equals(l.getOperatorId()) ? "系统" : users.get(l.getOperatorId()));
             v.setCreateTime(l.getCreateTime());
             return v;
         }).toList();

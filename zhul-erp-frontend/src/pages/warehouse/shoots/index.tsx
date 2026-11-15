@@ -12,6 +12,7 @@ import {
   Table,
 } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import MediaDrawer from '@/pages/operations/media/MediaDrawer';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
@@ -89,6 +90,8 @@ const Shoots: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+  // 从其他页面返回时重新取数（audit UI-055）
+  useOnReactivate(load);
   useEffect(refreshCount, [refreshCount]);
 
   const columns: TableColumnsType<ShootTask> = [

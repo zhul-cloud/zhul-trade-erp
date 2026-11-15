@@ -262,6 +262,8 @@ class CustomerCreditContractTest extends SalesContractSupport {
     @Test
     void overpaidIsNotRevenue_refundToCustomerInOneStep_reconciliationBalances() throws Exception {
         long pi = pi(null, null);
+        // audit BUS-040：舍入后为 0 的到账金额不能登记
+        assertEquals("到账金额需要大于 0", fail(confirmReceipt(pi, "0.004", null, false, admin)).path("message").asText());
         confirmReceipt(pi, "1050", null, false, admin);
         long so = convert(pi);
         money("7150.00", ok(call(get(SO + "/" + so), admin)).path("cost").path("revenue"));
@@ -279,8 +281,15 @@ class CustomerCreditContractTest extends SalesContractSupport {
         req.put("withdrawDate", LocalDate.now().toString());
         req.put("method", 4);
         req.put("methodName", "支付宝");
-        req.put("actualCny", "350");
         req.put("attachmentIds", List.of(upload("REFUND")));
+        // audit BUS-039：实际转出人民币须为正，拒绝时多收仍待处理、不生成汇兑收益
+        for (String bad : new String[] {"-1", "0", "0.004"}) {
+            req.put("actualCny", bad);
+            assertEquals("实际转出人民币须大于 0", fail(call(json(post(CREDIT + "/overpaid"), write(req)), admin)).path("message").asText(), bad);
+        }
+        money("50", ok(call(get(CREDIT + "/overpaid"), admin)).get(0).path("pending"));
+        assertTrue(ok(call(get(INCOME).param("category", "FX_GAIN"), admin)).path("records").isEmpty());
+        req.put("actualCny", "350");
         assertTrue(ok(call(json(post(CREDIT + "/overpaid"), write(req)), admin)).isEmpty());
         money("0", balances().get(0).path("available"));
         money("7150.00", ok(call(get(SO + "/" + so), admin)).path("cost").path("revenue"));

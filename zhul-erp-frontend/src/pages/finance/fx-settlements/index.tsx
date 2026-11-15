@@ -17,6 +17,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import {
@@ -34,6 +35,7 @@ import {
 } from '@/utils/businessUnit';
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
+import { liveRequests } from '@/utils/liveRequests';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { settleCny, settleRate } from './calc';
@@ -93,7 +95,8 @@ const RegisterModal: React.FC<{
   };
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
+    const { live, cancel } = liveRequests();
     setDate(dayjs());
     setAmount(null);
     setRate(null);
@@ -101,13 +104,13 @@ const RegisterModal: React.FC<{
     setManual(false);
     setRemark('');
     setKey(newKey());
-    bankOptionsApi
-      .options()
+    live(bankOptionsApi.options())
       .then((list) => {
         setAllAccounts(list);
         pickUnit(pending[0]?.businessUnitId, list);
       })
       .catch(() => setAccounts([]));
+    return cancel;
   }, [open, pending]);
 
   const pool = pools.find((p) => p.currencyCode === currency);
@@ -432,6 +435,10 @@ const FxSettlementPage: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   const open = (id: number) => history.push(`/finance/fx-settlements/${id}`);
 

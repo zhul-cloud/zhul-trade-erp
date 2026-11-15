@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
@@ -62,6 +63,8 @@ const ReturnsPage: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+  // 从其他页面返回时重新取数（audit UI-055）
+  useOnReactivate(load);
 
   const sub = (t?: React.ReactNode) =>
     t ? <div style={{ fontSize: 12, color: palette.mute }}>{t}</div> : null;

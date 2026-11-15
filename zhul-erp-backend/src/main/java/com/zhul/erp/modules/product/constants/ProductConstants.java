@@ -15,6 +15,13 @@ public final class ProductConstants {
     public static final int STATUS_DISABLED = 0;
     public static final int STATUS_ENABLED = 1;
 
+    /** 兜底一级品类「其他」的编码（其下没有细分品类） */
+    public static final String CATEGORY_OTHER_CODE = "other";
+    /** AI 细分品类状态（product.ai_category_state）：0-无、1-待确认建议、2-已忽略 */
+    public static final int AI_CATEGORY_NONE = 0;
+    public static final int AI_CATEGORY_PENDING = 1;
+    public static final int AI_CATEGORY_IGNORED = 2;
+
     /** 品牌选项缓存，Cache-Aside，TTL 300s，写库事务提交后删除 */
     /** 品牌、品类简介的长度上限 */
     public static final int DESCRIPTION_MAX = 500;

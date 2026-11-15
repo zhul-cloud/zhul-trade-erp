@@ -102,6 +102,7 @@ public class AfterSalesService {
     private final UserBasicMapper userMapper;
     private final DocumentNumberService documentNumberService;
     private final DataScopeResolver dataScopeResolver;
+    private final com.zhul.erp.framework.security.PermissionChecker perm;
     private final CurrentUserResolver currentUser;
     private final InquiryLookups lookups;
     private final DictItemService dictItemService;
@@ -638,12 +639,20 @@ public class AfterSalesService {
 
     /** 选售后单（费用单、退款单关联用）：订单的处理中、待客户确认、已结案的售后单 */
     public List<AfterSalesVO> optionsOfOrder(Long soId) {
-        return toVos(mapper.selectList(new LambdaQueryWrapper<AfterSalesDO>()
+        List<AfterSalesDO> rows = mapper.selectList(new LambdaQueryWrapper<AfterSalesDO>()
                 .eq(AfterSalesDO::getTenantId, PiStore.tenantId())
                 .eq(AfterSalesDO::getSoId, soId)
                 .ne(AfterSalesDO::getStatus, AfterSalesConstants.AS_CANCELLED)
                 .isNull(AfterSalesDO::getDeletedAt)
-                .orderByDesc(AfterSalesDO::getId)));
+                .orderByDesc(AfterSalesDO::getId));
+        // 费用、退款的财务看全部；销售侧与售后单详情一致，售后单负责人或订单负责人在数据范围内才列出（audit SEC-017）
+        if (!perm.canAccessMenu("/finance/expenses") && !perm.canAccessMenu("/finance/refunds")) {
+            DataScope scope = dataScopeResolver.current();
+            SalesOrderDO o = soId == null ? null : orderMapper.selectById(soId);
+            boolean orderVisible = o != null && scope.canSee(o.getOwnerId());
+            rows = rows.stream().filter(a -> orderVisible || scope.canSee(a.getOwnerId())).toList();
+        }
+        return toVos(rows);
     }
 
     /** 关联单据校验：售后单属于这张订单且没有撤销（退款单、费用单、退款申请用） */

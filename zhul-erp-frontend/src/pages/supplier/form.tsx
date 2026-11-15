@@ -23,6 +23,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useState } from 'react';
+import { useUnsavedGuard } from '@/components/PageTabs/hooks';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { termsTotal } from '@/pages/purchase/calc';
 import { PaymentTermsEditor } from '@/pages/purchase/components';
@@ -208,7 +209,13 @@ const SupplierFormPage: React.FC = () => {
     if (allowed) loadRecord();
   }, [id, allowed]);
 
-  const leave = () => history.push(LIST_PATH);
+  // 改过表单：关标签、刷新、点返回或离开浏览器页面前先确认（audit UI-057）；保存或确认离开后清掉
+  const [touched, setTouched] = useState(false);
+  useUnsavedGuard(touched);
+  const leave = () => {
+    setTouched(false);
+    history.push(LIST_PATH);
+  };
 
   const cancel = () => {
     if (!form.isFieldsTouched()) {
@@ -326,6 +333,7 @@ const SupplierFormPage: React.FC = () => {
           form={form}
           layout="vertical"
           validateTrigger="onBlur"
+          onValuesChange={() => setTouched(true)}
           initialValues={{
             status: 1,
             volumeDivisor: 5000,

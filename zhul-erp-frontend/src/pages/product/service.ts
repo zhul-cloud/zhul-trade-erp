@@ -328,6 +328,15 @@ export interface Product {
   /** 需求热度：关联的询盘型号数、有效订单数（租户只统计本公司） */
   inquiryCount?: number;
   dealCount?: number;
+  /** AI 细分品类状态：0-无、1-待确认建议、2-已忽略 */
+  aiCategoryState?: number;
+  /** AI 建议的细分品类（待确认建议时有值） */
+  aiCategoryId?: number;
+  aiCategoryName?: string;
+  /** 建议的细分品类不在当前一级品类下（当前为「其他」时不算） */
+  aiCategoryCross?: boolean;
+  /** 建议时间；已忽略时为忽略时间 */
+  aiCategoryAt?: string;
   createTime: string;
   createBy?: string;
   updateTime: string;
@@ -360,6 +369,8 @@ export interface ProductQuery extends PageParams {
   status?: number;
   includeDeleted?: boolean;
   missing?: string;
+  /** missing 为 refine（品类未细分）时的建议状态 */
+  refineState?: RefineState;
   /** 按热度倒序：inquiryCount / dealCount */
   sort?: string;
 }
@@ -383,7 +394,54 @@ export interface CompletenessSummary {
   missingLogistics: number;
   missingCustoms: number;
   missingPrice: number;
+  /** 品类未细分（品类是一级品类，含「其他」）及其三档 */
+  missingRefine: number;
+  refineTodo: number;
+  refinePending: number;
+  refineIgnored: number;
 }
+
+/** 品类未细分的三档：待 AI 细分、待确认建议、已忽略 */
+export type RefineState = 'todo' | 'pending' | 'ignored';
+
+/** AI 细分任务：提交时返回 total、skipped；查询进度返回状态与结果 */
+export interface RefineTask {
+  /** 全部跳过时不产生任务，为空 */
+  taskId?: number;
+  /** 1-排队中、2-处理中、3-已完成、4-失败 */
+  status?: number;
+  errorMessage?: string;
+  total?: number;
+  skipped?: number;
+  suggested?: number;
+  unknown?: number;
+  discarded?: number;
+}
+
+/** 采纳 / 忽略 / 撤销忽略的结果；skipped 带原因 */
+export interface RefineResult {
+  done: number;
+  skipped: { id: number; mpn: string; reason: string }[];
+}
+
+const REFINE = `${BASE}/category-refine`;
+
+/** 商品品类细分（spec product/category-refine） */
+export const refineApi = {
+  /** 有 ids 处理勾选的；没有时按 filter 取「待 AI 细分」最近更新的前 200 个。页面自己处理错误 */
+  submit: (body: { ids?: number[]; filter?: ProductQuery }) =>
+    call<RefineTask>(REFINE, { method: 'POST', data: body, ...quiet }),
+  status: (taskId: number) => call<RefineTask>(`${REFINE}/${taskId}`, quiet),
+  accept: (ids: number[]) =>
+    call<RefineResult>(`${REFINE}/accept`, { method: 'POST', data: { ids } }),
+  ignore: (ids: number[]) =>
+    call<RefineResult>(`${REFINE}/ignore`, { method: 'POST', data: { ids } }),
+  unignore: (ids: number[]) =>
+    call<RefineResult>(`${REFINE}/unignore`, {
+      method: 'POST',
+      data: { ids },
+    }),
+};
 
 export const productApi = {
   page: (params: ProductQuery) =>

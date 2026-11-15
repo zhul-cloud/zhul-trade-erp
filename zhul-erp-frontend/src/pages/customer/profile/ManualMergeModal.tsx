@@ -6,6 +6,7 @@ import {
 import { Button, Input, Modal, Skeleton } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
+import { liveRequests } from '@/utils/liveRequests';
 import { Pill } from '../components';
 import { readBizError } from '../service';
 import { MergeModal } from './DuplicatesTab';
@@ -42,21 +43,24 @@ const ManualMergeModal: React.FC<{
   }, [open]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
+    const { live, cancel } = liveRequests();
     const k = keyword.trim();
     const t = setTimeout(
       () => {
         setLoading(true);
         setError(undefined);
-        profileApi
-          .mergeCandidates(customerId, k)
+        live(profileApi.mergeCandidates(customerId, k))
           .then(setData)
           .catch((e) => setError(readBizError(e).message))
           .finally(() => setLoading(false));
       },
       k ? 300 : 0,
     );
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      cancel();
+    };
   }, [open, customerId, keyword]);
 
   const me = data?.members[0];

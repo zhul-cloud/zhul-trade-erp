@@ -468,7 +468,11 @@ public class CustomerCreditService {
             throw new BizException("请上传转账凭证");
         }
         BigDecimal amt = amount.setScale(2, RoundingMode.HALF_UP);
-        BigDecimal actual = actualCny.setScale(2, RoundingMode.HALF_UP);
+        // 直接转出与退回多收共用（audit BUS-039）：实际转出人民币按两位 HALF_UP 舍入后须大于 0，否则汇兑损益会被算错
+        BigDecimal actual = actualCny == null ? null : actualCny.setScale(2, RoundingMode.HALF_UP);
+        if (actual == null || actual.signum() <= 0) {
+            throw new BizException("实际转出人民币须大于 0");
+        }
         ledger.lock(a.customerId());
         CustomerRefundDO f = refundService.newWithdraw(a, date, amt, actual, method, methodName, payeeAccount, remark);
         CustomerCreditEntryDO out = ledger.consume(a, FinanceConstants.CREDIT_WITHDRAW, amt,

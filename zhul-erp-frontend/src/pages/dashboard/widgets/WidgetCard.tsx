@@ -2,6 +2,7 @@ import { ReloadOutlined } from '@ant-design/icons';
 import { Button, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import FitText from '@/components/FitText';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { readBizError } from '@/pages/crm/opportunity/service';
 import { Card } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -66,6 +67,8 @@ export function useWidgetData<T>(key: string) {
   useEffect(() => {
     load();
   }, [load]);
+  // 从其他页面返回时重新取数（audit UI-055）
+  useOnReactivate(load);
   return { data, error, reload: load };
 }
 

@@ -20,7 +20,7 @@ import { App, Button, Checkbox, Input, Skeleton } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { RelatedDocsCard } from '@/components/DocFields/DocPage';
-import { usePageTitle } from '@/components/PageTabs/hooks';
+import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import ExpenseQuickModal from '@/pages/finance/expenses/AfterSalesExpense';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
@@ -105,6 +105,8 @@ const AfterSalesDetail: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+  // 从其他页面返回时重新取数（audit UI-055）
+  useOnReactivate(load);
 
   if (error) return <ErrorHint message={error} onRetry={load} />;
   if (!a) return <Skeleton active paragraph={{ rows: 12 }} />;

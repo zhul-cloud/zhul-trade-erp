@@ -57,6 +57,8 @@ public class PayableQueryService {
     private final PaymentAllocationMapper allocationMapper;
     private final PaymentMapper paymentMapper;
     private final PurchaseOrderMapper orderMapper;
+    private final com.zhul.erp.framework.security.PermissionChecker perm;
+    private final com.zhul.erp.framework.security.DataScopeResolver dataScopeResolver;
     private final BankAccountMapper bankAccountMapper;
     private final AttachmentService attachments;
 
@@ -171,6 +173,14 @@ public class PayableQueryService {
 
     /** 采购订单、运费账单的付款面板；还没有应付单时返回空 */
     public PayableVO bySource(int sourceType, Long sourceId) {
+        // 只有采购订单菜单的人按采购订单的采购员范围，与采购订单详情一致（audit SEC-017）；应付管理看全部
+        if (sourceType == FinanceConstants.SOURCE_PURCHASE_ORDER && !perm.canAccessMenu("/finance/payables")) {
+            com.zhul.erp.modules.purchase.entity.PurchaseOrderDO po = sourceId == null ? null : orderMapper.selectById(sourceId);
+            if (po == null || po.getDeletedAt() != null || !Objects.equals(po.getTenantId(), PiStore.tenantId())
+                    || !dataScopeResolver.current().canSee(po.getPurchaserId())) {
+                throw new BizException("采购订单不存在");
+            }
+        }
         PayableDO p = payableMapper.selectOne(base().eq(PayableDO::getSourceType, sourceType).eq(PayableDO::getSourceId, sourceId));
         return p == null ? null : fullVo(p);
     }
