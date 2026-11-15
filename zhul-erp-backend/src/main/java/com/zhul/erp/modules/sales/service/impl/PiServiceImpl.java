@@ -852,7 +852,8 @@ public class PiServiceImpl implements PiService {
         vo.setReceiptStatusName(SalesConstants.RECEIPT_STATUS_NAMES.get(pi.getReceiptStatus()));
         vo.setReceivedAmount(pi.getReceivedAmount());
         vo.setFeeDiffAmount(pi.getFeeDiffAmount());
-        vo.setRemainingAmount(nz(pi.getTotalAmount()).subtract(nz(pi.getReceivedAmount())).subtract(nz(pi.getFeeDiffAmount())));
+        // 剩余按应收合计：有有效订单时取订单合计，与收款状态同口径（audit BUS-049）
+        vo.setRemainingAmount(nz(store.receivable(pi)).subtract(nz(pi.getReceivedAmount())).subtract(nz(pi.getFeeDiffAmount())));
         vo.setCurrentVersionNo(pi.getCurrentVersionNo());
         vo.setEditingVersionNo(pi.getEditingVersionNo());
         vo.setCredit(creditUsage.panel(pi));

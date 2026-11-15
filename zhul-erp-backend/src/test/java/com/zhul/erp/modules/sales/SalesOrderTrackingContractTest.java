@@ -323,6 +323,33 @@ class SalesOrderTrackingContractTest extends SalesContractSupport {
         assertEquals(1, jdbc.queryForObject("select count(*) from sales_order_fee where so_id = ? and deleted_at is null", Integer.class, id));
     }
 
+    /** audit BUS-049：PI 订单补运费后，PI 的剩余金额、待确认工作台与手续费差额都按订单合计算 */
+    @Test
+    void piOrderFees_remainingFollowsOrderTotal_feeDiffSettles() throws Exception {
+        long c = customer("PI Fee Diff Co", "Kenya");
+        long pi = sentPi(quotationItemIds(quotation(c, 2, "USD", null, l("PD-1", 2, "100", "200"))), null);
+        ok(confirmReceipt(pi, "400", null, false, admin));
+        long id = ok(convert(pi, null)).path("id").asLong();
+        Map<String, Object> edit = new LinkedHashMap<>();
+        edit.put("fees", List.of(Map.of("feeName", "Shipping Cost", "amount", "20")));
+        edit.put("reason", "实际运费");
+        edit.put("expectedTotal", "400.00");
+        money("420.00", ok(call(json(put(SO + "/" + id + "/fees"), write(edit)), admin)).path("totalAmount"));
+
+        money("20", ok(call(get(PI + "/" + pi), admin)).path("remainingAmount"));
+        JsonNode desk = ok(call(json(post(PI + "/receipt-desk"), "{}"), admin));
+        assertEquals(1, desk.path("total").asInt(), "补运费后部分到账，留在待确认");
+        money("420", desk.path("records").get(0).path("totalAmount"));
+        money("20", desk.path("records").get(0).path("remainingAmount"));
+
+        // 客户付 20，银行扣 5：到账 15，差额 5 记为手续费后结清
+        JsonNode paid = ok(confirmReceipt(pi, "15", null, true, admin));
+        assertEquals("已到账", paid.path("receiptStatusName").asText());
+        money("5", paid.path("feeDiffAmount"));
+        money("0", paid.path("remainingAmount"));
+        assertEquals(0, ok(call(json(post(PI + "/receipt-desk"), "{}"), admin)).path("total").asInt());
+    }
+
     @Test
     void manualCreate_requiredOnly_rate_customerType() throws Exception {
         long c = customer("Hoorain HTF", "Pakistan");
