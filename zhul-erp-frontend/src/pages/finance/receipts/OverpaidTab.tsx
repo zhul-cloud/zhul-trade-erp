@@ -18,6 +18,7 @@ import {
   payoutBody,
 } from '../credits/CreditModals';
 import { creditApi, type Overpaid } from '../credits/service';
+import { settleCny } from '../fx-settlements/calc';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 
@@ -226,8 +227,9 @@ const ProcessModal: React.FC<{
   if (!target) return null;
   const r = target.row;
   const cur = r.currencyCode;
+  // 原币 × 到账汇率（6 位）按 HALF_UP 两位，与后端锁定价值一致，不用浮点（audit BUS-058）
   const bookOf = (v: number | null) =>
-    v ? Math.round(v * Number(r.rate) * 100) / 100 : undefined;
+    v ? settleCny(v, Number(r.rate)) : undefined;
   const bookValue = bookOf(amount);
   // 有平台收款时只能原路退回平台（与售后退款规则一致）
   const platform = r.platformReceipts ?? [];
