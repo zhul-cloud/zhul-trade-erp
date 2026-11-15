@@ -100,3 +100,27 @@ it('切回页面时按当前筛选重取已加载的条数', async () => {
   fireEvent.click(screen.getByText('加载更早的 3 条'));
   expect(calls.at(-1)).toMatchObject({ type: 'all', page: 3, pageSize: 5 });
 });
+
+/** audit UI-055（补修）：已加载超过后端单次上限 50 条时切回，之后「加载更早的」不跳过记录 */
+it('切回时后端只返回 50 条，页码按实际条数推算', async () => {
+  const view = render(h(Timeline, { active: true }));
+  await resolve('all-1-5', range('全部', 1, 5), 80);
+  for (let p = 2; p <= 11; p++) {
+    fireEvent.click(screen.getByText(/加载更早的/));
+    await resolve(`all-${p}-5`, range('全部', (p - 1) * 5 + 1, 5), 80);
+  }
+  expect(screen.getByText('全部55')).toBeTruthy();
+  view.rerender(h(Timeline, { active: false }));
+  view.rerender(h(Timeline, { active: true }));
+  expect(calls.at(-1)).toMatchObject({ page: 1, pageSize: 55 });
+  // 后端把 pageSize 限在 50
+  await resolve('all-1-55', range('全部', 1, 50), 80);
+  expect(screen.queryByText('全部51')).toBeNull();
+  expect(screen.getByText('加载更早的 30 条')).toBeTruthy();
+  // 第 11 页（第 51–55 条）接着取，不跳到第 12 页
+  fireEvent.click(screen.getByText('加载更早的 30 条'));
+  expect(calls.at(-1)).toMatchObject({ page: 11, pageSize: 5 });
+  await resolve('all-11-5', range('全部', 51, 5), 80);
+  expect(screen.getByText('全部51')).toBeTruthy();
+  expect(screen.getByText('加载更早的 25 条')).toBeTruthy();
+});

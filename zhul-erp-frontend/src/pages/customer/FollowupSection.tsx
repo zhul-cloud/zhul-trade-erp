@@ -310,7 +310,10 @@ export const FollowupTimeline: React.FC<{
         })
         .then((r) => {
           if (req !== reqRef.current) return;
-          setPage(p === 1 ? pages : p);
+          // 后端一次最多返回 50 条，页码按实际取回的条数推算，避免跳过记录
+          setPage(
+            p === 1 ? Math.max(1, Math.ceil(r.records.length / PAGE)) : p,
+          );
           setTotal(r.total ?? 0);
           setRecords((old) => (p === 1 ? r.records : [...old, ...r.records]));
         })
