@@ -894,4 +894,26 @@ class AfterSalesContractTest extends SalesContractSupport {
         assertEquals(200, linkStatus(thFile, staff));
         assertEquals(200, linkStatus(rrFile, staff));
     }
+
+    /** audit BUS-041：手动订单的 pi_id 为 0，不能被当成同一张 PI，别的手动订单的退款不算进本单的已退与利润 */
+    @Test
+    void manualOrders_doNotShareRefunds() throws Exception {
+        bankAccount("USD");
+        long c = customer("Nordic Pumps", "Norway");
+        long a = manualShipped(c);
+        long b = manualShipped(c);
+        Map<String, Object> refund = new HashMap<>();
+        refund.put("soId", a);
+        refund.put("refundDate", LocalDate.now().toString());
+        refund.put("reason", "QUALITY");
+        refund.put("amount", "10");
+        refund.put("method", 3);
+        ok(call(json(post(REFUND), write(refund)), admin));
+
+        money("10", ok(call(get(REFUND + "/refundable/" + a), admin)).path("refunded"));
+        money("0", ok(call(get(REFUND + "/refundable/" + b), admin)).path("refunded"));
+        assertTrue(ok(call(get(SO + "/" + a), admin)).path("cost").path("refund").decimalValue().signum() > 0);
+        money("0", ok(call(get(SO + "/" + b), admin)).path("cost").path("refund"));
+        assertEquals(0, ok(call(get(SO + "/" + b), admin)).path("cost").path("refunds").size());
+    }
 }
