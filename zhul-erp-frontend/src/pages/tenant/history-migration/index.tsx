@@ -13,7 +13,11 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useOnReactivate, useTabActive } from '@/components/PageTabs/hooks';
+import {
+  useOnReactivate,
+  usePageTitle,
+  useTabActive,
+} from '@/components/PageTabs/hooks';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -176,6 +180,9 @@ const HistoryMigrationPage: React.FC = () => {
       ),
     [detail, rowFilter],
   );
+
+  // 标签与返回条显示页面自己的标题（audit UI-059）
+  usePageTitle(tenantName ? `历史迁移：${tenantName}` : '历史迁移');
 
   if (!tenantId) {
     return <Empty description="请从租户列表进入" />;

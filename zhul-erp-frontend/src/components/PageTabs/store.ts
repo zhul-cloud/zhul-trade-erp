@@ -136,13 +136,13 @@ export const tabsActions = {
     go(r.url);
   },
   /**
-   * 保存、删除等操作后离开当前页：退回本标签的上一页；没有上一页（直接打开的地址）时去 fallback。
-   * 不要用 history.push 回列表，那样会把列表再压一层，返回条指向刚离开的页面（audit UI-058）
+   * 保存、删除等操作后离开当前页：退回本标签的上一页；没有上一页（直接打开的地址）时用 fallback 替换当前页。
+   * 两种情况都不能用 history.push，那样会多压一层，返回条指向刚离开的页面（audit UI-058）
    */
   backOr(fallback: string) {
     const r = M.back(state);
     if (!r.url) {
-      go(fallback);
+      if (fallback !== currentUrl()) history.replace(fallback);
       return;
     }
     set(r.state);
