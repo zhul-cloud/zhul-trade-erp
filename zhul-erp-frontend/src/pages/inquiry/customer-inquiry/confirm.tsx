@@ -24,6 +24,7 @@ import {
 } from 'antd';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import BrandCategoryPicker from '@/components/BrandCategoryPicker';
+import { usePageTitle } from '@/components/PageTabs/hooks';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { type CategoryOption, categoryApi } from '@/pages/product/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -811,6 +812,9 @@ const ConfirmPage: React.FC = () => {
       </div>
     );
   };
+
+  // 标签与返回条显示页面自己的标题（audit UI-059）
+  usePageTitle(appendId ? '追加型号' : '确认询盘型号');
 
   if (loading) {
     return <Skeleton active paragraph={{ rows: 10 }} />;

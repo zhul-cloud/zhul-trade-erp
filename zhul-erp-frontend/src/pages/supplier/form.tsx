@@ -23,7 +23,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useState } from 'react';
-import { useUnsavedGuard } from '@/components/PageTabs/hooks';
+import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { termsTotal } from '@/pages/purchase/calc';
@@ -273,6 +273,8 @@ const SupplierFormPage: React.FC = () => {
   };
 
   const title = editing ? '编辑供应商' : '新增供应商';
+  // 标签与返回条显示页面自己的标题（audit UI-059）
+  usePageTitle(title);
   const grid: React.CSSProperties = {
     display: 'grid',
     gridTemplateColumns:

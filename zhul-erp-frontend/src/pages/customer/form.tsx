@@ -22,7 +22,7 @@ import {
   Space,
 } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
-import { useUnsavedGuard } from '@/components/PageTabs/hooks';
+import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
 import {
   ALI_LEVEL_OPTIONS,
@@ -431,6 +431,8 @@ const CustomerFormPage: React.FC = () => {
 
   // ---------------- 渲染
   const title = editing ? '编辑客户' : '新增客户';
+  // 标签与返回条显示页面自己的标题（audit UI-059）
+  usePageTitle(title);
   const grid: React.CSSProperties = {
     display: 'grid',
     gridTemplateColumns:

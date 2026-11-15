@@ -11,6 +11,11 @@ const mockPush = jest.fn((url: string) => {
   for (const l of mockListeners)
     l({ action: 'PUSH', location: { ...mockLoc } });
 });
+const mockReplace = jest.fn((url: string) => {
+  mockLoc.pathname = url;
+  for (const l of mockListeners)
+    l({ action: 'REPLACE', location: { ...mockLoc } });
+});
 
 jest.mock('@umijs/max', () => ({
   history: {
@@ -22,6 +27,7 @@ jest.mock('@umijs/max', () => ({
       return () => mockListeners.splice(mockListeners.indexOf(fn), 1);
     },
     push: (url: string) => mockPush(url),
+    replace: (url: string) => mockReplace(url),
   },
 }));
 
@@ -34,6 +40,7 @@ const start = (url: string) => {
   mockLoc.pathname = url;
   initTabs({ userKey: 'u1', menuOf: () => LIST, canOpen: () => true });
   mockPush.mockClear();
+  mockReplace.mockClear();
 };
 
 afterEach(() => resetTabs());
@@ -53,10 +60,12 @@ describe('tabsActions.backOr', () => {
     expect(top(getTabsState().tabs[0]).url).toBe(`${LIST}/5`);
   });
 
-  it('直接打开的页面没有上一页时去兜底地址', () => {
-    start(`${LIST}/5/edit`);
+  it('直接打开的页面没有上一页时用兜底地址替换当前页，不留下刚离开的页面', () => {
+    start(`${LIST}/5`);
     expect(stack()).toHaveLength(1);
     tabsActions.backOr(LIST);
-    expect(mockPush).toHaveBeenCalledWith(LIST);
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockReplace).toHaveBeenCalledWith(LIST);
+    expect(stack().map((e) => e.url)).toEqual([LIST]);
   });
 });

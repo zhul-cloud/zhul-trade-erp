@@ -9,6 +9,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Form, Modal, Radio, Select, Switch, Table } from 'antd';
 import React, { useEffect, useState } from 'react';
 import BrandCategoryPicker from '@/components/BrandCategoryPicker';
+import { usePageTitle } from '@/components/PageTabs/hooks';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { MenuLink } from '@/utils/menuName';
@@ -31,6 +32,8 @@ interface RuleForm {
 
 /** 分配规则：按品牌、品类指定采购，没命中按推荐；总开关默认关闭 */
 const AssignRulesPage: React.FC = () => {
+  // 标签与返回条显示页面自己的标题（audit UI-059）
+  usePageTitle('分配规则');
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
   const access = useAccess() as Record<string, boolean>;
