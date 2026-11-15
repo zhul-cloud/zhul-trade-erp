@@ -18,7 +18,11 @@ import {
 } from 'antd';
 import React, { useEffect, useState } from 'react';
 import DocModelCell, { productHref } from '@/components/DocFields/DocModelCell';
-import { usePageTitle, useTabActive } from '@/components/PageTabs/hooks';
+import {
+  useOnReactivate,
+  usePageTitle,
+  useTabActive,
+} from '@/components/PageTabs/hooks';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
   PATHS as QUOTATION_PATHS,
@@ -165,6 +169,8 @@ const CustomerInquiryDetailPage: React.FC = () => {
   useEffect(() => {
     load();
   }, [inquiryId]);
+  // 从其他页面返回时重新取数（audit UI-055）
+  useOnReactivate(load);
 
   // 解析中（含追加型号的解析）时每 5 秒刷新一次，解析完自动显示结果
   const appendParsing = detail?.openAppend?.status === 1;

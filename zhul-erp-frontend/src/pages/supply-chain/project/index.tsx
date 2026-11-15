@@ -14,7 +14,7 @@ import {
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { DocLogCard, SectionTitle } from '@/components/DocFields/DocPage';
-import { usePageTitle } from '@/components/PageTabs/hooks';
+import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { PageTitle, useWide } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -171,6 +171,8 @@ const ProjectDetailPage: React.FC = () => {
       .catch((e) => setError(readBizError(e).message));
   }, [id]);
   useEffect(load, [load]);
+  // 从其他页面返回时重新取数（audit UI-055）
+  useOnReactivate(load);
   usePageTitle(p?.name);
 
   if (error) return <Result status="warning" title={error} />;

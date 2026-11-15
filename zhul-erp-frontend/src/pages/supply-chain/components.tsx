@@ -19,7 +19,7 @@ import {
 } from '@/pages/product/service';
 import { Arrow } from '@/pages/sales/followup/FlowChain';
 import { categoryGroups } from '@/pages/supplier/productScope';
-import { getUserList } from '@/pages/system/user/service';
+import { getUserOptions } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
   COVER_NAMES,
@@ -601,10 +601,8 @@ export const useOptions = () => {
 export const useUsers = () => {
   const [users, setUsers] = useState<{ value: number; label: string }[]>([]);
   useEffect(() => {
-    getUserList({ current: 1, pageSize: 200, status: 1 })
-      .then((r) =>
-        setUsers(r.data.records.map((u) => ({ value: u.id, label: u.name }))),
-      )
+    getUserOptions({ status: 1 })
+      .then((r) => setUsers(r.map((u) => ({ value: u.id, label: u.name }))))
       .catch(() => setUsers([]));
   }, []);
   return users;

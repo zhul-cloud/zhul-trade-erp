@@ -28,7 +28,7 @@ import { ellipsisRender } from '@/components/EllipsisText';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Stat, useWide } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
-import { getUserList } from '@/pages/system/user/service';
+import { getUserOptions } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount, formatDateTime } from '@/utils/format';
@@ -126,11 +126,9 @@ const QuotationList: React.FC = () => {
       .stats()
       .then(setStats)
       .catch(() => setStats(undefined));
-    getUserList({ current: 1, pageSize: 200 })
+    getUserOptions()
       .then((res) =>
-        setOwners(
-          res.data.records.map((u) => ({ value: u.id, label: u.name })),
-        ),
+        setOwners(res.map((u) => ({ value: u.id, label: u.name }))),
       )
       .catch(() => setOwners([]));
   }, []);

@@ -31,7 +31,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
-import { getUserList } from '@/pages/system/user/service';
+import { getUserOptions } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
 import { recentRange } from '@/utils/dateRange';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
@@ -309,11 +309,9 @@ const CustomerInquiryPage: React.FC = () => {
   }, [loadStats]);
 
   useEffect(() => {
-    getUserList({ current: 1, pageSize: 200 })
+    getUserOptions()
       .then((res) => {
-        setOwners(
-          res.data.records.map((u) => ({ value: u.id, label: u.name })),
-        );
+        setOwners(res.map((u) => ({ value: u.id, label: u.name })));
       })
       .catch(() => setOwners([]));
     // 从商机查重提示跳过来（?newForCustomer=客户ID）：直接打开新建弹窗并选好客户

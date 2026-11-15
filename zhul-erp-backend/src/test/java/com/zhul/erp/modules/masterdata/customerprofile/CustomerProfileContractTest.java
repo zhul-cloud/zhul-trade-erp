@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.masterdata.customerprofile;
 
+import com.zhul.erp.modules.aitask.support.AiTaskKeys;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.constants.RedisKeyConstants;
@@ -147,6 +148,11 @@ class CustomerProfileContractTest extends IntegrationTestBase {
     }
 
     private void translated(String key, String text) {
+        translatedRaw(AiTaskKeys.sign(key), text);
+    }
+
+    /** 模型回传的 key 原样写进结果（可以是抄错、没有校验码的） */
+    private void translatedRaw(String key, String text) {
         AiTaskDO task = new AiTaskDO();
         task.setTenantId(0);
         task.setSkillId(ContactNameTranslations.SKILL_ID);
@@ -162,6 +168,10 @@ class CustomerProfileContractTest extends IntegrationTestBase {
         long id = customer("Pacific Controls Pty Ltd", "Australia", "James Walker", null);
         long james = ok(call(get(BASE + "/" + id + "/contacts"), admin)).path(0).path("id").asLong();
         assertEquals(1, translateTasks(), "主联系人中文名为空时提交翻译");
+
+        // audit AI-011：没有校验码的 key 丢弃
+        translatedRaw("contact:" + james, "错写");
+        assertEquals("", jdbc.queryForObject("select name_cn from customer_contact where id = ?", String.class, james));
 
         // 回调：联系人中文名回填，主联系人同步到客户；再次回调不覆盖
         translated("contact:" + james, "詹姆斯");

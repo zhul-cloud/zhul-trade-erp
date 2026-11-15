@@ -30,9 +30,14 @@ import java.util.List;
 @RequiredArgsConstructor
 public class RoleController {
 
+    /** 角色的读取只给角色管理；角色下拉另给用户管理用（audit SEC-018） */
+    private static final String MENU = "@perm.canAccessMenu('/system/role')";
+    private static final String OPTIONS = MENU + " or @perm.canAccessMenu('/system/user')";
+
     private final RoleService roleService;
 
     @Operation(summary = "角色列表")
+    @PreAuthorize(MENU)
     @GetMapping
     public Result<PageResult<RoleVO>> list(
             @RequestParam(defaultValue = "1") Integer page,
@@ -44,12 +49,14 @@ public class RoleController {
     }
 
     @Operation(summary = "所有角色（下拉）")
+    @PreAuthorize(OPTIONS)
     @GetMapping("/all")
     public Result<List<RoleVO>> allRoles() {
         return Result.ok(roleService.allRoles());
     }
 
     @Operation(summary = "角色统计卡片")
+    @PreAuthorize(MENU)
     @GetMapping("/stats")
     public Result<RoleStatsVO> stats() {
         return Result.ok(roleService.getStats());
@@ -72,6 +79,7 @@ public class RoleController {
     }
 
     @Operation(summary = "删除前置校验")
+    @PreAuthorize(MENU)
     @GetMapping("/{roleId}/delete-check")
     public Result<RoleDeleteCheckVO> deleteCheck(@PathVariable Integer roleId) {
         return Result.ok(roleService.checkDeletable(roleId));
@@ -86,6 +94,7 @@ public class RoleController {
     }
 
     @Operation(summary = "获取角色已分配的部门ID（数据权限）")
+    @PreAuthorize(MENU)
     @GetMapping("/{roleCode}/depts")
     public Result<List<Integer>> getRoleDeptIds(@PathVariable String roleCode) {
         return Result.ok(roleService.getRoleDeptIds(roleCode));

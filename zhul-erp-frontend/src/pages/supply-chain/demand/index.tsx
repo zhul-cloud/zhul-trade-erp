@@ -27,7 +27,7 @@ import {
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { DocLogCard, SectionTitle } from '@/components/DocFields/DocPage';
-import { usePageTitle } from '@/components/PageTabs/hooks';
+import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import SupplierSelect from '@/pages/inquiry/my-tasks/SupplierSelect';
 import {
   PageTitle,
@@ -428,6 +428,8 @@ const DemandDetailPage: React.FC = () => {
       .catch((e) => setError(readBizError(e).message));
   }, [id]);
   useEffect(load, [load]);
+  // 从其他页面返回时重新取数（audit UI-055）
+  useOnReactivate(load);
   const d = data?.demand;
   usePageTitle(d ? modelName(d) : undefined);
 

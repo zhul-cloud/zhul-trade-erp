@@ -7,7 +7,7 @@ import {
   PhoneOutlined,
   WalletOutlined,
 } from '@ant-design/icons';
-import { history, useAccess, useParams } from '@umijs/max';
+import { useAccess, useParams } from '@umijs/max';
 import {
   Alert,
   App,
@@ -24,6 +24,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useState } from 'react';
 import { useUnsavedGuard } from '@/components/PageTabs/hooks';
+import { tabsActions } from '@/components/PageTabs/store';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { termsTotal } from '@/pages/purchase/calc';
 import { PaymentTermsEditor } from '@/pages/purchase/components';
@@ -214,7 +215,7 @@ const SupplierFormPage: React.FC = () => {
   useUnsavedGuard(touched);
   const leave = () => {
     setTouched(false);
-    history.push(LIST_PATH);
+    tabsActions.backOr(LIST_PATH);
   };
 
   const cancel = () => {

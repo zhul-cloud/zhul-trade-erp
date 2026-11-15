@@ -3,7 +3,7 @@ import { Link, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Segmented, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
-import { usePageTitle } from '@/components/PageTabs/hooks';
+import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { Card, PageTitle } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { Pill } from '@/pages/product/components/Pills';
@@ -166,6 +166,8 @@ const OperationsProductDetail: React.FC = () => {
   }, [id]);
 
   useEffect(loadProduct, [loadProduct]);
+  // 从其他页面返回时重新取数（audit UI-055）
+  useOnReactivate(loadProduct);
 
   if (error || content.error) {
     return (

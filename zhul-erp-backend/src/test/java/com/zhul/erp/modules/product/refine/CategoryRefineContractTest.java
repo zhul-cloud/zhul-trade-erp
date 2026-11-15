@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.product.refine;
 
+import com.zhul.erp.modules.aitask.support.AiTaskKeys;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.aitask.dto.AiTaskCallbackRequest;
@@ -204,8 +205,8 @@ class CategoryRefineContractTest extends TenantContractSupport {
         long task = vo.path("taskId").asLong();
         Map<String, Object> input = sentInput();
         List<Map<String, Object>> items = (List<Map<String, Object>>) input.get("items");
-        assertEquals(List.of("p" + a + "#" + plc, "p" + b + "#" + hmi, "p" + unknown + "#" + plc),
-                items.stream().map(m -> m.get("key")).toList());
+        assertEquals(List.of(AiTaskKeys.sign("p" + a + "#" + plc), AiTaskKeys.sign("p" + b + "#" + hmi),
+                AiTaskKeys.sign("p" + unknown + "#" + plc)), items.stream().map(m -> m.get("key")).toList());
         assertEquals("仝itcr_plc", items.get(0).get("currentCategory"));
         List<Number> ids = ((List<Map<String, Object>>) input.get("categories")).stream().map(m -> (Number) m.get("id")).toList();
         assertTrue(ids.stream().map(Number::longValue).toList().containsAll(List.of(cpu, io, touch)));
@@ -216,9 +217,9 @@ class CategoryRefineContractTest extends TenantContractSupport {
         // 运行期间 B 的品类被人改了
         jdbc.update("update product set category_id = ? where id = ?", plc, b);
         callback(task, List.of(
-                Map.of("key", "p" + a + "#" + plc, "categoryId", touch, "brand", ""),
-                Map.of("key", "p" + b + "#" + hmi, "categoryId", touch, "brand", ""),
-                Map.of("key", "p" + unknown + "#" + plc, "categoryId", 0, "brand", "")));
+                Map.of("key", AiTaskKeys.sign("p" + a + "#" + plc), "categoryId", touch, "brand", ""),
+                Map.of("key", AiTaskKeys.sign("p" + b + "#" + hmi), "categoryId", touch, "brand", ""),
+                Map.of("key", AiTaskKeys.sign("p" + unknown + "#" + plc), "categoryId", 0, "brand", "")));
 
         assertEquals(plc, col("category_id", a), "AI 结果不改商品品类");
         assertEquals(touch, col("ai_category_id", a));
@@ -244,7 +245,28 @@ class CategoryRefineContractTest extends TenantContractSupport {
         assertEquals(1, vo.path("total").asInt(), "只取当前筛选里的待 AI 细分");
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> items = (List<Map<String, Object>>) sentInput().get("items");
-        assertEquals("p" + a + "#" + plc, items.get(0).get("key"));
+        assertEquals(AiTaskKeys.sign("p" + a + "#" + plc), items.get(0).get("key"));
+    }
+
+    /** audit AI-011：模型抄错 key、或 key 指向其他公司维护的商品时，回调不写建议 */
+    @Test
+    void callback_dropsMiscopiedKeysAndOtherCompanyProducts() throws Exception {
+        long a = product("ITCRX-K1", brand, plc, TENANT);
+        long neighbour = product("ITCRX-K2", brand, plc, TENANT);
+        long foreign = product("ITCRX-K3", brand, plc, TENANT + 1);
+        long task = ok(call(json(post(REFINE), write(Map.of("ids", List.of(a)))), t)).path("taskId").asLong();
+        String sent = AiTaskKeys.sign("p" + a + "#" + plc);
+        callback(task, List.of(
+                // 把 ID 抄成了同公司另一个待细分商品，校验码还是原来的
+                Map.of("key", sent.replace("p" + a + "#", "p" + neighbour + "#"), "categoryId", cpu, "brand", ""),
+                Map.of("key", "p" + neighbour + "#" + plc, "categoryId", cpu, "brand", ""),
+                Map.of("key", AiTaskKeys.sign("p" + foreign + "#" + plc), "categoryId", cpu, "brand", ""),
+                Map.of("key", sent, "categoryId", cpu, "brand", "")));
+
+        assertEquals(1L, col("ai_category_state", a));
+        assertEquals(cpu, col("ai_category_id", a));
+        assertEquals(0L, col("ai_category_state", neighbour), "抄错或没有校验码的 key 丢弃");
+        assertEquals(0L, col("ai_category_state", foreign), "其他公司维护的商品不写");
     }
 
     @Test
