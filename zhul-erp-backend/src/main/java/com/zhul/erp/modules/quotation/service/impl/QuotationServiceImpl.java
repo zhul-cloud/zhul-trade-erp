@@ -62,6 +62,8 @@ import com.zhul.erp.modules.system.constants.DocumentType;
 import com.zhul.erp.modules.system.service.BusinessUnitService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -125,6 +127,8 @@ public class QuotationServiceImpl implements QuotationService {
     private final com.zhul.erp.modules.quotation.service.QuoteCandidateService candidateService;
     private final com.zhul.erp.modules.inquiry.support.DocItemProducts docItemProducts;
     private final com.zhul.erp.modules.inquiry.support.NoStockReasons noStockReasons;
+    private final ObjectProvider<com.zhul.erp.modules.quotation.support.QuoteSupplyHints> supplyHints;
+    private final ApplicationEventPublisher events;
 
     /** 带入时还在询价、按无货报的行，记在建议依据上（随版本复制） */
     private static final String PENDING_AS_NO_STOCK = "未回价，按无货报";
@@ -500,11 +504,19 @@ public class QuotationServiceImpl implements QuotationService {
 
     @Override
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
-    public QuotationVO markSent(Long id, int channel) {
+    public QuotationVO markSent(Long id, int channel, boolean supplyConfirmed) {
         if (!QuotationConstants.CHANNEL_NAMES.containsKey(channel)) {
             throw new BizException("发送方式不正确");
         }
         QuotationDO q = lockVisible(id);
+        // 草稿首发、发送修改中的新版本前重算供应提示；「记一次发送」内容没变，不再校验
+        List<QuotationItemDO> sending = q.getStatus() == QuotationConstants.STATUS_DRAFT ? store.items(id)
+                : q.getStatus() == QuotationConstants.STATUS_SENT && q.getEditingVersionNo() != null
+                ? store.items(id, q.getEditingVersionNo()) : List.of();
+        Map<Long, List<String>> hints = supplyHints(sending);
+        if (!hints.isEmpty() && !supplyConfirmed) {
+            throw new BizException("有 " + hints.size() + " 个型号的成本或货源要先确认");
+        }
         if (q.getStatus() == QuotationConstants.STATUS_DRAFT) {
             requirePrices(store.items(id));
             Set<Long> inquiryIds = statusSync.inquiryIdsOf(id);
@@ -531,7 +543,37 @@ public class QuotationServiceImpl implements QuotationService {
         sendLog.setSentBy(currentUserId());
         sendLog.setSentAt(LocalDateTime.now());
         sendLogMapper.insert(sendLog);
+        if (!hints.isEmpty()) {
+            confirmSupply(q, sending, hints);
+        }
         return detail(id);
+    }
+
+    /** 供应提示；无货行不提示，没有供应链实现时为空 */
+    private Map<Long, List<String>> supplyHints(List<QuotationItemDO> items) {
+        com.zhul.erp.modules.quotation.support.QuoteSupplyHints impl = supplyHints.getIfAvailable();
+        if (impl == null || items.isEmpty()) {
+            return Map.of();
+        }
+        List<com.zhul.erp.modules.quotation.support.QuoteSupplyHints.Line> lines = items.stream()
+                .filter(i -> !QuotationRenderModels.isNoStockLine(i))
+                .map(i -> new com.zhul.erp.modules.quotation.support.QuoteSupplyHints.Line(i.getId(), i.getBrand(), i.getModel(),
+                        i.getCostQuoteId()))
+                .toList();
+        return lines.isEmpty() ? Map.of() : impl.hints(lines);
+    }
+
+    /** 发送前确认供应：记报价操作日志，事务提交后由供应链写到各型号的时间线 */
+    private void confirmSupply(QuotationDO q, List<QuotationItemDO> sending, Map<Long, List<String>> hints) {
+        List<com.zhul.erp.modules.quotation.event.QuoteSupplyConfirmedEvent.Line> lines = sending.stream()
+                .filter(i -> hints.containsKey(i.getId()))
+                .map(i -> new com.zhul.erp.modules.quotation.event.QuoteSupplyConfirmedEvent.Line(i.getId(), i.getBrand(), i.getModel(),
+                        hints.get(i.getId())))
+                .toList();
+        logService.recordOperateLog(QuotationConstants.MENU, "发送前确认供应", Map.of("quotationNo", q.getQuotationNo()),
+                Map.of("quotationNo", q.getQuotationNo(), "models", lines.size() + " 个型号"));
+        events.publishEvent(new com.zhul.erp.modules.quotation.event.QuoteSupplyConfirmedEvent(q.getTenantId(), q.getQuotationNo(),
+                currentUserId(), lines));
     }
 
     private static void requirePrices(List<QuotationItemDO> items) {
@@ -926,10 +968,14 @@ public class QuotationServiceImpl implements QuotationService {
                 .map(i -> new com.zhul.erp.modules.inquiry.support.DocItemProducts.Line(null, i.getInquiryItemId(), i.getBrand(), i.getModel())).toList());
         Map<Long, com.zhul.erp.modules.inquiry.support.NoStockReasons.Reason> sourcingNoStock = noStockReasons.of(items.stream()
                 .filter(i -> Objects.equals(i.getNoStock(), 1)).map(QuotationItemDO::getInquiryItemId).toList());
+        // 供应提示只在还能发送的版本上算（草稿、修改中的版本）
+        Map<Long, List<String>> supply = q.getStatus() == QuotationConstants.STATUS_DRAFT || viewingEditing
+                ? supplyHints(items) : Map.of();
         List<QuotationItemVO> itemVos = new ArrayList<>(items.size());
         for (int k = 0; k < items.size(); k++) {
             QuotationItemDO i = items.get(k);
             QuotationItemVO x = toItemVo(i, labels, inquiryCodes);
+            x.setSupplyHints(supply.getOrDefault(i.getId(), List.of()));
             x.setBrandEn(brandsEn.getOrDefault(i.getBrand(), i.getBrand()));
             x.setOrderCode(products.get(k).orderCode());
             x.setProductId(products.get(k).productId());

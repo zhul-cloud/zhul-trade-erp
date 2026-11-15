@@ -49,6 +49,7 @@ class QuotationContractTest extends InquiryContractSupport {
     private static final int MENU_QUOTATION = 100073;
 
     @Autowired private DocumentConverter converter;
+    @Autowired private com.zhul.erp.modules.supply.support.QuoteSupplyCheck supplyCheck;
     @Autowired private com.zhul.erp.modules.aitask.service.AiTaskService aiTaskService;
     /** 不连真实 AI 编排服务：提交后任务停在排队中，等测试手动回调（否则提交失败，任务先变失败，回调不再改终态，见 audit AI-001） */
     @MockBean private AiOrchestratorClient orchestrator;
@@ -1114,5 +1115,75 @@ class QuotationContractTest extends InquiryContractSupport {
         assertEquals(1, page.path("total").asInt());
         assertEquals(mineId, page.path("records").get(0).path("id").asLong());
         assertEquals(403, perform(json(post(QT + "/page"), "{}"), token("it_wang")).getStatus(), "兼职采购不能访问报价单");
+    }
+
+    // ---------------------------------------------------------------- 发送前确认供应（供应链第三期）
+
+    @Test
+    void supplyHints_requireConfirmBeforeSend_andRecordOnTimeline() throws Exception {
+        jdbc.update("insert into product_brand (tenant_id, brand_name, status) values (0, 'ITQSBRAND', 1)");
+        long brand = jdbc.queryForObject("select id from product_brand where brand_name = 'ITQSBRAND'", Long.class);
+        try {
+            long c = customer("Pacific Controls", "Australia");
+            long a = seedInquiry(c, 6, "2026-10-03", new M("ITQS-001", "ITQSBRAND", "PLC", 1, "100", 1, 1),
+                    new M("ITQS-002", "ITQSBRAND", "PLC", 1, "200", 1, 1), new M("ITQS-003", "ITQSBRAND", "PLC", 1, "300", 1, 1));
+            List<Long> items = itemIds(a);
+            // 第 1 行成本 45 天前；第 2 行正好 30 天（不提示）；第 3 行型号在覆盖矩阵、需确认
+            jdbc.update("update sourcing_quote set quoted_at = now() - interval 45 day where inquiry_item_id = ?", items.get(0));
+            jdbc.update("update sourcing_quote set quoted_at = now() - interval 30 day where inquiry_item_id = ?", items.get(1));
+            jdbc.update("insert into sc_demand (tenant_id, brand_id, model_key, model, scope_key, status, coverage_status)"
+                    + " values (0, ?, 'itqs003', 'ITQS-003', 'm:itqs003', 2, 3)", brand);
+            long demand = jdbc.queryForObject("select id from sc_demand where tenant_id = 0 and model_key = 'itqs003'", Long.class);
+
+            JsonNode q = byInquiries(a);
+            long id = q.path("id").asLong();
+            assertEquals("[\"成本 45 天前\"]", q.path("items").get(0).path("supplyHints").toString());
+            assertEquals(0, q.path("items").get(1).path("supplyHints").size(), "正好 30 天不提示");
+            assertEquals("[\"货源需确认\"]", q.path("items").get(2).path("supplyHints").toString());
+
+            assertEquals("有 2 个型号的成本或货源要先确认",
+                    fail(call(json(post(QT + "/" + id + "/send"), "{\"channel\":3}"), admin)).path("message").asText());
+            assertEquals(1, ok(call(get(QT + "/" + id), admin)).path("status").asInt(), "没确认不发送");
+            JsonNode sent = ok(call(json(post(QT + "/" + id + "/send"), "{\"channel\":3,\"supplyConfirmed\":true}"), admin));
+            assertEquals(2, sent.path("status").asInt());
+            assertEquals(0, sent.path("items").get(0).path("supplyHints").size(), "已发送版本不再算提示");
+            List<Map<String, Object>> logs = jdbc.queryForList("select record_type, source_type, source_doc_no, content, operator_id"
+                    + " from sc_followup_log where tenant_id = 0 and json_contains(demand_ids, ?)", String.valueOf(demand));
+            assertEquals(1, logs.size(), "只有在需求对象里的型号写时间线：" + logs);
+            assertEquals(1, ((Number) logs.get(0).get("record_type")).intValue(), "人工记录");
+            assertEquals(5, ((Number) logs.get(0).get("source_type")).intValue());
+            assertEquals(q.path("quotationNo").asText(), logs.get(0).get("source_doc_no"));
+            assertTrue(((String) logs.get(0).get("content")).contains("发送前确认了成本和交期（提示：货源需确认）"));
+            assertEquals(ADMIN_USER, ((Number) logs.get(0).get("operator_id")).longValue());
+            long line3 = sent.path("items").get(2).path("id").asLong();
+            com.zhul.erp.modules.quotation.event.QuoteSupplyConfirmedEvent again = new com.zhul.erp.modules.quotation.event
+                    .QuoteSupplyConfirmedEvent(0, q.path("quotationNo").asText(), ADMIN_USER, List.of(new com.zhul.erp.modules
+                    .quotation.event.QuoteSupplyConfirmedEvent.Line(line3, "ITQSBRAND", "ITQS-003", List.of("货源需确认"))));
+            int[] written = new int[1];
+            com.zhul.erp.framework.tenant.TenantContext.runAs(0, () -> written[0] = supplyCheck.record(again));
+            assertEquals(0, written[0], "重复事件不重复写");
+
+            // 记一次发送：不再校验
+            ok(call(json(post(QT + "/" + id + "/send"), "{\"channel\":1}"), admin));
+
+            // 新版本：重新计算提示，发送前再确认；行ID不同，时间线再记一条
+            JsonNode rev = ok(call(post(QT + "/" + id + "/revise"), admin));
+            assertEquals("[\"货源需确认\"]", rev.path("items").get(2).path("supplyHints").toString());
+            assertTrue(fail(call(json(post(QT + "/" + id + "/send"), "{\"channel\":3}"), admin)).path("message").asText()
+                    .contains("要先确认"));
+            ok(call(json(post(QT + "/" + id + "/send"), "{\"channel\":3,\"supplyConfirmed\":true}"), admin));
+            assertEquals(2, jdbc.queryForObject("select count(*) from sc_followup_log where tenant_id = 0 and source_type = 5",
+                    Integer.class));
+
+            // 没有提示的报价单直接发送
+            jdbc.update("update sc_demand set coverage_status = 4 where id = ?", demand);
+            jdbc.update("update sourcing_quote set quoted_at = now() where inquiry_item_id in (?, ?)", items.get(0), items.get(1));
+            JsonNode copy = ok(call(post(QT + "/" + id + "/copy"), admin));
+            ok(call(json(post(QT + "/" + copy.path("id").asLong() + "/send"), "{\"channel\":3}"), admin));
+        } finally {
+            jdbc.update("delete from sc_followup_log where tenant_id = 0");
+            jdbc.update("delete from sc_demand where tenant_id = 0");
+            jdbc.update("delete from product_brand where brand_name = 'ITQSBRAND'");
+        }
     }
 }

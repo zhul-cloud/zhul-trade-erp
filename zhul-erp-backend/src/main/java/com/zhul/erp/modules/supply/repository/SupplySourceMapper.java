@@ -155,4 +155,44 @@ public interface SupplySourceMapper {
             + " WHERE p.deleted_at IS NULL AND p.mpn_normalized IN"
             + " <foreach collection='keys' item='k' open='(' separator=',' close=')'>#{k}</foreach></script>")
     List<Map<String, Object>> productScopes(@Param("keys") List<String> keys);
+
+    /** 报价行成本来源询价记录的回价时间（第三期，报价行供应提示） */
+    @Select("<script>SELECT q.id AS id, q.quoted_at AS quotedAt FROM sourcing_quote q WHERE q.quoted_at IS NOT NULL"
+            + " AND q.id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
+    List<Map<String, Object>> quoteDates(@Param("ids") java.util.Collection<Long> ids);
+
+    /**
+     * 履约异常：采购延期（第三期）。已下单、非迁移、预计发货日在 [from, today) 内，且整张订单没有未作废的供应商发货记录、也没有有效入库的采购行。
+     * 子查询按采购单ID关联，租户条件由拦截器追加。
+     */
+    @Select("SELECT p.id AS id, p.model AS model, p.brand AS brand, p.quantity AS quantity, po.po_no AS poNo,"
+            + " po.expected_ship_date AS expectedShipDate FROM purchase_order_item p JOIN purchase_order po ON po.id = p.po_id"
+            + " WHERE po.status = 2 AND po.migrated = 0 AND po.deleted_at IS NULL AND p.deleted_at IS NULL"
+            + " AND po.expected_ship_date >= #{from} AND po.expected_ship_date < #{today}"
+            + " AND NOT EXISTS (SELECT 1 FROM supplier_shipment s WHERE s.po_id = po.id AND s.status <> 3 AND s.deleted_at IS NULL)"
+            + " AND NOT EXISTS (SELECT 1 FROM purchase_receipt r WHERE r.po_id = po.id AND r.status = 1 AND r.deleted_at IS NULL)")
+    List<Map<String, Object>> delayedPoLines(@Param("from") java.time.LocalDate from, @Param("today") java.time.LocalDate today);
+
+    /** 履约异常：采购取消（第三期）。下过单（有下单时间）、非迁移、取消时间不早于 since 的采购行 */
+    @Select("SELECT p.id AS id, p.model AS model, p.brand AS brand, p.quantity AS quantity, po.po_no AS poNo,"
+            + " po.cancel_reason AS cancelReason FROM purchase_order_item p JOIN purchase_order po ON po.id = p.po_id"
+            + " WHERE po.status = 3 AND po.migrated = 0 AND po.ordered_at IS NOT NULL AND po.cancelled_at >= #{since}"
+            + " AND po.deleted_at IS NULL AND p.deleted_at IS NULL")
+    List<Map<String, Object>> cancelledPoLines(@Param("since") LocalDateTime since);
+
+    /** 履约异常：到货少发、不良（第三期），登记时间不早于 since */
+    @Select("SELECT d.id AS id, d.model AS model, d.brand AS brand, d.quantity AS quantity, d.type AS type, po.po_no AS poNo"
+            + " FROM receiving_discrepancy d JOIN purchase_order po ON po.id = d.po_id"
+            + " WHERE d.type IN (1, 2) AND d.create_time >= #{since} AND d.deleted_at IS NULL")
+    List<Map<String, Object>> recentDiscrepancies(@Param("since") LocalDateTime since);
+
+    /** 采购单号 → 采购单ID（时间线跳转） */
+    @Select("<script>SELECT po.id AS id, po.po_no AS no FROM purchase_order po WHERE po.po_no IN"
+            + " <foreach collection='nos' item='n' open='(' separator=',' close=')'>#{n}</foreach></script>")
+    List<Map<String, Object>> poIdsByNo(@Param("nos") java.util.Collection<String> nos);
+
+    /** 报价单号 → 报价单ID（时间线跳转） */
+    @Select("<script>SELECT q.id AS id, q.quotation_no AS no FROM quotation q WHERE q.quotation_no IN"
+            + " <foreach collection='nos' item='n' open='(' separator=',' close=')'>#{n}</foreach></script>")
+    List<Map<String, Object>> quotationIdsByNo(@Param("nos") java.util.Collection<String> nos);
 }

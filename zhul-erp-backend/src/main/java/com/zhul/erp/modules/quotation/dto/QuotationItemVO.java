@@ -56,6 +56,8 @@ public class QuotationItemVO {
     private Boolean belowFloor;
     /** 建议主管核价提示文字 */
     private List<String> hints;
+    /** 供应提示（成本 N 天前、货源需确认 / 未验证、无稳定渠道）；只在草稿和修改中的版本上有 */
+    private List<String> supplyHints;
     private BigDecimal unitPrice;
     private BigDecimal unitPriceCny;
     private BigDecimal amount;

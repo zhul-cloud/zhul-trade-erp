@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /** 需求对象详情与时间线（spec supply-chain/demand-pool「需求对象详情」），专项详情的处理记录也用这里的时间线 */
@@ -41,6 +42,7 @@ public class DemandDetailService {
     private final PermissionChecker perm;
     private final DocLogs docLogs;
     private final ObjectMapper objectMapper;
+    private final com.zhul.erp.modules.supply.repository.SupplySourceMapper sourceMapper;
 
     public DemandDetailVO detail(Long id) {
         ScDemandDO d = demandService.live(id);
@@ -81,6 +83,9 @@ public class DemandDetailService {
         Map<Long, String> users = inquiryLookups.userNames(rows.stream().map(ScFollowupLogDO::getOperatorId)
                 .filter(o -> o != null && o > 0).collect(Collectors.toSet()));
         boolean supplier = perm.has(SupplyConstants.PERM_SUPPLIER_VIEW);
+        Map<String, Long> poIds = docIds(rows, l -> l.getSourceType() >= SupplyConstants.LOG_SRC_PO_DELAY, sourceMapper::poIdsByNo);
+        Map<String, Long> quoteIds = docIds(rows, l -> l.getSourceType() == SupplyConstants.LOG_SRC_QUOTE_CONFIRM,
+                sourceMapper::quotationIdsByNo);
         List<BoardVOs.TimelineItem> out = new ArrayList<>(rows.size());
         for (ScFollowupLogDO l : rows) {
             BoardVOs.TimelineItem t = new BoardVOs.TimelineItem();
@@ -94,7 +99,23 @@ public class DemandDetailService {
             t.setNextAction(l.getNextAction());
             t.setNextActionDate(l.getNextActionDate());
             t.setStatusChange(statusText(l.getStatusChanges()));
+            t.setSourceType(l.getSourceType());
+            t.setSourceDocNo(org.springframework.util.StringUtils.hasText(l.getSourceDocNo()) ? l.getSourceDocNo() : null);
+            t.setSourceDocId(l.getSourceType() == SupplyConstants.LOG_SRC_QUOTE_CONFIRM ? quoteIds.get(l.getSourceDocNo())
+                    : poIds.get(l.getSourceDocNo()));
             out.add(t);
+        }
+        return out;
+    }
+
+    /** 第三期来源单号 → 单据ID，批量查一次 */
+    private static Map<String, Long> docIds(List<ScFollowupLogDO> rows, java.util.function.Predicate<ScFollowupLogDO> which,
+                                            java.util.function.Function<java.util.Collection<String>, List<Map<String, Object>>> query) {
+        Set<String> nos = rows.stream().filter(l -> l.getSourceType() != null && which.test(l))
+                .map(ScFollowupLogDO::getSourceDocNo).filter(org.springframework.util.StringUtils::hasText).collect(Collectors.toSet());
+        Map<String, Long> out = new java.util.HashMap<>(nos.size() * 2);
+        if (!nos.isEmpty()) {
+            query.apply(nos).forEach(m -> out.put((String) m.get("no"), ((Number) m.get("id")).longValue()));
         }
         return out;
     }

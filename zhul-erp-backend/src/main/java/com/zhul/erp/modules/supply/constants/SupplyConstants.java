@@ -53,6 +53,8 @@ public final class SupplyConstants {
     public static final int REMIND_EXPIRED = 2;
     public static final int REMIND_NEW_IN_MATRIX = 3;
     public static final int REMIND_NO_NEXT = 4;
+    /** 第三期：履约异常（采购延期、取消、少发、不良） */
+    public static final int REMIND_FULFILLMENT = 5;
 
     /** 处理记录 */
     public static final int LOG_MANUAL = 1;
@@ -62,6 +64,14 @@ public final class SupplyConstants {
     public static final int LOG_SRC_NO_STOCK = 2;
     public static final int LOG_SRC_WITHDRAWN = 3;
     public static final int LOG_SRC_REMINDER = 4;
+    /** 第三期：报价发送确认（来源ID 为报价行ID） */
+    public static final int LOG_SRC_QUOTE_CONFIRM = 5;
+    /** 第三期：采购延期（来源ID 为采购行ID） */
+    public static final int LOG_SRC_PO_DELAY = 6;
+    /** 第三期：采购取消（来源ID 为采购行ID） */
+    public static final int LOG_SRC_PO_CANCEL = 7;
+    /** 第三期：到货差异（来源ID 为到货差异ID） */
+    public static final int LOG_SRC_DISCREPANCY = 8;
 
     /** 渠道角色 */
     public static final int CHANNEL_PRIMARY = 1;
