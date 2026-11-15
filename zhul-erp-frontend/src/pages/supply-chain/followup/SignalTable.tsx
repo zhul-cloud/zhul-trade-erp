@@ -3,6 +3,8 @@ import dayjs from 'dayjs';
 import React from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { useAppTheme } from '@/theme/AppTheme';
+import { formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import { Pill } from '../components';
 import { type Signal, SRC, SRC_NAMES } from '../service';
 
@@ -36,17 +38,20 @@ export const SignalTable: React.FC<{
   rows: Signal[];
   total: number;
   page: number;
+  pageSize: number;
   loading: boolean;
   picked: number[];
   canEdit: boolean;
   onPick: (ids: number[]) => void;
-  onPage: (p: number) => void;
+  /** 翻页或改每页条数；改每页条数时回到第 1 页 */
+  onPage: (p: number, size: number) => void;
   onClassify: (s: Signal[]) => void;
   onIgnore: (s: Signal[]) => void;
 }> = ({
   rows,
   total,
   page,
+  pageSize,
   loading,
   picked,
   canEdit,
@@ -113,6 +118,31 @@ export const SignalTable: React.FC<{
       width: 170,
       render: (v?: string) => v || '—',
     },
+    // 列表固定的四列（audit UI-093）
+    {
+      title: '创建时间',
+      dataIndex: 'createTime',
+      width: 170,
+      render: (v?: string) => formatDateTime(v),
+    },
+    {
+      title: '创建人',
+      dataIndex: 'createBy',
+      width: 90,
+      render: (v?: string) => v || '—',
+    },
+    {
+      title: '更新时间',
+      dataIndex: 'updateTime',
+      width: 170,
+      render: (v?: string) => formatDateTime(v),
+    },
+    {
+      title: '更新人',
+      dataIndex: 'updateBy',
+      width: 90,
+      render: (v?: string) => v || '—',
+    },
     {
       title: '操作',
       key: 'op',
@@ -139,7 +169,7 @@ export const SignalTable: React.FC<{
       columns={columns}
       dataSource={rows}
       tableLayout="fixed"
-      scroll={{ x: 1150 }}
+      scroll={{ x: tableScrollX(columns) }}
       rowSelection={
         canEdit
           ? { selectedRowKeys: picked, onChange: (k) => onPick(k as number[]) }
@@ -147,11 +177,11 @@ export const SignalTable: React.FC<{
       }
       pagination={{
         current: page,
-        pageSize: 20,
+        pageSize,
         total,
-        showSizeChanger: false,
+        showSizeChanger: true,
         showTotal: (t) => `共 ${t} 条`,
-        onChange: onPage,
+        onChange: (p, s) => onPage(s === pageSize ? p : 1, s),
       }}
     />
   );
