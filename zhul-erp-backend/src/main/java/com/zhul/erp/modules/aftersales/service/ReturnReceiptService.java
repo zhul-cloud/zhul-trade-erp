@@ -51,6 +51,7 @@ import com.zhul.erp.modules.warehouse.repository.StockHoldMapper;
 import com.zhul.erp.modules.warehouse.support.ReceivingSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -161,7 +162,7 @@ public class ReturnReceiptService {
 
     // ---------------------------------------------------------------- 验收
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public ReturnReceiptVO receive(Long id, ReceiveReturnRequest req) {
         ReturnReceiptDO rr = lock(id);
         if (rr.getStatus() != AfterSalesConstants.RR_PENDING) {
@@ -225,7 +226,7 @@ public class ReturnReceiptService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public ReturnReceiptVO unreceive(Long id, String reason) {
         String why = trim(reason);
         if (why.isEmpty()) {
@@ -264,7 +265,7 @@ public class ReturnReceiptService {
     // ---------------------------------------------------------------- 去向
 
     /** 逐行选择去向，可以分几次处理，每行累计不超过实收；转闲置累计不超过合格数量 */
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public ReturnReceiptVO dispose(Long id, DisposeReturnRequest req) {
         ReturnReceiptDO rr = lock(id);
         if (rr.getStatus() != AfterSalesConstants.RR_RECEIVED) {
@@ -410,7 +411,7 @@ public class ReturnReceiptService {
 
     // ---------------------------------------------------------------- 备注与附件
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public ReturnReceiptVO remark(Long id, String remark) {
         ReturnReceiptDO rr = lock(id);
         requireNotVoid(rr);
@@ -420,7 +421,7 @@ public class ReturnReceiptService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public ReturnReceiptVO attach(Long id, List<Long> ids) {
         requireNotVoid(require(id));
         attachments.attach(AttachmentService.RETURN_RECEIPT, id, ids);
@@ -428,7 +429,7 @@ public class ReturnReceiptService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public ReturnReceiptVO removeAttachment(Long id, Long attachmentId) {
         requireNotVoid(require(id));
         attachments.remove(AttachmentService.RETURN_RECEIPT, id, attachmentId);
@@ -700,6 +701,7 @@ public class ReturnReceiptService {
         return rr;
     }
 
+    /** 写方法用读已提交，加锁后的重读拿到其他事务已提交的最新状态（audit BUS-035） */
     private ReturnReceiptDO lock(Long id) {
         require(id);
         mapper.lockById(id);

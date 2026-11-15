@@ -147,6 +147,24 @@ class AfterSalesReplacementContractTest extends SalesContractSupport {
         assertEquals("已取消", closed.path("replacements").get(0).path("progressName").asText());
     }
 
+    /** audit BUS-043：有没取消的补发订单时不能撤销售后单，取消补发订单后可以撤销 */
+    @Test
+    void cancel_rejectedWhileReplacementActive() throws Exception {
+        long so = paidOrder();
+        long customer = jdbc.queryForObject("select customer_id from sales_order where id = ?", Long.class, so);
+        long asId = afterSales(so, customer);
+        JsonNode brief = ok(replace(asId, List.of(Map.of("soItemId", soItem(so), "quantity", 1)))).path("replacements").get(0);
+        long rep = brief.path("soId").asLong();
+
+        String cancel = AS + "/" + asId + "/cancel";
+        assertEquals("已有补发订单 " + brief.path("soNo").asText() + "，请先取消补发订单",
+                fail(call(json(post(cancel), "{\"reason\":\"误建\"}"), admin)).path("message").asText());
+        assertEquals(1, jdbc.queryForObject("select status from after_sales where id = ?", Integer.class, asId), "仍是处理中");
+
+        ok(call(json(post(SO + "/" + rep + "/cancel"), write(Map.of("reason", "型号选错"))), admin));
+        assertEquals("已撤销", ok(call(json(post(cancel), "{\"reason\":\"误建\"}"), admin)).path("statusName").asText());
+    }
+
     @Test
     void shippedReplacement_allowsClose_andReplacementOfReplacementPointsToOriginal() throws Exception {
         long so = paidOrder();

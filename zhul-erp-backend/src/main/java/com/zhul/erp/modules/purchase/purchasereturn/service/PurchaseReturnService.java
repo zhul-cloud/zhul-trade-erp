@@ -50,6 +50,7 @@ import com.zhul.erp.modules.warehouse.service.DiscrepancyService;
 import com.zhul.erp.modules.warehouse.support.ReceivingSupport;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -251,7 +252,7 @@ public class PurchaseReturnService {
 
     // ---------------------------------------------------------------- 状态操作
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PurchaseReturnVO updateQuantities(Long id, PurchaseReturnQtyRequest req) {
         PurchaseReturnDO p = visible(id);
         ReturnReceiptDO rr = lockReceipt(p);
@@ -301,7 +302,7 @@ public class PurchaseReturnService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PurchaseReturnVO ship(Long id, ShipPurchaseReturnRequest req) {
         visible(id);
         PurchaseReturnDO p = lock(id);
@@ -331,7 +332,7 @@ public class PurchaseReturnService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PurchaseReturnVO complete(Long id, CompletePurchaseReturnRequest req) {
         visible(id);
         PurchaseReturnDO p = lock(id);
@@ -372,7 +373,7 @@ public class PurchaseReturnService {
     }
 
     /** 已完成的金额需要更正：回到已寄出（运费不变），撤回成本冲减与应付冲减 */
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PurchaseReturnVO reopen(Long id, String reason) {
         String why = trim(reason);
         if (why.isEmpty()) {
@@ -401,7 +402,7 @@ public class PurchaseReturnService {
     }
 
     /** 作废（待寄出）：售后来源的数量回到退货入库单待处理；到货差异来源的差异重新打开 */
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PurchaseReturnVO voidReturn(Long id, String reason) {
         String why = trim(reason);
         if (why.isEmpty()) {
@@ -437,7 +438,7 @@ public class PurchaseReturnService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PurchaseReturnVO remark(Long id, String remark) {
         visible(id);
         PurchaseReturnDO p = lock(id);
@@ -449,7 +450,7 @@ public class PurchaseReturnService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PurchaseReturnVO attach(Long id, List<Long> ids) {
         PurchaseReturnDO p = visible(id);
         requireNotVoid(p);
@@ -458,7 +459,7 @@ public class PurchaseReturnService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PurchaseReturnVO removeAttachment(Long id, Long attachmentId) {
         PurchaseReturnDO p = visible(id);
         requireNotVoid(p);
@@ -798,6 +799,7 @@ public class PurchaseReturnService {
         return p;
     }
 
+    /** 写方法用读已提交，加锁后的重读拿到其他事务已提交的最新状态（audit BUS-035） */
     private PurchaseReturnDO lock(Long id) {
         mapper.lockById(id);
         return mapper.selectById(id);
