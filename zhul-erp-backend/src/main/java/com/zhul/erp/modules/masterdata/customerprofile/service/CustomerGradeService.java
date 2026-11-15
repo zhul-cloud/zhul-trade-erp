@@ -39,7 +39,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * 经营等级（spec master-data/customer-profile「客户经营等级」）：按未取消的销售订单算 RFM，存回客户表；
+ * 经营等级（spec master-data/customer-profile「客户经营等级」）：按未取消的销售订单算 RFM（不含售后补发、费用订单），存回客户表；
  * 客户详情与 RFM 明细实时计算，每日任务全量重算。非美元订单按人民币金额 ÷ 当前美元汇率折算，HALF_UP 两位。
  */
 @Service
@@ -64,6 +64,8 @@ public class CustomerGradeService {
         List<SalesOrderDO> orders = salesOrderMapper.selectList(new LambdaQueryWrapper<SalesOrderDO>()
                 .eq(SalesOrderDO::getCustomerId, c.getId())
                 .ne(SalesOrderDO::getStatus, SalesConstants.SO_CANCELLED)
+                // 售后补发、费用订单不算一次成交（BUS-064）
+                .notIn(SalesOrderDO::getSource, SalesConstants.SO_REPLACEMENT, SalesConstants.SO_FEE)
                 .isNull(SalesOrderDO::getDeletedAt)
                 .orderByDesc(SalesOrderDO::getSalesDate)
                 .orderByDesc(SalesOrderDO::getId));

@@ -4,6 +4,12 @@ import com.zhul.erp.modules.masterdata.customerbackground.dto.BackgroundReportDe
 import com.zhul.erp.modules.masterdata.customerbackground.dto.BackgroundSuggestion;
 import org.commonmark.Extension;
 import org.commonmark.ext.gfm.tables.TablesExtension;
+import org.commonmark.node.AbstractVisitor;
+import org.commonmark.node.Image;
+import org.commonmark.node.Node;
+import org.commonmark.node.Text;
+import org.commonmark.renderer.NodeRenderer;
+import org.commonmark.renderer.html.HtmlNodeRendererContext;
 import org.commonmark.parser.Parser;
 import org.commonmark.renderer.html.HtmlRenderer;
 import org.springframework.web.util.HtmlUtils;
@@ -11,17 +17,19 @@ import org.springframework.web.util.HtmlUtils;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 背调报告导出的 HTML（design 决策 8）：标题、客户、编号、时间、核心结论色块、正文、字段采纳表。
- * 正文是 AI 或上传的文字，Markdown 里的原始 HTML 一律转义，链接只保留安全协议。
+ * 正文是 AI 或上传的文字，Markdown 里的原始 HTML 一律转义，链接只保留安全协议；
+ * 图片只保留说明文字，不生成 img：LibreOffice 转换时会加载图片地址，外链图片会让服务器替用户访问内网（SEC-021）。
  */
 public final class BackgroundReportHtml {
 
     private static final List<Extension> EXTENSIONS = List.of(TablesExtension.create());
     private static final Parser PARSER = Parser.builder().extensions(EXTENSIONS).build();
     private static final HtmlRenderer RENDERER = HtmlRenderer.builder().extensions(EXTENSIONS)
-            .escapeHtml(true).sanitizeUrls(true).build();
+            .escapeHtml(true).sanitizeUrls(true).nodeRendererFactory(ImageAsText::new).build();
     private static final String TABLE = "<table width=\"100%\" border=\"1\" bordercolor=\"#d1d5db\" cellpadding=\"5\" cellspacing=\"0\">";
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
@@ -116,6 +124,34 @@ public final class BackgroundReportHtml {
 
     private static void row(StringBuilder h, String k, String v) {
         h.append("<tr valign=\"top\"><td width=\"16%\" class=\"k\">").append(k).append("</td><td>").append(e(v)).append("</td></tr>");
+    }
+
+    /** Markdown 图片渲染成「[图片：说明]」文字，不带地址 */
+    private static final class ImageAsText implements NodeRenderer {
+
+        private final HtmlNodeRendererContext context;
+
+        ImageAsText(HtmlNodeRendererContext context) {
+            this.context = context;
+        }
+
+        @Override
+        public Set<Class<? extends Node>> getNodeTypes() {
+            return Set.of(Image.class);
+        }
+
+        @Override
+        public void render(Node node) {
+            StringBuilder alt = new StringBuilder();
+            node.accept(new AbstractVisitor() {
+                @Override
+                public void visit(Text text) {
+                    alt.append(text.getLiteral());
+                }
+            });
+            String label = alt.toString().trim();
+            context.getWriter().text(label.isEmpty() ? "[图片]" : "[图片：" + label + "]");
+        }
     }
 
     private static String e(String s) {
