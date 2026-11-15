@@ -18,6 +18,7 @@ import {
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { liveRequests } from '@/utils/liveRequests';
 import { Pill } from '../components';
 import {
   type CandidateCustomer,
@@ -155,14 +156,14 @@ const NewPiModal: React.FC<{
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
+    const { live, cancel } = liveRequests();
     setError(undefined);
     setPicked(new Map());
     setQuotations(undefined);
     setCustomer(undefined);
     if (quotationId) {
-      piApi
-        .candidateQuotation(quotationId)
+      live(piApi.candidateQuotation(quotationId))
         .then((q) => {
           setQuotations([q]);
           // 默认带入全部未成交的型号
@@ -182,6 +183,7 @@ const NewPiModal: React.FC<{
         .then(setCustomers)
         .catch((e) => setError(readBizError(e).message));
     }
+    return cancel;
   }, [open, quotationId]);
 
   const pickCustomer = (c: CandidateCustomer) => {

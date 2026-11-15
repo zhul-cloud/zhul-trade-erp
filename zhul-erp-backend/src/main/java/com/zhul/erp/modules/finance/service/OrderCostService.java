@@ -318,7 +318,8 @@ public class OrderCostService {
         purchaseReturnNos.forEach((k, v) -> sourceNos.put("PURCHASE_RETURN:" + k, v));
 
         // 收款：PI 转成的订单按 PI 的到账，手动订单按订单自己的
-        Set<Long> piIds = active.stream().map(SalesOrderDO::getPiId).filter(Objects::nonNull).collect(Collectors.toSet());
+        // 手动、补发、迁移订单的 pi_id 存 0，不是 PI（audit BUS-041）
+        Set<Long> piIds = active.stream().map(SalesOrderDO::getPiId).filter(x -> x != null && x > 0).collect(Collectors.toSet());
         Map<Long, ProformaInvoiceDO> pis = piIds.isEmpty() ? Map.of()
                 : piMapper.selectBatchIds(piIds).stream().collect(Collectors.toMap(ProformaInvoiceDO::getId, Function.identity()));
         LambdaQueryWrapper<PaymentReceiptDO> rw = new LambdaQueryWrapper<PaymentReceiptDO>()
@@ -438,9 +439,9 @@ public class OrderCostService {
         return out;
     }
 
-    /** 退款归集键：PI 转成的订单按 PI，手动订单按订单 */
+    /** 退款归集键：PI 转成的订单按 PI，手动订单（pi_id 为 0）按订单 */
     private static String refundKey(Long soId, Long piId) {
-        return piId != null ? "PI" + piId : "SO" + soId;
+        return piId != null && piId > 0 ? "PI" + piId : "SO" + soId;
     }
 
     /**

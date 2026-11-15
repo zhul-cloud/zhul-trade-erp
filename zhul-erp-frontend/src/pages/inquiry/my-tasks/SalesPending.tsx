@@ -5,6 +5,7 @@ import {
 } from '@ant-design/icons';
 import { App, Button, Checkbox, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -64,6 +65,8 @@ const SalesPending: React.FC<{
   useEffect(() => {
     load();
   }, [load]);
+  // 从其他页面返回时重新取数（audit UI-055）
+  useOnReactivate(load);
 
   const groups = useMemo(() => groupByBrand(data?.tasks ?? []), [data]);
   const brandSummary = useMemo(

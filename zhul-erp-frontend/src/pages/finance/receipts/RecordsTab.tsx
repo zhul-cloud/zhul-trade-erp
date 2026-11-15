@@ -6,6 +6,7 @@ import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerSub } from '@/components/DocFields';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { Card, PATHS, Pill } from '@/pages/sales/components';
@@ -96,6 +97,10 @@ const RecordsTab: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   const card = (s: ReceiptSummary) => {
     const tone =

@@ -20,6 +20,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { LangSwitch } from '../../components/LangSwitch';
 import { Pill } from '../../components/Pills';
 import {
@@ -196,6 +197,8 @@ export const usePlatforms = (active = true) => {
   useEffect(() => {
     load();
   }, [load]);
+  // 从其他页面返回时重新取数（audit UI-055）
+  useOnReactivate(load);
   const enabled = options.filter((o) => o.enabled).map((o) => o.code);
   return { options, enabled, load, setOptions };
 };

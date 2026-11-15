@@ -21,6 +21,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { Card, PATHS, Pill } from '@/pages/sales/components';
 import {
@@ -403,6 +404,10 @@ const UnclaimedTab: React.FC<{
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   useEffect(() => {
     if (registerSignal > 0) setRegisterOpen(true);

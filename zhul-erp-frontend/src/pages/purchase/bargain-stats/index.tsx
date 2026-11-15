@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Input, Segmented, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import StatsRangeFilter, { presetRange } from '@/components/StatsRangeFilter';
 import { Card, PageTitle } from '@/pages/inquiry/shared/components';
 import { SupplierPicker } from '@/pages/purchase/components';
@@ -73,6 +74,10 @@ const BargainStatsPage: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   const stat = (
     label: string,

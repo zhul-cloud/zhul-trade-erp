@@ -3,6 +3,7 @@ import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, Input, Select, Space, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, PageTitle } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
@@ -103,6 +104,10 @@ const PayableManagement: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   const openDetail = (id: number) => history.push(`/finance/payables/${id}`);
 

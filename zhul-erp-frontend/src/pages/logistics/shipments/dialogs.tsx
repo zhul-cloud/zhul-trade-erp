@@ -22,6 +22,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
 import { type Attachment, attachmentApi } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { liveRequests } from '@/utils/liveRequests';
 import {
   BoxEditor,
   boxesProblem,
@@ -599,15 +600,15 @@ export const ItemsModal: React.FC<{
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
+    const { live, cancel } = liveRequests();
     setObs(
       new Set(
         (sh.outbounds ?? []).filter((o) => o.source === 1).map((o) => o.id),
       ),
     );
     setDs(new Set((sh.directs ?? []).map((d) => d.id)));
-    logisticsApi
-      .pending()
+    live(logisticsApi.pending())
       .then((g) =>
         setExtra(
           g.find(
@@ -618,6 +619,7 @@ export const ItemsModal: React.FC<{
         ),
       )
       .catch(() => setExtra(undefined));
+    return cancel;
   }, [open, sh]);
 
   const ownObs = (sh.outbounds ?? []).filter((o) => o.source === 1);

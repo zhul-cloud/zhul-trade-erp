@@ -16,6 +16,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import {
   Card,
   MigratedPill,
@@ -198,6 +199,10 @@ const RefundPage: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   const columns: TableColumnsType<Refund> = [
     {

@@ -6,6 +6,7 @@ import { Pill } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { liveRequests } from '@/utils/liveRequests';
 import {
   type CreditAccount,
   type CreditEntry,
@@ -40,15 +41,22 @@ const EntriesDrawer: React.FC<{
   const [rows, setRows] = useState<CreditEntry[] | null>(null);
 
   useEffect(() => {
-    if (!open || !account) return;
+    if (!open || !account) return undefined;
+    const { live, cancel } = liveRequests();
     setRows(null);
-    creditApi
-      .entries(account.customerId, account.currencyCode, account.businessUnitId)
+    live(
+      creditApi.entries(
+        account.customerId,
+        account.currencyCode,
+        account.businessUnitId,
+      ),
+    )
       .then(setRows)
       .catch((e) => {
         message.error(readBizError(e).message);
         setRows([]);
       });
+    return cancel;
   }, [open, account, message, version]);
 
   const cur = account?.currencyCode ?? 'USD';

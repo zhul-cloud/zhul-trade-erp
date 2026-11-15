@@ -22,6 +22,7 @@ import {
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -160,6 +161,10 @@ const CustomerListPage: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   const search = () => {
     setQuery(compact(form.getFieldsValue()));

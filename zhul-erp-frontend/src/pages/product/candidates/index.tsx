@@ -24,6 +24,7 @@ import {
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { groupedCategoryOptions } from '@/pages/product/components/categoryOptions';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -1117,6 +1118,10 @@ const Candidates: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
   useEffect(refreshCount, [refreshCount]);
 
   const changed = () => {

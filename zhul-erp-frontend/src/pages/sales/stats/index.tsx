@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Segmented, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import StatsRangeFilter, { presetRange } from '@/components/StatsRangeFilter';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
@@ -77,6 +78,10 @@ const SalesStatsPage: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   /** 行对应的日期范围：月份行为该月（不超出筛选范围），其余为整个筛选范围 */
   const rangeOf = (r: StatsRow) => {

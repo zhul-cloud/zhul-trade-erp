@@ -23,6 +23,7 @@ import { AttachmentWall } from '@/pages/warehouse/components';
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { liveRequests } from '@/utils/liveRequests';
 import { currencyTotals, type Group, groupPayables } from './batch';
 import { ACCEPT_PROOF, Field, newKey, PayeeAccountPicker } from './components';
 import { METHOD, type Payable, type PayeeAccount, paymentApi } from './service';
@@ -64,7 +65,8 @@ export const BatchPayModal: React.FC<{
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
+    const { live, cancel } = liveRequests();
     setKey(newKey());
     setPayDate(dayjs());
     setMethod(METHOD.COMPANY);
@@ -86,8 +88,7 @@ export const BatchPayModal: React.FC<{
       .then((list) => setAccounts(list.filter((a) => a.enabled)))
       .catch(() => setAccounts([]));
     for (const g of groups) {
-      paymentApi
-        .payeeAccounts(g.rows[0].id)
+      live(paymentApi.payeeAccounts(g.rows[0].id))
         .then((list) =>
           setInputs((cur) => ({
             ...cur,
@@ -96,6 +97,7 @@ export const BatchPayModal: React.FC<{
         )
         .catch(() => undefined);
     }
+    return cancel;
   }, [open, groups]);
 
   // 我方账户按币种与付款方式（对公 / 对私）筛选；没选或不在范围内时选第一个

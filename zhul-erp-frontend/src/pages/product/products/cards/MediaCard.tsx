@@ -22,6 +22,7 @@ import {
   Upload,
 } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { EmptyHint } from '../../components/EmptyHint';
 import { Pill } from '../../components/Pills';
 import { isSafeUrl, precheckUpload, URL_RULE_MESSAGE } from '../../constants';
@@ -546,6 +547,10 @@ export const MediaCard: React.FC<{
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   const changed = () => {
     load();

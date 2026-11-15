@@ -4,6 +4,7 @@ import type { TableColumnsType } from 'antd';
 import { Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
@@ -75,6 +76,10 @@ const PriceHistoryPage: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   const columns: TableColumnsType<PriceHistoryGroup> = [
     {

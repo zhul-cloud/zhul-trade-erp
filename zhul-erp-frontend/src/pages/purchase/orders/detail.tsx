@@ -35,7 +35,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import { RelatedDocsCard } from '@/components/DocFields/DocPage';
-import { usePageTitle } from '@/components/PageTabs/hooks';
+import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
 import {
   ACCEPT_PROOF,
   PayablePanel,
@@ -236,6 +236,15 @@ const PurchaseOrderDetail: React.FC = () => {
       : [];
   const editable =
     !!po && canEdit && po.status !== PO_STATUS.CANCELLED && editing;
+  // 编辑中有没保存的改动：关标签、刷新、返回或离开浏览器页面前先确认（audit UI-057）
+  const unsaved = useMemo(
+    () =>
+      editable &&
+      !!draft &&
+      JSON.stringify(draft) !== JSON.stringify(toDraft(po)),
+    [editable, draft, po],
+  );
+  useUnsavedGuard(unsaved);
 
   // 即时预览：同币种用当前汇率；换了外币时保存后按系统汇率换算
   const preview = useMemo(() => {

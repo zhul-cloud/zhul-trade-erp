@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, InputNumber, Modal, Segmented, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerSub } from '@/components/DocFields';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -48,6 +49,10 @@ const OverpaidTab: React.FC<{ onCount?: (n: number) => void }> = ({
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   const columns: TableColumnsType<Overpaid> = [
     {

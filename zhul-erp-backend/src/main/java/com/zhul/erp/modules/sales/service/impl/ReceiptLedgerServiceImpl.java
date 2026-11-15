@@ -100,7 +100,8 @@ public class ReceiptLedgerServiceImpl implements ReceiptLedgerService {
     @Transactional(rollbackFor = Exception.class)
     public ReceiptRowVO registerUnclaimed(UnclaimedReceiptRequest req) {
         String currency = req.getCurrencyCode().trim().toUpperCase(Locale.ROOT);
-        if (req.getAmount().signum() <= 0) {
+        // 按入库的两位 HALF_UP 舍入后判断（audit BUS-040）
+        if (req.getAmount().setScale(2, java.math.RoundingMode.HALF_UP).signum() <= 0) {
             throw new BizException("到账金额需要大于 0");
         }
         BankAccountDO bank = bankAccountService.requireEnabled(req.getBankAccountId());

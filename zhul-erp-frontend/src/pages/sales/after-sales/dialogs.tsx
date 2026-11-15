@@ -25,6 +25,7 @@ import { searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useDictTexts } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
+import { liveRequests } from '@/utils/liveRequests';
 import { type Order, orderApi, readBizError } from '../service';
 import {
   type AfterSales,
@@ -849,19 +850,20 @@ export const RefundRequestModal: React.FC<{
   const [remark, setRemark] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
+    const { live, cancel } = liveRequests();
     setAmount(null);
     setReason(undefined);
     setPayee('');
     setRemark('');
     setInfo(undefined);
-    refundRequestApi
-      .refundable(soId)
+    live(refundRequestApi.refundable(soId))
       .then((r) => {
         setInfo(r);
         setMethod(r.platformOnly ? 1 : 3);
       })
       .catch((e) => message.error(readBizError(e).message));
+    return cancel;
   }, [open, soId, message]);
   const cur = info?.currencyCode ?? 'USD';
   return (
@@ -1040,15 +1042,15 @@ export const ReplacementModal: React.FC<{
   const [busy, setBusy] = useState(false);
   const cur = order?.currencyCode ?? data.currencyCode ?? 'USD';
   useEffect(() => {
-    if (!open || !data.soId) return;
+    if (!open || !data.soId) return undefined;
+    const { live, cancel } = liveRequests();
     setRemark('');
     const picked = new Map(
       (data.items ?? [])
         .filter((i) => i.soItemId)
         .map((i) => [i.soItemId as number, i.quantity]),
     );
-    orderApi
-      .detail(data.soId)
+    live(orderApi.detail(data.soId))
       .then((o) => {
         setOrder(o);
         setRows(
@@ -1069,6 +1071,7 @@ export const ReplacementModal: React.FC<{
         );
       })
       .catch((e) => message.error(readBizError(e).message));
+    return cancel;
   }, [open, data, message]);
 
   const patch = (key: string, p: Partial<ReplacementRow>) =>

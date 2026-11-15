@@ -21,6 +21,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePaymentMethods } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
+import { liveRequests } from '@/utils/liveRequests';
 import { KIND } from '../components';
 import {
   type ReceiptOwner,
@@ -290,11 +291,12 @@ export const ClaimReceiptModal = <T extends ReceiptResult>({
   );
 
   useEffect(() => {
-    if (!open || !pi) return;
+    if (!open || !pi) return undefined;
+    const { live, cancel } = liveRequests();
     setRows(undefined);
     setSelected(undefined);
     setSlipId(undefined);
-    pi.claimable()
+    live(pi.claimable())
       .then((list) => {
         setRows(list);
         setSelected(list[0]?.id);
@@ -303,6 +305,7 @@ export const ClaimReceiptModal = <T extends ReceiptResult>({
         setRows([]);
         message.error(readBizError(e).message);
       });
+    return cancel;
   }, [open, pi, message]);
 
   const picked = rows?.find((r) => r.id === selected);

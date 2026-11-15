@@ -7,6 +7,7 @@ import {
 import { history, useAccess, useModel } from '@umijs/max';
 import { Button, Segmented, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { readBizError } from '@/pages/crm/opportunity/service';
 import { Card, PageTitle, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -95,6 +96,10 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
 
   const board = bench?.boards.find((b) => b.code === code) ?? bench?.boards[0];
   const widgets = (board?.widgets ?? []).filter((w) => WIDGETS[w.key]);

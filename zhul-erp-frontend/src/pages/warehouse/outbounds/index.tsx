@@ -7,6 +7,7 @@ import { CustomerCell } from '@/components/DocFields';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import {
   kg,
@@ -94,6 +95,10 @@ const Outbounds: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 从其他页面返回时重新取数（audit UI-055）
+
+  useOnReactivate(load);
   useEffect(refreshCounts, [refreshCounts]);
 
   const changed = () => {
