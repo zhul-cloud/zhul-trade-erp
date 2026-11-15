@@ -40,7 +40,8 @@ public interface QuotationService {
 
     void delete(Long id);
 
-    QuotationVO markSent(Long id, int channel);
+    /** @param supplyConfirmed 发送前已确认供应（有供应提示时必须为 true） */
+    QuotationVO markSent(Long id, int channel, boolean supplyConfirmed);
 
     QuotationVO copy(Long id);
 

@@ -165,7 +165,7 @@ public class QuotationController {
 
     @PostMapping("/{id}/send")
     public Result<QuotationVO> markSent(@PathVariable Long id, @Valid @RequestBody MarkSentRequest req) {
-        return Result.ok(service.markSent(id, req.getChannel()));
+        return Result.ok(service.markSent(id, req.getChannel(), Boolean.TRUE.equals(req.getSupplyConfirmed())));
     }
 
     @PostMapping("/{id}/copy")

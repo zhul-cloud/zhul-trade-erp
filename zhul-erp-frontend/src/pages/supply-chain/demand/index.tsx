@@ -1,4 +1,5 @@
 import {
+  AuditOutlined,
   BranchesOutlined,
   CalendarOutlined,
   CloseCircleOutlined,
@@ -50,6 +51,7 @@ import {
   type Demand,
   type DemandDetail,
   type Evidence,
+  LOG_SRC,
   modelName,
   PATHS,
   readBizError,
@@ -78,11 +80,27 @@ const evidenceDoc = (e: Evidence) =>
       : PATHS.sourcingTask(e.docNo)
     : undefined;
 
+/** 第三期处理记录来源：报价发送确认链到报价单，履约异常链到采购单 */
+const logDoc = (t: TimelineItem) => {
+  if (!t.sourceDocId) return undefined;
+  if (t.sourceType === LOG_SRC.QUOTE_CONFIRM)
+    return `/quotation/quotations/${t.sourceDocId}`;
+  if ((t.sourceType ?? 0) >= LOG_SRC.PO_DELAY)
+    return `/purchase/orders/${t.sourceDocId}`;
+  return undefined;
+};
+
 const TimelineRow: React.FC<{ t: TimelineItem }> = ({ t }) => {
   const { palette } = useAppTheme();
   const s = t.signal;
+  const fulfillment = !s && (t.sourceType ?? 0) >= LOG_SRC.PO_DELAY;
+  const confirm = !s && t.sourceType === LOG_SRC.QUOTE_CONFIRM;
   const icon = s ? (
     SIGNAL_ICON[s.sourceType]
+  ) : fulfillment ? (
+    <ShoppingCartOutlined />
+  ) : confirm ? (
+    <AuditOutlined />
   ) : t.system ? (
     <RobotOutlined />
   ) : (
@@ -96,15 +114,26 @@ const TimelineRow: React.FC<{ t: TimelineItem }> = ({ t }) => {
         : s.sourceType === SRC.ORDER
           ? palette.green
           : palette.link
-    : t.system
-      ? palette.green
-      : palette.sub;
+    : fulfillment
+      ? palette.red
+      : confirm
+        ? palette.link
+        : t.system
+          ? palette.green
+          : palette.sub;
   const title = s
     ? SRC_NAMES[s.sourceType]
     : t.system
       ? '系统 自动登记'
-      : `${t.operatorName ?? ''} 记处理`;
-  const docUrl = s ? signalDoc(s) : undefined;
+      : confirm
+        ? `${t.operatorName ?? ''} 发送前确认`
+        : `${t.operatorName ?? ''} 记处理`;
+  const docNo = s
+    ? s.sourceDocNo
+    : confirm || fulfillment
+      ? t.sourceDocNo
+      : undefined;
+  const docUrl = s ? signalDoc(s) : logDoc(t);
   const body = s
     ? signalText(s)
     : [
@@ -139,13 +168,10 @@ const TimelineRow: React.FC<{ t: TimelineItem }> = ({ t }) => {
             {dayjs(t.time).format('YYYY-MM-DD')}
           </span>
           {s?.cancelled && <Pill tone="gray">已撤回</Pill>}
+          {fulfillment && <Pill tone="red">履约异常</Pill>}
           <span style={{ flex: 1 }} />
-          {s?.sourceDocNo &&
-            (docUrl ? (
-              <Link to={docUrl}>{s.sourceDocNo}</Link>
-            ) : (
-              <span>{s.sourceDocNo}</span>
-            ))}
+          {docNo &&
+            (docUrl ? <Link to={docUrl}>{docNo}</Link> : <span>{docNo}</span>)}
         </div>
         {body && (
           <div

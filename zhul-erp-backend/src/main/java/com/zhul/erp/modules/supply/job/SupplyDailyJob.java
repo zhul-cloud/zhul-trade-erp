@@ -25,7 +25,7 @@ import java.util.List;
 /**
  * 供应链每日任务（design 决策 2、12、16；tasks 3.2）：按租户逐个执行 汇入信号 → 重算等级与优先级 → 建议状态与过期降级 → 系统提醒 → 询价联动补登
  * → 开发任务候选按证据判定合格（第二期，含采购订单与证据过期退回）。
- * 汇入后按商品主数据补齐未分类需求型号的品类（product-category-refine）。
+ * 汇入后按商品主数据补齐未分类需求型号的品类（product-category-refine）；再回写近 30 天的履约异常（第三期，每条异常一个事务）。
  * 每天 03:10 运行，应用启动完成后也运行一次（上线后首次执行回溯 180 天）。
  * <p>
  * 没有登录上下文：在平台范围查出有询盘的租户，再逐个 {@link TenantContext#runAs}；单个租户失败只记 ERROR，不影响其他租户。
@@ -46,6 +46,7 @@ public class SupplyDailyJob {
     private final com.zhul.erp.modules.supply.support.QuoteLinkage linkage;
     private final com.zhul.erp.modules.supply.support.CandidateQualifier qualifier;
     private final com.zhul.erp.modules.supply.support.DemandCategorySync categorySync;
+    private final com.zhul.erp.modules.supply.support.FulfillmentFeedback fulfillment;
     private final TransactionTemplate tx;
 
     @Scheduled(cron = "${zhul.supply.daily-cron:0 10 3 * * *}", zone = "Asia/Shanghai")
@@ -84,12 +85,14 @@ public class SupplyDailyJob {
         LocalDateTime floor = today.minusDays(SupplyConstants.FIRST_BACKFILL_DAYS).atStartOfDay();
         SignalImporter.Result r = importer.importAll(today.minusDays(LOOKBACK_DAYS).atStartOfDay(), floor, backfill);
         Integer filled = tx.execute(st -> categorySync.fillAll());
+        com.zhul.erp.modules.supply.support.FulfillmentFeedback.Summary f = fulfillment.scan(today);
         DemandRecalc.Summary s = tx.execute(st -> recalc.run(today, r.stockoutDemands));
         // 询价联动按询价记录 id 补登（处理记录唯一键去重），补上需求对象当时还不存在或线程池丢弃的
         linkage.backfill(today.minusDays(LOOKBACK_DAYS).atStartOfDay());
         int qualified = qualifier.refresh(today);
-        log.info("供应链每日任务完成，tenantId={}，{}新信号 {} 条、更新 {} 条，补齐品类 {} 个，需求对象 {} 个，进入矩阵 {} 个，过期降级 {} 个，"
-                + "提醒 {} 条，候选阶段变化 {} 个", tenantId, first ? "首次回溯，" : "", r.created, r.updated, filled, s.demands(), s.entered(),
+        log.info("供应链每日任务完成，tenantId={}，{}新信号 {} 条、更新 {} 条，补齐品类 {} 个，履约异常 {} 条（登记 {}、降级 {}），需求对象 {} 个，进入矩阵 {} 个，过期降级 {} 个，"
+                + "提醒 {} 条，候选阶段变化 {} 个", tenantId, first ? "首次回溯，" : "", r.created, r.updated, filled,
+                f.found(), f.recorded(), f.downgraded(), s.demands(), s.entered(),
                 s.downgraded(), s.reminders(), qualified);
     }
 }

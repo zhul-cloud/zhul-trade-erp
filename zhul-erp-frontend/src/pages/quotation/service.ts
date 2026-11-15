@@ -108,6 +108,8 @@ export interface QuotationItem {
   floorMargin?: number | null;
   belowFloor: boolean;
   hints: string[];
+  /** 供应提示（成本 N 天前、货源需确认 / 未验证、无稳定渠道）；只在草稿和修改中的版本上有 */
+  supplyHints?: string[];
   unitPrice: number;
   unitPriceCny: number;
   amount: number;
@@ -417,8 +419,8 @@ export const quotationApi = {
   recalcRate: (id: number) =>
     send<Quotation>('POST', `${QT}/${id}/recalc-rate`),
   remove: (id: number) => send<void>('DELETE', `${QT}/${id}`),
-  markSent: (id: number, channel: number) =>
-    send<Quotation>('POST', `${QT}/${id}/send`, { channel }),
+  markSent: (id: number, channel: number, supplyConfirmed?: boolean) =>
+    send<Quotation>('POST', `${QT}/${id}/send`, { channel, supplyConfirmed }),
   copy: (id: number) => send<Quotation>('POST', `${QT}/${id}/copy`),
   markLost: (id: number, reason: string, note?: string) =>
     send<Quotation>('POST', `${QT}/${id}/lost`, { reason, note }),

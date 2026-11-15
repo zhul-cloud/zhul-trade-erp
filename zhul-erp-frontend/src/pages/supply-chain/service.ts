@@ -5,6 +5,17 @@ export { readBizError } from '@/pages/crm/opportunity/service';
 // ---------------------------------------------------------------- 码值（与后端 SupplyConstants 一致）
 
 export const COVER = { NONE: 0, NO_CHANNEL: 1, LEAD: 2, CONFIRM: 3, READY: 4 };
+/** 系统提醒类型：履约异常（第三期，采购延期、取消、少发、不良） */
+export const REMIND_FULFILLMENT = 5;
+
+/** 处理记录来源（第三期）：报价发送确认、采购延期、采购取消、到货差异 */
+export const LOG_SRC = {
+  QUOTE_CONFIRM: 5,
+  PO_DELAY: 6,
+  PO_CANCEL: 7,
+  DISCREPANCY: 8,
+} as const;
+
 export const COVER_NAMES: Record<number, string> = {
   1: '无渠道',
   2: '有线索未验证',
@@ -447,6 +458,11 @@ export interface TimelineItem {
   nextAction?: string;
   nextActionDate?: string;
   statusChange?: string;
+  /** 处理记录来源（见 LOG_SRC） */
+  sourceType?: number;
+  sourceDocNo?: string;
+  /** 来源单据ID（报价单、采购单） */
+  sourceDocId?: number;
 }
 
 export interface Channel {

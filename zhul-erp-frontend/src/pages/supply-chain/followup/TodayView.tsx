@@ -13,6 +13,7 @@ import {
   type DevTodayItem,
   modelName,
   PATHS,
+  REMIND_FULFILLMENT,
   scopeName,
   type Today,
   type TodayCard,
@@ -73,6 +74,12 @@ const TodayCardView: React.FC<{
             <div style={{ display: 'flex', gap: 8 }}>
               <BellOutlined style={{ color: palette.orange, marginTop: 4 }} />
               <span>
+                {top.nextActionSource === 2 &&
+                  top.reminderType === REMIND_FULFILLMENT && (
+                    <span style={{ marginRight: 6 }}>
+                      <Pill tone="red">履约异常</Pill>
+                    </span>
+                  )}
                 {top.nextActionSource === 2 ? '系统提醒' : '我定的下一步'}：
                 {c.items.length === 1 || top.nextActionSource !== 2
                   ? ''
@@ -126,6 +133,12 @@ const TodayCardView: React.FC<{
                       whiteSpace: 'nowrap',
                     }}
                   >
+                    {d.nextActionSource === 2 &&
+                      d.reminderType === REMIND_FULFILLMENT && (
+                        <span style={{ marginRight: 6 }}>
+                          <Pill tone="red">履约异常</Pill>
+                        </span>
+                      )}
                     {d.nextAction}
                     {d.nextActionSource === 2 ? '（系统）' : ''}
                   </span>
