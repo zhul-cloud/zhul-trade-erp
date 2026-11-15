@@ -397,7 +397,11 @@ export const RfmModal: React.FC<{
                 <button
                   type="button"
                   className="zhul-link"
-                  onClick={() => history.push(`/sales/orders/${r.id}`)}
+                  onClick={() => {
+                    // 先关弹窗：弹窗挂在 body 上，跳页后不会随旧页面隐藏（audit UI-071）
+                    onClose();
+                    history.push(`/sales/orders/${r.id}`);
+                  }}
                 >
                   {v}
                 </button>

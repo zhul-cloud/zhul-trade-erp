@@ -11,7 +11,7 @@ import {
   Segmented,
   Select,
 } from 'antd';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
@@ -102,16 +102,22 @@ const ModuleEditModal: React.FC<{
   const [tab, setTab] = useState(module);
   const [saving, setSaving] = useState(false);
   const [tzMap, setTzMap] = useState<Record<string, string[]>>({});
-  const initial = useMemo(() => toForm(p), [p]);
+  const latest = useMemo(() => toForm(p), [p]);
+  const latestRef = useRef(latest);
+  latestRef.current = latest;
+  /** 打开时的档案：只提交相对它改过的字段 */
+  const [initial, setInitial] = useState(latest);
   const paymentMethod = Form.useWatch('paymentMethod', form);
   const brands = Form.useWatch('currentBrands', form) ?? [];
 
+  // 只在打开（或换模块）时按当时的档案填表；打开期间档案刷新不覆盖正在编辑的表单（audit UI-069）
   useEffect(() => {
     if (!open) return;
     setTab(module === 4 ? 1 : module);
+    setInitial(latestRef.current);
     form.resetFields();
-    form.setFieldsValue(initial);
-  }, [open, module, initial, form]);
+    form.setFieldsValue(latestRef.current);
+  }, [open, module, form]);
 
   useEffect(() => {
     loadCountryTimezones()
