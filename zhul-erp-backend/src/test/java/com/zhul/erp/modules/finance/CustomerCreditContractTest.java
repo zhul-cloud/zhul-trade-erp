@@ -257,6 +257,11 @@ class CustomerCreditContractTest extends SalesContractSupport {
         ok(call(json(post(REFUND + "/" + tk.path("id").asLong() + "/void"), "{\"reason\":\"转错账户\"}"), admin));
         money("291", balances().get(0).path("available"));
         assertTrue(ok(call(get(INCOME).param("category", "FX_GAIN"), admin)).path("records").isEmpty());
+        // audit BUS-042：作废提现退回的流水不是新批次，可用余额仍只有 291，不能再转出 582
+        assertEquals("可用余额只有 USD 291.00", fail(call(json(post(CREDIT + "/withdraw"), write(withdraw("582", "4100"))), admin))
+                .path("message").asText());
+        ok(call(json(post(CREDIT + "/withdraw"), write(withdraw("291", "2080.65"))), admin));
+        money("0", balances().get(0).path("available"));
     }
 
     @Test

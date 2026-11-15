@@ -51,6 +51,7 @@ import com.zhul.erp.modules.system.service.LogService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -308,7 +309,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     // ---------------------------------------------------------------- 到账
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PiVO confirm(Long piId, ConfirmReceiptRequest req) {
         doConfirm(Owner.of(requireReceivable(piId)), req);
         followupHooks.receiptConfirmed(piMapper.selectById(piId), req.getAmount());
@@ -316,7 +317,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public SalesOrderVO confirmOrder(Long soId, ConfirmReceiptRequest req) {
         doConfirm(Owner.of(requireOrder(soId, true)), req);
         return orderService.detail(soId);
@@ -385,7 +386,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PiVO voidReceipt(Long piId, Long receiptId, String reason) {
         ProformaInvoiceDO voided = store.lockVisible(piId);
         doVoid(Owner.of(voided), receiptId, reason);
@@ -394,7 +395,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public SalesOrderVO voidOrderReceipt(Long soId, Long receiptId, String reason) {
         doVoid(Owner.of(requireOrder(soId, false)), receiptId, reason);
         return orderService.detail(soId);
@@ -450,7 +451,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public SalesOrderVO orderCredit(Long soId, BigDecimal amount) {
         SalesOrderDO so = requireOrder(soId, true);
         creditUsage.useOnOrder(so, amount);
@@ -462,14 +463,14 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     // ---------------------------------------------------------------- 平台收款与认领
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PiVO platformReceipt(Long piId, PlatformReceiptRequest req) {
         doPlatform(Owner.of(requireReceivable(piId)), req);
         return piService.detail(piId, null);
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public SalesOrderVO orderPlatformReceipt(Long soId, PlatformReceiptRequest req) {
         doPlatform(Owner.of(requireOrder(soId, true)), req);
         return orderService.detail(soId);
@@ -551,14 +552,14 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PiVO claim(Long piId, ClaimReceiptRequest req) {
         doClaim(Owner.of(requireReceivable(piId)), req);
         return piService.detail(piId, null);
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public SalesOrderVO claimToOrder(Long soId, ClaimReceiptRequest req) {
         doClaim(Owner.of(requireOrder(soId, true)), req);
         return orderService.detail(soId);

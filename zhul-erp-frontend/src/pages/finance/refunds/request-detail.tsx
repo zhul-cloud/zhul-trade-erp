@@ -410,9 +410,15 @@ const RefundRequestDetail: React.FC = () => {
         danger
         onCancel={() => setDialog(undefined)}
         onOk={async (why) => {
-          if (dialog === 'rejectApproval')
-            await refundRequestApi.rejectApproval(q.id, why);
-          else await refundRequestApi.reject(q.id, why);
+          // 申请可能已被别人执行、撤回或审批，失败要提示原因（audit UI-077）
+          try {
+            if (dialog === 'rejectApproval')
+              await refundRequestApi.rejectApproval(q.id, why);
+            else await refundRequestApi.reject(q.id, why);
+          } catch (e) {
+            message.error(readBizError(e).message);
+            return;
+          }
           message.success('已驳回');
           done();
         }}

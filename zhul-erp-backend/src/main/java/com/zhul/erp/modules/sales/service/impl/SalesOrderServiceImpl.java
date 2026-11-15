@@ -64,6 +64,7 @@ import com.zhul.erp.modules.system.service.LogService;
 import com.zhul.erp.modules.system.service.BusinessUnitService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -505,7 +506,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
      * PI 转成的订单：代收费用以 PI 为准原样保留，折扣按 PI 版本重算，收款按订单合计重算 PI 的收款状态（PI 本身不变）。
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public SalesOrderVO updateFees(Long id, com.zhul.erp.modules.sales.dto.UpdateOrderFeesRequest req) {
         SalesOrderDO o = visible(id);
         boolean manual = !Objects.equals(o.getSource(), SalesConstants.SO_FROM_PI);
@@ -644,7 +645,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public SalesOrderVO cancel(Long id, String reason) {
         String why = reason == null ? "" : reason.trim();
         if (why.isEmpty()) {
@@ -945,7 +946,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
      * 锁顺序 PI → 订单 → 采购需求 → 采购订单，与取消订单、下单一致。
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public SalesOrderVO partialCancel(Long id, PartialCancelRequest req) {
         SalesOrderDO o = visible(id);
         if (Objects.equals(o.getSource(), SalesConstants.SO_FEE)) {

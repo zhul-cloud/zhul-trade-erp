@@ -458,7 +458,9 @@ const RecordsTab: React.FC = () => {
         loading={loading}
         scroll={{ x: tableScrollX(columns) }}
         locale={{ emptyText: '没有符合条件的收款单' }}
-        onChange={(_, __, sorter) => {
+        onChange={(_, __, sorter, extra) => {
+          // 翻页也会触发 onChange，只在排序时回到第 1 页（audit UI-061）
+          if (extra.action !== 'sort') return;
           const s = Array.isArray(sorter) ? sorter[0] : sorter;
           setByDate(s?.field === 'receiptDate' && !!s.order);
           setPage(1);
