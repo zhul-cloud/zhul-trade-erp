@@ -29,7 +29,7 @@ import java.util.Objects;
 
 /**
  * 每天重算（design 决策 4–7、12）：次数、需求等级、建议优先级 → 高中优先级进入覆盖矩阵 → 建议覆盖状态与证据过期降级 → 系统提醒。
- * 事务边界：调用方把同一租户的重算与提醒放在一个事务里；调用方负责租户上下文。
+ * 事务边界：调用方把同一租户的重算与提醒放在一个事务里；调用方负责租户上下文。要重算的需求对象加行锁读取，锁到事务结束。
  */
 @Component
 @RequiredArgsConstructor
@@ -66,14 +66,16 @@ public class DemandRecalc {
         if (ids != null && ids.isEmpty()) {
             return new Summary(0, 0, 0, 0);
         }
+        // 先加锁再读：整行回写前别的事务改的优先级、覆盖状态、下一步要么已提交被读到，要么等本次提交后再改（audit BUS-075）
+        List<ScDemandDO> demands = demandMapper.selectList(new LambdaQueryWrapper<ScDemandDO>()
+                .in(ids != null, ScDemandDO::getId, ids == null ? List.of(0L) : ids)
+                .isNull(ScDemandDO::getDeletedAt)
+                .last("FOR UPDATE"));
         LocalDateTime from = today.minusDays(SupplyConstants.PRIORITY_WINDOW_DAYS - 1L).atStartOfDay();
         Map<Long, Map<String, Object>> stats = new HashMap<>(256);
         for (Map<String, Object> m : signalMapper.stats(from, lookups.supplyLostCodes(), ids)) {
             stats.put(((Number) m.get("demandId")).longValue(), m);
         }
-        List<ScDemandDO> demands = demandMapper.selectList(new LambdaQueryWrapper<ScDemandDO>()
-                .in(ids != null, ScDemandDO::getId, ids == null ? List.of(0L) : ids)
-                .isNull(ScDemandDO::getDeletedAt));
         int days = lookups.evidenceDays();
         EvidenceIndex.Snapshot ev = evidenceIndex.load(demands.stream()
                 .filter(d -> d.getStatus() != SupplyConstants.DEMAND_PAUSED).toList());

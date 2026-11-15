@@ -33,6 +33,7 @@ import java.sql.Date;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -79,9 +80,13 @@ public class CoverageService {
      * @param systemReason 不为空时操作日志记为系统（如「询价回价」）
      */
     public boolean change(ScDemandDO d, int status, String note, String systemReason) {
+        return change(d, status, note, systemReason, evidenceIndex.load(List.of(d)));
+    }
+
+    /** 同上，证据由调用方在事务内批量读好（记一次处理改多个型号时只读一次，audit BUS-076） */
+    public boolean change(ScDemandDO d, int status, String note, String systemReason, EvidenceIndex.Snapshot ev) {
         LocalDate today = LocalDate.now();
         int days = lookups.evidenceDays();
-        EvidenceIndex.Snapshot ev = evidenceIndex.load(List.of(d));
         DemandRecalc.applyCoverage(d, ev.latest(d, null), ev.leadSuppliers(d), today, days);
         if (status == SupplyConstants.COVER_READY && !DemandRules.evidenceValid(d.getEvidenceDate(), today, days)) {
             return false;
@@ -120,6 +125,11 @@ public class CoverageService {
             docLogs.add(DocumentType.SC, d.getId(), "覆盖状态", who + text + (StringUtils.hasText(note) ? "：" + note : ""));
         }
         return true;
+    }
+
+    /** 批量读这些需求对象的证据，供 {@link #change(ScDemandDO, int, String, String, EvidenceIndex.Snapshot)} 使用 */
+    public EvidenceIndex.Snapshot loadEvidence(Collection<ScDemandDO> demands) {
+        return evidenceIndex.load(demands);
     }
 
     @Transactional

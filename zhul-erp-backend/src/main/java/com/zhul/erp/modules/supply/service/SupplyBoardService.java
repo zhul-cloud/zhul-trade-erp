@@ -26,6 +26,7 @@ import com.zhul.erp.modules.supply.repository.ScFollowupLogMapper;
 import com.zhul.erp.modules.supply.support.DemandAssembler;
 import com.zhul.erp.modules.supply.support.DemandRecalc;
 import com.zhul.erp.modules.supply.support.DemandRules;
+import com.zhul.erp.modules.supply.support.EvidenceIndex;
 import com.zhul.erp.modules.supply.support.SupplyLookups;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -275,10 +276,13 @@ public class SupplyBoardService {
         List<Long> skipped = new ArrayList<>();
         List<Map<String, Object>> changes = new ArrayList<>();
         int changed = 0;
+        List<ScDemandDO> inMatrix = rows.stream().filter(d -> d.getStatus() == SupplyConstants.DEMAND_IN_MATRIX).toList();
+        // 证据按所选型号批量读一次，不按型号逐个全量读采购订单行（audit BUS-076）
+        EvidenceIndex.Snapshot ev = req.getCoverage() == null || inMatrix.isEmpty() ? null : coverageService.loadEvidence(inMatrix);
         for (ScDemandDO d : rows) {
             int from = d.getCoverageStatus();
             if (req.getCoverage() != null && d.getStatus() == SupplyConstants.DEMAND_IN_MATRIX) {
-                if (!coverageService.change(d, req.getCoverage(), null, null)) {
+                if (!coverageService.change(d, req.getCoverage(), null, null, ev)) {
                     skipped.add(d.getId());
                     changes.add(Map.of("demandId", d.getId(), "from", from, "to", from, "skipped", true));
                     continue;
