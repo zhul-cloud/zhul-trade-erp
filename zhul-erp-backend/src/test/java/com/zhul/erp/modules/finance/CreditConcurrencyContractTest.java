@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,6 +37,7 @@ class CreditConcurrencyContractTest extends SalesContractSupport {
 
     private static final String CREDIT = "/api/v1/finance/credits";
     private static final String RQ = "/api/v1/finance/refund-requests";
+    private static final String FIN = "/api/v1/finance/receipts";
 
     @SpyBean private LogService logService;
     @SpyBean private CreditUsageService creditUsage;
@@ -176,5 +178,38 @@ class CreditConcurrencyContractTest extends SalesContractSupport {
         assertEquals("最多还能申请 USD 0.00", fail(res.get(1)).path("message").asText());
         assertEquals(1, jdbc.queryForObject("select count(*) from fin_refund_request where tenant_id = 0 and so_id = ?",
                 Integer.class, so));
+    }
+
+    @Test
+    void unclaimWhileOverpaidCreditUsedByAnotherPi_rejected() throws Exception {
+        long source = sentPi();
+        Map<String, Object> reg = new LinkedHashMap<>();
+        reg.put("currencyCode", "USD");
+        reg.put("amount", "1050");
+        reg.put("receiptDate", LocalDate.now().toString());
+        reg.put("bankAccountId", jdbc.queryForObject("select min(id) from tenant_bank_account where tenant_id = 0", Integer.class));
+        reg.put("payer", "ACROBOT Automacao");
+        long receipt = ok(call(json(post(FIN + "/unclaimed"), write(reg)), admin)).path("id").asLong();
+        ok(call(json(post(PI + "/" + source + "/claim"), "{\"receiptId\":" + receipt + "}"), admin));
+        Map<String, Object> req = new HashMap<>();
+        req.put("ownerType", "PI");
+        req.put("ownerId", source);
+        req.put("amount", "50");
+        req.put("mode", "CREDIT");
+        ok(call(json(post(CREDIT + "/overpaid"), write(req)), admin));
+        JsonNode other = draftPi();
+        Map<String, Object> body = withCredit(other, "50");
+        doAnswer(this::pauseFirst).when(creditUsage).syncPi(any());
+
+        List<JsonNode> res = race(() -> savePi(other.path("id").asLong(), body),
+                () -> call(json(post(FIN + "/" + receipt + "/unclaim"), "{\"reason\":\"认领错 PI\"}"), admin));
+
+        ok(res.get(0));
+        String msg = fail(res.get(1)).path("message").asText();
+        assertTrue(msg.contains("使用"), msg);
+        assertEquals(0, BigDecimal.ZERO.compareTo(jdbc.queryForObject(
+                "select sum(amount) from fin_customer_credit_entry where tenant_id = 0 and customer_id = ?", BigDecimal.class, customer)),
+                "已被另一张 PI 抵扣的多收转入不能再被取消认领冲销");
+        assertEquals(source, jdbc.queryForObject("select pi_id from payment_receipt where id = ?", Long.class, receipt));
     }
 }

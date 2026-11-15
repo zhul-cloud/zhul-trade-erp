@@ -363,7 +363,7 @@ public class PiServiceImpl implements PiService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PiVO addItems(Long id, AddPiItemsRequest req) {
         ProformaInvoiceDO pi = store.lockVisible(id);
         PiVersionDO v = store.requireEditing(pi);
