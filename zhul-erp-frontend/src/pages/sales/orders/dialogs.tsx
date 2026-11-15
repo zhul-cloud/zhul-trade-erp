@@ -1421,6 +1421,11 @@ export const EditFeesModal: React.FC<{
       message.error('请填写修改原因');
       return;
     }
+    // 费用订单没有型号，删光费用会成为 0 元订单（audit BUS-069）
+    if (order.source === 4 && toFeeInputs(rows).length === 0) {
+      message.error('费用订单至少要保留一行费用，不需要了请取消订单');
+      return;
+    }
     setBusy(true);
     try {
       const next = await orderApi.updateFees(order.id, {

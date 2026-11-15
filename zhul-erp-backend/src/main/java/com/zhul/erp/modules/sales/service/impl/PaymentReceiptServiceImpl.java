@@ -336,7 +336,7 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         PaymentReceiptDO slip = req.getSlipId() == null ? null : requireFreeSlip(o, req.getSlipId());
         PaymentMethods.Method method = paymentMethods.offline(StringUtils.hasText(req.getPaymentMethod()) ? req.getPaymentMethod()
                 : slip != null ? slip.getPaymentMethod() : null);
-        BigDecimal after = o.remaining().subtract(amount);
+        BigDecimal after = o.remaining(store).subtract(amount);
         BigDecimal feeDiff = BigDecimal.ZERO;
         if (Boolean.TRUE.equals(req.getFeeDiff())) {
             BigDecimal tolerance = feeTolerance();
@@ -686,8 +686,18 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
             });
         }
         List<DeskRow> all = new ArrayList<>();
-        piMapper.selectList(w).forEach(p -> all.add(new DeskRow(p, null)));
-        orderMapper.selectList(ow).forEach(o -> all.add(new DeskRow(null, o)));
+        List<ProformaInvoiceDO> pis = piMapper.selectList(w);
+        // PI 的应收合计与收款状态同口径：有有效订单时取订单合计（部分取消、改费用后与 PI 合计不同，audit BUS-049）
+        Map<Long, SalesOrderDO> orders = pis.isEmpty() ? Map.of() : orderMapper.selectList(new LambdaQueryWrapper<SalesOrderDO>()
+                        .in(SalesOrderDO::getPiId, pis.stream().map(ProformaInvoiceDO::getId).toList())
+                        .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
+                        .isNull(SalesOrderDO::getDeletedAt))
+                .stream().collect(Collectors.toMap(SalesOrderDO::getPiId, o -> o, (a, b) -> a));
+        pis.forEach(p -> {
+            SalesOrderDO so = orders.get(p.getId());
+            all.add(new DeskRow(p, null, so != null ? so.getTotalAmount() : p.getTotalAmount()));
+        });
+        orderMapper.selectList(ow).forEach(o -> all.add(new DeskRow(null, o, o.getTotalAmount())));
         if (all.isEmpty()) {
             return PageResult.of(0L, List.of());
         }
@@ -729,12 +739,6 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
         }
         Map<Long, CustomerDO> customers = lookups.customers(slice.stream().map(DeskRow::customerId).toList());
         Map<Long, String> users = lookups.userNames(slice.stream().map(DeskRow::ownerId).toList());
-        List<Long> slicePis = slice.stream().filter(r -> r.pi() != null).map(r -> r.pi().getId()).toList();
-        Map<Long, SalesOrderDO> orders = slicePis.isEmpty() ? Map.of() : orderMapper.selectList(new LambdaQueryWrapper<SalesOrderDO>()
-                        .in(SalesOrderDO::getPiId, slicePis)
-                        .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
-                        .isNull(SalesOrderDO::getDeletedAt))
-                .stream().collect(Collectors.toMap(SalesOrderDO::getPiId, o -> o, (a, b) -> a));
         List<ReceiptDeskRowVO> list = new ArrayList<>(slice.size());
         for (DeskRow r : slice) {
             ReceiptDeskRowVO vo = new ReceiptDeskRowVO();
@@ -784,17 +788,13 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
     }
 
     /** 待确认列表的一行：PI，或手动创建的订单 */
-    private record DeskRow(ProformaInvoiceDO pi, SalesOrderDO so) {
+    private record DeskRow(ProformaInvoiceDO pi, SalesOrderDO so, BigDecimal total) {
         static String key(Long piId, Long soId) {
             return piId != null ? "P" + piId : "S" + soId;
         }
 
         String key() {
             return pi != null ? key(pi.getId(), null) : key(null, so.getId());
-        }
-
-        BigDecimal total() {
-            return pi != null ? pi.getTotalAmount() : so.getTotalAmount();
         }
 
         BigDecimal received() {
@@ -904,8 +904,9 @@ public class PaymentReceiptServiceImpl implements PaymentReceiptService {
             return pi != null ? pi.getExchangeRate() : so.getExchangeRate();
         }
 
-        BigDecimal remaining() {
-            return pi != null ? pi.getTotalAmount().subtract(pi.getReceivedAmount()).subtract(pi.getFeeDiffAmount())
+        /** 剩余应收：PI 按应收合计（有有效订单时取订单合计，audit BUS-049），手动订单按订单合计 */
+        BigDecimal remaining(PiStore store) {
+            return pi != null ? store.receivable(pi).subtract(pi.getReceivedAmount()).subtract(pi.getFeeDiffAmount())
                     : so.getTotalAmount().subtract(so.getReceivedAmount()).subtract(so.getFeeDiffAmount());
         }
 

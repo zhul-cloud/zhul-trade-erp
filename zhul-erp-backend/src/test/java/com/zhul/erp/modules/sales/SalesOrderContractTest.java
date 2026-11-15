@@ -101,7 +101,10 @@ class SalesOrderContractTest extends SalesContractSupport {
                 "看不到的订单不会因事业部条件出现");
     }
 
-    /** UI-030：经营看板「毛利为负的订单」进入列表，只列进行中且毛利为负的订单 */
+    /**
+     * UI-030：经营看板「毛利为负的订单」进入列表，只列进行中且毛利为负的订单。
+     * audit BUS-070：毛利按列表「毛利」列同一口径（实际成本读时计算），不看转单时拷来的预估净利润；手动订单亏本也能筛出
+     */
     @Test
     void page_lossOnly_activeNegativeProfit() throws Exception {
         // 订单状态筛选列出全部进行中的进度：没有订单的也有名称，工作台带 progressCode 进来不露出代码
@@ -113,19 +116,33 @@ class SalesOrderContractTest extends SalesContractSupport {
         assertEquals(0L, counts.get("RECEIVED"), counts.toString());
         assertFalse(counts.containsKey("COMPLETED"), "已完成单独列在筛选里");
         long c = customer("ACROBOT", "India");
+        // 采购成本 CNY 5000 > 售价 USD 100 折人民币：亏本
+        L loss = l("LOSS-1", 1, "5000", "100");
         long[] ids = new long[3];
         for (int i = 0; i < 3; i++) {
-            long pi = sentPi(quotationItemIds(quotation(c, 2, "USD", null, FOUR[0])), null);
+            long pi = sentPi(quotationItemIds(quotation(c, 2, "USD", null, i == 1 ? FOUR[0] : loss)), null);
             ok(uploadSlip(pi, "100.00", "2026-10-07", admin));
             ids[i] = ok(convert(pi)).path("id").asLong();
         }
-        jdbc.update("update sales_order set net_profit_cny = -12.50 where id = ?", ids[0]);
-        jdbc.update("update sales_order set net_profit_cny = 30.00 where id = ?", ids[1]);
-        jdbc.update("update sales_order set net_profit_cny = -8.00, status = 2 where id = ?", ids[2]);
-        JsonNode loss = ok(call(json(post(SO + "/page"), write(Map.of("lossOnly", true))), admin));
-        assertEquals(1, loss.path("total").asInt(), "毛利为正、已取消的不算");
-        assertEquals(ids[0], loss.path("records").get(0).path("id").asLong());
-        assertEquals(3, ok(call(json(post(SO + "/page"), "{}"), admin)).path("total").asInt(), "不传不过滤");
+        // 预估净利润为负、实际毛利为正的订单不算；已取消的不算
+        jdbc.update("update sales_order set net_profit_cny = -12.50 where id = ?", ids[1]);
+        jdbc.update("update sales_order set status = 2 where id = ?", ids[2]);
+        // 手动订单没有预估净利润，按实际成本亏本也要筛出来
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("customerId", c);
+        m.put("currencyCode", "USD");
+        m.put("items", List.of(Map.of("productId", manualProduct("LOSS-M"), "quantity", 1, "unitPrice", "100", "costPrice", "5000")));
+        long manual = ok(call(json(post(SO), write(m)), admin)).path("id").asLong();
+
+        JsonNode page = ok(call(json(post(SO + "/page"), write(Map.of("lossOnly", true))), admin));
+        assertEquals(2, page.path("total").asInt(), "毛利为正、已取消的不算");
+        java.util.Set<Long> hit = new java.util.HashSet<>();
+        page.path("records").forEach(r -> {
+            hit.add(r.path("id").asLong());
+            assertTrue(r.path("profit").decimalValue().signum() < 0, "筛出的订单毛利列为负：" + r);
+        });
+        assertEquals(java.util.Set.of(ids[0], manual), hit);
+        assertEquals(4, ok(call(json(post(SO + "/page"), "{}"), admin)).path("total").asInt(), "不传不过滤");
     }
 
     /** BUS-026：收款状态筛选改为子查询后结果不变——PI 转成的订单按 PI 的收款状态 */

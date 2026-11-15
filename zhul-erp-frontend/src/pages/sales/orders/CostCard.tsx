@@ -269,6 +269,10 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
           ),
       )
     : columns;
+  // 合计行：「实际成本」之前的列合并成一格，后面各合计按列号对齐（列增减时不再错位，audit UI-063）
+  const lead = shown.findIndex(
+    (c) => (c as { dataIndex?: string }).dataIndex === 'cost',
+  );
   return (
     <Card style={{ padding: 20, marginBottom: 16 }}>
       <div
@@ -306,15 +310,15 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
         scroll={{ x: tableScrollX(shown) }}
         summary={() => (
           <Table.Summary.Row>
-            <Table.Summary.Cell index={0} colSpan={10}>
+            <Table.Summary.Cell index={0} colSpan={lead}>
               <b>合计</b>
             </Table.Summary.Cell>
-            <Table.Summary.Cell index={10} align="right">
+            <Table.Summary.Cell index={lead} align="right">
               <b style={num}>{formatAmount(cost.cost, 'CNY')}</b>
             </Table.Summary.Cell>
             {!own && (
               <>
-                <Table.Summary.Cell index={11} align="right">
+                <Table.Summary.Cell index={lead + 1} align="right">
                   {cost.refund ? (
                     <span style={{ ...num, color: palette.orange }}>
                       −{formatAmount(cost.refund, 'CNY')}
@@ -323,10 +327,10 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
                     <span style={{ color: palette.mute }}>—</span>
                   )}
                 </Table.Summary.Cell>
-                <Table.Summary.Cell index={12} align="right">
+                <Table.Summary.Cell index={lead + 2} align="right">
                   <span style={num}>{formatAmount(cost.revenue, 'CNY')}</span>
                 </Table.Summary.Cell>
-                <Table.Summary.Cell index={13} align="right">
+                <Table.Summary.Cell index={lead + 3} align="right">
                   <b
                     style={{
                       ...num,

@@ -760,8 +760,15 @@ class AfterSalesContractTest extends SalesContractSupport {
         jdbc.update("update payment_receipt set channel = 2 where so_id = ?", other);
         assertEquals("平台收款的订单只能原路退回", msg(apply(other, null, "10", 3)));
 
+        // 还有处理中的售后单时不能取消订单（audit BUS-044），结案后才能取消
+        assertTrue(msg(call(json(post(SO + "/" + other + "/cancel"), "{\"reason\":\"客户不要了\"}"), admin))
+                .startsWith("订单还有没处理完的售后单 "));
+        int as3Status = jdbc.queryForObject("select status from after_sales where id = ?", Integer.class, as3);
+        jdbc.update("update after_sales set status = 3 where so_id = ? and status in (1, 2)", other);
         // 订单取消后不能登记售后、不能申请退款
         ok(call(json(post(SO + "/" + other + "/cancel"), "{\"reason\":\"客户不要了\"}"), admin));
+        // 下面模拟修复前已取消的订单上留下的处理中售后单
+        jdbc.update("update after_sales set status = ? where id = ?", as3Status, as3);
         assertEquals("订单已取消，不能申请退款", msg(apply(other, null, "10", 1)));
         b.put("soId", other);
         b.put("items", List.of());

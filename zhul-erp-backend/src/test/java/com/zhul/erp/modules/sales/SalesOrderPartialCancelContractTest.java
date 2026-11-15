@@ -181,6 +181,24 @@ class SalesOrderPartialCancelContractTest extends SalesContractSupport {
         assertEquals(0, detail(so).path("items").get(0).path("purchaseReceivedQty").asInt());
     }
 
+    /** audit BUS-049：部分取消后 PI 已按订单合计收齐，PI 详情不再显示剩余，待确认工作台不再列出 */
+    @Test
+    void partialCancelSettlesPi_remainingAndDeskFollowOrderTotal() throws Exception {
+        long so = order(null, null, null, "750", l("A-1", 10, "100", "50"), l("B-1", 10, "100", "50"));
+        long pi = jdbc.queryForObject("select pi_id from sales_order where id = ?", Long.class, so);
+        money("250", ok(call(get(PI + "/" + pi), admin)).path("remainingAmount"));
+        assertEquals(1, ok(call(json(post(PI + "/receipt-desk"), "{}"), admin)).path("total").asInt());
+
+        ok(cancel(so, body("OUT_OF_STOCK", itemId(detail(so), 0), 5)));
+        JsonNode p = ok(call(get(PI + "/" + pi), admin));
+        assertEquals("已到账", p.path("receiptStatusName").asText());
+        money("0", p.path("remainingAmount"));
+        assertEquals(0, ok(call(json(post(PI + "/receipt-desk"), "{}"), admin)).path("total").asInt(), "已收齐，不再待处理");
+        JsonNode all = ok(call(json(post(PI + "/receipt-desk"), "{\"all\":true}"), admin)).path("records").get(0);
+        money("750", all.path("totalAmount"));
+        money("0", all.path("remainingAmount"));
+    }
+
     @Test
     void cancelFromUnplacedDraftAndWarehouse_inOrder() throws Exception {
         long sup = supplier("华东工控", null);
