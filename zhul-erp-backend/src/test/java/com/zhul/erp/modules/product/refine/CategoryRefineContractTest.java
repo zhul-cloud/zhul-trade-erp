@@ -248,6 +248,47 @@ class CategoryRefineContractTest extends TenantContractSupport {
         assertEquals(AiTaskKeys.sign("p" + a + "#" + plc), items.get(0).get("key"));
     }
 
+    /** audit BUS-066：按筛选发起时不取不能维护的商品，判断不出的排到后面，下次轮到其余商品 */
+    @Test
+    @SuppressWarnings("unchecked")
+    void submit_byFilter_skipsNotOwned_andMovesPastUnknown() throws Exception {
+        long mineOld = product("ITCRX-W1", brand, plc, TENANT);
+        long mineNew = product("ITCRX-W2", brand, plc, TENANT);
+        long foreign = product("ITCRX-W3", brand, plc, TENANT + 1);
+        long platform = product("ITCRX-W4", brand, plc, 0);
+        jdbc.update("update product set update_time = now() - interval 3 day where id = ?", mineOld);
+        jdbc.update("update product set update_time = now() - interval 2 day where id = ?", mineNew);
+        jdbc.update("update product set update_time = now() - interval 1 day where id in (?, ?)", foreign, platform);
+        Map<String, Object> filter = Map.of("filter", Map.of("keyword", "ITCRX-W"));
+
+        // 第一次：只能拿到本公司维护的两个，其他公司、平台维护的不占名额
+        JsonNode vo = ok(call(json(post(REFINE), write(filter)), t));
+        assertEquals(2, vo.path("total").asInt(), "不能维护的商品不取");
+        assertEquals(0, vo.path("skipped").asInt());
+        List<Map<String, Object>> items = (List<Map<String, Object>>) sentInput().get("items");
+        assertEquals(List.of(AiTaskKeys.sign("p" + mineNew + "#" + plc), AiTaskKeys.sign("p" + mineOld + "#" + plc)),
+                items.stream().map(m -> m.get("key")).toList());
+        // AI 两个都判断不出
+        callback(vo.path("taskId").asLong(), List.of(
+                Map.of("key", AiTaskKeys.sign("p" + mineNew + "#" + plc), "categoryId", 0, "brand", ""),
+                Map.of("key", AiTaskKeys.sign("p" + mineOld + "#" + plc), "categoryId", 0, "brand", "")));
+        assertEquals(0L, col("ai_category_state", mineNew), "判断不出仍待 AI 细分");
+
+        // 再来一个没跑过的：下次先轮到它，判断不出的排在后面
+        long fresh = product("ITCRX-W5", brand, plc, TENANT);
+        jdbc.update("update product set update_time = now() - interval 5 day where id = ?", fresh);
+        ok(call(json(post(REFINE), write(filter)), t));
+        items = (List<Map<String, Object>>) sentInput().get("items");
+        assertEquals(AiTaskKeys.sign("p" + fresh + "#" + plc), items.get(0).get("key"), "没跑过的排在判断不出的前面");
+    }
+
+    /** audit UI-084：任务查不到时带固定错误码，页面据此停止跟踪；其他错误（网络、5xx）继续轮询 */
+    @Test
+    void status_unknownTask_hasNotFoundCode() throws Exception {
+        JsonNode res = fail(call(get(REFINE + "/" + Long.MAX_VALUE), t));
+        assertEquals("AI_TASK_NOT_FOUND", res.path("data").path("errorCode").asText(), res.toString());
+    }
+
     /** audit AI-011：模型抄错 key、或 key 指向其他公司维护的商品时，回调不写建议 */
     @Test
     void callback_dropsMiscopiedKeysAndOtherCompanyProducts() throws Exception {

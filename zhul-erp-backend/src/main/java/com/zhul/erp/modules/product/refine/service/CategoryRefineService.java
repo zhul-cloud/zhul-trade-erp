@@ -16,6 +16,7 @@ import com.zhul.erp.modules.aitask.service.AiTaskService;
 import com.zhul.erp.modules.aitask.support.AiTaskKeys;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.product.constants.ProductConstants;
+import com.zhul.erp.modules.product.constants.ProductErrorCodes;
 import com.zhul.erp.modules.product.dto.ProductQuery;
 import com.zhul.erp.modules.product.entity.ProductBrandDO;
 import com.zhul.erp.modules.product.entity.ProductCategoryDO;
@@ -41,6 +42,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -105,7 +107,9 @@ public class CategoryRefineService implements AiTaskResultHandler {
                         .eq(ProductCategoryDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                         .isNull(ProductCategoryDO::getDeletedAt))
                 .stream().collect(Collectors.toMap(ProductCategoryDO::getId, Function.identity()));
-        List<ProductDO> rows = ids.isEmpty() ? List.of() : productMapper.selectBatchIds(ids);
+        // 按选取顺序发给 AI（selectBatchIds 按 ID 返回）
+        List<ProductDO> rows = ids.isEmpty() ? List.of() : productMapper.selectBatchIds(ids).stream()
+                .sorted(Comparator.comparingInt(p -> ids.indexOf(p.getId()))).toList();
         Map<Long, String> brands = brandNames(rows);
         List<Map<String, Object>> items = new ArrayList<>(rows.size());
         for (ProductDO p : rows) {
@@ -146,7 +150,10 @@ public class CategoryRefineService implements AiTaskResultHandler {
         return vo;
     }
 
-    /** 勾选的商品（最多 200 个），或按列表筛选取「待 AI 细分」最近更新的前 200 个 */
+    /**
+     * 勾选的商品（最多 200 个），或按列表筛选取「待 AI 细分」的前 200 个：只取本公司能维护的，
+     * 没跑过的在前、AI 判断不出的排后，下次发起轮到其余商品（audit BUS-066）
+     */
     private List<Long> targetIds(SubmitRequest req) {
         List<Long> ids = req.getIds() == null ? List.of() : req.getIds().stream().filter(Objects::nonNull).distinct().toList();
         if (!ids.isEmpty()) {
@@ -162,6 +169,7 @@ public class CategoryRefineService implements AiTaskResultHandler {
         q.setMissing("refine");
         q.setRefineState("todo");
         q.setIncludeDeleted(false);
+        q.setMine(true);
         return productService.idsMatching(q, MAX_BATCH);
     }
 
@@ -171,7 +179,7 @@ public class CategoryRefineService implements AiTaskResultHandler {
         if (task == null || task.getDeletedAt() != null || !SKILL_ID.equals(task.getSkillId())
                 || !Objects.equals(task.getTenantId(), TenantContext.getTenantId())
                 || !Objects.equals(task.getRequestedBy(), currentUser.resolve())) {
-            throw new BizException("AI 细分任务不存在");
+            throw BizException.of(ProductErrorCodes.AI_TASK_NOT_FOUND, "AI 细分任务不存在");
         }
         TaskVO vo = new TaskVO();
         vo.setTaskId(task.getId());
@@ -220,6 +228,7 @@ public class CategoryRefineService implements AiTaskResultHandler {
             long categoryId = n.path("categoryId").asLong(0);
             if (categoryId <= 0 || !level2.contains(categoryId)) {
                 unknown++;
+                markUnknown(k, now);
                 continue;
             }
             // 商品库是全局表，不经租户拦截：只写本公司能维护的商品（audit AI-011）
@@ -254,6 +263,23 @@ public class CategoryRefineService implements AiTaskResultHandler {
         update.setOutput(write(merged));
         aiTaskMapper.updateById(update);
         log.info("AI 细分品类回调完成，taskId={}, suggested={}, unknown={}, discarded={}", task.getId(), suggested, unknown, discarded);
+    }
+
+    /**
+     * AI 判断不出：仍待 AI 细分，记下判断时间（ai_category_at），按筛选再发起时排在没跑过的后面（audit BUS-066）。
+     * 只记本公司能维护、品类仍是提交时那个的商品；不改更新时间。
+     */
+    private void markUnknown(Key k, LocalDateTime now) {
+        ProductDO target = productMapper.selectById(k.id());
+        if (target == null || !writeGuard.canWrite(target)) {
+            return;
+        }
+        productMapper.update(null, new LambdaUpdateWrapper<ProductDO>()
+                .eq(ProductDO::getId, k.id())
+                .eq(ProductDO::getCategoryId, k.before())
+                .eq(ProductDO::getAiCategoryState, ProductConstants.AI_CATEGORY_NONE)
+                .isNull(ProductDO::getDeletedAt)
+                .set(ProductDO::getAiCategoryAt, now));
     }
 
     /** 回调 key：p + 商品 ID#提交时的品类 ID；不合约定的返回 null */

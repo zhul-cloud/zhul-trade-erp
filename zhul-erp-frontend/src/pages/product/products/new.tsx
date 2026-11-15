@@ -14,7 +14,8 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useTabDirty } from '@/components/PageTabs/hooks';
+import { useUnsavedGuard } from '@/components/PageTabs/hooks';
+import { tabsActions } from '@/components/PageTabs/store';
 import { CompletenessBar } from '../components/CompletenessBar';
 import { BrandMark, LifecyclePill, Pill } from '../components/Pills';
 import {
@@ -178,7 +179,31 @@ const WizardInner: React.FC = () => {
     created &&
     step === 4 &&
     !!(info?.productName || info?.specSummary || info?.shortDescription);
-  useTabDirty(infoUnsaved);
+  useUnsavedGuard(infoUnsaved);
+  // 向导是 layout:false 页面，不在标签页框架里，标签的未保存登记管不到：
+  // 浏览器后退、站内跳转用 history.block 拦下先确认（刷新、关浏览器由 useUnsavedGuard 提示）（audit UI-005）
+  const leaving = useRef(false);
+  useEffect(() => {
+    if (!infoUnsaved) return undefined;
+    const unblock = history.block((tx) => {
+      const go = () => {
+        unblock();
+        tx.retry();
+      };
+      if (leaving.current) {
+        go();
+        return;
+      }
+      Modal.confirm({
+        title: '补充资料还没保存',
+        content: '产品名称、规格摘要、简介点「完成」才会保存。',
+        okText: '不保存，离开',
+        cancelText: '继续填写',
+        onOk: go,
+      });
+    });
+    return unblock;
+  }, [infoUnsaved]);
 
   // 打开时：有草稿就询问是否继续
   useEffect(() => {
@@ -352,6 +377,12 @@ const WizardInner: React.FC = () => {
     }
   };
 
+  /** 离开向导：退回上一页，没有上一页时替换为商品列表，不再多压一层（audit UI-058） */
+  const leave = () => {
+    leaving.current = true;
+    tabsActions.backOr('/product/products');
+  };
+
   const close = () => {
     const hasDraft = !created && (draft.mpn || draft.brandId);
     if (infoUnsaved && product) {
@@ -366,7 +397,7 @@ const WizardInner: React.FC = () => {
             <Button
               onClick={() => {
                 m.destroy();
-                history.push('/product/products');
+                leave();
               }}
             >
               不保存，离开
@@ -376,7 +407,7 @@ const WizardInner: React.FC = () => {
         ),
         onOk: async () => {
           await saveInfo(product);
-          history.push('/product/products');
+          leave();
         },
       });
     } else if (hasDraft) {
@@ -385,10 +416,10 @@ const WizardInner: React.FC = () => {
         content: '下次进入新建商品时可以继续。',
         okText: '离开',
         cancelText: '继续填写',
-        onOk: () => history.push('/product/products'),
+        onOk: leave,
       });
     } else {
-      history.push('/product/products');
+      leave();
     }
   };
 

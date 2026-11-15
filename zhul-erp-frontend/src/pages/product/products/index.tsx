@@ -40,6 +40,7 @@ import { EmptyHint, ErrorHint } from '../components/EmptyHint';
 import { BrandMark, LifecyclePill, Pill } from '../components/Pills';
 import { LIFECYCLE_OPTIONS, normalizeMpn } from '../constants';
 import {
+  AI_TASK_NOT_FOUND,
   type BrandOption,
   brandApi,
   type Category,
@@ -242,9 +243,18 @@ const ProductListInner: React.FC = () => {
     load();
   }, [load]);
 
-  // 从其他页面返回时重新取数（audit UI-055）
+  // 从其他页面返回时列表和顶部计数一起重新取（audit UI-055）
+  useOnReactivate(() => {
+    load();
+    loadSummary();
+  });
 
-  useOnReactivate(load);
+  // 轮询回调用最新的取数函数：任务跑完时按当前的筛选、页码刷新（audit UI-083）
+  const reload = useRef(() => {});
+  reload.current = () => {
+    load();
+    loadSummary();
+  };
 
   // antd 表格为测量列宽渲染了一行 aria-hidden 的隐藏行，行里带一个"全选"复选框，键盘会 Tab 到它。
   // 组件库没有提供关闭的选项，这里把隐藏行里的输入从 Tab 顺序里拿掉。
@@ -273,10 +283,10 @@ const ProductListInner: React.FC = () => {
           return;
         }
         setAiDone({ ...r, skipped: aiJob.skipped });
-        load();
-        loadSummary();
-      } catch {
-        // 任务查不到（如换了账号）：不再轮询
+        reload.current();
+      } catch (e) {
+        // 只有任务确实查不到（如换了账号）才停止跟踪；网络抖动、5xx 等下次继续查（audit UI-084）
+        if (readBizError(e).errorCode !== AI_TASK_NOT_FOUND) return;
         setAiJob(null);
         writeRefineJob(null);
       }
@@ -367,7 +377,7 @@ const ProductListInner: React.FC = () => {
     });
   };
 
-  /** 发起 AI 细分：有勾选处理勾选的，没有勾选按当前筛选取「待 AI 细分」最近更新的前 200 个 */
+  /** 发起 AI 细分：有勾选处理勾选的，没有勾选按当前筛选取「待 AI 细分」的前 200 个（没跑过的优先） */
   const startRefine = () => {
     if (selected.length > REFINE_MAX) {
       message.warning(`每次最多 ${REFINE_MAX} 个，已选 ${selected.length} 个`);
@@ -386,7 +396,7 @@ const ProductListInner: React.FC = () => {
             本次处理 <b className="num">{count}</b> 个商品
             {picked ? '（勾选的商品）' : ''}
             {rest
-              ? `：当前筛选共 ${total} 个，先跑最近更新的 ${count} 个，其余 ${rest} 个下次再跑`
+              ? `：当前筛选共 ${total} 个，先跑 ${count} 个，其余下次再跑`
               : ''}
             。
           </div>
@@ -530,17 +540,19 @@ const ProductListInner: React.FC = () => {
       message.warning('请选择细分品类');
       return;
     }
+    // 保存接口按整条写入：先取最新资料，只换品类，不用列表里的旧值覆盖别人刚改的名称、简介、生命周期（audit BUS-067）
+    const p = await productApi.get(r.id);
     await productApi.update(r.id, {
-      brandId: r.brandId,
+      brandId: p.brandId,
       categoryId,
-      seriesId: r.seriesId ?? null,
-      mpnRaw: r.mpnRaw,
-      mpnDisplay: r.mpnDisplay,
-      productName: r.productName,
-      shortDescription: r.shortDescription,
-      specSummary: r.specSummary,
-      lifecycleStatus: r.lifecycleStatus,
-      lifecycleSource: r.lifecycleSource,
+      seriesId: p.seriesId ?? null,
+      mpnRaw: p.mpnRaw,
+      mpnDisplay: p.mpnDisplay,
+      productName: p.productName,
+      shortDescription: p.shortDescription,
+      specSummary: p.specSummary,
+      lifecycleStatus: p.lifecycleStatus,
+      lifecycleSource: p.lifecycleSource,
     });
     const name = subCategories.find((c) => c.id === categoryId);
     message.success(

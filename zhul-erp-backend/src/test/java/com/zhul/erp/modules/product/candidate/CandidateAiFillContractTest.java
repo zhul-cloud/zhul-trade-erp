@@ -238,4 +238,11 @@ class CandidateAiFillContractTest extends InquiryContractSupport {
         // 没有审核权限的账号不能提交
         fail(call(json(post(CAND + "/ai-fill"), write(Map.of("mode", "brand", "ids", List.of(detailed)))), token("it_lin")));
     }
+
+    /** audit UI-084：任务查不到时带固定错误码，页面据此停止跟踪；其他错误（网络、5xx）继续轮询 */
+    @Test
+    void status_unknownTask_hasNotFoundCode() throws Exception {
+        JsonNode res = fail(call(get(CAND + "/ai-fill/" + Long.MAX_VALUE), admin));
+        assertEquals("AI_TASK_NOT_FOUND", res.path("data").path("errorCode").asText(), res.toString());
+    }
 }
