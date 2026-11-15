@@ -434,7 +434,7 @@ const Wizard: React.FC<{
   const openEditor = (i: CompletionItem) => {
     if (i.contact) setContactOpen(true);
     else if (ALL_FIELDS.includes(i.key)) setEditModule(i.module);
-    else history.push(`${LIST_PATH}/${w.customerId}/edit?from=detail`);
+    else history.push(`${LIST_PATH}/${w.customerId}/edit`);
   };
 
   const editorLink = (i: CompletionItem) =>

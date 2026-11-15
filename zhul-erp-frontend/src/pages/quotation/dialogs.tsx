@@ -15,6 +15,7 @@ import {
   Alert,
   App,
   Button,
+  Checkbox,
   Input,
   Modal,
   Radio,
@@ -350,6 +351,113 @@ export const ExportModal: React.FC<{
 };
 
 /** 文件下载后询问是否标为已发送 */
+// ---------------------------------------------------------------- 发送前确认供应
+
+/** 这次发送要先确认供应的行（发送新内容时，有供应提示的行） */
+export const supplyRisks = (q: Quotation) =>
+  sendsVersion(q)
+    ? q.items.filter((i) => (i.supplyHints ?? []).length > 0)
+    : [];
+
+export const SupplyConfirmModal: React.FC<{
+  quotation?: Quotation;
+  channel?: number;
+  onClose: () => void;
+  onConfirm: (channel: number) => Promise<void>;
+}> = ({ quotation, channel, onClose, onConfirm }) => {
+  const { palette } = useAppTheme();
+  const [checked, setChecked] = useState(false);
+  const [sending, setSending] = useState(false);
+  const open = channel != null && !!quotation;
+  const rows = quotation ? supplyRisks(quotation) : [];
+  useEffect(() => {
+    if (open) setChecked(false);
+  }, [open]);
+  return (
+    <Modal
+      open={open}
+      onCancel={onClose}
+      width={600}
+      title="发送前确认供应"
+      destroyOnHidden
+      footer={[
+        <Button key="cancel" onClick={onClose}>
+          取消
+        </Button>,
+        <Button
+          key="ok"
+          type="primary"
+          icon={<SendOutlined />}
+          disabled={!checked}
+          loading={sending}
+          onClick={async () => {
+            if (channel == null) return;
+            setSending(true);
+            try {
+              await onConfirm(channel);
+            } finally {
+              setSending(false);
+            }
+          }}
+        >
+          确认并发送
+        </Button>,
+      ]}
+    >
+      <p style={{ color: palette.sub }}>
+        以下 {rows.length}{' '}
+        个型号的成本或货源需要确认。请先向供应商核实最新成本和交期，再发给客户。
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {rows.map((i) => (
+          <div
+            key={i.id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              padding: '10px 14px',
+              borderRadius: 12,
+              background: palette.inset,
+            }}
+          >
+            <span style={{ color: palette.ink, fontWeight: 600 }}>
+              {i.model}
+              <span
+                style={{ color: palette.mute, fontWeight: 400, marginLeft: 8 }}
+              >
+                {i.brand}
+              </span>
+            </span>
+            <span style={{ color: palette.orange, fontSize: 12 }}>
+              {(i.supplyHints ?? []).join(' · ')}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div
+        style={{
+          marginTop: 14,
+          padding: '10px 14px',
+          borderRadius: 12,
+          background: palette.accentSoft,
+        }}
+      >
+        <Checkbox
+          checked={checked}
+          onChange={(e) => setChecked(e.target.checked)}
+        >
+          已向供应商确认这些型号的最新成本和交期
+        </Checkbox>
+      </div>
+      <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
+        确认人和时间会记到这些型号的供应链时间线上。
+      </div>
+    </Modal>
+  );
+};
+
 export const SentPromptModal: React.FC<{
   quotation?: Quotation;
   channel?: number;

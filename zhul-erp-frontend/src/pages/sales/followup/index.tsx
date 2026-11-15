@@ -4,7 +4,7 @@ import { Button, Input, Segmented, Select } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useWide } from '@/pages/inquiry/shared/components';
 import { useCountries } from '@/pages/product/components/useCountries';
-import { getUserList } from '@/pages/system/user/service';
+import { getUserOptions } from '@/services/zhul/users';
 import { SalesPageTitle } from '../components';
 import { AccountInquiryModal } from './AccountPanel';
 import {
@@ -99,10 +99,10 @@ const FollowupPage: React.FC = () => {
 
   useEffect(() => {
     if (!canTeam) return;
-    getUserList({ current: 1, pageSize: 200 })
+    getUserOptions()
       .then((res) =>
         setOwners(
-          res.data.records.map((u) => ({
+          res.map((u) => ({
             value: String(u.id),
             label: u.name,
           })),

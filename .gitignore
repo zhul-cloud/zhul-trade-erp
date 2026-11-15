@@ -45,6 +45,8 @@ yarn-error.log
 
 # local tool state (not project source)
 .gstack/
+**/.codegraph/
+**/.codegraph-*/
 .claude/settings.local.json
 *bak
 zhul-erp-backend/private-uploads/

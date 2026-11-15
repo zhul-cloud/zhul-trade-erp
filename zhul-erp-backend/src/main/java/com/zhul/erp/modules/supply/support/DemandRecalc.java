@@ -132,6 +132,25 @@ public class DemandRecalc {
         return new Summary(demands.size(), entered, downgraded, reminders);
     }
 
+    /**
+     * 单独给一个需求对象写系统提醒并保存（第三期履约异常复用）：规则同每日重算，人定的下一步还没到期时不覆盖，只在时间线留一条。
+     * 调用方负责租户上下文与事务；返回是否写到了下一步上。
+     */
+    public boolean remindAndSave(ScDemandDO d, int type, String text, LocalDate today) {
+        if (!remind(d, type, text, today)) {
+            return false;
+        }
+        demandMapper.update(null, new LambdaUpdateWrapper<ScDemandDO>()
+                .eq(ScDemandDO::getId, d.getId())
+                .set(ScDemandDO::getNextAction, d.getNextAction())
+                .set(ScDemandDO::getNextActionDate, d.getNextActionDate())
+                .set(ScDemandDO::getNextActionSource, d.getNextActionSource())
+                .set(ScDemandDO::getReminderType, d.getReminderType())
+                .set(ScDemandDO::getDeferCount, d.getDeferCount())
+                .set(ScDemandDO::getUpdateTime, LocalDateTime.now()));
+        return true;
+    }
+
     /** 写提醒：人定的下一步还没到期时不覆盖，只在时间线留一条；返回是否写到了下一步上 */
     private boolean remind(ScDemandDO d, int type, String text, LocalDate today) {
         boolean manualPending = d.getNextActionSource() == SupplyConstants.NEXT_MANUAL && d.getNextActionDate() != null

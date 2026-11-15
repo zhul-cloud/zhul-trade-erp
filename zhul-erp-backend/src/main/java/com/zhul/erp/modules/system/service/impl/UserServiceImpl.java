@@ -12,6 +12,7 @@ import com.zhul.erp.modules.system.dto.CreateUserRequest;
 import com.zhul.erp.modules.system.dto.UpdateUserRequest;
 import com.zhul.erp.modules.system.dto.UserPageQuery;
 import com.zhul.erp.modules.system.dto.UserStatsVO;
+import com.zhul.erp.modules.system.dto.UserOptionVO;
 import com.zhul.erp.modules.system.dto.UserVO;
 import com.zhul.erp.modules.system.entity.AccountDO;
 import com.zhul.erp.modules.system.entity.AccountLocalAuthDO;
@@ -116,6 +117,34 @@ public class UserServiceImpl implements UserService {
         }
 
         return PageResult.of(pageResult.getTotal(), voList);
+    }
+
+    @Override
+    public List<UserOptionVO> listUserOptions(String name, Integer status, Integer limit) {
+        int max = limit == null ? 200 : Math.min(Math.max(limit, 1), 500);
+        LambdaQueryWrapper<UserBasicDO> wrapper = new LambdaQueryWrapper<UserBasicDO>()
+                .select(UserBasicDO::getId, UserBasicDO::getName)
+                .ne(UserBasicDO::getStatus, STATUS_DELETED);
+        Integer tenantId = TenantContext.getTenantId();
+        if (tenantId != null) {
+            wrapper.eq(UserBasicDO::getTenantId, tenantId);
+        }
+        if (StringUtils.hasText(name)) {
+            wrapper.like(UserBasicDO::getName, name.trim());
+        }
+        if (status != null) {
+            wrapper.eq(UserBasicDO::getStatus, status);
+        }
+        wrapper.orderByDesc(UserBasicDO::getUpdateTime).last("LIMIT " + max);
+        List<UserBasicDO> rows = userBasicMapper.selectList(wrapper);
+        List<UserOptionVO> out = new ArrayList<>(rows.size());
+        for (UserBasicDO u : rows) {
+            UserOptionVO o = new UserOptionVO();
+            o.setId(u.getId());
+            o.setName(u.getName());
+            out.add(o);
+        }
+        return out;
     }
 
     @Override

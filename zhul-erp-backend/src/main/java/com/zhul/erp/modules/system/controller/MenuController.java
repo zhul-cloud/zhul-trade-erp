@@ -26,9 +26,12 @@ public class MenuController {
     private static final String ADD = MENU + " and @perm.has('system:menu:add')";
     private static final String EDIT = MENU + " and @perm.has('system:menu:edit')";
     private static final String DELETE = MENU + " and @perm.has('system:menu:delete')";
+    /** 角色已分配的菜单只给角色管理（audit SEC-018） */
+    private static final String ROLE_MENU = "@perm.canAccessMenu('/system/role')";
 
     private final MenuService menuService;
 
+    /** 登录即可读：前端侧边栏按它和个人权限生成菜单（app.tsx getInitialState），只含菜单结构，不含业务数据 */
     @Operation(summary = "获取菜单树")
     @GetMapping
     public Result<List<MenuVO>> tree() {
@@ -60,6 +63,7 @@ public class MenuController {
     }
 
     @Operation(summary = "删除前置校验")
+    @PreAuthorize(MENU)
     @GetMapping("/{id}/delete-check")
     public Result<DeleteCheckVO> deleteCheck(@PathVariable Integer id) {
         return Result.ok(menuService.checkDeletable(id));
@@ -82,6 +86,7 @@ public class MenuController {
     }
 
     @Operation(summary = "获取角色已分配的菜单ID")
+    @PreAuthorize(ROLE_MENU)
     @GetMapping("/role/{roleCode}")
     public Result<List<Integer>> getRoleMenuIds(@PathVariable String roleCode) {
         return Result.ok(menuService.getRoleMenuIds(roleCode));

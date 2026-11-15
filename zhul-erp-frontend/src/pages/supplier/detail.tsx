@@ -12,6 +12,7 @@ import { history, useAccess, useParams } from '@umijs/max';
 import { Button, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
+import { tabsActions } from '@/components/PageTabs/store';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -103,7 +104,7 @@ const SupplierDetailPage: React.FC = () => {
 
   useOnReactivate(load);
 
-  const back = () => history.push(LIST_PATH);
+  const back = () => tabsActions.backOr(LIST_PATH);
   const canEdit = !!access['partner:supplier:edit'] && !!record;
 
   let body: React.ReactNode;

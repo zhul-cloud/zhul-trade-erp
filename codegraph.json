@@ -1,0 +1,28 @@
+{
+  "exclude": [
+    "**/node_modules/",
+    "**/target/",
+    "**/dist/",
+    "**/build/",
+    "**/.umi*/",
+    "**/coverage/",
+    "**/__pycache__/",
+    "**/.venv/",
+    "**/venv/",
+    "/storage/",
+    "/zhul-erp-backend/uploads/",
+    "/zhul-erp-backend/private-uploads/",
+    ".env",
+    ".env.*",
+    "/zhul-erp-backend/src/main/resources/application-dev.yml",
+    "/zhul-erp-backend/src/main/resources/application-prod.yml",
+    "*.pem",
+    "*.key",
+    "*.p12",
+    "*.pfx",
+    "*.jks",
+    "*.db",
+    "*.sqlite",
+    "*.sqlite3"
+  ]
+}

@@ -8,7 +8,7 @@ import {
   UserOutlined,
   WalletOutlined,
 } from '@ant-design/icons';
-import { history, useAccess, useParams, useSearchParams } from '@umijs/max';
+import { history, useAccess, useParams } from '@umijs/max';
 import {
   Alert,
   App,
@@ -22,7 +22,8 @@ import {
   Space,
 } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
-import { useUnsavedGuard } from '@/components/PageTabs/hooks';
+import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
+import { tabsActions } from '@/components/PageTabs/store';
 import {
   ALI_LEVEL_OPTIONS,
   CHANNEL_ALIBABA,
@@ -202,7 +203,6 @@ const toPayload = (
 const CustomerFormPage: React.FC = () => {
   const { options: sourceOptions } = useDictOptions(DICT_SOURCE_CHANNEL);
   const { id } = useParams<{ id?: string }>();
-  const [searchParams] = useSearchParams();
   const editing = !!id;
   const { message, modal } = App.useApp();
   const access = useAccess() as Record<string, boolean>;
@@ -244,10 +244,6 @@ const CustomerFormPage: React.FC = () => {
   const allowed = editing
     ? access['partner:customer:edit']
     : access['partner:customer:add'];
-  const backTo =
-    editing && searchParams.get('from') === 'detail'
-      ? `${LIST_PATH}/${id}`
-      : LIST_PATH;
 
   useEffect(() => {
     loadCountryTimezones()
@@ -371,7 +367,7 @@ const CustomerFormPage: React.FC = () => {
   const leave = () => {
     setTouched(false);
     setPartiesDirty(false);
-    history.push(backTo);
+    tabsActions.backOr(LIST_PATH);
   };
 
   const cancel = () => {
@@ -435,6 +431,8 @@ const CustomerFormPage: React.FC = () => {
 
   // ---------------- 渲染
   const title = editing ? '编辑客户' : '新增客户';
+  // 标签与返回条显示页面自己的标题（audit UI-059）
+  usePageTitle(title);
   const grid: React.CSSProperties = {
     display: 'grid',
     gridTemplateColumns:

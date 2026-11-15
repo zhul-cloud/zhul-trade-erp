@@ -13,6 +13,7 @@ import com.zhul.erp.modules.aitask.entity.AiTaskDO;
 import com.zhul.erp.modules.aitask.repository.AiTaskMapper;
 import com.zhul.erp.modules.aitask.service.AiTaskResultHandler;
 import com.zhul.erp.modules.aitask.service.AiTaskService;
+import com.zhul.erp.modules.aitask.support.AiTaskKeys;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.product.constants.ProductConstants;
 import com.zhul.erp.modules.product.dto.ProductQuery;
@@ -56,7 +57,7 @@ import java.util.stream.Collectors;
  *   <li>回调：只写建议，不改商品品类；品类仍是提交时的、且仍待 AI 细分的才写入，其余丢弃；</li>
  *   <li>采纳 / 忽略 / 撤销忽略：按条件更新，被别人改过或处理过的跳过并返回原因。</li>
  * </ul>
- * 发给编排服务的 key 为「p + 商品 ID#提交时的品类 ID」。结果汇总写回 ai_task.output 的 summary，查询进度时直接返回。
+ * 发给编排服务的 key 为「p + 商品 ID#提交时的品类 ID」，带校验码（{@link AiTaskKeys}）。结果汇总写回 ai_task.output 的 summary，查询进度时直接返回。
  * 事务边界：采纳、忽略各一个事务；采纳后发布 {@link ProductCategoryChangedEvent}，供应链在事务提交后另起事务补齐需求型号品类。
  */
 @Slf4j
@@ -112,7 +113,7 @@ public class CategoryRefineService implements AiTaskResultHandler {
                 continue;
             }
             Map<String, Object> item = new LinkedHashMap<>();
-            item.put("key", "p" + p.getId() + "#" + p.getCategoryId());
+            item.put("key", AiTaskKeys.sign("p" + p.getId() + "#" + p.getCategoryId()));
             item.put("brand", nz(brands.get(p.getBrandId())));
             item.put("model", nz(p.getMpnRaw()));
             item.put("name", cut(p.getProductName()));
@@ -212,13 +213,19 @@ public class CategoryRefineService implements AiTaskResultHandler {
         int discarded = 0;
         Set<Long> seen = new HashSet<>();
         for (JsonNode n : output.path("items")) {
-            Key k = Key.parse(n.path("key").asText(""));
+            Key k = Key.parse(AiTaskKeys.verify(n.path("key").asText("")));
             if (k == null || !seen.add(k.id())) {
                 continue;
             }
             long categoryId = n.path("categoryId").asLong(0);
             if (categoryId <= 0 || !level2.contains(categoryId)) {
                 unknown++;
+                continue;
+            }
+            // 商品库是全局表，不经租户拦截：只写本公司能维护的商品（audit AI-011）
+            ProductDO target = productMapper.selectById(k.id());
+            if (target == null || !writeGuard.canWrite(target)) {
+                discarded++;
                 continue;
             }
             int updated = productMapper.update(null, new LambdaUpdateWrapper<ProductDO>()
@@ -252,6 +259,9 @@ public class CategoryRefineService implements AiTaskResultHandler {
     /** 回调 key：p + 商品 ID#提交时的品类 ID；不合约定的返回 null */
     record Key(long id, long before) {
         static Key parse(String key) {
+            if (key == null) {
+                return null;
+            }
             int hash = key.indexOf('#');
             if (key.length() < 4 || key.charAt(0) != 'p' || hash < 2 || hash == key.length() - 1) {
                 return null;

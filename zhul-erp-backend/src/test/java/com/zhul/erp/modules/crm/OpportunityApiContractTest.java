@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.crm;
 
+import com.zhul.erp.modules.aitask.support.AiTaskKeys;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.constants.RedisKeyConstants;
@@ -197,8 +198,8 @@ class OpportunityApiContractTest extends IntegrationTestBase {
         task.setTenantId(0);
         task.setSkillId(ContactNameTranslations.SKILL_ID);
         task.setStatus(AiTaskStatus.COMPLETED);
-        task.setOutput("{\"items\":[{\"key\":\"" + johnCustomer + "\",\"text\":\"约翰\"},{\"key\":\"" + annaCustomer
-                + "\",\"text\":\"安娜\"}]}");
+        task.setOutput("{\"items\":[{\"key\":\"" + AiTaskKeys.sign(String.valueOf(johnCustomer)) + "\",\"text\":\"约翰\"},"
+                + "{\"key\":\"" + AiTaskKeys.sign(String.valueOf(annaCustomer)) + "\",\"text\":\"安娜\"}]}");
         // 真实回调按任务所属租户处理（AiTaskServiceImpl.handleCallback）
         TenantContext.runAs(task.getTenantId(), () -> contactNameTranslations.handle(task));
         assertEquals("约翰", jdbc.queryForObject("select name_cn from customer where id = ?", String.class, johnCustomer));

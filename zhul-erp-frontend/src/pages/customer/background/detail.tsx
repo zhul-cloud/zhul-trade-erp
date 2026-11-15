@@ -7,11 +7,16 @@ import {
   PaperClipOutlined,
 } from '@ant-design/icons';
 import XMarkdown from '@ant-design/x-markdown';
-import { history, useAccess, useParams } from '@umijs/max';
+import { useAccess, useParams } from '@umijs/max';
 import '@ant-design/x-markdown/es/XMarkdown/index.css';
 import { App, Button, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
-import { usePageTitle, useTabActive } from '@/components/PageTabs/hooks';
+import {
+  useOnReactivate,
+  usePageTitle,
+  useTabActive,
+} from '@/components/PageTabs/hooks';
+import { tabsActions } from '@/components/PageTabs/store';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -104,6 +109,8 @@ const BackgroundReportPage: React.FC = () => {
       .then((c) => setCustomerName(c.displayName))
       .catch(() => undefined);
   }, [load, customerId]);
+  // 从其他页面返回时重新取数（audit UI-055）
+  useOnReactivate(load);
 
   // 背调中每 5 秒刷新，完成后停
   const running = report?.status === STATUS.RUNNING;
@@ -115,7 +122,7 @@ const BackgroundReportPage: React.FC = () => {
     return () => window.clearInterval(timer);
   }, [running, tabActive, load]);
 
-  const back = () => history.push(`${LIST_PATH}/${customerId}`);
+  const back = () => tabsActions.backOr(`${LIST_PATH}/${customerId}`);
 
   const exportPdf = async (r: BackgroundReportDetail) => {
     setExporting(true);

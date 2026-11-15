@@ -1,5 +1,6 @@
 package com.zhul.erp.modules.product.candidate;
 
+import com.zhul.erp.modules.aitask.support.AiTaskKeys;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.zhul.erp.modules.aitask.dto.AiTaskCallbackRequest;
 import com.zhul.erp.modules.aitask.service.AiOrchestratorClient;
@@ -125,7 +126,7 @@ class CandidateAiFillContractTest extends InquiryContractSupport {
         assertEquals(2, vo.path("skipped").asInt(), "已有细分品类、已审核的跳过");
         long task = vo.path("taskId").asLong();
         List<Map<String, Object>> sent = sentItems();
-        assertEquals(List.of("c" + none + "#0", "c" + top + "#" + plc, "c" + manual + "#0"), sent.stream().map(m -> m.get("key")).toList());
+        assertEquals(List.of(AiTaskKeys.sign("c" + none + "#0"), AiTaskKeys.sign("c" + top + "#" + plc), AiTaskKeys.sign("c" + manual + "#0")), sent.stream().map(m -> m.get("key")).toList());
 
         // 同一账号运行中不能再提交
         assertTrue(fail(submit("brand", List.of(none))).path("message").asText().contains("还没跑完"));
@@ -133,9 +134,9 @@ class CandidateAiFillContractTest extends InquiryContractSupport {
         // 运行期间人工选了品类
         jdbc.update("update product_candidate set category_id = ? where id = ?", contactor, manual);
         callback(task, List.of(
-                Map.of("key", "c" + none + "#0", "categoryId", contactor, "brand", ""),
-                Map.of("key", "c" + top + "#" + plc, "categoryId", cpu, "brand", ""),
-                Map.of("key", "c" + manual + "#0", "categoryId", cpu, "brand", "")));
+                Map.of("key", AiTaskKeys.sign("c" + none + "#0"), "categoryId", contactor, "brand", ""),
+                Map.of("key", AiTaskKeys.sign("c" + top + "#" + plc), "categoryId", cpu, "brand", ""),
+                Map.of("key", AiTaskKeys.sign("c" + manual + "#0"), "categoryId", cpu, "brand", "")));
 
         assertEquals(contactor, col("category_id", none));
         assertEquals(1L, col("ai_category", none));
@@ -177,11 +178,11 @@ class CandidateAiFillContractTest extends InquiryContractSupport {
         // 运行期间人工确认了品牌
         jdbc.update("update product_candidate set brand_id = ? where id = ?", rockwell, manual);
         callback(vo.path("taskId").asLong(), List.of(
-                Map.of("key", "b" + alias + "#" + contactor, "categoryId", 0, "brand", "IT-Allen-Bradley"),
-                Map.of("key", "b" + unknown + "#" + contactor, "categoryId", 0, "brand", "ITMitsubishi"),
-                Map.of("key", "b" + empty + "#" + contactor, "categoryId", 0, "brand", ""),
-                Map.of("key", "b" + saysOthers + "#" + contactor, "categoryId", 0, "brand", "others"),
-                Map.of("key", "b" + manual + "#" + contactor, "categoryId", 0, "brand", "ITMitsubishi")));
+                Map.of("key", AiTaskKeys.sign("b" + alias + "#" + contactor), "categoryId", 0, "brand", "IT-Allen-Bradley"),
+                Map.of("key", AiTaskKeys.sign("b" + unknown + "#" + contactor), "categoryId", 0, "brand", "ITMitsubishi"),
+                Map.of("key", AiTaskKeys.sign("b" + empty + "#" + contactor), "categoryId", 0, "brand", ""),
+                Map.of("key", AiTaskKeys.sign("b" + saysOthers + "#" + contactor), "categoryId", 0, "brand", "others"),
+                Map.of("key", AiTaskKeys.sign("b" + manual + "#" + contactor), "categoryId", 0, "brand", "ITMitsubishi")));
 
         assertEquals(rockwell, col("brand_id", alias));
         assertEquals(1L, col("ai_brand", alias));

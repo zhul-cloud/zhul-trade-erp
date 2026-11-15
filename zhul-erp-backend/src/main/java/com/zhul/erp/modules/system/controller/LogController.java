@@ -38,24 +38,30 @@ import java.util.List;
 public class LogController {
 
     private static final String LOGIN_LOG_MENU = "@perm.canAccessMenu('/system/log/login')";
+    /** 操作日志详情含业务单据修改前后的内容，只给有操作日志菜单的账号（audit SEC-018） */
+    private static final String OPERATE_LOG_MENU = "@perm.canAccessMenu('/system/log/operate')";
 
     private final LogService logService;
 
+    @PreAuthorize(OPERATE_LOG_MENU)
     @GetMapping("/operate")
     public Result<PageResult<OperateLogVO>> listOperateLogs(OperateLogQuery query) {
         return Result.ok(logService.listOperateLogs(query));
     }
 
+    @PreAuthorize(OPERATE_LOG_MENU)
     @GetMapping("/operate/modules")
     public Result<List<String>> listOperateModules() {
         return Result.ok(logService.listOperateModules());
     }
 
+    @PreAuthorize(OPERATE_LOG_MENU)
     @GetMapping("/operate/{id}")
     public Result<OperateLogDetailVO> getOperateLogDetail(@PathVariable Long id) {
         return Result.ok(logService.getOperateLogDetail(id));
     }
 
+    @PreAuthorize(OPERATE_LOG_MENU)
     @GetMapping("/operate/export")
     public void exportOperateLogs(OperateLogQuery query, HttpServletResponse response) throws IOException {
         Workbook workbook = logService.exportOperateLogs(query);

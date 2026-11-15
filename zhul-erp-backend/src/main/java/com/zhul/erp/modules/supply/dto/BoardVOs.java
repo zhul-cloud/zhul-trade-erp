@@ -139,5 +139,11 @@ public final class BoardVOs {
         private String nextAction;
         private LocalDate nextActionDate;
         private String statusChange;
+        /** 处理记录来源（0-人工、1-询价回价、2-询价无货、3-撤回回价、4-系统提醒、5-报价发送确认、6-采购延期、7-采购取消、8-到货差异） */
+        private Integer sourceType;
+        /** 来源单号（询价任务编号、报价单号、采购单号） */
+        private String sourceDocNo;
+        /** 来源单据ID（报价单、采购单），用于跳转；找不到为空 */
+        private Long sourceDocId;
     }
 }

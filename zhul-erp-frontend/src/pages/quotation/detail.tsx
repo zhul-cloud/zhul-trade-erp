@@ -99,6 +99,8 @@ import {
   ExportModal,
   LostReasonModal,
   SentPromptModal,
+  SupplyConfirmModal,
+  supplyRisks,
   TextQuoteModal,
 } from './dialogs';
 import StrategyDrawer, { type StrategyRow } from './StrategyDrawer';
@@ -367,6 +369,8 @@ const QuotationDetail: React.FC = () => {
   const [textOpen, setTextOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [sentPrompt, setSentPrompt] = useState<number>();
+  /** 等待发送前确认供应的发送方式 */
+  const [supplyChannel, setSupplyChannel] = useState<number>();
   const [lostOpen, setLostOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [piOpen, setPiOpen] = useState(false);
@@ -572,14 +576,26 @@ const QuotationDetail: React.FC = () => {
   /** 文字报价、导出、标为已发送之前先保存未保存的修改 */
   const ensureSaved = async () => (dirty ? save() : q);
 
-  const markSent = async (channel: number) => {
+  /** 三个发送入口都走这里：有供应提示的先弹确认，勾选后带 supplyConfirmed 发送 */
+  const markSent = async (channel: number, supplyConfirmed = false) => {
     const current = await ensureSaved();
     if (!current) return;
+    if (!supplyConfirmed && supplyRisks(current).length > 0) {
+      setSentPrompt(undefined);
+      setTextOpen(false);
+      setSupplyChannel(channel);
+      return;
+    }
     try {
-      const res = await quotationApi.markSent(current.id, channel);
+      const res = await quotationApi.markSent(
+        current.id,
+        channel,
+        supplyConfirmed || undefined,
+      );
       apply(res);
       setSentPrompt(undefined);
       setTextOpen(false);
+      setSupplyChannel(undefined);
       message.success(
         current.status === STATUS.DRAFT
           ? '已标为已发送，询盘单变为「已报价」'
@@ -1039,6 +1055,14 @@ const QuotationDetail: React.FC = () => {
           )}
       {src.hints.map((h) => (
         <span key={h} style={{ display: 'inline-block', marginTop: 4 }}>
+          <Pill tone="orange">{h}</Pill>
+        </span>
+      ))}
+      {(src.supplyHints ?? []).map((h) => (
+        <span
+          key={`supply-${h}`}
+          style={{ display: 'inline-block', marginTop: 4, marginRight: 6 }}
+        >
           <Pill tone="orange">{h}</Pill>
         </span>
       ))}
@@ -1731,6 +1755,10 @@ const QuotationDetail: React.FC = () => {
     </div>
   );
 
+  const supplyCount = q.items.filter(
+    (i) => (i.supplyHints ?? []).length > 0,
+  ).length;
+
   const itemsCard = (
     <div>
       <div
@@ -1774,6 +1802,14 @@ const QuotationDetail: React.FC = () => {
           showIcon
           style={{ marginBottom: 10 }}
           title={`品牌 ${untranslated.join('、')} 在品牌资料里没有英文名，文字报价和导出会保留原文；请在「商品管理 → 品牌」里补充别名`}
+        />
+      )}
+      {editable && supplyCount > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 10 }}
+          title={`${supplyCount} 个型号的成本或货源需要确认，发送前会请你逐个确认`}
         />
       )}
       {editable && chosen.length > 0 && (
@@ -2290,6 +2326,12 @@ const QuotationDetail: React.FC = () => {
         channel={sentPrompt}
         onClose={() => setSentPrompt(undefined)}
         onConfirm={markSent}
+      />
+      <SupplyConfirmModal
+        quotation={q}
+        channel={supplyChannel}
+        onClose={() => setSupplyChannel(undefined)}
+        onConfirm={(channel) => markSent(channel, true)}
       />
       <LostReasonModal
         open={lostOpen}
