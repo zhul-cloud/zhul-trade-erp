@@ -60,7 +60,11 @@ const AfterSalesPage: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [query, setQuery] = useState('');
   const [level, setLevel] = useState<string>();
-  const [ownerId, setOwnerId] = useState<number>();
+  /** 工作台「售后要更新客户」带上本人，列表与待办数字同口径（audit UI-081） */
+  const [ownerId, setOwnerId] = useState<number | undefined>(() => {
+    const v = Number(search.get('ownerId'));
+    return Number.isInteger(v) && v > 0 ? v : undefined;
+  });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<AfterSales[]>([]);
