@@ -577,7 +577,11 @@ const RecentModal: React.FC<{
             type="button"
             className="zhul-link"
             style={{ fontSize: 13 }}
-            onClick={() => history.push(reportPath(customerId, d.reportId))}
+            onClick={() => {
+              // 先关弹窗：弹窗挂在 body 上，跳页后不会随旧页面隐藏（audit UI-071）
+              onCancel();
+              history.push(reportPath(customerId, d.reportId));
+            }}
           >
             先看上次的报告
           </button>
