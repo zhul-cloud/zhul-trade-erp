@@ -111,8 +111,8 @@
 | [UI-055](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 保活页面从其他页面返回后不刷新，列表与详情显示旧数据 | P2 | 已合并待发布 | Claude | [2026-11-15-SEC-018](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | 2026-11-15 |
 | [UI-056](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 多个弹窗切换对象时未丢弃迟到响应，登记付款可分配到上一张应付 | P2 | 已关闭 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
 | [UI-057](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 销售订单备注卡、采购订单草稿编辑、客户与供应商表单未登记未保存 | P2 | 已关闭 | Claude | [2026-11-15-SEC-017](tasks/2026-11-15-SEC-017-proactive-sweep.md) | 2026-11-15 |
-| [UI-058](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | 客户、供应商页面离开时压栈或在地址带 from，返回条指向已离开的页面 | P3 | 待合并 | Claude | [2026-11-15-SEC-018](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | 2026-11-15 |
-| [UI-059](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | 不在菜单里的表单与迁移页没有登记标题，标签显示「上一页」或「××详情」 | P3 | 待合并 | Claude | [2026-11-15-SEC-018](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | 2026-11-15 |
+| [UI-058](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | 客户、供应商页面离开时压栈或在地址带 from，返回条指向已离开的页面 | P3 | 已合并待发布 | Claude | [2026-11-15-SEC-018](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | 2026-11-15 |
+| [UI-059](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | 不在菜单里的表单与迁移页没有登记标题，标签显示「上一页」或「××详情」 | P3 | 已合并待发布 | Claude | [2026-11-15-SEC-018](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | 2026-11-15 |
 
 ## AI 可靠性
 
