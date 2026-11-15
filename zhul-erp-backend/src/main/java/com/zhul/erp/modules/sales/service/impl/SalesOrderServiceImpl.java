@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.sales.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.modules.attachment.service.AttachmentService;
 import com.zhul.erp.common.utils.MigratedGuard;
@@ -46,6 +47,7 @@ import com.zhul.erp.modules.sales.repository.SalesOrderItemMapper;
 import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
 import com.zhul.erp.modules.sales.service.PiService;
 import com.zhul.erp.modules.sales.service.SalesOrderService;
+import com.zhul.erp.modules.sales.support.OrderOverdue;
 import com.zhul.erp.modules.sales.support.PiStore;
 import com.zhul.erp.modules.sales.support.OrderProgress;
 import com.zhul.erp.modules.sales.dto.ConvertOrderRequest;
@@ -285,6 +287,13 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         }
     }
 
+    /** 约定付款日不能早于销售日期（spec sales/sales-order「订单约定付款日」） */
+    private static void requireDueNotBeforeSales(LocalDate due, LocalDate salesDate) {
+        if (due != null && due.isBefore(salesDate)) {
+            throw new BizException("约定付款日不能早于销售日期");
+        }
+    }
+
     /** 货期为「现货」的为现货，其余为期货 */
     private static int stockOf(Integer leadTime) {
         return Objects.equals(leadTime, SalesConstants.LEAD_TIME_SPOT) ? SalesConstants.STOCK_SPOT : SalesConstants.STOCK_FUTURES;
@@ -350,6 +359,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         BigDecimal rate = exchangeRateService.require(currency).rate();
         LocalDate salesDate = req.getSalesDate() == null ? LocalDate.now() : req.getSalesDate();
         requirePastOrToday(salesDate);
+        requireDueNotBeforeSales(req.getPaymentDueDate(), salesDate);
         Set<Long> purchaserIds = lines.stream().map(CreateOrderRequest.Line::getPurchaserId).filter(Objects::nonNull).collect(Collectors.toSet());
         requireUsers(purchaserIds);
         for (int n = 0; n < lines.size(); n++) {
@@ -378,6 +388,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         o.setSoNo(documentNumberService.next(DocumentType.SO));
         o.setSource(SalesConstants.SO_MANUAL);
         o.setSalesDate(salesDate);
+        o.setPaymentDueDate(req.getPaymentDueDate());
         o.setPiId(0L);
         o.setPiVersionNo(0);
         o.setCustomerId(customer.getId());
@@ -1054,12 +1065,36 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             throw new BizException("订单已取消，不能修改");
         }
         requirePastOrToday(salesDate);
+        if (o.getPaymentDueDate() != null && salesDate.isAfter(o.getPaymentDueDate())) {
+            throw new BizException("销售日期不能晚于约定付款日");
+        }
         LocalDate before = o.getSalesDate();
         o.setSalesDate(salesDate);
         orderMapper.updateById(o);
         logService.recordOperateLog(SalesConstants.MENU_SO, "修改销售日期",
                 Map.of("soNo", o.getSoNo(), "salesDate", before == null ? "" : before.toString()),
                 Map.of("soNo", o.getSoNo(), "salesDate", salesDate.toString()));
+        return detail(id);
+    }
+
+    /** 修改或清空约定付款日：只有收款记在订单上的有效订单（手动、费用订单），历史迁移的订单只读 */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SalesOrderVO updatePaymentDueDate(Long id, LocalDate paymentDueDate) {
+        SalesOrderDO o = activeForEdit(id);
+        MigratedGuard.requireEditable(o.getMigrated());
+        if (!SalesConstants.ordersOwnReceipts(o.getSource())) {
+            throw new BizException("这张订单的收款不记在订单上，不能设置约定付款日");
+        }
+        requireDueNotBeforeSales(paymentDueDate, o.getSalesDate());
+        LocalDate before = o.getPaymentDueDate();
+        // 清空要写 NULL，updateById 会跳过空字段，这里用 set 显式更新（空实体用于自动填充更新时间、更新人）
+        orderMapper.update(new SalesOrderDO(), new LambdaUpdateWrapper<SalesOrderDO>()
+                .set(SalesOrderDO::getPaymentDueDate, paymentDueDate)
+                .eq(SalesOrderDO::getId, id));
+        logService.recordOperateLog(SalesConstants.MENU_SO, "修改约定付款日",
+                Map.of("soNo", o.getSoNo(), "paymentDueDate", before == null ? "未设置" : before.toString()),
+                Map.of("soNo", o.getSoNo(), "paymentDueDate", paymentDueDate == null ? "未设置" : paymentDueDate.toString()));
         return detail(id);
     }
 
@@ -1338,6 +1373,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         int tenant = origin.getTenantId();
         LocalDate salesDate = req.getSalesDate() == null ? LocalDate.now() : req.getSalesDate();
         requirePastOrToday(salesDate);
+        requireDueNotBeforeSales(req.getPaymentDueDate(), salesDate);
         String currency = origin.getCurrencyCode();
         BigDecimal rate = exchangeRateService.require(currency).rate();
         List<SalesOrderFeeDO> feeRows = feeRows(tenant, req.getFees(), rate);
@@ -1352,6 +1388,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         o.setSource(SalesConstants.SO_FEE);
         o.setOriginalSoId(origin.getId());
         o.setSalesDate(salesDate);
+        o.setPaymentDueDate(req.getPaymentDueDate());
         o.setPiId(0L);
         o.setPiVersionNo(0);
         o.setCustomerId(origin.getCustomerId());
@@ -1412,6 +1449,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         vo.setSoNo(o.getSoNo());
         vo.setSource(o.getSource());
         vo.setSalesDate(o.getSalesDate());
+        vo.setPaymentDueDate(o.getPaymentDueDate());
         vo.setCustomerType(o.getCustomerType());
         vo.setStockType(o.getStockType());
         vo.setCompletedAt(o.getCompletedAt());
@@ -1487,6 +1525,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         vo.setReceivedAmount(rc.received());
         vo.setFeeDiffAmount(rc.feeDiff());
         vo.setRemainingAmount(o.getTotalAmount().subtract(rc.received()).subtract(rc.feeDiff()));
+        vo.setOverdueDays(OrderOverdue.days(o, rc.status(), vo.getRemainingAmount(), LocalDate.now()));
         vo.setReceipts(pi != null ? piService.receipts(pi.getId())
                 : receiptViews.list(new LambdaQueryWrapper<PaymentReceiptDO>().eq(PaymentReceiptDO::getSoId, o.getId())));
         vo.setMethodTotals(methodTotals(vo.getReceipts(), o.getCurrencyCode()));

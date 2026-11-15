@@ -22,6 +22,8 @@ public class SalesOrderDO {
     private String soNo;
     private Integer source;
     private java.time.LocalDate salesDate;
+    /** 约定付款日：只用于手动订单、费用订单，NULL 为未约定 */
+    private java.time.LocalDate paymentDueDate;
     private Long piId;
     private Integer piVersionNo;
     /** 售后补发：来源售后单与原订单（其他订单为 0） */
