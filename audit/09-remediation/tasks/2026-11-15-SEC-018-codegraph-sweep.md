@@ -9,8 +9,8 @@
 | 目标与影响范围 | 后端接口权限、事务与行锁、金额写法、AI 回调；前端保活页面返回刷新、页面跳转规范；最近合并未审查过的 #322（商品品类细分）与 #326（供应链三期） |
 | 起点 commit / 工作分支 | 排查：develop `eec51e32` / `docs/audit-codegraph-sweep`（只改 `audit/`）；修复：develop `4190849d` / `fix/codegraph-sweep` |
 | OpenSpec | 缺陷登记，不新开提案 |
-| PR / 目标分支 | 排查记录：[#328](https://github.com/zhul-cloud/zhul-trade-erp/pull/328) → develop；修复：[#329](https://github.com/zhul-cloud/zhul-trade-erp/pull/329) `fix/codegraph-sweep` → develop；UI-058 兜底补修与 UI-059：`fix/tabs-backor-replace` → develop（PR 见事件记录） |
-| 合并证据 | #328 合并到 develop `4190849d`；#329 合并到 develop `7cec009b`（2026-11-15，CI 后端两个分片全量、前端、AI 编排服务测试通过） |
+| PR / 目标分支 | 排查记录：[#328](https://github.com/zhul-cloud/zhul-trade-erp/pull/328) → develop；修复：[#329](https://github.com/zhul-cloud/zhul-trade-erp/pull/329) `fix/codegraph-sweep` → develop；UI-058 兜底补修与 UI-059：[#331](https://github.com/zhul-cloud/zhul-trade-erp/pull/331) `fix/tabs-backor-replace` → develop |
+| 合并证据 | #328 合并到 develop `4190849d`；#329 合并到 develop `7cec009b`（2026-11-15，CI 后端两个分片全量、前端、AI 编排服务测试通过）；#331 合并到 develop `15b53d3d`（2026-11-15，CI 全部通过） |
 | 目标版本 / 环境 | 待定 |
 
 ## 排查方法与覆盖
@@ -118,8 +118,8 @@ UI-055 给 78 个页面加了 `useOnReactivate(load)`，并有意排除了带草
 | SEC-018 | BrowserOS（管理员） | 用户管理、角色管理、系统设置、操作日志、部门管理页面正常加载，无报错 |
 | SEC-019 | HTTP + BrowserOS | 业务员调用用户选项 200，只有 `id`、`name`，不含手机号、邮箱，姓名筛选与条数上限生效；业务员的侧边栏正常、销售订单页「业务员」下拉显示姓名；管理员在部门管理新增部门时搜索负责人，请求走选项接口并返回姓名 |
 | UI-055 | BrowserOS（管理员） | 覆盖矩阵切到其他标签再切回，矩阵重新取数（请求 1 → 2），不闪骨架屏；客户详情返回后显示刚保存的简称 |
-| UI-058 | 去掉 `from` 参数，保存后走标签页返回；没有上一页时替换当前页 | #329 已合并（`7cec009b`），兜底分支补修待合并；本机验收通过（见本机验收与补充验收） | Claude（用户 2026-11-15 指定本机验收） | 待合并（补修）；合并、发布后关闭 |
-| UI-059 | 迁移页、客户与供应商表单、询盘确认、分配规则登记标题 | 待合并；本机验收通过（见补充验收） | Claude（用户 2026-11-15 指定本机验收） | 待合并；合并、发布后关闭 |
+| UI-058 | 去掉 `from` 参数，保存后走标签页返回；没有上一页时替换当前页 | #329 已合并（`7cec009b`），兜底分支补修随 #331 合并（`15b53d3d`），未发布；本机验收通过（见本机验收与补充验收） | Claude（用户 2026-11-15 指定本机验收） | 已合并待发布；发布后关闭 |
+| UI-059 | 迁移页、客户与供应商表单、询盘确认、分配规则登记标题 | #331 已合并（`15b53d3d`），未发布；本机验收通过（见补充验收） | Claude（用户 2026-11-15 指定本机验收） | 已合并待发布；发布后关闭 |
 | AI-011 | 契约测试（真实 Spring 与 MySQL） | 抄错 ID、没有校验码的 key 丢弃；其他公司维护的商品不写建议；带校验码的正常写入。未做真实模型调用 |
 
 验收中发现菜单树不能收紧（业务员侧边栏依赖它），已改回登录可读，并在测试里加断言防止再犯。
@@ -149,7 +149,7 @@ UI-055 给 78 个页面加了 `useOnReactivate(load)`，并有意排除了带草
 
 ## 阻塞与下一步
 
-- SEC-018、SEC-019、AI-011、UI-055 已合并待发布；UI-058 补修与 UI-059 待合并；发布由用户决定，发布后关闭。
+- 6 个 ID 均已合并待发布；发布由用户决定，发布后关闭。
 - 本机验收数据已清理：测试租户停用、账号停用、有效令牌 0，客户软删除，验收套餐停用；造数脚本与测试凭据已删除。
 
 ## 事件记录
@@ -160,3 +160,4 @@ UI-055 给 78 个页面加了 `useOnReactivate(load)`，并有意排除了带草
 | 2026-11-15 / Claude | 用户要求全部修复并本机验收后合并：在 `fix/codegraph-sweep` 实施修复（见上），缺陷见证、后端与前端测试、本机 HTTP 与真实页面验收完成；验收中发现菜单树不能收紧，已更正 | 创建修复 PR，CI 通过后合并到 develop |
 | 2026-11-15 / Claude | [#329](https://github.com/zhul-cloud/zhul-trade-erp/pull/329) CI 全部通过，自动合并到 develop `7cec009b`；5 个 ID 改为已合并待发布 | 发布由用户决定，发布后关闭 |
 | 2026-11-15 / Claude | 用户要求本机点完剩下的页面：补充验收 10 个返回刷新页面与 UI-058 的各条退栈路径全部通过；发现 `backOr` 兜底分支会留下刚离开的页面（UI-058 修复引入），改为替换当前页；另发现 UI-059 并修复；UI-058 改回待合并 | 在 `fix/tabs-backor-replace` 创建 PR，合并到 develop |
+| 2026-11-15 / Claude | [#331](https://github.com/zhul-cloud/zhul-trade-erp/pull/331) CI 全部通过，自动合并到 develop `15b53d3d`；UI-058、UI-059 改为已合并待发布 | 发布由用户决定，发布后关闭 |
