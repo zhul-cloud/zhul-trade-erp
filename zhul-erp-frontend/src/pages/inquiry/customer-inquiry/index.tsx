@@ -115,6 +115,9 @@ export const initialFilters = (): Filters => {
   if (from && to) return { range: [dayjs(from), dayjs(to)] };
   const status = Number(p.get('status'));
   if (status > 0) return { status };
+  // 供应链需求详情「去询价」带型号：按型号查全部询盘，不限日期（audit UI-088）
+  const keyword = p.get('keyword')?.trim();
+  if (keyword) return { keyword };
   return { range: recentRange() };
 };
 

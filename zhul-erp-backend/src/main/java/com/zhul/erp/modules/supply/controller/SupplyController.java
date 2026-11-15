@@ -299,10 +299,13 @@ public class SupplyController {
                                                      @RequestParam(required = false) Integer coverage,
                                                      @RequestParam(required = false) Integer priority,
                                                      @RequestParam(required = false) String keyword,
+                                                     @RequestParam(required = false) Long ownerId,
+                                                     @RequestParam(required = false) Integer stockoutDays,
                                                      @RequestParam(defaultValue = "false") boolean all,
                                                      @RequestParam(defaultValue = "1") int page,
                                                      @RequestParam(defaultValue = "20") int size) {
-        var p = matrixService.models(brandId, categoryId, coverage, priority, keyword, all, page, size);
+        var p = matrixService.models(new CoverageMatrixService.ModelFilter(brandId, categoryId, coverage, priority, keyword,
+                ownerId, stockoutDays, all), page, size);
         return Result.ok(PageResult.of(p.getTotal(), p.getRecords()));
     }
 

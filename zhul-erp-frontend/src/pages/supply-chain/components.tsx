@@ -11,6 +11,7 @@ import { Skeleton } from 'antd';
 import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
+import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
   type BrandOption,
   brandApi,
@@ -442,14 +443,24 @@ const Track: React.FC<{ counts: (number | undefined)[] }> = ({ counts }) => (
 /** 顶部链路：今日待办 + 作战地图五个板块，已开放需求情报、供应覆盖、供应商开发 */
 export const SupplyFlow: React.FC<{
   overview?: Overview;
+  /** 概览取数失败的原因，有值时显示失败与重试（audit UI-091） */
+  error?: string;
+  onRetry?: () => void;
   active: FlowView;
   onSelect: (v: FlowView) => void;
-}> = ({ overview: o, active, onSelect }) => {
+}> = ({ overview: o, error, onRetry, active, onSelect }) => {
   const { palette } = useAppTheme();
   if (!o)
     return (
       <Card style={{ padding: 20, marginBottom: 16 }}>
-        <Skeleton active paragraph={{ rows: 2 }} />
+        {error ? (
+          <ErrorHint
+            message={`概览加载失败：${error}`}
+            onRetry={() => onRetry?.()}
+          />
+        ) : (
+          <Skeleton active paragraph={{ rows: 2 }} />
+        )}
       </Card>
     );
   const today = active === 'today';
@@ -566,24 +577,53 @@ export const SupplyFlow: React.FC<{
 
 // ---------------------------------------------------------------- 选项
 
-/** 品牌、细分品类与人员选项，页面内共享一次加载 */
-let optionCache: Promise<{
-  brands: BrandOption[];
-  tree: Category[];
-}> | null = null;
+/** 品牌、细分品类选项缓存 5 分钟（与字典缓存一致），新建的品牌、品类过期后能看到 */
+const OPTION_TTL = 5 * 60 * 1000;
+
+/** 品牌、细分品类选项，各页面共享加载；取数失败不缓存，下次进页面重取（audit UI-092） */
+let optionCache: {
+  at: number;
+  data: Promise<{ brands: BrandOption[]; tree: Category[] }>;
+} | null = null;
+
+const loadOptions = () => {
+  let failed = false;
+  const soft = <T,>(r: Promise<T[]>) =>
+    r.catch(() => {
+      failed = true;
+      return [] as T[];
+    });
+  const entry = {
+    at: Date.now(),
+    data: Promise.all([
+      soft(brandApi.options()),
+      soft(categoryApi.tree()),
+    ]).then(([b, t]) => {
+      if (failed && optionCache === entry) optionCache = null;
+      return { brands: b, tree: t };
+    }),
+  };
+  optionCache = entry;
+  return entry.data;
+};
 
 export const useOptions = () => {
   const [brands, setBrands] = useState<{ value: number; label: string }[]>([]);
   const [tree, setTree] = useState<Category[]>([]);
   useEffect(() => {
-    optionCache ??= Promise.all([
-      brandApi.options().catch(() => [] as BrandOption[]),
-      categoryApi.tree().catch(() => [] as Category[]),
-    ]).then(([b, t]) => ({ brands: b, tree: t }));
-    optionCache.then(({ brands: b, tree: t }) => {
+    let alive = true;
+    const data =
+      optionCache && Date.now() - optionCache.at < OPTION_TTL
+        ? optionCache.data
+        : loadOptions();
+    data.then(({ brands: b, tree: t }) => {
+      if (!alive) return;
       setBrands(b.map((x) => ({ value: x.id, label: x.brandName })));
       setTree(t);
     });
+    return () => {
+      alive = false;
+    };
   }, []);
   return {
     brands,

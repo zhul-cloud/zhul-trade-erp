@@ -203,6 +203,56 @@ class SupplyChainContractTest extends IntegrationTestBase {
         assertEquals(0, rows.size(), "按优先级筛选：矩阵内型号是高优先级");
     }
 
+    /** audit UI-089：覆盖矩阵点格子下钻到型号清单，带上负责人与「近 N 天无货」，与格子同口径 */
+    @Test
+    void matrixModelsOwnerAndStockout() throws Exception {
+        runJob();
+        long first = ((Number) demand().get("id")).longValue();
+        jdbc.update("insert into sc_demand (tenant_id, brand_id, model_key, model, scope_key, status, priority, owner_id)"
+                + " values (0, ?, 'ITSCM02', 'ITSC-M02', 'm:ITSCM02', 2, 3, ?)", brandId, ACCOUNT);
+        long second = jdbc.queryForObject("select id from sc_demand where tenant_id = 0 and model_key = 'ITSCM02'", Long.class);
+        // 第一个型号 40 天前无货，第二个今天无货
+        jdbc.update("insert into sc_demand_signal (tenant_id, demand_id, source_type, occurred_at) values"
+                + " (0, ?, 3, now() - interval 40 day), (0, ?, 3, now())", first, second);
+        loginWithResources("it_sc_viewer", MENU_COVERAGE);
+        String viewer = token("it_sc_viewer");
+        String brand = String.valueOf(brandId);
+
+        JsonNode rows = ok(call(get(API + "/matrix/models").param("brandId", brand), viewer)).path("records");
+        assertEquals(2, rows.size(), rows.toString());
+        rows = ok(call(get(API + "/matrix/models").param("brandId", brand).param("ownerId", String.valueOf(ACCOUNT)),
+                viewer)).path("records");
+        assertEquals(List.of("ITSC-M02"), models(rows), "按负责人筛选");
+        rows = ok(call(get(API + "/matrix/models").param("brandId", brand).param("stockoutDays", "30"), viewer))
+                .path("records");
+        assertEquals(List.of("ITSC-M02"), models(rows), "近 30 天无货只含 30 天内有无货记录的型号");
+        rows = ok(call(get(API + "/matrix/models").param("brandId", brand).param("stockoutDays", "90"), viewer))
+                .path("records");
+        assertEquals(2, rows.size(), "近 90 天无货含 40 天前的记录：" + rows);
+        rows = ok(call(get(API + "/matrix/models").param("brandId", brand).param("stockoutDays", "30")
+                .param("ownerId", String.valueOf(ACCOUNT + 1)), viewer)).path("records");
+        assertEquals(0, rows.size(), "条件同时生效");
+    }
+
+    /** audit UI-093：待归类信号列表返回创建时间、创建人、更新时间、更新人四个固定列 */
+    @Test
+    void unclassifiedSignalsCarryAuditFields() throws Exception {
+        jdbc.update("insert into sc_demand_signal (tenant_id, demand_id, source_type, model_raw, occurred_at, create_by, update_by)"
+                + " values (0, 0, 4, 'ITSC-U01', now(), 'itsc_creator', 'itsc_editor')");
+        loginAsAdmin("it_sc_admin");
+        JsonNode rows = ok(call(get(API + "/signals/unclassified"), token("it_sc_admin"))).path("records");
+        JsonNode row = null;
+        for (JsonNode r : rows) {
+            if ("ITSC-U01".equals(r.path("modelRaw").asText())) {
+                row = r;
+            }
+        }
+        assertTrue(row != null, rows.toString());
+        assertEquals("itsc_creator", row.path("createBy").asText());
+        assertEquals("itsc_editor", row.path("updateBy").asText());
+        assertTrue(row.hasNonNull("createTime") && row.hasNonNull("updateTime"), row.toString());
+    }
+
     private static List<String> models(JsonNode rows) {
         List<String> out = new java.util.ArrayList<>();
         rows.forEach(r -> out.add(r.path("model").asText()));
