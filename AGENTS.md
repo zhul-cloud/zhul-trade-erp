@@ -108,6 +108,13 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - 删除多余的标语、说明文字和次要标签；如果删减后界面就难以理解，说明布局本身有问题，应直接重新设计
 - 每次修改都要兼顾用户体验、开发体验和 AI Agent 的使用体验，三者都要改善，且不能破坏现有功能
 
+## 代码结构查询（CodeGraph）
+
+- 查询代码结构、调用关系和变更影响时优先用 CodeGraph MCP（指定当前仓库的 `projectPath`）或 `codegraph explore "问题或符号" --path .`；不可用时用源码搜索继续，图谱不能替代源码判断与测试。
+- 先在当前仓库根目录运行 `codegraph status --json` 核对项目路径与索引状态，尤其切换分支或 worktree 后；仅缺少索引时运行 `codegraph init .`，不要复用其他 worktree 的索引。
+- 正常改动由 MCP 自动增量同步；仅状态显示待同步或结果落后时运行 `codegraph sync .`。索引损坏、构建失败或版本提示需要重建时才用 `codegraph index .`，不反复全量重建，也不额外启动后台 watcher。
+- 团队共享索引排除项维护在根目录 `codegraph.json`；索引、缓存和运行状态留在已忽略的 `.codegraph/`（或 `.codegraph-*/`），不提交个人绝对路径、凭据或本地 MCP 配置。命令选项以已安装版本的 `--help` 为准。
+
 ## 审查整改记录
 
 ERP 审查发现及本项目后续所有缺陷修复任务（含原审查范围外的新发现）的进度、验证结果与验收统一记录在 `audit/`；新问题先新增稳定 ID，新功能仍按现有 OpenSpec 流程。开始或接续任务先读[问题状态台账](audit/09-remediation/issues.md)、关联任务记录及最新源码 / PR；阶段变化回写同一任务记录和台账，区分实现、验证、合并、部署与最终验收。本轮及后续整改进度不重复写入 Wiki。具体按[整改流程](audit/09-remediation/README.md)执行，现有 OpenSpec、Git Flow 与发版规范不变。
