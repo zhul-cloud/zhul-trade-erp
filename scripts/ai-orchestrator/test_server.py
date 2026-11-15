@@ -369,6 +369,17 @@ class OpenAISchemaTest(unittest.TestCase):
         self.assertEqual(item["searchKeywords"]["type"], ["array", "null"])
         self.assertEqual(json.dumps(self.server.OUTPUT_SCHEMA, sort_keys=True), original)  # 不改原结构
 
+    def test_optional_enum_allows_null(self):
+        """AI-012：可选的枚举字段改成可空后，enum 里也要有 null，否则严格输出只能在枚举值里硬选一个"""
+        schema = self.server._required_nullable_schema(self.server.FOLLOWUP_EXTRACT_SCHEMA)
+        props = schema["properties"]
+        for name in ("receiptAnswer", "useAnswer", "satisfaction", "reviewStatus"):
+            self.assertEqual(props[name]["type"], ["integer", "null"], name)
+            self.assertIn(None, props[name]["enum"], name)
+        self.assertNotIn(None, props["issueTypes"]["items"]["enum"], "数组元素不是可选字段，不加 null")
+        self.assertNotIn(None, self.server.FOLLOWUP_EXTRACT_SCHEMA["properties"]["receiptAnswer"]["enum"],
+                         "不改原结构")
+
     def test_drop_nulls(self):
         result = self.server._drop_nulls({"a": None, "groups": [{"brand": "x", "inquiryTemplate": None,
                                                                  "items": [{"remark": None, "quantity": 0}]}]})

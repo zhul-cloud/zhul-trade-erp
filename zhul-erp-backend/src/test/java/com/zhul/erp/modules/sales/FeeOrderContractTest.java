@@ -101,6 +101,26 @@ class FeeOrderContractTest extends SalesContractSupport {
         fail(call(json(post(SO + "/" + original + "/fee-orders"), write(Map.of("fees", List.of(Map.of("feeName", "X", "amount", "1"))))), admin));
     }
 
+    /** audit BUS-069：费用订单修改费用不能删光费用行，否则成为永远不会自动完成的 0 元订单 */
+    @Test
+    void feeOrder_cannotRemoveAllFees() throws Exception {
+        long original = manualOrder(customer("Fee Buyer", "US"));
+        long feeId = ok(call(json(post(SO + "/" + original + "/fee-orders"),
+                write(Map.of("fees", List.of(Map.of("feeName", "Freight", "amount", "180"))))), admin)).path("id").asLong();
+        Map<String, Object> edit = new LinkedHashMap<>();
+        edit.put("fees", List.of());
+        edit.put("reason", "客户不付运费了");
+        edit.put("expectedTotal", "180");
+        assertEquals("费用订单至少要保留一行费用，不需要了请取消订单",
+                fail(call(json(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(SO + "/" + feeId + "/fees"),
+                        write(edit)), admin)).path("message").asText());
+        money("180", ok(call(get(SO + "/" + feeId), admin)).path("totalAmount"));
+        // 改金额照常可以
+        edit.put("fees", List.of(Map.of("feeName", "Freight", "amount", "150")));
+        money("150", ok(call(json(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(SO + "/" + feeId + "/fees"),
+                write(edit)), admin)).path("totalAmount"));
+    }
+
     /** 手动订单：A-1 × 2，USD 100 */
     private long manualOrder(long customer) throws Exception {
         Map<String, Object> m = new LinkedHashMap<>();

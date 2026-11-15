@@ -46,6 +46,7 @@ import {
 import { recentRange } from '@/utils/dateRange';
 import { useDictTexts } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
+import { liveRequests } from '@/utils/liveRequests';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
@@ -122,22 +123,32 @@ export const ExpenseDrawer: React.FC<{
     ...new Set(allocs.map((a) => a.soId).filter((x): x is number => !!x)),
   ].join(',');
   // 关联售后单：分摊订单的售后单（spec finance/expense「费用单关联售后单」）
+  // 分摊订单变了：不再属于这些订单的售后单一并清掉，迟到的旧结果丢弃（audit BUS-056）
   useEffect(() => {
     const ids = allocSoIds ? allocSoIds.split(',').map(Number) : [];
     if (ids.length === 0) {
       setAsOptions([]);
-      return;
+      setAfterSalesId(undefined);
+      return undefined;
     }
-    Promise.all(ids.map((id) => afterSalesOptions(id).catch(() => [])))
-      .then((rows) =>
+    const { live, cancel } = liveRequests();
+    live(Promise.all(ids.map((id) => afterSalesOptions(id).catch(() => null))))
+      .then((rows) => {
+        const list = rows.flatMap((r) => r ?? []);
         setAsOptions(
-          rows.flat().map((x) => ({
+          list.map((x) => ({
             value: x.id,
             label: `${x.asNo} · ${x.statusName} · ${x.symptom}`,
           })),
-        ),
-      )
+        );
+        // 有订单没取到时不清，免得把仍有效的关联误清掉
+        if (rows.some((r) => r === null)) return;
+        setAfterSalesId((cur) =>
+          cur !== undefined && list.some((x) => x.id === cur) ? cur : undefined,
+        );
+      })
       .catch(() => setAsOptions([]));
+    return cancel;
   }, [allocSoIds]);
 
   useEffect(() => {

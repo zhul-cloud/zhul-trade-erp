@@ -142,6 +142,49 @@ public class OrderDeleteCheck {
         return new DeleteCheckVO(level, blockers, related);
     }
 
+    /**
+     * 取消订单前要先处理完的单据（audit BUS-044）：处理中的售后单、未入库也未作废的退货单、没处理完的退款申请、
+     * 有效的费用订单、暂存中的货物。取消后它们挂在已取消的订单上，补发、退款都没法继续。
+     *
+     * @return 单据说明，如「售后单 AS10001」；空列表表示可以取消
+     */
+    public List<String> cancelBlockers(SalesOrderDO o) {
+        List<String> docs = new ArrayList<>(4);
+        afterSalesMapper.selectList(new LambdaQueryWrapper<AfterSalesDO>()
+                        .eq(AfterSalesDO::getSoId, o.getId())
+                        .in(AfterSalesDO::getStatus, AfterSalesConstants.AS_OPEN, AfterSalesConstants.AS_WAITING)
+                        .isNull(AfterSalesDO::getDeletedAt)
+                        .orderByAsc(AfterSalesDO::getId))
+                .forEach(a -> docs.add("售后单 " + a.getAsNo()));
+        returnMapper.selectList(new LambdaQueryWrapper<SalesReturnDO>()
+                        .eq(SalesReturnDO::getSoId, o.getId())
+                        .in(SalesReturnDO::getStatus, AfterSalesConstants.RT_CONFIRMING, AfterSalesConstants.RT_PENDING)
+                        .isNull(SalesReturnDO::getDeletedAt)
+                        .orderByAsc(SalesReturnDO::getId))
+                .forEach(r -> docs.add("退货单 " + r.getReturnNo()));
+        refundRequestMapper.selectList(new LambdaQueryWrapper<RefundRequestDO>()
+                        .eq(RefundRequestDO::getSoId, o.getId())
+                        .in(RefundRequestDO::getStatus, FinanceConstants.RQ_PENDING_RECEIPT, FinanceConstants.RQ_PENDING_APPROVAL,
+                                FinanceConstants.RQ_PENDING_FINANCE)
+                        .isNull(RefundRequestDO::getDeletedAt)
+                        .orderByAsc(RefundRequestDO::getId))
+                .forEach(r -> docs.add("退款申请 " + r.getRequestNo()));
+        orderMapper.selectList(new LambdaQueryWrapper<SalesOrderDO>()
+                        .eq(SalesOrderDO::getOriginalSoId, o.getId())
+                        .eq(SalesOrderDO::getSource, SalesConstants.SO_FEE)
+                        .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
+                        .isNull(SalesOrderDO::getDeletedAt)
+                        .orderByAsc(SalesOrderDO::getId))
+                .forEach(f -> docs.add("费用订单 " + f.getSoNo()));
+        holdMapper.selectList(new LambdaQueryWrapper<StockHoldDO>()
+                        .eq(StockHoldDO::getSoId, o.getId())
+                        .eq(StockHoldDO::getStatus, HOLD_ACTIVE)
+                        .isNull(StockHoldDO::getDeletedAt)
+                        .orderByAsc(StockHoldDO::getId))
+                .forEach(h -> docs.add("暂存货物 " + h.getModel() + " × " + h.getQuantity()));
+        return docs;
+    }
+
     /** 有效的水单、到账、余额抵扣：手动订单挂在订单上，PI 转成的订单挂在 PI 上 */
     private void receipts(SalesOrderDO o, ProformaInvoiceDO pi, List<Doc> blockers) {
         LambdaQueryWrapper<PaymentReceiptDO> w = new LambdaQueryWrapper<PaymentReceiptDO>()

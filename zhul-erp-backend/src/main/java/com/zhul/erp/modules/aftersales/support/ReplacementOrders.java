@@ -54,6 +54,11 @@ public class ReplacementOrders {
         // 对补发订单再售后时，成本仍计入最初的订单
         SalesOrderDO original = Objects.equals(order.getSource(), SalesConstants.SO_REPLACEMENT)
                 ? orderMapper.selectById(order.getOriginalSoId()) : order;
+        // 已取消的订单不算毛利，补发成本挂上去会从利润里消失（audit BUS-044）
+        if (!Objects.equals(order.getStatus(), SalesConstants.SO_ACTIVE)
+                || original == null || !Objects.equals(original.getStatus(), SalesConstants.SO_ACTIVE)) {
+            throw new BizException("订单已取消，不能补发");
+        }
         List<ReplacementRequest.Line> lines = req.getItems() == null ? List.of()
                 : req.getItems().stream().filter(Objects::nonNull).toList();
         if (lines.isEmpty()) {

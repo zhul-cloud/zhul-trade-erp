@@ -54,6 +54,11 @@ const initial = (): Filters => ({
   showClosed: false,
 });
 
+/** 还能付款（可勾选批量付款）的应付：有未付且未付清、未关闭 */
+const payableOpen = (r: Payable) =>
+  r.unpaidAmount > 0 &&
+  (r.status === PAY_STATUS.UNPAID || r.status === PAY_STATUS.PARTIAL);
+
 /** 财务管理 → 应付单：采购订单、运费账单确认后自动生成；付款按到期先后核销 */
 const PayableManagement: React.FC = () => {
   const { message } = App.useApp();
@@ -92,6 +97,14 @@ const PayableManagement: React.FC = () => {
         payableApi.stats(),
       ]);
       setRows(res.records);
+      // 已选的应付换成刚取到的最新数据，已付清、已关闭的剔除，已选合计与批量付款默认金额按最新未付（audit UI-076）
+      setPicked((cur) =>
+        cur.flatMap((p) => {
+          const fresh = res.records.find((r) => r.id === p.id);
+          if (!fresh) return [p];
+          return payableOpen(fresh) ? [fresh] : [];
+        }),
+      );
       setTotal(res.total);
       setStats(s);
     } catch (e) {
@@ -476,12 +489,7 @@ const PayableManagement: React.FC = () => {
               ? {
                   selectedRowKeys: picked.map((r) => r.id),
                   preserveSelectedRowKeys: true,
-                  getCheckboxProps: (r) => ({
-                    disabled:
-                      r.unpaidAmount <= 0 ||
-                      (r.status !== PAY_STATUS.UNPAID &&
-                        r.status !== PAY_STATUS.PARTIAL),
-                  }),
+                  getCheckboxProps: (r) => ({ disabled: !payableOpen(r) }),
                   onChange: (_, list) => setPicked(list.filter(Boolean)),
                 }
               : undefined

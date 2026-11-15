@@ -8,7 +8,8 @@ import type { InquiryItem } from '../shared/service';
 
 /**
  * 询盘详情「去报价」：有型号还在询价时先选型号。
- * 已回价（含无货）的默认勾选；还在询价的也能勾（默认不勾），带入后按无货报，询价任务不受影响。
+ * 已回价（含无货）的默认勾选；还在询价的也能勾（默认不勾），带入后按无货报；
+ * 报价单发出后这些型号算已报给客户，采购不能再回价，询价任务随之完结（audit UI-079，规则见 BUS-031）。
  */
 const GoQuoteModal: React.FC<{
   open: boolean;
@@ -107,7 +108,7 @@ const GoQuoteModal: React.FC<{
         })}
       </div>
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 10 }}>
-        勾了未回价的型号：采购那边的询价任务照常进行，之后回了价可以「修改（出新版本）」改成正常报价。
+        勾了未回价的型号：报价单发出后算已报给客户，采购不能再回价，询价任务随之完结；报价单作废后重新开放。
       </div>
     </Modal>
   );

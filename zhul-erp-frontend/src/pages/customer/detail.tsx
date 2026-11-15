@@ -290,7 +290,11 @@ const CustomerDetailPage: React.FC = () => {
   const { palette } = useAppTheme();
   const { labelOf: countryLabel, zhOf } = useCountries();
   const [record, setRecord] = useState<CustomerDetail | null>();
-  usePageTitle(record ? `客户 ${record.name}` : undefined, record?.name);
+  // 经商机登记的客户可能暂缺名称，标签和返回条用展示名（audit UI-073）
+  usePageTitle(
+    record ? `客户 ${record.displayName}` : undefined,
+    record?.displayName,
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [transferOpen, setTransferOpen] = useState(false);
@@ -305,19 +309,26 @@ const CustomerDetailPage: React.FC = () => {
   const showFollowup = !!access.salesFollowup;
   const followup = useCustomerFollowup(Number(id), showFollowup);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(undefined);
-    try {
-      setRecord(await customerApi.detail(Number(id)));
-    } catch (e) {
-      const err = readBizError(e);
-      if (err.message.includes('不存在')) setRecord(null);
-      else setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
+  /** silent：返回刷新时不换成骨架屏、不卸载页面，取数失败保留原内容（audit UI-055） */
+  const load = useCallback(
+    async (silent?: boolean) => {
+      if (!silent) {
+        setLoading(true);
+        setError(undefined);
+      }
+      try {
+        setRecord(await customerApi.detail(Number(id)));
+        setError(undefined);
+      } catch (e) {
+        const err = readBizError(e);
+        if (err.message.includes('不存在')) setRecord(null);
+        else if (!silent) setError(err.message);
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [id],
+  );
 
   // 档案单独加载：失败不影响客户基本信息展示
   const loadProfile = useCallback(() => {
@@ -326,10 +337,13 @@ const CustomerDetailPage: React.FC = () => {
       .then(setProfile)
       .catch(() => setProfile(undefined));
   }, [id]);
-  // 从其他页面返回时重新取数（audit UI-055）
+  // 从其他页面返回时静默重新取数，背调报告、背调前检查、跟进概况一并刷新（audit UI-055）
   useOnReactivate(() => {
-    load();
+    load(true);
     loadProfile();
+    bg.reload();
+    precheck.reload();
+    followup.reload();
   });
 
   useEffect(() => {
@@ -368,7 +382,7 @@ const CustomerDetailPage: React.FC = () => {
       </div>
     );
   } else if (error) {
-    body = <ErrorHint message={error} onRetry={load} />;
+    body = <ErrorHint message={error} onRetry={() => load()} />;
   } else if (!record) {
     body = (
       <EmptyHint
@@ -617,7 +631,10 @@ const CustomerDetailPage: React.FC = () => {
               />
             )}
             {record && (
-              <CreditCard customerId={record.id} customerName={record.name} />
+              <CreditCard
+                customerId={record.id}
+                customerName={record.displayName}
+              />
             )}
             <SideCard title="负责与归属">
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -682,7 +699,8 @@ const CustomerDetailPage: React.FC = () => {
                 load();
                 loadProfile();
               } else {
-                history.push(`${LIST_PATH}/${keepId}`);
+                // 当前客户已被并入另一个客户：替换当前页，返回条不再指向已删除的客户（audit UI-058）
+                history.replace(`${LIST_PATH}/${keepId}`);
               }
             }}
           />

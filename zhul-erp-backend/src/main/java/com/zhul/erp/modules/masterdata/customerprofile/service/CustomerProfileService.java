@@ -24,6 +24,8 @@ import com.zhul.erp.modules.system.entity.UserBasicDO;
 import com.zhul.erp.modules.system.repository.UserBasicMapper;
 import com.zhul.erp.modules.system.service.DictItemService;
 import com.zhul.erp.modules.system.service.LogService;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.zhul.erp.framework.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +35,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DateTimeException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -158,7 +161,7 @@ public class CustomerProfileService {
         if (changed.isEmpty()) {
             return;
         }
-        customerMapper.updateById(c);
+        saveFields(c, changed);
         sources.record(c.getTenantId(), customerId, changed, source, reportId, currentUser.resolve());
         facts.refresh(c);
         before.put("customerCode", c.getCustomerCode());
@@ -218,7 +221,7 @@ public class CustomerProfileService {
         for (String key : keys) {
             apply(c, key, req);
         }
-        customerMapper.updateById(c);
+        saveFields(c, keys);
         sources.record(c.getTenantId(), customerId, keys, FieldSources.FOLLOWUP, 0L, followupId, currentUser.resolve());
         facts.refresh(c);
         return applied;
@@ -237,6 +240,46 @@ public class CustomerProfileService {
     }
 
     // ---------------------------------------------------------------- 写入与校验
+
+    /**
+     * 只写这些画像字段，不整行写回：读和写之间别人提交的转移负责人、调整等级、主联系人同步等不被旧值覆盖（BUS-063）
+     */
+    private void saveFields(CustomerDO c, Collection<String> keys) {
+        LambdaUpdateWrapper<CustomerDO> w = new LambdaUpdateWrapper<CustomerDO>().eq(CustomerDO::getId, c.getId());
+        for (String key : keys) {
+            switch (key) {
+                case "customerRole" -> w.set(CustomerDO::getCustomerRole, c.getCustomerRole());
+                case "industry" -> w.set(CustomerDO::getIndustry, c.getIndustry());
+                case "website" -> w.set(CustomerDO::getWebsite, c.getWebsite());
+                case "linkedin" -> w.set(CustomerDO::getLinkedin, c.getLinkedin());
+                case "socialUrl" -> w.set(CustomerDO::getSocialUrl, c.getSocialUrl());
+                case "foundedYear" -> w.set(CustomerDO::getFoundedYear, c.getFoundedYear());
+                case "companySize" -> w.set(CustomerDO::getCompanySize, c.getCompanySize());
+                case "potentialRating" -> w.set(CustomerDO::getPotentialRating, c.getPotentialRating());
+                case "mainProducts" -> w.set(CustomerDO::getMainProducts, c.getMainProducts());
+                case "cnSuppliers" -> w.set(CustomerDO::getCnSuppliers, c.getCnSuppliers());
+                case "estAnnualPurchase" -> w.set(CustomerDO::getEstAnnualPurchase, c.getEstAnnualPurchase());
+                case "qualityReq" -> w.set(CustomerDO::getQualityReq, c.getQualityReq());
+                case "priceSensitivity" -> w.set(CustomerDO::getPriceSensitivity, c.getPriceSensitivity());
+                case "customsAbility" -> w.set(CustomerDO::getCustomsAbility, c.getCustomsAbility());
+                case "paymentMethod" -> w.set(CustomerDO::getPaymentMethod, c.getPaymentMethod())
+                        .set(CustomerDO::getDepositRatio, c.getDepositRatio())
+                        .set(CustomerDO::getPaymentDays, c.getPaymentDays());
+                case "currentBrands" -> w.set(CustomerDO::getCurrentBrands, c.getCurrentBrands());
+                case "designAbility" -> w.set(CustomerDO::getDesignAbility, c.getDesignAbility());
+                case "protocols" -> w.set(CustomerDO::getProtocols, c.getProtocols());
+                case "voltages" -> w.set(CustomerDO::getVoltages, c.getVoltages());
+                case "certifications" -> w.set(CustomerDO::getCertifications, c.getCertifications());
+                case "repairAbility" -> w.set(CustomerDO::getRepairAbility, c.getRepairAbility());
+                case "city" -> w.set(CustomerDO::getCity, c.getCity());
+                case "timezone" -> w.set(CustomerDO::getTimezone, c.getTimezone());
+                default -> throw new BizException("「" + key + "」不能在这里修改");
+            }
+        }
+        w.set(CustomerDO::getUpdateTime, LocalDateTime.now())
+                .set(CustomerDO::getUpdateBy, SecurityUtils.getCurrentUsername());
+        customerMapper.update(null, w);
+    }
 
     private void apply(CustomerDO c, String key, ProfileUpdateRequest r) {
         switch (key) {

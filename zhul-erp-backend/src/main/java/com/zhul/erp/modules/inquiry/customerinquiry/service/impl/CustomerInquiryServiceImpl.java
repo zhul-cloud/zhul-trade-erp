@@ -709,6 +709,16 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
                 .orderByAsc(CustomerInquiryAttachmentDO::getId));
     }
 
+    /** 某次录入 / 追加的铭牌图片，含已删除的，按上传顺序：AI 解析的铭牌编号就是在这里的位置（从 1 起） */
+    private List<CustomerInquiryAttachmentDO> plateSlots(Long inquiryId, long appendId) {
+        return attachmentMapper.selectList(new LambdaQueryWrapper<CustomerInquiryAttachmentDO>()
+                .eq(CustomerInquiryAttachmentDO::getCustomerInquiryId, inquiryId)
+                .eq(CustomerInquiryAttachmentDO::getAppendId, appendId)
+                .eq(CustomerInquiryAttachmentDO::getKind, InquiryConstants.ATTACHMENT_KIND_NAMEPLATE)
+                .orderByAsc(CustomerInquiryAttachmentDO::getSort)
+                .orderByAsc(CustomerInquiryAttachmentDO::getId));
+    }
+
     private static AttachmentVO toAttachmentVo(CustomerInquiryAttachmentDO a) {
         AttachmentVO vo = new AttachmentVO();
         vo.setId(a.getId());
@@ -764,10 +774,13 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         for (CustomerInquiryAttachmentDO a : attachmentRows(inquiry.getId(), appendId, InquiryConstants.ATTACHMENT_KIND_FILE)) {
             files.add(aiFileRef(a, "attachment", null));
         }
-        // 铭牌图片从 1 编号，AI 按编号返回每个型号对应的图（spec inquiry/inquiry-intake「铭牌图片」）
-        int no = 0;
-        for (CustomerInquiryAttachmentDO a : attachmentRows(inquiry.getId(), appendId, InquiryConstants.ATTACHMENT_KIND_NAMEPLATE)) {
-            files.add(aiFileRef(a, "nameplate", String.valueOf(++no)));
+        // 铭牌图片从 1 编号，AI 按编号返回每个型号对应的图（spec inquiry/inquiry-intake「铭牌图片」）。
+        // 编号按含已删除的全部铭牌排，删掉的不发送、也不占用别的图的编号，确认时按同样的顺序换回附件（audit BUS-059）
+        List<CustomerInquiryAttachmentDO> slots = plateSlots(inquiry.getId(), appendId);
+        for (int k = 0; k < slots.size(); k++) {
+            if (slots.get(k).getDeletedAt() == null) {
+                files.add(aiFileRef(slots.get(k), "nameplate", String.valueOf(k + 1)));
+            }
         }
         Map<String, Object> input = new HashMap<>();
         input.put("customerInquiryId", inquiry.getId());
@@ -886,7 +899,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         if (inquiry.getStatus() == InquiryConstants.STATUS_PENDING_CONFIRM
                 && inquiry.getParseMode() == InquiryConstants.PARSE_MODE_AI && inquiry.getAiTaskId() != null) {
             AiParseOutputDTO output = parseOutput(aiTaskService.getById(inquiry.getAiTaskId()).getOutput());
-            rows.addAll(draftRows(output, nameplates(inquiry.getId(), 0L)));
+            rows.addAll(draftRows(output, plateSlots(inquiry.getId(), 0L)));
             unparsed = output.getUnparsed();
         }
         DraftVO vo = new DraftVO();
@@ -899,8 +912,8 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         return vo;
     }
 
-    /** AI 输出转确认页的行；铭牌编号换成附件 ID，越界的忽略，一张图被多行引用时只给第一行 */
-    private List<DraftRowVO> draftRows(AiParseOutputDTO output, List<AttachmentVO> plates) {
+    /** AI 输出转确认页的行；铭牌编号按 {@link #plateSlots} 换成附件 ID，越界或已删除的忽略，一张图被多行引用时只给第一行 */
+    private List<DraftRowVO> draftRows(AiParseOutputDTO output, List<CustomerInquiryAttachmentDO> plates) {
         List<ProductCategoryDO> categories = inquiryCategories.categories();
         Set<Long> used = new HashSet<>();
         List<DraftRowVO> rows = new ArrayList<>();
@@ -909,8 +922,9 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
                 DraftRowVO row = toDraftRow(g, it, categories);
                 List<Long> ids = new ArrayList<>();
                 for (Integer no : it.getNameplates() == null ? List.<Integer>of() : it.getNameplates()) {
-                    if (no != null && no >= 1 && no <= plates.size() && used.add(plates.get(no - 1).getId())) {
-                        ids.add(plates.get(no - 1).getId());
+                    CustomerInquiryAttachmentDO plate = no == null || no < 1 || no > plates.size() ? null : plates.get(no - 1);
+                    if (plate != null && plate.getDeletedAt() == null && used.add(plate.getId())) {
+                        ids.add(plate.getId());
                     }
                 }
                 row.setNameplateIds(ids);
@@ -1207,7 +1221,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         List<AiParseOutputDTO.Unparsed> unparsed = List.of();
         if (a.getStatus() == APPEND_PENDING_CONFIRM && a.getParseMode() == InquiryConstants.PARSE_MODE_AI && a.getAiTaskId() != null) {
             AiParseOutputDTO output = parseOutput(aiTaskService.getById(a.getAiTaskId()).getOutput());
-            rows.addAll(draftRows(output, nameplates(inquiry.getId(), a.getId())));
+            rows.addAll(draftRows(output, plateSlots(inquiry.getId(), a.getId())));
             unparsed = output.getUnparsed();
         }
         DraftVO vo = new DraftVO();

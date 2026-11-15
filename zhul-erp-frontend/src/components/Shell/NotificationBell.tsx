@@ -19,13 +19,14 @@ import {
   Tooltip,
 } from 'antd';
 import dayjs from 'dayjs';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   type NotificationItem,
   notificationApi,
 } from '@/services/zhul/notification';
 import { useAppTheme } from '@/theme/AppTheme';
 import type { Palette } from '@/theme/palette';
+import { liveRequests } from '@/utils/liveRequests';
 
 const POLL_MS = 60_000;
 const PAGE_SIZE = 20;
@@ -254,11 +255,18 @@ export const NotificationBell: React.FC = () => {
     };
   }, [refreshCount]);
 
+  /** 当前标签的请求：切换标签或关闭抽屉后，上一个标签迟到的响应直接丢弃（audit UI-082） */
+  const liveRef = useRef<ReturnType<typeof liveRequests>['live'] | undefined>(
+    undefined,
+  );
+
   const load = useCallback(
     async (t: Tab, p: number) => {
+      const live = liveRef.current;
+      if (!live) return;
       setLoading(true);
       try {
-        const r = await notificationApi.list(t, p, PAGE_SIZE);
+        const r = await live(notificationApi.list(t, p, PAGE_SIZE));
         setItems((prev) => (p === 1 ? r.records : [...prev, ...r.records]));
         setTotal(r.total);
         setPage(p);
@@ -272,7 +280,15 @@ export const NotificationBell: React.FC = () => {
   );
 
   useEffect(() => {
-    if (open) load(tab, 1);
+    if (!open) return undefined;
+    const { live, cancel } = liveRequests();
+    liveRef.current = live;
+    load(tab, 1);
+    return () => {
+      cancel();
+      liveRef.current = undefined;
+      setLoading(false);
+    };
   }, [open, tab, load]);
 
   const openItem = async (item: NotificationItem) => {

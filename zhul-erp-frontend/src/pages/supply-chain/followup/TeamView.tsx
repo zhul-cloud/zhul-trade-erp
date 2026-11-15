@@ -1,10 +1,26 @@
 import { Link } from '@umijs/max';
-import { Button, Progress, Select, Skeleton, Table } from 'antd';
+import {
+  Button,
+  Progress,
+  Select,
+  Skeleton,
+  Table,
+  type TableColumnsType,
+} from 'antd';
 import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
+import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
+import { liveRequests } from '@/utils/liveRequests';
+import { tableScrollX } from '@/utils/tableScroll';
 import { Card, Pill } from '../components';
-import { PATHS, type Rank, supplyApi, type Team } from '../service';
+import {
+  PATHS,
+  type Rank,
+  readBizError,
+  supplyApi,
+  type Team,
+} from '../service';
 
 const PERIODS = [
   { value: 30, label: '近 30 天' },
@@ -27,6 +43,8 @@ export interface TeamJump {
   brandId?: number;
   categoryId?: number;
   ownerId?: number;
+  /** 无货统计期（30 / 90 天），与团队视图一致 */
+  days?: number;
 }
 
 const Kpi: React.FC<{
@@ -152,13 +170,18 @@ const TeamView: React.FC<{
   const { palette } = useAppTheme();
   const [period, setPeriod] = useState(30);
   const [team, setTeam] = useState<Team>();
+  const [error, setError] = useState('');
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     setTeam(undefined);
-    supplyApi
-      .team(period)
+    setError('');
+    const { live, cancel } = liveRequests();
+    // 失败显示原因与重试，不能一直转骨架屏（audit UI-091）
+    live(supplyApi.team(period))
       .then(setTeam)
-      .catch(() => setTeam(undefined));
-  }, [period]);
+      .catch((e) => setError(readBizError(e).message));
+    return cancel;
+  }, [period, tick]);
 
   const head = (
     <div
@@ -177,11 +200,85 @@ const TeamView: React.FC<{
       <>
         {head}
         <Card style={{ padding: 20 }}>
-          <Skeleton active paragraph={{ rows: 10 }} />
+          {error ? (
+            <ErrorHint
+              message={`团队视图加载失败：${error}`}
+              onRetry={() => setTick((n) => n + 1)}
+            />
+          ) : (
+            <Skeleton active paragraph={{ rows: 10 }} />
+          )}
         </Card>
       </>
     );
   const t = team;
+  const ownerColumns: TableColumnsType<Team['owners'][number]> = [
+    {
+      title: '负责人',
+      key: 'name',
+      width: 140,
+      render: (_, r) => (
+        <div style={{ display: 'grid' }}>
+          {/* 没有负责人的行没有对应的筛选，不做成链接，避免跳到「全部负责人」（audit UI-089） */}
+          {r.ownerId ? (
+            <Button
+              type="link"
+              size="small"
+              style={{ padding: 0, justifyContent: 'flex-start' }}
+              onClick={() => onJump({ ownerId: r.ownerId })}
+            >
+              {r.ownerName ?? '未指定负责人'}
+            </Button>
+          ) : (
+            <span>{r.ownerName ?? '未指定负责人'}</span>
+          )}
+          {(r.overdue >= 3 || r.multiDefer >= 2) && (
+            <span style={{ fontSize: 12, color: palette.orange }}>
+              需要关注
+            </span>
+          )}
+        </div>
+      ),
+    },
+    { title: '名下型号', dataIndex: 'models', width: 90 },
+    { title: '无渠道', dataIndex: 'noChannel', width: 90 },
+    { title: '未验证', dataIndex: 'lead', width: 90 },
+    { title: '需确认', dataIndex: 'confirm', width: 90 },
+    {
+      title: '今天要跟',
+      width: 90,
+      dataIndex: 'dueToday',
+      render: (v, r) => (r.ownerId ? v : '—'),
+    },
+    {
+      title: '逾期',
+      width: 90,
+      dataIndex: 'overdue',
+      render: (v: number, r) =>
+        r.ownerId ? (
+          <span style={{ color: v ? palette.red : undefined }}>{v}</span>
+        ) : (
+          '—'
+        ),
+    },
+    {
+      title: '多次延后',
+      width: 90,
+      dataIndex: 'multiDefer',
+      render: (v: number, r) =>
+        r.ownerId ? (
+          <span style={{ color: v ? palette.red : undefined }}>{v}</span>
+        ) : (
+          '—'
+        ),
+    },
+    {
+      title: '本周记处理',
+      width: 100,
+      dataIndex: 'records',
+      render: (v, r) => (r.ownerId ? v : '—'),
+    },
+  ];
   return (
     <div>
       {head}
@@ -255,7 +352,7 @@ const TeamView: React.FC<{
             title="按品牌"
             rows={t.byBrand}
             color={palette.red}
-            onJump={(r) => onJump({ brandId: r.brandId })}
+            onJump={(r) => onJump({ brandId: r.brandId, days: t.days })}
             onProject={
               canProject
                 ? (r) => r.brandId && onProject({ brandId: r.brandId })
@@ -266,7 +363,7 @@ const TeamView: React.FC<{
             title="按品类"
             rows={t.byCategory}
             color={palette.red}
-            onJump={(r) => onJump({ categoryId: r.categoryId })}
+            onJump={(r) => onJump({ categoryId: r.categoryId, days: t.days })}
           />
           <RankList
             title="无货原因"
@@ -297,68 +394,8 @@ const TeamView: React.FC<{
               locale={{
                 emptyText: '还没有指定负责人的型号，可在型号详情里指定',
               }}
-              scroll={{ x: 'max-content' }}
-              columns={[
-                {
-                  title: '负责人',
-                  key: 'name',
-                  render: (_, r) => (
-                    <div style={{ display: 'grid' }}>
-                      <Button
-                        type="link"
-                        size="small"
-                        style={{ padding: 0, justifyContent: 'flex-start' }}
-                        onClick={() => onJump({ ownerId: r.ownerId ?? 0 })}
-                      >
-                        {r.ownerName ?? '未指定负责人'}
-                      </Button>
-                      {(r.overdue >= 3 || r.multiDefer >= 2) && (
-                        <span style={{ fontSize: 12, color: palette.orange }}>
-                          需要关注
-                        </span>
-                      )}
-                    </div>
-                  ),
-                },
-                { title: '名下型号', dataIndex: 'models' },
-                { title: '无渠道', dataIndex: 'noChannel' },
-                { title: '未验证', dataIndex: 'lead' },
-                { title: '需确认', dataIndex: 'confirm' },
-                {
-                  title: '今天要跟',
-                  dataIndex: 'dueToday',
-                  render: (v, r) => (r.ownerId ? v : '—'),
-                },
-                {
-                  title: '逾期',
-                  dataIndex: 'overdue',
-                  render: (v: number, r) =>
-                    r.ownerId ? (
-                      <span style={{ color: v ? palette.red : undefined }}>
-                        {v}
-                      </span>
-                    ) : (
-                      '—'
-                    ),
-                },
-                {
-                  title: '多次延后',
-                  dataIndex: 'multiDefer',
-                  render: (v: number, r) =>
-                    r.ownerId ? (
-                      <span style={{ color: v ? palette.red : undefined }}>
-                        {v}
-                      </span>
-                    ) : (
-                      '—'
-                    ),
-                },
-                {
-                  title: '本周记处理',
-                  dataIndex: 'records',
-                  render: (v, r) => (r.ownerId ? v : '—'),
-                },
-              ]}
+              scroll={{ x: tableScrollX(ownerColumns) }}
+              columns={ownerColumns}
             />
           </Card>
           <Card style={{ padding: 20 }}>

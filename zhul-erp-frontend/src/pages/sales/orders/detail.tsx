@@ -31,6 +31,7 @@ import DocModelCell, {
 import SourceNos from '@/components/DocFields/SourceNos';
 import EllipsisText from '@/components/EllipsisText';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
+import { tabsActions } from '@/components/PageTabs/store';
 import RefundModal from '@/pages/finance/refunds/RefundModal';
 import { useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -884,7 +885,8 @@ const OrderDetail: React.FC = () => {
           marginLeft: 'auto',
         }}
       >
-        {access['sales:order:fee-edit'] && editable && (
+        {/* 售后补发订单不收款，不能改费用（audit BUS-068） */}
+        {access['sales:order:fee-edit'] && editable && !replacement && (
           <div
             style={{
               display: 'flex',
@@ -1937,8 +1939,8 @@ const OrderDetail: React.FC = () => {
           onClose={() => setDeleteOpen(false)}
           onDeleted={() => {
             setDeleteOpen(false);
-            // 用列表替换掉已删除的订单页，返回条不再回到它
-            history.replace('/sales/orders');
+            // 退回上一页（列表返回时自动刷新）；没有上一页才换成列表（audit UI-085）
+            tabsActions.backOr('/sales/orders');
           }}
         />
       )}

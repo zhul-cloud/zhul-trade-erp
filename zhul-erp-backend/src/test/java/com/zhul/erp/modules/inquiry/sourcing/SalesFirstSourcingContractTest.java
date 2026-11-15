@@ -278,6 +278,27 @@ class SalesFirstSourcingContractTest extends InquiryContractSupport {
         assertTrue(res.path("message").asText().contains("已转给采购"), res.toString());
     }
 
+    /** OPS-008：超时流转按任务所在租户执行，别的租户配了「采购负责人」接收人，不影响本租户按默认接收人发待分配通知 */
+    @Test
+    void movedByTimeout_poolNoticeUsesOwnTenantReceivers() throws Exception {
+        int assignPerm = jdbc.queryForObject("select id from resource where permission = 'purchase:requirement:assign' order by id limit 1", Integer.class);
+        jdbc.update("insert into role_resource (role_code, resource_id, resource_code) values (?, ?, '')", BUYER_ROLE, assignPerm);
+        jdbc.update("delete from notification_receiver where post_code = 'PURCHASE_LEAD' and tenant_id in (0, 9008)");
+        jdbc.update("delete from notification where tenant_id = 0 and node_code = 'SOURCING_POOL'");
+        jdbc.update("insert into notification_receiver (tenant_id, post_code, user_id, status) values (9008, 'PURCHASE_LEAD', 99009008, 1)");
+        try {
+            long t = task(inquiry(false, row("Lenze", "变频器", "D3")), "Lenze");
+            jdbc.update("update sourcing_task set sales_deadline = date_sub(now(), interval 1 minute) where id = ?", t);
+            job.moveDueTasks();
+            assertEquals(TASK_UNASSIGNED, status(t));
+            assertEquals(1, jdbc.queryForObject("select count(*) from notification where tenant_id = 0 and node_code = 'SOURCING_POOL' and recipient_id = ?",
+                    Integer.class, BUYER_LIN), "本租户没配接收人时按默认（有分配权限的人）接收");
+        } finally {
+            jdbc.update("delete from notification_receiver where tenant_id = 9008");
+            jdbc.update("delete from notification where tenant_id = 0 and node_code = 'SOURCING_POOL'");
+        }
+    }
+
     @Test
     void notDueStaysPut() throws Exception {
         long t = task(inquiry(false, row("Lenze", "变频器", "D2")), "Lenze");

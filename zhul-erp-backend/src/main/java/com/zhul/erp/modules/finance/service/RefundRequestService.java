@@ -50,6 +50,7 @@ import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.LogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -112,15 +113,15 @@ public class RefundRequestService {
     }
 
     public RequestRefundableVO refundable(Long soId) {
-        SalesOrderDO o = visibleOrder(soId);
+        SalesOrderDO o = activeOrder(soId);
         return refundableOf(o, null);
     }
 
     // ---------------------------------------------------------------- 提出与撤回
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public RefundRequestVO apply(SaveRefundRequestApply req) {
-        SalesOrderDO o = visibleOrder(req.getSoId());
+        SalesOrderDO o = activeOrder(req.getSoId());
         AfterSalesDO as = null;
         if (req.getAfterSalesId() != null) {
             afterSalesService.detail(req.getAfterSalesId());
@@ -181,7 +182,7 @@ public class RefundRequestService {
         return detail(q.getId());
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public RefundRequestVO withdraw(Long id) {
         RefundRequestDO q = lock(id);
         visibleOrder(q.getSoId());
@@ -196,7 +197,7 @@ public class RefundRequestService {
 
     // ---------------------------------------------------------------- 审批
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public RefundRequestVO approve(Long id) {
         RefundRequestDO q = lock(id);
         requireStatus(q, FinanceConstants.RQ_PENDING_APPROVAL);
@@ -211,7 +212,7 @@ public class RefundRequestService {
     }
 
     /** 驳回：审批人驳回待审批的申请，财务驳回待财务处理的申请 */
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public RefundRequestVO reject(Long id, String reason, boolean byApprover) {
         String why = trim(reason);
         if (why.isEmpty()) {
@@ -239,7 +240,7 @@ public class RefundRequestService {
     // ---------------------------------------------------------------- 执行
 
     /** 财务执行：按退款单规则登记，金额不超过申请金额；同一事务内生成退款单并把申请置为已执行 */
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public RefundRequestVO execute(Long id, SaveRefundRequest req) {
         RefundRequestDO q = lock(id);
         requireStatus(q, FinanceConstants.RQ_PENDING_FINANCE);
@@ -441,7 +442,7 @@ public class RefundRequestService {
 
     // ---------------------------------------------------------------- 备注与附件
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public RefundRequestVO remark(Long id, String remark) {
         visible(id);
         RefundRequestDO q = lock(id);
@@ -451,7 +452,7 @@ public class RefundRequestService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public RefundRequestVO attach(Long id, Collection<Long> ids) {
         visible(id);
         attachments.attach(AttachmentService.REFUND_REQUEST, id, ids);
@@ -459,7 +460,7 @@ public class RefundRequestService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public RefundRequestVO removeAttachment(Long id, Long attachmentId) {
         visible(id);
         attachments.remove(AttachmentService.REFUND_REQUEST, id, attachmentId);
@@ -684,6 +685,12 @@ public class RefundRequestService {
                 || !dataScopeResolver.current().canSee(o.getOwnerId())) {
             throw new BizException("销售订单不存在");
         }
+        return o;
+    }
+
+    /** 提出申请、查可退金额要求订单有效；撤回与按订单列出不看订单状态，已取消订单上的申请仍能撤回（audit BUS-044） */
+    private SalesOrderDO activeOrder(Long soId) {
+        SalesOrderDO o = visibleOrder(soId);
         if (o.getStatus() != SalesConstants.SO_ACTIVE) {
             throw new BizException("订单已取消，不能申请退款");
         }
@@ -715,6 +722,7 @@ public class RefundRequestService {
         return q;
     }
 
+    /** 写方法用读已提交，加锁后的重读拿到其他事务已提交的最新状态（audit BUS-035） */
     private RefundRequestDO lock(Long id) {
         require(id);
         mapper.lockById(id);

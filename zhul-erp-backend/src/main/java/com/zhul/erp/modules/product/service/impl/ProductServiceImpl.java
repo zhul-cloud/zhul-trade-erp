@@ -198,7 +198,12 @@ public class ProductServiceImpl implements ProductService {
         if (wrapper == null) {
             return List.of();
         }
-        wrapper.select(ProductDO::getId).orderByDesc(ProductDO::getUpdateTime).orderByDesc(ProductDO::getId)
+        wrapper.select(ProductDO::getId);
+        // 待 AI 细分：没跑过的（ai_category_at 为空，MySQL 升序时排最前）在前，AI 判断不出的按判断时间排后（audit BUS-066）
+        if ("todo".equals(query.getRefineState())) {
+            wrapper.orderByAsc(ProductDO::getAiCategoryAt);
+        }
+        wrapper.orderByDesc(ProductDO::getUpdateTime).orderByDesc(ProductDO::getId)
                 .last("LIMIT " + Math.max(1, limit));
         return productMapper.selectList(wrapper).stream().map(ProductDO::getId).toList();
     }

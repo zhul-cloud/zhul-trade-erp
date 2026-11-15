@@ -20,7 +20,11 @@ import { App, Button, Checkbox, Input, Skeleton } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { RelatedDocsCard } from '@/components/DocFields/DocPage';
-import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
+import {
+  useOnReactivate,
+  usePageTitle,
+  useUnsavedGuard,
+} from '@/components/PageTabs/hooks';
 import ExpenseQuickModal from '@/pages/finance/expenses/AfterSalesExpense';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
@@ -105,8 +109,12 @@ const AfterSalesDetail: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
-  // 从其他页面返回时重新取数（audit UI-055）
-  useOnReactivate(load);
+  // 从其他页面返回时重新取数（audit UI-055）；弹窗开着时不刷新，以免重置正在填的内容（audit UI-065）
+  useOnReactivate(() => {
+    if (!dialog) load();
+  });
+  // 跟进记录写了内容或传了附件还没保存：离开前确认（audit UI-066）
+  useUnsavedGuard(!!note.trim() || noteFiles.length > 0);
 
   if (error) return <ErrorHint message={error} onRetry={load} />;
   if (!a) return <Skeleton active paragraph={{ rows: 12 }} />;
@@ -963,7 +971,7 @@ const AfterSalesDetail: React.FC = () => {
       <ReasonModal
         open={dialog === 'cancel'}
         title={`撤销 ${a.asNo}？`}
-        description="只有还没有退货、退款申请、退款与费用的售后单能撤销；撤销后只读。"
+        description="只有还没有退货、退款申请、退款、费用与补发订单（取消的不算）的售后单能撤销；撤销后只读。"
         okText="撤销"
         danger
         onCancel={() => setDialog(undefined)}

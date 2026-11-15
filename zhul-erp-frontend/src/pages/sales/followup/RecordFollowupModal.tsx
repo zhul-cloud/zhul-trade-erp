@@ -290,6 +290,9 @@ const RecordFollowupModal: React.FC<{
   const [saving, setSaving] = useState(false);
   const keyRef = useRef(newKey());
   const pollRef = useRef<{ timer?: number; run: number }>({ run: 0 });
+  /** AI 整理完成时按最新的输入判断：整理期间手填的下一步、手选的日期不被覆盖（audit UI-064） */
+  const latestRef = useRef({ nextAction, dateTouched });
+  latestRef.current = { nextAction, dateTouched };
 
   const stopPoll = () => {
     window.clearTimeout(pollRef.current.timer);
@@ -385,9 +388,10 @@ const RecordFollowupModal: React.FC<{
     setTruncated(!!res.truncated);
     setAnswers((a) => applyAiAnswers(kind, a, res, item?.stageCode));
     const first = res.nextActions?.[0];
-    if (first && !nextAction.trim()) {
+    const now = latestRef.current;
+    if (first && !now.nextAction.trim()) {
       setNextAction(first.text.slice(0, NEXT_MAX));
-      if (first.date && !dateTouched) pickDate(dayjs(first.date));
+      if (first.date && !now.dateTouched) pickDate(dayjs(first.date));
     }
   };
 

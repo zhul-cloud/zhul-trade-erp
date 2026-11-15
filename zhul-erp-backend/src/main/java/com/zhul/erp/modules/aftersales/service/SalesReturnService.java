@@ -39,6 +39,7 @@ import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.LogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -85,7 +86,7 @@ public class SalesReturnService {
     // ---------------------------------------------------------------- 生成、修改
 
     /** 售后单处理方式「仅退货」「退货退款」：生成待确认的销售退货单 */
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public ReturnVO create(SaveReturnRequest req) {
         if (req.getAfterSalesId() == null) {
             throw new BizException("请从售后单发起退货");
@@ -135,7 +136,7 @@ public class SalesReturnService {
     }
 
     /** 待确认时改型号、数量、快递、备注；确认后到入库前只能补填快递（同步到退货入库单） */
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public ReturnVO update(Long id, SaveReturnRequest req) {
         SalesReturnDO r = lockVisible(id);
         if (r.getStatus() == AfterSalesConstants.RT_CONFIRMING) {
@@ -170,7 +171,7 @@ public class SalesReturnService {
     }
 
     /** 确认退货：待入库，生成退货入库单；退货退款同时生成退款申请（同一事务） */
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public ReturnVO confirm(Long id, ConfirmReturnRequest req) {
         SalesReturnDO pre = visible(id);
         afterSalesMapper.lockById(pre.getAfterSalesId());
@@ -213,7 +214,7 @@ public class SalesReturnService {
     }
 
     /** 作废：待确认，或待入库且退货入库单还没验收；同时作废退货入库单、撤回还没执行的退款申请 */
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public ReturnVO voidReturn(Long id, String reason) {
         String why = trim(reason);
         if (why.isEmpty()) {
@@ -248,7 +249,7 @@ public class SalesReturnService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public ReturnVO remark(Long id, String remark) {
         SalesReturnDO r = lockVisible(id);
         requireNotVoid(r);
@@ -258,7 +259,7 @@ public class SalesReturnService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public ReturnVO attach(Long id, List<Long> ids) {
         requireNotVoid(visible(id));
         attachments.attach(AttachmentService.SALES_RETURN, id, ids);
@@ -266,7 +267,7 @@ public class SalesReturnService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public ReturnVO removeAttachment(Long id, Long attachmentId) {
         requireNotVoid(visible(id));
         attachments.remove(AttachmentService.SALES_RETURN, id, attachmentId);
@@ -566,6 +567,7 @@ public class SalesReturnService {
         return r;
     }
 
+    /** 写方法用读已提交，加锁后的重读拿到其他事务已提交的最新状态（audit BUS-035） */
     private SalesReturnDO lock(Long id) {
         returnMapper.lockById(id);
         return returnMapper.selectById(id);

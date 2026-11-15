@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 覆盖矩阵（tasks 4.7）：按覆盖状态或按无货汇总品牌 × 二级品类，型号清单按更新时间倒序分页。
@@ -95,20 +96,34 @@ public class CoverageMatrixService {
     }
 
     /**
-     * 型号清单，按更新时间倒序；all 为 true 时含观察中的需求对象（记处理选型号用），否则只看已进入矩阵的。
-     * keyword 按型号模糊匹配。
+     * 型号清单的筛选：ownerId 为负责人（空为全部）；stockoutDays 只看近 30 / 90 天有无货记录的，
+     * 与覆盖矩阵格子同口径（audit UI-089）；all 为 true 时含观察中的需求对象（记处理选型号用）。
      */
-    public Page<DemandVO> models(Long brandId, Long categoryId, Integer coverage, Integer priority, String keyword,
-                                 boolean all, int page, int size) {
-        String kw = keyword == null ? "" : keyword.trim();
+    public record ModelFilter(Long brandId, Long categoryId, Integer coverage, Integer priority, String keyword,
+                              Long ownerId, Integer stockoutDays, boolean all) {
+    }
+
+    /** 型号清单，按更新时间倒序；keyword 按型号模糊匹配 */
+    public Page<DemandVO> models(ModelFilter f, int page, int size) {
+        String kw = f.keyword() == null ? "" : f.keyword().trim();
+        Set<Long> stockoutIds = null;
+        if (f.stockoutDays() != null) {
+            stockoutIds = boardService.stockouts(f.stockoutDays() == 90 ? 90 : 30).keySet();
+            if (stockoutIds.isEmpty()) {
+                return Page.of(page, size, 0);
+            }
+        }
+        boolean all = f.all();
         Page<ScDemandDO> p = demandMapper.selectPage(Page.of(page, Math.min(size, 200)), new LambdaQueryWrapper<ScDemandDO>()
                 .eq(!all, ScDemandDO::getStatus, SupplyConstants.DEMAND_IN_MATRIX)
                 .ne(all, ScDemandDO::getStatus, SupplyConstants.DEMAND_PAUSED)
-                .eq(priority != null, ScDemandDO::getPriority, priority)
+                .eq(f.priority() != null, ScDemandDO::getPriority, f.priority())
                 .like(!kw.isEmpty(), ScDemandDO::getModel, kw)
-                .eq(brandId != null, ScDemandDO::getBrandId, brandId)
-                .eq(categoryId != null, ScDemandDO::getCategoryId, categoryId)
-                .eq(coverage != null, ScDemandDO::getCoverageStatus, coverage)
+                .eq(f.brandId() != null, ScDemandDO::getBrandId, f.brandId())
+                .eq(f.categoryId() != null, ScDemandDO::getCategoryId, f.categoryId())
+                .eq(f.coverage() != null, ScDemandDO::getCoverageStatus, f.coverage())
+                .eq(f.ownerId() != null, ScDemandDO::getOwnerId, f.ownerId())
+                .in(stockoutIds != null, ScDemandDO::getId, stockoutIds)
                 .isNull(ScDemandDO::getDeletedAt)
                 .orderByDesc(ScDemandDO::getUpdateTime).orderByDesc(ScDemandDO::getId));
         Page<DemandVO> out = Page.of(p.getCurrent(), p.getSize(), p.getTotal());

@@ -13,6 +13,8 @@ public class AfterSalesQuery {
     private String keyword;
     private Long customerId;
     private String levelCode;
+    /** 原因与责任（字典 after_sales_reason） */
+    private String reasonCode;
     private Long ownerId;
     /** 只看逾期（处理中、待客户确认且已过截止时间） */
     private Boolean overdue;

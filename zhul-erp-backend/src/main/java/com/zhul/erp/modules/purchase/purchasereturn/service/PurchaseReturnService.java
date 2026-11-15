@@ -3,6 +3,7 @@ package com.zhul.erp.modules.purchase.purchasereturn.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
+import com.zhul.erp.framework.security.DataScope;
 import com.zhul.erp.modules.aftersales.constants.AfterSalesConstants;
 import com.zhul.erp.modules.aftersales.entity.AfterSalesDO;
 import com.zhul.erp.modules.aftersales.entity.ReturnReceiptDO;
@@ -50,6 +51,7 @@ import com.zhul.erp.modules.warehouse.service.DiscrepancyService;
 import com.zhul.erp.modules.warehouse.support.ReceivingSupport;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -251,7 +253,7 @@ public class PurchaseReturnService {
 
     // ---------------------------------------------------------------- 状态操作
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PurchaseReturnVO updateQuantities(Long id, PurchaseReturnQtyRequest req) {
         PurchaseReturnDO p = visible(id);
         ReturnReceiptDO rr = lockReceipt(p);
@@ -301,7 +303,7 @@ public class PurchaseReturnService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PurchaseReturnVO ship(Long id, ShipPurchaseReturnRequest req) {
         visible(id);
         PurchaseReturnDO p = lock(id);
@@ -331,7 +333,7 @@ public class PurchaseReturnService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PurchaseReturnVO complete(Long id, CompletePurchaseReturnRequest req) {
         visible(id);
         PurchaseReturnDO p = lock(id);
@@ -372,7 +374,7 @@ public class PurchaseReturnService {
     }
 
     /** 已完成的金额需要更正：回到已寄出（运费不变），撤回成本冲减与应付冲减 */
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PurchaseReturnVO reopen(Long id, String reason) {
         String why = trim(reason);
         if (why.isEmpty()) {
@@ -401,7 +403,7 @@ public class PurchaseReturnService {
     }
 
     /** 作废（待寄出）：售后来源的数量回到退货入库单待处理；到货差异来源的差异重新打开 */
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PurchaseReturnVO voidReturn(Long id, String reason) {
         String why = trim(reason);
         if (why.isEmpty()) {
@@ -437,7 +439,7 @@ public class PurchaseReturnService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PurchaseReturnVO remark(Long id, String remark) {
         visible(id);
         PurchaseReturnDO p = lock(id);
@@ -449,7 +451,7 @@ public class PurchaseReturnService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PurchaseReturnVO attach(Long id, List<Long> ids) {
         PurchaseReturnDO p = visible(id);
         requireNotVoid(p);
@@ -458,7 +460,7 @@ public class PurchaseReturnService {
         return detail(id);
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PurchaseReturnVO removeAttachment(Long id, Long attachmentId) {
         PurchaseReturnDO p = visible(id);
         requireNotVoid(p);
@@ -619,7 +621,7 @@ public class PurchaseReturnService {
 
     /** 采购订单详情：它的采购退货单 */
     public List<PurchaseReturnVO> ofPurchaseOrder(Long poId) {
-        // 与采购退货详情一致，按负责人的数据范围（audit SEC-017）
+        // 与采购退货详情一致，按负责人或采购订单的采购员的数据范围（audit SEC-017、SEC-022）
         return toVos(mapper.selectList(scoped()
                 .eq(PurchaseReturnDO::getPoId, poId)
                 .orderByDesc(PurchaseReturnDO::getId)), false);
@@ -785,19 +787,34 @@ public class PurchaseReturnService {
         LambdaQueryWrapper<PurchaseReturnDO> w = new LambdaQueryWrapper<PurchaseReturnDO>()
                 .eq(PurchaseReturnDO::getTenantId, PiStore.tenantId())
                 .isNull(PurchaseReturnDO::getDeletedAt);
-        support.scope().apply(w, PurchaseReturnDO::getOwnerId);
+        // 负责人或采购订单的采购员在数据范围内（spec purchase/purchase-return；audit SEC-022）
+        DataScope scope = support.scope();
+        if (!scope.isAll()) {
+            String pos = support.scopedPoSql();
+            w.and(x -> scope.apply(x, PurchaseReturnDO::getOwnerId).or().inSql(PurchaseReturnDO::getPoId, pos));
+        }
         return w;
     }
 
     private PurchaseReturnDO visible(Long id) {
         PurchaseReturnDO p = id == null ? null : mapper.selectById(id);
-        if (p == null || p.getDeletedAt() != null || !Objects.equals(p.getTenantId(), PiStore.tenantId())
-                || !support.scope().canSee(p.getOwnerId())) {
+        if (p == null || p.getDeletedAt() != null || !Objects.equals(p.getTenantId(), PiStore.tenantId()) || !canSee(p)) {
             throw new BizException("采购退货单不存在");
         }
         return p;
     }
 
+    /** 负责人或采购订单的采购员在数据范围内（audit SEC-022） */
+    private boolean canSee(PurchaseReturnDO p) {
+        DataScope scope = support.scope();
+        if (scope.canSee(p.getOwnerId())) {
+            return true;
+        }
+        PurchaseOrderDO po = p.getPoId() == null ? null : support.pos(List.of(p.getPoId())).get(p.getPoId());
+        return po != null && scope.canSee(po.getPurchaserId());
+    }
+
+    /** 写方法用读已提交，加锁后的重读拿到其他事务已提交的最新状态（audit BUS-035） */
     private PurchaseReturnDO lock(Long id) {
         mapper.lockById(id);
         return mapper.selectById(id);

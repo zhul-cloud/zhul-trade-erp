@@ -18,6 +18,7 @@ import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { PageTitle, useWide } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   Card,
   CoverPill,
@@ -492,7 +493,7 @@ const ProjectDetailPage: React.FC = () => {
                 columns={columns}
                 dataSource={p.items ?? []}
                 pagination={false}
-                scroll={{ x: 'max-content' }}
+                scroll={{ x: tableScrollX(columns) }}
               />
             </Card>
           )}

@@ -16,6 +16,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
@@ -86,7 +87,10 @@ public class SupplyDailyJob {
         SignalImporter.Result r = importer.importAll(today.minusDays(LOOKBACK_DAYS).atStartOfDay(), floor, backfill);
         Integer filled = tx.execute(st -> categorySync.fillAll());
         com.zhul.erp.modules.supply.support.FulfillmentFeedback.Summary f = fulfillment.scan(today);
-        DemandRecalc.Summary s = tx.execute(st -> recalc.run(today, r.stockoutDemands));
+        // 整个租户的需求对象加行锁重算：读已提交，不加间隙锁，不挡期间新建的需求对象
+        TransactionTemplate recalcTx = new TransactionTemplate(tx.getTransactionManager());
+        recalcTx.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
+        DemandRecalc.Summary s = recalcTx.execute(st -> recalc.run(today, r.stockoutDemands));
         // 询价联动按询价记录 id 补登（处理记录唯一键去重），补上需求对象当时还不存在或线程池丢弃的
         linkage.backfill(today.minusDays(LOOKBACK_DAYS).atStartOfDay());
         int qualified = qualifier.refresh(today);

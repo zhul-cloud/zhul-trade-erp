@@ -4,9 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.framework.security.DataScopeResolver;
 import com.zhul.erp.framework.security.PermissionChecker;
 import com.zhul.erp.modules.finance.dto.FxPendingVO;
+import com.zhul.erp.modules.finance.dto.OrderCostVO;
 import com.zhul.erp.modules.finance.dto.OperatingReportVO;
 import com.zhul.erp.modules.finance.dto.PayableStatsVO;
 import com.zhul.erp.modules.finance.service.FxSettlementService;
+import com.zhul.erp.modules.finance.service.OrderCostService;
 import com.zhul.erp.modules.finance.service.OperatingReportService;
 import com.zhul.erp.modules.finance.service.PayableQueryService;
 import com.zhul.erp.modules.sales.constants.SalesConstants;
@@ -33,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -159,7 +162,8 @@ public class BossWidgets {
 
     @Bean
     public WorkbenchWidget riskAlertsWidget(PermissionChecker perm, PiService piService, ShipmentService shipments,
-                                            DiscrepancyService discrepancies, DataScopeResolver scope, SalesOrderMapper orders) {
+                                            DiscrepancyService discrepancies, DataScopeResolver scope, SalesOrderMapper orders,
+                                            OrderCostService orderCost) {
         return W.widget("risk-alerts", List.of(SalesWidgets.PIS, PurchaserWidgets.SHIPMENTS, SalesWidgets.ORDERS), () -> {
             List<WidgetData.Todo> todos = new ArrayList<>();
             if (perm.canAccessMenu(SalesWidgets.PIS)) {
@@ -178,10 +182,14 @@ public class BossWidgets {
                         .eq(SalesOrderDO::getTenantId, PiStore.tenantId())
                         .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
                         .ge(SalesOrderDO::getSalesDate, W.monthStart())
-                        .lt(SalesOrderDO::getNetProfitCny, BigDecimal.ZERO)
                         .isNull(SalesOrderDO::getDeletedAt);
                 scope.current().apply(w, SalesOrderDO::getOwnerId);
-                todos.add(W.todo("down", "red", "毛利为负的订单", "本月成交里亏本的订单", orders.selectCount(w), true,
+                // 与订单列表「毛利」列、「毛利为负」筛选同一口径：按实际成本读时计算（audit BUS-070）
+                List<SalesOrderDO> month = orders.selectList(w);
+                Map<Long, OrderCostVO> costs = month.isEmpty() ? Map.of() : orderCost.of(month);
+                long loss = month.stream().map(o -> costs.get(o.getId()))
+                        .filter(c -> c != null && c.getProfit() != null && c.getProfit().signum() < 0).count();
+                todos.add(W.todo("down", "red", "毛利为负的订单", "本月成交里亏本的订单", loss, true,
                         SalesWidgets.ORDERS + "?loss=1&dateFrom=" + W.monthStart() + "&dateTo=" + LocalDate.now()));
             }
             return W.of(W.todos(todos));

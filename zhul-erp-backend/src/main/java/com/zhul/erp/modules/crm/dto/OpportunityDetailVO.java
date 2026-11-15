@@ -23,6 +23,8 @@ public class OpportunityDetailVO extends OpportunityVO {
     private Integer closeReason;
     private String closeReasonLabel;
     private String closeNote;
+    /** 输单转培育时默认多少天后提醒重新激活（租户参数 sales.followup.nurture.default-days） */
+    private Integer nurtureDefaultDays;
     private List<OpportunityAttachmentVO> attachments;
     private List<StageLogVO> stageLogs;
     private List<LinkedInquiryVO> inquiries;

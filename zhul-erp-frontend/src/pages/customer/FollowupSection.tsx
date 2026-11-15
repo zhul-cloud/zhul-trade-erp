@@ -15,7 +15,8 @@ import {
 import { history } from '@umijs/max';
 import { App, Button, Checkbox, Segmented, Skeleton, Tooltip } from 'antd';
 import dayjs from 'dayjs';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
 import {
   DueText,
   Pill,
@@ -278,7 +279,7 @@ const RecordRow: React.FC<{ r: FollowupRecord; last: boolean }> = ({
 };
 
 /** 时间线：全部 / 业务员记录 / 系统事件，可只看有卡点的，先显示 5 条 */
-const FollowupTimeline: React.FC<{
+export const FollowupTimeline: React.FC<{
   customerId: number;
   first: CustomerFollowup;
   reloadKey: unknown;
@@ -292,24 +293,32 @@ const FollowupTimeline: React.FC<{
   const [total, setTotal] = useState(first.total ?? 0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
+  /** 请求序号：切换筛选后，之前发出的请求迟到时丢弃（audit UI-072） */
+  const reqRef = useRef(0);
 
+  /** 取第 p 页；p 为 1 时可用 pages 一次取回前几页（返回刷新时保留已加载的条数） */
   const load = useCallback(
-    (p: number) => {
+    (p: number, pages = 1) => {
+      const req = ++reqRef.current;
       setLoading(true);
       followupApi
         .customerRecords(customerId, {
           type,
           blockerOnly,
           page: p,
-          pageSize: PAGE,
+          pageSize: PAGE * pages,
         })
         .then((r) => {
-          setPage(p);
+          if (req !== reqRef.current) return;
+          // 后端一次最多返回 50 条，页码按实际取回的条数推算，避免跳过记录
+          setPage(
+            p === 1 ? Math.max(1, Math.ceil(r.records.length / PAGE)) : p,
+          );
           setTotal(r.total ?? 0);
           setRecords((old) => (p === 1 ? r.records : [...old, ...r.records]));
         })
-        .catch(() => p === 1 && setRecords([]))
-        .finally(() => setLoading(false));
+        .catch(() => req === reqRef.current && p === 1 && setRecords([]))
+        .finally(() => req === reqRef.current && setLoading(false));
     },
     [customerId, type, blockerOnly],
   );
@@ -318,6 +327,8 @@ const FollowupTimeline: React.FC<{
   useEffect(() => {
     if (reloadKey !== undefined) load(1);
   }, [load, reloadKey]);
+  // 切回页面时按当前筛选重取，已加载的条数保留（audit UI-055）
+  useOnReactivate(() => load(1, page));
 
   return (
     <>
@@ -384,10 +395,13 @@ export const FollowupSection: React.FC<{
   /** 主动开发记跟进选了「明确拒绝」：接着打开停止开发 */
   const [refused, setRefused] = useState<FollowupItem>();
   const { message } = App.useApp();
+  /** 切回页面的次数：主动开发状态随之重取（audit UI-055） */
+  const [shown, setShown] = useState(0);
+  useOnReactivate(() => setShown((n) => n + 1));
   // 主动开发状态：开发中 / 已停止可重新开发 / 可以加入（第四期 K17）
   const develop = useDevelopCard(
     customerId,
-    `${reloadKey}-${data?.current?.id}`,
+    `${reloadKey}-${shown}-${data?.current?.id}`,
   );
   const reopen = async () => {
     try {

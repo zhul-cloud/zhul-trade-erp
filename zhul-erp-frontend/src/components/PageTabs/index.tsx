@@ -25,7 +25,7 @@ import {
   type TabEntry,
   top,
 } from './model';
-import { initTabs, tabsActions, useTabsState } from './store';
+import { initTabs, setLeaveConfirm, tabsActions, useTabsState } from './store';
 
 type LocationCtx = React.ContextType<typeof UNSAFE_LocationContext>;
 
@@ -370,6 +370,22 @@ const PageTabs: React.FC<{
     if (inited !== userKey) initTabs({ userKey, homePath, menuOf, canOpen });
     // 只在换账号时重新初始化
   }, [userKey]);
+
+  // 浏览器后退离开未保存的页面时，与返回条一样先确认（audit UI-004#1）
+  const { modal } = App.useApp();
+  useEffect(() => {
+    setLeaveConfirm((leave) =>
+      modal.confirm({
+        title: '有未保存的修改',
+        content: '现在离开，这些修改会丢失。',
+        okText: '离开',
+        cancelText: '留下',
+        okButtonProps: { danger: true },
+        onOk: leave,
+      }),
+    );
+    return () => setLeaveConfirm(undefined);
+  }, [modal]);
 
   const s = useTabsState();
   const liveLoc = useMemo<LocationCtx>(

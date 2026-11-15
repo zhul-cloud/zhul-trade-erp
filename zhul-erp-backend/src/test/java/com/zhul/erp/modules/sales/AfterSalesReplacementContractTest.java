@@ -147,6 +147,24 @@ class AfterSalesReplacementContractTest extends SalesContractSupport {
         assertEquals("已取消", closed.path("replacements").get(0).path("progressName").asText());
     }
 
+    /** audit BUS-043：有没取消的补发订单时不能撤销售后单，取消补发订单后可以撤销 */
+    @Test
+    void cancel_rejectedWhileReplacementActive() throws Exception {
+        long so = paidOrder();
+        long customer = jdbc.queryForObject("select customer_id from sales_order where id = ?", Long.class, so);
+        long asId = afterSales(so, customer);
+        JsonNode brief = ok(replace(asId, List.of(Map.of("soItemId", soItem(so), "quantity", 1)))).path("replacements").get(0);
+        long rep = brief.path("soId").asLong();
+
+        String cancel = AS + "/" + asId + "/cancel";
+        assertEquals("已有补发订单 " + brief.path("soNo").asText() + "，请先取消补发订单",
+                fail(call(json(post(cancel), "{\"reason\":\"误建\"}"), admin)).path("message").asText());
+        assertEquals(1, jdbc.queryForObject("select status from after_sales where id = ?", Integer.class, asId), "仍是处理中");
+
+        ok(call(json(post(SO + "/" + rep + "/cancel"), write(Map.of("reason", "型号选错"))), admin));
+        assertEquals("已撤销", ok(call(json(post(cancel), "{\"reason\":\"误建\"}"), admin)).path("statusName").asText());
+    }
+
     @Test
     void shippedReplacement_allowsClose_andReplacementOfReplacementPointsToOriginal() throws Exception {
         long so = paidOrder();
@@ -165,5 +183,65 @@ class AfterSalesReplacementContractTest extends SalesContractSupport {
         assertEquals(so, order(rep2).path("originalSoId").asLong());
         money("48.50", order(rep2).path("items").get(0).path("declaredPrice"));
         assertEquals(2, order(so).path("cost").path("replacements").size());
+    }
+
+    /**
+     * audit BUS-044：处理中的售后单、退货单、退款申请挡住取消订单；
+     * 修复前已被取消的订单不能再补发，挂在上面的退款申请仍能按订单列出、由申请人撤回。
+     */
+    @Test
+    void openAfterSalesBlocksCancel_cancelledOrderNoReplacement_refundRequestWithdrawable() throws Exception {
+        long so = paidOrder();
+        long customer = jdbc.queryForObject("select customer_id from sales_order where id = ?", Long.class, so);
+        long asId = afterSales(so, customer);
+        String asNo = jdbc.queryForObject("select as_no from after_sales where id = ?", String.class, asId);
+        jdbc.update("insert into sales_return (tenant_id, return_no, after_sales_id, so_id, status) values (0, 'RTIT044', ?, ?, 2)", asId, so);
+        jdbc.update("insert into fin_refund_request (tenant_id, request_no, so_id, after_sales_id, currency_code, amount, method, status) "
+                + "values (0, 'RQIT044', ?, ?, 'USD', 10, 2, 0)", so, asId);
+        long rq = jdbc.queryForObject("select id from fin_refund_request where request_no = 'RQIT044'", Long.class);
+
+        JsonNode refused = fail(call(json(post(SO + "/" + so + "/cancel"), write(Map.of("reason", "改 PI 后重转"))), admin));
+        assertEquals("订单还有没处理完的售后单 " + asNo + "、退货单 RTIT044、退款申请 RQIT044，请先处理后再取消",
+                refused.path("message").asText());
+        assertEquals(1, jdbc.queryForObject("select status from sales_order where id = ?", Integer.class, so));
+
+        // 修复前已取消的订单：不能再补发（成本会挂到已取消的订单上），退款申请仍能列出、撤回
+        jdbc.update("update sales_order set status = 2 where id = ?", so);
+        assertEquals("订单已取消，不能补发", fail(replace(asId, List.of(Map.of("soItemId", soItem(so), "quantity", 1))))
+                .path("message").asText());
+        assertEquals(0, jdbc.queryForObject("select count(*) from sales_order where tenant_id = 0 and source = 3", Integer.class));
+        String rqApi = "/api/v1/finance/refund-requests";
+        assertEquals(1, ok(call(get(rqApi + "/order/" + so), admin)).size());
+        ok(call(post(rqApi + "/" + rq + "/withdraw"), admin));
+        assertEquals(5, jdbc.queryForObject("select status from fin_refund_request where id = ?", Integer.class, rq), "已撤回");
+    }
+
+    /** audit BUS-068：补发订单不能修改费用；部分取消后收款状态仍是「无需收款」 */
+    @Test
+    void replacementOrder_feesLocked_partialCancelKeepsReceiptFree() throws Exception {
+        long so = paidOrder();
+        long customer = jdbc.queryForObject("select customer_id from sales_order where id = ?", Long.class, so);
+        long asId = afterSales(so, customer);
+        long rep = ok(replace(asId, List.of(Map.of("soItemId", soItem(so), "quantity", 2)))).path("replacements").get(0)
+                .path("soId").asLong();
+
+        Map<String, Object> edit = new LinkedHashMap<>();
+        edit.put("fees", List.of(Map.of("feeName", "Shipping Cost", "amount", "20")));
+        edit.put("reason", "补运费");
+        edit.put("expectedTotal", "0");
+        assertEquals("售后补发订单不收款，不能修改费用",
+                fail(call(json(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(SO + "/" + rep + "/fees"),
+                        write(edit)), admin)).path("message").asText());
+        money("0", order(rep).path("totalAmount"));
+
+        Map<String, Object> pc = new LinkedHashMap<>();
+        pc.put("items", List.of(Map.of("itemId", soItem(rep), "quantity", 1)));
+        pc.put("reason", "OUT_OF_STOCK");
+        pc.put("remark", "少补一个");
+        ok(call(json(post(SO + "/" + rep + "/partial-cancel"), write(pc)), admin));
+        JsonNode after = order(rep);
+        assertEquals(1, after.path("items").get(0).path("quantity").asInt());
+        assertEquals("无需收款", after.path("receiptStatusName").asText());
+        assertEquals(5, jdbc.queryForObject("select receipt_status from sales_order where id = ?", Integer.class, rep));
     }
 }

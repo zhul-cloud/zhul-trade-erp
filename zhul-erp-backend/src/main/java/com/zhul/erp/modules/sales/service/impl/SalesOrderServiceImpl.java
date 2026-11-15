@@ -64,6 +64,7 @@ import com.zhul.erp.modules.system.service.LogService;
 import com.zhul.erp.modules.system.service.BusinessUnitService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -505,7 +506,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
      * PI 转成的订单：代收费用以 PI 为准原样保留，折扣按 PI 版本重算，收款按订单合计重算 PI 的收款状态（PI 本身不变）。
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public SalesOrderVO updateFees(Long id, com.zhul.erp.modules.sales.dto.UpdateOrderFeesRequest req) {
         SalesOrderDO o = visible(id);
         boolean manual = !Objects.equals(o.getSource(), SalesConstants.SO_FROM_PI);
@@ -517,6 +518,10 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         }
         if (SalesConstants.PROGRESS_COMPLETED.equals(o.getProgressCode())) {
             throw new BizException("订单已完成，不能修改费用");
+        }
+        // 补发订单 0 元、不收款，加了费用也收不回来（audit BUS-068）
+        if (Objects.equals(o.getSource(), SalesConstants.SO_REPLACEMENT)) {
+            throw new BizException("售后补发订单不收款，不能修改费用");
         }
         MigratedGuard.requireEditable(o.getMigrated());
         if (o.getTotalAmount().compareTo(req.getExpectedTotal()) != 0) {
@@ -537,6 +542,10 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 .eq(SalesOrderFeeDO::getFeeType, SalesConstants.FEE_COLLECTION)
                 .isNull(SalesOrderFeeDO::getDeletedAt));
         List<SalesOrderFeeDO> rows = feeRows(o.getTenantId(), req.getFees(), o.getExchangeRate());
+        // 费用订单没有型号行，删光费用就成了永远不会完成的 0 元订单（audit BUS-069）
+        if (rows.isEmpty() && Objects.equals(o.getSource(), SalesConstants.SO_FEE)) {
+            throw new BizException("费用订单至少要保留一行费用，不需要了请取消订单");
+        }
         String before = feesText(o.getCurrencyCode(), old);
         String after = feesText(o.getCurrencyCode(), rows);
         if (before.equals(after)) {
@@ -644,7 +653,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public SalesOrderVO cancel(Long id, String reason) {
         String why = reason == null ? "" : reason.trim();
         if (why.isEmpty()) {
@@ -665,6 +674,10 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         List<String> obNos = logisticsQty.inWarehouseObNos(orderItems(id).stream().map(SalesOrderItemDO::getId).toList());
         if (!obNos.isEmpty()) {
             throw new BizException("订单还有未交货代的销售出库单 " + String.join("、", obNos) + "，请先撤回后再取消");
+        }
+        List<String> open = deleteCheck.cancelBlockers(o);
+        if (!open.isEmpty()) {
+            throw new BizException("订单还有没处理完的" + String.join("、", open) + "，请先处理后再取消");
         }
         o.setStatus(SalesConstants.SO_CANCELLED);
         o.setCancelReason(why.length() > 200 ? why.substring(0, 200) : why);
@@ -945,7 +958,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
      * 锁顺序 PI → 订单 → 采购需求 → 采购订单，与取消订单、下单一致。
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public SalesOrderVO partialCancel(Long id, PartialCancelRequest req) {
         SalesOrderDO o = visible(id);
         if (Objects.equals(o.getSource(), SalesConstants.SO_FEE)) {
@@ -1786,9 +1799,10 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             w.eq(SalesOrderDO::getPayLater, 1)
                     .inSql(SalesOrderDO::getPiId, piIdsByReceipt(tenant, SalesConstants.RECEIPT_NONE));
         }
-        if (Boolean.TRUE.equals(q.getLossOnly())) {
-            w.eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
-                    .lt(SalesOrderDO::getNetProfitCny, BigDecimal.ZERO);
+        boolean lossOnly = Boolean.TRUE.equals(q.getLossOnly());
+        if (lossOnly) {
+            // 毛利为负在下面按实际成本筛（audit BUS-070）
+            w.eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE);
         }
         if (q.getReceiptStatus() != null) {
             int receipt = q.getReceiptStatus();
@@ -1875,23 +1889,45 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         }
         int size = q.getPageSize() == null || q.getPageSize() <= 0 ? 20 : Math.min(q.getPageSize(), 100);
         int page = Math.max(1, q.getPage() == null ? 1 : q.getPage());
+        boolean byProfit = "profit".equals(q.getSortField()) && q.getSortOrder() != null;
+        if (lossOnly) {
+            // 「毛利为负」与列表「毛利」列同一口径：毛利读时按实际成本计算，取筛选范围内全部进行中的订单算完成本后筛出亏本的
+            w.orderByDesc(SalesOrderDO::getUpdateTime).orderByDesc(SalesOrderDO::getId);
+            List<SalesOrderDO> candidates = orderMapper.selectList(w);
+            Map<Long, OrderCostVO> costs = candidates.isEmpty() ? Map.of() : orderCostService.of(candidates);
+            List<SalesOrderDO> loss = candidates.stream().filter(o -> {
+                OrderCostVO c = costs.get(o.getId());
+                return c != null && c.getProfit() != null && c.getProfit().signum() < 0;
+            }).toList();
+            if (loss.isEmpty()) {
+                return PageResult.of(0L, List.of());
+            }
+            if (byProfit) {
+                return profitPage(toListVos(loss), q.getSortOrder(), page, size, loss.size());
+            }
+            int from = Math.min(loss.size(), (page - 1) * size);
+            return PageResult.of((long) loss.size(), toListVos(loss.subList(from, Math.min(loss.size(), from + size))));
+        }
         long total = orderMapper.selectCount(w);
         if (total == 0) {
             return PageResult.of(0L, List.of());
         }
         // 列表页统一规范：默认按更新时间倒序
         w.orderByDesc(SalesOrderDO::getUpdateTime).orderByDesc(SalesOrderDO::getId);
-        if ("profit".equals(q.getSortField()) && q.getSortOrder() != null) {
-            // 毛利是读时计算的：取筛选范围内全部订单算完成本后在内存里排序、分页；已取消的排在最后
-            List<SalesOrderListVO> all = toListVos(orderMapper.selectList(w));
-            Comparator<SalesOrderListVO> byProfit = Comparator.comparing(SalesOrderListVO::getProfit,
-                    Comparator.nullsLast("ascend".equals(q.getSortOrder()) ? Comparator.<BigDecimal>naturalOrder() : Comparator.<BigDecimal>reverseOrder()));
-            List<SalesOrderListVO> sorted = all.stream().sorted(byProfit).toList();
-            int from = Math.min(sorted.size(), (page - 1) * size);
-            return PageResult.of(total, sorted.subList(from, Math.min(sorted.size(), from + size)));
+        if (byProfit) {
+            return profitPage(toListVos(orderMapper.selectList(w)), q.getSortOrder(), page, size, total);
         }
         w.last("LIMIT " + (long) (page - 1) * size + ", " + size);
         return PageResult.of(total, toListVos(orderMapper.selectList(w)));
+    }
+
+    /** 毛利是读时计算的：筛选范围内全部订单算完成本后在内存里排序、分页；已取消的排在最后 */
+    private static PageResult<SalesOrderListVO> profitPage(List<SalesOrderListVO> all, String sortOrder, int page, int size, long total) {
+        Comparator<SalesOrderListVO> byProfit = Comparator.comparing(SalesOrderListVO::getProfit,
+                Comparator.nullsLast("ascend".equals(sortOrder) ? Comparator.<BigDecimal>naturalOrder() : Comparator.<BigDecimal>reverseOrder()));
+        List<SalesOrderListVO> sorted = all.stream().sorted(byProfit).toList();
+        int from = Math.min(sorted.size(), (page - 1) * size);
+        return PageResult.of(total, sorted.subList(from, Math.min(sorted.size(), from + size)));
     }
 
     @Override

@@ -1,5 +1,5 @@
 import { LockOutlined } from '@ant-design/icons';
-import { history, useAccess, useParams, useSearchParams } from '@umijs/max';
+import { useAccess, useParams, useSearchParams } from '@umijs/max';
 import {
   Alert,
   App,
@@ -22,6 +22,7 @@ import React, {
   useState,
 } from 'react';
 import { usePageTitle, useTabDirty } from '@/components/PageTabs/hooks';
+import { tabsActions } from '@/components/PageTabs/store';
 import { CompletenessBar } from '../components/CompletenessBar';
 import { ErrorHint } from '../components/EmptyHint';
 import { LifecyclePill, Pill } from '../components/Pills';
@@ -679,7 +680,8 @@ const DetailInner: React.FC = () => {
             onClick={async () => {
               await productApi.remove(product.id);
               message.success('已删除');
-              history.push('/product/products');
+              // 退回上一页，不再压一层列表，返回条不会指向已删除的商品（audit UI-058）
+              tabsActions.backOr('/product/products');
             }}
           >
             删除
