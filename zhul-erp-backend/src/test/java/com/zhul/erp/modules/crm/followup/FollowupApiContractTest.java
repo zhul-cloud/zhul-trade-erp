@@ -862,8 +862,11 @@ class FollowupApiContractTest extends IntegrationTestBase {
         assertEquals("物流跟踪", fulfil.path("groups").get(2).path("stages").get(0).path("name").asText());
         assertEquals(1, after.path("groups").get(2).path("count").asInt(), "问题");
 
+        // audit UI-097：客户列带主联系人
+        jdbc.update("update customer set contact_name = 'Max Weber' where tenant_id = 0");
         JsonNode list = ok(call(get(BASE + "/items").param("board", "3"), staff));
         assertEquals(2, list.path("total").asInt());
+        assertEquals("Max Weber", list.path("records").get(0).path("customerContact").asText());
         JsonNode exceptions = ok(call(get(BASE + "/items").param("board", "3").param("exception", "true"), staff));
         assertEquals(1, exceptions.path("total").asInt());
         JsonNode ex = exceptions.path("records").get(0);

@@ -160,7 +160,12 @@ const PendingPanel: React.FC<{ canEdit: boolean; version: number }> = ({
                   }}
                   aria-label={`全选 ${g.customerName ?? ''}`}
                 />
-                <b style={{ color: palette.ink }}>{g.customerName}</b>
+                <CustomerCell
+                  name={g.customerName}
+                  country={g.customerCountry}
+                  type={g.customerType}
+                  contact={g.customerContact}
+                />
                 <Pill tone="accent">{g.forwarderName}</Pill>
                 <span style={{ flex: 1 }} />
                 {canEdit && (

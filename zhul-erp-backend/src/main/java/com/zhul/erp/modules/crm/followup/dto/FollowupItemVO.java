@@ -20,6 +20,8 @@ public class FollowupItemVO {
     private Long customerId;
     private String customerName;
     private String country;
+    /** 客户主联系人，客户列按统一客户列显示（audit UI-097） */
+    private String customerContact;
     /** 经营等级：S / A / B / C，未成交为空 */
     private String bizGrade;
     /** 潜力 1–5，0 为未评 */

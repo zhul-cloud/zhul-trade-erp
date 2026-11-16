@@ -134,6 +134,15 @@ public class LogisticsShipmentService {
             Long f = forwarderOfDirect(d.getId());
             group(groups, d.getCustomerId(), d.getCustomerName(), f, forwarders.get(f)).getDirects().add(d);
         }
+        Map<Long, CustomerDO> customers = support.customers(groups.values().stream().map(PendingGroupVO::getCustomerId).toList());
+        Map<Long, SalesOrderDO> orders = support.orders(obs.stream().map(OutboundVO::getSoId).toList());
+        for (PendingGroupVO g : groups.values()) {
+            CustomerDO c = customers.get(g.getCustomerId());
+            g.setCustomerCountry(c == null ? null : c.getCountry());
+            g.setCustomerContact(InquiryLookups.contactName(c));
+            g.getOutbounds().stream().map(ob -> orders.get(ob.getSoId())).filter(Objects::nonNull).findFirst()
+                    .ifPresent(so -> g.setCustomerType(so.getCustomerType()));
+        }
         return new ArrayList<>(groups.values());
     }
 

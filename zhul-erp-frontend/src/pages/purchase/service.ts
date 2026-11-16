@@ -174,6 +174,10 @@ export interface PoListItem {
   /** 1-现货、2-期货 */
   stockType?: number;
   itemCount: number;
+  /** 第一个型号与去重的品牌、品类 */
+  firstModel?: string;
+  brands?: string[];
+  categories?: string[];
   totalQuantity: number;
   missingPriceCount: number;
   currencyCode: string;
