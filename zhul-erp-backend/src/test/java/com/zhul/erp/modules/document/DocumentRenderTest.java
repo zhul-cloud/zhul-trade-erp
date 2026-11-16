@@ -42,6 +42,35 @@ class DocumentRenderTest {
         }
     }
 
+    /** audit UI-099：很长的英文描述在列宽上限内放不下时自动换行，并加高这一行，不再压到上下行 */
+    @Test
+    void longDescription_wrapsAndRaisesRowHeight() throws IOException {
+        RenderModel m = SampleData.ci();
+        String longText = "Siemens SIMATIC S7-1200, CPU 1214C, compact CPU, AC/DC/relay, onboard I/O: 14 DI 24V DC; 10 DO relay 2A; "
+                + "2 AI 0-10V DC, Power supply: AC 85-264 V AC at 47-63 Hz, Program/data memory: 100 KB, with extra long notes";
+        m.items().get(0).put("item.description", longText);
+        byte[] template = builtin("ci-v1.xlsx");
+        float templateHeight;
+        try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(template))) {
+            templateHeight = wb.getSheetAt(0).getRow(XlsxTemplateInspector.inspect(wb, com.zhul.erp.modules.document.constants.DocTypes.CI, true)
+                    .itemRow()).getHeightInPoints();
+        }
+        byte[] out = XlsxRenderer.render(template, com.zhul.erp.modules.document.constants.DocTypes.CI, m);
+        try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(out))) {
+            Cell desc = null;
+            for (Row row : wb.getSheetAt(0)) {
+                for (Cell c : row) {
+                    if (longText.equals(new DataFormatter().formatCellValue(c))) {
+                        desc = c;
+                    }
+                }
+            }
+            assertThat(desc).isNotNull();
+            assertThat(desc.getCellStyle().getWrapText()).isTrue();
+            assertThat(desc.getRow().getHeightInPoints()).isGreaterThan(templateHeight);
+        }
+    }
+
     @Test
     void builtinQuotationTemplatePassesInspection() throws IOException {
         try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(builtin("quotation-v1.xlsx")))) {

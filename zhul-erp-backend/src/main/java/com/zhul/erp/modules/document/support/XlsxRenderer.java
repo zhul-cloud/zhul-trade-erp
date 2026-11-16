@@ -249,6 +249,67 @@ public final class XlsxRenderer {
             }
         }
         widenColumns(sheet, rowIdx, rowIdx + n - 1);
+        fitRowHeights(sheet, rowIdx, rowIdx + n - 1);
+    }
+
+    /**
+     * 列宽加到上限后仍放不下的文字（如很长的英文描述）自动换行，并按折行数加高这一行，避免文字被截断或压到上下行（audit UI-099）。
+     * 行数按显示宽度 ÷ 列宽估算（合并单元格按合并范围的总宽度），行高 = 行数 × 字号 × 1.3，不低于模版行高。
+     */
+    static void fitRowHeights(Sheet sheet, int firstRow, int lastRow) {
+        DataFormatter fmt = new DataFormatter();
+        List<CellRangeAddress> merges = sheet.getMergedRegions();
+        java.util.Map<Short, org.apache.poi.ss.usermodel.CellStyle> wrapped = new java.util.HashMap<>();
+        for (int r = firstRow; r <= lastRow; r++) {
+            Row row = sheet.getRow(r);
+            if (row == null) {
+                continue;
+            }
+            float height = row.getHeightInPoints();
+            for (Cell cell : row) {
+                if (cell.getCellType() == CellType.BLANK) {
+                    continue;
+                }
+                String text = fmt.formatCellValue(cell);
+                if (text.isEmpty()) {
+                    continue;
+                }
+                int first = cell.getColumnIndex();
+                int last = first;
+                for (CellRangeAddress m : merges) {
+                    if (m.isInRange(cell)) {
+                        first = m.getFirstColumn();
+                        last = m.getLastColumn();
+                        break;
+                    }
+                }
+                int widthChars = 0;
+                for (int c = first; c <= last; c++) {
+                    widthChars += sheet.getColumnWidth(c) / 256;
+                }
+                int lines = 0;
+                for (String part : text.split("\n", -1)) {
+                    lines += Math.max(1, (int) Math.ceil(displayWidth(part) / (double) Math.max(widthChars - 1, 1)));
+                }
+                if (lines <= 1) {
+                    continue;
+                }
+                org.apache.poi.ss.usermodel.CellStyle style = cell.getCellStyle();
+                if (!style.getWrapText()) {
+                    cell.setCellStyle(wrapped.computeIfAbsent(style.getIndex(), k -> {
+                        org.apache.poi.ss.usermodel.CellStyle copy = sheet.getWorkbook().createCellStyle();
+                        copy.cloneStyleFrom(style);
+                        copy.setWrapText(true);
+                        return copy;
+                    }));
+                }
+                short fontPt = sheet.getWorkbook().getFontAt(style.getFontIndex()).getFontHeightInPoints();
+                height = Math.max(height, lines * fontPt * 1.3f + 2);
+            }
+            if (height > row.getHeightInPoints()) {
+                row.setHeightInPoints(height);
+            }
+        }
     }
 
     /**

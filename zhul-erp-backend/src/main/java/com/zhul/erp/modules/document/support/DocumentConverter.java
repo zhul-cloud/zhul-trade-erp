@@ -49,6 +49,9 @@ public class DocumentConverter {
     public static final String UNAVAILABLE = "PDF / 图片暂时无法生成，可以先下载 Excel";
     private static final String PDF_FILTER = "pdf:calc_pdf_Export:{\"ReduceImageResolution\":{\"type\":\"boolean\",\"value\":\"true\"},"
             + "\"MaxImageResolution\":{\"type\":\"long\",\"value\":\"150\"},\"Quality\":{\"type\":\"long\",\"value\":\"80\"}}";
+    /** 带公章、签名的单证（CI、PL）：图片按 300 DPI、JPEG 质量 90 输出，150 DPI / 80 下细线会发糊（audit UI-099） */
+    private static final String SHARP_PDF_FILTER = "pdf:calc_pdf_Export:{\"ReduceImageResolution\":{\"type\":\"boolean\",\"value\":\"true\"},"
+            + "\"MaxImageResolution\":{\"type\":\"long\",\"value\":\"300\"},\"Quality\":{\"type\":\"long\",\"value\":\"90\"}}";
     /** 背调报告等 HTML 文档用 Writer/Web 导出 */
     private static final String HTML_PDF_FILTER = "pdf:writer_web_pdf_Export";
     private static final int TIMEOUT_SECONDS = 30;
@@ -115,6 +118,15 @@ public class DocumentConverter {
 
     /** 正式导出：优先于排队中的预览 */
     public byte[] toPdf(byte[] xlsx) {
+        return export(xlsx, PDF_FILTER);
+    }
+
+    /** 带公章、签名的单证（CI、PL）：图片保留更高分辨率，其余同 {@link #toPdf} */
+    public byte[] toSharpPdf(byte[] xlsx) {
+        return export(xlsx, SHARP_PDF_FILTER);
+    }
+
+    private byte[] export(byte[] xlsx, String filter) {
         waitingExports.incrementAndGet();
         try {
             lock.lock();
@@ -122,7 +134,7 @@ public class DocumentConverter {
             waitingExports.decrementAndGet();
         }
         try {
-            return convert(xlsx);
+            return convert(xlsx, "document.xlsx", filter);
         } finally {
             lock.unlock();
         }
