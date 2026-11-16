@@ -88,6 +88,19 @@ export const ShipNoticeModal: React.FC<{
     (l) => (lines[l.soItemId]?.quantity ?? 0) > l.available,
   );
 
+  // 发通知不可点时直接说原因，免得误以为是型号的问题
+  const blocker = !form
+    ? undefined
+    : !forwarderId
+      ? forwarders.length
+        ? '先选货代'
+        : '还没有启用的货代'
+      : chosen.length === 0
+        ? '先勾选要发货的型号'
+        : over
+          ? `${over.model} 最多可出库 ${over.available}`
+          : undefined;
+
   const submit = async () => {
     if (!forwarderId) return;
     setBusy(true);
@@ -132,12 +145,19 @@ export const ShipNoticeModal: React.FC<{
       }
       footer={
         <>
+          {blocker && (
+            <span
+              style={{ color: palette.orange, fontSize: 12, marginRight: 12 }}
+            >
+              {blocker}
+            </span>
+          )}
           <Button onClick={onClose}>取消</Button>
           <Button
             type="primary"
             icon={<SendOutlined />}
             loading={busy}
-            disabled={!form || !forwarderId || chosen.length === 0 || !!over}
+            disabled={!form || !!blocker}
             onClick={submit}
           >
             {outbound ? '保存' : '发通知'}

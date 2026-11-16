@@ -14,6 +14,9 @@ import com.zhul.erp.modules.sales.constants.SalesConstants;
 import com.zhul.erp.modules.sales.entity.SalesOrderDO;
 import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
 import com.zhul.erp.modules.sales.support.PiStore;
+import com.zhul.erp.modules.system.migration.entity.MigrationIdMapDO;
+import com.zhul.erp.modules.system.migration.repository.MigrationIdMapMapper;
+import com.zhul.erp.modules.system.migration.service.MasterDataImporter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -32,6 +35,7 @@ public class LogisticsSupport {
 
     private final SalesOrderMapper soMapper;
     private final SupplierMapper supplierMapper;
+    private final MigrationIdMapMapper idMapMapper;
     private final DataScopeResolver dataScopeResolver;
     private final InquiryLookups lookups;
 
@@ -69,12 +73,21 @@ public class LogisticsSupport {
         return out;
     }
 
-    /** 启用的服务商（货代、快递公司） */
+    /** 启用的服务商（货代、快递公司），供发货通知选择；不含历史迁移的「未登记货代」占位（只挂历史出运单） */
     public List<ForwarderVO> forwarders() {
+        Integer tenantId = PiStore.tenantId();
+        // migration_id_map 不经租户拦截器，手写租户条件
+        List<Long> placeholders = idMapMapper.selectList(new LambdaQueryWrapper<MigrationIdMapDO>()
+                        .eq(MigrationIdMapDO::getTenantId, tenantId)
+                        .eq(MigrationIdMapDO::getSourceTable, "suppliers")
+                        .eq(MigrationIdMapDO::getSourceCode, MasterDataImporter.FORWARDER_KEY)
+                        .eq(MigrationIdMapDO::getTargetTable, "supplier"))
+                .stream().map(MigrationIdMapDO::getTargetId).toList();
         return supplierMapper.selectList(new LambdaQueryWrapper<SupplierDO>()
-                        .eq(SupplierDO::getTenantId, PiStore.tenantId())
+                        .eq(SupplierDO::getTenantId, tenantId)
                         .eq(SupplierDO::getSupplierType, LogisticsConstants.SUPPLIER_SERVICE)
                         .eq(SupplierDO::getStatus, 1)
+                        .notIn(!placeholders.isEmpty(), SupplierDO::getId, placeholders)
                         .orderByAsc(SupplierDO::getName))
                 .stream().map(s -> {
                     ForwarderVO vo = new ForwarderVO();
