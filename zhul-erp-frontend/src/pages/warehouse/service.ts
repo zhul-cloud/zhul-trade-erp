@@ -160,6 +160,8 @@ export interface ShipmentForm {
     model: string;
     brand?: string;
     category?: string;
+    /** 型号所属销售订单的客户 */
+    customerId?: number | null;
     orderedQty: number;
     shippedQty: number;
     maxQuantity: number;

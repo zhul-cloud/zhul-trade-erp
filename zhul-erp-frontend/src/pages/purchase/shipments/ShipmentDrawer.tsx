@@ -152,6 +152,23 @@ const ShipmentDrawer: React.FC<{
     const q = lines[l.poItemId]?.quantity;
     return !q || q <= 0 || q > l.maxQuantity;
   });
+  // 直发货代：公司货代，加上所选型号所属客户的指定货代（排在前面）；其他客户的指定货代不列出（audit BUS-084）
+  const pickedCustomers = [
+    ...new Set(picked.map((l) => l.customerId).filter((c) => c != null)),
+  ];
+  const onlyCustomer =
+    pickedCustomers.length === 1 ? pickedCustomers[0] : undefined;
+  const forwarderOptions = forwarders
+    .filter(
+      (f) =>
+        f.customerId == null ||
+        (onlyCustomer != null && f.customerId === onlyCustomer),
+    )
+    .sort((a, b) => Number(b.customerId != null) - Number(a.customerId != null))
+    .map((f) => ({
+      value: f.id,
+      label: f.customerId != null ? `${f.name}（客户指定）` : f.name,
+    }));
 
   const submit = async () => {
     if (!form) return;
@@ -274,10 +291,7 @@ const ShipmentDrawer: React.FC<{
                 value={forwarderId}
                 onChange={setForwarderId}
                 placeholder="选择货代"
-                options={forwarders.map((f) => ({
-                  value: f.id,
-                  label: f.name,
-                }))}
+                options={forwarderOptions}
                 style={{ width: '100%' }}
                 aria-label="货代"
               />

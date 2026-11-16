@@ -78,9 +78,10 @@ public class ForwarderService {
 
     /** 页签上的数量：全部、公司货代、客户指定 */
     public ForwarderCountsVO counts() {
+        List<Long> placeholders = support.placeholderForwarders();
         ForwarderCountsVO vo = new ForwarderCountsVO();
-        vo.setAll(supplierMapper.selectCount(base()));
-        vo.setCompany(supplierMapper.selectCount(base().isNull(SupplierDO::getCustomerId)));
+        vo.setAll(supplierMapper.selectCount(base(placeholders)));
+        vo.setCompany(supplierMapper.selectCount(base(placeholders).isNull(SupplierDO::getCustomerId)));
         vo.setCustomer(vo.getAll() - vo.getCompany());
         return vo;
     }
@@ -145,7 +146,10 @@ public class ForwarderService {
 
     /** 本租户未删除的货代（服务商），不含历史迁移的占位 */
     private LambdaQueryWrapper<SupplierDO> base() {
-        List<Long> placeholders = support.placeholderForwarders();
+        return base(support.placeholderForwarders());
+    }
+
+    private static LambdaQueryWrapper<SupplierDO> base(List<Long> placeholders) {
         return new LambdaQueryWrapper<SupplierDO>()
                 .eq(SupplierDO::getTenantId, PiStore.tenantId())
                 .eq(SupplierDO::getSupplierType, LogisticsConstants.SUPPLIER_SERVICE)

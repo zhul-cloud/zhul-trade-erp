@@ -508,6 +508,27 @@ class OutboundShippingContractTest extends SalesContractSupport {
 
     // ---------------------------------------------------------------- 直发货代
 
+    /** audit BUS-084：直发货代不能用其他客户的指定货代，可以用本客户的；发货表单按行带出型号所属客户 */
+    @Test
+    void directToForwarder_rejectsOtherCustomersForwarder() throws Exception {
+        JsonNode po = orderedPo(supplier("直发归属电子", null), 2);
+        long customerId = jdbc.queryForObject("select customer_id from sales_order where id = ?", Long.class, soOf(po));
+        long poId = po.path("id").asLong();
+        Map<String, Object> body = new HashMap<>();
+        body.put("poId", poId);
+        body.put("directForwarderId", forwarder);
+        body.put("shipDate", LocalDate.now().toString());
+        body.put("items", List.of(Map.of("poItemId", po.path("items").get(0).path("id").asLong(), "quantity", 2)));
+        jdbc.update("update supplier set customer_id = ? where id = ?", customerId + 1000000, forwarder);
+        JsonNode rejected = call(json(post(SHIP), write(body)), lin);
+        assertTrue(rejected.path("message").asText().contains("其他客户指定的货代"), rejected.toString());
+
+        JsonNode form = ok(call(get(SHIP + "/form").param("poId", String.valueOf(poId)), lin));
+        assertEquals(customerId, form.path("lines").get(0).path("customerId").asLong(), "表单按行带出客户");
+        jdbc.update("update supplier set customer_id = ? where id = ?", customerId, forwarder);
+        ok(call(json(post(SHIP), write(body)), lin));
+    }
+
     @Test
     void directToForwarder_confirmCreatesReceiptAndOutbound() throws Exception {
         JsonNode po = orderedPo(supplier("华强电子", null), 5);

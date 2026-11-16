@@ -22,6 +22,8 @@ export interface Forwarder {
   volumeDivisor?: number;
   /** 这家货代是当前客户的指定货代（按客户取列表时），排在前面 */
   customerOwned?: boolean;
+  /** 归属客户：为空是公司货代 */
+  customerId?: number | null;
   contactName?: string;
 }
 

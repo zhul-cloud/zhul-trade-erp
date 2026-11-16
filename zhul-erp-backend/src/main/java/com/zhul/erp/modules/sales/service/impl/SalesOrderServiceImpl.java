@@ -337,6 +337,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         if (customer == null || customer.getDeletedAt() != null || !Objects.equals(customer.getTenantId(), tenant)) {
             throw new BizException("客户不存在");
         }
+        // 公海客户认领后才能新建订单（audit BUS-086）
+        com.zhul.erp.modules.masterdata.support.CustomerPool.requireClaimed(customer);
         List<CreateOrderRequest.Line> lines = req.getItems() == null ? List.of()
                 : req.getItems().stream().filter(l -> l != null && (l.getProductId() != null || StringUtils.hasText(l.getModel()))).toList();
         if (lines.isEmpty()) {

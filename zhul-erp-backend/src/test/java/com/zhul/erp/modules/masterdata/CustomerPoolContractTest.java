@@ -46,6 +46,8 @@ class CustomerPoolContractTest extends IntegrationTestBase {
     @Autowired private JwtUtils jwtUtils;
     @Autowired private StringRedisTemplate redis;
     @Autowired private ObjectMapper objectMapper;
+    @Autowired private com.zhul.erp.modules.sales.service.SalesOrderService salesOrderService;
+    @Autowired private com.zhul.erp.modules.inquiry.customerinquiry.service.CustomerInquiryService inquiryService;
 
     @BeforeEach
     void setUp() {
@@ -168,5 +170,38 @@ class CustomerPoolContractTest extends IntegrationTestBase {
 
         JsonNode transfer = call(json(post(BASE + "/transfer"), Map.of("ids", List.of(a), "ownerId", OTHER)), admin);
         assertTrue(transfer.path("message").asText().contains("要先认领"), transfer.toString());
+    }
+
+    /** audit SEC-024：没有客户管理菜单的人看不到公海客户详情，有菜单的能看 */
+    @Test
+    void poolDetailNeedsCustomerMenu() throws Exception {
+        long c = customer("Pool Gamma GmbH", 0);
+        jdbc.update("update customer set in_pool = 1 where id = ?", c);
+
+        loginWithResources("it_pool_wh", RES_EDIT);
+        JsonNode denied = call(get(BASE + "/" + c + "/detail"), token("it_pool_wh"));
+        assertTrue(denied.path("code").asInt() != 0, "没有客户管理菜单不能看公海客户：" + denied);
+        loginWithResources("it_pool_li", MENU_CUSTOMER);
+        assertTrue(ok(call(get(BASE + "/" + c + "/detail"), token("it_pool_li"))).path("inPool").asBoolean());
+    }
+
+    /** audit BUS-086：公海客户不能经接口新建手动订单或询盘 */
+    @Test
+    void poolCustomer_newDocumentsRejected() {
+        long c = customer("Pool Delta GmbH", 0);
+        jdbc.update("update customer set in_pool = 1 where id = ?", c);
+        loginAsAdmin("it_pool_admin");
+        com.zhul.erp.framework.tenant.TenantContext.setTenantId(0);
+        com.zhul.erp.modules.sales.dto.CreateOrderRequest order = new com.zhul.erp.modules.sales.dto.CreateOrderRequest();
+        order.setCustomerId(c);
+        com.zhul.erp.common.exception.BizException e1 = org.junit.jupiter.api.Assertions.assertThrows(
+                com.zhul.erp.common.exception.BizException.class, () -> salesOrderService.create(order));
+        assertTrue(e1.getMessage().contains("在公海"), e1.getMessage());
+        com.zhul.erp.modules.inquiry.customerinquiry.dto.SubmitCustomerInquiryRequest inquiry =
+                new com.zhul.erp.modules.inquiry.customerinquiry.dto.SubmitCustomerInquiryRequest();
+        inquiry.setCustomerId(c);
+        com.zhul.erp.common.exception.BizException e2 = org.junit.jupiter.api.Assertions.assertThrows(
+                com.zhul.erp.common.exception.BizException.class, () -> inquiryService.submit(inquiry));
+        assertTrue(e2.getMessage().contains("在公海"), e2.getMessage());
     }
 }

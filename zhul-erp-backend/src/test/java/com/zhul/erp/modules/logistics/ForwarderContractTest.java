@@ -166,4 +166,17 @@ class ForwarderContractTest extends IntegrationTestBase {
         mergeService.merge(acme, siam);
         assertEquals(acme, jdbc.queryForObject("select customer_id from supplier where id = ?", Long.class, siamFw));
     }
+
+    /** audit BUS-085：只有费用管理菜单的财务也能取货代列表（费用单收款方选「货代」） */
+    @Test
+    void expensesMenuCanListForwarders() throws Exception {
+        long fw = forwarder("ITFW 费用货代", null);
+        int menu = jdbc.queryForObject("select id from resource where path = '/finance/expenses' and type = 2 limit 1", Integer.class);
+        loginWithResources("it_fw_fin", menu);
+        String fin = jwtUtils.generateToken(Map.of("tenantId", 0), "it_fw_fin", 3600);
+        redis.opsForValue().set(RedisKeyConstants.TOKEN_PREFIX + fin, "1");
+        var res = mvc.perform(get(FW).header("Authorization", "Bearer " + fin)).andReturn().getResponse();
+        assertEquals(200, res.getStatus(), "费用管理菜单能取货代列表");
+        assertTrue(ids(ok(objectMapper.readTree(res.getContentAsString(StandardCharsets.UTF_8)))).contains(fw));
+    }
 }
