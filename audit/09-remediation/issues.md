@@ -88,11 +88,11 @@
 | [BUS-079](tasks/2026-11-15-BUS-042-incremental-audit.md) | 退货入库验收与作废销售退货的加锁顺序相反，并发时可能死锁回滚 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-16 |
 | [BUS-080](tasks/2026-11-15-BUS-042-incremental-audit.md) | 经营看板「应收未收」仍按 PI 合计减已到账，订单部分取消或补费用后口径不一致（BUS-049 同类） | P2 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-16 |
 | [BUS-081](tasks/2026-11-15-BUS-042-incremental-audit.md) | 经营看板「应收未收」只算 PI，收款记在订单上的手动订单、费用订单没有计入（收款工作台已计入） | P2 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-16 |
-| [BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | CI 导出：寄件方（Shipper）电话、邮箱、联系人为空；收货人地址只有国家；H.S Code 为空；缺信息时仍能导出 | P2 | 已合并待发布 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
-| [BUS-083](tasks/2026-11-16-BUS-082-feedback-1116.md) | PL 导出：收货人邮箱、WhatsApp 不显示，地址只有国家；缺信息时仍能导出 | P2 | 已合并待发布 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
-| [BUS-084](tasks/2026-11-16-BUS-084-batch2-review.md) | 采购登记「直发货代」可以选其他客户的指定货代，后端只校验货代启用，下拉也列出全部货代 | P2 | 待合并 | Claude | [2026-11-16-BUS-084](tasks/2026-11-16-BUS-084-batch2-review.md) | 2026-11-16 |
-| [BUS-085](tasks/2026-11-16-BUS-084-batch2-review.md) | 费用单收款方选「货代」时，只有费用管理菜单的财务取货代列表返回 403，下拉为空选不到货代 | P2 | 待合并 | Claude | [2026-11-16-BUS-084](tasks/2026-11-16-BUS-084-batch2-review.md) | 2026-11-16 |
-| [BUS-086](tasks/2026-11-16-BUS-084-batch2-review.md) | 公海客户认领前仍可经接口新建手动销售订单、提交询盘（只有前端客户选择器排除了公海客户） | P3 | 待合并 | Claude | [2026-11-16-BUS-084](tasks/2026-11-16-BUS-084-batch2-review.md) | 2026-11-16 |
+| [BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | CI 导出：寄件方（Shipper）电话、邮箱、联系人为空；收货人地址只有国家；H.S Code 为空；缺信息时仍能导出 | P2 | 已发布待验收 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
+| [BUS-083](tasks/2026-11-16-BUS-082-feedback-1116.md) | PL 导出：收货人邮箱、WhatsApp 不显示，地址只有国家；缺信息时仍能导出 | P2 | 已发布待验收 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
+| [BUS-084](tasks/2026-11-16-BUS-084-batch2-review.md) | 采购登记「直发货代」可以选其他客户的指定货代，后端只校验货代启用，下拉也列出全部货代 | P2 | 已发布待验收 | Claude | [2026-11-16-BUS-084](tasks/2026-11-16-BUS-084-batch2-review.md) | 2026-11-16 |
+| [BUS-085](tasks/2026-11-16-BUS-084-batch2-review.md) | 费用单收款方选「货代」时，只有费用管理菜单的财务取货代列表返回 403，下拉为空选不到货代 | P2 | 已发布待验收 | Claude | [2026-11-16-BUS-084](tasks/2026-11-16-BUS-084-batch2-review.md) | 2026-11-16 |
+| [BUS-086](tasks/2026-11-16-BUS-084-batch2-review.md) | 公海客户认领前仍可经接口新建手动销售订单、提交询盘（只有前端客户选择器排除了公海客户） | P3 | 已发布待验收 | Claude | [2026-11-16-BUS-084](tasks/2026-11-16-BUS-084-batch2-review.md) | 2026-11-16 |
 
 ## 前端
 
@@ -193,11 +193,11 @@
 | [UI-093](tasks/2026-11-15-BUS-042-incremental-audit.md) | 待归类信号列表缺少四个固定审计列，每页条数写死；型号清单和专项表格用 max-content 横向滚动 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-15 |
 | [UI-094](tasks/2026-11-15-BUS-042-incremental-audit.md) | 需求对象合并弹窗只说信号会并入，没有说明覆盖渠道和专项型号也会并到保留方 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-16 |
 | [UI-095](tasks/2026-11-16-UI-095-ship-notice-forwarder.md) | 发货通知有多家货代时不默认选中，「发通知」置灰却不说原因；货代下拉还混着历史迁移的「未登记货代」占位 | P2 | 已发布待验收 | Claude | [2026-11-16-UI-095](tasks/2026-11-16-UI-095-ship-notice-forwarder.md) | 2026-11-16 |
-| [UI-096](tasks/2026-11-16-BUS-082-feedback-1116.md) | 出运管理「待出运」按客户分组时只显示客户名称，没有按统一客户列显示国家 / 地区与主联系人 | P3 | 已合并待发布 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
-| [UI-097](tasks/2026-11-16-BUS-082-feedback-1116.md) | 客户跟进页面的客户没有按统一客户列（名称、国家 / 地区、主联系人三行）显示 | P3 | 已合并待发布 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
-| [UI-098](tasks/2026-11-16-BUS-082-feedback-1116.md) | 采购订单列表只显示型号数，没有按单据页统一规范显示品牌、品类、型号 | P3 | 已合并待发布 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
-| [UI-099](tasks/2026-11-16-BUS-082-feedback-1116.md) | CI 导出的 DESCRIPTION 列不随内容自动调整，公司印章歪斜、模糊 | P3 | 已合并待发布 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
-| [UI-100](tasks/2026-11-16-UI-100-po-confirm-ship-date.md) | 采购订单草稿在页面上填了预计发货日期（未保存）后点「确认下单」，弹窗里的预计发货日期仍为空，要重新选 | P3 | 待合并 | Claude | [2026-11-16-UI-100](tasks/2026-11-16-UI-100-po-confirm-ship-date.md) | 2026-11-16 |
+| [UI-096](tasks/2026-11-16-BUS-082-feedback-1116.md) | 出运管理「待出运」按客户分组时只显示客户名称，没有按统一客户列显示国家 / 地区与主联系人 | P3 | 已发布待验收 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
+| [UI-097](tasks/2026-11-16-BUS-082-feedback-1116.md) | 客户跟进页面的客户没有按统一客户列（名称、国家 / 地区、主联系人三行）显示 | P3 | 已发布待验收 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
+| [UI-098](tasks/2026-11-16-BUS-082-feedback-1116.md) | 采购订单列表只显示型号数，没有按单据页统一规范显示品牌、品类、型号 | P3 | 已发布待验收 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
+| [UI-099](tasks/2026-11-16-BUS-082-feedback-1116.md) | CI 导出的 DESCRIPTION 列不随内容自动调整，公司印章歪斜、模糊 | P3 | 已发布待验收 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
+| [UI-100](tasks/2026-11-16-UI-100-po-confirm-ship-date.md) | 采购订单草稿在页面上填了预计发货日期（未保存）后点「确认下单」，弹窗里的预计发货日期仍为空，要重新选 | P3 | 已合并待发布 | Claude | [2026-11-16-UI-100](tasks/2026-11-16-UI-100-po-confirm-ship-date.md) | 2026-11-16 |
 
 ## AI 可靠性
 
@@ -216,7 +216,7 @@
 | [AI-011](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | AI 回调信任模型回传的 key，不核对是否属于本次提交 | P3 | 已关闭 | Claude | [2026-11-15-SEC-018](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | 2026-11-15 |
 | [AI-012](tasks/2026-11-15-BUS-042-incremental-audit.md) | 跟进整理的阶段答案字段在发给模型的 Schema 里不能为空，原文没提到也会被迫给出答案 | P2 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-15 |
 | [AI-013](tasks/2026-11-15-BUS-042-incremental-audit.md) | 大询盘核验按原型号对回结果，同一批里原型号相同的第二条既不采用核验结果也不标待核实 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-15 |
-| [AI-014](tasks/2026-11-16-AI-014-translation-requester.md) | 当前用户按用户名找不到用户档案时，查不到自己提交的翻译结果（生成英文描述、客户名 AI 翻译），提示任务不存在 | P3 | 已合并待发布 | Claude | [2026-11-16-AI-014](tasks/2026-11-16-AI-014-translation-requester.md) | 2026-11-16 |
+| [AI-014](tasks/2026-11-16-AI-014-translation-requester.md) | 当前用户按用户名找不到用户档案时，查不到自己提交的翻译结果（生成英文描述、客户名 AI 翻译），提示任务不存在 | P3 | 已发布待验收 | Claude | [2026-11-16-AI-014](tasks/2026-11-16-AI-014-translation-requester.md) | 2026-11-16 |
 
 ## 身份与对象权限
 
@@ -245,7 +245,7 @@
 | [SEC-021](tasks/2026-11-15-BUS-042-incremental-audit.md) | 背调报告导出 PDF 时，正文里的 Markdown 图片会保留 http(s) 外链，交给 LibreOffice 转换，服务器可能被诱导访问内网地址 | P2 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-15 |
 | [SEC-022](tasks/2026-11-15-BUS-042-incremental-audit.md) | 采购退货单只按负责人限定数据范围，采购订单的采购员看不到也处理不了别人去向处理生成的采购退货单 | P2 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-15 |
 | [SEC-023](tasks/2026-11-15-BUS-042-incremental-audit.md) | 没有「查看货源信息」权限的用户，可以在开发任务时间线里看到供应商库名称 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-15 |
-| [SEC-024](tasks/2026-11-16-BUS-084-batch2-review.md) | 没有客户管理菜单的用户可以读取公海客户的完整详情（含联系方式），公海列表本身要求客户管理菜单 | P3 | 待合并 | Claude | [2026-11-16-BUS-084](tasks/2026-11-16-BUS-084-batch2-review.md) | 2026-11-16 |
+| [SEC-024](tasks/2026-11-16-BUS-084-batch2-review.md) | 没有客户管理菜单的用户可以读取公海客户的完整详情（含联系方式），公海列表本身要求客户管理菜单 | P3 | 已发布待验收 | Claude | [2026-11-16-BUS-084](tasks/2026-11-16-BUS-084-batch2-review.md) | 2026-11-16 |
 
 ## 运行与迁移
 
