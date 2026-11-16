@@ -415,6 +415,11 @@ export const ExpenseDrawer: React.FC<{
               (payeeType === PAYEE.SUPPLIER ||
                 payeeType === PAYEE.FORWARDER) && (
                 <SupplierPicker
+                  key={payeeType}
+                  forwarder={payeeType === PAYEE.FORWARDER}
+                  placeholder={
+                    payeeType === PAYEE.FORWARDER ? '搜索货代' : '搜索供应商'
+                  }
                   value={supplierId}
                   label={supplierName}
                   aria-label={payeeType === PAYEE.FORWARDER ? '货代' : '供应商'}

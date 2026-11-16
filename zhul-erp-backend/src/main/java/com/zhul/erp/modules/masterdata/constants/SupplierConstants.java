@@ -13,6 +13,8 @@ public final class SupplierConstants {
 
     /** 供应商类型、所属行业的"未设置"（存量数据和内联创建的记录） */
     public static final int UNSET = 0;
+    /** 供应商类型「服务商」：货代、快递公司，在「货代管理」维护，供应商管理不显示（openspec feedback-1116-batch2） */
+    public static final int TYPE_SERVICE = 3;
 
     public static final Map<Integer, String> SUPPLIER_TYPE_LABELS = Map.of(
             1, "生产商",

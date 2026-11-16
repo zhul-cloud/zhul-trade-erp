@@ -38,6 +38,19 @@ export interface CustomerListItem {
   createBy: string;
   updateTime: string;
   updateBy: string;
+  /** 公海（spec master-data/customer-pool）：在公海时负责业务员为空 */
+  inPool?: boolean;
+  poolAt?: string;
+  poolByName?: string;
+  poolReason?: string;
+  lastOwnerId?: number;
+  lastOwnerName?: string;
+}
+
+export interface CustomerPoolQuery {
+  keyword?: string;
+  country?: string;
+  lastOwnerId?: number;
 }
 
 export interface CustomerParty {
@@ -244,6 +257,25 @@ export const customerApi = {
       method: 'POST',
       data: { ids, ownerId, reason, moveBusinessUnit },
     }),
+
+  /** 放入公海：负责人本人或有转移权限的人，原因必填 */
+  putIntoPool: (ids: number[], reason: string) =>
+    request(`${BASE}/pool`, {
+      method: 'POST',
+      data: { ids, reason },
+      ...quiet,
+    }),
+
+  /** 公海客户：所有能进客户管理的人都能看，按放入时间倒序 */
+  pool: (params: CustomerPoolQuery & { page: number; pageSize: number }) =>
+    request<{ data: { records: CustomerListItem[]; total: number } }>(
+      `${BASE}/pool`,
+      { method: 'GET', params, ...quiet },
+    ).then((r) => r.data),
+
+  /** 认领公海客户：同时认领只有第一个成功 */
+  claim: (id: number) =>
+    request(`${BASE}/${id}/claim`, { method: 'POST', ...quiet }),
 
   /** 列表上方的「全部 / 已建档 / 待完善」数量（按数据范围，不带其他筛选） */
   profileCounts: () =>

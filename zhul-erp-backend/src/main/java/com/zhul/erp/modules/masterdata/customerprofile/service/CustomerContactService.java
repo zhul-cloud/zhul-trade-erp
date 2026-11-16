@@ -43,7 +43,7 @@ public class CustomerContactService {
     private final ContactNameTranslations contactNames;
 
     public List<ContactVO> list(Long customerId) {
-        customerService.requireInScope(customerId);
+        customerService.requireReadable(customerId);
         return facts.contacts(customerId).stream().map(CustomerContactService::toVo).toList();
     }
 

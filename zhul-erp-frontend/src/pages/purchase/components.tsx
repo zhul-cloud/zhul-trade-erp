@@ -16,6 +16,7 @@ import {
   Pill,
 } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
+import { forwarderApi } from '@/pages/logistics/service';
 import { searchSuppliers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
@@ -109,7 +110,7 @@ export const BargainText: React.FC<{
   );
 };
 
-/** 供应商搜索选择（主数据中启用的供应商） */
+/** 供应商搜索选择（主数据中启用的供应商）；forwarder 时只列启用的货代（货代不在供应商搜索里） */
 export const SupplierPicker: React.FC<{
   value?: number;
   label?: string;
@@ -117,6 +118,7 @@ export const SupplierPicker: React.FC<{
   style?: React.CSSProperties;
   onChange: (supplierId: number | undefined, name: string) => void;
   'aria-label'?: string;
+  forwarder?: boolean;
 }> = ({
   value,
   label,
@@ -124,6 +126,7 @@ export const SupplierPicker: React.FC<{
   style,
   onChange,
   'aria-label': ariaLabel,
+  forwarder,
 }) => {
   const [options, setOptions] = useState<{ value: number; label: string }[]>(
     [],
@@ -136,7 +139,19 @@ export const SupplierPicker: React.FC<{
     timer.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const list = await searchSuppliers(keyword.trim() || undefined);
+        const kw = keyword.trim();
+        if (forwarder) {
+          const list = await forwarderApi.list();
+          setOptions(
+            list
+              .filter(
+                (f) => !kw || f.name.toLowerCase().includes(kw.toLowerCase()),
+              )
+              .map((f) => ({ value: f.id, label: f.name })),
+          );
+          return;
+        }
+        const list = await searchSuppliers(kw || undefined);
         setOptions(
           list
             .filter((s) => s.status == null || s.status === 1)
@@ -173,7 +188,11 @@ export const SupplierPicker: React.FC<{
       options={merged}
       showSearch={{ onSearch: search, filterOption: false }}
       notFoundContent={
-        loading ? '搜索中…' : '没有找到，请先在「采购管理 → 供应商」中新建'
+        loading
+          ? '搜索中…'
+          : forwarder
+            ? '没有找到，请先在「物流管理 → 货代管理」中新建'
+            : '没有找到，请先在「采购管理 → 供应商」中新建'
       }
       onChange={(v?: number) =>
         onChange(v, merged.find((o) => o.value === v)?.label ?? '')

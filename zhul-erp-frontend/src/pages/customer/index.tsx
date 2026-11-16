@@ -37,6 +37,7 @@ import {
   TransferModal,
 } from './components';
 import { DISABLE_CONFIRM_TEXT, ROLE_OPTIONS } from './constants';
+import { PoolTab, PutIntoPoolModal } from './pool';
 import CompletionTab from './profile/CompletionTab';
 import DuplicatesTab from './profile/DuplicatesTab';
 import { GRADE_NAMES, MODULE_SHORT, profileApi } from './profile/service';
@@ -93,8 +94,12 @@ const CustomerListPage: React.FC = () => {
   const canTransfer = !!access['partner:customer:transfer'];
   const canExport = !!access['partner:customer:export'];
   const canMerge = !!access['partner:customer:merge'];
-  const [tab, setTab] = useState<'all' | 'fill' | 'dups'>('all');
+  const [tab, setTab] = useState<'all' | 'fill' | 'dups' | 'pool'>('all');
   const [dupCount, setDupCount] = useState<number>();
+  const [poolCount, setPoolCount] = useState<number>();
+  // 放入公海：负责人本人或有转移权限的人（后端校验），有编辑或转移权限时显示入口
+  const [poolTargets, setPoolTargets] = useState<CustomerListItem[]>([]);
+  const canPool = canEdit || canTransfer;
   const [sort, setSort] = useState<
     Pick<CustomerQuery, 'sortField' | 'sortOrder'>
   >({});
@@ -133,6 +138,10 @@ const CustomerListPage: React.FC = () => {
     profileApi
       .duplicates()
       .then((g) => setDupCount(g.length))
+      .catch(() => undefined);
+    customerApi
+      .pool({ page: 1, pageSize: 1 })
+      .then((r) => setPoolCount(r.total))
       .catch(() => undefined);
   }, []);
 
@@ -519,7 +528,7 @@ const CustomerListPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 190,
+      width: 260,
       fixed: 'right',
       render: (_, r) => (
         <div style={{ display: 'flex', gap: 12 }}>
@@ -546,6 +555,15 @@ const CustomerListPage: React.FC = () => {
               onClick={() => setTransferTargets([r])}
             >
               转移
+            </button>
+          )}
+          {canPool && (
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setPoolTargets([r])}
+            >
+              放入公海
             </button>
           )}
           {canDelete && (
@@ -598,7 +616,7 @@ const CustomerListPage: React.FC = () => {
       <PageTitle description="档案完整度 5/5 为已建档；先补有成交的客户。报价单、PI、CI 从这里带出客户信息。" />
       <Segmented
         value={tab}
-        onChange={(v) => setTab(v as 'all' | 'fill' | 'dups')}
+        onChange={(v) => setTab(v as 'all' | 'fill' | 'dups' | 'pool')}
         style={{ marginBottom: 16 }}
         options={[
           {
@@ -610,9 +628,15 @@ const CustomerListPage: React.FC = () => {
             value: 'dups',
             label: `疑似重复${dupCount ? ` ${dupCount}` : ''}`,
           },
+          {
+            value: 'pool',
+            label: `公海客户${poolCount ? ` ${poolCount}` : ''}`,
+          },
         ]}
       />
-      {tab === 'fill' ? (
+      {tab === 'pool' ? (
+        <PoolTab onCount={setPoolCount} />
+      ) : tab === 'fill' ? (
         <CompletionTab />
       ) : tab === 'dups' ? (
         <DuplicatesTab
@@ -805,6 +829,11 @@ const CustomerListPage: React.FC = () => {
                     批量转移
                   </Button>
                 )}
+                {canPool && (
+                  <Button onClick={() => setPoolTargets(selectedRows)}>
+                    放入公海
+                  </Button>
+                )}
                 {canDelete && (
                   <Button
                     danger
@@ -892,6 +921,21 @@ const CustomerListPage: React.FC = () => {
         onDone={() => {
           setTransferTargets([]);
           setSelected([]);
+          load();
+        }}
+      />
+      <PutIntoPoolModal
+        open={poolTargets.length > 0}
+        customers={poolTargets.map((c) => ({
+          id: c.id,
+          name: c.displayName,
+          ownerName: c.ownerName,
+        }))}
+        onClose={() => setPoolTargets([])}
+        onDone={() => {
+          setPoolTargets([]);
+          setSelected([]);
+          setPoolCount((n) => (n ?? 0) + poolTargets.length);
           load();
         }}
       />

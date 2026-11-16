@@ -74,7 +74,7 @@ public class CustomerProfileService {
 
     @Transactional(rollbackFor = Exception.class)
     public CustomerProfileVO get(Long customerId) {
-        CustomerDO c = customerService.requireInScope(customerId);
+        CustomerDO c = customerService.requireReadable(customerId);
         RfmDetailVO rfm = gradeService.detail(c);
         List<CustomerContactDO> contacts = facts.contacts(customerId);
         CountryProfileDO country = facts.country(c.getTenantId(), c.getCountry());

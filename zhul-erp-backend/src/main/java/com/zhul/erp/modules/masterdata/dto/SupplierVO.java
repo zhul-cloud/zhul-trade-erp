@@ -17,6 +17,9 @@ public class SupplierVO {
     private Integer supplierType;
     /** 体积系数（服务商） */
     private Integer volumeDivisor;
+    /** 归属客户（服务商）：空为公司货代 */
+    private Long customerId;
+    private String customerName;
     private Integer industry;
     private String creditCode;
     private String legalRepresentative;

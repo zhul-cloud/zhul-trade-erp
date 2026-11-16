@@ -5,6 +5,7 @@ import {
   SendOutlined,
 } from '@ant-design/icons';
 import { Link, useAccess } from '@umijs/max';
+import type { SelectProps } from 'antd';
 import {
   App,
   Button,
@@ -58,16 +59,22 @@ export const ShipNoticeModal: React.FC<{
     setForm(undefined);
     setError(undefined);
     try {
-      const [f, fw] = await Promise.all([
-        outboundApi.noticeForm(
-          outbound ? { outboundId: outbound.id } : { soId },
-        ),
-        forwarderApi.list(),
-      ]);
+      const f = await outboundApi.noticeForm(
+        outbound ? { outboundId: outbound.id } : { soId },
+      );
+      // 公司货代 + 这个客户的指定货代（spec logistics/forwarder「选择货代的范围与顺序」）
+      const fw = await forwarderApi.list(f.customerId);
+      const owned = fw.filter((x) => x.customerOwned);
       setForm(f);
       setForwarders(fw);
+      // 客户只有一家指定货代时默认选它；否则只有一家可选时默认选中；其余不默认（UI-095 提示「先选货代」）
       setForwarderId(
-        outbound?.forwarderId ?? (fw.length === 1 ? fw[0].id : undefined),
+        outbound?.forwarderId ??
+          (owned.length === 1
+            ? owned[0].id
+            : fw.length === 1
+              ? fw[0].id
+              : undefined),
       );
       setNote(outbound?.note ?? '');
       const init: Record<number, Line> = {};
@@ -216,9 +223,29 @@ export const ShipNoticeModal: React.FC<{
               placeholder={
                 forwarders.length
                   ? '选择货代'
-                  : '还没有启用的服务商，请先在供应商里添加'
+                  : '还没有启用的货代，请先在「物流管理 → 货代管理」里添加'
               }
-              options={forwarders.map((f) => ({ value: f.id, label: f.name }))}
+              options={
+                (forwarders.some((f) => f.customerOwned)
+                  ? [
+                      {
+                        label: '客户指定',
+                        options: forwarders
+                          .filter((f) => f.customerOwned)
+                          .map((f) => ({ value: f.id, label: f.name })),
+                      },
+                      {
+                        label: '公司货代',
+                        options: forwarders
+                          .filter((f) => !f.customerOwned)
+                          .map((f) => ({ value: f.id, label: f.name })),
+                      },
+                    ]
+                  : forwarders.map((f) => ({
+                      value: f.id,
+                      label: f.name,
+                    }))) as SelectProps['options']
+              }
               style={{ width: '100%' }}
               aria-label="货代"
             />

@@ -52,8 +52,8 @@ public class OutboundController {
     /** 启用的货代（服务商） */
     @GetMapping("/forwarders")
     @PreAuthorize(ANY)
-    public Result<List<ForwarderVO>> forwarders() {
-        return Result.ok(support.forwarders());
+    public Result<List<ForwarderVO>> forwarders(@RequestParam(required = false) Long customerId) {
+        return Result.ok(support.forwarders(customerId));
     }
 
     @GetMapping("/outbounds/notice-form")

@@ -25,7 +25,10 @@ import { formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { LIST_PATH, PageTitle, SupplierTypePill } from './components';
-import { DISABLE_CONFIRM_TEXT, SUPPLIER_TYPE_OPTIONS } from './constants';
+import {
+  DISABLE_CONFIRM_TEXT,
+  SUPPLIER_TYPE_SELECT_OPTIONS,
+} from './constants';
 import {
   categoryGroups,
   ScopeBrandTags,
@@ -403,7 +406,7 @@ const SupplierListPage: React.FC = () => {
             <Select
               placeholder="全部"
               allowClear
-              options={SUPPLIER_TYPE_OPTIONS}
+              options={SUPPLIER_TYPE_SELECT_OPTIONS}
             />
           </Form.Item>
           <Form.Item

@@ -54,7 +54,7 @@ public class CustomerMergeService {
             "opportunity", "商机", "customer_inquiry", "询盘", "inquiry_order", "旧版询盘", "quotation", "报价",
             "proforma_invoice", "PI", "sales_order", "销售订单", "outbound_order", "出库单", "logistics_shipment", "出运单",
             "after_sales", "售后单", "customer_party", "单证主体", "customer_followup", "跟进记录",
-            "customer_background_report", "背调报告");
+            "customer_background_report", "背调报告", "supplier", "客户指定货代");
     /** 有这些记录时不能合并：属于财务记录，不在合并里改 */
     static final List<String> FINANCE = List.of("fin_customer_credit_entry", "fin_customer_refund");
 

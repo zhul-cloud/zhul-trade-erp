@@ -1,5 +1,9 @@
 import { request } from '@umijs/max';
 import type {
+  SupplierAccount,
+  SupplierFormValues,
+} from '@/pages/supplier/service';
+import type {
   Attachment,
   AttachmentModels,
   Audit,
@@ -16,11 +20,72 @@ export interface Forwarder {
   id: number;
   name: string;
   volumeDivisor?: number;
+  /** 这家货代是当前客户的指定货代（按客户取列表时），排在前面 */
+  customerOwned?: boolean;
+  contactName?: string;
+}
+
+/** 货代管理列表的一行（spec logistics/forwarder） */
+export interface ForwarderRow {
+  id: number;
+  code: string;
+  name: string;
+  shortName?: string;
+  /** 归属客户：空为公司货代 */
+  customerId?: number | null;
+  customerName?: string | null;
+  contactName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  volumeDivisor?: number;
+  accountCount: number;
+  /** 默认收款账户：开户行 ****后四位 */
+  defaultAccount?: string | null;
+  /** 0-停用、1-启用 */
+  status: number;
+  createTime?: string;
+  createBy?: string;
+  updateTime?: string;
+  updateBy?: string;
+}
+
+export interface ForwarderQuery {
+  page: number;
+  pageSize: number;
+  keyword?: string;
+  /** company-公司货代、customer-客户指定 */
+  owner?: 'company' | 'customer';
+  customerId?: number;
+  status?: number;
+}
+
+export interface SaveForwarderBody {
+  name: string;
+  shortName?: string;
+  customerId?: number | null;
+  contactName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  address?: string;
+  volumeDivisor?: number;
+  accounts?: SupplierFormValues['accounts'];
+  remark?: string;
+  status?: number;
+}
+
+/** 编辑取数（与供应商编辑取数同结构，收款账号为明文） */
+export interface ForwarderForm extends Omit<SaveForwarderBody, 'accounts'> {
+  id: number;
+  supplierCode: string;
+  customerName?: string | null;
+  status: number;
+  accounts?: SupplierAccount[];
 }
 
 export interface NoticeForm {
   soId: number;
   soNo: string;
+  customerId?: number;
   customerName?: string;
   lines: {
     soItemId: number;
@@ -286,7 +351,30 @@ export const download = async (url: string, params?: object) => {
 const L = '/api/v1/logistics';
 
 export const forwarderApi = {
-  list: () => get<Forwarder[]>(`${L}/forwarders`),
+  /** 可选货代：传客户时为公司货代 + 这个客户的指定货代（指定的在前），不传时为全部启用的货代 */
+  list: (customerId?: number) =>
+    get<Forwarder[]>(
+      `${L}/forwarders`,
+      customerId ? { customerId } : undefined,
+    ),
+  page: (q: ForwarderQuery) =>
+    get<{ total: number; records: ForwarderRow[] }>(`${L}/forwarders/page`, q),
+  counts: () =>
+    get<{ all: number; company: number; customer: number }>(
+      `${L}/forwarders/counts`,
+    ),
+  form: (id: number) => get<ForwarderForm>(`${L}/forwarders/${id}/form`),
+  create: (body: SaveForwarderBody) =>
+    send<number>('POST', `${L}/forwarders`, body),
+  update: (id: number, body: SaveForwarderBody) =>
+    send<void>('PUT', `${L}/forwarders/${id}`, body),
+  setStatus: (id: number, status: number) =>
+    send<void>('PUT', `${L}/forwarders/${id}/status`, { status }),
+  /** 客户详情「客户指定货代」 */
+  ofCustomer: (customerId: number) =>
+    get<ForwarderRow[]>(`${L}/forwarders/by-customer/${customerId}`),
+  createForCustomer: (customerId: number, body: SaveForwarderBody) =>
+    send<number>('POST', `${L}/forwarders/by-customer/${customerId}`, body),
 };
 
 const toBoxes = (boxes: BoxInput[], key: 'outboundItemId' | 'shipmentItemId') =>

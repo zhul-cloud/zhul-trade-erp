@@ -82,3 +82,15 @@ it('分物流信息、发货明细两区并显示已选件数', async () => {
   expect(screen.getByText('发货明细')).toBeTruthy();
   expect(screen.getByText('已选 1 个型号 · 1 件')).toBeTruthy();
 });
+
+/** 客户只有一家指定货代时默认选中它（feedback-1116-batch2） */
+it('客户指定货代默认选中', async () => {
+  mockForwarders.mockResolvedValue([
+    { id: 9, name: 'Acro Freight', customerOwned: true },
+    { id: 1, name: '货代甲', customerOwned: false },
+    { id: 2, name: '货代乙', customerOwned: false },
+  ]);
+  open();
+  expect(await screen.findByText('Acro Freight')).toBeTruthy();
+  expect(screen.queryByText('先选货代')).toBeNull();
+});

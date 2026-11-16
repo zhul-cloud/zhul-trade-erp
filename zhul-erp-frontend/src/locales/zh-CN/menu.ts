@@ -66,6 +66,7 @@ export default {
   'menu.logistics': '物流管理',
   'menu.logistics.shipments': '出运单',
   'menu.logistics.statements': '运费账单',
+  'menu.logistics.forwarders': '货代管理',
   'menu.inquiry': '询盘',
   'menu.inquiry.customerInquiry': '询盘单',
   'menu.inquiry.sourcingBoard': '询价分配',

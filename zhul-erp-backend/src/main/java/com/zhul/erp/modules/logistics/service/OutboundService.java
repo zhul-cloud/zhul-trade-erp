@@ -110,6 +110,7 @@ public class OutboundService {
         NoticeFormVO vo = new NoticeFormVO();
         vo.setSoId(o.getId());
         vo.setSoNo(o.getSoNo());
+        vo.setCustomerId(o.getCustomerId());
         vo.setCustomerName(support.customerNames(List.of(o.getCustomerId())).get(o.getCustomerId()));
         vo.setLines(items.stream().map(i -> {
             PurchaseLinks.ItemPurchase lp = links.get(i.getId());
@@ -142,7 +143,7 @@ public class OutboundService {
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public OutboundVO createNotice(SaveNoticeRequest req) {
         SalesOrderDO o = lockOrder(req.getSoId());
-        support.requireForwarder(req.getForwarderId());
+        support.requireForwarder(req.getForwarderId(), o.getCustomerId());
         // 先校验数量再取号，校验不过不占编号
         List<OutboundOrderItemDO> lines = buildItems(o, req.getItems());
         OutboundOrderDO ob = new OutboundOrderDO();
@@ -173,7 +174,7 @@ public class OutboundService {
         if (ob.getStatus() != LogisticsConstants.OB_PENDING) {
             throw new BizException("仓库已经打包，不能修改发货通知");
         }
-        support.requireForwarder(req.getForwarderId());
+        support.requireForwarder(req.getForwarderId(), o.getCustomerId());
         List<OutboundOrderItemDO> old = itemsOf(List.of(id)).getOrDefault(id, List.of());
         // 旧行先软删除，下面按占用（已不含本单）重新校验；不能再把旧数量加回去，否则会多放出一份（audit BUS-006）
         old.forEach(i -> {

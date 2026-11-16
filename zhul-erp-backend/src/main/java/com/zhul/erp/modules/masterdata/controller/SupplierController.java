@@ -1,6 +1,8 @@
 package com.zhul.erp.modules.masterdata.controller;
 
+import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
+import com.zhul.erp.modules.masterdata.constants.SupplierConstants;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.masterdata.dto.CreateSupplierFromChannelRequest;
 import com.zhul.erp.modules.masterdata.dto.SaveSupplierRequest;
@@ -53,8 +55,16 @@ public class SupplierController {
 
     private final SupplierService supplierService;
 
+    /** 货代（服务商）在「物流管理 → 货代管理」维护，不经供应商管理新增或修改（openspec feedback-1116-batch2） */
+    private static void rejectForwarderType(Integer supplierType) {
+        if (supplierType != null && supplierType == SupplierConstants.TYPE_SERVICE) {
+            throw new BizException("货代请在「物流管理 → 货代管理」里维护");
+        }
+    }
+
     @PostMapping
     public Result<SupplierCreateResultVO> create(@Valid @RequestBody SaveSupplierRequest req) {
+        rejectForwarderType(req.getSupplierType());
         return Result.ok(supplierService.create(req));
     }
 
@@ -117,6 +127,8 @@ public class SupplierController {
     @PutMapping("/{id}")
     @PreAuthorize("@perm.has('partner:supplier:edit')")
     public Result<Void> update(@PathVariable Long id, @Valid @RequestBody UpdateSupplierRequest req) {
+        rejectForwarderType(req.getSupplierType());
+        rejectForwarderType(supplierService.getById(id).getSupplierType());
         supplierService.update(id, req);
         return Result.ok();
     }
