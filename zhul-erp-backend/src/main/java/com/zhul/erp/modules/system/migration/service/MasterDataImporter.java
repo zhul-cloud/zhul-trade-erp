@@ -51,7 +51,8 @@ public class MasterDataImporter {
 
     static final String STAGE = "主数据";
     /** 出运单必须挂货代；旧系统没有货代信息，统一挂这个占位供应商 */
-    static final String FORWARDER_KEY = "MIG-FORWARDER";
+    /** 历史迁移的「未登记货代」占位在 ID 对照里的来源编码 */
+    public static final String FORWARDER_KEY = "MIG-FORWARDER";
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final DateTimeFormatter YMD = DateTimeFormatter.ofPattern("yyyyMMdd");
 
