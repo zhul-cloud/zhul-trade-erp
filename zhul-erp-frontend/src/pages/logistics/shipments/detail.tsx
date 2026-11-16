@@ -71,9 +71,8 @@ interface ItemRow {
 
 interface BoxRow {
   key: number;
-  obId: number;
-  obNo: string;
-  soNo?: string;
+  /** 箱子所属的销售出库单；合并打包的箱子为同组的几张 */
+  obs: { id: number; obNo: string }[];
   direct: boolean;
   boxNo: number;
   dims: string;
@@ -127,22 +126,28 @@ const ShipmentDetail: React.FC = () => {
   };
   const waiting = (sh.directs ?? []).filter((d) => !d.confirmed);
 
-  const boxes: BoxRow[] = (sh.outbounds ?? []).flatMap((o) =>
-    o.boxes.map((b) => ({
-      key: b.id,
-      obId: o.id,
-      obNo: o.obNo,
-      soNo: o.soNo,
-      direct: o.source === 2,
-      boxNo: b.boxNo,
-      dims: `${b.length}×${b.width}×${b.height}`,
-      gross: b.grossWeight,
-      net: b.netWeight,
-      chargeable: sh.boxChargeable?.[b.id] ?? b.chargeable,
-      items: b.items.map((i) => `${i.model} × ${i.quantity}`).join('、'),
-      freight: sh.boxFreight?.[b.id],
-    })),
-  );
+  // 合并打包的同组单返回同一组箱子：每箱只列一次，箱子挂在同组的几张单下
+  const boxes: BoxRow[] = [];
+  for (const o of sh.outbounds ?? [])
+    for (const b of o.boxes) {
+      const seen = boxes.find((x) => x.key === b.id);
+      if (seen) {
+        seen.obs.push({ id: o.id, obNo: o.obNo });
+        continue;
+      }
+      boxes.push({
+        key: b.id,
+        obs: [{ id: o.id, obNo: o.obNo }],
+        direct: o.source === 2,
+        boxNo: b.boxNo,
+        dims: `${b.length}×${b.width}×${b.height}`,
+        gross: b.grossWeight,
+        net: b.netWeight,
+        chargeable: sh.boxChargeable?.[b.id] ?? b.chargeable,
+        items: b.items.map((i) => `${i.model} × ${i.quantity}`).join('、'),
+        freight: sh.boxFreight?.[b.id],
+      });
+    }
 
   const exportDoc = async (
     gid: number,
@@ -381,7 +386,12 @@ const ShipmentDetail: React.FC = () => {
                 width: 160,
                 render: (_, r) => (
                   <div>
-                    <Link to={DOC_PATHS.outbound(r.obId)}>{r.obNo}</Link>
+                    {r.obs.map((o, i) => (
+                      <React.Fragment key={o.id}>
+                        {i > 0 && '、'}
+                        <Link to={DOC_PATHS.outbound(o.id)}>{o.obNo}</Link>
+                      </React.Fragment>
+                    ))}
                     {r.direct && (
                       <span
                         style={{

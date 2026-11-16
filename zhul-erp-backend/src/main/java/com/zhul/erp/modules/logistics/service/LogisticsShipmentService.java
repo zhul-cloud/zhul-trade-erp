@@ -27,7 +27,6 @@ import com.zhul.erp.modules.logistics.entity.ShipmentDocGroupDO;
 import com.zhul.erp.modules.logistics.repository.ForwarderStatementLineMapper;
 import com.zhul.erp.modules.logistics.repository.ForwarderStatementMapper;
 import com.zhul.erp.modules.logistics.repository.LogisticsShipmentMapper;
-import com.zhul.erp.modules.logistics.repository.OutboundBoxMapper;
 import com.zhul.erp.modules.logistics.repository.OutboundOrderItemMapper;
 import com.zhul.erp.modules.logistics.repository.OutboundOrderMapper;
 import com.zhul.erp.modules.logistics.repository.ShipmentDocGroupMapper;
@@ -85,7 +84,7 @@ public class LogisticsShipmentService {
     private final LogisticsShipmentMapper shipmentMapper;
     private final OutboundOrderMapper outboundMapper;
     private final OutboundOrderItemMapper outboundItemMapper;
-    private final OutboundBoxMapper boxMapper;
+    private final com.zhul.erp.modules.logistics.support.OutboundBoxes outboundBoxes;
     private final ShipmentDocGroupMapper docGroupMapper;
     private final SupplierShipmentMapper supplierShipmentMapper;
     private final SalesOrderMapper soMapper;
@@ -287,6 +286,8 @@ public class LogisticsShipmentService {
         if (obIds.isEmpty() && dIds.isEmpty() && outboundsOf(sh.getId()).isEmpty() && directsOf(sh.getId()).isEmpty()) {
             throw new BizException("请勾选要出运的货");
         }
+        // 合并打包的单共用箱子，要整组放进同一张出运单（openspec outbound-merge-pack）
+        outbounds.requireWholeGroups(outboundsOf(sh.getId()), "要放在同一张出运单");
     }
 
     private void ownerFrom(LogisticsShipmentDO sh, Long ownerId) {
@@ -610,10 +611,8 @@ public class LogisticsShipmentService {
                         .isNull(OutboundOrderDO::getDeletedAt)
                         .orderByAsc(OutboundOrderDO::getId))
                 .stream().collect(Collectors.groupingBy(OutboundOrderDO::getLogisticsId));
-        List<Long> obIds = obs.values().stream().flatMap(List::stream).map(OutboundOrderDO::getId).toList();
-        Map<Long, List<OutboundBoxDO>> boxes = obIds.isEmpty() ? Map.of()
-                : boxMapper.selectList(new LambdaQueryWrapper<OutboundBoxDO>().in(OutboundBoxDO::getOutboundId, obIds).isNull(OutboundBoxDO::getDeletedAt))
-                .stream().collect(Collectors.groupingBy(OutboundBoxDO::getOutboundId));
+        // 合并打包的单取整组的箱子，同一箱只算一次（openspec outbound-merge-pack）
+        Map<Long, List<OutboundBoxDO>> boxes = outboundBoxes.byOutbound(obs.values().stream().flatMap(List::stream).toList());
         Map<Long, SalesOrderDO> orders = support.orders(obs.values().stream().flatMap(List::stream).map(OutboundOrderDO::getSoId).toList());
         Map<Long, CustomerDO> customers = support.customers(rows.stream().map(LogisticsShipmentDO::getCustomerId).toList());
         Map<Long, String> forwarders = support.supplierNames(rows.stream().map(LogisticsShipmentDO::getForwarderId).toList());
@@ -670,7 +669,8 @@ public class LogisticsShipmentService {
                 r.setSoNo(e.getValue());
                 return r;
             }).toList());
-            List<OutboundBoxDO> bs = mine.stream().flatMap(o -> boxes.getOrDefault(o.getId(), List.of()).stream()).toList();
+            List<OutboundBoxDO> bs = new ArrayList<>(mine.stream().flatMap(o -> boxes.getOrDefault(o.getId(), List.of()).stream())
+                    .collect(Collectors.toMap(OutboundBoxDO::getId, b -> b, (a, b) -> a, LinkedHashMap::new)).values());
             vo.setBoxCount(bs.size());
             Map<Long, BigDecimal> chargeable = new LinkedHashMap<>();
             bs.forEach(b -> chargeable.put(b.getId(), FreightService.chargeable(b, divisor)));

@@ -21,6 +21,10 @@ public final class LogisticsConstants {
     public static final Map<Integer, String> OB_STATUS_NAMES = Map.of(OB_PENDING, "待打包", OB_PACKED, "已打包", OB_HANDED, "已交货代",
             OB_WITHDRAWN, "已撤回");
 
+    /** 合并打包组（outbound_pack.status） */
+    public static final int PACK_VALID = 1;
+    public static final int PACK_SPLIT = 2;
+
     public static final int WAYBILL_VALID = 1;
     public static final int WAYBILL_UNDONE = 2;
 

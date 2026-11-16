@@ -18,8 +18,6 @@ import com.zhul.erp.modules.logistics.entity.OutboundBoxItemDO;
 import com.zhul.erp.modules.logistics.entity.OutboundOrderDO;
 import com.zhul.erp.modules.logistics.entity.OutboundOrderItemDO;
 import com.zhul.erp.modules.logistics.entity.ShipmentDocGroupDO;
-import com.zhul.erp.modules.logistics.repository.OutboundBoxItemMapper;
-import com.zhul.erp.modules.logistics.repository.OutboundBoxMapper;
 import com.zhul.erp.modules.logistics.repository.ShipmentDocGroupMapper;
 import com.zhul.erp.modules.logistics.support.LogisticsSupport;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
@@ -78,8 +76,7 @@ public class DocGroupService {
     private static final BigDecimal CM3_PER_M3 = BigDecimal.valueOf(1_000_000);
 
     private final ShipmentDocGroupMapper groupMapper;
-    private final OutboundBoxMapper boxMapper;
-    private final OutboundBoxItemMapper boxItemMapper;
+    private final com.zhul.erp.modules.logistics.support.OutboundBoxes outboundBoxes;
     private final SalesOrderItemMapper soItemMapper;
     private final SalesOrderFeeMapper feeMapper;
     private final ProformaInvoiceMapper piMapper;
@@ -116,7 +113,12 @@ public class DocGroupService {
         if (MERGED.equals(mode) && orders.values().stream().map(SalesOrderDO::getCurrencyCode).distinct().count() > 1) {
             throw new BizException("几张订单的币种不同，不能合成一组，请选「每张订单各一组」");
         }
-        List<List<Long>> wanted = MERGED.equals(mode) ? List.of(soIds) : soIds.stream().map(List::of).toList();
+        List<List<Long>> wanted = MERGED.equals(mode) ? List.of(soIds) : perOrderGroups(obs, soIds);
+        for (List<Long> ids : wanted) {
+            if (ids.stream().map(orders::get).filter(Objects::nonNull).map(SalesOrderDO::getCurrencyCode).distinct().count() > 1) {
+                throw new BizException("合并打包的几张订单币种不同，不能合成一组单证；请先拆开合并打包，分开打包后再出运");
+            }
+        }
         List<ShipmentDocGroupDO> old = groupMapper.selectList(new LambdaQueryWrapper<ShipmentDocGroupDO>()
                 .eq(ShipmentDocGroupDO::getLogisticsId, logisticsId)
                 .eq(ShipmentDocGroupDO::getStatus, LogisticsConstants.DOC_VALID)
@@ -149,6 +151,42 @@ public class DocGroupService {
         });
         logService.recordOperateLog(LogisticsConstants.MENU_SHIPMENT, "生成 CI/PL", null, Map.of("shNo", sh.getShNo(), "ci", kept));
         return shipments.detail(logisticsId);
+    }
+
+    /**
+     * 「每张订单各一组」：每张订单一组，但合并打包组里的几张订单共用箱子，合成一组（并查集，openspec outbound-merge-pack）。
+     * 组按最小订单 ID 排序，组内订单 ID 升序。
+     */
+    static List<List<Long>> perOrderGroups(List<OutboundOrderDO> obs, List<Long> soIds) {
+        Map<Long, Long> parent = new LinkedHashMap<>();
+        soIds.forEach(id -> parent.put(id, id));
+        Map<Long, Long> firstOfPack = new HashMap<>();
+        for (OutboundOrderDO ob : obs) {
+            if (ob.getPackId() == null) {
+                continue;
+            }
+            Long other = firstOfPack.putIfAbsent(ob.getPackId(), ob.getSoId());
+            if (other != null) {
+                Long a = root(parent, other);
+                Long b = root(parent, ob.getSoId());
+                if (!a.equals(b)) {
+                    parent.put(Math.max(a, b), Math.min(a, b));
+                }
+            }
+        }
+        Map<Long, List<Long>> groups = new java.util.TreeMap<>();
+        for (Long id : soIds) {
+            groups.computeIfAbsent(root(parent, id), k -> new ArrayList<>()).add(id);
+        }
+        return groups.values().stream().map(g -> g.stream().sorted().toList()).toList();
+    }
+
+    private static Long root(Map<Long, Long> parent, Long id) {
+        Long r = id;
+        while (!parent.get(r).equals(r)) {
+            r = parent.get(r);
+        }
+        return r;
     }
 
     /** PL 编号与 CI 共用「年月日 + 流水」主体，只换类型代码 */
@@ -296,16 +334,11 @@ public class DocGroupService {
         Map<Long, SalesOrderItemDO> soItems = obItems.isEmpty() ? Map.of()
                 : soItemMapper.selectBatchIds(obItems.values().stream().map(OutboundOrderItemDO::getSoItemId).distinct().toList())
                 .stream().collect(Collectors.toMap(SalesOrderItemDO::getId, i -> i));
-        List<OutboundBoxDO> boxes = obs.isEmpty() ? List.of() : boxMapper.selectList(new LambdaQueryWrapper<OutboundBoxDO>()
-                .in(OutboundBoxDO::getOutboundId, obs.stream().map(OutboundOrderDO::getId).toList())
-                .isNull(OutboundBoxDO::getDeletedAt)
-                .orderByAsc(OutboundBoxDO::getOutboundId, OutboundBoxDO::getBoxNo));
-        Map<Long, List<OutboundBoxItemDO>> contents = boxes.isEmpty() ? Map.of()
-                : boxItemMapper.selectList(new LambdaQueryWrapper<OutboundBoxItemDO>()
-                        .in(OutboundBoxItemDO::getBoxId, boxes.stream().map(OutboundBoxDO::getId).toList())
-                        .isNull(OutboundBoxItemDO::getDeletedAt)
-                        .orderByAsc(OutboundBoxItemDO::getId))
-                .stream().collect(Collectors.groupingBy(OutboundBoxItemDO::getBoxId));
+        // 合并打包的箱子装有组内几张单的货，只列一次（openspec outbound-merge-pack）
+        List<OutboundBoxDO> boxes = outboundBoxes.distinct(obs.stream().map(OutboundOrderDO::getId).toList());
+        Map<Long, List<OutboundBoxItemDO>> contents = new HashMap<>();
+        outboundBoxes.contents(boxes.stream().map(OutboundBoxDO::getId).toList())
+                .forEach((k, v) -> contents.put(k, v.stream().sorted(java.util.Comparator.comparing(OutboundBoxItemDO::getId)).toList()));
         SalesOrderDO first = orders.get(soIds.get(0));
         Map<String, Object> h = header(sh, orders, soIds, first);
         List<Map<String, Object>> items = new ArrayList<>();

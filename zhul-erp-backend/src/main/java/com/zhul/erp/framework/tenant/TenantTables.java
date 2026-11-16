@@ -142,6 +142,7 @@ public final class TenantTables {
             Map.entry("stock_hold", Policy.PRIVATE),
             Map.entry("outbound_box", Policy.PRIVATE),
             Map.entry("outbound_box_item", Policy.PRIVATE),
+            Map.entry("outbound_pack", Policy.PRIVATE),
             Map.entry("outbound_order", Policy.PRIVATE),
             Map.entry("outbound_order_item", Policy.PRIVATE),
             Map.entry("courier_waybill", Policy.PRIVATE),

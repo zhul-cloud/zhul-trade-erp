@@ -18,7 +18,10 @@ public class OutboundBoxDO {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Integer tenantId;
+    /** 单独打包时为所属出库单；合并打包时记组内第一张单（只为兼容），取箱以 packId 为准 */
     private Long outboundId;
+    /** 所属合并打包组（outbound_pack.id），单独打包为空 */
+    private Long packId;
     private Integer boxNo;
     private Integer length;
     private Integer width;

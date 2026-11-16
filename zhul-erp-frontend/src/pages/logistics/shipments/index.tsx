@@ -21,7 +21,13 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import { kg, LOGISTICS_PATHS, ShStatusPill } from '../components';
+import {
+  groupIds,
+  kg,
+  LOGISTICS_PATHS,
+  PackTag,
+  ShStatusPill,
+} from '../components';
 import {
   type Forwarder,
   forwarderApi,
@@ -195,13 +201,18 @@ const PendingPanel: React.FC<{ canEdit: boolean; version: number }> = ({
                 >
                   <Checkbox
                     checked={picked.has(`ob-${o.id}`)}
-                    onChange={(e) => toggle(`ob-${o.id}`, e.target.checked)}
+                    onChange={(e) => {
+                      // 合并打包的同组单一起勾选
+                      for (const x of groupIds(o))
+                        toggle(`ob-${x}`, e.target.checked);
+                    }}
                     aria-label={`选择 ${o.obNo}`}
                   />
                   <b style={{ color: palette.ink }}>{o.obNo}</b>
                   <span style={{ color: palette.mute }}>
                     {o.soNo} · {o.boxCount} 箱 · {kg(o.chargeableWeight)}
                   </span>
+                  {(o.packMates?.length ?? 0) > 0 && <PackTag ob={o} />}
                   <span style={{ flex: 1 }} />
                   <span style={{ color: palette.sub }}>
                     {[o.courier?.carrier, o.courier?.trackingNo]
