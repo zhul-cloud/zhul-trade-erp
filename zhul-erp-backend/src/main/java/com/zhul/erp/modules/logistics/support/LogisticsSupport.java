@@ -107,6 +107,7 @@ public class LogisticsSupport {
                     vo.setVolumeDivisor(s.getVolumeDivisor());
                     vo.setContactName(s.getContactName());
                     vo.setCustomerOwned(customerId != null && customerId.equals(s.getCustomerId()));
+                    vo.setCustomerId(s.getCustomerId());
                     return vo;
                 })
                 .sorted(java.util.Comparator.comparing((ForwarderVO v) -> !v.getCustomerOwned()))

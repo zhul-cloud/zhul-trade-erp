@@ -90,6 +90,9 @@
 | [BUS-081](tasks/2026-11-15-BUS-042-incremental-audit.md) | 经营看板「应收未收」只算 PI，收款记在订单上的手动订单、费用订单没有计入（收款工作台已计入） | P2 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-16 |
 | [BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | CI 导出：寄件方（Shipper）电话、邮箱、联系人为空；收货人地址只有国家；H.S Code 为空；缺信息时仍能导出 | P2 | 已合并待发布 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
 | [BUS-083](tasks/2026-11-16-BUS-082-feedback-1116.md) | PL 导出：收货人邮箱、WhatsApp 不显示，地址只有国家；缺信息时仍能导出 | P2 | 已合并待发布 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
+| [BUS-084](tasks/2026-11-16-BUS-084-batch2-review.md) | 采购登记「直发货代」可以选其他客户的指定货代，后端只校验货代启用，下拉也列出全部货代 | P2 | 待合并 | Claude | [2026-11-16-BUS-084](tasks/2026-11-16-BUS-084-batch2-review.md) | 2026-11-16 |
+| [BUS-085](tasks/2026-11-16-BUS-084-batch2-review.md) | 费用单收款方选「货代」时，只有费用管理菜单的财务取货代列表返回 403，下拉为空选不到货代 | P2 | 待合并 | Claude | [2026-11-16-BUS-084](tasks/2026-11-16-BUS-084-batch2-review.md) | 2026-11-16 |
+| [BUS-086](tasks/2026-11-16-BUS-084-batch2-review.md) | 公海客户认领前仍可经接口新建手动销售订单、提交询盘（只有前端客户选择器排除了公海客户） | P3 | 待合并 | Claude | [2026-11-16-BUS-084](tasks/2026-11-16-BUS-084-batch2-review.md) | 2026-11-16 |
 
 ## 前端
 
@@ -241,6 +244,7 @@
 | [SEC-021](tasks/2026-11-15-BUS-042-incremental-audit.md) | 背调报告导出 PDF 时，正文里的 Markdown 图片会保留 http(s) 外链，交给 LibreOffice 转换，服务器可能被诱导访问内网地址 | P2 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-15 |
 | [SEC-022](tasks/2026-11-15-BUS-042-incremental-audit.md) | 采购退货单只按负责人限定数据范围，采购订单的采购员看不到也处理不了别人去向处理生成的采购退货单 | P2 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-15 |
 | [SEC-023](tasks/2026-11-15-BUS-042-incremental-audit.md) | 没有「查看货源信息」权限的用户，可以在开发任务时间线里看到供应商库名称 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-15 |
+| [SEC-024](tasks/2026-11-16-BUS-084-batch2-review.md) | 没有客户管理菜单的用户可以读取公海客户的完整详情（含联系方式），公海列表本身要求客户管理菜单 | P3 | 待合并 | Claude | [2026-11-16-BUS-084](tasks/2026-11-16-BUS-084-batch2-review.md) | 2026-11-16 |
 
 ## 运行与迁移
 

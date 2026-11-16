@@ -229,6 +229,8 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         if (customer == null || customer.getDeletedAt() != null || !Objects.equals(customer.getTenantId(), tenantId)) {
             throw new BizException("客户不存在");
         }
+        // 公海客户认领后才能新建询盘（audit BUS-086）
+        com.zhul.erp.modules.masterdata.support.CustomerPool.requireClaimed(customer);
         if (req.getOpportunityId() != null
                 && !Objects.equals(opportunityService.customerIdOf(req.getOpportunityId()), req.getCustomerId())) {
             throw new BizException("来源商机与客户不一致");

@@ -38,6 +38,7 @@ import com.zhul.erp.modules.masterdata.support.AliLevels;
 import com.zhul.erp.modules.masterdata.service.CustomerService;
 import com.zhul.erp.modules.masterdata.support.ContactKeys;
 import com.zhul.erp.modules.masterdata.support.CustomerNameNormalizer;
+import com.zhul.erp.modules.masterdata.support.CustomerPool;
 import com.zhul.erp.modules.product.support.CountryCatalog;
 import com.zhul.erp.modules.system.entity.DepartmentDO;
 import com.zhul.erp.modules.system.entity.UserBasicDO;
@@ -77,6 +78,7 @@ import java.util.regex.Pattern;
 public class CustomerServiceImpl implements CustomerService {
 
     private static final int SEARCH_LIMIT = 20;
+    private static final String CUSTOMER_MENU = "/customer/list";
     private static final Pattern CJK = Pattern.compile("[\\p{IsHan}\\p{IsHiragana}\\p{IsKatakana}\\p{IsHangul}]");
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final String[] EXPORT_HEADERS = {
@@ -877,12 +879,15 @@ public class CustomerServiceImpl implements CustomerService {
         return getActiveInScope(id, dataScopeResolver.current());
     }
 
-    /** 查看：数据范围内的客户，或在公海里的客户（所有人都能看，认领前不能改） */
+    /**
+     * 查看：数据范围内的客户，或在公海里的客户（有客户管理菜单的人都能看，认领前不能改）。
+     * 公海放行要求客户管理菜单，与公海列表一致；没有菜单的人仍按数据范围（audit SEC-024）。
+     */
     @Override
     public CustomerDO requireReadable(Long id) {
         CustomerDO c = customerMapper.selectById(id);
         if (c != null && c.getDeletedAt() == null && Objects.equals(c.getTenantId(), currentTenantId())
-                && Objects.equals(c.getInPool(), 1)) {
+                && CustomerPool.inPool(c) && perm.canAccessMenu(CUSTOMER_MENU)) {
             return c;
         }
         return getActiveInScope(id, dataScopeResolver.current());
@@ -992,9 +997,7 @@ public class CustomerServiceImpl implements CustomerService {
             throw new BizException(CustomerConstants.NOT_FOUND_MESSAGE);
         }
         // 公海客户所有人都看得到，但认领前只能查看（查看走 requireReadable），不能修改或在上面新建单据
-        if (Objects.equals(c.getInPool(), 1)) {
-            throw new BizException("客户「" + displayName(c) + "」在公海，认领后才能操作");
-        }
+        CustomerPool.requireClaimed(c);
         if (!scope.canSee(c.getOwnerId())) {
             throw new BizException(CustomerConstants.NOT_FOUND_MESSAGE);
         }
