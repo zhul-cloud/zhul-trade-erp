@@ -1317,6 +1317,7 @@ const PurchaseOrderDetail: React.FC = () => {
           .map(
             (i) => `${i.model} × ${draft.items[i.id]?.quantity ?? i.quantity}`,
           )}
+        defaultShipDate={draft.expectedShipDate ?? po.expectedShipDate}
         onClose={() => setConfirmOpen(false)}
         onConfirm={async (date, shipDate) => {
           const saved = await save(true);
@@ -1966,16 +1967,27 @@ const ContractCard: React.FC<{
 
 // ---------------------------------------------------------------- 弹窗
 
-const ConfirmModal: React.FC<{
+export const ConfirmModal: React.FC<{
   open: boolean;
   po: PurchaseOrder;
   total: string;
   missing: number;
   /** 单价为 0 的型号（样品、赠送），确认前提示 */
   zeroModels: string[];
+  /** 预计发货日期默认值：页面上已填的（可能还没保存），没填时用已保存的（audit UI-100） */
+  defaultShipDate?: string | null;
   onClose: () => void;
   onConfirm: (date: Dayjs, shipDate: Dayjs) => Promise<void>;
-}> = ({ open, po, total, missing, zeroModels, onClose, onConfirm }) => {
+}> = ({
+  open,
+  po,
+  total,
+  missing,
+  zeroModels,
+  defaultShipDate,
+  onClose,
+  onConfirm,
+}) => {
   const { palette } = useAppTheme();
   const [date, setDate] = useState<Dayjs | null>(dayjs());
   const [shipDate, setShipDate] = useState<Dayjs | null>(null);
@@ -1983,9 +1995,9 @@ const ConfirmModal: React.FC<{
   useEffect(() => {
     if (open) {
       setDate(dayjs());
-      setShipDate(po.expectedShipDate ? dayjs(po.expectedShipDate) : null);
+      setShipDate(defaultShipDate ? dayjs(defaultShipDate) : null);
     }
-  }, [open, po.expectedShipDate]);
+  }, [open, defaultShipDate]);
   const shipBad = !!date && !!shipDate && shipDate.isBefore(date, 'day');
   return (
     <Modal
