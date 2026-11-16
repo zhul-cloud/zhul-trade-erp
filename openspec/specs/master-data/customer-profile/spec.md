@@ -107,7 +107,7 @@ TBD - created by archiving change customer-profile. Update Purpose after archive
 
 ### Requirement: 画像字段来源
 系统 SHALL 为每个画像字段（含联系人画像）记录来源与最后更新：
-- 来源：人工、背调报告（带报告编号，见 `crm/customer-background`）、跟进记录（带跟进时间，见 `crm/customer-followup`）、迁移；
+- 来源：人工、背调报告（带报告编号，见 `crm/customer-background`）、跟进记录（带跟进时间，见 `crm/customer-followup`）、迁移、AI 翻译（中文名称，见 `master-data/customer`「客户英文名称自动翻译中文」）；
 - 最后更新人与时间。
 
 详情页把鼠标移到字段上时显示来源，例如：
@@ -140,7 +140,7 @@ TBD - created by archiving change customer-profile. Update Purpose after archive
 
 完整度 5/5 为「已建档」，否则为「待完善」。建档状态由完整度得出，不能手工改。
 
-客户列表 SHALL 增加完整度列：显示 n/5，悬停显示缺项；可以按建档状态、按「缺某个模块」筛选。完整度不影响客户的创建、启用与被引用。
+客户列表 SHALL 增加完整度列：显示 n/5，悬停显示缺项；可以按完成的模块数升序或降序排序（同完整度时按更新时间倒序）；可以按建档状态、按「缺某个模块」筛选。列表上方显示「全部 / 已建档 n / 待完善 n」，数量按当前用户的数据范围统计、不受其他筛选影响，点击即按建档状态筛选。完整度不影响客户的创建、启用与被引用。
 
 #### Scenario: 刚快速创建的客户
 - **WHEN** 业务员在询盘里快速创建客户，只填了名称和国家
@@ -153,6 +153,15 @@ TBD - created by archiving change customer-profile. Update Purpose after archive
 #### Scenario: 按缺项筛选
 - **WHEN** 业务员在客户列表筛选「缺：决策人」
 - **THEN** 只列出没有任何一个联系人同时填了姓名、职位类别、决策权重、沟通风格的客户
+
+#### Scenario: 按完整度排序
+- **WHEN** 业务员在客户列表点「档案完整度」列头选升序
+- **THEN** 完整度 0/5 的客户排在最前，同完整度的按更新时间倒序
+
+#### Scenario: 看建档统计
+- **GIVEN** 业务员数据范围内有 120 个客户，其中 18 个完整度为 5/5
+- **WHEN** 打开客户列表
+- **THEN** 列表上方显示「全部 120 · 已建档 18 · 待完善 102」，点「待完善」只列出 102 个待完善的客户
 
 ### Requirement: 客户经营等级
 系统 SHALL 为成交过的客户计算经营等级 S / A / B / C，用来决定成交后投入多少精力维护（客户经营 SOP 的 G1 分层）。现有的「客户等级」字段改名为「经营等级」，不再手工标记。没有任何未取消销售订单的客户，经营等级显示「未成交」。
