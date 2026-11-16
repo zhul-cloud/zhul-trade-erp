@@ -127,7 +127,8 @@ public class SupplierServiceImpl implements SupplierService {
         LambdaQueryWrapper<SupplierDO> wrapper = new LambdaQueryWrapper<SupplierDO>()
                 .eq(SupplierDO::getTenantId, currentTenantId())
                 .isNull(SupplierDO::getDeletedAt)
-                .eq(SupplierDO::getStatus, 1);
+                .eq(SupplierDO::getStatus, 1)
+                .ne(SupplierDO::getSupplierType, SupplierConstants.TYPE_SERVICE);
         if (StringUtils.hasText(keyword)) {
             wrapper.like(SupplierDO::getName, keyword);
         }
@@ -416,6 +417,8 @@ public class SupplierServiceImpl implements SupplierService {
                 .like(StringUtils.hasText(query.getName()), SupplierDO::getName, normalize(query.getName()))
                 .eq(!creditCode.isEmpty(), SupplierDO::getCreditCode, creditCode)
                 .eq(query.getSupplierType() != null, SupplierDO::getSupplierType, query.getSupplierType())
+                // 货代（服务商）在「货代管理」维护，供应商列表与导出不列出
+                .ne(SupplierDO::getSupplierType, SupplierConstants.TYPE_SERVICE)
                 .orderByDesc(SupplierDO::getUpdateTime);
         String contact = normalize(query.getContact());
         if (StringUtils.hasText(contact)) {
@@ -491,6 +494,7 @@ public class SupplierServiceImpl implements SupplierService {
         vo.setShortName(supplier.getShortName());
         vo.setSupplierType(supplier.getSupplierType());
         vo.setVolumeDivisor(supplier.getVolumeDivisor());
+        vo.setCustomerId(supplier.getCustomerId());
         vo.setIndustry(supplier.getIndustry());
         vo.setCreditCode(supplier.getCreditCode());
         vo.setLegalRepresentative(supplier.getLegalRepresentative());

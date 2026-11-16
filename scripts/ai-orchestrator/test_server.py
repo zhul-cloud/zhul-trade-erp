@@ -439,6 +439,18 @@ class OpenAITest(unittest.TestCase):
         self.assertNotIn("tools", p)
         self.assertNotIn("max_tool_calls", p)
 
+    def test_company_name_request(self):
+        """公司名翻译用公司名提示词和翻译模型，不启用搜索"""
+        cfg = self.server.parse_ai_config(ai(provider="openai", translate_effort="low"))
+        FakeOpenAI.response = openai_response('{"items": [{"key": "c", "text": "ABC 自动化有限公司"}]}', output=[])
+        result, call = self.call(self.server.call_translate, cfg, [{"key": "c", "text": "ABC Automation GmbH"}],
+                                 self.server.COMPANY_PROMPT)
+        self.assertEqual(result["items"][0]["text"], "ABC 自动化有限公司")
+        p = call["params"]
+        self.assertEqual(p["model"], "gpt-6-luna")
+        self.assertIn("公司", p["instructions"] if "instructions" in p else json.dumps(p, ensure_ascii=False))
+        self.assertNotIn("tools", p)
+
     def test_optional_fields_removed(self):
         with_nulls = json.loads(json.dumps(PARSE_RESULT))
         with_nulls["groups"][0]["items"][0]["replacementModel"] = None
@@ -583,6 +595,31 @@ class RejectDrainTest(unittest.TestCase):
         handler = self.handle("/nope", TOKEN, body)
         self.assertEqual(self.status(handler), 404)
         self.assertEqual(handler.rfile.tell(), len(body))
+
+    def test_company_name_skill_uses_company_prompt(self):
+        """translate-company-names 走翻译流程，提示词为公司名提示词"""
+        server = load_server()
+        started = []
+
+        class FakeThread:
+            def __init__(self, target, args, daemon):
+                started.append((target, args))
+
+            def start(self):
+                pass
+
+        handler = server.Handler.__new__(server.Handler)
+        body = json.dumps({"ai": ai(), "callback_url": "http://cb", "input": {"items": []}}).encode()
+        handler.rfile, handler.wfile = io.BytesIO(body), io.BytesIO()
+        handler.headers = {"Content-Length": str(len(body)), "X-AI-Callback-Token": TOKEN}
+        handler.path, handler.command = "/skills/translate-company-names/run", "POST"
+        handler.request_version, handler.requestline = "HTTP/1.1", "POST /skills/translate-company-names/run HTTP/1.1"
+        handler.close_connection = False
+        with mock.patch.object(server.Handler, "log_message"), mock.patch.object(server.threading, "Thread", FakeThread):
+            handler.do_POST()
+        self.assertEqual(self.status(handler), 202)
+        self.assertEqual(started[0][0], server.process_translate)
+        self.assertEqual(started[0][1][2], server.COMPANY_PROMPT)
 
     def test_oversized_unauthorized_body_not_read_and_connection_closed(self):
         """未授权请求不读超大请求体（避免被用来占用服务），改为明确关闭连接"""

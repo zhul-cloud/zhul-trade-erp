@@ -358,6 +358,7 @@ public class ShipmentService {
         Map<Long, Integer> mine = s == null ? Map.of() : itemsOf(List.of(s.getId())).getOrDefault(s.getId(), List.of()).stream()
                 .collect(Collectors.toMap(SupplierShipmentItemDO::getPoItemId, SupplierShipmentItemDO::getQuantity, Integer::sum));
         Map<Long, String> categories = support.categories(lines.stream().map(PurchaseOrderItemDO::getRequirementId).toList());
+        Map<Long, Long> customers = customerBySoItem(lines.stream().map(PurchaseOrderItemDO::getSoItemId).toList());
         ShipmentFormVO vo = new ShipmentFormVO();
         vo.setPoId(p.getId());
         vo.setPoNo(p.getPoNo());
@@ -388,6 +389,7 @@ public class ShipmentService {
             x.setModel(i.getModel());
             x.setBrand(i.getBrand());
             x.setCategory(categories.get(i.getRequirementId()));
+            x.setCustomerId(customers.get(i.getSoItemId()));
             x.setOrderedQty(i.getQuantity());
             x.setShippedQty(done - own);
             x.setMaxQuantity(max);
@@ -521,9 +523,30 @@ public class ShipmentService {
         }
         List<Long> soItemIds = itemsOf(List.of(s.getId())).getOrDefault(s.getId(), List.of()).stream()
                 .map(SupplierShipmentItemDO::getSoItemId).distinct().toList();
-        if (directCustomers(soItemIds).size() > 1) {
+        java.util.Set<Long> customers = directCustomers(soItemIds);
+        if (customers.size() > 1) {
             throw new BizException("直发货代时只能选同一个客户的型号");
         }
+        // 只能用公司货代或这个客户的指定货代，其他客户的指定货代不能用（audit BUS-084）
+        logisticsSupport.requireForwarder(s.getDirectForwarderId(), customers.size() == 1 ? customers.iterator().next() : null);
+    }
+
+    /** 订单型号行 → 所属客户（发货表单按行标出，直发货代按客户过滤货代） */
+    private Map<Long, Long> customerBySoItem(List<Long> soItemIds) {
+        List<Long> ids = soItemIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        List<SalesOrderItemDO> items = soItemMapper.selectBatchIds(ids);
+        Map<Long, SalesOrderDO> orders = logisticsSupport.orders(items.stream().map(SalesOrderItemDO::getSoId).toList());
+        Map<Long, Long> out = new java.util.HashMap<>(items.size() * 2);
+        for (SalesOrderItemDO i : items) {
+            SalesOrderDO o = orders.get(i.getSoId());
+            if (o != null) {
+                out.put(i.getId(), o.getCustomerId());
+            }
+        }
+        return out;
     }
 
     /** 订单型号行所属的客户 */

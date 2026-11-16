@@ -22,7 +22,7 @@ public class CustomerPageQuery {
     private String profileStatus;
     /** 缺的模块（1–5），多选时要全部都缺 */
     private java.util.List<Integer> missingModules;
-    /** 排序字段：updateTime（默认）、bizGrade、potentialRating */
+    /** 排序字段：updateTime、bizGrade、potentialRating、profile（档案完整度）；不传时按经营等级综合排序 */
     private String sortField;
     /** asc / desc，默认 desc */
     private String sortOrder;

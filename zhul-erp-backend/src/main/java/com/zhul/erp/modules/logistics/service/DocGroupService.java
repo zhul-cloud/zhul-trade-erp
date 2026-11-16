@@ -22,6 +22,10 @@ import com.zhul.erp.modules.logistics.repository.OutboundBoxItemMapper;
 import com.zhul.erp.modules.logistics.repository.OutboundBoxMapper;
 import com.zhul.erp.modules.logistics.repository.ShipmentDocGroupMapper;
 import com.zhul.erp.modules.logistics.support.LogisticsSupport;
+import com.zhul.erp.modules.masterdata.entity.CustomerDO;
+import com.zhul.erp.modules.product.constants.ProductConstants;
+import com.zhul.erp.modules.product.entity.ProductCustomsDO;
+import com.zhul.erp.modules.product.repository.ProductCustomsMapper;
 import com.zhul.erp.modules.quotation.support.QuotationRenderModels;
 import com.zhul.erp.modules.sales.dto.PartyDTO;
 import com.zhul.erp.modules.sales.entity.ProformaInvoiceDO;
@@ -32,10 +36,13 @@ import com.zhul.erp.modules.sales.entity.SalesOrderItemDO;
 import com.zhul.erp.modules.sales.repository.ProformaInvoiceMapper;
 import com.zhul.erp.modules.sales.repository.SalesOrderFeeMapper;
 import com.zhul.erp.modules.sales.repository.SalesOrderItemMapper;
+import com.zhul.erp.modules.sales.support.PiDefaults;
 import com.zhul.erp.modules.sales.support.PiRenderModels;
 import com.zhul.erp.modules.sales.support.PiStore;
 import com.zhul.erp.modules.system.constants.DocumentType;
 import com.zhul.erp.modules.system.service.DocumentNumberService;
+import com.zhul.erp.modules.system.entity.UserBasicDO;
+import com.zhul.erp.modules.system.repository.UserBasicMapper;
 import com.zhul.erp.modules.system.service.LogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -86,6 +93,9 @@ public class DocGroupService {
     private final LogService logService;
     private final com.zhul.erp.modules.product.support.BrandResolver brandResolver;
     private final DocFileNames fileNames;
+    private final PiDefaults piDefaults;
+    private final UserBasicMapper userBasicMapper;
+    private final ProductCustomsMapper customsMapper;
 
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public LogisticsVO generate(Long logisticsId, GenerateDocsRequest req) {
@@ -163,10 +173,11 @@ public class DocGroupService {
         boolean ci = "ci".equalsIgnoreCase(kind);
         int docType = ci ? DocTypes.CI : DocTypes.PL;
         RenderModel model = ci ? ciModel(sh, g) : plModel(sh, g);
+        requireComplete(ci, model);
         byte[] xlsx = XlsxRenderer.render(templateService.resolveDefault(docType).file(), docType, model);
         String base = fileNames.of(g.getTenantId(), ci ? DocFileNames.CI : DocFileNames.PL, support.customer(sh.getCustomerId()),
                 ci ? g.getCiNo() : g.getPlNo());
-        return "pdf".equals(f) ? new TemplateFile(base + ".pdf", "application/pdf", converter.toPdf(xlsx))
+        return "pdf".equals(f) ? new TemplateFile(base + ".pdf", "application/pdf", converter.toSharpPdf(xlsx))
                 : new TemplateFile(base + ".xlsx", XLSX, xlsx);
     }
 
@@ -183,6 +194,7 @@ public class DocGroupService {
                 : soItemMapper.selectBatchIds(qty.keySet()).stream().collect(Collectors.toMap(SalesOrderItemDO::getId, i -> i));
         SalesOrderDO first = orders.get(soIds.get(0));
         Map<String, Object> h = header(sh, orders, soIds, first);
+        Map<Long, ProductCustomsDO> customs = customsOf(soItems.values());
         List<Map<String, Object>> items = new ArrayList<>();
         BigDecimal itemTotal = BigDecimal.ZERO;
         int no = 1;
@@ -197,8 +209,11 @@ public class DocGroupService {
             m.put("item.model", nz(i.getModel()));
             m.put("item.brand", nz(i.getBrand()));
             m.put("item.description", describe(i));
-            m.put("item.hsCode", nz(i.getHsCode()));
-            m.put("item.origin", nz(i.getOriginCountry()));
+            // 订单行没记 HS 编码、原产地时取商品档案的报关信息（audit BUS-082）
+            ProductCustomsDO c = i.getProductId() == null ? null : customs.get(i.getProductId());
+            m.put("item.hsCode", StringUtils.hasText(i.getHsCode()) ? i.getHsCode() : c == null ? "" : nz(c.getHsCode()));
+            m.put("item.origin", StringUtils.hasText(i.getOriginCountry()) ? i.getOriginCountry()
+                    : c == null ? "" : nz(c.getOriginCountry()));
             m.put("item.qty", e.getValue());
             m.put("item.unitPrice", price);
             m.put("item.amount", amount);
@@ -345,12 +360,29 @@ public class DocGroupService {
 
     private Map<String, Object> header(LogisticsShipmentDO sh, Map<Long, SalesOrderDO> orders, List<Long> soIds, SalesOrderDO first) {
         Map<String, Object> h = new LinkedHashMap<>();
-        PiRenderModels.party(h, "buyer", piStore.fromJson(first.getBuyerJson(), PartyDTO.class));
-        PiRenderModels.party(h, "consignee", piStore.fromJson(first.getConsigneeJson(), PartyDTO.class));
-        h.put("customer.name", nz(support.customerNames(List.of(sh.getCustomerId())).get(sh.getCustomerId())));
-        h.put("seller.name", "");
-        h.put("seller.email", "");
-        h.put("seller.phone", "");
+        CustomerDO customer = support.customer(sh.getCustomerId());
+        // 订单上的买方、收货人快照没有详细地址时，改用客户档案里现在的发票抬头 / 收货人；
+        // 联系人、电话、邮箱缺的用客户主联系人补（audit BUS-082、BUS-083）
+        PartyDTO buyer = withContact(withAddress(piStore.fromJson(first.getBuyerJson(), PartyDTO.class),
+                customer == null ? null : piDefaults.buyer(customer)), customer);
+        PartyDTO consignee = withContact(withAddress(piStore.fromJson(first.getConsigneeJson(), PartyDTO.class),
+                piDefaults.consignee(sh.getCustomerId()), buyer), customer);
+        PiRenderModels.party(h, "buyer", buyer);
+        PiRenderModels.party(h, "consignee", consignee);
+        h.put(STREET, consignee == null ? "" : nz(consignee.getAddress()));
+        String whatsapp = customer == null ? "" : nz(customer.getWhatsapp());
+        h.put("customer.whatsapp", whatsapp);
+        h.put("buyer.whatsapp", whatsapp);
+        h.put("consignee.whatsapp", whatsapp);
+        String customerName = nz(support.customerNames(List.of(sh.getCustomerId())).get(sh.getCustomerId()));
+        h.put("customer.name", customerName);
+        h.put(CUSTOMER, customerName);
+        // 寄件方（Shipper）同 PI：订单业务员的姓名、邮箱、电话（audit BUS-082）
+        UserBasicDO owner = first.getOwnerId() == null || first.getOwnerId() == 0 ? null
+                : userBasicMapper.selectById(first.getOwnerId().intValue());
+        h.put("seller.name", QuotationRenderModels.sellerName(owner));
+        h.put("seller.email", owner == null ? "" : nz(owner.getEmail()));
+        h.put("seller.phone", owner == null ? "" : nz(owner.getPhone()));
         List<Long> piIds = soIds.stream().map(orders::get).filter(Objects::nonNull).map(SalesOrderDO::getPiId)
                 .filter(x -> x != null && x > 0).distinct().toList();
         h.put("pi.no", piIds.isEmpty() ? "" : piMapper.selectBatchIds(piIds).stream().map(ProformaInvoiceDO::getPiNo).collect(Collectors.joining(", ")));
@@ -358,6 +390,117 @@ public class DocGroupService {
         h.put("shipment.no", sh.getShNo());
         h.put("shipment.waybill", (nz(sh.getCarrier()) + " " + nz(sh.getWaybillNo())).trim());
         return h;
+    }
+
+    /** 收货人详细地址（不含城市、国家），只用于导出前检查，模板里没有这个占位符 */
+    private static final String STREET = "_check.consigneeStreet";
+    /** 客户名称，只用于导出前检查的提示 */
+    private static final String CUSTOMER = "_check.customer";
+
+    /** 取第一个有详细地址的主体；都没有时取第一个不为空的 */
+    static PartyDTO withAddress(PartyDTO... options) {
+        PartyDTO firstNonNull = null;
+        for (PartyDTO p : options) {
+            if (p == null) {
+                continue;
+            }
+            if (StringUtils.hasText(p.getAddress())) {
+                return p;
+            }
+            if (firstNonNull == null) {
+                firstNonNull = p;
+            }
+        }
+        return firstNonNull;
+    }
+
+    /** 联系人、电话、邮箱为空时用客户主联系人补上；只补空的，不改已有的 */
+    static PartyDTO withContact(PartyDTO p, CustomerDO c) {
+        if (p == null || c == null) {
+            return p;
+        }
+        if (!StringUtils.hasText(p.getContact())) {
+            p.setContact(c.getContactName());
+        }
+        if (!StringUtils.hasText(p.getPhone())) {
+            p.setPhone(c.getContactPhone());
+        }
+        if (!StringUtils.hasText(p.getEmail())) {
+            p.setEmail(c.getContactEmail());
+        }
+        return p;
+    }
+
+    /** 订单行商品的报关信息（全局商品库，tenant_id 为平台；该表不经租户拦截器） */
+    private Map<Long, ProductCustomsDO> customsOf(java.util.Collection<SalesOrderItemDO> items) {
+        List<Long> ids = items.stream().map(SalesOrderItemDO::getProductId).filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return customsMapper.selectList(new LambdaQueryWrapper<ProductCustomsDO>()
+                        .eq(ProductCustomsDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                        .in(ProductCustomsDO::getProductId, ids)
+                        .isNull(ProductCustomsDO::getDeletedAt))
+                .stream().collect(Collectors.toMap(ProductCustomsDO::getProductId, c -> c, (a, b) -> a));
+    }
+
+    /**
+     * 导出前检查必填信息，缺的列出来并说明去哪里补，补全后才能导出（audit BUS-082、BUS-083）。
+     * 两种单证都要：寄件方姓名、邮箱、电话；收货人名称、详细地址、联系人、电话。
+     * CI 另要每个型号的 H.S Code，PL 另要收货人邮箱。
+     */
+    static void requireComplete(boolean ci, RenderModel model) {
+        Map<String, Object> h = model.header();
+        List<String> parts = new ArrayList<>();
+        if (!has(h, "seller.name")) {
+            parts.add("订单没有业务员：请先在订单上指定业务员");
+        } else {
+            List<String> seller = new ArrayList<>();
+            if (!has(h, "seller.email")) {
+                seller.add("邮箱");
+            }
+            if (!has(h, "seller.phone")) {
+                seller.add("电话");
+            }
+            if (!seller.isEmpty()) {
+                parts.add("寄件方（业务员 " + h.get("seller.name") + "）的" + String.join("、", seller) + "：在「系统管理 → 用户管理」里补全");
+            }
+        }
+        List<String> consignee = new ArrayList<>();
+        if (!has(h, "consignee.name")) {
+            consignee.add("名称");
+        }
+        if (!has(h, STREET)) {
+            consignee.add("详细地址");
+        }
+        if (!has(h, "consignee.contact")) {
+            consignee.add("联系人");
+        }
+        if (!has(h, "consignee.phone")) {
+            consignee.add("电话");
+        }
+        if (!ci && !has(h, "consignee.email")) {
+            consignee.add("邮箱");
+        }
+        if (!consignee.isEmpty()) {
+            parts.add("收货人的" + String.join("、", consignee) + "：在客户「" + h.get(CUSTOMER) + "」档案的「收货与单证信息」里补全");
+        }
+        if (ci) {
+            List<String> models = model.items().stream()
+                    .filter(m -> !StringUtils.hasText(String.valueOf(m.getOrDefault("item.hsCode", ""))))
+                    .map(m -> String.valueOf(m.get("item.model"))).distinct().toList();
+            if (!models.isEmpty()) {
+                parts.add("型号 " + String.join("、", models) + " 的 H.S Code：在商品档案的「报关信息」里补全");
+            }
+        }
+        if (!parts.isEmpty()) {
+            throw new BizException("导出前请先补全：" + String.join("；", parts));
+        }
+    }
+
+    private static boolean has(Map<String, Object> h, String key) {
+        Object v = h.get(key);
+        return v != null && StringUtils.hasText(v.toString());
     }
 
     private static String date(LogisticsShipmentDO sh) {

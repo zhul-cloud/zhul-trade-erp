@@ -4,6 +4,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, Progress, Select, Space, Table } from 'antd';
 import dayjs from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
+import { CustomerSub } from '@/components/DocFields';
 import { Stars } from '@/pages/customer/profile/ui';
 import { RECEIPT_META } from '@/pages/sales/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -424,6 +425,21 @@ const BlockerCell: React.FC<{ item: FollowupItem }> = ({ item }) =>
 const followsAfterSales = (r: FollowupItem) =>
   r.nextActionSource === NEXT_AFTER_SALES && !!r.afterSalesId;
 
+/** 客户列名称下面的两行：国家 / 地区、主联系人（统一客户列，audit UI-097）；团队视图再加一行业务员 */
+const CustomerLines: React.FC<{
+  country?: string;
+  contact?: string;
+  owner?: string;
+}> = ({ country, contact, owner }) => {
+  const { palette } = useAppTheme();
+  return (
+    <div style={{ color: palette.mute, fontSize: 12, lineHeight: '18px' }}>
+      <CustomerSub country={country} contact={contact} />
+      {owner && <div>业务员 {owner}</div>}
+    </div>
+  );
+};
+
 /** 列表的一行：客户行（名下多张单据时）或单据行 */
 type Row = FollowupItem & {
   _key: string;
@@ -624,11 +640,11 @@ export const FollowupTable: React.FC<{
     render: (_, r) => (
       <div style={{ display: 'grid', gap: 4 }}>
         <CustomerLink item={r} />
-        <span style={{ fontSize: 12, color: palette.mute }}>
-          {[r.country, showOwner ? r.ownerName : undefined]
-            .filter(Boolean)
-            .join(' · ') || '—'}
-        </span>
+        <CustomerLines
+          country={r.country}
+          contact={r.customerContact}
+          owner={showOwner ? r.ownerName : undefined}
+        />
         {sales && !afterQuote && !afterPi && (
           <span>
             <StageTag item={r} />
@@ -1267,11 +1283,11 @@ export const FollowupTable: React.FC<{
         </button>
         <CustomerLink item={g} />
       </span>
-      <span style={{ fontSize: 12, color: palette.mute }}>
-        {[g.country, showOwner ? g.ownerName : undefined]
-          .filter(Boolean)
-          .join(' · ') || '—'}
-      </span>
+      <CustomerLines
+        country={g.country}
+        contact={g.customerContact}
+        owner={showOwner ? g.ownerName : undefined}
+      />
       <span>
         <StageTag
           item={{ ...g, board: boardNo, stageName: g.stageName }}

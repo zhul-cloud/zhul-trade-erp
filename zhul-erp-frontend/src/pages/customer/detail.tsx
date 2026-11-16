@@ -5,6 +5,7 @@ import {
   InfoCircleOutlined,
   MergeOutlined,
   SwapOutlined,
+  UserAddOutlined,
   WalletOutlined,
 } from '@ant-design/icons';
 import { history, useAccess, useParams } from '@umijs/max';
@@ -47,6 +48,8 @@ import {
   SopStageCard,
   useCustomerFollowup,
 } from './FollowupSection';
+import ForwardersCard from './ForwardersCard';
+import { PutIntoPoolModal, useClaim } from './pool';
 import CompletenessCard from './profile/CompletenessCard';
 import ContactsCard, { ContactModal } from './profile/ContactsCard';
 import GradeCard from './profile/GradeCard';
@@ -301,12 +304,18 @@ const CustomerDetailPage: React.FC = () => {
   const [mergeOpen, setMergeOpen] = useState(false);
   const [profile, setProfile] = useState<Profile>();
   const [editModule, setEditModule] = useState<number>();
-  const bg = useBackgroundReports(Number(id));
-  const precheck = useBackgroundPrecheck(Number(id));
+  // 公海客户认领前只读（spec master-data/customer-pool）：不显示跟进、背调、信用与编辑类操作
+  const inPool = !!record?.inPool;
+  // 详情加载完、确认不在公海后才取背调与跟进，否则这些接口会报「认领后才能操作」
+  const ownedId = record && !inPool ? Number(id) : undefined;
+  const bg = useBackgroundReports(ownedId);
+  const precheck = useBackgroundPrecheck(ownedId);
   /** 背调前检查「去补充」联系人：改主联系人（没有时新增） */
   const [fixContact, setFixContact] = useState<Contact | 'new'>();
+  const [poolOpen, setPoolOpen] = useState(false);
+  const claim = useClaim();
   // 「跟进」分区：有客户跟进菜单权限才显示（openspec customer-followup）
-  const showFollowup = !!access.salesFollowup;
+  const showFollowup = !!access.salesFollowup && !!ownedId;
   const followup = useCustomerFollowup(Number(id), showFollowup);
 
   /** silent：返回刷新时不换成骨架屏、不卸载页面，取数失败保留原内容（audit UI-055） */
@@ -352,7 +361,7 @@ const CustomerDetailPage: React.FC = () => {
   }, [load, loadProfile]);
 
   const back = () => tabsActions.backOr(LIST_PATH);
-  const canEdit = !!access['partner:customer:edit'];
+  const canEdit = !!access['partner:customer:edit'] && !inPool;
   const canBackground = !!access['partner:customer:background'];
   const fixPrecheck = canEdit
     ? (target: string) => {
@@ -405,8 +414,19 @@ const CustomerDetailPage: React.FC = () => {
         <StatusPill status={r.status} />
       </>
     );
-    actions = (
+    actions = inPool ? (
+      <Button
+        type="primary"
+        icon={<UserAddOutlined />}
+        onClick={() => claim(r, () => load())}
+      >
+        认领
+      </Button>
+    ) : (
       <>
+        {(canEdit || access['partner:customer:transfer']) && (
+          <Button onClick={() => setPoolOpen(true)}>放入公海</Button>
+        )}
         {access['partner:customer:transfer'] && (
           <Button icon={<SwapOutlined />} onClick={() => setTransferOpen(true)}>
             转移
@@ -466,6 +486,34 @@ const CustomerDetailPage: React.FC = () => {
     const cp = profile?.countryProfile;
     body = (
       <>
+        {inPool && (
+          <div
+            role="status"
+            style={{
+              marginBottom: 16,
+              padding: '10px 16px',
+              borderRadius: 12,
+              fontSize: 13,
+              color: palette.ink,
+              background: palette.accentSoft,
+              border: `1px solid ${palette.accentLine}`,
+            }}
+          >
+            <b>在公海</b>
+            {[
+              r.lastOwnerName && `上一任负责人 ${r.lastOwnerName}`,
+              r.poolReason && `原因：${r.poolReason}`,
+              r.poolAt &&
+                `${formatDateTime(r.poolAt).slice(0, 16)}${r.poolByName ? ` ${r.poolByName} 放入` : ''}`,
+            ]
+              .filter(Boolean)
+              .map((t) => ` · ${t}`)
+              .join('')}
+            <span style={{ color: palette.mute }}>
+              ；认领后才能修改资料、新建单据
+            </span>
+          </div>
+        )}
         <div
           style={{
             display: 'flex',
@@ -630,7 +678,14 @@ const CustomerDetailPage: React.FC = () => {
                 }}
               />
             )}
-            {record && (
+            {!inPool && (
+              <ForwardersCard
+                customerId={r.id}
+                customerName={r.displayName}
+                canEdit={canEdit}
+              />
+            )}
+            {record && !inPool && (
               <CreditCard
                 customerId={record.id}
                 customerName={record.displayName}
@@ -702,6 +757,17 @@ const CustomerDetailPage: React.FC = () => {
                 // 当前客户已被并入另一个客户：替换当前页，返回条不再指向已删除的客户（audit UI-058）
                 history.replace(`${LIST_PATH}/${keepId}`);
               }
+            }}
+          />
+          <PutIntoPoolModal
+            open={poolOpen}
+            customers={[
+              { id: r.id, name: r.displayName, ownerName: r.ownerName },
+            ]}
+            onClose={() => setPoolOpen(false)}
+            onDone={() => {
+              setPoolOpen(false);
+              load();
             }}
           />
           <TransferModal

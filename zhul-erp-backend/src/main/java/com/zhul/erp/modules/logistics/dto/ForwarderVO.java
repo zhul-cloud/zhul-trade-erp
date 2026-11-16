@@ -8,4 +8,9 @@ public class ForwarderVO {
     private Long id;
     private String name;
     private Integer volumeDivisor;
+    /** 这家货代归属当前客户（客户指定货代），发货时排在前面 */
+    private Boolean customerOwned;
+    /** 归属客户：为空是公司货代。直发货代等按型号所属客户过滤时用 */
+    private Long customerId;
+    private String contactName;
 }

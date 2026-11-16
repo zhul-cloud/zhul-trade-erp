@@ -9,6 +9,7 @@ import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.DataScope;
 import com.zhul.erp.framework.security.DataScopeResolver;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.modules.aitask.translation.CustomerNameTranslations;
 import com.zhul.erp.modules.masterdata.constants.CustomerConstants;
 import com.zhul.erp.modules.masterdata.dto.AbstractCustomerRequest;
 import com.zhul.erp.modules.masterdata.dto.AssignableOwnersVO;
@@ -17,6 +18,9 @@ import com.zhul.erp.modules.masterdata.dto.CustomerDetailVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerLeadCommand;
 import com.zhul.erp.modules.masterdata.dto.CustomerPageQuery;
 import com.zhul.erp.modules.masterdata.dto.CustomerPartyRequest;
+import com.zhul.erp.modules.masterdata.dto.CustomerPoolQuery;
+import com.zhul.erp.modules.masterdata.dto.CustomerPoolRequest;
+import com.zhul.erp.modules.masterdata.dto.CustomerProfileCountsVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerRefVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerTransferRequest;
 import com.zhul.erp.modules.system.service.BusinessUnitService;
@@ -24,6 +28,7 @@ import com.zhul.erp.modules.masterdata.dto.CustomerVO;
 import com.zhul.erp.modules.masterdata.dto.SaveCustomerRequest;
 import com.zhul.erp.modules.masterdata.dto.UpdateCustomerRequest;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
+import com.zhul.erp.modules.masterdata.customerprofile.entity.CustomerFieldSourceDO;
 import com.zhul.erp.modules.masterdata.customerprofile.support.CustomerProfileBits;
 import com.zhul.erp.modules.masterdata.customerprofile.support.FieldSources;
 import com.zhul.erp.modules.masterdata.customerprofile.support.ProfileFacts;
@@ -33,6 +38,7 @@ import com.zhul.erp.modules.masterdata.support.AliLevels;
 import com.zhul.erp.modules.masterdata.service.CustomerService;
 import com.zhul.erp.modules.masterdata.support.ContactKeys;
 import com.zhul.erp.modules.masterdata.support.CustomerNameNormalizer;
+import com.zhul.erp.modules.masterdata.support.CustomerPool;
 import com.zhul.erp.modules.product.support.CountryCatalog;
 import com.zhul.erp.modules.system.entity.DepartmentDO;
 import com.zhul.erp.modules.system.entity.UserBasicDO;
@@ -72,6 +78,7 @@ import java.util.regex.Pattern;
 public class CustomerServiceImpl implements CustomerService {
 
     private static final int SEARCH_LIMIT = 20;
+    private static final String CUSTOMER_MENU = "/customer/list";
     private static final Pattern CJK = Pattern.compile("[\\p{IsHan}\\p{IsHiragana}\\p{IsKatakana}\\p{IsHangul}]");
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final String[] EXPORT_HEADERS = {
@@ -95,6 +102,8 @@ public class CustomerServiceImpl implements CustomerService {
     private final FieldSources fieldSources;
     /** 延迟取：ProfileFacts → 跟进钩子 → 商机服务 → 客户服务，直接注入会循环依赖 */
     private final ObjectProvider<ProfileFacts> profileFacts;
+    private final CustomerNameTranslations customerNames;
+    private final com.zhul.erp.framework.security.PermissionChecker perm;
 
     // ---------------------------------------------------------------- 新增 / 更新
 
@@ -140,6 +149,8 @@ public class CustomerServiceImpl implements CustomerService {
         primaryContacts.fromCustomer(customer);
         // 档案完整度随即算好，列表的完整度与建档筛选不等夜间任务（BUS-062）
         profileFacts.getObject().refresh(customer);
+        recordNameCnSource(customer, "", translated(req), scope.selfId());
+        customerNames.onSaved(customer, null, translated(req), scope.selfId());
         return toVo(customer, ownerNames(List.of(customer)));
     }
 
@@ -153,6 +164,8 @@ public class CustomerServiceImpl implements CustomerService {
         checkDuplicate(customer.getTenantId(), req.getCountry(), nameKey, id, scope);
 
         Map<String, Object> before = profileValues(customer);
+        String nameBefore = customer.getName();
+        String nameCnBefore = text(customer.getNameCn());
         applyFields(customer, req);
         customer.setNameKey(nameKey);
         customer.setCustomerRole(req.getCustomerRole());
@@ -168,6 +181,24 @@ public class CustomerServiceImpl implements CustomerService {
         List<String> changed = before.keySet().stream().filter(k -> !Objects.equals(before.get(k), after.get(k))).toList();
         fieldSources.record(customer.getTenantId(), id, changed, FieldSources.MANUAL, 0L, scope.selfId());
         profileFacts.getObject().refresh(customer);
+        recordNameCnSource(customer, nameCnBefore, translated(req), scope.selfId());
+        customerNames.onSaved(customer, nameBefore, translated(req), scope.selfId());
+    }
+
+    /** 中文名称就是这次「AI 翻译」按钮的译名 */
+    private static boolean translated(AbstractCustomerRequest req) {
+        String t = text(req.getNameCnTranslation());
+        return !t.isEmpty() && t.equals(text(req.getNameCn()));
+    }
+
+    /** 中文名称来源：用了按钮译名记「AI 翻译」，手工填写或修改记「人工」；清空的不记 */
+    private void recordNameCnSource(CustomerDO c, String before, boolean translated, Long operatorId) {
+        String now = text(c.getNameCn());
+        if (now.isEmpty() || !translated && now.equals(before)) {
+            return;
+        }
+        fieldSources.record(c.getTenantId(), c.getId(), List.of(FieldSources.NAME_CN),
+                translated ? FieldSources.AI_TRANSLATE : FieldSources.MANUAL, 0L, operatorId);
     }
 
     @Override
@@ -224,6 +255,7 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setCustomerCode(generateCode(tenantId, customer.getId()));
         customerMapper.updateById(customer);
         primaryContacts.fromCustomer(customer);
+        customerNames.onSaved(customer, null, false, scope.selfId());
         return customer.getId();
     }
 
@@ -480,7 +512,8 @@ public class CustomerServiceImpl implements CustomerService {
         LambdaQueryWrapper<CustomerDO> wrapper = new LambdaQueryWrapper<CustomerDO>()
                 .eq(CustomerDO::getTenantId, currentTenantId())
                 .isNull(CustomerDO::getDeletedAt)
-                .eq(CustomerDO::getStatus, 1);
+                .eq(CustomerDO::getStatus, 1)
+                .eq(CustomerDO::getInPool, 0);
         dataScopeResolver.current().apply(wrapper, CustomerDO::getOwnerId);
         if (StringUtils.hasText(keyword)) {
             String kw = keyword.trim();
@@ -520,7 +553,7 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     public CustomerDetailVO getDetail(Long id) {
-        CustomerDO c = getActiveInScope(id, dataScopeResolver.current());
+        CustomerDO c = requireReadable(id);
         CustomerDetailVO vo = new CustomerDetailVO();
         fillVo(vo, c, ownerNames(List.of(c)));
         vo.setOwnerDeptName(ownerDeptName(c.getOwnerId()));
@@ -548,6 +581,11 @@ public class CustomerServiceImpl implements CustomerService {
         vo.setDestinationPort(c.getDestinationPort());
         vo.setRemark(c.getRemark());
         vo.setParties(partySync.listActive(id).stream().map(CustomerPartySync::toVo).toList());
+        CustomerFieldSourceDO nameCnSource = fieldSources.get(id, FieldSources.NAME_CN);
+        if (nameCnSource != null) {
+            vo.setNameCnSource(nameCnSource.getSource());
+            vo.setNameCnSourceTime(nameCnSource.getUpdateTime());
+        }
         return vo;
     }
 
@@ -562,6 +600,8 @@ public class CustomerServiceImpl implements CustomerService {
         LambdaQueryWrapper<CustomerDO> w = new LambdaQueryWrapper<CustomerDO>()
                 .eq(CustomerDO::getTenantId, currentTenantId())
                 .isNull(CustomerDO::getDeletedAt)
+                // 公海客户在「公海客户」页签，不在全部客户与导出里（spec master-data/customer「客户列表与筛选」）
+                .eq(CustomerDO::getInPool, 0)
                 .like(StringUtils.hasText(q.getCustomerCode()), CustomerDO::getCustomerCode, text(q.getCustomerCode()))
                 .like(StringUtils.hasText(q.getContactName()), CustomerDO::getContactName, text(q.getContactName()))
                 .eq(StringUtils.hasText(q.getCountry()), CustomerDO::getCountry, q.getCountry())
@@ -604,9 +644,35 @@ public class CustomerServiceImpl implements CustomerService {
         if ("updateTime".equals(q.getSortField())) {
             return asc ? w.orderByAsc(CustomerDO::getUpdateTime) : w.orderByDesc(CustomerDO::getUpdateTime);
         }
+        // 档案完整度按已完成的模块数，升序时缺得最多的在前
+        if ("profile".equals(q.getSortField())) {
+            return w.last(asc ? "ORDER BY BIT_COUNT(profile_mask) ASC, update_time DESC"
+                    : "ORDER BY BIT_COUNT(profile_mask) DESC, update_time DESC");
+        }
         // 默认：成交客户按经营等级 S→C 排在前面，同级按潜力评级、综合分数；未成交的按潜力评级，未评的最后
         return w.last("ORDER BY (biz_grade = 0), biz_grade ASC, (potential_rating = 0), potential_rating DESC, "
                 + "biz_grade_score DESC, update_time DESC");
+    }
+
+    @Override
+    public CustomerProfileCountsVO profileCounts() {
+        DataScope scope = dataScopeResolver.current();
+        CustomerProfileCountsVO vo = new CustomerProfileCountsVO();
+        vo.setAll(countInScope(scope, null));
+        vo.setDone(countInScope(scope, true));
+        vo.setPending(vo.getAll() - vo.getDone());
+        return vo;
+    }
+
+    /** 数据范围内未删除的客户数；done 为 true 时只数已建档的 */
+    private long countInScope(DataScope scope, Boolean done) {
+        LambdaQueryWrapper<CustomerDO> w = new LambdaQueryWrapper<CustomerDO>()
+                .eq(CustomerDO::getTenantId, currentTenantId())
+                .isNull(CustomerDO::getDeletedAt)
+                .eq(CustomerDO::getInPool, 0)
+                .eq(Boolean.TRUE.equals(done), CustomerDO::getProfileMask, CustomerProfileBits.ALL_DONE);
+        scope.apply(w, CustomerDO::getOwnerId);
+        return customerMapper.selectCount(w);
     }
 
     // ---------------------------------------------------------------- 删除 / 转移
@@ -668,6 +734,9 @@ public class CustomerServiceImpl implements CustomerService {
         if (customers.size() != distinct.size() || customers.stream().anyMatch(c -> !scope.canSee(c.getOwnerId()))) {
             throw new BizException("部分客户不存在或无权操作，请刷新后重试");
         }
+        customers.stream().filter(c -> Objects.equals(c.getInPool(), 1)).findFirst().ifPresent(c -> {
+            throw new BizException("客户「" + displayName(c) + "」在公海，要先认领才能转移");
+        });
         UserBasicDO newOwner = requireAssignableOwner(req.getOwnerId(), scope, tenantId);
         Map<Long, String> names = ownerNames(customers);
         String reason = text(req.getReason());
@@ -810,12 +879,126 @@ public class CustomerServiceImpl implements CustomerService {
         return getActiveInScope(id, dataScopeResolver.current());
     }
 
+    /**
+     * 查看：数据范围内的客户，或在公海里的客户（有客户管理菜单的人都能看，认领前不能改）。
+     * 公海放行要求客户管理菜单，与公海列表一致；没有菜单的人仍按数据范围（audit SEC-024）。
+     */
+    @Override
+    public CustomerDO requireReadable(Long id) {
+        CustomerDO c = customerMapper.selectById(id);
+        if (c != null && c.getDeletedAt() == null && Objects.equals(c.getTenantId(), currentTenantId())
+                && CustomerPool.inPool(c) && perm.canAccessMenu(CUSTOMER_MENU)) {
+            return c;
+        }
+        return getActiveInScope(id, dataScopeResolver.current());
+    }
+
+    // ---------------------------------------------------------------- 公海（spec master-data/customer-pool）
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void putIntoPool(CustomerPoolRequest req) {
+        DataScope scope = dataScopeResolver.current();
+        Long self = scope.selfId();
+        boolean canTransfer = perm.has("partner:customer:transfer");
+        String reason = text(req.getReason());
+        // 按 ID 顺序加行锁，批量时与其他操作不互相等待成环
+        for (Long id : new java.util.TreeSet<>(req.getIds())) {
+            customerMapper.lockById(id);
+            CustomerDO c = customerMapper.selectById(id);
+            if (c == null || c.getDeletedAt() != null || !Objects.equals(c.getTenantId(), currentTenantId())) {
+                throw new BizException(CustomerConstants.NOT_FOUND_MESSAGE);
+            }
+            if (Objects.equals(c.getInPool(), 1)) {
+                throw new BizException("客户「" + displayName(c) + "」已在公海");
+            }
+            boolean owner = self != null && self.equals(c.getOwnerId());
+            if (!owner && !(canTransfer && scope.canSee(c.getOwnerId()))) {
+                throw new BizException("只有负责人或有客户转移权限的人能把「" + displayName(c) + "」放入公海");
+            }
+            String ownerName = ownerNames(List.of(c)).get(c.getOwnerId());
+            customerMapper.update(null, new LambdaUpdateWrapper<CustomerDO>()
+                    .set(CustomerDO::getOwnerId, 0L)
+                    .set(CustomerDO::getInPool, 1)
+                    .set(CustomerDO::getPoolAt, LocalDateTime.now())
+                    .set(CustomerDO::getPoolBy, self == null ? 0L : self)
+                    .set(CustomerDO::getPoolReason, reason)
+                    .set(CustomerDO::getLastOwnerId, c.getOwnerId() == null ? 0L : c.getOwnerId())
+                    .set(CustomerDO::getUpdateTime, LocalDateTime.now())
+                    .eq(CustomerDO::getId, id));
+            // 未结束的跟进对象随客户变为无人负责；已有单据的归属不变
+            followupSync.ownerChanged(id, 0L);
+            Map<String, Object> before = new LinkedHashMap<>();
+            before.put("customerCode", c.getCustomerCode());
+            before.put("ownerName", ownerName == null ? "" : ownerName);
+            logService.recordOperateLog("客户管理", "放入公海", before,
+                    Map.of("customerCode", c.getCustomerCode(), "reason", reason));
+        }
+    }
+
+    @Override
+    public PageResult<CustomerVO> poolPage(CustomerPoolQuery q) {
+        int size = q.getPageSize() == null ? 10 : Math.min(Math.max(q.getPageSize(), 1), 100);
+        int page = q.getPage() == null ? 1 : Math.max(q.getPage(), 1);
+        LambdaQueryWrapper<CustomerDO> w = new LambdaQueryWrapper<CustomerDO>()
+                .eq(CustomerDO::getTenantId, currentTenantId())
+                .isNull(CustomerDO::getDeletedAt)
+                .eq(CustomerDO::getInPool, 1)
+                .eq(StringUtils.hasText(q.getCountry()), CustomerDO::getCountry, q.getCountry())
+                .eq(q.getLastOwnerId() != null, CustomerDO::getLastOwnerId, q.getLastOwnerId());
+        if (StringUtils.hasText(q.getKeyword())) {
+            String kw = q.getKeyword().trim();
+            w.and(x -> x.like(CustomerDO::getName, kw).or().like(CustomerDO::getNameCn, kw)
+                    .or().like(CustomerDO::getCustomerCode, kw).or().like(CustomerDO::getContactName, kw));
+        }
+        w.orderByDesc(CustomerDO::getPoolAt).orderByDesc(CustomerDO::getId);
+        Page<CustomerDO> result = customerMapper.selectPage(new Page<>(page, size), w);
+        return PageResult.of(result.getTotal(), toVos(result.getRecords()));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void claim(Long id) {
+        Long self = dataScopeResolver.current().selfId();
+        if (self == null) {
+            throw new BizException("你的账号没有业务员档案，不能认领客户");
+        }
+        CustomerDO c = customerMapper.selectById(id);
+        if (c == null || c.getDeletedAt() != null || !Objects.equals(c.getTenantId(), currentTenantId())) {
+            throw new BizException(CustomerConstants.NOT_FOUND_MESSAGE);
+        }
+        // 认领人在公共部门时事业部不变
+        Integer unit = businessUnitService.unitOfUser(self);
+        // 条件更新防并发：只有仍在公海的才认领得到
+        int n = customerMapper.update(null, new LambdaUpdateWrapper<CustomerDO>()
+                .set(CustomerDO::getOwnerId, self)
+                .set(CustomerDO::getInPool, 0)
+                .set(unit != null, CustomerDO::getBusinessUnitId, unit)
+                .set(CustomerDO::getUpdateTime, LocalDateTime.now())
+                .eq(CustomerDO::getId, id)
+                .eq(CustomerDO::getTenantId, currentTenantId())
+                .eq(CustomerDO::getInPool, 1)
+                .isNull(CustomerDO::getDeletedAt));
+        if (n == 0) {
+            CustomerDO now = customerMapper.selectById(id);
+            String who = now == null ? null : ownerNames(List.of(now)).get(now.getOwnerId());
+            throw new BizException(who != null ? "已被 " + who + " 认领" : "客户已不在公海");
+        }
+        followupSync.ownerChanged(id, self);
+        logService.recordOperateLog("客户管理", "认领公海客户", Map.of("customerCode", c.getCustomerCode()),
+                Map.of("customerCode", c.getCustomerCode(), "ownerId", self));
+    }
+
     // ---------------------------------------------------------------- 工具
 
     private CustomerDO getActiveInScope(Long id, DataScope scope) {
         CustomerDO c = customerMapper.selectById(id);
-        if (c == null || c.getDeletedAt() != null || !Objects.equals(c.getTenantId(), currentTenantId())
-                || !scope.canSee(c.getOwnerId())) {
+        if (c == null || c.getDeletedAt() != null || !Objects.equals(c.getTenantId(), currentTenantId())) {
+            throw new BizException(CustomerConstants.NOT_FOUND_MESSAGE);
+        }
+        // 公海客户所有人都看得到，但认领前只能查看（查看走 requireReadable），不能修改或在上面新建单据
+        CustomerPool.requireClaimed(c);
+        if (!scope.canSee(c.getOwnerId())) {
             throw new BizException(CustomerConstants.NOT_FOUND_MESSAGE);
         }
         return c;
@@ -859,6 +1042,12 @@ public class CustomerServiceImpl implements CustomerService {
             }
             if (c.getBizGradeAdjustBy() != null && c.getBizGradeAdjustBy() > 0) {
                 ids.add(c.getBizGradeAdjustBy().intValue());
+            }
+            // 公海：上一任负责人、放入人
+            for (Long u : new Long[]{c.getLastOwnerId(), c.getPoolBy()}) {
+                if (u != null && u > 0) {
+                    ids.add(u.intValue());
+                }
             }
         }
         Map<Long, String> names = new HashMap<>(ids.size() * 2);
@@ -910,6 +1099,14 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     private static void fillVo(CustomerVO vo, CustomerDO c, Map<Long, String> owners) {
+        vo.setInPool(Objects.equals(c.getInPool(), 1));
+        if (Boolean.TRUE.equals(vo.getInPool())) {
+            vo.setPoolAt(c.getPoolAt());
+            vo.setPoolByName(owners.get(c.getPoolBy()));
+            vo.setPoolReason(c.getPoolReason());
+            vo.setLastOwnerId(c.getLastOwnerId());
+            vo.setLastOwnerName(owners.get(c.getLastOwnerId()));
+        }
         vo.setId(c.getId());
         vo.setCustomerCode(c.getCustomerCode());
         vo.setName(c.getName());

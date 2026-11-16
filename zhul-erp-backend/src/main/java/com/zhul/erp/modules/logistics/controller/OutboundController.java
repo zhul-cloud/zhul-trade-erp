@@ -49,11 +49,11 @@ public class OutboundController {
     private final OutboundService service;
     private final LogisticsSupport support;
 
-    /** 启用的货代（服务商） */
+    /** 启用的货代（服务商）；费用单收款方选「货代」也用它，所以费用管理菜单也能取（audit BUS-085） */
     @GetMapping("/forwarders")
-    @PreAuthorize(ANY)
-    public Result<List<ForwarderVO>> forwarders() {
-        return Result.ok(support.forwarders());
+    @PreAuthorize(ANY + " or @perm.canAccessMenu('/finance/expenses')")
+    public Result<List<ForwarderVO>> forwarders(@RequestParam(required = false) Long customerId) {
+        return Result.ok(support.forwarders(customerId));
     }
 
     @GetMapping("/outbounds/notice-form")

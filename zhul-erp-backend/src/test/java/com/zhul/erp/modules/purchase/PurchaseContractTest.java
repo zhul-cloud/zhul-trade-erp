@@ -308,6 +308,10 @@ class PurchaseContractTest extends SalesContractSupport {
         JsonNode list = ok(call(json(post(PO + "/page"), "{}"), admin));
         assertEquals(first, list.path("records").get(0).path("id").asLong(), "刚改过的排在最前");
         assertTrue(list.path("records").get(0).has("updateBy"));
+        // audit UI-098：列表按单据页统一规范带型号、品牌、品类
+        JsonNode row = list.path("records").get(0);
+        assertEquals("A-1", row.path("firstModel").asText());
+        assertTrue(row.path("brands").size() > 0 && row.path("categories").size() > 0, row.toString());
     }
 
     @Test

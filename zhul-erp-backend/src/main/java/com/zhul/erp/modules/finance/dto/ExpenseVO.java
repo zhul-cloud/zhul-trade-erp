@@ -49,6 +49,12 @@ public class ExpenseVO {
     private Long reimbursementId;
     private String reimburseNo;
     private Integer reimburseStatus;
+    /** 私对私：保存时登记的付款单与账户快照（详情返回；付款单作废后为空） */
+    private Long paymentId;
+    private String paymentNo;
+    private LocalDate payDate;
+    private String payerAccount;
+    private String payeeAccount;
     /** 已付款或已进报销单：只能改名称、说明与分摊 */
     private boolean locked;
     private List<Alloc> allocations = new ArrayList<>();

@@ -37,6 +37,7 @@ import {
   TransferModal,
 } from './components';
 import { DISABLE_CONFIRM_TEXT, ROLE_OPTIONS } from './constants';
+import { PoolTab, PutIntoPoolModal } from './pool';
 import CompletionTab from './profile/CompletionTab';
 import DuplicatesTab from './profile/DuplicatesTab';
 import { GRADE_NAMES, MODULE_SHORT, profileApi } from './profile/service';
@@ -58,10 +59,6 @@ const BIZ_GRADE_OPTIONS = [1, 2, 3, 4, 0].map((v) => ({
   value: v,
   label: GRADE_NAMES[v],
 }));
-const PROFILE_STATUS_OPTIONS = [
-  { value: 'done', label: '已建档（5/5）' },
-  { value: 'pending', label: '待完善' },
-];
 const MODULE_OPTIONS = MODULE_SHORT.map((label, i) => ({
   value: i + 1,
   label: `${'①②③④⑤'[i]} ${label}`,
@@ -97,11 +94,21 @@ const CustomerListPage: React.FC = () => {
   const canTransfer = !!access['partner:customer:transfer'];
   const canExport = !!access['partner:customer:export'];
   const canMerge = !!access['partner:customer:merge'];
-  const [tab, setTab] = useState<'all' | 'fill' | 'dups'>('all');
+  const [tab, setTab] = useState<'all' | 'fill' | 'dups' | 'pool'>('all');
   const [dupCount, setDupCount] = useState<number>();
+  const [poolCount, setPoolCount] = useState<number>();
+  // 放入公海：负责人本人或有转移权限的人（后端校验），有编辑或转移权限时显示入口
+  const [poolTargets, setPoolTargets] = useState<CustomerListItem[]>([]);
+  const canPool = canEdit || canTransfer;
   const [sort, setSort] = useState<
     Pick<CustomerQuery, 'sortField' | 'sortOrder'>
   >({});
+  // 表格上方的建档统计（按数据范围，不带其他筛选）
+  const [counts, setCounts] = useState<{
+    all: number;
+    done: number;
+    pending: number;
+  }>();
 
   const [query, setQuery] = useState<CustomerQuery>({});
   const [page, setPage] = useState(1);
@@ -132,6 +139,10 @@ const CustomerListPage: React.FC = () => {
       .duplicates()
       .then((g) => setDupCount(g.length))
       .catch(() => undefined);
+    customerApi
+      .pool({ page: 1, pageSize: 1 })
+      .then((r) => setPoolCount(r.total))
+      .catch(() => undefined);
   }, []);
 
   const load = useCallback(async () => {
@@ -150,6 +161,10 @@ const CustomerListPage: React.FC = () => {
       }
       setRows(data.records);
       setTotal(data.total);
+      customerApi
+        .profileCounts()
+        .then(setCounts)
+        .catch(() => undefined);
     } catch (e) {
       setError(readBizError(e).message);
     } finally {
@@ -166,15 +181,23 @@ const CustomerListPage: React.FC = () => {
 
   useOnReactivate(load);
 
-  const search = () => {
-    setQuery(compact(form.getFieldsValue()));
+  // 建档状态由表格上方的统计条切换，查询、重置筛选时沿用 / 清掉
+  const search = (
+    profileStatus: CustomerQuery['profileStatus'] | null = query.profileStatus,
+  ) => {
+    setQuery(
+      compact({
+        ...form.getFieldsValue(),
+        profileStatus: profileStatus ?? undefined,
+      }),
+    );
     setPage(1);
     setSelected([]);
   };
 
   const reset = () => {
     form.resetFields();
-    search();
+    search(null);
   };
 
   const toggleStatus = (record: CustomerListItem, checked: boolean) => {
@@ -403,6 +426,14 @@ const CustomerListPage: React.FC = () => {
       title: '档案完整度',
       dataIndex: 'profileMask',
       width: 150,
+      sorter: true,
+      showSorterTooltip: false,
+      sortOrder:
+        sort.sortField === 'profile'
+          ? sort.sortOrder === 'asc'
+            ? 'ascend'
+            : 'descend'
+          : null,
       render: (mask: number) => {
         const done = doneOf(mask);
         const missing = MODULE_SHORT.filter((_, i) => !(mask & (1 << i)));
@@ -497,7 +528,7 @@ const CustomerListPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 190,
+      width: 260,
       fixed: 'right',
       render: (_, r) => (
         <div style={{ display: 'flex', gap: 12 }}>
@@ -526,6 +557,15 @@ const CustomerListPage: React.FC = () => {
               转移
             </button>
           )}
+          {canPool && (
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setPoolTargets([r])}
+            >
+              放入公海
+            </button>
+          )}
           {canDelete && (
             <button
               type="button"
@@ -541,7 +581,7 @@ const CustomerListPage: React.FC = () => {
     },
   ];
 
-  // 潜力等级、经营等级可以排序；取消排序回到默认（经营等级 S→C，再按潜力等级）
+  // 潜力等级、经营等级、档案完整度可以排序；取消排序回到默认（经营等级 S→C，再按潜力等级）
   const onTableChange: TableProps<CustomerListItem>['onChange'] = (
     _p,
     _f,
@@ -549,7 +589,9 @@ const CustomerListPage: React.FC = () => {
     extra,
   ) => {
     if (extra.action !== 'sort' || Array.isArray(sorter)) return;
-    const field = sorter.field as CustomerQuery['sortField'];
+    const field = (
+      sorter.field === 'profileMask' ? 'profile' : sorter.field
+    ) as CustomerQuery['sortField'];
     setSort(
       sorter.order
         ? {
@@ -574,7 +616,7 @@ const CustomerListPage: React.FC = () => {
       <PageTitle description="档案完整度 5/5 为已建档；先补有成交的客户。报价单、PI、CI 从这里带出客户信息。" />
       <Segmented
         value={tab}
-        onChange={(v) => setTab(v as 'all' | 'fill' | 'dups')}
+        onChange={(v) => setTab(v as 'all' | 'fill' | 'dups' | 'pool')}
         style={{ marginBottom: 16 }}
         options={[
           {
@@ -586,9 +628,15 @@ const CustomerListPage: React.FC = () => {
             value: 'dups',
             label: `疑似重复${dupCount ? ` ${dupCount}` : ''}`,
           },
+          {
+            value: 'pool',
+            label: `公海客户${poolCount ? ` ${poolCount}` : ''}`,
+          },
         ]}
       />
-      {tab === 'fill' ? (
+      {tab === 'pool' ? (
+        <PoolTab onCount={setPoolCount} />
+      ) : tab === 'fill' ? (
         <CompletionTab />
       ) : tab === 'dups' ? (
         <DuplicatesTab
@@ -601,7 +649,7 @@ const CustomerListPage: React.FC = () => {
           <Form
             form={form}
             layout="vertical"
-            onFinish={search}
+            onFinish={() => search()}
             style={{
               background: palette.card,
               border: `1px solid ${palette.hairline}`,
@@ -642,13 +690,6 @@ const CustomerListPage: React.FC = () => {
                   placeholder="全部"
                   allowClear
                   options={BIZ_GRADE_OPTIONS}
-                />
-              </Form.Item>
-              <Form.Item name="profileStatus" label={label('建档状态')}>
-                <Select
-                  placeholder="全部"
-                  allowClear
-                  options={PROFILE_STATUS_OPTIONS}
                 />
               </Form.Item>
               <Form.Item name="missingModules" label={label('缺的模块')}>
@@ -709,9 +750,26 @@ const CustomerListPage: React.FC = () => {
               flexWrap: 'wrap',
             }}
           >
-            <span style={{ color: palette.sub, fontSize: 14 }}>
-              共 <span className="num">{total}</span> 条记录
-            </span>
+            <Segmented
+              value={query.profileStatus ?? 'all'}
+              onChange={(v) =>
+                search(v === 'all' ? null : (v as 'done' | 'pending'))
+              }
+              options={[
+                {
+                  value: 'all',
+                  label: `全部${counts ? ` ${counts.all}` : ''}`,
+                },
+                {
+                  value: 'done',
+                  label: `已建档${counts ? ` ${counts.done}` : ''}`,
+                },
+                {
+                  value: 'pending',
+                  label: `待完善${counts ? ` ${counts.pending}` : ''}`,
+                },
+              ]}
+            />
             <div style={{ display: 'flex', gap: 12 }}>
               {canAdd && (
                 <Button
@@ -769,6 +827,11 @@ const CustomerListPage: React.FC = () => {
                     onClick={() => setTransferTargets(selectedRows)}
                   >
                     批量转移
+                  </Button>
+                )}
+                {canPool && (
+                  <Button onClick={() => setPoolTargets(selectedRows)}>
+                    放入公海
                   </Button>
                 )}
                 {canDelete && (
@@ -858,6 +921,21 @@ const CustomerListPage: React.FC = () => {
         onDone={() => {
           setTransferTargets([]);
           setSelected([]);
+          load();
+        }}
+      />
+      <PutIntoPoolModal
+        open={poolTargets.length > 0}
+        customers={poolTargets.map((c) => ({
+          id: c.id,
+          name: c.displayName,
+          ownerName: c.ownerName,
+        }))}
+        onClose={() => setPoolTargets([])}
+        onDone={() => {
+          setPoolTargets([]);
+          setSelected([]);
+          setPoolCount((n) => (n ?? 0) + poolTargets.length);
           load();
         }}
       />

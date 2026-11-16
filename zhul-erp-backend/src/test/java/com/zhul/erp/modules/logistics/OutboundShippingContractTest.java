@@ -11,6 +11,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -265,6 +266,10 @@ class OutboundShippingContractTest extends SalesContractSupport {
         assertEquals(1, pending.size());
         assertEquals(1, pending.get(0).path("outbounds").size());
         long customerId = pending.get(0).path("customerId").asLong();
+        // audit UI-096：待出运分组按统一客户列带国家 / 地区与新老客户
+        assertEquals(jdbc.queryForObject("select country from customer where id = ?", String.class, customerId),
+                pending.get(0).path("customerCountry").asText());
+        assertTrue(pending.get(0).path("customerType").asInt() > 0, pending.get(0).toString());
         JsonNode sh = ok(call(json(post(SH), write(Map.of("customerId", customerId, "forwarderId", forwarder,
                 "outboundIds", List.of(ob.path("id").asLong())))), admin));
         assertEquals("SH" + today() + "001", sh.path("shNo").asText());
@@ -282,11 +287,31 @@ class OutboundShippingContractTest extends SalesContractSupport {
         assertEquals(group.path("ciNo").asText().replace("CI", "PL"), group.path("plNo").asText());
         JsonNode again = ok(call(json(post(SH + "/" + shId + "/docs"), "{\"mode\":\"MERGED\"}"), admin));
         assertEquals(group.path("ciNo").asText(), again.path("docGroups").get(0).path("ciNo").asText(), "重新生成编号不变");
+        // 导出前检查（audit BUS-082、BUS-083）：寄件方没有邮箱电话、收货人只有国家、型号没有 HS 编码时不导出，提示去哪里补
+        String blocked = perform(get(SH + "/docs/" + group.path("id").asLong() + "/export").param("kind", "ci"), admin)
+                .getContentAsString(StandardCharsets.UTF_8);
+        assertTrue(blocked.contains("导出前请先补全"), blocked);
+        assertTrue(blocked.contains("寄件方（业务员"), blocked);
+        assertTrue(blocked.contains("详细地址"), blocked);
+        assertTrue(blocked.contains("型号 A-1 的 H.S Code"), blocked);
+        // 补全：业务员邮箱电话；客户注册信息的地址与主联系人（订单快照没有地址，改用客户档案）；商品档案的 HS 编码（订单行没有时带出）
+        long owner = jdbc.queryForObject("select owner_id from sales_order where id = ?", Long.class, soId);
+        jdbc.update("update user_basic set email = 'rep@example.com', phone = '13800000000' where id = ?", owner);
+        jdbc.update("update customer set address = '8 Harbour Road', contact_name = 'Ana Lima', contact_phone = '+55 11 0000',"
+                + " contact_email = 'ana@example.com', whatsapp = '+55 11 9999' where id = ?", customerId);
+        long product = manualProduct("A-1");
+        jdbc.update("update sales_order_item set product_id = ?, hs_code = '' where so_id = ?", product, soId);
+        jdbc.update("insert into product_customs (tenant_id, product_id, hs_code, origin_country) values (0, ?, '85371090', 'DE')"
+                + " on duplicate key update hs_code = '85371090', origin_country = 'DE', deleted_at = null", product);
         MockHttpServletResponse ci = perform(get(SH + "/docs/" + group.path("id").asLong() + "/export").param("kind", "ci"), admin);
         assertEquals(200, ci.getStatus());
         try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(ci.getContentAsByteArray()))) {
             assertEquals("A-1", wb.getSheetAt(0).getRow(9).getCell(1).getStringCellValue(), "CI 明细行");
             assertEquals(10, (int) wb.getSheetAt(0).getRow(9).getCell(4).getNumericCellValue());
+            String text = sheetText(wb);
+            assertTrue(text.contains("85371090"), "HS 编码取商品档案的报关信息：" + text);
+            assertTrue(text.contains("8 Harbour Road"), "收货人地址取客户档案：" + text);
+            assertTrue(text.contains("Ana Lima") && text.contains("+55 11 0000"), "收货人联系人与电话：" + text);
         }
         MockHttpServletResponse pl = perform(get(SH + "/docs/" + group.path("id").asLong() + "/export").param("kind", "pl"), admin);
         assertEquals(200, pl.getStatus());
@@ -330,6 +355,13 @@ class OutboundShippingContractTest extends SalesContractSupport {
     private long uploadDoc(String ownerType) throws Exception {
         return ok(call(multipart("/api/v1/attachments").file(new MockMultipartFile("file", "mark.pdf", "application/pdf", PDF))
                 .param("ownerType", ownerType), admin)).path("id").asLong();
+    }
+
+    /** 整张表的文字，用于检查表头字段 */
+    private static String sheetText(XSSFWorkbook wb) {
+        StringBuilder sb = new StringBuilder();
+        wb.getSheetAt(0).forEach(row -> row.forEach(cell -> sb.append(cell.toString()).append(' ')));
+        return sb.toString();
     }
 
     private static List<String> actions(JsonNode doc) {
@@ -475,6 +507,27 @@ class OutboundShippingContractTest extends SalesContractSupport {
     }
 
     // ---------------------------------------------------------------- 直发货代
+
+    /** audit BUS-084：直发货代不能用其他客户的指定货代，可以用本客户的；发货表单按行带出型号所属客户 */
+    @Test
+    void directToForwarder_rejectsOtherCustomersForwarder() throws Exception {
+        JsonNode po = orderedPo(supplier("直发归属电子", null), 2);
+        long customerId = jdbc.queryForObject("select customer_id from sales_order where id = ?", Long.class, soOf(po));
+        long poId = po.path("id").asLong();
+        Map<String, Object> body = new HashMap<>();
+        body.put("poId", poId);
+        body.put("directForwarderId", forwarder);
+        body.put("shipDate", LocalDate.now().toString());
+        body.put("items", List.of(Map.of("poItemId", po.path("items").get(0).path("id").asLong(), "quantity", 2)));
+        jdbc.update("update supplier set customer_id = ? where id = ?", customerId + 1000000, forwarder);
+        JsonNode rejected = call(json(post(SHIP), write(body)), lin);
+        assertTrue(rejected.path("message").asText().contains("其他客户指定的货代"), rejected.toString());
+
+        JsonNode form = ok(call(get(SHIP + "/form").param("poId", String.valueOf(poId)), lin));
+        assertEquals(customerId, form.path("lines").get(0).path("customerId").asLong(), "表单按行带出客户");
+        jdbc.update("update supplier set customer_id = ? where id = ?", customerId, forwarder);
+        ok(call(json(post(SHIP), write(body)), lin));
+    }
 
     @Test
     void directToForwarder_confirmCreatesReceiptAndOutbound() throws Exception {

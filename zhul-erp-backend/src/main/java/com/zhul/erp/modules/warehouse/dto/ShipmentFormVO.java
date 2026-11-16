@@ -27,6 +27,8 @@ public class ShipmentFormVO {
         private String model;
         private String brand;
         private String category;
+        /** 型号所属销售订单的客户：直发货代时只能选公司货代或这个客户的指定货代 */
+        private Long customerId;
         private Integer orderedQty;
         private Integer shippedQty;
         /** 最多可发：未发数量（修改时加上本单原数量） */

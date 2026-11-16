@@ -1,5 +1,11 @@
-import { InfoCircleOutlined, SendOutlined } from '@ant-design/icons';
+import {
+  CarOutlined,
+  InboxOutlined,
+  InfoCircleOutlined,
+  SendOutlined,
+} from '@ant-design/icons';
 import { Link, useAccess } from '@umijs/max';
+import type { SelectProps } from 'antd';
 import {
   App,
   Button,
@@ -53,16 +59,22 @@ export const ShipNoticeModal: React.FC<{
     setForm(undefined);
     setError(undefined);
     try {
-      const [f, fw] = await Promise.all([
-        outboundApi.noticeForm(
-          outbound ? { outboundId: outbound.id } : { soId },
-        ),
-        forwarderApi.list(),
-      ]);
+      const f = await outboundApi.noticeForm(
+        outbound ? { outboundId: outbound.id } : { soId },
+      );
+      // 公司货代 + 这个客户的指定货代（spec logistics/forwarder「选择货代的范围与顺序」）
+      const fw = await forwarderApi.list(f.customerId);
+      const owned = fw.filter((x) => x.customerOwned);
       setForm(f);
       setForwarders(fw);
+      // 客户只有一家指定货代时默认选它；否则只有一家可选时默认选中；其余不默认（UI-095 提示「先选货代」）
       setForwarderId(
-        outbound?.forwarderId ?? (fw.length === 1 ? fw[0].id : undefined),
+        outbound?.forwarderId ??
+          (owned.length === 1
+            ? owned[0].id
+            : fw.length === 1
+              ? fw[0].id
+              : undefined),
       );
       setNote(outbound?.note ?? '');
       const init: Record<number, Line> = {};
@@ -130,6 +142,25 @@ export const ShipNoticeModal: React.FC<{
   const setLine = (id: number, patch: Partial<Line>) =>
     setLines((m) => ({ ...m, [id]: { ...m[id], ...patch } }));
 
+  const pieces = chosen.reduce(
+    (sum, l) => sum + (lines[l.soItemId]?.quantity ?? 0),
+    0,
+  );
+  // 弹窗分「物流信息」「发货明细」两区，货代放在醒目的卡片里（openspec feedback-1116-batch1）
+  const section = (
+    icon: React.ReactNode,
+    title: string,
+    extra?: React.ReactNode,
+  ) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ color: palette.link }}>{icon}</span>
+      <b style={{ color: palette.ink, fontSize: 15 }}>{title}</b>
+      {extra && (
+        <span style={{ fontSize: 12, color: palette.mute }}>{extra}</span>
+      )}
+    </div>
+  );
+
   return (
     <Modal
       open={open}
@@ -171,10 +202,18 @@ export const ShipNoticeModal: React.FC<{
         <Skeleton active />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ color: palette.sub }}>
-            {form.customerName} · 勾选已入库的型号，仓库收到后打包发往货代
-          </div>
-          <div>
+          {form.customerName && (
+            <div style={{ color: palette.sub }}>{form.customerName}</div>
+          )}
+          {section(<CarOutlined />, '物流信息')}
+          <div
+            style={{
+              padding: '12px 14px',
+              borderRadius: 12,
+              background: palette.accentSoft,
+              border: `1px solid ${palette.accentLine}`,
+            }}
+          >
             <div style={{ color: palette.sub, marginBottom: 6 }}>
               货代 <span style={{ color: palette.red }}>*</span>
             </div>
@@ -184,13 +223,40 @@ export const ShipNoticeModal: React.FC<{
               placeholder={
                 forwarders.length
                   ? '选择货代'
-                  : '还没有启用的服务商，请先在供应商里添加'
+                  : '还没有启用的货代，请先在「物流管理 → 货代管理」里添加'
               }
-              options={forwarders.map((f) => ({ value: f.id, label: f.name }))}
+              options={
+                (forwarders.some((f) => f.customerOwned)
+                  ? [
+                      {
+                        label: '客户指定',
+                        options: forwarders
+                          .filter((f) => f.customerOwned)
+                          .map((f) => ({ value: f.id, label: f.name })),
+                      },
+                      {
+                        label: '公司货代',
+                        options: forwarders
+                          .filter((f) => !f.customerOwned)
+                          .map((f) => ({ value: f.id, label: f.name })),
+                      },
+                    ]
+                  : forwarders.map((f) => ({
+                      value: f.id,
+                      label: f.name,
+                    }))) as SelectProps['options']
+              }
               style={{ width: '100%' }}
               aria-label="货代"
             />
           </div>
+          {section(
+            <InboxOutlined />,
+            '发货明细',
+            chosen.length
+              ? `已选 ${chosen.length} 个型号 · ${pieces} 件`
+              : '勾选已入库的型号，仓库收到后打包发往货代',
+          )}
           {form.lines.map((l) => {
             const line = lines[l.soItemId] ?? {
               checked: false,

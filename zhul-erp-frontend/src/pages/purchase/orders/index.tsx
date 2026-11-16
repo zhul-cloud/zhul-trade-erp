@@ -12,10 +12,11 @@ import { Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import SourceNos from '@/components/DocFields/SourceNos';
-import { ellipsisRender } from '@/components/EllipsisText';
+import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { PayStatusPill } from '@/pages/finance/payables/components';
 import { PAY_STATUS } from '@/pages/finance/payables/service';
+import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { StockPill, useUserOptions } from '@/pages/sales/orders/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -182,20 +183,36 @@ const PurchaseOrderList: React.FC = () => {
         ),
     },
     {
-      title: '型号数',
-      dataIndex: 'itemCount',
-      width: 90,
-      sorter: true,
-      sortOrder: sortOf('itemCount'),
-      render: (v: number) => `${v} 个型号`,
-    },
-    {
-      title: '总数量',
+      // 型号、品牌、品类按单据页统一规范显示（audit UI-098）
+      title: '型号 · 数量',
       dataIndex: 'totalQuantity',
-      width: 90,
+      width: 190,
       sorter: true,
       sortOrder: sortOf('totalQuantity'),
-      render: (v: number) => `${v} 件`,
+      render: (v: number, r) => (
+        <div>
+          <EllipsisText
+            text={r.firstModel ?? '—'}
+            style={{ fontFamily: 'monospace' }}
+          />
+          {sub(
+            palette.mute,
+            r.itemCount > 1 ? `共 ${r.itemCount} 个型号 · ${v} 件` : `${v} 件`,
+          )}
+        </div>
+      ),
+    },
+    {
+      title: '品牌',
+      key: 'brands',
+      width: 160,
+      render: (_, r) => <TagList values={r.brands ?? []} label="品牌" />,
+    },
+    {
+      title: '品类',
+      key: 'categories',
+      width: 160,
+      render: (_, r) => <TagList values={r.categories ?? []} label="品类" />,
     },
     {
       title: '合计',

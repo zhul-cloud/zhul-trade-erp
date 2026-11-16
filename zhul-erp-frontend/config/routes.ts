@@ -621,6 +621,13 @@ export default [
         access: 'logisticsStatements',
         component: './logistics/statements',
       },
+      {
+        path: '/logistics/forwarders',
+        name: 'forwarders',
+        icon: 'car',
+        access: 'logisticsForwarders',
+        component: './logistics/forwarders',
+      },
     ],
   },
   {

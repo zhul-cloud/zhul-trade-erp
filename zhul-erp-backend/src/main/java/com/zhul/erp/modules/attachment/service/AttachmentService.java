@@ -329,24 +329,41 @@ public class AttachmentService {
                     || !Objects.equals(a.getOwnerId(), fromOwnerId)) {
                 throw new BizException("附件不存在，请重新上传");
             }
-            BizAttachmentDO c = new BizAttachmentDO();
-            c.setTenantId(a.getTenantId());
-            c.setOwnerType(ownerType);
-            c.setOwnerId(toOwnerId);
-            c.setKind(a.getKind());
-            c.setStorage(a.getStorage());
-            c.setFileKey(a.getFileKey());
-            c.setUrl(a.getUrl());
-            c.setFileName(a.getFileName());
-            c.setFileSize(a.getFileSize());
-            c.setContentType(a.getContentType());
-            c.setProcessingStatus(a.getProcessingStatus());
-            c.setUploadedBy(a.getUploadedBy());
-            mapper.insert(c);
+            insertCopy(a, ownerType, toOwnerId);
         }
         if (mapper.selectCount(owned(ownerType, List.of(toOwnerId))) > MAX_PER_OWNER.getOrDefault(ownerType, 20)) {
             throw new BizException("每张单据最多 " + MAX_PER_OWNER.getOrDefault(ownerType, 20) + " 个附件");
         }
+    }
+
+    /**
+     * 把一张单据上的全部附件复制一份挂到另一类单据上（共用同一个存储文件，各自一条附件记录），
+     * 如私对私费用单的凭证同时作为那笔私对私付款的付款截图
+     */
+    public void copyAll(String fromType, Long fromOwnerId, String toType, Long toOwnerId) {
+        for (BizAttachmentDO a : mapper.selectList(owned(fromType, List.of(fromOwnerId)).orderByAsc(BizAttachmentDO::getId))) {
+            insertCopy(a, toType, toOwnerId);
+        }
+        if (mapper.selectCount(owned(toType, List.of(toOwnerId))) > MAX_PER_OWNER.getOrDefault(toType, 20)) {
+            throw new BizException("每张单据最多 " + MAX_PER_OWNER.getOrDefault(toType, 20) + " 个附件");
+        }
+    }
+
+    private void insertCopy(BizAttachmentDO a, String ownerType, Long ownerId) {
+        BizAttachmentDO c = new BizAttachmentDO();
+        c.setTenantId(a.getTenantId());
+        c.setOwnerType(ownerType);
+        c.setOwnerId(ownerId);
+        c.setKind(a.getKind());
+        c.setStorage(a.getStorage());
+        c.setFileKey(a.getFileKey());
+        c.setUrl(a.getUrl());
+        c.setFileName(a.getFileName());
+        c.setFileSize(a.getFileSize());
+        c.setContentType(a.getContentType());
+        c.setProcessingStatus(a.getProcessingStatus());
+        c.setUploadedBy(a.getUploadedBy());
+        mapper.insert(c);
     }
 
     /**

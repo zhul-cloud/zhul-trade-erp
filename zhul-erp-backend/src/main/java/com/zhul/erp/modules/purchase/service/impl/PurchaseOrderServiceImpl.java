@@ -255,6 +255,8 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         Set<Long> cancelledReqs = orderCancelledRequirements(items.values().stream().flatMap(List::stream)
                 .map(PurchaseOrderItemDO::getRequirementId).toList());
         Map<Long, String> soNos = soNos(items.values().stream().flatMap(List::stream).map(PurchaseOrderItemDO::getSoId).toList());
+        Map<Long, String> categories = requirementCategories(items.values().stream().flatMap(List::stream)
+                .map(PurchaseOrderItemDO::getRequirementId).toList());
         Map<Long, String> suppliers = supplierNames(rows.stream().map(PurchaseOrderDO::getSupplierId).toList());
         Map<Long, String> users = lookups.userNames(rows.stream().map(PurchaseOrderDO::getPurchaserId).toList());
         Map<Long, List<PurchaseOrderItemDO>> orderedLines = new HashMap<>();
@@ -293,6 +295,9 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             vo.setSupplierName(cp.isShop() ? cp.shopTitle() : suppliers.get(p.getSupplierId()));
             vo.setStockType(p.getStockType());
             vo.setItemCount(lines.size());
+            vo.setFirstModel(lines.isEmpty() ? null : lines.get(0).getModel());
+            vo.setBrands(distinct(lines.stream().map(PurchaseOrderItemDO::getBrand).toList()));
+            vo.setCategories(distinct(lines.stream().map(i -> categories.get(i.getRequirementId())).toList()));
             vo.setTotalQuantity(lines.stream().mapToInt(PurchaseOrderItemDO::getQuantity).sum());
             vo.setMissingPriceCount((int) lines.stream().filter(i -> i.getUnitPrice() == null).count());
             vo.setCurrencyCode(p.getCurrencyCode());
@@ -1213,6 +1218,21 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             soMapper.selectBatchIds(keys).forEach(o -> map.put(o.getId(), o.getSoNo()));
         }
         return map;
+    }
+
+    /** 采购需求 ID → 品类（采购明细不存品类） */
+    private Map<Long, String> requirementCategories(Collection<Long> ids) {
+        List<Long> keys = ids.stream().filter(Objects::nonNull).distinct().toList();
+        Map<Long, String> map = new HashMap<>(keys.size() * 2 + 1);
+        if (!keys.isEmpty()) {
+            requirementMapper.selectBatchIds(keys).forEach(r -> map.put(r.getId(), r.getCategory()));
+        }
+        return map;
+    }
+
+    /** 去掉空值、去重并保持出现顺序 */
+    private static List<String> distinct(List<String> values) {
+        return values.stream().filter(v -> v != null && !v.isBlank()).map(String::trim).distinct().toList();
     }
 
     private Map<Long, String> supplierNames(Collection<Long> ids) {

@@ -195,6 +195,22 @@ public class PaymentService {
         return toVo(paymentMapper.selectById(pay.getId()));
     }
 
+    /**
+     * 私对私费用单保存时的付款（spec finance/expense「录入费用单」）：按付款登记规则生成私对私付款单并核销，
+     * 对方收款账户用费用单填写的快照（对方没有供应商资料），付款截图复制费用单的凭证。与费用单同一事务。
+     */
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
+    public PaymentVO registerForExpense(RegisterPaymentRequest req, Long expenseId, String payeeAccount) {
+        PaymentVO vo = register(req);
+        paymentMapper.update(null, new LambdaUpdateWrapper<PaymentDO>()
+                .set(PaymentDO::getPayeeAccount, payeeAccount)
+                .eq(PaymentDO::getId, vo.getId()));
+        if (attachments.listOf(OWNER_TYPE, vo.getId()).isEmpty()) {
+            attachments.copyAll(AttachmentService.EXPENSE, expenseId, OWNER_TYPE, vo.getId());
+        }
+        return toVo(paymentMapper.selectById(vo.getId()));
+    }
+
     /** 批量付款一次最多核销的应付单数 */
     static final int MAX_BATCH_PAYABLES = 50;
 

@@ -31,7 +31,11 @@ import {
 } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
-import { readBizError } from '@/pages/sales/service';
+import {
+  type BankOption,
+  bankOptionsApi,
+  readBizError,
+} from '@/pages/sales/service';
 import { AttachmentWall, DOC_PATHS } from '@/pages/warehouse/components';
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -104,6 +108,12 @@ export const ExpenseDrawer: React.FC<{
   const [amount, setAmount] = useState<number | null>(null);
   const [method, setMethod] = useState<number>(METHOD.COMPANY);
   const [advanceUserId, setAdvanceUserId] = useState<number>();
+  // 私对私：我方对私账户、对方收款方式与账号（spec finance/expense「录入费用单」）
+  const [privateAccounts, setPrivateAccounts] = useState<BankOption[]>([]);
+  const [bankAccountId, setBankAccountId] = useState<number>();
+  const [payeeChannel, setPayeeChannel] = useState(1);
+  const [payeeAccountName, setPayeeAccountName] = useState('');
+  const [payeeAccountNo, setPayeeAccountNo] = useState('');
   const [remark, setRemark] = useState('');
   const [files, setFiles] = useState<Attachment[]>([]);
   const [allocs, setAllocs] = useState<AllocRow[]>([]);
@@ -168,6 +178,10 @@ export const ExpenseDrawer: React.FC<{
     setAmount(e?.amount ?? null);
     setMethod(e?.method ?? METHOD.COMPANY);
     setAdvanceUserId(e?.advanceUserId);
+    setBankAccountId(undefined);
+    setPayeeChannel(1);
+    setPayeeAccountName('');
+    setPayeeAccountNo('');
     setRemark(e?.remark ?? '');
     unitTouched.current = false;
     setUnit(e ? (e.businessUnitId ?? PUBLIC_UNIT) : PUBLIC_UNIT);
@@ -186,7 +200,29 @@ export const ExpenseDrawer: React.FC<{
       .soItems()
       .then(setOptions)
       .catch(() => setOptions([]));
+    if (!e)
+      bankOptionsApi
+        .options()
+        .then((list) =>
+          setPrivateAccounts(
+            list.filter((a) => a.enabled && a.accountType === 2),
+          ),
+        )
+        .catch(() => setPrivateAccounts([]));
   }, [open, editing]);
+
+  // 私对私的付款账户按币种列出，默认选默认账户
+  const currencyPrivate = privateAccounts.filter(
+    (a) => a.currencyCode === currency,
+  );
+  useEffect(() => {
+    if (method !== METHOD.PRIVATE || editing) return;
+    setBankAccountId((cur) =>
+      cur && currencyPrivate.some((a) => a.id === cur)
+        ? cur
+        : (currencyPrivate.find((a) => a.isDefault) ?? currencyPrivate[0])?.id,
+    );
+  }, [method, editing, currencyPrivate]);
 
   // 默认事业部单独补：新建时信息晚到也只填事业部，不重置已填写的内容（UI-018）
   useEffect(() => {
@@ -206,6 +242,21 @@ export const ExpenseDrawer: React.FC<{
       message.error('分摊合计须等于费用金额');
       return;
     }
+    const isPrivate = !editing && method === METHOD.PRIVATE;
+    if (isPrivate) {
+      if (!bankAccountId) {
+        message.error('请选择付款账户');
+        return;
+      }
+      if (!payeeAccountName.trim() || !payeeAccountNo.trim()) {
+        message.error('请填写对方户名和账号');
+        return;
+      }
+      if (files.length === 0) {
+        message.error('私对私请上传付款凭证');
+        return;
+      }
+    }
     const body: SaveExpenseBody = {
       name: name.trim(),
       category: category ?? (allocs.length ? 'ORDER' : 'OTHER'),
@@ -223,6 +274,14 @@ export const ExpenseDrawer: React.FC<{
       amount,
       method,
       advanceUserId: method === METHOD.ADVANCE ? advanceUserId : undefined,
+      ...(isPrivate
+        ? {
+            bankAccountId,
+            payeeChannel,
+            payeeAccountName: payeeAccountName.trim(),
+            payeeAccountNo: payeeAccountNo.trim(),
+          }
+        : {}),
       remark: remark.trim() || undefined,
       attachmentIds: files.map((f) => f.id),
       businessUnitId: unitOrPublic(unit),
@@ -356,6 +415,11 @@ export const ExpenseDrawer: React.FC<{
               (payeeType === PAYEE.SUPPLIER ||
                 payeeType === PAYEE.FORWARDER) && (
                 <SupplierPicker
+                  key={payeeType}
+                  forwarder={payeeType === PAYEE.FORWARDER}
+                  placeholder={
+                    payeeType === PAYEE.FORWARDER ? '搜索货代' : '搜索供应商'
+                  }
                   value={supplierId}
                   label={supplierName}
                   aria-label={payeeType === PAYEE.FORWARDER ? '货代' : '供应商'}
@@ -457,11 +521,74 @@ export const ExpenseDrawer: React.FC<{
             options={[
               { label: '公司对公', value: METHOD.COMPANY },
               { label: '员工垫付', value: METHOD.ADVANCE },
+              { label: '私对私', value: METHOD.PRIVATE },
             ]}
           />
           <div style={{ fontSize: 12, color: palette.mute, marginTop: 6 }}>
-            公司对公：保存后生成应付，在应付单付款；员工垫付：进入垫付人的待报销，凭证必传
+            {method === METHOD.PRIVATE
+              ? '私对私保存后视为已付：同时生成应付单和私对私付款单，不进报销'
+              : method === METHOD.ADVANCE
+                ? '进入垫付人的待报销，凭证必传'
+                : '保存后生成应付，在应付单付款'}
           </div>
+          {method === METHOD.PRIVATE && !editing && (
+            <div
+              style={{
+                display: 'flex',
+                gap: 14,
+                flexWrap: 'wrap',
+                marginTop: 12,
+              }}
+            >
+              <div style={{ flex: '1 1 100%' }}>
+                {label('付款账户')}
+                <Select
+                  style={{ width: '100%' }}
+                  value={bankAccountId}
+                  onChange={setBankAccountId}
+                  aria-label="付款账户"
+                  placeholder="选择对私账户"
+                  options={currencyPrivate.map((a) => ({
+                    value: a.id,
+                    label: `${a.bankName} · ${a.accountName} ${a.accountNoMasked}（对私）`,
+                  }))}
+                  notFoundContent={`没有对私的 ${currency} 账户，请先在「收款账户」里添加`}
+                />
+              </div>
+              <div>
+                {label('对方收款方式')}
+                <Segmented<number>
+                  value={payeeChannel}
+                  onChange={setPayeeChannel}
+                  aria-label="对方收款方式"
+                  options={[
+                    { label: '支付宝', value: 1 },
+                    { label: '微信', value: 2 },
+                    { label: '银行卡', value: 3 },
+                  ]}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                {label('户名')}
+                <Input
+                  value={payeeAccountName}
+                  onChange={(e) => setPayeeAccountName(e.target.value)}
+                  aria-label="对方户名"
+                  maxLength={50}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: 180 }}>
+                {label('账号')}
+                <Input
+                  value={payeeAccountNo}
+                  onChange={(e) => setPayeeAccountNo(e.target.value)}
+                  aria-label="对方账号"
+                  maxLength={50}
+                  placeholder={payeeChannel === 3 ? '银行卡号' : '手机号或账号'}
+                />
+              </div>
+            </div>
+          )}
           {method === METHOD.ADVANCE && (
             <Select
               style={{ width: 200, marginTop: 8 }}
@@ -608,7 +735,7 @@ export const ExpenseDrawer: React.FC<{
         {!editing && (
           <>
             <div>
-              {label('凭证', method === METHOD.ADVANCE)}
+              {label('凭证', method !== METHOD.COMPANY)}
               <AttachmentWall
                 ownerType="EXPENSE"
                 value={files}
@@ -797,9 +924,11 @@ const ExpensePage: React.FC = () => {
       key: 'pay',
       width: 170,
       render: (_, r) =>
-        r.method === METHOD.COMPANY ? (
+        r.method === METHOD.COMPANY || r.method === METHOD.PRIVATE ? (
           <Space size={6}>
-            <Pill tone="accent">公司对公</Pill>
+            <Pill tone={r.method === METHOD.PRIVATE ? 'orange' : 'accent'}>
+              {r.method === METHOD.PRIVATE ? '私对私' : '公司对公'}
+            </Pill>
             <PayStatusPill status={r.payStatus} />
           </Space>
         ) : (
@@ -865,7 +994,7 @@ const ExpensePage: React.FC = () => {
   return (
     <div>
       <PageTitle
-        description="补发运费这类偶发成本，以及房租、工资、平台费等运营成本；公司对公生成应付，员工垫付进入垫付人的待报销。关联订单型号的计入订单成本，不关联的按类别与分摊月数计入经营统计。"
+        description="补发运费这类偶发成本，以及房租、工资、平台费等运营成本；公司对公生成应付，员工垫付进入垫付人的待报销，私对私保存即已付。关联订单型号的计入订单成本，不关联的按类别与分摊月数计入经营统计。"
         actions={
           canEdit && (
             <Button
@@ -946,6 +1075,7 @@ const ExpensePage: React.FC = () => {
             options={[
               { value: METHOD.COMPANY, label: '公司对公' },
               { value: METHOD.ADVANCE, label: '员工垫付' },
+              { value: METHOD.PRIVATE, label: '私对私' },
             ]}
           />
           {bu.enabled && (

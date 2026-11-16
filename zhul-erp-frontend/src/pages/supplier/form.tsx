@@ -47,7 +47,7 @@ import { LIST_PATH, PageTitle, SectionCard } from './components';
 import {
   CREDIT_CODE_PATTERN,
   INDUSTRY_OPTIONS,
-  SUPPLIER_TYPE_OPTIONS,
+  SUPPLIER_TYPE_SELECT_OPTIONS,
 } from './constants';
 import {
   ProductScopeEditor,
@@ -426,27 +426,8 @@ const SupplierFormPage: React.FC = () => {
               >
                 <Select
                   placeholder="请选择供应商类型"
-                  options={SUPPLIER_TYPE_OPTIONS}
+                  options={SUPPLIER_TYPE_SELECT_OPTIONS}
                 />
-              </Form.Item>
-              <Form.Item noStyle dependencies={['supplierType']}>
-                {({ getFieldValue }) =>
-                  getFieldValue('supplierType') === 3 && (
-                    <Form.Item
-                      name="volumeDivisor"
-                      label="体积系数"
-                      tooltip="货代按 长 × 宽 × 高（cm）÷ 系数 算体积重，常见 5000 或 6000；用于分摊国际运费"
-                      rules={[{ required: true, message: '请填写体积系数' }]}
-                    >
-                      <InputNumber
-                        min={1000}
-                        max={10000}
-                        precision={0}
-                        style={{ width: '100%' }}
-                      />
-                    </Form.Item>
-                  )
-                }
               </Form.Item>
               <Form.Item name="industry" label="所属行业">
                 <Select

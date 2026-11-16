@@ -598,6 +598,17 @@ NAME_PROMPT = """你是外贸公司的翻译。把下面每一条客户联系人
 只输出 JSON。"""
 
 
+COMPANY_SKILL = "translate-company-names"
+
+COMPANY_PROMPT = """你是外贸公司的翻译。把下面每一条客户公司英文名称翻译成中文公司名：
+- 知名品牌和公司用通行中文名（如 Siemens 写西门子）；品牌、缩写、型号类字母（如 ABC、HTF）原样保留
+- 其余部分意译或音译，公司后缀按惯例译：Limited / Ltd / LLC / GmbH / Pty Ltd 写有限公司，Co. 写公司，Inc. / Corp. 写公司或股份有限公司，Trading 写贸易，Industrial 写工业
+- 不要加国家或城市前缀，原文没有的信息不要补
+- 只输出中文名称，不加解释，每条不超过 60 个字符
+- key 原样返回，每条输入都要有对应输出
+只输出 JSON。"""
+
+
 def call_translate(cfg: AiConfig, items: list, prompt: str = TRANSLATE_PROMPT) -> dict:
     """通过 API 翻译型号描述或联系人名称，不启用搜索工具。"""
     text = json.dumps({"items": items}, ensure_ascii=False)
@@ -1686,8 +1697,8 @@ class Handler(BaseHTTPRequestHandler):
 
         self._send_json(202, {"job_id": job_id})
 
-        if skill_id in (TRANSLATE_SKILL, NAME_SKILL):
-            prompt = NAME_PROMPT if skill_id == NAME_SKILL else TRANSLATE_PROMPT
+        if skill_id in (TRANSLATE_SKILL, NAME_SKILL, COMPANY_SKILL):
+            prompt = {NAME_SKILL: NAME_PROMPT, COMPANY_SKILL: COMPANY_PROMPT}.get(skill_id, TRANSLATE_PROMPT)
             if callback_url:
                 threading.Thread(target=process_translate, args=(payload, callback_url, prompt), daemon=True).start()
             return

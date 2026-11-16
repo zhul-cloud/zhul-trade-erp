@@ -30,6 +30,8 @@ public class SupplierDO {
     private Integer supplierType;
     /** 体积系数（服务商按计费重分摊运费用），默认 5000 */
     private Integer volumeDivisor;
+    /** 归属客户（只对服务商有意义）：空为公司货代，有值为该客户的指定货代（openspec feedback-1116-batch2） */
+    private Long customerId;
     /** 所属行业（0-未设置、1-制造业、2-原材料、3-信息技术、4-物流运输、5-金融服务、6-其他） */
     private Integer industry;
     /** 统一社会信用代码（18位大写字母数字） */

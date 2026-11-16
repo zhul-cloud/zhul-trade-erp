@@ -41,6 +41,14 @@ public class CustomerDO {
     private String aliLevel;
     /** 负责业务员 user_basic.id，0 为未分配 */
     private Long ownerId;
+    /** 是否在公海（0-否、1-是），在公海时负责业务员为 0（openspec feedback-1116-batch2） */
+    private Integer inPool;
+    private java.time.LocalDateTime poolAt;
+    /** 放入公海的人 user_basic.id，0 为无 */
+    private Long poolBy;
+    private String poolReason;
+    /** 放入公海前的负责业务员，0 为无 */
+    private Long lastOwnerId;
     /** 小满客户编号 */
     private String externalRef;
     private String country;

@@ -46,10 +46,13 @@ public final class Placeholders {
         PI_ITEM = Set.copyOf(s);
     }
 
+    /** CI、PL 的主体字段；WhatsApp 取客户档案的 WhatsApp（audit BUS-083） */
     private static final Set<String> PARTIES = Set.of(
             "buyer.name", "buyer.address", "buyer.country", "buyer.taxId", "buyer.contact", "buyer.phone", "buyer.email",
+            "buyer.whatsapp",
             "consignee.name", "consignee.address", "consignee.country", "consignee.taxId", "consignee.contact", "consignee.phone",
-            "consignee.email", "customer.name", "seller.name", "seller.email", "seller.phone");
+            "consignee.email", "consignee.whatsapp", "customer.name", "customer.whatsapp", "seller.name", "seller.email",
+            "seller.phone");
 
     /** 商业发票 CI */
     public static final Set<String> CI_HEADER;
