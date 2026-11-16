@@ -44,4 +44,11 @@ public class CustomerVO {
     private String createBy;
     private LocalDateTime updateTime;
     private String updateBy;
+    /** 公海（openspec feedback-1116-batch2）：在公海时负责业务员为空 */
+    private Boolean inPool;
+    private LocalDateTime poolAt;
+    private String poolByName;
+    private String poolReason;
+    private Long lastOwnerId;
+    private String lastOwnerName;
 }

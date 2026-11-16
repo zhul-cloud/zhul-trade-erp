@@ -62,7 +62,7 @@ public class CustomerProfileController {
     /** RFM 明细（对应《成交客户表》），含参与计算的订单 */
     @GetMapping("/rfm")
     public Result<RfmDetailVO> rfm(@PathVariable Long id) {
-        return Result.ok(gradeService.detail(customerService.requireInScope(id)));
+        return Result.ok(gradeService.detail(customerService.requireReadable(id)));
     }
 
     @PutMapping("/grade")

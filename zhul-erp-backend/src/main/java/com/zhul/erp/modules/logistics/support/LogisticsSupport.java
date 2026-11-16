@@ -73,37 +73,62 @@ public class LogisticsSupport {
         return out;
     }
 
-    /** 启用的服务商（货代、快递公司），供发货通知选择；不含历史迁移的「未登记货代」占位（只挂历史出运单） */
-    public List<ForwarderVO> forwarders() {
-        Integer tenantId = PiStore.tenantId();
+    /** 历史迁移的「未登记货代」占位（只挂历史出运单），不出现在选择和货代管理里 */
+    public List<Long> placeholderForwarders() {
         // migration_id_map 不经租户拦截器，手写租户条件
-        List<Long> placeholders = idMapMapper.selectList(new LambdaQueryWrapper<MigrationIdMapDO>()
-                        .eq(MigrationIdMapDO::getTenantId, tenantId)
+        return idMapMapper.selectList(new LambdaQueryWrapper<MigrationIdMapDO>()
+                        .eq(MigrationIdMapDO::getTenantId, PiStore.tenantId())
                         .eq(MigrationIdMapDO::getSourceTable, "suppliers")
                         .eq(MigrationIdMapDO::getSourceCode, MasterDataImporter.FORWARDER_KEY)
                         .eq(MigrationIdMapDO::getTargetTable, "supplier"))
                 .stream().map(MigrationIdMapDO::getTargetId).toList();
-        return supplierMapper.selectList(new LambdaQueryWrapper<SupplierDO>()
-                        .eq(SupplierDO::getTenantId, tenantId)
-                        .eq(SupplierDO::getSupplierType, LogisticsConstants.SUPPLIER_SERVICE)
-                        .eq(SupplierDO::getStatus, 1)
-                        .notIn(!placeholders.isEmpty(), SupplierDO::getId, placeholders)
-                        .orderByAsc(SupplierDO::getName))
-                .stream().map(s -> {
+    }
+
+    /**
+     * 可选的货代（spec logistics/forwarder「选择货代的范围与顺序」）：启用的公司货代加这个客户的指定货代，
+     * 客户指定的排在前面；不传客户时列出全部启用的货代。不含历史迁移的占位。
+     */
+    public List<ForwarderVO> forwarders(Long customerId) {
+        List<Long> placeholders = placeholderForwarders();
+        LambdaQueryWrapper<SupplierDO> w = new LambdaQueryWrapper<SupplierDO>()
+                .eq(SupplierDO::getTenantId, PiStore.tenantId())
+                .eq(SupplierDO::getSupplierType, LogisticsConstants.SUPPLIER_SERVICE)
+                .eq(SupplierDO::getStatus, 1)
+                .isNull(SupplierDO::getDeletedAt)
+                .notIn(!placeholders.isEmpty(), SupplierDO::getId, placeholders)
+                .orderByAsc(SupplierDO::getName);
+        if (customerId != null) {
+            w.and(x -> x.isNull(SupplierDO::getCustomerId).or().eq(SupplierDO::getCustomerId, customerId));
+        }
+        return supplierMapper.selectList(w).stream().map(s -> {
                     ForwarderVO vo = new ForwarderVO();
                     vo.setId(s.getId());
                     vo.setName(s.getName());
                     vo.setVolumeDivisor(s.getVolumeDivisor());
+                    vo.setContactName(s.getContactName());
+                    vo.setCustomerOwned(customerId != null && customerId.equals(s.getCustomerId()));
                     return vo;
-                }).toList();
+                })
+                .sorted(java.util.Comparator.comparing((ForwarderVO v) -> !v.getCustomerOwned()))
+                .toList();
     }
 
-    /** 货代须是本租户启用的服务商 */
+    /** 货代须是本租户启用的货代（服务商） */
     public SupplierDO requireForwarder(Long id) {
         SupplierDO s = id == null ? null : supplierMapper.selectById(id);
-        if (s == null || !Objects.equals(s.getTenantId(), PiStore.tenantId()) || !Objects.equals(s.getSupplierType(), LogisticsConstants.SUPPLIER_SERVICE)
+        if (s == null || s.getDeletedAt() != null || !Objects.equals(s.getTenantId(), PiStore.tenantId())
+                || !Objects.equals(s.getSupplierType(), LogisticsConstants.SUPPLIER_SERVICE)
                 || !Objects.equals(s.getStatus(), 1)) {
-            throw new BizException("请选择启用的货代（供应商类型为「服务商」）");
+            throw new BizException("请选择启用的货代");
+        }
+        return s;
+    }
+
+    /** 同上，且要么是公司货代，要么是这个客户的指定货代（其他客户的指定货代不能用） */
+    public SupplierDO requireForwarder(Long id, Long customerId) {
+        SupplierDO s = requireForwarder(id);
+        if (s.getCustomerId() != null && !s.getCustomerId().equals(customerId)) {
+            throw new BizException("「" + s.getName() + "」是其他客户指定的货代，不能用在这个客户的发货上");
         }
         return s;
     }

@@ -171,7 +171,7 @@ public class LogisticsShipmentService {
         if (req.getCustomerId() == null || req.getForwarderId() == null) {
             throw new BizException("请选择客户与货代");
         }
-        support.requireForwarder(req.getForwarderId());
+        support.requireForwarder(req.getForwarderId(), req.getCustomerId());
         LogisticsShipmentDO sh = new LogisticsShipmentDO();
         sh.setTenantId(PiStore.tenantId());
         sh.setShNo(documentNumberService.next(DocumentType.SH));

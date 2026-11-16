@@ -10,6 +10,7 @@ import java.util.List;
 public class NoticeFormVO {
     private Long soId;
     private String soNo;
+    private Long customerId;
     private String customerName;
     private List<Line> lines;
 

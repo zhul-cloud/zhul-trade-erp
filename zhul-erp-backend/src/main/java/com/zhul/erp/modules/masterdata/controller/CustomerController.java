@@ -10,6 +10,8 @@ import com.zhul.erp.modules.masterdata.dto.CustomerBatchDeleteResultVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerDetailVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerNameTranslateRequest;
 import com.zhul.erp.modules.masterdata.dto.CustomerPageQuery;
+import com.zhul.erp.modules.masterdata.dto.CustomerPoolQuery;
+import com.zhul.erp.modules.masterdata.dto.CustomerPoolRequest;
 import com.zhul.erp.modules.masterdata.dto.CustomerProfileCountsVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerRefVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerTransferRequest;
@@ -80,6 +82,27 @@ public class CustomerController {
                     "attachment; filename*=UTF-8''" + URLEncoder.encode(filename, StandardCharsets.UTF_8));
             workbook.write(response.getOutputStream());
         }
+    }
+
+    /** 放入公海（spec master-data/customer-pool）：负责人本人或有转移权限的人，权限在服务里判断 */
+    @PostMapping("/pool")
+    public Result<Void> putIntoPool(@Valid @RequestBody CustomerPoolRequest req) {
+        customerService.putIntoPool(req);
+        return Result.ok();
+    }
+
+    /** 公海客户列表：不受数据范围限制 */
+    @GetMapping("/pool")
+    @PreAuthorize("@perm.canAccessMenu('/customer/list')")
+    public Result<PageResult<CustomerVO>> pool(CustomerPoolQuery query) {
+        return Result.ok(customerService.poolPage(query));
+    }
+
+    @PostMapping("/{id}/claim")
+    @PreAuthorize("@perm.canAccessMenu('/customer/list')")
+    public Result<Void> claim(@PathVariable Long id) {
+        customerService.claim(id);
+        return Result.ok();
     }
 
     /** 列表上方的「全部 / 已建档 / 待完善」数量，按数据范围统计 */

@@ -7,6 +7,11 @@ export const SUPPLIER_TYPE_OPTIONS = [
   { value: 5, label: '其他' },
 ];
 
+/** 新增、编辑、筛选可选的类型：货代（服务商）在「物流管理 → 货代管理」维护，这里不再提供 */
+export const SUPPLIER_TYPE_SELECT_OPTIONS = SUPPLIER_TYPE_OPTIONS.filter(
+  (o) => o.value !== 3,
+);
+
 export const INDUSTRY_OPTIONS = [
   { value: 1, label: '制造业' },
   { value: 2, label: '原材料' },

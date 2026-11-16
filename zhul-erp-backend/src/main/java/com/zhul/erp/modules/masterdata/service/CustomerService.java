@@ -43,6 +43,18 @@ public interface CustomerService {
     /** 当前用户数据范围内、未删除的客户；不在范围内时提示「客户不存在或无权查看」 */
     com.zhul.erp.modules.masterdata.entity.CustomerDO requireInScope(Long id);
 
+    /** 查看用：数据范围内的客户，或在公海里的客户 */
+    com.zhul.erp.modules.masterdata.entity.CustomerDO requireReadable(Long id);
+
+    /** 放入公海：负责人本人，或有客户转移权限且客户在数据范围内 */
+    void putIntoPool(com.zhul.erp.modules.masterdata.dto.CustomerPoolRequest req);
+
+    /** 公海客户列表：所有能进客户管理的人都能看，按放入时间倒序 */
+    PageResult<CustomerVO> poolPage(com.zhul.erp.modules.masterdata.dto.CustomerPoolQuery query);
+
+    /** 认领公海客户：同时认领只有第一个成功 */
+    void claim(Long id);
+
     PageResult<CustomerVO> page(CustomerPageQuery query);
 
     /** 列表上方的建档统计（全部 / 已建档 / 待完善），按数据范围，不带其他筛选 */
