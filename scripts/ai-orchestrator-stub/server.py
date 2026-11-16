@@ -139,7 +139,7 @@ def translate_output(payload: dict) -> dict:
 
 
 def name_output(payload: dict) -> dict:
-    """translate-contact-names 的假结果：原文前加「中文：」，只用于联调"""
+    """translate-contact-names、translate-company-names 的假结果：原文前加「中文：」，只用于联调"""
     items = (payload.get("input") or {}).get("items") or []
     return {"items": [{"key": i.get("key"), "text": "中文：" + (i.get("text") or "")} for i in items]}
 
@@ -258,7 +258,7 @@ class Handler(BaseHTTPRequestHandler):
             output = None
             if self.path == "/skills/translate-item-descriptions/run":
                 output = translate_output(payload)
-            elif self.path == "/skills/translate-contact-names/run":
+            elif self.path in ("/skills/translate-contact-names/run", "/skills/translate-company-names/run"):
                 output = name_output(payload)
             elif self.path == "/skills/candidate-classify/run":
                 output = candidate_output(payload)

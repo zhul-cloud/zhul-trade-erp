@@ -1,4 +1,9 @@
-import { InfoCircleOutlined, SendOutlined } from '@ant-design/icons';
+import {
+  CarOutlined,
+  InboxOutlined,
+  InfoCircleOutlined,
+  SendOutlined,
+} from '@ant-design/icons';
 import { Link, useAccess } from '@umijs/max';
 import {
   App,
@@ -130,6 +135,25 @@ export const ShipNoticeModal: React.FC<{
   const setLine = (id: number, patch: Partial<Line>) =>
     setLines((m) => ({ ...m, [id]: { ...m[id], ...patch } }));
 
+  const pieces = chosen.reduce(
+    (sum, l) => sum + (lines[l.soItemId]?.quantity ?? 0),
+    0,
+  );
+  // 弹窗分「物流信息」「发货明细」两区，货代放在醒目的卡片里（openspec feedback-1116-batch1）
+  const section = (
+    icon: React.ReactNode,
+    title: string,
+    extra?: React.ReactNode,
+  ) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ color: palette.link }}>{icon}</span>
+      <b style={{ color: palette.ink, fontSize: 15 }}>{title}</b>
+      {extra && (
+        <span style={{ fontSize: 12, color: palette.mute }}>{extra}</span>
+      )}
+    </div>
+  );
+
   return (
     <Modal
       open={open}
@@ -171,10 +195,18 @@ export const ShipNoticeModal: React.FC<{
         <Skeleton active />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ color: palette.sub }}>
-            {form.customerName} · 勾选已入库的型号，仓库收到后打包发往货代
-          </div>
-          <div>
+          {form.customerName && (
+            <div style={{ color: palette.sub }}>{form.customerName}</div>
+          )}
+          {section(<CarOutlined />, '物流信息')}
+          <div
+            style={{
+              padding: '12px 14px',
+              borderRadius: 12,
+              background: palette.accentSoft,
+              border: `1px solid ${palette.accentLine}`,
+            }}
+          >
             <div style={{ color: palette.sub, marginBottom: 6 }}>
               货代 <span style={{ color: palette.red }}>*</span>
             </div>
@@ -191,6 +223,13 @@ export const ShipNoticeModal: React.FC<{
               aria-label="货代"
             />
           </div>
+          {section(
+            <InboxOutlined />,
+            '发货明细',
+            chosen.length
+              ? `已选 ${chosen.length} 个型号 · ${pieces} 件`
+              : '勾选已入库的型号，仓库收到后打包发往货代',
+          )}
           {form.lines.map((l) => {
             const line = lines[l.soItemId] ?? {
               checked: false,

@@ -145,7 +145,10 @@ public class OpportunityServiceImpl implements OpportunityService {
         if (req.getAttachments() != null) {
             mergeAttachments(o, req.getAttachments());
         }
-        contactNameTranslations.submit(customerId, req.getContactName(), scope.selfId());
+        // 填了客户名称的由客户服务按公司名翻译；没填的才把联系人名音译成客户中文名称
+        if (req.getCustomerName() == null || req.getCustomerName().isBlank()) {
+            contactNameTranslations.submit(customerId, req.getContactName(), scope.selfId());
+        }
         followupSync.customerChanged(customerId);
         return o.getId();
     }

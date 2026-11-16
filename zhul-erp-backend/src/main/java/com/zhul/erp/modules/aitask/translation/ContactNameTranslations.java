@@ -12,6 +12,7 @@ import com.zhul.erp.modules.aitask.service.AiTaskService;
 import com.zhul.erp.modules.aitask.support.AiTaskKeys;
 import com.zhul.erp.modules.masterdata.customerprofile.entity.CustomerContactDO;
 import com.zhul.erp.modules.masterdata.customerprofile.repository.CustomerContactMapper;
+import com.zhul.erp.modules.masterdata.customerprofile.support.FieldSources;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,7 @@ public class ContactNameTranslations implements AiTaskResultHandler {
     private final AiConfigService aiConfigService;
     private final CustomerMapper customerMapper;
     private final CustomerContactMapper contactMapper;
+    private final FieldSources fieldSources;
     private final ObjectMapper objectMapper;
 
     /** 提交翻译；联系人名称为空或已含中文时不提交。提交在当前事务提交后异步发出，失败不影响调用方 */
@@ -110,12 +112,17 @@ public class ContactNameTranslations implements AiTaskResultHandler {
             if (!isId(key)) {
                 continue;
             }
-            customerMapper.update(null, new LambdaUpdateWrapper<CustomerDO>()
+            int filled = customerMapper.update(null, new LambdaUpdateWrapper<CustomerDO>()
                     .set(CustomerDO::getNameCn, cut)
                     .set(CustomerDO::getUpdateTime, LocalDateTime.now())
                     .eq(CustomerDO::getId, Long.valueOf(key))
                     .eq(CustomerDO::getTenantId, task.getTenantId())
                     .eq(CustomerDO::getNameCn, ""));
+            // 来源记「AI 翻译」：以后补填英文名称时，中文名称会换成公司名的译名
+            if (filled > 0) {
+                fieldSources.record(task.getTenantId(), Long.valueOf(key), List.of(FieldSources.NAME_CN),
+                        FieldSources.AI_TRANSLATE, 0L, task.getRequestedBy());
+            }
         }
     }
 

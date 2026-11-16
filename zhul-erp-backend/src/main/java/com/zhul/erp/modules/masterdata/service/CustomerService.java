@@ -6,6 +6,7 @@ import com.zhul.erp.modules.masterdata.dto.CustomerBatchDeleteResultVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerDetailVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerLeadCommand;
 import com.zhul.erp.modules.masterdata.dto.CustomerPageQuery;
+import com.zhul.erp.modules.masterdata.dto.CustomerProfileCountsVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerRefVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerTransferRequest;
 import com.zhul.erp.modules.masterdata.dto.CustomerVO;
@@ -43,6 +44,9 @@ public interface CustomerService {
     com.zhul.erp.modules.masterdata.entity.CustomerDO requireInScope(Long id);
 
     PageResult<CustomerVO> page(CustomerPageQuery query);
+
+    /** 列表上方的建档统计（全部 / 已建档 / 待完善），按数据范围，不带其他筛选 */
+    CustomerProfileCountsVO profileCounts();
 
     void update(Long id, UpdateCustomerRequest req);
 

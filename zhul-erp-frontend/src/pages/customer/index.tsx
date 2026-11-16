@@ -58,10 +58,6 @@ const BIZ_GRADE_OPTIONS = [1, 2, 3, 4, 0].map((v) => ({
   value: v,
   label: GRADE_NAMES[v],
 }));
-const PROFILE_STATUS_OPTIONS = [
-  { value: 'done', label: '已建档（5/5）' },
-  { value: 'pending', label: '待完善' },
-];
 const MODULE_OPTIONS = MODULE_SHORT.map((label, i) => ({
   value: i + 1,
   label: `${'①②③④⑤'[i]} ${label}`,
@@ -102,6 +98,12 @@ const CustomerListPage: React.FC = () => {
   const [sort, setSort] = useState<
     Pick<CustomerQuery, 'sortField' | 'sortOrder'>
   >({});
+  // 表格上方的建档统计（按数据范围，不带其他筛选）
+  const [counts, setCounts] = useState<{
+    all: number;
+    done: number;
+    pending: number;
+  }>();
 
   const [query, setQuery] = useState<CustomerQuery>({});
   const [page, setPage] = useState(1);
@@ -150,6 +152,10 @@ const CustomerListPage: React.FC = () => {
       }
       setRows(data.records);
       setTotal(data.total);
+      customerApi
+        .profileCounts()
+        .then(setCounts)
+        .catch(() => undefined);
     } catch (e) {
       setError(readBizError(e).message);
     } finally {
@@ -166,15 +172,23 @@ const CustomerListPage: React.FC = () => {
 
   useOnReactivate(load);
 
-  const search = () => {
-    setQuery(compact(form.getFieldsValue()));
+  // 建档状态由表格上方的统计条切换，查询、重置筛选时沿用 / 清掉
+  const search = (
+    profileStatus: CustomerQuery['profileStatus'] | null = query.profileStatus,
+  ) => {
+    setQuery(
+      compact({
+        ...form.getFieldsValue(),
+        profileStatus: profileStatus ?? undefined,
+      }),
+    );
     setPage(1);
     setSelected([]);
   };
 
   const reset = () => {
     form.resetFields();
-    search();
+    search(null);
   };
 
   const toggleStatus = (record: CustomerListItem, checked: boolean) => {
@@ -403,6 +417,14 @@ const CustomerListPage: React.FC = () => {
       title: '档案完整度',
       dataIndex: 'profileMask',
       width: 150,
+      sorter: true,
+      showSorterTooltip: false,
+      sortOrder:
+        sort.sortField === 'profile'
+          ? sort.sortOrder === 'asc'
+            ? 'ascend'
+            : 'descend'
+          : null,
       render: (mask: number) => {
         const done = doneOf(mask);
         const missing = MODULE_SHORT.filter((_, i) => !(mask & (1 << i)));
@@ -541,7 +563,7 @@ const CustomerListPage: React.FC = () => {
     },
   ];
 
-  // 潜力等级、经营等级可以排序；取消排序回到默认（经营等级 S→C，再按潜力等级）
+  // 潜力等级、经营等级、档案完整度可以排序；取消排序回到默认（经营等级 S→C，再按潜力等级）
   const onTableChange: TableProps<CustomerListItem>['onChange'] = (
     _p,
     _f,
@@ -549,7 +571,9 @@ const CustomerListPage: React.FC = () => {
     extra,
   ) => {
     if (extra.action !== 'sort' || Array.isArray(sorter)) return;
-    const field = sorter.field as CustomerQuery['sortField'];
+    const field = (
+      sorter.field === 'profileMask' ? 'profile' : sorter.field
+    ) as CustomerQuery['sortField'];
     setSort(
       sorter.order
         ? {
@@ -601,7 +625,7 @@ const CustomerListPage: React.FC = () => {
           <Form
             form={form}
             layout="vertical"
-            onFinish={search}
+            onFinish={() => search()}
             style={{
               background: palette.card,
               border: `1px solid ${palette.hairline}`,
@@ -642,13 +666,6 @@ const CustomerListPage: React.FC = () => {
                   placeholder="全部"
                   allowClear
                   options={BIZ_GRADE_OPTIONS}
-                />
-              </Form.Item>
-              <Form.Item name="profileStatus" label={label('建档状态')}>
-                <Select
-                  placeholder="全部"
-                  allowClear
-                  options={PROFILE_STATUS_OPTIONS}
                 />
               </Form.Item>
               <Form.Item name="missingModules" label={label('缺的模块')}>
@@ -709,9 +726,26 @@ const CustomerListPage: React.FC = () => {
               flexWrap: 'wrap',
             }}
           >
-            <span style={{ color: palette.sub, fontSize: 14 }}>
-              共 <span className="num">{total}</span> 条记录
-            </span>
+            <Segmented
+              value={query.profileStatus ?? 'all'}
+              onChange={(v) =>
+                search(v === 'all' ? null : (v as 'done' | 'pending'))
+              }
+              options={[
+                {
+                  value: 'all',
+                  label: `全部${counts ? ` ${counts.all}` : ''}`,
+                },
+                {
+                  value: 'done',
+                  label: `已建档${counts ? ` ${counts.done}` : ''}`,
+                },
+                {
+                  value: 'pending',
+                  label: `待完善${counts ? ` ${counts.pending}` : ''}`,
+                },
+              ]}
+            />
             <div style={{ display: 'flex', gap: 12 }}>
               {canAdd && (
                 <Button

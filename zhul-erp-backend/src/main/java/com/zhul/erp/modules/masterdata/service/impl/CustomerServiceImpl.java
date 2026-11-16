@@ -9,6 +9,7 @@ import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.security.DataScope;
 import com.zhul.erp.framework.security.DataScopeResolver;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.modules.aitask.translation.CustomerNameTranslations;
 import com.zhul.erp.modules.masterdata.constants.CustomerConstants;
 import com.zhul.erp.modules.masterdata.dto.AbstractCustomerRequest;
 import com.zhul.erp.modules.masterdata.dto.AssignableOwnersVO;
@@ -17,6 +18,7 @@ import com.zhul.erp.modules.masterdata.dto.CustomerDetailVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerLeadCommand;
 import com.zhul.erp.modules.masterdata.dto.CustomerPageQuery;
 import com.zhul.erp.modules.masterdata.dto.CustomerPartyRequest;
+import com.zhul.erp.modules.masterdata.dto.CustomerProfileCountsVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerRefVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerTransferRequest;
 import com.zhul.erp.modules.system.service.BusinessUnitService;
@@ -24,6 +26,7 @@ import com.zhul.erp.modules.masterdata.dto.CustomerVO;
 import com.zhul.erp.modules.masterdata.dto.SaveCustomerRequest;
 import com.zhul.erp.modules.masterdata.dto.UpdateCustomerRequest;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
+import com.zhul.erp.modules.masterdata.customerprofile.entity.CustomerFieldSourceDO;
 import com.zhul.erp.modules.masterdata.customerprofile.support.CustomerProfileBits;
 import com.zhul.erp.modules.masterdata.customerprofile.support.FieldSources;
 import com.zhul.erp.modules.masterdata.customerprofile.support.ProfileFacts;
@@ -95,6 +98,7 @@ public class CustomerServiceImpl implements CustomerService {
     private final FieldSources fieldSources;
     /** 延迟取：ProfileFacts → 跟进钩子 → 商机服务 → 客户服务，直接注入会循环依赖 */
     private final ObjectProvider<ProfileFacts> profileFacts;
+    private final CustomerNameTranslations customerNames;
 
     // ---------------------------------------------------------------- 新增 / 更新
 
@@ -140,6 +144,8 @@ public class CustomerServiceImpl implements CustomerService {
         primaryContacts.fromCustomer(customer);
         // 档案完整度随即算好，列表的完整度与建档筛选不等夜间任务（BUS-062）
         profileFacts.getObject().refresh(customer);
+        recordNameCnSource(customer, "", translated(req), scope.selfId());
+        customerNames.onSaved(customer, null, translated(req), scope.selfId());
         return toVo(customer, ownerNames(List.of(customer)));
     }
 
@@ -153,6 +159,8 @@ public class CustomerServiceImpl implements CustomerService {
         checkDuplicate(customer.getTenantId(), req.getCountry(), nameKey, id, scope);
 
         Map<String, Object> before = profileValues(customer);
+        String nameBefore = customer.getName();
+        String nameCnBefore = text(customer.getNameCn());
         applyFields(customer, req);
         customer.setNameKey(nameKey);
         customer.setCustomerRole(req.getCustomerRole());
@@ -168,6 +176,24 @@ public class CustomerServiceImpl implements CustomerService {
         List<String> changed = before.keySet().stream().filter(k -> !Objects.equals(before.get(k), after.get(k))).toList();
         fieldSources.record(customer.getTenantId(), id, changed, FieldSources.MANUAL, 0L, scope.selfId());
         profileFacts.getObject().refresh(customer);
+        recordNameCnSource(customer, nameCnBefore, translated(req), scope.selfId());
+        customerNames.onSaved(customer, nameBefore, translated(req), scope.selfId());
+    }
+
+    /** 中文名称就是这次「AI 翻译」按钮的译名 */
+    private static boolean translated(AbstractCustomerRequest req) {
+        String t = text(req.getNameCnTranslation());
+        return !t.isEmpty() && t.equals(text(req.getNameCn()));
+    }
+
+    /** 中文名称来源：用了按钮译名记「AI 翻译」，手工填写或修改记「人工」；清空的不记 */
+    private void recordNameCnSource(CustomerDO c, String before, boolean translated, Long operatorId) {
+        String now = text(c.getNameCn());
+        if (now.isEmpty() || !translated && now.equals(before)) {
+            return;
+        }
+        fieldSources.record(c.getTenantId(), c.getId(), List.of(FieldSources.NAME_CN),
+                translated ? FieldSources.AI_TRANSLATE : FieldSources.MANUAL, 0L, operatorId);
     }
 
     @Override
@@ -224,6 +250,7 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setCustomerCode(generateCode(tenantId, customer.getId()));
         customerMapper.updateById(customer);
         primaryContacts.fromCustomer(customer);
+        customerNames.onSaved(customer, null, false, scope.selfId());
         return customer.getId();
     }
 
@@ -548,6 +575,11 @@ public class CustomerServiceImpl implements CustomerService {
         vo.setDestinationPort(c.getDestinationPort());
         vo.setRemark(c.getRemark());
         vo.setParties(partySync.listActive(id).stream().map(CustomerPartySync::toVo).toList());
+        CustomerFieldSourceDO nameCnSource = fieldSources.get(id, FieldSources.NAME_CN);
+        if (nameCnSource != null) {
+            vo.setNameCnSource(nameCnSource.getSource());
+            vo.setNameCnSourceTime(nameCnSource.getUpdateTime());
+        }
         return vo;
     }
 
@@ -604,9 +636,34 @@ public class CustomerServiceImpl implements CustomerService {
         if ("updateTime".equals(q.getSortField())) {
             return asc ? w.orderByAsc(CustomerDO::getUpdateTime) : w.orderByDesc(CustomerDO::getUpdateTime);
         }
+        // 档案完整度按已完成的模块数，升序时缺得最多的在前
+        if ("profile".equals(q.getSortField())) {
+            return w.last(asc ? "ORDER BY BIT_COUNT(profile_mask) ASC, update_time DESC"
+                    : "ORDER BY BIT_COUNT(profile_mask) DESC, update_time DESC");
+        }
         // 默认：成交客户按经营等级 S→C 排在前面，同级按潜力评级、综合分数；未成交的按潜力评级，未评的最后
         return w.last("ORDER BY (biz_grade = 0), biz_grade ASC, (potential_rating = 0), potential_rating DESC, "
                 + "biz_grade_score DESC, update_time DESC");
+    }
+
+    @Override
+    public CustomerProfileCountsVO profileCounts() {
+        DataScope scope = dataScopeResolver.current();
+        CustomerProfileCountsVO vo = new CustomerProfileCountsVO();
+        vo.setAll(countInScope(scope, null));
+        vo.setDone(countInScope(scope, true));
+        vo.setPending(vo.getAll() - vo.getDone());
+        return vo;
+    }
+
+    /** 数据范围内未删除的客户数；done 为 true 时只数已建档的 */
+    private long countInScope(DataScope scope, Boolean done) {
+        LambdaQueryWrapper<CustomerDO> w = new LambdaQueryWrapper<CustomerDO>()
+                .eq(CustomerDO::getTenantId, currentTenantId())
+                .isNull(CustomerDO::getDeletedAt)
+                .eq(Boolean.TRUE.equals(done), CustomerDO::getProfileMask, CustomerProfileBits.ALL_DONE);
+        scope.apply(w, CustomerDO::getOwnerId);
+        return customerMapper.selectCount(w);
     }
 
     // ---------------------------------------------------------------- 删除 / 转移

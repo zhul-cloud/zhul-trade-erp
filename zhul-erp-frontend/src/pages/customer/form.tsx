@@ -5,6 +5,7 @@ import {
   InfoCircleOutlined,
   LockOutlined,
   PlusOutlined,
+  TranslationOutlined,
   UserOutlined,
   WalletOutlined,
 } from '@ant-design/icons';
@@ -56,6 +57,7 @@ import {
   ROLE_OPTIONS,
   SHIPPING_OPTIONS,
 } from './constants';
+import { useNameTranslation } from './nameTranslation';
 import {
   type AssignableOwners,
   type CustomerDetail,
@@ -234,6 +236,10 @@ const CustomerFormPage: React.FC = () => {
   >([]);
   // 「从注册信息复制」：打开新增抽屉时直接填入注册信息
   const [copyOnOpen, setCopyOnOpen] = useState(false);
+  // 「AI 翻译」本次给出的译名：保存时中文名称与它相同则来源记「AI 翻译」
+  const [aiName, setAiName] = useState<string>();
+  const { running: translating, translate } = useNameTranslation();
+  const nameCn = Form.useWatch('nameCn', form);
 
   const country = Form.useWatch('country', form);
   const incoterm = Form.useWatch('incoterm', form);
@@ -288,6 +294,34 @@ const CustomerFormPage: React.FC = () => {
       label: zoneLabel(z),
     }));
   }, [country, tzMap, codeOf]);
+
+  // 「AI 翻译」：先校验英文名称，译名填进中文名称，由人确认后随表单保存
+  const onTranslateName = async () => {
+    try {
+      await form.validateFields(['name']);
+    } catch {
+      return;
+    }
+    const r = await translate(text(form.getFieldValue('name')));
+    if ('error' in r) {
+      message.error(r.error);
+      return;
+    }
+    form.setFieldValue('nameCn', r.text);
+    setAiName(r.text);
+    setTouched(true);
+  };
+
+  // 中文名称来源：这次按钮的译名，或上次保存时记为「AI 翻译」且没改过
+  const nameCnHint = (() => {
+    const current = text(nameCn);
+    if (!current) return undefined;
+    if (aiName && current === aiName)
+      return 'AI 翻译，保存后生效；手工改过后不再自动更新';
+    if (record?.nameCnSource === 5 && current === record.nameCn)
+      return `AI 翻译 · ${formatDateTime(record.nameCnSourceTime).slice(0, 10)}；手工改过后不再自动更新`;
+    return undefined;
+  })();
 
   const onCountryChange = (value: string) => {
     const code = codeOf(value);
@@ -388,7 +422,10 @@ const CustomerFormPage: React.FC = () => {
     setErrorSummary([]);
     setSaving(true);
     try {
-      const payload = toPayload(values, parties, editing);
+      const payload = {
+        ...toPayload(values, parties, editing),
+        nameCnTranslation: aiName,
+      };
       if (editing) {
         await customerApi.update(Number(id), payload);
         message.success('保存成功');
@@ -614,8 +651,31 @@ const CustomerFormPage: React.FC = () => {
               >
                 <Input placeholder="如 ABC Automation GmbH" maxLength={200} />
               </Form.Item>
-              <Form.Item name="nameCn" label="中文名称" rules={[{ max: 100 }]}>
-                <Input placeholder="内部称呼或中文译名" maxLength={100} />
+              <Form.Item
+                name="nameCn"
+                label="中文名称"
+                rules={[{ max: 100 }]}
+                extra={nameCnHint}
+              >
+                <Input
+                  placeholder="内部称呼或中文译名"
+                  maxLength={100}
+                  suffix={
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<TranslationOutlined />}
+                      loading={translating}
+                      onClick={onTranslateName}
+                      style={{
+                        color: palette.link,
+                        background: palette.accentSoft,
+                      }}
+                    >
+                      {translating ? '翻译中' : 'AI 翻译'}
+                    </Button>
+                  }
+                />
               </Form.Item>
               <Form.Item
                 name="shortName"

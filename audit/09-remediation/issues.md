@@ -193,7 +193,7 @@
 | [UI-096](tasks/2026-11-16-BUS-082-feedback-1116.md) | 出运管理「待出运」按客户分组时只显示客户名称，没有按统一客户列显示国家 / 地区与主联系人 | P3 | 已合并待发布 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
 | [UI-097](tasks/2026-11-16-BUS-082-feedback-1116.md) | 客户跟进页面的客户没有按统一客户列（名称、国家 / 地区、主联系人三行）显示 | P3 | 已合并待发布 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
 | [UI-098](tasks/2026-11-16-BUS-082-feedback-1116.md) | 采购订单列表只显示型号数，没有按单据页统一规范显示品牌、品类、型号 | P3 | 已合并待发布 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
-| [UI-099](tasks/2026-11-16-BUS-082-feedback-1116.md) | CI 导出的 DESCRIPTION 列不随内容自动调整，公司印章歪斜、模糊 | P3 | 待合并 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
+| [UI-099](tasks/2026-11-16-BUS-082-feedback-1116.md) | CI 导出的 DESCRIPTION 列不随内容自动调整，公司印章歪斜、模糊 | P3 | 已合并待发布 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
 
 ## AI 可靠性
 
@@ -212,6 +212,7 @@
 | [AI-011](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | AI 回调信任模型回传的 key，不核对是否属于本次提交 | P3 | 已关闭 | Claude | [2026-11-15-SEC-018](tasks/2026-11-15-SEC-018-codegraph-sweep.md) | 2026-11-15 |
 | [AI-012](tasks/2026-11-15-BUS-042-incremental-audit.md) | 跟进整理的阶段答案字段在发给模型的 Schema 里不能为空，原文没提到也会被迫给出答案 | P2 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-15 |
 | [AI-013](tasks/2026-11-15-BUS-042-incremental-audit.md) | 大询盘核验按原型号对回结果，同一批里原型号相同的第二条既不采用核验结果也不标待核实 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-15 |
+| [AI-014](tasks/2026-11-16-AI-014-translation-requester.md) | 当前用户按用户名找不到用户档案时，查不到自己提交的翻译结果（生成英文描述、客户名 AI 翻译），提示任务不存在 | P3 | 待合并 | Claude | [2026-11-16-AI-014](tasks/2026-11-16-AI-014-translation-requester.md) | 2026-11-16 |
 
 ## 身份与对象权限
 

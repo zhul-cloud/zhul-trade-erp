@@ -44,6 +44,16 @@ public class SaveExpenseRequest {
     private Integer method;
     /** 员工垫付的垫付人，默认当前用户 */
     private Long advanceUserId;
+    /** 私对私：我方付款账户（收款账户里的对私账户） */
+    private Long bankAccountId;
+    /** 私对私：对方收款方式（1-支付宝、2-微信、3-银行卡） */
+    private Integer payeeChannel;
+    /** 私对私：对方户名 */
+    @Size(max = 50, message = "户名不能超过 50 字")
+    private String payeeAccountName;
+    /** 私对私：对方账号（支付宝账号、微信号或银行卡号），只以脱敏快照保存在付款单上 */
+    @Size(max = 50, message = "账号不能超过 50 字")
+    private String payeeAccountNo;
     @Size(max = 500)
     private String remark;
     /** 所属事业部（公司设置了事业部时有效）：为空表示「公共」，按销售额比例分摊 */
