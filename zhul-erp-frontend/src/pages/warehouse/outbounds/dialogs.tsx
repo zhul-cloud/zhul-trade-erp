@@ -60,18 +60,33 @@ export const toInputs = (ob: Outbound): BoxInput[] =>
 
 // ---------------------------------------------------------------- 打包
 
+/** 装箱的型号行；几张单一起装（合并打包或修改整组装箱）时每行带所属出库单 */
+export const packLines = (obs: Outbound[]): PackLine[] =>
+  obs.flatMap((o) =>
+    o.items.map((i) => ({
+      key: i.id,
+      model: i.model,
+      quantity: i.quantity,
+      group: obs.length > 1 ? { no: o.obNo, sub: o.soNo } : undefined,
+    })),
+  );
+
 export const PackDrawer: React.FC<{
+  /** 打包或修改装箱的单；合并打包了的单打开整组 */
   id?: number;
+  /** 合并打包：同一客户、同一货代的几张待打包销售出库单 */
+  mergeIds?: number[];
   onClose: () => void;
   /** 打包完成；packedId 是完成的那张单（可能已不是抽屉当前的单） */
   onDone: (packedId: number) => void;
-}> = ({ id, onClose, onDone }) => {
+}> = ({ id, mergeIds, onClose, onDone }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
+  const key = mergeIds?.join(',') ?? (id === undefined ? undefined : `${id}`);
   /** 抽屉当前打开的单：保存进行中换了单，旧单的结果不能动新单的按钮状态 */
-  const current = useRef(id);
-  current.current = id;
-  const [ob, setOb] = useState<Outbound>();
+  const current = useRef(key);
+  current.current = key;
+  const [loaded, setLoaded] = useState<{ key: string; obs: Outbound[] }>();
   const [error, setError] = useState<string>();
   const [boxes, setBoxes] = useState<BoxInput[]>([]);
   const [busy, setBusy] = useState(false);
@@ -79,25 +94,33 @@ export const PackDrawer: React.FC<{
   const [tags, setTags] = useState<ModelTagMap>({});
 
   useEffect(() => {
-    if (id === undefined) return;
+    if (key === undefined) return;
     // 关闭或换单后，上一单迟到的回包作废，不能改写当前抽屉（UI-017）
     let alive = true;
-    setOb(undefined);
+    setLoaded(undefined);
     setTags({});
     setError(undefined);
     setBusy(false);
-    outboundApi
-      .detail(id)
-      .then((d) => {
+    const ids = key.split(',').map(Number);
+    (async () => {
+      const opened = await Promise.all(ids.map((x) => outboundApi.detail(x)));
+      // 合并打包了的单：同组的单一起装箱
+      const mates = opened.length === 1 ? (opened[0].packMates ?? []) : [];
+      const rest = await Promise.all(
+        mates.map((m) => outboundApi.detail(m.id)),
+      );
+      return [...opened, ...rest].sort((a, b) => a.id - b.id);
+    })()
+      .then((obs) => {
         if (!alive) return;
-        setOb(d);
-        setPhotos(d.packingAttachments ?? []);
-        const lines = d.items.map((i) => ({
-          key: i.id,
-          model: i.model,
-          quantity: i.quantity,
-        }));
-        setBoxes(d.boxes.length ? toInputs(d) : [emptyBox(lines, new Map())]);
+        const head = obs.find((o) => o.id === ids[0]) ?? obs[0];
+        setLoaded({ key, obs });
+        setPhotos(head.packingAttachments ?? []);
+        setBoxes(
+          head.boxes.length
+            ? toInputs(head)
+            : [emptyBox(packLines(obs), new Map())],
+        );
       })
       .catch((e) => {
         if (alive) setError(readBizError(e).message);
@@ -105,31 +128,35 @@ export const PackDrawer: React.FC<{
     return () => {
       alive = false;
     };
-  }, [id]);
+  }, [key]);
 
-  const lines: PackLine[] = useMemo(
-    () =>
-      ob?.items.map((i) => ({
-        key: i.id,
-        model: i.model,
-        quantity: i.quantity,
-      })) ?? [],
-    [ob],
-  );
-  const problem = ob ? boxesProblem(lines, boxes) : '加载中';
+  const obs = loaded && loaded.key === key ? loaded.obs : undefined;
+  const head = obs?.find((o) => o.id === (mergeIds?.[0] ?? id)) ?? obs?.[0];
+  const many = (obs?.length ?? 0) > 1;
+  const lines: PackLine[] = useMemo(() => (obs ? packLines(obs) : []), [obs]);
+  const problem = obs ? boxesProblem(lines, boxes) : '加载中';
+  const missing = [
+    ...new Set(obs?.flatMap((o) => o.missingMarketing ?? []) ?? []),
+  ];
 
   const submit = async () => {
     // 只提交本次打开的单据
-    if (!ob || ob.id !== id) return;
-    const target = ob.id;
+    if (!obs || !head || key === undefined) return;
+    const target = key;
+    const files = {
+      attachmentIds: photos.map((p) => p.id),
+      attachmentModels: attachmentModels(photos, tags),
+    };
     setBusy(true);
     try {
-      await outboundApi.pack(target, boxes, {
-        attachmentIds: photos.map((p) => p.id),
-        attachmentModels: attachmentModels(photos, tags),
-      });
-      message.success(`${ob.obNo} 已打包`);
-      onDone(target);
+      if (mergeIds) {
+        await outboundApi.mergePack(mergeIds, boxes, files);
+        message.success(`${mergeIds.length} 张销售出库单已合并打包`);
+      } else {
+        await outboundApi.pack(head.id, boxes, files);
+        message.success(many ? '已修改整组装箱' : `${head.obNo} 已打包`);
+      }
+      onDone(head.id);
     } catch (e) {
       message.error(readBizError(e).message);
     } finally {
@@ -137,16 +164,24 @@ export const PackDrawer: React.FC<{
     }
   };
 
+  const title = mergeIds
+    ? `合并打包 · ${mergeIds.length} 张销售出库单`
+    : !head
+      ? '打包'
+      : many
+        ? `修改装箱 · 合并打包 ${obs?.length} 张`
+        : `打包 · ${head.obNo}`;
+
   return (
     <Drawer
-      open={id !== undefined}
+      open={key !== undefined}
       onClose={onClose}
       size="min(860px, 96vw)"
       destroyOnHidden
       title={
         <span>
-          打包{ob ? ` · ${ob.obNo}` : ''}
-          {ob && (
+          {title}
+          {head && (
             <span
               style={{
                 marginLeft: 10,
@@ -155,7 +190,8 @@ export const PackDrawer: React.FC<{
                 color: palette.mute,
               }}
             >
-              {ob.soNo} · {ob.customerName} · 货代 {ob.forwarderName}
+              {many ? '' : `${head.soNo} · `}
+              {head.customerName} · 货代 {head.forwarderName}
             </span>
           )}
         </span>
@@ -165,11 +201,11 @@ export const PackDrawer: React.FC<{
           <span
             style={{
               fontSize: 12,
-              color: problem && ob ? palette.orange : palette.mute,
+              color: problem && obs ? palette.orange : palette.mute,
             }}
           >
             <InfoCircleOutlined />{' '}
-            {problem && ob
+            {problem && obs
               ? problem
               : '体积重 = 长 × 宽 × 高 ÷ 5000；计费重取毛重和体积重的大者'}
           </span>
@@ -182,23 +218,25 @@ export const PackDrawer: React.FC<{
             disabled={!!problem}
             onClick={submit}
           >
-            完成打包
+            {mergeIds ? '完成合并打包' : '完成打包'}
           </Button>
         </div>
       }
     >
       {error ? (
         <ErrorHint message={error} onRetry={onClose} />
-      ) : !ob ? (
+      ) : !obs ? (
         <Skeleton active />
       ) : (
         <>
-          {ob.note && (
-            <div style={{ marginBottom: 12, color: palette.sub }}>
-              业务员备注：{ob.note}
-            </div>
-          )}
-          {(ob.missingMarketing?.length ?? 0) > 0 && (
+          {obs
+            .filter((o) => o.note)
+            .map((o) => (
+              <div key={o.id} style={{ marginBottom: 12, color: palette.sub }}>
+                {many ? `${o.obNo} ` : ''}业务员备注：{o.note}
+              </div>
+            ))}
+          {missing.length > 0 && (
             <div
               style={{
                 marginBottom: 12,
@@ -210,11 +248,26 @@ export const PackDrawer: React.FC<{
               }}
             >
               <InfoCircleOutlined /> 以下型号还没有营销实拍：
-              {ob.missingMarketing?.join('、')}
+              {missing.join('、')}
               。货发走前可以请拍摄人员补拍，不影响打包。
             </div>
           )}
           <BoxEditor lines={lines} boxes={boxes} onChange={setBoxes} />
+          {many && (
+            <div
+              style={{
+                marginTop: 12,
+                padding: '8px 12px',
+                borderRadius: 10,
+                background: palette.orangeSoft,
+                color: palette.orange,
+                fontSize: 13,
+              }}
+            >
+              <InfoCircleOutlined /> 这 {obs.length}{' '}
+              张单共用这些箱子，要一起交快递、一起放进出运单；需要分开时在销售出库单详情里「拆开」。
+            </div>
+          )}
           <div
             style={{
               margin: '18px 0 8px',
@@ -242,7 +295,7 @@ export const PackDrawer: React.FC<{
           />
           <ModelTags
             files={photos}
-            models={ob.items}
+            models={obs.flatMap((o) => o.items)}
             value={tags}
             onChange={setTags}
           />
@@ -291,8 +344,20 @@ export const HandOverModal: React.FC<{
     }
   }, [open]);
 
-  const weights = outbounds.map((o) => o.chargeableWeight);
+  // 合并打包的同组单共用箱子，箱数和计费重按组只算一次（合并单元格）
+  const unitOf = (o: Outbound) => (o.packId ? `p${o.packId}` : `o${o.id}`);
+  const units = [...new Set(outbounds.map(unitOf))];
+  const rows = units.flatMap((u) => outbounds.filter((o) => unitOf(o) === u));
+  const weights = units.map(
+    (u) => rows.find((o) => unitOf(o) === u)?.chargeableWeight ?? 0,
+  );
   const shares = splitFreight(freight ?? 0, weights);
+  const span = (r: Outbound, i = 0) => ({
+    rowSpan:
+      rows.findIndex((o) => unitOf(o) === unitOf(r)) === i
+        ? rows.filter((o) => unitOf(o) === unitOf(r)).length
+        : 0,
+  });
   const forwarder = outbounds[0]?.forwarderName;
 
   const submit = async () => {
@@ -426,21 +491,25 @@ export const HandOverModal: React.FC<{
         rowKey="id"
         size="small"
         pagination={false}
-        dataSource={outbounds}
+        dataSource={rows}
         columns={[
           { title: '销售出库单', dataIndex: 'obNo' },
           { title: '订单', dataIndex: 'soNo' },
-          { title: '箱数', dataIndex: 'boxCount', width: 70 },
+          { title: '箱数', dataIndex: 'boxCount', width: 70, onCell: span },
           {
             title: '计费重',
             dataIndex: 'chargeableWeight',
             render: (v: number) => kg(v),
+            onCell: span,
           },
           {
             title: '分到运费',
             key: 'share',
-            render: (_, __, i) =>
-              freight === null ? '—' : formatAmount(shares[i], 'CNY'),
+            onCell: span,
+            render: (_, r) =>
+              freight === null
+                ? '—'
+                : formatAmount(shares[units.indexOf(unitOf(r))], 'CNY'),
           },
         ]}
       />

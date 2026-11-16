@@ -30,6 +30,9 @@ public class OutboundOrderDO {
     private Long courierWaybillId;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private Long logisticsId;
+    /** 所属合并打包组（outbound_pack.id），单独打包为空 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private Long packId;
     private Long supplierShipmentId;
     private String note;
     private String withdrawReason;

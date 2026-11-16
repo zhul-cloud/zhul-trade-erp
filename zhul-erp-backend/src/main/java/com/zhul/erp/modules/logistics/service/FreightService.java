@@ -8,10 +8,9 @@ import com.zhul.erp.modules.logistics.entity.OutboundBoxDO;
 import com.zhul.erp.modules.logistics.entity.OutboundBoxItemDO;
 import com.zhul.erp.modules.logistics.entity.OutboundOrderItemDO;
 import com.zhul.erp.modules.logistics.repository.FreightAllocationMapper;
-import com.zhul.erp.modules.logistics.repository.OutboundBoxItemMapper;
-import com.zhul.erp.modules.logistics.repository.OutboundBoxMapper;
 import com.zhul.erp.modules.logistics.repository.OutboundOrderItemMapper;
 import com.zhul.erp.modules.logistics.support.FreightAllocator;
+import com.zhul.erp.modules.logistics.support.OutboundBoxes;
 import com.zhul.erp.modules.sales.support.PiStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,15 +28,15 @@ import java.util.stream.Collectors;
 
 /**
  * 运费分摊落库（调用方事务内）：作废这笔运费原来的分摊行，按 {@link FreightAllocator} 重新写入。
- * 国内快递按销售出库单的计费重之和先分到销售出库单（体积系数 5000）；国际运费直接按箱（体积系数取货代主数据）。
+ * 国内快递（体积系数 5000）与国际运费（体积系数取货代主数据）都先按箱计费重分到箱，再按箱内货值分到行；
+ * 合并打包的箱子装有不同出库单的货，行带所属出库单（openspec outbound-merge-pack）。
  */
 @Service
 @RequiredArgsConstructor
 public class FreightService {
 
     private final FreightAllocationMapper allocationMapper;
-    private final OutboundBoxMapper boxMapper;
-    private final OutboundBoxItemMapper boxItemMapper;
+    private final OutboundBoxes outboundBoxes;
     private final OutboundOrderItemMapper itemMapper;
 
     public void allocateDomestic(Long waybillId, BigDecimal freight, Collection<Long> outboundIds) {
@@ -46,7 +45,7 @@ public class FreightService {
             return;
         }
         write(LogisticsConstants.FREIGHT_DOMESTIC, waybillId,
-                FreightAllocator.byOutbound(freight, boxes(outboundIds, LogisticsConstants.DOMESTIC_DIVISOR)));
+                FreightAllocator.toLines(freight, boxes(outboundIds, LogisticsConstants.DOMESTIC_DIVISOR)));
     }
 
     public void allocateInternational(Long logisticsId, BigDecimal freight, Collection<Long> outboundIds, BigDecimal divisor) {
@@ -85,34 +84,32 @@ public class FreightService {
                 .setScale(2, RoundingMode.HALF_UP);
     }
 
+    /** 这些出库单的箱子（合并打包的整组箱子只算一次），箱内按「出库单 + 订单型号行」合并货值 */
     private List<FreightAllocator.Box> boxes(Collection<Long> outboundIds, BigDecimal divisor) {
-        List<OutboundBoxDO> boxes = boxMapper.selectList(new LambdaQueryWrapper<OutboundBoxDO>()
-                .in(OutboundBoxDO::getOutboundId, outboundIds)
-                .isNull(OutboundBoxDO::getDeletedAt)
-                .orderByAsc(OutboundBoxDO::getOutboundId, OutboundBoxDO::getBoxNo));
+        List<OutboundBoxDO> boxes = outboundBoxes.distinct(outboundIds);
         if (boxes.isEmpty()) {
             return List.of();
         }
-        Map<Long, List<OutboundBoxItemDO>> contents = boxItemMapper.selectList(new LambdaQueryWrapper<OutboundBoxItemDO>()
-                        .in(OutboundBoxItemDO::getBoxId, boxes.stream().map(OutboundBoxDO::getId).toList())
-                        .isNull(OutboundBoxItemDO::getDeletedAt))
-                .stream().collect(Collectors.groupingBy(OutboundBoxItemDO::getBoxId));
+        Map<Long, List<OutboundBoxItemDO>> contents = outboundBoxes.contents(boxes.stream().map(OutboundBoxDO::getId).toList());
+        List<Long> itemIds = contents.values().stream().flatMap(List::stream).map(OutboundBoxItemDO::getOutboundItemId).distinct().toList();
         Map<Long, OutboundOrderItemDO> items = new HashMap<>();
-        itemMapper.selectList(new LambdaQueryWrapper<OutboundOrderItemDO>()
-                        .in(OutboundOrderItemDO::getOutboundId, outboundIds)
-                        .isNull(OutboundOrderItemDO::getDeletedAt))
-                .forEach(i -> items.put(i.getId(), i));
+        if (!itemIds.isEmpty()) {
+            itemMapper.selectBatchIds(itemIds).forEach(i -> items.put(i.getId(), i));
+        }
         List<FreightAllocator.Box> out = new ArrayList<>(boxes.size());
         for (OutboundBoxDO b : boxes) {
-            Map<Long, BigDecimal> values = new LinkedHashMap<>();
+            Map<List<Long>, BigDecimal> values = new LinkedHashMap<>();
             for (OutboundBoxItemDO bi : contents.getOrDefault(b.getId(), List.of())) {
                 OutboundOrderItemDO i = items.get(bi.getOutboundItemId());
                 if (i != null) {
-                    values.merge(i.getSoItemId(), i.getUnitPriceCny().multiply(BigDecimal.valueOf(bi.getQuantity())), BigDecimal::add);
+                    values.merge(List.of(i.getOutboundId(), i.getSoItemId()),
+                            i.getUnitPriceCny().multiply(BigDecimal.valueOf(bi.getQuantity())), BigDecimal::add);
                 }
             }
-            out.add(new FreightAllocator.Box(b.getId(), b.getOutboundId(),
-                    FreightAllocator.chargeable(b.getLength(), b.getWidth(), b.getHeight(), b.getGrossWeight(), divisor), values));
+            List<FreightAllocator.Line> lines = values.entrySet().stream()
+                    .map(e -> new FreightAllocator.Line(e.getKey().get(0), e.getKey().get(1), e.getValue())).toList();
+            out.add(new FreightAllocator.Box(b.getId(),
+                    FreightAllocator.chargeable(b.getLength(), b.getWidth(), b.getHeight(), b.getGrossWeight(), divisor), lines));
         }
         return out;
     }

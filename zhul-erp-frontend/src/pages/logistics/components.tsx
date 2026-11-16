@@ -4,7 +4,7 @@ import React from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 import { useAppTheme } from '@/theme/AppTheme';
-import type { BoxInput } from './service';
+import type { BoxInput, Outbound } from './service';
 
 export const LOGISTICS_PATHS = {
   shipments: '/logistics/shipments',
@@ -55,7 +55,29 @@ export interface PackLine {
   key: number;
   model: string;
   quantity: number;
+  /** 合并打包时这一行所属的销售出库单（单号、订单号） */
+  group?: { no: string; sub?: string };
 }
+
+/** 合并打包时箱内型号前的单号简称：取单号末尾最少 3 位，组内不重复 */
+export const shortNos = (nos: string[]) => {
+  const uniq = [...new Set(nos)];
+  const longest = Math.max(0, ...uniq.map((x) => x.length));
+  for (let n = 3; n < longest; n++) {
+    const tails = uniq.map((x) => x.slice(-n));
+    if (new Set(tails).size === uniq.length)
+      return new Map(
+        uniq.map((x, i) => [
+          x,
+          x.length > n + 2 ? `${x.slice(0, 2)}…${tails[i]}` : x,
+        ]),
+      );
+  }
+  return new Map(uniq.map((x) => [x, x]));
+};
+
+const lineName = (l: PackLine) =>
+  l.group ? `${l.group.no} 的 ${l.model}` : l.model;
 
 export const emptyBox = (lines: PackLine[], packed: Map<number, number>) => {
   const next = lines.find((l) => (packed.get(l.key) ?? 0) < l.quantity);
@@ -98,8 +120,8 @@ export const boxesProblem = (lines: PackLine[], boxes: BoxInput[]) => {
     const n = packed.get(l.key) ?? 0;
     if (n !== l.quantity)
       return n < l.quantity
-        ? `${l.model} 还差 ${l.quantity - n} 个没装箱`
-        : `${l.model} 多装了 ${n - l.quantity} 个`;
+        ? `${lineName(l)} 还差 ${l.quantity - n} 个没装箱`
+        : `${lineName(l)} 多装了 ${n - l.quantity} 个`;
   }
   return undefined;
 };
@@ -120,7 +142,31 @@ const num = (
   />
 );
 
-/** 按箱登记尺寸、重量与箱内型号（一个箱子只装一张单的货） */
+/** 箱内型号前的出库单简称（合并打包时） */
+const GroupTag: React.FC<{ no?: string; shorts: Map<string, string> }> = ({
+  no,
+  shorts,
+}) => {
+  const { palette } = useAppTheme();
+  if (!no) return null;
+  return (
+    <span
+      title={no}
+      style={{
+        marginRight: 8,
+        padding: '1px 8px',
+        borderRadius: 6,
+        fontSize: 12,
+        background: palette.accentSoft,
+        color: palette.link,
+      }}
+    >
+      {shorts.get(no) ?? no}
+    </span>
+  );
+};
+
+/** 按箱登记尺寸、重量与箱内型号；合并打包时一箱可混装几张销售出库单的型号（行带 group） */
 export const BoxEditor: React.FC<{
   lines: PackLine[];
   boxes: BoxInput[];
@@ -133,42 +179,114 @@ export const BoxEditor: React.FC<{
     onChange(boxes.map((b, i) => (i === k ? { ...b, ...patch } : b)));
   const setItems = (k: number, items: BoxInput['items']) =>
     setBox(k, { items });
-  const label = (key: number) => lines.find((l) => l.key === key)?.model ?? '';
+  const groups = lines
+    .map((l) => l.group)
+    .filter((g, i, all): g is NonNullable<PackLine['group']> =>
+      g ? all.findIndex((x) => x?.no === g.no) === i : false,
+    );
+  const shorts = shortNos(groups.map((g) => g.no));
+  const lineOf = (key: number) => lines.find((l) => l.key === key);
+  const label = (key: number) => {
+    const l = lineOf(key);
+    if (!l) return '';
+    return l.group ? `${shorts.get(l.group.no)} · ${l.model}` : l.model;
+  };
+  const tone = (l: PackLine) => {
+    const n = packed.get(l.key) ?? 0;
+    return n === l.quantity
+      ? palette.green
+      : n > l.quantity
+        ? palette.red
+        : palette.orange;
+  };
+  const progress = (l: PackLine) => (
+    <span style={{ fontSize: 12, color: tone(l) }}>
+      {packed.get(l.key) ?? 0} / {l.quantity}{' '}
+      {(packed.get(l.key) ?? 0) === l.quantity && <CheckOutlined />}
+    </span>
+  );
+  const allDone = lines.every((l) => (packed.get(l.key) ?? 0) === l.quantity);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 12,
-          alignItems: 'center',
-          padding: '10px 14px',
-          borderRadius: 10,
-          background: palette.inset,
-        }}
-      >
-        <b style={{ color: palette.ink }}>待装箱</b>
-        <span style={{ flex: 1 }} />
-        {lines.map((l) => {
-          const n = packed.get(l.key) ?? 0;
-          const done = n === l.quantity;
-          return (
-            <span
-              key={l.key}
-              style={{
-                fontSize: 12,
-                color: done
-                  ? palette.green
-                  : n > l.quantity
-                    ? palette.red
-                    : palette.orange,
-              }}
-            >
-              {l.model} {n} / {l.quantity} {done && <CheckOutlined />}
+      {groups.length > 0 ? (
+        <div
+          style={{
+            padding: '10px 14px',
+            borderRadius: 10,
+            background: palette.inset,
+          }}
+        >
+          <div style={{ display: 'flex', marginBottom: 8 }}>
+            <b style={{ color: palette.ink }}>待装箱</b>
+            <span style={{ flex: 1 }} />
+            {allDone && (
+              <span style={{ fontSize: 12, color: palette.green }}>
+                全部装完
+              </span>
+            )}
+          </div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+              gap: 8,
+            }}
+          >
+            {groups.map((g) => (
+              <div
+                key={g.no}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  background: palette.card,
+                }}
+              >
+                <div style={{ fontSize: 12, marginBottom: 4 }}>
+                  <b style={{ color: palette.link }}>{g.no}</b>
+                  {g.sub && (
+                    <span style={{ marginLeft: 8, color: palette.mute }}>
+                      {g.sub}
+                    </span>
+                  )}
+                </div>
+                {lines
+                  .filter((l) => l.group?.no === g.no)
+                  .map((l) => (
+                    <div
+                      key={l.key}
+                      style={{ display: 'flex', gap: 8, padding: '2px 0' }}
+                    >
+                      <span style={{ color: palette.ink }}>{l.model}</span>
+                      <span style={{ flex: 1 }} />
+                      {progress(l)}
+                    </div>
+                  ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 12,
+            alignItems: 'center',
+            padding: '10px 14px',
+            borderRadius: 10,
+            background: palette.inset,
+          }}
+        >
+          <b style={{ color: palette.ink }}>待装箱</b>
+          <span style={{ flex: 1 }} />
+          {lines.map((l) => (
+            <span key={l.key} style={{ fontSize: 12, color: tone(l) }}>
+              {l.model} {packed.get(l.key) ?? 0} / {l.quantity}{' '}
+              {(packed.get(l.key) ?? 0) === l.quantity && <CheckOutlined />}
             </span>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
       {boxes.map((b, k) => {
         const used = new Set(b.items.map((i) => i.key));
         const left = lines.filter((l) => !used.has(l.key));
@@ -285,7 +403,8 @@ export const BoxEditor: React.FC<{
                   }}
                 >
                   <span style={{ flex: 1, color: palette.ink }}>
-                    {label(i.key)}
+                    <GroupTag no={lineOf(i.key)?.group?.no} shorts={shorts} />
+                    {lineOf(i.key)?.model}
                   </span>
                   {num(
                     i.quantity,
@@ -320,10 +439,15 @@ export const BoxEditor: React.FC<{
                   placeholder={
                     <span style={{ color: palette.link }}>
                       <PlusOutlined /> 添加型号
+                      {groups.length > 0 && '（选出库单与型号）'}
                     </span>
                   }
                   variant="borderless"
-                  options={left.map((l) => ({ value: l.key, label: l.model }))}
+                  options={left.map((l) => ({
+                    value: l.key,
+                    label: label(l.key),
+                  }))}
+                  popupMatchSelectWidth={false}
                   onChange={(key: number) => {
                     const l = lines.find((x) => x.key === key);
                     const rest = l
@@ -331,7 +455,7 @@ export const BoxEditor: React.FC<{
                       : 0;
                     setItems(k, [...b.items, { key, quantity: rest || null }]);
                   }}
-                  style={{ width: 200, marginTop: 4 }}
+                  style={{ width: groups.length > 0 ? 300 : 200, marginTop: 4 }}
                   aria-label="添加型号"
                 />
               )}
@@ -350,3 +474,32 @@ export const BoxEditor: React.FC<{
     </div>
   );
 };
+
+/** 合并打包 · 同组 OB…（单号简称） */
+export const PackTag: React.FC<{ ob: Outbound }> = ({ ob }) => {
+  const { palette } = useAppTheme();
+  const mates = ob.packMates ?? [];
+  const shorts = shortNos([ob.obNo, ...mates.map((m) => m.obNo)]);
+  return (
+    <span
+      title={`与 ${mates.map((m) => m.obNo).join('、')} 合并打包`}
+      style={{
+        display: 'inline-block',
+        marginTop: 4,
+        padding: '0 8px',
+        borderRadius: 6,
+        fontSize: 12,
+        background: palette.orangeSoft,
+        color: palette.orange,
+      }}
+    >
+      合并打包 · 同组 {mates.map((m) => shorts.get(m.obNo)).join('、')}
+    </span>
+  );
+};
+
+/** 这张单和合并打包的同组单（要一起交快递、一起放进出运单） */
+export const groupIds = (o: Outbound) => [
+  o.id,
+  ...(o.packMates ?? []).map((m) => m.id),
+];

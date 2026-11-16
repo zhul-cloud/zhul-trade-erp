@@ -27,6 +27,7 @@ import {
   BoxEditor,
   boxesProblem,
   emptyBox,
+  groupIds,
   type PackLine,
 } from '../components';
 import {
@@ -706,9 +707,11 @@ export const ItemsModal: React.FC<{
         row(
           `ob-${o.id}`,
           obs.has(o.id),
-          (on) => setObs((s) => flip(s, o.id, on)),
+          // 合并打包的同组单一起勾选
+          (on) =>
+            setObs((s) => groupIds(o).reduce((n, x) => flip(n, x, on), s)),
           o.obNo,
-          `${o.soNo} · ${o.boxCount} 箱 · ${o.items.map((i) => `${i.model} × ${i.quantity}`).join('、')}`,
+          `${o.soNo} · ${o.boxCount} 箱${(o.packMates?.length ?? 0) > 0 ? '（合并打包整组）' : ''} · ${o.items.map((i) => `${i.model} × ${i.quantity}`).join('、')}`,
         ),
       )}
       {allDs.map((d) =>

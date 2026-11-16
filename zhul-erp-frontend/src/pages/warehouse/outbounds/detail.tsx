@@ -14,11 +14,12 @@ import {
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import { useWide } from '@/pages/inquiry/shared/components';
+import { Pill, useWide } from '@/pages/inquiry/shared/components';
 import {
   kg,
   LOGISTICS_PATHS,
   ObStatusPill,
+  shortNos,
 } from '@/pages/logistics/components';
 import {
   type Outbound,
@@ -42,7 +43,7 @@ import {
 import { HandOverModal, PackDrawer } from './dialogs';
 
 type Item = Outbound['items'][number];
-type Dialog = 'notice' | 'withdraw' | 'pack' | 'handOver' | 'undo';
+type Dialog = 'notice' | 'withdraw' | 'pack' | 'handOver' | 'undo' | 'split';
 
 /** 销售出库单详情（spec warehouse/outbound）：通知、装箱、国内快递、出运 */
 const OutboundDetailPage: React.FC = () => {
@@ -54,6 +55,8 @@ const OutboundDetailPage: React.FC = () => {
   const [ob, setOb] = useState<Outbound>();
   const [error, setError] = useState<string>();
   const [dialog, setDialog] = useState<Dialog>();
+  /** 交快递的单：合并打包的整组一起交 */
+  const [handing, setHanding] = useState<Outbound[]>([]);
   usePageTitle(ob ? `销售出库单 ${ob.obNo}` : undefined, ob?.obNo);
 
   const load = useCallback(async () => {
@@ -85,6 +88,23 @@ const OutboundDetailPage: React.FC = () => {
   const grossWeight = ob.boxes.reduce((n, b) => n + Number(b.grossWeight), 0);
   const related = relatedRows(ob.related);
   const sameTicket = (ob.related ?? []).filter((r) => r.type === 'OB');
+  /** 合并打包的同组单（箱子、箱数、计费重按整组） */
+  const mates = ob.packMates ?? [];
+  const merged = mates.length > 0;
+  const groupNos = [ob.obNo, ...mates.map((m) => m.obNo)];
+  const shorts = shortNos(groupNos);
+
+  const openHandOver = async () => {
+    try {
+      setHanding([
+        ob,
+        ...(await Promise.all(mates.map((m) => outboundApi.detail(m.id)))),
+      ]);
+      setDialog('handOver');
+    } catch (e) {
+      message.error(readBizError(e).message);
+    }
+  };
 
   const columns: TableColumnsType<Item> = [
     { title: '#', key: 'no', width: 48, render: (_, __, i) => i + 1 },
@@ -129,6 +149,7 @@ const OutboundDetailPage: React.FC = () => {
       render: (_, b) =>
         b.items.map((i) => (
           <div key={i.outboundItemId}>
+            {merged && i.obNo ? `${shorts.get(i.obNo)} · ` : ''}
             {i.model} × {i.quantity}
           </div>
         )),
@@ -146,6 +167,7 @@ const OutboundDetailPage: React.FC = () => {
           <>
             {ob.obNo}
             <ObStatusPill value={ob.status}>{ob.statusName}</ObStatusPill>
+            {merged && <Pill tone="orange">合并打包</Pill>}
           </>
         }
         description={
@@ -180,10 +202,14 @@ const OutboundDetailPage: React.FC = () => {
                 onClick={() => setDialog('pack')}
               >
                 {ob.status === 1 ? '打包' : '修改装箱'}
+                {merged && '（整组）'}
               </Button>
             )}
+            {merged && ob.status === 2 && canPack && (
+              <Button onClick={() => setDialog('split')}>拆开</Button>
+            )}
             {ob.status === 2 && canPack && (
-              <Button type="primary" onClick={() => setDialog('handOver')}>
+              <Button type="primary" onClick={openHandOver}>
                 交快递
               </Button>
             )}
@@ -201,6 +227,32 @@ const OutboundDetailPage: React.FC = () => {
         }}
       >
         <div style={{ minWidth: 0 }}>
+          {merged && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: '12px 16px',
+                borderRadius: 12,
+                background: palette.orangeSoft,
+              }}
+            >
+              <b style={{ color: palette.orange }}>
+                合并打包：与{' '}
+                {mates.map((m, i) => (
+                  <React.Fragment key={m.id}>
+                    {i > 0 && '、'}
+                    <Link to={DOC_PATHS.outbound(m.id)}>{m.obNo}</Link>
+                    {m.soNo && `（${m.soNo}）`}
+                  </React.Fragment>
+                ))}{' '}
+                共用 {ob.boxCount} 箱
+              </b>
+              <div style={{ marginTop: 4, fontSize: 13, color: palette.sub }}>
+                {mates.length + 1}{' '}
+                张单要一起交快递、一起放进出运单；业务员要修改或撤回发货通知时，先在这里「拆开」。
+              </div>
+            </div>
+          )}
           <InfoGrid
             items={[
               {
@@ -219,7 +271,9 @@ const OutboundDetailPage: React.FC = () => {
               { label: '发货来源', value: ob.sourceName },
               {
                 label: '箱数',
-                value: ob.boxCount ? `${ob.boxCount} 箱` : undefined,
+                value: ob.boxCount
+                  ? `${merged ? '整组 ' : ''}${ob.boxCount} 箱`
+                  : undefined,
               },
               {
                 label: '计费重',
@@ -368,7 +422,7 @@ const OutboundDetailPage: React.FC = () => {
       />
       <HandOverModal
         open={dialog === 'handOver'}
-        outbounds={[ob]}
+        outbounds={handing}
         onClose={close}
         onDone={done}
       />
@@ -383,6 +437,24 @@ const OutboundDetailPage: React.FC = () => {
           try {
             await outboundApi.withdraw(ob.id, reason);
             message.success('已撤回');
+            done();
+          } catch (e) {
+            message.error(readBizError(e).message);
+          }
+        }}
+      />
+      <ReasonModal
+        open={dialog === 'split'}
+        title="拆开合并打包"
+        description={`${groupNos.join(' 和 ')} 都回到「待打包」，原来的 ${ob.boxCount} 箱作废，之后可以单独打包或重新合并。`}
+        placeholder="如：客户要求分开发"
+        okText="拆开"
+        danger
+        onCancel={close}
+        onOk={async (reason) => {
+          try {
+            await outboundApi.split(ob.id, reason);
+            message.success('已拆开，几张单都回到待打包');
             done();
           } catch (e) {
             message.error(readBizError(e).message);

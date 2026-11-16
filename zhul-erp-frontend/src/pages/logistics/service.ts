@@ -116,7 +116,14 @@ export interface OutboundBox {
   grossWeight: number;
   netWeight?: number | null;
   chargeable: number;
-  items: { outboundItemId: number; model: string; quantity: number }[];
+  items: {
+    outboundItemId: number;
+    /** 箱内这一行所属的销售出库单（合并打包的箱子会有多张） */
+    outboundId?: number;
+    obNo?: string;
+    model: string;
+    quantity: number;
+  }[];
 }
 
 export interface Outbound extends Audit {
@@ -173,6 +180,9 @@ export interface Outbound extends Audit {
   shNo?: string;
   packedByName?: string;
   packedAt?: string;
+  /** 合并打包组；同组的其他单（箱子、箱数、计费重按整组） */
+  packId?: number | null;
+  packMates?: { id: number; obNo: string; soNo?: string; status: number }[];
 }
 
 export interface BoxInput {
@@ -431,6 +441,18 @@ export const outboundApi = {
       boxes: toBoxes(boxes, 'outboundItemId'),
       ...photos,
     }),
+  mergePack: (
+    outboundIds: number[],
+    boxes: BoxInput[],
+    photos?: { attachmentIds: number[]; attachmentModels: AttachmentModels[] },
+  ) =>
+    send<Outbound[]>('POST', `${L}/outbounds/merge-pack`, {
+      outboundIds,
+      boxes: toBoxes(boxes, 'outboundItemId'),
+      ...photos,
+    }),
+  split: (id: number, reason: string) =>
+    send<Outbound>('POST', `${L}/outbounds/${id}/split`, { reason }),
   handOver: (body: {
     outboundIds: number[];
     carrier: string;
