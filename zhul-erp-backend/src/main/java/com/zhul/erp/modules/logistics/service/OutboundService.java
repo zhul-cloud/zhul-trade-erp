@@ -23,6 +23,10 @@ import com.zhul.erp.modules.logistics.repository.OutboundBoxItemMapper;
 import com.zhul.erp.modules.logistics.repository.OutboundBoxMapper;
 import com.zhul.erp.modules.logistics.repository.OutboundOrderItemMapper;
 import com.zhul.erp.modules.logistics.repository.OutboundOrderMapper;
+import com.zhul.erp.modules.logistics.repository.OutboundPackMapper;
+import com.zhul.erp.modules.logistics.dto.MergePackRequest;
+import com.zhul.erp.modules.logistics.entity.OutboundPackDO;
+import com.zhul.erp.modules.logistics.support.OutboundBoxes;
 import com.zhul.erp.modules.logistics.support.LogisticsQty;
 import com.zhul.erp.modules.logistics.support.LogisticsSupport;
 import com.zhul.erp.modules.purchase.support.OrderPurchaseProgress;
@@ -67,6 +71,7 @@ import com.zhul.erp.modules.attachment.service.AttachmentService;
  * 销售出库单：业务员发货通知（按订单所属业务员的数据权限），仓库打包、交国内快递（仓库看全部）。
  * 事务边界：发货通知 = 销售出库单与行；交国内快递 = 快递单、销售出库单状态、国内运费分摊、订单进度；
  * 撤销交货代 = 销售出库单状态、快递单（全部撤销时作废）、分摊重算、订单进度。
+ * 合并打包（openspec outbound-merge-pack）：同组的单共用箱子，打包、交快递、撤销交货代、拆开都整组在一个事务里，按 ID 顺序加锁。
  * 写操作用读已提交并先锁订单或销售出库单：拿到锁后读到别的事务已提交的出库数量。
  */
 @Service
@@ -78,6 +83,8 @@ public class OutboundService {
     private final OutboundOrderItemMapper itemMapper;
     private final OutboundBoxMapper boxMapper;
     private final OutboundBoxItemMapper boxItemMapper;
+    private final OutboundPackMapper packMapper;
+    private final OutboundBoxes outboundBoxes;
     private final CourierWaybillMapper waybillMapper;
     private final LogisticsShipmentMapper shipmentMapper;
     private final SalesOrderMapper soMapper;
@@ -267,6 +274,9 @@ public class OutboundService {
     public OutboundVO pack(Long id, PackRequest req) {
         visible(id, false);
         OutboundOrderDO ob = lock(id);
+        if (ob.getPackId() != null) {
+            return repackGroup(id, ob.getPackId(), req);
+        }
         if (ob.getStatus() != LogisticsConstants.OB_PENDING && ob.getStatus() != LogisticsConstants.OB_PACKED) {
             throw new BizException(ob.getStatus() == LogisticsConstants.OB_HANDED ? "已交货代的销售出库单不能重新打包，请先撤销交货代" : "发货通知已撤回");
         }
@@ -286,47 +296,45 @@ public class OutboundService {
 
     /** 替换销售出库单的箱子：每个型号在各箱的数量之和须等于销售出库单上的数量 */
     void writeBoxes(OutboundOrderDO ob, List<OutboundOrderItemDO> items, List<PackRequest.BoxLine> boxes) {
+        replaceBoxes(List.of(ob), null, items, boxes);
+    }
+
+    /**
+     * 替换一张或一组（合并打包）销售出库单的箱子：箱内的行只能是这些单的型号，每张单每个型号在各箱的数量之和须等于出库数量。
+     * 合并打包时箱子的 outbound_id 记组内第一张单（obs 按 ID 升序），pack_id 记组。
+     */
+    private void replaceBoxes(List<OutboundOrderDO> obs, Long packId, List<OutboundOrderItemDO> items, List<PackRequest.BoxLine> boxes) {
+        boolean many = obs.size() > 1;
+        Map<Long, String> obNos = obs.stream().collect(Collectors.toMap(OutboundOrderDO::getId, OutboundOrderDO::getObNo));
         Map<Long, OutboundOrderItemDO> byId = items.stream().collect(Collectors.toMap(OutboundOrderItemDO::getId, i -> i));
         Map<Long, Integer> packed = new HashMap<>();
         for (PackRequest.BoxLine b : boxes) {
             for (PackRequest.BoxItemLine bi : b.getItems()) {
                 if (!byId.containsKey(bi.getOutboundItemId())) {
-                    throw new BizException("箱内型号不属于这张销售出库单");
+                    throw new BizException(many ? "箱内型号不属于这几张销售出库单" : "箱内型号不属于这张销售出库单");
                 }
                 packed.merge(bi.getOutboundItemId(), bi.getQuantity(), Integer::sum);
             }
         }
         for (OutboundOrderItemDO i : items) {
+            String model = (many ? obNos.get(i.getOutboundId()) + " 的 " : "") + i.getModel();
             int n = packed.getOrDefault(i.getId(), 0);
             if (n < i.getQuantity()) {
-                throw new BizException(i.getModel() + " 还差 " + (i.getQuantity() - n) + " 个没装箱");
+                throw new BizException(model + " 还差 " + (i.getQuantity() - n) + " 个没装箱");
             }
             if (n > i.getQuantity()) {
-                throw new BizException(i.getModel() + " 装箱 " + n + " 个，比出库数量多 " + (n - i.getQuantity()) + " 个");
+                throw new BizException(model + " 装箱 " + n + " 个，比出库数量多 " + (n - i.getQuantity()) + " 个");
             }
         }
-        List<OutboundBoxDO> old = boxMapper.selectList(new LambdaQueryWrapper<OutboundBoxDO>()
-                .eq(OutboundBoxDO::getOutboundId, ob.getId())
-                .isNull(OutboundBoxDO::getDeletedAt));
-        LocalDateTime now = LocalDateTime.now();
-        if (!old.isEmpty()) {
-            boxItemMapper.selectList(new LambdaQueryWrapper<OutboundBoxItemDO>()
-                            .in(OutboundBoxItemDO::getBoxId, old.stream().map(OutboundBoxDO::getId).toList())
-                            .isNull(OutboundBoxItemDO::getDeletedAt))
-                    .forEach(x -> {
-                        x.setDeletedAt(now);
-                        boxItemMapper.updateById(x);
-                    });
-            old.forEach(x -> {
-                x.setDeletedAt(now);
-                boxMapper.updateById(x);
-            });
-        }
+        deleteBoxes(outboundBoxes.byOutbound(obs).values().stream().flatMap(List::stream)
+                .collect(Collectors.toMap(OutboundBoxDO::getId, x -> x, (a, b) -> a)).values());
+        OutboundOrderDO first = obs.get(0);
         int no = 1;
         for (PackRequest.BoxLine b : boxes) {
             OutboundBoxDO box = new OutboundBoxDO();
-            box.setTenantId(ob.getTenantId());
-            box.setOutboundId(ob.getId());
+            box.setTenantId(first.getTenantId());
+            box.setOutboundId(first.getId());
+            box.setPackId(packId);
             box.setBoxNo(no++);
             box.setLength(b.getLength());
             box.setWidth(b.getWidth());
@@ -336,7 +344,7 @@ public class OutboundService {
             boxMapper.insert(box);
             for (PackRequest.BoxItemLine bi : b.getItems()) {
                 OutboundBoxItemDO x = new OutboundBoxItemDO();
-                x.setTenantId(ob.getTenantId());
+                x.setTenantId(first.getTenantId());
                 x.setBoxId(box.getId());
                 x.setOutboundItemId(bi.getOutboundItemId());
                 x.setQuantity(bi.getQuantity());
@@ -359,6 +367,7 @@ public class OutboundService {
         if (forwarders.size() > 1) {
             throw new BizException("只能把同一家货代的销售出库单合成一票");
         }
+        requireWholeGroups(obs, "要一起交快递");
         for (OutboundOrderDO ob : obs) {
             if (ob.getStatus() != LogisticsConstants.OB_PACKED) {
                 throw new BizException(ob.getObNo() + (ob.getStatus() == LogisticsConstants.OB_PENDING ? " 还没打包" : " 不是待交快递的状态"));
@@ -397,24 +406,29 @@ public class OutboundService {
 
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public OutboundVO undoHandOver(Long id, String reason) {
-        visible(id, false);
-        OutboundOrderDO ob = lock(id);
-        if (ob.getStatus() != LogisticsConstants.OB_HANDED || ob.getSource() != LogisticsConstants.OB_NOTICE) {
-            throw new BizException("只有已交货代的销售出库单可以撤销");
+        OutboundOrderDO first = visible(id, false);
+        // 合并打包组整组撤销（openspec outbound-merge-pack）
+        List<OutboundOrderDO> targets = first.getPackId() == null ? List.of(lock(id)) : lockGroup(first.getPackId());
+        for (OutboundOrderDO ob : targets) {
+            if (ob.getStatus() != LogisticsConstants.OB_HANDED || ob.getSource() != LogisticsConstants.OB_NOTICE) {
+                throw new BizException("只有已交货代的销售出库单可以撤销");
+            }
+            if (ob.getLogisticsId() != null) {
+                throw new BizException("销售出库单已放进出运单，请先从出运单里移出");
+            }
         }
-        if (ob.getLogisticsId() != null) {
-            throw new BizException("销售出库单已放进出运单，请先从出运单里移出");
-        }
-        Long waybillId = ob.getCourierWaybillId();
-        if (waybillId != null) {
+        List<Long> waybillIds = targets.stream().map(OutboundOrderDO::getCourierWaybillId).filter(Objects::nonNull).distinct().sorted().toList();
+        for (Long waybillId : waybillIds) {
             // 先锁快递再查报销：与报销提交（先锁来源再写明细）互斥，不会在提交途中撤销已报销的快递（audit BUS-011）
             waybillMapper.lockById(waybillId);
             reimburseGuard.requireNotClaimed(FinanceConstants.ITEM_COURIER, waybillId, "这票快递的运费");
         }
-        ob.setStatus(LogisticsConstants.OB_PACKED);
-        ob.setCourierWaybillId(null);
-        outboundMapper.updateById(ob);
-        if (waybillId != null) {
+        for (OutboundOrderDO ob : targets) {
+            ob.setStatus(LogisticsConstants.OB_PACKED);
+            ob.setCourierWaybillId(null);
+            outboundMapper.updateById(ob);
+        }
+        for (Long waybillId : waybillIds) {
             CourierWaybillDO w = waybillMapper.selectById(waybillId);
             List<Long> rest = outboundMapper.selectList(new LambdaQueryWrapper<OutboundOrderDO>()
                             .select(OutboundOrderDO::getId)
@@ -430,12 +444,201 @@ public class OutboundService {
                 freight.allocateDomestic(waybillId, w.getFreight(), rest);
             }
         }
-        progress.sync(soItemIds(List.of(id)));
-        logService.recordOperateLog(LogisticsConstants.MENU_OUTBOUND, "撤销交货代", Map.of("obNo", ob.getObNo(), "status", "已交货代"),
-                Map.of("obNo", ob.getObNo(), "status", "已打包", "reason", reason.trim()));
-        docLogs.add(DocumentType.OB, id, "撤销交快递", reason.trim());
-        followupHooks.orderChanged(ob.getSoId());
+        progress.sync(soItemIds(targets.stream().map(OutboundOrderDO::getId).toList()));
+        for (OutboundOrderDO ob : targets) {
+            logService.recordOperateLog(LogisticsConstants.MENU_OUTBOUND, "撤销交货代", Map.of("obNo", ob.getObNo(), "status", "已交货代"),
+                    Map.of("obNo", ob.getObNo(), "status", "已打包", "reason", reason.trim()));
+            docLogs.add(DocumentType.OB, ob.getId(), "撤销交快递", reason.trim());
+        }
+        followupHooks.ordersChanged(targets.stream().map(OutboundOrderDO::getSoId).toList());
         return detail(id, false);
+    }
+
+    // ---------------------------------------------------------------- 合并打包（openspec outbound-merge-pack）
+
+    /** 合并打包：同一客户、同一货代的几张待打包单一次装箱，组成合并打包组，箱子可以混装不同订单的货 */
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
+    public List<OutboundVO> mergePack(MergePackRequest req) {
+        List<Long> ids = req.getOutboundIds().stream().filter(Objects::nonNull).distinct().sorted().toList();
+        if (ids.size() < 2) {
+            throw new BizException("合并打包要选两张或以上的销售出库单");
+        }
+        List<OutboundOrderDO> obs = new ArrayList<>(ids.size());
+        for (Long id : ids) {
+            visible(id, false);
+            obs.add(lock(id));
+        }
+        for (OutboundOrderDO ob : obs) {
+            if (ob.getSource() != LogisticsConstants.OB_NOTICE || ob.getStatus() != LogisticsConstants.OB_PENDING) {
+                throw new BizException(ob.getObNo() + " 不是待打包的销售出库单，请刷新后重试");
+            }
+        }
+        if (obs.stream().map(OutboundOrderDO::getCustomerId).distinct().count() > 1
+                || obs.stream().map(OutboundOrderDO::getForwarderId).distinct().count() > 1) {
+            throw new BizException("只能合并同一客户、同一货代的销售出库单");
+        }
+        Long me = currentUser.resolve();
+        LocalDateTime now = LocalDateTime.now();
+        OutboundPackDO pack = new OutboundPackDO();
+        pack.setTenantId(obs.get(0).getTenantId());
+        pack.setCustomerId(obs.get(0).getCustomerId());
+        pack.setForwarderId(obs.get(0).getForwarderId());
+        pack.setStatus(LogisticsConstants.PACK_VALID);
+        pack.setPackedBy(me == null ? 0L : me);
+        pack.setPackedAt(now);
+        pack.setSplitReason("");
+        pack.setSplitBy(0L);
+        packMapper.insert(pack);
+        List<OutboundOrderItemDO> items = itemsOf(ids).values().stream().flatMap(List::stream).toList();
+        replaceBoxes(obs, pack.getId(), items, req.getBoxes());
+        packingPhotos(obs.get(0), items, req);
+        for (OutboundOrderDO ob : obs) {
+            ob.setPackId(pack.getId());
+            ob.setStatus(LogisticsConstants.OB_PACKED);
+            ob.setPackedBy(me);
+            ob.setPackedAt(now);
+            outboundMapper.updateById(ob);
+            docLogs.add(DocumentType.OB, ob.getId(), "合并打包", "与 " + othersOf(obs, ob) + " 合并，" + req.getBoxes().size() + " 箱");
+        }
+        logService.recordOperateLog(LogisticsConstants.MENU_OUTBOUND, "合并打包", null, Map.of("outbounds",
+                obs.stream().map(OutboundOrderDO::getObNo).toList(), "boxes", req.getBoxes().size()));
+        followupHooks.ordersChanged(obs.stream().map(OutboundOrderDO::getSoId).toList());
+        return ids.stream().map(id -> detail(id, false)).toList();
+    }
+
+    /** 合并打包组整组重新打包（从组内任一张单进入） */
+    private OutboundVO repackGroup(Long id, Long packId, PackRequest req) {
+        List<OutboundOrderDO> obs = lockGroup(packId);
+        for (OutboundOrderDO ob : obs) {
+            if (ob.getStatus() != LogisticsConstants.OB_PACKED) {
+                throw new BizException(ob.getStatus() == LogisticsConstants.OB_HANDED ? "已交货代的销售出库单不能重新打包，请先撤销交货代"
+                        : ob.getObNo() + " 不是已打包的状态，请刷新后重试");
+            }
+        }
+        List<OutboundOrderItemDO> items = itemsOf(obs.stream().map(OutboundOrderDO::getId).toList()).values().stream()
+                .flatMap(List::stream).toList();
+        replaceBoxes(obs, packId, items, req.getBoxes());
+        packingPhotos(obs.get(0), items, req);
+        Long me = currentUser.resolve();
+        LocalDateTime now = LocalDateTime.now();
+        for (OutboundOrderDO ob : obs) {
+            ob.setPackedBy(me);
+            ob.setPackedAt(now);
+            outboundMapper.updateById(ob);
+            docLogs.add(DocumentType.OB, ob.getId(), "打包", req.getBoxes().size() + " 箱（合并打包，整组）");
+        }
+        OutboundPackDO pack = packMapper.selectById(packId);
+        pack.setPackedBy(me == null ? 0L : me);
+        pack.setPackedAt(now);
+        packMapper.updateById(pack);
+        logService.recordOperateLog(LogisticsConstants.MENU_OUTBOUND, "打包", null, Map.of("outbounds",
+                obs.stream().map(OutboundOrderDO::getObNo).toList(), "boxes", req.getBoxes().size()));
+        followupHooks.ordersChanged(obs.stream().map(OutboundOrderDO::getSoId).toList());
+        return detail(id, false);
+    }
+
+    /** 拆开合并打包组：整组箱子作废，组内各单回到待打包；已交货代的要先撤销交货代 */
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
+    public OutboundVO split(Long id, String reason) {
+        OutboundOrderDO first = visible(id, false);
+        if (first.getPackId() == null) {
+            throw new BizException("这张销售出库单没有合并打包");
+        }
+        Long packId = first.getPackId();
+        List<OutboundOrderDO> obs = lockGroup(packId);
+        for (OutboundOrderDO ob : obs) {
+            if (ob.getStatus() == LogisticsConstants.OB_HANDED) {
+                throw new BizException("已交货代，先撤销交货代才能拆开");
+            }
+            if (ob.getStatus() != LogisticsConstants.OB_PACKED) {
+                throw new BizException(ob.getObNo() + " 不是已打包的状态，请刷新后重试");
+            }
+        }
+        deleteBoxes(outboundBoxes.byOutbound(obs).values().stream().flatMap(List::stream)
+                .collect(Collectors.toMap(OutboundBoxDO::getId, x -> x, (a, b) -> a)).values());
+        Long me = currentUser.resolve();
+        String why = reason.trim();
+        OutboundPackDO pack = packMapper.selectById(packId);
+        pack.setStatus(LogisticsConstants.PACK_SPLIT);
+        pack.setSplitReason(why);
+        pack.setSplitBy(me == null ? 0L : me);
+        pack.setSplitAt(LocalDateTime.now());
+        packMapper.updateById(pack);
+        for (OutboundOrderDO ob : obs) {
+            ob.setPackId(null);
+            ob.setStatus(LogisticsConstants.OB_PENDING);
+            outboundMapper.updateById(ob);
+            docLogs.add(DocumentType.OB, ob.getId(), "拆开合并打包", why + "（同组 " + othersOf(obs, ob) + "）");
+        }
+        logService.recordOperateLog(LogisticsConstants.MENU_OUTBOUND, "拆开合并打包", Map.of("outbounds",
+                obs.stream().map(OutboundOrderDO::getObNo).toList()), Map.of("status", "待打包", "reason", why));
+        followupHooks.ordersChanged(obs.stream().map(OutboundOrderDO::getSoId).toList());
+        return detail(id, false);
+    }
+
+    /**
+     * 合并打包组要整组处理：选中的单里有组内一张，就要有组内全部，否则提示「OB1 与 OB2 合并打包了，{action}」。
+     * 交快递、放进出运单时调用。
+     */
+    public void requireWholeGroups(Collection<OutboundOrderDO> obs, String action) {
+        Set<Long> chosen = obs.stream().map(OutboundOrderDO::getId).collect(Collectors.toSet());
+        for (Long packId : obs.stream().map(OutboundOrderDO::getPackId).filter(Objects::nonNull).collect(Collectors.toCollection(LinkedHashSet::new))) {
+            List<OutboundOrderDO> mates = groupMembers(packId);
+            if (!chosen.containsAll(mates.stream().map(OutboundOrderDO::getId).toList())) {
+                throw new BizException(mates.stream().map(OutboundOrderDO::getObNo).collect(Collectors.joining(" 与 ")) + " 合并打包了，" + action);
+            }
+        }
+    }
+
+    /** 合并打包组里的单（按 ID 升序） */
+    private List<OutboundOrderDO> groupMembers(Long packId) {
+        return outboundMapper.selectList(new LambdaQueryWrapper<OutboundOrderDO>()
+                .eq(OutboundOrderDO::getPackId, packId)
+                .isNull(OutboundOrderDO::getDeletedAt)
+                .orderByAsc(OutboundOrderDO::getId));
+    }
+
+    /** 按 ID 顺序锁住合并打包组里的单；加锁后重新确认仍在这个组（并发拆开时提示刷新） */
+    private List<OutboundOrderDO> lockGroup(Long packId) {
+        List<OutboundOrderDO> out = new ArrayList<>();
+        for (OutboundOrderDO m : groupMembers(packId)) {
+            OutboundOrderDO ob = lock(m.getId());
+            if (Objects.equals(ob.getPackId(), packId)) {
+                out.add(ob);
+            }
+        }
+        if (out.isEmpty()) {
+            throw new BizException("合并打包组已拆开，请刷新后重试");
+        }
+        return out;
+    }
+
+    /** 打包照片挂在组内第一张单上，标注默认为组内全部型号 */
+    private void packingPhotos(OutboundOrderDO anchor, List<OutboundOrderItemDO> items, PackRequest req) {
+        attachments.sync(AttachmentService.PACKING, anchor.getId(), req.getAttachmentIds());
+        media.indexDocument(AttachmentService.PACKING, anchor.getId(), anchor.getTenantId(), modelsOf(items), req.getAttachmentModels());
+    }
+
+    private static String othersOf(List<OutboundOrderDO> obs, OutboundOrderDO self) {
+        return obs.stream().filter(o -> !o.getId().equals(self.getId())).map(OutboundOrderDO::getObNo).collect(Collectors.joining("、"));
+    }
+
+    private void deleteBoxes(Collection<OutboundBoxDO> old) {
+        if (old.isEmpty()) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        boxItemMapper.selectList(new LambdaQueryWrapper<OutboundBoxItemDO>()
+                        .in(OutboundBoxItemDO::getBoxId, old.stream().map(OutboundBoxDO::getId).toList())
+                        .isNull(OutboundBoxItemDO::getDeletedAt))
+                .forEach(x -> {
+                    x.setDeletedAt(now);
+                    boxItemMapper.updateById(x);
+                });
+        old.forEach(x -> {
+            x.setDeletedAt(now);
+            boxMapper.updateById(x);
+        });
     }
 
     // ---------------------------------------------------------------- 查询
@@ -495,7 +698,9 @@ public class OutboundService {
     public OutboundVO detail(Long id, boolean scoped) {
         OutboundOrderDO ob = visible(id, scoped);
         OutboundVO vo = toVos(List.of(ob)).get(0);
-        vo.setPackingAttachments(attachments.listOf(AttachmentService.PACKING, id));
+        // 合并打包的照片挂在组内第一张单上
+        Long anchor = ob.getPackId() == null ? id : groupMembers(ob.getPackId()).stream().map(OutboundOrderDO::getId).findFirst().orElse(id);
+        vo.setPackingAttachments(attachments.listOf(AttachmentService.PACKING, anchor));
         vo.setMissingMarketing(media.missingMarketing(ob.getTenantId(), modelsOf(itemsOf(List.of(id)).getOrDefault(id, List.of()))));
         vo.setAttachments(attachments.listOf(AttachmentService.OUTBOUND, id));
         vo.setRelated(related(ob));
@@ -572,18 +777,28 @@ public class OutboundService {
     public List<OutboundVO> toVos(List<OutboundOrderDO> rows) {
         List<Long> ids = rows.stream().map(OutboundOrderDO::getId).toList();
         Map<Long, List<OutboundOrderItemDO>> items = itemsOf(ids);
-        Map<Long, List<OutboundBoxDO>> boxes = ids.isEmpty() ? Map.of()
-                : boxMapper.selectList(new LambdaQueryWrapper<OutboundBoxDO>()
-                        .in(OutboundBoxDO::getOutboundId, ids)
-                        .isNull(OutboundBoxDO::getDeletedAt)
-                        .orderByAsc(OutboundBoxDO::getBoxNo))
-                .stream().collect(Collectors.groupingBy(OutboundBoxDO::getOutboundId));
-        List<Long> boxIds = boxes.values().stream().flatMap(List::stream).map(OutboundBoxDO::getId).toList();
-        Map<Long, List<OutboundBoxItemDO>> contents = boxIds.isEmpty() ? Map.of()
-                : boxItemMapper.selectList(new LambdaQueryWrapper<OutboundBoxItemDO>()
-                        .in(OutboundBoxItemDO::getBoxId, boxIds)
-                        .isNull(OutboundBoxItemDO::getDeletedAt))
-                .stream().collect(Collectors.groupingBy(OutboundBoxItemDO::getBoxId));
+        // 合并打包的单取整组的箱子（openspec outbound-merge-pack）
+        Map<Long, List<OutboundBoxDO>> boxes = outboundBoxes.byOutbound(rows);
+        Map<Long, List<OutboundBoxItemDO>> contents = outboundBoxes.contents(boxes.values().stream().flatMap(List::stream)
+                .map(OutboundBoxDO::getId).distinct().toList());
+        // 同组的其他单：箱内行的单号、型号，以及「同组 OB…」
+        List<Long> packIds = rows.stream().map(OutboundOrderDO::getPackId).filter(Objects::nonNull).distinct().toList();
+        Map<Long, List<OutboundOrderDO>> mates = packIds.isEmpty() ? Map.of()
+                : outboundMapper.selectList(new LambdaQueryWrapper<OutboundOrderDO>()
+                        .in(OutboundOrderDO::getPackId, packIds)
+                        .isNull(OutboundOrderDO::getDeletedAt)
+                        .orderByAsc(OutboundOrderDO::getId))
+                .stream().collect(Collectors.groupingBy(OutboundOrderDO::getPackId));
+        Map<Long, String> obNos = new HashMap<>();
+        rows.forEach(r -> obNos.put(r.getId(), r.getObNo()));
+        mates.values().forEach(list -> list.forEach(m -> obNos.put(m.getId(), m.getObNo())));
+        Map<Long, OutboundOrderItemDO> boxLines = new HashMap<>();
+        items.values().forEach(list -> list.forEach(i -> boxLines.put(i.getId(), i)));
+        List<Long> foreign = contents.values().stream().flatMap(List::stream).map(OutboundBoxItemDO::getOutboundItemId)
+                .filter(x -> !boxLines.containsKey(x)).distinct().toList();
+        if (!foreign.isEmpty()) {
+            itemMapper.selectBatchIds(foreign).forEach(i -> boxLines.put(i.getId(), i));
+        }
         Map<Long, CourierWaybillDO> waybills = new HashMap<>();
         List<Long> wIds = rows.stream().map(OutboundOrderDO::getCourierWaybillId).filter(Objects::nonNull).distinct().toList();
         if (!wIds.isEmpty()) {
@@ -600,7 +815,8 @@ public class OutboundService {
         if (!shIds.isEmpty()) {
             shipmentMapper.selectBatchIds(shIds).forEach(s -> shNos.put(s.getId(), s.getShNo()));
         }
-        Map<Long, SalesOrderDO> orders = support.orders(rows.stream().map(OutboundOrderDO::getSoId).toList());
+        Map<Long, SalesOrderDO> orders = support.orders(java.util.stream.Stream.concat(rows.stream(),
+                mates.values().stream().flatMap(List::stream)).map(OutboundOrderDO::getSoId).toList());
         Map<Long, String> customers = support.customerNames(rows.stream().map(OutboundOrderDO::getCustomerId).toList());
         Map<Long, String> forwarders = support.supplierNames(rows.stream().map(OutboundOrderDO::getForwarderId).toList());
         Map<Long, String> users = support.userNames(java.util.stream.Stream.concat(
@@ -617,7 +833,6 @@ public class OutboundService {
         List<OutboundVO> out = new ArrayList<>(rows.size());
         for (OutboundOrderDO ob : rows) {
             List<OutboundOrderItemDO> lines = items.getOrDefault(ob.getId(), List.of());
-            Map<Long, String> models = lines.stream().collect(Collectors.toMap(OutboundOrderItemDO::getId, OutboundOrderItemDO::getModel));
             OutboundVO vo = new OutboundVO();
             vo.setId(ob.getId());
             vo.setObNo(ob.getObNo());
@@ -666,7 +881,10 @@ public class OutboundService {
                 x.setItems(contents.getOrDefault(b.getId(), List.of()).stream().map(c -> {
                     OutboundVO.BoxItem bi = new OutboundVO.BoxItem();
                     bi.setOutboundItemId(c.getOutboundItemId());
-                    bi.setModel(models.get(c.getOutboundItemId()));
+                    OutboundOrderItemDO line = boxLines.get(c.getOutboundItemId());
+                    bi.setOutboundId(line == null ? null : line.getOutboundId());
+                    bi.setObNo(line == null ? null : obNos.get(line.getOutboundId()));
+                    bi.setModel(line == null ? null : line.getModel());
                     bi.setQuantity(c.getQuantity());
                     return bi;
                 }).toList());
@@ -674,6 +892,19 @@ public class OutboundService {
             }
             vo.setBoxes(boxVos);
             vo.setBoxCount(bs.size());
+            vo.setPackId(ob.getPackId());
+            if (ob.getPackId() != null) {
+                vo.setPackMates(mates.getOrDefault(ob.getPackId(), List.of()).stream().filter(m -> !m.getId().equals(ob.getId()))
+                        .map(m -> {
+                            OutboundVO.PackMate pm = new OutboundVO.PackMate();
+                            pm.setId(m.getId());
+                            pm.setObNo(m.getObNo());
+                            SalesOrderDO mso = orders.get(m.getSoId());
+                            pm.setSoNo(mso == null ? null : mso.getSoNo());
+                            pm.setStatus(m.getStatus());
+                            return pm;
+                        }).toList());
+            }
             vo.setChargeableWeight(weight);
             CourierWaybillDO wb = ob.getCourierWaybillId() == null ? null : waybills.get(ob.getCourierWaybillId());
             if (wb != null) {

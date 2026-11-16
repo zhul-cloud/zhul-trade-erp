@@ -1,7 +1,13 @@
-import { CarOutlined, SearchOutlined } from '@ant-design/icons';
+import {
+  CarOutlined,
+  CheckCircleOutlined,
+  InboxOutlined,
+  InfoCircleOutlined,
+  SearchOutlined,
+} from '@ant-design/icons';
 import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Button, Input, Segmented, Space, Table } from 'antd';
+import { App, Button, Input, Segmented, Space, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
@@ -13,6 +19,7 @@ import {
   kg,
   LOGISTICS_PATHS,
   ObStatusPill,
+  PackTag,
 } from '@/pages/logistics/components';
 import {
   type Outbound,
@@ -42,8 +49,12 @@ const STATUS: Record<Tab, number | undefined> = {
   all: undefined,
 };
 
+/** 合并打包最多几张 */
+const MERGE_MAX = 20;
+
 const Outbounds: React.FC = () => {
   const { palette } = useAppTheme();
+  const { message } = App.useApp();
   const access = useAccess();
   const canPack = !!access['warehouse:outbound:pack'];
   const url = useUrlFilter();
@@ -62,6 +73,7 @@ const Outbounds: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [packing, setPacking] = useState<number>();
+  const [merging, setMerging] = useState<number[]>();
   const [selected, setSelected] = useState<Outbound[]>([]);
   const [handing, setHanding] = useState(false);
 
@@ -106,6 +118,45 @@ const Outbounds: React.FC = () => {
     refreshCounts();
   };
 
+  const selectable = (tab === 'pending' || tab === 'packed') && canPack;
+
+  /** 勾选变化；合并打包了的单同组一起勾选或取消，不在本页的同组单取详情补上 */
+  const select = async (keys: React.Key[]) => {
+    const pool = new Map<number, Outbound>(
+      [...selected, ...rows].map((r) => [r.id, r]),
+    );
+    const prev = new Set(selected.map((r) => r.id));
+    const next = new Set(keys.map(Number));
+    for (const r of pool.values()) {
+      if (!r.packId || next.has(r.id) === prev.has(r.id)) continue;
+      for (const x of [r.id, ...(r.packMates ?? []).map((m) => m.id)])
+        if (next.has(r.id)) next.add(x);
+        else next.delete(x);
+    }
+    const missing = [...next].filter((x) => !pool.has(x));
+    try {
+      for (const o of await Promise.all(missing.map(outboundApi.detail)))
+        pool.set(o.id, o);
+    } catch (e) {
+      message.error(readBizError(e).message);
+      return;
+    }
+    setSelected(
+      [...next].map((x) => pool.get(x)).filter((r): r is Outbound => !!r),
+    );
+  };
+
+  /** 不能和已选的单一起处理：合并打包要同一客户、同一货代；交快递要同一货代 */
+  const conflicts = (r: Outbound) => {
+    const first = selected[0];
+    if (!first || selected.some((s) => s.id === r.id)) return false;
+    if (first.forwarderId !== r.forwarderId) return true;
+    return (
+      tab === 'pending' &&
+      (first.customerId !== r.customerId || selected.length >= MERGE_MAX)
+    );
+  };
+
   const action = (r: Outbound) => {
     if (tab === 'pending' && canPack)
       return (
@@ -140,6 +191,7 @@ const Outbounds: React.FC = () => {
         <div>
           <Link to={DOC_PATHS.outbound(r.id)}>{v}</Link>
           {sub(palette.mute, formatDateTime(r.createTime).slice(0, 10))}
+          {(r.packMates?.length ?? 0) > 0 && <PackTag ob={r} />}
         </div>
       ),
     },
@@ -185,7 +237,10 @@ const Outbounds: React.FC = () => {
       width: 130,
       render: (_, r) =>
         r.boxCount ? (
-          `${r.boxCount} 箱 · ${kg(r.chargeableWeight)}`
+          <div>
+            {r.boxCount} 箱 · {kg(r.chargeableWeight)}
+            {r.packId && sub(palette.mute, '整组')}
+          </div>
         ) : (
           <span style={{ color: palette.mute }}>—</span>
         ),
@@ -260,7 +315,7 @@ const Outbounds: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle description="按业务员的发货通知打包：逐箱登记尺寸、重量和箱内型号，交国内快递发往深圳货代。" />
+      <WarehousePageTitle description="按业务员的发货通知打包：逐箱登记尺寸、重量和箱内型号，交国内快递发往深圳货代；同一客户、同一货代的几张单可以合并打包。" />
       <div
         style={{
           display: 'flex',
@@ -303,19 +358,67 @@ const Outbounds: React.FC = () => {
           aria-label="关键词"
         />
         <span style={{ flex: 1 }} />
-        {tab === 'packed' && canPack && (
-          <Button
-            icon={<CarOutlined />}
-            disabled={selected.length === 0}
-            onClick={() => setHanding(true)}
-          >
-            交国内快递{selected.length ? ` · ${selected.length}` : ''}
-          </Button>
-        )}
         <Button type="primary" onClick={apply}>
           查询
         </Button>
       </div>
+      {selectable && selected.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: 12,
+            marginBottom: 12,
+            padding: '10px 16px',
+            borderRadius: 12,
+            background: palette.accentSoft,
+            border: `1px solid ${palette.accentLine}`,
+          }}
+        >
+          <CheckCircleOutlined style={{ color: palette.link }} />
+          <b style={{ color: palette.ink }}>已选 {selected.length} 张</b>
+          <span style={{ color: palette.sub }}>
+            {tab === 'pending'
+              ? `${selected[0].customerName ?? ''} · ${selected[0].forwarderName ?? ''}`
+              : selected[0].forwarderName}
+            {tab === 'packed' &&
+              selected.some((r) => r.packId) &&
+              ' · 合并打包的同组单已一起选中'}
+          </span>
+          <span style={{ flex: 1 }} />
+          {rows.some(conflicts) && (
+            <span style={{ fontSize: 12, color: palette.mute }}>
+              <InfoCircleOutlined />{' '}
+              {tab === 'pending'
+                ? selected.length >= MERGE_MAX
+                  ? `一次最多合并 ${MERGE_MAX} 张`
+                  : '灰掉的单客户或货代不同，不能一起合并'
+                : '灰掉的单货代不同，不能一起交快递'}
+            </span>
+          )}
+          <Button onClick={() => setSelected([])}>取消选择</Button>
+          {tab === 'pending' ? (
+            <Button
+              type="primary"
+              icon={<InboxOutlined />}
+              disabled={selected.length < 2}
+              title={selected.length < 2 ? '再选一张才能合并打包' : undefined}
+              onClick={() => setMerging(selected.map((r) => r.id))}
+            >
+              合并打包
+            </Button>
+          ) : (
+            <Button
+              type="primary"
+              icon={<CarOutlined />}
+              onClick={() => setHanding(true)}
+            >
+              交快递
+            </Button>
+          )}
+        </div>
+      )}
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
@@ -327,15 +430,12 @@ const Outbounds: React.FC = () => {
             loading={loading}
             scroll={{ x: tableScrollX(columns) }}
             rowSelection={
-              tab === 'packed' && canPack
+              selectable
                 ? {
                     selectedRowKeys: selected.map((r) => r.id),
-                    onChange: (_, rs) => setSelected(rs),
-                    getCheckboxProps: (r) => ({
-                      disabled:
-                        selected.length > 0 &&
-                        selected[0].forwarderId !== r.forwarderId,
-                    }),
+                    preserveSelectedRowKeys: true,
+                    onChange: select,
+                    getCheckboxProps: (r) => ({ disabled: conflicts(r) }),
                   }
                 : undefined
             }
@@ -365,7 +465,7 @@ const Outbounds: React.FC = () => {
       )}
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
         {tab === 'pending'
-          ? '按通知时间从早到晚；一个箱子只装一张销售出库单的货'
+          ? '按通知时间从早到晚'
           : tab === 'packed'
             ? '勾选同一家货代的销售出库单合成一票快递，运费按计费重分摊'
             : tab === 'handed'
@@ -378,6 +478,15 @@ const Outbounds: React.FC = () => {
         onDone={(packedId) => {
           // 保存期间换开了别的单：只刷新列表，不关掉正在看的抽屉（UI-017）
           setPacking((cur) => (cur === packedId ? undefined : cur));
+          changed();
+        }}
+      />
+      <PackDrawer
+        mergeIds={merging}
+        onClose={() => setMerging(undefined)}
+        onDone={() => {
+          setMerging(undefined);
+          setSelected([]);
           changed();
         }}
       />

@@ -5,6 +5,7 @@ import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.logistics.dto.CountsVO;
 import com.zhul.erp.modules.logistics.dto.ForwarderVO;
 import com.zhul.erp.modules.logistics.dto.HandOverRequest;
+import com.zhul.erp.modules.logistics.dto.MergePackRequest;
 import com.zhul.erp.modules.logistics.dto.NoticeFormVO;
 import com.zhul.erp.modules.logistics.dto.OutboundPageQuery;
 import com.zhul.erp.modules.logistics.dto.OutboundVO;
@@ -132,6 +133,20 @@ public class OutboundController {
     @PreAuthorize(PACK)
     public Result<OutboundVO> pack(@PathVariable Long id, @Valid @RequestBody PackRequest req) {
         return Result.ok(service.pack(id, req));
+    }
+
+    /** 合并打包（openspec outbound-merge-pack）：同一客户、同一货代的几张待打包单一次装箱 */
+    @PostMapping("/outbounds/merge-pack")
+    @PreAuthorize(PACK)
+    public Result<List<OutboundVO>> mergePack(@Valid @RequestBody MergePackRequest req) {
+        return Result.ok(service.mergePack(req));
+    }
+
+    /** 拆开合并打包组：整组箱子作废，组内各单回到待打包 */
+    @PostMapping("/outbounds/{id}/split")
+    @PreAuthorize(PACK)
+    public Result<OutboundVO> split(@PathVariable Long id, @Valid @RequestBody ReasonRequest req) {
+        return Result.ok(service.split(id, req.getReason()));
     }
 
     @PostMapping("/outbounds/hand-over")

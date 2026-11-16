@@ -4,10 +4,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 运费分摊（纯计算）：按权重把金额分成若干份。
@@ -21,8 +18,12 @@ public final class FreightAllocator {
     private FreightAllocator() {
     }
 
-    /** 箱子：计费重与箱内各行（订单型号行 → 货值，人民币） */
-    public record Box(Long boxId, Long outboundId, BigDecimal chargeable, Map<Long, BigDecimal> values) {
+    /** 箱子：计费重与箱内各行。合并打包的箱子装有不同销售出库单的货，每行带所属出库单（openspec outbound-merge-pack） */
+    public record Box(Long boxId, BigDecimal chargeable, List<Line> lines) {
+    }
+
+    /** 箱内一行：所属销售出库单、订单型号行与货值（人民币） */
+    public record Line(Long outboundId, Long soItemId, BigDecimal value) {
     }
 
     /** 一行分摊结果 */
@@ -64,32 +65,20 @@ public final class FreightAllocator {
         return out;
     }
 
-    /** 按箱计费重分到箱，再按箱内货值分到行 */
+    /**
+     * 按箱计费重分到箱，再按箱内货值分到行；国内快递与国际运费都用这一种。
+     * 每张出库单分到的运费 = 它的行之和；不合箱时与先按出库单分的结果相同，只是尾差可能落在不同的行。
+     */
     public static List<Share> toLines(BigDecimal total, List<Box> boxes) {
         List<Share> out = new ArrayList<>();
         List<BigDecimal> perBox = split(total, boxes.stream().map(Box::chargeable).toList());
         for (int b = 0; b < boxes.size(); b++) {
             Box box = boxes.get(b);
-            List<Map.Entry<Long, BigDecimal>> lines = new ArrayList<>(box.values().entrySet());
-            List<BigDecimal> perLine = split(perBox.get(b), lines.stream().map(Map.Entry::getValue).toList());
-            for (int i = 0; i < lines.size(); i++) {
-                out.add(new Share(box.outboundId(), box.boxId(), lines.get(i).getKey(), perLine.get(i)));
+            List<BigDecimal> perLine = split(perBox.get(b), box.lines().stream().map(Line::value).toList());
+            for (int i = 0; i < box.lines().size(); i++) {
+                Line l = box.lines().get(i);
+                out.add(new Share(l.outboundId(), box.boxId(), l.soItemId(), perLine.get(i)));
             }
-        }
-        return out;
-    }
-
-    /** 国内快递：先按销售出库单的计费重之和分到销售出库单，再在销售出库单内按箱、按货值分 */
-    public static List<Share> byOutbound(BigDecimal total, List<Box> boxes) {
-        Map<Long, List<Box>> groups = new LinkedHashMap<>();
-        boxes.stream().sorted(Comparator.comparing(Box::outboundId))
-                .forEach(b -> groups.computeIfAbsent(b.outboundId(), k -> new ArrayList<>()).add(b));
-        List<Long> ids = new ArrayList<>(groups.keySet());
-        List<BigDecimal> perOutbound = split(total, ids.stream()
-                .map(id -> groups.get(id).stream().map(Box::chargeable).reduce(BigDecimal.ZERO, BigDecimal::add)).toList());
-        List<Share> out = new ArrayList<>();
-        for (int i = 0; i < ids.size(); i++) {
-            out.addAll(toLines(perOutbound.get(i), groups.get(ids.get(i))));
         }
         return out;
     }

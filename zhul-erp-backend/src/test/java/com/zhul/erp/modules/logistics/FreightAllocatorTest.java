@@ -4,9 +4,7 @@ import com.zhul.erp.modules.logistics.support.FreightAllocator;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -34,25 +32,40 @@ class FreightAllocatorTest {
         assertEquals(List.of(d("5.00"), d("5.00")), FreightAllocator.split(d("10.00"), List.of(d("0"), d("0"))), "权重都为 0 时平均分");
     }
 
+    private static FreightAllocator.Line l(long outboundId, long soItemId, String value) {
+        return new FreightAllocator.Line(outboundId, soItemId, d(value));
+    }
+
     @Test
     void lines_byBoxThenByValue() {
-        Map<Long, BigDecimal> v1 = new LinkedHashMap<>();
-        v1.put(11L, d("400"));
-        v1.put(12L, d("200"));
-        List<FreightAllocator.Share> s = FreightAllocator.toLines(d("60.00"), List.of(new FreightAllocator.Box(1L, 7L, d("30"), v1)));
+        List<FreightAllocator.Share> s = FreightAllocator.toLines(d("60.00"), List.of(
+                new FreightAllocator.Box(1L, d("30"), List.of(l(7L, 11L, "400"), l(7L, 12L, "200")))));
         assertEquals(d("40.00"), s.get(0).amount());
         assertEquals(d("20.00"), s.get(1).amount());
     }
 
+    /** 不合箱时按箱分摊，每张出库单分到的与先按出库单分相同（OB1 计费重 30、OB2 计费重 10，运费 80） */
     @Test
-    void domestic_byOutboundFirst() {
-        List<FreightAllocator.Share> s = FreightAllocator.byOutbound(d("80.00"), List.of(
-                new FreightAllocator.Box(1L, 1L, d("20"), Map.of(11L, d("100"))),
-                new FreightAllocator.Box(2L, 1L, d("10"), Map.of(12L, d("100"))),
-                new FreightAllocator.Box(3L, 2L, d("10"), Map.of(21L, d("100")))));
-        BigDecimal ob1 = s.stream().filter(x -> x.outboundId() == 1L).map(FreightAllocator.Share::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal ob2 = s.stream().filter(x -> x.outboundId() == 2L).map(FreightAllocator.Share::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
-        assertEquals(d("60.00"), ob1);
-        assertEquals(d("20.00"), ob2);
+    void domestic_byBox_sameAsByOutboundWhenNotMixed() {
+        List<FreightAllocator.Share> s = FreightAllocator.toLines(d("80.00"), List.of(
+                new FreightAllocator.Box(1L, d("20"), List.of(l(1L, 11L, "100"))),
+                new FreightAllocator.Box(2L, d("10"), List.of(l(1L, 12L, "100"))),
+                new FreightAllocator.Box(3L, d("10"), List.of(l(2L, 21L, "100")))));
+        assertEquals(d("60.00"), sum(s, 1L));
+        assertEquals(d("20.00"), sum(s, 2L));
+    }
+
+    /** openspec outbound-merge-pack：合并打包的箱子装两张订单的货，箱的运费按货值分到两张出库单 */
+    @Test
+    void mergedBox_splitsToBothOutboundsByValue() {
+        List<FreightAllocator.Share> s = FreightAllocator.toLines(d("40.00"), List.of(
+                new FreightAllocator.Box(1L, d("30"), List.of(l(1L, 11L, "300"), l(2L, 21L, "100")))));
+        assertEquals(d("30.00"), sum(s, 1L));
+        assertEquals(d("10.00"), sum(s, 2L));
+        assertEquals(List.of(1L, 1L), s.stream().map(FreightAllocator.Share::boxId).toList(), "两行都记在同一箱");
+    }
+
+    private static BigDecimal sum(List<FreightAllocator.Share> s, long outboundId) {
+        return s.stream().filter(x -> x.outboundId() == outboundId).map(FreightAllocator.Share::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }

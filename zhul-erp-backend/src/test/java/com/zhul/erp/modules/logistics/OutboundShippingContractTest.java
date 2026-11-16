@@ -79,7 +79,11 @@ class OutboundShippingContractTest extends SalesContractSupport {
 
     /** 订单型号 A × qty：采购订单确认下单；received 为已验收合格的数量（0 表示还没发货） */
     private JsonNode orderedPo(long supplierId, int qty) throws Exception {
-        long c = customer("Hoorain HTF", "Bangladesh");
+        return orderedPo(customer("Hoorain HTF", "Bangladesh"), supplierId, qty);
+    }
+
+    /** 同上，订单客户为 c（几张订单同一客户时用） */
+    private JsonNode orderedPo(long c, long supplierId, int qty) throws Exception {
         List<Long> items = quotationItemIds(quotation(c, 2, "USD", null, l("A-1", qty, "100", "20")));
         for (Long i : items) {
             long inquiryItem = jdbc.queryForObject("select inquiry_item_id from quotation_item where id = ?", Long.class, i);
@@ -679,5 +683,153 @@ class OutboundShippingContractTest extends SalesContractSupport {
         assertEquals("A-1 最多可以出库 6 个", fail(notice(soB, 7)).path("message").asText());
         ok(notice(soB, 6));
         assertEquals(4, order(soB).path("items").get(0).path("goodsHanded").asInt(), "已交货代的 4 个算在新订单上");
+    }
+
+    // ---------------------------------------------------------------- 合并打包（openspec outbound-merge-pack）
+
+    /** 客户 c 的一张待打包销售出库单（数量 qty，已入库） */
+    private long newPending(long c, String supplierName, int qty) throws Exception {
+        JsonNode po = orderedPo(c, supplier(supplierName, null), qty);
+        receive(po, qty);
+        return ok(notice(soOf(po), qty)).path("id").asLong();
+    }
+
+    private long itemOf(long obId) {
+        return jdbc.queryForObject("select id from outbound_order_item where outbound_id = ? and deleted_at is null order by id limit 1",
+                Long.class, obId);
+    }
+
+    private String obNo(long obId) {
+        return jdbc.queryForObject("select ob_no from outbound_order where id = ?", String.class, obId);
+    }
+
+    /** 一箱：尺寸、毛重，以及「出库单行 ID, 数量」成对 */
+    private static Map<String, Object> box(int l, int w, int h, String gross, long... itemQty) {
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (int i = 0; i < itemQty.length; i += 2) {
+            items.add(Map.of("outboundItemId", itemQty[i], "quantity", itemQty[i + 1]));
+        }
+        return Map.of("length", l, "width", w, "height", h, "grossWeight", gross, "items", items);
+    }
+
+    private JsonNode mergePack(List<Long> ids, List<Map<String, Object>> boxes) throws Exception {
+        return call(json(post(OB + "/merge-pack"), write(Map.of("outboundIds", ids, "boxes", boxes))), keeper);
+    }
+
+    private JsonNode obDetail(long id) throws Exception {
+        return ok(call(get(OB + "/" + id), keeper));
+    }
+
+    private JsonNode reason(String path, String reason, String token) throws Exception {
+        return call(json(post(path), write(Map.of("reason", reason))), token);
+    }
+
+    /** 合并打包：混装、整组交快递与撤销、运费按箱按货值分到两张单、已交货代不能拆、拆开后单独打包 */
+    @Test
+    void mergePack_mixedBoxes_wholeGroupHandOver_freightSplit_split() throws Exception {
+        long c = customer("Hoorain HTF", "Bangladesh");
+        long ob1 = newPending(c, "合并一电子", 10);
+        long ob2 = newPending(c, "合并二电子", 6);
+        long ob3 = newPending(customer("ACROBOT", "Germany"), "合并三电子", 4);
+        long i1 = itemOf(ob1);
+        long i2 = itemOf(ob2);
+        long i3 = itemOf(ob3);
+
+        assertEquals("只能合并同一客户、同一货代的销售出库单",
+                fail(mergePack(List.of(ob1, ob3), List.of(box(10, 10, 10, "1.00", i1, 10, i3, 4)))).path("message").asText());
+        assertEquals(obNo(ob2) + " 的 A-1 还差 1 个没装箱", fail(mergePack(List.of(ob1, ob2),
+                List.of(box(55, 40, 30, "30.00", i1, 10, i2, 2), box(40, 30, 30, "6.00", i2, 3)))).path("message").asText());
+
+        JsonNode merged = ok(mergePack(List.of(ob1, ob2), List.of(box(55, 40, 30, "30.00", i1, 10, i2, 2), box(40, 30, 30, "6.00", i2, 4))));
+        assertEquals(2, merged.size());
+        JsonNode d1 = obDetail(ob1);
+        assertEquals("已打包", d1.path("statusName").asText());
+        assertEquals(2, d1.path("boxCount").asInt());
+        assertEquals(obNo(ob2), d1.path("packMates").get(0).path("obNo").asText());
+        assertEquals(2, d1.path("boxes").get(0).path("items").size(), "第 1 箱混装两张单的型号");
+        assertEquals(obNo(ob2), d1.path("boxes").get(0).path("items").get(1).path("obNo").asText());
+        JsonNode d2 = obDetail(ob2);
+        assertEquals(2, d2.path("boxCount").asInt(), "同组的单显示整组的箱子");
+        money("37.20", d2.path("chargeableWeight"));
+        assertEquals(6, d2.path("items").get(0).path("packedQty").asInt(), "两箱里 ob2 的型号合计 6 个");
+        assertEquals("仓库已经打包，不能撤回", fail(reason(OB + "/" + ob2 + "/withdraw", "x", admin)).path("message").asText());
+
+        assertTrue(fail(handOver(List.of(ob1), "40")).path("message").asText().contains("合并打包了，要一起交快递"));
+        ok(handOver(List.of(ob1, ob2), "40"));
+        long waybill = jdbc.queryForObject("select courier_waybill_id from outbound_order where id = ?", Long.class, ob1);
+        assertEquals(new BigDecimal("40.00"), allocated(1, waybill), "国内运费分摊合计等于实际运费");
+        long box1 = jdbc.queryForObject("select min(id) from outbound_box where pack_id is not null and outbound_id = ? and deleted_at is null",
+                Long.class, ob1);
+        assertEquals(2, jdbc.queryForObject("select count(distinct outbound_id) from freight_allocation where source_type = 1 and source_id = ? "
+                + "and box_id = ? and deleted_at is null", Integer.class, waybill, box1), "混装的箱子按货值分到两张单");
+        assertEquals("已交货代，先撤销交货代才能拆开", fail(reason(OB + "/" + ob1 + "/split", "x", keeper)).path("message").asText());
+
+        ok(reason(OB + "/" + ob2 + "/undo-hand-over", "快递单号录错", keeper));
+        assertEquals(2, jdbc.queryForObject("select count(*) from outbound_order where id in (?, ?) and status = 2", Integer.class, ob1, ob2),
+                "整组撤销交货代");
+        assertEquals(BigDecimal.ZERO, allocated(1, waybill), "整票撤销后分摊作废");
+
+        long packId = jdbc.queryForObject("select pack_id from outbound_order where id = ?", Long.class, ob1);
+        JsonNode split = ok(reason(OB + "/" + ob1 + "/split", "客户要求分开发", keeper));
+        assertEquals("待打包", split.path("statusName").asText());
+        assertTrue(split.path("packId").isNull() || split.path("packId").isMissingNode(), split.toString());
+        assertEquals("待打包", obDetail(ob2).path("statusName").asText(), "同组的单一起回到待打包");
+        assertEquals(0, jdbc.queryForObject("select count(*) from outbound_box where pack_id = ? and deleted_at is null", Integer.class, packId),
+                "原来的箱子作废");
+        assertEquals(2, jdbc.queryForObject("select status from outbound_pack where id = ?", Integer.class, packId));
+        assertEquals("已打包", ok(pack(obDetail(ob2), new int[] {20, 20, 20, 500, 6})).path("statusName").asText(), "拆开后可以单独打包");
+    }
+
+    /** 合并打包的单整组放进出运单；「每张订单各一组」时同组订单合成一组；箱子只算一次 */
+    @Test
+    void mergePack_shipmentWholeGroup_docsPerOrderMerged() throws Exception {
+        long c = customer("Hoorain HTF", "Bangladesh");
+        long ob1 = newPending(c, "出运一电子", 2);
+        long ob2 = newPending(c, "出运二电子", 3);
+        long ob3 = newPending(c, "出运三电子", 1);
+        ok(mergePack(List.of(ob1, ob2), List.of(box(30, 30, 30, "5.00", itemOf(ob1), 2, itemOf(ob2), 3))));
+        ok(pack(obDetail(ob3), new int[] {10, 10, 10, 100, 1}));
+        ok(handOver(List.of(ob1, ob2, ob3), "30"));
+
+        JsonNode partial = call(json(post(SH), write(Map.of("customerId", c, "forwarderId", forwarder, "outboundIds", List.of(ob1, ob3)))), admin);
+        assertTrue(partial.path("message").asText().contains("要放在同一张出运单"), partial.toString());
+        long shId = ok(call(json(post(SH), write(Map.of("customerId", c, "forwarderId", forwarder,
+                "outboundIds", List.of(ob1, ob2, ob3)))), admin)).path("id").asLong();
+        assertEquals(2, ok(call(get(SH + "/" + shId), admin)).path("boxCount").asInt(), "合并打包的箱子只算一次");
+
+        ok(call(json(post(SH + "/" + shId + "/docs"), write(Map.of("mode", "PER_ORDER"))), admin));
+        List<String> groups = jdbc.queryForList("select so_ids from shipment_doc_group where logistics_id = ? and status = 1 order by id",
+                String.class, shId);
+        assertEquals(2, groups.size(), "三张订单：合并打包的两张合成一组，另一张一组：" + groups);
+        assertTrue(groups.stream().anyMatch(g -> g.contains(",")), groups.toString());
+    }
+
+    /** 两个请求同时合并同一批单：按 ID 顺序加锁，后到的读到已打包而被拒绝，只组成一个合并打包组 */
+    @Test
+    void mergePack_concurrent_onlyOneWins() throws Exception {
+        long c = customer("Hoorain HTF", "Bangladesh");
+        long ob1 = newPending(c, "并发一电子", 2);
+        long ob2 = newPending(c, "并发二电子", 2);
+        List<Map<String, Object>> boxes = List.of(box(20, 20, 20, "2.00", itemOf(ob1), 2, itemOf(ob2), 2));
+        java.util.concurrent.Callable<JsonNode> merge = () -> mergePack(List.of(ob1, ob2), boxes);
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            List<java.util.concurrent.Future<JsonNode>> fs = pool.invokeAll(List.of(merge, merge));
+            int okCount = 0;
+            for (java.util.concurrent.Future<JsonNode> f : fs) {
+                JsonNode r = f.get(30, java.util.concurrent.TimeUnit.SECONDS);
+                if (r.path("code").asInt() == 0) {
+                    okCount++;
+                } else {
+                    assertTrue(r.path("message").asText().contains("不是待打包"), r.toString());
+                }
+            }
+            assertEquals(1, okCount, "只有一个请求合并成功");
+        } finally {
+            pool.shutdown();
+        }
+        assertEquals(1, jdbc.queryForObject("select count(distinct pack_id) from outbound_order where id in (?, ?)", Integer.class, ob1, ob2));
+        assertEquals(1, jdbc.queryForObject("select count(*) from outbound_box where pack_id is not null and outbound_id = ? and deleted_at is null",
+                Integer.class, ob1), "只有一组箱子");
     }
 }

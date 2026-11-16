@@ -30,6 +30,10 @@ public class OutboundVO {
     private String withdrawReason;
     private Integer totalQuantity;
     private List<Item> items;
+    /** 合并打包组（openspec outbound-merge-pack）：单独打包为空；合并时箱子、箱数与计费重都是整组的 */
+    private Long packId;
+    /** 同组的其他销售出库单 */
+    private List<PackMate> packMates;
     private List<Box> boxes;
     private Integer boxCount;
     /** 计费重合计（国内体积系数 5000），两位小数 */
@@ -81,8 +85,19 @@ public class OutboundVO {
     @Data
     public static class BoxItem {
         private Long outboundItemId;
+        /** 箱内这一行所属的销售出库单（合并打包的箱子会有多张） */
+        private Long outboundId;
+        private String obNo;
         private String model;
         private Integer quantity;
+    }
+
+    @Data
+    public static class PackMate {
+        private Long id;
+        private String obNo;
+        private String soNo;
+        private Integer status;
     }
 
     @Data
