@@ -24,6 +24,10 @@ public class FieldSources {
     public static final int MIGRATED = 3;
     /** 记一次跟进时勾选写入档案（openspec customer-followup） */
     public static final int FOLLOWUP = 4;
+    /** 客户中文名称由 AI 按英文名称翻译（openspec feedback-1116-batch1） */
+    public static final int AI_TRANSLATE = 5;
+    /** 客户中文名称的字段键 */
+    public static final String NAME_CN = "nameCn";
     /** 只在返回给前端时使用：系统推导或国家资料 */
     public static final int SYSTEM = 9;
 
@@ -90,6 +94,11 @@ public class FieldSources {
                 mapper.updateById(row);
             }
         }
+    }
+
+    /** 某个字段的来源记录，没有时为空 */
+    public CustomerFieldSourceDO get(Long customerId, String key) {
+        return byKey(customerId, List.of(key)).get(key);
     }
 
     public List<CustomerFieldSourceDO> list(Long customerId) {

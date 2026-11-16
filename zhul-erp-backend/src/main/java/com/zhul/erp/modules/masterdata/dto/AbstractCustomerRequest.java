@@ -26,6 +26,9 @@ public abstract class AbstractCustomerRequest {
     private String name;
     @Size(max = 100, message = "中文名称不能超过100个字符")
     private String nameCn;
+    /** 「AI 翻译」按钮这次给出的译名：保存时中文名称与它相同则来源记「AI 翻译」，否则记「人工」 */
+    @Size(max = 100, message = "译名不能超过100个字符")
+    private String nameCnTranslation;
     @Size(max = 50, message = "客户简称不能超过50个字符")
     private String shortName;
     @Min(value = 1, message = "客户角色不正确")

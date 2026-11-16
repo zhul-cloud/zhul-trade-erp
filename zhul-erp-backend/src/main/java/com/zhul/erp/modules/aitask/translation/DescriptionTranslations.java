@@ -67,7 +67,7 @@ public class DescriptionTranslations implements AiTaskResultHandler {
         AiTaskDO task = taskId == null ? null : aiTaskMapper.selectById(taskId);
         if (task == null || task.getDeletedAt() != null || !SKILL_ID.equals(task.getSkillId())
                 || !Objects.equals(task.getTenantId(), TenantContext.getTenantId())
-                || !Objects.equals(task.getRequestedBy(), currentUser.resolve())) {
+                || !Objects.equals(task.getRequestedBy(), requester())) {
             throw new BizException("翻译任务不存在");
         }
         TranslationVO vo = new TranslationVO();
@@ -85,6 +85,12 @@ public class DescriptionTranslations implements AiTaskResultHandler {
             vo.setResults(results);
         }
         return vo;
+    }
+
+    /** 提交人：按用户名找不到用户档案时任务里存的是 0，查询时按同样的规则比较（audit AI-014） */
+    private Long requester() {
+        Long me = currentUser.resolve();
+        return me == null ? 0L : me;
     }
 
     @Override

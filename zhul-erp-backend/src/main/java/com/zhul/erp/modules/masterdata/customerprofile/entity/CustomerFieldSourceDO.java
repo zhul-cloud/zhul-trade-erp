@@ -20,7 +20,7 @@ public class CustomerFieldSourceDO {
     private Long customerId;
     /** 画像字段键；联系人字段为 contact.{联系人ID}.{字段} */
     private String fieldKey;
-    /** 来源（1-人工、2-背调报告、3-迁移） */
+    /** 来源（1-人工、2-背调报告、3-迁移、4-跟进记录、5-AI翻译） */
     private Integer source;
     private Long reportId;
     /** 来源跟进记录 ID（来源为 4-跟进记录时），0 为无 */

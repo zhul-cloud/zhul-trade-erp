@@ -134,7 +134,8 @@ public class PayableSyncService {
     }
 
     /**
-     * 费用单（③b）：公司对公且有效的生成或重算一期应付，到期日为发生日期；作废或改为员工垫付的关闭已有应付。
+     * 费用单（③b）：公司对公、私对私且有效的生成或重算一期应付，到期日为发生日期；作废或改为员工垫付的关闭已有应付。
+     * 私对私的应付在保存时由同一事务登记的私对私付款付清。
      */
     public void syncExpense(Long expenseId) {
         ExpenseDO e = expenseMapper.selectById(expenseId);
@@ -142,7 +143,8 @@ public class PayableSyncService {
             return;
         }
         boolean active = Objects.equals(e.getStatus(), FinanceConstants.FE_VALID)
-                && Objects.equals(e.getMethod(), FinanceConstants.METHOD_COMPANY);
+                && (Objects.equals(e.getMethod(), FinanceConstants.METHOD_COMPANY)
+                || Objects.equals(e.getMethod(), FinanceConstants.METHOD_PRIVATE));
         PayableDO p = lockBySource(FinanceConstants.SOURCE_EXPENSE, expenseId);
         boolean created = p == null;
         if (created) {

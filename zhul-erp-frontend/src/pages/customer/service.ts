@@ -85,6 +85,9 @@ export interface CustomerDetail extends CustomerListItem {
   destinationPort: string;
   remark: string;
   parties: CustomerParty[];
+  /** 中文名称来源：5-AI 翻译（显示来源与时间），其余为人工或空 */
+  nameCnSource?: number;
+  nameCnSourceTime?: string;
 }
 
 /** 提交给新增 / 更新接口的字段（选填文本清空时传空串） */
@@ -95,6 +98,8 @@ export interface CustomerPayload {
   businessUnitId?: number;
   name: string;
   nameCn?: string;
+  /** 「AI 翻译」按钮这次给出的译名：中文名称与它相同时来源记「AI 翻译」 */
+  nameCnTranslation?: string;
   shortName?: string;
   customerRole?: number;
   industry?: number;
@@ -149,8 +154,8 @@ export interface CustomerQuery {
   sourceChannel?: number;
   ownerId?: number;
   status?: number;
-  /** 排序：updateTime（默认）、bizGrade、potentialRating */
-  sortField?: 'updateTime' | 'bizGrade' | 'potentialRating';
+  /** 排序：updateTime、bizGrade、potentialRating、profile（档案完整度）；不传按经营等级综合排序 */
+  sortField?: 'updateTime' | 'bizGrade' | 'potentialRating' | 'profile';
   sortOrder?: 'asc' | 'desc';
 }
 
@@ -239,6 +244,13 @@ export const customerApi = {
       method: 'POST',
       data: { ids, ownerId, reason, moveBusinessUnit },
     }),
+
+  /** 列表上方的「全部 / 已建档 / 待完善」数量（按数据范围，不带其他筛选） */
+  profileCounts: () =>
+    request<{ data: { all: number; done: number; pending: number } }>(
+      `${BASE}/profile-counts`,
+      { method: 'GET', ...quiet },
+    ).then((r) => r.data),
 
   assignableOwners: () =>
     request<{ data: AssignableOwners }>(`${BASE}/assignable-owners`, {

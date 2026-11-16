@@ -137,3 +137,78 @@ it('删光分摊后保存不带关联售后单', async () => {
   expect(bodies).toHaveLength(1);
   expect(bodies[0].afterSalesId).toBeUndefined();
 });
+
+/** 私对私（feedback-1116-batch1）：付款账户只列对私账户并默认选中；没传凭证不提交 */
+it('私对私只列对私账户，没传凭证不能保存', async () => {
+  const posts: unknown[] = [];
+  (request as jest.Mock).mockImplementation(
+    (url: string, opts?: { method?: string; data?: unknown }) => {
+      if (url.includes('/system/bank-accounts/options')) {
+        return Promise.resolve({
+          data: [
+            {
+              id: 1,
+              accountType: 1,
+              currencyCode: 'CNY',
+              bankName: '工商银行',
+              accountName: '公司',
+              accountNoMasked: '****0001',
+              isDefault: true,
+              enabled: true,
+            },
+            {
+              id: 2,
+              accountType: 2,
+              currencyCode: 'CNY',
+              bankName: '招商银行',
+              accountName: '张总',
+              accountNoMasked: '****1234',
+              isDefault: false,
+              enabled: true,
+            },
+          ],
+        });
+      }
+      if (opts?.method === 'POST') posts.push(opts.data);
+      return Promise.resolve({ data: [] });
+    },
+  );
+  render(
+    React.createElement(
+      App,
+      null,
+      React.createElement(ExpenseDrawer, {
+        open: true,
+        onClose: () => undefined,
+        onDone: () => undefined,
+      }),
+    ),
+  );
+  fireEvent.change(await screen.findByRole('textbox', { name: '名称' }), {
+    target: { value: '样品检测费' },
+  });
+  fireEvent.change(screen.getByRole('spinbutton', { name: '金额' }), {
+    target: { value: '300' },
+  });
+  fireEvent.change(screen.getByRole('textbox', { name: '收款方名称' }), {
+    target: { value: '李工' },
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByText('私对私'));
+  });
+  expect(
+    await screen.findByText('招商银行 · 张总 ****1234（对私）'),
+  ).toBeTruthy();
+  expect(screen.queryByText(/工商银行/)).toBeNull();
+  fireEvent.change(screen.getByRole('textbox', { name: '对方户名' }), {
+    target: { value: '李工' },
+  });
+  fireEvent.change(screen.getByRole('textbox', { name: '对方账号' }), {
+    target: { value: '13800000000' },
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: /保\s*存/ }));
+  });
+  expect(await screen.findByText('私对私请上传付款凭证')).toBeTruthy();
+  expect(posts).toHaveLength(0);
+});

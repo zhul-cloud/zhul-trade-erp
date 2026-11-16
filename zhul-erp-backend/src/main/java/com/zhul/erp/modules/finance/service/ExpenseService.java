@@ -12,6 +12,7 @@ import com.zhul.erp.modules.finance.constants.FinanceConstants;
 import com.zhul.erp.modules.finance.dto.ExpenseQuery;
 import com.zhul.erp.modules.finance.dto.ExpenseVO;
 import com.zhul.erp.modules.finance.dto.PayableVO;
+import com.zhul.erp.modules.finance.dto.RegisterPaymentRequest;
 import com.zhul.erp.modules.finance.dto.SaveExpenseRequest;
 import com.zhul.erp.modules.finance.dto.SoItemOptionVO;
 import com.zhul.erp.modules.finance.entity.ExpenseAllocationDO;
@@ -33,6 +34,7 @@ import com.zhul.erp.modules.sales.repository.SalesOrderItemMapper;
 import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
 import com.zhul.erp.modules.sales.support.PiStore;
 import com.zhul.erp.modules.system.constants.DocumentType;
+import com.zhul.erp.modules.system.entity.BankAccountDO;
 import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.ExchangeRateService;
 import com.zhul.erp.modules.system.service.LogService;
@@ -58,8 +60,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 费用单（spec finance/expense）：偶发成本，分摊到订单型号；公司对公生成应付，员工垫付进入垫付人的待报销。
- * 已付款或已进报销单后只能改名称、说明与分摊。
+ * 费用单（spec finance/expense）：偶发成本，分摊到订单型号；公司对公生成应付，员工垫付进入垫付人的待报销，
+ * 私对私生成应付并在同一事务登记私对私付款（视为已付）。已付款或已进报销单后只能改名称、说明与分摊。
  */
 @Service
 @RequiredArgsConstructor
@@ -90,6 +92,11 @@ public class ExpenseService {
     private final com.zhul.erp.modules.aftersales.support.AfterSalesLogs afterSalesLogs;
     private final com.zhul.erp.modules.system.doclog.DocLogs docLogs;
     private final com.zhul.erp.framework.security.PermissionChecker perm;
+    private final PaymentService paymentService;
+    private final com.zhul.erp.modules.system.repository.BankAccountMapper bankAccountMapper;
+
+    /** 私对私对方收款方式：1-支付宝、2-微信、3-银行卡 */
+    static final Map<Integer, String> PAYEE_CHANNELS = Map.of(1, "支付宝", 2, "微信", 3, "银行卡");
 
     public static final String DICT_CATEGORY = "expense_category";
     public static final String CATEGORY_ORDER = "ORDER";
@@ -117,6 +124,8 @@ public class ExpenseService {
                 && (req.getAttachmentIds() == null || req.getAttachmentIds().isEmpty())) {
             throw new BizException("员工垫付的费用请上传凭证");
         }
+        String payeeAccount = req.getMethod() != null && req.getMethod() == FinanceConstants.METHOD_PRIVATE
+                ? requirePrivate(req) : null;
         ExpenseDO e = new ExpenseDO();
         e.setTenantId(PiStore.tenantId());
         e.setExpenseNo(documentNumberService.next(DocumentType.FE));
@@ -130,8 +139,9 @@ public class ExpenseService {
         attachments.sync(AttachmentService.EXPENSE, e.getId(), req.getAttachmentIds());
         requireProof(e);
         sync.syncExpense(e.getId());
+        String paidBy = payeeAccount == null ? "" : "（付款单 " + payPrivately(e, req.getBankAccountId(), payeeAccount) + "）";
         docLogs.add(DocumentType.FE, e.getId(), "登记", e.getCurrencyCode() + " " + e.getAmount().toPlainString() + "，"
-                + FinanceConstants.METHOD_NAMES.get(e.getMethod()) + "，收款方 " + e.getPayeeName()
+                + FinanceConstants.METHOD_NAMES.get(e.getMethod()) + paidBy + "，收款方 " + e.getPayeeName()
                 + (req.getAllocations() == null || req.getAllocations().isEmpty() ? ""
                 : "，分摊到 " + req.getAllocations().size() + " 个订单型号"));
         logService.recordOperateLog(MENU, "新建费用单", null, Map.of("expenseNo", e.getExpenseNo(), "name", e.getName(),
@@ -175,7 +185,8 @@ public class ExpenseService {
             throw new BizException("费用单已作废");
         }
         if (locked(e)) {
-            throw new BizException(Objects.equals(e.getMethod(), FinanceConstants.METHOD_COMPANY)
+            throw new BizException(Objects.equals(e.getMethod(), FinanceConstants.METHOD_PRIVATE)
+                    ? "私对私已经付款，请先在付款单里作废这笔付款" : viaPayable(e.getMethod())
                     ? "已经付款，不能作废" : "已在报销单里，不能作废");
         }
         e.setStatus(FinanceConstants.FE_VOID);
@@ -267,6 +278,21 @@ public class ExpenseService {
         if (vo.getPayableId() != null) {
             related.add(new com.zhul.erp.modules.system.doclog.DocRefVO(DocumentType.AP.name(), vo.getPayableId(), null,
                     vo.getPayStatus(), null));
+        }
+        // 私对私：保存时登记的那笔付款（作废后不再显示）
+        if (Objects.equals(vo.getMethod(), FinanceConstants.METHOD_PRIVATE) && vo.getPayableId() != null) {
+            payableQuery.detail(vo.getPayableId()).getPayments().stream()
+                    .filter(l -> !l.isVoided() && Objects.equals(l.getRelation(), 0)
+                            && Objects.equals(l.getMethod(), FinanceConstants.METHOD_PRIVATE))
+                    .findFirst().ifPresent(l -> {
+                        vo.setPaymentId(l.getPaymentId());
+                        vo.setPaymentNo(l.getPaymentNo());
+                        vo.setPayDate(l.getPayDate());
+                        vo.setPayerAccount(l.getPayerAccount());
+                        vo.setPayeeAccount(l.getPayeeAccount());
+                        related.add(new com.zhul.erp.modules.system.doclog.DocRefVO(DocumentType.PY.name(), l.getPaymentId(),
+                                l.getPaymentNo(), null, null));
+                    });
         }
         if (vo.getReimbursementId() != null) {
             related.add(new com.zhul.erp.modules.system.doclog.DocRefVO(DocumentType.BX.name(), vo.getReimbursementId(),
@@ -360,9 +386,9 @@ public class ExpenseService {
         return out;
     }
 
-    /** 已付款（公司对公）或已进有效报销单（员工垫付） */
+    /** 已付款（公司对公、私对私）或已进有效报销单（员工垫付） */
     boolean locked(ExpenseDO e) {
-        if (Objects.equals(e.getMethod(), FinanceConstants.METHOD_COMPANY)) {
+        if (viaPayable(e.getMethod())) {
             PayableVO p = payableQuery.bySource(FinanceConstants.SOURCE_EXPENSE, e.getId());
             return p != null && (p.getPaidAmount().signum() != 0 || p.getCreditAmount().signum() > 0);
         }
@@ -430,7 +456,7 @@ public class ExpenseService {
                     && !Objects.equals(req.getAdvanceUserId(), e.getAdvanceUserId());
             if (changed) {
                 throw new BizException(!paid ? "金额、币种、收款方、付款方式与发生日期不能修改，录错请作废后重新登记"
-                        : Objects.equals(e.getMethod(), FinanceConstants.METHOD_COMPANY)
+                        : viaPayable(e.getMethod())
                         ? "已经付款，不能修改金额与收款方" : "已在报销单里，不能修改金额与收款方");
             }
             return;
@@ -443,7 +469,8 @@ public class ExpenseService {
         e.setAmount(req.getAmount().setScale(2, RoundingMode.HALF_UP));
         e.setAmountCny(e.getAmount().multiply(rate).setScale(2, RoundingMode.HALF_UP));
         int method = req.getMethod();
-        if (method != FinanceConstants.METHOD_COMPANY && method != FinanceConstants.METHOD_ADVANCE) {
+        if (method != FinanceConstants.METHOD_COMPANY && method != FinanceConstants.METHOD_ADVANCE
+                && method != FinanceConstants.METHOD_PRIVATE) {
             throw new BizException("付款方式无效");
         }
         e.setMethod(method);
@@ -561,12 +588,74 @@ public class ExpenseService {
         }
     }
 
-    /** 员工垫付的费用单要有凭证（报销时作为截图） */
+    /** 员工垫付、私对私的费用单要有凭证（报销时、付款单上作为截图） */
     private void requireProof(ExpenseDO e) {
-        if (Objects.equals(e.getMethod(), FinanceConstants.METHOD_ADVANCE)
-                && attachments.listOf(AttachmentService.EXPENSE, e.getId()).isEmpty()) {
-            throw new BizException("员工垫付的费用请上传凭证");
+        if (attachments.listOf(AttachmentService.EXPENSE, e.getId()).isEmpty()) {
+            if (Objects.equals(e.getMethod(), FinanceConstants.METHOD_ADVANCE)) {
+                throw new BizException("员工垫付的费用请上传凭证");
+            }
+            if (Objects.equals(e.getMethod(), FinanceConstants.METHOD_PRIVATE)) {
+                throw new BizException("私对私请上传付款凭证");
+            }
         }
+    }
+
+    /** 走应付单付款的付款方式：公司对公、私对私 */
+    private static boolean viaPayable(Integer method) {
+        return Objects.equals(method, FinanceConstants.METHOD_COMPANY) || Objects.equals(method, FinanceConstants.METHOD_PRIVATE);
+    }
+
+    /** 私对私录入校验：付款账户是本公司的对私账户，对方收款方式、户名、账号、凭证必填；返回对方收款账户快照 */
+    private String requirePrivate(SaveExpenseRequest req) {
+        BankAccountDO b = req.getBankAccountId() == null ? null : bankAccountMapper.selectById(req.getBankAccountId());
+        if (b == null || !Objects.equals(b.getTenantId(), PiStore.tenantId())) {
+            throw new BizException("请选择付款账户");
+        }
+        if (!FinanceConstants.isPrivateAccount(b)) {
+            throw new BizException("私对私请选择对私账户");
+        }
+        String channel = req.getPayeeChannel() == null ? null : PAYEE_CHANNELS.get(req.getPayeeChannel());
+        if (channel == null) {
+            throw new BizException("请选择对方收款方式");
+        }
+        if (!StringUtils.hasText(req.getPayeeAccountName()) || !StringUtils.hasText(req.getPayeeAccountNo())) {
+            throw new BizException("请填写对方户名和账号");
+        }
+        if (req.getAttachmentIds() == null || req.getAttachmentIds().isEmpty()) {
+            throw new BizException("私对私请上传付款凭证");
+        }
+        return payeeAccountLabel(channel, req.getPayeeAccountName().trim(), req.getPayeeAccountNo());
+    }
+
+    /** 对方收款账户快照：方式 · 户名 · 脱敏账号，如「支付宝 · 李工 · 138****0000」 */
+    static String payeeAccountLabel(String channel, String name, String accountNo) {
+        String no = accountNo == null ? "" : accountNo.replace(" ", "").trim();
+        String masked = no.length() > 7 ? no.substring(0, 3) + "****" + no.substring(no.length() - 4)
+                : no.length() > 4 ? "****" + no.substring(no.length() - 4) : no;
+        return cut(channel + " · " + name + " · " + masked, 200);
+    }
+
+    /**
+     * 私对私：在同一事务里登记付款，核销这张费用单的应付（视为已付）。付款日期为发生日期，
+     * 人民币用费用单的折算金额；幂等键按费用单 ID，重复提交不会重复付款。返回付款单号供日志使用。
+     */
+    private String payPrivately(ExpenseDO e, Long bankAccountId, String payeeAccount) {
+        PayableVO payable = payableQuery.bySource(FinanceConstants.SOURCE_EXPENSE, e.getId());
+        RegisterPaymentRequest r = new RegisterPaymentRequest();
+        r.setMethod(FinanceConstants.METHOD_PRIVATE);
+        r.setBankAccountId(bankAccountId);
+        r.setPayDate(e.getOccurDate());
+        r.setAmount(e.getAmount());
+        r.setAmountCny(e.getAmountCny());
+        r.setRemark("费用单 " + e.getExpenseNo());
+        r.setAttachmentIds(List.of());
+        RegisterPaymentRequest.Line line = new RegisterPaymentRequest.Line();
+        line.setPayableId(payable.getId());
+        line.setAmount(e.getAmount());
+        r.setAllocations(List.of(line));
+        r.setCredits(List.of());
+        r.setIdempotencyKey("FE-" + e.getId());
+        return paymentService.registerForExpense(r, e.getId(), payeeAccount).getPaymentNo();
     }
 
     private ExpenseDO lock(Long id) {
@@ -702,7 +791,7 @@ public class ExpenseService {
                 vo.setReimburseNo(bx.getReimburseNo());
                 vo.setReimburseStatus(bx.getStatus());
             }
-            vo.setLocked(Objects.equals(e.getMethod(), FinanceConstants.METHOD_COMPANY)
+            vo.setLocked(viaPayable(e.getMethod())
                     ? pay != null && (pay.getPaidAmount().signum() != 0 || pay.getCreditAmount().signum() > 0) : bx != null);
             for (ExpenseAllocationDO a : allocs.getOrDefault(e.getId(), List.of())) {
                 ExpenseVO.Alloc av = new ExpenseVO.Alloc();

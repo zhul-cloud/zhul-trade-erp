@@ -73,3 +73,12 @@ it('只有一家货代时自动选中，可以直接发通知', async () => {
     screen.getByRole('button', { name: /发通知/ }).hasAttribute('disabled'),
   ).toBe(false);
 });
+
+/** 弹窗分「物流信息」「发货明细」两区，明细标题旁显示已选型号与件数（feedback-1116-batch1） */
+it('分物流信息、发货明细两区并显示已选件数', async () => {
+  mockForwarders.mockResolvedValue([{ id: 1, name: '货代甲' }]);
+  open();
+  expect(await screen.findByText('物流信息')).toBeTruthy();
+  expect(screen.getByText('发货明细')).toBeTruthy();
+  expect(screen.getByText('已选 1 个型号 · 1 件')).toBeTruthy();
+});

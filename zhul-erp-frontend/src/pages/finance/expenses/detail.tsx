@@ -78,17 +78,21 @@ const ExpenseDetail: React.FC = () => {
   const c = e.currencyCode;
   const valid = e.status === 1;
   const canEdit = !!e.editable && !!access['finance:expense:edit'];
-  const company = e.method === METHOD.COMPANY;
+  const isPrivate = e.method === METHOD.PRIVATE;
+  // 公司对公、私对私走应付单付款
+  const company = e.method === METHOD.COMPANY || isPrivate;
   const voidBlocked = e.locked
-    ? company
-      ? '已经付款，不能作废'
-      : '已在报销单里，不能作废'
+    ? isPrivate
+      ? '私对私已经付款，请先在付款单里作废这笔付款'
+      : company
+        ? '已经付款，不能作废'
+        : '已在报销单里，不能作废'
     : undefined;
   const firstSo = e.allocations[0];
 
   const pay = company ? (
     <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-      公司对公 <PayStatusPill status={e.payStatus} />
+      {isPrivate ? '私对私' : '公司对公'} <PayStatusPill status={e.payStatus} />
     </span>
   ) : (
     <span>
@@ -164,6 +168,25 @@ const ExpenseDetail: React.FC = () => {
           { label: '收款方', value: e.payeeName || '—' },
           { label: '付款方式', value: pay },
           { label: '金额', value: <b>{formatAmount(e.amount, c)}</b> },
+          {
+            label: '付款账户',
+            value: e.payerAccount || '—',
+            hidden: !e.paymentId,
+          },
+          {
+            label: '对方收款账户',
+            value: e.payeeAccount || '—',
+            hidden: !e.paymentId,
+          },
+          {
+            label: '付款单',
+            value: e.paymentId ? (
+              <Link to={DOC_PATHS.payment(e.paymentId)}>
+                {e.paymentNo} · {e.payDate}
+              </Link>
+            ) : undefined,
+            hidden: !e.paymentId,
+          },
           {
             label: '汇率 · 人民币',
             value: `${Number(e.exchangeRate).toFixed(4)} · ${formatAmount(e.amountCny, 'CNY')}`,
@@ -291,7 +314,7 @@ const ExpenseDetail: React.FC = () => {
       <ReasonModal
         open={voiding}
         title={`作废 ${e.expenseNo}`}
-        description="公司对公的应付单随之关闭，员工垫付的从待报销里去掉。金额录错请作废后重新登记。"
+        description="公司对公的应付单随之关闭，员工垫付的从待报销里去掉；私对私要先作废付款单。金额录错请作废后重新登记。"
         okText="作废"
         danger
         onCancel={() => setVoiding(false)}

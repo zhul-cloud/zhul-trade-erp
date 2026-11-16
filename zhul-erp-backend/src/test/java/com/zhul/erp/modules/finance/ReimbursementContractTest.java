@@ -498,6 +498,66 @@ class ReimbursementContractTest extends SalesContractSupport {
         assertFalse(call(get(FE), lin).path("code").asInt() == 0);
     }
 
+    /**
+     * feedback-1116-batch1 私对私费用单：校验对私账户、对方账号与凭证；保存时同一事务生成应付与私对私付款单（付清、
+     * 对方账户脱敏快照、凭证复制为付款截图），不进报销；要先作废付款单才能作废费用单。
+     */
+    @Test
+    void privateExpense_paidOnSave_voidNeedsPaymentVoidFirst() throws Exception {
+        Map<String, Object> body = new HashMap<>();
+        body.put("name", "样品检测费");
+        body.put("occurDate", LocalDate.now().toString());
+        body.put("payeeType", 4);
+        body.put("payeeName", "李工");
+        body.put("currencyCode", "CNY");
+        body.put("amount", 300);
+        body.put("method", 3);
+        body.put("bankAccountId", account);
+        body.put("payeeChannel", 1);
+        body.put("payeeAccountName", "李工");
+        body.put("payeeAccountNo", "138 0000 0000");
+        body.put("allocations", List.of());
+        body.put("attachmentIds", List.of(upload("EXPENSE", admin)));
+        assertEquals("私对私请选择对私账户", fail(call(json(post(FE), write(body)), admin)).path("message").asText());
+        body.put("bankAccountId", personalAccount);
+        body.put("payeeAccountNo", "");
+        assertEquals("请填写对方户名和账号", fail(call(json(post(FE), write(body)), admin)).path("message").asText());
+        body.put("payeeAccountNo", "138 0000 0000");
+        body.put("attachmentIds", List.of());
+        assertEquals("私对私请上传付款凭证", fail(call(json(post(FE), write(body)), admin)).path("message").asText());
+        assertEquals(0, jdbc.queryForObject("select count(*) from fin_expense where tenant_id = 0 and name = '样品检测费'",
+                Integer.class), "校验不过不落库");
+
+        body.put("attachmentIds", List.of(upload("EXPENSE", admin)));
+        JsonNode fe = ok(call(json(post(FE), write(body)), admin));
+        long feId = fe.path("id").asLong();
+        assertEquals(3, fe.path("method").asInt());
+        assertTrue(fe.path("locked").asBoolean(), "保存即已付");
+        JsonNode ap = ok(call(get(AP + "/by-source").param("sourceType", "3").param("sourceId", String.valueOf(feId)), admin));
+        assertEquals(3, ap.path("status").asInt(), "应付已付清");
+        money("300.00", ap.path("paidAmount"));
+        long payId = fe.path("paymentId").asLong();
+        assertEquals("支付宝 · 李工 · 138****0000", fe.path("payeeAccount").asText());
+        assertEquals("招商银行 · 张总 ****1234", fe.path("payerAccount").asText());
+        JsonNode pay = ok(call(get(PY + "/" + payId), admin));
+        assertEquals(3, pay.path("method").asInt());
+        assertEquals(personalAccount, pay.path("bankAccountId").asLong());
+        assertEquals("支付宝 · 李工 · 138****0000", pay.path("payeeAccount").asText());
+        assertEquals(1, pay.path("files").size(), "凭证复制为付款截图");
+        assertFalse(types(ok(call(get(BX + "/pending"), admin))).contains("4:300.00"), "不进报销");
+        assertTrue(fe.path("logs").get(0).path("content").asText().contains("付款单 " + pay.path("paymentNo").asText()));
+
+        assertEquals("私对私已经付款，请先在付款单里作废这笔付款", fail(call(json(post(FE + "/" + feId + "/void"),
+                write(Map.of("reason", "录错"))), admin)).path("message").asText());
+        ok(call(json(post(PY + "/" + payId + "/void"), write(Map.of("reason", "录错"))), admin));
+        JsonNode afterVoid = ok(call(get(FE + "/" + feId), admin));
+        assertFalse(afterVoid.path("locked").asBoolean());
+        assertTrue(afterVoid.path("paymentId").isMissingNode() || afterVoid.path("paymentId").isNull(), "作废的付款不再显示");
+        ok(call(json(post(FE + "/" + feId + "/void"), write(Map.of("reason", "录错"))), admin));
+        assertEquals(4, ok(call(get(AP + "/by-source").param("sourceType", "3").param("sourceId", String.valueOf(feId)), admin))
+                .path("status").asInt(), "费用单作废后应付关闭");
+    }
+
     /** change finance-expense-docs：费用单、报销单、其他收入的详情（关联单据、日志、可编辑）与备注附件，生效后金额类字段不能改 */
     @Test
     void expenseReimbursementIncomeDocs_detailLogs_remarkAttachments_moneyLocked() throws Exception {

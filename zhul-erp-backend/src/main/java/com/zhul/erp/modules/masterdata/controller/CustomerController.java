@@ -2,11 +2,15 @@ package com.zhul.erp.modules.masterdata.controller;
 
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.Result;
+import com.zhul.erp.modules.aitask.translation.CustomerNameTranslations;
+import com.zhul.erp.modules.aitask.translation.TranslationVO;
 import com.zhul.erp.modules.masterdata.dto.AssignableOwnersVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerBatchDeleteRequest;
 import com.zhul.erp.modules.masterdata.dto.CustomerBatchDeleteResultVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerDetailVO;
+import com.zhul.erp.modules.masterdata.dto.CustomerNameTranslateRequest;
 import com.zhul.erp.modules.masterdata.dto.CustomerPageQuery;
+import com.zhul.erp.modules.masterdata.dto.CustomerProfileCountsVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerRefVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerTransferRequest;
 import com.zhul.erp.modules.masterdata.dto.CustomerVO;
@@ -48,6 +52,7 @@ import java.util.Map;
 public class CustomerController {
 
     private final CustomerService customerService;
+    private final CustomerNameTranslations nameTranslations;
 
     @PostMapping
     public Result<CustomerVO> create(@Valid @RequestBody SaveCustomerRequest req) {
@@ -77,6 +82,12 @@ public class CustomerController {
         }
     }
 
+    /** 列表上方的「全部 / 已建档 / 待完善」数量，按数据范围统计 */
+    @GetMapping("/profile-counts")
+    public Result<CustomerProfileCountsVO> profileCounts() {
+        return Result.ok(customerService.profileCounts());
+    }
+
     /** 当前用户可指定 / 转移给的负责人及其数据范围类型 */
     @GetMapping("/assignable-owners")
     public Result<AssignableOwnersVO> assignableOwners() {
@@ -94,6 +105,19 @@ public class CustomerController {
     @PreAuthorize("@perm.has('partner:customer:delete')")
     public Result<CustomerBatchDeleteResultVO> batchDelete(@Valid @RequestBody CustomerBatchDeleteRequest req) {
         return Result.ok(customerService.batchDelete(req.getIds()));
+    }
+
+    /** 编辑页「AI 翻译」按钮：提交翻译，前端按任务编号查结果，译名只填进输入框、不写库 */
+    @PostMapping("/name-translation")
+    @PreAuthorize("@perm.has('partner:customer:add') or @perm.has('partner:customer:edit')")
+    public Result<TranslationVO> translateName(@Valid @RequestBody CustomerNameTranslateRequest req) {
+        return Result.ok(nameTranslations.preview(req.getName()));
+    }
+
+    @GetMapping("/name-translation/{taskId}")
+    @PreAuthorize("@perm.has('partner:customer:add') or @perm.has('partner:customer:edit')")
+    public Result<TranslationVO> translateNameStatus(@PathVariable Long taskId) {
+        return Result.ok(nameTranslations.status(taskId));
     }
 
     /** 引用信息（编码、名称、国家、状态），供询盘等模块回显，不按数据权限过滤 */

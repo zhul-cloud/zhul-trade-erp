@@ -207,7 +207,7 @@ export interface Expense {
   amount: number;
   exchangeRate: number;
   amountCny: number;
-  /** 1-公司对公、2-员工垫付 */
+  /** 1-公司对公、2-员工垫付、3-私对私 */
   method: number;
   advanceUserId?: number;
   advanceUserName?: string;
@@ -215,6 +215,12 @@ export interface Expense {
   /** 1-有效、2-已作废 */
   status: number;
   voidReason?: string;
+  /** 私对私：保存时登记的付款单与账户快照（详情返回；付款单作废后为空） */
+  paymentId?: number;
+  paymentNo?: string;
+  payDate?: string;
+  payerAccount?: string;
+  payeeAccount?: string;
   payableId?: number;
   payStatus?: number;
   paidAmount?: number;
@@ -261,6 +267,11 @@ export interface SaveExpenseBody {
   amount: number;
   method: number;
   advanceUserId?: number;
+  /** 私对私：我方对私付款账户、对方收款方式（1-支付宝、2-微信、3-银行卡）、户名、账号 */
+  bankAccountId?: number;
+  payeeChannel?: number;
+  payeeAccountName?: string;
+  payeeAccountNo?: string;
   remark?: string;
   attachmentIds: number[];
   allocations: { soItemId: number; amount: number }[];
