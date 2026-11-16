@@ -177,7 +177,7 @@ public class DocGroupService {
         byte[] xlsx = XlsxRenderer.render(templateService.resolveDefault(docType).file(), docType, model);
         String base = fileNames.of(g.getTenantId(), ci ? DocFileNames.CI : DocFileNames.PL, support.customer(sh.getCustomerId()),
                 ci ? g.getCiNo() : g.getPlNo());
-        return "pdf".equals(f) ? new TemplateFile(base + ".pdf", "application/pdf", converter.toPdf(xlsx))
+        return "pdf".equals(f) ? new TemplateFile(base + ".pdf", "application/pdf", converter.toSharpPdf(xlsx))
                 : new TemplateFile(base + ".xlsx", XLSX, xlsx);
     }
 
