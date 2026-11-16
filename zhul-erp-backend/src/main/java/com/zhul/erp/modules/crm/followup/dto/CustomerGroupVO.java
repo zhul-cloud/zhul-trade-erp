@@ -16,6 +16,7 @@ public class CustomerGroupVO {
     private Long customerId;
     private String customerName;
     private String country;
+    private String customerContact;
     private String bizGrade;
     private Integer potentialRating;
     private String ownerName;

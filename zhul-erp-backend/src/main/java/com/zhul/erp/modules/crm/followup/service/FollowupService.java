@@ -60,6 +60,7 @@ import com.zhul.erp.modules.crm.followup.support.OrderStageRecorder;
 import com.zhul.erp.modules.crm.service.OpportunityService;
 import com.zhul.erp.modules.crm.support.OpportunityStageRules;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
+import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.masterdata.customerprofile.service.CustomerProfileService;
 import com.zhul.erp.modules.masterdata.customerprofile.support.CustomerGradeSettings;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
@@ -382,6 +383,7 @@ public class FollowupService {
             g.setCustomerId(id);
             g.setCustomerName(lead.getCustomerName());
             g.setCountry(lead.getCountry());
+            g.setCustomerContact(lead.getCustomerContact());
             g.setBizGrade(lead.getBizGrade());
             g.setPotentialRating(lead.getPotentialRating());
             g.setOwnerName(lead.getOwnerName());
@@ -1371,6 +1373,7 @@ public class FollowupService {
             if (c != null) {
                 vo.setCustomerName(c.getName());
                 vo.setCountry(c.getCountry());
+                vo.setCustomerContact(InquiryLookups.contactName(c));
                 vo.setBizGrade(gradeName(c.getBizGrade()));
                 vo.setPotentialRating(nz(c.getPotentialRating()));
             }

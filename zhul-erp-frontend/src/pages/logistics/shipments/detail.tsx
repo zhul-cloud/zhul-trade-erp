@@ -88,7 +88,7 @@ const ShipmentDetail: React.FC = () => {
   const { id: idParam } = useParams<{ id: string }>();
   const id = Number(idParam);
   const { palette } = useAppTheme();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const access = useAccess() as Record<string, boolean>;
   const wide = useWide();
   const canEdit = !!access['logistics:shipment:edit'];
@@ -152,7 +152,26 @@ const ShipmentDetail: React.FC = () => {
     try {
       await logisticsApi.exportDoc(gid, kind, format);
     } catch (e) {
-      message.error(readBizError(e).message);
+      const msg = readBizError(e).message;
+      // 缺信息时逐条列出要补什么、去哪里补（audit BUS-082、BUS-083）
+      const prefix = '导出前请先补全：';
+      if (msg.startsWith(prefix)) {
+        modal.warning({
+          title: '导出前请先补全',
+          content: (
+            <ul style={{ paddingLeft: 18, margin: 0 }}>
+              {msg
+                .slice(prefix.length)
+                .split('；')
+                .map((t) => (
+                  <li key={t}>{t}</li>
+                ))}
+            </ul>
+          ),
+        });
+      } else {
+        message.error(msg);
+      }
     }
   };
 

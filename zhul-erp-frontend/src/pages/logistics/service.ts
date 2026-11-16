@@ -143,6 +143,10 @@ export interface DirectRef {
 export interface PendingGroup {
   customerId: number;
   customerName?: string;
+  customerCountry?: string;
+  customerContact?: string;
+  /** 1-新客户、2-老客户 */
+  customerType?: number;
   forwarderId: number;
   forwarderName?: string;
   outbounds: Outbound[];

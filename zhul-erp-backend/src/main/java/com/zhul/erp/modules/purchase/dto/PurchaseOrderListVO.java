@@ -52,6 +52,10 @@ public class PurchaseOrderListVO implements ShipFields {
     /** 1-现货、2-期货 */
     private Integer stockType;
     private Integer itemCount;
+    /** 第一个型号、去重的品牌与品类，列表按单据页统一规范显示（audit UI-098） */
+    private String firstModel;
+    private java.util.List<String> brands;
+    private java.util.List<String> categories;
     private Integer totalQuantity;
     /** 还没填单价的行数 */
     private Integer missingPriceCount;

@@ -215,6 +215,8 @@ export interface FollowupItem {
   customerId: number;
   customerName: string;
   country?: string;
+  /** 客户主联系人 */
+  customerContact?: string;
   /** 经营等级名称：S / A / B / C，空为未成交 */
   bizGrade?: string;
   potentialRating?: number;
@@ -469,6 +471,7 @@ export interface CustomerGroup {
   customerId: number;
   customerName: string;
   country?: string;
+  customerContact?: string;
   bizGrade?: string;
   potentialRating?: number;
   ownerName?: string;

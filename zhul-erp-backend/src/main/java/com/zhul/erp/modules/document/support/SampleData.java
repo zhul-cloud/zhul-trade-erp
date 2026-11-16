@@ -205,6 +205,9 @@ public final class SampleData {
         h.put("consignee.contact", "Mike Lee");
         h.put("consignee.phone", "+1 713 111 1111");
         h.put("consignee.email", "");
+        h.put("customer.whatsapp", "+1 713 222 2222");
+        h.put("buyer.whatsapp", "+1 713 222 2222");
+        h.put("consignee.whatsapp", "+1 713 222 2222");
         h.put("seller.name", "Sales Rep");
         h.put("seller.email", "sales@example.com");
         h.put("seller.phone", "+86 591 0000 0000");

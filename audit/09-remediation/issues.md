@@ -88,6 +88,8 @@
 | [BUS-079](tasks/2026-11-15-BUS-042-incremental-audit.md) | 退货入库验收与作废销售退货的加锁顺序相反，并发时可能死锁回滚 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-16 |
 | [BUS-080](tasks/2026-11-15-BUS-042-incremental-audit.md) | 经营看板「应收未收」仍按 PI 合计减已到账，订单部分取消或补费用后口径不一致（BUS-049 同类） | P2 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-16 |
 | [BUS-081](tasks/2026-11-15-BUS-042-incremental-audit.md) | 经营看板「应收未收」只算 PI，收款记在订单上的手动订单、费用订单没有计入（收款工作台已计入） | P2 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-16 |
+| [BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | CI 导出：寄件方（Shipper）电话、邮箱、联系人为空；收货人地址只有国家；H.S Code 为空；缺信息时仍能导出 | P2 | 待合并 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
+| [BUS-083](tasks/2026-11-16-BUS-082-feedback-1116.md) | PL 导出：收货人邮箱、WhatsApp 不显示，地址只有国家；缺信息时仍能导出 | P2 | 待合并 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
 
 ## 前端
 
@@ -188,6 +190,10 @@
 | [UI-093](tasks/2026-11-15-BUS-042-incremental-audit.md) | 待归类信号列表缺少四个固定审计列，每页条数写死；型号清单和专项表格用 max-content 横向滚动 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-15 |
 | [UI-094](tasks/2026-11-15-BUS-042-incremental-audit.md) | 需求对象合并弹窗只说信号会并入，没有说明覆盖渠道和专项型号也会并到保留方 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-16 |
 | [UI-095](tasks/2026-11-16-UI-095-ship-notice-forwarder.md) | 发货通知有多家货代时不默认选中，「发通知」置灰却不说原因；货代下拉还混着历史迁移的「未登记货代」占位 | P2 | 已发布待验收 | Claude | [2026-11-16-UI-095](tasks/2026-11-16-UI-095-ship-notice-forwarder.md) | 2026-11-16 |
+| [UI-096](tasks/2026-11-16-BUS-082-feedback-1116.md) | 出运管理「待出运」按客户分组时只显示客户名称，没有按统一客户列显示国家 / 地区与主联系人 | P3 | 待合并 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
+| [UI-097](tasks/2026-11-16-BUS-082-feedback-1116.md) | 客户跟进页面的客户没有按统一客户列（名称、国家 / 地区、主联系人三行）显示 | P3 | 待合并 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
+| [UI-098](tasks/2026-11-16-BUS-082-feedback-1116.md) | 采购订单列表只显示型号数，没有按单据页统一规范显示品牌、品类、型号 | P3 | 待合并 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
+| [UI-099](tasks/2026-11-16-BUS-082-feedback-1116.md) | CI 导出的 DESCRIPTION 列不随内容自动调整，公司印章歪斜、模糊 | P3 | 处理中 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-16 |
 
 ## AI 可靠性
 
