@@ -146,6 +146,22 @@ class OutboundShippingContractTest extends SalesContractSupport {
     // ---------------------------------------------------------------- 发货通知、打包、交快递
 
     /** 打包发货的照片进素材库并标注型号；缺营销图只提醒、不影响打包；重新打包去掉照片后移出素材库 */
+    /** 发货通知的货代下拉：不含历史迁移的「未登记货代」占位，它只挂历史出运单 */
+    @Test
+    void forwarders_excludeMigrationPlaceholder() throws Exception {
+        long placeholder = forwarder("未登记货代（历史迁移）", 5000);
+        jdbc.update("insert into migration_id_map (tenant_id, batch_id, source_table, source_code, source_hash, target_table, target_id, status)"
+                + " values (0, 0, 'suppliers', 'MIG-FORWARDER', '', 'supplier', ?, 1)", placeholder);
+        try {
+            List<Long> ids = new ArrayList<>();
+            ok(call(get("/api/v1/logistics/forwarders"), admin)).forEach(f -> ids.add(f.path("id").asLong()));
+            assertTrue(ids.contains(forwarder), ids.toString());
+            assertFalse(ids.contains(placeholder), "迁移占位不出现在下拉里：" + ids);
+        } finally {
+            jdbc.update("delete from migration_id_map where tenant_id = 0 and source_code = 'MIG-FORWARDER'");
+        }
+    }
+
     @Test
     void pack_photosIntoMediaLibrary_missingMarketingOnlyReminds() throws Exception {
         JsonNode po = orderedPo(supplier("华控自动化", null), 10);

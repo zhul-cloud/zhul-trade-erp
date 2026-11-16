@@ -187,6 +187,7 @@
 | [UI-092](tasks/2026-11-15-BUS-042-incremental-audit.md) | 品牌和品类选项用模块级缓存，从不失效，首次加载失败后整段会话下拉一直为空 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-15 |
 | [UI-093](tasks/2026-11-15-BUS-042-incremental-audit.md) | 待归类信号列表缺少四个固定审计列，每页条数写死；型号清单和专项表格用 max-content 横向滚动 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-15 |
 | [UI-094](tasks/2026-11-15-BUS-042-incremental-audit.md) | 需求对象合并弹窗只说信号会并入，没有说明覆盖渠道和专项型号也会并到保留方 | P3 | 已合并待发布 | Claude | [2026-11-15-BUS-042](tasks/2026-11-15-BUS-042-incremental-audit.md) | 2026-11-16 |
+| [UI-095](tasks/2026-11-16-UI-095-ship-notice-forwarder.md) | 发货通知有多家货代时不默认选中，「发通知」置灰却不说原因；货代下拉还混着历史迁移的「未登记货代」占位 | P2 | 待合并 | Claude | [2026-11-16-UI-095](tasks/2026-11-16-UI-095-ship-notice-forwarder.md) | 2026-11-16 |
 
 ## AI 可靠性
 
