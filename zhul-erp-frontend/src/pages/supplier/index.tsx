@@ -30,8 +30,8 @@ import {
   SUPPLIER_TYPE_SELECT_OPTIONS,
 } from './constants';
 import {
-  categoryGroups,
   ScopeBrandTags,
+  topCategoryOptions,
   useScopeCatalog,
 } from './productScope';
 import {
@@ -445,7 +445,7 @@ const SupplierListPage: React.FC = () => {
               placeholder="全部"
               allowClear
               showSearch={{ optionFilterProp: 'label' }}
-              options={categoryGroups(tree)}
+              options={topCategoryOptions(tree)}
             />
           </Form.Item>
           <Form.Item label=" " style={{ gridColumn: '-2 / -1' }}>

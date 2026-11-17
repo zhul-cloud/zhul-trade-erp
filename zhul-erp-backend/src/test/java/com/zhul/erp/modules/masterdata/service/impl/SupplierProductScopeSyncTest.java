@@ -65,7 +65,7 @@ class SupplierProductScopeSyncTest {
             List<ProductCategoryDO> out = new ArrayList<>();
             for (Object id : (java.util.Collection<?>) inv.getArgument(0)) {
                 long v = (Long) id;
-                out.add(category(v, v >= 100 ? 1L : null, v == 101 ? "PLC" : v == 102 ? "HMI" : "Controllers"));
+                out.add(category(v, v >= 100 ? null : 1L, v == 101 ? "PLC" : v == 102 ? "HMI" : "Controllers"));
             }
             return out;
         });
@@ -114,10 +114,10 @@ class SupplierProductScopeSyncTest {
     }
 
     @Test
-    void normalize_onlySubCategoriesAllowed() {
+    void normalize_onlyTopCategoriesAllowed() {
         BizException e = assertThrows(BizException.class,
                 () -> sync.normalize(List.of(req(1L, null, 5L))));
-        assertThat(e.getMessage()).isEqualTo("主营品类只能选择细分品类");
+        assertThat(e.getMessage()).isEqualTo("主营品类只能选择一级品类");
     }
 
     @Test

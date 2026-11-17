@@ -80,11 +80,11 @@ public class SupplierProductScopeSync {
         }
         if (!allCategoryIds.isEmpty()) {
             List<ProductCategoryDO> categories = categoryMapper.selectBatchIds(allCategoryIds);
-            Set<Long> subIds = categories.stream()
-                    .filter(c -> c.getDeletedAt() == null && c.getParentId() != null)
+            Set<Long> topIds = categories.stream()
+                    .filter(c -> c.getDeletedAt() == null && (c.getParentId() == null || c.getParentId() == 0))
                     .map(ProductCategoryDO::getId).collect(Collectors.toSet());
-            if (!subIds.containsAll(allCategoryIds)) {
-                throw new BizException("主营品类只能选择细分品类");
+            if (!topIds.containsAll(allCategoryIds)) {
+                throw new BizException("主营品类只能选择一级品类");
             }
         }
         return new ArrayList<>(byKey.values());
@@ -190,10 +190,18 @@ public class SupplierProductScopeSync {
     }
 
     /**
-     * 按主营品牌 / 细分品类筛选出的供应商 ID（本租户）。有品牌时，「该品牌全部品类」也算命中该品牌下的任意细分品类；
-     * 只按品类筛选时只命中明确选了该品类的供应商（全部品类不对应具体品类，算进去会让筛选失去意义）。
+     * 按主营品牌 / 品类筛选出的供应商 ID（本租户）。主营品类是一级品类；按细分品类查时命中选了它上级的供应商。
+     * 有品牌时，「该品牌全部品类」也算命中；只按品类筛选时只命中明确选了该品类的供应商（全部品类不对应具体品类，算进去会让筛选失去意义）。
      */
     public Set<Long> supplierIdsMatching(Integer tenantId, Long brandId, Long categoryId) {
+        List<Long> cats = new ArrayList<>(2);
+        if (categoryId != null) {
+            cats.add(categoryId);
+            ProductCategoryDO c = categoryMapper.selectById(categoryId);
+            if (c != null && c.getParentId() != null && c.getParentId() != 0) {
+                cats.add(c.getParentId());
+            }
+        }
         LambdaQueryWrapper<SupplierProductScopeDO> w = new LambdaQueryWrapper<SupplierProductScopeDO>()
                 .select(SupplierProductScopeDO::getSupplierId)
                 .eq(SupplierProductScopeDO::getTenantId, tenantId)
@@ -201,10 +209,10 @@ public class SupplierProductScopeSync {
                 .eq(brandId != null, SupplierProductScopeDO::getBrandId, brandId);
         if (categoryId != null) {
             if (brandId != null) {
-                w.and(x -> x.eq(SupplierProductScopeDO::getCategoryId, categoryId)
+                w.and(x -> x.in(SupplierProductScopeDO::getCategoryId, cats)
                         .or().isNull(SupplierProductScopeDO::getCategoryId));
             } else {
-                w.eq(SupplierProductScopeDO::getCategoryId, categoryId);
+                w.in(SupplierProductScopeDO::getCategoryId, cats);
             }
         }
         return scopeMapper.selectList(w).stream().map(SupplierProductScopeDO::getSupplierId).collect(Collectors.toSet());
