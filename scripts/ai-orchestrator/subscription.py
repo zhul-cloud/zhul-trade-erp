@@ -45,6 +45,15 @@ def stop_process(process):
     process.communicate()
 
 
+class SubscriptionCallError(RuntimeError):
+    """订阅调用失败；code 为 worker 的安全错误码（auth / runtime / invalid / timeout），
+    供自动切换判断是不是连接方式本身的问题（openspec ai-connection-failover），消息文字不变"""
+
+    def __init__(self, message, code):
+        super().__init__(message)
+        self.code = code
+
+
 class SearchLimitError(RuntimeError):
     """订阅调用达到联网搜索阈值被终止；分批解析时只影响这一批，改为不联网重新提取（OpenSpec inquiry-large-attachments）"""
 
@@ -105,7 +114,7 @@ def call_subscription(provider, system_prompt, text, attachments, schema, *, mod
             stdout, _ = process.communicate(json.dumps(request, ensure_ascii=False), timeout=timeout)
         except subprocess.TimeoutExpired as exc:
             stop_process(process)
-            raise RuntimeError(f"AI 处理超过 {timeout} 秒未完成，已终止订阅进程") from exc
+            raise SubscriptionCallError(f"AI 处理超过 {timeout} 秒未完成，已终止订阅进程", "timeout") from exc
         finally:
             # 即使 worker 已退出，仍按原进程组清理 CLI wrapper 派生的子进程。
             if os.name != "nt":
@@ -121,12 +130,13 @@ def call_subscription(provider, system_prompt, text, attachments, schema, *, mod
                       "search_limit": "联网搜索操作达到订阅模式上限，任务已终止，请拆分询盘后重试",
                       "invalid": "订阅 CLI 未返回符合约定结构的完整结果",
                       "runtime": "订阅 CLI 调用失败；请检查登录、订阅额度、模型与容器运行环境"}
-            raise RuntimeError(errors.get(stdout.strip(), errors["runtime"]))
+            code = stdout.strip() if stdout.strip() in errors else "runtime"
+            raise SubscriptionCallError(errors[code], code)
         try:
             result = json.loads(stdout)
             jsonschema.validate(result, schema)
         except (json.JSONDecodeError, jsonschema.ValidationError) as exc:
-            raise RuntimeError("订阅 CLI 未返回符合约定结构的完整结果") from exc
+            raise SubscriptionCallError("订阅 CLI 未返回符合约定结构的完整结果", "invalid") from exc
         return result
 
 

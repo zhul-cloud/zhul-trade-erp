@@ -67,7 +67,7 @@ import jsonschema
 import openai
 
 import large_parse as lp
-from subscription import SearchLimitError, call_subscription, codex_models, login_status
+from subscription import SearchLimitError, SubscriptionCallError, call_subscription, codex_models, login_status
 
 PORT = int(os.environ.get("AI_STUB_PORT", "8899"))
 CALLBACK_TOKEN = os.environ.get("AI_TASK_CALLBACK_TOKEN", "zhul-erp-ai-callback-secret")
@@ -233,9 +233,11 @@ def mask_key(key: str) -> str:
     return "•" * 27 if len(key) < 12 else f"{key[:7]}{'•' * 16}{key[-4:]}"
 
 
-def scrub(text: str, key: str) -> str:
-    """错误信息里如果带了 Key，换成脱敏值"""
-    return text.replace(key, mask_key(key)) if key and text else text
+def scrub(text: str, keys) -> str:
+    """错误信息里如果带了 Key（一个或多个），换成脱敏值"""
+    for key in ([keys] if isinstance(keys, str) else keys or []):
+        text = text.replace(key, mask_key(key)) if key and text else text
+    return text
 
 
 class ConfigError(ValueError):
@@ -297,6 +299,133 @@ def parse_ai_config(raw, require_key: bool = True) -> AiConfig:
                     translate_model=text("translate_model") or defaults["translate"],
                     parse_effort=efforts["parse_effort"], translate_effort=efforts["translate_effort"],
                     max_web_searches=searches)
+
+
+# ---------------------------------------------------------------- 连接方式自动切换（openspec ai-connection-failover）
+
+#: 单次调用超时时，任务剩余时间至少这么多才换下一个方式，否则换了也来不及
+FAILOVER_MIN_REMAINING = 120
+#: 切换原因分类码 → 给人看的说明（不含服务商返回的原文，避免带出 Key 或账号信息）
+FAILOVER_REASONS = {"auth": "认证失败", "quota": "额度用完", "rate_limit": "请求过多", "provider_error": "服务商故障",
+                    "timeout": "调用超时", "not_logged_in": "订阅未登录", "usage_limit": "达到用量上限"}
+
+
+class AllConnectionsFailed(RuntimeError):
+    """列表中每个连接方式都因连接方式本身的问题失败"""
+
+
+def connection_name(cfg: AiConfig) -> str:
+    return f"{cfg.mode}:{cfg.provider}"
+
+
+def _connection_label(name: str) -> str:
+    mode, _, provider = name.partition(":")
+    return f"{'Claude' if provider == 'claude' else 'OpenAI'} {'API Key' if mode == 'api' else '平台订阅'}"
+
+
+class AiChain:
+    """任务携带的有序连接方式：依次使用，失败的方式在本任务内不再尝试（并行批次共用，加锁）；
+    记录切换（实时报告后端）与最后成功的方式（结果回调带回）"""
+
+    def __init__(self, configs, callback_url=None):
+        self.configs = list(configs)
+        self.callback_url = callback_url
+        self.failovers = []
+        self.used = None
+        self._failed = set()
+        self._lock = threading.Lock()
+
+    def candidates(self):
+        with self._lock:
+            return [c for c in self.configs if connection_name(c) not in self._failed]
+
+    def fail(self, cfg: AiConfig, reason: str):
+        name = connection_name(cfg)
+        with self._lock:
+            if name in self._failed:
+                return
+            self._failed.add(name)
+            event = {"connection": name, "reason": reason, "at": int(time.time())}
+            self.failovers.append(event)
+        if self.callback_url:
+            send_failover(self.callback_url, event)
+
+    def succeed(self, cfg: AiConfig):
+        with self._lock:
+            self.used = connection_name(cfg)
+
+    def summary(self) -> str:
+        with self._lock:
+            parts = [f"{_connection_label(f['connection'])}{FAILOVER_REASONS.get(f['reason'], '不可用')}"
+                     for f in self.failovers]
+        return "AI 连接方式都不可用：" + ("、".join(parts) if parts else "没有可用的连接方式")
+
+
+_CHAINS = {}
+_CHAINS_LOCK = threading.Lock()
+
+
+def parse_chain(payload: dict, callback_url: str = None) -> AiChain:
+    """任务携带的连接方式列表：新版后端放在 connections（有序），旧版只有 ai 一项"""
+    raws = payload.get("connections")
+    if not isinstance(raws, list) or not raws:
+        raws = [payload.get("ai")]
+    chain = AiChain([parse_ai_config(r) for r in raws], callback_url)
+    if callback_url:
+        with _CHAINS_LOCK:
+            _CHAINS[callback_url] = chain
+    return chain
+
+
+def _keys_of(cfg) -> list:
+    """一个连接方式或整个列表里的 Key，用于日志脱敏"""
+    return [c.api_key for c in (cfg.configs if isinstance(cfg, AiChain) else [cfg]) if c.api_key]
+
+
+def _forget_chain(callback_url: str):
+    with _CHAINS_LOCK:
+        return _CHAINS.pop(callback_url, None)
+
+
+def _status_code(e: Exception):
+    return getattr(e, "status_code", None)
+
+
+def _error_text(e: Exception) -> str:
+    body = getattr(e, "body", None)
+    return (str(body) if body else "") + " " + str(e)
+
+
+def failover_reason(e: Exception):
+    """失败是不是连接方式本身的问题：是则返回原因分类码（换下一个方式），否则 None（按原规则处理，不切换）。
+    _with_retries 已在同一方式上重试过连接错误、限流与 5xx，这里拿到的是重试后仍失败的结果"""
+    if isinstance(e, (JobTimeout, SearchLimitError, ConfigError, AllConnectionsFailed)):
+        return None
+    if isinstance(e, (anthropic.APITimeoutError, openai.APITimeoutError)):
+        return "timeout" if remaining() >= FAILOVER_MIN_REMAINING else None
+    if isinstance(e, (anthropic.APIConnectionError, openai.APIConnectionError)):
+        return "provider_error"
+    if isinstance(e, (anthropic.APIStatusError, openai.APIStatusError)):
+        code = _status_code(e)
+        text = _error_text(e).lower()
+        if code in (401, 403):
+            return "auth"
+        if code == 402 or "insufficient_quota" in text or "credit balance" in text or "billing" in text:
+            return "quota"
+        if code == 429:
+            return "rate_limit"
+        if code in (408, 409) or (code is not None and code >= 500):
+            return "provider_error"
+        return None
+    if isinstance(e, SubscriptionCallError):
+        if e.code == "auth":
+            return "not_logged_in"
+        if e.code == "timeout":
+            return "timeout" if remaining() >= FAILOVER_MIN_REMAINING else None
+        if e.code == "runtime":
+            return "usage_limit"
+        return None
+    return None
 
 
 def _read_skill(name: str) -> str:
@@ -393,9 +522,38 @@ def _openai_attachment_block(ref) -> dict:
     return {"type": "input_image", "image_url": f"data:{IMAGE_TYPES[ext]};base64,{data}"}
 
 
-def call_api(cfg: AiConfig, system_prompt: str, text: str, attachments: list, schema: dict, *,
-             model: str, effort: str, web_search: bool = False) -> dict:
-    """按任务携带的配置调用对应服务商，返回符合 schema 的 JSON"""
+def call_api(chain, system_prompt: str, text: str, attachments: list, schema: dict, *,
+             role: str, web_search: bool = False) -> dict:
+    """按任务携带的连接方式列表依次调用（openspec ai-connection-failover「执行中自动切换」）：
+    当前方式因连接方式本身的问题失败时，只重做这一次调用、换下一个方式，并记下切换；内容本身的错误原样抛出。
+    role 为 parse / translate，每个方式用自己的模型与思考强度"""
+    if isinstance(chain, AiConfig):
+        chain = AiChain([chain])
+    last_error = None
+    for cfg in chain.candidates():
+        model, effort = ((cfg.parse_model, cfg.parse_effort) if role == "parse"
+                         else (cfg.translate_model, cfg.translate_effort))
+        try:
+            result = _call_once(cfg, system_prompt, text, attachments, schema, model=model, effort=effort,
+                                web_search=web_search)
+        except Exception as e:  # noqa: BLE001 只有归为「换方式」的才接住，其余原样抛出
+            reason = failover_reason(e)
+            if reason is None:
+                raise
+            print(f"[ai-orchestrator] 连接方式 {connection_name(cfg)} 失败（{reason}），改用下一个")
+            chain.fail(cfg, reason)
+            last_error = e
+            continue
+        chain.succeed(cfg)
+        return result
+    if last_error is not None and len(chain.configs) == 1:
+        raise last_error  # 只有一个方式时没有可换的，保留原有的失败说明（如超时）
+    raise AllConnectionsFailed(chain.summary())
+
+
+def _call_once(cfg: AiConfig, system_prompt: str, text: str, attachments: list, schema: dict, *,
+               model: str, effort: str, web_search: bool = False) -> dict:
+    """用一个连接方式调用一次，返回符合 schema 的 JSON"""
     if cfg.mode == "subscription":
         wire_schema = _required_nullable_schema(schema) if cfg.provider == "openai" else schema
         result = call_subscription(cfg.provider, system_prompt, text, attachments, wire_schema, model=model,
@@ -557,7 +715,7 @@ def call_parse(cfg: AiConfig, raw_content: str, file_paths=None, categories=None
     else:
         text = raw_content
     structured = call_api(cfg, build_system_prompt(categories), text, file_paths, OUTPUT_SCHEMA,
-                          model=cfg.parse_model, effort=cfg.parse_effort, web_search=web_search)
+                          role="parse", web_search=web_search)
     if "groups" not in structured:
         raise RuntimeError("AI 未返回符合 schema 的结构化输出")
     return structured
@@ -612,24 +770,24 @@ COMPANY_PROMPT = """你是外贸公司的翻译。把下面每一条客户公司
 def call_translate(cfg: AiConfig, items: list, prompt: str = TRANSLATE_PROMPT) -> dict:
     """通过 API 翻译型号描述或联系人名称，不启用搜索工具。"""
     text = json.dumps({"items": items}, ensure_ascii=False)
-    structured = call_api(cfg, prompt, text, [], TRANSLATE_SCHEMA, model=cfg.translate_model,
-                          effort=cfg.translate_effort)
+    structured = call_api(cfg, prompt, text, [], TRANSLATE_SCHEMA, role="translate")
     if "items" not in structured:
         raise RuntimeError("AI 未返回符合 schema 的翻译结果")
     print(f"[ai-orchestrator] 翻译完成 {len(items)} 条")
     return structured
 
 
-def _api_key_of(payload: dict) -> str:
-    raw = payload.get("ai")
-    return str(raw.get("api_key") or "") if isinstance(raw, dict) else ""
+def _api_key_of(payload: dict) -> list:
+    """任务携带的全部 Key（ai 与 connections），错误信息里出现时脱敏"""
+    raws = [payload.get("ai")] + (payload.get("connections") if isinstance(payload.get("connections"), list) else [])
+    return [str(r.get("api_key")) for r in raws if isinstance(r, dict) and r.get("api_key")]
 
 
 def process_translate(payload: dict, callback_url: str, prompt: str = TRANSLATE_PROMPT):
     start_job()
     key = _api_key_of(payload)
     try:
-        cfg = parse_ai_config(payload.get("ai"))
+        cfg = parse_chain(payload, callback_url)
         items = (payload.get("input") or {}).get("items") or []
         if not items:
             send_callback(callback_url, "failed", error="没有需要翻译的内容")
@@ -699,7 +857,7 @@ def call_candidate_classify(cfg: AiConfig, input_data: dict) -> dict:
     for i in range(0, len(items), CANDIDATE_BATCH):
         batch = items[i:i + CANDIDATE_BATCH]
         structured = call_api(cfg, prompt, json.dumps({"items": batch}, ensure_ascii=False), [], CANDIDATE_SCHEMA,
-                              model=cfg.parse_model, effort=cfg.parse_effort)
+                              role="parse")
         if "items" not in structured:
             raise RuntimeError("AI 未返回符合 schema 的结果")
         results.extend(structured["items"])
@@ -711,7 +869,7 @@ def process_candidate(payload: dict, callback_url: str):
     start_job()
     key = _api_key_of(payload)
     try:
-        cfg = parse_ai_config(payload.get("ai"))
+        cfg = parse_chain(payload, callback_url)
         input_data = payload.get("input") or {}
         if not input_data.get("items"):
             send_callback(callback_url, "failed", error="没有需要解析的候选")
@@ -751,7 +909,7 @@ def call_category_refine(cfg: AiConfig, input_data: dict) -> dict:
     for i in range(0, len(items), CANDIDATE_BATCH):
         batch = items[i:i + CANDIDATE_BATCH]
         structured = call_api(cfg, prompt, json.dumps({"items": batch}, ensure_ascii=False), [], CANDIDATE_SCHEMA,
-                              model=cfg.parse_model, effort=cfg.parse_effort)
+                              role="parse")
         if "items" not in structured:
             raise RuntimeError("AI 未返回符合 schema 的结果")
         results.extend(structured["items"])
@@ -763,7 +921,7 @@ def process_refine(payload: dict, callback_url: str):
     start_job()
     key = _api_key_of(payload)
     try:
-        cfg = parse_ai_config(payload.get("ai"))
+        cfg = parse_chain(payload, callback_url)
         input_data = payload.get("input") or {}
         if not input_data.get("items"):
             send_callback(callback_url, "failed", error="没有需要细分的商品")
@@ -846,7 +1004,7 @@ def call_background(cfg: AiConfig, input_data: dict) -> dict:
     """research 联网背调；extract 只从上传的报告提取，不联网。用询盘解析的模型与思考强度"""
     research = input_data.get("mode") == "research"
     structured = call_api(cfg, _read_skill(BACKGROUND_SKILL), build_background_text(input_data), [],
-                          BACKGROUND_SCHEMA, model=cfg.parse_model, effort=cfg.parse_effort, web_search=research)
+                          BACKGROUND_SCHEMA, role="parse", web_search=research)
     if "conclusion" not in structured:
         raise RuntimeError("AI 未返回符合 schema 的背调结果")
     structured.setdefault("suggestions", [])
@@ -859,7 +1017,7 @@ def process_background(payload: dict, callback_url: str):
     start_job()
     key = _api_key_of(payload)
     try:
-        cfg = parse_ai_config(payload.get("ai"))
+        cfg = parse_chain(payload, callback_url)
         input_data = payload.get("input") or {}
         mode = input_data.get("mode")
         if mode not in ("research", "extract"):
@@ -1020,7 +1178,7 @@ def call_followup_extract(cfg: AiConfig, input_data: dict) -> dict:
     """整理一次跟进；不联网，用翻译的模型与思考强度（轻量、快）"""
     prepared = followup_extract_input(input_data)
     structured = call_api(cfg, _read_skill(FOLLOWUP_EXTRACT_SKILL), json.dumps(prepared, ensure_ascii=False, indent=1), [],
-                          FOLLOWUP_EXTRACT_SCHEMA, model=cfg.translate_model, effort=cfg.translate_effort)
+                          FOLLOWUP_EXTRACT_SCHEMA, role="translate")
     if "summary" not in structured:
         raise RuntimeError("AI 未返回符合 schema 的跟进整理结果")
     return sanitize_followup_extract(structured, prepared)
@@ -1029,7 +1187,7 @@ def call_followup_extract(cfg: AiConfig, input_data: dict) -> dict:
 def call_followup_reply(cfg: AiConfig, input_data: dict) -> dict:
     """按客户上下文和卡点写一条英文跟进消息"""
     structured = call_api(cfg, _read_skill(FOLLOWUP_REPLY_SKILL), json.dumps(input_data, ensure_ascii=False, indent=1), [],
-                          FOLLOWUP_REPLY_SCHEMA, model=cfg.translate_model, effort=cfg.translate_effort)
+                          FOLLOWUP_REPLY_SCHEMA, role="translate")
     if not (structured.get("reply") or "").strip():
         raise RuntimeError("AI 未返回英文回复")
     return {"reply": structured["reply"].strip(), "intent": str(structured.get("intent") or "").strip()[:200]}
@@ -1039,7 +1197,7 @@ def process_followup(payload: dict, callback_url: str, skill_id: str):
     start_job()
     key = _api_key_of(payload)
     try:
-        cfg = parse_ai_config(payload.get("ai"))
+        cfg = parse_chain(payload, callback_url)
         input_data = payload.get("input") or {}
         if skill_id == FOLLOWUP_EXTRACT_SKILL:
             if not (input_data.get("rawContent") or "").strip():
@@ -1155,7 +1313,7 @@ def call_quote_parse(cfg: AiConfig, input_data: dict) -> dict:
     raw = (input_data.get("rawContent") or "").strip()[:QUOTE_RAW_MAX]
     prepared = {**input_data, "rawContent": raw}
     structured = call_api(cfg, _read_skill(QUOTE_PARSE_SKILL), json.dumps(prepared, ensure_ascii=False, indent=1), [],
-                          QUOTE_PARSE_SCHEMA, model=cfg.translate_model, effort=cfg.translate_effort)
+                          QUOTE_PARSE_SCHEMA, role="translate")
     if "rows" not in structured:
         raise RuntimeError("AI 未返回符合 schema 的报价识别结果")
     return sanitize_quote_parse(structured, prepared)
@@ -1165,7 +1323,7 @@ def process_quote_parse(payload: dict, callback_url: str):
     start_job()
     key = _api_key_of(payload)
     try:
-        cfg = parse_ai_config(payload.get("ai"))
+        cfg = parse_chain(payload, callback_url)
         input_data = payload.get("input") or {}
         if not (input_data.get("rawContent") or "").strip():
             send_callback(callback_url, "failed", error="没有需要识别的报价")
@@ -1189,6 +1347,12 @@ def send_callback(callback_url: str, status: str, output=None, error=None) -> bo
     usage = _take_usage()
     if usage:
         body["usage"] = usage
+    chain = _forget_chain(callback_url)
+    if chain is not None:
+        if chain.used:
+            body["connection"] = chain.used
+        if chain.failovers:
+            body["failovers"] = chain.failovers
     body = json.dumps(body).encode("utf-8")
     req = urllib.request.Request(
         callback_url,
@@ -1219,6 +1383,19 @@ def send_callback(callback_url: str, status: str, output=None, error=None) -> bo
     print(f"[ai-orchestrator] callback GAVE UP -> {callback_url}: 重投 {len(CALLBACK_RETRY_DELAYS)} 次仍失败，"
           f"任务将由后端超时扫描判为失败")
     return False
+
+
+def send_failover(callback_url: str, event: dict):
+    """执行中刚发生一次切换就报告后端，让失败的连接方式立刻暂停、新任务避开；只发一次、不重投，失败不影响任务
+    （结果回调会再带上全部切换）"""
+    body = json.dumps({"status": "failover", "failovers": [event]}).encode("utf-8")
+    req = urllib.request.Request(callback_url, data=body, method="POST",
+                                 headers={"Content-Type": "application/json", "X-AI-Callback-Token": CALLBACK_TOKEN})
+    try:
+        with urllib.request.urlopen(req, timeout=10):
+            pass
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        print(f"[ai-orchestrator] 切换报告失败（{event.get('connection')}）：{type(e).__name__}")
 
 
 def send_progress(callback_url: str, done: int, total: int, stage: str):
@@ -1362,7 +1539,7 @@ def _parse_large(cfg, raw_content, refs, categories, work, progress, usages) -> 
 
     def reason(e: Exception) -> str:
         """失败原因写进日志：异常类型与脱敏后的说明，不含询盘内容"""
-        return f"{type(e).__name__}: {scrub(str(e), cfg.api_key)[:200]}"
+        return f"{type(e).__name__}: {scrub(str(e), _keys_of(cfg))[:200]}"
     usage_lock = threading.Lock()
     system_prompt = build_system_prompt(categories)
 
@@ -1388,7 +1565,7 @@ def _parse_large(cfg, raw_content, refs, categories, work, progress, usages) -> 
             propagate()  # 每次调用（含重试）重新计算单次期限
             try:
                 result = call_api(cfg, system_prompt, text, [(u.image, u.ext) for u in images], EXTRACT_SCHEMA,
-                                  model=cfg.parse_model, effort=cfg.parse_effort, web_search=False)
+                                  role="parse", web_search=False)
                 collect_usage()
                 progress.step()
                 return result.get("groups", []), labels
@@ -1417,7 +1594,7 @@ def _parse_large(cfg, raw_content, refs, categories, work, progress, usages) -> 
         propagate()
         try:
             result = call_api(cfg, system_prompt, VERIFY_PROMPT.format(count=len(chunk), items=lp.dumps(brief)),
-                              [], OUTPUT_SCHEMA, model=cfg.parse_model, effort=cfg.parse_effort, web_search=True)
+                              [], OUTPUT_SCHEMA, role="parse", web_search=True)
             collect_usage()
             # 按原文型号把核验结果对回提交的型号，不依赖返回顺序（实测模型会调换顺序，按位置对会张冠李戴）；
             # 对不上的型号不采用核验结果，标待核实。原文型号相同的可能有多条（各批确认成不同型号），
@@ -1477,7 +1654,7 @@ def process_job(payload: dict, callback_url: str):
     limit = TIMEOUT_SECONDS
     key = _api_key_of(payload)
     try:
-        cfg = parse_ai_config(payload.get("ai"))
+        cfg = parse_chain(payload, callback_url)
         input_data = payload.get("input") or {}
         raw_content = (input_data.get("rawContent") or "").strip()
         # 附件都通过后端签发的临时链接传来（[{"url", "ext", "name", "size", "role", "no"}]），本服务下载后处理。

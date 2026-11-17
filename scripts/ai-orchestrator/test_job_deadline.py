@@ -145,7 +145,7 @@ class JobDeadlineTest(unittest.TestCase):
         self.clock.now = 300
         with mock.patch.object(self.server, "call_subscription", side_effect=fake_subscription):
             self.server.call_api(self.server.parse_ai_config(ai(mode="subscription", api_key="")), "s", "t", [],
-                                 self.server.OUTPUT_SCHEMA, model="m", effort="low")
+                                 self.server.OUTPUT_SCHEMA, role="parse")
         self.assertEqual(captured["timeout"], 600)
 
 

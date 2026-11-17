@@ -403,7 +403,7 @@ class FakeModel:
         self.extract_calls, self.verify_sizes = [], []
         self.lock = threading.Lock()
 
-    def __call__(self, cfg, system_prompt, text, attachments, schema, *, model, effort, web_search):
+    def __call__(self, cfg, system_prompt, text, attachments, schema, *, role, web_search=False):
         self.server.remaining()  # 与真实调用一样，期限已到时不再发起请求
         if self.delay:
             time.sleep(self.delay)

@@ -23,4 +23,7 @@ public interface AiTaskService {
 
     /** 批量读取任务的分批解析进度（只含 id 与进度字段），供列表、详情显示「已解析 x / y」 */
     List<AiTaskVO> listProgress(Collection<Long> ids);
+
+    /** 任务实际使用的连接方式与执行中的切换记录（只含 id 与这两项），供业务页面显示「已自动切换」；任务不存在时为 null */
+    AiTaskVO getConnection(Long id);
 }

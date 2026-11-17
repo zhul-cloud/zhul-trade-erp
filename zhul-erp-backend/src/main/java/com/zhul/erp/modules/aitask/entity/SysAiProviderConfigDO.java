@@ -15,11 +15,14 @@ public class SysAiProviderConfigDO extends BaseEntity {
     private Integer tenantId;
     private String mode;
     private String provider;
+    /** 组内使用顺序，同一用法内从小到大（API Key 组整体在订阅组之前） */
+    private Integer sortOrder;
     private String apiKey;
     private String parseModel;
     private String translateModel;
     private String parseEffort;
     private String translateEffort;
     private Integer maxWebSearches;
+    /** 是否参与使用（0-关闭、1-启用）：每张连接方式卡片的启用开关 */
     private Integer status;
 }

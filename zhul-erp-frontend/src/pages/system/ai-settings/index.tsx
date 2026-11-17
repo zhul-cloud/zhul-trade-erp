@@ -1,18 +1,35 @@
 import {
-  ApiOutlined,
-  CheckCircleFilled,
+  ArrowDownOutlined,
+  CheckCircleOutlined,
   ClockCircleOutlined,
-  CloseCircleFilled,
   EnterOutlined,
+  ExclamationCircleOutlined,
   ExportOutlined,
+  HolderOutlined,
   InfoCircleOutlined,
   KeyOutlined,
   LockOutlined,
   ReloadOutlined,
+  RightOutlined,
   RobotOutlined,
-  UserOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
+import {
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  rectIntersection,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useAccess } from '@umijs/max';
 import {
   App,
@@ -27,38 +44,46 @@ import {
   Segmented,
   Skeleton,
   Spin,
+  Switch,
   Typography,
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import type { Palette } from '@/theme/palette';
-import { formatDateTime } from '@/utils/format';
 import {
   type AiFormValues,
+  type CardDraft,
+  cardState,
+  connFormValues,
+  connKey,
   DEFAULT_EFFORT,
   defaultModel,
   EFFORT_OPTIONS,
+  fullLabel,
+  hm,
   isDirty,
   type ModelField,
   modelOptions,
   modelsFingerprint,
-  PROVIDERS,
-  profileFormValues,
-  type SubState,
-  subscriptionState,
+  moveWithinGroup,
+  orderChanged,
+  reasonLabel,
+  type SummaryTone,
+  shortLabel,
+  summarize,
   testFingerprint,
-  testSlot,
-  toFormValues,
+  toCards,
   toPayload,
+  toSavePayload,
+  usable,
 } from './aiConfig';
 import { ClaudeLogo, OpenAILogo } from './brandLogos';
 import {
   type AiConfig,
-  type AiMode,
+  type AiConnection,
   type AiModelList,
   type AiProvider,
-  type AiSubscriptionStatus,
   type AiTestResult,
   getAiConfig,
   getAiModels,
@@ -90,15 +115,6 @@ const PROVIDER_META: Record<
   },
 };
 
-/** 订阅状态的显示：平台看登录状态，租户只看可用与否 */
-const SUB_LABEL: Record<SubState, [string, 'green' | 'red' | 'gray']> = {
-  in: ['已登录', 'green'],
-  out: ['未登录', 'red'],
-  avail: ['可用', 'green'],
-  unavail: ['不可用', 'red'],
-  unknown: ['状态未知', 'gray'],
-};
-
 /** 思考强度：分段选择，空值显示为「中」 */
 const EffortField: React.FC<{
   value?: string;
@@ -114,213 +130,36 @@ const EffortField: React.FC<{
   />
 );
 
-const CheckItem: React.FC<{
-  state: boolean | undefined;
-  title: string;
-  detail?: string;
-}> = ({ state, title, detail }) => {
-  const { palette } = useAppTheme();
-  return (
-    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-      {state === true ? (
-        <CheckCircleFilled
-          style={{ color: palette.green, fontSize: 16, marginTop: 2 }}
-        />
-      ) : state === false ? (
-        <CloseCircleFilled
-          style={{ color: palette.red, fontSize: 16, marginTop: 2 }}
-        />
-      ) : (
-        <span
-          style={{
-            width: 16,
-            height: 16,
-            marginTop: 2,
-            flex: 'none',
-            borderRadius: 8,
-            border: `1.5px dashed ${palette.faint}`,
-          }}
-        />
-      )}
-      <div style={{ minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 13,
-            fontWeight: 500,
-            color: state === undefined ? palette.mute : palette.ink,
-          }}
-        >
-          {title}
-        </div>
-        {detail && (
-          <div style={{ fontSize: 12, color: palette.mute, marginTop: 2 }}>
-            {detail}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
 const Divider: React.FC<{ palette: Palette }> = ({ palette }) => (
   <div style={{ height: 1, background: palette.hairline, margin: '4px 0' }} />
 );
 
-/** 状态标签：带色点 */
-const StatePill: React.FC<{
-  label: string;
-  tone: 'green' | 'red' | 'gray';
-}> = ({ label, tone }) => (
-  <Pill tone={tone} dot>
-    {label}
-  </Pill>
-);
-
-/** 连接方式的一行：单选 + 用法 + 状态 + 操作，选中或展开时下方放内容 */
-const OptionRow: React.FC<{
-  selected: boolean;
-  disabled?: boolean;
-  icon: React.ReactNode;
-  label: string;
-  extra?: React.ReactNode;
-  state: React.ReactNode;
-  action?: React.ReactNode;
-  onSelect: () => void;
-  children?: React.ReactNode;
-}> = ({
-  selected,
-  disabled,
-  icon,
-  label,
-  extra,
-  state,
-  action,
-  onSelect,
-  children,
-}) => {
-  const { palette } = useAppTheme();
-  // 选中但已不可用（如授权被收回）用警示色，不用「正在使用」的蓝色
-  const warn = selected && disabled;
+const LogoBox: React.FC<{
+  palette: Palette;
+  provider: AiProvider;
+  size: number;
+  dim?: boolean;
+}> = ({ palette, provider, size, dim }) => {
+  const { Logo } = PROVIDER_META[provider];
   return (
-    <div
+    <span
       style={{
-        borderRadius: 10,
-        border: `${selected ? 1.5 : 1}px solid ${
-          warn ? palette.orange : selected ? palette.link : palette.hairline
-        }`,
-        background: warn
-          ? palette.orangeSoft
-          : selected
-            ? palette.accentSoft
-            : disabled
-              ? palette.inset
-              : palette.card,
-        transition: 'background 200ms ease-out, border-color 200ms ease-out',
+        display: 'grid',
+        placeItems: 'center',
+        flex: 'none',
+        width: size,
+        height: size,
+        borderRadius: 8,
+        background: palette.card,
+        border: `1px solid ${palette.hairline}`,
+        color: palette.ink,
+        opacity: dim ? 0.5 : 1,
       }}
     >
-      {/* biome-ignore lint/a11y/useSemanticElements: 整行可点的卡片式单选，行内还有「更换」「填写」按钮，不能整体用原生 input 或 button 包裹；按 ARIA radio 模式实现 */}
-      <div
-        role="radio"
-        aria-checked={selected}
-        aria-disabled={disabled}
-        tabIndex={disabled ? -1 : 0}
-        onClick={() => !disabled && onSelect()}
-        onKeyDown={(e) => {
-          if (!disabled && (e.key === 'Enter' || e.key === ' ')) {
-            e.preventDefault();
-            onSelect();
-          }
-        }}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '12px 14px',
-          cursor: disabled ? 'not-allowed' : 'pointer',
-        }}
-      >
-        <span
-          style={{
-            display: 'grid',
-            placeItems: 'center',
-            flex: 'none',
-            width: 18,
-            height: 18,
-            borderRadius: 9,
-            border: `1px solid ${
-              selected && !disabled ? palette.link : palette.control
-            }`,
-            background: selected && !disabled ? palette.link : 'transparent',
-          }}
-        >
-          {selected && !disabled && (
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: 3,
-                background: '#fff',
-              }}
-            />
-          )}
-        </span>
-        <span
-          style={{
-            color: disabled
-              ? palette.faint
-              : selected
-                ? palette.link
-                : palette.sub,
-          }}
-        >
-          {icon}
-        </span>
-        <span
-          style={{
-            flex: 1,
-            minWidth: 0,
-            display: 'flex',
-            gap: 8,
-            alignItems: 'center',
-            fontSize: 14,
-            fontWeight: 500,
-            color: disabled ? palette.mute : palette.ink,
-          }}
-        >
-          {label}
-          {extra}
-        </span>
-        {action}
-        {state}
-      </div>
-      {children && (
-        <div style={{ padding: '0 14px 14px 42px' }}>{children}</div>
-      )}
-    </div>
+      <Logo size={Math.round(size * 0.6)} />
+    </span>
   );
 };
-
-const SectionHead: React.FC<{
-  palette: Palette;
-  title: string;
-  hint?: string;
-  extra?: React.ReactNode;
-}> = ({ palette, title, hint, extra }) => (
-  <div
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 8,
-      marginBottom: 20,
-    }}
-  >
-    <span style={{ fontSize: 16, fontWeight: 600, color: palette.ink }}>
-      {title}
-    </span>
-    {hint && <span style={{ fontSize: 12, color: palette.mute }}>{hint}</span>}
-    <span style={{ marginLeft: 'auto' }}>{extra}</span>
-  </div>
-);
 
 /** 字段标题，说明以小字跟在标题后面 */
 const FieldLabel: React.FC<{ title: string; hint: React.ReactNode }> = ({
@@ -345,9 +184,208 @@ const FieldLabel: React.FC<{ title: string; hint: React.ReactNode }> = ({
   );
 };
 
+/** 一张连接方式卡片：拖动手柄、序号、品牌、状态、测试、启用开关；选中时下方放 Key 输入等内容 */
+const ConnectionCard: React.FC<{
+  conn: AiConnection;
+  draft: CardDraft;
+  index: number;
+  selected: boolean;
+  canEdit: boolean;
+  draggable: boolean;
+  testing: boolean;
+  testDisabled: boolean;
+  subtitle?: React.ReactNode;
+  note?: React.ReactNode;
+  onSelect: () => void;
+  onToggle: (enabled: boolean) => void;
+  onTest: () => void;
+  children?: React.ReactNode;
+}> = ({
+  conn,
+  draft,
+  index,
+  selected,
+  canEdit,
+  draggable,
+  testing,
+  testDisabled,
+  subtitle,
+  note,
+  onSelect,
+  onToggle,
+  onTest,
+  children,
+}) => {
+  const { palette } = useAppTheme();
+  const id = connKey(conn);
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id, disabled: !draggable });
+  const [stateLabel, stateTone] = cardState(conn, draft.enabled);
+  const off = !draft.enabled;
+  const name = PROVIDER_META[conn.provider].name;
+  return (
+    <div
+      ref={setNodeRef}
+      data-testid={`conn-${id}`}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        position: 'relative',
+        zIndex: isDragging ? 3 : undefined,
+      }}
+    >
+      <div
+        style={{
+          borderRadius: 10,
+          border: `${selected ? 1.5 : 1}px solid ${
+            selected ? palette.link : palette.hairline
+          }`,
+          background: selected ? palette.accentSoft : palette.card,
+          boxShadow: isDragging ? '0 8px 24px -4px rgba(0,0,0,0.16)' : 'none',
+          transition: 'background 200ms ease-out, border-color 200ms ease-out',
+        }}
+      >
+        {/* biome-ignore lint/a11y/useSemanticElements: 整张卡片可点选中，行内还有测试按钮、开关与拖动手柄，不能整体用原生 button 包裹 */}
+        <div
+          role="button"
+          tabIndex={0}
+          aria-pressed={selected}
+          aria-label={`${fullLabel(conn)}，第 ${index + 1} 位`}
+          onClick={onSelect}
+          onKeyDown={(e) => {
+            if (
+              e.target === e.currentTarget &&
+              (e.key === 'Enter' || e.key === ' ')
+            ) {
+              e.preventDefault();
+              onSelect();
+            }
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '12px 14px 12px 8px',
+            cursor: 'pointer',
+          }}
+        >
+          <button
+            type="button"
+            ref={setActivatorNodeRef}
+            aria-label={`拖动调整 ${fullLabel(conn)} 的顺序`}
+            disabled={!draggable}
+            onClick={(e) => e.stopPropagation()}
+            {...(draggable ? attributes : {})}
+            {...(draggable ? listeners : {})}
+            style={{
+              display: 'grid',
+              placeItems: 'center',
+              width: 20,
+              height: 28,
+              padding: 0,
+              border: 'none',
+              borderRadius: 4,
+              background: 'transparent',
+              color: palette.faint,
+              cursor: draggable ? 'grab' : 'default',
+              visibility: draggable ? 'visible' : 'hidden',
+              touchAction: 'none',
+            }}
+          >
+            <HolderOutlined />
+          </button>
+          <span
+            style={{
+              display: 'grid',
+              placeItems: 'center',
+              flex: 'none',
+              width: 22,
+              height: 22,
+              borderRadius: 11,
+              fontSize: 12,
+              fontWeight: 600,
+              color: selected ? '#fff' : palette.sub,
+              background: selected ? palette.link : palette.inset,
+            }}
+          >
+            {index + 1}
+          </span>
+          <LogoBox
+            palette={palette}
+            provider={conn.provider}
+            size={32}
+            dim={off}
+          />
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span
+              style={{
+                display: 'block',
+                fontSize: 14,
+                fontWeight: 500,
+                color: off ? palette.mute : palette.ink,
+              }}
+            >
+              {name} · {conn.mode === 'api' ? 'API Key' : '平台订阅'}
+            </span>
+            {subtitle && (
+              <span
+                style={{
+                  display: 'block',
+                  marginTop: 2,
+                  fontSize: 12,
+                  color: palette.mute,
+                }}
+              >
+                {subtitle}
+              </span>
+            )}
+          </span>
+          <Pill tone={stateTone} dot>
+            {stateLabel}
+          </Pill>
+          {canEdit && (
+            <Button
+              type="link"
+              size="small"
+              loading={testing}
+              disabled={testDisabled || off}
+              style={{ padding: 0 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onTest();
+              }}
+            >
+              测试
+            </Button>
+          )}
+          <Switch
+            checked={draft.enabled}
+            disabled={!canEdit}
+            aria-label={`${fullLabel(conn)} 是否参与使用`}
+            onClick={(_, e) => e.stopPropagation()}
+            onChange={onToggle}
+          />
+        </div>
+        {children && (
+          <div style={{ padding: '0 14px 14px 76px' }}>{children}</div>
+        )}
+      </div>
+      {note}
+    </div>
+  );
+};
+
 /**
- * 业务设置 → AI 设置：按服务商分组列出连接方式（API Key、平台订阅），选中哪一行就用哪一种；
- * 所有修改只通过底部保存条保存。见 openspec ai-platform/tenant-ai-settings 与原型 AI设置.op 第三页（V3）。
+ * 业务设置 → AI 设置：连接方式按使用顺序排成两组卡片（API Key 在前、平台订阅在后），组内拖动调整顺序，
+ * 每张卡片可单独开关与测试；出问题的方式自动跳过并暂停。所有修改只通过底部保存条保存。
+ * 见 openspec ai-connection-failover 与原型 AI设置.op「2026-11-17-V4 自动切换」。
  */
 const AiSettingsPage: React.FC = () => {
   const { palette } = useAppTheme();
@@ -357,75 +395,112 @@ const AiSettingsPage: React.FC = () => {
     'system:ai-config:edit'
   ];
   const [form] = Form.useForm<AiFormValues>();
-  // preserve：右侧切到只读时模型字段不再渲染，仍要拿到它们的值
   const values = Form.useWatch([], { form, preserve: true }) as
     | AiFormValues
     | undefined;
-  const mode: AiMode = values?.mode ?? 'api';
-  const provider: AiProvider = values?.provider ?? 'claude';
 
   const [config, setConfig] = useState<AiConfig>();
   const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [editingKey, setEditingKey] = useState<AiProvider>();
-  const [testing, setTesting] = useState(false);
-  /** 测试结果连同发起测试时的配置指纹；表单改了、或回包属于别的配置，就不显示 */
-  const [tested, setTested] = useState<{ fp: string; result: AiTestResult }>();
-  const testResult =
-    tested && values && tested.fp === testFingerprint(values)
-      ? tested.result
-      : undefined;
-  /** 模型列表按配置缓存；换了服务商等，之前的列表和加载中状态不再适用 */
+  /** 顺序与开关（未保存的修改） */
+  const [cards, setCards] = useState<CardDraft[]>([]);
+  /** 各连接方式的设置（未保存的修改），按 connKey */
+  const [drafts, setDrafts] = useState<Record<string, AiFormValues>>({});
+  const [selected, setSelected] = useState<string>();
+  const [editingKey, setEditingKey] = useState<string>();
+  const [testingKey, setTestingKey] = useState<string>();
+  /** 测试结果连同发起测试时的配置指纹；表单改了就不再显示 */
+  const [tests, setTests] = useState<
+    Record<string, { fp: string; result: AiTestResult }>
+  >({});
+  /** 模型列表按配置缓存；换了卡片或 Key，之前的列表和加载中状态不再适用 */
   const [modelCache, setModelCache] = useState<{
     fp: string;
     list: AiModelList;
   }>();
   const [loadingFp, setLoadingFp] = useState<string>();
+  const [loginCommands, setLoginCommands] =
+    useState<Record<AiProvider, string>>();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  /** 平台查看未登录的订阅时，取容器内的登录命令 */
+  const loadLoginCommands = useCallback(async (c: AiConfig) => {
+    if (
+      !c.platform ||
+      !c.connections.some(
+        (x) => x.mode === 'subscription' && x.state === 'logged_out',
+      )
+    ) {
+      return;
+    }
+    try {
+      setLoginCommands((await getAiSubscriptionStatus()).loginCommands);
+    } catch {
+      setLoginCommands(undefined);
+    }
+  }, []);
+
+  /** 重新加载并丢弃未保存的修改（首次进入、保存后、撤销） */
+  const load = useCallback(
+    async (keepSelected?: string) => {
+      setLoadError(false);
+      try {
+        const c = await getAiConfig();
+        const nextDrafts: Record<string, AiFormValues> = {};
+        for (const x of c.connections) {
+          nextDrafts[connKey(x)] = connFormValues(x, c.defaultModels);
+        }
+        const keys = c.connections.map(connKey);
+        const sel =
+          keepSelected && keys.includes(keepSelected) ? keepSelected : keys[0];
+        setConfig(c);
+        setCards(toCards(c));
+        setDrafts(nextDrafts);
+        setSelected(sel);
+        setEditingKey(undefined);
+        setModelCache(undefined);
+        if (sel) form.setFieldsValue(nextDrafts[sel]);
+        loadLoginCommands(c);
+      } catch {
+        setLoadError(true);
+      }
+    },
+    [form, loadLoginCommands],
+  );
+
+  /** 只刷新状态（如测试通过后解除暂停），保留未保存的修改 */
+  const refreshStates = async () => {
+    try {
+      setConfig(await getAiConfig());
+    } catch {
+      // 请求层已提示
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const select = (key: string) => {
+    if (key === selected) return;
+    setSelected(key);
+    setEditingKey(undefined);
+    setModelCache(undefined);
+    form.setFieldsValue(drafts[key]);
+  };
+
   const currentModelsFp = values ? modelsFingerprint(values) : '';
   const models =
     modelCache && modelCache.fp === currentModelsFp
       ? modelCache.list
       : undefined;
   const modelsLoading = !!loadingFp && loadingFp === currentModelsFp;
-  const [status, setStatus] = useState<AiSubscriptionStatus>();
-  const [statusLoading, setStatusLoading] = useState(false);
-
-  const loadStatus = useCallback(async () => {
-    setStatusLoading(true);
-    try {
-      setStatus(await getAiSubscriptionStatus());
-    } catch {
-      setStatus(undefined);
-    } finally {
-      setStatusLoading(false);
-    }
-  }, []);
-
-  const load = useCallback(async () => {
-    setLoadError(false);
-    try {
-      const c = await getAiConfig();
-      setConfig(c);
-      setEditingKey(undefined);
-      form.setFieldsValue(toFormValues(c));
-      if (c.subscriptionAllowed) loadStatus();
-    } catch {
-      setLoadError(true);
-    }
-  }, [form, loadStatus]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  /** 选中一种连接方式：表单换成这一种已保存的设置；之前取到的模型列表与测试结果作废 */
-  const select = (m: AiMode, p: AiProvider, editKey = false) => {
-    if (!config) return;
-    form.setFieldsValue(profileFormValues(config, m, p));
-    setEditingKey(editKey ? p : undefined);
-    setModelCache(undefined);
-    setTested(undefined);
-  };
 
   const fetchModels = async () => {
     const sent = form.getFieldsValue(true) as AiFormValues;
@@ -448,50 +523,58 @@ const AiSettingsPage: React.FC = () => {
     }
   };
 
-  const runTest = async () => {
-    const sent = form.getFieldsValue(true) as AiFormValues;
+  const runTest = async (key: string) => {
+    const sent = drafts[key];
+    if (!sent) return;
     const fp = testFingerprint(sent);
-    setTesting(true);
-    setTested(undefined);
+    setTestingKey(key);
     try {
       const r = await testAiConfig(toPayload(sent));
-      setTested({ fp, result: r });
-      const stillCurrent =
-        fp === testFingerprint(form.getFieldsValue(true) as AiFormValues);
-      if (r.ok && stillCurrent) message.success('连接正常');
+      setTests((t) => ({ ...t, [key]: { fp, result: r } }));
+      if (r.ok) {
+        message.success('连接正常');
+        refreshStates();
+      }
     } catch {
       // 请求层已提示错误原因
     } finally {
-      setTesting(false);
+      setTestingKey(undefined);
     }
   };
 
-  const doSave = async (v: AiFormValues) => {
+  const doSave = async () => {
+    if (!config) return;
     setSaving(true);
     try {
-      await saveAiConfig(toPayload(v));
-      message.success('已保存，之后提交的 AI 任务立即使用新配置');
-      setTested(undefined);
-      await load();
+      await saveAiConfig(toSavePayload(cards, drafts, config));
+      message.success('已保存，之后提交的 AI 任务按新的设置使用');
+      setTests({});
+      await load(selected);
     } finally {
       setSaving(false);
     }
   };
 
-  const onFinish = (v: AiFormValues) => {
-    if (!(v.apiKey ?? '').trim()) {
-      doSave(v);
+  const onSave = () => {
+    if (!config) return;
+    const typed = config.connections.filter(
+      (c) => c.mode === 'api' && (drafts[connKey(c)]?.apiKey ?? '').trim(),
+    );
+    if (!typed.length) {
+      doSave();
       return;
     }
-    const replacing = config?.apiProfiles[v.provider ?? 'claude']?.hasKey;
+    const replacing = typed.some((c) => c.hasKey);
     modal.confirm({
       title: replacing ? '确认更换 API Key？' : '确认保存 API Key？',
-      content: replacing
-        ? '保存后原来的 Key 不再使用，之后提交的 AI 任务都按新 Key 计费。'
-        : '之后提交的 AI 任务会使用这个 Key，费用记在该 Key 所属的账号上。',
+      content: `${typed.map(fullLabel).join('、')}：${
+        replacing
+          ? '保存后原来的 Key 不再使用，之后提交的 AI 任务都按新 Key 计费。'
+          : '之后提交的 AI 任务会使用这个 Key，费用记在该 Key 所属的账号上。'
+      }`,
       okText: '确认保存',
       cancelText: '取消',
-      onOk: () => doSave(v),
+      onOk: doSave,
     });
   };
 
@@ -505,7 +588,7 @@ const AiSettingsPage: React.FC = () => {
             title="AI 设置加载失败"
             subTitle="请检查网络后重试"
             extra={
-              <Button icon={<ReloadOutlined />} onClick={load}>
+              <Button icon={<ReloadOutlined />} onClick={() => load()}>
                 重试
               </Button>
             }
@@ -537,222 +620,155 @@ const AiSettingsPage: React.FC = () => {
     );
   }
 
-  const platform = config.platform;
-  const subState = (p: AiProvider) =>
-    statusLoading && !status
-      ? 'unknown'
-      : subscriptionState(status, p, platform);
-  // 已选用平台订阅、但授权已被收回：只显示原来选的那一行（不可选）
-  const revoked =
-    config.configured &&
-    config.mode === 'subscription' &&
-    !config.subscriptionAllowed;
-  const dirty = !!values && isDirty(values, toFormValues(config));
-  const typedKey = !!(values?.apiKey ?? '').trim();
-  const selectedProfile = config.apiProfiles[provider];
-  const keyMissing = mode === 'api' && !selectedProfile?.hasKey && !typedKey;
-  const subscriptionReadonly = mode === 'subscription' && !platform;
-  const meta = PROVIDER_META[provider];
-  const keyTest = testResult && testSlot(testResult.items, 'API Key');
+  const connOf = (key: string) =>
+    config.connections.find((c) => connKey(c) === key);
+  const sel = selected ? connOf(selected) : undefined;
+  const pendingOrder = orderChanged(cards, config);
+  const changedProfiles = config.connections.filter(
+    (c) =>
+      !c.settingsReadonly &&
+      drafts[connKey(c)] &&
+      isDirty(drafts[connKey(c)], connFormValues(c, config.defaultModels)),
+  );
+  const dirty = pendingOrder || changedProfiles.length > 0;
 
-  // —— 顶部状态卡：描述已保存的选择 ——
-  const savedMeta = PROVIDER_META[config.provider];
-  const savedSub = config.mode === 'subscription';
-  const savedState = subState(config.provider);
-  type Tone = 'ok' | 'warn' | 'bad' | 'idle';
-  let tone: Tone = 'ok';
-  let title = 'AI 已配置';
-  let pill: [string, 'green' | 'red' | 'orange' | 'gray'] | undefined;
-  let desc: string | undefined;
-  if (!config.configured) {
-    tone = 'idle';
-    title = '还没有配置 AI';
-    pill = ['未配置', 'gray'];
-    desc = '填写 API Key 后即可使用。';
-  } else if (!savedSub) {
-    // 顶部描述已保存的配置：只有表单就是已保存的这一份时，测试结果才算它的
-    if (testResult && !dirty) {
-      tone = testResult.ok ? 'ok' : 'bad';
-      title = testResult.ok ? 'AI 已就绪' : '连接失败';
-      pill = testResult.ok ? ['测试通过', 'green'] : ['测试未通过', 'red'];
-    }
-  } else if (revoked) {
-    tone = 'warn';
-    title = '平台订阅不可用';
-    pill = ['不可用', 'orange'];
-    desc = '请改用 API Key。';
-  } else if (savedState === 'in' || savedState === 'avail') {
-    title = 'AI 已就绪';
-    pill = ['可用', 'green'];
-  } else if (savedState === 'out') {
-    tone = 'bad';
-    title = `${savedMeta.name} 平台订阅未登录`;
-    pill = ['不可用', 'red'];
-    desc = '登录后才能使用。';
-  } else if (savedState === 'unavail') {
-    tone = 'bad';
-    title = `${savedMeta.name} 平台订阅不可用`;
-    pill = ['不可用', 'red'];
-    desc = '请改选其他可用的方式。';
-  } else if (!statusLoading) {
-    tone = 'warn';
-    title = '订阅状态获取失败';
-    pill = ['状态未知', 'orange'];
-  }
-  const showMeta = config.configured && !desc && !(tone === 'warn');
-  const metaItems = [
-    {
-      icon: savedSub ? <UserOutlined /> : <KeyOutlined />,
-      text: `${savedMeta.name} · ${savedSub ? '平台订阅' : 'API Key'}`,
+  // —— 顶部状态：按已保存的顺序描述新任务怎样使用 ——
+  const summary = summarize(config, pendingOrder);
+  const TONE_ICON: Record<
+    SummaryTone,
+    { icon: React.ReactNode; fg: string; bg: string }
+  > = {
+    ok: {
+      icon: <CheckCircleOutlined />,
+      fg: palette.green,
+      bg: palette.greenSoft,
     },
-    config.updateTime
-      ? {
-          icon: <ClockCircleOutlined />,
-          text: `${formatDateTime(config.updateTime)} 由 ${config.updateBy || '—'} 修改`,
-        }
-      : null,
-  ].filter(Boolean) as { icon: React.ReactNode; text: string }[];
+    warn: {
+      icon: <WarningOutlined />,
+      fg: palette.orange,
+      bg: palette.orangeSoft,
+    },
+    bad: {
+      icon: <ExclamationCircleOutlined />,
+      fg: palette.red,
+      bg: palette.redSoft,
+    },
+    idle: { icon: <RobotOutlined />, fg: palette.mute, bg: palette.inset },
+  };
+  const toneIcon = TONE_ICON[summary.tone];
+  const chainColor = (c: AiConnection) => {
+    if (usable(c, config.platform)) return palette.ink;
+    if (c.enabled && c.pausedReason) return palette.orange;
+    if (c.enabled && (c.state === 'logged_out' || c.state === 'unavailable'))
+      return palette.red;
+    return palette.faint;
+  };
 
   const statusCard = (
     <Card style={{ marginBottom: 16 }}>
-      <div
-        style={{
-          display: 'flex',
-          gap: 16,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-        }}
-      >
+      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
         <span
           style={{
             display: 'grid',
             placeItems: 'center',
+            flex: 'none',
             width: 48,
             height: 48,
             borderRadius: 12,
             fontSize: 22,
-            color: palette.mute,
-            // 与下方服务商分组的 logo 同一样式；状态由标题与标签表达
-            background: palette.card,
-            border: `1px solid ${palette.hairline}`,
+            color: toneIcon.fg,
+            background: toneIcon.bg,
           }}
         >
-          {config.configured ? (
-            <savedMeta.Logo size={24} />
-          ) : tone === 'bad' ? (
-            <WarningOutlined />
-          ) : (
-            <RobotOutlined />
-          )}
+          {toneIcon.icon}
         </span>
-        <div style={{ flex: 1, minWidth: 240 }}>
-          <div
-            style={{
-              display: 'flex',
-              gap: 8,
-              alignItems: 'center',
-              fontSize: 18,
-              fontWeight: 600,
-              color: palette.ink,
-            }}
-          >
-            {title}
-            {pill && <Pill tone={pill[1]}>{pill[0]}</Pill>}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: palette.ink }}>
+            {summary.title}
           </div>
           <div style={{ marginTop: 6, fontSize: 13, color: palette.mute }}>
-            {desc}
-            {showMeta && (
-              <span style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                {metaItems.map((m) => (
-                  <span key={m.text} style={{ display: 'inline-flex', gap: 6 }}>
-                    {m.icon}
-                    {m.text}
-                  </span>
-                ))}
-              </span>
-            )}
+            {summary.desc}
           </div>
+          {config.connections.length > 0 && (
+            <div
+              data-testid="ai-chain"
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                gap: 8,
+                marginTop: 12,
+              }}
+            >
+              {config.connections.map((c, i) => {
+                const dim = chainColor(c) === palette.faint;
+                return (
+                  <React.Fragment key={connKey(c)}>
+                    {i > 0 && (
+                      <RightOutlined
+                        style={{ fontSize: 10, color: palette.faint }}
+                      />
+                    )}
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        height: 30,
+                        padding: '0 12px',
+                        borderRadius: 15,
+                        fontSize: 13,
+                        background: palette.inset,
+                        color: chainColor(c),
+                      }}
+                    >
+                      <span style={{ color: palette.mute, fontSize: 12 }}>
+                        {i + 1}
+                      </span>
+                      <span
+                        style={{
+                          opacity: dim ? 0.5 : 1,
+                          display: 'inline-flex',
+                        }}
+                      >
+                        {React.createElement(PROVIDER_META[c.provider].Logo, {
+                          size: 16,
+                        })}
+                      </span>
+                      {shortLabel(c)}
+                    </span>
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          )}
         </div>
-        {canEdit && mode === 'api' && (
-          <Button
-            icon={<ApiOutlined />}
-            loading={testing}
-            disabled={keyMissing}
-            onClick={runTest}
-          >
-            {tone === 'bad' && testResult ? '重新测试' : '测试连接'}
-          </Button>
-        )}
-        {mode === 'subscription' && !revoked && (
-          <Button
-            icon={<ReloadOutlined />}
-            loading={statusLoading}
-            onClick={loadStatus}
-          >
-            {savedState === 'unknown' && savedSub ? '重试' : '刷新状态'}
-          </Button>
-        )}
       </div>
-
-      {testResult && mode === 'api' && (
-        <>
-          <div
-            style={{
-              height: 1,
-              background: palette.hairline,
-              margin: '16px 0',
-            }}
-          />
-          <Row gutter={[24, 12]}>
-            {(['API Key', '解析模型', '翻译模型'] as const).map((slot) => {
-              const item = testSlot(testResult.items, slot);
-              const model = item?.name.slice(slot.length).trim();
-              const itemTitle = !item
-                ? `${slot}未检测`
-                : slot === 'API Key'
-                  ? item.ok
-                    ? 'API Key 有效'
-                    : 'API Key 无效或已失效'
-                  : `${slot}${item.ok ? '可用' : '不可用'}`;
-              const detail = !item
-                ? undefined
-                : slot === 'API Key'
-                  ? item.ok
-                    ? `${meta.consoleName} 已确认身份`
-                    : item.message
-                  : item.ok
-                    ? model
-                    : `${model}：${item.message}`;
-              return (
-                <Col key={slot} xs={24} md={8}>
-                  <CheckItem
-                    state={item?.ok}
-                    title={itemTitle}
-                    detail={detail}
-                  />
-                </Col>
-              );
-            })}
-          </Row>
-        </>
-      )}
     </Card>
   );
 
-  // —— 左：服务商与账号（连接方式列表） ——
-  const keyEditor = (p: AiProvider) => (
+  // —— 左：连接方式（两组可拖动的卡片） ——
+  const testOf = (key: string) => {
+    const t = tests[key];
+    return t && drafts[key] && t.fp === testFingerprint(drafts[key])
+      ? t.result
+      : undefined;
+  };
+
+  const keyEditor = (c: AiConnection) => (
     <Form.Item
       name="apiKey"
       style={{ marginBottom: 0 }}
-      validateStatus={keyTest && !keyTest.ok ? 'error' : undefined}
-      help={
-        keyTest && !keyTest.ok ? 'Key 无效或已失效，请粘贴新的 Key' : undefined
-      }
       extra={
         <span style={{ fontSize: 12 }}>
           还没有 Key？
-          <a href={PROVIDER_META[p].console} target="_blank" rel="noreferrer">
-            去 {PROVIDER_META[p].consoleName} 控制台创建 <ExportOutlined />
+          <a
+            href={PROVIDER_META[c.provider].console}
+            target="_blank"
+            rel="noreferrer"
+          >
+            去 {PROVIDER_META[c.provider].consoleName} 控制台创建{' '}
+            <ExportOutlined />
           </a>
         </span>
       }
@@ -761,19 +777,22 @@ const AiSettingsPage: React.FC = () => {
       <Input
         autoComplete="off"
         spellCheck={false}
-        autoFocus={editingKey === p}
+        autoFocus={editingKey === connKey(c)}
         prefix={<KeyOutlined style={{ color: palette.faint }} />}
-        placeholder={`粘贴 ${PROVIDER_META[p].name} 的 API Key`}
+        placeholder={`粘贴 ${PROVIDER_META[c.provider].name} 的 API Key`}
         suffix={
-          config.apiProfiles[p]?.hasKey && (
+          c.hasKey && (
             <Button
               type="link"
               size="small"
               style={{ padding: 0, height: 'auto' }}
               onClick={() => {
                 form.setFieldValue('apiKey', '');
+                setDrafts((d) => ({
+                  ...d,
+                  [connKey(c)]: { ...d[connKey(c)], apiKey: '' },
+                }));
                 setEditingKey(undefined);
-                setTested(undefined);
               }}
             >
               取消
@@ -784,146 +803,214 @@ const AiSettingsPage: React.FC = () => {
     </Form.Item>
   );
 
-  const providerGroup = (p: AiProvider) => {
-    const m = PROVIDER_META[p];
-    const apiProfile = config.apiProfiles[p];
-    const apiSelected = mode === 'api' && provider === p;
-    const subSelected = mode === 'subscription' && provider === p;
-    const st = subState(p);
-    const showSub =
-      config.subscriptionAllowed || (revoked && config.provider === p);
-    const subDisabled = revoked || (!platform && st !== 'avail');
+  const renderCard = (draft: CardDraft) => {
+    const key = connKey(draft);
+    const c = connOf(key);
+    if (!c) return null;
+    const index = cards.findIndex((x) => connKey(x) === key);
+    const isSel = key === selected;
+    const typedKey = !!(drafts[key]?.apiKey ?? '').trim();
     const showKeyEditor =
-      apiSelected && (editingKey === p || !apiProfile.hasKey);
-    return (
-      <div key={p} style={{ display: 'grid', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span
-            style={{
-              display: 'grid',
-              placeItems: 'center',
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: palette.card,
-              border: `1px solid ${palette.hairline}`,
-              color: palette.ink,
-            }}
-          >
-            <m.Logo size={20} />
+      canEdit && isSel && c.mode === 'api' && (editingKey === key || !c.hasKey);
+    const sameGroup = cards.filter((x) => x.mode === c.mode).length;
+    const result = testOf(key);
+    const failed =
+      result && !result.ok ? result.items.filter((i) => !i.ok) : [];
+
+    let subtitle: React.ReactNode;
+    if (c.mode === 'api') {
+      subtitle = c.hasKey ? (
+        <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+            {c.apiKeyMasked}
           </span>
-          <span style={{ fontSize: 14, fontWeight: 600, color: palette.ink }}>
-            {m.name}
-          </span>
-        </div>
-        <OptionRow
-          selected={apiSelected}
-          disabled={!canEdit && !apiSelected}
-          icon={<KeyOutlined />}
-          label="API Key"
-          extra={
-            apiProfile.hasKey && (
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 400,
-                  color: palette.mute,
-                  fontFamily: 'monospace',
-                }}
-              >
-                {apiProfile.apiKeyMasked}
-              </span>
-            )
-          }
-          state={
-            <StatePill
-              label={apiProfile.hasKey ? '已配置' : '未配置'}
-              tone={apiProfile.hasKey ? 'green' : 'gray'}
-            />
-          }
-          action={
-            canEdit &&
-            apiProfile.hasKey &&
-            !showKeyEditor && (
-              <Button
-                type="link"
-                size="small"
-                style={{ padding: 0 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  select('api', p, true);
-                }}
-              >
-                更换
-              </Button>
-            )
-          }
-          onSelect={() => !apiSelected && select('api', p)}
+          {canEdit && isSel && !showKeyEditor && (
+            <Button
+              type="link"
+              size="small"
+              style={{ padding: 0, height: 'auto', fontSize: 12 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingKey(key);
+              }}
+            >
+              更换
+            </Button>
+          )}
+        </span>
+      ) : (
+        '填写 Key 后参与使用'
+      );
+    }
+
+    const note =
+      draft.enabled && c.pausedReason ? (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: 6,
+            padding: '6px 0 2px',
+            fontSize: 12,
+            color: palette.orange,
+          }}
         >
-          {showKeyEditor && canEdit && keyEditor(p)}
-        </OptionRow>
-        {showSub && (
-          <OptionRow
-            selected={subSelected}
-            disabled={subDisabled || !canEdit}
-            icon={<UserOutlined />}
-            label="平台订阅"
-            state={
-              revoked ? (
-                <StatePill label="不可用" tone="gray" />
-              ) : (
-                <StatePill label={SUB_LABEL[st][0]} tone={SUB_LABEL[st][1]} />
-              )
-            }
-            onSelect={() => !subSelected && select('subscription', p)}
+          <ClockCircleOutlined style={{ marginTop: 3 }} />
+          {`${reasonLabel(c.pausedReason)}，${hm(c.pausedUntil)} 自动恢复；${
+            c.mode === 'api'
+              ? c.pausedReason === 'auth'
+                ? 'Key 可能已失效，建议更换'
+                : '更换 Key 或测试通过后立即恢复'
+              : '测试通过后立即恢复'
+          }`}
+        </div>
+      ) : failed.length ? (
+        <div
+          style={{
+            padding: '6px 0 2px 76px',
+            fontSize: 12,
+            color: palette.red,
+          }}
+        >
+          {failed.map((i) => `${i.name}：${i.message}`).join('；')}
+        </div>
+      ) : null;
+
+    return (
+      <ConnectionCard
+        key={key}
+        conn={c}
+        draft={draft}
+        index={index}
+        selected={isSel}
+        canEdit={canEdit}
+        draggable={canEdit && sameGroup > 1}
+        testing={testingKey === key}
+        testDisabled={c.mode === 'api' && !c.hasKey && !typedKey}
+        subtitle={subtitle}
+        note={note}
+        onSelect={() => select(key)}
+        onToggle={(enabled) =>
+          setCards((cs) =>
+            cs.map((x) => (connKey(x) === key ? { ...x, enabled } : x)),
+          )
+        }
+        onTest={() => runTest(key)}
+      >
+        {showKeyEditor ? (
+          keyEditor(c)
+        ) : config.platform &&
+          isSel &&
+          c.mode === 'subscription' &&
+          c.state === 'logged_out' &&
+          loginCommands ? (
+          <div style={{ fontSize: 12, color: palette.mute }}>
+            在服务器执行以下命令登录：
+            <Typography.Paragraph
+              code
+              copyable
+              style={{ margin: '6px 0 0', fontSize: 12 }}
+            >
+              {loginCommands[c.provider]}
+            </Typography.Paragraph>
+          </div>
+        ) : null}
+      </ConnectionCard>
+    );
+  };
+
+  const onDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over) return;
+    setCards((cs) => moveWithinGroup(cs, String(active.id), String(over.id)));
+  };
+
+  const group = (mode: 'api' | 'subscription') => {
+    const items = cards.filter((c) => c.mode === mode);
+    if (!items.length) return null;
+    const hint =
+      mode === 'api'
+        ? '按顺序使用；排在前面的出问题时，会自动改用下一家（使用对应的付费 Key）'
+        : config.platform
+          ? '平台的个人订阅，不用 Key；按顺序使用'
+          : '平台提供，模型由平台设置';
+    return (
+      <div>
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            alignItems: 'baseline',
+            marginBottom: 10,
+          }}
+        >
+          <span style={{ fontSize: 14, fontWeight: 600, color: palette.ink }}>
+            {mode === 'api' ? 'API Key' : '平台订阅'}
+          </span>
+          <span style={{ fontSize: 12, color: palette.mute }}>{hint}</span>
+        </div>
+        {/* 每组一个独立的拖动区域：卡片只能在组内移动，平台订阅始终排在 API Key 之后；
+            按重叠判断放置位置，拖出本组松手时不改变顺序 */}
+        <DndContext
+          id={`ai-connections-${mode}`}
+          sensors={sensors}
+          collisionDetection={rectIntersection}
+          onDragEnd={onDragEnd}
+        >
+          <SortableContext
+            items={items.map(connKey)}
+            strategy={verticalListSortingStrategy}
           >
-            {platform &&
-              subSelected &&
-              st === 'out' &&
-              status?.loginCommands && (
-                <div style={{ fontSize: 12, color: palette.mute }}>
-                  在服务器执行以下命令登录：
-                  <Typography.Paragraph
-                    code
-                    copyable
-                    style={{ margin: '6px 0 0', fontSize: 12 }}
-                  >
-                    {status.loginCommands[p]}
-                  </Typography.Paragraph>
-                </div>
-              )}
-          </OptionRow>
-        )}
+            <div style={{ display: 'grid', gap: 10 }}>
+              {items.map(renderCard)}
+            </div>
+          </SortableContext>
+        </DndContext>
       </div>
     );
   };
 
+  const hasSubscription = cards.some((c) => c.mode === 'subscription');
   const connectCard = (
     <Card style={{ height: '100%' }}>
-      <SectionHead palette={palette} title="服务商与账号" />
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          marginBottom: 16,
+        }}
+      >
+        <span style={{ fontSize: 16, fontWeight: 600, color: palette.ink }}>
+          连接方式
+        </span>
+        {canEdit && (
+          <span
+            style={{ marginLeft: 'auto', fontSize: 12, color: palette.mute }}
+          >
+            拖动卡片调整顺序
+          </span>
+        )}
+      </div>
       <div style={{ display: 'grid', gap: 16 }}>
-        {PROVIDERS.map(providerGroup)}
-        {platform && mode === 'subscription' && (
+        {group('api')}
+        {hasSubscription && (
           <div
             style={{
-              display: 'flex',
-              gap: 8,
-              padding: '10px 12px',
-              borderRadius: 8,
+              textAlign: 'center',
               fontSize: 12,
-              color: palette.orange,
-              background: palette.orangeSoft,
+              color: palette.mute,
             }}
           >
-            <InfoCircleOutlined style={{ marginTop: 2 }} />
-            平台订阅受账号套餐额度限制，同一时间只处理一个任务。
+            <ArrowDownOutlined /> API Key 都不可用时，才使用平台订阅
           </div>
         )}
+        {group('subscription')}
       </div>
     </Card>
   );
 
-  // —— 右：模型与用量 ——
+  // —— 右：选中卡片的模型与用量 ——
+  const provider = sel?.provider ?? 'claude';
+  const meta = PROVIDER_META[provider];
   const modelField = (field: ModelField, label: string, hint: string) => {
     const fallback = defaultModel(config.defaultModels, provider, field);
     return (
@@ -979,7 +1066,7 @@ const AiSettingsPage: React.FC = () => {
                   >
                     {models.source === 'provider'
                       ? `${meta.consoleName} 返回的模型`
-                      : mode === 'subscription'
+                      : sel?.mode === 'subscription'
                         ? '推荐模型'
                         : '填写 API Key 后可获取完整的模型列表'}
                   </Typography.Text>
@@ -1007,30 +1094,77 @@ const AiSettingsPage: React.FC = () => {
     EFFORT_OPTIONS.find((o) => o.value === (v || DEFAULT_EFFORT))?.label ??
     '中';
 
-  const readonlyModels = (
-    <Card style={{ height: '100%' }}>
-      <SectionHead
-        palette={palette}
-        title="模型与用量"
-        extra={
+  const pausedBanner = sel?.pausedReason &&
+    cards.find((x) => connKey(x) === selected)?.enabled && (
+      <div
+        style={{
+          display: 'flex',
+          gap: 10,
+          padding: '12px 14px',
+          marginBottom: 16,
+          borderRadius: 10,
+          background: palette.orangeSoft,
+          fontSize: 13,
+          color: palette.sub,
+        }}
+      >
+        <ClockCircleOutlined style={{ color: palette.orange, marginTop: 3 }} />
+        <div>
+          <div style={{ fontWeight: 600, color: palette.orange }}>
+            暂停中 · {reasonLabel(sel.pausedReason)}
+          </div>
+          <div style={{ marginTop: 4 }}>
+            新任务暂时跳过它，{hm(sel.pausedUntil)} 自动恢复；
+            {sel.mode === 'api'
+              ? '充值或更换 Key 后点「测试」可立即恢复。'
+              : '登录或额度恢复后点「测试」可立即恢复。'}
+          </div>
+        </div>
+      </div>
+    );
+
+  const modelsTitle = (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 20,
+      }}
+    >
+      <span style={{ fontSize: 16, fontWeight: 600, color: palette.ink }}>
+        模型与用量{sel ? ` · ${fullLabel(sel)}` : ''}
+      </span>
+      {sel?.settingsReadonly && (
+        <span style={{ marginLeft: 'auto' }}>
           <Pill tone="gray">
             <LockOutlined /> 由平台设置
           </Pill>
-        }
-      />
+        </span>
+      )}
+      {!sel?.settingsReadonly && sel?.mode === 'subscription' && (
+        <span style={{ fontSize: 12, color: palette.mute }}>
+          获授权的公司共用
+        </span>
+      )}
+    </div>
+  );
+
+  // 只读时没有表单项在监听，直接读这张卡片的设置
+  const shown = (selected && drafts[selected]) || values;
+  const readonlyModels = (
+    <Card style={{ height: '100%' }}>
+      {modelsTitle}
+      {pausedBanner}
       {[
-        ['解析模型', '解析询盘、拆分订单时使用', values?.parseModel],
-        ['解析思考强度', '', effortLabel(values?.parseEffort)],
-        [
-          '翻译模型',
-          '翻译型号描述、音译联系人名时使用',
-          values?.translateModel,
-        ],
-        ['翻译思考强度', '', effortLabel(values?.translateEffort)],
+        ['解析模型', '解析询盘、拆分订单时使用', shown?.parseModel],
+        ['解析思考强度', '', effortLabel(shown?.parseEffort)],
+        ['翻译模型', '翻译型号描述、音译联系人名时使用', shown?.translateModel],
+        ['翻译思考强度', '', effortLabel(shown?.translateEffort)],
         [
           '每次解析最多搜索',
           '每次调用的上限，大文件分批解析时每批各自计算',
-          `${values?.maxWebSearches ?? 20} 次`,
+          `${shown?.maxWebSearches ?? 20} 次`,
         ],
       ].map(([k, d, v], i) => (
         <React.Fragment key={k}>
@@ -1068,11 +1202,8 @@ const AiSettingsPage: React.FC = () => {
 
   const editableModels = (
     <Card style={{ height: '100%' }}>
-      <SectionHead
-        palette={palette}
-        title="模型与用量"
-        hint={mode === 'subscription' ? '获授权的公司共用' : undefined}
-      />
+      {modelsTitle}
+      {pausedBanner}
       {modelField(
         'parse',
         '解析模型',
@@ -1123,12 +1254,19 @@ const AiSettingsPage: React.FC = () => {
   );
 
   // —— 底部保存条：只在有修改时出现，页面唯一的保存入口 ——
+  const movedAt = cards.findIndex(
+    (c, i) => connKey(c) !== connKey(config.connections[i] ?? c),
+  );
+  const saveHint =
+    movedAt >= 0
+      ? `连接方式顺序已调整：${fullLabel(cards[movedAt])} 排到第 ${movedAt + 1} 位，保存后新任务按新顺序使用`
+      : '有修改未保存';
   const saveBar = canEdit && dirty && (
     <div
       style={{
         position: 'sticky',
         bottom: 16,
-        zIndex: 2,
+        zIndex: 4,
         marginTop: 16,
         display: 'flex',
         justifyContent: 'space-between',
@@ -1156,35 +1294,14 @@ const AiSettingsPage: React.FC = () => {
           color: palette.ink,
         }}
       >
-        <span
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: 4,
-            background: palette.orange,
-          }}
-        />
-        {keyMissing ? '填写 API Key 后才能保存' : '有修改未保存'}
+        <InfoCircleOutlined style={{ color: palette.link }} />
+        {saveHint}
       </span>
       <span style={{ display: 'inline-flex', gap: 8 }}>
-        <Button
-          type="text"
-          disabled={saving}
-          onClick={() => {
-            form.setFieldsValue(toFormValues(config));
-            setEditingKey(undefined);
-            setModelCache(undefined);
-            setTested(undefined);
-          }}
-        >
-          撤销修改
+        <Button disabled={saving} onClick={() => load(selected)}>
+          取消
         </Button>
-        <Button
-          type="primary"
-          htmlType="submit"
-          loading={saving}
-          disabled={keyMissing}
-        >
+        <Button type="primary" loading={saving} onClick={onSave}>
           保存
         </Button>
       </span>
@@ -1202,23 +1319,18 @@ const AiSettingsPage: React.FC = () => {
         form={form}
         layout="vertical"
         disabled={!canEdit}
-        onFinish={() => onFinish(form.getFieldsValue(true))}
-        onValuesChange={(changed) => {
-          if ('apiKey' in changed) setTested(undefined);
+        onValuesChange={() => {
+          if (!selected) return;
+          const all = form.getFieldsValue(true) as AiFormValues;
+          setDrafts((d) => ({ ...d, [selected]: { ...d[selected], ...all } }));
         }}
       >
-        <Form.Item name="mode" hidden>
-          <Input />
-        </Form.Item>
-        <Form.Item name="provider" hidden>
-          <Input />
-        </Form.Item>
         <Row gutter={[16, 16]}>
           <Col xs={24} xl={12}>
             {connectCard}
           </Col>
           <Col xs={24} xl={12}>
-            {subscriptionReadonly ? readonlyModels : editableModels}
+            {sel?.settingsReadonly ? readonlyModels : editableModels}
           </Col>
         </Row>
         {saveBar}

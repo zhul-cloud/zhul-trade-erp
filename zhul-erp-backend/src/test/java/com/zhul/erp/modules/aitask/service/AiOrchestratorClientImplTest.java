@@ -88,7 +88,11 @@ class AiOrchestratorClientImplTest {
 
     @Test
     void submitCarriesAiConfigAndToken() throws Exception {
-        AiOrchestratorSubmitResult r = client.submit("inquiry-parse-and-split", 9L, "{\"rawContent\":\"x\"}", CONFIG).get();
+        AiCallConfig fallback = AiCallConfig.builder().mode("subscription").provider("claude").apiKey("")
+                .parseModel("claude-opus-5-5").translateModel("claude-haiku-5-5").parseEffort("medium")
+                .translateEffort("medium").maxWebSearches(20).build();
+        AiOrchestratorSubmitResult r = client.submit("inquiry-parse-and-split", 9L, "{\"rawContent\":\"x\"}",
+                java.util.List.of(CONFIG, fallback)).get();
         assertTrue(r.isAccepted());
         JsonNode body = objectMapper.readTree(bodies.get("/skills/inquiry-parse-and-split/run"));
         assertEquals("it-token", tokens.get("/skills/inquiry-parse-and-split/run"));
@@ -98,6 +102,12 @@ class AiOrchestratorClientImplTest {
         assertEquals(KEY, ai.path("api_key").asText());
         assertEquals("high", ai.path("parse_effort").asText());
         assertEquals(7, ai.path("max_web_searches").asInt());
+        // 按顺序的连接方式列表：第一项同 ai，编排服务出问题时换下一项
+        JsonNode connections = body.path("connections");
+        assertEquals(2, connections.size());
+        assertEquals("openai", connections.get(0).path("provider").asText());
+        assertEquals("subscription", connections.get(1).path("mode").asText());
+        assertEquals("", connections.get(1).path("api_key").asText());
     }
 
     @Test
@@ -126,7 +136,7 @@ class AiOrchestratorClientImplTest {
 
         server.stop(0);
         BizException down = assertThrows(BizException.class, () -> client.test(CONFIG));
-        AiOrchestratorSubmitResult rejected = client.submit("inquiry-parse-and-split", 10L, "{}", CONFIG).get();
+        AiOrchestratorSubmitResult rejected = client.submit("inquiry-parse-and-split", 10L, "{}", java.util.List.of(CONFIG)).get();
         assertFalse(rejected.isAccepted());
 
         for (String text : new String[] {unauthorized.getMessage(), down.getMessage(), rejected.getErrorMessage(),

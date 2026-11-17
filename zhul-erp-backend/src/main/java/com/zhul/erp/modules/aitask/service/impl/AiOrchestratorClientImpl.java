@@ -54,12 +54,15 @@ public class AiOrchestratorClientImpl implements AiOrchestratorClient {
     private String callbackToken;
 
     @Override
-    public CompletableFuture<AiOrchestratorSubmitResult> submit(String skillId, Long taskId, String inputJson, AiCallConfig ai) {
+    public CompletableFuture<AiOrchestratorSubmitResult> submit(String skillId, Long taskId, String inputJson,
+                                                                List<AiCallConfig> chain) {
         try {
-            Map<String, Object> body = new HashMap<>(4);
+            Map<String, Object> body = new HashMap<>(8);
             body.put("input", inputJson == null ? null : objectMapper.readTree(inputJson));
             body.put("callback_url", callbackBaseUrl + "/api/v1/ai-tasks/" + taskId + "/callback");
-            body.put("ai", ai.toPayload());
+            // ai 为第一项：旧版编排服务只认这个字段；新版按 connections 依次使用、出问题时换下一个
+            body.put("ai", chain.get(0).toPayload());
+            body.put("connections", chain.stream().map(AiCallConfig::toPayload).toList());
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(orchestratorBaseUrl + "/skills/" + skillId + "/run"))

@@ -6,6 +6,7 @@ import com.zhul.erp.modules.aitask.dto.AiConnectionTestVO;
 import com.zhul.erp.modules.aitask.dto.AiModelListVO;
 import com.zhul.erp.modules.aitask.dto.AiSubscriptionStatusVO;
 import com.zhul.erp.modules.aitask.dto.SaveAiConfigRequest;
+import com.zhul.erp.modules.aitask.dto.SaveAiSettingsRequest;
 import com.zhul.erp.modules.aitask.service.AiConfigService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +37,7 @@ public class AiConfigController {
 
     @PreAuthorize(EDIT)
     @PutMapping
-    public Result<Void> save(@Valid @RequestBody SaveAiConfigRequest req) {
+    public Result<Void> save(@Valid @RequestBody SaveAiSettingsRequest req) {
         aiConfigService.save(req);
         return Result.ok();
     }
