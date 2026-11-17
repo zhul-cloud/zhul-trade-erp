@@ -30,6 +30,7 @@ public class EvidenceIndex {
 
     private final SupplySourceMapper sourceMapper;
     private final BrandResolver brandResolver;
+    private final SupplyLookups lookups;
 
     /** 一条证据 */
     public record Evidence(int type, long id, LocalDate date, Long supplierId) {
@@ -42,6 +43,8 @@ public class EvidenceIndex {
         /** 品牌 → [品类（null 为全部品类）, 供应商] */
         private final Map<Long, List<long[]>> scopes = new HashMap<>();
         private final Map<String, String> sourcing = new HashMap<>();
+        /** 品类 → 上级（主营品类是一级品类，需求对象是细分品类） */
+        private Map<Long, Long> parents = Map.of();
         private final Map<String, Optional<Long>> brands = new HashMap<>();
 
         private record Raw(int type, long id, String brand, Long supplierId, LocalDate date) {
@@ -73,7 +76,7 @@ public class EvidenceIndex {
             Set<Long> out = new HashSet<>();
             for (long[] s : scopes.getOrDefault(d.getBrandId(), List.of())) {
                 long cat = s[0];
-                if (cat == 0 || d.getCategoryId() == null || d.getCategoryId() == 0 || cat == d.getCategoryId()) {
+                if (d.getCategoryId() == null || DevPool.scopeCovers(cat, d.getCategoryId(), parents)) {
                     out.add(s[1]);
                 }
             }
@@ -112,6 +115,7 @@ public class EvidenceIndex {
                 }
             }
         }
+        s.parents = lookups.categoryParents();
         for (Map<String, Object> m : sourceMapper.supplierScopes()) {
             Number cat = (Number) m.get("categoryId");
             s.scopes.computeIfAbsent(((Number) m.get("brandId")).longValue(), k -> new ArrayList<>())

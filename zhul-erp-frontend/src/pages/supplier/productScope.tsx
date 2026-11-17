@@ -74,6 +74,16 @@ export const categoryGroups = (tree: Category[], selected: number[] = []) =>
     }))
     .filter((g) => g.options.length);
 
+/** 供应商主营品类下拉：只列一级品类；停用的不能新选，但已选的仍显示 */
+export const topCategoryOptions = (tree: Category[], selected: number[] = []) =>
+  tree
+    .filter((c) => c.status === 1 || selected.includes(c.id))
+    .map((c) => ({
+      value: c.id,
+      label: c.categoryNameZh || c.categoryName,
+      disabled: c.status !== 1,
+    }));
+
 export const PendingTag: React.FC = () => {
   const { palette } = useAppTheme();
   return (
@@ -210,7 +220,7 @@ export const ProductScopeEditor: React.FC = () => {
             }}
           >
             <span>
-              按品牌录入：每个品牌可选若干细分品类，不选表示该品牌全部品类。询盘单会按「品牌
+              按品牌录入：每个品牌可选若干一级品类，不选表示该品牌全部品类。询盘单会按「品牌
               + 品类」自动推荐主营相符的供应商。
             </span>
             <span className="num" style={{ whiteSpace: 'nowrap' }}>
@@ -250,7 +260,7 @@ export const ProductScopeEditor: React.FC = () => {
                 }}
               >
                 <span>品牌</span>
-                <span>细分品类</span>
+                <span>品类</span>
               </div>
               {fields.map((field) => (
                 <div
@@ -285,7 +295,7 @@ export const ProductScopeEditor: React.FC = () => {
                       mode="multiple"
                       allowClear
                       placeholder="全部品类（不选即表示该品牌全部品类）"
-                      options={categoryGroups(
+                      options={topCategoryOptions(
                         catalog.tree,
                         rows[field.name]?.categoryIds,
                       )}
