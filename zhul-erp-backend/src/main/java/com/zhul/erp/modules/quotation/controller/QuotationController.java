@@ -111,6 +111,13 @@ public class QuotationController {
         return Result.ok(service.byInquiry(inquiryId));
     }
 
+    /** 列表「查看」弹窗：分页列出报价单全部型号 */
+    @GetMapping("/{id}/models")
+    public Result<PageResult<com.zhul.erp.common.result.DocModelLineVO>> models(@PathVariable Long id,
+            @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int pageSize) {
+        return Result.ok(service.models(id, page, pageSize));
+    }
+
     @PostMapping
     public Result<QuotationVO> create(@Valid @RequestBody CreateQuotationRequest req) {
         return Result.ok(service.create(req));
@@ -186,8 +193,10 @@ public class QuotationController {
     // ---------------------------------------------------------------- 对外文件
 
     @GetMapping("/{id}/text")
-    public Result<QuoteTextVO> text(@PathVariable Long id, @RequestParam(required = false) Integer version) {
-        return Result.ok(documentService.text(id, version));
+    public Result<QuoteTextVO> text(@PathVariable Long id, @RequestParam(required = false) Integer version,
+                                    @RequestParam(required = false) Integer condition,
+                                    @RequestParam(required = false) String leadTime) {
+        return Result.ok(documentService.text(id, version, condition, leadTime));
     }
 
     @GetMapping("/{id}/export")

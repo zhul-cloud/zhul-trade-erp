@@ -55,4 +55,7 @@ public interface QuotationService {
 
     /** 询盘单详情中的「报价单」区域：包含该询盘型号的报价单 */
     List<QuotationListVO> byInquiry(Long inquiryId);
+
+    /** 列表「查看」弹窗：分页列出当前版本的全部型号 */
+    PageResult<com.zhul.erp.common.result.DocModelLineVO> models(Long id, int page, int pageSize);
 }

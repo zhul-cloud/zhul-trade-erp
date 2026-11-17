@@ -27,6 +27,13 @@ import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import {
+  FirstModelCell,
+  fetchAllModels,
+  ModalTitle,
+  PagedModelsModal,
+  TagList,
+} from '@/pages/inquiry/customer-inquiry/ModelCells';
 import { Stat, useWide } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { getUserOptions } from '@/services/zhul/users';
@@ -96,6 +103,8 @@ const PiList: React.FC = () => {
   const [stats, setStats] = useState<PiStats>();
   const [owners, setOwners] = useState<{ value: number; label: string }[]>([]);
   const [newOpen, setNewOpen] = useState(false);
+  /** 「查看」全部型号的 PI */
+  const [viewing, setViewing] = useState<PiListItem>();
 
   /** 型号数、总数量、合计的排序（后端排序，翻页后保持） */
   const [sort, setSort] = useState<{
@@ -211,12 +220,18 @@ const PiList: React.FC = () => {
       ),
     },
     {
-      title: '型号数',
+      title: '型号',
       dataIndex: 'itemCount',
       sorter: true,
       sortOrder: sortOf('itemCount'),
-      width: 100,
-      align: 'right',
+      width: 190,
+      render: (_, r) => (
+        <FirstModelCell
+          model={r.firstModel}
+          count={r.itemCount}
+          onView={() => setViewing(r)}
+        />
+      ),
     },
     {
       title: '总数量',
@@ -226,6 +241,18 @@ const PiList: React.FC = () => {
       width: 90,
       align: 'right',
       render: (v?: number) => v ?? '—',
+    },
+    {
+      title: '品牌',
+      key: 'brands',
+      width: 170,
+      render: (_, r) => <TagList values={r.brands} label="品牌" />,
+    },
+    {
+      title: '品类',
+      key: 'categories',
+      width: 170,
+      render: (_, r) => <TagList values={r.categories} label="品类" />,
     },
     {
       title: '币种 · 合计',
@@ -660,6 +687,23 @@ const PiList: React.FC = () => {
         />
       )}
 
+      <PagedModelsModal
+        openId={viewing?.id}
+        showPrice
+        title={
+          <ModalTitle
+            count={viewing?.itemCount}
+            sub={`${viewing?.piNo ?? ''} · ${viewing?.customerName ?? ''}`}
+          />
+        }
+        note="按 PI 明细的顺序"
+        fetchPage={(p, s) => piApi.models(viewing?.id as number, p, s)}
+        fetchAll={() =>
+          fetchAllModels((p, s) => piApi.models(viewing?.id as number, p, s))
+        }
+        onOpenDetail={() => viewing && history.push(PATHS.pi(viewing.id))}
+        onClose={() => setViewing(undefined)}
+      />
       <NewPiModal
         open={newOpen}
         onClose={() => setNewOpen(false)}

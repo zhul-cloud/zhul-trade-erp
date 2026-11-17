@@ -1,6 +1,9 @@
 package com.zhul.erp.modules.quotation.service.impl;
 
+import com.zhul.erp.common.result.DocModelLineVO;
 import com.zhul.erp.common.result.DocRefVO;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.zhul.erp.modules.inquiry.support.InquiryModelSummary;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
@@ -1248,10 +1251,15 @@ public class QuotationServiceImpl implements QuotationService {
         }
         List<Long> ids = rows.stream().map(QuotationDO::getId).toList();
         List<QuotationItemDO> items = itemMapper.selectList(new LambdaQueryWrapper<QuotationItemDO>()
-                .select(QuotationItemDO::getQuotationId, QuotationItemDO::getCustomerInquiryId, QuotationItemDO::getQuantity)
+                .select(QuotationItemDO::getQuotationId, QuotationItemDO::getCustomerInquiryId, QuotationItemDO::getQuantity,
+                        QuotationItemDO::getModel, QuotationItemDO::getBrand, QuotationItemDO::getCategory)
                 .in(QuotationItemDO::getQuotationId, ids)
                 .eq(QuotationItemDO::getIsCurrent, 1)
-                .isNull(QuotationItemDO::getDeletedAt));
+                .isNull(QuotationItemDO::getDeletedAt)
+                .orderByAsc(QuotationItemDO::getLineNo)
+                .orderByAsc(QuotationItemDO::getId));
+        Map<Long, List<QuotationItemDO>> itemsByQuotation = items.stream()
+                .collect(java.util.stream.Collectors.groupingBy(QuotationItemDO::getQuotationId));
         Map<Long, Integer> counts = new HashMap<>();
         Map<Long, Integer> quantities = new HashMap<>();
         Map<Long, Set<Long>> inquiriesByQuotation = new HashMap<>();
@@ -1276,6 +1284,10 @@ public class QuotationServiceImpl implements QuotationService {
             vo.setCustomerType(customerTypes.get(q.getId()));
             vo.setTotalQuantity(quantities.getOrDefault(q.getId(), 0));
             vo.setItemCount(counts.getOrDefault(q.getId(), 0));
+            List<QuotationItemDO> own = itemsByQuotation.getOrDefault(q.getId(), List.of());
+            vo.setFirstModel(own.stream().map(QuotationItemDO::getModel).filter(StringUtils::hasText).findFirst().orElse(null));
+            vo.setBrands(InquiryModelSummary.ranked(own, QuotationItemDO::getBrand));
+            vo.setCategories(InquiryModelSummary.ranked(own, QuotationItemDO::getCategory));
             vo.setCurrencyCode(q.getCurrencyCode());
             vo.setTotalAmount(q.getTotalAmount());
             vo.setMarginRate(q.getMarginRate());
@@ -1295,6 +1307,31 @@ public class QuotationServiceImpl implements QuotationService {
             list.add(vo);
         }
         return list;
+    }
+
+    @Override
+    public PageResult<DocModelLineVO> models(Long id, int page, int pageSize) {
+        QuotationDO q = store.visible(id);
+        Page<QuotationItemDO> rows = itemMapper.selectPage(new Page<>(Math.max(page, 1), Math.min(Math.max(pageSize, 1), 100)),
+                new LambdaQueryWrapper<QuotationItemDO>()
+                        .select(QuotationItemDO::getId, QuotationItemDO::getBrand, QuotationItemDO::getModel,
+                                QuotationItemDO::getCategory, QuotationItemDO::getQuantity, QuotationItemDO::getUnitPrice)
+                        .eq(QuotationItemDO::getQuotationId, q.getId())
+                        .eq(QuotationItemDO::getIsCurrent, 1)
+                        .isNull(QuotationItemDO::getDeletedAt)
+                        .orderByAsc(QuotationItemDO::getLineNo)
+                        .orderByAsc(QuotationItemDO::getId));
+        return PageResult.of(rows.getTotal(), rows.getRecords().stream().map(i -> {
+            DocModelLineVO vo = new DocModelLineVO();
+            vo.setId(i.getId());
+            vo.setBrand(i.getBrand());
+            vo.setModel(i.getModel());
+            vo.setCategory(i.getCategory());
+            vo.setQuantity(i.getQuantity());
+            vo.setUnitPrice(i.getUnitPrice());
+            vo.setCurrencyCode(q.getCurrencyCode());
+            return vo;
+        }).toList());
     }
 
     // ---------------------------------------------------------------- 内部

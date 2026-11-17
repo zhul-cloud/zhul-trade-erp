@@ -26,6 +26,13 @@ import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import {
+  FirstModelCell,
+  fetchAllModels,
+  ModalTitle,
+  PagedModelsModal,
+  TagList,
+} from '@/pages/inquiry/customer-inquiry/ModelCells';
 import { Stat, useWide } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { getUserOptions } from '@/services/zhul/users';
@@ -45,6 +52,7 @@ import {
   STATUS,
   STATUS_META,
 } from './components';
+import { ListTextQuote } from './dialogs';
 import NewQuotationModal from './NewQuotationModal';
 import {
   type QuotationListItem,
@@ -79,6 +87,10 @@ const QuotationList: React.FC = () => {
   const [stats, setStats] = useState<QuotationStats>();
   const [owners, setOwners] = useState<{ value: number; label: string }[]>([]);
   const [newOpen, setNewOpen] = useState(false);
+  /** 「查看」全部型号的报价单 */
+  const [viewing, setViewing] = useState<QuotationListItem>();
+  /** 正在打开文字报价的报价单 */
+  const [textId, setTextId] = useState<number>();
 
   /** 型号数、总数量、合计的排序（后端排序，翻页后保持） */
   const [sort, setSort] = useState<{
@@ -193,12 +205,18 @@ const QuotationList: React.FC = () => {
       ),
     },
     {
-      title: '型号数',
+      title: '型号',
       dataIndex: 'itemCount',
       sorter: true,
       sortOrder: sortOf('itemCount'),
-      width: 100,
-      align: 'right',
+      width: 190,
+      render: (_, r) => (
+        <FirstModelCell
+          model={r.firstModel}
+          count={r.itemCount}
+          onView={() => setViewing(r)}
+        />
+      ),
     },
     {
       title: '总数量',
@@ -208,6 +226,18 @@ const QuotationList: React.FC = () => {
       width: 90,
       align: 'right',
       render: (v?: number) => v ?? '—',
+    },
+    {
+      title: '品牌',
+      key: 'brands',
+      width: 170,
+      render: (_, r) => <TagList values={r.brands} label="品牌" />,
+    },
+    {
+      title: '品类',
+      key: 'categories',
+      width: 170,
+      render: (_, r) => <TagList values={r.categories} label="品类" />,
     },
     {
       title: '币种 · 合计',
@@ -282,7 +312,7 @@ const QuotationList: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 120,
+      width: 190,
       fixed: 'right',
       render: (_, r) =>
         r.status === STATUS.DRAFT ? (
@@ -293,6 +323,13 @@ const QuotationList: React.FC = () => {
               onClick={() => history.push(PATHS.detail(r.id))}
             >
               编辑
+            </button>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setTextId(r.id)}
+            >
+              文字报价
             </button>
             <Popconfirm
               title="删除这张草稿？"
@@ -305,13 +342,22 @@ const QuotationList: React.FC = () => {
             </Popconfirm>
           </Space>
         ) : (
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(PATHS.detail(r.id))}
-          >
-            查看
-          </button>
+          <Space size={12}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(PATHS.detail(r.id))}
+            >
+              查看
+            </button>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setTextId(r.id)}
+            >
+              文字报价
+            </button>
+          </Space>
         ),
     },
   ];
@@ -546,6 +592,30 @@ const QuotationList: React.FC = () => {
         />
       )}
 
+      <PagedModelsModal
+        openId={viewing?.id}
+        showPrice
+        title={
+          <ModalTitle
+            count={viewing?.itemCount}
+            sub={`${viewing?.quotationNo ?? ''} · ${viewing?.customerName ?? ''}`}
+          />
+        }
+        note="按报价单明细的顺序"
+        fetchPage={(p, s) => quotationApi.models(viewing?.id as number, p, s)}
+        fetchAll={() =>
+          fetchAllModels((p, s) =>
+            quotationApi.models(viewing?.id as number, p, s),
+          )
+        }
+        onOpenDetail={() => viewing && history.push(PATHS.detail(viewing.id))}
+        onClose={() => setViewing(undefined)}
+      />
+      <ListTextQuote
+        id={textId}
+        onClose={() => setTextId(undefined)}
+        onSent={load}
+      />
       <NewQuotationModal
         open={newOpen}
         onClose={() => setNewOpen(false)}

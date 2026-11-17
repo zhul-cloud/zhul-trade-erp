@@ -23,11 +23,18 @@ import {
   Skeleton,
 } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
+import { useQuoteDicts } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { liveRequests } from '@/utils/liveRequests';
-import { CHANNEL } from './components';
+import { CHANNEL, STATUS } from './components';
 import { PickItemsPanel } from './NewQuotationModal';
 import { type Quotation, quotationApi, readBizError } from './service';
+import {
+  DEFAULT_TEXT_OPTIONS,
+  type LeadChoice,
+  leadChoices,
+  type TextOptions,
+} from './textOptions';
 
 const CHANNEL_OF = {
   xlsx: CHANNEL.EXCEL,
@@ -51,13 +58,22 @@ export const TextQuoteModal: React.FC<{
   onClose: () => void;
   onMarkSent: (channel: number) => void;
 }> = ({ quotation, open, onClose, onMarkSent }) => {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { palette } = useAppTheme();
+  const { conditionOptions, leadTimeOptions } = useQuoteDicts();
   const [text, setText] = useState('');
   const [version, setVersion] = useState<number>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
   const [copied, setCopied] = useState(false);
+  const [options, setOptions] = useState<TextOptions>(DEFAULT_TEXT_OPTIONS);
+  /** 预览框里手改过：改选下拉前先确认 */
+  const [edited, setEdited] = useState(false);
+
+  // 关闭时恢复默认，下次打开为全新原装、按采购货期顺延
+  useEffect(() => {
+    if (!open) setOptions(DEFAULT_TEXT_OPTIONS);
+  }, [open]);
 
   useEffect(() => {
     if (!open || !quotation) return undefined;
@@ -65,15 +81,31 @@ export const TextQuoteModal: React.FC<{
     setLoading(true);
     setError(undefined);
     setCopied(false);
-    live(quotationApi.text(quotation.id, quotation.versionNo))
+    live(quotationApi.text(quotation.id, options, quotation.versionNo))
       .then((r) => {
         setText(r.text);
+        setEdited(false);
         setVersion(r.templateVersionNo);
       })
       .catch((e) => setError(readBizError(e).message))
       .finally(() => setLoading(false));
     return cancel;
-  }, [open, quotation]);
+  }, [open, quotation, options]);
+
+  const choose = (next: Partial<TextOptions>) => {
+    const apply = () => setOptions((o) => ({ ...o, ...next }));
+    if (!edited) {
+      apply();
+      return;
+    }
+    modal.confirm({
+      title: '重新生成会覆盖你改过的文字',
+      content: '你在预览框里手改过文字，改选后会按新选择重新生成。',
+      okText: '重新生成',
+      cancelText: '取消',
+      onOk: apply,
+    });
+  };
 
   const copy = () => {
     navigator.clipboard
@@ -116,6 +148,37 @@ export const TextQuoteModal: React.FC<{
         title="复制后直接粘贴到 WhatsApp、阿里巴巴国际站等聊天窗口；这里的修改只影响本次发送，不改模版。"
         style={{ marginBottom: 12 }}
       />
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ fontSize: 12, color: palette.mute }}>报价货况</span>
+          <Select
+            aria-label="报价货况"
+            style={{ width: 200 }}
+            value={options.condition}
+            options={conditionOptions}
+            onChange={(v: number) => choose({ condition: v })}
+          />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ fontSize: 12, color: palette.mute }}>报价货期</span>
+          <Select<LeadChoice>
+            aria-label="报价货期"
+            style={{ width: 220 }}
+            value={options.leadTime}
+            options={leadChoices(leadTimeOptions)}
+            onChange={(v) => choose({ leadTime: v })}
+          />
+        </div>
+      </div>
+      <div
+        style={{
+          margin: '8px 0 12px',
+          fontSize: 12,
+          color: palette.mute,
+        }}
+      >
+        改选后重新生成下面的文字，只影响这次发送，不改报价单。按采购货期顺延：每行在采购报的货期上往后挪一档。
+      </div>
       {loading ? (
         <Skeleton active />
       ) : error ? (
@@ -123,7 +186,10 @@ export const TextQuoteModal: React.FC<{
       ) : (
         <Input.TextArea
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value);
+            setEdited(true);
+          }}
           autoSize={{ minRows: 5, maxRows: 16 }}
           style={{
             fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
@@ -173,6 +239,77 @@ export const TextQuoteModal: React.FC<{
         </div>
       )}
     </Modal>
+  );
+};
+
+/**
+ * 列表「文字报价」：取报价单默认查看的版本（与详情页同一接口），打开同一个弹窗；
+ * 标为已发送与详情页一样，有供应提示时先确认供应。发送后回调刷新列表。
+ */
+export const ListTextQuote: React.FC<{
+  id?: number;
+  onClose: () => void;
+  onSent: () => void;
+}> = ({ id, onClose, onSent }) => {
+  const { message } = App.useApp();
+  const [quotation, setQuotation] = useState<Quotation>();
+  const [supplyChannel, setSupplyChannel] = useState<number>();
+
+  useEffect(() => {
+    setQuotation(undefined);
+    setSupplyChannel(undefined);
+    if (id == null) return undefined;
+    const { live, cancel } = liveRequests();
+    live(quotationApi.detail(id))
+      .then(setQuotation)
+      .catch((e) => {
+        message.error(readBizError(e).message);
+        onClose();
+      });
+    return cancel;
+  }, [id]);
+
+  const markSent = async (channel: number, supplyConfirmed = false) => {
+    if (!quotation) return;
+    if (!supplyConfirmed && supplyRisks(quotation).length > 0) {
+      setSupplyChannel(channel);
+      return;
+    }
+    try {
+      await quotationApi.markSent(
+        quotation.id,
+        channel,
+        supplyConfirmed || undefined,
+      );
+      message.success(
+        quotation.status === STATUS.DRAFT
+          ? '已标为已发送，询盘单变为「已报价」'
+          : quotation.editingVersionNo
+            ? `Rev.${quotation.editingVersionNo} 已发送，成为当前版本`
+            : '已记一次发送',
+      );
+      onClose();
+      onSent();
+    } catch (e) {
+      message.error(readBizError(e).message);
+    }
+  };
+
+  return (
+    <>
+      <TextQuoteModal
+        quotation={quotation}
+        open={!!quotation && supplyChannel == null}
+        onClose={onClose}
+        onMarkSent={markSent}
+      />
+      <SupplyConfirmModal
+        quotation={quotation}
+        channel={supplyChannel}
+        onClose={() => setSupplyChannel(undefined)}
+        onConfirm={(channel) => markSent(channel, true)}
+      />
+    </>
   );
 };
 
