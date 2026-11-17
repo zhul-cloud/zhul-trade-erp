@@ -1,11 +1,13 @@
 # ERP 审查与整改总入口
 
-`audit/` 统一保存本项目审查发现、后续所有修复任务的进度、验证结果与最终验收。开始或接续整改先读[问题状态台账](09-remediation/issues.md)、关联任务记录和最新源码 / PR，再按[整改流程](09-remediation/README.md)推进；同一任务持续更新同一文件，进度不重复写入 Wiki。
+`audit/` 统一保存本项目审查发现、后续所有修复任务的进度、验证结果与最终验收。开始或接续整改先运行 `python scripts/audit/ledger.py open`，按 `AGENTS.md`「审查整改记录」的规则推进（命令细节见[整改台账](09-remediation/README.md)）；同一任务持续更新同一文件，进度不重复写入 Wiki。
 
-- [问题状态台账](09-remediation/issues.md)：每个永久 ID 的唯一当前状态、负责人和任务记录入口。
-- [整改流程与状态门槛](09-remediation/README.md)：认领、协作、验证、合并、发布及关闭要求。
+- 问题台账：`09-remediation/ledger.jsonl`，只经 `scripts/audit/ledger.py` 读写；每个永久 ID 的当前状态、负责人与处理记录。
+- [整改台账：命令与规则](09-remediation/README.md)：命令、状态、负责人与证据要求。
 - [修复记录模板与命名](09-remediation/tasks/README.md)：按实际任务建档，可同时关联多个问题 ID。
 - [2026-11-14 整改后风险聚焦复审](09-remediation/tasks/2026-11-14-SEC-005-post-remediation-review.md)：`58686c96` 上新增 8 项、重开 3 项；证据层次与未覆盖验证单列，不替代原审查基线或生产验收。
+
+> 日常整改不需要读本文后面的审查基线与索引；只在追溯某个 ID 的原始审查发现时再读。
 
 ## 审查基线与阅读边界
 
@@ -32,14 +34,14 @@
 | [全量运行配置](04-ai-and-operations/03-全量运行脚本与配置审查.md) / [部署数据迁移补查](04-ai-and-operations/04-部署与数据迁移补查.md) | AI006、OPS与资源/历史资产结构边界 |
 | [文档与测试保障](05-code-and-docs/01-文档与测试一致性.md) / [前端冗余约定](05-code-and-docs/02-前端冗余与约定.md) | 现行/历史规范冲突、CI、fixture及清理候选 |
 | [HTTP声明矩阵](07-security/01-接口权限矩阵.md) / [身份会话](07-security/02-身份会话与对象权限.md) / [全量平台审查](07-security/03-全量平台与商品代码审查.md) | 注解盘点、对象/会话保护与反证 |
-| [整改流程](09-remediation/README.md) / [问题状态台账](09-remediation/issues.md) / [任务模板](09-remediation/tasks/README.md) | 后续认领、验证、合并、部署与验收记录入口 |
+| [整改台账](09-remediation/README.md) / [任务模板](09-remediation/tasks/README.md) | 后续认领、验证、合并、部署与验收记录入口 |
 | [覆盖定义](08-coverage/README.md) | 逐路径清单状态的定义与去重规则 |
 | [业务ledger](08-coverage/backend-business.csv) / [平台ledger](08-coverage/backend-platform.csv) / [前端ledger](08-coverage/frontend.csv) | 自研源码、测试及关联契约逐文件记录 |
 | [运行/SQL ledger](08-coverage/runtime-data.csv) / [补充文档资产ledger](08-coverage/additional.csv) / [页面ledger](08-coverage/pages.csv) | 运行资源、历史/资产与逐页面操作边界 |
 
 ## 审查基线条目索引（2026-11-01）
 
-本表保留审查发现及证据定位，不维护整改状态；当前状态见[问题状态台账](09-remediation/issues.md)。静态、真实函数/组件mock、隔离数据库和真实浏览器分别描述；详细触发条件、期望/实际、已有保护、反证、修复方向和验收要求以专题为准。
+本表保留审查发现及证据定位，不维护整改状态；当前状态用 `python scripts/audit/ledger.py show <ID>` 查看。静态、真实函数/组件mock、隔离数据库和真实浏览器分别描述；详细触发条件、期望/实际、已有保护、反证、修复方向和验收要求以专题为准。
 
 | ID | 级别 | 整改主题 / 专题 | 验证 / 性质 |
 | --- | --- | --- | --- |
