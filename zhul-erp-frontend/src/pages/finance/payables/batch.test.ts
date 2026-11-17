@@ -1,4 +1,4 @@
-import { currencyTotals, groupPayables } from './batch';
+import { amountTotals, currencyTotals, groupPayables } from './batch';
 import type { Payable } from './service';
 
 const ap = (p: Partial<Payable>) =>
@@ -56,5 +56,39 @@ describe('currencyTotals', () => {
         ap({ currencyCode: 'CNY', unpaidAmount: 5 }),
       ]),
     ).toBe('USD 0.30 · CNY 5.00');
+  });
+});
+
+describe('当期应付', () => {
+  it('每组默认金额为各单当期应付之和，说明带应付单号；没有当期应付时取未付', () => {
+    const [g] = groupPayables([
+      ap({
+        id: 1,
+        payableNo: 'AP1',
+        nextDueDate: '2026-11-12',
+        unpaidAmount: 2400,
+        dueNowAmount: 720,
+        dueNowNote: '第 1 期 30% 下单后，11-12 到期',
+      }),
+      ap({
+        id: 2,
+        payableNo: 'AP2',
+        nextDueDate: '2026-11-15',
+        unpaidAmount: 1260,
+      }),
+    ]);
+    expect(g.unpaid).toBe(3660);
+    expect(g.dueNow).toBe(1980);
+    expect(g.dueNowNote).toBe('AP1 第 1 期 30% 下单后，11-12 到期');
+  });
+
+  it('弹窗顶部按各组本次金额合计', () => {
+    const groups = groupPayables([
+      ap({ id: 1, unpaidAmount: 100 }),
+      ap({ id: 2, supplierId: 11, currencyCode: 'CNY', unpaidAmount: 5 }),
+    ]);
+    expect(
+      amountTotals(groups, (g) => (g.currency === 'USD' ? 30 : null)),
+    ).toBe('USD 30.00 · CNY 0.00');
   });
 });
