@@ -423,7 +423,7 @@ const OpportunityPage: React.FC = () => {
                 <Input
                   allowClear
                   prefix={<SearchOutlined />}
-                  placeholder="联系人、客户名称、邮箱或 WhatsApp"
+                  placeholder="商机编号、客户、联系人、邮箱或 WhatsApp"
                 />
               </Form.Item>
               <Form.Item

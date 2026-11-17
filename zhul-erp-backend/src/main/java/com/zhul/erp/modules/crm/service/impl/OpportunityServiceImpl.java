@@ -371,11 +371,11 @@ public class OpportunityServiceImpl implements OpportunityService {
         LambdaQueryWrapper<OpportunityDO> w = scoped();
         OpportunityStageRules.Stages stages = stageRules.load();
         if (StringUtils.hasText(q.getKeyword())) {
-            List<Long> customerIds = customerIdsMatching(q.getKeyword().trim());
-            if (customerIds.isEmpty()) {
-                return PageResult.of(0L, List.of());
-            }
-            w.in(OpportunityDO::getCustomerId, customerIds);
+            // 商机编号，或客户（编号、名称、联系人、邮箱、WhatsApp）匹配（audit UI-103）
+            String kw = q.getKeyword().trim();
+            List<Long> customerIds = customerIdsMatching(kw);
+            w.and(x -> x.like(OpportunityDO::getOpportunityCode, kw)
+                    .or(!customerIds.isEmpty(), y -> y.in(OpportunityDO::getCustomerId, customerIds)));
         }
         w.eq(q.getSourceChannel() != null, OpportunityDO::getSourceChannel, q.getSourceChannel())
                 .eq(q.getOwnerId() != null, OpportunityDO::getOwnerId, q.getOwnerId())
@@ -774,7 +774,8 @@ public class OpportunityServiceImpl implements OpportunityService {
                         .select(CustomerDO::getId)
                         .eq(CustomerDO::getTenantId, currentTenantId())
                         .isNull(CustomerDO::getDeletedAt)
-                        .and(x -> x.like(CustomerDO::getName, kw).or().like(CustomerDO::getContactName, kw)
+                        .and(x -> x.like(CustomerDO::getCustomerCode, kw).or().like(CustomerDO::getName, kw)
+                                .or().like(CustomerDO::getContactName, kw)
                                 .or().like(CustomerDO::getContactEmail, kw).or().like(CustomerDO::getWhatsapp, kw))
                         .last("LIMIT " + KEYWORD_CUSTOMER_LIMIT))
                 .stream().map(CustomerDO::getId).toList();

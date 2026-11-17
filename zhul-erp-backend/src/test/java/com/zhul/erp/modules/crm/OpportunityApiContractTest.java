@@ -298,6 +298,28 @@ class OpportunityApiContractTest extends IntegrationTestBase {
         assertEquals(1, ok(call(get(BASE + "/page").param("keyword", "b@x"), admin)).path("total").asInt());
     }
 
+    /** UI-103：关键词也能搜商机编号和客户编号（列表显示了这两个编号，之前只匹配客户名称、联系人、邮箱、WhatsApp） */
+    @Test
+    void page_keywordMatchesOpportunityAndCustomerCode() throws Exception {
+        loginAsAdmin("opp_admin");
+        String admin = token("opp_admin");
+        String day = LocalDate.now().toString();
+        long a = register(admin, lead("Kim", 2, day, ",\"email\":\"kim@x.com\""));
+        register(admin, lead("Lee", 2, day, ",\"email\":\"lee@x.com\""));
+        String code = ok(call(get(BASE + "/" + a), admin)).path("opportunityCode").asText();
+        String customerCode = jdbc.queryForObject(
+                "select c.customer_code from customer c join opportunity o on o.customer_id = c.id where o.id = ?", String.class, a);
+
+        JsonNode byCode = ok(call(get(BASE + "/page").param("keyword", code), admin));
+        assertEquals(1, byCode.path("total").asInt(), "按商机编号搜到这一条");
+        assertEquals(a, byCode.path("records").get(0).path("id").asLong());
+        assertEquals(1, ok(call(get(BASE + "/page").param("keyword", " " + code.toLowerCase() + " "), admin)).path("total").asInt(),
+                "编号不分大小写、去掉首尾空格");
+        assertEquals(1, ok(call(get(BASE + "/page").param("keyword", customerCode), admin)).path("total").asInt(), "按客户编号");
+        assertEquals(1, ok(call(get(BASE + "/page").param("keyword", "kim@x"), admin)).path("total").asInt(), "原有的邮箱搜索不变");
+        assertEquals(0, ok(call(get(BASE + "/page").param("keyword", "OPP19990101999"), admin)).path("total").asInt());
+    }
+
     @Test
     void delete_onlyWithoutLinkedInquiries_keepsCustomer_needsButton() throws Exception {
         loginAsAdmin("opp_admin");
