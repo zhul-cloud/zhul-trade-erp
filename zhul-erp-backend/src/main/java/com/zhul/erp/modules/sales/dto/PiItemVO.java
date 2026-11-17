@@ -15,6 +15,10 @@ public class PiItemVO {
     private String inquiryCode;
     private Long inquiryItemId;
     private String model;
+    /** 客户型号（询盘确认的型号）；与型号相同时为空 */
+    private String customerModel;
+    /** 已发送的当前有效版本：询盘型号的真实型号已更新为这个型号（与型号不同时才有值） */
+    private String modelUpdatedTo;
     private String brand;
     private String category;
     /** 订货号（取来源询盘型号），系统内显示 */

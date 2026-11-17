@@ -24,6 +24,8 @@ public class PurchaseRequirementDO {
     private String model;
     private String brand;
     private String category;
+    /** 描述（中文，来自销售订单型号行） */
+    private String description;
     private Integer quantity;
     /** 目标价（CNY，不含税），为空表示没有 */
     private BigDecimal targetPrice;

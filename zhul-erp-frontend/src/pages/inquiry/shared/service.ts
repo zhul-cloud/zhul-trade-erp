@@ -1,4 +1,5 @@
 import { request } from '@umijs/max';
+import type { ActualModelResult } from '@/components/DocFields/ActualModel';
 import { fileUrl } from '@/utils/fileLink';
 
 export { readBizError } from '@/pages/crm/opportunity/service';
@@ -140,8 +141,11 @@ export interface InquiryItem {
   noStockReasonName?: string;
   /** 已报给客户（出现在已发送及之后的报价单中） */
   quoted?: boolean;
-  /** 采购回填的真实型号 */
+  /** 真实型号（业务员或采购填写，单据型号以它为准） */
   actualModel?: string;
+  /** 真实型号最后修改人与时间 */
+  actualModelBy?: string;
+  actualModelAt?: string | null;
   /** 建档状态：0-未处理、1-已建档、2-候选中、3-待回填真实型号 */
   archiveStatus?: number;
   archiveStatusName?: string;
@@ -641,8 +645,11 @@ export interface MyTaskItem {
   reviewNote?: string;
   reviewedByName?: string;
   reviewedAt?: string;
-  /** 采购回填的真实型号 */
+  /** 真实型号（业务员或采购填写，单据型号以它为准） */
   actualModel?: string;
+  /** 真实型号最后修改人与时间 */
+  actualModelBy?: string;
+  actualModelAt?: string | null;
   /** 建档状态：0-未处理、1-已建档、2-候选中、3-待回填真实型号 */
   archiveStatus?: number;
   archiveStatusName?: string;
@@ -952,6 +959,13 @@ export const inquiryApi = {
   /** 附件接口地址（不含 /url），给预览组件取签名链接 */
   attachmentEndpoint: (id: number, attachmentId: number) =>
     `${INQ}/${id}/attachments/${attachmentId}`,
+  /** 业务员填写或清空真实型号；还没发出的下游单据一起改 */
+  saveActualModel: (id: number, itemId: number, actualModel: string) =>
+    send<ActualModelResult>(
+      'PUT',
+      `${INQ}/${id}/items/${itemId}/actual-model`,
+      { actualModel },
+    ),
   /** 改铭牌图片对应的型号，0 为未对应 */
   linkNameplate: (id: number, attachmentId: number, inquiryItemId: number) =>
     send<void>('PUT', `${INQ}/${id}/nameplates/${attachmentId}`, {
@@ -1176,6 +1190,8 @@ export const myTaskApi = {
   saveActualModel: (id: number, itemId: number, actualModel: string) =>
     send<{
       actualModel: string;
+      actualModelBy?: string;
+      actualModelAt?: string | null;
       archiveStatus: number;
       archiveStatusName?: string;
     }>('PUT', `${MY}/${id}/items/${itemId}/actual-model`, { actualModel }),

@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 采购需求的生命周期，由销售订单在自己的事务内调用：生成订单时生成需求（重转时接回已下单数量、自动排入草稿），
@@ -85,6 +86,7 @@ public class RequirementLifecycle {
             r.setModel(i.getModel());
             r.setBrand(i.getBrand());
             r.setCategory(Objects.requireNonNullElse(i.getCategory(), ""));
+            r.setDescription(Objects.requireNonNullElse(i.getDescription(), ""));
             r.setQuantity(i.getQuantity());
             r.setTargetPrice(i.getCostPrice());
             r.setPurchaserId(i.getPurchaserId());
@@ -288,6 +290,7 @@ public class RequirementLifecycle {
         x.setPoId(i.getPoId());
         x.setModel(i.getModel());
         x.setBrand(i.getBrand());
+        x.setDescription(i.getDescription());
         x.setUnitPrice(i.getUnitPrice());
         x.setTargetPrice(i.getTargetPrice());
         x.setAmount(BigDecimal.ZERO);
@@ -356,6 +359,63 @@ public class RequirementLifecycle {
                     .forEach(s -> map.put(s.getId(), s));
         }
         return map;
+    }
+
+    // ---------------------------------------------------------------- 真实型号变更（openspec actual-model-and-description）
+
+    /**
+     * 销售订单型号行因真实型号变更改了型号：需求（订单已取消的除外）跟着改并更新时间；草稿采购订单行跟着改；
+     * 已下单的采购订单不改，只写日志提醒与供应商核对（详情另按需求型号比较后标红）。soItemModels：订单型号行 ID → 新型号
+     */
+    public void onSoItemModelChanged(Map<Long, String> soItemModels, Long operatorId) {
+        if (soItemModels.isEmpty()) {
+            return;
+        }
+        List<PurchaseRequirementDO> reqs = requirementMapper.selectList(new LambdaQueryWrapper<PurchaseRequirementDO>()
+                .in(PurchaseRequirementDO::getSoItemId, soItemModels.keySet())
+                .ne(PurchaseRequirementDO::getStatus, PurchaseConstants.REQ_ORDER_CANCELLED)
+                .isNull(PurchaseRequirementDO::getDeletedAt));
+        if (reqs.isEmpty()) {
+            return;
+        }
+        List<Long> reqIds = reqs.stream().map(PurchaseRequirementDO::getId).toList();
+        requirementMapper.lockByIds(reqIds);
+        Map<Long, String> oldModels = new HashMap<>();
+        for (PurchaseRequirementDO r : reqs) {
+            String model = soItemModels.get(r.getSoItemId());
+            oldModels.put(r.getId(), r.getModel());
+            requirementMapper.update(null, new LambdaUpdateWrapper<PurchaseRequirementDO>()
+                    .eq(PurchaseRequirementDO::getId, r.getId())
+                    .set(PurchaseRequirementDO::getModel, model));
+        }
+        touch.touch(reqIds);
+        List<PurchaseOrderItemDO> lines = itemMapper.selectList(new LambdaQueryWrapper<PurchaseOrderItemDO>()
+                .in(PurchaseOrderItemDO::getRequirementId, reqIds)
+                .isNull(PurchaseOrderItemDO::getDeletedAt));
+        if (lines.isEmpty()) {
+            return;
+        }
+        Map<Long, PurchaseOrderDO> orders = orderMapper.selectBatchIds(lines.stream().map(PurchaseOrderItemDO::getPoId).distinct().toList())
+                .stream().collect(Collectors.toMap(PurchaseOrderDO::getId, o -> o));
+        Map<Long, Long> soItemOf = reqs.stream().collect(Collectors.toMap(PurchaseRequirementDO::getId, PurchaseRequirementDO::getSoItemId));
+        LocalDateTime now = LocalDateTime.now();
+        for (PurchaseOrderItemDO line : lines) {
+            PurchaseOrderDO po = orders.get(line.getPoId());
+            if (po == null || po.getDeletedAt() != null || po.getStatus() == PurchaseConstants.PO_CANCELLED) {
+                continue;
+            }
+            String model = soItemModels.get(soItemOf.get(line.getRequirementId()));
+            String old = Objects.requireNonNullElse(line.getModel(), oldModels.get(line.getRequirementId()));
+            if (po.getStatus() == PurchaseConstants.PO_DRAFT) {
+                itemMapper.update(null, new LambdaUpdateWrapper<PurchaseOrderItemDO>()
+                        .eq(PurchaseOrderItemDO::getId, line.getId())
+                        .set(PurchaseOrderItemDO::getModel, model)
+                        .set(PurchaseOrderItemDO::getUpdateTime, now));
+                logs.add(po.getId(), "真实型号更新", old + " → " + model, operatorId);
+            } else {
+                logs.add(po.getId(), "真实型号更新", old + " → " + model + "（已下单，本单未修改，请与供应商核对）", operatorId);
+            }
+        }
     }
 
     // ---------------------------------------------------------------- 订单取消

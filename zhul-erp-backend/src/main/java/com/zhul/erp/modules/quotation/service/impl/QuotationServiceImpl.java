@@ -17,6 +17,10 @@ import com.zhul.erp.modules.inquiry.customerinquiry.entity.CustomerInquiryDO;
 import com.zhul.erp.modules.inquiry.customerinquiry.repository.CustomerInquiryMapper;
 import com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO;
 import com.zhul.erp.modules.inquiry.item.repository.InquiryItemMapper;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.ActualModelVO;
+import com.zhul.erp.modules.inquiry.support.ActualModels;
+import com.zhul.erp.modules.inquiry.support.DocModels;
+import com.zhul.erp.modules.quotation.support.QuotationModelSync;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.inquiry.support.PriceKeys;
@@ -112,6 +116,8 @@ public class QuotationServiceImpl implements QuotationService {
     private final QuotationPis quotationPis;
     private final CustomerInquiryMapper inquiryMapper;
     private final InquiryItemMapper inquiryItemMapper;
+    private final com.zhul.erp.modules.inquiry.support.DocModelLookup docModelLookup;
+    private final ActualModels actualModels;
     private final CustomerMapper customerMapper;
     private final QuotationStore store;
     private final QuoteCandidates candidates;
@@ -360,7 +366,8 @@ public class QuotationServiceImpl implements QuotationService {
             line.setCustomerInquiryId(src.getCustomerInquiryId());
             line.setInquiryItemId(src.getId());
             line.setCostQuoteId(c.costQuote() == null ? null : c.costQuote().getId());
-            line.setModel(modelOf(src));
+            line.setModel(DocModels.docModel(src));
+            line.setCustomerModel(DocModels.customerModel(src));
             line.setBrand(nz(src.getBrand()));
             line.setBrandKey(nz(src.getBrandKey()));
             line.setCategory(nz(src.getCategory()));
@@ -668,8 +675,11 @@ public class QuotationServiceImpl implements QuotationService {
         v.setStatus(QuotationConstants.VERSION_EDITING);
         QuotationStore.copyHeader(q, v);
         versionMapper.insert(v);
-        for (QuotationItemDO s : store.items(id)) {
-            QuotationItemDO line = copyLine(s);
+        List<QuotationItemDO> sources = store.items(id);
+        List<QuotationItemDO> copies = withDocModels(sources.stream().map(QuotationServiceImpl::copyLine).toList());
+        for (int k = 0; k < sources.size(); k++) {
+            QuotationItemDO s = sources.get(k);
+            QuotationItemDO line = copies.get(k);
             line.setQuotationId(id);
             line.setVersionNo(next);
             line.setIsCurrent(0);
@@ -768,8 +778,7 @@ public class QuotationServiceImpl implements QuotationService {
         q.setTotalAmountCny(BigDecimal.ZERO);
         insertWithNo(q);
         List<QuotationItemDO> lines = new ArrayList<>();
-        for (QuotationItemDO s : store.items(id)) {
-            QuotationItemDO line = copyLine(s);
+        for (QuotationItemDO line : withDocModels(store.items(id).stream().map(QuotationServiceImpl::copyLine).toList())) {
             line.setQuotationId(q.getId());
             line.setVersionNo(1);
             line.setIsCurrent(1);
@@ -805,6 +814,7 @@ public class QuotationServiceImpl implements QuotationService {
         l.setInquiryItemId(s.getInquiryItemId());
         l.setCostQuoteId(s.getCostQuoteId());
         l.setModel(s.getModel());
+        l.setCustomerModel(s.getCustomerModel());
         l.setBrand(s.getBrand());
         l.setBrandKey(s.getBrandKey());
         l.setCategory(s.getCategory());
@@ -886,6 +896,37 @@ public class QuotationServiceImpl implements QuotationService {
     }
 
     /** 锁住报价单行后再读（状态变更串行） */
+    @Override
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
+    public ActualModelVO saveActualModel(Long id, Long itemId, String actualModel) {
+        QuotationDO q = lockVisible(id);
+        QuotationItemDO line = itemMapper.selectById(itemId);
+        if (line == null || line.getDeletedAt() != null || !Objects.equals(line.getQuotationId(), id)) {
+            throw new BizException("型号行不存在，请刷新后再试");
+        }
+        if (!QuotationModelSync.editable(q, line)) {
+            throw new BizException("报价单已发送，请出新版本后再改真实型号");
+        }
+        InquiryItemDO item = line.getInquiryItemId() == null ? null : inquiryItemMapper.selectById(line.getInquiryItemId());
+        if (item == null || item.getDeletedAt() != null) {
+            throw new BizException("这一行没有来源询盘型号，不能填写真实型号");
+        }
+        // 加锁顺序：报价单 → 询盘单，与成交推进一致
+        inquiryMapper.lockById(item.getCustomerInquiryId());
+        CustomerInquiryDO inquiry = inquiryMapper.selectById(item.getCustomerInquiryId());
+        if (inquiry != null && inquiry.getStatus() == InquiryConstants.STATUS_CANCELLED) {
+            throw new BizException("询盘已取消，不能修改");
+        }
+        String before = Objects.requireNonNullElse(item.getActualModel(), "");
+        if (!actualModels.save(List.of(item), Map.of(item.getId(), actualModel == null ? "" : actualModel)).isEmpty()) {
+            logService.recordOperateLog(QuotationConstants.MENU, "修改真实型号",
+                    Map.of("quotationNo", q.getQuotationNo(), "model", Objects.requireNonNullElse(line.getModel(), ""), "actualModel", before),
+                    Map.of("quotationNo", q.getQuotationNo(), "model", Objects.requireNonNullElse(line.getModel(), ""),
+                            "actualModel", Objects.requireNonNullElse(item.getActualModel(), "")));
+        }
+        return ActualModels.vo(inquiryItemMapper.selectById(item.getId()));
+    }
+
     private QuotationDO lockVisible(Long id) {
         store.visible(id);
         quotationMapper.lockById(id);
@@ -974,10 +1015,17 @@ public class QuotationServiceImpl implements QuotationService {
         // 供应提示只在还能发送的版本上算（草稿、修改中的版本）
         Map<Long, List<String>> supply = q.getStatus() == QuotationConstants.STATUS_DRAFT || viewingEditing
                 ? supplyHints(items) : Map.of();
+        // 已发送的当前有效版本：型号与询盘型号当前的单据型号不同时提示（spec quotation/quotation「真实型号变更后的报价单」）
+        Map<Long, String> docModels = q.getStatus() == QuotationConstants.STATUS_SENT && !viewingEditing
+                ? docModelLookup.docModels(items.stream().map(QuotationItemDO::getInquiryItemId).toList()) : Map.of();
         List<QuotationItemVO> itemVos = new ArrayList<>(items.size());
         for (int k = 0; k < items.size(); k++) {
             QuotationItemDO i = items.get(k);
             QuotationItemVO x = toItemVo(i, labels, inquiryCodes);
+            String doc = docModels.get(i.getInquiryItemId());
+            if (doc != null && !DocModels.sameModel(doc, i.getModel())) {
+                x.setModelUpdatedTo(doc);
+            }
             x.setSupplyHints(supply.getOrDefault(i.getId(), List.of()));
             x.setBrandEn(brandsEn.getOrDefault(i.getBrand(), i.getBrand()));
             x.setOrderCode(products.get(k).orderCode());
@@ -1066,6 +1114,7 @@ public class QuotationServiceImpl implements QuotationService {
         vo.setInquiryCode(inquiryCodes.get(i.getCustomerInquiryId()));
         vo.setInquiryItemId(i.getInquiryItemId());
         vo.setModel(i.getModel());
+        vo.setCustomerModel(DocModels.shownCustomerModel(i.getModel(), i.getCustomerModel()));
         vo.setBrand(i.getBrand());
         vo.setCategory(i.getCategory());
         vo.setDescription(i.getDescription());
@@ -1373,8 +1422,19 @@ public class QuotationServiceImpl implements QuotationService {
         return unique.stream().map(byId::get).toList();
     }
 
-    private static String modelOf(InquiryItemDO item) {
-        return StringUtils.hasText(item.getConfirmedModel()) ? item.getConfirmedModel() : nz(item.getOriginalModel());
+    /** 复制出的新版本、新报价单按询盘型号当前的单据型号（真实型号优先）重新取型号与客户型号 */
+    private List<QuotationItemDO> withDocModels(List<QuotationItemDO> lines) {
+        List<Long> ids = lines.stream().map(QuotationItemDO::getInquiryItemId).filter(Objects::nonNull).distinct().toList();
+        Map<Long, InquiryItemDO> src = ids.isEmpty() ? Map.of() : inquiryItemMapper.selectBatchIds(ids).stream()
+                .collect(Collectors.toMap(InquiryItemDO::getId, i -> i));
+        for (QuotationItemDO l : lines) {
+            InquiryItemDO item = src.get(l.getInquiryItemId());
+            if (item != null) {
+                l.setModel(DocModels.docModel(item));
+                l.setCustomerModel(DocModels.customerModel(item));
+            }
+        }
+        return lines;
     }
 
     private Long currentUserId() {

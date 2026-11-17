@@ -261,6 +261,13 @@ const diffVersions = (
       });
       return;
     }
+    if (b.model !== i.model)
+      rows.push({
+        kind: '修改',
+        label: `${tag} 型号`,
+        before: b.model,
+        after: i.model,
+      });
     if (b.quantity !== i.quantity)
       rows.push({
         kind: '修改',
@@ -1208,6 +1215,9 @@ const PiDetail: React.FC = () => {
       brand={src.brand}
       orderCode={src.orderCode}
       productId={src.productId}
+      customerModel={src.customerModel}
+      updatedTo={src.modelUpdatedTo}
+      updatedTail="，请与客户确认"
     >
       {/* 并排预览时只剩型号一列，品牌、品类缩到型号下面 */}
       {compact && (

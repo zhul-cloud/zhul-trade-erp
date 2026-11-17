@@ -88,6 +88,7 @@ public class PurchaseDrafts {
                 x.setSoItemId(r.getSoItemId());
                 x.setModel(r.getModel());
                 x.setBrand(r.getBrand());
+                x.setDescription(Objects.requireNonNullElse(r.getDescription(), ""));
                 x.setQuantity(p.quantity());
                 x.setUnitPrice(p.unitPrice() != null ? p.unitPrice() : defaultPrice(po, r.getTargetPrice()));
                 x.setTargetPrice(r.getTargetPrice());

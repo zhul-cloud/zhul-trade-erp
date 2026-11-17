@@ -18,6 +18,7 @@ import {
   Tooltip,
 } from 'antd';
 import React, { useEffect, useState } from 'react';
+import { ActualModelLine } from '@/components/DocFields/ActualModel';
 import DocModelCell, { productHref } from '@/components/DocFields/DocModelCell';
 import {
   useOnReactivate,
@@ -267,6 +268,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
     if (first || prev.category !== it.category) showCategory.add(it.id);
   });
 
+  const actualEditable = inq.status !== STATUS.CANCELLED && !inq.migrated;
   const columns: TableColumnsType<InquiryItem> = [
     {
       title: '品牌',
@@ -285,7 +287,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
     },
     {
       title: '型号',
-      width: 180,
+      width: 260,
       render: (_, r) => (
         <DocModelCell
           model={r.confirmedModel}
@@ -303,11 +305,40 @@ const CustomerInquiryDetailPage: React.FC = () => {
               {lifecycleLabel(r.lifecycle)}
             </span>
           )}
-          {r.actualModel && (
-            <span style={{ color: palette.violet, fontSize: 12 }}>
-              真实型号：{r.actualModel}
-            </span>
-          )}
+          <ActualModelLine
+            actualModel={r.actualModel}
+            by={r.actualModelBy}
+            at={r.actualModelAt}
+            editable={actualEditable}
+            onSave={async (value) => {
+              const res = await inquiryApi.saveActualModel(
+                inquiryId,
+                r.id,
+                value,
+              );
+              setDetail((d) =>
+                d
+                  ? {
+                      ...d,
+                      items: d.items.map((it) =>
+                        it.id === r.id
+                          ? {
+                              ...it,
+                              actualModel: res.actualModel,
+                              actualModelBy: res.actualModelBy,
+                              actualModelAt: res.actualModelAt,
+                              archiveStatus: res.archiveStatus,
+                              archiveStatusName: res.archiveStatusName,
+                              productId: res.productId,
+                            }
+                          : it,
+                      ),
+                    }
+                  : d,
+              );
+              message.success(value ? '真实型号已保存' : '真实型号已清空');
+            }}
+          />
         </DocModelCell>
       ),
     },

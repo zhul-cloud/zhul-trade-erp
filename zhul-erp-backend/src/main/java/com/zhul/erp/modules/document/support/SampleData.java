@@ -114,6 +114,7 @@ public final class SampleData {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("item.no", no);
         m.put("item.model", model);
+        m.put("item.customerModel", "");
         m.put("item.brand", brand);
         m.put("item.category", category);
         m.put("item.description", brand + " " + category);

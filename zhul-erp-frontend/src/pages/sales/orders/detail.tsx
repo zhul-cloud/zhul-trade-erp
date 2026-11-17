@@ -26,6 +26,7 @@ import { Alert, App, Button, Dropdown, Skeleton, Table } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import DocModelCell, {
+  DocDescription,
   docBrandColumns,
 } from '@/components/DocFields/DocModelCell';
 import SourceNos from '@/components/DocFields/SourceNos';
@@ -568,6 +569,7 @@ const OrderDetail: React.FC = () => {
           brand={r.brand}
           orderCode={r.orderCode}
           productId={r.productId}
+          customerModel={r.customerModel}
           suffix={
             r.quantity === 0 && (
               <span style={{ marginLeft: 8 }}>
@@ -577,6 +579,12 @@ const OrderDetail: React.FC = () => {
           }
         />
       ),
+    },
+    {
+      title: '描述',
+      key: 'description',
+      width: 260,
+      render: (_, r) => <DocDescription text={r.description} />,
     },
     {
       title: '数量',

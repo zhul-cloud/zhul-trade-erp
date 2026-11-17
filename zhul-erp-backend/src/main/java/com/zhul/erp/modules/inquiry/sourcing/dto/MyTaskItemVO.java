@@ -19,6 +19,9 @@ public class MyTaskItemVO {
     private String replacementModel;
     /** 采购回填的真实型号 */
     private String actualModel;
+    /** 真实型号最后修改人与时间（业务员、采购都能改） */
+    private String actualModelBy;
+    private java.time.LocalDateTime actualModelAt;
     /** 建档状态：0-未处理、1-已建档、2-候选中、3-待回填真实型号 */
     private Integer archiveStatus;
     private String archiveStatusName;
