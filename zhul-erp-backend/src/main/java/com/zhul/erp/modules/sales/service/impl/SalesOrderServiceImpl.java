@@ -11,6 +11,7 @@ import com.zhul.erp.modules.inquiry.customerinquiry.entity.CustomerInquiryDO;
 import com.zhul.erp.modules.inquiry.customerinquiry.repository.CustomerInquiryMapper;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.inquiry.support.DocItemProducts;
+import com.zhul.erp.modules.inquiry.support.DocModels;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
@@ -125,6 +126,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     private final DataScopeResolver dataScopeResolver;
     private final CurrentUserResolver currentUser;
     private final InquiryLookups lookups;
+    private final com.zhul.erp.modules.inquiry.support.DocModelLookup docModelLookup;
     private final LogService logService;
     private final com.zhul.erp.modules.sales.repository.PaymentReceiptMapper receiptMapper;
     private final com.zhul.erp.modules.inquiry.sourcing.repository.SourcingQuoteMapper sourcingQuoteMapper;
@@ -222,8 +224,16 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         o.setCancelReason("");
         orderMapper.insert(o);
         List<SalesOrderItemDO> created = new ArrayList<>(items.size());
+        // 订单是内部单据：型号按询盘型号当前的单据型号（真实型号优先），采购照这个型号买（openspec actual-model-and-description）
+        Map<Long, com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO> docs = docModelLookup.items(
+                items.stream().map(PiItemDO::getInquiryItemId).toList());
         for (PiItemDO i : items) {
             SalesOrderItemDO x = toOrderItem(o, i);
+            var src = docs.get(i.getInquiryItemId());
+            if (src != null) {
+                x.setModel(DocModels.docModel(src));
+                x.setCustomerModel(DocModels.customerModel(src));
+            }
             x.setStockType(stockOf(i.getLeadTime()));
             x.setProgressCode(SalesConstants.PROGRESS_PENDING);
             x.setPurchaserId(purchasers.get(i.getQuotationItemId()));
@@ -642,6 +652,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         x.setCustomerInquiryId(i.getCustomerInquiryId());
         x.setInquiryItemId(i.getInquiryItemId());
         x.setModel(i.getModel());
+        x.setCustomerModel(i.getCustomerModel());
         x.setBrand(i.getBrand());
         x.setCategory(i.getCategory());
         x.setDescription(i.getDescription());
@@ -1610,6 +1621,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             x.setInquiryCode(inquiryCodes.get(i.getCustomerInquiryId()));
             x.setInquiryItemId(i.getInquiryItemId());
             x.setModel(i.getModel());
+            x.setCustomerModel(DocModels.shownCustomerModel(i.getModel(), i.getCustomerModel()));
             x.setBrand(i.getBrand());
             x.setCategory(i.getCategory());
             x.setDescription(i.getDescription());

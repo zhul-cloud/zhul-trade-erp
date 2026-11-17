@@ -18,6 +18,8 @@ public class RequirementVO {
     private String model;
     private String brand;
     private String category;
+    /** 描述（中文，来自销售订单型号行） */
+    private String description;
     private Integer quantity;
     private Integer draftQty;
     private Integer orderedQty;

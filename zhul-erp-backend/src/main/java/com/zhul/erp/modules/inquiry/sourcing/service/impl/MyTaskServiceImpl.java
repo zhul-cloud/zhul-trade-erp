@@ -34,6 +34,7 @@ import com.zhul.erp.modules.inquiry.sourcing.repository.SourcingQuoteMapper;
 import com.zhul.erp.modules.inquiry.sourcing.repository.SourcingTaskAssigneeMapper;
 import com.zhul.erp.modules.inquiry.sourcing.repository.SourcingTaskMapper;
 import com.zhul.erp.modules.inquiry.sourcing.service.MyTaskService;
+import com.zhul.erp.modules.inquiry.support.ActualModels;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.inquiry.support.SourcingSettings;
 import com.zhul.erp.modules.inquiry.support.TaskTimeout;
@@ -104,6 +105,7 @@ public class MyTaskServiceImpl implements MyTaskService {
     private final ItemPriceHistory priceHistory;
     private final org.springframework.context.ApplicationEventPublisher events;
     private final com.zhul.erp.modules.inquiry.sourcing.repository.SourcingItemHandoffMapper handoffMapper;
+    private final ActualModels actualModels;
 
     /** 兼职工作台按提交统计工作量：已提交、待审核、审核时作废的都算，与是否审核通过无关 */
     private static final List<Integer> WORK_STATUSES = List.of(InquiryConstants.QUOTE_SUBMITTED,
@@ -406,6 +408,8 @@ public class MyTaskServiceImpl implements MyTaskService {
             vo.setLifecycle(i.getLifecycle());
             vo.setReplacementModel(i.getReplacementModel());
             vo.setActualModel(i.getActualModel());
+            vo.setActualModelBy(i.getActualModelBy());
+            vo.setActualModelAt(i.getActualModelAt());
             vo.setArchiveStatus(i.getArchiveStatus());
             vo.setArchiveStatusName(com.zhul.erp.modules.product.candidate.constants.CandidateConstants.ARCHIVE_NAMES.get(i.getArchiveStatus()));
             vo.setProductId(i.getProductId());
@@ -629,7 +633,7 @@ public class MyTaskServiceImpl implements MyTaskService {
                 .set(SourcingQuoteDO::getDeletedAt, LocalDateTime.now()));
         writeQuotes(task, me, drafts, submit, InquiryConstants.ENTRY_ONLINE, null);
         updateLifecycles(task, req.getItems());
-        productArchiver.sync(updateActualModels(task, req.getItems()));
+        updateActualModels(task, req.getItems());
         if (submit) {
             afterSubmit(task, me, itemIds);
             if (!replaced.isEmpty()) {
@@ -883,39 +887,32 @@ public class MyTaskServiceImpl implements MyTaskService {
         ItemQuotesRequest r = new ItemQuotesRequest();
         r.setItemId(itemId);
         r.setActualModel(actualModel == null ? "" : actualModel);
-        productArchiver.sync(updateActualModels(task, List.of(r)));
+        updateActualModels(task, List.of(r));
         InquiryItemDO item = itemMapper.selectById(itemId);
         MyTaskItemVO vo = new MyTaskItemVO();
         vo.setId(item.getId());
         vo.setModel(item.getConfirmedModel());
         vo.setActualModel(item.getActualModel());
+        vo.setActualModelBy(item.getActualModelBy());
+        vo.setActualModelAt(item.getActualModelAt());
         vo.setArchiveStatus(item.getArchiveStatus());
         vo.setArchiveStatusName(com.zhul.erp.modules.product.candidate.constants.CandidateConstants.ARCHIVE_NAMES.get(item.getArchiveStatus()));
         vo.setProductId(item.getProductId());
         return vo;
     }
 
-    /** 采购回填的真实型号写回型号明细，返回有变化的型号（随后重新建档） */
-    private List<Long> updateActualModels(SourcingTaskDO task, List<ItemQuotesRequest> reqItems) {
-        Map<Long, InquiryItemDO> items = taskItems(task.getId()).stream().collect(Collectors.toMap(InquiryItemDO::getId, i -> i));
-        List<Long> changed = new ArrayList<>();
+    /** 采购回填的真实型号写回型号明细：经 {@link ActualModels} 记录修改人、重新建档并同步下游单据 */
+    private void updateActualModels(SourcingTaskDO task, List<ItemQuotesRequest> reqItems) {
+        Map<Long, String> values = new HashMap<>();
         for (ItemQuotesRequest r : reqItems) {
-            InquiryItemDO item = items.get(r.getItemId());
-            if (r.getActualModel() == null || item == null) {
-                continue;
+            if (r.getActualModel() != null) {
+                values.put(r.getItemId(), r.getActualModel());
             }
-            String actual = text(r.getActualModel(), 128);
-            if (Objects.equals(item.getActualModel(), actual)) {
-                continue;
-            }
-            itemMapper.update(null, new LambdaUpdateWrapper<InquiryItemDO>()
-                    .eq(InquiryItemDO::getId, item.getId())
-                    .set(InquiryItemDO::getActualModel, actual)
-                    .set(InquiryItemDO::getActualModelKey, actual.isEmpty() ? "" : PriceKeys.model(actual))
-                    .set(InquiryItemDO::getUpdateTime, LocalDateTime.now()));
-            changed.add(item.getId());
         }
-        return changed;
+        if (values.isEmpty()) {
+            return;
+        }
+        actualModels.save(taskItems(task.getId()), values);
     }
 
     /** 调用方须已在同一事务内 {@code progress.lock} 询盘单 */

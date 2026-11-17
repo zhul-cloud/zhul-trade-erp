@@ -62,6 +62,7 @@ public final class QuotationRenderModels {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("item.no", no++);
             m.put("item.model", nz(i.getModel()));
+            m.put("item.customerModel", com.zhul.erp.modules.inquiry.support.DocModels.shownCustomerModel(nz(i.getModel()), nz(i.getCustomerModel())));
             m.put("item.brand", nz(i.getBrand()));
             m.put("item.category", nz(i.getCategory()));
             m.put("item.description", customerDescription(i.getDescriptionEn(), i.getDescription()));

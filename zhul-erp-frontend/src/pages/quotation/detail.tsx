@@ -53,6 +53,10 @@ import {
   IncotermInput,
   PreviewPages,
 } from '@/components/DocFields';
+import {
+  ActualModelEditor,
+  ActualModelPencil,
+} from '@/components/DocFields/ActualModel';
 import DocModelCell, {
   docBrandColumns,
 } from '@/components/DocFields/DocModelCell';
@@ -280,6 +284,7 @@ const diffQuotations = (base: Quotation, next: Quotation): DiffRow[] => {
       if (before !== after)
         rows.push({ kind: '修改', label: `${tag} ${label}`, before, after });
     };
+    change('型号', b.model, i.model);
     change(
       '单价',
       formatAmount(b.unitPrice, cur),
@@ -379,6 +384,8 @@ const QuotationDetail: React.FC = () => {
   const [strategyOpen, setStrategyOpen] = useState(false);
   /** 勾选的型号行：报价策略只作用于勾选的行（不勾选时作用于全部有价型号） */
   const [selected, setSelected] = useState<number[]>([]);
+  /** 正在填写真实型号的型号行 */
+  const [actualEditing, setActualEditing] = useState<number>();
   /** 刚由「生成英文描述」填入英文的行 */
   const [generated, setGenerated] = useState<Set<number>>(new Set());
   const translation = useDescriptionTranslation();
@@ -991,13 +998,51 @@ const QuotationDetail: React.FC = () => {
       </div>
     );
 
+  const saveActual = async (src: QuotationItem, value: string) => {
+    if (!q) return;
+    const res = await quotationApi.saveActualModel(q.id, src.id, value);
+    setQ((prev) =>
+      prev
+        ? {
+            ...prev,
+            items: prev.items.map((i) =>
+              i.id === src.id
+                ? {
+                    ...i,
+                    model: res.docModel,
+                    customerModel: res.customerModel,
+                  }
+                : i,
+            ),
+          }
+        : prev,
+    );
+    setActualEditing(undefined);
+    message.success(value ? '真实型号已保存' : '真实型号已清空');
+  };
+
   const modelCell = (src: QuotationItem, d?: SaveQuotationItem) => (
     <DocModelCell
       model={src.model}
       brand={src.brand}
       orderCode={src.orderCode}
       productId={src.productId}
+      customerModel={src.customerModel}
+      updatedTo={src.modelUpdatedTo}
+      suffix={
+        d && src.inquiryItemId && actualEditing !== src.id ? (
+          <ActualModelPencil onClick={() => setActualEditing(src.id)} />
+        ) : undefined
+      }
     >
+      {d && actualEditing === src.id && (
+        <ActualModelEditor
+          initial={src.customerModel ? src.model : ''}
+          hint="保存后写回询盘，这张草稿和其他还没发出的单据立即换成真实型号。"
+          onSave={(v) => saveActual(src, v)}
+          onCancel={() => setActualEditing(undefined)}
+        />
+      )}
       {/* 并排预览时只剩型号一列，品牌、品类缩到型号下面 */}
       {compact && (
         <div style={{ fontSize: 12, color: palette.mute }}>
@@ -1706,6 +1751,21 @@ const QuotationDetail: React.FC = () => {
           }），按品相给出的建议价仅供参考`}
         />
       )}
+      {!editable &&
+        !historical &&
+        q.status === STATUS.SENT &&
+        q.items.some((i) => i.modelUpdatedTo) && (
+          <Alert
+            type="warning"
+            showIcon
+            title={`${q.items.filter((i) => i.modelUpdatedTo).length} 个型号的真实型号已更新，客户收到的报价还是旧型号。请和客户确认；出新版本时会自动换成真实型号。`}
+            action={
+              <Button size="small" onClick={revise}>
+                出新版本
+              </Button>
+            }
+          />
+        )}
       {!editable && (
         <div
           style={{

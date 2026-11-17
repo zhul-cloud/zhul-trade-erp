@@ -35,6 +35,10 @@ public class InquiryItemDO {
     /** 采购回填的真实型号（询盘原文不是型号或写错时） */
     private String actualModel;
     private String actualModelKey;
+    /** 真实型号最后修改人（清空真实型号时一并清空） */
+    private String actualModelBy;
+    /** 真实型号最后修改时间，没有真实型号时为空 */
+    private LocalDateTime actualModelAt;
     /** 建档状态：0-未处理、1-已建档、2-候选中、3-待回填真实型号 */
     private Integer archiveStatus;
     private Integer confidence;

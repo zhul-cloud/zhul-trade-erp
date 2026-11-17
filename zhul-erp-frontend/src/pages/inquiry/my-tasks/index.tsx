@@ -31,6 +31,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { actualModelStamp } from '@/components/DocFields/ActualModel';
 import { useTabDirty } from '@/components/PageTabs/hooks';
 import { ProofLinks } from '@/pages/finance/payables/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -654,7 +655,7 @@ const MyTasksPage: React.FC = () => {
     );
   };
 
-  /** 真实型号离开输入框即保存（只影响建档，不随回价提交） */
+  /** 真实型号离开输入框即保存（不随回价提交）；还没发出的报价单、PI、订单和采购单草稿会一起改 */
   const saveActualModel = async (itemId: number) => {
     if (!detail) return;
     const item = detail.items.find((i) => i.id === itemId);
@@ -671,6 +672,8 @@ const MyTasksPage: React.FC = () => {
                   ? {
                       ...i,
                       actualModel: r.actualModel,
+                      actualModelBy: r.actualModelBy,
+                      actualModelAt: r.actualModelAt,
                       archiveStatus: r.archiveStatus,
                       archiveStatusName: r.archiveStatusName,
                     }
@@ -1320,6 +1323,11 @@ const MyTasksPage: React.FC = () => {
                         onPressEnter={() => saveActualModel(it.id)}
                         aria-label={`${it.model} 真实型号`}
                       />
+                      {it.actualModel && it.actualModelBy && (
+                        <span style={{ color: palette.faint, fontSize: 12 }}>
+                          {actualModelStamp(it.actualModelBy, it.actualModelAt)}
+                        </span>
+                      )}
                     </span>
                     {it.difficulty > 0 && (
                       <span style={{ color: palette.mute, fontSize: 12 }}>

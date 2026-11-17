@@ -27,6 +27,8 @@ public class SalesOrderItemDO {
     /** 商品档案（手动创建订单时选择；转成的订单为空，经询盘型号追溯） */
     private Long productId;
     private String model;
+    /** 客户型号（询盘确认的型号）；为空或与型号相同时不显示 */
+    private String customerModel;
     private String brand;
     private String category;
     private String description;

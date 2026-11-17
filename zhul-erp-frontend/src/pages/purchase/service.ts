@@ -49,6 +49,8 @@ export interface Requirement {
   model: string;
   brand?: string;
   category?: string;
+  /** 描述（中文，来自销售订单型号行） */
+  description?: string;
   quantity: number;
   draftQty: number;
   orderedQty: number;
@@ -257,6 +259,10 @@ export interface PoItem {
   model: string;
   brand?: string;
   category?: string;
+  /** 描述（中文，来自采购需求） */
+  description?: string;
+  /** 已下单：真实型号已更新为这个型号，本行没有修改 */
+  modelUpdatedTo?: string;
   quantity: number;
   maxQuantity: number;
   unitPrice?: number | null;

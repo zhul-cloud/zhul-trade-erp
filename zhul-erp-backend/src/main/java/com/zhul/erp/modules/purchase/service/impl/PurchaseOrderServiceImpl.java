@@ -490,10 +490,16 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             x.setStockType(i.getSoItemId() == null ? null : stockTypes.get(i.getSoItemId()));
             x.setModel(i.getModel());
             x.setBrand(i.getBrand());
+            x.setDescription(i.getDescription());
             x.setQuantity(i.getQuantity());
             x.setSoReducedQuantity(Objects.requireNonNullElse(i.getSoReducedQuantity(), 0));
             PurchaseRequirementDO r = reqById.get(i.getRequirementId());
             x.setCategory(r == null ? null : r.getCategory());
+            // 已下单：需求型号因真实型号变更与本行不同时提醒与供应商核对（spec purchase/purchase-order「真实型号变更后的采购订单」）
+            if (p.getStatus() == PurchaseConstants.PO_ORDERED && r != null
+                    && !com.zhul.erp.modules.inquiry.support.DocModels.sameModel(r.getModel(), i.getModel())) {
+                x.setModelUpdatedTo(r.getModel());
+            }
             int available = r == null || r.getStatus() != PurchaseConstants.REQ_ACTIVE ? 0
                     : RequirementQty.available(r, q.getOrDefault(r.getId(), RequirementQty.Qty.ZERO));
             x.setMaxQuantity(available + i.getQuantity());

@@ -13,6 +13,7 @@ import {
   UploadOutlined,
   UserAddOutlined,
   WalletOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import { history, Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
@@ -34,6 +35,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
+import { DocDescription } from '@/components/DocFields/DocModelCell';
 import { RelatedDocsCard } from '@/components/DocFields/DocPage';
 import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
 import {
@@ -388,12 +390,24 @@ const PurchaseOrderDetail: React.FC = () => {
             palette.mute,
             [r.brand, r.category].filter(Boolean).join(' · ') || '—',
           )}
+          {r.modelUpdatedTo && (
+            <div style={{ color: palette.red, fontSize: 12, fontWeight: 500 }}>
+              <WarningOutlined style={{ marginRight: 4 }} />
+              真实型号已更新为 <b>{r.modelUpdatedTo}</b>，请与供应商核对
+            </div>
+          )}
           {r.orderCancelled && <Pill tone="red">来源订单已取消</Pill>}
           {(r.soReducedQuantity ?? 0) > 0 && !r.orderCancelled && (
             <Pill tone="orange">来源订单减少 {r.soReducedQuantity} 个</Pill>
           )}
         </div>
       ),
+    },
+    {
+      title: '描述',
+      key: 'description',
+      width: 240,
+      render: (_, r) => <DocDescription text={r.description} />,
     },
     {
       title: '来源单号',
@@ -1001,6 +1015,14 @@ const PurchaseOrderDetail: React.FC = () => {
             </Space>
           )}
         </div>
+        {!isDraft && po.items.some((i) => i.modelUpdatedTo) && (
+          <Alert
+            style={{ marginBottom: 12 }}
+            type="error"
+            showIcon
+            title={`${po.items.filter((i) => i.modelUpdatedTo).length} 个型号的真实型号已更新，这张采购订单已经发给供应商，系统没有修改。请和供应商核对，必要时取消后重新下单。`}
+          />
+        )}
         {!isDraft && reducedLines.length > 0 && (
           <Alert
             style={{ marginBottom: 12 }}
@@ -1024,6 +1046,9 @@ const PurchaseOrderDetail: React.FC = () => {
           columns={columns}
           dataSource={po.items}
           pagination={false}
+          onRow={(r) =>
+            r.modelUpdatedTo ? { style: { background: palette.redSoft } } : {}
+          }
           scroll={{ x: tableScrollX(columns) }}
           rowSelection={
             isDraft && editable

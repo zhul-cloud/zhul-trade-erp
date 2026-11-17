@@ -98,6 +98,10 @@ public class PurchaseOrderVO implements ShipFields {
         private String customerName;
         private String customerCountry;
         private String model;
+        /** 描述（中文，来自采购需求） */
+        private String description;
+        /** 已下单：真实型号已更新为这个型号，本行未修改（与型号不同时才有值） */
+        private String modelUpdatedTo;
         private String brand;
         private String category;
         private Integer quantity;

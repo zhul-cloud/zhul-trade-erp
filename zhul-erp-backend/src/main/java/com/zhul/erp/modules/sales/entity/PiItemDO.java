@@ -26,6 +26,8 @@ public class PiItemDO {
     private Long customerInquiryId;
     private Long inquiryItemId;
     private String model;
+    /** 客户型号（询盘确认的型号）；为空或与型号相同时不显示 */
+    private String customerModel;
     private String brand;
     private String category;
     private String description;

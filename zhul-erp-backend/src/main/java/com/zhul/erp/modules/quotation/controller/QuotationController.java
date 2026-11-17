@@ -139,6 +139,14 @@ public class QuotationController {
         return Result.ok(service.detail(id, version));
     }
 
+    /** 草稿或修改中的版本里填写真实型号（spec quotation/quotation「报价单草稿填写真实型号」） */
+    @PutMapping("/{id}/items/{itemId}/actual-model")
+    public Result<com.zhul.erp.modules.inquiry.customerinquiry.dto.ActualModelVO> saveActualModel(
+            @PathVariable Long id, @PathVariable Long itemId,
+            @Valid @RequestBody com.zhul.erp.modules.inquiry.sourcing.dto.ActualModelRequest req) {
+        return Result.ok(service.saveActualModel(id, itemId, req.getActualModel()));
+    }
+
     @PostMapping("/{id}/revise")
     public Result<QuotationVO> revise(@PathVariable Long id) {
         return Result.ok(service.revise(id));
