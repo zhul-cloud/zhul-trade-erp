@@ -613,7 +613,9 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
             line.setModel(r.getModel());
             line.setBrand(r.getBrand());
             line.setSoNo(soNos.get(r.getSoId()));
-            line.setAvailableQty(RequirementQty.available(r, q.getOrDefault(r.getId(), RequirementQty.Qty.ZERO)));
+            RequirementQty.Qty lq = q.getOrDefault(r.getId(), RequirementQty.Qty.ZERO);
+            line.setAvailableQty(r.getQuantity() - lq.ordered());
+            line.setDraftQty(lq.draft());
             line.setPurchaserName(users.get(r.getPurchaserId()));
             g.getLines().add(line);
         }
@@ -646,6 +648,7 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
         Map<Long, PurchaseRequirementDO> byId = rows.stream().collect(Collectors.toMap(PurchaseRequirementDO::getId, r -> r));
         Map<Long, RequirementQty.Qty> q = qty.byRequirement(all);
         List<PurchaseDrafts.Placement> list = new ArrayList<>(all.size());
+        Set<Long> touched = new LinkedHashSet<>();
         for (GeneratePurchaseRequest.Group g : req.getGroups()) {
             Counterparty cp = Counterparty.of(g.getSupplierId(), g.getChannel(), g.getShopName());
             if (!cp.isShop()) {
@@ -657,11 +660,23 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
                     r.setPurchaserId(me);
                     requirementMapper.updateById(r);
                 }
+                // 已在草稿里的数量挪到这一组（保留已填单价）；本来就在同一采购员、同一采购对象草稿里的不动
+                for (PurchaseOrderItemDO i : lifecycle.draftItems(id)) {
+                    PurchaseOrderDO po = orderMapper.selectById(i.getPoId());
+                    if (Counterparty.of(po).key().equals(cp.key()) && Objects.equals(po.getPurchaserId(), me)) {
+                        continue;
+                    }
+                    i.setDeletedAt(LocalDateTime.now());
+                    itemMapper.updateById(i);
+                    touched.add(i.getPoId());
+                    list.add(new PurchaseDrafts.Placement(r, me, cp, i.getQuantity(), i.getUnitPrice()));
+                }
                 list.add(new PurchaseDrafts.Placement(r, me, cp,
                         RequirementQty.available(r, q.getOrDefault(id, RequirementQty.Qty.ZERO))));
             }
         }
         syncOrderPurchasers(rows);
+        drafts.settle(touched, me);
         List<PurchaseOrderDO> pos = drafts.place(list, null, "由需求池生成", me);
         logService.recordOperateLog(PurchaseConstants.MENU_REQUIREMENT, "生成采购订单", null,
                 Map.of("requirements", all.size(), "drafts", pos.size()));
@@ -708,7 +723,7 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
         return keys.stream().map(found::get).toList();
     }
 
-    /** 可见、有效且还有可下单数量的需求 */
+    /** 可见、有效且还没全部下单的需求（草稿中的数量可以重新分组） */
     private List<PurchaseRequirementDO> visibleAvailable(List<Long> ids, boolean lock) {
         List<PurchaseRequirementDO> rows = lock ? lockVisible(ids) : requirementMapper.selectList(scoped().in(PurchaseRequirementDO::getId,
                 ids.isEmpty() ? List.of(0L) : ids));
@@ -717,9 +732,10 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
         }
         Map<Long, RequirementQty.Qty> q = qty.byRequirement(ids);
         for (PurchaseRequirementDO r : rows) {
+            // 已在草稿里的数量也可以生成（挪到新的分组），只有全部下单的不行
             if (r.getStatus() != PurchaseConstants.REQ_ACTIVE
-                    || RequirementQty.available(r, q.getOrDefault(r.getId(), RequirementQty.Qty.ZERO)) <= 0) {
-                throw new BizException(r.getModel() + " 已经全部排入采购订单，不能再生成");
+                    || q.getOrDefault(r.getId(), RequirementQty.Qty.ZERO).ordered() >= r.getQuantity()) {
+                throw new BizException(r.getModel() + " 已经全部下单，不能再生成");
             }
         }
         return rows;

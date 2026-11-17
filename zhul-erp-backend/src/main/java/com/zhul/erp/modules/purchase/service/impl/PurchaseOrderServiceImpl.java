@@ -184,11 +184,27 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             default -> {
             }
         }
-        if (q.getOrderFrom() != null) {
-            w.ge(PurchaseOrderDO::getOrderDate, q.getOrderFrom());
-        }
-        if (q.getOrderTo() != null) {
-            w.le(PurchaseOrderDO::getOrderDate, q.getOrderTo());
+        LocalDate from = q.getOrderFrom();
+        LocalDate to = q.getOrderTo();
+        if (from != null || to != null) {
+            // 草稿还没有下单日期，按创建时间落在同一范围内算，否则默认的「最近 3 个月」会把草稿全部挡掉
+            w.and(x -> x.nested(y -> {
+                y.isNotNull(PurchaseOrderDO::getOrderDate);
+                if (from != null) {
+                    y.ge(PurchaseOrderDO::getOrderDate, from);
+                }
+                if (to != null) {
+                    y.le(PurchaseOrderDO::getOrderDate, to);
+                }
+            }).or().nested(y -> {
+                y.isNull(PurchaseOrderDO::getOrderDate);
+                if (from != null) {
+                    y.ge(PurchaseOrderDO::getCreateTime, from.atStartOfDay());
+                }
+                if (to != null) {
+                    y.lt(PurchaseOrderDO::getCreateTime, to.plusDays(1).atStartOfDay());
+                }
+            }));
         }
         if (StringUtils.hasText(q.getKeyword())) {
             String kw = q.getKeyword().trim();

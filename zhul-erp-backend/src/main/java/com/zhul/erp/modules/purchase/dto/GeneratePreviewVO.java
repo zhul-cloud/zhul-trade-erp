@@ -32,7 +32,10 @@ public class GeneratePreviewVO {
         private String model;
         private String brand;
         private String soNo;
+        /** 本次可生成的数量：需求数量 − 已下单（含已在草稿里的） */
         private Integer availableQty;
+        /** 其中已在草稿采购订单里的数量，生成时挪到所选分组 */
+        private Integer draftQty;
         private String purchaserName;
     }
 }

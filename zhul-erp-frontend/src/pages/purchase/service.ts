@@ -139,7 +139,10 @@ export interface GenerateGroup {
     model: string;
     brand?: string;
     soNo?: string;
+    /** 本次可生成的数量（含已在草稿里的） */
     availableQty: number;
+    /** 其中已在草稿采购订单里的数量，生成时挪过来 */
+    draftQty?: number;
     purchaserName?: string;
   }[];
 }
