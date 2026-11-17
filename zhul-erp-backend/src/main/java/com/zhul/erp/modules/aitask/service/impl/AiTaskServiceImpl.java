@@ -2,12 +2,15 @@ package com.zhul.erp.modules.aitask.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.framework.tenant.TenantScope;
 import com.zhul.erp.modules.aitask.constants.AiTaskStatus;
 import com.zhul.erp.modules.aitask.dto.AiCallConfig;
+import com.zhul.erp.modules.aitask.dto.AiFailover;
 import com.zhul.erp.modules.aitask.dto.AiTaskCallbackRequest;
 import com.zhul.erp.modules.aitask.dto.AiTaskVO;
 import com.zhul.erp.modules.aitask.entity.AiTaskDO;
@@ -16,6 +19,7 @@ import com.zhul.erp.modules.aitask.service.AiConfigService;
 import com.zhul.erp.modules.aitask.service.AiOrchestratorClient;
 import com.zhul.erp.modules.aitask.service.AiTaskResultDispatcher;
 import com.zhul.erp.modules.aitask.service.AiTaskService;
+import com.zhul.erp.modules.aitask.support.AiConnectionPauses;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -23,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -46,27 +51,30 @@ public class AiTaskServiceImpl implements AiTaskService {
     private final AiTaskResultDispatcher resultDispatcher;
     private final ObjectMapper objectMapper;
     private final AiConfigService aiConfigService;
+    private final AiConnectionPauses pauses;
 
     public AiTaskServiceImpl(AiTaskMapper aiTaskMapper,
                               AiOrchestratorClient orchestratorClient,
                               @Lazy AiTaskResultDispatcher resultDispatcher,
                               ObjectMapper objectMapper,
-                              AiConfigService aiConfigService) {
+                              AiConfigService aiConfigService,
+                              AiConnectionPauses pauses) {
         this.aiTaskMapper = aiTaskMapper;
         this.orchestratorClient = orchestratorClient;
         this.resultDispatcher = resultDispatcher;
         this.objectMapper = objectMapper;
         this.aiConfigService = aiConfigService;
+        this.pauses = pauses;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public AiTaskVO createAndSubmit(String skillId, String inputJson, Long requestedBy) {
-        // 先取当前租户的配置快照：未配置时直接抛 AiNotConfiguredException，不产生任务；
+        // 先按顺序挑出当前租户可用的连接方式（配置快照）：一个都没有时直接抛异常，不产生任务；
         // 必须在请求线程里取，afterCommit 的异步提交里没有可靠的租户上下文
-        AiCallConfig ai = aiConfigService.resolveForCurrentTenant();
+        List<AiCallConfig> chain = aiConfigService.resolveChainForCurrentTenant();
         AiTaskDO task = create(skillId, inputJson, requestedBy);
-        submit(task, inputJson, ai);
+        submit(task, inputJson, chain);
         return toVo(task);
     }
 
@@ -98,23 +106,23 @@ public class AiTaskServiceImpl implements AiTaskService {
      * 但询盘单走图片/Excel录入时 rawContent 为空、编排服务会立刻同步拒绝，稳定复现。
      * 所以提交动作必须等当前事务真正提交之后才发起，不能指望"响应总是比事务提交慢"。
      */
-    private void submit(AiTaskDO task, String inputJson, AiCallConfig ai) {
+    private void submit(AiTaskDO task, String inputJson, List<AiCallConfig> chain) {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    doSubmit(task, inputJson, ai);
+                    doSubmit(task, inputJson, chain);
                 }
             });
         } else {
             // 理论上 createAndSubmit() 总是带着 @Transactional 被 Spring 代理调用，
             // 这个分支只在没有事务上下文时（比如单测直接 new 出来调用）兜底，保持行为一致。
-            doSubmit(task, inputJson, ai);
+            doSubmit(task, inputJson, chain);
         }
     }
 
-    private void doSubmit(AiTaskDO task, String inputJson, AiCallConfig ai) {
-        orchestratorClient.submit(task.getSkillId(), task.getId(), inputJson, ai)
+    private void doSubmit(AiTaskDO task, String inputJson, List<AiCallConfig> chain) {
+        orchestratorClient.submit(task.getSkillId(), task.getId(), inputJson, chain)
                 // 异步线程没有租户上下文：按任务所属租户更新状态、通知发起方
                 .thenAccept(result -> TenantContext.runAs(task.getTenantId(), () -> {
                     LocalDateTime now = LocalDateTime.now();
@@ -152,6 +160,10 @@ public class AiTaskServiceImpl implements AiTaskService {
     }
 
     private void applyCallback(AiTaskDO task, AiTaskCallbackRequest req) {
+        if (req.isFailover()) {
+            pauseFailed(task, req.getFailovers());
+            return;
+        }
         if (req.isProgress()) {
             saveProgress(task.getId(), req.getOutput());
             return;
@@ -171,8 +183,9 @@ public class AiTaskServiceImpl implements AiTaskService {
             task.setErrorMessage(req.getError());
         }
         task.setCompletedAt(now);
-        // 用量是真实发生的调用费用，迟到或重复的回调也照记
+        // 用量是真实发生的调用费用，迟到或重复的回调也照记；切换情况同样照记
         saveUsage(task, req.getUsage());
+        saveConnection(task, req);
         if (!applied) {
             // 任务已结束（超时判失败、或同一结果重投）：丢弃，不改状态、不再通知业务（audit AI-001，用户 2026-11-04 确认）
             log.info("ai_task id={} 已结束（回调前状态 {}），忽略迟到或重复的回调 status={}", taskId, before, req.getStatus());
@@ -218,6 +231,49 @@ public class AiTaskServiceImpl implements AiTaskService {
             return n.intValue();
         }
         return null;
+    }
+
+    private static final Set<String> CONNECTION_MODES = Set.of("api", "subscription");
+    private static final Set<String> CONNECTION_PROVIDERS = Set.of("claude", "openai");
+
+    /**
+     * 执行中失败的连接方式进入暂停（openspec ai-connection-failover）：按失败发生的时间算 10 分钟，
+     * 本公司 API Key 记在任务所属租户，平台订阅记在平台；结果回调重复带回同样的记录时重复写入无害
+     */
+    private void pauseFailed(AiTaskDO task, List<AiFailover> failovers) {
+        if (failovers == null) {
+            return;
+        }
+        for (AiFailover f : failovers) {
+            String[] c = f.getConnection() == null ? new String[0] : f.getConnection().split(":", 2);
+            if (c.length != 2 || !CONNECTION_MODES.contains(c[0]) || !CONNECTION_PROVIDERS.contains(c[1])) {
+                log.warn("ai_task id={} 切换记录的连接方式不认识，忽略：{}", task.getId(), f.getConnection());
+                continue;
+            }
+            Instant at = f.getAt() == null ? Instant.now() : Instant.ofEpochSecond(f.getAt());
+            pauses.pause(task.getTenantId(), c[0], c[1], f.getReason(), at);
+        }
+    }
+
+    /** 结果回调带回实际使用的连接方式与全部切换记录：写入任务，并补记暂停（实时的切换事件可能丢失） */
+    private void saveConnection(AiTaskDO task, AiTaskCallbackRequest req) {
+        pauseFailed(task, req.getFailovers());
+        boolean hasFailovers = req.getFailovers() != null && !req.getFailovers().isEmpty();
+        if (req.getConnection() == null && !hasFailovers) {
+            return;
+        }
+        AiTaskDO update = new AiTaskDO();
+        update.setId(task.getId());
+        if (req.getConnection() != null) {
+            String c = req.getConnection();
+            update.setUsedConnection(c.length() > 32 ? c.substring(0, 32) : c);
+        }
+        if (hasFailovers) {
+            update.setFailovers(writeJsonSafely(req.getFailovers()));
+        }
+        aiTaskMapper.updateById(update);
+        task.setUsedConnection(update.getUsedConnection());
+        task.setFailovers(update.getFailovers());
     }
 
     /** 回调带回的用量写入任务（所有技能都记）；旧版编排服务、订阅方式没有用量，保持为空 */
@@ -312,6 +368,24 @@ public class AiTaskServiceImpl implements AiTaskService {
                 }).toList();
     }
 
+    @Override
+    public AiTaskVO getConnection(Long id) {
+        if (id == null) {
+            return null;
+        }
+        AiTaskDO t = aiTaskMapper.selectOne(new LambdaQueryWrapper<AiTaskDO>()
+                .select(AiTaskDO::getId, AiTaskDO::getUsedConnection, AiTaskDO::getFailovers)
+                .eq(AiTaskDO::getId, id));
+        if (t == null) {
+            return null;
+        }
+        AiTaskVO vo = new AiTaskVO();
+        vo.setId(t.getId());
+        vo.setUsedConnection(t.getUsedConnection());
+        vo.setFailovers(readFailovers(t.getFailovers()));
+        return vo;
+    }
+
     private AiTaskVO toVo(AiTaskDO task) {
         AiTaskVO vo = new AiTaskVO();
         vo.setId(task.getId());
@@ -325,6 +399,20 @@ public class AiTaskServiceImpl implements AiTaskService {
         vo.setCreateTime(task.getCreateTime());
         vo.setProgressDone(task.getProgressDone());
         vo.setProgressTotal(task.getProgressTotal());
+        vo.setUsedConnection(task.getUsedConnection());
+        vo.setFailovers(readFailovers(task.getFailovers()));
         return vo;
+    }
+
+    private List<AiFailover> readFailovers(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<AiFailover>>() { });
+        } catch (JsonProcessingException e) {
+            log.warn("AI 任务切换记录格式不对，忽略：{}", e.getOriginalMessage());
+            return null;
+        }
     }
 }

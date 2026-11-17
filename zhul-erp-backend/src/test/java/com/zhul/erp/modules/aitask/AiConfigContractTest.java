@@ -10,13 +10,17 @@ import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.aitask.constants.AiConfigConstants;
 import com.zhul.erp.modules.aitask.dto.AiCallConfig;
 import com.zhul.erp.modules.aitask.dto.AiConfigVO;
+import com.zhul.erp.modules.aitask.dto.AiConnectionTestVO;
+import com.zhul.erp.modules.aitask.dto.AiConnectionVO;
 import com.zhul.erp.modules.aitask.dto.AiLoginStatus;
 import com.zhul.erp.modules.aitask.dto.AiSubscriptionStatusVO;
 import com.zhul.erp.modules.aitask.dto.SaveAiConfigRequest;
+import com.zhul.erp.modules.aitask.dto.SaveAiSettingsRequest;
 import com.zhul.erp.modules.aitask.exception.AiNotConfiguredException;
 import com.zhul.erp.modules.aitask.exception.AiUnavailableException;
 import com.zhul.erp.modules.aitask.service.AiConfigService;
 import com.zhul.erp.modules.aitask.service.AiOrchestratorClient;
+import com.zhul.erp.modules.aitask.support.AiConnectionPauses;
 import com.zhul.erp.support.IntegrationTestBase;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -32,13 +36,19 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -46,7 +56,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 /**
- * 对应 openspec ai-platform/tenant-ai-settings：按连接方式分别保存、租户隔离、加密脱敏、
+ * 对应 openspec ai-platform/tenant-ai-settings 与 ai-platform/connection-failover：按连接方式分别保存、
+ * 按「API Key 组在前、组内顺序」挑出可用的方式、启用开关、暂停与解除、租户隔离、加密脱敏、
  * 平台订阅按套餐授权给公司、租户只看到可用与否、权限。编排服务用替身控制登录状态。
  */
 @AutoConfigureMockMvc
@@ -63,6 +74,7 @@ class AiConfigContractTest extends IntegrationTestBase {
     private static final String CLAUDE_KEY = "sk-ant-tenant-claude-5555";
 
     @Autowired private AiConfigService service;
+    @Autowired private AiConnectionPauses pauses;
     @Autowired private MockMvc mvc;
     @Autowired private JwtUtils jwtUtils;
     @Autowired private StringRedisTemplate redis;
@@ -86,6 +98,11 @@ class AiConfigContractTest extends IntegrationTestBase {
     private void cleanup() {
         for (int t : new int[] {PLATFORM, TENANT, GRANTED}) {
             removeAiConfig(t);
+            for (String mode : List.of("api", "subscription")) {
+                for (String provider : AiConfigConstants.PROVIDERS) {
+                    pauses.clear(t, mode, provider);
+                }
+            }
         }
         jdbc.update("delete from tenant where id = ?", GRANTED);
         jdbc.update("delete from tenant_package where id = ?", GRANTED_PACKAGE);
@@ -105,14 +122,40 @@ class AiConfigContractTest extends IntegrationTestBase {
         return r;
     }
 
-    private void saveAs(int tenant, SaveAiConfigRequest r) {
+    private static SaveAiSettingsRequest.Item item(String mode, String provider, boolean enabled) {
+        SaveAiSettingsRequest.Item i = new SaveAiSettingsRequest.Item();
+        i.setMode(mode);
+        i.setProvider(provider);
+        i.setEnabled(enabled);
+        return i;
+    }
+
+    /** 只保存设置，不改顺序 */
+    private void saveAs(int tenant, SaveAiConfigRequest... profiles) {
+        saveAs(tenant, List.of(), profiles);
+    }
+
+    private void saveAs(int tenant, List<SaveAiSettingsRequest.Item> order, SaveAiConfigRequest... profiles) {
         TenantContext.setTenantId(tenant);
+        SaveAiSettingsRequest r = new SaveAiSettingsRequest();
+        r.setOrder(new ArrayList<>(order));
+        r.setProfiles(List.of(profiles));
         service.save(r);
     }
 
-    private AiCallConfig resolveAs(int tenant) {
+    private List<AiCallConfig> chainAs(int tenant) {
         TenantContext.setTenantId(tenant);
-        return service.resolveForCurrentTenant();
+        return service.resolveChainForCurrentTenant();
+    }
+
+    private static List<String> names(List<AiCallConfig> chain) {
+        return chain.stream().map(c -> c.getMode() + ":" + c.getProvider()).toList();
+    }
+
+    private AiConnectionVO card(int tenant, String mode, String provider) {
+        TenantContext.setTenantId(tenant);
+        return service.get().getConnections().stream()
+                .filter(c -> c.getMode().equals(mode) && c.getProvider().equals(provider)).findFirst().orElse(null);
     }
 
     private int profileRows(int tenant) {
@@ -124,22 +167,23 @@ class AiConfigContractTest extends IntegrationTestBase {
         saveAs(PLATFORM, req("api", "claude", PLATFORM_KEY));
 
         TenantContext.setTenantId(TENANT);
-        assertFalse(service.get().isConfigured());
-        assertThrows(AiNotConfiguredException.class, service::resolveForCurrentTenant);
+        assertThrows(AiNotConfiguredException.class, service::resolveChainForCurrentTenant);
+        assertFalse(service.isConfiguredForCurrentTenant());
 
         saveAs(TENANT, req("api", "openai", TENANT_KEY));
-        AiCallConfig platform = resolveAs(PLATFORM);
-        AiCallConfig tenant = resolveAs(TENANT);
+        AiCallConfig platform = chainAs(PLATFORM).get(0);
+        AiCallConfig tenant = chainAs(TENANT).get(0);
         assertEquals("claude", platform.getProvider());
         assertEquals(PLATFORM_KEY, platform.getApiKey());
         assertEquals("openai", tenant.getProvider());
         assertEquals(TENANT_KEY, tenant.getApiKey());
+        assertEquals(1, chainAs(TENANT).size(), "没有 Key 的 Claude API 不参与");
     }
 
     @Test
     void blanksUseDefaults() {
         saveAs(TENANT, req("", "", TENANT_KEY));
-        AiCallConfig c = resolveAs(TENANT);
+        AiCallConfig c = chainAs(TENANT).get(0);
         assertEquals("api", c.getMode());
         assertEquals("claude", c.getProvider());
         assertEquals("claude-opus-5-5", c.getParseModel());
@@ -152,36 +196,66 @@ class AiConfigContractTest extends IntegrationTestBase {
         openai.setParseEffort("high");
         openai.setMaxWebSearches(5);
         saveAs(TENANT, openai);
-        c = resolveAs(TENANT);
+        c = chainAs(TENANT).get(1);
+        assertEquals("openai", c.getProvider());
         assertEquals("gpt-6.1-sol", c.getParseModel());
         assertEquals("gpt-6-luna", c.getTranslateModel());
         assertEquals("high", c.getParseEffort());
         assertEquals(5, c.getMaxWebSearches());
     }
 
+    /** 连接方式的使用顺序：API 优先、组内按保存的顺序、每个方式用自己的设置 */
     @Test
-    void eachProviderKeepsItsOwnSettings() {
+    void apiFirstAndOrderFollowsSaved() {
         SaveAiConfigRequest claude = req("api", "claude", CLAUDE_KEY);
         claude.setParseModel("claude-sonnet-5-5");
-        saveAs(TENANT, claude);
         SaveAiConfigRequest openai = req("api", "openai", TENANT_KEY);
         openai.setTranslateModel("gpt-6-terra");
-        saveAs(TENANT, openai);
-        assertEquals(TENANT_KEY, resolveAs(TENANT).getApiKey());
+        saveAs(GRANTED, claude, openai);
+        loggedIn(true, true);
+        assertEquals(List.of("api:claude", "api:openai", "subscription:claude", "subscription:openai"), names(chainAs(GRANTED)));
 
-        // 切回 Claude：Key 留空沿用 Claude 自己的 Key，页面带回 Claude 已保存的模型
-        SaveAiConfigRequest back = req("api", "claude", "");
-        back.setParseModel(service.get().getApiProfiles().get("claude").getParseModel());
-        saveAs(TENANT, back);
-        AiCallConfig c = resolveAs(TENANT);
-        assertEquals(CLAUDE_KEY, c.getApiKey());
-        assertEquals("claude-sonnet-5-5", c.getParseModel());
+        saveAs(GRANTED, List.of(item("api", "openai", true), item("api", "claude", true),
+                item("subscription", "openai", true), item("subscription", "claude", true)));
+        List<AiCallConfig> chain = chainAs(GRANTED);
+        assertEquals(List.of("api:openai", "api:claude", "subscription:openai", "subscription:claude"), names(chain));
+        assertEquals(TENANT_KEY, chain.get(0).getApiKey());
+        assertEquals("gpt-6-terra", chain.get(0).getTranslateModel());
+        assertEquals("claude-sonnet-5-5", chain.get(1).getParseModel());
 
         AiConfigVO vo = service.get();
-        assertEquals("sk-ant-••••••••••••••••5555", vo.getApiProfiles().get("claude").getApiKeyMasked());
-        assertEquals("sk-open••••••••••••••••9876", vo.getApiProfiles().get("openai").getApiKeyMasked());
-        assertEquals("gpt-6-terra", vo.getApiProfiles().get("openai").getTranslateModel());
-        assertEquals(2, profileRows(TENANT));
+        assertEquals(List.of(1, 2, 3, 4), vo.getConnections().stream().map(AiConnectionVO::getOrder).toList());
+        assertEquals("api", vo.getConnections().get(0).getMode());
+        assertEquals("openai", vo.getConnections().get(0).getProvider());
+        assertEquals("sk-open••••••••••••••••9876", vo.getConnections().get(0).getApiKeyMasked());
+        assertEquals("sk-ant-••••••••••••••••5555", vo.getConnections().get(1).getApiKeyMasked());
+    }
+
+    @Test
+    void subscriptionCannotBeOrderedBeforeApi() {
+        BizException e = assertThrows(BizException.class, () -> saveAs(GRANTED,
+                List.of(item("subscription", "claude", true), item("api", "claude", true))));
+        assertEquals("平台订阅只能排在 API Key 之后", e.getMessage());
+        assertEquals(0, profileRows(GRANTED), "整个保存回滚，原顺序不变");
+        assertEquals("连接方式重复", assertThrows(BizException.class, () -> saveAs(GRANTED,
+                List.of(item("api", "claude", true), item("api", "claude", false)))).getMessage());
+    }
+
+    @Test
+    void disabledConnectionIsSkippedButKept() {
+        saveAs(TENANT, req("api", "claude", CLAUDE_KEY), req("api", "openai", TENANT_KEY));
+        saveAs(TENANT, List.of(item("api", "claude", true), item("api", "openai", false)));
+        assertEquals(List.of("api:claude"), names(chainAs(TENANT)));
+        AiConnectionVO openai = card(TENANT, "api", "openai");
+        assertFalse(openai.isEnabled());
+        assertTrue(openai.isHasKey(), "关闭后 Key 保留");
+
+        saveAs(TENANT, List.of(item("api", "claude", false), item("api", "openai", false)));
+        TenantContext.setTenantId(TENANT);
+        assertThrows(AiNotConfiguredException.class, service::resolveChainForCurrentTenant, "都关闭视为未配置");
+
+        saveAs(TENANT, List.of(item("api", "claude", true), item("api", "openai", true)));
+        assertEquals(List.of("api:claude", "api:openai"), names(chainAs(TENANT)));
     }
 
     @Test
@@ -195,30 +269,27 @@ class AiConfigContractTest extends IntegrationTestBase {
         SaveAiConfigRequest onlyModel = req("api", "openai", "");
         onlyModel.setTranslateModel("gpt-6-terra");
         saveAs(TENANT, onlyModel);
-        assertEquals(TENANT_KEY, resolveAs(TENANT).getApiKey());
-        assertEquals("gpt-6-terra", resolveAs(TENANT).getTranslateModel());
+        assertEquals(TENANT_KEY, chainAs(TENANT).get(0).getApiKey());
+        assertEquals("gpt-6-terra", chainAs(TENANT).get(0).getTranslateModel());
 
-        AiConfigVO vo = service.get();
-        assertTrue(vo.getApiProfiles().get("openai").isHasKey());
-        assertFalse(vo.getApiProfiles().get("claude").isHasKey());
-        assertFalse(vo.isSubscriptionAllowed());
-        assertNull(vo.getSubscriptionProfiles());
-    }
-
-    @Test
-    void apiModeWithoutKeyIsNotConfigured() {
-        saveAs(TENANT, req("api", "claude", ""));
-        assertThrows(AiNotConfiguredException.class, () -> resolveAs(TENANT));
         TenantContext.setTenantId(TENANT);
-        assertFalse(service.isConfiguredForCurrentTenant());
+        AiConfigVO vo = service.get();
+        assertTrue(card(TENANT, "api", "openai").isHasKey());
+        assertEquals("ready", card(TENANT, "api", "openai").getState());
+        assertEquals("no_key", card(TENANT, "api", "claude").getState());
+        assertFalse(vo.isSubscriptionAllowed());
+        assertTrue(vo.getConnections().stream().noneMatch(c -> "subscription".equals(c.getMode())));
     }
 
     @Test
     void tenantWithoutGrantCannotUseSubscription() {
         TenantContext.setTenantId(TENANT);
-        BizException e = assertThrows(BizException.class, () -> service.save(req("subscription", "claude", "")));
+        BizException e = assertThrows(BizException.class, () -> saveAs(TENANT, List.of(item("subscription", "claude", true))));
         assertEquals(400, e.getCode());
-        assertEquals(0, jdbc.queryForObject("select count(*) from sys_ai_config where tenant_id = ?", Integer.class, TENANT));
+        assertEquals(400, assertThrows(BizException.class,
+                () -> saveAs(TENANT, req("subscription", "claude", ""))).getCode());
+        assertEquals(0, profileRows(TENANT));
+        TenantContext.setTenantId(TENANT);
         assertEquals(403, assertThrows(BizException.class, service::subscriptionStatus).getCode());
         assertEquals(403, assertThrows(BizException.class, () -> service.models(req("subscription", "claude", ""))).getCode());
     }
@@ -230,26 +301,120 @@ class AiConfigContractTest extends IntegrationTestBase {
         platformSub.setParseEffort("high");
         saveAs(PLATFORM, platformSub);
 
-        // 租户提交的模型不生效，只用平台的设置；订阅不用 Key
+        // 租户没有 API Key：订阅组参与（默认启用）；平台的 OpenAI 未登录，跳过
         SaveAiConfigRequest tenantSub = req("subscription", "claude", "sk-should-be-ignored");
         tenantSub.setParseModel("my-own-model");
         saveAs(GRANTED, tenantSub);
-        AiCallConfig c = resolveAs(GRANTED);
-        assertTrue(c.isSubscription());
-        assertEquals("claude-opus-5-1", c.getParseModel());
-        assertEquals("high", c.getParseEffort());
-        assertEquals("", c.getApiKey());
-        assertEquals(0, profileRows(GRANTED));
+        assertEquals(0, profileRows(GRANTED), "租户提交的订阅设置不生效");
+        List<AiCallConfig> chain = chainAs(GRANTED);
+        assertEquals(List.of("subscription:claude"), names(chain));
+        assertEquals("claude-opus-5-1", chain.get(0).getParseModel());
+        assertEquals("high", chain.get(0).getParseEffort());
+        assertEquals("", chain.get(0).getApiKey());
 
+        TenantContext.setTenantId(GRANTED);
         AiConfigVO vo = service.get();
         assertTrue(vo.isSubscriptionAllowed());
         assertFalse(vo.isPlatform());
-        assertEquals("claude-opus-5-1", vo.getSubscriptionProfiles().get("claude").getParseModel());
+        AiConnectionVO claude = card(GRANTED, "subscription", "claude");
+        assertEquals("available", claude.getState());
+        assertTrue(claude.isSettingsReadonly());
+        assertEquals("claude-opus-5-1", claude.getParseModel());
+        assertEquals("unavailable", card(GRANTED, "subscription", "openai").getState());
+    }
 
-        // 平台的 OpenAI 未登录：租户不能选
+    @Test
+    void subscriptionFallsBackAndBecomesUnavailable() {
+        loggedIn(false, true);
+        assertEquals(List.of("subscription:openai"), names(chainAs(GRANTED)), "Claude 订阅退出登录，用 OpenAI 订阅");
+
+        loggedIn(false, false);
+        AiUnavailableException e = assertThrows(AiUnavailableException.class, () -> chainAs(GRANTED));
+        assertEquals(AiConfigConstants.UNAVAILABLE_MESSAGE, e.getMessage());
+        // 顺带触发的任务（如保存商机时的联系人名称翻译）据此跳过，不在业务事务里抛异常
         TenantContext.setTenantId(GRANTED);
-        assertEquals(400, assertThrows(BizException.class, () -> service.save(req("subscription", "openai", ""))).getCode());
-        assertEquals("claude", resolveAs(GRANTED).getProvider());
+        assertFalse(service.isConfiguredForCurrentTenant());
+        // 状态查询失败：租户按不可用处理
+        when(orchestratorClient.status()).thenThrow(new BizException("AI 编排服务不可用"));
+        assertFalse(service.isConfiguredForCurrentTenant());
+
+        // 收回授权：套餐去掉「使用平台订阅」；没有本公司 Key，提示未配置
+        loggedIn(true, true);
+        jdbc.update("update tenant_package set menu_ids = '[100118, 110214]' where id = ?", GRANTED_PACKAGE);
+        assertThrows(AiNotConfiguredException.class, () -> chainAs(GRANTED));
+        TenantContext.setTenantId(GRANTED);
+        assertFalse(service.get().isSubscriptionAllowed());
+        assertEquals(403, assertThrows(BizException.class, service::subscriptionStatus).getCode());
+    }
+
+    /** API 组有可用方式时，订阅只按授权与开关附在后面，不查询登录状态 */
+    @Test
+    void subscriptionAppendedWithoutLoginCheckWhenApiAvailable() {
+        saveAs(GRANTED, req("api", "claude", CLAUDE_KEY));
+        when(orchestratorClient.status()).thenThrow(new AssertionError("API 可用时不应查询订阅登录状态"));
+        assertEquals(List.of("api:claude", "subscription:claude", "subscription:openai"), names(chainAs(GRANTED)));
+    }
+
+    @Test
+    void pausedConnectionIsSkippedUntilSavedOrTested() {
+        saveAs(TENANT, req("api", "claude", CLAUDE_KEY), req("api", "openai", TENANT_KEY));
+        pauses.pause(TENANT, "api", "claude", "quota", Instant.now());
+        assertEquals(List.of("api:openai"), names(chainAs(TENANT)));
+        AiConnectionVO claude = card(TENANT, "api", "claude");
+        assertEquals("quota", claude.getPausedReason());
+        assertNotNull(claude.getPausedUntil());
+
+        // 更换 Key 并保存：立即解除
+        saveAs(TENANT, req("api", "claude", "sk-ant-tenant-claude-6666"));
+        assertEquals(List.of("api:claude", "api:openai"), names(chainAs(TENANT)));
+
+        // 测试连接通过：立即解除
+        pauses.pause(TENANT, "api", "openai", "auth", Instant.now());
+        AiConnectionTestVO ok = new AiConnectionTestVO();
+        ok.setOk(true);
+        when(orchestratorClient.test(any())).thenReturn(ok);
+        TenantContext.setTenantId(TENANT);
+        service.test(req("api", "openai", ""));
+        assertNull(card(TENANT, "api", "openai").getPausedReason());
+
+        // 都暂停：已配置但暂不可用
+        pauses.pause(TENANT, "api", "claude", "quota", Instant.now());
+        pauses.pause(TENANT, "api", "openai", "quota", Instant.now());
+        assertThrows(AiUnavailableException.class, () -> chainAs(TENANT));
+
+        // 10 分钟前发生的失败不再暂停（很晚才到的回调）
+        pauses.clear(TENANT, "api", "claude");
+        pauses.pause(TENANT, "api", "claude", "quota", Instant.now().minus(Duration.ofMinutes(11)));
+        assertNull(card(TENANT, "api", "claude").getPausedReason());
+    }
+
+    @Test
+    void platformSubscriptionPauseAppliesToEveryTenant() {
+        loggedIn(true, true);
+        pauses.pause(GRANTED, "subscription", "claude", "usage_limit", Instant.now());
+        assertEquals(List.of("subscription:openai"), names(chainAs(GRANTED)));
+        assertEquals("usage_limit", card(PLATFORM, "subscription", "claude").getPausedReason(), "平台也看到暂停");
+        assertEquals(List.of("subscription:openai"), names(chainAs(PLATFORM)));
+    }
+
+    @Test
+    void platformKeepsUsingSubscriptionWhenStatusUnknown() {
+        saveAs(PLATFORM, req("subscription", "openai", ""));
+        when(orchestratorClient.status()).thenThrow(new BizException("AI 编排服务不可用"));
+        // 只照常使用保存过的订阅；从没保存过的 Claude 订阅要确认登录后才用
+        List<AiCallConfig> chain = chainAs(PLATFORM);
+        assertEquals(List.of("subscription:openai"), names(chain));
+        assertEquals("", chain.get(0).getApiKey());
+        assertEquals("unknown", card(PLATFORM, "subscription", "openai").getState());
+    }
+
+    @Test
+    void nothingSavedAndStatusUnknownIsNotConfigured() {
+        when(orchestratorClient.status()).thenThrow(new BizException("AI 编排服务不可用"));
+        assertThrows(AiNotConfiguredException.class, () -> chainAs(PLATFORM));
+        // 状态查得到但都未登录：已配置但暂不可用
+        loggedIn(false, false);
+        assertThrows(AiUnavailableException.class, () -> chainAs(PLATFORM));
     }
 
     @Test
@@ -268,41 +433,14 @@ class AiConfigContractTest extends IntegrationTestBase {
         assertEquals("logged_in", platform.getStates().get("claude"));
         assertEquals("logged_out", platform.getStates().get("openai"));
         assertTrue(platform.getLoginCommands().get("openai").contains("codex login"));
+        assertEquals("logged_in", card(PLATFORM, "subscription", "claude").getState());
 
         // 状态查询失败：未知，不当作未登录
         when(orchestratorClient.status()).thenThrow(new BizException("AI 编排服务不可用"));
+        TenantContext.setTenantId(PLATFORM);
         platform = service.subscriptionStatus();
         assertEquals("unknown", platform.getStates().get("claude"));
         assertNull(platform.getAvailable().get("claude"));
-    }
-
-    @Test
-    void revokedGrantOrLoggedOutPlatformMakesAiUnavailable() {
-        saveAs(GRANTED, req("subscription", "claude", ""));
-        assertTrue(resolveAs(GRANTED).isSubscription());
-        TenantContext.setTenantId(GRANTED);
-        assertTrue(service.isConfiguredForCurrentTenant());
-
-        // 平台的 Claude 退出登录：不创建任务，不自动换到 OpenAI，选择不变
-        loggedIn(false, true);
-        AiUnavailableException e = assertThrows(AiUnavailableException.class, () -> resolveAs(GRANTED));
-        assertEquals(AiConfigConstants.UNAVAILABLE_MESSAGE, e.getMessage());
-        // 顺带触发的任务（如保存商机时的联系人名称翻译）据此跳过，不在业务事务里抛异常
-        TenantContext.setTenantId(GRANTED);
-        assertFalse(service.isConfiguredForCurrentTenant());
-        // 状态查询失败：可用与否未知，同样跳过
-        when(orchestratorClient.status()).thenThrow(new BizException("AI 编排服务不可用"));
-        assertFalse(service.isConfiguredForCurrentTenant());
-        assertEquals("claude", jdbc.queryForObject("select provider from sys_ai_config where tenant_id = ?", String.class, GRANTED));
-
-        // 收回授权：套餐去掉「使用平台订阅」
-        loggedIn(true, true);
-        jdbc.update("update tenant_package set menu_ids = '[100118, 110214]' where id = ?", GRANTED_PACKAGE);
-        assertThrows(AiUnavailableException.class, () -> resolveAs(GRANTED));
-        TenantContext.setTenantId(GRANTED);
-        assertFalse(service.isConfiguredForCurrentTenant());
-        assertFalse(service.get().isSubscriptionAllowed());
-        assertEquals(403, assertThrows(BizException.class, service::subscriptionStatus).getCode());
     }
 
     @Test
@@ -319,16 +457,6 @@ class AiConfigContractTest extends IntegrationTestBase {
     }
 
     @Test
-    void platformSubscriptionNeedsNoLoginCheckToSave() {
-        loggedIn(false, false);
-        saveAs(PLATFORM, req("subscription", "openai", ""));
-        AiCallConfig c = resolveAs(PLATFORM);
-        assertTrue(c.isSubscription());
-        assertEquals("openai", c.getProvider());
-        assertEquals("", c.getApiKey());
-    }
-
-    @Test
     void invalidValuesAreRejected() {
         Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
         SaveAiConfigRequest bad = req("api", "deepseek", "k");
@@ -338,10 +466,9 @@ class AiConfigContractTest extends IntegrationTestBase {
         SaveAiConfigRequest tooMany = req("api", "claude", "k");
         tooMany.setMaxWebSearches(101);
         assertEquals(1, validator.validate(tooMany).size());
+        assertEquals(1, validator.validate(item("api", "deepseek", true)).size());
 
-        TenantContext.setTenantId(TENANT);
-        assertThrows(BizException.class, () -> service.save(req("api", "deepseek", TENANT_KEY)));
-        assertEquals(0, jdbc.queryForObject("select count(*) from sys_ai_config where tenant_id = ?", Integer.class, TENANT));
+        assertThrows(BizException.class, () -> saveAs(TENANT, req("api", "deepseek", TENANT_KEY)));
         assertEquals(0, profileRows(TENANT));
     }
 
@@ -360,16 +487,17 @@ class AiConfigContractTest extends IntegrationTestBase {
     void userTriggeredAiActionReportsNotConfigured() throws Exception {
         loginAsAdmin("it_ai_admin");
         int before = jdbc.queryForObject("select count(*) from ai_task where tenant_id = ?", Integer.class, PLATFORM);
+        loggedIn(false, false);
         JsonNode res = call(post("/api/v1/translations/item-descriptions").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"items\":[{\"key\":\"1\",\"text\":\"西门子 PLC\"}]}"), token("it_ai_admin", PLATFORM));
         assertEquals(400, res.path("code").asInt(), res.toString());
-        assertEquals("AI 未配置，请在「业务设置 → AI 设置」中填写", res.path("message").asText());
         assertEquals(before, jdbc.queryForObject("select count(*) from ai_task where tenant_id = ?", Integer.class, PLATFORM));
     }
 
     @Test
     void apiRequiresEditPermissionAndNeverReturnsKey() throws Exception {
-        String body = "{\"mode\":\"api\",\"provider\":\"claude\",\"apiKey\":\"" + PLATFORM_KEY + "\",\"maxWebSearches\":20}";
+        String body = "{\"order\":[{\"mode\":\"api\",\"provider\":\"claude\",\"enabled\":true}],"
+                + "\"profiles\":[{\"mode\":\"api\",\"provider\":\"claude\",\"apiKey\":\"" + PLATFORM_KEY + "\",\"maxWebSearches\":20}]}";
 
         loginWithResources("it_ai_outsider");
         JsonNode hidden = call(get(BASE), token("it_ai_outsider", PLATFORM));
@@ -390,6 +518,10 @@ class AiConfigContractTest extends IntegrationTestBase {
                 .getContentAsString(StandardCharsets.UTF_8);
         assertFalse(got.contains(PLATFORM_KEY));
         assertTrue(got.contains("sk-ant-••••••••••••••••0001"));
+        JsonNode first = objectMapper.readTree(got).path("data").path("connections").get(0);
+        assertEquals("api", first.path("mode").asText());
+        assertEquals("claude", first.path("provider").asText());
+        assertEquals("ready", first.path("state").asText());
 
         JsonNode status = call(get(BASE + "/subscription-status"), token("it_ai_admin", TENANT));
         assertEquals(403, status.path("code").asInt(), status.toString());

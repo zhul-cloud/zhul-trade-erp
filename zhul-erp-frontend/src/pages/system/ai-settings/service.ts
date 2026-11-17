@@ -1,12 +1,42 @@
 import { request } from '@umijs/max';
 
-/** 业务设置 → AI 设置：当前租户的 AI 配置（按连接方式分别保存），见 openspec ai-platform/tenant-ai-settings */
+/** 业务设置 → AI 设置：当前租户的连接方式（顺序、开关、各自的设置），见 openspec ai-platform/tenant-ai-settings 与 ai-connection-failover */
 
 export type AiMode = 'api' | 'subscription';
 export type AiProvider = 'claude' | 'openai';
 
-/** 一种连接方式的设置；Key 只有是否已填写与脱敏值 */
-export interface AiProfile {
+export type ConnectionState =
+  | 'ready'
+  | 'no_key'
+  | 'logged_in'
+  | 'logged_out'
+  | 'available'
+  | 'unavailable'
+  | 'unknown';
+
+/** 切换与暂停的原因分类码，见 openspec ai-connection-failover */
+export type FailoverReason =
+  | 'auth'
+  | 'quota'
+  | 'rate_limit'
+  | 'provider_error'
+  | 'timeout'
+  | 'not_logged_in'
+  | 'usage_limit';
+
+/** 一张连接方式卡片：顺序、开关、状态与这一种的设置；Key 只有是否已填写与脱敏值 */
+export interface AiConnection {
+  mode: AiMode;
+  provider: AiProvider;
+  /** 在整体顺序中的位置，从 1 开始（API Key 组在前） */
+  order: number;
+  enabled: boolean;
+  /** ready / no_key（API）；logged_in / logged_out（平台查看订阅）；available / unavailable（租户查看订阅）；unknown */
+  state: ConnectionState;
+  /** 暂停原因，没有暂停为空 */
+  pausedReason?: FailoverReason | null;
+  /** 暂停到何时（北京时间） */
+  pausedUntil?: string | null;
   /** 是否保存过这一种的设置 */
   saved: boolean;
   hasKey: boolean;
@@ -16,26 +46,18 @@ export interface AiProfile {
   parseEffort: string;
   translateEffort: string;
   maxWebSearches: number;
+  /** 模型设置只读（租户查看平台订阅） */
+  settingsReadonly: boolean;
 }
 
-/** 当前选择 + 各连接方式的设置 */
+/** 当前租户的 AI 配置：按使用顺序排好的连接方式（API Key 组在前、平台订阅组在后） */
 export interface AiConfig {
-  /** 是否保存过当前选择 */
-  configured: boolean;
-  mode: AiMode;
-  provider: AiProvider;
   platform: boolean;
-  /** 能否使用平台订阅（平台始终可以；其他公司看套餐授权） */
+  /** 能否使用平台订阅（平台始终可以；其他公司看套餐授权）；不能时没有订阅卡片 */
   subscriptionAllowed: boolean;
-  /** 本公司 API Key 设置：provider → 设置 */
-  apiProfiles: Record<AiProvider, AiProfile>;
-  /** 平台订阅设置：只在能使用平台订阅时返回 */
-  subscriptionProfiles?: Record<AiProvider, AiProfile>;
+  connections: AiConnection[];
   /** provider → { parse, translate } */
   defaultModels: Record<string, { parse: string; translate: string }>;
-  /** 当前选择的最后修改时间与修改人，未配置时为空 */
-  updateTime?: string | null;
-  updateBy?: string | null;
 }
 
 /** 保存、测试连接、获取模型列表共用：mode + provider 是选中的连接方式，其余是这一种的设置；apiKey 留空沿用该服务商已保存的 Key */
@@ -48,6 +70,12 @@ export interface AiConfigPayload {
   parseEffort: string;
   translateEffort: string;
   maxWebSearches: number;
+}
+
+/** 底部保存条一次保存的全部修改：连接方式的顺序与开关，以及改过设置的连接方式 */
+export interface AiSettingsPayload {
+  order: { mode: AiMode; provider: AiProvider; enabled: boolean }[];
+  profiles: AiConfigPayload[];
 }
 
 export interface AiTestResult {
@@ -76,7 +104,7 @@ const AI_BASE = '/api/v1/system/ai-config';
 export const getAiConfig = (): Promise<AiConfig> =>
   request(AI_BASE, { method: 'GET' }).then((r) => r.data);
 
-export const saveAiConfig = (data: AiConfigPayload): Promise<void> =>
+export const saveAiConfig = (data: AiSettingsPayload): Promise<void> =>
   request(AI_BASE, { method: 'PUT', data });
 
 export const testAiConfig = (data: AiConfigPayload): Promise<AiTestResult> =>

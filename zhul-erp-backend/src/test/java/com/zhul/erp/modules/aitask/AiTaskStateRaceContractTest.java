@@ -63,9 +63,9 @@ class AiTaskStateRaceContractTest extends IntegrationTestBase {
     void data() {
         cleanup();
         jdbc.update("insert into tenant (id, name, status) values (?, 'AI 状态测试租户', 1)", TENANT);
-        when(aiConfigService.resolveForCurrentTenant()).thenReturn(AiCallConfig.builder().mode("api").provider("claude")
+        when(aiConfigService.resolveChainForCurrentTenant()).thenReturn(java.util.List.of(AiCallConfig.builder().mode("api").provider("claude")
                 .apiKey("sk-test").parseModel("m").translateModel("m").parseEffort("low").translateEffort("low")
-                .maxWebSearches(1).build());
+                .maxWebSearches(1).build()));
     }
 
     @AfterEach

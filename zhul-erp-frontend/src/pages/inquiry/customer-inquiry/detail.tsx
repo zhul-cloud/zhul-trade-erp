@@ -2,6 +2,7 @@ import {
   CopyOutlined,
   ExclamationCircleOutlined,
   FileTextOutlined,
+  RightOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { history, Link, useAccess, useParams } from '@umijs/max';
@@ -33,6 +34,7 @@ import {
   quotationApi,
 } from '@/pages/quotation/service';
 import { ChainCard } from '@/pages/sales/components';
+import { describeFailovers } from '@/pages/system/ai-settings/aiConfig';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatAmount, formatDateTime } from '@/utils/format';
@@ -734,6 +736,24 @@ const CustomerInquiryDetailPage: React.FC = () => {
           style={{ marginBottom: 16 }}
           title="AI 解析失败"
           description={`${detail.parseError || '原因未知'}。可以重新解析，或改为手动录入型号。`}
+        />
+      )}
+      {!!detail.parseFailovers?.length && inq.status !== STATUS.PARSING && (
+        <Alert
+          type="info"
+          showIcon
+          closable
+          style={{ marginBottom: 16 }}
+          title="本次解析中途自动切换了 AI 连接方式"
+          description={describeFailovers(
+            detail.parseUsedConnection,
+            detail.parseFailovers,
+          )}
+          action={
+            <Link to="/system/ai-settings">
+              查看 AI 设置 <RightOutlined />
+            </Link>
+          }
         />
       )}
       {detail.openAppend && (
