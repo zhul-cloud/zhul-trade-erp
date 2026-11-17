@@ -165,6 +165,30 @@ public class ContentPackageService {
                 out.toByteArray());
     }
 
+    /** 一个商品的资料包与营销包（本公司启用的全部平台）：AI 生成的输入，与下载的任务包相同，但不记下载 */
+    public record Packs(String factsFileName, String facts, String marketingFileName, String marketing) {
+    }
+
+    public Packs packsFor(Long productId) {
+        ProductDO p = productMapper.selectOne(new LambdaQueryWrapper<ProductDO>()
+                .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                .eq(ProductDO::getId, productId)
+                .isNull(ProductDO::getDeletedAt));
+        if (p == null) {
+            throw BizException.of(ProductErrorCodes.PRODUCT_NOT_FOUND, "商品不存在");
+        }
+        Variant marketing = variant(null);
+        // brandNames、categoryNames 会去掉集合里的空值，传可修改的集合
+        Set<Long> brandIds = new HashSet<>();
+        brandIds.add(p.getBrandId());
+        Set<Long> categoryIds = new HashSet<>();
+        categoryIds.add(p.getCategoryId());
+        Map<Long, String> brands = taskService.brandNames(brandIds);
+        Map<Long, String> categories = taskService.categoryNames(categoryIds);
+        return new Packs(fileName(p, null), markdown(p, null, brands, categories, template(null)),
+                fileName(p, marketing), markdown(p, marketing, brands, categories, template(marketing)));
+    }
+
     String markdown(ProductDO p, Variant variant, Map<Long, String> brands, Map<Long, String> categories,
                     String template) {
         boolean facts = variant == null;

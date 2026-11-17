@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.framework.security.DataScopeResolver;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.modules.inquiry.sourcing.entity.SourcingQuoteDO;
+import com.zhul.erp.modules.inquiry.sourcing.repository.SourcingQuoteMapper;
 import com.zhul.erp.modules.masterdata.constants.CustomerConstants;
 import com.zhul.erp.modules.quotation.constants.QuotationConstants;
 import com.zhul.erp.modules.quotation.dto.SaveQuotationRequest;
@@ -43,6 +45,7 @@ public class QuotationStore {
     private final QuotationItemMapper itemMapper;
     private final QuotationFeeMapper feeMapper;
     private final QuotationVersionMapper versionMapper;
+    private final SourcingQuoteMapper sourcingQuoteMapper;
     private final DataScopeResolver dataScopeResolver;
     private final DictItemService dictItemService;
     private final ExchangeRateService exchangeRateService;
@@ -231,6 +234,31 @@ public class QuotationStore {
                 dictItemService.intEnLabels(QuotationConstants.DICT_CONDITION),
                 dictItemService.intLabels(QuotationConstants.DICT_LEAD_TIME),
                 dictItemService.intEnLabels(QuotationConstants.DICT_LEAD_TIME));
+    }
+
+    /** 启用的字典码值，按字典顺序（平台与本公司的同码值只取第一个） */
+    public List<Integer> enabledCodes(String dictType) {
+        return dictItemService.listByDictType(dictType).stream()
+                .filter(d -> Objects.equals(d.getStatus(), 1))
+                .map(d -> d.getItemValue() == null || !d.getItemValue().trim().matches("\\d{1,9}")
+                        ? null : Integer.valueOf(d.getItemValue().trim()))
+                .filter(Objects::nonNull).distinct().toList();
+    }
+
+    /** 采购回价 ID → 采购报的货期；已删除的回价不返回 */
+    public Map<Long, Integer> purchaseLeadTimes(List<Long> costQuoteIds) {
+        List<Long> ids = costQuoteIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Integer> out = new java.util.HashMap<>();
+        for (SourcingQuoteDO s : sourcingQuoteMapper.selectList(new LambdaQueryWrapper<SourcingQuoteDO>()
+                .select(SourcingQuoteDO::getId, SourcingQuoteDO::getLeadTime)
+                .in(SourcingQuoteDO::getId, ids)
+                .isNull(SourcingQuoteDO::getDeletedAt))) {
+            out.put(s.getId(), s.getLeadTime() == null ? 0 : s.getLeadTime());
+        }
+        return out;
     }
 
     /** 编辑结果：调整后的型号行（按请求顺序）、被删掉的行、新的费用行 */

@@ -86,6 +86,37 @@ class SubscriptionTestConnectionTest(unittest.TestCase):
         result, _ = self.run_test("openai", {"codex": "Logged in using an API key", "claude": "{}"})
         self.assertEqual(result["items"][0]["message"], "未登录，请在容器内执行登录命令")
 
+    def test_codex_login_rejected_by_server(self):
+        """audit AI-015：本机有登录文件，服务端已拒绝（401）时测试显示登录已失效，不再显示已登录"""
+        logged_in = {"codex": "Logged in using ChatGPT", "claude": "{}"}
+        cases = [(None, True, "已登录"),
+                 (subscription.SubscriptionCallError("x", "auth"), False, "登录已失效（服务端拒绝），请在容器内重新执行登录命令"),
+                 (RuntimeError("获取 Codex 模型列表超时"), True, "已登录（暂时无法向服务端确认，稍后可再测）")]
+        for error, ok, message in cases:
+            with self.subTest(error=error), mock.patch.object(subscription, "codex_models", side_effect=error) as models:
+                result, _ = self.run_test("openai", logged_in)
+                self.assertEqual((result["ok"], result["items"][0]["message"]), (ok, message))
+                models.assert_called_once()
+
+    def test_status_card_confirms_codex_and_caches(self):
+        """audit AI-015：卡片状态里 Codex 登录被服务端拒绝时显示未登录；确认结果缓存，重新登录后立即重查"""
+        subscription._codex_confirmed.clear()
+        logged_in = {"codex": True, "claude": True}
+        with mock.patch.object(self.server, "login_status", side_effect=lambda t, providers: {p: logged_in[p] for p in providers}), \
+                mock.patch.object(subscription, "codex_models",
+                                  side_effect=subscription.SubscriptionCallError("x", "auth")) as models:
+            self.assertEqual(self.server.subscription_status(), {"codex": False, "claude": True})
+            self.assertEqual(self.server.subscription_status(), {"codex": False, "claude": True})
+            self.assertEqual(models.call_count, 1, "5 分钟内不重复确认")
+            with mock.patch.object(subscription, "_codex_login_changed_at", return_value=-1):
+                models.side_effect = None
+                self.assertEqual(self.server.subscription_status(), {"codex": True, "claude": True})
+            self.assertEqual(models.call_count, 2, "登录文件变化后立即重查")
+            models.side_effect = RuntimeError("超时")
+            subscription._codex_confirmed.clear()
+            self.assertEqual(self.server.subscription_status()["codex"], True, "确认不了时按本机登录显示")
+        subscription._codex_confirmed.clear()
+
 
 class ApiTestConnectionTest(unittest.TestCase):
     def setUp(self):

@@ -37,6 +37,8 @@ public class ContentTaskVO {
     private LocalDateTime factVerifiedAt;
     private String factVerifiedBy;
     private LocalDateTime factDownloadedAt;
+    /** 本公司最近一次 AI 生成，没有为空 */
+    private ContentAiJobVO ai;
     private LocalDateTime createTime;
     private String createBy;
     private LocalDateTime updateTime;

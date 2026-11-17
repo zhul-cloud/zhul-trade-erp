@@ -1,5 +1,7 @@
 import { request } from '@umijs/max';
+import type { ModelRow } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import type { Tier } from './strategy';
+import { type TextOptions, textQuery } from './textOptions';
 
 export { readBizError } from '@/pages/crm/opportunity/service';
 
@@ -213,6 +215,11 @@ export interface QuotationListItem {
   /** 全部型号数量之和 */
   totalQuantity?: number;
   itemCount: number;
+  /** 第一个型号（按行号） */
+  firstModel?: string;
+  /** 品牌、品类：按明细去重，型号多的在前 */
+  brands?: string[];
+  categories?: string[];
   currencyCode: string;
   totalAmount: number;
   marginRate?: number | null;
@@ -425,11 +432,18 @@ export const quotationApi = {
   markLost: (id: number, reason: string, note?: string) =>
     send<Quotation>('POST', `${QT}/${id}/lost`, { reason, note }),
   voidQuotation: (id: number) => send<Quotation>('POST', `${QT}/${id}/void`),
-  text: (id: number, version?: number) =>
+  /** 报价货况、报价货期只影响本次生成的文字 */
+  text: (id: number, options: TextOptions, version?: number) =>
     get<{ text: string; templateVersionNo: number }>(
       `${QT}/${id}/text`,
-      version ? { version } : {},
+      textQuery(options, version),
     ),
+  /** 列表「查看」弹窗：分页列出当前版本的全部型号 */
+  models: (id: number, page: number, pageSize: number) =>
+    get<{ total: number; records: ModelRow[] }>(`${QT}/${id}/models`, {
+      page,
+      pageSize,
+    }),
   exportFile: (
     id: number,
     format: 'xlsx' | 'pdf' | 'jpg',

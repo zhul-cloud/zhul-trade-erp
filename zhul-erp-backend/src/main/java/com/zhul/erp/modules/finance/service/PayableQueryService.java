@@ -19,6 +19,7 @@ import com.zhul.erp.modules.finance.repository.PayableInstallmentMapper;
 import com.zhul.erp.modules.finance.repository.PayableMapper;
 import com.zhul.erp.modules.finance.repository.PaymentAllocationMapper;
 import com.zhul.erp.modules.finance.repository.PaymentMapper;
+import com.zhul.erp.modules.finance.support.DueNow;
 import com.zhul.erp.modules.masterdata.support.PaymentTerms;
 import com.zhul.erp.modules.purchase.entity.PurchaseOrderDO;
 import com.zhul.erp.modules.purchase.repository.PurchaseOrderMapper;
@@ -104,7 +105,9 @@ public class PayableQueryService {
             w.orderByAsc(PayableDO::getStatus).orderByDesc(PayableDO::getUpdateTime).orderByDesc(PayableDO::getId);
         }
         Page<PayableDO> p = payableMapper.selectPage(new Page<>(page, size), w);
-        List<PayableVO> rows = p.getRecords().stream().map(d -> toVo(d, null)).toList();
+        // 批量付款要用当期应付：一次读出这一页的付款计划
+        Map<Long, List<PayableInstallmentDO>> insts = installmentsOf(p.getRecords().stream().map(PayableDO::getId).toList());
+        List<PayableVO> rows = p.getRecords().stream().map(d -> toVo(d, insts.getOrDefault(d.getId(), List.of()))).toList();
         fillTerms(rows);
         return PageResult.of(p.getTotal(), rows);
     }
@@ -365,6 +368,10 @@ public class PayableQueryService {
                 }
                 vo.getInstallments().add(iv);
             }
+            DueNow.Result now = DueNow.of(vo.getUnpaidAmount(), insts, today,
+                    i -> triggerName(i.getTriggerType(), i.getOffsetDays() == null ? 0 : i.getOffsetDays()));
+            vo.setDueNowAmount(now.amount());
+            vo.setDueNowNote(now.note());
         }
         return vo;
     }
@@ -382,6 +389,20 @@ public class PayableQueryService {
             return new Due("OVERDUE", (int) -diff);
         }
         return new Due(diff <= FinanceConstants.DUE_SOON_DAYS ? "SOON" : "NORMAL", (int) diff);
+    }
+
+    /** 各应付单的当期应付（批量付款核销用）：按应付单上的未付与付款计划算，规则同 {@link DueNow} */
+    public Map<Long, BigDecimal> dueNowAmounts(List<PayableDO> payables) {
+        Map<Long, List<PayableInstallmentDO>> insts = installmentsOf(payables.stream().map(PayableDO::getId).toList());
+        LocalDate today = LocalDate.now();
+        Map<Long, BigDecimal> out = new java.util.HashMap<>();
+        for (PayableDO p : payables) {
+            BigDecimal unpaid = p.getStatus() == FinanceConstants.STATUS_CLOSED ? BigDecimal.ZERO
+                    : p.getAmount().subtract(p.getPaidAmount()).max(BigDecimal.ZERO);
+            out.put(p.getId(), DueNow.of(unpaid, insts.getOrDefault(p.getId(), List.of()), today,
+                    i -> triggerName(i.getTriggerType(), i.getOffsetDays() == null ? 0 : i.getOffsetDays())).amount());
+        }
+        return out;
     }
 
     private Map<Long, List<PayableInstallmentDO>> installmentsOf(List<Long> payableIds) {

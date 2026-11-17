@@ -1,6 +1,6 @@
 # PR 与 develop 的自动测试（audit DOC-005；提速与 pipefail 见 audit DOC-008）：
 # 后端 mvn test（连本工作流自己起的 MySQL、Redis，库由 Flyway 自动建）、
-# 前端 lint（biome + tsc）、antd lint、Jest、构建，AI 编排服务单元测试。
+# 前端 lint（biome + tsc）、antd lint、Jest、构建，AI 编排服务单元测试，整改台账自检（openspec development/audit-ledger）。
 # 要求见 docs/06-部署运维/11-分支与版本规范.md「日常开发」第 4 步。
 name: CI
 
@@ -222,3 +222,18 @@ jobs:
       - run: pip install -r requirements.txt
       - name: unittest
         run: python -m unittest -v
+
+  # 整改台账：格式、ID、处理记录、任务记录引用与工具测试。只改 audit/ 时其他测试会跳过，这里照常运行
+  audit-ledger:
+    name: 整改台账检查
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: ledger check
+        run: python scripts/audit/ledger.py check
+      - name: 工具单元测试
+        run: python -m unittest discover -s scripts/audit -v

@@ -47,6 +47,30 @@ class PiContractTest extends SalesContractSupport {
     }
 
     @Test
+    void listShowsFirstModelBrandsCategories_andModelsPage() throws Exception {
+        long c = customer("ACROBOT", "India");
+        long q = quotation(c, 2, "USD", null, l("1756-PB72", 1, "100", "500"), l("1756-L72", 2, "100", "500"));
+        jdbc.update("update quotation_item set brand = 'Allen-Bradley', category = '电源模块' where quotation_id = ? and line_no = 1", q);
+        jdbc.update("update quotation_item set brand = 'Allen-Bradley', category = 'PLC' where quotation_id = ? and line_no = 2", q);
+        long id = ok(createPi(quotationItemIds(q))).path("id").asLong();
+        JsonNode row = ok(call(json(post(PI + "/page"), "{}"), admin)).path("records").get(0);
+        assertEquals(id, row.path("id").asLong());
+        assertEquals("1756-PB72", row.path("firstModel").asText());
+        assertEquals(List.of("Allen-Bradley"), texts(row.path("brands")));
+        assertEquals(List.of("电源模块", "PLC"), texts(row.path("categories")));
+        JsonNode page = ok(call(get(PI + "/" + id + "/models").param("pageSize", "1"), admin));
+        assertEquals(2, page.path("total").asInt());
+        assertEquals("1756-PB72", page.path("records").get(0).path("model").asText());
+        money("500", page.path("records").get(0).path("unitPrice"));
+    }
+
+    private static List<String> texts(JsonNode arr) {
+        List<String> out = new java.util.ArrayList<>();
+        arr.forEach(n -> out.add(n.asText()));
+        return out;
+    }
+
+    @Test
     void byQuotation_uncheckOneLine_feesCarried_quotationListsPi() throws Exception {
         long c = customer("ACROBOT TECHNOLOGIES", "India");
         long q = quotation(c, 2, "USD", "60", FOUR);

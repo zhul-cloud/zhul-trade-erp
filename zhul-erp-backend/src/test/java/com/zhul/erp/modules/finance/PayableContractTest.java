@@ -217,6 +217,13 @@ class PayableContractTest extends SalesContractSupport {
         assertTrue(blank(ap.path("installments").get(1).path("dueDate")), "入库后的期次待入库");
         assertEquals("30% 下单后 · 70% 入库后", ap.path("paymentTerms").asText());
         long apId = ap.path("id").asLong();
+        // 当期应付：第 1 期下单后今天到期；第 2 期待入库不计入（spec「登记付款」默认只付到期的定金）
+        String md = LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("MM-dd"));
+        JsonNode row = ok(call(get(AP), admin)).path("records").get(0);
+        money("3000.00", row.path("dueNowAmount"));
+        assertEquals("第 1 期 30% 下单后，" + md + " 到期", row.path("dueNowNote").asText());
+        JsonNode openRow = ok(call(get(AP + "/" + apId + "/open"), admin)).get(0);
+        money("3000.00", openRow.path("dueNowAmount"));
 
         // 财务登记预付：核销第 1 期
         JsonNode paid = ok(pay(payBody(1, "3000.00", Map.of(apId, "3000.00"), admin), admin));
@@ -226,6 +233,10 @@ class PayableContractTest extends SalesContractSupport {
         assertEquals(3, ap.path("installments").get(0).path("status").asInt());
         money("7000.00", ap.path("unpaidAmount"));
         assertEquals(1, ap.path("payments").size());
+        // 都没到期：取最早一期（待入库）
+        row = ok(call(get(AP), admin)).path("records").get(0);
+        money("7000.00", row.path("dueNowAmount"));
+        assertEquals("第 2 期 70% 入库后，待入库", row.path("dueNowNote").asText());
         // 采购订单列表：付款列与付款状态筛选
         JsonNode list = ok(call(json(post(PO + "/page"), write(Map.of("payStatus", "PARTIAL"))), admin));
         assertEquals(1, list.path("total").asInt());

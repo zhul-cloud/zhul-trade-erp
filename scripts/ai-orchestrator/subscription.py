@@ -9,6 +9,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
 
 import jsonschema
 
@@ -190,7 +191,7 @@ def codex_models(timeout=30):
             raise RuntimeError("获取 Codex 模型列表超时") from exc
         if process.returncode:
             if stdout.strip() == "auth":
-                raise RuntimeError("Codex 未登录个人订阅")
+                raise SubscriptionCallError("Codex 未登录个人订阅，或登录已失效", "auth")
             raise RuntimeError("获取 Codex 模型列表失败")
         try:
             return json.loads(stdout)
@@ -198,8 +199,57 @@ def codex_models(timeout=30):
             raise RuntimeError("获取 Codex 模型列表失败") from exc
 
 
+CODEX_CONFIRM_TTL_SECONDS = 300
+_codex_confirmed = {}
+
+
+def _codex_login_changed_at():
+    try:
+        return (Path(subscription_env()["CODEX_HOME"]) / "auth.json").stat().st_mtime_ns
+    except OSError:
+        return None
+
+
+def codex_confirmed(timeout, fresh=False):
+    """服务端是否接受 Codex 本机登录：True 接受，False 拒绝（登录过期），None 暂时无法确认。
+    列一次模型确认，不调用模型、不耗额度；确定的结果缓存 5 分钟，重新登录（登录文件变化）后立即重查（audit AI-015）"""
+    login_file = _codex_login_changed_at()
+    cached = _codex_confirmed.get("last")
+    if not fresh and cached and cached[0] == login_file and time.monotonic() - cached[1] < CODEX_CONFIRM_TTL_SECONDS:
+        return cached[2]
+    try:
+        codex_models(timeout)
+        result = True
+    except RuntimeError as exc:
+        result = False if getattr(exc, "code", "") == "auth" else None
+    if result is not None:
+        _codex_confirmed["last"] = (login_file, time.monotonic(), result)
+    return result
+
+
 class SubscriptionError(RuntimeError):
     pass
+
+
+def unauthorized(text: str) -> bool:
+    """服务端拒绝了登录凭据（登录过期、被撤销）：本机登录文件还在，但请求返回 401（台账 AI-015）"""
+    t = (text or "").lower()
+    return "unauthorized" in t or "(401)" in t or "status 401" in t
+
+
+def _turn_unauthorized(turn) -> bool:
+    """Codex 回合失败的错误码是 unauthorized，或上游 HTTP 401"""
+    error = getattr(turn, "error", None)
+    if error is None:
+        return False
+    info = getattr(error, "codex_error_info", None)
+    dumped = info.model_dump(mode="json") if hasattr(info, "model_dump") else info
+    if dumped == "unauthorized":
+        return True
+    if isinstance(dumped, dict) and any(isinstance(v, dict) and v.get("http_status_code") == 401
+                                        for v in dumped.values()):
+        return True
+    return unauthorized(getattr(error, "message", "") or "")
 
 
 def list_codex_models():
@@ -252,7 +302,7 @@ def run_codex(request):
                     final = item.text
             if event.method == "turn/completed":
                 if payload.turn.status.value != "completed":
-                    raise SubscriptionError("runtime")
+                    raise SubscriptionError("auth" if _turn_unauthorized(payload.turn) else "runtime")
                 completed = True
         if not final or not completed:
             raise SubscriptionError("invalid")
@@ -321,6 +371,6 @@ if __name__ == "__main__":
     except (json.JSONDecodeError, jsonschema.ValidationError):
         print("invalid")
         sys.exit(1)
-    except Exception:
-        print("runtime")
+    except Exception as exc:  # noqa: BLE001 只回传安全错误码；服务端拒绝登录凭据时归为未登录（AI-015）
+        print("auth" if unauthorized(str(exc)) else "runtime")
         sys.exit(1)

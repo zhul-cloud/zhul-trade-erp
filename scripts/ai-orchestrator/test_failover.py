@@ -28,7 +28,7 @@ class FakeCalls:
     def __init__(self, server, outcomes):
         self.server, self.outcomes, self.calls = server, outcomes, []
 
-    def __call__(self, cfg, system_prompt, text, attachments, schema, *, model, effort, web_search=False):
+    def __call__(self, cfg, system_prompt, text, attachments, schema, *, model, effort, web_search=False, web_fetch=False):
         name = self.server.connection_name(cfg)
         self.calls.append((name, model, effort))
         outcome = self.outcomes[name]

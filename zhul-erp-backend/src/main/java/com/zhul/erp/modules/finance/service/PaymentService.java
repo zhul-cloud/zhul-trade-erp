@@ -216,7 +216,8 @@ public class PaymentService {
 
     /**
      * 批量付款（spec「批量付款」）：每组一笔付款单，逐组复用 {@link #register}；整批同一事务，任一组失败整批回滚。
-     * 组内付款金额按到期日从早到晚（无到期日排最后）、再按编号依次核销；幂等键为「批次键-组序号」。
+     * 组内付款金额先按各单当期应付、再按未付，都按到期日从早到晚（无到期日排最后）、再按编号依次核销；
+     * 默认金额（当期应付合计）因此正好落在各单的当期应付上。幂等键为「批次键-组序号」。
      */
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public List<PaymentVO> batchRegister(BatchPaymentRequest req) {
@@ -249,6 +250,7 @@ public class PaymentService {
             throw new BizException("一次最多付 " + MAX_BATCH_PAYABLES + " 张应付单");
         }
         Map<Long, PayableDO> locked = lock(all);
+        Map<Long, BigDecimal> dueNow = query.dueNowAmounts(new ArrayList<>(locked.values()));
         List<PaymentVO> out = new ArrayList<>(req.getGroups().size());
         for (int i = 0; i < req.getGroups().size(); i++) {
             BatchPaymentRequest.Group g = req.getGroups().get(i);
@@ -259,7 +261,7 @@ public class PaymentService {
                     .toList();
             String who = rows.get(0).getPayeeName() + "（" + rows.get(0).getCurrencyCode() + "）";
             try {
-                out.add(register(groupRequest(req, g, rows, i)));
+                out.add(register(groupRequest(req, g, rows, i, dueNow)));
             } catch (BizException e) {
                 throw new BizException(who + "：" + e.getMessage(), e);
             }
@@ -268,23 +270,37 @@ public class PaymentService {
         return out;
     }
 
-    /** 一组的单笔登记请求：付款金额按到期日依次核销，不能超过未付合计 */
-    private static RegisterPaymentRequest groupRequest(BatchPaymentRequest req, BatchPaymentRequest.Group g, List<PayableDO> rows, int index) {
+    /**
+     * 一组的单笔登记请求：先按各单当期应付、再按剩余未付，依次（按到期日）核销，不能超过未付合计。
+     * rows 已按到期日排好；dueNow 为各单当期应付。
+     */
+    static RegisterPaymentRequest groupRequest(BatchPaymentRequest req, BatchPaymentRequest.Group g, List<PayableDO> rows, int index,
+                                               Map<Long, BigDecimal> dueNow) {
         BigDecimal left = scale(g.getAmount());
         BigDecimal unpaidTotal = BigDecimal.ZERO;
-        List<RegisterPaymentRequest.Line> lines = new ArrayList<>(rows.size());
+        Map<Long, BigDecimal> take = new LinkedHashMap<>();
         for (PayableDO p : rows) {
             BigDecimal unpaid = p.getAmount().subtract(p.getPaidAmount()).max(BigDecimal.ZERO);
             unpaidTotal = unpaidTotal.add(unpaid);
-            BigDecimal take = left.min(unpaid);
-            if (take.signum() > 0) {
-                RegisterPaymentRequest.Line l = new RegisterPaymentRequest.Line();
-                l.setPayableId(p.getId());
-                l.setAmount(take);
-                lines.add(l);
-                left = left.subtract(take);
-            }
+            BigDecimal t = left.min(dueNow.getOrDefault(p.getId(), unpaid).min(unpaid));
+            take.put(p.getId(), t);
+            left = left.subtract(t);
         }
+        for (PayableDO p : rows) {
+            BigDecimal unpaid = p.getAmount().subtract(p.getPaidAmount()).max(BigDecimal.ZERO);
+            BigDecimal t = left.min(unpaid.subtract(take.get(p.getId())));
+            take.merge(p.getId(), t, BigDecimal::add);
+            left = left.subtract(t);
+        }
+        List<RegisterPaymentRequest.Line> lines = new ArrayList<>(rows.size());
+        take.forEach((id, amount) -> {
+            if (amount.signum() > 0) {
+                RegisterPaymentRequest.Line l = new RegisterPaymentRequest.Line();
+                l.setPayableId(id);
+                l.setAmount(amount);
+                lines.add(l);
+            }
+        });
         if (left.signum() > 0) {
             throw new BizException("付款金额超过未付合计 " + unpaidTotal);
         }

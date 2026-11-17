@@ -23,6 +23,11 @@ public class QuotationListVO {
     /** 总数量：全部型号数量之和 */
     private Integer totalQuantity;
     private Integer itemCount;
+    /** 第一个型号（按行号） */
+    private String firstModel;
+    /** 品牌、品类：按明细去重，型号多的在前 */
+    private List<String> brands;
+    private List<String> categories;
     private String currencyCode;
     private BigDecimal totalAmount;
     private BigDecimal marginRate;

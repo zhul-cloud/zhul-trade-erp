@@ -40,6 +40,7 @@ import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
+import { DueNowHint, dueNowOf } from './dueNow';
 import {
   type DueState,
   METHOD,
@@ -346,13 +347,12 @@ export const RegisterPaymentDrawer: React.FC<{
           .filter((r) => r.status !== PAY_STATUS.CLOSED)
           .reduce((s, r) => s + r.unpaidAmount, 0);
         const own = list.find((r) => r.id === id);
-        const first = round2(
-          own && own.unpaidAmount > 0 ? own.unpaidAmount : due,
-        );
+        // 默认付本单的当期应付（按付款计划算出）；本单已付清时付同收款方全部未付
+        const first = round2(own && own.unpaidAmount > 0 ? dueNowOf(own) : due);
         setAmount(first);
         setAlloc(
           own && own.unpaidAmount > 0
-            ? { [own.id]: own.unpaidAmount }
+            ? { [own.id]: first }
             : autoFill(list, first),
         );
       } catch (e) {
@@ -714,6 +714,21 @@ export const RegisterPaymentDrawer: React.FC<{
                 refill(v ?? 0);
               }}
             />
+            {own && own.unpaidAmount > 0 && (
+              <DueNowHint
+                amount={amount}
+                due={dueNowOf(own)}
+                unpaid={own.unpaidAmount}
+                note={own.dueNowNote ?? ''}
+                currency={currency}
+                onChange={(v) => {
+                  setAmount(v);
+                  // 没用欠款抵扣时只核销本单，与打开时一致；用了抵扣按到期先后重新分配
+                  if (creditTotal > 0) refill(v);
+                  else setAlloc({ [own.id]: v });
+                }}
+              />
+            )}
           </Field>
           {foreign && (
             <Field label="实付人民币" required flex>

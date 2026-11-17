@@ -117,7 +117,21 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ## 审查整改记录
 
-ERP 审查发现及本项目后续所有缺陷修复任务（含原审查范围外的新发现）的进度、验证结果与验收统一记录在 `audit/`；新问题先新增稳定 ID，新功能仍按现有 OpenSpec 流程。开始或接续任务先读[问题状态台账](audit/09-remediation/issues.md)、关联任务记录及最新源码 / PR；阶段变化回写同一任务记录和台账，区分实现、验证、合并、部署与最终验收。本轮及后续整改进度不重复写入 Wiki。具体按[整改流程](audit/09-remediation/README.md)执行，现有 OpenSpec、Git Flow 与发版规范不变。
+缺陷台账在 `audit/`，只给 AI 用，只经 `scripts/audit/ledger.py` 读写。以下规则与 `python scripts/audit/ledger.py guide` 的输出一致；改规则时改 `ledger.py` 里的 `GUIDE`，再同步到这里（单元测试校验两处一致）。现有 OpenSpec、Git Flow 与发版规范不变。
+
+<!-- audit-guide:start -->
+审查整改台账（audit/）使用规则
+1. 范围：缺陷、审查发现、用户反馈的问题记在 audit/；新功能走 OpenSpec，功能验收台账放在变更目录。整改进度只记在 audit/，不写进知识库。
+2. 开工先运行 `python scripts/audit/ledger.py open` 看未关闭条目，`show <ID>` 看单条；不要通读 ledger.jsonl。
+3. 台账只经本工具写入，不手改 ledger.jsonl。Claude Code 自动识别身份；Codex 每条写入命令加 `--via Codex --session <当前任务ID>`；其他工具加 `--via <名称>`。
+4. 新问题先用 `open`、`show` 查重，确认没有再 `new <类别> "<标题>" --pri P1|P2|P3 --task <任务记录>`（类别 BUS/UI/AI/SEC/OPS/DEP/DOC）。修复中发现未登记的问题一并新建并处理，不要只写「未处理」。
+5. 认领用 `start <ID>`；提 PR 后 `link <ID> --pr <编号>`。合并、发布状态由工具按 Git 自动推导，不手工维护。
+6. 过程写在 audit/09-remediation/tasks/ 的任务记录里（模板见 tasks/README.md），开头的「结论 / 下一步」随进展更新。
+7. 关闭：验收后 `close <ID> --method 本机|生产|自动化|文档 --evidence "<PR、CI、测试或实测说明>"`。暂缓 `defer <ID> --reason ... --until YYYY-MM-DD`；不适用 `na <ID> --reason ... --confirmer ...`；复发 `reopen <ID> --reason ...`。
+8. 负责人：同一开发者换工具或会话时，工具自动记录接手。别人负责的条目不改状态，只能 `note`；接手须对方同意，再 `handover <ID> --reason ... --consent "<同意来源>"`。迁移前的历史条目也要先确认归属。
+9. 汇报：只讲自己负责、需要处理的条目；别人负责的最多一句说明归属；暂缓项不重复列出。
+10. 命令被拒绝时按提示里的下一步执行。命令细节见 audit/09-remediation/README.md。
+<!-- audit-guide:end -->
 
 ## 分支与发版
 

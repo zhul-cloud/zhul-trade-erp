@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-/** 询盘列表的型号摘要：第一个型号，品牌、品类按型号数从多到少（一样多时按出现顺序） */
+/** 单据列表的型号摘要：第一个型号，品牌、品类按型号数从多到少（一样多时按出现顺序）；询盘、报价单、PI 列表共用 */
 public final class InquiryModelSummary {
 
     private InquiryModelSummary() {
@@ -28,9 +28,9 @@ public final class InquiryModelSummary {
         return ranked(lines, InquiryModelLineVO::getCategory);
     }
 
-    private static List<String> ranked(List<InquiryModelLineVO> lines, Function<InquiryModelLineVO, String> key) {
+    public static <T> List<String> ranked(List<T> lines, Function<T, String> key) {
         Map<String, Integer> counts = new LinkedHashMap<>();
-        for (InquiryModelLineVO l : lines) {
+        for (T l : lines) {
             String k = key.apply(l);
             if (StringUtils.hasText(k)) {
                 counts.merge(k.trim(), 1, Integer::sum);

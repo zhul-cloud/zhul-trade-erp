@@ -37,6 +37,27 @@ public final class ContentConstants {
     public static final String TARGET_SHARED = "shared";
     public static final String TARGET_COMPANY = "company";
 
+    /** 上传记录来源：手动上传、AI 生成 */
+    public static final int SOURCE_MANUAL = 1;
+    public static final int SOURCE_AI = 2;
+
+    /** AI 生成（spec「AI 生成资料与营销内容」）：编排服务技能、技能来源版本 */
+    public static final String AI_SKILL = "product-content";
+    public static final String AI_SKILL_VERSION = "zhul-skills@6bcd5f920c";
+    /** AI 生成状态：排队中、生成中、待确认、已导入、失败、已取消 */
+    public static final int AI_QUEUED = 1;
+    public static final int AI_RUNNING = 2;
+    public static final int AI_PENDING = 3;
+    public static final int AI_IMPORTED = 4;
+    public static final int AI_FAILED = 5;
+    public static final int AI_CANCELLED = 6;
+    /** 未结束（不能对同一商品再次发起）的状态 */
+    public static final List<Integer> AI_OPEN = List.of(AI_QUEUED, AI_RUNNING, AI_PENDING);
+    /** 一次最多发起的商品数、同一公司同时生成中的上限、待确认超过这么多天自动取消 */
+    public static final int AI_MAX_BATCH = 20;
+    public static final int AI_MAX_RUNNING = 3;
+    public static final int AI_PENDING_DAYS = 30;
+
     /** 兼容型号写成「兼容」型号关系，置信度未知 */
     public static final int RELATIONSHIP_COMPATIBLE = 4;
     public static final int CONFIDENCE_UNKNOWN = 5;

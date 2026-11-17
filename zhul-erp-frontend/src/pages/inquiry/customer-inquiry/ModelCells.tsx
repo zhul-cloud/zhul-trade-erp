@@ -70,6 +70,29 @@ export const ModelCell: React.FC<{
   );
 };
 
+/** 报价单、PI 列表的型号列：第一个型号；多于一个时下面一行「共 N 个型号 · 查看」 */
+export const FirstModelCell: React.FC<{
+  model?: string;
+  count: number;
+  onView: () => void;
+}> = ({ model, count, onView }) => {
+  const { palette } = useAppTheme();
+  if (!model) return <span style={{ color: palette.mute }}>—</span>;
+  return (
+    <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <EllipsisText text={model} style={{ fontFamily: 'monospace' }} />
+      {count > 1 && (
+        <span style={{ fontSize: 12, color: palette.mute }}>
+          共 {count} 个型号 ·{' '}
+          <button type="button" className="zhul-link" onClick={onView}>
+            查看
+          </button>
+        </span>
+      )}
+    </span>
+  );
+};
+
 /** 弹窗里的一行型号；单价只有销售订单有 */
 export interface ModelRow {
   brand: string;
@@ -82,6 +105,21 @@ export interface ModelRow {
 }
 
 type Row = ModelRow & { no: number };
+
+/** 单据全部型号（「复制全部型号」用）：按每页 100 个依次取完 */
+export const fetchAllModels = async (
+  fetchPage: (
+    page: number,
+    pageSize: number,
+  ) => Promise<{ total: number; records: ModelRow[] }>,
+) => {
+  const out: string[] = [];
+  for (let page = 1; ; page++) {
+    const res = await fetchPage(page, 100);
+    out.push(...res.records.map((r) => r.model));
+    if (out.length >= res.total || res.records.length === 0) return out;
+  }
+};
 
 const PAGE_SIZE = 20;
 
