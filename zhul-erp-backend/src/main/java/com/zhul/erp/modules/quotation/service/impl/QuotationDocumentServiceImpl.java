@@ -20,6 +20,9 @@ import com.zhul.erp.modules.quotation.dto.QuoteTextVO;
 import com.zhul.erp.modules.quotation.entity.QuotationDO;
 import com.zhul.erp.modules.quotation.entity.QuotationFeeDO;
 import com.zhul.erp.modules.quotation.entity.QuotationItemDO;
+import com.zhul.erp.modules.quotation.support.QuoteTextOptions;
+import com.zhul.erp.modules.quotation.constants.QuotationConstants;
+import com.zhul.erp.modules.inquiry.constants.InquiryConstants;
 import com.zhul.erp.modules.quotation.service.QuotationDocumentService;
 import com.zhul.erp.modules.quotation.support.QuotationRenderModels;
 import com.zhul.erp.modules.quotation.support.QuotationStore;
@@ -67,11 +70,18 @@ public class QuotationDocumentServiceImpl implements QuotationDocumentService {
     private final AtomicLong seqSource = new AtomicLong();
 
     @Override
-    public QuoteTextVO text(Long id, Integer versionNo) {
+    public QuoteTextVO text(Long id, Integer versionNo, Integer condition, String leadTime) {
         QuotationStore.View v = store.view(id, versionNo);
+        int cond = QuoteTextOptions.condition(condition, InquiryConstants.CONDITION_NEW,
+                store.enabledCodes(QuotationConstants.DICT_CONDITION));
+        List<Integer> leadOrder = store.enabledCodes(QuotationConstants.DICT_LEAD_TIME);
+        String lead = QuoteTextOptions.leadTime(leadTime, leadOrder);
+        Map<Long, Integer> purchaseLeads = QuoteTextOptions.SHIFT.equals(lead)
+                ? store.purchaseLeadTimes(v.items().stream().map(QuotationItemDO::getCostQuoteId).toList()) : Map.of();
+        List<QuotationItemDO> items = QuoteTextOptions.apply(v.items(), cond, lead, leadOrder, purchaseLeads);
         DocumentTemplateService.Resolved tpl = templateService.resolveDefault(DocTypes.TEXT_QUOTE);
         QuoteTextVO vo = new QuoteTextVO();
-        vo.setText(TextTemplateEngine.render(tpl.text(), model(v.header(), v.items(), v.fees())));
+        vo.setText(TextTemplateEngine.render(tpl.text(), model(v.header(), items, v.fees())));
         vo.setTemplateVersionNo(tpl.versionNo());
         return vo;
     }

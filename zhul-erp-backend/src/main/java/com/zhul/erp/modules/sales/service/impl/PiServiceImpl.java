@@ -77,6 +77,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import com.zhul.erp.common.result.DocModelLineVO;
+import com.zhul.erp.modules.inquiry.support.InquiryModelSummary;
 
 import java.math.BigDecimal;
 import java.time.temporal.ChronoUnit;
@@ -1174,6 +1176,37 @@ public class PiServiceImpl implements PiService {
         return dataScopeResolver.current().apply(w, ProformaInvoiceDO::getOwnerId);
     }
 
+    @Override
+    public PageResult<DocModelLineVO> models(Long id, int page, int pageSize) {
+        ProformaInvoiceDO pi = store.visible(id);
+        // 与列表一致：当前有效版本，没有时取编辑中的版本
+        PiVersionDO v = store.version(id, pi.getCurrentVersionNo() != null && pi.getCurrentVersionNo() > 0
+                ? pi.getCurrentVersionNo() : pi.getEditingVersionNo());
+        if (v == null) {
+            return PageResult.of(0L, List.of());
+        }
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<PiItemDO> rows = itemMapper.selectPage(
+                new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(Math.max(page, 1), Math.min(Math.max(pageSize, 1), 100)),
+                new LambdaQueryWrapper<PiItemDO>()
+                        .select(PiItemDO::getId, PiItemDO::getBrand, PiItemDO::getModel, PiItemDO::getCategory,
+                                PiItemDO::getQuantity, PiItemDO::getUnitPrice)
+                        .eq(PiItemDO::getVersionId, v.getId())
+                        .isNull(PiItemDO::getDeletedAt)
+                        .orderByAsc(PiItemDO::getLineNo)
+                        .orderByAsc(PiItemDO::getId));
+        return PageResult.of(rows.getTotal(), rows.getRecords().stream().map(i -> {
+            DocModelLineVO vo = new DocModelLineVO();
+            vo.setId(i.getId());
+            vo.setBrand(i.getBrand());
+            vo.setModel(i.getModel());
+            vo.setCategory(i.getCategory());
+            vo.setQuantity(i.getQuantity());
+            vo.setUnitPrice(i.getUnitPrice());
+            vo.setCurrencyCode(pi.getCurrencyCode());
+            return vo;
+        }).toList());
+    }
+
     private List<PiListVO> toListVos(List<ProformaInvoiceDO> rows) {
         if (rows.isEmpty()) {
             return List.of();
@@ -1191,11 +1224,16 @@ public class PiServiceImpl implements PiService {
         Map<Long, Set<Long>> quotationsByPi = new HashMap<>();
         Map<Long, Set<Long>> inquiriesByPi = new HashMap<>();
         Map<Long, Integer> quantities = new HashMap<>();
+        Map<Long, List<PiItemDO>> itemsByPi = new HashMap<>();
         if (!versionIdByPi.isEmpty()) {
             for (PiItemDO i : itemMapper.selectList(new LambdaQueryWrapper<PiItemDO>()
-                    .select(PiItemDO::getPiId, PiItemDO::getQuotationId, PiItemDO::getCustomerInquiryId, PiItemDO::getQuantity)
+                    .select(PiItemDO::getPiId, PiItemDO::getQuotationId, PiItemDO::getCustomerInquiryId, PiItemDO::getQuantity,
+                            PiItemDO::getModel, PiItemDO::getBrand, PiItemDO::getCategory)
                     .in(PiItemDO::getVersionId, versionIdByPi.values())
-                    .isNull(PiItemDO::getDeletedAt))) {
+                    .isNull(PiItemDO::getDeletedAt)
+                    .orderByAsc(PiItemDO::getLineNo)
+                    .orderByAsc(PiItemDO::getId))) {
+                itemsByPi.computeIfAbsent(i.getPiId(), k -> new ArrayList<>()).add(i);
                 quotationsByPi.computeIfAbsent(i.getPiId(), k -> new TreeSet<>()).add(i.getQuotationId());
                 inquiriesByPi.computeIfAbsent(i.getPiId(), k -> new TreeSet<>()).add(i.getCustomerInquiryId());
                 quantities.merge(i.getPiId(), nz(i.getQuantity()), Integer::sum);
@@ -1222,6 +1260,10 @@ public class PiServiceImpl implements PiService {
             vo.setCustomerType(customerTypes.get(p.getId()));
             vo.setTotalQuantity(quantities.getOrDefault(p.getId(), 0));
             vo.setItemCount(p.getItemCount());
+            List<PiItemDO> own = itemsByPi.getOrDefault(p.getId(), List.of());
+            vo.setFirstModel(own.stream().map(PiItemDO::getModel).filter(StringUtils::hasText).findFirst().orElse(null));
+            vo.setBrands(InquiryModelSummary.ranked(own, PiItemDO::getBrand));
+            vo.setCategories(InquiryModelSummary.ranked(own, PiItemDO::getCategory));
             vo.setCurrencyCode(p.getCurrencyCode());
             vo.setTotalAmount(p.getTotalAmount());
             vo.setReceiptStatus(p.getReceiptStatus());

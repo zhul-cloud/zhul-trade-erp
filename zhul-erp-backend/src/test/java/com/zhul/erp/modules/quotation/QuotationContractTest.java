@@ -483,8 +483,16 @@ class QuotationContractTest extends InquiryContractSupport {
         line(body, 0).put("pricingMode", 3);
         line(body, 0).put("unitPrice", new BigDecimal("463.20"));
         ok(save(id, body));
-        assertEquals("1756-PB72 Allen-Bradley 1 $463.2 1-2 days original new 1 year warranty time",
+        // 默认全新原装、按采购货期顺延：采购报 1-2天 → 2-3天
+        assertEquals("1756-PB72 Allen-Bradley 1 $463.2 2-3 days original new 1 year warranty time",
                 ok(call(get(QT + "/" + id + "/text"), admin)).path("text").asText());
+        // 统一选 1-2周（码值 6）
+        assertEquals("1756-PB72 Allen-Bradley 1 $463.2 1-2 weeks original new 1 year warranty time",
+                ok(call(get(QT + "/" + id + "/text").param("leadTime", "6"), admin)).path("text").asText());
+        fail(call(get(QT + "/" + id + "/text").param("leadTime", "99"), admin));
+        fail(call(get(QT + "/" + id + "/text").param("condition", "99"), admin));
+        // 采购回价的货期是 1-2天，报价单行的货期不受影响
+        assertEquals(2, ok(call(get(QT + "/" + id), admin)).path("items").get(0).path("leadTime").asInt());
 
         MockHttpServletResponse xlsx = perform(get(QT + "/" + id + "/export").param("format", "xlsx"), admin);
         assertTrue(xlsx.getHeader("Content-Disposition").contains(q.path("quotationNo").asText()));
@@ -1010,6 +1018,38 @@ class QuotationContractTest extends InquiryContractSupport {
         assertEquals(List.of(small, big), ids.apply("{\"sortField\":\"totalQuantity\",\"sortOrder\":\"descend\"}"), "9 件多于 2 件");
         assertEquals(List.of(big, small), ids.apply("{\"sortField\":\"totalAmount\",\"sortOrder\":\"descend\"}"));
         assertEquals(List.of(big, small), ids.apply("{\"sortField\":\"id; drop table quotation\",\"sortOrder\":\"ascend\"}"), "不认识的字段按创建时间倒序");
+    }
+
+    @Test
+    void listShowsFirstModelBrandsCategories_andModelsPage() throws Exception {
+        long c = customer("Pacific Controls", "Australia");
+        long id = byInquiries(seedInquiry(c, 6, "2026-10-03",
+                new M("6ES7214-1AG40-0XB0", "西门子", "PLC", 2, "100", 1, 1),
+                new M("6ES7313-6CE01-0AB0", "西门子", "PLC", 1, "100", 1, 1),
+                new M("E3Z-D61", "欧姆龙", "传感器", 3, "100", 1, 1))).path("id").asLong();
+        JsonNode row = ok(call(json(post(QT + "/page"), "{}"), admin)).path("records").get(0);
+        assertEquals(id, row.path("id").asLong());
+        assertEquals("6ES7214-1AG40-0XB0", row.path("firstModel").asText());
+        assertEquals(3, row.path("itemCount").asInt());
+        assertEquals(List.of("西门子", "欧姆龙"), texts(row.path("brands")), "去重，型号多的在前");
+        assertEquals(List.of("PLC", "传感器"), texts(row.path("categories")));
+
+        JsonNode page = ok(call(get(QT + "/" + id + "/models").param("page", "2").param("pageSize", "2"), admin));
+        assertEquals(3, page.path("total").asInt());
+        assertEquals("E3Z-D61", page.path("records").get(0).path("model").asText());
+        assertEquals("USD", page.path("records").get(0).path("currencyCode").asText());
+
+        // 没有明细的报价单（只剩费用）：型号、品牌、品类为空
+        jdbc.update("update quotation_item set deleted_at = now() where quotation_id = ?", id);
+        JsonNode empty = ok(call(json(post(QT + "/page"), "{}"), admin)).path("records").get(0);
+        assertTrue(empty.path("firstModel").isNull() || empty.path("firstModel").isMissingNode());
+        assertEquals(0, empty.path("brands").size());
+    }
+
+    private static List<String> texts(JsonNode arr) {
+        List<String> out = new ArrayList<>();
+        arr.forEach(n -> out.add(n.asText()));
+        return out;
     }
 
     // ---------------------------------------------------------------- 型号级锁定（真实询价录入）

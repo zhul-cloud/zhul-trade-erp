@@ -91,6 +91,14 @@ public class PiController {
         return Result.ok(service.byQuotation(quotationId));
     }
 
+    /** 列表「查看」弹窗：分页列出 PI 全部型号 */
+    @GetMapping("/{id}/models")
+    @PreAuthorize("@perm.canAccessMenu('/sales/pi')")
+    public Result<PageResult<com.zhul.erp.common.result.DocModelLineVO>> models(@PathVariable Long id,
+            @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int pageSize) {
+        return Result.ok(service.models(id, page, pageSize));
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("@perm.canAccessMenu('/sales/pi') or @perm.canAccessMenu('/finance/receipts')")
     public Result<PiVO> detail(@PathVariable Long id, @RequestParam(required = false) Integer version) {

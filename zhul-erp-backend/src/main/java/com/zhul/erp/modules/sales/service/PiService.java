@@ -72,4 +72,7 @@ public interface PiService {
 
     /** 报价单详情：由它开出的 PI */
     List<PiListVO> byQuotation(Long quotationId);
+
+    /** 列表「查看」弹窗：分页列出当前版本的全部型号 */
+    PageResult<com.zhul.erp.common.result.DocModelLineVO> models(Long id, int page, int pageSize);
 }

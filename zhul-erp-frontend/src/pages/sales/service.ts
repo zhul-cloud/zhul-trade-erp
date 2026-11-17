@@ -314,6 +314,11 @@ export interface PiListItem {
   /** 全部型号数量之和 */
   totalQuantity?: number;
   itemCount: number;
+  /** 第一个型号（按行号） */
+  firstModel?: string;
+  /** 品牌、品类：按明细去重，型号多的在前 */
+  brands?: string[];
+  categories?: string[];
   currencyCode: string;
   totalAmount: number;
   receiptStatus: number;
@@ -961,6 +966,12 @@ export const piApi = {
   stats: () => get<PiStats>(`${PI}/stats`),
   byQuotation: (quotationId: number) =>
     get<PiListItem[]>(`${PI}/by-quotation/${quotationId}`),
+  /** 列表「查看」弹窗：分页列出当前版本的全部型号 */
+  models: (id: number, page: number, pageSize: number) =>
+    get<{ total: number; records: OrderModelLine[] }>(`${PI}/${id}/models`, {
+      page,
+      pageSize,
+    }),
   candidateCustomers: (keyword?: string) =>
     get<CandidateCustomer[]>(`${PI}/candidates/customers`, { keyword }),
   candidateQuotations: (customerId: number) =>
