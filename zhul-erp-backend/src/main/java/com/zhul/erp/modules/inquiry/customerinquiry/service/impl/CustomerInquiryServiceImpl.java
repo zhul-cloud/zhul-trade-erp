@@ -477,6 +477,11 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         vo.setInquiry(toVos(List.of(inquiry)).get(0));
         vo.setRawContent(inquiry.getRawContent());
         vo.setParseError(inquiry.getParseError());
+        AiTaskVO parseTask = aiTaskService.getConnection(inquiry.getAiTaskId());
+        if (parseTask != null && parseTask.getFailovers() != null && !parseTask.getFailovers().isEmpty()) {
+            vo.setParseUsedConnection(parseTask.getUsedConnection());
+            vo.setParseFailovers(parseTask.getFailovers());
+        }
         CustomerInquiryAppendDO open = openAppend(inquiry.getId());
         vo.setOpenAppend(open == null ? null : toAppendVo(open));
         vo.setRemark(inquiry.getRemark());

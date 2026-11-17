@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.aitask.service;
 
 import com.zhul.erp.modules.aitask.dto.AiCallConfig;
+import java.util.List;
 import com.zhul.erp.modules.aitask.dto.AiConnectionTestVO;
 import com.zhul.erp.modules.aitask.dto.AiModelListVO;
 import com.zhul.erp.modules.aitask.dto.AiOrchestratorSubmitResult;
@@ -13,10 +14,11 @@ import java.util.concurrent.CompletableFuture;
  * openspec/changes/archive/2026-10-03-add-inquiry-management/design.md 决策3：
  * POST {AI服务}/skills/{skill_id}/run，只处理 202 受理响应，不阻塞等待处理完成，
  * 实际结果由 AI 编排服务通过 webhook 回调 {@link AiTaskService#handleCallback} 异步返回。
- * 每次请求都带共享令牌；租户 AI 配置随任务放在请求体 ai 字段（Key 为明文，只在这次请求中出现）。
+ * 每次请求都带共享令牌；租户按顺序挑好的连接方式随任务放在请求体 connections 字段（ai 字段为第一项，兼容旧版编排服务；
+ * Key 为明文，只在这次请求中出现）。
  */
 public interface AiOrchestratorClient {
-    CompletableFuture<AiOrchestratorSubmitResult> submit(String skillId, Long taskId, String inputJson, AiCallConfig ai);
+    CompletableFuture<AiOrchestratorSubmitResult> submit(String skillId, Long taskId, String inputJson, List<AiCallConfig> chain);
 
     /** 同步测试连接：API 方式查询两个模型，订阅方式检查登录 */
     AiConnectionTestVO test(AiCallConfig ai);

@@ -5,6 +5,7 @@ import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.aitask.constants.AiTaskStatus;
 import com.zhul.erp.modules.aitask.dto.AiCallConfig;
+import com.zhul.erp.modules.aitask.dto.AiFailover;
 import com.zhul.erp.modules.aitask.dto.AiOrchestratorSubmitResult;
 import com.zhul.erp.modules.aitask.dto.AiTaskCallbackRequest;
 import com.zhul.erp.modules.aitask.dto.AiTaskVO;
@@ -12,6 +13,7 @@ import com.zhul.erp.modules.aitask.entity.AiTaskDO;
 import com.zhul.erp.modules.aitask.exception.AiNotConfiguredException;
 import com.zhul.erp.modules.aitask.repository.AiTaskMapper;
 import com.zhul.erp.modules.aitask.service.impl.AiTaskServiceImpl;
+import com.zhul.erp.modules.aitask.support.AiConnectionPauses;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +23,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -54,17 +57,21 @@ class AiTaskServiceImplTest {
     @Mock
     private AiConfigService aiConfigService;
 
+    @Mock
+    private AiConnectionPauses pauses;
+
     private static final AiCallConfig CONFIG = AiCallConfig.builder().mode("api").provider("claude")
             .apiKey("sk-test-key-1234").parseModel("claude-opus-5-5").translateModel("claude-haiku-5-5")
             .parseEffort("medium").translateEffort("medium").maxWebSearches(20).build();
+    private static final List<AiCallConfig> CHAIN = List.of(CONFIG);
 
     private AiTaskServiceImpl aiTaskService;
 
     @BeforeEach
     void setUp() {
         aiTaskService = new AiTaskServiceImpl(aiTaskMapper, orchestratorClient, resultDispatcher, new ObjectMapper(),
-                aiConfigService);
-        lenient().when(aiConfigService.resolveForCurrentTenant()).thenReturn(CONFIG);
+                aiConfigService, pauses);
+        lenient().when(aiConfigService.resolveChainForCurrentTenant()).thenReturn(CHAIN);
         // 状态改为带旧状态条件的更新（audit AI-001）：默认视为任务尚未结束，更新成功
         lenient().when(aiTaskMapper.update(any(AiTaskDO.class), any())).thenReturn(1);
         TenantContext.setTenantId(1);
@@ -95,7 +102,7 @@ class AiTaskServiceImplTest {
         }).when(aiTaskMapper).insert(any(AiTaskDO.class));
 
         CompletableFuture<AiOrchestratorSubmitResult> pending = new CompletableFuture<>();
-        when(orchestratorClient.submit(eq("inquiry-parse-and-split"), eq(42L), eq("{}"), eq(CONFIG))).thenReturn(pending);
+        when(orchestratorClient.submit(eq("inquiry-parse-and-split"), eq(42L), eq("{}"), eq(CHAIN))).thenReturn(pending);
 
         long start = System.nanoTime();
         AiTaskVO result = aiTaskService.createAndSubmit("inquiry-parse-and-split", "{}", 1000L);
@@ -139,7 +146,7 @@ class AiTaskServiceImplTest {
         }
 
         // 事务提交后，才真正发起提交
-        verify(orchestratorClient, times(1)).submit(eq("inquiry-parse-and-split"), eq(44L), eq("{}"), eq(CONFIG));
+        verify(orchestratorClient, times(1)).submit(eq("inquiry-parse-and-split"), eq(44L), eq("{}"), eq(CHAIN));
     }
 
     @Test
@@ -154,7 +161,7 @@ class AiTaskServiceImplTest {
         }).when(aiTaskMapper).insert(any(AiTaskDO.class));
 
         CompletableFuture<AiOrchestratorSubmitResult> pending = new CompletableFuture<>();
-        when(orchestratorClient.submit(eq("inquiry-parse-and-split"), eq(43L), eq("{}"), eq(CONFIG))).thenReturn(pending);
+        when(orchestratorClient.submit(eq("inquiry-parse-and-split"), eq(43L), eq("{}"), eq(CHAIN))).thenReturn(pending);
 
         aiTaskService.createAndSubmit("inquiry-parse-and-split", "{}", 1000L);
         pending.complete(AiOrchestratorSubmitResult.rejected("java.net.ConnectException"));
@@ -173,7 +180,7 @@ class AiTaskServiceImplTest {
 
     @Test
     void createAndSubmit_whenAiNotConfigured_throwsWithoutCreatingTask() {
-        when(aiConfigService.resolveForCurrentTenant()).thenThrow(new AiNotConfiguredException());
+        when(aiConfigService.resolveChainForCurrentTenant()).thenThrow(new AiNotConfiguredException());
 
         AiNotConfiguredException e = assertThrows(AiNotConfiguredException.class,
                 () -> aiTaskService.createAndSubmit("inquiry-parse-and-split", "{}", 1000L));
@@ -257,6 +264,63 @@ class AiTaskServiceImplTest {
         ArgumentCaptor<AiTaskDO> dispatched = ArgumentCaptor.forClass(AiTaskDO.class);
         verify(resultDispatcher, times(1)).dispatch(dispatched.capture());
         assertThat(dispatched.getValue().getInputTokens()).isEqualTo(12000);
+    }
+
+    private static AiFailover failover(String connection, String reason, long at) {
+        AiFailover f = new AiFailover();
+        f.setConnection(connection);
+        f.setReason(reason);
+        f.setAt(at);
+        return f;
+    }
+
+    /** openspec ai-connection-failover「切换记录」：切换事件立刻让失败的方式暂停，不改任务状态、不通知业务 */
+    @Test
+    void handleCallback_failoverEvent_pausesFailedConnectionOnly() {
+        AiTaskDO existing = new AiTaskDO();
+        existing.setId(5L);
+        existing.setTenantId(1);
+        existing.setSkillId("inquiry-parse-and-split");
+        when(aiTaskMapper.selectById(5L)).thenReturn(existing);
+        AiTaskCallbackRequest req = new AiTaskCallbackRequest();
+        req.setStatus("failover");
+        req.setFailovers(List.of(failover("api:claude", "quota", 1_800_000_000L), failover("bogus", "auth", 1L)));
+
+        aiTaskService.handleCallback(5L, req);
+
+        verify(pauses, times(1)).pause(1, "api", "claude", "quota", java.time.Instant.ofEpochSecond(1_800_000_000L));
+        verify(pauses, times(1)).pause(any(Integer.class), any(), any(), any(), any());
+        verify(aiTaskMapper, never()).update(any(AiTaskDO.class), any());
+        verify(resultDispatcher, never()).dispatch(any());
+    }
+
+    /** 结果回调带回实际使用的方式与全部切换：写入任务、补记暂停，任务详情可查 */
+    @Test
+    void handleCallback_withConnection_savesUsedConnectionAndFailovers() {
+        AiTaskDO existing = new AiTaskDO();
+        existing.setId(6L);
+        existing.setTenantId(1);
+        existing.setSkillId("inquiry-parse-and-split");
+        when(aiTaskMapper.selectById(6L)).thenReturn(existing);
+        AiTaskCallbackRequest req = new AiTaskCallbackRequest();
+        req.setStatus("success");
+        req.setOutput(java.util.Map.of("groups", java.util.List.of()));
+        req.setConnection("api:openai");
+        req.setFailovers(List.of(failover("api:claude", "auth", 1_800_000_000L)));
+
+        aiTaskService.handleCallback(6L, req);
+
+        ArgumentCaptor<AiTaskDO> captor = ArgumentCaptor.forClass(AiTaskDO.class);
+        verify(aiTaskMapper, times(1)).updateById(captor.capture());
+        assertThat(captor.getValue().getUsedConnection()).isEqualTo("api:openai");
+        assertThat(captor.getValue().getFailovers()).contains("\"connection\":\"api:claude\"").contains("\"reason\":\"auth\"");
+        verify(pauses, times(1)).pause(1, "api", "claude", "auth", java.time.Instant.ofEpochSecond(1_800_000_000L));
+
+        when(aiTaskMapper.selectById(6L)).thenReturn(existing);
+        AiTaskVO vo = aiTaskService.getById(6L);
+        assertThat(vo.getUsedConnection()).isEqualTo("api:openai");
+        assertThat(vo.getFailovers()).hasSize(1);
+        assertThat(vo.getFailovers().get(0).getReason()).isEqualTo("auth");
     }
 
     /** 旧回调没有用量：任务照常完成，用量为空（只有一次状态更新） */

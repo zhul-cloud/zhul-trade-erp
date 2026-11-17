@@ -230,6 +230,29 @@ class InquiryNameplateContractTest extends InquiryContractSupport {
     }
 
     @Test
+    void detail_showsConnectionFailoverOfParse() throws Exception {
+        loginAsAdmin("it_np_admin");
+        admin = token("it_np_admin");
+        long c = customer("Ahmed Trading", "UAE");
+        long id = ok(submit(c, ",\"rawContent\":\"big rfq\"")).path("id").asLong();
+        jdbc.update("insert into ai_task (tenant_id, skill_id, status, requested_by, used_connection) "
+                + "values (0, 'inquiry-parse-and-split', 3, ?, 'api:claude')", ADMIN_ID);
+        long task = jdbc.queryForObject("select max(id) from ai_task", Long.class);
+        jdbc.update("update customer_inquiry set ai_task_id = ? where id = ?", task, id);
+
+        JsonNode plain = ok(call(get(INQ + "/" + id), admin));
+        assertTrue(plain.path("parseFailovers").isNull() || plain.path("parseFailovers").isMissingNode(),
+                "没有切换时不提示");
+
+        jdbc.update("update ai_task set used_connection = 'api:openai', failovers = ? where id = ?",
+                "[{\"connection\":\"api:claude\",\"reason\":\"quota\",\"at\":1800000000}]", task);
+        JsonNode switched = ok(call(get(INQ + "/" + id), admin));
+        assertEquals("api:openai", switched.path("parseUsedConnection").asText());
+        assertEquals("api:claude", switched.path("parseFailovers").get(0).path("connection").asText());
+        assertEquals("quota", switched.path("parseFailovers").get(0).path("reason").asText());
+    }
+
+    @Test
     void confirm_savesAiMatches_relinkAndMedia() throws Exception {
         loginAsAdmin("it_np_admin");
         admin = token("it_np_admin");

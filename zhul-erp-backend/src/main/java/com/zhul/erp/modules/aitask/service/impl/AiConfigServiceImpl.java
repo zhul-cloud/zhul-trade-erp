@@ -9,156 +9,177 @@ import com.zhul.erp.modules.aitask.constants.AiConfigConstants;
 import com.zhul.erp.modules.aitask.dto.AiCallConfig;
 import com.zhul.erp.modules.aitask.dto.AiConfigVO;
 import com.zhul.erp.modules.aitask.dto.AiConnectionTestVO;
+import com.zhul.erp.modules.aitask.dto.AiConnectionVO;
 import com.zhul.erp.modules.aitask.dto.AiLoginStatus;
 import com.zhul.erp.modules.aitask.dto.AiModelListVO;
-import com.zhul.erp.modules.aitask.dto.AiProfileVO;
 import com.zhul.erp.modules.aitask.dto.AiSubscriptionStatusVO;
 import com.zhul.erp.modules.aitask.dto.SaveAiConfigRequest;
-import com.zhul.erp.modules.aitask.entity.SysAiConfigDO;
+import com.zhul.erp.modules.aitask.dto.SaveAiSettingsRequest;
 import com.zhul.erp.modules.aitask.entity.SysAiProviderConfigDO;
 import com.zhul.erp.modules.aitask.exception.AiNotConfiguredException;
 import com.zhul.erp.modules.aitask.exception.AiUnavailableException;
-import com.zhul.erp.modules.aitask.repository.SysAiConfigMapper;
 import com.zhul.erp.modules.aitask.repository.SysAiProviderConfigMapper;
 import com.zhul.erp.modules.aitask.service.AiConfigService;
 import com.zhul.erp.modules.aitask.service.AiOrchestratorClient;
 import com.zhul.erp.modules.aitask.service.AiSubscriptionAccess;
+import com.zhul.erp.modules.aitask.support.AiConnectionPauses;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * 租户 AI 配置：sys_ai_config 记录当前选择（用法 + 服务商），sys_ai_provider_config 按连接方式分别保存设置；
- * 平台订阅按套餐授权给公司使用，租户使用平台的订阅设置。见 openspec ai-platform/tenant-ai-settings。
+ * 租户 AI 配置：sys_ai_provider_config 按连接方式（租户 × 用法 × 服务商）保存设置、组内顺序与启用开关；
+ * 已配置且启用的方式按「API Key 组在前、平台订阅组在后，组内按顺序」使用，失败的方式暂停 10 分钟。
+ * 平台订阅按套餐授权给公司使用，租户使用平台的订阅设置。
+ * 见 openspec ai-platform/tenant-ai-settings、ai-platform/connection-failover。
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AiConfigServiceImpl implements AiConfigService {
 
-    private final SysAiConfigMapper mapper;
+    private static final List<String> MODES = List.of(AiConfigConstants.MODE_API, AiConfigConstants.MODE_SUBSCRIPTION);
+
     private final SysAiProviderConfigMapper profileMapper;
     private final AesUtils aesUtils;
     private final AiOrchestratorClient orchestratorClient;
     private final AiSubscriptionAccess subscriptionAccess;
+    private final AiConnectionPauses pauses;
+
+    /** 一张连接方式卡片：row 为本租户的行（没保存过时为空），index 为服务商的默认次序 */
+    private record Slot(String mode, String provider, SysAiProviderConfigDO row, int index) {
+        int sort() {
+            return row != null && row.getSortOrder() != null ? row.getSortOrder() : 10 + index;
+        }
+
+        boolean enabled() {
+            return row == null || !Integer.valueOf(0).equals(row.getStatus());
+        }
+    }
+
+    /** 提交任务用的有序列表；configured 表示有已配置且启用的方式（全部不可用时区分「未配置」与「暂不可用」） */
+    private record Chain(List<AiCallConfig> calls, boolean configured) {
+    }
 
     @Override
     public AiConfigVO get() {
         int tenantId = currentTenantId();
+        boolean platform = tenantId == AiConfigConstants.PLATFORM_TENANT_ID;
         boolean allowed = subscriptionAccess.allowed(tenantId);
-        SysAiConfigDO selected = find(tenantId);
+        AiLoginStatus login = allowed ? loginStatus() : null;
         AiConfigVO vo = new AiConfigVO();
-        vo.setPlatform(tenantId == AiConfigConstants.PLATFORM_TENANT_ID);
+        vo.setPlatform(platform);
         vo.setSubscriptionAllowed(allowed);
         vo.setDefaultModels(AiConfigConstants.DEFAULT_MODELS);
-        vo.setConfigured(selected != null);
-        vo.setMode(selected != null ? selected.getMode() : AiConfigConstants.MODE_API);
-        vo.setProvider(selected != null ? selected.getProvider() : AiConfigConstants.PROVIDER_CLAUDE);
-        if (selected != null) {
-            vo.setUpdateTime(selected.getUpdateTime());
-            vo.setUpdateBy(selected.getUpdateBy());
+        List<AiConnectionVO> list = new ArrayList<>();
+        for (Slot s : ordered(tenantId, allowed)) {
+            boolean api = AiConfigConstants.MODE_API.equals(s.mode());
+            SysAiProviderConfigDO settings = api ? s.row() : platformSubscription(s.provider());
+            AiConnectionVO c = new AiConnectionVO();
+            c.setMode(s.mode());
+            c.setProvider(s.provider());
+            c.setOrder(list.size() + 1);
+            c.setEnabled(s.enabled());
+            c.setSettingsReadonly(!api && !platform);
+            fillSettings(c, settings, api);
+            if (api) {
+                c.setState(c.isHasKey() ? "ready" : "no_key");
+            } else {
+                Boolean ok = available(login, s.provider());
+                c.setState(ok == null ? "unknown" : platform ? (ok ? "logged_in" : "logged_out")
+                        : (ok ? "available" : "unavailable"));
+            }
+            AiConnectionPauses.Pause p = pauses.get(tenantId, s.mode(), s.provider());
+            if (p != null) {
+                c.setPausedReason(p.reason());
+                c.setPausedUntil(p.until());
+            }
+            list.add(c);
         }
-        Map<String, AiProfileVO> api = new LinkedHashMap<>();
-        Map<String, AiProfileVO> subscription = new LinkedHashMap<>();
-        for (String provider : AiConfigConstants.PROVIDERS) {
-            api.put(provider, toProfileVO(profile(tenantId, AiConfigConstants.MODE_API, provider)));
-            subscription.put(provider, toProfileVO(platformSubscription(provider)));
-        }
-        vo.setApiProfiles(api);
-        if (allowed) {
-            vo.setSubscriptionProfiles(subscription);
-        }
+        vo.setConnections(list);
         return vo;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void save(SaveAiConfigRequest req) {
+    public void save(SaveAiSettingsRequest req) {
         int tenantId = currentTenantId();
-        String mode = normalizeMode(req.getMode());
-        String provider = normalizeProvider(req.getProvider());
         boolean platform = tenantId == AiConfigConstants.PLATFORM_TENANT_ID;
-        if (AiConfigConstants.MODE_SUBSCRIPTION.equals(mode)) {
-            if (!subscriptionAccess.allowed(tenantId)) {
-                throw new BizException(ResultCode.PARAM_ERROR, "只能使用本公司 API Key");
+        boolean allowed = subscriptionAccess.allowed(tenantId);
+        Set<String> seen = new HashSet<>();
+        boolean subscriptionSeen = false;
+        Map<String, Integer> next = new HashMap<>();
+        for (SaveAiSettingsRequest.Item item : req.getOrder()) {
+            String mode = normalizeMode(item.getMode());
+            String provider = normalizeProvider(item.getProvider());
+            if (!seen.add(mode + ":" + provider)) {
+                throw new BizException(ResultCode.PARAM_ERROR, "连接方式重复");
             }
-            // 平台可以先保存未登录服务商的订阅设置；租户只能选可用的
-            if (!platform && !Boolean.TRUE.equals(available(loginStatus(), provider))) {
-                throw new BizException(ResultCode.PARAM_ERROR, "该平台订阅暂不可用，请选择其他方式");
+            if (AiConfigConstants.MODE_SUBSCRIPTION.equals(mode)) {
+                if (!allowed) {
+                    throw new BizException(ResultCode.PARAM_ERROR, "只能使用本公司 API Key");
+                }
+                subscriptionSeen = true;
+            } else if (subscriptionSeen) {
+                throw new BizException(ResultCode.PARAM_ERROR, "平台订阅只能排在 API Key 之后");
             }
-            if (platform) {
-                writeProfile(tenantId, mode, provider, req, false);
-            }
-        } else {
-            writeProfile(tenantId, mode, provider, req, true);
+            int sort = next.merge(mode, 1, Integer::sum);
+            writeOrder(tenantId, mode, provider, sort, item.isEnabled());
         }
-        SysAiConfigDO selected = find(tenantId);
-        if (selected == null) {
-            selected = new SysAiConfigDO();
-            selected.setTenantId(tenantId);
-            selected.setStatus(1);
-            selected.setApiKey("");
-            selected.setMode(mode);
-            selected.setProvider(provider);
-            mapper.insert(selected);
-        } else {
-            selected.setMode(mode);
-            selected.setProvider(provider);
-            mapper.updateById(selected);
+        if (req.getProfiles() != null) {
+            for (SaveAiConfigRequest p : req.getProfiles()) {
+                String mode = normalizeMode(p.getMode());
+                String provider = normalizeProvider(p.getProvider());
+                if (AiConfigConstants.MODE_SUBSCRIPTION.equals(mode)) {
+                    if (!allowed) {
+                        throw new BizException(ResultCode.PARAM_ERROR, "只能使用本公司 API Key");
+                    }
+                    // 租户的订阅设置用平台的，提交的修改不生效
+                    if (platform) {
+                        writeProfile(tenantId, mode, provider, p, false);
+                        pauses.clear(tenantId, mode, provider);
+                    }
+                } else {
+                    writeProfile(tenantId, mode, provider, p, true);
+                    pauses.clear(tenantId, mode, provider);
+                }
+            }
         }
-        log.info("AI 配置已保存，tenantId={}, mode={}, provider={}, keyChanged={}",
-                tenantId, mode, provider, StringUtils.hasText(req.getApiKey()));
+        log.info("AI 设置已保存，tenantId={}, order={}, profiles={}", tenantId, seen,
+                req.getProfiles() == null ? 0 : req.getProfiles().size());
     }
 
     @Override
-    public AiCallConfig resolveForCurrentTenant() {
-        int tenantId = currentTenantId();
-        SysAiConfigDO selected = find(tenantId);
-        if (selected == null) {
-            throw new AiNotConfiguredException();
+    public List<AiCallConfig> resolveChainForCurrentTenant() {
+        Chain c = chain(currentTenantId());
+        if (c.calls().isEmpty()) {
+            throw c.configured() ? new AiUnavailableException() : new AiNotConfiguredException();
         }
-        String provider = selected.getProvider();
-        if (AiConfigConstants.MODE_SUBSCRIPTION.equals(selected.getMode())) {
-            if (tenantId != AiConfigConstants.PLATFORM_TENANT_ID
-                    && (!subscriptionAccess.allowed(tenantId) || !Boolean.TRUE.equals(available(loginStatus(), provider)))) {
-                throw new AiUnavailableException();
-            }
-            return build(AiConfigConstants.MODE_SUBSCRIPTION, provider, "", platformSubscription(provider));
-        }
-        SysAiProviderConfigDO row = profile(tenantId, AiConfigConstants.MODE_API, provider);
-        String key = decryptKey(row);
-        if (key.isEmpty()) {
-            throw new AiNotConfiguredException();
-        }
-        return build(AiConfigConstants.MODE_API, provider, key, row);
+        return c.calls();
     }
 
     @Override
     public boolean isConfiguredForCurrentTenant() {
-        int tenantId = currentTenantId();
-        SysAiConfigDO selected = find(tenantId);
-        if (selected == null) {
-            return false;
-        }
-        // 订阅与 resolveForCurrentTenant 同样要查登录，否则随后的 createAndSubmit 会在业务事务里抛 AiUnavailableException
-        if (AiConfigConstants.MODE_SUBSCRIPTION.equals(selected.getMode())) {
-            return tenantId == AiConfigConstants.PLATFORM_TENANT_ID
-                    || (subscriptionAccess.allowed(tenantId)
-                    && Boolean.TRUE.equals(available(loginStatus(), selected.getProvider())));
-        }
-        SysAiProviderConfigDO row = profile(tenantId, AiConfigConstants.MODE_API, selected.getProvider());
-        return row != null && StringUtils.hasText(row.getApiKey());
+        return !chain(currentTenantId()).calls().isEmpty();
     }
 
     @Override
     public AiConnectionTestVO test(SaveAiConfigRequest req) {
-        return orchestratorClient.test(fromRequest(req));
+        AiConnectionTestVO result = orchestratorClient.test(fromRequest(req));
+        if (result != null && result.isOk()) {
+            pauses.clear(currentTenantId(), normalizeMode(req.getMode()), normalizeProvider(req.getProvider()));
+        }
+        return result;
     }
 
     @Override
@@ -190,6 +211,79 @@ public class AiConfigServiceImpl implements AiConfigService {
         return vo;
     }
 
+    /**
+     * 按顺序挑出可用的连接方式：跳过未启用、API 没有 Key、处于暂停中的方式。
+     * API 组有可用方式时，订阅只按授权与开关附在后面，是否登录由编排服务调用时判断（未登录会切换并暂停）；
+     * API 组都不可用时才查询订阅登录状态，用来决定能否创建任务——每次查询都要让编排服务运行一次 CLI，不放在每个任务上。
+     */
+    private Chain chain(int tenantId) {
+        boolean allowed = subscriptionAccess.allowed(tenantId);
+        List<AiCallConfig> calls = new ArrayList<>();
+        List<Slot> subscriptions = new ArrayList<>();
+        boolean configured = false;
+        for (Slot s : ordered(tenantId, allowed)) {
+            if (!s.enabled()) {
+                continue;
+            }
+            if (AiConfigConstants.MODE_SUBSCRIPTION.equals(s.mode())) {
+                // 保存过的订阅算已配置；从没保存过的（默认参与）要确认过登录状态才算，见下方
+                configured |= s.row() != null;
+                subscriptions.add(s);
+                continue;
+            }
+            String key = decryptKey(s.row());
+            if (key.isEmpty()) {
+                continue;
+            }
+            configured = true;
+            if (pauses.get(tenantId, s.mode(), s.provider()) == null) {
+                calls.add(build(s.mode(), s.provider(), key, s.row()));
+            }
+        }
+        boolean checkLogin = calls.isEmpty() && !subscriptions.isEmpty();
+        AiLoginStatus login = checkLogin ? loginStatus() : null;
+        for (Slot s : subscriptions) {
+            if (pauses.get(tenantId, s.mode(), s.provider()) != null) {
+                configured = true;
+                continue;
+            }
+            if (checkLogin) {
+                Boolean ok = available(login, s.provider());
+                configured |= ok != null;
+                // 状态获取失败时，平台照旧可以用自己保存过的订阅；租户与从没保存过的订阅按不可用处理
+                boolean keepUnknown = ok == null && tenantId == AiConfigConstants.PLATFORM_TENANT_ID && s.row() != null;
+                if (!Boolean.TRUE.equals(ok) && !keepUnknown) {
+                    continue;
+                }
+            }
+            calls.add(build(s.mode(), s.provider(), "", platformSubscription(s.provider())));
+        }
+        return new Chain(calls, configured);
+    }
+
+    /** 本租户按使用顺序排好的卡片：API Key 组在前；订阅组只在能使用平台订阅时列出 */
+    private List<Slot> ordered(int tenantId, boolean allowed) {
+        Map<String, SysAiProviderConfigDO> rows = new HashMap<>();
+        for (SysAiProviderConfigDO r : profileMapper.selectList(new LambdaQueryWrapper<SysAiProviderConfigDO>()
+                .eq(SysAiProviderConfigDO::getTenantId, tenantId))) {
+            rows.put(r.getMode() + ":" + r.getProvider(), r);
+        }
+        List<Slot> out = new ArrayList<>();
+        for (String mode : MODES) {
+            if (AiConfigConstants.MODE_SUBSCRIPTION.equals(mode) && !allowed) {
+                continue;
+            }
+            List<Slot> group = new ArrayList<>();
+            for (int i = 0; i < AiConfigConstants.PROVIDERS.size(); i++) {
+                String provider = AiConfigConstants.PROVIDERS.get(i);
+                group.add(new Slot(mode, provider, rows.get(mode + ":" + provider), i));
+            }
+            group.sort(Comparator.comparingInt(Slot::sort));
+            out.addAll(group);
+        }
+        return out;
+    }
+
     /** 页面当前的值：API 方式 Key 留空时用该服务商已保存的 Key；租户的订阅只用平台的设置 */
     private AiCallConfig fromRequest(SaveAiConfigRequest req) {
         int tenantId = currentTenantId();
@@ -213,17 +307,27 @@ public class AiConfigServiceImpl implements AiConfigService {
                 req.getTranslateEffort(), req.getMaxWebSearches());
     }
 
+    /** 写这张卡片的组内顺序与开关；没有行时新建（只记顺序与开关，设置为空即默认值） */
+    private void writeOrder(int tenantId, String mode, String provider, int sort, boolean enabled) {
+        SysAiProviderConfigDO row = profile(tenantId, mode, provider);
+        if (row == null) {
+            row = newRow(tenantId, mode, provider);
+            row.setSortOrder(sort);
+            row.setStatus(enabled ? 1 : 0);
+            profileMapper.insert(row);
+            return;
+        }
+        row.setSortOrder(sort);
+        row.setStatus(enabled ? 1 : 0);
+        profileMapper.updateById(row);
+    }
+
     /** 保存这一种连接方式的设置；withKey 为 false 时不写 Key（订阅） */
     private void writeProfile(int tenantId, String mode, String provider, SaveAiConfigRequest req, boolean withKey) {
         SysAiProviderConfigDO row = profile(tenantId, mode, provider);
         boolean insert = row == null;
         if (insert) {
-            row = new SysAiProviderConfigDO();
-            row.setTenantId(tenantId);
-            row.setMode(mode);
-            row.setProvider(provider);
-            row.setApiKey("");
-            row.setStatus(1);
+            row = newRow(tenantId, mode, provider);
         }
         if (withKey && StringUtils.hasText(req.getApiKey())) {
             row.setApiKey(aesUtils.encrypt(req.getApiKey().trim()));
@@ -241,21 +345,33 @@ public class AiConfigServiceImpl implements AiConfigService {
         }
     }
 
-    private AiProfileVO toProfileVO(SysAiProviderConfigDO row) {
-        AiProfileVO vo = new AiProfileVO();
-        vo.setMaxWebSearches(AiConfigConstants.DEFAULT_MAX_WEB_SEARCHES);
+    private static SysAiProviderConfigDO newRow(int tenantId, String mode, String provider) {
+        SysAiProviderConfigDO row = new SysAiProviderConfigDO();
+        row.setTenantId(tenantId);
+        row.setMode(mode);
+        row.setProvider(provider);
+        row.setSortOrder(10 + AiConfigConstants.PROVIDERS.indexOf(provider));
+        row.setApiKey("");
+        row.setMaxWebSearches(AiConfigConstants.DEFAULT_MAX_WEB_SEARCHES);
+        row.setStatus(1);
+        return row;
+    }
+
+    private void fillSettings(AiConnectionVO c, SysAiProviderConfigDO row, boolean api) {
+        c.setMaxWebSearches(AiConfigConstants.DEFAULT_MAX_WEB_SEARCHES);
         if (row == null) {
-            return vo;
+            return;
         }
-        vo.setSaved(true);
-        vo.setHasKey(StringUtils.hasText(row.getApiKey()));
-        vo.setApiKeyMasked(vo.isHasKey() ? AiCallConfig.mask(aesUtils.decrypt(row.getApiKey())) : "");
-        vo.setParseModel(row.getParseModel());
-        vo.setTranslateModel(row.getTranslateModel());
-        vo.setParseEffort(row.getParseEffort());
-        vo.setTranslateEffort(row.getTranslateEffort());
-        vo.setMaxWebSearches(row.getMaxWebSearches());
-        return vo;
+        c.setSaved(true);
+        if (api) {
+            c.setHasKey(StringUtils.hasText(row.getApiKey()));
+            c.setApiKeyMasked(c.isHasKey() ? AiCallConfig.mask(aesUtils.decrypt(row.getApiKey())) : "");
+        }
+        c.setParseModel(row.getParseModel());
+        c.setTranslateModel(row.getTranslateModel());
+        c.setParseEffort(row.getParseEffort());
+        c.setTranslateEffort(row.getTranslateEffort());
+        c.setMaxWebSearches(row.getMaxWebSearches());
     }
 
     /** 编排服务报告的登录状态；服务不可达或出错时为 null（未知） */
@@ -301,7 +417,7 @@ public class AiConfigServiceImpl implements AiConfigService {
 
     private static String normalizeMode(String mode) {
         String m = StringUtils.hasText(mode) ? mode.trim() : AiConfigConstants.MODE_API;
-        if (!AiConfigConstants.MODE_API.equals(m) && !AiConfigConstants.MODE_SUBSCRIPTION.equals(m)) {
+        if (!MODES.contains(m)) {
             throw new BizException(ResultCode.PARAM_ERROR, "运行方式只能是 api 或 subscription");
         }
         return m;
@@ -321,10 +437,6 @@ public class AiConfigServiceImpl implements AiConfigService {
 
     private static String trim(String value) {
         return value == null ? "" : value.trim();
-    }
-
-    private SysAiConfigDO find(int tenantId) {
-        return mapper.selectOne(new LambdaQueryWrapper<SysAiConfigDO>().eq(SysAiConfigDO::getTenantId, tenantId));
     }
 
     private SysAiProviderConfigDO profile(int tenantId, String mode, String provider) {

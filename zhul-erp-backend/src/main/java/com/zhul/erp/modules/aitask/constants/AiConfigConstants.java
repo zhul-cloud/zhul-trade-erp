@@ -36,8 +36,8 @@ public final class AiConfigConstants {
             PROVIDER_OPENAI, Map.of("parse", "gpt-6.1-sol", "translate", "gpt-6-luna"));
 
     public static final String NOT_CONFIGURED_MESSAGE = "AI 未配置，请在「业务设置 → AI 设置」中填写";
-    /** 选用的平台订阅不可用时的提示，不说明原因 */
-    public static final String UNAVAILABLE_MESSAGE = "AI 暂不可用，请在「业务设置 → AI 设置」中改选其他方式";
+    /** 已配置的连接方式都不可用（订阅未登录、暂停中）时的提示，不说明平台账号的原因 */
+    public static final String UNAVAILABLE_MESSAGE = "AI 暂不可用，请在「业务设置 → AI 设置」中检查连接方式";
 
     /** 容器内登录命令：provider → 命令，只返回给平台 */
     public static final Map<String, String> LOGIN_COMMANDS = Map.of(

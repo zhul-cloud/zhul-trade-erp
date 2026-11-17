@@ -30,6 +30,10 @@ public class AiTaskDO {
     private String errorMessage;
     /** 用量（spec ai-platform/task-orchestration「记录 AI 调用用量」）：空为无记录 */
     private String model;
+    /** 实际完成调用的连接方式（用法:服务商，如 api:openai），空表示未记录 */
+    private String usedConnection;
+    /** 执行中自动切换记录（JSON 数组 [{connection, reason, at}]），没有切换为空 */
+    private String failovers;
     private Integer inputTokens;
     private Integer outputTokens;
     private Integer webSearches;

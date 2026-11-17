@@ -179,6 +179,9 @@ export interface InquiryDetail {
   inquiry: CustomerInquiry;
   rawContent: string;
   parseError: string;
+  /** 解析中途自动切换了 AI 连接方式时：最后使用的方式（如 api:openai）与切换记录 */
+  parseUsedConnection?: string | null;
+  parseFailovers?: { connection: string; reason: string; at?: number }[] | null;
   remark: string;
   attachments: InquiryAttachment[];
   /** 铭牌图片（含追加的），inquiryItemId 为对应的型号 */
