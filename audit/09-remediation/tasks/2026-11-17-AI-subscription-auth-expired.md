@@ -13,8 +13,8 @@
 | 目标与影响范围 | 订阅连接方式的登录状态显示与执行失败原因分类；涉及 `scripts/ai-orchestrator/subscription.py`、`server.py` 的 `failover_reason`。不涉及 API Key 方式 |
 | 起点 commit / 工作分支 | 发现于 `feat/product-content-ai`；修复分支 `fix/ai-015-subscription-auth`（基于 develop，含 #382） |
 | OpenSpec | 缺陷修复，不新开提案 |
-| PR / 目标分支 | 未创建 |
-| 合并证据 | 未合并 |
+| PR / 目标分支 | #383（已合并）、#384 → develop |
+| 合并证据 | #383 已合并；#384 待合并 |
 | 目标版本 / 环境 | 本机发现；生产是否同样过期未查（只读核对需授权） |
 
 ## 实施与验证结果
