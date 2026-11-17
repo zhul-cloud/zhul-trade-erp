@@ -9,6 +9,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
 
 import jsonschema
 
@@ -196,6 +197,34 @@ def codex_models(timeout=30):
             return json.loads(stdout)
         except json.JSONDecodeError as exc:
             raise RuntimeError("获取 Codex 模型列表失败") from exc
+
+
+CODEX_CONFIRM_TTL_SECONDS = 300
+_codex_confirmed = {}
+
+
+def _codex_login_changed_at():
+    try:
+        return (Path(subscription_env()["CODEX_HOME"]) / "auth.json").stat().st_mtime_ns
+    except OSError:
+        return None
+
+
+def codex_confirmed(timeout, fresh=False):
+    """服务端是否接受 Codex 本机登录：True 接受，False 拒绝（登录过期），None 暂时无法确认。
+    列一次模型确认，不调用模型、不耗额度；确定的结果缓存 5 分钟，重新登录（登录文件变化）后立即重查（audit AI-015）"""
+    login_file = _codex_login_changed_at()
+    cached = _codex_confirmed.get("last")
+    if not fresh and cached and cached[0] == login_file and time.monotonic() - cached[1] < CODEX_CONFIRM_TTL_SECONDS:
+        return cached[2]
+    try:
+        codex_models(timeout)
+        result = True
+    except RuntimeError as exc:
+        result = False if getattr(exc, "code", "") == "auth" else None
+    if result is not None:
+        _codex_confirmed["last"] = (login_file, time.monotonic(), result)
+    return result
 
 
 class SubscriptionError(RuntimeError):

@@ -140,7 +140,8 @@ class WorkerTest(unittest.TestCase):
         self.assertFalse(subscription.unauthorized("usage limit reached, try again in 2 hours"))
         process = mock.Mock(returncode=1, pid=123)
         process.communicate.return_value = ("auth", "")
-        with mock.patch.object(subscription.subprocess, "Popen", return_value=process),                 mock.patch.object(subscription, "stop_process"), mock.patch.object(subscription.os, "killpg", create=True):
+        with mock.patch.object(subscription.subprocess, "Popen", return_value=process), \
+                mock.patch.object(subscription, "stop_process"), mock.patch.object(subscription.os, "killpg", create=True):
             with self.assertRaises(subscription.SubscriptionCallError) as caught:
                 self.call()
             self.assertEqual(caught.exception.code, "auth")
