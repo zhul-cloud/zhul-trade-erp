@@ -114,6 +114,10 @@ export interface Payable {
   nextDueDate?: string;
   dueState?: DueState;
   dueDays?: number;
+  /** 当期应付（原币）：登记付款、批量付款的默认金额 */
+  dueNowAmount?: number;
+  /** 当期应付由哪几期组成，如「第 1 期 30% 下单后，11-10 到期」 */
+  dueNowNote?: string;
   paymentTerms?: string;
   installments: Installment[];
   payments: PaymentLine[];

@@ -42,6 +42,10 @@ public class PayableVO {
     private String dueState;
     /** 逾期天数或到期剩余天数 */
     private Integer dueDays;
+    /** 当期应付（原币）：登记付款、批量付款的默认金额；没有读付款计划的接口为空 */
+    private BigDecimal dueNowAmount;
+    /** 当期应付由哪几期组成，如「第 1 期 30% 下单后，11-10 到期」；没有付款计划时为空 */
+    private String dueNowNote;
     private String paymentTerms;
     private List<Installment> installments = new ArrayList<>();
     private List<PaymentLine> payments = new ArrayList<>();

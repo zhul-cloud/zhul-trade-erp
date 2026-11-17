@@ -24,8 +24,9 @@ import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
-import { currencyTotals, type Group, groupPayables } from './batch';
+import { amountTotals, type Group, groupPayables } from './batch';
 import { ACCEPT_PROOF, Field, newKey, PayeeAccountPicker } from './components';
+import { DueNowHint } from './dueNow';
 import { METHOD, type Payable, type PayeeAccount, paymentApi } from './service';
 
 interface GroupInput {
@@ -76,7 +77,7 @@ export const BatchPayModal: React.FC<{
           g.key,
           {
             payeeAccounts: [],
-            amount: g.unpaid,
+            amount: g.dueNow,
             amountCny: null,
             files: [],
           },
@@ -224,7 +225,9 @@ export const BatchPayModal: React.FC<{
             <div style={{ fontSize: 12, color: palette.mute }}>
               共 {groups.length} 笔付款
             </div>
-            <b style={{ fontSize: 14 }}>{currencyTotals(rows)}</b>
+            <b style={{ fontSize: 14 }}>
+              {amountTotals(groups, (g) => inputs[g.key]?.amount)}
+            </b>
           </div>
         </div>
 
@@ -338,11 +341,20 @@ export const BatchPayModal: React.FC<{
                   />
                 </Field>
               </div>
+              <DueNowHint
+                amount={v.amount}
+                due={g.dueNow}
+                unpaid={g.unpaid}
+                note={g.dueNowNote}
+                currency={g.currency}
+                onChange={(n) => patch(g.key, { amount: n })}
+              />
             </div>
           );
         })}
         <div style={{ fontSize: 12, color: palette.mute }}>
-          付款金额默认等于未付合计；改小时按到期日从早到晚依次核销。任何一笔保存失败，整批都不保存。
+          每组默认付当期应付合计（已逾期、今天和 7
+          天内到期的期次），可点「付全部未付」；核销先付各单的当期应付，多出或改小时按到期日从早到晚分配。任何一笔保存失败，整批都不保存。
         </div>
       </div>
     </Modal>
