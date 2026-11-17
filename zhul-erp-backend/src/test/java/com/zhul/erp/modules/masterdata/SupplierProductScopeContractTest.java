@@ -118,6 +118,18 @@ class SupplierProductScopeContractTest extends IntegrationTestBase {
                 + full + "\",\"categoryNameZh\":\"" + zh + "\",\"parentId\":" + top + "}"), admin));
     }
 
+    /** 按需创建一级品类（供应商主营品类只能选一级品类） */
+    private long topCategory(String code, String zh) throws Exception {
+        String full = "scopeit_t_" + code;
+        Long existing = jdbc.query("select id from product_category where category_code = ?",
+                rs -> rs.next() ? rs.getLong(1) : null, full);
+        if (existing != null) {
+            return existing;
+        }
+        return ok(call(json(post("/api/v1/product/categories"), "{\"categoryCode\":\"" + full + "\",\"categoryName\":\""
+                + full + "\",\"categoryNameZh\":\"" + zh + "\"}"), token("scope_admin")));
+    }
+
     private long supplier(String admin, String code, String scopes) throws Exception {
         JsonNode res = call(json(post(SUP), "{\"supplierCode\":\"" + code + "\",\"name\":\"" + code
                 + " Ltd\",\"supplierType\":1,\"force\":true,\"productScopes\":" + scopes + "}"), admin);
@@ -132,17 +144,18 @@ class SupplierProductScopeContractTest extends IntegrationTestBase {
         long siemens = brand(admin, "ScopeIT Siemens", "ScopeIT 西门子");
         long abb = brand(admin, "ScopeIT ABB");
         long plc = category("plc");
-        long hmi = category("hmi");
-        long vfd = category("vfd");
+        long controllers = jdbc.queryForObject("select parent_id from product_category where id = ?", Long.class, plc);
+        long hmi = topCategory("hmi", "HMI");
+        long vfd = topCategory("vfd", "变频器");
 
-        long a = supplier(admin, "SCA", "[{\"brandName\":\"scopeit 西门子\",\"categoryIds\":[" + plc + "," + hmi + "]},"
+        long a = supplier(admin, "SCA", "[{\"brandName\":\"scopeit 西门子\",\"categoryIds\":[" + controllers + "," + hmi + "]},"
                 + "{\"brandName\":\"ScopeIT Hengstler\"}]");
         long b = supplier(admin, "SCB", "[{\"brandId\":" + siemens + "}]");
         supplier(admin, "SCC", "[{\"brandId\":" + abb + ",\"categoryIds\":[" + vfd + "]}]");
 
         JsonNode detail = call(get(SUP + "/" + a), admin).path("data").path("productScopes");
         assertEquals(siemens, detail.get(0).path("brandId").asLong(), "别名应归一到正式品牌");
-        assertEquals("PLC", detail.get(0).path("categories").get(0).path("name").asText());
+        assertEquals("ScopeIT Controllers", detail.get(0).path("categories").get(0).path("name").asText());
         assertTrue(detail.get(1).path("pending").asBoolean());
 
         JsonNode page = call(get(SUP + "/page").param("brandId", String.valueOf(siemens)).param("categoryId", String.valueOf(plc)), admin)
@@ -150,16 +163,17 @@ class SupplierProductScopeContractTest extends IntegrationTestBase {
         List<Long> ids = new ArrayList<>();
         page.path("records").forEach(r -> ids.add(r.path("id").asLong()));
         assertEquals(2, ids.size(), page.toString());
-        assertTrue(ids.containsAll(List.of(a, b)), "全部品类的供应商也应命中");
+        assertTrue(ids.containsAll(List.of(a, b)), "按细分品类查命中主营其一级品类的供应商，全部品类的供应商也应命中");
+        JsonNode byTop = call(get(SUP + "/page").param("categoryId", String.valueOf(controllers)), admin).path("data");
+        assertEquals(1, byTop.path("total").asInt(), "只按品类筛选只命中明确选了该品类的供应商：" + byTop);
 
         JsonNode dup = call(json(post(SUP), "{\"supplierCode\":\"SCD\",\"name\":\"SCD\",\"force\":true,\"productScopes\":"
                 + "[{\"brandId\":" + siemens + "},{\"brandName\":\"ScopeIT 西门子\"}]}"), admin);
         assertEquals("主营品牌重复：ScopeIT 西门子", dup.path("message").asText());
 
         JsonNode top = call(json(post(SUP), "{\"supplierCode\":\"SCE\",\"name\":\"SCE\",\"force\":true,\"productScopes\":"
-                + "[{\"brandId\":" + siemens + ",\"categoryIds\":[" + jdbc.queryForObject(
-                "select parent_id from product_category where id = ?", Long.class, plc) + "]}]}"), admin);
-        assertEquals("主营品类只能选择细分品类", top.path("message").asText());
+                + "[{\"brandId\":" + siemens + ",\"categoryIds\":[" + plc + "]}]}"), admin);
+        assertEquals("主营品类只能选择一级品类", top.path("message").asText());
     }
 
     @Test
@@ -185,7 +199,7 @@ class SupplierProductScopeContractTest extends IntegrationTestBase {
         loginAsAdmin("scope_admin");
         String admin = token("scope_admin");
         long siemens = brand(admin, "ScopeIT Siemens");
-        long plc = category("plc");
+        long plc = topCategory("plc", "PLC");
         long a = supplier(admin, "SPA", "[{\"brandId\":" + siemens + ",\"categoryIds\":[" + plc + "]},{\"brandName\":\"ScopeIT 西门子PLC\"}]");
         supplier(admin, "SPB", "[{\"brandName\":\"scopeit 西门子plc\"}]");
 
@@ -214,7 +228,7 @@ class SupplierProductScopeContractTest extends IntegrationTestBase {
         loginAsAdmin("scope_admin");
         String admin = token("scope_admin");
         long siemens = brand(admin, "ScopeIT Siemens");
-        long plc = category("plc");
+        long plc = topCategory("plc", "PLC");
         long id = supplier(admin, "SDA", "[{\"brandId\":" + siemens + ",\"categoryIds\":[" + plc + "]},"
                 + "{\"brandName\":\"ScopeIT Gone\"}]");
         assertEquals(0, call(delete(SUP + "/" + id), admin).path("code").asInt());
@@ -237,10 +251,11 @@ class SupplierProductScopeContractTest extends IntegrationTestBase {
         String admin = token("scope_admin");
         long siemens = brand(admin, "ScopeIT Siemens");
         long plc = category("plc");
-        supplier(admin, "SPC", "[{\"brandId\":" + siemens + ",\"categoryIds\":[" + plc + "]}]");
+        long top = topCategory("plc", "PLC");
+        supplier(admin, "SPC", "[{\"brandId\":" + siemens + ",\"categoryIds\":[" + top + "]}]");
 
         assertEquals("该品类已被供应商主营产品使用，可改为停用",
-                call(delete("/api/v1/product/categories/" + plc), admin).path("message").asText());
+                call(delete("/api/v1/product/categories/" + top), admin).path("message").asText());
         assertEquals("该品牌已被供应商主营产品使用，可改为停用",
                 call(delete(BRAND + "/" + siemens), admin).path("message").asText());
 
