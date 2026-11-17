@@ -198,8 +198,8 @@
 | [UI-098](tasks/2026-11-16-BUS-082-feedback-1116.md) | 采购订单列表只显示型号数，没有按单据页统一规范显示品牌、品类、型号 | P3 | 已关闭 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-17 |
 | [UI-099](tasks/2026-11-16-BUS-082-feedback-1116.md) | CI 导出的 DESCRIPTION 列不随内容自动调整，公司印章歪斜、模糊 | P3 | 已关闭 | Claude | [2026-11-16-BUS-082](tasks/2026-11-16-BUS-082-feedback-1116.md) | 2026-11-17 |
 | [UI-100](tasks/2026-11-16-UI-100-po-confirm-ship-date.md) | 采购订单草稿在页面上填了预计发货日期（未保存）后点「确认下单」，弹窗里的预计发货日期仍为空，要重新选 | P3 | 已关闭 | Claude | [2026-11-16-UI-100](tasks/2026-11-16-UI-100-po-confirm-ship-date.md) | 2026-11-17 |
-| [UI-101](tasks/2026-11-17-UI-101-purchase-drafts.md) | 采购订单列表默认「最近 3 个月下单日期」，草稿没有下单日期，全部被挡掉看不到 | P2 | 已合并待发布 | Claude | [2026-11-17-UI-101](tasks/2026-11-17-UI-101-purchase-drafts.md) | 2026-11-17 |
-| [UI-102](tasks/2026-11-17-UI-101-purchase-drafts.md) | 采购需求全选后只要有型号已在草稿，「生成采购订单」整体置灰，只能逐张草稿处理 | P2 | 已合并待发布 | Claude | [2026-11-17-UI-101](tasks/2026-11-17-UI-101-purchase-drafts.md) | 2026-11-17 |
+| [UI-101](tasks/2026-11-17-UI-101-purchase-drafts.md) | 采购订单列表默认「最近 3 个月下单日期」，草稿没有下单日期，全部被挡掉看不到 | P2 | 已发布待验收 | Claude | [2026-11-17-UI-101](tasks/2026-11-17-UI-101-purchase-drafts.md) | 2026-11-17 |
+| [UI-102](tasks/2026-11-17-UI-101-purchase-drafts.md) | 采购需求全选后只要有型号已在草稿，「生成采购订单」整体置灰，只能逐张草稿处理 | P2 | 已发布待验收 | Claude | [2026-11-17-UI-101](tasks/2026-11-17-UI-101-purchase-drafts.md) | 2026-11-17 |
 
 ## AI 可靠性
 

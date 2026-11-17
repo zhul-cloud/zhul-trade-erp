@@ -1933,7 +1933,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         boolean byProfit = "profit".equals(q.getSortField()) && q.getSortOrder() != null;
         if (lossOnly) {
             // 「毛利为负」与列表「毛利」列同一口径：毛利读时按实际成本计算，取筛选范围内全部进行中的订单算完成本后筛出亏本的
-            w.orderByDesc(SalesOrderDO::getUpdateTime).orderByDesc(SalesOrderDO::getId);
+            w.orderByDesc(SalesOrderDO::getSalesDate).orderByDesc(SalesOrderDO::getId);
             List<SalesOrderDO> candidates = orderMapper.selectList(w);
             Map<Long, OrderCostVO> costs = candidates.isEmpty() ? Map.of() : orderCostService.of(candidates);
             List<SalesOrderDO> loss = candidates.stream().filter(o -> {
@@ -1953,8 +1953,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         if (total == 0) {
             return PageResult.of(0L, List.of());
         }
-        // 列表页统一规范：默认按更新时间倒序
-        w.orderByDesc(SalesOrderDO::getUpdateTime).orderByDesc(SalesOrderDO::getId);
+        // 列表页统一规范的例外（2026-11-17 用户确认）：默认按销售日期倒序，同一天新建的在前
+        w.orderByDesc(SalesOrderDO::getSalesDate).orderByDesc(SalesOrderDO::getId);
         if (byProfit) {
             return profitPage(toListVos(orderMapper.selectList(w)), q.getSortOrder(), page, size, total);
         }
