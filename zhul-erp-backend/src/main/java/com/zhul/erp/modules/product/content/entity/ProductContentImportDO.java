@@ -27,6 +27,8 @@ public class ProductContentImportDO {
     private String rawText;
     private String summary;
     private String confirmedBy;
+    /** 来源：1-手动上传、2-AI 生成 */
+    private Integer source;
     private LocalDateTime deletedAt;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

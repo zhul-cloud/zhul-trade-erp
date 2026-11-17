@@ -130,7 +130,7 @@ public class ContentWriter {
      * 资料包 platform 为空；营销包为该平台，v2 营销文件的关键词库项 platform 为空。
      */
     public String write(Long productId, MarketingPlatform platform, ContentDraft draft,
-                        Map<ContentSection, ContentDraft.Block> blocks, String fileName, String rawText) {
+                        Map<ContentSection, ContentDraft.Block> blocks, String fileName, String rawText, int source) {
         boolean facts = ContentConstants.TYPE_FACTS.equals(draft.getType());
         boolean keywordPart = ContentV2Parser.PART_KEYWORDS.equals(draft.getPart());
         String lang = draft.getLang();
@@ -148,6 +148,7 @@ public class ContentWriter {
         imp.setFileName(fileName.length() > 255 ? fileName.substring(0, 255) : fileName);
         imp.setRawText(rawText);
         imp.setConfirmedBy(SecurityUtils.getCurrentUsername());
+        imp.setSource(source);
         importMapper.insert(imp);
 
         List<String> summary = new ArrayList<>();

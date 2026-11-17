@@ -15,6 +15,8 @@ public class ContentImportRecordVO {
     private String platform;
     private String lang;
     private String summary;
+    /** 来源：1-手动上传、2-AI 生成 */
+    private Integer source;
     /** 确认人；其他公司的记录为空 */
     private String confirmedBy;
     private LocalDateTime confirmedAt;

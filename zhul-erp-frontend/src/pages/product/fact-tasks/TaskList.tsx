@@ -3,11 +3,12 @@ import {
   DownloadOutlined,
   SearchOutlined,
   SettingOutlined,
+  ThunderboltOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
 import { Link, useAccess, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Button, Input, Segmented, Select, Table } from 'antd';
+import { App, Button, Input, Segmented, Select, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, PageTitle } from '@/pages/inquiry/shared/components';
@@ -32,6 +33,7 @@ import {
   type BrandOption,
   brandApi,
   type CategoryOption,
+  type ContentAiJob,
   type ContentTask,
   type ContentTaskQuery,
   categoryApi,
@@ -39,6 +41,13 @@ import {
   type PackageType,
   readBizError,
 } from '../service';
+import {
+  AI_MAX_BATCH,
+  AiCell,
+  AiStartModal,
+  aiBusy,
+  aiWorking,
+} from './AiGenerate';
 import { PlatformSettings } from './PlatformSettings';
 import { UploadDrawer } from './UploadDrawer';
 
@@ -122,7 +131,11 @@ const COPY: Record<PackageType, { description: string; footer: string }> = {
 /** 资料任务与营销任务共用的任务列表，按入口切换页签、列和操作 */
 export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
   const { palette } = useAppTheme();
+  const { message, modal } = App.useApp();
   const access = useAccess() as Record<string, boolean>;
+  /** 发起、取消 AI 生成：能写资料包或营销包其中一份即可（确认时按权限分别写） */
+  const canAi =
+    !!access['product:content:edit'] || !!access['operations:marketing:edit'];
   const facts = entry === 'facts';
   const tabs = TABS[entry];
   const copy = COPY[entry];
@@ -153,6 +166,13 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
     label: string;
   }>();
   const [rowRecords, setRowRecords] = useState<{ id: number; label: string }>();
+  /** AI 生成：确认发起的商品、查看结果的记录 */
+  const [aiStart, setAiStart] = useState<ContentTask[]>();
+  const [aiResult, setAiResult] = useState<{
+    jobId: number;
+    id: number;
+    label: string;
+  }>();
   const platformState = usePlatforms(!facts);
   const platforms = platformState.enabled;
   const [brands, setBrands] = useState<BrandOption[]>([]);
@@ -169,28 +189,32 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
       .catch(() => setCategories([]));
   }, []);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(undefined);
-    try {
-      const [res, c] = await Promise.all([
-        contentApi.page(entry, {
-          page,
-          pageSize,
-          tab: tab === 'all' ? undefined : tab,
-          ...query,
-        }),
-        contentApi.counts(entry, query),
-      ]);
-      setRows(res.records);
-      setTotal(res.total);
-      setCounts(c);
-    } catch (e) {
-      setError(readBizError(e).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [entry, page, pageSize, tab, query]);
+  /** quiet：定时刷新 AI 生成状态时不显示加载中 */
+  const load = useCallback(
+    async (quiet?: boolean) => {
+      if (!quiet) setLoading(true);
+      setError(undefined);
+      try {
+        const [res, c] = await Promise.all([
+          contentApi.page(entry, {
+            page,
+            pageSize,
+            tab: tab === 'all' ? undefined : tab,
+            ...query,
+          }),
+          contentApi.counts(entry, query),
+        ]);
+        setRows(res.records);
+        setTotal(res.total);
+        setCounts(c);
+      } catch (e) {
+        setError(readBizError(e).message);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [entry, page, pageSize, tab, query],
+  );
 
   useEffect(() => {
     load();
@@ -199,6 +223,42 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
   // 从其他页面返回时重新取数（audit UI-055）
 
   useOnReactivate(load);
+
+  // 有排队中、生成中的 AI 生成时，每 20 秒刷新一次状态
+  const working = aiWorking(rows);
+  useEffect(() => {
+    if (!working) return undefined;
+    const timer = window.setInterval(() => load(true), 20_000);
+    return () => window.clearInterval(timer);
+  }, [working, load]);
+
+  const startOne = async (t: ContentTask) => {
+    try {
+      await contentApi.aiStart([t.productId]);
+      message.success(`已开始 AI 生成 ${t.mpn}，生成在后台进行，可以离开页面`);
+      load(true);
+    } catch (e) {
+      message.error(readBizError(e).message);
+    }
+  };
+
+  const cancelAi = (job: ContentAiJob) =>
+    modal.confirm({
+      title: '取消这次 AI 生成？',
+      content: '已经在生成的会照常跑完，但结果不保存；可以重新生成。',
+      okText: '取消生成',
+      cancelText: '不取消',
+      onOk: async () => {
+        try {
+          await contentApi.aiCancel(job.id);
+          load(true);
+        } catch (e) {
+          message.error(readBizError(e).message);
+        }
+      },
+    });
+
+  const selectedRows = rows.filter((r) => selected.includes(r.productId));
 
   const apply = () => {
     setQuery({ keyword: keyword.trim() || undefined, brandId, categoryId });
@@ -310,6 +370,22 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
           },
         ]),
     {
+      title: 'AI 生成',
+      key: 'ai',
+      width: 200,
+      render: (_, t) => (
+        <AiCell
+          job={t.ai}
+          canEdit={canAi}
+          onView={(job) =>
+            setAiResult({ jobId: job.id, id: t.productId, label: label(t) })
+          }
+          onCancel={cancelAi}
+          onRetry={() => startOne(t)}
+        />
+      ),
+    },
+    {
       title: '最近下载',
       key: 'downloaded',
       width: 150,
@@ -326,7 +402,7 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
     {
       title: '操作',
       key: 'actions',
-      width: facts ? 360 : 320,
+      width: facts ? 420 : 380,
       fixed: 'right',
       render: (_, t) => (
         <span
@@ -337,6 +413,15 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
             whiteSpace: 'nowrap',
           }}
         >
+          {canAi && !aiBusy(t.ai) && (
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => startOne(t)}
+            >
+              AI 生成
+            </button>
+          )}
           {facts ? (
             <>
               <button
@@ -404,6 +489,22 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
                 onClick={() => setSettingsOpen(true)}
               >
                 平台设置
+              </Button>
+            )}
+            {canAi && (
+              <Button
+                icon={<ThunderboltOutlined />}
+                disabled={
+                  selected.length === 0 || selected.length > AI_MAX_BATCH
+                }
+                title={
+                  selected.length > AI_MAX_BATCH
+                    ? `一次最多 AI 生成 ${AI_MAX_BATCH} 个商品`
+                    : undefined
+                }
+                onClick={() => setAiStart(selectedRows)}
+              >
+                AI 生成{selected.length ? ` · ${selected.length}` : ''}
               </Button>
             )}
             {facts ? (
@@ -527,7 +628,7 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
         </span>
       </div>
       {error ? (
-        <ErrorHint message={error} onRetry={load} />
+        <ErrorHint message={error} onRetry={() => load()} />
       ) : (
         <Card style={{ padding: 0 }}>
           <Table<ContentTask>
@@ -584,6 +685,22 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
         open={!!rowCombined}
         product={rowCombined}
         onClose={() => setRowCombined(undefined)}
+        onDone={load}
+      />
+      <AiStartModal
+        rows={aiStart}
+        onClose={() => setAiStart(undefined)}
+        onStarted={() => {
+          setSelected([]);
+          load(true);
+        }}
+      />
+      <UploadDrawer
+        entry="combined"
+        open={!!aiResult}
+        product={aiResult}
+        aiJobId={aiResult?.jobId}
+        onClose={() => setAiResult(undefined)}
         onDone={load}
       />
       <ImportRecordsDrawer

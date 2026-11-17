@@ -872,10 +872,58 @@ export interface ContentTask {
   factVerifiedAt?: string;
   factVerifiedBy?: string;
   factDownloadedAt?: string;
+  /** 本公司最近一次 AI 生成 */
+  ai?: ContentAiJob;
   createTime?: string;
   createBy?: string;
   updateTime?: string;
   updateBy?: string;
+}
+
+/** AI 生成状态：排队中、生成中、待确认、已导入、失败、已取消 */
+export const AI_STATUS = {
+  QUEUED: 1,
+  RUNNING: 2,
+  PENDING: 3,
+  IMPORTED: 4,
+  FAILED: 5,
+  CANCELLED: 6,
+} as const;
+
+export interface ContentAiJob {
+  id: number;
+  status: number;
+  /** 排队中时前面还有几个 */
+  queueAhead?: number;
+  failReason?: string;
+  createTime?: string;
+  startedAt?: string;
+  completedAt?: string;
+  confirmedAt?: string;
+  confirmedBy?: string;
+  factsImported: boolean;
+  marketingImported: boolean;
+}
+
+export interface ContentAiResult {
+  id: number;
+  productId: number;
+  status: number;
+  factsFileName: string;
+  factsMarkdown?: string;
+  marketingFileName: string;
+  marketingMarkdown?: string;
+  summary?: string;
+  selfScore?: number;
+  factsImported: boolean;
+  marketingImported: boolean;
+  canFacts: boolean;
+  canMarketing: boolean;
+}
+
+export interface ContentAiStartResult {
+  created: number;
+  skipped: { productId: number; reason: string }[];
 }
 
 export interface ContentTaskQuery {
@@ -1040,6 +1088,8 @@ export interface ContentImportRecord {
   summary?: string;
   confirmedBy?: string;
   confirmedAt?: string;
+  /** 来源：1-手动上传、2-AI 生成 */
+  source?: number;
   /** 是否本公司上传 */
   mine: boolean;
   /** 原文，只在详情里有 */
@@ -1076,6 +1126,22 @@ export const contentApi = {
     call<ContentConfirmResult>(`${CONTENT}/${entry}/confirm`, {
       method: 'POST',
       data: { files, productId },
+    }),
+  /** AI 生成：发起（一次最多 20 个）、取消、放弃、查看结果、确认写入（按权限分别写资料包、营销包） */
+  aiStart: (productIds: number[]) =>
+    call<ContentAiStartResult>(`${CONTENT}/ai/start`, {
+      method: 'POST',
+      data: { productIds },
+    }),
+  aiCancel: (id: number) =>
+    call<void>(`${CONTENT}/ai/${id}/cancel`, { method: 'POST' }),
+  aiAbandon: (id: number) =>
+    call<void>(`${CONTENT}/ai/${id}/abandon`, { method: 'POST' }),
+  aiResult: (id: number) => call<ContentAiResult>(`${CONTENT}/ai/${id}`),
+  aiConfirm: (id: number, files: ContentFile[]) =>
+    call<ContentConfirmResult>(`${CONTENT}/ai/${id}/confirm`, {
+      method: 'POST',
+      data: { files },
     }),
   /** 商品的上传记录（本公司全部 + 其他公司的资料包），不含原文；type 只看该包类型 */
   imports: (productId: number, type?: PackageType) =>

@@ -35,7 +35,7 @@ public class ContentImportRecordService {
                                 ProductContentImportDO::getFileName, ProductContentImportDO::getPackageType,
                                 ProductContentImportDO::getPlatform, ProductContentImportDO::getLang,
                                 ProductContentImportDO::getSummary, ProductContentImportDO::getConfirmedBy,
-                                ProductContentImportDO::getCreateTime)
+                                ProductContentImportDO::getSource, ProductContentImportDO::getCreateTime)
                         .eq(ProductContentImportDO::getProductId, productId)
                         .eq(type != null && !type.isBlank(), ProductContentImportDO::getPackageType, type)
                         .isNull(ProductContentImportDO::getDeletedAt)
@@ -62,6 +62,7 @@ public class ContentImportRecordService {
         boolean mine = Objects.equals(r.getTenantId(), tenantId);
         vo.setId(r.getId());
         vo.setFileName(r.getFileName());
+        vo.setSource(r.getSource());
         vo.setPackageType(r.getPackageType());
         vo.setPlatform(r.getPlatform());
         vo.setLang(r.getLang());

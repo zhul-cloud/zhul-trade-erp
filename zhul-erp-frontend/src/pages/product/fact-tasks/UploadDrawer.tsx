@@ -15,6 +15,7 @@ import {
   Drawer,
   Input,
   Modal,
+  Popconfirm,
   Result,
   Space,
   Switch,
@@ -23,11 +24,12 @@ import {
   Upload,
 } from 'antd';
 import '@ant-design/x-markdown/es/XMarkdown/index.css';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { PLATFORM_META } from '../products/cards/SeoCard';
 import {
+  type ContentAiResult,
   type ContentBlock,
   type ContentConfirmResult,
   type ContentFile,
@@ -131,8 +133,11 @@ export const UploadDrawer: React.FC<{
   product?: { id: number; label: string };
   /** 入口：facts 资料任务只收资料包，marketing 营销任务只收营销包，combined 两种一起上传并自动审核 */
   entry: UploadEntry;
-}> = ({ open, onClose, onDone, product, entry }) => {
-  const combined = entry === 'combined';
+  /** AI 生成结果：预载两份原文预览，确认时按权限分别写入、不自动审核，可以放弃 */
+  aiJobId?: number;
+}> = ({ open, onClose, onDone, product, entry, aiJobId }) => {
+  const ai = aiJobId != null;
+  const combined = entry === 'combined' && !ai;
   const { palette } = useAppTheme();
   const { message } = App.useApp();
   const access = useAccess() as Record<string, boolean>;
@@ -151,6 +156,7 @@ export const UploadDrawer: React.FC<{
   const [editing, setEditing] = useState<ContentBlock>();
   const [draft, setDraft] = useState('');
   const [result, setResult] = useState<ContentConfirmResult>();
+  const [aiResult, setAiResult] = useState<ContentAiResult>();
 
   const reset = () => {
     setFactPicks([]);
@@ -170,12 +176,51 @@ export const UploadDrawer: React.FC<{
   const runPreview = async (next: ContentFile[]) => {
     setLoading(true);
     try {
-      setPreviews(await contentApi.preview(entry, next, product?.id));
+      // AI 结果有资料包和营销包，用「一起上传」的预览解析两种
+      setPreviews(
+        await contentApi.preview(ai ? 'combined' : entry, next, product?.id),
+      );
       setFiles(next);
     } catch (e) {
       message.error(readBizError(e).message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // AI 结果：打开时取两份原文（已写入的那份不再预览）
+  useEffect(() => {
+    if (!open || aiJobId == null) return;
+    setLoading(true);
+    contentApi
+      .aiResult(aiJobId)
+      .then((r) => {
+        setAiResult(r);
+        const next: ContentFile[] = [];
+        if (!r.factsImported && r.factsMarkdown)
+          next.push({ fileName: r.factsFileName, content: r.factsMarkdown });
+        if (!r.marketingImported && r.marketingMarkdown)
+          next.push({
+            fileName: r.marketingFileName,
+            content: r.marketingMarkdown,
+          });
+        setActive(0);
+        return runPreview(next);
+      })
+      .catch((e) => message.error(readBizError(e).message))
+      .finally(() => setLoading(false));
+  }, [open, aiJobId]);
+
+  const abandon = async () => {
+    if (aiJobId == null) return;
+    try {
+      await contentApi.aiAbandon(aiJobId);
+      message.success('已放弃这次 AI 生成的结果');
+      onDone();
+      reset();
+      onClose();
+    } catch (e) {
+      message.error(readBizError(e).message);
     }
   };
 
@@ -242,7 +287,11 @@ export const UploadDrawer: React.FC<{
         previews.filter((p) => p.confirmable).map((p) => p.fileIndex),
       );
       const ok = files.filter((_, i) => indexes.has(i));
-      setResult(await contentApi.confirm(entry, ok, product?.id));
+      setResult(
+        ai && aiJobId != null
+          ? await contentApi.aiConfirm(aiJobId, ok)
+          : await contentApi.confirm(entry, ok, product?.id),
+      );
     } catch (e) {
       message.error(readBizError(e).message);
     } finally {
@@ -250,6 +299,10 @@ export const UploadDrawer: React.FC<{
     }
   };
 
+  // AI 结果按权限分别写：至少能写其中一份才可以确认
+  const canConfirm = ai
+    ? !!aiResult && (aiResult.canFacts || aiResult.canMarketing)
+    : canWrite;
   const confirmable = previews.filter((p) => p.confirmable).length;
   const blocked = previews.length - confirmable;
   const p = previews[active];
@@ -351,11 +404,13 @@ export const UploadDrawer: React.FC<{
       title={
         result
           ? '写入结果'
-          : combined
-            ? `一起上传资料与营销${product ? ` · ${product.label}` : ''}`
-            : product
-              ? `上传 · ${product.label}（只接收这个商品的文件）`
-              : '上传内容包 · 解析预览'
+          : ai
+            ? `AI 生成结果 · 确认写入${product ? ` · ${product.label}` : ''}`
+            : combined
+              ? `一起上传资料与营销${product ? ` · ${product.label}` : ''}`
+              : product
+                ? `上传 · ${product.label}（只接收这个商品的文件）`
+                : '上传内容包 · 解析预览'
       }
       footer={
         result ? (
@@ -381,24 +436,38 @@ export const UploadDrawer: React.FC<{
           </div>
         ) : previews.length > 0 ? (
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <Button icon={<UploadOutlined />} onClick={reset}>
-              重新选择文件
-            </Button>
+            {ai ? (
+              <Popconfirm
+                title="放弃这次 AI 生成的结果？"
+                description="不写入任何内容，可以重新生成"
+                okText="放弃"
+                okButtonProps={{ danger: true }}
+                onConfirm={abandon}
+              >
+                <Button danger>放弃结果</Button>
+              </Popconfirm>
+            ) : (
+              <Button icon={<UploadOutlined />} onClick={reset}>
+                重新选择文件
+              </Button>
+            )}
             <span style={{ flex: 1 }} />
             <Button onClick={close}>取消</Button>
             <Tooltip
               title={
-                canWrite
+                canConfirm
                   ? undefined
-                  : combined
-                    ? '需要「商品内容维护」和「营销内容维护」两个权限'
-                    : `没有「${entry === 'facts' ? '商品内容维护' : '营销内容维护'}」权限`
+                  : ai
+                    ? '需要「商品内容维护」或「营销内容维护」权限'
+                    : combined
+                      ? '需要「商品内容维护」和「营销内容维护」两个权限'
+                      : `没有「${entry === 'facts' ? '商品内容维护' : '营销内容维护'}」权限`
               }
             >
               <Button
                 type="primary"
                 loading={loading}
-                disabled={!canWrite || confirmable === 0}
+                disabled={!canConfirm || confirmable === 0}
                 onClick={confirm}
               >
                 {combined ? '确认写入并自动审核' : '确认写入'} {confirmable}{' '}
@@ -632,6 +701,35 @@ export const UploadDrawer: React.FC<{
               })}
             </div>
           </div>
+          {ai && aiResult && (
+            <div style={{ flex: '1 1 100%', display: 'grid', gap: 8 }}>
+              <Alert
+                type="info"
+                showIcon
+                title="AI 生成的内容不自动审核"
+                description={`写入后资料状态为「资料待核」，技术问答待审核，由人在「资料核对」里逐条核对。${
+                  aiResult.summary ? `AI 说明：${aiResult.summary}` : ''
+                }${aiResult.selfScore != null ? `（营销内容自评 ${aiResult.selfScore} 分）` : ''}`}
+              />
+              {(!aiResult.canFacts || !aiResult.canMarketing) && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  title={
+                    aiResult.canFacts
+                      ? '你没有「营销内容维护」权限：营销包不写入，保留待确认，由有权限的人确认'
+                      : '你没有「商品内容维护」权限：资料包不写入，保留待确认，由有权限的人确认'
+                  }
+                />
+              )}
+              {(aiResult.factsImported || aiResult.marketingImported) && (
+                <div style={{ fontSize: 12, color: palette.mute }}>
+                  {aiResult.factsImported ? '资料包' : '营销包'}
+                  已经写入，这里只列还没写入的部分。
+                </div>
+              )}
+            </div>
+          )}
           {p && (
             <div style={{ flex: 1, minWidth: 320 }}>
               <div

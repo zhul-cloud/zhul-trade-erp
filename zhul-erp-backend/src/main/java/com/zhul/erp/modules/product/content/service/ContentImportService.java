@@ -109,6 +109,11 @@ public class ContentImportService {
     }
 
     public ContentConfirmVO confirm(ContentFileRequest req, String expectedType) {
+        return confirm(req, expectedType, ContentConstants.SOURCE_MANUAL);
+    }
+
+    /** source：上传记录的来源（手动上传、AI 生成） */
+    public ContentConfirmVO confirm(ContentFileRequest req, String expectedType, int source) {
         TransactionTemplate tx = new TransactionTemplate(transactionManager);
         tx.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
         ContentConfirmVO result = new ContentConfirmVO();
@@ -130,7 +135,7 @@ public class ContentImportService {
                 try {
                     MarketingPlatform platform = MarketingPlatform.of(vo.getPlatform());
                     item.setMessage(tx.execute(s -> writer.write(vo.getProductId(), platform, a.draft(),
-                            a.writable(), vo.getFileName(), a.content())));
+                            a.writable(), vo.getFileName(), a.content(), source)));
                     item.setSuccess(true);
                 } catch (BizException e) {
                     item.setMessage(e.getMessage());

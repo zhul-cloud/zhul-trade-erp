@@ -159,6 +159,7 @@ public final class TenantTables {
             Map.entry("media_item", Policy.PRIVATE),
             // 商品内容与营销：按租户维护
             Map.entry("product_content_task", Policy.PRIVATE),
+            Map.entry("product_content_ai_job", Policy.PRIVATE),
             Map.entry("product_keyword", Policy.PRIVATE),
             Map.entry("product_keyword_use", Policy.PRIVATE),
             Map.entry("product_marketing_skip", Policy.PRIVATE),

@@ -213,6 +213,11 @@ export const ImportRecordList: React.FC<{
           onClick={() => setViewing(r.id)}
         >
           <FileTextOutlined /> {v}
+          {r.source === 2 && (
+            <span style={{ marginLeft: 6 }}>
+              <Pill tone="violet">AI 生成</Pill>
+            </span>
+          )}
         </button>
       ),
     },
