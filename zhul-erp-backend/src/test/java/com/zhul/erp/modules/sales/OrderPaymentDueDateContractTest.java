@@ -46,6 +46,18 @@ class OrderPaymentDueDateContractTest extends SalesContractSupport {
         return call(json(post(SO), write(m)), admin);
     }
 
+    /** 销售订单列表默认按销售日期倒序（2026-11-17 用户确认，列表页统一规范的例外）：后建但日期早的排在后面 */
+    @org.junit.jupiter.api.Test
+    void listSortedBySalesDateDesc() throws Exception {
+        long later = ok(manualOrder(today.minusDays(1), null)).path("id").asLong();
+        long earlier = ok(manualOrder(today.minusDays(10), null)).path("id").asLong();
+        long sameDayNewer = ok(manualOrder(today.minusDays(1), null)).path("id").asLong();
+        java.util.List<Long> ids = new java.util.ArrayList<>();
+        ok(call(json(post(SO + "/page"), "{\"pageSize\":100}"), admin)).path("records").forEach(r -> ids.add(r.path("id").asLong()));
+        assertEquals(java.util.List.of(sameDayNewer, later, earlier),
+                ids.stream().filter(java.util.List.of(later, earlier, sameDayNewer)::contains).toList(), ids.toString());
+    }
+
     private JsonNode setDue(long id, LocalDate due) throws Exception {
         Map<String, Object> b = new HashMap<>();
         b.put("paymentDueDate", due == null ? null : due.toString());
