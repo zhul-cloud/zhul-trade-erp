@@ -9,6 +9,7 @@ import org.springframework.mock.web.MockMultipartFile;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -190,9 +191,12 @@ class PurchaseContractTest extends SalesContractSupport {
         assertEquals("1688 · 华强电子", g.path("supplierName").asText());
         assertEquals(po(draft, admin).path("purchaserId").asLong(), jdbc.queryForObject("select purchaser_id from purchase_requirement where id = ?",
                 Long.class, reqs.get(1)), "没有采购员的需求归到生成的人");
-        assertEquals("需求不存在", fail(call(json(post(REQ + "/generate"),
-                write(Map.of("groups", List.of(Map.of("channel", 1, "shopName", "x", "requirementIds", List.of(reqs.get(0))))))), lin))
-                .path("message").asText().isEmpty() ? "" : "需求不存在", "林熙看得到自己的 F-1，但已经全部排入草稿");
+        // 已全部排入草稿的 F-1 也能再生成：从原草稿挪到新选的店铺
+        long moved = ok(call(json(post(REQ + "/generate"),
+                write(Map.of("groups", List.of(Map.of("channel", 1, "shopName", "x", "requirementIds", List.of(reqs.get(0))))))), lin)).get(0).asLong();
+        assertEquals(moved, jdbc.queryForObject("select po_id from purchase_order_item where requirement_id = ? and deleted_at is null",
+                Long.class, reqs.get(0)), "F-1 只在新草稿里");
+        assertEquals(1, po(d.get(0), admin).path("items").size(), "原草稿少了 F-1");
     }
 
     @Test
@@ -346,6 +350,34 @@ class PurchaseContractTest extends SalesContractSupport {
         long so2 = orderFrom(null, l("S-3", 1, "100", "20")).path("id").asLong();
         assertEquals(spot, generate(sup, requirementIds(so2), admin));
         assertEquals(3, po(spot, admin).path("items").size());
+    }
+
+    /** 生产反馈 SO20261111003：全选已在多张草稿里的型号一起生成，挪进同一张草稿，原草稿作废；采购订单列表默认日期范围能看到草稿 */
+    @Test
+    void generate_movesDraftLinesIntoOneDraft_keepsPrice_listShowsDrafts() throws Exception {
+        long old1 = supplier("旧渠道甲", null);
+        long target = supplier("新渠道乙", null);
+        long soId = orderFrom(old1, l("M-1", 2, "100", "20"), l("M-2", 3, "100", "20")).path("id").asLong();
+        List<Long> reqs = requirementIds(soId);
+        long draft1 = drafts(old1).get(0);
+        jdbc.update("update purchase_order_item set unit_price = 18.50 where po_id = ? and model = 'M-1'", draft1);
+
+        JsonNode lines = ok(call(get(REQ + "/generate-preview").param("ids", reqs.stream().map(String::valueOf).toArray(String[]::new)), admin))
+                .path("groups").get(0).path("lines");
+        assertEquals(5, lines.get(0).path("availableQty").asInt() + lines.get(1).path("availableQty").asInt(), "可生成数量含草稿里的");
+        assertEquals(5, lines.get(0).path("draftQty").asInt() + lines.get(1).path("draftQty").asInt());
+
+        long draft = generate(target, reqs, admin);
+        JsonNode po = po(draft, admin);
+        assertEquals(2, po.path("items").size(), "两个型号进同一张草稿");
+        assertEquals(0, new BigDecimal("18.50").compareTo(jdbc.queryForObject(
+                "select unit_price from purchase_order_item where po_id = ? and model = 'M-1' and deleted_at is null", BigDecimal.class, draft)),
+                "已填的单价跟着挪过来");
+        assertTrue(jdbc.queryForObject("select deleted_at is not null from purchase_order where id = ?", Boolean.class, draft1), "原草稿空了作废");
+
+        JsonNode page = ok(call(json(post(PO + "/page"), write(Map.of("orderFrom", LocalDate.now().minusMonths(3).toString(),
+                "orderTo", LocalDate.now().toString(), "supplierId", target))), admin));
+        assertEquals(1, page.path("total").asInt(), "草稿没有下单日期，也按创建时间出现在默认的最近 3 个月里");
     }
 
     // ---------------------------------------------------------------- 价格、税、费用、付款条件、合同

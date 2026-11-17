@@ -418,8 +418,6 @@ const RequirementList: React.FC = () => {
   };
 
   const selectedList = [...selected.values()];
-  const canGenerate =
-    selectedList.length > 0 && selectedList.every((r) => r.availableQty > 0);
   const empty =
     !loading && (view === 'order' ? orders.length === 0 : rows.length === 0);
 
@@ -649,8 +647,6 @@ const RequirementList: React.FC = () => {
             <Button
               type="primary"
               icon={<ShoppingCartOutlined />}
-              disabled={!canGenerate}
-              title={canGenerate ? undefined : '已排入草稿的型号不用再生成'}
               onClick={() => setGenerating(selectedList)}
             >
               生成采购订单
@@ -1203,6 +1199,9 @@ const GenerateModal: React.FC<{
   }, [targets, message]);
 
   const ready = !!groups && groups.every((g) => counterpartyReady(g.chosen));
+  const moved =
+    groups?.flatMap((g) => g.lines).filter((l) => (l.draftQty ?? 0) > 0)
+      .length ?? 0;
   const drafts = useMemo(
     () =>
       new Set(
@@ -1256,6 +1255,8 @@ const GenerateModal: React.FC<{
             已选 {targets?.length} 个型号，按建议渠道和现货 / 期货分成{' '}
             {groups.length} 组；确认后每组生成或追加到你对该采购对象、同一现货 /
             期货的草稿采购订单。
+            {moved > 0 &&
+              ` 其中 ${moved} 个型号原来已在草稿采购订单里，会挪到所选分组，原草稿空了自动作废。`}
           </div>
           {groups.map((g) => (
             <div
@@ -1303,7 +1304,15 @@ const GenerateModal: React.FC<{
                     {l.soNo}
                     {l.purchaserName ? '' : ' · 采购员未指定'}
                   </span>
-                  <span>{l.availableQty} 个</span>
+                  <span>
+                    {l.availableQty} 个
+                    {(l.draftQty ?? 0) > 0 && (
+                      <span style={{ fontSize: 12, color: palette.mute }}>
+                        {' '}
+                        · 含草稿 {l.draftQty}
+                      </span>
+                    )}
+                  </span>
                 </div>
               ))}
             </div>
