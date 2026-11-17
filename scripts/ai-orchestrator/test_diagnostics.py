@@ -86,6 +86,18 @@ class SubscriptionTestConnectionTest(unittest.TestCase):
         result, _ = self.run_test("openai", {"codex": "Logged in using an API key", "claude": "{}"})
         self.assertEqual(result["items"][0]["message"], "未登录，请在容器内执行登录命令")
 
+    def test_codex_login_rejected_by_server(self):
+        """audit AI-015：本机有登录文件，服务端已拒绝（401）时测试显示登录已失效，不再显示已登录"""
+        logged_in = {"codex": "Logged in using ChatGPT", "claude": "{}"}
+        cases = [(None, True, "已登录"),
+                 (subscription.SubscriptionCallError("x", "auth"), False, "登录已失效（服务端拒绝），请在容器内重新执行登录命令"),
+                 (RuntimeError("获取 Codex 模型列表超时"), True, "已登录（暂时无法向服务端确认，稍后可再测）")]
+        for error, ok, message in cases:
+            with self.subTest(error=error), mock.patch.object(self.server, "codex_models", side_effect=error) as models:
+                result, _ = self.run_test("openai", logged_in)
+                self.assertEqual((result["ok"], result["items"][0]["message"]), (ok, message))
+                models.assert_called_once()
+
 
 class ApiTestConnectionTest(unittest.TestCase):
     def setUp(self):

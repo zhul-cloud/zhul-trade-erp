@@ -133,6 +133,21 @@ class WorkerTest(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "约定结构"):
                     self.call()
 
+    def test_server_rejected_login_is_auth_not_usage_limit(self):
+        """audit AI-015：登录过期时 SDK 报 401，归为未登录，不再当作用量上限"""
+        self.assertTrue(subscription.unauthorized(
+            "JSON-RPC error -32603: workspace routing discovery unauthorized (401)"))
+        self.assertFalse(subscription.unauthorized("usage limit reached, try again in 2 hours"))
+        process = mock.Mock(returncode=1, pid=123)
+        process.communicate.return_value = ("auth", "")
+        with mock.patch.object(subscription.subprocess, "Popen", return_value=process),                 mock.patch.object(subscription, "stop_process"), mock.patch.object(subscription.os, "killpg", create=True):
+            with self.assertRaises(subscription.SubscriptionCallError) as caught:
+                self.call()
+            self.assertEqual(caught.exception.code, "auth")
+            with self.assertRaises(subscription.SubscriptionCallError) as caught:
+                subscription.codex_models(1)
+            self.assertEqual(caught.exception.code, "auth")
+
     def test_concurrent_tasks_run_in_parallel_with_own_workdir(self):
         """audit AI-007：与 API 方式一致，多个订阅任务同时执行，不因另一任务在跑而失败。"""
         barrier = threading.Barrier(2, timeout=5)
@@ -265,6 +280,24 @@ class ProtocolTest(unittest.TestCase):
             client.thread_start.return_value.turn.return_value.stream.return_value = iter(events[:-1])
             with self.assertRaisesRegex(subscription.SubscriptionError, "invalid"):
                 subscription.run_codex(request)
+
+    def test_codex_failed_turn_unauthorized_is_auth(self):
+        """audit AI-015：回合失败的错误码是 unauthorized 或上游 HTTP 401 时归为未登录，其余仍是 runtime"""
+        from openai_codex.models import Notification
+        from openai_codex.generated.v2_all import TurnCompletedNotification
+        cases = [("unauthorized", "auth"), ({"httpConnectionFailed": {"httpStatusCode": 401}}, "auth"),
+                 ("usageLimitExceeded", "runtime"), ({"httpConnectionFailed": {"httpStatusCode": 500}}, "runtime")]
+        for info, code in cases:
+            with self.subTest(info=info):
+                failed = Notification("turn/completed", TurnCompletedNotification.model_validate({
+                    "threadId": "thread", "turn": {"id": "turn", "status": "failed", "items": [],
+                                                   "error": {"message": "failed", "codexErrorInfo": info}}}))
+                client = mock.MagicMock()
+                client.account.return_value.account = SimpleNamespace(root=SimpleNamespace(type="chatgpt"))
+                client.thread_start.return_value.turn.return_value.stream.return_value = iter([failed])
+                with mock.patch("openai_codex.Codex", return_value=mock.MagicMock(__enter__=lambda s: client)):
+                    with self.assertRaisesRegex(subscription.SubscriptionError, f"^{code}$"):
+                        subscription.run_codex(self.request())
 
 
 if __name__ == "__main__":

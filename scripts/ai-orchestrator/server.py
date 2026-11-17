@@ -1831,6 +1831,15 @@ def test_connection(raw) -> dict:
         name = "Codex 登录" if cli == "codex" else "Claude 登录"
         logged_in = login_status(QUICK_TIMEOUT_SECONDS, providers=(cli,))[cli]
         message = {True: "已登录", False: "未登录，请在容器内执行登录命令"}.get(logged_in, "未能检查登录状态（超时或找不到 CLI），请稍后重试")
+        if logged_in and cli == "codex":
+            # 本机登录文件在，服务端也可能已拒绝（登录过期）：列一次模型向服务端确认，不调用模型、不耗额度（AI-015）
+            try:
+                codex_models(QUICK_TIMEOUT_SECONDS)
+            except RuntimeError as e:
+                if getattr(e, "code", "") == "auth":
+                    logged_in, message = False, "登录已失效（服务端拒绝），请在容器内重新执行登录命令"
+                else:
+                    message = "已登录（暂时无法向服务端确认，稍后可再测）"
         return {"ok": bool(logged_in), "items": [{"name": name, "ok": bool(logged_in), "message": message}]}
     if not cfg.api_key:
         return {"ok": False, "items": [{"name": "API Key", "ok": False, "message": "未填写 API Key"}]}
