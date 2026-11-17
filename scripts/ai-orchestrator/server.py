@@ -45,6 +45,7 @@ API 方式用任务携带的 Key（只在本次请求的内存中使用，日志
 """
 import base64
 import copy
+import dataclasses
 import hmac
 import json
 import os
@@ -523,10 +524,12 @@ def _openai_attachment_block(ref) -> dict:
 
 
 def call_api(chain, system_prompt: str, text: str, attachments: list, schema: dict, *,
-             role: str, web_search: bool = False) -> dict:
+             role: str, web_search: bool = False, web_fetch: bool = False, min_web_calls: int = 0) -> dict:
     """按任务携带的连接方式列表依次调用（openspec ai-connection-failover「执行中自动切换」）：
     当前方式因连接方式本身的问题失败时，只重做这一次调用、换下一个方式，并记下切换；内容本身的错误原样抛出。
-    role 为 parse / translate，每个方式用自己的模型与思考强度"""
+    role 为 parse / translate，每个方式用自己的模型与思考强度。
+    web_fetch：联网时还允许打开网页（Claude API 加网页抓取工具；OpenAI 与订阅的联网本来就能打开网页）；
+    min_web_calls：联网次数至少这么多（任务本身需要大量核实时用，公司设置更高时按公司设置）"""
     if isinstance(chain, AiConfig):
         chain = AiChain([chain])
     last_error = None
@@ -534,8 +537,10 @@ def call_api(chain, system_prompt: str, text: str, attachments: list, schema: di
         model, effort = ((cfg.parse_model, cfg.parse_effort) if role == "parse"
                          else (cfg.translate_model, cfg.translate_effort))
         try:
+            if min_web_calls > cfg.max_web_searches:
+                cfg = dataclasses.replace(cfg, max_web_searches=min_web_calls)
             result = _call_once(cfg, system_prompt, text, attachments, schema, model=model, effort=effort,
-                                web_search=web_search)
+                                web_search=web_search, web_fetch=web_fetch)
         except Exception as e:  # noqa: BLE001 只有归为「换方式」的才接住，其余原样抛出
             reason = failover_reason(e)
             if reason is None:
@@ -552,7 +557,7 @@ def call_api(chain, system_prompt: str, text: str, attachments: list, schema: di
 
 
 def _call_once(cfg: AiConfig, system_prompt: str, text: str, attachments: list, schema: dict, *,
-               model: str, effort: str, web_search: bool = False) -> dict:
+               model: str, effort: str, web_search: bool = False, web_fetch: bool = False) -> dict:
     """用一个连接方式调用一次，返回符合 schema 的 JSON"""
     if cfg.mode == "subscription":
         wire_schema = _required_nullable_schema(schema) if cfg.provider == "openai" else schema
@@ -560,11 +565,12 @@ def _call_once(cfg: AiConfig, system_prompt: str, text: str, attachments: list, 
                                    effort=effort, web_search=web_search, max_web_searches=cfg.max_web_searches,
                                    timeout=max(1, int(remaining())))
         return _drop_nulls(result)
-    call = _call_openai if cfg.provider == "openai" else _call_claude
-    return call(cfg, system_prompt, text, attachments, schema, model, effort, web_search)
+    if cfg.provider == "openai":
+        return _call_openai(cfg, system_prompt, text, attachments, schema, model, effort, web_search)
+    return _call_claude(cfg, system_prompt, text, attachments, schema, model, effort, web_search, web_fetch)
 
 
-def _call_claude(cfg, system_prompt, text, attachments, schema, model, effort, web_search) -> dict:
+def _call_claude(cfg, system_prompt, text, attachments, schema, model, effort, web_search, web_fetch=False) -> dict:
     """调用 Anthropic API；pause_turn 时原样续传"""
     client = anthropic.Anthropic(api_key=cfg.api_key, timeout=TIMEOUT_SECONDS, max_retries=0)
     content = [_attachment_block(a) for a in attachments] + [{"type": "text", "text": text}]
@@ -582,6 +588,9 @@ def _call_claude(cfg, system_prompt, text, attachments, schema, model, effort, w
         params["fallbacks"] = "default"
     if web_search:
         params["tools"] = [{"type": "web_search_20260209", "name": "web_search", "max_uses": cfg.max_web_searches}]
+        if web_fetch:
+            # 打开搜索结果里的网页核实（只能打开对话中出现过的链接）；次数与搜索共用公司设置的上限
+            params["tools"].append({"type": "web_fetch_20260209", "name": "web_fetch", "max_uses": cfg.max_web_searches})
     def one_round(timeout):
         # 流式输出时只要一直有数据就不会触发单请求超时，所以每收到一段都核对整任务期限
         with client.beta.messages.stream(messages=messages, timeout=timeout, **params) as stream:
@@ -1037,6 +1046,87 @@ def process_background(payload: dict, callback_url: str):
         message = scrub(str(e), key)
         print(f"[ai-orchestrator] background failed: {message}")
         send_callback(callback_url, "failed", error=message[:500])
+
+
+PRODUCT_CONTENT_SKILL = "product-content"
+# 一个商品的资料与营销内容要核实多个网页，联网次数至少这么多（公司设置更高时按公司设置）
+PRODUCT_CONTENT_MIN_WEB_CALLS = int(os.environ.get("AI_PRODUCT_CONTENT_MIN_WEB_CALLS") or "40")
+# 整个任务的期限（秒）：生成期间每隔 PRODUCT_CONTENT_HEARTBEAT 秒报告一次进度，后端按最近一次进度计时
+PRODUCT_CONTENT_SECONDS = int(os.environ.get("AI_PRODUCT_CONTENT_SECONDS") or "1800")
+PRODUCT_CONTENT_HEARTBEAT = 240
+PRODUCT_CONTENT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "factsMarkdown": {"type": "string"},
+        "marketingMarkdown": {"type": "string"},
+        "selfScore": {"type": "integer"},
+        "summary": {"type": "string"},
+    },
+    "required": ["factsMarkdown", "marketingMarkdown", "selfScore", "summary"],
+}
+# 两份任务包合计的长度上限（字符），与后端一致
+PRODUCT_CONTENT_MAX_INPUT = 200000
+
+
+def product_content_prompt() -> str:
+    """系统版运行说明 + 原文技能 + 原文输出格式（skills/product-content 下固定的一份）"""
+    base = os.path.join(SKILL_DIR, PRODUCT_CONTENT_SKILL)
+    with open(os.path.join(base, "upstream", "SKILL.md"), encoding="utf-8") as f:
+        upstream = f.read()
+    with open(os.path.join(base, "references", "output-format.md"), encoding="utf-8") as f:
+        output_format = f.read()
+    return (_read_skill(PRODUCT_CONTENT_SKILL).replace("{{UPSTREAM_SKILL}}", upstream)
+            .replace("{{OUTPUT_FORMAT}}", output_format))
+
+
+def build_product_content_text(input_data: dict) -> str:
+    return ("下面是这个商品的两份任务包。请按运行约定核实后，输出完整的资料包与营销包。\n\n"
+            "===== 资料包任务包（" + (input_data.get("factsFileName") or "facts.md") + "）=====\n"
+            + (input_data.get("factsPack") or "") + "\n\n"
+            "===== 营销包任务包（" + (input_data.get("marketingFileName") or "marketing.md") + "）=====\n"
+            + (input_data.get("marketingPack") or ""))
+
+
+def call_product_content(cfg, input_data: dict) -> dict:
+    structured = call_api(cfg, product_content_prompt(), build_product_content_text(input_data), [],
+                          PRODUCT_CONTENT_SCHEMA, role="parse", web_search=True, web_fetch=True,
+                          min_web_calls=PRODUCT_CONTENT_MIN_WEB_CALLS)
+    if not (structured.get("factsMarkdown") or "").strip() or not (structured.get("marketingMarkdown") or "").strip():
+        raise RuntimeError("AI 没有输出完整的资料包和营销包")
+    return structured
+
+
+def process_product_content(payload: dict, callback_url: str):
+    """商品资料与营销内容（openspec product-content-ai）：一个商品一个任务，耗时较长，期间定期报告进度"""
+    start_job(PRODUCT_CONTENT_SECONDS)
+    key = _api_key_of(payload)
+    stop = threading.Event()
+
+    def heartbeat():
+        while not stop.wait(PRODUCT_CONTENT_HEARTBEAT):
+            send_progress(callback_url, 0, 0, None)
+
+    threading.Thread(target=heartbeat, daemon=True).start()
+    try:
+        cfg = parse_chain(payload, callback_url)
+        input_data = payload.get("input") or {}
+        if not (input_data.get("factsPack") or "").strip() or not (input_data.get("marketingPack") or "").strip():
+            send_callback(callback_url, "failed", error="缺少资料包或营销包任务包")
+            return
+        if len(input_data["factsPack"]) + len(input_data["marketingPack"]) > PRODUCT_CONTENT_MAX_INPUT:
+            send_callback(callback_url, "failed", error="任务包内容过长")
+            return
+        send_callback(callback_url, "success", output=call_product_content(cfg, input_data))
+    except ConfigError as e:
+        send_callback(callback_url, "failed", error=str(e))
+    except (JobTimeout, anthropic.APITimeoutError, openai.APITimeoutError):
+        send_callback(callback_url, "failed", error=f"AI 处理超过 {PRODUCT_CONTENT_SECONDS // 60} 分钟未完成")
+    except Exception as e:
+        message = scrub(str(e), key)
+        print(f"[ai-orchestrator] product-content failed: {message}")
+        send_callback(callback_url, "failed", error=message[:500])
+    finally:
+        stop.set()
 
 
 FOLLOWUP_EXTRACT_SKILL = "followup-extract"
@@ -1898,6 +1988,11 @@ class Handler(BaseHTTPRequestHandler):
         if skill_id == REFINE_SKILL:
             if callback_url:
                 threading.Thread(target=process_refine, args=(payload, callback_url), daemon=True).start()
+            return
+
+        if skill_id == PRODUCT_CONTENT_SKILL:
+            if callback_url:
+                threading.Thread(target=process_product_content, args=(payload, callback_url), daemon=True).start()
             return
 
         if skill_id == BACKGROUND_SKILL:

@@ -85,6 +85,7 @@ public class ContentTaskService {
     private final ProductKeywordUseMapper keywordUseMapper;
     private final ProductFactNoteMapper factNoteMapper;
     private final ObjectMapper objectMapper;
+    private final com.zhul.erp.modules.product.content.support.ContentAiJobs aiJobs;
 
     /** 入口：资料任务看资料阶段，营销任务看营销阶段（spec product/product-content「内容任务」） */
     public enum View { FACTS, MARKETING }
@@ -126,6 +127,8 @@ public class ContentTaskService {
         Map<Long, String> categories = categoryNames(rows.stream().map(ContentTaskRow::getCategoryId).collect(Collectors.toSet()));
         Map<Long, Map<String, ProductMarketingSkipDO>> skips = skipService.skips(
                 rows.stream().map(ContentTaskRow::getProductId).toList());
+        Map<Long, com.zhul.erp.modules.product.content.dto.ContentAiJobVO> ai = aiJobs.latest(
+                rows.stream().map(ContentTaskRow::getProductId).toList());
         List<ContentTaskVO> records = new ArrayList<>(rows.size());
         for (ContentTaskRow r : rows) {
             ContentTaskVO vo = new ContentTaskVO();
@@ -153,6 +156,7 @@ public class ContentTaskService {
             vo.setFactVerifiedAt(r.getFactVerifiedAt());
             vo.setFactVerifiedBy(r.getFactVerifiedBy());
             vo.setFactDownloadedAt(r.getFactDownloadedAt());
+            vo.setAi(ai.get(r.getProductId()));
             vo.setCreateTime(r.getCreateTime());
             vo.setCreateBy(r.getCreateBy());
             vo.setUpdateTime(r.getUpdateTime());

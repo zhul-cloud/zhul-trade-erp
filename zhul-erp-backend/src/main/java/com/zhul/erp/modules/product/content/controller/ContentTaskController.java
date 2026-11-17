@@ -39,6 +39,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import com.zhul.erp.modules.product.content.dto.ContentAiResultVO;
+import com.zhul.erp.modules.product.content.dto.ContentAiStartRequest;
+import com.zhul.erp.modules.product.content.dto.ContentAiStartVO;
+import com.zhul.erp.modules.product.content.service.ContentAiService;
 import java.util.Map;
 
 /**
@@ -65,6 +69,7 @@ public class ContentTaskController {
     private final MarketingSkipService skipService;
     private final ContentImportRecordService recordService;
     private final ContentQuickImport quickImport;
+    private final ContentAiService aiService;
 
     // ---------------------------------------------------------------- 资料任务
 
@@ -152,6 +157,43 @@ public class ContentTaskController {
     @PreAuthorize("(" + FACTS_EDIT + ") and (" + OPS_EDIT + ")")
     public Result<ContentConfirmVO> combinedConfirm(@Valid @RequestBody ContentFileRequest req) {
         return Result.ok(quickImport.confirm(req));
+    }
+
+    // ---------------------------------------------------------------- AI 生成
+
+    /** 发起 AI 生成（单个或批量，一次最多 20 个）；服务端再按「商品内容维护」「营销内容维护」至少有一项校验 */
+    @PostMapping("/ai/start")
+    @PreAuthorize(FACTS_MENU + " or " + OPS_MENU)
+    public Result<ContentAiStartVO> aiStart(@Valid @RequestBody ContentAiStartRequest req) {
+        return Result.ok(aiService.start(req.getProductIds()));
+    }
+
+    @PostMapping("/ai/{id}/cancel")
+    @PreAuthorize(FACTS_MENU + " or " + OPS_MENU)
+    public Result<Void> aiCancel(@PathVariable Long id) {
+        aiService.cancel(id);
+        return Result.ok();
+    }
+
+    @PostMapping("/ai/{id}/abandon")
+    @PreAuthorize(FACTS_MENU + " or " + OPS_MENU)
+    public Result<Void> aiAbandon(@PathVariable Long id) {
+        aiService.abandon(id);
+        return Result.ok();
+    }
+
+    /** AI 生成结果：预览用「资料与营销一起上传」的预览接口，确认用下面的接口 */
+    @GetMapping("/ai/{id}")
+    @PreAuthorize(FACTS_MENU + " or " + OPS_MENU)
+    public Result<ContentAiResultVO> aiResult(@PathVariable Long id) {
+        return Result.ok(aiService.result(id));
+    }
+
+    /** 确认写入：按确认人的权限分别写资料包、营销包，不自动审核 */
+    @PostMapping("/ai/{id}/confirm")
+    @PreAuthorize(FACTS_MENU + " or " + OPS_MENU)
+    public Result<ContentConfirmVO> aiConfirm(@PathVariable Long id, @Valid @RequestBody ContentFileRequest req) {
+        return Result.ok(aiService.confirm(id, req));
     }
 
     /** 本公司启用的营销平台 */
