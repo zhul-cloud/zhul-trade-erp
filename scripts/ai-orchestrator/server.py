@@ -68,7 +68,8 @@ import jsonschema
 import openai
 
 import large_parse as lp
-from subscription import SearchLimitError, SubscriptionCallError, call_subscription, codex_models, login_status
+from subscription import (SearchLimitError, SubscriptionCallError, call_subscription, codex_confirmed, codex_models,
+                          login_status)
 
 PORT = int(os.environ.get("AI_STUB_PORT", "8899"))
 CALLBACK_TOKEN = os.environ.get("AI_TASK_CALLBACK_TOKEN", "zhul-erp-ai-callback-secret")
@@ -1818,6 +1819,24 @@ def _check_model(cfg: AiConfig, model: str):
         return e
 
 
+def subscription_status() -> dict:
+    """AI 设置卡片的订阅状态：两家并行检查，超时按未登录返回，后端约定不变。
+    Codex 本机已登录时再向服务端确认，登录过期显示未登录；整次不超过 QUICK_TIMEOUT_SECONDS（audit AI-015）"""
+    started = time.monotonic()
+
+    def codex():
+        logged_in = login_status(QUICK_TIMEOUT_SECONDS, providers=("codex",))["codex"]
+        if not logged_in:
+            return logged_in
+        remaining = max(1.0, QUICK_TIMEOUT_SECONDS - (time.monotonic() - started))
+        return codex_confirmed(remaining) is not False
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        claude = pool.submit(login_status, QUICK_TIMEOUT_SECONDS, ("claude",))
+        codex_status = pool.submit(codex)
+    return {"codex": codex_status.result(), "claude": claude.result()["claude"]}
+
+
 def test_connection(raw) -> dict:
     """测试连接：API 方式查询 Key 与两个模型，订阅方式检查对应 CLI 是否登录。
     各项并行检查，快速检查不让 SDK 自动重试，整次诊断在后端 30 秒期限内返回（audit AI-004）"""
@@ -1832,14 +1851,12 @@ def test_connection(raw) -> dict:
         logged_in = login_status(QUICK_TIMEOUT_SECONDS, providers=(cli,))[cli]
         message = {True: "已登录", False: "未登录，请在容器内执行登录命令"}.get(logged_in, "未能检查登录状态（超时或找不到 CLI），请稍后重试")
         if logged_in and cli == "codex":
-            # 本机登录文件在，服务端也可能已拒绝（登录过期）：列一次模型向服务端确认，不调用模型、不耗额度（AI-015）
-            try:
-                codex_models(QUICK_TIMEOUT_SECONDS)
-            except RuntimeError as e:
-                if getattr(e, "code", "") == "auth":
-                    logged_in, message = False, "登录已失效（服务端拒绝），请在容器内重新执行登录命令"
-                else:
-                    message = "已登录（暂时无法向服务端确认，稍后可再测）"
+            # 本机登录文件在，服务端也可能已拒绝（登录过期），测试时每次都向服务端确认（AI-015）
+            confirmed = codex_confirmed(QUICK_TIMEOUT_SECONDS, fresh=True)
+            if confirmed is False:
+                logged_in, message = False, "登录已失效（服务端拒绝），请在容器内重新执行登录命令"
+            elif confirmed is None:
+                message = "已登录（暂时无法向服务端确认，稍后可再测）"
         return {"ok": bool(logged_in), "items": [{"name": name, "ok": bool(logged_in), "message": message}]}
     if not cfg.api_key:
         return {"ok": False, "items": [{"name": "API Key", "ok": False, "message": "未填写 API Key"}]}
@@ -1949,8 +1966,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path != "/status":
             self._send_json(404, {"error": "not found"})
             return
-        # 两家并行检查；超时按未登录返回，后端约定不变
-        status = login_status(QUICK_TIMEOUT_SECONDS)
+        status = subscription_status()
         self._send_json(200, {"codex": {"logged_in": bool(status["codex"])}, "claude": {"logged_in": bool(status["claude"])}})
 
     def do_POST(self):

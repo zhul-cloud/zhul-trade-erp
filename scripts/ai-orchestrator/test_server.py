@@ -529,7 +529,8 @@ class TestAndModelsTest(unittest.TestCase):
 
     def test_connection_without_key_and_subscription(self):
         self.assertEqual(self.server.test_connection(ai(api_key=""))["items"][0]["message"], "未填写 API Key")
-        with mock.patch.object(self.server, "login_status", return_value={"codex": True, "claude": False}),                 mock.patch.object(self.server, "codex_models", return_value=[]):
+        with mock.patch.object(self.server, "login_status", return_value={"codex": True, "claude": False}), \
+                mock.patch.object(self.server, "codex_confirmed", return_value=True):
             self.assertTrue(self.server.test_connection(ai(mode="subscription", provider="openai", api_key=""))["ok"])
             self.assertFalse(self.server.test_connection(ai(mode="subscription", provider="claude", api_key=""))["ok"])
 
