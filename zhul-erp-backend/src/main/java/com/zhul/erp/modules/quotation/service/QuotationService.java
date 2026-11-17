@@ -27,6 +27,9 @@ public interface QuotationService {
     /** 查看指定版本；versionNo 为空时为修改中的版本，没有时为当前版本 */
     QuotationVO detail(Long id, Integer versionNo);
 
+    /** 报价单草稿（或修改中的版本）里填写真实型号：写回来源询盘型号，并同步其他还没发出的单据 */
+    com.zhul.erp.modules.inquiry.customerinquiry.dto.ActualModelVO saveActualModel(Long id, Long itemId, String actualModel);
+
     /** 已发送的报价单出新版本（编号不变） */
     QuotationVO revise(Long id);
 

@@ -43,6 +43,10 @@ export interface PiItem {
   inquiryCode?: string;
   inquiryItemId: number;
   model: string;
+  /** 客户询价时写的型号（与型号不同时才有） */
+  customerModel?: string;
+  /** 已发送的 PI 当前版本：真实型号已更新为这个型号 */
+  modelUpdatedTo?: string;
   /** 来源询盘型号上的订货号，只在系统内显示 */
   orderCode?: string;
   /** 对应的商品档案；没有时为空 */

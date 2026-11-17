@@ -8,7 +8,9 @@ import com.zhul.erp.modules.inquiry.customerinquiry.dto.ConfirmRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryDetailVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.InquiryModelLineVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryPageQuery;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.ActualModelVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerInquiryVO;
+import com.zhul.erp.modules.inquiry.sourcing.dto.ActualModelRequest;
 import com.zhul.erp.modules.crm.dto.OpportunityDetailVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.CustomerTypeVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.InquiryDownstreamVO;
@@ -165,6 +167,13 @@ public class CustomerInquiryController {
     public Result<Void> update(@PathVariable Long id, @Valid @RequestBody UpdateCustomerInquiryRequest req) {
         service.update(id, req);
         return Result.ok();
+    }
+
+    /** 业务员填写或清空真实型号（spec inquiry/inquiry-intake「业务员填写真实型号」），权限同修改询盘 */
+    @PutMapping("/{id}/items/{itemId}/actual-model")
+    public Result<ActualModelVO> saveActualModel(@PathVariable Long id, @PathVariable Long itemId,
+                                                 @Valid @RequestBody ActualModelRequest req) {
+        return Result.ok(service.saveActualModel(id, itemId, req.getActualModel()));
     }
 
     /** 改铭牌图片对应的型号（spec inquiry/inquiry-intake「铭牌图片」），权限同修改询盘 */

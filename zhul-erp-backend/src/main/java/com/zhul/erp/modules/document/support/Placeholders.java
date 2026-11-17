@@ -20,7 +20,7 @@ public final class Placeholders {
             "seller.name", "seller.email", "seller.phone");
 
     public static final Set<String> ITEM = Set.of(
-            "item.no", "item.model", "item.brand", "item.category", "item.description", "item.condition", "item.conditionEn",
+            "item.no", "item.model", "item.customerModel", "item.brand", "item.category", "item.description", "item.condition", "item.conditionEn",
             "item.leadTime", "item.leadTimeEn", "item.warranty", "item.qty", "item.unitPrice", "item.unitPriceShort", "item.amount");
 
     public static final Set<String> FEE = Set.of("fee.no", "fee.name", "fee.amount");

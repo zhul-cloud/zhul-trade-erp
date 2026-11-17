@@ -150,7 +150,7 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
                             .last("LIMIT " + KEYWORD_LIMIT))
                     .stream().map(SalesOrderDO::getId).toList();
             w.and(x -> {
-                x.like(PurchaseRequirementDO::getModel, kw);
+                x.like(PurchaseRequirementDO::getModel, kw).or().like(PurchaseRequirementDO::getDescription, kw);
                 if (!soIds.isEmpty()) {
                     x.or().in(PurchaseRequirementDO::getSoId, soIds);
                 }
@@ -331,6 +331,7 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
             vo.setModel(r.getModel());
             vo.setBrand(r.getBrand());
             vo.setCategory(r.getCategory());
+            vo.setDescription(r.getDescription());
             vo.setQuantity(r.getQuantity());
             vo.setDraftQty(x.draft());
             vo.setOrderedQty(x.ordered());
@@ -478,6 +479,7 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
         y.setTargetPrice(r.getTargetPrice());
         y.setPurchaserId(req.getPurchaserId() != null ? req.getPurchaserId() : r.getPurchaserId());
         y.setCategory(r.getCategory());
+        y.setDescription(r.getDescription());
         if (target != null) {
             target.applyTo(y);
         } else {

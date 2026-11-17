@@ -30,6 +30,7 @@ import React, {
   useState,
 } from 'react';
 import { CustomerCell } from '@/components/DocFields';
+import { DocDescription } from '@/components/DocFields/DocModelCell';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { CustomerTypePill } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -231,6 +232,12 @@ const RequirementList: React.FC = () => {
           )}
         </div>
       ),
+    },
+    {
+      title: '描述',
+      key: 'description',
+      width: 240,
+      render: (_, r) => <DocDescription text={r.description} />,
     },
     {
       title: '数量',
@@ -533,7 +540,7 @@ const RequirementList: React.FC = () => {
             allowClear
             style={{ width: 240 }}
             prefix={<SearchOutlined />}
-            placeholder="订单编号、客户、型号"
+            placeholder="订单编号、客户、型号、描述"
             value={draftFilters.keyword}
             onChange={(e) =>
               setDraftFilters((f) => ({ ...f, keyword: e.target.value }))

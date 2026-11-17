@@ -14,6 +14,10 @@ public class QuotationItemVO {
     private String inquiryCode;
     private Long inquiryItemId;
     private String model;
+    /** 客户型号（询盘确认的型号）；与型号相同时为空 */
+    private String customerModel;
+    /** 已发送的当前有效版本：询盘型号的真实型号已更新为这个型号（与型号不同时才有值） */
+    private String modelUpdatedTo;
     /** 询盘型号上的订货号（物料号、料号），辅助识别，只在系统内显示 */
     private String orderCode;
     /** 对应的商品档案（来源询盘型号已建档，或按品牌 + 型号匹配到）；没有时为空 */

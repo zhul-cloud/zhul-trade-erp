@@ -10,6 +10,9 @@ import com.zhul.erp.framework.security.DataScopeResolver;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.inquiry.support.DocItemProducts;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
+import com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO;
+import com.zhul.erp.modules.inquiry.support.DocModelLookup;
+import com.zhul.erp.modules.inquiry.support.DocModels;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
 import com.zhul.erp.modules.masterdata.repository.CustomerMapper;
 import com.zhul.erp.modules.product.entity.ProductCustomsDO;
@@ -132,6 +135,7 @@ public class PiServiceImpl implements PiService {
     private final CurrentUserResolver currentUser;
     private final com.zhul.erp.framework.security.PermissionChecker perm;
     private final InquiryLookups lookups;
+    private final DocModelLookup docModelLookup;
     private final LogService logService;
     private final ObjectMapper objectMapper;
     private final com.zhul.erp.modules.finance.service.CreditUsageService creditUsage;
@@ -456,6 +460,8 @@ public class PiServiceImpl implements PiService {
     private List<PiItemDO> newLines(ProformaInvoiceDO pi, PiVersionDO v, Picked picked, int startLine) {
         Map<Long, ProductCustomsDO> customs = defaults.customsByInquiryItem(picked.lines().stream()
                 .map(QuotationItemDO::getInquiryItemId).filter(Objects::nonNull).collect(Collectors.toSet()));
+        // PI 是新的草稿：型号按询盘型号当前的单据型号（真实型号优先）取，没有来源询盘型号时沿用报价行
+        Map<Long, InquiryItemDO> docs = docModelLookup.items(picked.lines().stream().map(QuotationItemDO::getInquiryItemId).toList());
         List<PiItemDO> list = new ArrayList<>();
         int line = startLine;
         for (QuotationItemDO s : picked.lines()) {
@@ -468,7 +474,9 @@ public class PiServiceImpl implements PiService {
             i.setQuotationItemId(s.getId());
             i.setCustomerInquiryId(s.getCustomerInquiryId());
             i.setInquiryItemId(s.getInquiryItemId());
-            i.setModel(nz(s.getModel()));
+            InquiryItemDO src = docs.get(s.getInquiryItemId());
+            i.setModel(src != null ? DocModels.docModel(src) : nz(s.getModel()));
+            i.setCustomerModel(src != null ? DocModels.customerModel(src) : nz(s.getCustomerModel()));
             i.setBrand(nz(s.getBrand()));
             i.setCategory(nz(s.getCategory()));
             i.setDescription(nz(s.getDescription()));
@@ -633,7 +641,15 @@ public class PiServiceImpl implements PiService {
         v.setVersionNo(next);
         v.setStatus(SalesConstants.VERSION_EDITING);
         versionMapper.insert(v);
-        for (PiItemDO s : store.items(cur.getId())) {
+        List<PiItemDO> copies = store.items(cur.getId());
+        // 新版本按询盘型号当前的单据型号（真实型号优先）重新取型号与客户型号
+        Map<Long, InquiryItemDO> docs = docModelLookup.items(copies.stream().map(PiItemDO::getInquiryItemId).toList());
+        for (PiItemDO s : copies) {
+            InquiryItemDO src = docs.get(s.getInquiryItemId());
+            if (src != null) {
+                s.setModel(DocModels.docModel(src));
+                s.setCustomerModel(DocModels.customerModel(src));
+            }
             s.setId(null);
             s.setVersionId(v.getId());
             s.setCreateTime(null);
@@ -876,6 +892,17 @@ public class PiServiceImpl implements PiService {
         }
         List<PiItemDO> items = store.items(v.getId());
         vo.setVersion(toVersionVo(v, items, store.fees(v.getId())));
+        // 已发送的当前有效版本：型号与询盘型号当前的单据型号不同时提示（spec sales/proforma-invoice「真实型号变更后的 PI」）
+        if (pi.getStatus() == SalesConstants.PI_SENT && Objects.equals(v.getVersionNo(), pi.getCurrentVersionNo())
+                && !Objects.equals(v.getVersionNo(), pi.getEditingVersionNo())) {
+            Map<Long, String> docModels = docModelLookup.docModels(items.stream().map(PiItemDO::getInquiryItemId).toList());
+            for (PiItemVO x : vo.getVersion().getItems()) {
+                String doc = docModels.get(x.getInquiryItemId());
+                if (doc != null && !DocModels.sameModel(doc, x.getModel())) {
+                    x.setModelUpdatedTo(doc);
+                }
+            }
+        }
         vo.setVersions(store.versions(id).stream().map(x -> {
             PiVO.VersionBrief b = new PiVO.VersionBrief();
             b.setVersionNo(x.getVersionNo());
@@ -959,6 +986,7 @@ public class PiServiceImpl implements PiService {
             x.setInquiryCode(inquiryCodes.get(i.getCustomerInquiryId()));
             x.setInquiryItemId(i.getInquiryItemId());
             x.setModel(i.getModel());
+            x.setCustomerModel(DocModels.shownCustomerModel(i.getModel(), i.getCustomerModel()));
             x.setBrand(i.getBrand());
             x.setCategory(i.getCategory());
             x.setDescription(i.getDescription());

@@ -31,6 +31,7 @@ import com.zhul.erp.modules.inquiry.customerinquiry.dto.AiParseGroupDTO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.AiParseItemDTO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.AiParseOutputDTO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.AttachmentRef;
+import com.zhul.erp.modules.inquiry.customerinquiry.dto.ActualModelVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.AttachmentVO;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.ConfirmRequest;
 import com.zhul.erp.modules.inquiry.customerinquiry.dto.ConfirmRowRequest;
@@ -65,6 +66,7 @@ import com.zhul.erp.modules.inquiry.sourcing.repository.SourcingTaskMapper;
 import com.zhul.erp.modules.inquiry.sourcing.service.PriceHistoryService;
 import com.zhul.erp.modules.inquiry.sourcing.service.SourcingTaskService;
 import com.zhul.erp.modules.inquiry.sourcing.service.impl.SourcingProgress;
+import com.zhul.erp.modules.inquiry.support.ActualModels;
 import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.inquiry.support.GeneratedInquiryCode;
 import com.zhul.erp.modules.inquiry.support.InquiryCodeGenerator;
@@ -141,6 +143,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     private final PriceHistoryService priceHistoryService;
     private final SourcingTaskService sourcingTaskService;
     private final SourcingProgress progress;
+    private final ActualModels actualModels;
     private final SourcingSettings settings;
     /** 发给 AI 编排服务的附件链接有效期：解析任务可能排队，比页面预览的 10 分钟长 */
     private static final Duration AI_LINK_TTL = Duration.ofMinutes(60);
@@ -551,6 +554,8 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             vo.setLifecycle(i.getLifecycle());
             vo.setReplacementModel(i.getReplacementModel());
             vo.setActualModel(i.getActualModel());
+            vo.setActualModelBy(i.getActualModelBy());
+            vo.setActualModelAt(i.getActualModelAt());
             vo.setArchiveStatus(i.getArchiveStatus());
             vo.setArchiveStatusName(com.zhul.erp.modules.product.candidate.constants.CandidateConstants.ARCHIVE_NAMES.get(i.getArchiveStatus()));
             vo.setProductId(i.getProductId());
@@ -1441,6 +1446,29 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             opportunityService.onInquiryCreated(req.getOpportunityId(), inquiry.getInquiryCode());
         }
         logService.recordOperateLog("询盘单", "修改询盘", before, after);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
+    public ActualModelVO saveActualModel(Long id, Long itemId, String actualModel) {
+        CustomerInquiryDO inquiry = getEditable(id);
+        progress.lock(id);
+        if (InquiryConstants.STATUS_CANCELLED == inquiry.getStatus()) {
+            throw new BizException("询盘已取消，不能修改");
+        }
+        InquiryItemDO item = itemMapper.selectById(itemId);
+        if (item == null || item.getDeletedAt() != null || !Objects.equals(item.getCustomerInquiryId(), id)) {
+            throw new BizException("型号不存在，请刷新后再试");
+        }
+        String before = Objects.requireNonNullElse(item.getActualModel(), "");
+        String model = Objects.requireNonNullElse(item.getConfirmedModel(), "");
+        if (!actualModels.save(List.of(item), Map.of(itemId, actualModel == null ? "" : actualModel)).isEmpty()) {
+            logService.recordOperateLog("询盘单", "修改真实型号",
+                    Map.of("inquiryCode", inquiry.getInquiryCode(), "型号", model, "真实型号", before),
+                    Map.of("inquiryCode", inquiry.getInquiryCode(), "型号", model, "真实型号",
+                            Objects.requireNonNullElse(item.getActualModel(), "")));
+        }
+        return ActualModels.vo(itemMapper.selectById(itemId));
     }
 
     @Override

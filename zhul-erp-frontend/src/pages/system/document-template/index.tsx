@@ -79,6 +79,10 @@ const PLACEHOLDERS: { group: string; rows: [string, string][] }[] = [
         '${item.model} / ${item.brand} / ${item.category}',
         '型号 / 品牌 / 品类',
       ],
+      [
+        '${item.customerModel}',
+        '客户型号（和型号不同时才有，例如客户询价写错或写得不全）',
+      ],
       ['${item.description}', '描述（英文）'],
       ['${item.condition} / ${item.conditionEn}', '货况（中文 / 英文）'],
       ['${item.leadTime} / ${item.leadTimeEn}', '货期（中文 / 英文）'],

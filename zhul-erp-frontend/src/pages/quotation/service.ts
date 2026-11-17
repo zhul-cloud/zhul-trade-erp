@@ -1,4 +1,5 @@
 import { request } from '@umijs/max';
+import type { ActualModelResult } from '@/components/DocFields/ActualModel';
 import type { ModelRow } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import type { Tier } from './strategy';
 import { type TextOptions, textQuery } from './textOptions';
@@ -68,6 +69,10 @@ export interface QuotationItem {
   inquiryCode?: string;
   inquiryItemId: number;
   model: string;
+  /** 客户询价时写的型号（与型号不同时才有） */
+  customerModel?: string;
+  /** 已发送的当前版本：真实型号已更新为这个型号 */
+  modelUpdatedTo?: string;
   /** 询盘型号上的订货号（物料号、料号），辅助识别，只在系统内显示 */
   orderCode?: string;
   /** 对应的商品档案；没有时为空 */
@@ -413,6 +418,11 @@ export const quotationApi = {
   detail: (id: number, version?: number) =>
     get<Quotation>(`${QT}/${id}`, version ? { version } : {}),
   revise: (id: number) => send<Quotation>('POST', `${QT}/${id}/revise`),
+  /** 草稿或修改中的版本里填写真实型号：写回询盘，其他还没发出的单据一起改 */
+  saveActualModel: (id: number, itemId: number, actualModel: string) =>
+    send<ActualModelResult>('PUT', `${QT}/${id}/items/${itemId}/actual-model`, {
+      actualModel,
+    }),
   abandon: (id: number) => send<Quotation>('POST', `${QT}/${id}/abandon`),
   create: (body: { inquiryIds?: number[]; itemIds?: number[] }) =>
     send<Quotation>('POST', QT, body),

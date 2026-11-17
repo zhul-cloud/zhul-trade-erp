@@ -24,6 +24,8 @@ public class PurchaseOrderItemDO {
     private Long soItemId;
     private String model;
     private String brand;
+    /** 描述（中文，来自采购需求） */
+    private String description;
     private Integer quantity;
     /** 来源订单部分取消后减少的数量（累计；采购数量不自动改，提示采购员处理） */
     private Integer soReducedQuantity;

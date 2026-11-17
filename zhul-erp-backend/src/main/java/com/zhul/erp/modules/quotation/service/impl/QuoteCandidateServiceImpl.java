@@ -229,7 +229,8 @@ public class QuoteCandidateServiceImpl implements QuoteCandidateService {
         String lower = kw.toLowerCase();
         return (StringUtils.hasText(modelKey) && item.getModelKey() != null && item.getModelKey().contains(modelKey))
                 || (item.getConfirmedModel() != null && item.getConfirmedModel().toLowerCase().contains(lower))
-                || (item.getOriginalModel() != null && item.getOriginalModel().toLowerCase().contains(lower));
+                || (item.getOriginalModel() != null && item.getOriginalModel().toLowerCase().contains(lower))
+                || (StringUtils.hasText(modelKey) && item.getActualModelKey() != null && item.getActualModelKey().contains(modelKey));
     }
 
     private List<QuoteInquiryVO> toCards(List<CustomerInquiryDO> rows) {
@@ -299,7 +300,7 @@ public class QuoteCandidateServiceImpl implements QuoteCandidateService {
         PickItemVO vo = new PickItemVO();
         vo.setItemId(i.getId());
         vo.setLineNo(i.getLineNo());
-        vo.setModel(StringUtils.hasText(i.getConfirmedModel()) ? i.getConfirmedModel() : i.getOriginalModel());
+        vo.setModel(com.zhul.erp.modules.inquiry.support.DocModels.docModel(i));
         vo.setBrand(i.getBrand());
         vo.setCategory(i.getCategory());
         vo.setQuantity(i.getQuantity());

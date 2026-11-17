@@ -27,6 +27,8 @@ public class QuotationItemDO {
     private Long inquiryItemId;
     private Long costQuoteId;
     private String model;
+    /** 客户型号（询盘确认的型号）；为空或与型号相同时不显示 */
+    private String customerModel;
     private String brand;
     private String brandKey;
     private String category;

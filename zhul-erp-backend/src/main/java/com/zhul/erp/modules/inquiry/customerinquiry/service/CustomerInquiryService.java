@@ -85,6 +85,9 @@ public interface CustomerInquiryService {
     /** 改铭牌图片对应的型号，inquiryItemId 为 0 时改为未对应；写操作日志并重建素材索引 */
     void linkNameplate(Long id, Long attachmentId, Long inquiryItemId);
 
+    /** 业务员填写或清空真实型号（spec inquiry/inquiry-intake「业务员填写真实型号」），权限同修改询盘 */
+    com.zhul.erp.modules.inquiry.customerinquiry.dto.ActualModelVO saveActualModel(Long id, Long itemId, String actualModel);
+
     /** 业务员核实完被退回的存疑型号后清除提醒 */
     void markReviewed(Long id);
 
