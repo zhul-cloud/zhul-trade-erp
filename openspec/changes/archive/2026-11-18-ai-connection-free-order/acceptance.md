@@ -14,4 +14,6 @@
 | A5 | 升级后顺序不变（API 在前） | 本机迁移 + 契约 | 本机租户 1001 订阅行由 1、2 变为 21、22，API 行仍为 1、2；`upgradedOrderKeepsApiFirst` 断言 | 通过 |
 | A6 | 未授权订阅的公司仍不能保存订阅 | 契约 | `tenantWithoutGrantCannotUseSubscription` 通过 | 通过 |
 
+结论：生产验收（2026-11-18，v1.36.0）。
+
 备注：实测保存在本机平台租户新建的 4 行配置已删除，恢复为实测前的默认状态。
