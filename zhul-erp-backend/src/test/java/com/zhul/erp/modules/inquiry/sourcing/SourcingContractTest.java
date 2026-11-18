@@ -166,9 +166,12 @@ class SourcingContractTest extends InquiryContractSupport {
 
         JsonNode board = ok(call(get(BOARD), admin));
         assertEquals(2, board.path("stats").path("unassigned").asInt());
-        JsonNode m = board.path("tasks").get(0).path("brand").asText().equals("Mitsubishi") ? board.path("tasks").get(0) : board.path("tasks").get(1);
+        JsonNode m = board.path("tasks").get(0).path("id").asLong() == mTask ? board.path("tasks").get(0) : board.path("tasks").get(1);
+        assertEquals(mTask, m.path("id").asLong());
         assertEquals(BUYER_LIN, m.path("recommendedId").asLong(), "近 180 天三菱询得最多");
-        assertEquals("Mitsubishi 询过 2 次 · 进行中 0", m.path("recommendReason").asText());
+        // 询盘确认时品牌存正式名（品牌库有 Mitsubishi 别名时为 Mitsubishi Electric）
+        String mBrand = jdbc.queryForObject("select brand from sourcing_task where id = ?", String.class, mTask);
+        assertEquals(mBrand + " 询过 2 次 · 进行中 0", m.path("recommendReason").asText());
         JsonNode purchasers = board.path("purchasers");
         assertEquals(4, purchasers.size(), "带「我的询价任务」菜单的 3 个采购，加上分配人自己");
         assertEquals(99000002L, purchasers.get(0).path("id").asLong(), "分配人自己排第一");
