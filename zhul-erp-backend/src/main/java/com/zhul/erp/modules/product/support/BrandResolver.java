@@ -65,6 +65,15 @@ public class BrandResolver {
         return owner == null || owner.getDeletedAt() != null ? null : owner.getId();
     }
 
+    /** 正式品牌名；品牌不存在或已删除时返回 null */
+    public String nameOf(Long brandId) {
+        if (brandId == null) {
+            return null;
+        }
+        ProductBrandDO brand = brandMapper.selectById(brandId);
+        return brand == null || brand.getDeletedAt() != null ? null : brand.getBrandName();
+    }
+
     /**
      * 发给客户的单据用的品牌名：按品牌名称或别名匹配到正式品牌时返回正式品牌名（英文，如「西门子」→ Siemens），
      * 匹配不到时返回原文。批量查询，返回 原文 → 输出名。

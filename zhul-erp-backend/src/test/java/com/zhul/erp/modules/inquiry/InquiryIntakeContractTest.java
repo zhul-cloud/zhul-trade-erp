@@ -186,7 +186,7 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
         assertEquals(2, tasks.get(1).path("itemCount").asInt());
         assertEquals("变频器与驱动", tasks.get(2).path("category").asText(), "「变频器」关联到品类后，任务按一级品类命名");
         JsonNode items = detail.path("items");
-        assertEquals("SIEMENS", items.get(0).path("brand").asText());
+        assertEquals("Siemens", items.get(0).path("brand").asText(), "识别到品牌时存正式品牌名（openspec brand-unify）");
         assertEquals(1, items.get(0).path("priceSource").asInt());
         assertEquals(0, new java.math.BigDecimal("1350.00").compareTo(items.get(0).path("selectedQuote").path("unitPriceCny").decimalValue()));
         assertEquals("伺服电机", items.get(1).path("category").asText());

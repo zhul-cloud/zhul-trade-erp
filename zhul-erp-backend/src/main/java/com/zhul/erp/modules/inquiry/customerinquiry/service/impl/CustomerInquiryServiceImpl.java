@@ -1028,7 +1028,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             item.setTenantId(inquiry.getTenantId());
             item.setCustomerInquiryId(inquiry.getId());
             item.setLineNo(lineOffset + line);
-            item.setBrand(row.getBrand().trim());
+            item.setBrand(priceKeys.brandText(brand, row.getBrand()));
             item.setBrandId(brand.brandId());
             item.setBrandKey(brand.brandKey());
             InquiryCategories.Linked category = InquiryCategories.link(row.getCategoryId(), null, row.getCategory(), categories);

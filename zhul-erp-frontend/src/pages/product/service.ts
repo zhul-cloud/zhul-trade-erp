@@ -233,19 +233,35 @@ export const categoryApi = {
 };
 
 /** 待确认品牌：供应商主营产品里手填、品牌清单中没有的名称（仅平台账号） */
+/** 待确认品牌：供应商主营产品里手填的名称，以及询盘、订单、采购单里认不出的品牌写法 */
 export interface PendingBrand {
   pendingKey: string;
   name: string;
   supplierCount: number;
+  inquiryCount: number;
+  orderCount: number;
+  purchaseCount: number;
   firstSeen: string;
+  /** similar：相近品牌；notBrand：不是品牌名 */
+  suggestKind?: 'similar' | 'notBrand';
+  suggestText?: string;
+  suggestBrandId?: number;
+  suggestBrandName?: string;
 }
 
 export const pendingBrandApi = {
   list: () => call<PendingBrand[]>('/api/v1/masterdata/pending-brands'),
-  linkAsAlias: (pendingKey: string, brandId: number) =>
-    call<void>('/api/v1/masterdata/pending-brands/alias', {
+  /** 设为同一品牌的别名（可批量），返回处理的写法数 */
+  linkAsAlias: (pendingKeys: string[], brandId: number) =>
+    call<number>('/api/v1/masterdata/pending-brands/alias-batch', {
       method: 'POST',
-      data: { pendingKey, brandId },
+      data: { pendingKeys, brandId },
+    }),
+  /** 标为不是品牌（可批量），返回处理的写法数 */
+  ignore: (pendingKeys: string[]) =>
+    call<number>('/api/v1/masterdata/pending-brands/ignore', {
+      method: 'POST',
+      data: { pendingKeys },
     }),
   createBrand: (pendingKey: string, brand: SaveBrand) =>
     call<number>('/api/v1/masterdata/pending-brands/brand', {
