@@ -1,5 +1,7 @@
 package com.zhul.erp.modules.product.service.impl;
 
+import com.zhul.erp.modules.product.service.HsTariffService;
+import com.zhul.erp.modules.product.support.CategoryHsCodes;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -53,6 +55,7 @@ public class CategoryServiceImpl implements CategoryService {
     private final PlatformScopeGuard platformScopeGuard;
     private final OptionsCache optionsCache;
     private final IndustryScope industryScope;
+    private final HsTariffService tariffService;
 
     @Override
     public PageResult<CategoryVO> page(CategoryQuery query) {
@@ -85,6 +88,7 @@ public class CategoryServiceImpl implements CategoryService {
         for (ProductCategoryDO category : page.getRecords()) {
             records.add(toVO(category, counts.getOrDefault(category.getId(), 0L)));
         }
+        fillHs(records);
         return PageResult.of(page.getTotal(), records);
     }
 
@@ -149,6 +153,7 @@ public class CategoryServiceImpl implements CategoryService {
         category.setDescriptionZh(TextRules.optional(req.getDescriptionZh(), "中文简介", ProductConstants.DESCRIPTION_MAX));
         category.setSortOrder(req.getSortOrder() == null ? 0 : req.getSortOrder());
         category.setIndustryCode(parentId == null ? industryScope.industryOrDefault(req.getIndustryCode()) : "");
+        category.setHsCode(CategoryHsCodes.normalize(req.getHsCode()));
         category.setStatus(ProductConstants.STATUS_ENABLED);
         try {
             categoryMapper.insert(category);
@@ -185,6 +190,7 @@ public class CategoryServiceImpl implements CategoryService {
         change.setDescription(TextRules.optional(req.getDescription(), "英文简介", ProductConstants.DESCRIPTION_MAX));
         change.setDescriptionZh(TextRules.optional(req.getDescriptionZh(), "中文简介", ProductConstants.DESCRIPTION_MAX));
         change.setSortOrder(req.getSortOrder() == null ? current.getSortOrder() : req.getSortOrder());
+        change.setHsCode(req.getHsCode() == null ? current.getHsCode() : CategoryHsCodes.normalize(req.getHsCode()));
         change.setIndustryCode(parentId != null ? ""
                 : StringUtils.hasText(req.getIndustryCode()) || !StringUtils.hasText(current.getIndustryCode())
                 ? industryScope.industryOrDefault(req.getIndustryCode()) : current.getIndustryCode());
@@ -256,8 +262,10 @@ public class CategoryServiceImpl implements CategoryService {
         Map<Long, Long> counts = productCounts(all);
         Map<Long, List<CategoryVO>> children = new HashMap<>(all.size() * 2);
         List<CategoryVO> roots = new ArrayList<>();
+        List<CategoryVO> flat = new ArrayList<>(all.size());
         for (ProductCategoryDO c : all) {
             CategoryVO vo = toVO(c, counts.getOrDefault(c.getId(), 0L));
+            flat.add(vo);
             if (c.getParentId() == null) {
                 vo.setChildren(children.computeIfAbsent(c.getId(), k -> new ArrayList<>()));
                 roots.add(vo);
@@ -265,6 +273,7 @@ public class CategoryServiceImpl implements CategoryService {
                 children.computeIfAbsent(c.getParentId(), k -> new ArrayList<>()).add(vo);
             }
         }
+        fillHs(flat);
         return roots;
     }
 
@@ -394,8 +403,40 @@ public class CategoryServiceImpl implements CategoryService {
         return map;
     }
 
+    /** 实际使用的默认海关编码（细分品类没填时沿用上级）与对应的关税参考概况 */
+    private void fillHs(Collection<CategoryVO> vos) {
+        Set<Long> parentIds = new HashSet<>();
+        vos.forEach(v -> {
+            if (!StringUtils.hasText(v.getHsCode()) && v.getParentId() != null) {
+                parentIds.add(v.getParentId());
+            }
+        });
+        Map<Long, String> parentCodes = new HashMap<>();
+        if (!parentIds.isEmpty()) {
+            categoryMapper.selectBatchIds(parentIds).forEach(p -> parentCodes.put(p.getId(), p.getHsCode()));
+        }
+        for (CategoryVO v : vos) {
+            boolean own = StringUtils.hasText(v.getHsCode());
+            String parent = v.getParentId() == null ? null : parentCodes.get(v.getParentId());
+            v.setEffectiveHsCode(own ? v.getHsCode() : StringUtils.hasText(parent) ? parent : "");
+            v.setHsInherited(!own && StringUtils.hasText(parent));
+        }
+        Map<String, HsTariffService.Summary> summaries = tariffService.summaries(
+                vos.stream().map(v -> CategoryHsCodes.hs6(v.getEffectiveHsCode())).filter(StringUtils::hasText).toList());
+        for (CategoryVO v : vos) {
+            HsTariffService.Summary s = summaries.get(CategoryHsCodes.hs6(v.getEffectiveHsCode()));
+            if (s != null) {
+                v.setTariffFilled(s.filled());
+                v.setTariffTotal(s.total());
+                v.setTariffMissing(s.missing());
+                v.setTariffRange(s.range());
+            }
+        }
+    }
+
     private static CategoryVO toVO(ProductCategoryDO category, long productCount) {
         CategoryVO vo = new CategoryVO();
+        vo.setHsCode(category.getHsCode());
         vo.setId(category.getId());
         vo.setCategoryCode(category.getCategoryCode());
         vo.setCategoryName(category.getCategoryName());

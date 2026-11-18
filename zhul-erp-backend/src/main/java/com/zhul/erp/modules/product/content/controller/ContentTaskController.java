@@ -3,6 +3,8 @@ package com.zhul.erp.modules.product.content.controller;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.product.content.constants.ContentConstants;
+import com.zhul.erp.modules.product.content.dto.BatchIdsRequest;
+import com.zhul.erp.modules.product.content.dto.ContentBatchResultVO;
 import com.zhul.erp.modules.product.content.dto.ContentConfirmVO;
 import com.zhul.erp.modules.product.content.dto.ContentFileRequest;
 import com.zhul.erp.modules.product.content.dto.ContentImportRecordVO;
@@ -43,6 +45,7 @@ import com.zhul.erp.modules.product.content.dto.ContentAiResultVO;
 import com.zhul.erp.modules.product.content.dto.ContentAiStartRequest;
 import com.zhul.erp.modules.product.content.dto.ContentAiStartVO;
 import com.zhul.erp.modules.product.content.service.ContentAiService;
+import com.zhul.erp.modules.product.content.service.ContentBatchService;
 import java.util.Map;
 
 /**
@@ -70,6 +73,7 @@ public class ContentTaskController {
     private final ContentImportRecordService recordService;
     private final ContentQuickImport quickImport;
     private final ContentAiService aiService;
+    private final ContentBatchService batchService;
 
     // ---------------------------------------------------------------- 资料任务
 
@@ -109,6 +113,13 @@ public class ContentTaskController {
     public Result<Void> verifyFacts(@PathVariable Long productId) {
         factTaskService.verify(productId);
         return Result.ok();
+    }
+
+    /** 批量资料已核（openspec content-ai-batch-hs）：逐个核对，已核对过的跳过并说明原因 */
+    @PostMapping("/facts/verify-batch")
+    @PreAuthorize(FACTS_EDIT)
+    public Result<ContentBatchResultVO> verifyFactsBatch(@Valid @RequestBody BatchIdsRequest req) {
+        return Result.ok(batchService.verifyFacts(req.getIds()));
     }
 
     // ---------------------------------------------------------------- 营销任务
@@ -189,11 +200,18 @@ public class ContentTaskController {
         return Result.ok(aiService.result(id));
     }
 
-    /** 确认写入：按确认人的权限分别写资料包、营销包，不自动审核 */
+    /** 确认写入：按确认人的权限分别写资料包、营销包；技术问答随资料包审核通过，资料仍待核 */
     @PostMapping("/ai/{id}/confirm")
     @PreAuthorize(FACTS_MENU + " or " + OPS_MENU)
     public Result<ContentConfirmVO> aiConfirm(@PathVariable Long id, @Valid @RequestBody ContentFileRequest req) {
         return Result.ok(aiService.confirm(id, req));
+    }
+
+    /** 批量确认 AI 结果（openspec content-ai-batch-hs）：不逐章节修改，有问题的章节跳过，逐个列出结果 */
+    @PostMapping("/ai/confirm-batch")
+    @PreAuthorize(FACTS_MENU + " or " + OPS_MENU)
+    public Result<ContentBatchResultVO> aiConfirmBatch(@Valid @RequestBody BatchIdsRequest req) {
+        return Result.ok(batchService.confirmAi(req.getIds()));
     }
 
     /** 本公司启用的营销平台 */

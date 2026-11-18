@@ -392,8 +392,12 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
                 Integer.class, p1));
         assertTrue(jdbc.queryForObject("select verified_at is not null from product_fact_task where product_id = ?", Boolean.class, p1));
 
-        // 公司账号用资料任务导入的待审核问答：有「商品内容维护」权限就能看到并审核
+        // 资料任务导入的技术问答也随资料包审核通过（openspec content-ai-batch-hs）
         confirm(other, file("p2.facts.md", facts("ITCSiemens", "6ES7321-1FH00-0AA0", FACTS_BODY)));
+        assertEquals(0, jdbc.queryForObject("select count(*) from product_faq where product_id = ? and source = 3 and deleted_at is null",
+                Integer.class, p2));
+        // 其他来源的待审核问答（这里直接改回待审核）：有「商品内容维护」权限就能看到并审核
+        jdbc.update("update product_faq set source = 3, reviewed_by = '', reviewed_at = null where product_id = ?", p2);
         JsonNode faqs = ok(call(get(PRODUCTS + "/" + p2 + "/faqs"), other));
         assertEquals(2, faqs.size());
         long faq = faqs.get(0).path("id").asLong();

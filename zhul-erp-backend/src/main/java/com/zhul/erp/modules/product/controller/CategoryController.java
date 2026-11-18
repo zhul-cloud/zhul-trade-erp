@@ -6,8 +6,12 @@ import com.zhul.erp.modules.product.dto.CategoryOptionVO;
 import com.zhul.erp.modules.product.dto.CategoryQuery;
 import com.zhul.erp.modules.product.dto.CategoryVO;
 import com.zhul.erp.modules.product.dto.SaveCategoryRequest;
+import com.zhul.erp.modules.product.dto.SaveTariffRequest;
 import com.zhul.erp.modules.product.dto.StatusRequest;
+import com.zhul.erp.modules.product.dto.TariffAiVO;
+import com.zhul.erp.modules.product.dto.TariffVO;
 import com.zhul.erp.modules.product.service.CategoryService;
+import com.zhul.erp.modules.product.service.HsTariffService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -33,6 +37,7 @@ import java.util.List;
 public class CategoryController {
 
     private final CategoryService categoryService;
+    private final HsTariffService tariffService;
 
     @GetMapping
     public Result<PageResult<CategoryVO>> page(CategoryQuery query) {
@@ -75,5 +80,32 @@ public class CategoryController {
     public Result<Void> delete(@PathVariable Long id) {
         categoryService.delete(id);
         return Result.ok();
+    }
+
+    // ---------------------------------------------------------------- 目的国进口关税参考（openspec content-ai-batch-hs）
+
+    /** 一个 6 位编码的关税参考（9 个主要出口国） */
+    @GetMapping("/tariffs/{hs6}")
+    public Result<TariffVO> tariff(@PathVariable String hs6) {
+        return Result.ok(tariffService.get(hs6));
+    }
+
+    @PutMapping("/tariffs/{hs6}")
+    @PreAuthorize("@perm.has('product:category:edit')")
+    public Result<TariffVO> saveTariff(@PathVariable String hs6, @Valid @RequestBody SaveTariffRequest req) {
+        return Result.ok(tariffService.save(hs6, req));
+    }
+
+    /** AI 补全未填的国家：返回 AI 任务，结果作为建议由人核对后保存 */
+    @PostMapping("/tariffs/{hs6}/ai")
+    @PreAuthorize("@perm.has('product:category:edit')")
+    public Result<TariffAiVO> tariffAi(@PathVariable String hs6) {
+        return Result.ok(tariffService.submitAi(hs6));
+    }
+
+    @GetMapping("/tariffs/ai/{taskId}")
+    @PreAuthorize("@perm.has('product:category:edit')")
+    public Result<TariffAiVO> tariffAiStatus(@PathVariable Long taskId) {
+        return Result.ok(tariffService.aiStatus(taskId));
     }
 }

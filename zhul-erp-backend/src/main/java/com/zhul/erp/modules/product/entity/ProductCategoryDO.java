@@ -32,6 +32,8 @@ public class ProductCategoryDO {
     private Long parentId;
     /** 所属行业编码（字典 industry）；一级品类必填，细分品类为空、跟随上级 */
     private String industryCode;
+    /** 默认海关编码，只含数字 6~10 位；空表示未填（细分品类沿用上级品类） */
+    private String hsCode;
     /** 排序 */
     private Integer sortOrder;
     /** 状态（0-禁用、1-启用） */
