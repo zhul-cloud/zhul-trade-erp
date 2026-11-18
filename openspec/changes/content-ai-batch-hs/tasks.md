@@ -31,4 +31,4 @@
 - [x] 5.2 单元测试构造更新：`CategoryServiceImplTest`、`ProductCustomsServiceImplTest`；`ProductContentPlanContractTest` 按新规则调整
 - [x] 5.3 编排服务测试：`test_tariff.py`
 - [x] 5.4 前端测试：`BatchActions.test.tsx`、`TariffModal.test.tsx`
-- [ ] 5.5 本机页面实测（BrowserOS neo）
+- [x] 5.5 本机页面实测（BrowserOS neo）：AI 筛选、批量确认（部分写入）、批量资料已核、品类默认编码与关税参考、商品海关信息；AI 补全未实测（真实付费调用，契约测试覆盖）

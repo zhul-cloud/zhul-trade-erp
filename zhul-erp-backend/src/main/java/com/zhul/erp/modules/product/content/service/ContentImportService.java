@@ -584,7 +584,7 @@ public class ContentImportService {
                                 .isNull(ProductFaqDO::getDeletedAt))
                         .forEach(f -> questions.add(ContentWriter.key(f.getQuestion())));
                 long dup = b.getFaqs().stream().filter(f -> questions.contains(ContentWriter.key(f.question()))).count();
-                hints.add("写入共享商品库，待平台审核后所有公司可见" + (dup > 0 ? "；" + dup + " 条问题已有，不重复写入" : ""));
+                hints.add("写入共享商品库，随资料包审核通过，所有公司可见" + (dup > 0 ? "；" + dup + " 条问题已有，不重复写入" : ""));
             }
             case SERIES -> {
                 if (product.getSeriesId() != null) {

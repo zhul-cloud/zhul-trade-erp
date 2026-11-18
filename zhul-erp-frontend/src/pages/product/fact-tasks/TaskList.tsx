@@ -648,12 +648,14 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
               setPage(1);
               setSelected([]);
             }}
-            placeholder="AI 生成：全部"
+            prefix="AI 生成"
+            placeholder="全部"
             options={[
-              { value: 'pending', label: 'AI 生成：待确认' },
-              { value: 'running', label: 'AI 生成：排队或生成中' },
-              { value: 'failed', label: 'AI 生成：失败' },
+              { value: 'pending', label: '待确认' },
+              { value: 'running', label: '排队或生成中' },
+              { value: 'failed', label: '失败' },
             ]}
+            popupMatchSelectWidth={false}
             style={{ width: 190 }}
             aria-label="AI 生成"
           />
