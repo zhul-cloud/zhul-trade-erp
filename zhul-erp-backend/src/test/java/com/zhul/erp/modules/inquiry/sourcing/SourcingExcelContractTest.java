@@ -118,7 +118,9 @@ class SourcingExcelContractTest extends InquiryContractSupport {
         String wang = token("it_wang");
 
         MockHttpServletResponse res = perform(get(MY + "/package").param("taskIds", String.valueOf(task)), wang);
-        assertTrue(res.getHeader("Content-Disposition").contains(java.net.URLEncoder.encode("询盘单A · Mitsubishi · 其他.xlsx", java.nio.charset.StandardCharsets.UTF_8)
+        // 询盘确认时品牌存正式名（品牌库有 Mitsubishi 时为 Mitsubishi Electric），按任务实际存的品牌断言
+        String brand = jdbc.queryForObject("select brand from sourcing_task where id = ?", String.class, task);
+        assertTrue(res.getHeader("Content-Disposition").contains(java.net.URLEncoder.encode("询盘单A · " + brand + " · 其他.xlsx", java.nio.charset.StandardCharsets.UTF_8)
                 .replace("+", "%20")), res.getHeader("Content-Disposition"));
         try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(res.getContentAsByteArray()))) {
             assertEquals("①询盘单", wb.getSheetName(0));
@@ -129,7 +131,7 @@ class SourcingExcelContractTest extends InquiryContractSupport {
             assertTrue(meta.getProtect(), "隐藏标识受保护");
             DataFormatter f = new DataFormatter();
             String inquiryText = f.formatCellValue(wb.getSheet("①询盘单").getRow(1).getCell(0));
-            assertEquals("询盘单 A · Mitsubishi · 其他（2条）", inquiryText);
+            assertEquals("询盘单 A · " + brand + " · 其他（2条）", inquiryText);
             assertTrue(wb.getSheet("②询价单").isColumnHidden(5));
             List<String> validated = wb.getSheet("②询价单").getDataValidations().stream()
                     .map(v -> String.join("/", v.getValidationConstraint().getExplicitListValues())).toList();

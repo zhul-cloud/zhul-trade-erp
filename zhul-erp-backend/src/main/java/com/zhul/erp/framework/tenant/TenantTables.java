@@ -205,6 +205,7 @@ public final class TenantTables {
             Map.entry("product_application", PRODUCT_LIBRARY),
             Map.entry("product_brand", PRODUCT_LIBRARY),
             Map.entry("product_brand_alias", PRODUCT_LIBRARY),
+            Map.entry("brand_text_ignored", "「不是品牌」的写法：平台级词表（tenant 0），只由平台账号在待确认品牌里维护（PlatformScopeGuard 校验）"),
             Map.entry("product_category", PRODUCT_LIBRARY),
             Map.entry("product_customs", PRODUCT_LIBRARY),
             Map.entry("product_document", PRODUCT_LIBRARY),

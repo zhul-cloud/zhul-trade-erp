@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.masterdata.controller;
 
 import com.zhul.erp.common.result.Result;
+import com.zhul.erp.modules.masterdata.dto.BatchPendingBrandRequest;
 import com.zhul.erp.modules.masterdata.dto.ConfirmPendingBrandRequest;
 import com.zhul.erp.modules.masterdata.dto.PendingBrandVO;
 import com.zhul.erp.modules.masterdata.service.PendingBrandService;
@@ -38,6 +39,20 @@ public class PendingBrandController {
     public Result<Void> linkAsAlias(@Valid @RequestBody ConfirmPendingBrandRequest req) {
         pendingBrandService.linkAsAlias(req.getPendingKey(), req.getBrandId());
         return Result.ok();
+    }
+
+    /** 批量设为同一品牌的别名，返回处理的写法数 */
+    @PostMapping("/alias-batch")
+    @PreAuthorize("@perm.has('product:brand:edit')")
+    public Result<Integer> linkAsAliasBatch(@Valid @RequestBody BatchPendingBrandRequest req) {
+        return Result.ok(pendingBrandService.linkAsAlias(req.getPendingKeys(), req.getBrandId()));
+    }
+
+    /** 标为不是品牌（可批量），返回处理的写法数 */
+    @PostMapping("/ignore")
+    @PreAuthorize("@perm.has('product:brand:edit')")
+    public Result<Integer> ignore(@Valid @RequestBody BatchPendingBrandRequest req) {
+        return Result.ok(pendingBrandService.ignore(req.getPendingKeys()));
     }
 
     /** 新建为品牌 */
