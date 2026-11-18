@@ -107,6 +107,13 @@ public class SalesOrderController {
         return Result.ok(service.stats());
     }
 
+    /** 「再下一单」：按原订单预填新建手动订单（权限同手动创建订单） */
+    @GetMapping("/orders/{id}/reorder")
+    @PreAuthorize("@perm.canAccessMenu('/sales/orders') and @perm.has('sales:order:create')")
+    public Result<com.zhul.erp.modules.sales.dto.ReorderDraftVO> reorder(@PathVariable Long id) {
+        return Result.ok(service.reorderDraft(id));
+    }
+
     @GetMapping("/orders/{id}")
     @PreAuthorize("@perm.canAccessMenu('/sales/orders') or @perm.canAccessMenu('/sales/pi')")
     public Result<SalesOrderVO> detail(@PathVariable Long id) {

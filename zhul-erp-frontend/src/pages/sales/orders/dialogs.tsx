@@ -17,6 +17,7 @@ import {
 import dayjs from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ProductSelect } from '@/pages/product/components/ProductSelect';
+import type { ProductOption } from '@/pages/product/service';
 import { CURRENCIES } from '@/pages/quotation/components';
 import type { Attachment } from '@/pages/warehouse/service';
 import { searchCustomers } from '@/services/zhul/masterdata';
@@ -279,6 +280,10 @@ interface Line extends Partial<CreateOrderLine> {
   /** 选中商品档案后带出，只读显示 */
   brand?: string;
   category?: string;
+  /** 「再下一单」带过来的商品档案，用来显示选中项 */
+  initial?: ProductOption;
+  /** 「再下一单」原订单的型号；没有商品档案时提示先建档 */
+  reorderModel?: string;
 }
 
 let lineSeq = 0;
@@ -292,7 +297,9 @@ export const CreateOrderDrawer: React.FC<{
   open: boolean;
   onClose: () => void;
   onDone: (order: Order) => void;
-}> = ({ open, onClose, onDone }) => {
+  /** 「再下一单」：按这张订单预填（spec sales/sales-order「再下一单」） */
+  reorderFrom?: number;
+}> = ({ open, onClose, onDone, reorderFrom }) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
   const access = useAccess() as Record<string, boolean>;
@@ -309,6 +316,7 @@ export const CreateOrderDrawer: React.FC<{
   const [remark, setRemark] = useState('');
   const [fees, setFees] = useState<FeeRow[]>([]);
   const [busy, setBusy] = useState(false);
+  const [source, setSource] = useState<string>();
 
   useEffect(() => {
     if (!open) return;
@@ -320,10 +328,66 @@ export const CreateOrderDrawer: React.FC<{
     setLines([newLine()]);
     setFiles([]);
     setRemark('');
+    setSource(undefined);
     searchCustomers('')
       .then((list) => setCustomerOptions(toOptions(list)))
       .catch(() => undefined);
-  }, [open]);
+    if (!reorderFrom) return;
+    orderApi
+      .reorder(reorderFrom)
+      .then((d) => {
+        setSource(d.sourceSoNo);
+        setCustomerId(d.customerId);
+        setCustomerOptions((cur) =>
+          cur.some((o) => o.value === d.customerId)
+            ? cur
+            : [
+                {
+                  value: d.customerId,
+                  label: [d.customerName, d.customerCountry]
+                    .filter(Boolean)
+                    .join(' · '),
+                },
+                ...cur,
+              ],
+        );
+        setCurrency(d.currencyCode);
+        setLines(
+          d.items.length
+            ? d.items.map((i) => ({
+                key: ++lineSeq,
+                productId: i.productId ?? undefined,
+                model: i.mpnDisplay ?? i.model,
+                brand: i.brandName ?? i.brand,
+                category: i.categoryName,
+                initial: i.productId
+                  ? {
+                      id: i.productId,
+                      mpnDisplay: i.mpnDisplay ?? i.model,
+                      brandName: i.brandName ?? '',
+                      categoryName: i.categoryName ?? '',
+                      productName: '',
+                    }
+                  : undefined,
+                reorderModel: i.productId ? undefined : i.model,
+                quantity: i.quantity,
+                unitPrice: i.unitPrice,
+                costPrice: i.costPrice ?? null,
+                purchaserId: i.purchaserId ?? null,
+                stockType: i.stockType ?? STOCK.SPOT,
+              }))
+            : [newLine()],
+        );
+        setFees(
+          d.fees.map((f) => ({
+            key: ++feeSeq,
+            feeName: f.feeName,
+            amount: f.amount,
+          })),
+        );
+      })
+      .catch((e) => message.error(readBizError(e).message));
+  }, [open, reorderFrom]);
 
   const toOptions = (
     list: {
@@ -345,10 +409,13 @@ export const CreateOrderDrawer: React.FC<{
     Math.round((l.unitPrice ?? 0) * (l.quantity ?? 0) * 100) / 100;
   const total = lines.reduce((s, l) => s + amountOf(l), 0) + feeTotal(fees);
   const filled = lines.filter((l) => l.productId);
+  /** 「再下一单」带过来、还没有商品档案的型号：建档后在该行选中，或删掉 */
+  const unarchived = lines.filter((l) => l.reorderModel && !l.productId);
   const ready =
     !!customerId &&
     !!date &&
     filled.length > 0 &&
+    unarchived.length === 0 &&
     filled.every((l) => (l.quantity ?? 0) > 0 && l.unitPrice != null);
 
   const submit = async () => {
@@ -393,7 +460,7 @@ export const CreateOrderDrawer: React.FC<{
       open={open}
       onClose={onClose}
       size="min(1240px, 96vw)"
-      title="手动创建订单"
+      title={source ? '再下一单' : '手动创建订单'}
       footer={
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div>
@@ -415,10 +482,19 @@ export const CreateOrderDrawer: React.FC<{
         </div>
       }
     >
-      <div style={{ color: palette.mute, fontSize: 13, marginBottom: 16 }}>
-        没有走报价单和 PI
-        的订单，只填必填项；建好后成交内容不能改，收款在订单详情登记。
-      </div>
+      {source ? (
+        <Alert
+          style={{ marginBottom: 16 }}
+          type="info"
+          showIcon
+          title={`已复制 ${source} 的客户、型号、数量、单价和费用，请核对后创建；订单号、销售日期、收款与进度都重新开始。`}
+        />
+      ) : (
+        <div style={{ color: palette.mute, fontSize: 13, marginBottom: 16 }}>
+          没有走报价单和 PI
+          的订单，只填必填项；建好后成交内容不能改，收款在订单详情登记。
+        </div>
+      )}
       <div
         style={{
           display: 'grid',
@@ -478,6 +554,14 @@ export const CreateOrderDrawer: React.FC<{
           <DueHint />
         </div>
       </div>
+      {unarchived.length > 0 && (
+        <Alert
+          style={{ marginBottom: 12 }}
+          type="warning"
+          showIcon
+          title={`${unarchived.map((l) => l.reorderModel).join('、')} 还没有商品档案：建档后在该行搜索选中，不需要的直接删掉这一行`}
+        />
+      )}
       <b style={{ display: 'block', marginBottom: 8 }}>
         型号 <span style={{ color: palette.red }}>*</span>
       </b>
@@ -511,7 +595,13 @@ export const CreateOrderDrawer: React.FC<{
             <ProductSelect
               style={{ flex: '1 1 0', minWidth: 220 }}
               modelOnly
-              placeholder="输入型号搜索商品档案"
+              initialOption={l.initial}
+              status={l.reorderModel && !l.productId ? 'warning' : undefined}
+              placeholder={
+                l.reorderModel && !l.productId
+                  ? `${l.reorderModel}：需要先建档，建好后在这里搜索选中`
+                  : '输入型号搜索商品档案'
+              }
               value={l.productId}
               onChange={(id, o) =>
                 patch(l.key, {

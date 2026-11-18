@@ -4,7 +4,7 @@ import {
   DeleteOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
-import { App, Button, Form, Input, Space, Switch, Table } from 'antd';
+import { App, Button, Form, Input, Space, Switch, Table, Tooltip } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { EmptyHint } from '../../components/EmptyHint';
 import { Pill } from '../../components/Pills';
@@ -20,6 +20,22 @@ const slug = (label: string) =>
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '')
     .replace(/^(\d)/, 'k_$1');
+
+/** 规格参数一格一行：超长时省略号收起，悬停看全文（规格参数紧凑显示） */
+const OneLine: React.FC<{
+  text?: string;
+  className?: string;
+  style?: React.CSSProperties;
+}> = ({ text, className, style }) =>
+  text ? (
+    <Tooltip title={text} placement="topLeft">
+      <span className={className} style={style}>
+        {text}
+      </span>
+    </Tooltip>
+  ) : (
+    <span style={style}>—</span>
+  );
 
 export const SpecCard: React.FC<{
   productId: number;
@@ -306,15 +322,22 @@ export const SpecCard: React.FC<{
           dataSource={items}
           scroll={withEvidence ? { x: 960 } : undefined}
           columns={[
-            { title: '规格名称', dataIndex: 'specLabel', width: 160 },
+            {
+              title: '规格名称',
+              dataIndex: 'specLabel',
+              width: 160,
+              ellipsis: { showTitle: false },
+              render: (v?: string) => <OneLine text={v} />,
+            },
             {
               title: '规格值',
               dataIndex: 'specValue',
+              ellipsis: { showTitle: false },
               render: (v, r) => (
-                <span className="num">
-                  {v}
-                  {r.specUnit ? ` ${r.specUnit}` : ''}
-                </span>
+                <OneLine
+                  className="num"
+                  text={`${v ?? ''}${r.specUnit ? ` ${r.specUnit}` : ''}`}
+                />
               ),
             },
             ...(withEvidence
@@ -322,10 +345,12 @@ export const SpecCard: React.FC<{
                   {
                     title: '条件/范围',
                     dataIndex: 'conditionText',
+                    ellipsis: { showTitle: false },
                     render: (v?: string) => (
-                      <span style={{ color: palette.sub, fontSize: 12 }}>
-                        {v || '—'}
-                      </span>
+                      <OneLine
+                        text={v}
+                        style={{ color: palette.sub, fontSize: 12 }}
+                      />
                     ),
                   },
                   {
@@ -348,21 +373,23 @@ export const SpecCard: React.FC<{
             {
               title: '来源',
               dataIndex: 'source',
+              width: 260,
+              ellipsis: { showTitle: false },
               render: (v: string | undefined, r: SpecItem) => (
-                <span
+                <OneLine
+                  text={r.sourceNote || v}
                   style={
                     r.sourceNote
                       ? { color: palette.sub, fontSize: 12 }
                       : undefined
                   }
-                >
-                  {r.sourceNote || v || '—'}
-                </span>
+                />
               ),
             },
             {
               title: '已核实',
               dataIndex: 'verified',
+              width: 96,
               render: (v) =>
                 v ? (
                   <Pill tone="green">已核实</Pill>

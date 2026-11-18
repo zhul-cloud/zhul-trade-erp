@@ -1114,6 +1114,31 @@ export interface OrderCandidatePi {
   ownerName?: string;
 }
 
+/** 「再下一单」：按原订单预填新建手动订单的内容 */
+export interface ReorderDraft {
+  sourceId: number;
+  sourceSoNo: string;
+  customerId: number;
+  customerName?: string;
+  customerCountry?: string;
+  currencyCode: string;
+  items: {
+    /** 为空表示这个型号还没有商品档案（或已停用），要先建档 */
+    productId?: number | null;
+    mpnDisplay?: string;
+    brandName?: string;
+    categoryName?: string;
+    model: string;
+    brand?: string;
+    quantity: number;
+    unitPrice: number;
+    costPrice?: number | null;
+    purchaserId?: number | null;
+    stockType?: number;
+  }[];
+  fees: { feeName: string; amount: number }[];
+}
+
 export interface CreateOrderLine {
   /** 商品档案 ID（必填）：型号、品牌、品类以商品档案为准 */
   productId: number;
@@ -1150,6 +1175,8 @@ export const orderApi = {
   page: (q: OrderQuery) =>
     send<{ total: number; records: OrderListItem[] }>('POST', `${SO}/page`, q),
   stats: () => get<OrderStats>(`${SO}/stats`),
+  /** 「再下一单」的预填内容 */
+  reorder: (id: number) => get<ReorderDraft>(`${SO}/${id}/reorder`),
   candidatePis: (keyword?: string) =>
     get<OrderCandidatePi[]>(`${SO}/candidates/pis`, { keyword }),
   detail: (id: number) => get<Order>(`${SO}/${id}`),

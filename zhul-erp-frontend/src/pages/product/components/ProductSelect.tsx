@@ -18,6 +18,9 @@ export const ProductSelect: React.FC<{
   footer?: (keyword: string) => React.ReactNode;
   /** 选中后只显示型号（品牌、品类另有列显示时用） */
   modelOnly?: boolean;
+  /** 预填的已选商品（如「再下一单」带过来的），用来显示选中项 */
+  initialOption?: ProductOption;
+  status?: 'warning' | 'error';
   'aria-label'?: string;
 }> = ({
   value,
@@ -28,9 +31,12 @@ export const ProductSelect: React.FC<{
   style,
   footer,
   modelOnly,
+  initialOption,
   ...rest
 }) => {
-  const [options, setOptions] = useState<ProductOption[]>([]);
+  const [options, setOptions] = useState<ProductOption[]>(
+    initialOption ? [initialOption] : [],
+  );
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
