@@ -5,21 +5,6 @@
 
 ## Requirements
 
-### Requirement: 连接方式的使用顺序
-每个租户的连接方式 SHALL 分为 API 组（本公司 API Key）与订阅组（平台订阅），API 组整体排在订阅组前面；组内顺序由租户在 AI 设置页调整并保存。使用时按「API 组内顺序，再订阅组内顺序」依次尝试，API 组全部不可用才用订阅组。
-
-#### Scenario: API 优先
-- **WHEN** 租户配好了 Claude API Key、OpenAI API Key，并获授权使用平台订阅，三者都可用，提交询盘解析
-- **THEN** 任务使用 API 组排在第一位的方式，不使用平台订阅
-
-#### Scenario: 调整组内顺序
-- **WHEN** 租户把 OpenAI API Key 拖到 Claude API Key 前面并保存，随后提交询盘解析
-- **THEN** 任务先用 OpenAI 的 Key
-
-#### Scenario: 订阅不能排到 API 前面
-- **WHEN** 租户通过接口提交把某个平台订阅排在 API 方式之前的顺序
-- **THEN** 保存被拒绝，原顺序不变
-
 ### Requirement: 提交任务时的可用性判断
 创建 AI 任务时 SHALL 按顺序挑出当前可用的连接方式交给编排服务。以下方式不可用并跳过：已关闭、API 方式未填 Key、订阅未获授权或平台未登录、处于暂停中。一个可用的都没有时，按「未配置时的处理」与「租户使用平台订阅」的提示规则处理，不创建任务。
 
@@ -83,3 +68,22 @@
 #### Scenario: 设置页显示暂停
 - **WHEN** Claude API 因额度用完进入暂停后，用户打开 AI 设置页
 - **THEN** Claude API 卡片显示「暂停中」、原因「额度用完」和恢复时间
+
+### Requirement: 连接方式按列表顺序使用
+每个租户的连接方式（本公司 API Key、获授权时的平台订阅）SHALL 排成一个列表，顺序由租户在 AI 设置页任意调整并保存，API Key 与平台订阅可以互相穿插。使用时按列表顺序依次尝试，跳过不可用的方式。从没保存过顺序的租户按默认顺序使用：Claude API Key、OpenAI API Key、Claude 平台订阅、OpenAI 平台订阅。
+
+#### Scenario: 默认 API 在前
+- **WHEN** 租户配好了 Claude API Key、OpenAI API Key，并获授权使用平台订阅，从没调整过顺序，四者都可用，提交询盘解析
+- **THEN** 任务先用 Claude API Key
+
+#### Scenario: 订阅排在第一位
+- **WHEN** 租户把 Claude 平台订阅拖到第一位并保存，Claude 订阅可用，提交询盘解析
+- **THEN** 任务使用 Claude 平台订阅，不使用 API Key
+
+#### Scenario: 订阅出问题改用后面的 API Key
+- **WHEN** 列表顺序为 Claude 平台订阅、OpenAI API Key，任务调用时 Claude 订阅达到用量上限
+- **THEN** 这次调用改用 OpenAI API Key 重做（按该 Key 计费），Claude 订阅进入暂停
+
+#### Scenario: 升级后顺序不变
+- **WHEN** 升级前租户的顺序为 OpenAI API Key、Claude API Key，订阅组为 Claude、OpenAI
+- **THEN** 升级后列表为 OpenAI API Key、Claude API Key、Claude 平台订阅、OpenAI 平台订阅，任务使用顺序与升级前相同
