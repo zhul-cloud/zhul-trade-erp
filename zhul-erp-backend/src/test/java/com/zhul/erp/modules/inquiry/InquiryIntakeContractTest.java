@@ -250,7 +250,7 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
         JsonNode models = ok(call(get(INQ + "/" + bulk + "/models"), admin));
         assertEquals(3, models.size(), models.toString());
         assertEquals(models.get(0).path("model").asText(), b.path("firstModel").asText(), "列表显示第一个型号");
-        assertEquals("Omron", b.path("brands").get(0).asText(), "型号多的品牌排前面");
+        assertEquals("omron", b.path("brands").get(0).asText().toLowerCase(), "型号多的品牌排前面（存正式名，品牌库为 OMRON）");
         assertEquals("Delta", b.path("brands").get(1).asText());
         assertEquals(2, b.path("categories").size());
         assertEquals(17, java.util.stream.StreamSupport.stream(models.spliterator(), false)

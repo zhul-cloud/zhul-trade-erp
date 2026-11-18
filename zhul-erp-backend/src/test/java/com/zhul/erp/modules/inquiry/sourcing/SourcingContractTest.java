@@ -63,8 +63,10 @@ class SourcingContractTest extends InquiryContractSupport {
         return id;
     }
 
+    /** 询盘确认时品牌存正式名（Omron → OMRON、Mitsubishi → Mitsubishi Electric），按写法开头、忽略大小写找任务 */
     private long taskId(long inquiryId, String brand) {
-        return jdbc.queryForObject("select id from sourcing_task where customer_inquiry_id = ? and brand = ?", Long.class, inquiryId, brand);
+        return jdbc.queryForObject("select id from sourcing_task where customer_inquiry_id = ? and LOWER(brand) LIKE CONCAT(LOWER(?), '%')",
+                Long.class, inquiryId, brand);
     }
 
     private List<Long> itemIds(long taskId) {
