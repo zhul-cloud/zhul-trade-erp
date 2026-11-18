@@ -63,6 +63,9 @@ class ReorderContractTest extends SalesContractSupport {
         assertTrue(call(get(SO + "/" + so + "/reorder"), token("it_reorder_staff")).path("code").asInt() != 0,
                 "没有手动创建订单权限不能再下一单");
         jdbc.update("update sales_order set deleted_at = now() where id = ?", so);
+        // 测试账号只有一个，上面换成了业务员，这里换回管理员
+        loginAsAdmin("it_sales_admin");
+        admin = token("it_sales_admin");
         assertEquals("订单已删除", fail(call(get(SO + "/" + so + "/reorder"), admin)).path("message").asText());
     }
 }
