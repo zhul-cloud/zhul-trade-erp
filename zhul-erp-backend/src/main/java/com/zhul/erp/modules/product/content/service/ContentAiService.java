@@ -20,8 +20,10 @@ import com.zhul.erp.modules.product.constants.ProductConstants;
 import com.zhul.erp.modules.product.content.constants.ContentConstants;
 import com.zhul.erp.modules.product.content.dto.ContentAiResultVO;
 import com.zhul.erp.modules.product.content.dto.ContentAiStartVO;
+import com.zhul.erp.modules.product.content.dto.ContentBatchResultVO;
 import com.zhul.erp.modules.product.content.dto.ContentConfirmVO;
 import com.zhul.erp.modules.product.content.dto.ContentFileRequest;
+import com.zhul.erp.modules.product.content.dto.ContentPreviewVO;
 import com.zhul.erp.modules.product.content.entity.ProductContentAiJobDO;
 import com.zhul.erp.modules.product.content.repository.ProductContentAiJobMapper;
 import com.zhul.erp.modules.product.entity.ProductDO;
@@ -35,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -279,8 +282,8 @@ public class ContentAiService {
     }
 
     /**
-     * 确认写入：只用保存的原文（请求里的原文不采用），套用预览中的修改与跳过；按确认人的权限分别写资料包、营销包，
-     * 不自动审核（资料写入后为资料待核，技术问答待审核）。两份都写入后记录变为已导入。
+     * 确认写入：只用保存的原文（请求里的原文不采用），套用预览中的修改与跳过；按确认人的权限分别写资料包、营销包。
+     * 资料写入后为资料待核，技术问答随资料包审核通过（openspec content-ai-batch-hs）。两份都写入后记录变为已导入。
      * 事务边界：先用条件更新占住要写的那一份（防止重复写入），再按文件逐个写入（各自的事务，同手动上传），
      * 写入失败的那一份释放占用、可以重试。
      */
@@ -337,12 +340,102 @@ public class ContentAiService {
         result.getItems().addAll(part.getItems());
         result.setSucceeded(result.getSucceeded() + part.getSucceeded());
         result.setFailed(result.getFailed() + part.getFailed());
+        result.setApprovedFaqs(n(result.getApprovedFaqs()) + n(part.getApprovedFaqs()));
         if (part.getSucceeded() == 0) {
             release(j.getId(), facts);
         } else {
             logService.recordOperateLog(MENU, facts ? "确认写入资料包" : "确认写入营销包", null,
                     Map.of("jobId", j.getId(), "productId", j.getProductId()));
         }
+    }
+
+    /**
+     * 批量确认的一条（openspec content-ai-batch-hs）：不逐章节修改，解析出问题的章节自动跳过，有文件级问题的文件不写；
+     * 其余同逐个确认（按权限写、技术问答随资料包审核通过）。事务边界同 {@link #confirm}。
+     */
+    public ContentBatchResultVO.Item confirmAll(Long id) {
+        ProductContentAiJobDO j = visible(id);
+        ContentBatchResultVO.Item item = new ContentBatchResultVO.Item();
+        item.setId(id);
+        item.setProductId(j.getProductId());
+        item.setLabel(label(j.getProductId()));
+        if (j.getStatus() != ContentConstants.AI_PENDING) {
+            item.setOutcome(ContentBatchResultVO.OUTCOME_FAILED);
+            item.setMessage("不是待确认的结果");
+            return item;
+        }
+        List<ContentFileRequest.ContentFile> files = new ArrayList<>(2);
+        if (j.getFactsImportedAt() == null) {
+            files.add(file(j.getFactsFileName(), j.getFactsMarkdown()));
+        }
+        if (j.getMarketingImportedAt() == null) {
+            files.add(file(j.getMarketingFileName(), j.getMarketingMarkdown()));
+        }
+        ContentFileRequest pre = new ContentFileRequest();
+        pre.setFiles(files);
+        pre.setProductId(j.getProductId());
+        List<String> skipped = new ArrayList<>();
+        for (ContentPreviewVO p : importService.preview(pre, null)) {
+            if (p.isConfirmable() || !p.getErrors().isEmpty()) {
+                continue;
+            }
+            ContentFileRequest.ContentFile f = files.get(p.getFileIndex());
+            List<String> skip = f.getSkip() == null ? new ArrayList<>() : new ArrayList<>(f.getSkip());
+            for (ContentPreviewVO.BlockVO b : p.getBlocks()) {
+                if (!b.isSkipped() && !b.getErrors().isEmpty()) {
+                    skip.add(b.getSection());
+                    skipped.add(b.getLabel() + "：" + b.getErrors().get(0));
+                }
+            }
+            f.setSkip(skip);
+        }
+        ContentFileRequest req = new ContentFileRequest();
+        req.setFiles(files);
+        ContentConfirmVO r = confirm(id, req);
+        Set<String> written = new LinkedHashSet<>();
+        List<String> notWritten = new ArrayList<>();
+        for (ContentConfirmVO.Item i : r.getItems()) {
+            String part = ContentConstants.TYPE_FACTS.equals(i.getType()) ? "资料包" : "营销包";
+            if (i.isSuccess()) {
+                written.add(part);
+            } else {
+                notWritten.add(part + "：" + i.getMessage());
+            }
+        }
+        List<String> lines = new ArrayList<>();
+        if (!written.isEmpty()) {
+            lines.add(String.join("、", written) + "已写入"
+                    + (n(r.getApprovedFaqs()) > 0 ? "；技术问答 " + r.getApprovedFaqs() + " 条审核通过" : ""));
+        }
+        if (!skipped.isEmpty()) {
+            lines.add("跳过「" + String.join("」「", skipped) + "」");
+        }
+        lines.addAll(notWritten);
+        item.setOutcome(r.getSucceeded() == 0 ? ContentBatchResultVO.OUTCOME_FAILED
+                : r.getFailed() > 0 || !skipped.isEmpty() ? ContentBatchResultVO.OUTCOME_PARTIAL
+                : ContentBatchResultVO.OUTCOME_DONE);
+        item.setMessage(lines.isEmpty() ? "没有可写入的内容" : String.join("；", lines));
+        item.setApprovedFaqs(n(r.getApprovedFaqs()));
+        return item;
+    }
+
+    private static ContentFileRequest.ContentFile file(String name, String markdown) {
+        ContentFileRequest.ContentFile f = new ContentFileRequest.ContentFile();
+        f.setFileName(name);
+        f.setContent(markdown);
+        return f;
+    }
+
+    private String label(Long productId) {
+        ProductDO p = productMapper.selectById(productId);
+        if (p == null) {
+            return String.valueOf(productId);
+        }
+        return StringUtils.hasText(p.getMpnDisplay()) ? p.getMpnDisplay() : p.getMpnRaw();
+    }
+
+    private static int n(Integer v) {
+        return v == null ? 0 : v;
     }
 
     /** 占住一份：只有还没写入时才成功 */

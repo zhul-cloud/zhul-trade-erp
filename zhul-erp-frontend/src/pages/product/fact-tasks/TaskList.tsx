@@ -1,5 +1,7 @@
 import {
   ArrowRightOutlined,
+  CheckOutlined,
+  CheckSquareOutlined,
   DownloadOutlined,
   SearchOutlined,
   SettingOutlined,
@@ -48,6 +50,11 @@ import {
   aiBusy,
   aiWorking,
 } from './AiGenerate';
+import {
+  AI_PENDING,
+  BatchConfirmModal,
+  BatchVerifyModal,
+} from './BatchActions';
 import { PlatformSettings } from './PlatformSettings';
 import { UploadDrawer } from './UploadDrawer';
 
@@ -168,6 +175,9 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
   const [rowRecords, setRowRecords] = useState<{ id: number; label: string }>();
   /** AI 生成：确认发起的商品、查看结果的记录 */
   const [aiStart, setAiStart] = useState<ContentTask[]>();
+  /** 批量确认 AI 结果、批量资料已核的商品 */
+  const [batchConfirm, setBatchConfirm] = useState<ContentTask[]>();
+  const [batchVerify, setBatchVerify] = useState<ContentTask[]>();
   const [aiResult, setAiResult] = useState<{
     jobId: number;
     id: number;
@@ -259,9 +269,17 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
     });
 
   const selectedRows = rows.filter((r) => selected.includes(r.productId));
+  const selectedPending = selectedRows.filter(
+    (r) => r.ai?.status === AI_PENDING,
+  ).length;
 
   const apply = () => {
-    setQuery({ keyword: keyword.trim() || undefined, brandId, categoryId });
+    setQuery((q) => ({
+      keyword: keyword.trim() || undefined,
+      brandId,
+      categoryId,
+      ai: q.ai,
+    }));
     setPage(1);
   };
 
@@ -525,6 +543,30 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
                 onPick={(p) => download(selected, p)}
               />
             )}
+            {facts && access['product:content:edit'] && (
+              <Button
+                icon={<CheckOutlined />}
+                disabled={selectedRows.length === 0}
+                onClick={() => setBatchVerify(selectedRows)}
+              >
+                资料已核
+                {selectedRows.length ? ` · ${selectedRows.length}` : ''}
+              </Button>
+            )}
+            {canAi && (
+              <Button
+                icon={<CheckSquareOutlined />}
+                disabled={selectedPending === 0}
+                title={
+                  selected.length && !selectedPending
+                    ? '勾选的商品没有待确认的 AI 结果'
+                    : undefined
+                }
+                onClick={() => setBatchConfirm(selectedRows)}
+              >
+                确认 AI 结果{selectedPending ? ` · ${selectedPending}` : ''}
+              </Button>
+            )}
             <Button
               type="primary"
               icon={<UploadOutlined />}
@@ -597,6 +639,25 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
             placeholder="型号、名称"
             style={{ width: 220 }}
             aria-label="关键词"
+          />
+          <Select
+            allowClear
+            value={query.ai}
+            onChange={(v) => {
+              setQuery((q) => ({ ...q, ai: v }));
+              setPage(1);
+              setSelected([]);
+            }}
+            prefix="AI 生成"
+            placeholder="全部"
+            options={[
+              { value: 'pending', label: '待确认' },
+              { value: 'running', label: '排队或生成中' },
+              { value: 'failed', label: '失败' },
+            ]}
+            popupMatchSelectWidth={false}
+            style={{ width: 190 }}
+            aria-label="AI 生成"
           />
           <Select
             allowClear
@@ -686,6 +747,22 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
         product={rowCombined}
         onClose={() => setRowCombined(undefined)}
         onDone={load}
+      />
+      <BatchConfirmModal
+        rows={batchConfirm}
+        onClose={() => setBatchConfirm(undefined)}
+        onDone={() => {
+          setSelected([]);
+          load();
+        }}
+      />
+      <BatchVerifyModal
+        rows={batchVerify}
+        onClose={() => setBatchVerify(undefined)}
+        onDone={() => {
+          setSelected([]);
+          load();
+        }}
       />
       <AiStartModal
         rows={aiStart}

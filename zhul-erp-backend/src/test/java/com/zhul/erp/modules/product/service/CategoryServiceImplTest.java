@@ -42,6 +42,8 @@ class CategoryServiceImplTest {
     private ProductMapper productMapper;
     @Mock
     private OptionsCache optionsCache;
+    @Mock
+    private HsTariffService tariffService;
 
     private CategoryServiceImpl service;
 
@@ -49,7 +51,7 @@ class CategoryServiceImplTest {
     void setUp() {
         TenantContext.setTenantId(0);
         service = new CategoryServiceImpl(categoryMapper, productMapper, new PlatformScopeGuard(), optionsCache,
-                new com.zhul.erp.modules.product.support.UnlimitedIndustryScope());
+                new com.zhul.erp.modules.product.support.UnlimitedIndustryScope(), tariffService);
     }
 
     @AfterEach

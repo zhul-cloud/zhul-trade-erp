@@ -1450,6 +1450,60 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     // ---------------------------------------------------------------- 查看
 
     @Override
+    public com.zhul.erp.modules.sales.dto.ReorderDraftVO reorderDraft(Long id) {
+        SalesOrderDO o = visible(id);
+        CustomerDO customer = customerMapper.selectById(o.getCustomerId());
+        com.zhul.erp.modules.sales.dto.ReorderDraftVO vo = new com.zhul.erp.modules.sales.dto.ReorderDraftVO();
+        vo.setSourceId(o.getId());
+        vo.setSourceSoNo(o.getSoNo());
+        vo.setCustomerId(o.getCustomerId());
+        vo.setCustomerName(InquiryLookups.customerName(customer));
+        vo.setCustomerCountry(customer == null ? null : customer.getCountry());
+        vo.setCurrencyCode(o.getCurrencyCode());
+        // 已全部取消的型号行不带；型号按商品档案带（手动订单行自身的 → 来源询盘型号已建档的 → 品牌 + 型号匹配）
+        List<SalesOrderItemDO> items = orderItemMapper.selectList(new LambdaQueryWrapper<SalesOrderItemDO>()
+                .eq(SalesOrderItemDO::getSoId, o.getId())
+                .gt(SalesOrderItemDO::getQuantity, 0)
+                .isNull(SalesOrderItemDO::getDeletedAt)
+                .orderByAsc(SalesOrderItemDO::getLineNo));
+        Iterator<DocItemProducts.Info> products = docItemProducts.resolve(items.stream()
+                .map(i -> new DocItemProducts.Line(i.getProductId(), i.getInquiryItemId(), i.getBrand(), i.getModel())).toList()).iterator();
+        List<com.zhul.erp.modules.sales.dto.ReorderDraftVO.Line> lines = new ArrayList<>(items.size());
+        for (SalesOrderItemDO i : items) {
+            DocItemProducts.Info info = products.next();
+            com.zhul.erp.modules.product.dto.ProductOptionVO p = info.productId() == null ? null : productLookup.selectable(info.productId());
+            com.zhul.erp.modules.sales.dto.ReorderDraftVO.Line l = new com.zhul.erp.modules.sales.dto.ReorderDraftVO.Line();
+            if (p != null) {
+                l.setProductId(p.getId());
+                l.setMpnDisplay(p.getMpnDisplay());
+                l.setBrandName(p.getBrandName());
+                l.setCategoryName(p.getCategoryName());
+            }
+            l.setModel(i.getModel());
+            l.setBrand(i.getBrand());
+            l.setQuantity(i.getQuantity());
+            l.setUnitPrice(i.getUnitPrice());
+            l.setCostPrice(i.getCostPrice());
+            l.setPurchaserId(i.getPurchaserId());
+            l.setStockType(i.getStockType());
+            lines.add(l);
+        }
+        vo.setItems(lines);
+        vo.setFees(orderFeeMapper.selectList(new LambdaQueryWrapper<SalesOrderFeeDO>()
+                        .eq(SalesOrderFeeDO::getSoId, o.getId())
+                        .eq(SalesOrderFeeDO::getFeeType, SalesConstants.FEE_NORMAL)
+                        .gt(SalesOrderFeeDO::getAmount, BigDecimal.ZERO)
+                        .isNull(SalesOrderFeeDO::getDeletedAt)
+                        .orderByAsc(SalesOrderFeeDO::getSortOrder)).stream().map(f -> {
+                    com.zhul.erp.modules.sales.dto.ReorderDraftVO.Fee x = new com.zhul.erp.modules.sales.dto.ReorderDraftVO.Fee();
+                    x.setFeeName(f.getFeeName());
+                    x.setAmount(f.getAmount());
+                    return x;
+                }).toList());
+        return vo;
+    }
+
+    @Override
     public SalesOrderVO detail(Long id) {
         SalesOrderDO o = visible(id);
         ProformaInvoiceDO pi = piMapper.selectById(o.getPiId());

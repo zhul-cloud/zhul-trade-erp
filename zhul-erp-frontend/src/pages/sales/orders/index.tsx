@@ -1,5 +1,6 @@
 import {
   ClockCircleOutlined,
+  CopyOutlined,
   FallOutlined,
   FileDoneOutlined,
   PlusOutlined,
@@ -122,6 +123,8 @@ const OrderList: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [createOpen, setCreateOpen] = useState(false);
+  /** 「再下一单」的原订单；为空时是普通的手动建单 */
+  const [reorderFrom, setReorderFrom] = useState<number>();
   const [newOpen, setNewOpen] = useState(false);
   const [viewing, setViewing] = useState<OrderListItem>();
   const canFromPi = !!access.salesPi;
@@ -445,16 +448,31 @@ const OrderList: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 70,
+      width: canManual ? 150 : 70,
       fixed: 'right',
       render: (_, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => history.push(PATHS.order(r.id))}
-        >
-          查看
-        </button>
+        <span style={{ display: 'inline-flex', gap: 12 }}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(PATHS.order(r.id))}
+          >
+            查看
+          </button>
+          {/* 再下一单：复制这张订单的内容新建手动订单；费用订单没有型号，不提供 */}
+          {canManual && r.source !== 4 && (
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => {
+                setReorderFrom(r.id);
+                setCreateOpen(true);
+              }}
+            >
+              <CopyOutlined /> 再下一单
+            </button>
+          )}
+        </span>
       ),
     },
   ];
@@ -826,6 +844,7 @@ const OrderList: React.FC = () => {
         onClose={() => setNewOpen(false)}
         onManual={() => {
           setNewOpen(false);
+          setReorderFrom(undefined);
           setCreateOpen(true);
         }}
         onDone={(order) => {
@@ -836,6 +855,7 @@ const OrderList: React.FC = () => {
       />
       <CreateOrderDrawer
         open={createOpen}
+        reorderFrom={reorderFrom}
         onClose={() => setCreateOpen(false)}
         onDone={(order) => {
           setCreateOpen(false);

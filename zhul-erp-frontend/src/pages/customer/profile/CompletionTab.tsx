@@ -37,7 +37,7 @@ import {
 } from '../background/service';
 import { LIST_PATH } from '../components';
 import { ROLE_OPTIONS } from '../constants';
-import { readBizError } from '../service';
+import { type AssignableOwners, customerApi, readBizError } from '../service';
 import { ContactModal } from './ContactsCard';
 import ModuleEditModal, { ALL_FIELDS } from './ModuleEditModal';
 import { COUNTRY_PATH } from './ProfileModules';
@@ -241,7 +241,9 @@ const Queue: React.FC<{
   loadingMore: boolean;
   onSelect: (id: number) => void;
   onMore: () => void;
-}> = ({ rows, total, selected, loadingMore, onSelect, onMore }) => {
+  /** 列表顶部的筛选（按业务员），只给能看全部客户的人 */
+  filter?: React.ReactNode;
+}> = ({ rows, total, selected, loadingMore, onSelect, onMore, filter }) => {
   const { palette } = useAppTheme();
   return (
     <aside
@@ -287,6 +289,12 @@ const Queue: React.FC<{
           按价值排好
         </span>
       </div>
+      {filter}
+      {rows.length === 0 && (
+        <div style={{ color: palette.mute, fontSize: 13, padding: '12px 4px' }}>
+          这个业务员名下的客户档案都补全了
+        </div>
+      )}
       {rows.map((r) => {
         const on = r.customerId === selected;
         return (
@@ -925,20 +933,35 @@ const CompletionTab: React.FC = () => {
   const [wizard, setWizard] = useState<CompletionWizard>();
   const [profile, setProfile] = useState<Profile>();
   const [wizardError, setWizardError] = useState<string>();
+  /** 按业务员筛选：只有数据范围为全部 / 自定义的人看得到这个筛选 */
+  const [owners, setOwners] = useState<AssignableOwners>();
+  const [ownerId, setOwnerId] = useState<number>();
+  const showOwner = owners?.scope === 'ALL' || owners?.scope === 'CUSTOM';
 
-  /** 重新取前 n 页（保存后刷新，保持已经加载的条数） */
-  const loadQueue = useCallback(async (pages: number) => {
-    const res = await completionApi.queue(1, PAGE_SIZE * pages);
-    setRows(res.records);
-    setTotal(res.total);
-    setTodayDone(res.todayDone);
-    return res.records;
+  useEffect(() => {
+    customerApi
+      .assignableOwners()
+      .then(setOwners)
+      .catch(() => undefined);
   }, []);
 
-  /** 首次加载与「重试」：成功后清掉错误并选中第一个（audit UI-070） */
+  /** 重新取前 n 页（保存后刷新，保持已经加载的条数） */
+  const loadQueue = useCallback(
+    async (pages: number) => {
+      const res = await completionApi.queue(1, PAGE_SIZE * pages, ownerId);
+      setRows(res.records);
+      setTotal(res.total);
+      setTodayDone(res.todayDone);
+      return res.records;
+    },
+    [ownerId],
+  );
+
+  /** 首次加载、换业务员与「重试」：成功后清掉错误并选中第一个（audit UI-070） */
   const init = useCallback(() => {
     setLoading(true);
     setError(undefined);
+    setPage(1);
     loadQueue(1)
       .then((r) => setSelected(r[0]?.customerId))
       .catch((e) => setError(readBizError(e).message))
@@ -972,7 +995,7 @@ const CompletionTab: React.FC = () => {
   const more = () => {
     setLoadingMore(true);
     completionApi
-      .queue(page + 1, PAGE_SIZE)
+      .queue(page + 1, PAGE_SIZE, ownerId)
       .then((res) => {
         setRows((cur) => [...cur, ...res.records]);
         setPage(page + 1);
@@ -1007,7 +1030,7 @@ const CompletionTab: React.FC = () => {
     );
   }
   if (error) return <ErrorHint message={error} onRetry={init} />;
-  if (rows.length === 0) {
+  if (rows.length === 0 && ownerId == null) {
     return (
       <EmptyHint
         title="客户档案都补全了"
@@ -1044,6 +1067,23 @@ const CompletionTab: React.FC = () => {
           loadingMore={loadingMore}
           onSelect={setSelected}
           onMore={more}
+          filter={
+            showOwner && (
+              <Select
+                allowClear
+                placeholder="全部业务员"
+                value={ownerId}
+                onChange={(v) => setOwnerId(v ?? undefined)}
+                showSearch={{ optionFilterProp: 'label' }}
+                options={owners?.owners.map((o) => ({
+                  value: o.id,
+                  label: o.name,
+                }))}
+                aria-label="业务员"
+                style={{ width: '100%', marginBottom: 4 }}
+              />
+            )
+          }
         />
         {wizardError ? (
           <div style={{ flex: '1 1 440px' }}>

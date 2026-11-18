@@ -5,9 +5,16 @@ import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.masterdata.dto.PendingBrandVO;
 import com.zhul.erp.modules.masterdata.entity.SupplierProductScopeDO;
+import com.zhul.erp.modules.masterdata.entity.BrandTextIgnoredDO;
+import com.zhul.erp.modules.masterdata.repository.BrandTextIgnoredMapper;
 import com.zhul.erp.modules.masterdata.repository.SupplierProductScopeMapper;
+import com.zhul.erp.modules.masterdata.support.BrandDocTexts;
+import com.zhul.erp.modules.masterdata.support.BrandSuggest;
 import com.zhul.erp.modules.product.dto.BrandVO;
 import com.zhul.erp.modules.product.dto.SaveBrandRequest;
+import com.zhul.erp.modules.product.entity.ProductBrandDO;
+import com.zhul.erp.modules.product.repository.ProductBrandAliasMapper;
+import com.zhul.erp.modules.product.repository.ProductBrandMapper;
 import com.zhul.erp.modules.product.service.BrandService;
 import com.zhul.erp.modules.product.support.PlatformScopeGuard;
 import com.zhul.erp.support.MybatisPlusTestSupport;
@@ -23,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -40,6 +48,10 @@ class PendingBrandServiceImplTest {
 
     @Mock private SupplierProductScopeMapper scopeMapper;
     @Mock private BrandService brandService;
+    @Mock private ProductBrandMapper brandMapper;
+    @Mock private ProductBrandAliasMapper aliasMapper;
+    @Mock private BrandTextIgnoredMapper ignoredMapper;
+    @Mock private BrandDocTexts docTexts;
 
     private PendingBrandServiceImpl service;
 
@@ -51,7 +63,14 @@ class PendingBrandServiceImplTest {
     @BeforeEach
     void setUp() {
         TenantContext.setTenantId(0);
-        service = new PendingBrandServiceImpl(scopeMapper, brandService, new PlatformScopeGuard());
+        service = new PendingBrandServiceImpl(scopeMapper, brandService, new PlatformScopeGuard(), brandMapper, aliasMapper,
+                ignoredMapper, docTexts);
+        ProductBrandDO siemens = new ProductBrandDO();
+        siemens.setId(1L);
+        siemens.setBrandName("Siemens");
+        when(brandMapper.selectById(1L)).thenReturn(siemens);
+        when(brandMapper.selectList(any())).thenReturn(List.of(siemens));
+        when(docTexts.usages()).thenReturn(Map.of());
     }
 
     @AfterEach
@@ -161,5 +180,81 @@ class PendingBrandServiceImplTest {
         TenantContext.setTenantId(5);
         assertThrows(BizException.class, () -> service.list());
         verify(scopeMapper, never()).selectPendingBrands();
+    }
+    private static BrandDocTexts.Usage usage(String key, String name, int inquiry, int order) {
+        return new BrandDocTexts.Usage(key, name, inquiry, order, order, null);
+    }
+
+    @Test
+    void list_mergesDocTexts_skipsKnownAndIgnored_sortsByUses() {
+        when(scopeMapper.selectPendingBrands()).thenReturn(List.of(pending("wecon", "Wecon", 2)));
+        when(docTexts.usages()).thenReturn(Map.of(
+                "wecon", usage("wecon", "WECON", 5, 0),
+                "siemens", usage("siemens", "SIEMENS", 50, 3),
+                "siemen", usage("siemen", "Siemen", 30, 0),
+                "未知品牌", usage("未知品牌", "未知品牌", 9, 0)));
+        BrandTextIgnoredDO ignored = new BrandTextIgnoredDO();
+        ignored.setTextKey("未知品牌");
+        when(ignoredMapper.selectList(any())).thenReturn(List.of(ignored));
+
+        List<PendingBrandVO> list = service.list();
+
+        assertThat(list).extracting(PendingBrandVO::getPendingKey).containsExactly("siemen", "wecon");
+        assertThat(list.get(0).getSuggestKind()).isEqualTo(BrandSuggest.KIND_SIMILAR);
+        assertThat(list.get(0).getSuggestBrandId()).isEqualTo(1L);
+        assertThat(list.get(1).getSupplierCount()).isEqualTo(2);
+        assertThat(list.get(1).getInquiryCount()).isEqualTo(5);
+    }
+
+    @Test
+    void linkAsAliasBatch_normalizesDocsToBrandName() {
+        when(scopeMapper.selectPendingBrands()).thenReturn(List.of());
+        when(docTexts.usages()).thenReturn(Map.of("siemen", usage("siemen", "Siemen", 3, 1),
+                "siemens ag", usage("siemens ag", "Siemens AG", 1, 0)));
+        when(scopeMapper.selectSupplierIdsByPendingKey(anyString())).thenReturn(List.of());
+
+        assertThat(service.linkAsAlias(List.of("Siemen", "siemens ag", "siemen"), 1L)).isEqualTo(2);
+
+        verify(brandService).addAlias(1L, "Siemen");
+        verify(brandService).addAlias(1L, "Siemens AG");
+        verify(docTexts).normalize(List.of("siemen", "siemens ag"), "Siemens");
+    }
+
+    @Test
+    void linkAsAlias_deletedBrandIsRejected() {
+        assertThrows(BizException.class, () -> service.linkAsAlias(List.of("x"), 2L));
+        verify(brandService, never()).addAlias(any(), anyString());
+    }
+
+    @Test
+    void createBrand_normalizesDocsToNewName() {
+        when(scopeMapper.selectPendingBrands()).thenReturn(List.of());
+        when(docTexts.usages()).thenReturn(Map.of("beckhof", usage("beckhof", "Beckhof", 3, 0)));
+        BrandVO created = new BrandVO();
+        created.setId(9L);
+        created.setBrandName("Beckhoff");
+        when(brandService.create(any())).thenReturn(created);
+        SaveBrandRequest req = new SaveBrandRequest();
+        req.setBrandName("Beckhoff");
+
+        service.createBrand("beckhof", req);
+
+        verify(brandService).addAlias(9L, "Beckhof");
+        verify(docTexts).normalize(List.of("beckhof"), "Beckhoff");
+    }
+
+    @Test
+    void ignore_recordsWordsOnce() {
+        when(scopeMapper.selectPendingBrands()).thenReturn(List.of());
+        when(docTexts.usages()).thenReturn(Map.of("n/a", usage("n/a", "N/A", 4, 0)));
+
+        assertThat(service.ignore(List.of("N/A", "n/a"))).isEqualTo(1);
+
+        ArgumentCaptor<BrandTextIgnoredDO> saved = ArgumentCaptor.forClass(BrandTextIgnoredDO.class);
+        verify(ignoredMapper).insert(saved.capture());
+        assertThat(saved.getValue().getTenantId()).isZero();
+        assertThat(saved.getValue().getTextKey()).isEqualTo("n/a");
+        assertThat(saved.getValue().getText()).isEqualTo("N/A");
+        verify(docTexts, never()).normalize(any(), any());
     }
 }

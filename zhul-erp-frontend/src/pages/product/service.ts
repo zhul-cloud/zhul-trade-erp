@@ -121,10 +121,47 @@ export interface Category {
   sortOrder: number;
   status: number;
   productCount: number;
+  /** 自己填的默认海关编码，空为未填 */
+  hsCode?: string;
+  /** 实际使用的默认海关编码：细分品类没填时沿用上级 */
+  effectiveHsCode?: string;
+  hsInherited?: boolean;
+  /** 实际编码前 6 位的目的国关税参考概况 */
+  tariffFilled?: number;
+  tariffTotal?: number;
+  tariffMissing?: string[];
+  tariffRange?: string;
   createBy: string;
   createTime: string;
   updateBy: string;
   updateTime: string;
+}
+
+/** 目的国进口关税参考（按海关编码前 6 位，9 个主要出口国） */
+export interface TariffRate {
+  countryCode: string;
+  countryName: string;
+  /** 进口关税文字，空为未填 */
+  rate: string;
+  note: string;
+  source?: string;
+  checkedAt?: string | null;
+  updateBy?: string | null;
+}
+
+export interface Tariff {
+  hs6: string;
+  rates: TariffRate[];
+  /** 自己填了这个编码的品类 */
+  categories: string[];
+}
+
+/** AI 补全关税参考：status 1 排队、2 处理中、3 完成、4 失败 */
+export interface TariffAi {
+  taskId: number;
+  status: number;
+  errorMessage?: string;
+  rates: TariffRate[];
 }
 
 export interface CategoryOption {
@@ -148,6 +185,8 @@ export interface SaveCategory {
   sortOrder?: number;
   /** 所属行业编码，只对一级品类有效 */
   industryCode?: string;
+  /** 默认海关编码，空字符串表示清空 */
+  hsCode?: string;
 }
 
 export interface Series {
@@ -230,22 +269,53 @@ export const categoryApi = {
     }),
   remove: (id: number) =>
     call<void>(`${BASE}/categories/${id}`, { method: 'DELETE' }),
+  /** 目的国进口关税参考 */
+  tariff: (hs6: string) => call<Tariff>(`${BASE}/categories/tariffs/${hs6}`),
+  saveTariff: (
+    hs6: string,
+    rates: Pick<TariffRate, 'countryCode' | 'rate' | 'note' | 'source'>[],
+  ) =>
+    call<Tariff>(`${BASE}/categories/tariffs/${hs6}`, {
+      method: 'PUT',
+      data: { rates },
+    }),
+  /** AI 补全未填的国家：返回任务，轮询结果；结果只是建议，保存后才生效 */
+  tariffAi: (hs6: string) =>
+    call<TariffAi>(`${BASE}/categories/tariffs/${hs6}/ai`, { method: 'POST' }),
+  tariffAiStatus: (taskId: number) =>
+    call<TariffAi>(`${BASE}/categories/tariffs/ai/${taskId}`),
 };
 
 /** 待确认品牌：供应商主营产品里手填、品牌清单中没有的名称（仅平台账号） */
+/** 待确认品牌：供应商主营产品里手填的名称，以及询盘、订单、采购单里认不出的品牌写法 */
 export interface PendingBrand {
   pendingKey: string;
   name: string;
   supplierCount: number;
+  inquiryCount: number;
+  orderCount: number;
+  purchaseCount: number;
   firstSeen: string;
+  /** similar：相近品牌；notBrand：不是品牌名 */
+  suggestKind?: 'similar' | 'notBrand';
+  suggestText?: string;
+  suggestBrandId?: number;
+  suggestBrandName?: string;
 }
 
 export const pendingBrandApi = {
   list: () => call<PendingBrand[]>('/api/v1/masterdata/pending-brands'),
-  linkAsAlias: (pendingKey: string, brandId: number) =>
-    call<void>('/api/v1/masterdata/pending-brands/alias', {
+  /** 设为同一品牌的别名（可批量），返回处理的写法数 */
+  linkAsAlias: (pendingKeys: string[], brandId: number) =>
+    call<number>('/api/v1/masterdata/pending-brands/alias-batch', {
       method: 'POST',
-      data: { pendingKey, brandId },
+      data: { pendingKeys, brandId },
+    }),
+  /** 标为不是品牌（可批量），返回处理的写法数 */
+  ignore: (pendingKeys: string[]) =>
+    call<number>('/api/v1/masterdata/pending-brands/ignore', {
+      method: 'POST',
+      data: { pendingKeys },
     }),
   createBrand: (pendingKey: string, brand: SaveBrand) =>
     call<number>('/api/v1/masterdata/pending-brands/brand', {
@@ -763,6 +833,12 @@ export interface Customs {
   declarationElements?: string;
   supervisionConditions?: string;
   exportRebateRate?: number | null;
+  /** 所属品类的默认海关编码与所在品类 */
+  categoryHsCode?: string;
+  categoryHsFrom?: string;
+  /** 目的国进口关税参考：按商品 HS 编码，没填时按品类默认编码 */
+  tariff?: Tariff | null;
+  tariffBy?: 'product' | 'category' | null;
 }
 
 export interface ReferencePrice {
@@ -934,6 +1010,23 @@ export interface ContentTaskQuery {
   brandId?: number;
   categoryId?: number;
   keyword?: string;
+  /** 本公司最近一次 AI 生成：pending 待确认、running 排队或生成中、failed 失败 */
+  ai?: 'pending' | 'running' | 'failed';
+}
+
+/** 批量确认 AI 结果、批量资料已核的结果 */
+export interface ContentBatchResult {
+  done: number;
+  partial: number;
+  failed: number;
+  approvedFaqs: number;
+  items: {
+    id: number;
+    productId?: number;
+    label: string;
+    outcome: 'done' | 'partial' | 'failed';
+    message: string;
+  }[];
 }
 
 export interface ContentFile {
@@ -987,7 +1080,7 @@ export interface ContentPreview {
 export interface ContentConfirmResult {
   succeeded: number;
   failed: number;
-  /** 一起上传时：自动审核通过的技术问答条数、自动核对资料的商品数 */
+  /** 随资料包审核通过的技术问答条数；一起上传时另有自动核对资料的商品数 */
   approvedFaqs?: number;
   verifiedProducts?: number;
   items: {
@@ -1157,6 +1250,18 @@ export const contentApi = {
   verifyFacts: (productId: number) =>
     call<void>(`${CONTENT}/products/${productId}/verify-facts`, {
       method: 'POST',
+    }),
+  /** 批量资料已核：逐个核对，已核对过的跳过并说明原因 */
+  verifyFactsBatch: (productIds: number[]) =>
+    call<ContentBatchResult>(`${CONTENT}/facts/verify-batch`, {
+      method: 'POST',
+      data: { ids: productIds },
+    }),
+  /** 批量确认 AI 结果：不逐章节修改，有问题的章节跳过 */
+  aiConfirmBatch: (jobIds: number[]) =>
+    call<ContentBatchResult>(`${CONTENT}/ai/confirm-batch`, {
+      method: 'POST',
+      data: { ids: jobIds },
     }),
   /** 营销平台与本公司是否启用 */
   platforms: () => call<MarketingPlatformOption[]>(`${CONTENT}/platforms`),

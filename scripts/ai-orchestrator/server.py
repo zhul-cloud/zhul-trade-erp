@@ -1049,6 +1049,67 @@ def process_background(payload: dict, callback_url: str):
         send_callback(callback_url, "failed", error=message[:500])
 
 
+
+TARIFF_SKILL = "hs-tariff-ref"
+
+TARIFF_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "rates": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "country": {"type": "string"},
+                    "rate": {"type": "string"},
+                    "note": {"type": "string"},
+                    "source": {"type": "string"},
+                },
+                "required": ["country", "rate", "note", "source"],
+            },
+        },
+    },
+    "required": ["rates"],
+}
+
+
+def call_tariff(cfg: AiConfig, input_data: dict) -> dict:
+    """目的国进口关税参考（openspec content-ai-batch-hs）：按 6 位编码联网查指定国家，查不到可信来源的国家不返回。
+    用询盘解析的模型与思考强度；每个国家至少留两次联网（查一次、打开一次）"""
+    countries = input_data.get("countries") or []
+    structured = call_api(cfg, _read_skill(TARIFF_SKILL), json.dumps(input_data, ensure_ascii=False), [],
+                          TARIFF_SCHEMA, role="parse", web_search=True, web_fetch=True,
+                          min_web_calls=2 * len(countries))
+    if "rates" not in structured:
+        raise RuntimeError("AI 未返回符合 schema 的关税结果")
+    wanted = {c.get("code") for c in countries}
+    structured["rates"] = [r for r in structured["rates"] if r.get("country") in wanted and (r.get("rate") or "").strip()]
+    print(f"[ai-orchestrator] 关税参考 {input_data.get('hs6')} 查到 {len(structured['rates'])}/{len(countries)} 国")
+    return structured
+
+
+def process_tariff(payload: dict, callback_url: str):
+    start_job()
+    key = _api_key_of(payload)
+    try:
+        cfg = parse_chain(payload, callback_url)
+        input_data = payload.get("input") or {}
+        if not re.fullmatch(r"\d{6}", str(input_data.get("hs6") or "")):
+            send_callback(callback_url, "failed", error="海关编码前 6 位不正确")
+            return
+        if not input_data.get("countries"):
+            send_callback(callback_url, "failed", error="没有要查的国家")
+            return
+        send_callback(callback_url, "success", output=call_tariff(cfg, input_data))
+    except ConfigError as e:
+        send_callback(callback_url, "failed", error=str(e))
+    except (JobTimeout, anthropic.APITimeoutError, openai.APITimeoutError):
+        send_callback(callback_url, "failed", error=f"AI 处理超过 {TIMEOUT_SECONDS} 秒未完成")
+    except Exception as e:
+        message = scrub(str(e), key)
+        print(f"[ai-orchestrator] hs-tariff-ref failed: {message}")
+        send_callback(callback_url, "failed", error=message[:500])
+
 PRODUCT_CONTENT_SKILL = "product-content"
 # 一个商品的资料与营销内容要核实多个网页，联网次数至少这么多（公司设置更高时按公司设置）
 PRODUCT_CONTENT_MIN_WEB_CALLS = int(os.environ.get("AI_PRODUCT_CONTENT_MIN_WEB_CALLS") or "40")
@@ -2018,6 +2079,11 @@ class Handler(BaseHTTPRequestHandler):
         if skill_id == PRODUCT_CONTENT_SKILL:
             if callback_url:
                 threading.Thread(target=process_product_content, args=(payload, callback_url), daemon=True).start()
+            return
+
+        if skill_id == TARIFF_SKILL:
+            if callback_url:
+                threading.Thread(target=process_tariff, args=(payload, callback_url), daemon=True).start()
             return
 
         if skill_id == BACKGROUND_SKILL:

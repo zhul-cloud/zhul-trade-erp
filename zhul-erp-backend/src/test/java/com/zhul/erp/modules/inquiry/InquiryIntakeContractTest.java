@@ -186,7 +186,7 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
         assertEquals(2, tasks.get(1).path("itemCount").asInt());
         assertEquals("变频器与驱动", tasks.get(2).path("category").asText(), "「变频器」关联到品类后，任务按一级品类命名");
         JsonNode items = detail.path("items");
-        assertEquals("SIEMENS", items.get(0).path("brand").asText());
+        assertEquals("Siemens", items.get(0).path("brand").asText(), "识别到品牌时存正式品牌名（openspec brand-unify）");
         assertEquals(1, items.get(0).path("priceSource").asInt());
         assertEquals(0, new java.math.BigDecimal("1350.00").compareTo(items.get(0).path("selectedQuote").path("unitPriceCny").decimalValue()));
         assertEquals("伺服电机", items.get(1).path("category").asText());
@@ -250,7 +250,7 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
         JsonNode models = ok(call(get(INQ + "/" + bulk + "/models"), admin));
         assertEquals(3, models.size(), models.toString());
         assertEquals(models.get(0).path("model").asText(), b.path("firstModel").asText(), "列表显示第一个型号");
-        assertEquals("Omron", b.path("brands").get(0).asText(), "型号多的品牌排前面");
+        assertEquals("omron", b.path("brands").get(0).asText().toLowerCase(), "型号多的品牌排前面（存正式名，品牌库为 OMRON）");
         assertEquals("Delta", b.path("brands").get(1).asText());
         assertEquals(2, b.path("categories").size());
         assertEquals(17, java.util.stream.StreamSupport.stream(models.spliterator(), false)

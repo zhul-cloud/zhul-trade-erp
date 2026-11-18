@@ -24,6 +24,12 @@ public class PriceKeys {
         return new BrandRef(id, id != null ? "#" + id : BrandResolver.key(brand));
     }
 
+    /** 单据里存的品牌文字：识别到品牌时用正式品牌名（「施耐德」→ Schneider Electric），识别不到时用原文（openspec brand-unify） */
+    public String brandText(BrandRef ref, String brand) {
+        String name = ref.brandId() == null ? null : brandResolver.nameOf(ref.brandId());
+        return name != null ? name : brand == null ? "" : brand.trim();
+    }
+
     public static String model(String model) {
         return MpnNormalizer.normalize(model);
     }

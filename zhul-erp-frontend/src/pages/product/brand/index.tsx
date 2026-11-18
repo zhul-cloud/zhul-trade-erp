@@ -22,7 +22,6 @@ import {
   Segmented,
   Select,
   Space,
-  Table,
   Tabs,
   Tooltip,
 } from 'antd';
@@ -42,13 +41,13 @@ import {
 } from '../constants';
 import {
   type Brand,
-  type BrandOption,
   brandApi,
   type PendingBrand,
   pendingBrandApi,
   readBizError,
 } from '../service';
 import { PageHeader, ProductThemeProvider } from '../theme';
+import PendingTab from './PendingTab';
 
 const LEVEL_TABS: { value: number | 'all'; label: string; key: string }[] = [
   { value: 'all', label: '全部', key: 'all' },
@@ -99,9 +98,6 @@ const BrandPage: React.FC = () => {
   const [pendingLoading, setPendingLoading] = useState(false);
   // 「新建为品牌」复用品牌表单：记下正在确认的待确认品牌
   const [creatingFrom, setCreatingFrom] = useState<PendingBrand | null>(null);
-  const [linking, setLinking] = useState<PendingBrand | null>(null);
-  const [linkTarget, setLinkTarget] = useState<number>();
-  const [brandOptions, setBrandOptions] = useState<BrandOption[]>([]);
   const canConfirm = !!access['product:brand:edit'];
   const [level, setLevel] = useState<number | 'all'>('all');
   const [levelCounts, setLevelCounts] = useState<Record<string, number>>({});
@@ -133,27 +129,6 @@ const BrandPage: React.FC = () => {
     setCreatingFrom(from);
     if (!row) setDefaultColor(randomBrandColor());
     setOpen(true);
-  };
-
-  const openLink = async (row: PendingBrand) => {
-    setLinking(row);
-    setLinkTarget(undefined);
-    setBrandOptions(await brandApi.options());
-  };
-
-  const confirmLink = async () => {
-    if (!linking || !linkTarget) return;
-    try {
-      await pendingBrandApi.linkAsAlias(linking.pendingKey, linkTarget);
-      message.success(
-        `已设为别名，${linking.supplierCount} 个供应商已关联到该品牌`,
-      );
-      setLinking(null);
-      loadPending();
-      actionRef.current?.reload();
-    } catch (e) {
-      message.error(readBizError(e).message);
-    }
   };
 
   const toggleStatus = (row: Brand) => {
@@ -430,64 +405,13 @@ const BrandPage: React.FC = () => {
         />
       )}
       {tab === 'pending' && canConfirm ? (
-        <Table<PendingBrand>
-          rowKey="pendingKey"
+        <PendingTab
+          pending={pending}
           loading={pendingLoading}
-          dataSource={pending}
-          pagination={false}
-          title={() =>
-            '业务员在供应商主营产品里手填、品牌清单中还没有的名称。确认后相关供应商自动关联到正式品牌。'
-          }
-          locale={{ emptyText: '没有待确认的品牌' }}
-          columns={[
-            {
-              title: '待确认名称',
-              dataIndex: 'name',
-              width: 220,
-              render: (v: string) => (
-                <span style={{ fontWeight: 600 }}>{v}</span>
-              ),
-            },
-            {
-              title: '使用的供应商数',
-              dataIndex: 'supplierCount',
-              align: 'right',
-              width: 140,
-              render: (v: number) => <span className="num">{v}</span>,
-            },
-            {
-              title: '首次出现',
-              dataIndex: 'firstSeen',
-              width: 180,
-              render: (v: string) => (
-                <span className="num">{formatDateTime(v)}</span>
-              ),
-            },
-            {
-              title: '操作',
-              width: 260,
-              render: (_: unknown, row: PendingBrand) => (
-                <Space size={12} style={{ whiteSpace: 'nowrap' }}>
-                  <button
-                    type="button"
-                    className="zhul-link"
-                    onClick={() => openLink(row)}
-                  >
-                    设为已有品牌的别名
-                  </button>
-                  {access['product:brand:add'] && (
-                    <button
-                      type="button"
-                      className="zhul-link"
-                      onClick={() => openForm(null, row)}
-                    >
-                      新建为品牌
-                    </button>
-                  )}
-                </Space>
-              ),
-            },
-          ]}
+          reload={loadPending}
+          canAdd={!!access['product:brand:add']}
+          onCreate={(row) => openForm(null, row)}
+          onLinked={() => actionRef.current?.reload()}
         />
       ) : (
         <>
@@ -756,44 +680,6 @@ const BrandPage: React.FC = () => {
           ]}
           extra="标为「兼容 / 非原厂」的品牌，下游不能对它的商品使用「正品」类表述"
         />
-      </ModalForm>
-      <ModalForm
-        name="brandAlias"
-        title={linking ? `把「${linking.name}」设为已有品牌的别名` : ''}
-        open={!!linking}
-        onOpenChange={(v) => !v && setLinking(null)}
-        width={440}
-        modalProps={{ destroyOnHidden: true }}
-        submitter={{
-          searchConfig: { submitText: '设为别名' },
-          submitButtonProps: { disabled: !linkTarget },
-        }}
-        onFinish={async () => {
-          await confirmLink();
-          return false;
-        }}
-      >
-        <ProForm.Item
-          label="归到品牌"
-          extra={
-            linking
-              ? `确认后 ${linking.supplierCount} 个供应商的主营产品会改为关联这个品牌`
-              : undefined
-          }
-        >
-          <Select
-            showSearch={{ optionFilterProp: 'label' }}
-            placeholder="搜索品牌名称或别名"
-            value={linkTarget}
-            onChange={setLinkTarget}
-            options={brandOptions.map((b) => ({
-              value: b.id,
-              label: b.aliases?.length
-                ? `${b.brandName}（${b.aliases.join('、')}）`
-                : b.brandName,
-            }))}
-          />
-        </ProForm.Item>
       </ModalForm>
     </ProductThemeProvider>
   );

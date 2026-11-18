@@ -258,7 +258,7 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         assertEquals(3, specs.path("count").asInt());
         assertTrue(specs.path("hints").toString().contains("额定电压」已核实"), specs.toString());
         assertEquals("shared", block(a, "TECH_FAQ").path("target").asText());
-        assertTrue(block(a, "TECH_FAQ").path("hints").toString().contains("待平台审核"));
+        assertTrue(block(a, "TECH_FAQ").path("hints").toString().contains("随资料包审核通过"));
         assertTrue(a.path("notes").toString().contains("不属于资料包"), "资料包里的营销章节跳过");
         assertTrue(a.path("notes").toString().contains("第三期"));
         assertTrue(preview.get(1).path("errors").toString().contains("找不到商品"));
@@ -268,7 +268,7 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         assertEquals(0, jdbc.queryForObject("select count(*) from product_content_import where product_id = ?", Integer.class, p1),
                 "预览不落库");
 
-        // 确认资料包（另一家公司操作）：逐个文件独立；只写中文；技术问答待审核
+        // 确认资料包（另一家公司操作）：逐个文件独立；只写中文；技术问答随资料包审核通过
         JsonNode res = ok(call(json(post(TASKS + "/facts/confirm"), write(Map.of("files", List.of(files.get(0), files.get(1))))), other));
         assertEquals(1, res.path("succeeded").asInt(), res.toString());
         assertEquals(1, res.path("failed").asInt());
@@ -285,8 +285,8 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
         assertEquals(p2, sameFamily.path("relatedProductId").asLong(), "关联型号在库内时关联商品");
         assertEquals("同系列", sameFamily.path("note").asText());
         assertEquals(1, jdbc.queryForObject("select count(*) from product_document where product_id = ? and deleted_at is null", Integer.class, p1));
-        assertEquals(2, ok(call(get(PRODUCTS + "/" + p1 + "/faqs"), admin)).size(), "平台账号看得到待审核的技术问答");
-        assertEquals(2, ok(call(get(PRODUCTS + "/" + p1 + "/faqs"), other)).size(), "有「商品内容维护」权限的公司管理员也看得到待审核的技术问答");
+        assertEquals(2, ok(call(get(PRODUCTS + "/" + p1 + "/faqs"), admin)).size(), "平台账号看得到技术问答");
+        assertEquals(2, ok(call(get(PRODUCTS + "/" + p1 + "/faqs"), other)).size(), "有「商品内容维护」权限的公司管理员也看得到技术问答");
         assertEquals(0, jdbc.queryForObject("select count(*) from product_seo where product_id = ?", Integer.class, p1),
                 "资料包里的 SEO 标题不写入");
 
@@ -392,8 +392,12 @@ class ProductContentPlanContractTest extends InquiryContractSupport {
                 Integer.class, p1));
         assertTrue(jdbc.queryForObject("select verified_at is not null from product_fact_task where product_id = ?", Boolean.class, p1));
 
-        // 公司账号用资料任务导入的待审核问答：有「商品内容维护」权限就能看到并审核
+        // 资料任务导入的技术问答也随资料包审核通过（openspec content-ai-batch-hs）
         confirm(other, file("p2.facts.md", facts("ITCSiemens", "6ES7321-1FH00-0AA0", FACTS_BODY)));
+        assertEquals(0, jdbc.queryForObject("select count(*) from product_faq where product_id = ? and source = 3 and deleted_at is null",
+                Integer.class, p2));
+        // 其他来源的待审核问答（这里直接改回待审核）：有「商品内容维护」权限就能看到并审核
+        jdbc.update("update product_faq set source = 3, reviewed_by = '', reviewed_at = null where product_id = ?", p2);
         JsonNode faqs = ok(call(get(PRODUCTS + "/" + p2 + "/faqs"), other));
         assertEquals(2, faqs.size());
         long faq = faqs.get(0).path("id").asLong();

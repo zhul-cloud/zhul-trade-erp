@@ -488,7 +488,7 @@ public class ContentWriter {
             written++;
         }
         int skipped = rows.size() - written;
-        return "技术问答 " + written + "（待平台审核）" + (skipped > 0 ? "，已有 " + skipped + " 条不重复写入" : "");
+        return "技术问答 " + written + (skipped > 0 ? "，已有 " + skipped + " 条不重复写入" : "");
     }
 
     /** SEO 标题、描述、长描述、首屏定义块：有哪块写哪块，没上传或跳过的保留原值 */

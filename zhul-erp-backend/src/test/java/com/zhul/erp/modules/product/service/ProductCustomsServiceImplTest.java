@@ -39,6 +39,10 @@ class ProductCustomsServiceImplTest {
     private ProductCustomsMapper customsMapper;
     @Mock
     private ProductFinder productFinder;
+    @Mock
+    private com.zhul.erp.modules.product.support.CategoryHsCodes categoryHsCodes;
+    @Mock
+    private HsTariffService tariffService;
 
     private ProductCustomsServiceImpl service;
 
@@ -50,7 +54,12 @@ class ProductCustomsServiceImplTest {
     @BeforeEach
     void setUp() {
         TenantContext.setTenantId(0);
-        service = new ProductCustomsServiceImpl(customsMapper, productFinder, com.zhul.erp.modules.product.support.TestProductWriteGuards.ownedBy(0));
+        service = new ProductCustomsServiceImpl(customsMapper, productFinder,
+                com.zhul.erp.modules.product.support.TestProductWriteGuards.ownedBy(0), categoryHsCodes, tariffService);
+        org.mockito.Mockito.when(productFinder.active(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new com.zhul.erp.modules.product.entity.ProductDO());
+        org.mockito.Mockito.when(categoryHsCodes.of(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new com.zhul.erp.modules.product.support.CategoryHsCodes.Effective("", null));
     }
 
     @AfterEach

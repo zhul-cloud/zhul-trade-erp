@@ -32,6 +32,7 @@ import com.zhul.erp.modules.product.entity.ProductFaqDO;
 import com.zhul.erp.modules.product.entity.ProductReferencePriceDO;
 import com.zhul.erp.modules.product.entity.ProductRelationshipDO;
 import com.zhul.erp.modules.product.entity.ProductSpecificationDO;
+import com.zhul.erp.modules.product.service.ProductFaqService;
 import com.zhul.erp.modules.product.repository.ProductApplicationMapper;
 import com.zhul.erp.modules.product.repository.ProductBrandMapper;
 import com.zhul.erp.modules.product.repository.ProductCustomsMapper;
@@ -54,6 +55,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashSet;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -90,6 +92,7 @@ public class ContentImportService {
     private final ProductLogisticsMapper logisticsMapper;
     private final ProductCustomsMapper customsMapper;
     private final ProductReferencePriceMapper referencePriceMapper;
+    private final ProductFaqService productFaqService;
 
     private static final Map<Integer, String> TIER_LABELS = Map.of(ContentConstants.TIER_CORE, "核心",
             ContentConstants.TIER_MAIN, "主要", ContentConstants.TIER_LONG_TAIL, "长尾");
@@ -151,7 +154,28 @@ public class ContentImportService {
             }
             result.getItems().add(item);
         }
+        result.setApprovedFaqs(approveFaqs(result));
         return result;
+    }
+
+    /**
+     * 资料包写入成功的商品，待审核的技术问答随之审核通过（openspec content-ai-batch-hs，所有上传入口与 AI 结果确认都适用）；
+     * 资料本身仍为「资料待核」。各商品独立事务，某个失败只记日志、不影响已写入的内容。
+     */
+    private int approveFaqs(ContentConfirmVO result) {
+        Set<Long> products = new LinkedHashSet<>();
+        result.getItems().stream()
+                .filter(i -> i.isSuccess() && ContentConstants.TYPE_FACTS.equals(i.getType()) && i.getProductId() != null)
+                .forEach(i -> products.add(i.getProductId()));
+        int approved = 0;
+        for (Long productId : products) {
+            try {
+                approved += productFaqService.approveAllPending(productId);
+            } catch (BizException e) {
+                log.warn("技术问答自动审核跳过，productId={}，原因={}", productId, e.getMessage());
+            }
+        }
+        return approved;
     }
 
     private List<Analyzed> analyze(ContentFileRequest req, String expectedType) {
@@ -560,7 +584,7 @@ public class ContentImportService {
                                 .isNull(ProductFaqDO::getDeletedAt))
                         .forEach(f -> questions.add(ContentWriter.key(f.getQuestion())));
                 long dup = b.getFaqs().stream().filter(f -> questions.contains(ContentWriter.key(f.question()))).count();
-                hints.add("写入共享商品库，待平台审核后所有公司可见" + (dup > 0 ? "；" + dup + " 条问题已有，不重复写入" : ""));
+                hints.add("写入共享商品库，随资料包审核通过，所有公司可见" + (dup > 0 ? "；" + dup + " 条问题已有，不重复写入" : ""));
             }
             case SERIES -> {
                 if (product.getSeriesId() != null) {

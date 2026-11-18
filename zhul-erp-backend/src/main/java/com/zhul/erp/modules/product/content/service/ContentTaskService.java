@@ -119,9 +119,10 @@ public class ContentTaskService {
         Integer tenantId = TenantContext.getTenantId();
         PlatformFlags flags = PlatformFlags.of(platformSettings.enabled());
         List<Integer> stages = stagesOf(view, q.getTab());
-        long total = taskMapper.count(tenantId, flags, stages, q.getBrandId(), q.getCategoryId(), keyword, mpn);
+        List<Integer> aiFilter = aiStatuses(q.getAi());
+        long total = taskMapper.count(tenantId, flags, stages, q.getBrandId(), q.getCategoryId(), keyword, mpn, aiFilter);
         List<ContentTaskRow> rows = total == 0 ? List.of()
-                : taskMapper.page(tenantId, flags, stages, q.getBrandId(), q.getCategoryId(), keyword, mpn,
+                : taskMapper.page(tenantId, flags, stages, q.getBrandId(), q.getCategoryId(), keyword, mpn, aiFilter,
                 (long) (page - 1) * size, size);
         Map<Long, String> brands = brandNames(rows.stream().map(ContentTaskRow::getBrandId).collect(Collectors.toSet()));
         Map<Long, String> categories = categoryNames(rows.stream().map(ContentTaskRow::getCategoryId).collect(Collectors.toSet()));
@@ -166,12 +167,25 @@ public class ContentTaskService {
         return PageResult.of(total, records);
     }
 
+    /** AI 筛选：待确认、排队或生成中、失败；其他值不筛选 */
+    static List<Integer> aiStatuses(String ai) {
+        if (ai == null) {
+            return null;
+        }
+        return switch (ai) {
+            case "pending" -> List.of(ContentConstants.AI_PENDING);
+            case "running" -> List.of(ContentConstants.AI_QUEUED, ContentConstants.AI_RUNNING);
+            case "failed" -> List.of(ContentConstants.AI_FAILED);
+            default -> null;
+        };
+    }
+
     /** 各页签数量：资料任务 all / 1 / 2 / verified，营销任务 all / unverified / 3 / 4 */
     public Map<String, Long> counts(ContentTaskQuery q, View view) {
         Map<String, Long> byStage = new LinkedHashMap<>();
         for (Map<String, Object> row : taskMapper.countByStatus(TenantContext.getTenantId(),
                 PlatformFlags.of(platformSettings.enabled()), q.getBrandId(),
-                q.getCategoryId(), keyword(q.getKeyword()), mpn(q.getKeyword()))) {
+                q.getCategoryId(), keyword(q.getKeyword()), mpn(q.getKeyword()), aiStatuses(q.getAi()))) {
             byStage.merge(String.valueOf(row.get("status")), ((Number) row.get("cnt")).longValue(), Long::sum);
         }
         long s1 = byStage.getOrDefault("1", 0L);

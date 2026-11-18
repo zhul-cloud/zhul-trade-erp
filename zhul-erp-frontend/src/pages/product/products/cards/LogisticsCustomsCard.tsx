@@ -18,6 +18,7 @@ import {
   logisticsApi,
   readBizError,
 } from '../../service';
+import { useProductTheme } from '../../theme';
 import {
   CardEmpty,
   CardShell,
@@ -26,6 +27,62 @@ import {
   useEditFocus,
   useUnsaved,
 } from './CardShell';
+
+/** 目的国进口关税参考（openspec content-ai-batch-hs）：按商品 HS 编码，没填时按品类默认编码 */
+const TariffBlock: React.FC<{ customs?: Customs | null }> = ({ customs }) => {
+  const { palette } = useProductTheme();
+  const t = customs?.tariff;
+  if (!t) return null;
+  const checked = t.rates
+    .map((r) => r.checkedAt)
+    .filter(Boolean)
+    .sort()
+    .pop();
+  return (
+    <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ fontWeight: 600, flex: 1 }}>
+          目的国进口关税参考 · <span className="num">{t.hs6}</span>
+        </span>
+        <span style={{ fontSize: 12, color: palette.mute }}>
+          {customs?.tariffBy === 'category'
+            ? `按品类「${customs.categoryHsFrom ?? ''}」的默认编码`
+            : '按本商品 HS 编码'}
+          {checked ? ` · ${checked.slice(5)} 核对` : ''}
+        </span>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {t.rates.map((r) => (
+          <div
+            key={r.countryCode}
+            title={r.note || undefined}
+            style={{
+              width: 104,
+              padding: '8px 10px',
+              borderRadius: 10,
+              background: palette.inset,
+              display: 'grid',
+              gap: 4,
+            }}
+          >
+            <span style={{ fontSize: 12, color: palette.mute }}>
+              {r.countryName}
+            </span>
+            <b
+              className="num"
+              style={{ color: r.rate ? undefined : palette.mute }}
+            >
+              {r.rate || '未填'}
+            </b>
+          </div>
+        ))}
+      </div>
+      <span style={{ fontSize: 12, color: palette.mute }}>
+        参考信息，不代替报关行意见；在「商品管理 → 品类」维护。
+      </span>
+    </div>
+  );
+};
 
 const positive = (label: string) => ({
   validator: (_: unknown, v: number | null | undefined) =>
@@ -445,25 +502,44 @@ export const LogisticsCustomsCard: React.FC<{
             </Space>
           </Form>
         ) : !customsDone && !customs?.id ? (
-          <CardEmpty
-            benefit="HS 编码和申报品名是报关必填项，提前填好能少走一遍确认。"
-            actionText={readOnly ? undefined : '填写 HS 编码'}
-            onAction={() => setEditC(true)}
-          />
+          <>
+            <CardEmpty
+              benefit={
+                customs?.categoryHsCode
+                  ? `HS 编码还没填；品类默认编码为 ${customs.categoryHsCode}，报关前请确认。`
+                  : 'HS 编码和申报品名是报关必填项，提前填好能少走一遍确认。'
+              }
+              actionText={readOnly ? undefined : '填写 HS 编码'}
+              onAction={() => setEditC(true)}
+            />
+            <TariffBlock customs={customs} />
+          </>
         ) : (
-          <FieldGrid>
-            <Field label="HS 编码">
-              <span className="num">{customs?.hsCode}</span>
-            </Field>
-            <Field label="默认原产国">{customs?.originCountry}</Field>
-            <Field label="申报品名（中文）">{customs?.customsNameCn}</Field>
-            <Field label="申报品名（英文）">{customs?.customsNameEn}</Field>
-            <Field label="监管条件">{customs?.supervisionConditions}</Field>
-            <Field label="出口退税率">
-              <span className="num">{fmt(customs?.exportRebateRate, '%')}</span>
-            </Field>
-            <Field label="申报要素">{customs?.declarationElements}</Field>
-          </FieldGrid>
+          <>
+            <FieldGrid>
+              <Field label="HS 编码">
+                {customs?.hsCode ? (
+                  <span className="num">{customs.hsCode}</span>
+                ) : customs?.categoryHsCode ? (
+                  <span>
+                    未填 · 品类默认{' '}
+                    <span className="num">{customs.categoryHsCode}</span>
+                  </span>
+                ) : undefined}
+              </Field>
+              <Field label="默认原产国">{customs?.originCountry}</Field>
+              <Field label="申报品名（中文）">{customs?.customsNameCn}</Field>
+              <Field label="申报品名（英文）">{customs?.customsNameEn}</Field>
+              <Field label="监管条件">{customs?.supervisionConditions}</Field>
+              <Field label="出口退税率">
+                <span className="num">
+                  {fmt(customs?.exportRebateRate, '%')}
+                </span>
+              </Field>
+              <Field label="申报要素">{customs?.declarationElements}</Field>
+            </FieldGrid>
+            <TariffBlock customs={customs} />
+          </>
         )}
       </CardShell>
     </>

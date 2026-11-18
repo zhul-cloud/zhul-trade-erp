@@ -141,7 +141,71 @@ class ContentAiContractTest extends InquiryContractSupport {
         return jdbc.queryForObject(sql, Integer.class, args);
     }
 
+    /** 回调指定的两份原文（型号可以故意写错，造出不能写入的文件） */
+    private void callbackWith(long productId, String factsMarkdown, String marketingMarkdown) {
+        AiTaskCallbackRequest req = new AiTaskCallbackRequest();
+        req.setStatus("success");
+        req.setOutput(Map.of("factsMarkdown", factsMarkdown, "marketingMarkdown", marketingMarkdown, "selfScore", 88,
+                "summary", "测试"));
+        aiTaskService.handleCallback(((Number) job(productId).get("ai_task_id")).longValue(), req);
+    }
+
+    private List<Long> pageIds(String ai) throws Exception {
+        List<Long> ids = new ArrayList<>();
+        for (JsonNode r : ok(call(json(post(TASKS + "/facts/page"), write(Map.of("brandId", brand, "ai", ai))), admin))
+                .path("records")) {
+            ids.add(r.path("productId").asLong());
+        }
+        return ids;
+    }
+
     // ---------------------------------------------------------------- 用例
+
+    /** openspec content-ai-batch-hs：按 AI 状态筛选、批量确认 AI 结果（问题文件跳过、技术问答随资料包审核通过）、批量资料已核 */
+    @Test
+    void aiFilter_batchConfirm_batchVerify() throws Exception {
+        long p1 = products.get(0);
+        long p2 = products.get(1);
+        long p3 = products.get(2);
+        long p4 = products.get(3);
+        ok(start(admin, p1, p2, p3));
+        assertEquals(List.of(), pageIds("pending"));
+        assertEquals(3, pageIds("running").size(), "排队或生成中");
+        callbackWith(p1, facts("AI-0001"), marketing("AI-0001"));
+        callbackWith(p2, facts("AI-0002"), marketing("AI-9999"));
+        callbackWith(p3, facts("AI-9998"), marketing("AI-9999"));
+        assertEquals(3, pageIds("pending").size(), "三个都待确认");
+        assertEquals(List.of(), pageIds("failed"));
+
+        JsonNode res = ok(call(json(post(TASKS + "/ai/confirm-batch"), write(Map.of("ids",
+                List.of(jobId(p1), jobId(p2), jobId(p3))))), admin));
+        assertEquals(1, res.path("done").asInt(), res.toString());
+        assertEquals(1, res.path("partial").asInt(), res.toString());
+        assertEquals(1, res.path("failed").asInt(), res.toString());
+        assertEquals(2, res.path("approvedFaqs").asInt(), "p1、p2 的资料包各有 1 条技术问答，随资料包审核通过");
+        assertEquals("AI-0001", res.path("items").get(0).path("label").asText());
+        assertTrue(res.path("items").get(1).path("message").asText().contains("营销包"), res.toString());
+        assertEquals(4, status(p1), "两份都写入，已导入");
+        assertEquals(3, status(p2), "营销包没写入，仍待确认");
+        assertEquals(3, status(p3));
+        assertEquals(0, count("select count(*) from product_faq where product_id in (?, ?) and source = 3 and deleted_at is null",
+                p1, p2), "技术问答不再待审核");
+        assertNull(jdbc.queryForObject("select verified_at from product_fact_task where product_id = ?", Object.class, p1),
+                "资料仍待核");
+
+        // 批量资料已核：没有导入的也可以核对；已核对过的再提交跳过并说明原因
+        JsonNode verified = ok(call(json(post(TASKS + "/facts/verify-batch"), write(Map.of("ids", List.of(p1, p2, p4)))), admin));
+        assertEquals(3, verified.path("done").asInt(), verified.toString());
+        assertEquals(1, count("select count(*) from product_fact_task where product_id = ? and verified_at is not null", p1));
+        JsonNode again = ok(call(json(post(TASKS + "/facts/verify-batch"), write(Map.of("ids", List.of(p1)))), admin));
+        assertEquals(1, again.path("failed").asInt());
+        assertTrue(again.path("items").get(0).path("message").asText().contains("已核对"), again.toString());
+
+        // 没有「商品内容维护」权限不能批量核对
+        loginWithResources("it_ai_viewer", 100100);
+        assertEquals(403, perform(json(post(TASKS + "/facts/verify-batch"), write(Map.of("ids", List.of(p1)))),
+                token("it_ai_viewer")).getStatus());
+    }
 
     @Test
     void batchQueuesBeyondThree_duplicateRejected_resultAndPermissionWrite() throws Exception {
