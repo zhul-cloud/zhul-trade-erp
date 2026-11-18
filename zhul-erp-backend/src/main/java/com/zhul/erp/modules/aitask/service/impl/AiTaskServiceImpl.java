@@ -14,6 +14,8 @@ import com.zhul.erp.modules.aitask.dto.AiFailover;
 import com.zhul.erp.modules.aitask.dto.AiTaskCallbackRequest;
 import com.zhul.erp.modules.aitask.dto.AiTaskVO;
 import com.zhul.erp.modules.aitask.entity.AiTaskDO;
+import com.zhul.erp.modules.aitask.exception.AiNotConfiguredException;
+import com.zhul.erp.modules.aitask.exception.AiUnavailableException;
 import com.zhul.erp.modules.aitask.repository.AiTaskMapper;
 import com.zhul.erp.modules.aitask.service.AiConfigService;
 import com.zhul.erp.modules.aitask.service.AiOrchestratorClient;
@@ -67,8 +69,13 @@ public class AiTaskServiceImpl implements AiTaskService {
         this.pauses = pauses;
     }
 
+    /**
+     * 未配置、暂不可用在建任务之前就抛出，没有要回滚的写入：不把调用方的外层事务标记为只能回滚，
+     * 调用方捕获后其余写入照常提交（audit BUS-087）
+     */
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class,
+            noRollbackFor = {AiNotConfiguredException.class, AiUnavailableException.class})
     public AiTaskVO createAndSubmit(String skillId, String inputJson, Long requestedBy) {
         // 先按顺序挑出当前租户可用的连接方式（配置快照）：一个都没有时直接抛异常，不产生任务；
         // 必须在请求线程里取，afterCommit 的异步提交里没有可靠的租户上下文

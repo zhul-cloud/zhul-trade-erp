@@ -1,16 +1,20 @@
 package com.zhul.erp.modules.product.content;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.aitask.dto.AiTaskCallbackRequest;
+import com.zhul.erp.modules.aitask.exception.AiNotConfiguredException;
 import com.zhul.erp.modules.aitask.service.AiOrchestratorClient;
 import com.zhul.erp.modules.aitask.service.AiTaskService;
 import com.zhul.erp.modules.inquiry.InquiryContractSupport;
+import com.zhul.erp.modules.product.content.constants.ContentConstants;
 import com.zhul.erp.modules.product.content.service.ContentAiService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -21,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -41,6 +46,7 @@ class ContentAiContractTest extends InquiryContractSupport {
     @MockBean private AiOrchestratorClient orchestrator;
     @Autowired private AiTaskService aiTaskService;
     @Autowired private ContentAiService aiService;
+    @Autowired private TransactionTemplate tx;
 
     private String admin;
     private long brand;
@@ -287,6 +293,49 @@ class ContentAiContractTest extends InquiryContractSupport {
         aiService.expirePending();
         assertEquals(6, status(p1), "待确认超过 30 天自动取消");
         assertTrue(((String) job(p1).get("fail_reason")).contains("30 天"));
+    }
+
+    /**
+     * audit BUS-087：AI 不可用时，失败结果照常保存、排队的继续排队（以前整个回调事务回滚、回调报 500）；
+     * 任务已结束但结果没保存的生成中记录自动收尾，AI 恢复后定时补交排队的记录。
+     */
+    @Test
+    void unavailable_keepsQueue_failedResultSaved_resumeSettlesStuckJob() throws Exception {
+        long p2 = products.get(1);
+        long p3 = products.get(2);
+        long p4 = products.get(3);
+        ok(start(admin, products.toArray(Long[]::new)));
+        assertEquals(1, status(p4));
+
+        removeAiConfig(0);
+        callback(p2, false);
+        assertEquals(5, status(p2), "失败结果照常保存");
+        assertEquals(1, status(p4), "AI 不可用时继续排队，不判失败");
+
+        // 以前回滚留下的数据：AI 任务已失败，记录仍是生成中，一直占着并发名额
+        long t3 = ((Number) job(p3).get("ai_task_id")).longValue();
+        jdbc.update("update ai_task set status = 4, error_message = '处理超时：测试' where id = ?", t3);
+        aiService.resumeQueued();
+        assertEquals(5, status(p3), "结果没保存的生成中记录按任务结果收尾");
+        assertTrue(((String) job(p3).get("fail_reason")).contains("处理超时"));
+        assertEquals(1, status(p4), "AI 仍不可用，继续排队");
+
+        seedAiConfig(0);
+        aiService.resumeQueued();
+        assertEquals(2, status(p4), "AI 恢复后补交排队的记录");
+    }
+
+    /** audit BUS-087：未配置、暂不可用在建任务前抛出，调用方捕获后外层事务照常提交，不被标记为只能回滚 */
+    @Test
+    void createAndSubmit_unavailable_doesNotPoisonOuterTransaction() {
+        removeAiConfig(0);
+        tx.executeWithoutResult(s -> TenantContext.runAs(0, () -> {
+            jdbc.update("insert into product_category (tenant_id, category_code, category_name, category_name_zh, status) "
+                    + "values (0, 'itcai-tx', 'TX', '事务', 1)");
+            assertThrows(AiNotConfiguredException.class,
+                    () -> aiTaskService.createAndSubmit(ContentConstants.AI_SKILL, "{}", 1L));
+        }));
+        assertEquals(1, count("select count(*) from product_category where category_code = 'itcai-tx'"), "外层事务已提交");
     }
 
     @Test
