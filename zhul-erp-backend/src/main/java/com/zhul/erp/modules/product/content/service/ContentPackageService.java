@@ -22,6 +22,7 @@ import com.zhul.erp.modules.product.entity.ProductFaqDO;
 import com.zhul.erp.modules.product.entity.ProductRelationshipDO;
 import com.zhul.erp.modules.product.entity.ProductSeriesDO;
 import com.zhul.erp.modules.product.entity.ProductSpecificationDO;
+import com.zhul.erp.modules.product.support.CategoryHsCodes;
 import com.zhul.erp.modules.product.repository.ProductApplicationMapper;
 import com.zhul.erp.modules.product.repository.ProductDocumentMapper;
 import com.zhul.erp.modules.product.repository.ProductFaqMapper;
@@ -78,6 +79,7 @@ public class ContentPackageService {
     private final PlatformSettingService platformSettings;
     private final ProductFactNoteMapper factNoteMapper;
     private final ProductKeywordMapper keywordMapper;
+    private final CategoryHsCodes categoryHsCodes;
 
     public record Package(String fileName, String contentType, byte[] body) {
     }
@@ -213,6 +215,11 @@ public class ContentPackageService {
         sb.append('\n');
         line(sb, "名称", p.getProductName());
         line(sb, "品类", categories.get(p.getCategoryId()));
+        if (facts) {
+            // AI 在 hsbianma.com 查不到本型号时用品类默认编码（openspec content-ai-batch-hs）
+            String hs = categoryHsCodes.of(p.getCategoryId()).hsCode();
+            line(sb, "品类默认海关编码", StringUtils.hasText(hs) ? hs + "（hsbianma.com 查不到本型号的编码时用这个）" : null);
+        }
         if (p.getSeriesId() != null) {
             ProductSeriesDO series = seriesMapper.selectById(p.getSeriesId());
             line(sb, "系列", series == null ? null : series.getSeriesName());

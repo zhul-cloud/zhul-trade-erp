@@ -16,4 +16,6 @@ public class ContentTaskQuery {
     private Long categoryId;
     /** 型号或名称 */
     private String keyword;
+    /** 本公司最近一次 AI 生成的状态：pending-待确认、running-排队或生成中、failed-失败；不传为全部 */
+    private String ai;
 }

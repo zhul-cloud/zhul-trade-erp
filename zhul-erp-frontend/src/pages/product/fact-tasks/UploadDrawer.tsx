@@ -133,7 +133,7 @@ export const UploadDrawer: React.FC<{
   product?: { id: number; label: string };
   /** 入口：facts 资料任务只收资料包，marketing 营销任务只收营销包，combined 两种一起上传并自动审核 */
   entry: UploadEntry;
-  /** AI 生成结果：预载两份原文预览，确认时按权限分别写入、不自动审核，可以放弃 */
+  /** AI 生成结果：预载两份原文预览，确认时按权限分别写入（技术问答随资料包审核通过，资料仍待核），可以放弃 */
   aiJobId?: number;
 }> = ({ open, onClose, onDone, product, entry, aiJobId }) => {
   const ai = aiJobId != null;
@@ -484,9 +484,16 @@ export const UploadDrawer: React.FC<{
             status={result.failed ? 'warning' : 'success'}
             title={`写入成功 ${result.succeeded} 个${result.failed ? `，失败 ${result.failed} 个` : ''}`}
             subTitle={
-              result.approvedFaqs != null
-                ? `已自动审核技术问答 ${result.approvedFaqs} 条，自动核对资料 ${result.verifiedProducts ?? 0} 个商品`
-                : undefined
+              [
+                result.approvedFaqs
+                  ? `技术问答 ${result.approvedFaqs} 条随资料包审核通过`
+                  : '',
+                result.verifiedProducts != null
+                  ? `自动核对资料 ${result.verifiedProducts} 个商品`
+                  : '',
+              ]
+                .filter(Boolean)
+                .join('，') || undefined
             }
           />
           <div style={{ display: 'grid', gap: 8 }}>
@@ -617,7 +624,7 @@ export const UploadDrawer: React.FC<{
             type="info"
             showIcon
             title="上传后先解析预览，确认后才写入"
-            description="资料包（中文）写入共享商品库：规格、应用场景只替换未核实的，兼容型号、技术资料只增不删，技术问答待审核（平台或有「商品内容维护」权限的账号审核），资料待确认项整份替换。营销包只属于本公司：关键词库整份替换，各平台的标题、属性、卖点、详情、FAQ、帖子等按块替换。"
+            description="资料包（中文）写入共享商品库：规格、应用场景只替换未核实的，兼容型号、技术资料只增不删，技术问答随资料包审核通过，资料待确认项整份替换。营销包只属于本公司：关键词库整份替换，各平台的标题、属性、卖点、详情、FAQ、帖子等按块替换。"
           />
         </div>
       ) : (
@@ -706,8 +713,8 @@ export const UploadDrawer: React.FC<{
               <Alert
                 type="info"
                 showIcon
-                title="AI 生成的内容不自动审核"
-                description={`写入后资料状态为「资料待核」，技术问答待审核，由人在「资料核对」里逐条核对。${
+                title="写入后资料为「资料待核」"
+                description={`技术问答随资料包审核通过；规格、应用场景由人在「资料核对」里核对。${
                   aiResult.summary ? `AI 说明：${aiResult.summary}` : ''
                 }${aiResult.selfScore != null ? `（营销内容自评 ${aiResult.selfScore} 分）` : ''}`}
               />

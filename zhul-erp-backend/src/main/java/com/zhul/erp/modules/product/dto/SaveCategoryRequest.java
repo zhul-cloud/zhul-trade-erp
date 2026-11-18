@@ -18,4 +18,6 @@ public class SaveCategoryRequest {
     private Integer sortOrder;
     /** 所属行业编码（字典 industry），只对一级品类有效；不传时新建用默认行业、修改保持不变 */
     private String industryCode;
+    /** 默认海关编码：6~10 位数字（可带点和空格），空字符串表示清空；不传时修改保持不变 */
+    private String hsCode;
 }

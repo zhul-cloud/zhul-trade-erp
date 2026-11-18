@@ -9,13 +9,17 @@ import com.zhul.erp.modules.product.dto.CustomsVO;
 import com.zhul.erp.modules.product.dto.SaveCustomsRequest;
 import com.zhul.erp.modules.product.entity.ProductCustomsDO;
 import com.zhul.erp.modules.product.repository.ProductCustomsMapper;
+import com.zhul.erp.modules.product.entity.ProductDO;
+import com.zhul.erp.modules.product.service.HsTariffService;
 import com.zhul.erp.modules.product.service.ProductCustomsService;
+import com.zhul.erp.modules.product.support.CategoryHsCodes;
 import com.zhul.erp.modules.product.support.ProductWriteGuard;
 import com.zhul.erp.modules.product.support.ProductFinder;
 import com.zhul.erp.modules.product.support.TextRules;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -37,15 +41,31 @@ public class ProductCustomsServiceImpl implements ProductCustomsService {
     private final ProductCustomsMapper customsMapper;
     private final ProductFinder productFinder;
     private final ProductWriteGuard productWriteGuard;
+    private final CategoryHsCodes categoryHsCodes;
+    private final HsTariffService tariffService;
 
     @Override
     public CustomsVO get(Long productId) {
-        productFinder.active(productId);
+        ProductDO product = productFinder.active(productId);
         ProductCustomsDO row = customsMapper.selectOne(new LambdaQueryWrapper<ProductCustomsDO>()
                 .eq(ProductCustomsDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .eq(ProductCustomsDO::getProductId, productId)
                 .isNull(ProductCustomsDO::getDeletedAt));
-        return row == null ? empty(productId) : toVO(row);
+        CustomsVO vo = row == null ? empty(productId) : toVO(row);
+        // 品类默认编码与目的国关税参考（openspec content-ai-batch-hs）
+        CategoryHsCodes.Effective def = categoryHsCodes.of(product.getCategoryId());
+        vo.setCategoryHsCode(def.hsCode());
+        if (def.from() != null) {
+            vo.setCategoryHsFrom(StringUtils.hasText(def.from().getCategoryNameZh())
+                    ? def.from().getCategoryNameZh() : def.from().getCategoryName());
+        }
+        boolean own = StringUtils.hasText(vo.getHsCode());
+        String hs6 = CategoryHsCodes.hs6(own ? vo.getHsCode() : def.hsCode());
+        if (StringUtils.hasText(hs6)) {
+            vo.setTariff(tariffService.get(hs6));
+            vo.setTariffBy(own ? "product" : "category");
+        }
+        return vo;
     }
 
     @Override

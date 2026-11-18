@@ -21,6 +21,7 @@ import { Pill } from '../components/Pills';
 import { DESCRIPTION_MAX } from '../constants';
 import { type Category, categoryApi, readBizError } from '../service';
 import { PageHeader, ProductThemeProvider } from '../theme';
+import TariffModal from './TariffModal';
 
 const TWO_LINES: React.CSSProperties = {
   display: '-webkit-box',
@@ -40,6 +41,8 @@ const CategoryPage: React.FC = () => {
   const [presetParent, setPresetParent] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
   const [topLevels, setTopLevels] = useState<Category[]>([]);
+  /** 正在查看关税参考的海关编码前 6 位 */
+  const [tariffHs6, setTariffHs6] = useState<string>();
 
   const openForm = (row: Category | null, parentId: number | null = null) => {
     setEditing(row);
@@ -155,6 +158,60 @@ const CategoryPage: React.FC = () => {
         ) : (
           <Pill tone="accent">一级品类</Pill>
         ),
+    },
+    {
+      title: '默认海关编码',
+      dataIndex: 'effectiveHsCode',
+      search: false,
+      width: 150,
+      render: (_, r) =>
+        r.effectiveHsCode ? (
+          <span style={{ display: 'grid' }}>
+            <span className="num" style={{ fontWeight: 600 }}>
+              {r.effectiveHsCode}
+            </span>
+            {r.hsInherited && (
+              <span style={{ fontSize: 12, opacity: 0.6 }}>沿用上级</span>
+            )}
+          </span>
+        ) : (
+          <span style={{ opacity: 0.45 }}>未填</span>
+        ),
+    },
+    {
+      title: '目的国关税参考',
+      dataIndex: 'tariffFilled',
+      search: false,
+      width: 230,
+      render: (_, r) => {
+        if (!r.effectiveHsCode) return <span style={{ opacity: 0.45 }}>—</span>;
+        const missing = r.tariffMissing ?? [];
+        const text =
+          r.tariffFilled && missing.length
+            ? `${r.tariffFilled} 国已填 · ${missing.slice(0, 2).join('、')}${missing.length > 2 ? ' 等' : ''}未填`
+            : r.tariffFilled
+              ? `${r.tariffFilled} 国已填${r.tariffRange ? ` · ${r.tariffRange}` : ''}`
+              : '未填';
+        return (
+          <span
+            style={{ display: 'inline-flex', gap: 8, whiteSpace: 'nowrap' }}
+          >
+            <span
+              title={missing.length ? `未填：${missing.join('、')}` : undefined}
+              style={{ opacity: r.tariffFilled ? 1 : 0.6 }}
+            >
+              {text}
+            </span>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setTariffHs6(r.effectiveHsCode?.slice(0, 6))}
+            >
+              {access['product:category:edit'] ? '维护' : '查看'}
+            </button>
+          </span>
+        );
+      },
     },
     {
       title: '行业',
@@ -386,6 +443,7 @@ const CategoryPage: React.FC = () => {
         descriptionZh?: string;
         sortOrder?: number;
         industryCode?: string;
+        hsCode?: string;
       }>
         name="categoryEdit"
         title={
@@ -411,7 +469,11 @@ const CategoryPage: React.FC = () => {
               }
         }
         onFinish={async (values) => {
-          const data = { ...values, parentId: values.parentId ?? null };
+          const data = {
+            ...values,
+            parentId: values.parentId ?? null,
+            hsCode: values.hsCode ?? '',
+          };
           if (editing) await categoryApi.update(editing.id, data);
           else await categoryApi.create(data);
           message.success(editing ? '已保存' : '已新增');
@@ -494,6 +556,22 @@ const CategoryPage: React.FC = () => {
             { max: 64, message: '名称不超过 64 个字符' },
           ]}
         />
+        <ProFormText
+          name="hsCode"
+          label="默认海关编码"
+          placeholder="如 8536509000"
+          rules={[
+            {
+              validator: (_, v?: string) =>
+                !v || /^\d{6,10}$/.test(v.replace(/[.\s]/g, ''))
+                  ? Promise.resolve()
+                  : Promise.reject(
+                      new Error('去掉点和空格后应为 6 到 10 位数字'),
+                    ),
+            },
+          ]}
+          extra="AI 生成资料时查不到型号的编码就用它；细分品类不填时沿用上级品类的"
+        />
         <ProFormTextArea
           name="descriptionZh"
           label="中文简介"
@@ -525,6 +603,12 @@ const CategoryPage: React.FC = () => {
           extra="数字越小越靠前"
         />
       </ModalForm>
+      <TariffModal
+        hs6={tariffHs6}
+        canEdit={!!access['product:category:edit']}
+        onClose={() => setTariffHs6(undefined)}
+        onSaved={() => actionRef.current?.reload()}
+      />
     </ProductThemeProvider>
   );
 };

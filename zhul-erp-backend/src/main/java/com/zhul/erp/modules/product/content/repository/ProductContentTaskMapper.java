@@ -41,7 +41,13 @@ public interface ProductContentTaskMapper extends BaseMapper<ProductContentTaskD
             + "<if test='categoryId != null'> AND (p.category_id = #{categoryId} OR p.category_id IN (SELECT c.id FROM product_category c WHERE c.parent_id = #{categoryId} AND c.deleted_at IS NULL))</if>"
             + "<if test='keyword != null'> AND (p.product_name LIKE CONCAT('%', #{keyword}, '%') "
             + "OR p.mpn_raw LIKE CONCAT('%', #{keyword}, '%')"
-            + "<if test='mpn != null'> OR p.mpn_normalized LIKE CONCAT('%', #{mpn}, '%')</if>)</if>";
+            + "<if test='mpn != null'> OR p.mpn_normalized LIKE CONCAT('%', #{mpn}, '%')</if>)</if>"
+            // 本公司最近一次 AI 生成的状态（openspec content-ai-batch-hs）
+            + "<if test='ai != null'> AND EXISTS (SELECT 1 FROM product_content_ai_job j WHERE j.tenant_id = #{tenantId} "
+            + "AND j.product_id = p.id AND j.deleted_at IS NULL AND j.status IN "
+            + "<foreach collection='ai' item='a' open='(' separator=',' close=')'>#{a}</foreach> "
+            + "AND j.id = (SELECT MAX(j2.id) FROM product_content_ai_job j2 WHERE j2.tenant_id = #{tenantId} "
+            + "AND j2.product_id = p.id AND j2.deleted_at IS NULL))</if>";
 
     String STATUS = "<if test='stages != null'> AND " + STAGE
             + " IN <foreach collection='stages' item='s' open='(' separator=',' close=')'>#{s}</foreach></if>";
@@ -59,13 +65,13 @@ public interface ProductContentTaskMapper extends BaseMapper<ProductContentTaskD
             + " ORDER BY update_time DESC, p.id DESC LIMIT #{offset}, #{size}</script>")
     List<ContentTaskRow> page(@Param("tenantId") Integer tenantId, @Param("p") PlatformFlags p, @Param("stages") List<Integer> stages,
                               @Param("brandId") Long brandId, @Param("categoryId") Long categoryId,
-                              @Param("keyword") String keyword, @Param("mpn") String mpn,
+                              @Param("keyword") String keyword, @Param("mpn") String mpn, @Param("ai") List<Integer> ai,
                               @Param("offset") long offset, @Param("size") long size);
 
     @Select("<script>SELECT COUNT(*) " + FROM + FILTER + STATUS + "</script>")
     long count(@Param("tenantId") Integer tenantId, @Param("p") PlatformFlags p, @Param("stages") List<Integer> stages,
                @Param("brandId") Long brandId, @Param("categoryId") Long categoryId,
-               @Param("keyword") String keyword, @Param("mpn") String mpn);
+               @Param("keyword") String keyword, @Param("mpn") String mpn, @Param("ai") List<Integer> ai);
 
     /** 各阶段数量（页签用；同样受品牌、品类、关键词筛选）；阶段表达式带参数，先在子查询里算出再分组 */
     @Select("<script>SELECT x.status, COUNT(*) AS cnt FROM (SELECT " + STAGE + " AS status " + FROM + FILTER
@@ -73,7 +79,7 @@ public interface ProductContentTaskMapper extends BaseMapper<ProductContentTaskD
     List<Map<String, Object>> countByStatus(@Param("tenantId") Integer tenantId, @Param("p") PlatformFlags p,
                                             @Param("brandId") Long brandId,
                                             @Param("categoryId") Long categoryId, @Param("keyword") String keyword,
-                                            @Param("mpn") String mpn);
+                                            @Param("mpn") String mpn, @Param("ai") List<Integer> ai);
 
     /** 写入前按唯一键锁任务行（不存在时由调用方插入，唯一键兜底并发） */
     @Select("SELECT id FROM product_content_task WHERE tenant_id = #{tenantId} AND product_id = #{productId} FOR UPDATE")
