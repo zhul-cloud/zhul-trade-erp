@@ -16,7 +16,7 @@ import java.util.List;
  */
 public interface AiConfigService {
 
-    /** 当前租户的连接方式卡片（按使用顺序；Key 只返回脱敏值；订阅组只在有权使用时返回） */
+    /** 当前租户的连接方式卡片（按使用顺序；Key 只返回脱敏值；订阅只在有权使用时返回） */
     AiConfigVO get();
 
     /** 保存顺序与开关、以及改过的连接方式设置；apiKey 留空表示沿用该服务商已保存的 Key；保存的方式解除暂停 */

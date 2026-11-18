@@ -1,5 +1,4 @@
 import {
-  ArrowDownOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   EnterOutlined,
@@ -66,7 +65,7 @@ import {
   type ModelField,
   modelOptions,
   modelsFingerprint,
-  moveWithinGroup,
+  moveCard,
   orderChanged,
   reasonLabel,
   type SummaryTone,
@@ -383,9 +382,9 @@ const ConnectionCard: React.FC<{
 };
 
 /**
- * 业务设置 → AI 设置：连接方式按使用顺序排成两组卡片（API Key 在前、平台订阅在后），组内拖动调整顺序，
+ * 业务设置 → AI 设置：连接方式（本公司 API Key、平台订阅）按使用顺序排成一个列表，任意拖动调整顺序，
  * 每张卡片可单独开关与测试；出问题的方式自动跳过并暂停。所有修改只通过底部保存条保存。
- * 见 openspec ai-connection-failover 与原型 AI设置.op「2026-11-17-V4 自动切换」。
+ * 见 openspec ai-connection-failover、ai-connection-free-order 与原型 AI设置.op「V5」。
  */
 const AiSettingsPage: React.FC = () => {
   const { palette } = useAppTheme();
@@ -747,7 +746,7 @@ const AiSettingsPage: React.FC = () => {
     </Card>
   );
 
-  // —— 左：连接方式（两组可拖动的卡片） ——
+  // —— 左：连接方式（一个可拖动的列表） ——
   const testOf = (key: string) => {
     const t = tests[key];
     return t && drafts[key] && t.fp === testFingerprint(drafts[key])
@@ -812,7 +811,6 @@ const AiSettingsPage: React.FC = () => {
     const typedKey = !!(drafts[key]?.apiKey ?? '').trim();
     const showKeyEditor =
       canEdit && isSel && c.mode === 'api' && (editingKey === key || !c.hasKey);
-    const sameGroup = cards.filter((x) => x.mode === c.mode).length;
     const result = testOf(key);
     const failed =
       result && !result.ok ? result.items.filter((i) => !i.ok) : [];
@@ -884,7 +882,7 @@ const AiSettingsPage: React.FC = () => {
         index={index}
         selected={isSel}
         canEdit={canEdit}
-        draggable={canEdit && sameGroup > 1}
+        draggable={canEdit && cards.length > 1}
         testing={testingKey === key}
         testDisabled={c.mode === 'api' && !c.hasKey && !typedKey}
         subtitle={subtitle}
@@ -921,62 +919,16 @@ const AiSettingsPage: React.FC = () => {
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over) return;
-    setCards((cs) => moveWithinGroup(cs, String(active.id), String(over.id)));
+    setCards((cs) => moveCard(cs, String(active.id), String(over.id)));
   };
 
-  const group = (mode: 'api' | 'subscription') => {
-    const items = cards.filter((c) => c.mode === mode);
-    if (!items.length) return null;
-    const hint =
-      mode === 'api'
-        ? '按顺序使用；排在前面的出问题时，会自动改用下一家（使用对应的付费 Key）'
-        : config.platform
-          ? '平台的个人订阅，不用 Key；按顺序使用'
-          : '平台提供，模型由平台设置';
-    return (
-      <div>
-        <div
-          style={{
-            display: 'flex',
-            gap: 8,
-            alignItems: 'baseline',
-            marginBottom: 10,
-          }}
-        >
-          <span style={{ fontSize: 14, fontWeight: 600, color: palette.ink }}>
-            {mode === 'api' ? 'API Key' : '平台订阅'}
-          </span>
-          <span style={{ fontSize: 12, color: palette.mute }}>{hint}</span>
-        </div>
-        {/* 每组一个独立的拖动区域：卡片只能在组内移动，平台订阅始终排在 API Key 之后；
-            按重叠判断放置位置，拖出本组松手时不改变顺序 */}
-        <DndContext
-          id={`ai-connections-${mode}`}
-          sensors={sensors}
-          collisionDetection={rectIntersection}
-          onDragEnd={onDragEnd}
-        >
-          <SortableContext
-            items={items.map(connKey)}
-            strategy={verticalListSortingStrategy}
-          >
-            <div style={{ display: 'grid', gap: 10 }}>
-              {items.map(renderCard)}
-            </div>
-          </SortableContext>
-        </DndContext>
-      </div>
-    );
-  };
-
-  const hasSubscription = cards.some((c) => c.mode === 'subscription');
   const connectCard = (
     <Card style={{ height: '100%' }}>
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          marginBottom: 16,
+          marginBottom: 6,
         }}
       >
         <span style={{ fontSize: 16, fontWeight: 600, color: palette.ink }}>
@@ -990,21 +942,26 @@ const AiSettingsPage: React.FC = () => {
           </span>
         )}
       </div>
-      <div style={{ display: 'grid', gap: 16 }}>
-        {group('api')}
-        {hasSubscription && (
-          <div
-            style={{
-              textAlign: 'center',
-              fontSize: 12,
-              color: palette.mute,
-            }}
-          >
-            <ArrowDownOutlined /> API Key 都不可用时，才使用平台订阅
-          </div>
-        )}
-        {group('subscription')}
+      <div style={{ fontSize: 12, color: palette.mute, marginBottom: 14 }}>
+        按顺序使用；排在前面的出问题时自动改用下一个，改用 API Key 时按该 Key
+        计费
       </div>
+      {/* 一个拖动区域：API Key 与平台订阅可以互相穿插；按重叠判断放置位置 */}
+      <DndContext
+        id="ai-connections"
+        sensors={sensors}
+        collisionDetection={rectIntersection}
+        onDragEnd={onDragEnd}
+      >
+        <SortableContext
+          items={cards.map(connKey)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div style={{ display: 'grid', gap: 10 }}>
+            {cards.map(renderCard)}
+          </div>
+        </SortableContext>
+      </DndContext>
     </Card>
   );
 
