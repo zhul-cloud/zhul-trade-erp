@@ -1,4 +1,5 @@
 import { BulbOutlined, SearchOutlined } from '@ant-design/icons';
+import type { TableColumnsType } from 'antd';
 import {
   App,
   Button,
@@ -11,6 +12,7 @@ import {
 } from 'antd';
 import React, { useMemo, useState } from 'react';
 import { formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import { Pill } from '../components/Pills';
 import {
   type BrandOption,
@@ -40,7 +42,10 @@ const Where: React.FC<{ row: PendingBrand }> = ({ row }) => {
         .filter(([, n]) => n > 0)
         .map(([label, n]) => (
           <Pill key={label} tone="gray">
-            {label} <b className="num">{n}</b>
+            {label}
+            <b className="num" style={{ marginLeft: 4 }}>
+              {n}
+            </b>
           </Pill>
         ))}
     </Space>
@@ -196,7 +201,7 @@ const PendingTab: React.FC<{
         className="zhul-link"
         style={{
           color: warn ? palette.orange : palette.link,
-          textAlign: 'left',
+          whiteSpace: 'nowrap',
         }}
         onClick={() => (warn ? ignore([row]) : openLink([row]))}
       >
@@ -207,6 +212,66 @@ const PendingTab: React.FC<{
   };
 
   const selectedRows = picked(selected);
+
+  const columns: TableColumnsType<PendingBrand> = [
+    {
+      title: '待确认写法',
+      dataIndex: 'name',
+      width: 240,
+      render: (v: string) => <span style={{ fontWeight: 600 }}>{v}</span>,
+    },
+    {
+      title: '出现在',
+      key: 'where',
+      width: 260,
+      render: (_: unknown, row) => <Where row={row} />,
+    },
+    {
+      title: '建议',
+      key: 'suggest',
+      width: 300,
+      render: (_: unknown, row) => suggestion(row),
+    },
+    {
+      title: '首次出现',
+      dataIndex: 'firstSeen',
+      width: 180,
+      render: (v: string) => <span className="num">{formatDateTime(v)}</span>,
+    },
+    {
+      title: '操作',
+      key: 'op',
+      width: 240,
+      render: (_: unknown, row) => (
+        <Space size={12} style={{ whiteSpace: 'nowrap' }}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => openLink([row])}
+          >
+            设为别名
+          </button>
+          {canAdd && (
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => onCreate(row)}
+            >
+              新建为品牌
+            </button>
+          )}
+          <button
+            type="button"
+            className="zhul-link"
+            style={{ color: palette.sub }}
+            onClick={() => ignore([row])}
+          >
+            不是品牌
+          </button>
+        </Space>
+      ),
+    },
+  ];
 
   return (
     <>
@@ -263,66 +328,8 @@ const PendingTab: React.FC<{
         footer={() =>
           '设为别名或新建品牌后，询盘、订单、采购单里这个写法自动换成正式品牌名'
         }
-        columns={[
-          {
-            title: '待确认写法',
-            dataIndex: 'name',
-            width: 240,
-            render: (v: string) => <span style={{ fontWeight: 600 }}>{v}</span>,
-          },
-          {
-            title: '出现在',
-            key: 'where',
-            render: (_: unknown, row) => <Where row={row} />,
-          },
-          {
-            title: '建议',
-            key: 'suggest',
-            width: 300,
-            render: (_: unknown, row) => suggestion(row),
-          },
-          {
-            title: '首次出现',
-            dataIndex: 'firstSeen',
-            width: 180,
-            render: (v: string) => (
-              <span className="num">{formatDateTime(v)}</span>
-            ),
-          },
-          {
-            title: '操作',
-            key: 'op',
-            width: 240,
-            render: (_: unknown, row) => (
-              <Space size={12} style={{ whiteSpace: 'nowrap' }}>
-                <button
-                  type="button"
-                  className="zhul-link"
-                  onClick={() => openLink([row])}
-                >
-                  设为别名
-                </button>
-                {canAdd && (
-                  <button
-                    type="button"
-                    className="zhul-link"
-                    onClick={() => onCreate(row)}
-                  >
-                    新建为品牌
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="zhul-link"
-                  style={{ color: palette.sub }}
-                  onClick={() => ignore([row])}
-                >
-                  不是品牌
-                </button>
-              </Space>
-            ),
-          },
-        ]}
+        columns={columns}
+        scroll={{ x: tableScrollX(columns) }}
       />
       <Modal
         title={

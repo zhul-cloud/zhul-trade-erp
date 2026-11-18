@@ -45,7 +45,7 @@ class BrandSuggestTest {
         assertThat(of("Allen Bradley").text()).isEqualTo("相近：Allen-Bradley（写法接近）");
         assertThat(of("Rockwell Automation").text()).isEqualTo("相近：Allen-Bradley（已有别名 Rockwell）");
         assertThat(of("Beckhof").brandId()).isEqualTo(2L);
-        assertThat(of("Beckhof").kind()).isEqualTo(BrandSuggest.KIND_SIMILAR);
+        assertThat(of("Beckhof").text()).isEqualTo("相近：Beckhoff（拼写接近）");
     }
 
     @Test

@@ -68,13 +68,14 @@ public final class BrandSuggest {
                 why = "写法接近";
                 break;
             }
+            // 只差一两个字母时说「拼写接近」更贴切（Beckhof → Beckhoff），优先于「名称包含」
+            if (!"拼写接近".equals(why) && alnum.length() >= 5 && ek.length() >= 5 && distance(alnum, ek) <= 2) {
+                best = e;
+                why = "拼写接近";
+            }
             if (best == null && Math.min(ek.length(), alnum.length()) >= 4 && (alnum.contains(ek) || ek.contains(alnum))) {
                 best = e;
                 why = "名称包含";
-            }
-            if (best == null && alnum.length() >= 5 && ek.length() >= 5 && distance(alnum, ek) <= 2) {
-                best = e;
-                why = "拼写接近";
             }
         }
         if (best == null) {

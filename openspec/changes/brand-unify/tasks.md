@@ -21,4 +21,4 @@
 - [x] 4.1 单元测试：`PendingBrandServiceImplTest`（汇总、批量、标记）、`BrandSuggestTest`
 - [x] 4.2 契约测试：`BrandUnifyContractTest`（单据统一与已发送不改、标为不是品牌、询盘存正式名）；`InquiryIntakeContractTest` 改为断言存正式品牌名
 - [x] 4.3 前端测试：`PendingTab.test.tsx`
-- [ ] 4.4 本机页面实测待确认品牌页签（BrowserOS neo）
+- [x] 4.4 本机页面实测待确认品牌页签（BrowserOS neo）：相近建议预选并设为别名、批量标为不是品牌、窄窗口横向滚动
