@@ -247,11 +247,11 @@ export interface CompletionWizard {
 }
 
 export const completionApi = {
-  queue: (page: number, pageSize: number) =>
+  queue: (page: number, pageSize: number, ownerId?: number) =>
     request<{
       data: { total: number; todayDone: number; records: CompletionRow[] };
     }>('/api/v1/masterdata/customer-completion/queue', {
-      params: { page, pageSize },
+      params: { page, pageSize, ownerId },
       ...quiet,
     }).then((r) => r.data),
   wizard: (id: number) =>

@@ -26,8 +26,9 @@ public class ProfileCompletionController {
 
     @GetMapping("/customer-completion/queue")
     public Result<CompletionQueueVO> queue(@RequestParam(defaultValue = "1") int page,
-                                           @RequestParam(defaultValue = "20") int pageSize) {
-        return Result.ok(completionService.queue(page, pageSize));
+                                           @RequestParam(defaultValue = "20") int pageSize,
+                                           @RequestParam(required = false) Long ownerId) {
+        return Result.ok(completionService.queue(page, pageSize, ownerId));
     }
 
     @GetMapping("/customers/{id}/completion")

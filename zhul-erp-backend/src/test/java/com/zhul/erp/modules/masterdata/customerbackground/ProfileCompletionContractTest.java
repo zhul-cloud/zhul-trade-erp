@@ -272,4 +272,18 @@ class ProfileCompletionContractTest extends IntegrationTestBase {
         assertTrue(first.path("missingCount").asInt() > 0);
         assertFalse(q.path("records").path(3).path("lastActivity").isNull(), "最近活动");
     }
+
+    /** spec crm/customer-background「档案补全按业务员筛选」：传业务员时只列这个业务员名下的，不传时全部 */
+    @Test
+    void queue_filtersByOwner() throws Exception {
+        long mine = customer("Owner 7001 customer");
+        long other = customer("Owner 7002 customer");
+        jdbc.update("update customer set owner_id = 7001 where id = ?", mine);
+        jdbc.update("update customer set owner_id = 7002 where id = ?", other);
+
+        JsonNode q = ok(call(get(QUEUE).param("ownerId", "7001")));
+        assertEquals(1, q.path("total").asInt());
+        assertEquals(mine, q.path("records").path(0).path("customerId").asLong());
+        assertEquals(2, ok(call(get(QUEUE))).path("total").asInt(), "不传业务员不过滤");
+    }
 }

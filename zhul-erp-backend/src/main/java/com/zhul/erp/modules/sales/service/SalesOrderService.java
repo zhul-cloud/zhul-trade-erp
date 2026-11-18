@@ -72,6 +72,9 @@ public interface SalesOrderService {
 
     SalesOrderVO detail(Long id);
 
+    /** 「再下一单」：按原订单预填新建手动订单的内容（spec sales/sales-order「再下一单」） */
+    com.zhul.erp.modules.sales.dto.ReorderDraftVO reorderDraft(Long id);
+
     /** 订单列表「查看」弹窗：按明细行顺序分页列出全部型号，数据范围与详情一致 */
     com.zhul.erp.common.result.PageResult<com.zhul.erp.modules.sales.dto.SalesOrderModelVO> models(Long id, int page, int pageSize);
 

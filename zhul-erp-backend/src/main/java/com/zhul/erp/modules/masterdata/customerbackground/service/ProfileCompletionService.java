@@ -85,7 +85,7 @@ public class ProfileCompletionService {
      * 范围：数据范围内启用、还没建档（完整度不足 5/5）的客户。
      * 排序：成交客户在前，按经营等级 S、A、B、C，同级按综合分数；未成交的按潜力评级，同星数按最近活动。
      */
-    public CompletionQueueVO queue(int page, int pageSize) {
+    public CompletionQueueVO queue(int page, int pageSize, Long ownerId) {
         int tenantId = tenantId();
         LambdaQueryWrapper<CustomerDO> w = new LambdaQueryWrapper<CustomerDO>()
                 .eq(CustomerDO::getTenantId, tenantId)
@@ -93,6 +93,8 @@ public class ProfileCompletionService {
                 .isNull(CustomerDO::getDeletedAt)
                 .and(x -> x.ne(CustomerDO::getProfileMask, ProfileField.ALL_DONE).or().isNull(CustomerDO::getProfileMask));
         dataScopeResolver.current().apply(w, CustomerDO::getOwnerId);
+        // 按业务员筛选（spec crm/customer-background「档案补全按业务员筛选」），仍在数据范围内
+        w.eq(ownerId != null, CustomerDO::getOwnerId, ownerId);
         w.last("ORDER BY CASE WHEN biz_grade > 0 THEN 0 ELSE 1 END, biz_grade, biz_grade_score DESC, potential_rating DESC, "
                 + LAST_ACTIVITY + " DESC, id DESC");
         Page<CustomerDO> result = customerMapper.selectPage(new Page<>(Math.max(page, 1), Math.min(Math.max(pageSize, 1), 100)), w);
