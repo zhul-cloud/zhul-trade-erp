@@ -13,7 +13,7 @@ public class AiConnectionVO {
     /** api / subscription */
     private String mode;
     private String provider;
-    /** 在整体顺序中的位置，从 1 开始（API Key 组在前） */
+    /** 在整个列表中的位置，从 1 开始 */
     private int order;
     private boolean enabled;
     /**
