@@ -139,11 +139,8 @@ export const toCards = (config: AiConfig): CardDraft[] =>
 export const orderChanged = (cards: CardDraft[], config: AiConfig) =>
   JSON.stringify(cards) !== JSON.stringify(toCards(config));
 
-/**
- * 组内拖动：把 active 移到 over 的位置；跨组（API Key 与平台订阅之间）不移动，
- * 保证平台订阅始终排在 API Key 之后
- */
-export function moveWithinGroup(
+/** 拖动：把 active 移到 over 的位置；API Key 与平台订阅在一个列表里，可以互相穿插 */
+export function moveCard(
   cards: CardDraft[],
   activeKey: string,
   overKey: string,
@@ -151,7 +148,6 @@ export function moveWithinGroup(
   const from = cards.findIndex((c) => connKey(c) === activeKey);
   const to = cards.findIndex((c) => connKey(c) === overKey);
   if (from < 0 || to < 0 || from === to) return cards;
-  if (cards[from].mode !== cards[to].mode) return cards;
   const next = [...cards];
   const [moved] = next.splice(from, 1);
   next.splice(to, 0, moved);

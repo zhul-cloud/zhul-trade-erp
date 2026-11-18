@@ -204,7 +204,7 @@ class AiConfigContractTest extends IntegrationTestBase {
         assertEquals(5, c.getMaxWebSearches());
     }
 
-    /** 连接方式的使用顺序：API 优先、组内按保存的顺序、每个方式用自己的设置 */
+    /** 连接方式的使用顺序：默认 API 在前、按保存的顺序、每个方式用自己的设置 */
     @Test
     void apiFirstAndOrderFollowsSaved() {
         SaveAiConfigRequest claude = req("api", "claude", CLAUDE_KEY);
@@ -231,14 +231,36 @@ class AiConfigContractTest extends IntegrationTestBase {
         assertEquals("sk-ant-••••••••••••••••5555", vo.getConnections().get(1).getApiKeyMasked());
     }
 
+    /** openspec ai-connection-free-order：API Key 与订阅在一个列表里任意排序，按列表顺序使用 */
     @Test
-    void subscriptionCannotBeOrderedBeforeApi() {
-        BizException e = assertThrows(BizException.class, () -> saveAs(GRANTED,
-                List.of(item("subscription", "claude", true), item("api", "claude", true))));
-        assertEquals("平台订阅只能排在 API Key 之后", e.getMessage());
-        assertEquals(0, profileRows(GRANTED), "整个保存回滚，原顺序不变");
+    void subscriptionCanBeOrderedBeforeApi() {
+        saveAs(GRANTED, req("api", "claude", CLAUDE_KEY), req("api", "openai", TENANT_KEY));
+        saveAs(GRANTED, List.of(item("subscription", "claude", true), item("api", "openai", true),
+                item("api", "claude", true), item("subscription", "openai", true)));
+        // 有可用的 API Key：订阅不查询登录状态，按列表位置参与
+        when(orchestratorClient.status()).thenThrow(new AssertionError("有可用 API Key 时不应查询订阅登录状态"));
+        assertEquals(List.of("subscription:claude", "api:openai", "api:claude", "subscription:openai"),
+                names(chainAs(GRANTED)));
+        loggedIn(true, true);
+        TenantContext.setTenantId(GRANTED);
+        assertEquals(List.of("subscription:claude", "api:openai", "api:claude", "subscription:openai"),
+                service.get().getConnections().stream().map(c -> c.getMode() + ":" + c.getProvider()).toList());
+
         assertEquals("连接方式重复", assertThrows(BizException.class, () -> saveAs(GRANTED,
                 List.of(item("api", "claude", true), item("api", "claude", false)))).getMessage());
+    }
+
+    /** 升级（V1.5.48 订阅行平移 20）后顺序与升级前相同：API 在前、各自保持原来的先后 */
+    @Test
+    void upgradedOrderKeepsApiFirst() {
+        saveAs(GRANTED, req("api", "claude", CLAUDE_KEY), req("api", "openai", TENANT_KEY));
+        jdbc.update("update sys_ai_provider_config set sort_order = case provider when 'openai' then 1 else 2 end "
+                + "where tenant_id = ? and mode = 'api'", GRANTED);
+        jdbc.update("insert into sys_ai_provider_config (tenant_id, mode, provider, sort_order, status) values "
+                + "(?, 'subscription', 'openai', 22, 1), (?, 'subscription', 'claude', 21, 1)", GRANTED, GRANTED);
+        loggedIn(true, true);
+        assertEquals(List.of("api:openai", "api:claude", "subscription:claude", "subscription:openai"),
+                names(chainAs(GRANTED)));
     }
 
     @Test

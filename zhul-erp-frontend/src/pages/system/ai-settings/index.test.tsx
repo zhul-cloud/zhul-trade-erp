@@ -35,7 +35,7 @@ jest.mock('./service', () => ({
   getAiSubscriptionStatus: jest.fn(),
 }));
 
-/** 记下每个分组拖动区域的 onDragEnd，测试里直接触发一次拖放（jsdom 没有布局，无法真实拖动） */
+/** 记下拖动区域的 onDragEnd，测试里直接触发一次拖放（jsdom 没有布局，无法真实拖动） */
 const mockDragEnds: Record<string, (e: unknown) => void> = {};
 jest.mock('@dnd-kit/core', () => {
   const actual = jest.requireActual('@dnd-kit/core');
@@ -114,10 +114,10 @@ const card = (key: string) => screen.getByTestId(`conn-${key}`);
 const select = (key: string) =>
   fireEvent.click(within(card(key)).getAllByRole('button')[0]);
 const saveButton = () => screen.queryByRole('button', { name: '保 存' });
-/** 在某一组的拖动区域里触发一次拖放 */
-const drag = (group: 'api' | 'subscription', active: string, over: string) =>
+/** 在连接方式列表里触发一次拖放 */
+const drag = (active: string, over: string) =>
   act(() => {
-    mockDragEnds[`ai-connections-${group}`]({
+    mockDragEnds['ai-connections']({
       active: { id: active },
       over: { id: over },
     });
@@ -147,11 +147,11 @@ describe('AiSettingsPage', () => {
     ).toBeTruthy();
   });
 
-  it('组内拖动后保存条说明新顺序，保存提交调整后的顺序', async () => {
+  it('拖动后保存条说明新顺序，保存提交调整后的顺序', async () => {
     mocked.getAiConfig.mockResolvedValue(config([conn(), openaiReady]));
     renderPage();
     await screen.findByText('AI 可用');
-    drag('api', 'api:openai', 'api:claude');
+    drag('api:openai', 'api:claude');
     expect(
       await screen.findByText(
         '连接方式顺序已调整：OpenAI API Key 排到第 1 位，保存后新任务按新顺序使用',
@@ -171,17 +171,33 @@ describe('AiSettingsPage', () => {
     });
   });
 
-  it('订阅卡片拖到 API Key 组不移动', async () => {
+  it('订阅卡片可以拖到 API Key 前面，保存提交新的顺序', async () => {
     mocked.getAiConfig.mockResolvedValue(
       config([
         conn(),
-        conn({ mode: 'subscription', state: 'available', hasKey: false }),
+        conn({
+          mode: 'subscription',
+          order: 2,
+          state: 'available',
+          hasKey: false,
+          settingsReadonly: true,
+        }),
       ]),
     );
     renderPage();
     await screen.findByText('AI 可用');
-    drag('subscription', 'subscription:claude', 'api:claude');
-    expect(saveButton()).toBeNull();
+    drag('subscription:claude', 'api:claude');
+    expect(
+      await screen.findByText(
+        '连接方式顺序已调整：Claude 平台订阅 排到第 1 位，保存后新任务按新顺序使用',
+      ),
+    ).toBeTruthy();
+    fireEvent.click(saveButton() as HTMLButtonElement);
+    await waitFor(() => expect(mocked.saveAiConfig).toHaveBeenCalledTimes(1));
+    expect(mocked.saveAiConfig.mock.calls[0][0].order).toEqual([
+      { mode: 'subscription', provider: 'claude', enabled: true },
+      { mode: 'api', provider: 'claude', enabled: true },
+    ]);
   });
 
   it('关闭一张卡片并给另一家填写 Key：确认后一次保存开关与这一种的设置', async () => {
@@ -251,7 +267,7 @@ describe('AiSettingsPage', () => {
     mocked.testAiConfig.mockResolvedValue({ ok: true, items: [] });
     renderPage();
     await screen.findByText('AI 可用 · 1 个连接方式暂停中');
-    drag('api', 'api:openai', 'api:claude');
+    drag('api:openai', 'api:claude');
     fireEvent.click(
       within(card('api:claude')).getByRole('button', { name: /^测\s?试$/ }),
     );
@@ -300,7 +316,11 @@ describe('AiSettingsPage', () => {
     );
     renderPage();
     await screen.findByText('AI 可用');
-    expect(screen.getByText('API Key 都不可用时，才使用平台订阅')).toBeTruthy();
+    expect(
+      screen.getByText(
+        '按顺序使用；排在前面的出问题时自动改用下一个，改用 API Key 时按该 Key 计费',
+      ),
+    ).toBeTruthy();
     expect(within(card('subscription:claude')).getByText('可用')).toBeTruthy();
     expect(
       within(card('subscription:openai')).getByText('不可用'),

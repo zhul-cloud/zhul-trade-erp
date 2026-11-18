@@ -10,7 +10,7 @@ import java.util.List;
 
 /**
  * AI 设置页底部保存条一次保存的全部修改：连接方式的顺序与开关，以及改过的各连接方式设置。
- * order 里 API Key 方式必须都在平台订阅之前（openspec ai-connection-failover「连接方式的使用顺序」）。
+ * order 为整个列表的顺序，API Key 与平台订阅可以互相穿插（openspec ai-connection-free-order）。
  */
 @Data
 public class SaveAiSettingsRequest {

@@ -38,8 +38,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 租户 AI 配置：sys_ai_provider_config 按连接方式（租户 × 用法 × 服务商）保存设置、组内顺序与启用开关；
- * 已配置且启用的方式按「API Key 组在前、平台订阅组在后，组内按顺序」使用，失败的方式暂停 10 分钟。
+ * 租户 AI 配置：sys_ai_provider_config 按连接方式（租户 × 用法 × 服务商）保存设置、顺序与启用开关；
+ * 已配置且启用的方式（本公司 API Key、平台订阅）按一个统一列表的顺序使用，失败的方式暂停 10 分钟。
  * 平台订阅按套餐授权给公司使用，租户使用平台的订阅设置。
  * 见 openspec ai-platform/tenant-ai-settings、ai-platform/connection-failover。
  */
@@ -56,10 +56,17 @@ public class AiConfigServiceImpl implements AiConfigService {
     private final AiSubscriptionAccess subscriptionAccess;
     private final AiConnectionPauses pauses;
 
-    /** 一张连接方式卡片：row 为本租户的行（没保存过时为空），index 为服务商的默认次序 */
+    /**
+     * 一张连接方式卡片：row 为本租户的行（没保存过时为空），index 为服务商的默认次序。
+     * 没保存过的卡片排序值：API 为 10 + 次序，订阅为 30 + 次序（V1.5.48 已把旧的订阅组编号平移 20），
+     * 默认仍是 API 在前；保存后整个列表统一编号 1..n。
+     */
     private record Slot(String mode, String provider, SysAiProviderConfigDO row, int index) {
         int sort() {
-            return row != null && row.getSortOrder() != null ? row.getSortOrder() : 10 + index;
+            if (row != null && row.getSortOrder() != null) {
+                return row.getSortOrder();
+            }
+            return (AiConfigConstants.MODE_API.equals(mode) ? 10 : 30) + index;
         }
 
         boolean enabled() {
@@ -117,8 +124,7 @@ public class AiConfigServiceImpl implements AiConfigService {
         boolean platform = tenantId == AiConfigConstants.PLATFORM_TENANT_ID;
         boolean allowed = subscriptionAccess.allowed(tenantId);
         Set<String> seen = new HashSet<>();
-        boolean subscriptionSeen = false;
-        Map<String, Integer> next = new HashMap<>();
+        int sort = 0;
         for (SaveAiSettingsRequest.Item item : req.getOrder()) {
             String mode = normalizeMode(item.getMode());
             String provider = normalizeProvider(item.getProvider());
@@ -129,12 +135,8 @@ public class AiConfigServiceImpl implements AiConfigService {
                 if (!allowed) {
                     throw new BizException(ResultCode.PARAM_ERROR, "只能使用本公司 API Key");
                 }
-                subscriptionSeen = true;
-            } else if (subscriptionSeen) {
-                throw new BizException(ResultCode.PARAM_ERROR, "平台订阅只能排在 API Key 之后");
             }
-            int sort = next.merge(mode, 1, Integer::sum);
-            writeOrder(tenantId, mode, provider, sort, item.isEnabled());
+            writeOrder(tenantId, mode, provider, ++sort, item.isEnabled());
         }
         if (req.getProfiles() != null) {
             for (SaveAiConfigRequest p : req.getProfiles()) {
@@ -212,39 +214,47 @@ public class AiConfigServiceImpl implements AiConfigService {
     }
 
     /**
-     * 按顺序挑出可用的连接方式：跳过未启用、API 没有 Key、处于暂停中的方式。
-     * API 组有可用方式时，订阅只按授权与开关附在后面，是否登录由编排服务调用时判断（未登录会切换并暂停）；
-     * API 组都不可用时才查询订阅登录状态，用来决定能否创建任务——每次查询都要让编排服务运行一次 CLI，不放在每个任务上。
+     * 按列表顺序挑出可用的连接方式：跳过未启用、API 没有 Key、处于暂停中的方式，API Key 与订阅按各自位置排列。
+     * 有可用的 API Key 时，订阅只按授权与开关参与，是否登录由编排服务调用时判断（未登录会切换并暂停）；
+     * 没有可用的 API Key 时才查询订阅登录状态，用来决定能否创建任务——每次查询都要让编排服务运行一次 CLI，不放在每个任务上。
      */
     private Chain chain(int tenantId) {
         boolean allowed = subscriptionAccess.allowed(tenantId);
-        List<AiCallConfig> calls = new ArrayList<>();
-        List<Slot> subscriptions = new ArrayList<>();
+        List<Slot> usable = new ArrayList<>();
+        Map<String, String> keys = new HashMap<>();
         boolean configured = false;
+        boolean apiUsable = false;
+        boolean subscriptionUsable = false;
         for (Slot s : ordered(tenantId, allowed)) {
             if (!s.enabled()) {
                 continue;
             }
-            if (AiConfigConstants.MODE_SUBSCRIPTION.equals(s.mode())) {
+            boolean api = AiConfigConstants.MODE_API.equals(s.mode());
+            if (api) {
+                String key = decryptKey(s.row());
+                if (key.isEmpty()) {
+                    continue;
+                }
+                configured = true;
+                keys.put(s.provider(), key);
+            } else {
                 // 保存过的订阅算已配置；从没保存过的（默认参与）要确认过登录状态才算，见下方
                 configured |= s.row() != null;
-                subscriptions.add(s);
-                continue;
             }
-            String key = decryptKey(s.row());
-            if (key.isEmpty()) {
-                continue;
-            }
-            configured = true;
-            if (pauses.get(tenantId, s.mode(), s.provider()) == null) {
-                calls.add(build(s.mode(), s.provider(), key, s.row()));
-            }
-        }
-        boolean checkLogin = calls.isEmpty() && !subscriptions.isEmpty();
-        AiLoginStatus login = checkLogin ? loginStatus() : null;
-        for (Slot s : subscriptions) {
             if (pauses.get(tenantId, s.mode(), s.provider()) != null) {
                 configured = true;
+                continue;
+            }
+            usable.add(s);
+            apiUsable |= api;
+            subscriptionUsable |= !api;
+        }
+        boolean checkLogin = !apiUsable && subscriptionUsable;
+        AiLoginStatus login = checkLogin ? loginStatus() : null;
+        List<AiCallConfig> calls = new ArrayList<>();
+        for (Slot s : usable) {
+            if (AiConfigConstants.MODE_API.equals(s.mode())) {
+                calls.add(build(s.mode(), s.provider(), keys.get(s.provider()), s.row()));
                 continue;
             }
             if (checkLogin) {
@@ -261,26 +271,25 @@ public class AiConfigServiceImpl implements AiConfigService {
         return new Chain(calls, configured);
     }
 
-    /** 本租户按使用顺序排好的卡片：API Key 组在前；订阅组只在能使用平台订阅时列出 */
+    /** 本租户按使用顺序排好的卡片（API Key 与订阅在一个列表里）；订阅只在能使用平台订阅时列出 */
     private List<Slot> ordered(int tenantId, boolean allowed) {
         Map<String, SysAiProviderConfigDO> rows = new HashMap<>();
         for (SysAiProviderConfigDO r : profileMapper.selectList(new LambdaQueryWrapper<SysAiProviderConfigDO>()
                 .eq(SysAiProviderConfigDO::getTenantId, tenantId))) {
             rows.put(r.getMode() + ":" + r.getProvider(), r);
         }
+        // 先按默认次序（Claude API、OpenAI API、Claude 订阅、OpenAI 订阅）排好，排序值相同时保持这个次序（稳定排序）
         List<Slot> out = new ArrayList<>();
         for (String mode : MODES) {
             if (AiConfigConstants.MODE_SUBSCRIPTION.equals(mode) && !allowed) {
                 continue;
             }
-            List<Slot> group = new ArrayList<>();
             for (int i = 0; i < AiConfigConstants.PROVIDERS.size(); i++) {
                 String provider = AiConfigConstants.PROVIDERS.get(i);
-                group.add(new Slot(mode, provider, rows.get(mode + ":" + provider), i));
+                out.add(new Slot(mode, provider, rows.get(mode + ":" + provider), i));
             }
-            group.sort(Comparator.comparingInt(Slot::sort));
-            out.addAll(group);
         }
+        out.sort(Comparator.comparingInt(Slot::sort));
         return out;
     }
 
@@ -307,7 +316,7 @@ public class AiConfigServiceImpl implements AiConfigService {
                 req.getTranslateEffort(), req.getMaxWebSearches());
     }
 
-    /** 写这张卡片的组内顺序与开关；没有行时新建（只记顺序与开关，设置为空即默认值） */
+    /** 写这张卡片在列表中的顺序与开关；没有行时新建（只记顺序与开关，设置为空即默认值） */
     private void writeOrder(int tenantId, String mode, String provider, int sort, boolean enabled) {
         SysAiProviderConfigDO row = profile(tenantId, mode, provider);
         if (row == null) {

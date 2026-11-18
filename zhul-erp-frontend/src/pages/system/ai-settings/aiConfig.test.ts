@@ -5,7 +5,7 @@ import {
   describeFailovers,
   isDirty,
   modelOptions,
-  moveWithinGroup,
+  moveCard,
   orderChanged,
   summarize,
   toCards,
@@ -106,11 +106,11 @@ describe('connFormValues', () => {
   });
 });
 
-describe('moveWithinGroup', () => {
+describe('moveCard', () => {
   const cards = toCards(config(FOUR));
 
-  it('组内拖动交换顺序', () => {
-    const next = moveWithinGroup(cards, 'api:openai', 'api:claude');
+  it('拖动交换顺序', () => {
+    const next = moveCard(cards, 'api:openai', 'api:claude');
     expect(next.map((c) => `${c.mode}:${c.provider}`)).toEqual([
       'api:openai',
       'api:claude',
@@ -120,10 +120,19 @@ describe('moveWithinGroup', () => {
     expect(orderChanged(next, config(FOUR))).toBe(true);
   });
 
-  it('跨组不移动：平台订阅不能排到 API Key 前面', () => {
-    expect(moveWithinGroup(cards, 'subscription:claude', 'api:openai')).toBe(
-      cards,
-    );
+  it('平台订阅可以拖到 API Key 前面', () => {
+    const next = moveCard(cards, 'subscription:claude', 'api:claude');
+    expect(next.map((c) => `${c.mode}:${c.provider}`)).toEqual([
+      'subscription:claude',
+      'api:claude',
+      'api:openai',
+      'subscription:openai',
+    ]);
+    expect(orderChanged(next, config(FOUR))).toBe(true);
+  });
+
+  it('放回原位不算修改', () => {
+    expect(moveCard(cards, 'api:claude', 'api:claude')).toBe(cards);
     expect(orderChanged(cards, config(FOUR))).toBe(false);
   });
 });

@@ -34,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -75,6 +76,7 @@ public class ContentAiService {
     private final PermissionChecker perm;
     private final LogService logService;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate tx;
 
     // ---------------------------------------------------------------- 发起、取消
 
@@ -95,6 +97,7 @@ public class ContentAiService {
         }
         // 没有可用的连接方式时直接提示（AiNotConfiguredException / AiUnavailableException），不建记录
         aiConfigService.resolveChainForCurrentTenant();
+        lockOpen();
         Set<Long> existing = productMapper.selectList(new LambdaQueryWrapper<ProductDO>()
                         .select(ProductDO::getId)
                         .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
@@ -139,6 +142,7 @@ public class ContentAiService {
     @Transactional(rollbackFor = Exception.class)
     public void cancel(Long id) {
         requireEditor();
+        lockOpen();
         ProductContentAiJobDO j = lock(id);
         if (j.getStatus() != ContentConstants.AI_QUEUED && j.getStatus() != ContentConstants.AI_RUNNING) {
             throw new BizException("只有排队中、生成中的可以取消");
@@ -161,24 +165,88 @@ public class ContentAiService {
     // ---------------------------------------------------------------- 排队与提交
 
     /**
-     * 按并发上限提交本公司排队中的记录。锁住本公司未结束的排队、生成中记录后再数，避免同时发起时超过上限；
-     * 调用方须在事务内（发起、取消、AI 任务结束的回调都是）。
+     * 锁住本公司未结束的排队、生成中记录（按 id 顺序）。发起、取消、AI 任务结束、定时补交都先拿这把锁再动单条记录，
+     * 加锁顺序一致，并发的回调只会排队等待、不会互相死锁（audit BUS-087）。调用方须在事务内。
      */
-    void pump() {
-        List<ProductContentAiJobDO> open = jobMapper.selectList(new LambdaQueryWrapper<ProductContentAiJobDO>()
+    private List<ProductContentAiJobDO> lockOpen() {
+        return jobMapper.selectList(new LambdaQueryWrapper<ProductContentAiJobDO>()
                 .select(ProductContentAiJobDO::getId, ProductContentAiJobDO::getStatus, ProductContentAiJobDO::getProductId,
-                        ProductContentAiJobDO::getRequestedBy)
+                        ProductContentAiJobDO::getRequestedBy, ProductContentAiJobDO::getAiTaskId)
                 .in(ProductContentAiJobDO::getStatus, ContentConstants.AI_QUEUED, ContentConstants.AI_RUNNING)
                 .isNull(ProductContentAiJobDO::getDeletedAt)
                 .orderByAsc(ProductContentAiJobDO::getId)
                 .last("FOR UPDATE"));
-        long running = open.stream().filter(j -> j.getStatus() == ContentConstants.AI_RUNNING).count();
-        for (ProductContentAiJobDO j : open) {
+    }
+
+    /**
+     * 按并发上限提交本公司排队中的记录；调用方须在事务内（发起、取消、AI 任务结束的回调、定时补交都是）。
+     * AI 暂不可用（连接方式都在暂停中或未配置）时不提交、继续排队，恢复后由定时补交带起：
+     * 不能让 createAndSubmit 在当前事务里抛出，否则整个事务（含回调结果）只能回滚（audit BUS-087）。
+     */
+    void pump() {
+        long running = 0;
+        List<ProductContentAiJobDO> queued = new ArrayList<>();
+        for (ProductContentAiJobDO j : lockOpen()) {
+            if (j.getStatus() == ContentConstants.AI_QUEUED) {
+                queued.add(j);
+            } else if (!settleIfEnded(j)) {
+                running++;
+            }
+        }
+        if (queued.isEmpty() || running >= ContentConstants.AI_MAX_RUNNING) {
+            return;
+        }
+        if (!aiConfigService.isConfiguredForCurrentTenant()) {
+            log.info("AI 暂不可用，{} 条 AI 生成记录继续排队", queued.size());
+            return;
+        }
+        for (ProductContentAiJobDO j : queued) {
             if (running >= ContentConstants.AI_MAX_RUNNING) {
                 return;
             }
-            if (j.getStatus() == ContentConstants.AI_QUEUED && submit(j)) {
+            if (submit(j)) {
                 running++;
+            }
+        }
+    }
+
+    /**
+     * 生成中的记录，AI 任务却已结束（结果没能保存，如回调事务失败）：按任务结果收尾，释放并发名额。
+     * 正常情况下任务结束与记录收尾在同一事务，这里只兜底。
+     */
+    private boolean settleIfEnded(ProductContentAiJobDO j) {
+        if (j.getAiTaskId() == null) {
+            return false;
+        }
+        AiTaskVO t = aiTaskService.getById(j.getAiTaskId());
+        if (!Objects.equals(t.getStatus(), AiTaskStatus.COMPLETED) && !Objects.equals(t.getStatus(), AiTaskStatus.FAILED)) {
+            return false;
+        }
+        log.warn("AI 生成记录的任务已结束但结果未保存，按任务结果收尾，jobId={}, aiTaskId={}", j.getId(), t.getId());
+        AiTaskDO task = new AiTaskDO();
+        task.setId(t.getId());
+        task.setStatus(t.getStatus());
+        task.setOutput(t.getOutput());
+        task.setErrorMessage(t.getErrorMessage());
+        settle(j.getId(), task);
+        return true;
+    }
+
+    /** 每分钟：有排队或生成中记录的公司补交一次（AI 恢复后继续排队的记录），并收尾结果没保存的生成中记录 */
+    @Scheduled(fixedDelayString = "${zhul.product-content.ai-resume-interval-ms:60000}")
+    public void resumeQueued() {
+        List<Integer> tenants = TenantScope.platform(() -> jobMapper.selectList(new LambdaQueryWrapper<ProductContentAiJobDO>()
+                        .select(ProductContentAiJobDO::getTenantId)
+                        .in(ProductContentAiJobDO::getStatus, ContentConstants.AI_QUEUED, ContentConstants.AI_RUNNING)
+                        .isNull(ProductContentAiJobDO::getDeletedAt)
+                        .groupBy(ProductContentAiJobDO::getTenantId))
+                .stream().map(ProductContentAiJobDO::getTenantId).toList());
+        for (Integer tenantId : tenants) {
+            try {
+                TenantContext.runAs(tenantId, () -> tx.executeWithoutResult(s -> pump()));
+            } catch (RuntimeException e) {
+                // 一家公司补交出错不影响其他公司，下一轮再试
+                log.warn("AI 生成排队补交失败，tenantId={}", tenantId, e);
             }
         }
     }
@@ -221,6 +289,7 @@ public class ContentAiService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void apply(AiTaskDO task) {
+        lockOpen();
         ProductContentAiJobDO j = jobMapper.selectOne(new LambdaQueryWrapper<ProductContentAiJobDO>()
                 .eq(ProductContentAiJobDO::getAiTaskId, task.getId())
                 .isNull(ProductContentAiJobDO::getDeletedAt)
@@ -230,6 +299,12 @@ public class ContentAiService {
             pump();
             return;
         }
+        settle(j.getId(), task);
+        pump();
+    }
+
+    /** 按 AI 任务结果收尾一条生成中的记录：成功变为待确认，失败或结果无法识别记原因 */
+    private void settle(Long jobId, AiTaskDO task) {
         if (task.getStatus() != null && task.getStatus() == AiTaskStatus.COMPLETED) {
             try {
                 JsonNode out = objectMapper.readTree(task.getOutput() == null ? "{}" : task.getOutput());
@@ -239,7 +314,7 @@ public class ContentAiService {
                     throw new IllegalArgumentException("缺少资料包或营销包");
                 }
                 ProductContentAiJobDO u = new ProductContentAiJobDO();
-                u.setId(j.getId());
+                u.setId(jobId);
                 u.setStatus(ContentConstants.AI_PENDING);
                 u.setFactsMarkdown(facts);
                 u.setMarketingMarkdown(marketing);
@@ -248,14 +323,13 @@ public class ContentAiService {
                 u.setCompletedAt(LocalDateTime.now());
                 jobMapper.updateById(u);
             } catch (JsonProcessingException | IllegalArgumentException e) {
-                log.warn("AI 生成结果无法识别，jobId={}, error={}", j.getId(), e.getMessage());
-                end(j.getId(), ContentConstants.AI_FAILED, "AI 返回的结果无法识别，请重新生成");
+                log.warn("AI 生成结果无法识别，jobId={}, error={}", jobId, e.getMessage());
+                end(jobId, ContentConstants.AI_FAILED, "AI 返回的结果无法识别，请重新生成");
             }
         } else {
-            end(j.getId(), ContentConstants.AI_FAILED, StringUtils.hasText(task.getErrorMessage())
+            end(jobId, ContentConstants.AI_FAILED, StringUtils.hasText(task.getErrorMessage())
                     ? task.getErrorMessage() : "AI 处理失败");
         }
-        pump();
     }
 
     // ---------------------------------------------------------------- 查看结果、确认写入
