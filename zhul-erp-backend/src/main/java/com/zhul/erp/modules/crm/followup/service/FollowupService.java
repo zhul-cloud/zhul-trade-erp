@@ -159,6 +159,7 @@ public class FollowupService {
                         FollowupItemDO::getDormantSince, FollowupItemDO::getLastFollowupAt)
                 .isNull(FollowupItemDO::getClosedAt)
                 .isNull(FollowupItemDO::getDeletedAt)
+                .notInSql(FollowupItemDO::getCustomerId, FollowupItemMapper.POOL_CUSTOMERS)
                 .in(owners != null, FollowupItemDO::getOwnerId, owners));
         FollowupOverviewVO vo = new FollowupOverviewVO();
         List<FollowupItemDO> active = rows.stream().filter(r -> r.getNurtureUntil() == null).toList();
@@ -559,6 +560,7 @@ public class FollowupService {
                 .ne(FollowupItemDO::getNextActionSource, FollowupConstants.NEXT_AFTER_SALES)
                 .gt(FollowupItemDO::getNextActionDate, today)
                 .le(FollowupItemDO::getNextActionDate, until)
+                .notInSql(FollowupItemDO::getCustomerId, FollowupItemMapper.POOL_CUSTOMERS)
                 .in(owners != null, FollowupItemDO::getOwnerId, owners));
         Set<Long> pending = new HashSet<>(byCustomer.keySet());
         vo.setTomorrow((int) ahead.stream().filter(i -> today.plusDays(1).equals(i.getNextActionDate()))

@@ -103,6 +103,7 @@ public class FollowupTeamService {
                 .isNull(FollowupItemDO::getClosedAt)
                 .isNull(FollowupItemDO::getDeletedAt)
                 .isNull(FollowupItemDO::getNurtureUntil)
+                .notInSql(FollowupItemDO::getCustomerId, FollowupItemMapper.POOL_CUSTOMERS)
                 .in(owners != null, FollowupItemDO::getOwnerId, owners));
         ownerRows(vo, open, owners, range, today);
         stageRows(vo, open, today);

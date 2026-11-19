@@ -429,6 +429,33 @@ class FollowupApiContractTest extends IntegrationTestBase {
                 .path("boards").get(0).path("lead").path("manySnoozes").asBoolean(), "主管查看团队时标多次延后");
     }
 
+    /** audit BUS-088：客户放入公海后，跟进单据不再出现在今日待办、跟进列表和链路卡片的计数里 */
+    @Test
+    void poolCustomer_hiddenFromTodayListsAndOverview() throws Exception {
+        customer(C1, "POOLED", 0, 3);
+        customer(C2, "KEPT", 0, 3);
+        LocalDateTime sent = LocalDateTime.now().minusDays(1);
+        quote(9101, C1, "100.00", "700.00", sent, SELF);
+        quote(9102, C2, "200.00", "1400.00", sent, SELF);
+        sync(C1);
+        sync(C2);
+        jdbc.update("update followup_item set next_action_date = ? where tenant_id = 0", LocalDate.now());
+        loginAsAdmin("fu_admin");
+        String admin = token("fu_admin");
+        assertEquals(2, ok(call(get(BASE + "/today").param("ownerScope", "all"), admin)).path("today").size());
+
+        // 放入公海：客户无人负责，名下跟进单据的负责人随之清空（同 CustomerServiceImpl.putIntoPool）
+        jdbc.update("update customer set in_pool = 1, owner_id = 0 where id = ?", C1);
+        jdbc.update("update followup_item set owner_id = 0 where customer_id = ?", C1);
+        JsonNode today = ok(call(get(BASE + "/today").param("ownerScope", "all"), admin));
+        assertEquals(1, today.path("today").size(), "公海客户不在今日待办");
+        assertEquals("KEPT", today.path("today").get(0).path("customerName").asText());
+        assertEquals(1, ok(call(get(BASE + "/items").param("ownerScope", "all"), admin)).path("total").asInt(),
+                "公海客户不在跟进列表");
+        assertEquals(1, ok(call(get(BASE + "/overview").param("ownerScope", "all"), admin)).path("todayDue").asInt(),
+                "链路卡片的今日计数也不含公海客户");
+    }
+
     @Test
     void list_filtersByKeywordAndBlocker() throws Exception {
         customer(C1, "ALPHA TRADING", 0, 3);

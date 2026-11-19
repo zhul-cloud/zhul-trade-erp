@@ -33,7 +33,11 @@ public interface FollowupItemMapper extends BaseMapper<FollowupItemDO> {
             + " AS UNSIGNED) AS pr FROM customer_background_report r WHERE r.deleted_at IS NULL AND r.status = 2"
             + " AND r.priority BETWEEN 1 AND 4 GROUP BY r.customer_id) rp ON rp.customer_id = fi.customer_id";
 
+    /** 公海客户：跟进单据随客户变为无人负责，认领前不出现在待办与跟进列表（audit BUS-088） */
+    String POOL_CUSTOMERS = "SELECT id FROM customer WHERE in_pool = 1";
+
     String WHERE = " WHERE fi.deleted_at IS NULL AND fi.closed_at IS NULL AND c.deleted_at IS NULL"
+            + "<if test='f.customerId == null'> AND c.in_pool = 0</if>"
             + "<if test='f.board != null'> AND fi.board = #{f.board}</if>"
             + "<if test='f.group != null'> AND fi.stage_group = #{f.group}</if>"
             + "<if test='f.stage != null'> AND fi.stage_code = #{f.stage}</if>"
