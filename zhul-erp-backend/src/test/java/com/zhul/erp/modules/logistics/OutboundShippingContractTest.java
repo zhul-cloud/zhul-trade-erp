@@ -294,6 +294,54 @@ class OutboundShippingContractTest extends SalesContractSupport {
                 "交客户指定货代的出运单不进运费账单");
     }
 
+    /**
+     * openspec ship-forwarder-choice：登记出运时由业务员选择交给谁。货代没绑定客户也能选「客户的货代」，
+     * 只填交货日期、不进运费账单；修改运单沿用登记时的选择
+     */
+    @Test
+    void shipment_chooseCustomerForwarder_withoutBinding() throws Exception {
+        JsonNode po = orderedPo(supplier("华控自动化", null), 10);
+        long soId = soOf(po);
+        receive(po, 10);
+        JsonNode ob = ok(notice(soId, 10));
+        ok(pack(ob, new int[] {55, 40, 30, 3000, 10}));
+        ok(handOver(List.of(ob.path("id").asLong()), "50"));
+        long customerId = ok(call(get(SH + "/pending"), admin)).get(0).path("customerId").asLong();
+        long shId = ok(call(json(post(SH), write(Map.of("customerId", customerId, "forwarderId", forwarder,
+                "outboundIds", List.of(ob.path("id").asLong())))), admin)).path("id").asLong();
+        JsonNode shipped = ok(call(json(post(SH + "/" + shId + "/ship"), write(Map.of(
+                "shippedDate", LocalDate.now().toString(), "customerForwarder", true))), admin));
+        assertEquals("已出运", shipped.path("statusName").asText());
+        assertTrue(shipped.path("customerForwarder").asBoolean());
+        // 修改运单时传「我们的货代」也不切换：不填运单号仍可保存
+        JsonNode updated = ok(call(json(put(SH + "/" + shId + "/shipping"), write(Map.of(
+                "shippedDate", LocalDate.now().toString(), "customerForwarder", false))), admin));
+        assertTrue(updated.path("customerForwarder").asBoolean());
+        assertEquals("这个月没有要对账的出运单", fail(call(json(post(ST), write(Map.of("forwarderId", forwarder,
+                "period", LocalDate.now().toString().substring(0, 7)))), admin)).path("message").asText());
+    }
+
+    /** 绑定了客户的货代，登记时选「我们的货代」就按我们的货代要求运单号 */
+    @Test
+    void shipment_chooseOurForwarder_evenIfBoundToCustomer() throws Exception {
+        JsonNode po = orderedPo(supplier("华控自动化", null), 10);
+        long soId = soOf(po);
+        receive(po, 10);
+        JsonNode ob = ok(notice(soId, 10));
+        ok(pack(ob, new int[] {55, 40, 30, 3000, 10}));
+        ok(handOver(List.of(ob.path("id").asLong()), "50"));
+        long customerId = ok(call(get(SH + "/pending"), admin)).get(0).path("customerId").asLong();
+        long shId = ok(call(json(post(SH), write(Map.of("customerId", customerId, "forwarderId", forwarder,
+                "outboundIds", List.of(ob.path("id").asLong())))), admin)).path("id").asLong();
+        jdbc.update("update supplier set customer_id = ? where id = ?", customerId, forwarder);
+        assertEquals("请填写运单号", fail(call(json(post(SH + "/" + shId + "/ship"), write(Map.of("carrier", "DHL",
+                "shippedDate", LocalDate.now().toString(), "freight", "100", "customerForwarder", false))), admin))
+                .path("message").asText());
+        JsonNode shipped = ok(call(json(post(SH + "/" + shId + "/ship"), write(Map.of("carrier", "DHL", "waybillNo", "123",
+                "shippedDate", LocalDate.now().toString(), "freight", "100", "customerForwarder", false))), admin));
+        assertFalse(shipped.path("customerForwarder").asBoolean());
+    }
+
     @Test
     void shipment_ship_freight_docs_statement() throws Exception {
         JsonNode po = orderedPo(supplier("华控自动化", null), 10);
