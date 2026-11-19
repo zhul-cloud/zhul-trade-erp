@@ -64,7 +64,10 @@ public class InquiryItemDO {
     private Integer costManual;
     @TableField(updateStrategy = com.baomidou.mybatisplus.annotation.FieldStrategy.ALWAYS)
     private Long sourcingTaskId;
+    /** 型号备注（业务员填写，只在系统内显示，见 openspec item-remark） */
     private String remark;
+    private String remarkBy;
+    private LocalDateTime remarkAt;
     private LocalDateTime deletedAt;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

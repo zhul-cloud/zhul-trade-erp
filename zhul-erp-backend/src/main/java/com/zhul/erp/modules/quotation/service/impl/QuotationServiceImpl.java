@@ -138,6 +138,7 @@ public class QuotationServiceImpl implements QuotationService {
     private final com.zhul.erp.modules.inquiry.support.NoStockReasons noStockReasons;
     private final ObjectProvider<com.zhul.erp.modules.quotation.support.QuoteSupplyHints> supplyHints;
     private final ApplicationEventPublisher events;
+    private final com.zhul.erp.modules.sales.support.ItemRemarks itemRemarks;
 
     /** 带入时还在询价、按无货报的行，记在建议依据上（随版本复制） */
     private static final String PENDING_AS_NO_STOCK = "未回价，按无货报";
@@ -1018,6 +1019,8 @@ public class QuotationServiceImpl implements QuotationService {
         // 已发送的当前有效版本：型号与询盘型号当前的单据型号不同时提示（spec quotation/quotation「真实型号变更后的报价单」）
         Map<Long, String> docModels = q.getStatus() == QuotationConstants.STATUS_SENT && !viewingEditing
                 ? docModelLookup.docModels(items.stream().map(QuotationItemDO::getInquiryItemId).toList()) : Map.of();
+        Map<Long, com.zhul.erp.modules.sales.support.ItemRemarks.Remark> remarks = itemRemarks.ofInquiryItems(
+                items.stream().map(QuotationItemDO::getInquiryItemId).toList());
         List<QuotationItemVO> itemVos = new ArrayList<>(items.size());
         for (int k = 0; k < items.size(); k++) {
             QuotationItemDO i = items.get(k);
@@ -1027,6 +1030,8 @@ public class QuotationServiceImpl implements QuotationService {
                 x.setModelUpdatedTo(doc);
             }
             x.setSupplyHints(supply.getOrDefault(i.getId(), List.of()));
+            var remark = remarks.get(i.getInquiryItemId());
+            x.setItemRemark(remark == null ? "" : remark.text());
             x.setBrandEn(brandsEn.getOrDefault(i.getBrand(), i.getBrand()));
             x.setOrderCode(products.get(k).orderCode());
             x.setProductId(products.get(k).productId());

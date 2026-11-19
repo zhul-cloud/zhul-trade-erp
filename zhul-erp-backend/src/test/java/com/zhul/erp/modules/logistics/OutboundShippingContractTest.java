@@ -257,6 +257,43 @@ class OutboundShippingContractTest extends SalesContractSupport {
 
     // ---------------------------------------------------------------- 出运单、CI/PL、对账
 
+    /**
+     * openspec feedback-1119：公司货代登记出运必须有运单号；交客户指定货代时只要交货日期，
+     * 送货运费照常分摊，出运单不进货代运费账单
+     */
+    @Test
+    void shipment_customerForwarder_onlyDateRequired_notInStatement() throws Exception {
+        JsonNode po = orderedPo(supplier("华控自动化", null), 10);
+        long soId = soOf(po);
+        receive(po, 10);
+        JsonNode ob = ok(notice(soId, 10));
+        ok(pack(ob, new int[] {55, 40, 30, 3000, 10}));
+        ok(handOver(List.of(ob.path("id").asLong()), "50"));
+        long customerId = ok(call(get(SH + "/pending"), admin)).get(0).path("customerId").asLong();
+        long shId = ok(call(json(post(SH), write(Map.of("customerId", customerId, "forwarderId", forwarder,
+                "outboundIds", List.of(ob.path("id").asLong())))), admin)).path("id").asLong();
+        assertEquals("请填写运单号", fail(call(json(post(SH + "/" + shId + "/ship"), write(Map.of("carrier", "DHL",
+                "shippedDate", LocalDate.now().toString(), "freight", "100"))), admin)).path("message").asText(),
+                "公司货代仍要运单号");
+
+        // 货代改为这个客户的指定货代后登记：只填交货日期与送货运费
+        jdbc.update("update supplier set customer_id = ? where id = ?", customerId, forwarder);
+        JsonNode shipped = ok(call(json(post(SH + "/" + shId + "/ship"), write(Map.of(
+                "shippedDate", LocalDate.now().toString(), "freight", "80"))), admin));
+        assertEquals("已出运", shipped.path("statusName").asText());
+        assertTrue(shipped.path("customerForwarder").asBoolean());
+        assertEquals("", shipped.path("waybillNo").asText());
+        assertEquals(new BigDecimal("80.00"), allocated(2, shId), "送货运费照常分摊");
+        assertEquals("已出运", order(soId).path("items").get(0).path("progressName").asText());
+        // 不填送货运费也能改：为 0
+        JsonNode updated = ok(call(json(put(SH + "/" + shId + "/shipping"), write(Map.of(
+                "shippedDate", LocalDate.now().toString()))), admin));
+        assertEquals(0, updated.path("freight").decimalValue().compareTo(BigDecimal.ZERO));
+        assertEquals("这个月没有要对账的出运单", fail(call(json(post(ST), write(Map.of("forwarderId", forwarder,
+                "period", LocalDate.now().toString().substring(0, 7)))), admin)).path("message").asText(),
+                "交客户指定货代的出运单不进运费账单");
+    }
+
     @Test
     void shipment_ship_freight_docs_statement() throws Exception {
         JsonNode po = orderedPo(supplier("华控自动化", null), 10);

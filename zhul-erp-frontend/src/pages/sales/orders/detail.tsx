@@ -29,6 +29,7 @@ import DocModelCell, {
   DocDescription,
   docBrandColumns,
 } from '@/components/DocFields/DocModelCell';
+import { ItemRemarkLine } from '@/components/DocFields/ItemRemark';
 import SourceNos from '@/components/DocFields/SourceNos';
 import EllipsisText from '@/components/EllipsisText';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
@@ -577,7 +578,35 @@ const OrderDetail: React.FC = () => {
               </span>
             )
           }
-        />
+        >
+          <ItemRemarkLine
+            text={r.itemRemark}
+            by={r.itemRemarkBy}
+            at={r.itemRemarkAt}
+            editable={editable}
+            onSave={async (value) => {
+              const res = await orderApi.saveItemRemark(o.id, r.id, value);
+              setO((cur) =>
+                cur
+                  ? {
+                      ...cur,
+                      items: cur.items.map((it) =>
+                        it.id === r.id
+                          ? {
+                              ...it,
+                              itemRemark: res.remark,
+                              itemRemarkBy: res.remarkBy,
+                              itemRemarkAt: res.remarkAt,
+                            }
+                          : it,
+                      ),
+                    }
+                  : cur,
+              );
+              message.success(value ? '型号备注已保存' : '型号备注已清空');
+            }}
+          />
+        </DocModelCell>
       ),
     },
     {

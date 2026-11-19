@@ -2,6 +2,7 @@ import { UserOutlined } from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import { App, Drawer, Radio, Skeleton } from 'antd';
 import React, { useEffect, useState } from 'react';
+import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
@@ -251,6 +252,7 @@ const TaskDetailDrawer: React.FC<{
                       {it.description}
                     </span>
                   )}
+                  <ItemRemarkText text={it.itemRemark} />
                   {plates.forItem(it.id, it.model)}
                   {it.quotes.some((q) => !q.noStock) && (
                     <div style={{ display: 'grid', gap: 4, marginTop: 4 }}>

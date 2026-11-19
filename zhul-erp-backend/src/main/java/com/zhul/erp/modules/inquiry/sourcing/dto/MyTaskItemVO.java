@@ -7,6 +7,8 @@ import java.util.List;
 /** 我的询价任务中的一个型号 */
 @Data
 public class MyTaskItemVO {
+    /** 型号备注（业务员填写，只在系统内显示，openspec item-remark）；没有时为空 */
+    private String itemRemark;
     private Long id;
     private String model;
     /** 订货号（物料号、料号），辅助识别 */

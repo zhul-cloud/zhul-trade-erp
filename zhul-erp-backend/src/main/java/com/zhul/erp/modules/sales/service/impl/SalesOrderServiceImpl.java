@@ -125,6 +125,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     private final DocumentNumberService documentNumberService;
     private final DataScopeResolver dataScopeResolver;
     private final CurrentUserResolver currentUser;
+    private final com.zhul.erp.modules.sales.support.ItemRemarks itemRemarks;
     private final InquiryLookups lookups;
     private final com.zhul.erp.modules.inquiry.support.DocModelLookup docModelLookup;
     private final LogService logService;
@@ -1253,6 +1254,29 @@ public class SalesOrderServiceImpl implements SalesOrderService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public com.zhul.erp.modules.sales.dto.ItemRemarkVO saveItemRemark(Long id, Long itemId, String remark) {
+        visible(id);
+        SalesOrderDO o = lockOrder(id);
+        if (Objects.equals(o.getStatus(), SalesConstants.SO_CANCELLED)) {
+            throw new BizException("订单已取消，不能修改");
+        }
+        SalesOrderItemDO line = orderItemMapper.selectById(itemId);
+        if (line == null || line.getDeletedAt() != null || !Objects.equals(line.getSoId(), id)) {
+            throw new BizException("型号不存在，请刷新后再试");
+        }
+        String before = itemRemarks.ofSoItems(List.of(itemId)).getOrDefault(itemId,
+                new com.zhul.erp.modules.sales.support.ItemRemarks.Remark("", "", null)).text();
+        if (itemRemarks.saveSoItem(line, remark, currentUser.resolve())) {
+            logService.recordOperateLog(SalesConstants.MENU_SO, "修改型号备注",
+                    Map.of("soNo", o.getSoNo(), "型号", line.getModel(), "备注", before),
+                    Map.of("soNo", o.getSoNo(), "型号", line.getModel(), "备注",
+                            com.zhul.erp.modules.sales.support.ItemRemarks.clean(remark)));
+        }
+        return com.zhul.erp.modules.sales.dto.ItemRemarkVO.of(itemRemarks.ofSoItems(List.of(itemId)).get(itemId));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public SalesOrderVO complete(Long id) {
         visible(id);
         SalesOrderDO o = lockOrder(id);
@@ -1605,6 +1629,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         Map<String, String> progressNames = progress.names();
         Map<Long, com.zhul.erp.modules.purchase.support.PurchaseLinks.ItemPurchase> links =
                 purchaseLinks.forSoItems(items.stream().map(SalesOrderItemDO::getId).toList());
+        Map<Long, com.zhul.erp.modules.sales.support.ItemRemarks.Remark> remarks = itemRemarks.ofSoItems(items.stream().map(SalesOrderItemDO::getId).toList());
         // 型号的采购员：有采购需求的取需求的采购员（可能多位），存量没有需求的取型号行上的
         Map<Long, List<Long>> itemPurchasers = new HashMap<>();
         for (SalesOrderItemDO i : items) {
@@ -1619,6 +1644,10 @@ public class SalesOrderServiceImpl implements SalesOrderService {
                 .map(i -> new DocItemProducts.Line(i.getProductId(), i.getInquiryItemId(), i.getBrand(), i.getModel())).toList()).iterator();
         vo.setItems(items.stream().map(i -> {
             SalesOrderItemVO x = new SalesOrderItemVO();
+            var remark = remarks.get(i.getId());
+            x.setItemRemark(remark == null ? "" : remark.text());
+            x.setItemRemarkBy(remark == null ? "" : remark.by());
+            x.setItemRemarkAt(remark == null ? null : remark.at());
             DocItemProducts.Info product = products.next();
             x.setProductId(product.productId());
             x.setOrderCode(product.orderCode());

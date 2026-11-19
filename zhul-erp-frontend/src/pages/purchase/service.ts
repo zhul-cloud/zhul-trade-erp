@@ -41,6 +41,8 @@ export type RequirementStatus =
 
 export interface Requirement {
   id: number;
+  /** 型号备注（业务员填写，只在系统内显示，openspec item-remark） */
+  itemRemark?: string;
   soId: number;
   soNo?: string;
   salesDate?: string;
@@ -263,6 +265,9 @@ export interface PoItem {
   description?: string;
   /** 已下单：真实型号已更新为这个型号，本行没有修改 */
   modelUpdatedTo?: string;
+  /** 型号备注（openspec item-remark）；remarkAlert：下单后备注有更新、待采购核对 */
+  itemRemark?: string;
+  remarkAlert?: boolean;
   quantity: number;
   maxQuantity: number;
   unitPrice?: number | null;
@@ -307,6 +312,8 @@ export interface PoReceiptRef {
 }
 
 export interface PurchaseOrder {
+  /** 下单后型号备注有更新、待采购核对的行数 */
+  remarkAlerts?: number;
   /** 历史迁移的采购单（只读） */
   migrated?: boolean;
   /** 预计发货日期 */
@@ -472,6 +479,9 @@ export const poApi = {
     }),
   move: (id: number, itemIds: number[], cp: CounterpartyValue) =>
     send<number>('POST', `${PO}/${id}/move`, { itemIds, ...cp }),
+  /** 我已核对：清除下单后更新的型号备注的标红 */
+  remarkChecked: (id: number) =>
+    send<PurchaseOrder>('POST', `${PO}/${id}/remark-checked`),
   convertShop: (id: number) =>
     send<PurchaseOrder>('POST', `${PO}/${id}/convert-shop`),
   confirm: (id: number, orderDate: string, expectedShipDate: string) =>

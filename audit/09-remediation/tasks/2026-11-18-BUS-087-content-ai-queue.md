@@ -2,7 +2,7 @@
 
 ## 结论 / 下一步
 
-已修复，提 PR 发往 develop。随下一个版本上线后：卡在「生成中」的记录会在 1 分钟内由定时补交收尾，排队记录在 AI 恢复后自动提交。上线前，生产 AI 需要先恢复至少一个可用的连接方式（额度问题与本缺陷无关，由用户处理）。
+已修复，随 v1.36.0 上线（2026-11-18 23:32），生产验证通过，已关闭。无后续。
 
 ## 范围与负责人
 
@@ -13,7 +13,7 @@
 | 目标与影响范围 | 资料任务、营销任务的「AI 生成」排队（`ContentAiService`）；`AiTaskServiceImpl.createAndSubmit` 的事务规则。不含 AI 连接方式额度本身 |
 | 起点 commit / 工作分支 | develop `b55dd03d`；`fix/content-ai-queue-unavailable` |
 | OpenSpec | 缺陷修复，不新建变更；主规范 product/product-content「AI 生成资料与营销内容」补一条规则和一个场景 |
-| PR / 目标分支 | 见台账 link |
+| PR / 目标分支 | [#400](https://github.com/zhul-cloud/zhul-trade-erp/pull/400) → develop；随 [#403](https://github.com/zhul-cloud/zhul-trade-erp/pull/403) 发版 |
 | 合并证据 | 见台账（按 Git 推导） |
 | 目标版本 / 环境 | v1.36.0 起；所有租户 |
 
@@ -49,4 +49,10 @@
 
 ## 合并、部署与逐 ID 验收
 
-待合并、发版后补充。
+- #400 于 2026-11-18 合并到 develop；v1.36.0 于 23:32 部署到生产（releases.log「v1.36.0 成功」）。
+- 生产只读核对（23:3x）：
+  - 上线后 1 分钟内，定时补交把 3 条「AI 任务已结束、记录仍在生成中」的记录（jobId 10384、10391、10392）按任务结果收尾，日志为「按任务结果收尾」。
+  - 上线后 30 分钟内，后端日志没有 `UnexpectedRollbackException` 或 `Deadlock found`。
+  - 之后新的 AI 生成正常完成（3 条变为待确认）。
+- BUS-087：生产验收（2026-11-18）。
+- AI 不可用时继续排队这条路径，生产上还没有再次出现，由自动化测试覆盖（`ContentAiContractTest`）。

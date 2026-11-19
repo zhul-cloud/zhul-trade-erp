@@ -13,6 +13,7 @@ import {
   Radio,
   Select,
   Skeleton,
+  Table,
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -35,6 +36,7 @@ import {
   orderApi,
   type Pi,
   piApi,
+  type ReorderDraft,
   readBizError,
 } from '../service';
 import { ORDER_FILE_MAX, OrderFileList, OrderFileUpload } from './OrderFiles';
@@ -293,13 +295,157 @@ const newLine = (): Line => ({
   stockType: STOCK.SPOT,
 });
 
+/**
+ * 「再下一单」第一步：列出原订单的型号（已全部取消的不列），默认全选，普通费用可选是否带入；
+ * 至少选一个型号，确认后把选中的内容交给手动建单预填（openspec feedback-1119）。
+ */
+export const ReorderPickModal: React.FC<{
+  soId?: number;
+  onCancel: () => void;
+  onNext: (draft: ReorderDraft) => void;
+}> = ({ soId, onCancel, onNext }) => {
+  const { message } = App.useApp();
+  const { palette } = useAppTheme();
+  const [draft, setDraft] = useState<ReorderDraft>();
+  const [picked, setPicked] = useState<number[]>([]);
+  const [withFees, setWithFees] = useState(true);
+
+  useEffect(() => {
+    setDraft(undefined);
+    setWithFees(true);
+    if (!soId) return;
+    orderApi
+      .reorder(soId)
+      .then((d) => {
+        setDraft(d);
+        setPicked(d.items.map((_, i) => i));
+      })
+      .catch((e) => {
+        message.error(readBizError(e).message);
+        onCancel();
+      });
+  }, [soId]);
+
+  const rows = (draft?.items ?? []).map((item, index) => ({ ...item, index }));
+  const next = () => {
+    if (!draft) return;
+    onNext({
+      ...draft,
+      items: draft.items.filter((_, i) => picked.includes(i)),
+      fees: withFees ? draft.fees : [],
+    });
+  };
+  const feeText = (draft?.fees ?? [])
+    .map(
+      (f) =>
+        `${f.feeName} ${formatAmount(f.amount, draft?.currencyCode ?? 'USD')}`,
+    )
+    .join('、');
+
+  return (
+    <Modal
+      open={soId !== undefined}
+      title="再下一单 · 选择型号"
+      width={720}
+      destroyOnHidden
+      onCancel={onCancel}
+      footer={
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span
+            style={{
+              flex: 1,
+              textAlign: 'left',
+              fontSize: 12,
+              color: palette.mute,
+            }}
+          >
+            {draft
+              ? `已选 ${picked.length} / ${draft.items.length} · 已全部取消的型号不列出`
+              : ''}
+          </span>
+          <Button onClick={onCancel}>取消</Button>
+          <Button
+            type="primary"
+            disabled={!draft || picked.length === 0}
+            onClick={next}
+          >
+            下一步（{picked.length} 个型号）
+          </Button>
+        </div>
+      }
+    >
+      {!draft ? (
+        <Skeleton active paragraph={{ rows: 4 }} />
+      ) : (
+        <>
+          <div style={{ fontSize: 12, color: palette.mute, marginBottom: 12 }}>
+            复制 {draft.sourceSoNo}（{draft.customerName} · {draft.currencyCode}
+            ）。勾选这次要的型号，下一步按原订单预填数量、单价与采购信息，可以再改。
+          </div>
+          <Table
+            size="small"
+            rowKey="index"
+            dataSource={rows}
+            pagination={false}
+            scroll={{ y: 360 }}
+            rowSelection={{
+              selectedRowKeys: picked,
+              onChange: (keys) => setPicked(keys.map(Number)),
+            }}
+            columns={[
+              {
+                title: '型号 · 品牌',
+                key: 'model',
+                render: (_, r) => (
+                  <div>
+                    <b style={{ color: palette.ink }}>
+                      {r.mpnDisplay ?? r.model}
+                    </b>
+                    <div style={{ fontSize: 12, color: palette.mute }}>
+                      {[r.brandName ?? r.brand, r.categoryName]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </div>
+                  </div>
+                ),
+              },
+              { title: '数量', dataIndex: 'quantity', width: 80 },
+              {
+                title: '单价',
+                dataIndex: 'unitPrice',
+                width: 120,
+                render: (v: number) => formatAmount(v, draft.currencyCode),
+              },
+              {
+                title: '现货 / 期货',
+                dataIndex: 'stockType',
+                width: 100,
+                render: (v?: number) => (v === STOCK.FUTURES ? '期货' : '现货'),
+              },
+            ]}
+          />
+          {draft.fees.length > 0 && (
+            <Checkbox
+              checked={withFees}
+              onChange={(e) => setWithFees(e.target.checked)}
+              style={{ marginTop: 12 }}
+            >
+              普通费用一起带入：{feeText}
+            </Checkbox>
+          )}
+        </>
+      )}
+    </Modal>
+  );
+};
+
 export const CreateOrderDrawer: React.FC<{
   open: boolean;
   onClose: () => void;
   onDone: (order: Order) => void;
-  /** 「再下一单」：按这张订单预填（spec sales/sales-order「再下一单」） */
-  reorderFrom?: number;
-}> = ({ open, onClose, onDone, reorderFrom }) => {
+  /** 「再下一单」：按选好的型号与费用预填（spec sales/sales-order「再下一单」，先在 ReorderPickModal 里选） */
+  reorder?: ReorderDraft;
+}> = ({ open, onClose, onDone, reorder }) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
   const access = useAccess() as Record<string, boolean>;
@@ -332,62 +478,58 @@ export const CreateOrderDrawer: React.FC<{
     searchCustomers('')
       .then((list) => setCustomerOptions(toOptions(list)))
       .catch(() => undefined);
-    if (!reorderFrom) return;
-    orderApi
-      .reorder(reorderFrom)
-      .then((d) => {
-        setSource(d.sourceSoNo);
-        setCustomerId(d.customerId);
-        setCustomerOptions((cur) =>
-          cur.some((o) => o.value === d.customerId)
-            ? cur
-            : [
-                {
-                  value: d.customerId,
-                  label: [d.customerName, d.customerCountry]
-                    .filter(Boolean)
-                    .join(' · '),
-                },
-                ...cur,
-              ],
-        );
-        setCurrency(d.currencyCode);
-        setLines(
-          d.items.length
-            ? d.items.map((i) => ({
-                key: ++lineSeq,
-                productId: i.productId ?? undefined,
-                model: i.mpnDisplay ?? i.model,
-                brand: i.brandName ?? i.brand,
-                category: i.categoryName,
-                initial: i.productId
-                  ? {
-                      id: i.productId,
-                      mpnDisplay: i.mpnDisplay ?? i.model,
-                      brandName: i.brandName ?? '',
-                      categoryName: i.categoryName ?? '',
-                      productName: '',
-                    }
-                  : undefined,
-                reorderModel: i.productId ? undefined : i.model,
-                quantity: i.quantity,
-                unitPrice: i.unitPrice,
-                costPrice: i.costPrice ?? null,
-                purchaserId: i.purchaserId ?? null,
-                stockType: i.stockType ?? STOCK.SPOT,
-              }))
-            : [newLine()],
-        );
-        setFees(
-          d.fees.map((f) => ({
-            key: ++feeSeq,
-            feeName: f.feeName,
-            amount: f.amount,
-          })),
-        );
-      })
-      .catch((e) => message.error(readBizError(e).message));
-  }, [open, reorderFrom]);
+    if (!reorder) return;
+    const d = reorder;
+    setSource(d.sourceSoNo);
+    setCustomerId(d.customerId);
+    setCustomerOptions((cur) =>
+      cur.some((o) => o.value === d.customerId)
+        ? cur
+        : [
+            {
+              value: d.customerId,
+              label: [d.customerName, d.customerCountry]
+                .filter(Boolean)
+                .join(' · '),
+            },
+            ...cur,
+          ],
+    );
+    setCurrency(d.currencyCode);
+    setLines(
+      d.items.length
+        ? d.items.map((i) => ({
+            key: ++lineSeq,
+            productId: i.productId ?? undefined,
+            model: i.mpnDisplay ?? i.model,
+            brand: i.brandName ?? i.brand,
+            category: i.categoryName,
+            initial: i.productId
+              ? {
+                  id: i.productId,
+                  mpnDisplay: i.mpnDisplay ?? i.model,
+                  brandName: i.brandName ?? '',
+                  categoryName: i.categoryName ?? '',
+                  productName: '',
+                }
+              : undefined,
+            reorderModel: i.productId ? undefined : i.model,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+            costPrice: i.costPrice ?? null,
+            purchaserId: i.purchaserId ?? null,
+            stockType: i.stockType ?? STOCK.SPOT,
+          }))
+        : [newLine()],
+    );
+    setFees(
+      d.fees.map((f) => ({
+        key: ++feeSeq,
+        feeName: f.feeName,
+        amount: f.amount,
+      })),
+    );
+  }, [open, reorder]);
 
   const toOptions = (
     list: {

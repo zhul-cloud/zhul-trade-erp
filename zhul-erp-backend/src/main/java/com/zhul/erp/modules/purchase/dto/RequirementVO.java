@@ -9,6 +9,8 @@ import java.util.List;
 /** 采购需求列表行 */
 @Data
 public class RequirementVO {
+    /** 型号备注（业务员填写，只在系统内显示，openspec item-remark）；没有时为空 */
+    private String itemRemark;
     private Long id;
     private Long soId;
     private String soNo;

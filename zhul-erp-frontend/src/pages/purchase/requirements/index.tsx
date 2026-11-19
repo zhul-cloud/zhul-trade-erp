@@ -31,6 +31,7 @@ import React, {
 } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import { DocDescription } from '@/components/DocFields/DocModelCell';
+import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { CustomerTypePill } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -230,6 +231,7 @@ const RequirementList: React.FC = () => {
             palette.mute,
             [r.brand, r.category].filter(Boolean).join(' · ') || '—',
           )}
+          <ItemRemarkText text={r.itemRemark} />
         </div>
       ),
     },

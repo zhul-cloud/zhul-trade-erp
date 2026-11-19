@@ -1,4 +1,5 @@
 import { request } from '@umijs/max';
+import type { ItemRemarkResult } from '@/components/DocFields/ItemRemark';
 import type { Attachment } from '@/pages/warehouse/service';
 import { openFile } from '@/utils/fileLink';
 
@@ -47,6 +48,10 @@ export interface PiItem {
   customerModel?: string;
   /** 已发送的 PI 当前版本：真实型号已更新为这个型号 */
   modelUpdatedTo?: string;
+  /** 型号备注（业务员填写，只在系统内显示，openspec item-remark） */
+  itemRemark?: string;
+  itemRemarkBy?: string;
+  itemRemarkAt?: string | null;
   /** 来源询盘型号上的订货号，只在系统内显示 */
   orderCode?: string;
   /** 对应的商品档案；没有时为空 */
@@ -1172,6 +1177,11 @@ export const allOrderModels = async (id: number) => {
 };
 
 export const orderApi = {
+  /** 写或清空型号备注：有询盘的型号改询盘型号的备注，手动订单的型号改订单型号的（openspec item-remark） */
+  saveItemRemark: (id: number, itemId: number, remark: string) =>
+    send<ItemRemarkResult>('PUT', `${SO}/${id}/items/${itemId}/remark`, {
+      remark,
+    }),
   page: (q: OrderQuery) =>
     send<{ total: number; records: OrderListItem[] }>('POST', `${SO}/page`, q),
   stats: () => get<OrderStats>(`${SO}/stats`),

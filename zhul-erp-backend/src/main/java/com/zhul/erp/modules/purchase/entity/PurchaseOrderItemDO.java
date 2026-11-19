@@ -39,6 +39,8 @@ public class PurchaseOrderItemDO {
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private BigDecimal bargainAmount;
     private Integer sortOrder;
+    /** 下单后型号备注有更新、待采购核对（0-否、1-是） */
+    private Integer remarkAlert;
     private LocalDateTime deletedAt;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
