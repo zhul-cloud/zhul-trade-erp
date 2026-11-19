@@ -111,6 +111,7 @@ public class PiServiceImpl implements PiService {
     private static final int OVERDUE_TOP = 5;
 
     private final DocItemProducts docItemProducts;
+    private final com.zhul.erp.modules.sales.support.ItemRemarks itemRemarks;
     private final ProformaInvoiceMapper piMapper;
     private final PiVersionMapper versionMapper;
     private final PiItemMapper itemMapper;
@@ -972,8 +973,12 @@ public class PiServiceImpl implements PiService {
         vo.setSentAt(v.getSentAt());
         Iterator<DocItemProducts.Info> products = docItemProducts.resolve(items.stream()
                 .map(i -> new DocItemProducts.Line(null, i.getInquiryItemId(), i.getBrand(), i.getModel())).toList()).iterator();
+        Map<Long, com.zhul.erp.modules.sales.support.ItemRemarks.Remark> remarks = itemRemarks.ofInquiryItems(
+                items.stream().map(PiItemDO::getInquiryItemId).toList());
         vo.setItems(items.stream().map(i -> {
             PiItemVO x = new PiItemVO();
+            var remark = remarks.get(i.getInquiryItemId());
+            x.setItemRemark(remark == null ? "" : remark.text());
             DocItemProducts.Info product = products.next();
             x.setProductId(product.productId());
             x.setOrderCode(product.orderCode());

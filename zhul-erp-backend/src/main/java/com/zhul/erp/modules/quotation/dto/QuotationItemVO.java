@@ -8,6 +8,8 @@ import java.util.List;
 /** 报价单型号行（系统内查看，含成本与利润） */
 @Data
 public class QuotationItemVO {
+    /** 型号备注（业务员填写，只在系统内显示，openspec item-remark）；没有时为空 */
+    private String itemRemark;
     private Long id;
     private Integer lineNo;
     private Long customerInquiryId;

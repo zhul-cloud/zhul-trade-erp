@@ -16,6 +16,9 @@ import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 
 public interface PurchaseOrderService {
 
+    /** 采购核对过下单后更新的型号备注：清除本单所有行的标红（openspec item-remark） */
+    PurchaseOrderVO remarkChecked(Long id);
+
     PageResult<PurchaseOrderListVO> page(PurchaseOrderPageQuery q);
 
     PurchaseOrderStatsVO stats();

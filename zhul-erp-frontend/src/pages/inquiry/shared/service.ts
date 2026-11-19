@@ -1,5 +1,6 @@
 import { request } from '@umijs/max';
 import type { ActualModelResult } from '@/components/DocFields/ActualModel';
+import type { ItemRemarkResult } from '@/components/DocFields/ItemRemark';
 import { fileUrl } from '@/utils/fileLink';
 
 export { readBizError } from '@/pages/crm/opportunity/service';
@@ -141,6 +142,10 @@ export interface InquiryItem {
   noStockReasonName?: string;
   /** 已报给客户（出现在已发送及之后的报价单中） */
   quoted?: boolean;
+  /** 型号备注（业务员填写，只在系统内显示，openspec item-remark） */
+  itemRemark?: string;
+  itemRemarkBy?: string;
+  itemRemarkAt?: string | null;
   /** 真实型号（业务员或采购填写，单据型号以它为准） */
   actualModel?: string;
   /** 真实型号最后修改人与时间 */
@@ -645,6 +650,8 @@ export interface MyTaskItem {
   reviewNote?: string;
   reviewedByName?: string;
   reviewedAt?: string;
+  /** 型号备注（业务员填写，只在系统内显示，openspec item-remark） */
+  itemRemark?: string;
   /** 真实型号（业务员或采购填写，单据型号以它为准） */
   actualModel?: string;
   /** 真实型号最后修改人与时间 */
@@ -966,6 +973,11 @@ export const inquiryApi = {
       `${INQ}/${id}/items/${itemId}/actual-model`,
       { actualModel },
     ),
+  /** 业务员写或清空型号备注（openspec item-remark） */
+  saveItemRemark: (id: number, itemId: number, remark: string) =>
+    send<ItemRemarkResult>('PUT', `${INQ}/${id}/items/${itemId}/remark`, {
+      remark,
+    }),
   /** 改铭牌图片对应的型号，0 为未对应 */
   linkNameplate: (id: number, attachmentId: number, inquiryItemId: number) =>
     send<void>('PUT', `${INQ}/${id}/nameplates/${attachmentId}`, {
@@ -1084,6 +1096,8 @@ export const boardApi = {
 };
 
 export interface BoardTaskItem {
+  /** 型号备注（业务员填写，只在系统内显示，openspec item-remark） */
+  itemRemark?: string;
   id: number;
   model: string;
   originalModel: string;

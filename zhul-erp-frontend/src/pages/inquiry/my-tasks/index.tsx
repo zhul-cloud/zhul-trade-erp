@@ -32,6 +32,7 @@ import {
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { actualModelStamp } from '@/components/DocFields/ActualModel';
+import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import { useTabDirty } from '@/components/PageTabs/hooks';
 import { ProofLinks } from '@/pages/finance/payables/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -1483,6 +1484,7 @@ const MyTasksPage: React.FC = () => {
                       {it.description}
                     </div>
                   )}
+                  <ItemRemarkText text={it.itemRemark} />
                   {plates.forItem(it.id, it.model)}
                   {activeId && <ItemHistory taskId={activeId} item={it} />}
                   <div

@@ -88,6 +88,9 @@ public interface CustomerInquiryService {
     /** 业务员填写或清空真实型号（spec inquiry/inquiry-intake「业务员填写真实型号」），权限同修改询盘 */
     com.zhul.erp.modules.inquiry.customerinquiry.dto.ActualModelVO saveActualModel(Long id, Long itemId, String actualModel);
 
+    /** 业务员写或清空型号备注（openspec item-remark），权限同修改询盘 */
+    com.zhul.erp.modules.sales.dto.ItemRemarkVO saveItemRemark(Long id, Long itemId, String remark);
+
     /** 业务员核实完被退回的存疑型号后清除提醒 */
     void markReviewed(Long id);
 

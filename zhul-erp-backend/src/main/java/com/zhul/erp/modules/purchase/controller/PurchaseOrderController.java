@@ -101,6 +101,13 @@ public class PurchaseOrderController {
         return Result.ok(service.cancel(id, req));
     }
 
+    /** 我已核对：清除下单后更新的型号备注的标红（openspec item-remark） */
+    @PostMapping("/{id}/remark-checked")
+    @PreAuthorize(EDIT)
+    public Result<PurchaseOrderVO> remarkChecked(@PathVariable Long id) {
+        return Result.ok(service.remarkChecked(id));
+    }
+
     @PostMapping("/{id}/invoice")
     @PreAuthorize(EDIT)
     public Result<PurchaseOrderVO> registerInvoice(@PathVariable Long id, @Valid @RequestBody RegisterInvoiceRequest req) {

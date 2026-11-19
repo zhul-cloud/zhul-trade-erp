@@ -74,6 +74,7 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
             + "AND pi.deleted_at IS NULL AND po.deleted_at IS NULL AND po.status IN (%s))";
 
     private final PurchaseRequirementMapper requirementMapper;
+    private final com.zhul.erp.modules.sales.support.ItemRemarks itemRemarks;
     private final PurchaseOrderMapper orderMapper;
     private final PurchaseOrderItemMapper itemMapper;
     private final SalesOrderMapper soMapper;
@@ -314,11 +315,14 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
                 pos.values().stream().map(PurchaseOrderDO::getPurchaserId)).toList());
         int overdueHours = overdueHours();
         LocalDateTime now = LocalDateTime.now();
+        Map<Long, com.zhul.erp.modules.sales.support.ItemRemarks.Remark> remarks = itemRemarks.ofSoItems(rows.stream().map(PurchaseRequirementDO::getSoItemId).toList());
         List<RequirementVO> out = new ArrayList<>(rows.size());
         for (PurchaseRequirementDO r : rows) {
             RequirementQty.Qty x = q.getOrDefault(r.getId(), RequirementQty.Qty.ZERO);
             RequirementVO vo = new RequirementVO();
             vo.setId(r.getId());
+            var remark = remarks.get(r.getSoItemId());
+            vo.setItemRemark(remark == null ? "" : remark.text());
             vo.setSoId(r.getSoId());
             SalesOrderDO o = orders.get(r.getSoId());
             if (o != null) {

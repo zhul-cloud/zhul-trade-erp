@@ -395,6 +395,7 @@ public class MyTaskServiceImpl implements MyTaskService {
         };
         for (InquiryItemDO i : items) {
             MyTaskItemVO vo = new MyTaskItemVO();
+            vo.setItemRemark(Objects.requireNonNullElse(i.getRemark(), ""));
             vo.setLocked(locked.contains(i.getId()));
             vo.setQuoteStatus(i.getQuoteStatus());
             vo.setPrevious(previous.getOrDefault(i.getId(), List.of()));
@@ -891,6 +892,7 @@ public class MyTaskServiceImpl implements MyTaskService {
         InquiryItemDO item = itemMapper.selectById(itemId);
         MyTaskItemVO vo = new MyTaskItemVO();
         vo.setId(item.getId());
+        vo.setItemRemark(Objects.requireNonNullElse(item.getRemark(), ""));
         vo.setModel(item.getConfirmedModel());
         vo.setActualModel(item.getActualModel());
         vo.setActualModelBy(item.getActualModelBy());

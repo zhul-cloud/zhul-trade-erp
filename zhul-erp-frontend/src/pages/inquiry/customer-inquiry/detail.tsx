@@ -20,6 +20,7 @@ import {
 import React, { useEffect, useState } from 'react';
 import { ActualModelLine } from '@/components/DocFields/ActualModel';
 import DocModelCell, { productHref } from '@/components/DocFields/DocModelCell';
+import { ItemRemarkLine } from '@/components/DocFields/ItemRemark';
 import {
   useOnReactivate,
   usePageTitle,
@@ -337,6 +338,37 @@ const CustomerInquiryDetailPage: React.FC = () => {
                   : d,
               );
               message.success(value ? '真实型号已保存' : '真实型号已清空');
+            }}
+          />
+          <ItemRemarkLine
+            text={r.itemRemark}
+            by={r.itemRemarkBy}
+            at={r.itemRemarkAt}
+            editable={actualEditable}
+            onSave={async (value) => {
+              const res = await inquiryApi.saveItemRemark(
+                inquiryId,
+                r.id,
+                value,
+              );
+              setDetail((d) =>
+                d
+                  ? {
+                      ...d,
+                      items: d.items.map((it) =>
+                        it.id === r.id
+                          ? {
+                              ...it,
+                              itemRemark: res.remark,
+                              itemRemarkBy: res.remarkBy,
+                              itemRemarkAt: res.remarkAt,
+                            }
+                          : it,
+                      ),
+                    }
+                  : d,
+              );
+              message.success(value ? '型号备注已保存' : '型号备注已清空');
             }}
           />
         </DocModelCell>

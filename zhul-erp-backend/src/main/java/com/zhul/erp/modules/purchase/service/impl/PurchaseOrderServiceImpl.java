@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.purchase.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.utils.MigratedGuard;
 import com.zhul.erp.common.result.PageResult;
@@ -106,6 +107,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
 
     private final PurchaseOrderMapper orderMapper;
     private final PurchaseOrderItemMapper itemMapper;
+    private final com.zhul.erp.modules.sales.support.ItemRemarks itemRemarks;
     private final PurchaseOrderFeeMapper feeMapper;
     private final PurchaseOrderAttachmentMapper attachmentMapper;
     private final PurchaseOrderLogMapper logMapper;
@@ -475,9 +477,14 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         vo.setCancelledByName(users.get(p.getCancelledBy()));
         vo.setCancelledAt(p.getCancelledAt());
         vo.setEditable(p.getStatus() != PurchaseConstants.PO_CANCELLED);
+        Map<Long, com.zhul.erp.modules.sales.support.ItemRemarks.Remark> remarks = itemRemarks.ofSoItems(lines.stream().map(PurchaseOrderItemDO::getSoItemId).toList());
+        vo.setRemarkAlerts((int) lines.stream().filter(i -> Objects.equals(i.getRemarkAlert(), 1)).count());
         vo.setItems(lines.stream().map(i -> {
             PurchaseOrderVO.Item x = new PurchaseOrderVO.Item();
             x.setId(i.getId());
+            var remark = remarks.get(i.getSoItemId());
+            x.setItemRemark(remark == null ? "" : remark.text());
+            x.setRemarkAlert(Objects.equals(i.getRemarkAlert(), 1));
             x.setRequirementId(i.getRequirementId());
             x.setSoId(i.getSoId());
             SalesOrderDO o = orders.get(i.getSoId());
@@ -1201,6 +1208,21 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 .isNull(PurchaseOrderDO::getDeletedAt);
         dataScopeResolver.current().apply(w, PurchaseOrderDO::getPurchaserId);
         return w;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PurchaseOrderVO remarkChecked(Long id) {
+        PurchaseOrderDO po = lockVisible(id);
+        int n = itemMapper.update(null, new LambdaUpdateWrapper<PurchaseOrderItemDO>()
+                .eq(PurchaseOrderItemDO::getPoId, po.getId())
+                .eq(PurchaseOrderItemDO::getRemarkAlert, 1)
+                .set(PurchaseOrderItemDO::getRemarkAlert, 0)
+                .set(PurchaseOrderItemDO::getUpdateTime, LocalDateTime.now()));
+        if (n > 0) {
+            logs.add(po.getId(), "核对型号备注", "已与供应商核对 " + n + " 个型号的备注", currentUser.resolve());
+        }
+        return detail(id);
     }
 
     private PurchaseOrderDO visible(Long id) {
