@@ -101,6 +101,9 @@ public class ProfitStatsService {
                     CustomerDO c = customers.get(first.getCustomerId());
                     g.setLabel(InquiryLookups.customerName(c));
                     g.setCountry(c == null ? null : c.getCountry());
+                    g.setCustomerContact(InquiryLookups.contactName(c));
+                    g.setCustomerType(list.stream().anyMatch(o -> Objects.equals(o.getCustomerType(),
+                            InquiryConstants.CUSTOMER_RETURNING)) ? InquiryConstants.CUSTOMER_RETURNING : InquiryConstants.CUSTOMER_NEW);
                 }
                 default -> g.setLabel(first.getSalesDate().getYear() + " 年 " + first.getSalesDate().getMonthValue() + " 月");
             }
@@ -108,7 +111,10 @@ public class ProfitStatsService {
             g.setOrders(list.stream().map(o -> row(o, costs.get(o.getId()), customers, owners)).toList());
             groups.add(g);
         });
-        if (!"MONTH".equals(groupBy)) {
+        // 按客户：收入从高到低；按业务员：毛利从高到低；按月份：时间顺序（openspec feedback-1119）
+        if ("CUSTOMER".equals(groupBy)) {
+            groups.sort(Comparator.comparing((ProfitStatsVO.Group g) -> g.getTotals().getRevenue()).reversed());
+        } else if (!"MONTH".equals(groupBy)) {
             groups.sort(Comparator.comparing((ProfitStatsVO.Group g) -> g.getTotals().getProfit()).reversed());
         }
         ProfitStatsVO vo = new ProfitStatsVO();
@@ -219,7 +225,10 @@ public class ProfitStatsService {
         ProfitStatsVO.OrderRow r = new ProfitStatsVO.OrderRow();
         r.setSoId(o.getId());
         r.setSoNo(o.getSoNo());
-        r.setCustomerName(InquiryLookups.customerName(customers.get(o.getCustomerId())));
+        CustomerDO customer = customers.get(o.getCustomerId());
+        r.setCustomerName(InquiryLookups.customerName(customer));
+        r.setCustomerCountry(customer == null ? null : customer.getCountry());
+        r.setCustomerContact(InquiryLookups.contactName(customer));
         r.setCustomerType(o.getCustomerType());
         r.setSalesDate(o.getSalesDate());
         r.setOwnerName(owners.get(o.getOwnerId()));

@@ -101,6 +101,7 @@ public class StatementService {
                         .eq(LogisticsShipmentDO::getForwarderId, req.getForwarderId())
                         .eq(LogisticsShipmentDO::getStatus, LogisticsConstants.SH_SHIPPED)
                         .eq(LogisticsShipmentDO::getReconciled, 0)
+                        .eq(LogisticsShipmentDO::getCustomerForwarder, 0)
                         .ge(LogisticsShipmentDO::getShippedDate, ym.atDay(1))
                         .le(LogisticsShipmentDO::getShippedDate, ym.atEndOfMonth())
                         .isNull(LogisticsShipmentDO::getDeletedAt))

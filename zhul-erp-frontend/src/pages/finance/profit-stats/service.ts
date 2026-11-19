@@ -127,6 +127,8 @@ export interface ProfitOrderRow {
   soNo: string;
   customerName?: string;
   customerType?: number;
+  customerCountry?: string;
+  customerContact?: string;
   salesDate: string;
   ownerName?: string;
   revenue: number;
@@ -141,6 +143,9 @@ export interface ProfitGroup {
   key: string;
   label: string;
   country?: string;
+  /** 按客户分组时：主要联系人、新 / 老客户（1-新、2-老） */
+  customerContact?: string;
+  customerType?: number;
   totals: ProfitTotals;
   orders: ProfitOrderRow[];
 }

@@ -20,6 +20,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { type Attachment, attachmentApi } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { liveRequests } from '@/utils/liveRequests';
@@ -453,6 +454,8 @@ export const ShipModal: React.FC<{
   const { palette } = useAppTheme();
   const { message } = App.useApp();
   const update = sh.status === 2;
+  // 交客户指定货代（openspec feedback-1119）：只要求交货日期，承运商、运单号、送货运费选填
+  const customer = !!sh.customerForwarder;
   const [carrier, setCarrier] = useState('');
   const [waybillNo, setWaybillNo] = useState('');
   const [date, setDate] = useState<Dayjs>(dayjs());
@@ -462,7 +465,7 @@ export const ShipModal: React.FC<{
 
   useEffect(() => {
     if (!open) return;
-    setCarrier(sh.carrier || 'DHL');
+    setCarrier(sh.carrier || (sh.customerForwarder ? '' : 'DHL'));
     setWaybillNo(sh.waybillNo ?? '');
     setDate(sh.shippedDate ? dayjs(sh.shippedDate) : dayjs());
     setFreight(sh.freight ?? null);
@@ -478,12 +481,14 @@ export const ShipModal: React.FC<{
           carrier: carrier.trim(),
           waybillNo: waybillNo.trim(),
           shippedDate: date.format('YYYY-MM-DD'),
-          freight: freight ?? 0,
+          freight: freight ?? (customer ? undefined : 0),
           attachmentIds: files.map((f) => f.id),
         },
         update,
       );
-      message.success(update ? '已保存' : `${sh.shNo} 已出运`);
+      message.success(
+        update ? '已保存' : `${sh.shNo} ${customer ? '已交货代' : '已出运'}`,
+      );
       onDone(next);
     } catch (e) {
       message.error(readBizError(e).message);
@@ -502,6 +507,11 @@ export const ShipModal: React.FC<{
         <span>
           <RocketOutlined /> {update ? '修改运单与运费' : '登记出运'} ·{' '}
           {sh.shNo}
+          {customer && (
+            <span style={{ marginLeft: 8 }}>
+              <Pill tone="orange">客户指定货代</Pill>
+            </span>
+          )}
         </span>
       }
       footer={
@@ -511,14 +521,33 @@ export const ShipModal: React.FC<{
             type="primary"
             icon={<RocketOutlined />}
             loading={busy}
-            disabled={!carrier.trim() || !waybillNo.trim() || freight === null}
+            disabled={
+              !customer &&
+              (!carrier.trim() || !waybillNo.trim() || freight === null)
+            }
             onClick={submit}
           >
-            {update ? '保存' : '确认出运'}
+            {update ? '保存' : customer ? '确认已交货代' : '确认出运'}
           </Button>
         </>
       }
     >
+      {customer && (
+        <div
+          style={{
+            fontSize: 12,
+            color: palette.sub,
+            background: palette.inset,
+            borderRadius: 10,
+            padding: '8px 12px',
+            marginBottom: 12,
+          }}
+        >
+          <InfoCircleOutlined /> 货交给客户自己的货代（{sh.forwarderName}
+          ），国际运输由客户安排：承运商、运单号选填，国际运费为
+          0，不进货代对账单。
+        </div>
+      )}
       <div
         style={{
           display: 'grid',
@@ -528,7 +557,7 @@ export const ShipModal: React.FC<{
         }}
       >
         <div>
-          <Label required>承运商</Label>
+          <Label required={!customer}>承运商</Label>
           <AutoComplete
             value={carrier}
             onChange={setCarrier}
@@ -540,7 +569,7 @@ export const ShipModal: React.FC<{
           />
         </div>
         <div>
-          <Label required>运单号</Label>
+          <Label required={!customer}>运单号</Label>
           <Input
             value={waybillNo}
             onChange={(e) => setWaybillNo(e.target.value)}
@@ -549,18 +578,20 @@ export const ShipModal: React.FC<{
           />
         </div>
         <div>
-          <Label required>出运日期</Label>
+          <Label required>{customer ? '交货日期' : '出运日期'}</Label>
           <DatePicker
             value={date}
             allowClear={false}
             disabledDate={(d) => d.isAfter(dayjs(), 'day')}
             onChange={(d) => d && setDate(d)}
             style={{ width: '100%' }}
-            aria-label="出运日期"
+            aria-label={customer ? '交货日期' : '出运日期'}
           />
         </div>
         <div>
-          <Label required>实际运费（CNY）</Label>
+          <Label required={!customer}>
+            {customer ? '送货运费（CNY）' : '实际运费（CNY）'}
+          </Label>
           <InputNumber
             value={freight}
             min={0}
@@ -569,17 +600,19 @@ export const ShipModal: React.FC<{
             disabled={sh.reconciled}
             onChange={(v) => setFreight(v === null ? null : Number(v))}
             style={{ width: '100%' }}
-            aria-label="实际运费"
+            aria-label={customer ? '送货运费' : '实际运费'}
           />
         </div>
       </div>
-      <Label>面单</Label>
+      <Label>{customer ? '交接单 / 面单' : '面单'}</Label>
       <FaceSheets value={files} onChange={setFiles} />
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 14 }}>
         <InfoCircleOutlined />{' '}
-        {sh.reconciled
-          ? '已对账，运费不能再改。'
-          : `运费按计费重分到箱（体积系数 ${sh.volumeDivisor}），再按货值分到型号行；确认后订单型号变「已出运」。月底与货代对账时可以按账单调整。`}
+        {customer
+          ? '送货运费是送到客户货代的国内运费，按计费重分到箱、再按货值分到型号行；确认后订单型号变「已出运」。'
+          : sh.reconciled
+            ? '已对账，运费不能再改。'
+            : `运费按计费重分到箱（体积系数 ${sh.volumeDivisor}），再按货值分到型号行；确认后订单型号变「已出运」。月底与货代对账时可以按账单调整。`}
       </div>
     </Modal>
   );

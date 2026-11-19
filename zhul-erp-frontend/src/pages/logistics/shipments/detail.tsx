@@ -287,11 +287,16 @@ const ShipmentDetail: React.FC = () => {
             label: '承运商 · 运单号',
             value: sh.waybillNo
               ? `${sh.carrier ?? ''} ${sh.waybillNo}`
-              : undefined,
+              : sh.customerForwarder && sh.status === 2
+                ? '客户安排'
+                : undefined,
           },
-          { label: '出运日期', value: sh.shippedDate },
           {
-            label: '运费',
+            label: sh.customerForwarder ? '交货日期' : '出运日期',
+            value: sh.shippedDate,
+          },
+          {
+            label: sh.customerForwarder ? '送货运费' : '运费',
             value:
               sh.freight === null || sh.freight === undefined
                 ? undefined
@@ -301,9 +306,11 @@ const ShipmentDetail: React.FC = () => {
             label: '对账',
             value:
               sh.status === 2
-                ? sh.reconciled
-                  ? '已对账'
-                  : '未对账'
+                ? sh.customerForwarder
+                  ? '不对账（交客户指定货代）'
+                  : sh.reconciled
+                    ? '已对账'
+                    : '未对账'
                 : undefined,
           },
           { label: '作废原因', value: sh.voidReason, hidden: !voided },
@@ -437,11 +444,15 @@ const ShipmentDetail: React.FC = () => {
         <SectionTitle>出运信息</SectionTitle>
         {field(
           '运单号',
-          sh.waybillNo ? `${sh.carrier ?? ''} ${sh.waybillNo}` : undefined,
+          sh.waybillNo
+            ? `${sh.carrier ?? ''} ${sh.waybillNo}`
+            : sh.customerForwarder
+              ? '客户安排'
+              : undefined,
         )}
-        {field('出运日期', sh.shippedDate)}
+        {field(sh.customerForwarder ? '交货日期' : '出运日期', sh.shippedDate)}
         {field(
-          '实际运费',
+          sh.customerForwarder ? '送货运费' : '实际运费',
           sh.freight === null || sh.freight === undefined
             ? undefined
             : formatAmount(sh.freight, 'CNY'),
@@ -558,6 +569,7 @@ const ShipmentDetail: React.FC = () => {
             {sh.shNo}
             <ShStatusPill value={sh.status}>{sh.statusName}</ShStatusPill>
             {sh.reconciled && <Pill tone="green">已对账</Pill>}
+            {sh.customerForwarder && <Pill tone="orange">客户指定货代</Pill>}
             <MigratedPill migrated={sh.migrated} />
           </>
         }

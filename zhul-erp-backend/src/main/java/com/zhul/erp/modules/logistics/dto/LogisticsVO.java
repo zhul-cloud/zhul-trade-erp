@@ -21,6 +21,8 @@ public class LogisticsVO {
     private Long forwarderId;
     private String forwarderName;
     private Integer volumeDivisor;
+    /** 交客户指定货代：运单号选填（未填显示「客户安排」），运费为送货运费，不进运费账单 */
+    private Boolean customerForwarder;
     private Long ownerId;
     private String ownerName;
     private Integer status;

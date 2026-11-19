@@ -134,6 +134,12 @@ public class LogisticsSupport {
         return s;
     }
 
+    /** 货代是否为客户指定货代（归属某个客户）；1-是、0-否 */
+    public int customerForwarderFlag(Long forwarderId) {
+        SupplierDO s = forwarderId == null ? null : supplierMapper.selectById(forwarderId);
+        return s != null && s.getCustomerId() != null ? 1 : 0;
+    }
+
     public BigDecimal divisorOf(Long forwarderId) {
         SupplierDO s = forwarderId == null ? null : supplierMapper.selectById(forwarderId);
         int d = s == null || s.getVolumeDivisor() == null || s.getVolumeDivisor() <= 0 ? 5000 : s.getVolumeDivisor();

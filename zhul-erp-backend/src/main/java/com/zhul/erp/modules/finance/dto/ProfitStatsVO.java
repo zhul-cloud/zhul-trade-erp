@@ -43,6 +43,9 @@ public class ProfitStatsVO {
         private String label;
         /** 按客户分组时的国家 */
         private String country;
+        /** 按客户分组时：主要联系人；新 / 老客户（1-新客户、2-老客户，有一张老客户订单即为老客户） */
+        private String customerContact;
+        private Integer customerType;
         private Totals totals;
         private List<OrderRow> orders;
     }
@@ -54,6 +57,8 @@ public class ProfitStatsVO {
         private String customerName;
         /** 1-新客户、2-老客户 */
         private Integer customerType;
+        private String customerCountry;
+        private String customerContact;
         private LocalDate salesDate;
         private String ownerName;
         private BigDecimal revenue;
