@@ -11,6 +11,8 @@ import java.util.List;
 /** 采购订单详情 */
 @Data
 public class PurchaseOrderVO implements ShipFields {
+    /** 下单后型号备注有更新、待采购核对的行数（openspec item-remark） */
+    private Integer remarkAlerts;
     private Long id;
     private String poNo;
     private Integer status;
@@ -89,6 +91,9 @@ public class PurchaseOrderVO implements ShipFields {
 
     @Data
     public static class Item {
+        /** 型号备注（openspec item-remark）；remarkAlert：下单后备注有更新、待采购核对 */
+        private String itemRemark;
+        private Boolean remarkAlert;
         private Long id;
         private Long requirementId;
         private Long soId;

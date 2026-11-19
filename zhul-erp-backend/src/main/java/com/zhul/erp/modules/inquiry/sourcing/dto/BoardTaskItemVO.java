@@ -5,6 +5,8 @@ import lombok.Data;
 /** 任务详情里的一个型号（不含价格与客户信息） */
 @Data
 public class BoardTaskItemVO {
+    /** 型号备注（业务员填写，只在系统内显示，openspec item-remark）；没有时为空 */
+    private String itemRemark;
     private Long id;
     private String model;
     /** 客户原文里的写法 */

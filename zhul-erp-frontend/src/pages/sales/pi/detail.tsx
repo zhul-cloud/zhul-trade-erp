@@ -63,6 +63,7 @@ import {
 import DocModelCell, {
   docBrandColumns,
 } from '@/components/DocFields/DocModelCell';
+import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { usePageTitle, useTabDirty } from '@/components/PageTabs/hooks';
 import { type DiffRow, VersionPanel } from '@/components/VersionPanel';
@@ -1219,6 +1220,7 @@ const PiDetail: React.FC = () => {
       updatedTo={src.modelUpdatedTo}
       updatedTail="，请与客户确认"
     >
+      <ItemRemarkText text={src.itemRemark} />
       {/* 并排预览时只剩型号一列，品牌、品类缩到型号下面 */}
       {compact && (
         <div style={{ fontSize: 12, color: palette.mute }}>

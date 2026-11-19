@@ -61,7 +61,10 @@ public class SalesOrderItemDO {
     private BigDecimal netProfitCny;
     private String hsCode;
     private String originCountry;
+    /** 型号备注：只用于没有询盘的手动订单型号；有询盘的型号以询盘型号的备注为准（openspec item-remark） */
     private String remark;
+    private String remarkBy;
+    private LocalDateTime remarkAt;
     private LocalDateTime deletedAt;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

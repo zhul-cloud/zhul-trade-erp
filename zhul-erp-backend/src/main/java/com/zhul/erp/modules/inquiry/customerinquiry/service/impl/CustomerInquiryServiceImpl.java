@@ -156,6 +156,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
     private String backendBaseUrl;
     private final PriceKeys priceKeys;
     private final CurrentUserResolver currentUser;
+    private final com.zhul.erp.modules.sales.support.ItemRemarks itemRemarks;
     private final DataScopeResolver dataScopeResolver;
     private final com.zhul.erp.framework.security.PermissionChecker perm;
     private final InquiryLookups lookups;
@@ -535,6 +536,9 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         for (InquiryItemDO i : items) {
             InquiryItemVO vo = new InquiryItemVO();
             vo.setId(i.getId());
+            vo.setItemRemark(Objects.requireNonNullElse(i.getRemark(), ""));
+            vo.setItemRemarkBy(Objects.requireNonNullElse(i.getRemarkBy(), ""));
+            vo.setItemRemarkAt(i.getRemarkAt());
             vo.setQuoted(quoted.contains(i.getId()));
             vo.setLineNo(i.getLineNo());
             vo.setBrand(i.getBrand());
@@ -1469,6 +1473,29 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
                             Objects.requireNonNullElse(item.getActualModel(), "")));
         }
         return ActualModels.vo(itemMapper.selectById(itemId));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public com.zhul.erp.modules.sales.dto.ItemRemarkVO saveItemRemark(Long id, Long itemId, String remark) {
+        CustomerInquiryDO inquiry = getEditable(id);
+        progress.lock(id);
+        if (InquiryConstants.STATUS_CANCELLED == inquiry.getStatus()) {
+            throw new BizException("询盘已取消，不能修改");
+        }
+        InquiryItemDO item = itemMapper.selectById(itemId);
+        if (item == null || item.getDeletedAt() != null || !Objects.equals(item.getCustomerInquiryId(), id)) {
+            throw new BizException("型号不存在，请刷新后再试");
+        }
+        String before = Objects.requireNonNullElse(item.getRemark(), "");
+        if (itemRemarks.saveInquiryItem(item, remark, currentUser.resolve())) {
+            String model = Objects.requireNonNullElse(item.getConfirmedModel(), "");
+            logService.recordOperateLog("询盘单", "修改型号备注",
+                    Map.of("inquiryCode", inquiry.getInquiryCode(), "型号", model, "备注", before),
+                    Map.of("inquiryCode", inquiry.getInquiryCode(), "型号", model, "备注", item.getRemark()));
+        }
+        return com.zhul.erp.modules.sales.dto.ItemRemarkVO.of(item.getRemark() == null || item.getRemark().isEmpty() ? null
+                : new com.zhul.erp.modules.sales.support.ItemRemarks.Remark(item.getRemark(), item.getRemarkBy(), item.getRemarkAt()));
     }
 
     @Override

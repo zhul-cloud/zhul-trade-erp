@@ -425,6 +425,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         List<BoardTaskItemVO> items = itemRows.stream().map(i -> {
                     BoardTaskItemVO r = new BoardTaskItemVO();
                     r.setId(i.getId());
+                    r.setItemRemark(Objects.requireNonNullElse(i.getRemark(), ""));
                     r.setModel(i.getConfirmedModel());
                     r.setOriginalModel(i.getOriginalModel());
                     r.setQuantity(i.getQuantity());

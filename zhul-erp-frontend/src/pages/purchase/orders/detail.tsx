@@ -37,6 +37,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import { DocDescription } from '@/components/DocFields/DocModelCell';
 import { RelatedDocsCard } from '@/components/DocFields/DocPage';
+import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
 import {
   ACCEPT_PROOF,
@@ -396,6 +397,7 @@ const PurchaseOrderDetail: React.FC = () => {
               真实型号已更新为 <b>{r.modelUpdatedTo}</b>，请与供应商核对
             </div>
           )}
+          <ItemRemarkText text={r.itemRemark} alert={r.remarkAlert} />
           {r.orderCancelled && <Pill tone="red">来源订单已取消</Pill>}
           {(r.soReducedQuantity ?? 0) > 0 && !r.orderCancelled && (
             <Pill tone="orange">来源订单减少 {r.soReducedQuantity} 个</Pill>
@@ -1023,6 +1025,31 @@ const PurchaseOrderDetail: React.FC = () => {
             title={`${po.items.filter((i) => i.modelUpdatedTo).length} 个型号的真实型号已更新，这张采购订单已经发给供应商，系统没有修改。请和供应商核对，必要时取消后重新下单。`}
           />
         )}
+        {!isDraft && (po.remarkAlerts ?? 0) > 0 && (
+          <Alert
+            style={{ marginBottom: 12 }}
+            type="error"
+            showIcon
+            title={`${po.remarkAlerts} 个型号的备注在下单后更新了，请与供应商核对规格`}
+            action={
+              canEdit && (
+                <Button
+                  size="small"
+                  onClick={async () => {
+                    try {
+                      apply(await poApi.remarkChecked(po.id));
+                      message.success('已核对，标红已去掉');
+                    } catch (e) {
+                      message.error(readBizError(e).message);
+                    }
+                  }}
+                >
+                  我已核对
+                </Button>
+              )
+            }
+          />
+        )}
         {!isDraft && reducedLines.length > 0 && (
           <Alert
             style={{ marginBottom: 12 }}
@@ -1047,7 +1074,9 @@ const PurchaseOrderDetail: React.FC = () => {
           dataSource={po.items}
           pagination={false}
           onRow={(r) =>
-            r.modelUpdatedTo ? { style: { background: palette.redSoft } } : {}
+            r.modelUpdatedTo || r.remarkAlert
+              ? { style: { background: palette.redSoft } }
+              : {}
           }
           scroll={{ x: tableScrollX(columns) }}
           rowSelection={

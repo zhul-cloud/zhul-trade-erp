@@ -5,6 +5,10 @@ import lombok.Data;
 /** 型号明细 */
 @Data
 public class InquiryItemVO {
+    /** 型号备注（业务员填写，只在系统内显示，openspec item-remark）；没有时为空 */
+    private String itemRemark;
+    private String itemRemarkBy;
+    private java.time.LocalDateTime itemRemarkAt;
     private Long id;
     private Integer lineNo;
     private String brand;

@@ -34,6 +34,9 @@ public interface SalesOrderService {
 
     SalesOrderVO updateStockType(Long id, com.zhul.erp.modules.sales.dto.OrderItemsRequest req);
 
+    /** 写或清空型号备注：有询盘的型号改询盘型号的备注，手动订单的型号改订单型号自己的（openspec item-remark） */
+    com.zhul.erp.modules.sales.dto.ItemRemarkVO saveItemRemark(Long id, Long itemId, String remark);
+
     /** 客户已收货：订单置为已完成 */
     SalesOrderVO complete(Long id);
 

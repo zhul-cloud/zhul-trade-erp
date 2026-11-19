@@ -73,6 +73,8 @@ export interface QuotationItem {
   customerModel?: string;
   /** 已发送的当前版本：真实型号已更新为这个型号 */
   modelUpdatedTo?: string;
+  /** 型号备注（业务员填写，只在系统内显示，openspec item-remark） */
+  itemRemark?: string;
   /** 询盘型号上的订货号（物料号、料号），辅助识别，只在系统内显示 */
   orderCode?: string;
   /** 对应的商品档案；没有时为空 */

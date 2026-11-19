@@ -60,6 +60,7 @@ import {
 import DocModelCell, {
   docBrandColumns,
 } from '@/components/DocFields/DocModelCell';
+import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { usePageTitle, useTabDirty } from '@/components/PageTabs/hooks';
@@ -1035,6 +1036,7 @@ const QuotationDetail: React.FC = () => {
         ) : undefined
       }
     >
+      <ItemRemarkText text={src.itemRemark} />
       {d && actualEditing === src.id && (
         <ActualModelEditor
           initial={src.customerModel ? src.model : ''}

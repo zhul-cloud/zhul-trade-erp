@@ -176,6 +176,13 @@ public class CustomerInquiryController {
         return Result.ok(service.saveActualModel(id, itemId, req.getActualModel()));
     }
 
+    /** 业务员写或清空型号备注（openspec item-remark），权限同修改询盘 */
+    @PutMapping("/{id}/items/{itemId}/remark")
+    public Result<com.zhul.erp.modules.sales.dto.ItemRemarkVO> saveItemRemark(@PathVariable Long id, @PathVariable Long itemId,
+            @Valid @RequestBody com.zhul.erp.modules.sales.dto.ItemRemarkRequest req) {
+        return Result.ok(service.saveItemRemark(id, itemId, req.getRemark()));
+    }
+
     /** 改铭牌图片对应的型号（spec inquiry/inquiry-intake「铭牌图片」），权限同修改询盘 */
     @PutMapping("/{id}/nameplates/{attachmentId}")
     public Result<Void> linkNameplate(@PathVariable Long id, @PathVariable Long attachmentId,

@@ -82,6 +82,14 @@ public class SalesOrderController {
         return Result.ok(service.updateStockType(id, req));
     }
 
+    /** 写或清空型号备注（openspec item-remark），权限同修改采购员、现货 / 期货 */
+    @PutMapping("/orders/{id}/items/{itemId}/remark")
+    @PreAuthorize("@perm.canAccessMenu('/sales/orders')")
+    public Result<com.zhul.erp.modules.sales.dto.ItemRemarkVO> saveItemRemark(@PathVariable Long id, @PathVariable Long itemId,
+            @Valid @RequestBody com.zhul.erp.modules.sales.dto.ItemRemarkRequest req) {
+        return Result.ok(service.saveItemRemark(id, itemId, req.getRemark()));
+    }
+
     @PostMapping("/orders/{id}/complete")
     @PreAuthorize("@perm.canAccessMenu('/sales/orders')")
     public Result<SalesOrderVO> complete(@PathVariable Long id) {
