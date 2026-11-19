@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Duration;
@@ -107,6 +108,9 @@ public class ProductMediaServiceImpl implements ProductMediaService {
         checkUploadRate();
         int type = mediaType(mediaType);
         String cleanTitle = TextRules.optional(title, "标题", 128);
+        if (!StringUtils.hasText(cleanTitle)) {
+            cleanTitle = titleFromFileName(file.getOriginalFilename());
+        }
         // 商品不存在就不必落盘；大文件写盘期间不持有商品行锁，写完再加锁入库
         ProductDO product = productFinder.active(productId);
         ProductBrandDO brand = brandMapper.selectById(product.getBrandId());
@@ -134,6 +138,23 @@ public class ProductMediaServiceImpl implements ProductMediaService {
             storageService.deleteQuietly(stored.storage(), stored.fileKey());
             throw e;
         }
+    }
+
+    /** 标题没填时用上传的文件名（去掉路径和扩展名），超长截到 128 字；取不到文件名时为空 */
+    static String titleFromFileName(String name) {
+        if (!StringUtils.hasText(name)) {
+            return null;
+        }
+        String base = name.substring(Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\')) + 1);
+        int dot = base.lastIndexOf('.');
+        if (dot >= 0) {
+            base = base.substring(0, dot);
+        }
+        base = base.trim();
+        if (base.isEmpty()) {
+            return null;
+        }
+        return base.length() > 128 ? base.substring(0, 128) : base;
     }
 
     /** 商品视频后台转码：事务提交后再排队，转完换成转好的文件，失败时保留原视频 */
