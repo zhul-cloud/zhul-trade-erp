@@ -307,6 +307,28 @@ class DocumentRenderTest {
         }
     }
 
+    /**
+     * 内容超出纸宽（如服务器字体比本机宽、长型号把列撑宽）时不横向切成两页：缩到一页宽（PI20261119001 生产反馈）。
+     * 没超宽的单据不受影响，80 行仍按纵向分页（见下一个测试）。
+     */
+    @Test
+    void tooWideSheetStaysOnePageWide() throws IOException {
+        DocumentConverter converter = new DocumentConverter("", System.getProperty("java.io.tmpdir") + "/zhul-document-test");
+        Assumptions.assumeTrue(converter.available(), "本机未安装 LibreOffice");
+        byte[] xlsx = XlsxRenderer.render(builtin("quotation-v1.xlsx"), withItems(5));
+        byte[] wide;
+        try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(xlsx))) {
+            wb.getSheetAt(0).setColumnWidth(2, 200 * 256);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            wb.write(out);
+            wide = out.toByteArray();
+        }
+        try (org.apache.pdfbox.pdmodel.PDDocument doc = org.apache.pdfbox.Loader.loadPDF(converter.toPdf(wide))) {
+            assertThat(doc.getNumberOfPages()).isEqualTo(1);
+            assertThat(new org.apache.pdfbox.text.PDFTextStripper().getText(doc)).contains("Model", "Brand");
+        }
+    }
+
     /** 80 行明细分 2 页，第 2 页重复表头，页码为 Page 2 / 2 */
     @Test
     void longQuotationPaginatesWithRepeatedHeader() throws IOException {
