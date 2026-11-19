@@ -521,9 +521,11 @@ export const logisticsApi = {
       carrier: string;
       waybillNo: string;
       shippedDate: string;
-      /** 交客户指定货代时可不填（送货运费为 0） */
+      /** 交客户的货代时可不填（送货运费为 0） */
       freight?: number;
       attachmentIds: number[];
+      /** 交给谁：true-客户的货代；只在登记出运时传 */
+      customerForwarder?: boolean;
     },
     update: boolean,
   ) =>

@@ -424,8 +424,9 @@ public class LogisticsShipmentService {
         if (obs.isEmpty()) {
             throw new BizException("出运单里没有货");
         }
-        // 以登记时货代的归属为准（新建后才改成客户指定货代的也按客户货代登记）
-        sh.setCustomerForwarder(support.customerForwarderFlag(sh.getForwarderId()));
+        // 交给谁由登记人选择（openspec ship-forwarder-choice）；没传时以登记时货代的归属为准
+        sh.setCustomerForwarder(req.getCustomerForwarder() != null ? (req.getCustomerForwarder() ? 1 : 0)
+                : support.customerForwarderFlag(sh.getForwarderId()));
         applyWaybill(sh, req);
         sh.setStatus(LogisticsConstants.SH_SHIPPED);
         shipmentMapper.updateById(sh);
