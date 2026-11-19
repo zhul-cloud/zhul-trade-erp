@@ -1785,7 +1785,7 @@
                                       "fill": [
                                         {
                                           "type": "solid",
-                                          "color": "#FAF8F3"
+                                          "color": "#64748B"
                                         }
                                       ]
                                     }
@@ -2672,29 +2672,6 @@
                 {
                   "type": "frame",
                   "id": "n797",
-                  "animations": [
-                    {
-                      "trigger": "inView",
-                      "keyframes": [
-                        {
-                          "offset": 0.0,
-                          "values": {
-                            "opacity": 0,
-                            "translateY": 12
-                          }
-                        },
-                        {
-                          "offset": 1.0,
-                          "values": {
-                            "opacity": 1,
-                            "translateY": 0
-                          }
-                        }
-                      ],
-                      "durationMs": 320,
-                      "easing": "standard"
-                    }
-                  ],
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "vertical",
@@ -2773,30 +2750,6 @@
                 {
                   "type": "frame",
                   "id": "n801",
-                  "animations": [
-                    {
-                      "trigger": "inView",
-                      "keyframes": [
-                        {
-                          "offset": 0.0,
-                          "values": {
-                            "opacity": 0,
-                            "translateY": 12
-                          }
-                        },
-                        {
-                          "offset": 1.0,
-                          "values": {
-                            "opacity": 1,
-                            "translateY": 0
-                          }
-                        }
-                      ],
-                      "durationMs": 320,
-                      "delayMs": 60,
-                      "easing": "standard"
-                    }
-                  ],
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "vertical",
@@ -2875,30 +2828,6 @@
                 {
                   "type": "frame",
                   "id": "n805",
-                  "animations": [
-                    {
-                      "trigger": "inView",
-                      "keyframes": [
-                        {
-                          "offset": 0.0,
-                          "values": {
-                            "opacity": 0,
-                            "translateY": 12
-                          }
-                        },
-                        {
-                          "offset": 1.0,
-                          "values": {
-                            "opacity": 1,
-                            "translateY": 0
-                          }
-                        }
-                      ],
-                      "durationMs": 320,
-                      "delayMs": 120,
-                      "easing": "standard"
-                    }
-                  ],
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "vertical",
@@ -3033,7 +2962,7 @@
                       "fill": [
                         {
                           "type": "solid",
-                          "color": "#FAF8F3"
+                          "color": "#64748B"
                         }
                       ]
                     }
@@ -3160,7 +3089,7 @@
                 {
                   "type": "frame",
                   "id": "n820",
-                  "width": 125.0,
+                  "width": 110.0,
                   "height": 38.0,
                   "layout": "horizontal",
                   "gap": 6.0,
@@ -3221,6 +3150,32 @@
                   "gap": 6.0,
                   "alignItems": "center",
                   "children": [
+                    {
+                      "type": "frame",
+                      "id": "n824",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "layout": "horizontal",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "cornerRadius": 4.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#0D1524"
+                        }
+                      ],
+                      "stroke": {
+                        "thickness": 1.0,
+                        "fill": [
+                          {
+                            "type": "solid",
+                            "color": "#475569"
+                          }
+                        ]
+                      },
+                      "children": []
+                    },
                     {
                       "type": "text",
                       "id": "n825",
@@ -3315,6 +3270,32 @@
                   "gap": 6.0,
                   "alignItems": "center",
                   "children": [
+                    {
+                      "type": "frame",
+                      "id": "n831",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "layout": "horizontal",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "cornerRadius": 4.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#0D1524"
+                        }
+                      ],
+                      "stroke": {
+                        "thickness": 1.0,
+                        "fill": [
+                          {
+                            "type": "solid",
+                            "color": "#475569"
+                          }
+                        ]
+                      },
+                      "children": []
+                    },
                     {
                       "type": "text",
                       "id": "n832",
@@ -3705,6 +3686,15 @@
                     16.0
                   ],
                   "alignItems": "center",
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "#1E293B"
+                      }
+                    ]
+                  },
                   "children": [
                     {
                       "type": "frame",
@@ -3888,6 +3878,7 @@
                             6.0
                           ],
                           "alignItems": "center",
+                          "cornerRadius": 6.0,
                           "fill": [
                             {
                               "type": "solid",
@@ -3947,6 +3938,7 @@
                             7.0
                           ],
                           "alignItems": "center",
+                          "cornerRadius": 6.0,
                           "fill": [
                             {
                               "type": "solid",
@@ -4177,6 +4169,15 @@
                     16.0
                   ],
                   "alignItems": "center",
+                  "stroke": {
+                    "thickness": 1.0,
+                    "fill": [
+                      {
+                        "type": "solid",
+                        "color": "#1E293B"
+                      }
+                    ]
+                  },
                   "children": [
                     {
                       "type": "frame",
@@ -4360,6 +4361,7 @@
                             6.0
                           ],
                           "alignItems": "center",
+                          "cornerRadius": 6.0,
                           "fill": [
                             {
                               "type": "solid",
@@ -4419,6 +4421,7 @@
                             7.0
                           ],
                           "alignItems": "center",
+                          "cornerRadius": 6.0,
                           "fill": [
                             {
                               "type": "solid",
@@ -4674,7 +4677,7 @@
         },
         {
           "type": "frame",
-          "id": "n1146",
+          "id": "n929",
           "name": "D1-取消采购订单-会退款",
           "x": 0.0,
           "y": 1800.0,
@@ -4692,7 +4695,7 @@
           "children": [
             {
               "type": "frame",
-              "id": "n1147",
+              "id": "n930",
               "width": 640.0,
               "height": "fit_content",
               "layout": "vertical",
@@ -4708,6 +4711,15 @@
                   "color": "#111A2C"
                 }
               ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "#2B3B5C"
+                  }
+                ]
+              },
               "effects": [
                 {
                   "type": "shadow",
@@ -4721,7 +4733,7 @@
               "children": [
                 {
                   "type": "frame",
-                  "id": "n1148",
+                  "id": "n931",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "horizontal",
@@ -4730,7 +4742,7 @@
                   "children": [
                     {
                       "type": "icon_font",
-                      "id": "n1149",
+                      "id": "n932",
                       "iconFontName": "circle-x",
                       "width": 18.0,
                       "height": 18.0,
@@ -4743,7 +4755,7 @@
                     },
                     {
                       "type": "text",
-                      "id": "n1150",
+                      "id": "n933",
                       "width": "fill_container",
                       "height": "fit_content",
                       "content": "取消采购订单 · PO20261119001",
@@ -4760,7 +4772,7 @@
                     },
                     {
                       "type": "icon_font",
-                      "id": "n1151",
+                      "id": "n934",
                       "iconFontName": "x",
                       "width": 16.0,
                       "height": 16.0,
@@ -4775,7 +4787,7 @@
                 },
                 {
                   "type": "text",
-                  "id": "n1152",
+                  "id": "n935",
                   "width": "fill_container",
                   "height": "fit_content",
                   "content": "淘宝 · 上海成安机电 · 1 个型号 · 应付 ¥700.00，已付 ¥700.00",
@@ -4792,7 +4804,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n1153",
+                  "id": "n936",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "vertical",
@@ -4800,7 +4812,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n1154",
+                      "id": "n937",
                       "width": "fit_content",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -4809,7 +4821,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n1155",
+                          "id": "n938",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "取消原因",
@@ -4825,7 +4837,7 @@
                         },
                         {
                           "type": "text",
-                          "id": "n1156",
+                          "id": "n939",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "*",
@@ -4843,7 +4855,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n1157",
+                      "id": "n940",
                       "width": "fill_container",
                       "height": 36.0,
                       "layout": "horizontal",
@@ -4852,16 +4864,26 @@
                         12.0
                       ],
                       "alignItems": "center",
+                      "cornerRadius": 10.0,
                       "fill": [
                         {
                           "type": "solid",
                           "color": "#0D1524"
                         }
                       ],
+                      "stroke": {
+                        "thickness": 1.0,
+                        "fill": [
+                          {
+                            "type": "solid",
+                            "color": "#1E293B"
+                          }
+                        ]
+                      },
                       "children": [
                         {
                           "type": "text",
-                          "id": "n1158",
+                          "id": "n941",
                           "width": "fill_container",
                           "height": "fit_content",
                           "content": "客户要换型号（SO20261118003）",
@@ -4882,7 +4904,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n1159",
+                  "id": "n942",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "vertical",
@@ -4890,7 +4912,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n1160",
+                      "id": "n943",
                       "width": "fit_content",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -4899,7 +4921,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n1161",
+                          "id": "n944",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "店铺 / 供应商是否退款",
@@ -4915,7 +4937,7 @@
                         },
                         {
                           "type": "text",
-                          "id": "n1162",
+                          "id": "n945",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "*",
@@ -4933,7 +4955,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n1163",
+                      "id": "n946",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -4942,7 +4964,7 @@
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n1164",
+                          "id": "n947",
                           "width": "fill_container",
                           "height": "fit_content",
                           "layout": "horizontal",
@@ -4952,26 +4974,61 @@
                             12.0
                           ],
                           "alignItems": "start",
+                          "cornerRadius": 10.0,
                           "fill": [
                             {
                               "type": "solid",
                               "color": "#132544"
                             }
                           ],
+                          "stroke": {
+                            "thickness": 1.5,
+                            "fill": [
+                              {
+                                "type": "solid",
+                                "color": "#3B82F6"
+                              }
+                            ]
+                          },
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n1165",
+                              "id": "n948",
                               "width": 16.0,
                               "height": 16.0,
                               "layout": "horizontal",
                               "justifyContent": "center",
                               "alignItems": "center",
-                              "children": []
+                              "cornerRadius": 8.0,
+                              "stroke": {
+                                "thickness": 1.5,
+                                "fill": [
+                                  {
+                                    "type": "solid",
+                                    "color": "#3B82F6"
+                                  }
+                                ]
+                              },
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "n949",
+                                  "width": 8.0,
+                                  "height": 8.0,
+                                  "cornerRadius": 4.0,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#3B82F6"
+                                    }
+                                  ],
+                                  "children": []
+                                }
+                              ]
                             },
                             {
                               "type": "frame",
-                              "id": "n1167",
+                              "id": "n950",
                               "width": "fill_container",
                               "height": "fit_content",
                               "layout": "vertical",
@@ -4979,7 +5036,7 @@
                               "children": [
                                 {
                                   "type": "frame",
-                                  "id": "n1168",
+                                  "id": "n951",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "layout": "horizontal",
@@ -4988,7 +5045,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n1169",
+                                      "id": "n952",
                                       "iconFontName": "undo-2",
                                       "width": 14.0,
                                       "height": 14.0,
@@ -5001,7 +5058,7 @@
                                     },
                                     {
                                       "type": "text",
-                                      "id": "n1170",
+                                      "id": "n953",
                                       "width": "fit_content",
                                       "height": "fit_content",
                                       "content": "会退款",
@@ -5019,7 +5076,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n1171",
+                                  "id": "n954",
                                   "width": "fill_container",
                                   "height": "fit_content",
                                   "content": "钱会原路退回付款人，系统按付款方式自动收尾",
@@ -5031,7 +5088,7 @@
                                   "fill": [
                                     {
                                       "type": "solid",
-                                      "color": "#FFFFFF"
+                                      "color": "#94A3B8"
                                     }
                                   ]
                                 }
@@ -5041,7 +5098,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n1172",
+                          "id": "n955",
                           "width": "fill_container",
                           "height": "fit_content",
                           "layout": "horizontal",
@@ -5051,26 +5108,46 @@
                             12.0
                           ],
                           "alignItems": "start",
+                          "cornerRadius": 10.0,
                           "fill": [
                             {
                               "type": "solid",
                               "color": "#0D1524"
                             }
                           ],
+                          "stroke": {
+                            "thickness": 1.0,
+                            "fill": [
+                              {
+                                "type": "solid",
+                                "color": "#1E293B"
+                              }
+                            ]
+                          },
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n1173",
+                              "id": "n956",
                               "width": 16.0,
                               "height": 16.0,
                               "layout": "horizontal",
                               "justifyContent": "center",
                               "alignItems": "center",
+                              "cornerRadius": 8.0,
+                              "stroke": {
+                                "thickness": 1.5,
+                                "fill": [
+                                  {
+                                    "type": "solid",
+                                    "color": "#475569"
+                                  }
+                                ]
+                              },
                               "children": []
                             },
                             {
                               "type": "frame",
-                              "id": "n1174",
+                              "id": "n957",
                               "width": "fill_container",
                               "height": "fit_content",
                               "layout": "vertical",
@@ -5078,7 +5155,7 @@
                               "children": [
                                 {
                                   "type": "frame",
-                                  "id": "n1175",
+                                  "id": "n958",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "layout": "horizontal",
@@ -5087,7 +5164,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n1176",
+                                      "id": "n959",
                                       "iconFontName": "wallet",
                                       "width": 14.0,
                                       "height": 14.0,
@@ -5100,7 +5177,7 @@
                                     },
                                     {
                                       "type": "text",
-                                      "id": "n1177",
+                                      "id": "n960",
                                       "width": "fit_content",
                                       "height": "fit_content",
                                       "content": "不退款",
@@ -5118,7 +5195,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n1178",
+                                  "id": "n961",
                                   "width": "fill_container",
                                   "height": "fit_content",
                                   "content": "已付转为欠款，以后付给同一收款方时抵扣",
@@ -5130,7 +5207,7 @@
                                   "fill": [
                                     {
                                       "type": "solid",
-                                      "color": "#FAF8F3"
+                                      "color": "#64748B"
                                     }
                                   ]
                                 }
@@ -5144,7 +5221,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n1179",
+                  "id": "n962",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "vertical",
@@ -5152,7 +5229,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n1180",
+                      "id": "n963",
                       "width": "fit_content",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -5161,7 +5238,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n1181",
+                          "id": "n964",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "付款怎么处理",
@@ -5179,22 +5256,30 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n1182",
+                      "id": "n965",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "horizontal",
                       "gap": 12.0,
                       "padding": [
                         10.0,
-                        0.0,
-                        10.0,
-                        0.0
+                        12.0
                       ],
                       "alignItems": "center",
+                      "cornerRadius": 10.0,
+                      "stroke": {
+                        "thickness": 1.0,
+                        "fill": [
+                          {
+                            "type": "solid",
+                            "color": "#1E293B"
+                          }
+                        ]
+                      },
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n1183",
+                          "id": "n966",
                           "width": 230.0,
                           "height": "fit_content",
                           "layout": "vertical",
@@ -5202,7 +5287,7 @@
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n1184",
+                              "id": "n967",
                               "width": "fit_content",
                               "height": "fit_content",
                               "layout": "horizontal",
@@ -5211,7 +5296,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n1185",
+                                  "id": "n968",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "PY20261119001",
@@ -5227,7 +5312,7 @@
                                 },
                                 {
                                   "type": "frame",
-                                  "id": "n1186",
+                                  "id": "n969",
                                   "width": "fit_content",
                                   "height": 20.0,
                                   "layout": "horizontal",
@@ -5236,6 +5321,7 @@
                                     7.0
                                   ],
                                   "alignItems": "center",
+                                  "cornerRadius": 6.0,
                                   "fill": [
                                     {
                                       "type": "solid",
@@ -5245,7 +5331,7 @@
                                   "children": [
                                     {
                                       "type": "text",
-                                      "id": "n1187",
+                                      "id": "n970",
                                       "width": "fit_content",
                                       "height": "fit_content",
                                       "content": "员工垫付",
@@ -5265,7 +5351,7 @@
                             },
                             {
                               "type": "text",
-                              "id": "n1188",
+                              "id": "n971",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "johnny · 待报销",
@@ -5283,7 +5369,7 @@
                         },
                         {
                           "type": "text",
-                          "id": "n1189",
+                          "id": "n972",
                           "width": 90.0,
                           "height": "fit_content",
                           "content": "¥700.00",
@@ -5300,7 +5386,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n1190",
+                          "id": "n973",
                           "width": "fill_container",
                           "height": "fit_content",
                           "layout": "horizontal",
@@ -5309,7 +5395,7 @@
                           "children": [
                             {
                               "type": "icon_font",
-                              "id": "n1191",
+                              "id": "n974",
                               "iconFontName": "arrow-right",
                               "width": 14.0,
                               "height": 14.0,
@@ -5322,7 +5408,7 @@
                             },
                             {
                               "type": "text",
-                              "id": "n1192",
+                              "id": "n975",
                               "width": "fill_container",
                               "height": "fit_content",
                               "content": "作废这笔垫付，不再报销",
@@ -5346,7 +5432,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n1193",
+                  "id": "n976",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "horizontal",
@@ -5356,6 +5442,7 @@
                     12.0
                   ],
                   "alignItems": "start",
+                  "cornerRadius": 10.0,
                   "fill": [
                     {
                       "type": "solid",
@@ -5365,7 +5452,7 @@
                   "children": [
                     {
                       "type": "icon_font",
-                      "id": "n1194",
+                      "id": "n977",
                       "iconFontName": "triangle-alert",
                       "width": 14.0,
                       "height": 14.0,
@@ -5378,7 +5465,7 @@
                     },
                     {
                       "type": "text",
-                      "id": "n1195",
+                      "id": "n978",
                       "width": "fill_container",
                       "height": "fit_content",
                       "content": "作废后 johnny 不再报销这 ¥700.00，请确认店铺会原路退给 johnny。",
@@ -5398,7 +5485,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n1196",
+                  "id": "n979",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "horizontal",
@@ -5407,7 +5494,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n1197",
+                      "id": "n980",
                       "width": "fill_container",
                       "height": 1.0,
                       "layout": "horizontal",
@@ -5415,7 +5502,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n1198",
+                      "id": "n981",
                       "width": "fit_content",
                       "height": 34.0,
                       "layout": "horizontal",
@@ -5425,16 +5512,26 @@
                         14.0
                       ],
                       "alignItems": "center",
+                      "cornerRadius": 10.0,
                       "fill": [
                         {
                           "type": "solid",
                           "color": "#0D1524"
                         }
                       ],
+                      "stroke": {
+                        "thickness": 1.0,
+                        "fill": [
+                          {
+                            "type": "solid",
+                            "color": "#1E293B"
+                          }
+                        ]
+                      },
                       "children": [
                         {
                           "type": "text",
-                          "id": "n1199",
+                          "id": "n982",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "再想想",
@@ -5452,7 +5549,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n1200",
+                      "id": "n983",
                       "width": "fit_content",
                       "height": 34.0,
                       "layout": "horizontal",
@@ -5462,6 +5559,7 @@
                         14.0
                       ],
                       "alignItems": "center",
+                      "cornerRadius": 10.0,
                       "fill": [
                         {
                           "type": "solid",
@@ -5471,7 +5569,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n1201",
+                          "id": "n984",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "确认取消",
@@ -5491,12 +5589,11 @@
                 }
               ]
             }
-          ],
-          "screen": "/"
+          ]
         },
         {
           "type": "frame",
-          "id": "n1202",
+          "id": "n985",
           "name": "D1b-取消采购订单-会退款-多种付款方式",
           "x": 0.0,
           "y": 3600.0,
@@ -5514,7 +5611,7 @@
           "children": [
             {
               "type": "frame",
-              "id": "n1203",
+              "id": "n986",
               "width": 720.0,
               "height": "fit_content",
               "layout": "vertical",
@@ -5530,6 +5627,15 @@
                   "color": "#111A2C"
                 }
               ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "#2B3B5C"
+                  }
+                ]
+              },
               "effects": [
                 {
                   "type": "shadow",
@@ -5543,7 +5649,7 @@
               "children": [
                 {
                   "type": "frame",
-                  "id": "n1204",
+                  "id": "n987",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "horizontal",
@@ -5552,7 +5658,7 @@
                   "children": [
                     {
                       "type": "icon_font",
-                      "id": "n1205",
+                      "id": "n988",
                       "iconFontName": "circle-x",
                       "width": 18.0,
                       "height": 18.0,
@@ -5565,7 +5671,7 @@
                     },
                     {
                       "type": "text",
-                      "id": "n1206",
+                      "id": "n989",
                       "width": "fill_container",
                       "height": "fit_content",
                       "content": "取消采购订单 · PO20261118006",
@@ -5582,7 +5688,7 @@
                     },
                     {
                       "type": "icon_font",
-                      "id": "n1207",
+                      "id": "n990",
                       "iconFontName": "x",
                       "width": 16.0,
                       "height": 16.0,
@@ -5597,7 +5703,7 @@
                 },
                 {
                   "type": "text",
-                  "id": "n1208",
+                  "id": "n991",
                   "width": "fill_container",
                   "height": "fit_content",
                   "content": "深圳工控自动化 · 3 个型号 · 应付 ¥3,800.00，已付 ¥3,800.00",
@@ -5614,7 +5720,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n1209",
+                  "id": "n992",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "vertical",
@@ -5622,7 +5728,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n1210",
+                      "id": "n993",
                       "width": "fit_content",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -5631,7 +5737,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n1211",
+                          "id": "n994",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "取消原因",
@@ -5647,7 +5753,7 @@
                         },
                         {
                           "type": "text",
-                          "id": "n1212",
+                          "id": "n995",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "*",
@@ -5665,7 +5771,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n1213",
+                      "id": "n996",
                       "width": "fill_container",
                       "height": 36.0,
                       "layout": "horizontal",
@@ -5674,16 +5780,26 @@
                         12.0
                       ],
                       "alignItems": "center",
+                      "cornerRadius": 10.0,
                       "fill": [
                         {
                           "type": "solid",
                           "color": "#0D1524"
                         }
                       ],
+                      "stroke": {
+                        "thickness": 1.0,
+                        "fill": [
+                          {
+                            "type": "solid",
+                            "color": "#1E293B"
+                          }
+                        ]
+                      },
                       "children": [
                         {
                           "type": "text",
-                          "id": "n1214",
+                          "id": "n997",
                           "width": "fill_container",
                           "height": "fit_content",
                           "content": "客户要换型号（SO20261118003）",
@@ -5704,7 +5820,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n1215",
+                  "id": "n998",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "vertical",
@@ -5712,7 +5828,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n1216",
+                      "id": "n999",
                       "width": "fit_content",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -5721,7 +5837,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n1217",
+                          "id": "n1000",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "店铺 / 供应商是否退款",
@@ -5737,7 +5853,7 @@
                         },
                         {
                           "type": "text",
-                          "id": "n1218",
+                          "id": "n1001",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "*",
@@ -5755,7 +5871,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n1219",
+                      "id": "n1002",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -5764,7 +5880,7 @@
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n1220",
+                          "id": "n1003",
                           "width": "fill_container",
                           "height": "fit_content",
                           "layout": "horizontal",
@@ -5774,26 +5890,61 @@
                             12.0
                           ],
                           "alignItems": "start",
+                          "cornerRadius": 10.0,
                           "fill": [
                             {
                               "type": "solid",
                               "color": "#132544"
                             }
                           ],
+                          "stroke": {
+                            "thickness": 1.5,
+                            "fill": [
+                              {
+                                "type": "solid",
+                                "color": "#3B82F6"
+                              }
+                            ]
+                          },
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n1221",
+                              "id": "n1004",
                               "width": 16.0,
                               "height": 16.0,
                               "layout": "horizontal",
                               "justifyContent": "center",
                               "alignItems": "center",
-                              "children": []
+                              "cornerRadius": 8.0,
+                              "stroke": {
+                                "thickness": 1.5,
+                                "fill": [
+                                  {
+                                    "type": "solid",
+                                    "color": "#3B82F6"
+                                  }
+                                ]
+                              },
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "n1005",
+                                  "width": 8.0,
+                                  "height": 8.0,
+                                  "cornerRadius": 4.0,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#3B82F6"
+                                    }
+                                  ],
+                                  "children": []
+                                }
+                              ]
                             },
                             {
                               "type": "frame",
-                              "id": "n1223",
+                              "id": "n1006",
                               "width": "fill_container",
                               "height": "fit_content",
                               "layout": "vertical",
@@ -5801,7 +5952,7 @@
                               "children": [
                                 {
                                   "type": "frame",
-                                  "id": "n1224",
+                                  "id": "n1007",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "layout": "horizontal",
@@ -5810,7 +5961,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n1225",
+                                      "id": "n1008",
                                       "iconFontName": "undo-2",
                                       "width": 14.0,
                                       "height": 14.0,
@@ -5823,7 +5974,7 @@
                                     },
                                     {
                                       "type": "text",
-                                      "id": "n1226",
+                                      "id": "n1009",
                                       "width": "fit_content",
                                       "height": "fit_content",
                                       "content": "会退款",
@@ -5841,7 +5992,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n1227",
+                                  "id": "n1010",
                                   "width": "fill_container",
                                   "height": "fit_content",
                                   "content": "钱会原路退回付款人，系统按付款方式自动收尾",
@@ -5853,7 +6004,7 @@
                                   "fill": [
                                     {
                                       "type": "solid",
-                                      "color": "#FFFFFF"
+                                      "color": "#94A3B8"
                                     }
                                   ]
                                 }
@@ -5863,7 +6014,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n1228",
+                          "id": "n1011",
                           "width": "fill_container",
                           "height": "fit_content",
                           "layout": "horizontal",
@@ -5873,26 +6024,46 @@
                             12.0
                           ],
                           "alignItems": "start",
+                          "cornerRadius": 10.0,
                           "fill": [
                             {
                               "type": "solid",
                               "color": "#0D1524"
                             }
                           ],
+                          "stroke": {
+                            "thickness": 1.0,
+                            "fill": [
+                              {
+                                "type": "solid",
+                                "color": "#1E293B"
+                              }
+                            ]
+                          },
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n1229",
+                              "id": "n1012",
                               "width": 16.0,
                               "height": 16.0,
                               "layout": "horizontal",
                               "justifyContent": "center",
                               "alignItems": "center",
+                              "cornerRadius": 8.0,
+                              "stroke": {
+                                "thickness": 1.5,
+                                "fill": [
+                                  {
+                                    "type": "solid",
+                                    "color": "#475569"
+                                  }
+                                ]
+                              },
                               "children": []
                             },
                             {
                               "type": "frame",
-                              "id": "n1230",
+                              "id": "n1013",
                               "width": "fill_container",
                               "height": "fit_content",
                               "layout": "vertical",
@@ -5900,7 +6071,7 @@
                               "children": [
                                 {
                                   "type": "frame",
-                                  "id": "n1231",
+                                  "id": "n1014",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "layout": "horizontal",
@@ -5909,7 +6080,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n1232",
+                                      "id": "n1015",
                                       "iconFontName": "wallet",
                                       "width": 14.0,
                                       "height": 14.0,
@@ -5922,7 +6093,7 @@
                                     },
                                     {
                                       "type": "text",
-                                      "id": "n1233",
+                                      "id": "n1016",
                                       "width": "fit_content",
                                       "height": "fit_content",
                                       "content": "不退款",
@@ -5940,7 +6111,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n1234",
+                                  "id": "n1017",
                                   "width": "fill_container",
                                   "height": "fit_content",
                                   "content": "已付转为欠款，以后付给同一收款方时抵扣",
@@ -5952,7 +6123,7 @@
                                   "fill": [
                                     {
                                       "type": "solid",
-                                      "color": "#FAF8F3"
+                                      "color": "#64748B"
                                     }
                                   ]
                                 }
@@ -5966,7 +6137,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n1235",
+                  "id": "n1018",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "vertical",
@@ -5974,7 +6145,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n1236",
+                      "id": "n1019",
                       "width": "fit_content",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -5983,7 +6154,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n1237",
+                          "id": "n1020",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "付款怎么处理",
@@ -6001,22 +6172,30 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n1238",
+                      "id": "n1021",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "horizontal",
                       "gap": 12.0,
                       "padding": [
                         10.0,
-                        0.0,
-                        10.0,
-                        0.0
+                        12.0
                       ],
                       "alignItems": "center",
+                      "cornerRadius": 10.0,
+                      "stroke": {
+                        "thickness": 1.0,
+                        "fill": [
+                          {
+                            "type": "solid",
+                            "color": "#1E293B"
+                          }
+                        ]
+                      },
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n1239",
+                          "id": "n1022",
                           "width": 230.0,
                           "height": "fit_content",
                           "layout": "vertical",
@@ -6024,7 +6203,7 @@
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n1240",
+                              "id": "n1023",
                               "width": "fit_content",
                               "height": "fit_content",
                               "layout": "horizontal",
@@ -6033,7 +6212,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n1241",
+                                  "id": "n1024",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "PY20261118006",
@@ -6049,7 +6228,7 @@
                                 },
                                 {
                                   "type": "frame",
-                                  "id": "n1242",
+                                  "id": "n1025",
                                   "width": "fit_content",
                                   "height": 20.0,
                                   "layout": "horizontal",
@@ -6058,6 +6237,7 @@
                                     7.0
                                   ],
                                   "alignItems": "center",
+                                  "cornerRadius": 6.0,
                                   "fill": [
                                     {
                                       "type": "solid",
@@ -6067,7 +6247,7 @@
                                   "children": [
                                     {
                                       "type": "text",
-                                      "id": "n1243",
+                                      "id": "n1026",
                                       "width": "fit_content",
                                       "height": "fit_content",
                                       "content": "员工垫付",
@@ -6087,7 +6267,7 @@
                             },
                             {
                               "type": "text",
-                              "id": "n1244",
+                              "id": "n1027",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "johnny · 待报销",
@@ -6105,7 +6285,7 @@
                         },
                         {
                           "type": "text",
-                          "id": "n1245",
+                          "id": "n1028",
                           "width": 90.0,
                           "height": "fit_content",
                           "content": "¥1,500.00",
@@ -6122,7 +6302,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n1246",
+                          "id": "n1029",
                           "width": "fill_container",
                           "height": "fit_content",
                           "layout": "horizontal",
@@ -6131,7 +6311,7 @@
                           "children": [
                             {
                               "type": "icon_font",
-                              "id": "n1247",
+                              "id": "n1030",
                               "iconFontName": "arrow-right",
                               "width": 14.0,
                               "height": 14.0,
@@ -6144,7 +6324,7 @@
                             },
                             {
                               "type": "text",
-                              "id": "n1248",
+                              "id": "n1031",
                               "width": "fill_container",
                               "height": "fit_content",
                               "content": "作废这笔垫付，不再报销",
@@ -6166,22 +6346,30 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n1249",
+                      "id": "n1032",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "horizontal",
                       "gap": 12.0,
                       "padding": [
                         10.0,
-                        0.0,
-                        10.0,
-                        0.0
+                        12.0
                       ],
                       "alignItems": "center",
+                      "cornerRadius": 10.0,
+                      "stroke": {
+                        "thickness": 1.0,
+                        "fill": [
+                          {
+                            "type": "solid",
+                            "color": "#1E293B"
+                          }
+                        ]
+                      },
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n1250",
+                          "id": "n1033",
                           "width": 230.0,
                           "height": "fit_content",
                           "layout": "vertical",
@@ -6189,7 +6377,7 @@
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n1251",
+                              "id": "n1034",
                               "width": "fit_content",
                               "height": "fit_content",
                               "layout": "horizontal",
@@ -6198,7 +6386,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n1252",
+                                  "id": "n1035",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "PY20261110003",
@@ -6214,7 +6402,7 @@
                                 },
                                 {
                                   "type": "frame",
-                                  "id": "n1253",
+                                  "id": "n1036",
                                   "width": "fit_content",
                                   "height": 20.0,
                                   "layout": "horizontal",
@@ -6223,6 +6411,7 @@
                                     7.0
                                   ],
                                   "alignItems": "center",
+                                  "cornerRadius": 6.0,
                                   "fill": [
                                     {
                                       "type": "solid",
@@ -6232,7 +6421,7 @@
                                   "children": [
                                     {
                                       "type": "text",
-                                      "id": "n1254",
+                                      "id": "n1037",
                                       "width": "fit_content",
                                       "height": "fit_content",
                                       "content": "员工垫付",
@@ -6252,7 +6441,7 @@
                             },
                             {
                               "type": "text",
-                              "id": "n1255",
+                              "id": "n1038",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "林熙 · 已报销 BX20261112001",
@@ -6270,7 +6459,7 @@
                         },
                         {
                           "type": "text",
-                          "id": "n1256",
+                          "id": "n1039",
                           "width": 90.0,
                           "height": "fit_content",
                           "content": "¥300.00",
@@ -6287,7 +6476,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n1257",
+                          "id": "n1040",
                           "width": "fill_container",
                           "height": "fit_content",
                           "layout": "horizontal",
@@ -6296,7 +6485,7 @@
                           "children": [
                             {
                               "type": "icon_font",
-                              "id": "n1258",
+                              "id": "n1041",
                               "iconFontName": "arrow-right",
                               "width": 14.0,
                               "height": 14.0,
@@ -6309,7 +6498,7 @@
                             },
                             {
                               "type": "text",
-                              "id": "n1259",
+                              "id": "n1042",
                               "width": "fill_container",
                               "height": "fit_content",
                               "content": "以林熙名义登记已收到退款 −¥300.00，下次报销扣回",
@@ -6331,22 +6520,30 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n1260",
+                      "id": "n1043",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "horizontal",
                       "gap": 12.0,
                       "padding": [
                         10.0,
-                        0.0,
-                        10.0,
-                        0.0
+                        12.0
                       ],
                       "alignItems": "center",
+                      "cornerRadius": 10.0,
+                      "stroke": {
+                        "thickness": 1.0,
+                        "fill": [
+                          {
+                            "type": "solid",
+                            "color": "#1E293B"
+                          }
+                        ]
+                      },
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n1261",
+                          "id": "n1044",
                           "width": 230.0,
                           "height": "fit_content",
                           "layout": "vertical",
@@ -6354,7 +6551,7 @@
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n1262",
+                              "id": "n1045",
                               "width": "fit_content",
                               "height": "fit_content",
                               "layout": "horizontal",
@@ -6363,7 +6560,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n1263",
+                                  "id": "n1046",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "PY20261108002",
@@ -6379,7 +6576,7 @@
                                 },
                                 {
                                   "type": "frame",
-                                  "id": "n1264",
+                                  "id": "n1047",
                                   "width": "fit_content",
                                   "height": 20.0,
                                   "layout": "horizontal",
@@ -6388,6 +6585,7 @@
                                     7.0
                                   ],
                                   "alignItems": "center",
+                                  "cornerRadius": 6.0,
                                   "fill": [
                                     {
                                       "type": "solid",
@@ -6397,7 +6595,7 @@
                                   "children": [
                                     {
                                       "type": "text",
-                                      "id": "n1265",
+                                      "id": "n1048",
                                       "width": "fit_content",
                                       "height": "fit_content",
                                       "content": "公司对公",
@@ -6417,7 +6615,7 @@
                             },
                             {
                               "type": "text",
-                              "id": "n1266",
+                              "id": "n1049",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "招商银行 ****6688",
@@ -6435,7 +6633,7 @@
                         },
                         {
                           "type": "text",
-                          "id": "n1267",
+                          "id": "n1050",
                           "width": 90.0,
                           "height": "fit_content",
                           "content": "¥2,000.00",
@@ -6452,7 +6650,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n1268",
+                          "id": "n1051",
                           "width": "fill_container",
                           "height": "fit_content",
                           "layout": "horizontal",
@@ -6461,7 +6659,7 @@
                           "children": [
                             {
                               "type": "icon_font",
-                              "id": "n1269",
+                              "id": "n1052",
                               "iconFontName": "arrow-right",
                               "width": 14.0,
                               "height": 14.0,
@@ -6474,7 +6672,7 @@
                             },
                             {
                               "type": "text",
-                              "id": "n1270",
+                              "id": "n1053",
                               "width": "fill_container",
                               "height": "fit_content",
                               "content": "应付单标「待退款」，财务到账后登记退款",
@@ -6498,7 +6696,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n1271",
+                  "id": "n1054",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "horizontal",
@@ -6508,6 +6706,7 @@
                     12.0
                   ],
                   "alignItems": "start",
+                  "cornerRadius": 10.0,
                   "fill": [
                     {
                       "type": "solid",
@@ -6517,7 +6716,7 @@
                   "children": [
                     {
                       "type": "icon_font",
-                      "id": "n1272",
+                      "id": "n1055",
                       "iconFontName": "triangle-alert",
                       "width": 14.0,
                       "height": 14.0,
@@ -6530,7 +6729,7 @@
                     },
                     {
                       "type": "text",
-                      "id": "n1273",
+                      "id": "n1056",
                       "width": "fill_container",
                       "height": "fit_content",
                       "content": "请确认深圳工控自动化会原路退款；作废和自动登记的记录都会写进各单据的操作日志。",
@@ -6550,7 +6749,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n1274",
+                  "id": "n1057",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "horizontal",
@@ -6559,7 +6758,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n1275",
+                      "id": "n1058",
                       "width": "fill_container",
                       "height": 1.0,
                       "layout": "horizontal",
@@ -6567,7 +6766,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n1276",
+                      "id": "n1059",
                       "width": "fit_content",
                       "height": 34.0,
                       "layout": "horizontal",
@@ -6577,16 +6776,26 @@
                         14.0
                       ],
                       "alignItems": "center",
+                      "cornerRadius": 10.0,
                       "fill": [
                         {
                           "type": "solid",
                           "color": "#0D1524"
                         }
                       ],
+                      "stroke": {
+                        "thickness": 1.0,
+                        "fill": [
+                          {
+                            "type": "solid",
+                            "color": "#1E293B"
+                          }
+                        ]
+                      },
                       "children": [
                         {
                           "type": "text",
-                          "id": "n1277",
+                          "id": "n1060",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "再想想",
@@ -6604,7 +6813,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n1278",
+                      "id": "n1061",
                       "width": "fit_content",
                       "height": 34.0,
                       "layout": "horizontal",
@@ -6614,6 +6823,7 @@
                         14.0
                       ],
                       "alignItems": "center",
+                      "cornerRadius": 10.0,
                       "fill": [
                         {
                           "type": "solid",
@@ -6623,7 +6833,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n1279",
+                          "id": "n1062",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "确认取消",
@@ -6643,12 +6853,11 @@
                 }
               ]
             }
-          ],
-          "screen": "/d1b"
+          ]
         },
         {
           "type": "frame",
-          "id": "n1280",
+          "id": "n1063",
           "name": "D2-取消采购订单-不退款",
           "x": 0.0,
           "y": 2700.0,
@@ -6666,7 +6875,7 @@
           "children": [
             {
               "type": "frame",
-              "id": "n1281",
+              "id": "n1064",
               "width": 640.0,
               "height": "fit_content",
               "layout": "vertical",
@@ -6682,6 +6891,15 @@
                   "color": "#111A2C"
                 }
               ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "#2B3B5C"
+                  }
+                ]
+              },
               "effects": [
                 {
                   "type": "shadow",
@@ -6695,7 +6913,7 @@
               "children": [
                 {
                   "type": "frame",
-                  "id": "n1282",
+                  "id": "n1065",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "horizontal",
@@ -6704,7 +6922,7 @@
                   "children": [
                     {
                       "type": "icon_font",
-                      "id": "n1283",
+                      "id": "n1066",
                       "iconFontName": "circle-x",
                       "width": 18.0,
                       "height": 18.0,
@@ -6717,7 +6935,7 @@
                     },
                     {
                       "type": "text",
-                      "id": "n1284",
+                      "id": "n1067",
                       "width": "fill_container",
                       "height": "fit_content",
                       "content": "取消采购订单 · PO20261119001",
@@ -6734,7 +6952,7 @@
                     },
                     {
                       "type": "icon_font",
-                      "id": "n1285",
+                      "id": "n1068",
                       "iconFontName": "x",
                       "width": 16.0,
                       "height": 16.0,
@@ -6749,7 +6967,7 @@
                 },
                 {
                   "type": "text",
-                  "id": "n1286",
+                  "id": "n1069",
                   "width": "fill_container",
                   "height": "fit_content",
                   "content": "淘宝 · 上海成安机电 · 1 个型号 · 应付 ¥700.00，已付 ¥700.00",
@@ -6766,7 +6984,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n1287",
+                  "id": "n1070",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "vertical",
@@ -6774,7 +6992,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n1288",
+                      "id": "n1071",
                       "width": "fit_content",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -6783,7 +7001,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n1289",
+                          "id": "n1072",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "取消原因",
@@ -6799,7 +7017,7 @@
                         },
                         {
                           "type": "text",
-                          "id": "n1290",
+                          "id": "n1073",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "*",
@@ -6817,7 +7035,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n1291",
+                      "id": "n1074",
                       "width": "fill_container",
                       "height": 36.0,
                       "layout": "horizontal",
@@ -6826,16 +7044,26 @@
                         12.0
                       ],
                       "alignItems": "center",
+                      "cornerRadius": 10.0,
                       "fill": [
                         {
                           "type": "solid",
                           "color": "#0D1524"
                         }
                       ],
+                      "stroke": {
+                        "thickness": 1.0,
+                        "fill": [
+                          {
+                            "type": "solid",
+                            "color": "#1E293B"
+                          }
+                        ]
+                      },
                       "children": [
                         {
                           "type": "text",
-                          "id": "n1292",
+                          "id": "n1075",
                           "width": "fill_container",
                           "height": "fit_content",
                           "content": "客户要换型号（SO20261118003）",
@@ -6856,7 +7084,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n1293",
+                  "id": "n1076",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "vertical",
@@ -6864,7 +7092,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n1294",
+                      "id": "n1077",
                       "width": "fit_content",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -6873,7 +7101,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n1295",
+                          "id": "n1078",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "店铺 / 供应商是否退款",
@@ -6889,7 +7117,7 @@
                         },
                         {
                           "type": "text",
-                          "id": "n1296",
+                          "id": "n1079",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "*",
@@ -6907,7 +7135,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n1297",
+                      "id": "n1080",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -6916,7 +7144,7 @@
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n1298",
+                          "id": "n1081",
                           "width": "fill_container",
                           "height": "fit_content",
                           "layout": "horizontal",
@@ -6926,26 +7154,46 @@
                             12.0
                           ],
                           "alignItems": "start",
+                          "cornerRadius": 10.0,
                           "fill": [
                             {
                               "type": "solid",
                               "color": "#0D1524"
                             }
                           ],
+                          "stroke": {
+                            "thickness": 1.0,
+                            "fill": [
+                              {
+                                "type": "solid",
+                                "color": "#1E293B"
+                              }
+                            ]
+                          },
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n1299",
+                              "id": "n1082",
                               "width": 16.0,
                               "height": 16.0,
                               "layout": "horizontal",
                               "justifyContent": "center",
                               "alignItems": "center",
+                              "cornerRadius": 8.0,
+                              "stroke": {
+                                "thickness": 1.5,
+                                "fill": [
+                                  {
+                                    "type": "solid",
+                                    "color": "#475569"
+                                  }
+                                ]
+                              },
                               "children": []
                             },
                             {
                               "type": "frame",
-                              "id": "n1300",
+                              "id": "n1083",
                               "width": "fill_container",
                               "height": "fit_content",
                               "layout": "vertical",
@@ -6953,7 +7201,7 @@
                               "children": [
                                 {
                                   "type": "frame",
-                                  "id": "n1301",
+                                  "id": "n1084",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "layout": "horizontal",
@@ -6962,7 +7210,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n1302",
+                                      "id": "n1085",
                                       "iconFontName": "undo-2",
                                       "width": 14.0,
                                       "height": 14.0,
@@ -6975,7 +7223,7 @@
                                     },
                                     {
                                       "type": "text",
-                                      "id": "n1303",
+                                      "id": "n1086",
                                       "width": "fit_content",
                                       "height": "fit_content",
                                       "content": "会退款",
@@ -6993,7 +7241,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n1304",
+                                  "id": "n1087",
                                   "width": "fill_container",
                                   "height": "fit_content",
                                   "content": "钱会原路退回付款人，系统按付款方式自动收尾",
@@ -7005,7 +7253,7 @@
                                   "fill": [
                                     {
                                       "type": "solid",
-                                      "color": "#FAF8F3"
+                                      "color": "#64748B"
                                     }
                                   ]
                                 }
@@ -7015,7 +7263,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n1305",
+                          "id": "n1088",
                           "width": "fill_container",
                           "height": "fit_content",
                           "layout": "horizontal",
@@ -7025,26 +7273,61 @@
                             12.0
                           ],
                           "alignItems": "start",
+                          "cornerRadius": 10.0,
                           "fill": [
                             {
                               "type": "solid",
                               "color": "#132544"
                             }
                           ],
+                          "stroke": {
+                            "thickness": 1.5,
+                            "fill": [
+                              {
+                                "type": "solid",
+                                "color": "#3B82F6"
+                              }
+                            ]
+                          },
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n1306",
+                              "id": "n1089",
                               "width": 16.0,
                               "height": 16.0,
                               "layout": "horizontal",
                               "justifyContent": "center",
                               "alignItems": "center",
-                              "children": []
+                              "cornerRadius": 8.0,
+                              "stroke": {
+                                "thickness": 1.5,
+                                "fill": [
+                                  {
+                                    "type": "solid",
+                                    "color": "#3B82F6"
+                                  }
+                                ]
+                              },
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "n1090",
+                                  "width": 8.0,
+                                  "height": 8.0,
+                                  "cornerRadius": 4.0,
+                                  "fill": [
+                                    {
+                                      "type": "solid",
+                                      "color": "#3B82F6"
+                                    }
+                                  ],
+                                  "children": []
+                                }
+                              ]
                             },
                             {
                               "type": "frame",
-                              "id": "n1308",
+                              "id": "n1091",
                               "width": "fill_container",
                               "height": "fit_content",
                               "layout": "vertical",
@@ -7052,7 +7335,7 @@
                               "children": [
                                 {
                                   "type": "frame",
-                                  "id": "n1309",
+                                  "id": "n1092",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "layout": "horizontal",
@@ -7061,7 +7344,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n1310",
+                                      "id": "n1093",
                                       "iconFontName": "wallet",
                                       "width": 14.0,
                                       "height": 14.0,
@@ -7074,7 +7357,7 @@
                                     },
                                     {
                                       "type": "text",
-                                      "id": "n1311",
+                                      "id": "n1094",
                                       "width": "fit_content",
                                       "height": "fit_content",
                                       "content": "不退款",
@@ -7092,7 +7375,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n1312",
+                                  "id": "n1095",
                                   "width": "fill_container",
                                   "height": "fit_content",
                                   "content": "已付转为欠款，以后付给同一收款方时抵扣",
@@ -7104,7 +7387,7 @@
                                   "fill": [
                                     {
                                       "type": "solid",
-                                      "color": "#FFFFFF"
+                                      "color": "#94A3B8"
                                     }
                                   ]
                                 }
@@ -7118,7 +7401,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n1313",
+                  "id": "n1096",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "vertical",
@@ -7126,7 +7409,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n1314",
+                      "id": "n1097",
                       "width": "fit_content",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -7135,7 +7418,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n1315",
+                          "id": "n1098",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "付款怎么处理",
@@ -7153,22 +7436,30 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n1316",
+                      "id": "n1099",
                       "width": "fill_container",
                       "height": "fit_content",
                       "layout": "horizontal",
                       "gap": 12.0,
                       "padding": [
                         10.0,
-                        0.0,
-                        10.0,
-                        0.0
+                        12.0
                       ],
                       "alignItems": "center",
+                      "cornerRadius": 10.0,
+                      "stroke": {
+                        "thickness": 1.0,
+                        "fill": [
+                          {
+                            "type": "solid",
+                            "color": "#1E293B"
+                          }
+                        ]
+                      },
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n1317",
+                          "id": "n1100",
                           "width": 230.0,
                           "height": "fit_content",
                           "layout": "vertical",
@@ -7176,7 +7467,7 @@
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n1318",
+                              "id": "n1101",
                               "width": "fit_content",
                               "height": "fit_content",
                               "layout": "horizontal",
@@ -7185,7 +7476,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n1319",
+                                  "id": "n1102",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "content": "PY20261119001",
@@ -7201,7 +7492,7 @@
                                 },
                                 {
                                   "type": "frame",
-                                  "id": "n1320",
+                                  "id": "n1103",
                                   "width": "fit_content",
                                   "height": 20.0,
                                   "layout": "horizontal",
@@ -7210,6 +7501,7 @@
                                     7.0
                                   ],
                                   "alignItems": "center",
+                                  "cornerRadius": 6.0,
                                   "fill": [
                                     {
                                       "type": "solid",
@@ -7219,7 +7511,7 @@
                                   "children": [
                                     {
                                       "type": "text",
-                                      "id": "n1321",
+                                      "id": "n1104",
                                       "width": "fit_content",
                                       "height": "fit_content",
                                       "content": "员工垫付",
@@ -7239,7 +7531,7 @@
                             },
                             {
                               "type": "text",
-                              "id": "n1322",
+                              "id": "n1105",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "johnny · 待报销",
@@ -7257,7 +7549,7 @@
                         },
                         {
                           "type": "text",
-                          "id": "n1323",
+                          "id": "n1106",
                           "width": 90.0,
                           "height": "fit_content",
                           "content": "¥700.00",
@@ -7274,7 +7566,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n1324",
+                          "id": "n1107",
                           "width": "fill_container",
                           "height": "fit_content",
                           "layout": "horizontal",
@@ -7283,7 +7575,7 @@
                           "children": [
                             {
                               "type": "icon_font",
-                              "id": "n1325",
+                              "id": "n1108",
                               "iconFontName": "arrow-right",
                               "width": 14.0,
                               "height": 14.0,
@@ -7296,7 +7588,7 @@
                             },
                             {
                               "type": "text",
-                              "id": "n1326",
+                              "id": "n1109",
                               "width": "fill_container",
                               "height": "fit_content",
                               "content": "不动，仍在 johnny 的待报销里",
@@ -7320,7 +7612,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n1327",
+                  "id": "n1110",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "horizontal",
@@ -7330,6 +7622,7 @@
                     12.0
                   ],
                   "alignItems": "start",
+                  "cornerRadius": 10.0,
                   "fill": [
                     {
                       "type": "solid",
@@ -7339,7 +7632,7 @@
                   "children": [
                     {
                       "type": "icon_font",
-                      "id": "n1328",
+                      "id": "n1111",
                       "iconFontName": "info",
                       "width": 14.0,
                       "height": 14.0,
@@ -7352,7 +7645,7 @@
                     },
                     {
                       "type": "text",
-                      "id": "n1329",
+                      "id": "n1112",
                       "width": "fill_container",
                       "height": "fit_content",
                       "content": "应付单 AP20261119001 欠款 ¥700.00，以后付给上海成安机电时可以抵扣。",
@@ -7372,7 +7665,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n1330",
+                  "id": "n1113",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "horizontal",
@@ -7381,7 +7674,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n1331",
+                      "id": "n1114",
                       "width": "fill_container",
                       "height": 1.0,
                       "layout": "horizontal",
@@ -7389,7 +7682,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n1332",
+                      "id": "n1115",
                       "width": "fit_content",
                       "height": 34.0,
                       "layout": "horizontal",
@@ -7399,16 +7692,26 @@
                         14.0
                       ],
                       "alignItems": "center",
+                      "cornerRadius": 10.0,
                       "fill": [
                         {
                           "type": "solid",
                           "color": "#0D1524"
                         }
                       ],
+                      "stroke": {
+                        "thickness": 1.0,
+                        "fill": [
+                          {
+                            "type": "solid",
+                            "color": "#1E293B"
+                          }
+                        ]
+                      },
                       "children": [
                         {
                           "type": "text",
-                          "id": "n1333",
+                          "id": "n1116",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "再想想",
@@ -7426,7 +7729,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n1334",
+                      "id": "n1117",
                       "width": "fit_content",
                       "height": 34.0,
                       "layout": "horizontal",
@@ -7436,6 +7739,7 @@
                         14.0
                       ],
                       "alignItems": "center",
+                      "cornerRadius": 10.0,
                       "fill": [
                         {
                           "type": "solid",
@@ -7445,7 +7749,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n1335",
+                          "id": "n1118",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "确认取消",
@@ -7465,8 +7769,7 @@
                 }
               ]
             }
-          ],
-          "screen": "/d2"
+          ]
         },
         {
           "type": "frame",
@@ -7504,6 +7807,15 @@
                   "color": "#111A2C"
                 }
               ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "#2B3B5C"
+                  }
+                ]
+              },
               "effects": [
                 {
                   "type": "shadow",
@@ -7580,6 +7892,7 @@
                     12.0,
                     14.0
                   ],
+                  "cornerRadius": 10.0,
                   "fill": [
                     {
                       "type": "solid",
@@ -7607,6 +7920,7 @@
                             7.0
                           ],
                           "alignItems": "center",
+                          "cornerRadius": 6.0,
                           "fill": [
                             {
                               "type": "solid",
@@ -7680,6 +7994,7 @@
                     12.0
                   ],
                   "alignItems": "start",
+                  "cornerRadius": 10.0,
                   "fill": [
                     {
                       "type": "solid",
@@ -7781,12 +8096,22 @@
                         10.0,
                         12.0
                       ],
+                      "cornerRadius": 10.0,
                       "fill": [
                         {
                           "type": "solid",
                           "color": "#0D1524"
                         }
                       ],
+                      "stroke": {
+                        "thickness": 1.0,
+                        "fill": [
+                          {
+                            "type": "solid",
+                            "color": "#1E293B"
+                          }
+                        ]
+                      },
                       "children": [
                         {
                           "type": "text",
@@ -7838,12 +8163,22 @@
                         14.0
                       ],
                       "alignItems": "center",
+                      "cornerRadius": 10.0,
                       "fill": [
                         {
                           "type": "solid",
                           "color": "#0D1524"
                         }
                       ],
+                      "stroke": {
+                        "thickness": 1.0,
+                        "fill": [
+                          {
+                            "type": "solid",
+                            "color": "#1E293B"
+                          }
+                        ]
+                      },
                       "children": [
                         {
                           "type": "text",
@@ -7875,6 +8210,7 @@
                         14.0
                       ],
                       "alignItems": "center",
+                      "cornerRadius": 10.0,
                       "fill": [
                         {
                           "type": "solid",
@@ -7904,8 +8240,7 @@
                 }
               ]
             }
-          ],
-          "screen": "/d3b"
+          ]
         }
       ]
     }
