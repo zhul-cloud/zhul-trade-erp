@@ -39,6 +39,9 @@ public class PayableDO {
     private BigDecimal paidCny;
     /** 供应商欠款（原币） */
     private BigDecimal creditAmount;
+    /** 待退款标记时间（openspec po-cancel-refund）：采购订单取消选「会退款」且有公司付款时写入，欠款为 0 时清空 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private LocalDateTime refundExpectedAt;
     /** 1-未付、2-部分付款、3-已付清、4-已关闭 */
     private Integer status;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)

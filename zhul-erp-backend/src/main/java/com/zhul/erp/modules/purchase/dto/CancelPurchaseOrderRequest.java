@@ -9,4 +9,6 @@ public class CancelPurchaseOrderRequest {
     @NotBlank(message = "请填写取消原因")
     @Size(max = 200, message = "取消原因不能超过 200 个字符")
     private String reason;
+    /** 店铺 / 供应商是否退款：有实付时必填（openspec po-cancel-refund） */
+    private Boolean refund;
 }

@@ -195,6 +195,10 @@ public class PayableSyncService {
         p.setPaidAmount(paid);
         p.setPaidCny(t.paidCny());
         p.setCreditAmount(paid.subtract(amount).max(BigDecimal.ZERO));
+        if (p.getCreditAmount().signum() == 0) {
+            // 欠款退完或抵扣用完，「待退款」标记随之去掉（openspec po-cancel-refund）
+            p.setRefundExpectedAt(null);
+        }
         p.setStatus(closed ? FinanceConstants.STATUS_CLOSED
                 : paid.signum() > 0 && paid.compareTo(amount) >= 0 ? FinanceConstants.STATUS_PAID
                 : paid.signum() > 0 ? FinanceConstants.STATUS_PARTIAL

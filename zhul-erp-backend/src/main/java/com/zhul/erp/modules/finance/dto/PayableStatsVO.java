@@ -15,4 +15,6 @@ public class PayableStatsVO {
     private long soonCount;
     private BigDecimal credit = BigDecimal.ZERO;
     private long creditCount;
+    /** 其中待退款的应付单数（openspec po-cancel-refund） */
+    private long refundExpectedCount;
 }
