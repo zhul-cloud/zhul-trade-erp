@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Segmented, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CustomerCell } from '@/components/DocFields';
 import FitText from '@/components/FitText';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import StatsRangeFilter, { presetRange } from '@/components/StatsRangeFilter';
@@ -129,16 +130,19 @@ const ProfitStatsPage: React.FC = () => {
     {
       title: groupTitle,
       key: 'label',
-      width: 200,
+      width: groupBy === 'CUSTOMER' ? 260 : 200,
       fixed: 'left',
-      render: (_, g) => (
-        <div>
+      render: (_, g) =>
+        groupBy === 'CUSTOMER' ? (
+          <CustomerCell
+            name={g.label}
+            country={g.country}
+            type={g.customerType}
+            contact={g.customerContact}
+          />
+        ) : (
           <b style={{ color: palette.ink }}>{g.label}</b>
-          {g.country && (
-            <div style={{ fontSize: 12, color: palette.mute }}>{g.country}</div>
-          )}
-        </div>
-      ),
+        ),
     },
     {
       title: '订单数',
@@ -255,12 +259,18 @@ const ProfitStatsPage: React.FC = () => {
         </button>
       ),
     },
-    { title: '客户', dataIndex: 'customerName', width: 200, ellipsis: true },
     {
-      title: '新 / 老',
-      dataIndex: 'customerType',
-      width: 70,
-      render: (v?: number) => (v === 2 ? '老' : '新'),
+      title: '客户',
+      dataIndex: 'customerName',
+      width: 240,
+      render: (v: string | undefined, r) => (
+        <CustomerCell
+          name={v}
+          country={r.customerCountry}
+          type={r.customerType}
+          contact={r.customerContact}
+        />
+      ),
     },
     { title: '业务员', dataIndex: 'ownerName', width: 90 },
     { title: '销售日期', dataIndex: 'salesDate', width: 110 },
@@ -416,7 +426,7 @@ const ProfitStatsPage: React.FC = () => {
           />
           <span style={{ flex: 1 }} />
           <span style={{ fontSize: 12, color: palette.mute }}>
-            毛利率 = 毛利合计 ÷ 收入合计；点一行展开订单
+            毛利率 = 毛利合计 ÷ 收入合计；按客户时按收入从高到低；点一行展开订单
           </span>
         </div>
         <Table<ProfitGroup>
@@ -435,7 +445,12 @@ const ProfitStatsPage: React.FC = () => {
                 size="small"
                 columns={orderColumns}
                 dataSource={g.orders}
-                pagination={false}
+                pagination={{
+                  pageSize: 10,
+                  hideOnSinglePage: true,
+                  showSizeChanger: false,
+                  showTotal: (t) => `共 ${t} 条`,
+                }}
                 scroll={{ x: tableScrollX(orderColumns) }}
               />
             ),

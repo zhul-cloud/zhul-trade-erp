@@ -180,6 +180,15 @@ class OrderCostContractTest extends SalesContractSupport {
         assertEquals(1, settledOnly.path("summary").path("orderCount").asInt());
         money("788.00", settledOnly.path("summary").path("profit"));
         money("38.10", settledOnly.path("summary").path("profitRate"));
+        // openspec feedback-1119：按客户分组带客户三行信息（名称、新老、国家与主要联系人），按收入从高到低
+        JsonNode byCustomer = ok(call(get("/api/v1/finance/profit-stats").param("groupBy", "CUSTOMER"), admin)).path("groups");
+        for (int i = 1; i < byCustomer.size(); i++) {
+            assertTrue(byCustomer.get(i - 1).path("totals").path("revenue").decimalValue()
+                    .compareTo(byCustomer.get(i).path("totals").path("revenue").decimalValue()) >= 0, "按收入从高到低：" + byCustomer);
+        }
+        JsonNode firstGroup = byCustomer.get(0);
+        assertTrue(firstGroup.path("customerType").asInt() > 0, firstGroup.toString());
+        assertEquals(firstGroup.path("country").asText(), firstGroup.path("orders").get(0).path("customerCountry").asText());
         ok(call(json(post(SO + "/" + so2 + "/cancel"), write(Map.of("reason", "客户不要了"))), admin));
         assertEquals(1, ok(call(get("/api/v1/finance/profit-stats"), admin)).path("summary").path("orderCount").asInt(), "已取消的不计");
 

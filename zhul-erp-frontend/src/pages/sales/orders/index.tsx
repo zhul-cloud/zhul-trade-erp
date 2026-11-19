@@ -47,11 +47,13 @@ import {
   type OrderQuery,
   type OrderStats,
   orderApi,
+  type ReorderDraft,
   readBizError,
 } from '../service';
 import {
   CreateOrderDrawer,
   NewOrderDrawer,
+  ReorderPickModal,
   STOCK,
   StockPill,
   useUserOptions,
@@ -124,7 +126,9 @@ const OrderList: React.FC = () => {
   const [error, setError] = useState<string>();
   const [createOpen, setCreateOpen] = useState(false);
   /** 「再下一单」的原订单；为空时是普通的手动建单 */
-  const [reorderFrom, setReorderFrom] = useState<number>();
+  // 再下一单：先选型号（reorderPick 为原订单 ID），选好后带着草稿打开手动建单
+  const [reorderPick, setReorderPick] = useState<number>();
+  const [reorder, setReorder] = useState<ReorderDraft>();
   const [newOpen, setNewOpen] = useState(false);
   const [viewing, setViewing] = useState<OrderListItem>();
   const canFromPi = !!access.salesPi;
@@ -464,10 +468,7 @@ const OrderList: React.FC = () => {
             <button
               type="button"
               className="zhul-link"
-              onClick={() => {
-                setReorderFrom(r.id);
-                setCreateOpen(true);
-              }}
+              onClick={() => setReorderPick(r.id)}
             >
               <CopyOutlined /> 再下一单
             </button>
@@ -844,7 +845,7 @@ const OrderList: React.FC = () => {
         onClose={() => setNewOpen(false)}
         onManual={() => {
           setNewOpen(false);
-          setReorderFrom(undefined);
+          setReorder(undefined);
           setCreateOpen(true);
         }}
         onDone={(order) => {
@@ -853,9 +854,18 @@ const OrderList: React.FC = () => {
           history.push(PATHS.order(order.id));
         }}
       />
+      <ReorderPickModal
+        soId={reorderPick}
+        onCancel={() => setReorderPick(undefined)}
+        onNext={(draft) => {
+          setReorderPick(undefined);
+          setReorder(draft);
+          setCreateOpen(true);
+        }}
+      />
       <CreateOrderDrawer
         open={createOpen}
-        reorderFrom={reorderFrom}
+        reorder={reorder}
         onClose={() => setCreateOpen(false)}
         onDone={(order) => {
           setCreateOpen(false);

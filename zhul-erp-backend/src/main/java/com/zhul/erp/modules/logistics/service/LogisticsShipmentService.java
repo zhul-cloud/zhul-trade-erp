@@ -176,6 +176,7 @@ public class LogisticsShipmentService {
         sh.setShNo(documentNumberService.next(DocumentType.SH));
         sh.setCustomerId(req.getCustomerId());
         sh.setForwarderId(req.getForwarderId());
+        sh.setCustomerForwarder(support.customerForwarderFlag(req.getForwarderId()));
         sh.setOwnerId(0L);
         sh.setStatus(LogisticsConstants.SH_PENDING);
         sh.setCarrier("");
@@ -423,14 +424,16 @@ public class LogisticsShipmentService {
         if (obs.isEmpty()) {
             throw new BizException("出运单里没有货");
         }
+        // 以登记时货代的归属为准（新建后才改成客户指定货代的也按客户货代登记）
+        sh.setCustomerForwarder(support.customerForwarderFlag(sh.getForwarderId()));
         applyWaybill(sh, req);
         sh.setStatus(LogisticsConstants.SH_SHIPPED);
         shipmentMapper.updateById(sh);
         freight.allocateInternational(id, sh.getFreight(), obs.stream().map(OutboundOrderDO::getId).toList(), support.divisorOf(sh.getForwarderId()));
         progress.sync(outbounds.soItemIds(obs.stream().map(OutboundOrderDO::getId).toList()));
         logService.recordOperateLog(LogisticsConstants.MENU_SHIPMENT, "登记出运", null, Map.of("shNo", sh.getShNo(),
-                "waybill", sh.getCarrier() + " " + sh.getWaybillNo(), "freight", "CNY " + sh.getFreight()));
-        docLogs.add(DocumentType.SH, id, "登记出运", sh.getCarrier() + " " + sh.getWaybillNo() + "，运费 CNY " + sh.getFreight());
+                "waybill", waybillText(sh), "freight", "CNY " + sh.getFreight()));
+        docLogs.add(DocumentType.SH, id, "登记出运", waybillText(sh) + "，" + freightLabel(sh) + " CNY " + sh.getFreight());
         followupHooks.customerChanged(sh.getCustomerId());
         return detail(id);
     }
@@ -446,7 +449,7 @@ public class LogisticsShipmentService {
             throw new BizException("出运单还没出运");
         }
         BigDecimal before = sh.getFreight();
-        BigDecimal after = req.getFreight().setScale(2, RoundingMode.HALF_UP);
+        BigDecimal after = freightOf(sh, req);
         if (Objects.equals(sh.getReconciled(), 1) && before != null && before.compareTo(after) != 0) {
             throw new BizException("已对账的出运单不能改运费");
         }
@@ -456,8 +459,8 @@ public class LogisticsShipmentService {
             freight.allocateInternational(id, after, outboundsOf(id).stream().map(OutboundOrderDO::getId).toList(), support.divisorOf(sh.getForwarderId()));
         }
         logService.recordOperateLog(LogisticsConstants.MENU_SHIPMENT, "修改运单", Map.of("shNo", sh.getShNo(), "freight", String.valueOf(before)),
-                Map.of("shNo", sh.getShNo(), "waybill", sh.getCarrier() + " " + sh.getWaybillNo(), "freight", String.valueOf(after)));
-        docLogs.add(DocumentType.SH, id, "修改出运信息", sh.getCarrier() + " " + sh.getWaybillNo() + "，运费 CNY " + sh.getFreight());
+                Map.of("shNo", sh.getShNo(), "waybill", waybillText(sh), "freight", String.valueOf(after)));
+        docLogs.add(DocumentType.SH, id, "修改出运信息", waybillText(sh) + "，" + freightLabel(sh) + " CNY " + sh.getFreight());
         followupHooks.customerChanged(sh.getCustomerId());
         return detail(id);
     }
@@ -479,17 +482,53 @@ public class LogisticsShipmentService {
         shipmentMapper.updateById(sh);
     }
 
+    /**
+     * 写入运单信息。公司货代必填承运商、运单号、运费；交客户指定货代时只要求交货日期，
+     * 承运商、运单号选填，运费为选填的送货运费（不填为 0）（openspec feedback-1119）。
+     */
     private void applyWaybill(LogisticsShipmentDO sh, ShipRequest req) {
-        if (req.getShippedDate().isAfter(LocalDate.now())) {
-            throw new BizException("出运日期不能晚于今天");
+        boolean customer = Objects.equals(sh.getCustomerForwarder(), 1);
+        if (req.getShippedDate() == null) {
+            throw new BizException(customer ? "请填写交货日期" : "请填写出运日期");
         }
-        sh.setCarrier(req.getCarrier().trim());
-        sh.setWaybillNo(req.getWaybillNo().trim());
+        if (req.getShippedDate().isAfter(LocalDate.now())) {
+            throw new BizException(customer ? "交货日期不能晚于今天" : "出运日期不能晚于今天");
+        }
+        String carrier = req.getCarrier() == null ? "" : req.getCarrier().trim();
+        String waybillNo = req.getWaybillNo() == null ? "" : req.getWaybillNo().trim();
+        if (!customer && carrier.isEmpty()) {
+            throw new BizException("请填写承运商");
+        }
+        if (!customer && waybillNo.isEmpty()) {
+            throw new BizException("请填写运单号");
+        }
+        sh.setCarrier(carrier);
+        sh.setWaybillNo(waybillNo);
         sh.setShippedDate(req.getShippedDate());
         if (!Objects.equals(sh.getReconciled(), 1)) {
-            sh.setFreight(req.getFreight().setScale(2, RoundingMode.HALF_UP));
+            sh.setFreight(freightOf(sh, req));
         }
         attachments.sync(AttachmentService.LOGISTICS, sh.getId(), req.getAttachmentIds());
+    }
+
+    /** 运费：公司货代必填；交客户指定货代时为送货运费，不填为 0。保留两位小数（HALF_UP） */
+    private static BigDecimal freightOf(LogisticsShipmentDO sh, ShipRequest req) {
+        if (req.getFreight() == null) {
+            if (!Objects.equals(sh.getCustomerForwarder(), 1)) {
+                throw new BizException("请填写实际运费");
+            }
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        return req.getFreight().setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private static String waybillText(LogisticsShipmentDO sh) {
+        String t = (sh.getCarrier() + " " + sh.getWaybillNo()).trim();
+        return t.isEmpty() ? "交客户指定货代（客户安排运输）" : t;
+    }
+
+    private static String freightLabel(LogisticsShipmentDO sh) {
+        return Objects.equals(sh.getCustomerForwarder(), 1) ? "送货运费" : "运费";
     }
 
     // ---------------------------------------------------------------- 查询
@@ -637,6 +676,8 @@ public class LogisticsShipmentService {
                     .ifPresent(so -> vo.setCustomerType(so.getCustomerType()));
             vo.setForwarderId(sh.getForwarderId());
             vo.setForwarderName(forwarders.get(sh.getForwarderId()));
+            vo.setCustomerForwarder(sh.getStatus() == LogisticsConstants.SH_PENDING
+                    ? support.customerForwarderFlag(sh.getForwarderId()) == 1 : Objects.equals(sh.getCustomerForwarder(), 1));
             vo.setVolumeDivisor(divisor.intValue());
             vo.setOwnerId(sh.getOwnerId());
             vo.setOwnerName(users.get(sh.getOwnerId()));

@@ -380,8 +380,17 @@ const Shipments: React.FC = () => {
     {
       title: '货代',
       dataIndex: 'forwarderName',
-      width: 110,
-      render: ellipsisRender,
+      width: 130,
+      render: (v: string, r) => (
+        <div>
+          {ellipsisRender(v)}
+          {r.customerForwarder && (
+            <div style={{ marginTop: 4 }}>
+              <Pill tone="orange">客户指定</Pill>
+            </div>
+          )}
+        </div>
+      ),
     },
     {
       title: '箱数 · 计费重',
@@ -405,15 +414,24 @@ const Shipments: React.FC = () => {
             {sub(palette.mute, r.waybillNo)}
           </div>
         ) : (
-          <span style={{ color: palette.mute }}>—</span>
+          <span style={{ color: palette.mute }}>
+            {r.customerForwarder && r.status === 2 ? '客户安排' : '—'}
+          </span>
         ),
     },
     {
       title: '运费',
       dataIndex: 'freight',
       width: 110,
-      render: (v?: number | null) =>
-        v === null || v === undefined ? '—' : formatAmount(v, 'CNY'),
+      render: (v: number | null | undefined, r) =>
+        v === null || v === undefined ? (
+          '—'
+        ) : (
+          <div>
+            {formatAmount(v, 'CNY')}
+            {r.customerForwarder && sub(palette.mute, '送货运费')}
+          </div>
+        ),
     },
     {
       title: '对账',
@@ -422,6 +440,8 @@ const Shipments: React.FC = () => {
       render: (v: boolean, r) =>
         r.status !== 2 ? (
           '—'
+        ) : r.customerForwarder ? (
+          <span style={{ color: palette.mute }}>不对账</span>
         ) : v ? (
           <Pill tone="green">已对账</Pill>
         ) : (

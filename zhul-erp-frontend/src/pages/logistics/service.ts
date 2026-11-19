@@ -253,6 +253,8 @@ export interface Logistics extends Audit {
   shippedDate?: string;
   freight?: number | null;
   reconciled: boolean;
+  /** 交客户指定货代：运单号选填（未填显示「客户安排」），运费为送货运费，不进运费账单 */
+  customerForwarder?: boolean;
   voidReason?: string;
   note?: string;
   outboundCount: number;
@@ -519,7 +521,8 @@ export const logisticsApi = {
       carrier: string;
       waybillNo: string;
       shippedDate: string;
-      freight: number;
+      /** 交客户指定货代时可不填（送货运费为 0） */
+      freight?: number;
       attachmentIds: number[];
     },
     update: boolean,
