@@ -25,4 +25,4 @@
 
 ## 5. 验收
 
-- [ ] 5.1 本机页面实测（BrowserOS neo），验收表 `acceptance.md`
+- [x] 5.1 本机页面实测（BrowserOS neo），验收表 `acceptance.md`
