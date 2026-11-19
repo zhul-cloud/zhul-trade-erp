@@ -20,7 +20,6 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pill } from '@/pages/inquiry/shared/components';
 import { type Attachment, attachmentApi } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { liveRequests } from '@/utils/liveRequests';
@@ -454,8 +453,9 @@ export const ShipModal: React.FC<{
   const { palette } = useAppTheme();
   const { message } = App.useApp();
   const update = sh.status === 2;
-  // 交客户指定货代（openspec feedback-1119）：只要求交货日期，承运商、运单号、送货运费选填
-  const customer = !!sh.customerForwarder;
+  // 交给谁（openspec ship-forwarder-choice）：登记时选择，默认按货代归属；修改运单沿用登记时的选择。
+  // 交给客户的货代只要求交货日期，承运商、运单号、送货运费选填（feedback-1119）
+  const [customer, setCustomer] = useState(!!sh.customerForwarder);
   const [carrier, setCarrier] = useState('');
   const [waybillNo, setWaybillNo] = useState('');
   const [date, setDate] = useState<Dayjs>(dayjs());
@@ -465,6 +465,7 @@ export const ShipModal: React.FC<{
 
   useEffect(() => {
     if (!open) return;
+    setCustomer(!!sh.customerForwarder);
     setCarrier(sh.carrier || (sh.customerForwarder ? '' : 'DHL'));
     setWaybillNo(sh.waybillNo ?? '');
     setDate(sh.shippedDate ? dayjs(sh.shippedDate) : dayjs());
@@ -483,6 +484,7 @@ export const ShipModal: React.FC<{
           shippedDate: date.format('YYYY-MM-DD'),
           freight: freight ?? (customer ? undefined : 0),
           attachmentIds: files.map((f) => f.id),
+          ...(update ? {} : { customerForwarder: customer }),
         },
         update,
       );
@@ -507,11 +509,6 @@ export const ShipModal: React.FC<{
         <span>
           <RocketOutlined /> {update ? '修改运单与运费' : '登记出运'} ·{' '}
           {sh.shNo}
-          {customer && (
-            <span style={{ marginLeft: 8 }}>
-              <Pill tone="orange">客户指定货代</Pill>
-            </span>
-          )}
         </span>
       }
       footer={
@@ -532,22 +529,49 @@ export const ShipModal: React.FC<{
         </>
       }
     >
-      {customer && (
-        <div
-          style={{
-            fontSize: 12,
-            color: palette.sub,
-            background: palette.inset,
-            borderRadius: 10,
-            padding: '8px 12px',
-            marginBottom: 12,
-          }}
-        >
-          <InfoCircleOutlined /> 货交给客户自己的货代（{sh.forwarderName}
-          ），国际运输由客户安排：承运商、运单号选填，国际运费为
-          0，不进货代对账单。
-        </div>
-      )}
+      <Label required>交给谁</Label>
+      <Radio.Group
+        value={customer}
+        disabled={update}
+        onChange={(e) => setCustomer(e.target.value)}
+        aria-label="交给谁"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 10,
+          width: '100%',
+          marginBottom: 16,
+        }}
+      >
+        {[
+          {
+            value: false,
+            title: '我们的货代',
+            desc: '我们安排国际运输，填运单与国际运费，进货代对账',
+          },
+          {
+            value: true,
+            title: '客户的货代',
+            desc: '客户安排国际运输，我们只送到货代，不进对账',
+          },
+        ].map((o) => (
+          <Radio
+            key={o.title}
+            value={o.value}
+            style={{
+              margin: 0,
+              padding: '10px 12px',
+              borderRadius: 10,
+              alignItems: 'flex-start',
+              border: `1px solid ${customer === o.value ? palette.link : palette.hairline}`,
+              background: customer === o.value ? palette.accentSoft : undefined,
+            }}
+          >
+            <div style={{ fontWeight: 600, color: palette.ink }}>{o.title}</div>
+            <div style={{ fontSize: 12, color: palette.sub }}>{o.desc}</div>
+          </Radio>
+        ))}
+      </Radio.Group>
       <div
         style={{
           display: 'grid',

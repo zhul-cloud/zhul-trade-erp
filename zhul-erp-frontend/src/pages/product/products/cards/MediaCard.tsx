@@ -413,6 +413,7 @@ export const UploadModal: React.FC<{
             id="upload-title"
             value={title}
             maxLength={128}
+            placeholder="不填则用文件名"
             onChange={(e) => setTitle(e.target.value)}
           />
         </div>
