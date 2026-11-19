@@ -10,8 +10,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * 登记出运 / 修改运单。承运商、运单号、运费是否必填由服务层按出运单是否交客户指定货代判断
- * （openspec feedback-1119：交客户指定货代时只要求交货日期）。
+ * 登记出运 / 修改运单。承运商、运单号、运费是否必填由服务层按出运单是否交客户的货代判断
+ * （openspec feedback-1119：交客户的货代时只要求交货日期；ship-forwarder-choice：登记时由业务员选择）。
  */
 @Data
 public class ShipRequest {
@@ -25,4 +25,6 @@ public class ShipRequest {
     private BigDecimal freight;
     /** 面单（PDF 或图片，先上传附件拿到 ID） */
     private List<Long> attachmentIds;
+    /** 交给谁：true-客户的货代、false-我们的货代；只在登记出运时生效，不传按货代归属 */
+    private Boolean customerForwarder;
 }

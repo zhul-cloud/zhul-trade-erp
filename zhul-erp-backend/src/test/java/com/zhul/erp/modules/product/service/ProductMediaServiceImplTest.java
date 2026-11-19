@@ -84,6 +84,24 @@ class ProductMediaServiceImplTest {
         verify(mediaMapper).insert(any(ProductMediaDO.class));
     }
 
+    /** 标题没填时默认用文件名（去掉扩展名）；填了的按填的 */
+    @Test
+    void blankTitleDefaultsToFileNameWithoutExtension() {
+        org.mockito.ArgumentCaptor<ProductMediaDO> rows = org.mockito.ArgumentCaptor.forClass(ProductMediaDO.class);
+        service.upload(1L, new MockMultipartFile("file", "S7-1200 正面.v2.JPG", "image/jpeg", new byte[]{1}), 1, "  ", null);
+        service.upload(1L, file, 1, "主图", null);
+        verify(mediaMapper, org.mockito.Mockito.times(2)).insert(rows.capture());
+        assertEquals("S7-1200 正面.v2", rows.getAllValues().get(0).getTitle());
+        assertEquals("主图", rows.getAllValues().get(1).getTitle());
+    }
+
+    @Test
+    void titleFromFileName_stripsPathAndExtension() {
+        assertEquals("plc", com.zhul.erp.modules.product.service.impl.ProductMediaServiceImplAccess.title("C:\\pics\\plc.png"));
+        assertEquals(null, com.zhul.erp.modules.product.service.impl.ProductMediaServiceImplAccess.title(".png"));
+        assertEquals(128, com.zhul.erp.modules.product.service.impl.ProductMediaServiceImplAccess.title("a".repeat(200) + ".mp4").length());
+    }
+
     @Test
     void firstUploadInAWindowStartsTheExpiry() {
         service.upload(1L, file, 1, null, null);
