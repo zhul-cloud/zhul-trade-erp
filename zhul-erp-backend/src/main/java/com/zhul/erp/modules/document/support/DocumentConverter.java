@@ -12,6 +12,8 @@ import org.apache.pdfbox.pdmodel.graphics.form.PDFormXObject;
 import org.apache.pdfbox.rendering.ImageType;
 import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.pdfbox.util.Matrix;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -25,6 +27,7 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -134,7 +137,7 @@ public class DocumentConverter {
             waitingExports.decrementAndGet();
         }
         try {
-            return convert(xlsx, "document.xlsx", filter);
+            return convertXlsx(xlsx, filter);
         } finally {
             lock.unlock();
         }
@@ -235,7 +238,60 @@ public class DocumentConverter {
     }
 
     private byte[] convert(byte[] xlsx) {
-        return convert(xlsx, "document.xlsx", PDF_FILTER);
+        return convertXlsx(xlsx, PDF_FILTER);
+    }
+
+    /**
+     * Excel → PDF。超过一页时再按「宽度缩到一页」转一次，页数变少才采用：内容超出纸宽时，
+     * 表格会被横向切成两页（不同环境字体宽度不同，模版在本机放得下、服务器上可能放不下）；
+     * 没超宽时缩到一页宽只会放大、页数不会变少，所以正常单据不受影响。
+     */
+    private byte[] convertXlsx(byte[] xlsx, String filter) {
+        byte[] pdf = convert(xlsx, "document.xlsx", filter);
+        int pages = pageCount(pdf);
+        if (pages <= 1) {
+            return pdf;
+        }
+        byte[] fitted = fitToOnePageWide(xlsx);
+        if (fitted == null) {
+            return pdf;
+        }
+        byte[] alt = convert(fitted, "document.xlsx", filter);
+        return pageCount(alt) < pages ? alt : pdf;
+    }
+
+    /** 各工作表打印设置改为宽度缩到一页、高度不限；模版本来就是「调整为一页」或打不开时返回 null */
+    static byte[] fitToOnePageWide(byte[] xlsx) {
+        try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(xlsx))) {
+            boolean changed = false;
+            for (int i = 0; i < wb.getNumberOfSheets(); i++) {
+                XSSFSheet sheet = wb.getSheetAt(i);
+                if (sheet.getFitToPage()) {
+                    continue;
+                }
+                sheet.setFitToPage(true);
+                sheet.getPrintSetup().setFitWidth((short) 1);
+                sheet.getPrintSetup().setFitHeight((short) 0);
+                changed = true;
+            }
+            if (!changed) {
+                return null;
+            }
+            ByteArrayOutputStream out = new ByteArrayOutputStream(xlsx.length);
+            wb.write(out);
+            return out.toByteArray();
+        } catch (IOException e) {
+            log.warn("调整打印宽度失败，按原样导出", e);
+            return null;
+        }
+    }
+
+    private static int pageCount(byte[] pdf) {
+        try (PDDocument doc = Loader.loadPDF(pdf)) {
+            return doc.getNumberOfPages();
+        } catch (IOException e) {
+            return 1;
+        }
     }
 
     private byte[] convert(byte[] content, String fileName, String filter) {
