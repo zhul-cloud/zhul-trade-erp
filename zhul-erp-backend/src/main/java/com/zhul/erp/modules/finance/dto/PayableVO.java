@@ -31,6 +31,8 @@ public class PayableVO {
     private BigDecimal paidCny;
     private BigDecimal unpaidAmount;
     private BigDecimal creditAmount;
+    /** 待退款标记时间；为空表示不是待退款（openspec po-cancel-refund） */
+    private java.time.LocalDateTime refundExpectedAt;
     /** 汇兑差异（人民币）：已付人民币 − 已付原币按应付汇率折算，只显示 */
     private BigDecimal exchangeDiff;
     /** 1-未付、2-部分付款、3-已付清、4-已关闭 */

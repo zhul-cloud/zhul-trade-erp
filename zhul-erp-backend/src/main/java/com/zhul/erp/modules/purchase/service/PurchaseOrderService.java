@@ -37,6 +37,9 @@ public interface PurchaseOrderService {
 
     PurchaseOrderVO cancel(Long id, CancelPurchaseOrderRequest req);
 
+    /** 取消预览：各笔实付及选「会退款」后的处理（openspec po-cancel-refund）；没有实付或不是已下单时为空 */
+    java.util.List<com.zhul.erp.modules.finance.dto.CancelSettlementVO> cancelPreview(Long id);
+
     void deleteDraft(Long id);
 
     /** 线上店铺转为供应商：该店铺的草稿、已下单采购订单与建议这家店的需求都改为指向新供应商 */

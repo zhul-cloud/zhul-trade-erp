@@ -70,6 +70,8 @@ public class PurchaseOrderDO {
     private String cancelReason;
     private Long cancelledBy;
     private LocalDateTime cancelledAt;
+    /** 取消时是否退款（0-无付款或未选、1-会退款、2-不退款），openspec po-cancel-refund */
+    private Integer cancelRefund;
     /** 历史迁移（0-否、1-是）；迁移数据只读，见 MigratedGuard */
     private Integer migrated;
     private LocalDateTime deletedAt;

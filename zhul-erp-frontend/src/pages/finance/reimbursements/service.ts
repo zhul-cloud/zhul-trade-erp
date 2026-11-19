@@ -51,6 +51,8 @@ export interface AdvanceItem {
   advanceUserName?: string;
   /** 是当前用户本人的垫付 */
   mine: boolean;
+  /** 可以在这里撤回（作废）：采购货款、收到退款、费用单 */
+  withdrawable: boolean;
 }
 
 export interface RefundReminder {
@@ -129,6 +131,13 @@ export const reimburseApi = {
     remark?: string;
     idempotencyKey: string;
   }) => send<Payment>('POST', `${BX}/refunds`, body),
+  /** 撤回待报销项：撤回即作废（openspec po-cancel-refund） */
+  withdrawItem: (sourceType: number, sourceId: number, reason: string) =>
+    send<void>('POST', `${BX}/items/withdraw`, {
+      sourceType,
+      sourceId,
+      reason,
+    }),
   submit: (items: { sourceType: number; sourceId: number }[]) =>
     send<Reimbursement[]>('POST', BX, { items }),
   page: (q: ReimbursementQuery) =>

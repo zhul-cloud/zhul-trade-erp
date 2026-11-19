@@ -25,6 +25,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Radio,
   Segmented,
   Select,
   Skeleton,
@@ -90,6 +91,7 @@ import {
 } from '../components';
 import { type PurchaseReturn, purchaseReturnApi } from '../returns/service';
 import {
+  type CancelSettlement,
   type CounterpartyValue,
   FEE_TYPE,
   type PaymentTerm,
@@ -622,7 +624,7 @@ const PurchaseOrderDetail: React.FC = () => {
               ? ` · ${po.orderDate} 下单${po.expectedShipDate ? ` · 预计 ${po.expectedShipDate} 发货` : ''}`
               : ` · ${dayjs(po.createTime).format('YYYY-MM-DD')} 创建 · 确认下单时分配编号`}
             {po.status === PO_STATUS.CANCELLED &&
-              ` · ${po.cancelledByName ?? ''} 取消：${po.cancelReason ?? ''}`}
+              ` · ${po.cancelledByName ?? ''} 取消：${po.cancelReason ?? ''}${po.cancelRefund === 1 ? '（会退款）' : po.cancelRefund === 2 ? '（不退款）' : ''}`}
           </>
         }
         actions={
@@ -1393,10 +1395,11 @@ const PurchaseOrderDetail: React.FC = () => {
       />
       <CancelModal
         open={cancelOpen}
+        poId={poId}
         onClose={() => setCancelOpen(false)}
-        onConfirm={async (reason) => {
+        onConfirm={async (reason, refund) => {
           try {
-            const p = await poApi.cancel(poId, reason);
+            const p = await poApi.cancel(poId, reason, refund);
             apply(p);
             setCancelOpen(false);
             message.success('采购订单已取消，各型号数量回到需求池');
@@ -2127,36 +2130,74 @@ export const ConfirmModal: React.FC<{
   );
 };
 
-const CancelModal: React.FC<{
+const METHOD_NAMES: Record<number, string> = {
+  1: '公司对公',
+  2: '员工垫付',
+  3: '私对私',
+};
+
+/** 选「会退款」后这笔付款怎么处理；选「不退款」时都不动 */
+const settleText = (s: CancelSettlement, refund?: boolean) => {
+  if (refund === false) {
+    return s.method === 2
+      ? `不动，仍在 ${s.advanceUser} 的待报销里`
+      : '不动，已付转为欠款';
+  }
+  if (s.action === 1) return '作废这笔垫付，不再报销';
+  if (s.action === 2)
+    return `以 ${s.advanceUser} 名义登记已收到退款 −${formatAmount(s.amount, s.currencyCode)}，下次报销扣回`;
+  return '应付单标「待退款」，财务到账后登记退款';
+};
+
+export const CancelModal: React.FC<{
   open: boolean;
+  poId: number;
   onClose: () => void;
-  onConfirm: (reason: string) => Promise<void>;
-}> = ({ open, onClose, onConfirm }) => {
+  onConfirm: (reason: string, refund?: boolean) => Promise<void>;
+}> = ({ open, poId, onClose, onConfirm }) => {
   const { palette } = useAppTheme();
   const [reason, setReason] = useState('');
+  const [refund, setRefund] = useState<boolean>();
+  const [payments, setPayments] = useState<CancelSettlement[]>();
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    if (open) setReason('');
-  }, [open]);
+    if (!open) return;
+    setReason('');
+    setRefund(undefined);
+    setPayments(undefined);
+    poApi
+      .cancelPreview(poId)
+      .then(setPayments)
+      .catch(() => setPayments([]));
+  }, [open, poId]);
+  const paid = (payments?.length ?? 0) > 0;
+  const voided = (payments ?? []).filter((p) => p.action === 1);
   return (
     <Modal
       open={open}
       title="取消采购订单"
-      width={480}
+      width={paid ? 640 : 480}
       onCancel={onClose}
-      okText="取消采购订单"
-      okButtonProps={{ danger: true, disabled: !reason.trim(), loading: busy }}
-      cancelText="不取消"
+      okText="确认取消"
+      okButtonProps={{
+        danger: true,
+        disabled:
+          !reason.trim() ||
+          payments === undefined ||
+          (paid && refund === undefined),
+        loading: busy,
+      }}
+      cancelText="再想想"
       onOk={async () => {
         setBusy(true);
         try {
-          await onConfirm(reason.trim());
+          await onConfirm(reason.trim(), paid ? refund : undefined);
         } finally {
           setBusy(false);
         }
       }}
     >
-      <div style={{ display: 'grid', gap: 10 }}>
+      <div style={{ display: 'grid', gap: 14 }}>
         <Input.TextArea
           value={reason}
           maxLength={200}
@@ -2164,9 +2205,111 @@ const CancelModal: React.FC<{
           onChange={(e) => setReason(e.target.value)}
           aria-label="取消原因"
         />
-        <div style={{ fontSize: 12, color: palette.mute }}>
-          取消后各型号数量回到需求池，订单型号的进度随之回到「待采购」。
-        </div>
+        {paid && (
+          <>
+            <Radio.Group
+              value={refund}
+              onChange={(e) => setRefund(e.target.value)}
+              aria-label="店铺 / 供应商是否退款"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 10,
+                width: '100%',
+              }}
+            >
+              {[
+                {
+                  value: true,
+                  title: '会退款',
+                  desc: '钱原路退回付款人，系统按付款方式自动收尾',
+                },
+                {
+                  value: false,
+                  title: '不退款',
+                  desc: '已付转为欠款，以后付给同一收款方时抵扣',
+                },
+              ].map((o) => (
+                <Radio
+                  key={o.title}
+                  value={o.value}
+                  style={{
+                    margin: 0,
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    alignItems: 'flex-start',
+                    border: `1px solid ${refund === o.value ? palette.link : palette.hairline}`,
+                    background:
+                      refund === o.value ? palette.accentSoft : undefined,
+                  }}
+                >
+                  <div style={{ fontWeight: 600, color: palette.ink }}>
+                    {o.title}
+                  </div>
+                  <div style={{ fontSize: 12, color: palette.sub }}>
+                    {o.desc}
+                  </div>
+                </Radio>
+              ))}
+            </Radio.Group>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {payments?.map((p) => (
+                <div
+                  key={p.paymentId}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '200px 100px 1fr',
+                    gap: 12,
+                    alignItems: 'center',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    border: `1px solid ${palette.hairline}`,
+                  }}
+                >
+                  <div>
+                    <Space size={6}>
+                      <span style={{ fontWeight: 600 }}>{p.paymentNo}</span>
+                      <Pill tone={p.method === 2 ? 'orange' : 'accent'}>
+                        {METHOD_NAMES[p.method]}
+                      </Pill>
+                    </Space>
+                    {p.method === 2 && (
+                      <div style={{ fontSize: 12, color: palette.mute }}>
+                        {p.advanceUser} ·{' '}
+                        {p.reimburseStatus === 2 ? '已进报销单' : '待报销'}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ fontWeight: 600 }}>
+                    {formatAmount(p.amount, p.currencyCode)}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: refund === undefined ? palette.mute : palette.ink,
+                    }}
+                  >
+                    {refund === undefined
+                      ? '选择是否退款后显示处理方式'
+                      : settleText(p, refund)}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {refund === true && voided.length > 0 && (
+              <Alert
+                type="warning"
+                showIcon
+                title={`作废后 ${[...new Set(voided.map((v) => v.advanceUser))].join('、')} 不再报销这 ${voided.map((v) => formatAmount(v.amount, v.currencyCode)).join(' + ')}，请确认店铺会原路退回。`}
+              />
+            )}
+          </>
+        )}
+        {!paid && payments !== undefined && (
+          <div style={{ fontSize: 12, color: palette.mute }}>
+            取消后各型号数量回到需求池，订单型号的进度随之回到「待采购」。
+          </div>
+        )}
       </div>
     </Modal>
   );

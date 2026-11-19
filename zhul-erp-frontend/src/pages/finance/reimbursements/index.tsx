@@ -45,6 +45,7 @@ import {
 import {
   type AdvanceItem,
   BX_STATUS,
+  ITEM_NAMES,
   type RefundReminder,
   type Reimbursement,
   reimburseApi,
@@ -56,6 +57,93 @@ const newKey = () =>
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 /** 登记已收到退款：供应商退到员工手里 */
+/** 从待报销撤回：撤回即作废这一项（openspec po-cancel-refund） */
+export const WithdrawItemModal: React.FC<{
+  target?: AdvanceItem;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ target, onClose, onDone }) => {
+  const { message } = App.useApp();
+  const { palette } = useAppTheme();
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    if (target) setReason('');
+  }, [target]);
+  const submit = async () => {
+    if (!target) return;
+    setSaving(true);
+    try {
+      await reimburseApi.withdrawItem(
+        target.sourceType,
+        target.sourceId,
+        reason.trim(),
+      );
+      message.success(`已撤回 ${target.sourceNo}`);
+      onDone();
+      onClose();
+    } catch (e) {
+      message.error(readBizError(e).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <Modal
+      open={!!target}
+      title={`从待报销撤回 · ${target?.sourceNo ?? ''}`}
+      width={520}
+      onCancel={onClose}
+      okText="撤回"
+      cancelText="取消"
+      okButtonProps={{
+        danger: true,
+        disabled: !reason.trim(),
+        loading: saving,
+      }}
+      onOk={submit}
+    >
+      {target && (
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div
+            style={{
+              padding: '10px 12px',
+              borderRadius: 10,
+              border: `1px solid ${palette.hairline}`,
+            }}
+          >
+            <div style={{ fontWeight: 600 }}>
+              {ITEM_NAMES[target.sourceType]} · {target.description}
+            </div>
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              {formatAmount(target.amount, 'CNY')} · {target.occurDate ?? ''}
+              {target.advanceUserName ? ` · ${target.advanceUserName}` : ''}
+            </div>
+          </div>
+          <Alert
+            type="info"
+            showIcon
+            title={
+              target.sourceType === 4
+                ? '撤回即作废这张费用单，不再报销'
+                : target.sourceType === 5
+                  ? '撤回即作废这条退款登记，应付单的欠款随之恢复'
+                  : '撤回即作废这笔垫付，不再报销；应付单的已付相应减少'
+            }
+          />
+          <Input.TextArea
+            value={reason}
+            maxLength={200}
+            placeholder="撤回原因，如采购已取消、店铺已原路退款"
+            onChange={(e) => setReason(e.target.value)}
+            aria-label="撤回原因"
+          />
+        </div>
+      )}
+    </Modal>
+  );
+};
+
 const RefundReceivedModal: React.FC<{
   target?: RefundReminder;
   onClose: () => void;
@@ -183,6 +271,7 @@ const PendingTab: React.FC<{
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [refund, setRefund] = useState<RefundReminder>();
+  const [withdrawing, setWithdrawing] = useState<AdvanceItem>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -322,6 +411,30 @@ const PendingTab: React.FC<{
           </span>
         ),
     },
+    {
+      title: '操作',
+      key: 'op',
+      width: 120,
+      render: (_, i) =>
+        i.withdrawable ? (
+          <Button
+            type="link"
+            size="small"
+            style={{ padding: 0 }}
+            onClick={() => setWithdrawing(i)}
+          >
+            撤回
+          </Button>
+        ) : (
+          <span style={{ color: palette.mute, fontSize: 12 }}>
+            {i.sourceType === 2
+              ? '随快递单处理'
+              : i.sourceType === 3
+                ? '随退货单处理'
+                : '—'}
+          </span>
+        ),
+    },
   ];
 
   return (
@@ -443,6 +556,11 @@ const PendingTab: React.FC<{
       <RefundReceivedModal
         target={refund}
         onClose={() => setRefund(undefined)}
+        onDone={load}
+      />
+      <WithdrawItemModal
+        target={withdrawing}
+        onClose={() => setWithdrawing(undefined)}
         onDone={load}
       />
     </div>

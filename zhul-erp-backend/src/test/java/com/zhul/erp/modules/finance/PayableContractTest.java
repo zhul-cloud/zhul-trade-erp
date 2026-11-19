@@ -334,7 +334,7 @@ class PayableContractTest extends SalesContractSupport {
         long poId = po.path("id").asLong();
         long apId = bySource(poId, admin).path("id").asLong();
         ok(pay(payBody(1, "600.00", Map.of(apId, "600.00"), admin), admin));
-        ok(call(json(post(PO + "/" + poId + "/cancel"), "{\"reason\":\"供应商缺货\"}"), admin));
+        ok(call(json(post(PO + "/" + poId + "/cancel"), "{\"reason\":\"供应商缺货\",\"refund\":false}"), admin));
         JsonNode ap = bySource(poId, admin);
         assertEquals(4, ap.path("status").asInt());
         money("0.00", ap.path("amount"));
@@ -644,7 +644,7 @@ class PayableContractTest extends SalesContractSupport {
         long poA = orderedPo(sup, "DEP-1", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
         long apA = bySource(poA, admin).path("id").asLong();
         JsonNode cash = ok(pay(payBody(1, "100.00", Map.of(apA, "100.00"), admin), admin));
-        ok(call(json(post(PO + "/" + poA + "/cancel"), "{\"reason\":\"供应商缺货\"}"), admin));
+        ok(call(json(post(PO + "/" + poA + "/cancel"), "{\"reason\":\"供应商缺货\",\"refund\":false}"), admin));
         money("100.00", bySource(poA, admin).path("creditAmount"));
 
         long poB = orderedPo(sup, "DEP-2", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
@@ -682,7 +682,7 @@ class PayableContractTest extends SalesContractSupport {
         Map<String, Object> cash = payBody(1, "100.00", Map.of(apA, "100.00"), admin);
         cash.put("amountCny", new BigDecimal("710.00"));
         ok(pay(cash, admin));
-        ok(call(json(post(PO + "/" + poA + "/cancel"), "{\"reason\":\"供应商缺货\"}"), admin));
+        ok(call(json(post(PO + "/" + poA + "/cancel"), "{\"reason\":\"供应商缺货\",\"refund\":false}"), admin));
 
         Map<String, Object> body = payBody(1, "0.00", Map.of(apB, "100.00"), admin);
         body.put("credits", List.of(Map.of("payableId", apA, "amount", new BigDecimal("100.00"))));
@@ -838,7 +838,7 @@ class PayableContractTest extends SalesContractSupport {
         assertEquals("删除附件", r.path("logs").get(0).path("action").asText());
 
         // 取消采购订单后应付单关闭，仍可改备注
-        ok(call(json(post(PO + "/" + poId + "/cancel"), "{\"reason\":\"供应商缺货\"}"), admin));
+        ok(call(json(post(PO + "/" + poId + "/cancel"), "{\"reason\":\"供应商缺货\",\"refund\":false}"), admin));
         d = ok(call(get(AP + "/" + apId), admin));
         assertTrue(d.path("logs").toString().contains("关闭"), d.path("logs").toString());
         assertEquals("补发票", ok(call(json(post(AP + "/" + apId + "/remark"), "{\"remark\":\"补发票\"}"), admin))

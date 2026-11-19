@@ -132,6 +132,8 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     private final com.zhul.erp.modules.warehouse.support.PurchaseReceivingLinks receivingLinks;
     private final ShipProgress shipProgress;
     private final PayableSyncService payables;
+    /** 取消后的付款收尾在 finance，经 ObjectProvider 取用，避免与 PaymentService → PurchaseOrderService 形成构造循环 */
+    private final org.springframework.beans.factory.ObjectProvider<com.zhul.erp.modules.finance.service.PurchaseCancelSettlement> cancelSettlement;
     private final PayableQueryService payableQuery;
     private final AttachmentService attachmentService;
     private final SalesOrderItemMapper soItemMapper;
@@ -476,6 +478,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         vo.setCancelReason(p.getCancelReason());
         vo.setCancelledByName(users.get(p.getCancelledBy()));
         vo.setCancelledAt(p.getCancelledAt());
+        vo.setCancelRefund(p.getCancelRefund());
         vo.setEditable(p.getStatus() != PurchaseConstants.PO_CANCELLED);
         Map<Long, com.zhul.erp.modules.sales.support.ItemRemarks.Remark> remarks = itemRemarks.ofSoItems(lines.stream().map(PurchaseOrderItemDO::getSoItemId).toList());
         vo.setRemarkAlerts((int) lines.stream().filter(i -> Objects.equals(i.getRemarkAlert(), 1)).count());
@@ -1083,6 +1086,12 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             throw new BizException("已有发货，请在到货差异里处理少发或退货");
         }
         String why = req.getReason().trim();
+        // 有实付时必须选店铺 / 供应商是否退款（openspec po-cancel-refund）
+        boolean hasPaid = !cancelSettlement.getObject().preview(id).isEmpty();
+        if (hasPaid && req.getRefund() == null) {
+            throw new BizException("请选择店铺 / 供应商是否退款");
+        }
+        p.setCancelRefund(!hasPaid ? 0 : req.getRefund() ? 1 : 2);
         p.setStatus(PurchaseConstants.PO_CANCELLED);
         p.setCancelReason(why);
         p.setCancelledBy(currentUser.resolve());
@@ -1091,13 +1100,29 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         List<PurchaseOrderItemDO> lines = drafts.items(id);
         closeEmptyCancelledRequirements(lines);
         touch.touch(lines.stream().map(PurchaseOrderItemDO::getRequirementId).toList());
-        logs.add(id, "取消", "原因：" + why + "；各型号数量回到需求池", p.getCancelledBy());
+        logs.add(id, "取消", "原因：" + why + (hasPaid ? "；" + (req.getRefund() ? "会退款" : "不退款") : "")
+                + "；各型号数量回到需求池", p.getCancelledBy());
         progress.sync(lines.stream().map(PurchaseOrderItemDO::getSoItemId).toList());
         logService.recordOperateLog(PurchaseConstants.MENU_ORDER, "取消采购订单", Map.of("poNo", p.getPoNo(), "status", "已下单"),
                 Map.of("poNo", p.getPoNo(), "status", "已取消", "reason", why));
         payables.syncPurchaseOrder(id);
+        if (hasPaid) {
+            List<String> notes = cancelSettlement.getObject().settle(id, p.getPoNo(), req.getRefund());
+            if (!notes.isEmpty()) {
+                logs.add(id, "取消收尾", String.join("；", notes), p.getCancelledBy());
+            }
+        }
         followupHooks.purchaseChanged(id);
         return detail(id);
+    }
+
+    @Override
+    public List<com.zhul.erp.modules.finance.dto.CancelSettlementVO> cancelPreview(Long id) {
+        PurchaseOrderDO p = visible(id);
+        if (p.getStatus() != PurchaseConstants.PO_ORDERED) {
+            return List.of();
+        }
+        return cancelSettlement.getObject().preview(id);
     }
 
     /** 来源订单已取消的需求：采购订单取消后已下单数量归零的，需求关闭 */

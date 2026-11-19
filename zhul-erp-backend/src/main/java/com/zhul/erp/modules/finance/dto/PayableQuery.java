@@ -14,6 +14,8 @@ public class PayableQuery {
     /** OVERDUE、SOON、WAITING、MONTH */
     private String due;
     private Boolean hasCredit;
+    /** 只看待退款（openspec po-cancel-refund） */
+    private Boolean refundExpected;
     private String currencyCode;
     private Boolean showClosed;
     /** UPDATE（默认，更新时间倒序）、DUE（到期日正序） */

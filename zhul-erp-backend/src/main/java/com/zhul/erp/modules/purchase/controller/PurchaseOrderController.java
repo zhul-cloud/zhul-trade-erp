@@ -101,6 +101,13 @@ public class PurchaseOrderController {
         return Result.ok(service.cancel(id, req));
     }
 
+    /** 取消预览：各笔实付及选「会退款」后的处理（openspec po-cancel-refund） */
+    @GetMapping("/{id}/cancel-preview")
+    @PreAuthorize(CANCEL)
+    public Result<java.util.List<com.zhul.erp.modules.finance.dto.CancelSettlementVO>> cancelPreview(@PathVariable Long id) {
+        return Result.ok(service.cancelPreview(id));
+    }
+
     /** 我已核对：清除下单后更新的型号备注的标红（openspec item-remark） */
     @PostMapping("/{id}/remark-checked")
     @PreAuthorize(EDIT)

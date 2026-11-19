@@ -461,22 +461,48 @@ public class PaymentService {
             throw new BizException("退款不能超过欠款 " + p.getCreditAmount());
         }
         BigDecimal amountCny = cnyOf(p.getCurrencyCode(), amount, req.getAmountCny());
+        return received(p, amount, amountCny, req.getReceivedDate(), req.getRemark(), req.getAttachmentIds(),
+                SecurityUtils.getCurrentUsername(), req.getIdempotencyKey());
+    }
+
+    /**
+     * 采购订单取消选「会退款」时，以垫付人名义自动登记已收到退款（openspec po-cancel-refund）：不校验当前用户是否垫付人，
+     * 收到日期为当天，不要求截图；金额不超过欠款。调用方在取消的事务内，应付单已由本方法加锁。
+     */
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
+    public PaymentVO receivedOnCancel(Long payableId, String advanceUser, BigDecimal amount, BigDecimal amountCny,
+                                      String remark, String idempotencyKey) {
+        PaymentDO dup = byKey(idempotencyKey);
+        if (dup != null) {
+            return toVo(dup);
+        }
+        PayableDO p = lock(new TreeSet<>(List.of(payableId))).get(payableId);
+        BigDecimal amt = scale(amount).min(p.getCreditAmount());
+        if (amt.signum() <= 0) {
+            return null;
+        }
+        BigDecimal cny = "CNY".equals(p.getCurrencyCode()) ? amt : scale(amountCny);
+        return received(p, amt, cny, LocalDate.now(), remark, List.of(), advanceUser, idempotencyKey);
+    }
+
+    private PaymentVO received(PayableDO p, BigDecimal amount, BigDecimal amountCny, LocalDate date, String remark,
+                               List<Long> attachmentIds, String advanceUser, String idempotencyKey) {
         PaymentDO pay = new PaymentDO();
         pay.setTenantId(PiStore.tenantId());
         pay.setPaymentNo(documentNumberService.next(DocumentType.PY));
         pay.setKind(FinanceConstants.KIND_REFUND);
         copyPayee(p, pay);
         pay.setMethod(FinanceConstants.METHOD_ADVANCE);
-        pay.setAdvanceUser(SecurityUtils.getCurrentUsername());
-        pay.setPayDate(req.getReceivedDate());
+        pay.setAdvanceUser(advanceUser);
+        pay.setPayDate(date);
         pay.setCurrencyCode(p.getCurrencyCode());
         pay.setAmount(amount);
         pay.setAmountCny(amountCny);
         pay.setActualRate(rateOf(amount, amountCny));
         pay.setCreditUsed(BigDecimal.ZERO);
-        pay.setRemark(req.getRemark() == null ? "" : req.getRemark().trim());
+        pay.setRemark(remark == null ? "" : remark.trim());
         pay.setReimburseStatus(FinanceConstants.REIMBURSE_PENDING);
-        pay.setIdempotencyKey(req.getIdempotencyKey());
+        pay.setIdempotencyKey(idempotencyKey);
         paymentMapper.insert(pay);
         PaymentAllocationDO a = new PaymentAllocationDO();
         a.setTenantId(pay.getTenantId());
@@ -486,7 +512,7 @@ public class PaymentService {
         a.setAmountCny(amountCny);
         a.setFromCredit(2);
         allocationMapper.insert(a);
-        attachments.attach(OWNER_TYPE, pay.getId(), req.getAttachmentIds());
+        attachments.attach(OWNER_TYPE, pay.getId(), attachmentIds);
         sync.refresh(p.getId());
         logPayables(pay, List.of(a), false);
         docLogs.add(DocumentType.PY, pay.getId(), "登记", "已收到供应商退款：" + pay.getCurrencyCode() + " " + amount.toPlainString()
@@ -509,6 +535,28 @@ public class PaymentService {
         if (!hasVoidRight(pay)) {
             throw new BizException("只有登记人或有「付款登记」权限的人可以作废");
         }
+        return doVoid(id, reason);
+    }
+
+    /**
+     * 采购订单取消选「会退款」时，作废员工垫付（openspec po-cancel-refund）；也用于撤回待报销项。
+     * 不校验「登记人或付款登记权限」，由调用方校验；已进报销单、欠款已被使用时仍拒绝。
+     */
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
+    public PaymentVO voidBySystem(Long id, String reason) {
+        PaymentDO pay = visible(id);
+        MigratedGuard.requireEditable(pay.getMigrated());
+        if (pay.getVoidAt() != null) {
+            throw new BizException("付款单已作废");
+        }
+        if (Objects.equals(pay.getKind(), FinanceConstants.KIND_REIMBURSE)) {
+            throw new BizException("报销付款请在报销单上撤销已付");
+        }
+        return doVoid(id, reason);
+    }
+
+    private PaymentVO doVoid(Long id, String reason) {
+        PaymentDO pay;
         List<PaymentAllocationDO> allocs = allocationsOf(List.of(id)).getOrDefault(id, List.of());
         TreeSet<Long> ids = new TreeSet<>();
         allocs.forEach(a -> {

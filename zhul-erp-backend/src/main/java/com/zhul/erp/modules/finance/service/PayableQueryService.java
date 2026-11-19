@@ -87,6 +87,9 @@ public class PayableQueryService {
         if (Boolean.TRUE.equals(q.getHasCredit())) {
             w.gt(PayableDO::getCreditAmount, 0);
         }
+        if (Boolean.TRUE.equals(q.getRefundExpected())) {
+            w.isNotNull(PayableDO::getRefundExpectedAt);
+        }
         String due = q.getDue() == null ? "" : q.getDue();
         switch (due) {
             case "OVERDUE" -> w.lt(PayableDO::getNextDueDate, today);
@@ -161,6 +164,9 @@ public class PayableQueryService {
             if (p.getCreditAmount() != null && p.getCreditAmount().signum() > 0) {
                 vo.setCredit(vo.getCredit().add(cny(p.getCreditAmount(), rate)));
                 vo.setCreditCount(vo.getCreditCount() + 1);
+                if (p.getRefundExpectedAt() != null) {
+                    vo.setRefundExpectedCount(vo.getRefundExpectedCount() + 1);
+                }
             }
         }
         return vo;
@@ -333,6 +339,7 @@ public class PayableQueryService {
         boolean closed = p.getStatus() == FinanceConstants.STATUS_CLOSED;
         vo.setUnpaidAmount(closed ? BigDecimal.ZERO : p.getAmount().subtract(p.getPaidAmount()).max(BigDecimal.ZERO));
         vo.setCreditAmount(p.getCreditAmount());
+        vo.setRefundExpectedAt(p.getRefundExpectedAt());
         BigDecimal rate = p.getExchangeRate() == null ? BigDecimal.ONE : p.getExchangeRate();
         vo.setExchangeDiff("CNY".equals(p.getCurrencyCode()) ? BigDecimal.ZERO
                 : p.getPaidCny().subtract(cny(p.getPaidAmount().min(p.getAmount()).max(BigDecimal.ZERO), rate)));
