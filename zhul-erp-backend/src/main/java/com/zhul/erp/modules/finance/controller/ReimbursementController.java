@@ -44,6 +44,7 @@ public class ReimbursementController {
 
     private final ReimbursementService service;
     private final PaymentService payments;
+    private final com.zhul.erp.modules.finance.service.PendingItemWithdrawService withdrawals;
 
     @GetMapping("/pending")
     @PreAuthorize(MENU)
@@ -62,6 +63,14 @@ public class ReimbursementController {
     @PreAuthorize(MENU)
     public Result<AdvanceItemVO> addProof(@Valid @RequestBody ProofRequest req) {
         return Result.ok(service.addProof(req));
+    }
+
+    /** 撤回待报销项：撤回即作废（openspec po-cancel-refund） */
+    @PostMapping("/items/withdraw")
+    @PreAuthorize(MENU)
+    public Result<Void> withdrawItem(@Valid @RequestBody com.zhul.erp.modules.finance.dto.WithdrawItemRequest req) {
+        withdrawals.withdraw(req.getSourceType(), req.getSourceId(), req.getReason());
+        return Result.ok();
     }
 
     @PostMapping("/refunds")

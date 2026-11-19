@@ -127,6 +127,13 @@ public class ReimbursementService {
         Me me = me();
         List<AdvanceItemVO> all = collect(me, allPeople && perm.has(FinanceConstants.PERM_REIMBURSE_PAY));
         Set<String> claimed = activeKeys(all);
+        boolean payVoid = perm.has(FinanceConstants.PERM_REGISTER);
+        boolean feVoid = perm.has(FinanceConstants.PERM_EXPENSE_EDIT);
+        all.forEach(i -> i.setWithdrawable(switch (i.getSourceType()) {
+            case FinanceConstants.ITEM_PAYMENT, FinanceConstants.ITEM_REFUND -> i.isMine() || payVoid;
+            case FinanceConstants.ITEM_EXPENSE -> i.isMine() || feVoid;
+            default -> false;
+        }));
         return all.stream().filter(i -> !claimed.contains(key(i.getSourceType(), i.getSourceId())))
                 .sorted(Comparator.comparing((AdvanceItemVO i) -> i.getOccurDate() == null ? LocalDate.MIN : i.getOccurDate())
                         .thenComparing(AdvanceItemVO::getSourceType))

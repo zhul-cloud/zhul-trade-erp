@@ -29,4 +29,6 @@ public class AdvanceItemVO {
     private String advanceUserName;
     /** 是当前用户本人的垫付 */
     private boolean mine;
+    /** 可以在这里撤回（作废）：采购货款、收到退款、费用单，本人或有对应作废权限（openspec po-cancel-refund） */
+    private boolean withdrawable;
 }

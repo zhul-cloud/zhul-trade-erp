@@ -109,6 +109,8 @@ export interface Payable {
   paidCny: number;
   unpaidAmount: number;
   creditAmount: number;
+  /** 待退款标记时间（openspec po-cancel-refund） */
+  refundExpectedAt?: string;
   exchangeDiff?: number;
   status: number;
   nextDueDate?: string;
@@ -142,6 +144,8 @@ export interface PayableStats {
   soonCount: number;
   credit: number;
   creditCount: number;
+  /** 其中待退款的应付单数 */
+  refundExpectedCount?: number;
 }
 
 export interface PayableQuery {
@@ -153,6 +157,8 @@ export interface PayableQuery {
   /** OVERDUE、SOON、WAITING、MONTH */
   due?: string;
   hasCredit?: boolean;
+  /** 只看待退款 */
+  refundExpected?: boolean;
   currencyCode?: string;
   showClosed?: boolean;
 }

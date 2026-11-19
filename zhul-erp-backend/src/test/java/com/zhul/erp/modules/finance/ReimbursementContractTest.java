@@ -382,7 +382,7 @@ class ReimbursementContractTest extends SalesContractSupport {
         long poId = po.path("id").asLong();
         long apId = payableOf(poId);
         advance(apId, "860.00");
-        ok(call(json(post(PO + "/" + poId + "/cancel"), "{\"reason\":\"缺货\"}"), admin));
+        ok(call(json(post(PO + "/" + poId + "/cancel"), "{\"reason\":\"缺货\",\"refund\":false}"), admin));
         money("860.00", ok(call(get(AP + "/by-source").param("sourceType", "1").param("sourceId", String.valueOf(poId)), admin))
                 .path("creditAmount"));
 

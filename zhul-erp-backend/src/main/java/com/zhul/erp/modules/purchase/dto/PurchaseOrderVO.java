@@ -74,6 +74,8 @@ public class PurchaseOrderVO implements ShipFields {
     private String cancelReason;
     private String cancelledByName;
     private LocalDateTime cancelledAt;
+    /** 取消时是否退款（0-无付款或未选、1-会退款、2-不退款） */
+    private Integer cancelRefund;
     /** 草稿或已下单时可改 */
     private Boolean editable;
     private List<Item> items;

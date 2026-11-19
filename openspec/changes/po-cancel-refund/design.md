@@ -26,10 +26,10 @@
 3. **逐笔判定顺序**（只看 `from_credit = 0` 的实付核销）：
    - 垫付 + 待报销 + 这笔付款只核销本应付单 + 它的欠款没被抵扣出去 → 作废付款；
    - 其余垫付（已进报销单，或核销了多张，或欠款已被抵扣）→ 以 `advance_user` 名义登记已收到退款，金额 = 本笔核销到本应付单的金额，且不超过当时欠款；
-   - 对公 / 私对私 → 不动，`fin_payable.refund_expected = 1`。
+   - 对公 / 私对私 → 不动，写入 `fin_payable.refund_expected_at`。
    先处理作废（会减少已付），再按剩余欠款登记退款，避免超过欠款。
 
-4. **「待退款」标记**：`fin_payable.refund_expected tinyint NOT NULL DEFAULT 0`（0-否、1-待退款）。`PayableSyncService.refresh` 在欠款为 0 时清零，所以财务登记退款或欠款抵扣用完后自动去掉。备选「每次查询时现算」需要再存一份取消选择，且无法区分「不退款」，不采用。
+4. **「待退款」标记**：`fin_payable.refund_expected_at datetime NULL`（NULL 表示不是待退款），记标记时间，列表据此显示「待退款 · N 天」。`PayableSyncService` 重算时欠款为 0 就清空，所以财务登记退款或欠款抵扣用完后自动去掉。备选「tinyint 标记」无法显示标记天数；「每次查询时现算」需要再存一份取消选择，且无法区分「不退款」，均不采用。
 
 5. **采购订单记录选择**：`purchase_order.cancel_refund tinyint NOT NULL DEFAULT 0`（0-无付款或未选、1-会退款、2-不退款），详情显示，供追溯。请求体 `CancelPurchaseOrderRequest` 增加 `refund`（Boolean），有实付时为必填，服务端校验。
 

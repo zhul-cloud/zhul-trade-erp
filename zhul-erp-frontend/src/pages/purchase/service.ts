@@ -311,6 +311,20 @@ export interface PoReceiptRef {
   statusName: string;
 }
 
+/** 取消预览里的一笔实付；action：1-作废垫付、2-以垫付人名义登记已收到退款、3-应付单标记待退款 */
+export interface CancelSettlement {
+  paymentId: number;
+  paymentNo: string;
+  /** 1-公司对公、2-员工垫付、3-私对私 */
+  method: number;
+  advanceUser?: string;
+  /** 0-不适用、1-待报销、2-已进报销单 */
+  reimburseStatus: number;
+  currencyCode: string;
+  amount: number;
+  action: 1 | 2 | 3;
+}
+
 export interface PurchaseOrder {
   /** 下单后型号备注有更新、待采购核对的行数 */
   remarkAlerts?: number;
@@ -372,6 +386,8 @@ export interface PurchaseOrder {
   cancelReason?: string;
   cancelledByName?: string;
   cancelledAt?: string;
+  /** 取消时是否退款：0-无付款或未选、1-会退款、2-不退款 */
+  cancelRefund?: number;
   editable: boolean;
   items: PoItem[];
   /** feeType：1-费用、2-优惠（金额为正数，合计里减去） */
@@ -489,8 +505,11 @@ export const poApi = {
       orderDate,
       expectedShipDate,
     }),
-  cancel: (id: number, reason: string) =>
-    send<PurchaseOrder>('POST', `${PO}/${id}/cancel`, { reason }),
+  cancel: (id: number, reason: string, refund?: boolean) =>
+    send<PurchaseOrder>('POST', `${PO}/${id}/cancel`, { reason, refund }),
+  /** 取消预览：各笔实付及选「会退款」后的处理（openspec po-cancel-refund） */
+  cancelPreview: (id: number) =>
+    send<CancelSettlement[]>('GET', `${PO}/${id}/cancel-preview`),
   registerInvoice: (
     id: number,
     body: {

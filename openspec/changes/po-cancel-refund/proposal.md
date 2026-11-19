@@ -37,7 +37,7 @@
   - `ReimbursementService` 新增撤回待报销项入口。
 - **迁移 V1.5.51**：
   - `purchase_order` 增加 `cancel_refund`（退款选择）；
-  - `fin_payable` 增加 `refund_expected`（待退款）。
+  - `fin_payable` 增加 `refund_expected_at`（待退款标记时间）。
   - 只加字段，可以回退（删除两列）。
 - **前端**：采购订单详情的取消弹窗、报销单页「待报销」、应付单页列表与筛选。
 - **原型**：`docs/03-产品原型/03-业务域/23-采购取消退款与待报销撤回/`，经用户确认后开发。

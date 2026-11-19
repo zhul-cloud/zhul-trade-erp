@@ -2,6 +2,7 @@ import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, Input, Select, Space, Table } from 'antd';
+import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, PageTitle } from '@/pages/inquiry/shared/components';
@@ -44,6 +45,7 @@ interface Filters {
   due?: string;
   currencyCode?: string;
   hasCredit: boolean;
+  refundExpected: boolean;
   showClosed: boolean;
 }
 
@@ -51,8 +53,15 @@ interface Filters {
 const initial = (): Filters => ({
   keyword: new URLSearchParams(window.location.search).get('keyword') ?? '',
   hasCredit: false,
+  refundExpected: false,
   showClosed: false,
 });
+
+/** 标记待退款的天数：当天为「今天」 */
+export const refundDays = (at: string) => {
+  const d = dayjs().startOf('day').diff(dayjs(at).startOf('day'), 'day');
+  return d <= 0 ? '今天' : `${d} 天`;
+};
 
 /** 还能付款（可勾选批量付款）的应付：有未付且未付清、未关闭 */
 const payableOpen = (r: Payable) =>
@@ -90,6 +99,7 @@ const PayableManagement: React.FC = () => {
         due: filters.due,
         currencyCode: filters.currencyCode,
         hasCredit: filters.hasCredit || undefined,
+        refundExpected: filters.refundExpected || undefined,
         showClosed: filters.showClosed || undefined,
       };
       const [res, s] = await Promise.all([
@@ -244,13 +254,20 @@ const PayableManagement: React.FC = () => {
     {
       title: '欠款',
       dataIndex: 'creditAmount',
-      width: 100,
+      width: 120,
       align: 'right',
       render: (v: number, r) =>
         v > 0 ? (
-          <span style={{ ...num, color: palette.orange }}>
-            {formatAmount(v, r.currencyCode)}
-          </span>
+          <div>
+            <span style={{ ...num, color: palette.orange }}>
+              {formatAmount(v, r.currencyCode)}
+            </span>
+            {r.refundExpectedAt && (
+              <div style={{ fontSize: 12, color: palette.orange }}>
+                待退款 · {refundDays(r.refundExpectedAt)}
+              </div>
+            )}
+          </div>
         ) : (
           <span style={{ color: palette.mute }}>—</span>
         ),
@@ -359,7 +376,9 @@ const PayableManagement: React.FC = () => {
         {statCard(
           '供应商欠款',
           stats?.credit ?? 0,
-          '可抵扣或登记退款',
+          stats?.refundExpectedCount
+            ? `${stats.refundExpectedCount} 笔待退款`
+            : '可抵扣或登记退款',
           palette.orange,
           undefined,
           true,
@@ -435,6 +454,12 @@ const PayableManagement: React.FC = () => {
             onChange={(e) => apply({ hasCredit: e.target.checked })}
           >
             有欠款
+          </Checkbox>
+          <Checkbox
+            checked={draft.refundExpected}
+            onChange={(e) => apply({ refundExpected: e.target.checked })}
+          >
+            待退款
           </Checkbox>
           <Checkbox
             checked={draft.showClosed}
