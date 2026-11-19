@@ -2,7 +2,7 @@
 
 ## Context
 
-- 询盘型号 `inquiry_item` 和订单型号 `sales_order_item` 上原本都有 `remark` 字段，都没有被读写：前者只有历史迁移写过「成色：…」，后者从未使用。
+- 询盘型号 `inquiry_item` 和订单型号 `sales_order_item` 上原本都有 `remark` 字段，都没有被读写：前者只有历史迁移写过「成色：…」，后者只在由 PI 生成订单时复制 PI 行的备注（PI 行都有询盘来源，这些型号的备注读询盘型号，不读它），手动订单从未写过。
 - PI 行的 `remark` 会打印到 PI 文件上，是给客户看的，不能复用。
 - 下游单据都能追溯回询盘型号：报价、PI、订单行直接带 `inquiry_item_id`，采购需求与采购单行经 `so_item_id` 关联。
 
