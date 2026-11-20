@@ -366,6 +366,7 @@ public class ContentImportService {
         }
         String mpn = MpnNormalizer.normalize(draft.getModel());
         ProductDO product = mpn.isEmpty() ? null : productMapper.selectOne(new LambdaQueryWrapper<ProductDO>()
+                .eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE)
                 .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .eq(ProductDO::getBrandId, brandId)
                 .eq(ProductDO::getMpnNormalized, mpn)

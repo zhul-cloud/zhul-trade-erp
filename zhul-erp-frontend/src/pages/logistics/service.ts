@@ -149,6 +149,9 @@ export interface Outbound extends Audit {
     id: number;
     soItemId: number;
     model: string;
+    /** 关联的商品与是否候选商品（还没审核建档） */
+    productId?: number | null;
+    productCandidate?: boolean;
     brand?: string;
     category?: string;
     quantity: number;

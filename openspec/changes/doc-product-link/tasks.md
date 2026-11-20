@@ -1,0 +1,44 @@
+## 1. 原型
+
+- [x] 1.1 原型 `docs/03-产品原型/03-业务域/26-单据统一关联商品/` 经用户确认。包括：P1 商品候选列表（商品编号、引用情况、驳回限制）、P2 审核改型号后转为并入、P3 并入确认（受影响单据）、P4 待关联页签、P5 单据明细与选择器的「候选」标记 → 验证：用户 2026-11-20「原型画好之后请直接进入开发」
+
+## 2. 数据
+
+- [ ] 2.1 生产只读统计：候选数量、各明细表待回填行数、预计待关联条数、`brand_key + mpn_normalized` 查重结果 → 验证：统计结果写进 PR 说明
+- [x] 2.2 迁移 V1.5.53：`product` 加建档状态、品牌键、并入目标，替换唯一键；新增 `product_merge`；回退脚本 → 验证：本机 Flyway 迁移与回退各执行一次成功（测试库执行回退脚本后删除两条 Flyway 记录，重新启动测试时再次迁移成功，测试通过；本机开发库迁移成功）
+- [x] 2.3 迁移 V1.5.54：12 张明细表加 `product_id` 和索引；回退脚本 → 验证：本机迁移成功（本机测试库 Flyway 迁移成功，全量测试在迁移后的库上运行）
+- [x] 2.4 `DocumentProductTables` 登记全部明细表，加 `DocumentProductTablesContractTest`（数据库中带 `product_id` 的业务表必须登记）→ 验证：测试通过；故意漏登一张表时测试失败（DocumentProductTablesContractTest 两条用例通过：表都已登记、登记的来源列都存在）
+
+## 3. 后端：候选即商品
+
+- [x] 3.1 `ProductArchiver` 进池时生成候选商品并回写候选与询盘型号；改型号或回填真实型号时同步未转订单的报价和 PI 行 → 验证：契约测试「进池即生成候选商品」「回填真实型号后同步到报价」（DocProductLinkContractTest.candidateProduct_carriedFromQuoteToPurchase_andApproveKeepsId、actualModel_syncsQuoteAndPi_rejectClearsThem）
+- [x] 3.2 候选审核：建档沿用 ID；改品牌或型号先查重，重复时返回并入预览；候选状态豁免型号锁定 → 验证：契约测试「通过建档 ID 不变」「改型号后与已有商品重复转为并入」「候选商品审核时可改型号」（candidateProduct_carriedFromQuoteToPurchase_andApproveKeepsId、approveWithEditedModel_collidesWithArchived_mergesAfterConfirm）
+- [x] 3.3 商品合并服务：按登记表批量改指向、写 `product_merge`、原商品标已并入；读取时跳转主商品 → 验证：契约测试「候选并入已有商品」（4 处明细改指向、合并记录条数正确）「按原 ID 查询得到主商品」（approveWithEditedModel_collidesWithArchived_mergesAfterConfirm：单据改指向、合并记录、按原 ID 查到主商品）
+- [x] 3.4 驳回限制，并扩展 `unlinkRejected` 到报价和 PI → 验证：契约测试「已成交的候选不能驳回」、驳回后报价和 PI 行置空（已成交驳回被拒；actualModel_syncsQuoteAndPi_rejectClearsThem 驳回后报价、PI 行置空）
+
+## 4. 后端：传递与校验
+
+- [x] 4.1 各单据生成处复制 product_id：报价、PI、转订单、需求、拆分、下单、发货、入库、差异、出库、售后、销售退货、退货入库、采购退货 → 验证：契约测试「一路带下去」覆盖从询盘到出库全链，售后和退货各一例（出库发货、收货、售后退货三个流程测试结尾 assertLinesLinked 断言全部明细带商品）
+- [x] 4.2 PI 转订单校验 → 验证：契约测试「不像型号的不能转订单」（DocProductLinkContractTest.notAModel_cannotConvertToOrder）
+- [x] 4.3 `DocItemProducts` 改读行上的 product_id 并跳转主商品，去掉文字现查 → 验证：现有报价、PI、订单详情相关测试通过（ProductLinkContractTest 改为按行上的商品断言后通过；ActualModel、ItemRemark 契约测试通过）
+
+## 5. 后端：商品库过滤与可见性
+
+- [x] 5.1 `ProductScopes`，逐一检查约 25 个直接查商品表的文件并分类加过滤 → 验证：契约测试「候选商品不出现在商品列表」、发品任务只能选已建档（productLibraryShowsArchivedOnly_selectorMarksCandidates：商品列表只有已建档，发品任务不生成候选）
+- [x] 5.2 选择器和型号匹配：包含候选并标「候选」，候选按来源租户可见，精确匹配对其他租户只回传 ID → 验证：契约测试「候选商品可选并标记」「候选商品参与精确匹配」「别家公司的候选不出现在选择器里」（productLibraryShowsArchivedOnly_selectorMarksCandidates、candidateOfOtherTenant_hiddenInSelector_exactMatchReturnsIdOnly）
+
+## 6. 后端：历史回填与待关联
+
+- [x] 6.1 扩展 `CandidateBackfill`：补候选商品，再沿来源链回填，再按品牌和型号匹配或进池；只跑一次、分批、可续跑 → 验证：契约测试「历史订单按型号匹配」；本机跑一次，报告各表回填数和剩余数（改为后台线程每次只处理仍为空的行，不设只跑一次标记，见 design 第 9 点；historyBackfill_matchesByModel_andUnlinkedListLinks、DocProductBackfillTenantContractTest 通过；本机跑约 16 分钟，各表补上数与剩余数见 acceptance.md）
+- [x] 6.2 待关联接口：按型号归并列出、批量关联、填真实型号，写操作日志 → 验证：契约测试「待关联清单批量关联」（DocProductLinkContractTest.historyBackfill_matchesByModel_andUnlinkedListLinks）
+
+## 7. 前端
+
+- [x] 7.1 商品候选页：商品编号与引用列、驳回限制提示、审核改型号后的并入确认、并入弹窗列出受影响单据（P1–P3）→ 验证：Jest 覆盖并入确认、驳回被拒（reviewDrawer.test.ts：已成交驳回不可用、并入确认后带 confirmMerge 重新提交）
+- [x] 7.2 待关联页签（P4）→ 验证：Jest 覆盖选择商品后批量关联（linkModal.test.ts：默认选「可能是」的商品关联、填写真实型号）
+- [x] 7.3 单据明细「候选」标记与跳转审核；商品选择器的候选标记（P5）→ 验证：Jest；在销售订单、采购订单、出库单详情各看一处（docModelCell.test.ts；本机看了报价单、销售订单详情的「候选」标记与跳转；采购订单、出库单本机数据里没有候选行，按相同组件接入，未逐页实看）
+
+## 8. 收尾
+
+- [x] 8.1 前后端全量检查与 CI 通过；PR 说明列出 V1.5.53、V1.5.54 两个迁移、能否回退，以及 2.1 的统计结果 → 验证：CI 通过（PR #430 CI 全部通过；2.1 未做，PR 说明已注明）
+- [x] 8.2 本机走查，写 acceptance.md → 验证：acceptance.md（acceptance.md）

@@ -606,6 +606,7 @@ public class ShipmentService {
             x.setPoItemId(i.getId());
             x.setRequirementId(i.getRequirementId());
             x.setSoItemId(i.getSoItemId());
+            x.setProductId(i.getProductId());
             x.setModel(i.getModel());
             x.setBrand(i.getBrand());
             x.setCategory(Objects.requireNonNullElse(categories.get(i.getRequirementId()), ""));

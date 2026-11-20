@@ -80,6 +80,8 @@ public class ProductServiceImpl implements ProductService {
     private final ProductOrderCodes orderCodes;
     private final ObjectProvider<ProductUsageChecker> usageCheckers;
     private final ApplicationEventPublisher events;
+    /** 延迟取：候选建档逻辑依赖商品服务，避免构造时循环依赖 */
+    private final ObjectProvider<com.zhul.erp.modules.product.candidate.service.ProductArchiver> candidateLinks;
 
     public ProductServiceImpl(ProductMapper productMapper, ProductBrandMapper brandMapper,
                               ProductCategoryMapper categoryMapper, ProductSeriesMapper seriesMapper,
@@ -89,8 +91,10 @@ public class ProductServiceImpl implements ProductService {
                               ObjectProvider<ProductUsageChecker> usageCheckers,
                               com.zhul.erp.modules.product.candidate.repository.ProductHeatMapper heatMapper,
                               IndustryScope industryScope, ProductWriteGuard productWriteGuard,
-                              ProductOrderCodes orderCodes, ApplicationEventPublisher events) {
+                              ProductOrderCodes orderCodes, ApplicationEventPublisher events,
+                              ObjectProvider<com.zhul.erp.modules.product.candidate.service.ProductArchiver> candidateLinks) {
         this.events = events;
+        this.candidateLinks = candidateLinks;
         this.heatMapper = heatMapper;
         this.orderCodes = orderCodes;
         this.industryScope = industryScope;
@@ -152,6 +156,7 @@ public class ProductServiceImpl implements ProductService {
         // includeDeleted 只对平台账号生效，租户账号传了也当没传
         boolean includeDeleted = Boolean.TRUE.equals(query.getIncludeDeleted()) && platformScopeGuard.isPlatform();
         LambdaQueryWrapper<ProductDO> wrapper = new LambdaQueryWrapper<ProductDO>()
+                .eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE)
                 .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .isNull(!includeDeleted, ProductDO::getDeletedAt)
                 .eq(query.getBrandId() != null, ProductDO::getBrandId, query.getBrandId())
@@ -248,8 +253,21 @@ public class ProductServiceImpl implements ProductService {
             }
         }
         product.setOwnerTenantId(productWriteGuard.ownerForCreate());
+        // 同品牌同型号已是候选商品（询盘里出现过）：沿用它的 ID 建档，不另建（spec product/product「商品建档状态」）
+        ProductDO candidate = candidateProduct(product.getBrandId(), product.getMpnNormalized());
+        if (candidate != null && (Objects.equals(candidate.getArchiveStatus(), ProductConstants.ARCHIVE_CANDIDATE)
+                || Objects.equals(candidate.getArchiveStatus(), ProductConstants.ARCHIVE_REJECTED))) {
+            productMapper.update(null, new LambdaUpdateWrapper<ProductDO>()
+                    .eq(ProductDO::getId, candidate.getId())
+                    .set(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE));
+            ProductVO promoted = platformScopeGuard.asCandidateReview(() -> update(candidate.getId(), req));
+            candidateLinks.getObject().archived(candidate.getId());
+            return promoted;
+        }
         assertMpnFree(product.getBrandId(), product.getMpnNormalized(), null);
         product.setStatus(ProductConstants.STATUS_ENABLED);
+        product.setArchiveStatus(ProductConstants.ARCHIVE_DONE);
+        product.setBrandKey(ProductConstants.brandKeyOf(product.getBrandId()));
         try {
             productMapper.insert(product);
         } catch (DuplicateKeyException e) {
@@ -296,6 +314,8 @@ public class ProductServiceImpl implements ProductService {
             productMapper.update(change, new LambdaUpdateWrapper<ProductDO>()
                     .eq(ProductDO::getId, id)
                     .set(ProductDO::getSeriesId, seriesId)
+                    .set(Objects.equals(current.getArchiveStatus(), ProductConstants.ARCHIVE_DONE), ProductDO::getBrandKey,
+                            ProductConstants.brandKeyOf(change.getBrandId()))
                     .set(categoryChanged, ProductDO::getAiCategoryId, 0L)
                     .set(categoryChanged, ProductDO::getAiCategoryState, ProductConstants.AI_CATEGORY_NONE)
                     .set(categoryChanged, ProductDO::getAiCategoryAt, null));
@@ -403,6 +423,7 @@ public class ProductServiceImpl implements ProductService {
     /** 与列表的缺项筛选使用同一组条件，统计数量与筛选结果条数才一致 */
     private long countWhere(java.util.function.Consumer<LambdaQueryWrapper<ProductDO>> condition) {
         LambdaQueryWrapper<ProductDO> wrapper = new LambdaQueryWrapper<ProductDO>()
+                .eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE)
                 .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .isNull(ProductDO::getDeletedAt);
         // 租户只统计本行业的商品，与列表的范围一致
@@ -565,11 +586,24 @@ public class ProductServiceImpl implements ProductService {
                 .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .eq(ProductDO::getBrandId, brandId)
                 .eq(ProductDO::getMpnNormalized, normalized)
+                .ne(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_MERGED)
                 .ne(excludeId != null, ProductDO::getId, excludeId)
                 .last("LIMIT 1"));
         if (existing != null) {
             throw duplicate(existing, null);
         }
+    }
+
+    /** 同品牌同归一化型号、还在候选（或已驳回）状态的商品 */
+    private ProductDO candidateProduct(Long brandId, String normalized) {
+        return productMapper.selectOne(new LambdaQueryWrapper<ProductDO>()
+                .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                .and(w -> w.eq(ProductDO::getBrandId, brandId).or().eq(ProductDO::getBrandKey, ProductConstants.brandKeyOf(brandId)))
+                .eq(ProductDO::getMpnNormalized, normalized)
+                .in(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_CANDIDATE, ProductConstants.ARCHIVE_REJECTED)
+                .isNull(ProductDO::getDeletedAt)
+                .orderByAsc(ProductDO::getId)
+                .last("LIMIT 1"));
     }
 
     /** 加锁读取（读最新已提交数据）：并发冲突后当前事务的一致性快照里还看不到对方刚提交的行 */

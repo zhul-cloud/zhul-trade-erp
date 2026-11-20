@@ -81,6 +81,7 @@ public class OutboundService {
     private final OutboundOrderMapper outboundMapper;
     private final ReimburseGuard reimburseGuard;
     private final OutboundOrderItemMapper itemMapper;
+    private final com.zhul.erp.modules.product.support.ProductTags productTags;
     private final OutboundBoxMapper boxMapper;
     private final OutboundBoxItemMapper boxItemMapper;
     private final OutboundPackMapper packMapper;
@@ -259,6 +260,7 @@ public class OutboundService {
             }
             OutboundOrderItemDO x = new OutboundOrderItemDO();
             x.setSoItemId(i.getId());
+            x.setProductId(i.getProductId());
             x.setModel(i.getModel());
             x.setBrand(i.getBrand() == null ? "" : i.getBrand());
             x.setQuantity(e.getValue());
@@ -854,9 +856,14 @@ public class OutboundService {
             List<OutboundBoxDO> bs = boxes.getOrDefault(ob.getId(), List.of());
             Map<Long, Integer> packed = bs.stream().flatMap(b -> contents.getOrDefault(b.getId(), List.of()).stream())
                     .collect(Collectors.groupingBy(OutboundBoxItemDO::getOutboundItemId, Collectors.summingInt(OutboundBoxItemDO::getQuantity)));
+            Map<Long, com.zhul.erp.modules.product.support.ProductTags.Tag> tags = productTags.of(
+                    lines.stream().map(OutboundOrderItemDO::getProductId).toList());
             vo.setItems(lines.stream().map(i -> {
                 OutboundVO.Item x = new OutboundVO.Item();
                 x.setId(i.getId());
+                var tag = i.getProductId() == null ? null : tags.get(i.getProductId());
+                x.setProductId(tag == null ? i.getProductId() : tag.productId());
+                x.setProductCandidate(tag != null && tag.candidate());
                 x.setSoItemId(i.getSoItemId());
                 x.setModel(i.getModel());
                 x.setBrand(i.getBrand());

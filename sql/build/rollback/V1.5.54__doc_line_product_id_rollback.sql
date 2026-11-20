@@ -1,0 +1,13 @@
+-- 单据统一关联商品 V1.5.54 的反向 SQL（备用，只在需要回退该版本时手工执行，执行后还需从 flyway_schema_history 删除 1.5.54 的记录）。
+ALTER TABLE `quotation_item` DROP KEY `idx_product_id`, DROP COLUMN `product_id`;
+ALTER TABLE `proforma_invoice_item` DROP KEY `idx_product_id`, DROP COLUMN `product_id`;
+ALTER TABLE `purchase_requirement` DROP KEY `idx_product_id`, DROP COLUMN `product_id`;
+ALTER TABLE `purchase_order_item` DROP KEY `idx_product_id`, DROP COLUMN `product_id`;
+ALTER TABLE `supplier_shipment_item` DROP KEY `idx_product_id`, DROP COLUMN `product_id`;
+ALTER TABLE `purchase_receipt_item` DROP KEY `idx_product_id`, DROP COLUMN `product_id`;
+ALTER TABLE `receiving_discrepancy` DROP KEY `idx_product_id`, DROP COLUMN `product_id`;
+ALTER TABLE `outbound_order_item` DROP KEY `idx_product_id`, DROP COLUMN `product_id`;
+ALTER TABLE `after_sales_item` DROP KEY `idx_product_id`, DROP COLUMN `product_id`;
+ALTER TABLE `sales_return_item` DROP KEY `idx_product_id`, DROP COLUMN `product_id`;
+ALTER TABLE `return_receipt_item` DROP KEY `idx_product_id`, DROP COLUMN `product_id`;
+ALTER TABLE `purchase_return_item` DROP KEY `idx_product_id`, DROP COLUMN `product_id`;

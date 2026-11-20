@@ -66,4 +66,10 @@ public class SalesOrderItemVO extends PiItemVO {
         private Integer quantity;
         private java.time.LocalDate expectedArrivalDate;
     }
+    /** 引用的商品ID */
+    private Long productId;
+    /** 引用的商品是候选（还没建档），型号旁标「候选」 */
+    private Boolean productCandidate;
+    /** 候选审核用的候选 ID，productCandidate 为 true 时有值 */
+    private Long productCandidateId;
 }

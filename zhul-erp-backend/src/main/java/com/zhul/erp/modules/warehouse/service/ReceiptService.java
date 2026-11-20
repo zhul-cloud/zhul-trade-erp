@@ -457,6 +457,7 @@ public class ReceiptService {
             x.setPoItemId(i.getId());
             x.setRequirementId(i.getRequirementId());
             x.setSoItemId(i.getSoItemId());
+            x.setProductId(i.getProductId());
             x.setModel(i.getModel());
             x.setBrand(i.getBrand());
             x.setCategory(Objects.requireNonNullElse(categories.get(i.getRequirementId()), ""));
@@ -522,6 +523,8 @@ public class ReceiptService {
             x.setPoItemId(i.getPoItemId());
             x.setRequirementId(i.getRequirementId());
             x.setSoItemId(i.getSoItemId());
+            PurchaseOrderItemDO po = poItems.get(i.getPoItemId());
+            x.setProductId(i.getProductId() != null ? i.getProductId() : po == null ? null : po.getProductId());
             x.setModel(i.getModel());
             x.setBrand(i.getBrand());
             x.setCategory(i.getCategory());

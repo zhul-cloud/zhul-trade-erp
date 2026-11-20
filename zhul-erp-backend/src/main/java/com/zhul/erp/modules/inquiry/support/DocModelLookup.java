@@ -28,7 +28,7 @@ public class DocModelLookup {
         }
         return inquiryItemMapper.selectList(new LambdaQueryWrapper<InquiryItemDO>()
                         .select(InquiryItemDO::getId, InquiryItemDO::getOriginalModel, InquiryItemDO::getConfirmedModel,
-                                InquiryItemDO::getActualModel)
+                                InquiryItemDO::getActualModel, InquiryItemDO::getProductId)
                         .in(InquiryItemDO::getId, ids)).stream()
                 .collect(Collectors.toMap(InquiryItemDO::getId, Function.identity()));
     }

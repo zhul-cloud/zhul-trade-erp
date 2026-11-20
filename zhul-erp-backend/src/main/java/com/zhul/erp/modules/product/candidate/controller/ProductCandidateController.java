@@ -44,6 +44,7 @@ public class ProductCandidateController {
     private final ProductCandidateService service;
     private final CandidateImportService importService;
     private final CandidateAiFill aiFill;
+    private final com.zhul.erp.modules.product.candidate.service.DocProductLinkService linkService;
 
     /** 上传商品文件导入候选：有商品候选菜单即可，建档仍需审核权限 */
     @PostMapping("/import/preview")
@@ -103,10 +104,36 @@ public class ProductCandidateController {
         return Result.ok(aiFill.status(taskId));
     }
 
+    /** 待关联清单：还没关联商品的单据明细，按型号归并（spec product/document-product-link） */
+    @GetMapping("/unlinked")
+    @PreAuthorize(REVIEW)
+    public Result<com.zhul.erp.common.result.PageResult<com.zhul.erp.modules.product.candidate.dto.UnlinkedGroupVO>> unlinked(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String keyword,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String table,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "1") int page,
+            @org.springframework.web.bind.annotation.RequestParam(name = "page_size", defaultValue = "20") int pageSize) {
+        return Result.ok(linkService.unlinked(keyword, table, page, pageSize));
+    }
+
+    /** 待关联清单：选择商品或填写真实型号后批量关联，返回关联的条数 */
+    @PostMapping("/unlinked/link")
+    @PreAuthorize(REVIEW)
+    public Result<Integer> linkUnlinked(@Valid @RequestBody com.zhul.erp.modules.product.candidate.dto.LinkUnlinkedRequest req) {
+        return Result.ok(req.getProductId() != null ? linkService.link(req.getKey(), req.getProductId())
+                : linkService.fillModel(req.getKey(), req.getBrand(), req.getModel()));
+    }
+
+    /** 候选商品被各类单据引用的条数，并入、驳回前展示 */
+    @GetMapping("/{id}/references")
+    @PreAuthorize(REVIEW)
+    public Result<java.util.Map<String, Long>> references(@PathVariable Long id) {
+        return Result.ok(service.references(id));
+    }
+
     @PostMapping("/{id}/merge")
     @PreAuthorize(REVIEW)
     public Result<CandidateVO> merge(@PathVariable Long id, @Valid @RequestBody MergeCandidateRequest req) {
-        return Result.ok(service.merge(id, req.getProductId()));
+        return Result.ok(service.merge(id, req.getProductId(), req.getReason()));
     }
 
     @PostMapping("/{id}/reject")

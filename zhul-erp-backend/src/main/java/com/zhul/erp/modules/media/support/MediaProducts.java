@@ -2,6 +2,7 @@ package com.zhul.erp.modules.media.support;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.modules.media.service.MediaIndexer;
+import com.zhul.erp.modules.product.constants.ProductConstants;
 import com.zhul.erp.modules.product.entity.ProductBrandDO;
 import com.zhul.erp.modules.product.entity.ProductDO;
 import com.zhul.erp.modules.product.repository.ProductBrandMapper;
@@ -36,6 +37,7 @@ public class MediaProducts {
             return Optional.empty();
         }
         return productMapper.selectList(new LambdaQueryWrapper<ProductDO>()
+                        .eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE)
                         .eq(ProductDO::getTenantId, SHARED)
                         .eq(ProductDO::getBrandId, brandId)
                         .eq(ProductDO::getMpnNormalized, MpnNormalizer.normalize(model))
@@ -55,6 +57,7 @@ public class MediaProducts {
             }
         }
         byBrand.forEach((brandId, mpns) -> productMapper.selectList(new LambdaQueryWrapper<ProductDO>()
+                        .eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE)
                         .eq(ProductDO::getTenantId, SHARED)
                         .eq(ProductDO::getBrandId, brandId)
                         .in(ProductDO::getMpnNormalized, mpns.keySet())

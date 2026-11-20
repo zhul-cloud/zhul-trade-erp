@@ -36,7 +36,10 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
-import { DocDescription } from '@/components/DocFields/DocModelCell';
+import {
+  CandidateTag,
+  DocDescription,
+} from '@/components/DocFields/DocModelCell';
 import { RelatedDocsCard } from '@/components/DocFields/DocPage';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
@@ -388,7 +391,9 @@ const PurchaseOrderDetail: React.FC = () => {
       width: 200,
       render: (v: string, r) => (
         <div>
-          <b>{v}</b> {r.stockType != null && <StockPill type={r.stockType} />}
+          <b>{v}</b>
+          {r.productCandidate && <CandidateTag productId={r.productId} />}{' '}
+          {r.stockType != null && <StockPill type={r.stockType} />}
           {sub(
             palette.mute,
             [r.brand, r.category].filter(Boolean).join(' · ') || '—',

@@ -169,6 +169,7 @@ public class AfterSalesService {
                     throw new BizException(oi.getModel() + " 最多 " + max + " 个");
                 }
                 x.setSoItemId(oi.getId());
+                x.setProductId(oi.getProductId());
                 x.setModel(oi.getModel());
                 x.setBrand(Objects.requireNonNullElse(oi.getBrand(), ""));
             } else {

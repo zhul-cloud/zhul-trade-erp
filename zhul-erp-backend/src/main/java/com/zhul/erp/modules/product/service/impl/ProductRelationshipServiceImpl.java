@@ -198,6 +198,7 @@ public class ProductRelationshipServiceImpl implements ProductRelationshipServic
         ProductDO related = null;
         if (req.getRelatedProductId() != null) {
             related = productMapper.selectOne(new LambdaQueryWrapper<ProductDO>()
+                    .eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE)
                     .eq(ProductDO::getId, req.getRelatedProductId())
                     .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                     .isNull(ProductDO::getDeletedAt));
@@ -220,6 +221,7 @@ public class ProductRelationshipServiceImpl implements ProductRelationshipServic
         if (related == null) {
             // 型号原文恰好只命中目录中一个商品时自动关联；命中多个品牌则不关联，由用户明确选择
             List<ProductDO> matches = productMapper.selectList(new LambdaQueryWrapper<ProductDO>()
+                    .eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE)
                     .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                     .eq(ProductDO::getMpnNormalized, normalized)
                     .isNull(ProductDO::getDeletedAt)

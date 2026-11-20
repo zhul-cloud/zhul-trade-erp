@@ -5,6 +5,10 @@ import java.util.Map;
 /** 商品候选池常量 */
 public final class CandidateConstants {
 
+    /** 审核建档时与已建档商品重复，需确认并入（detail 带 targetId、targetLabel、references） */
+    public static final String ERR_WILL_MERGE = "CANDIDATE_WILL_MERGE";
+
+
     private CandidateConstants() {
     }
 
@@ -31,8 +35,11 @@ public final class CandidateConstants {
     public static final int SOURCE_DEAL = 4;
     public static final int SOURCE_MANUAL = 5;
     public static final int SOURCE_IMPORT = 6;
+    /** 历史单据回填：上线前的订单、采购、仓库单据里出现、商品库没有的型号（spec product/document-product-link） */
+    public static final int SOURCE_HISTORY = 7;
     public static final Map<Integer, String> SOURCE_NAMES = Map.of(SOURCE_INQUIRY, "询盘", SOURCE_ACTUAL_MODEL, "采购回填真实型号",
-            SOURCE_IN_STOCK, "采购回价有货", SOURCE_DEAL, "成交", SOURCE_MANUAL, "手动", SOURCE_IMPORT, "导入");
+            SOURCE_IN_STOCK, "采购回价有货", SOURCE_DEAL, "成交", SOURCE_MANUAL, "手动", SOURCE_IMPORT, "导入",
+            SOURCE_HISTORY, "历史单据");
 
     /** 驳回原因 */
     public static final int REJECT_NOT_MODEL = 1;
@@ -50,7 +57,7 @@ public final class CandidateConstants {
 
     public static int levelOf(int sourceType) {
         return switch (sourceType) {
-            case SOURCE_DEAL -> LEVEL_DEAL;
+            case SOURCE_DEAL, SOURCE_HISTORY -> LEVEL_DEAL;
             case SOURCE_IN_STOCK -> LEVEL_IN_STOCK;
             default -> LEVEL_INQUIRY;
         };

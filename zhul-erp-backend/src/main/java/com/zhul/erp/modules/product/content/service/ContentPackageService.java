@@ -126,6 +126,7 @@ public class ContentPackageService {
                     "一次最多下载 " + ContentConstants.MAX_PACKAGE_PRODUCTS + " 个任务包");
         }
         List<ProductDO> products = productMapper.selectList(new LambdaQueryWrapper<ProductDO>()
+                .eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE)
                 .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .in(ProductDO::getId, ids)
                 .isNull(ProductDO::getDeletedAt)
@@ -173,6 +174,7 @@ public class ContentPackageService {
 
     public Packs packsFor(Long productId) {
         ProductDO p = productMapper.selectOne(new LambdaQueryWrapper<ProductDO>()
+                .eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE)
                 .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .eq(ProductDO::getId, productId)
                 .isNull(ProductDO::getDeletedAt));

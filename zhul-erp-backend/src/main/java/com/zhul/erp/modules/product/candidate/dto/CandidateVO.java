@@ -39,6 +39,10 @@ public class CandidateVO {
     private LocalDateTime firstSeenAt;
     private LocalDateTime lastSeenAt;
     private Long productId;
+    /** 候选商品被各类单据引用的条数（单据类型 → 条数，只列大于 0 的；待审核时才有） */
+    private java.util.Map<String, Long> references;
+    /** 已被销售订单及之后的单据引用：不能驳回，只能建档或并入 */
+    private Boolean usedByOrders;
     private String productLabel;
     private Integer rejectReason;
     private String rejectReasonName;

@@ -7,7 +7,7 @@ import {
   RobotOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
-import { Link, useAccess } from '@umijs/max';
+import { Link, useAccess, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   App,
@@ -53,7 +53,9 @@ import {
   type Candidate,
   candidateApi,
   readBizError,
+  type WillMerge,
 } from './service';
+import { UnlinkedPanel } from './UnlinkedPanel';
 
 /** 批量 AI 解析每次最多条数 */
 const AI_FILL_MAX = 200;
@@ -101,7 +103,8 @@ const aiSummary = (j: AiFill) => {
     : `AI 解析品类完成：填了 ${j.filled ?? 0} 个${skipped}${unchanged}`;
 };
 
-type Tab = 1 | 2 | 3 | 4;
+/** 1-4 为候选状态；5 为「待关联单据」 */
+type Tab = 1 | 2 | 3 | 4 | 5;
 type TabCounts = Awaited<ReturnType<typeof candidateApi.counts>>;
 
 /** 页签上的数字按当前筛选条件统计，和筛选后的列表一致 */
@@ -111,6 +114,12 @@ const TABS: { value: Tab; label: string; key: keyof TabCounts }[] = [
   { value: 3, label: '已并入', key: 'merged' },
   { value: 4, label: '已驳回', key: 'rejected' },
 ];
+
+/** 单据引用：「销售订单 2 · 采购订单 1」 */
+export const refText = (r?: Record<string, number>) =>
+  Object.entries(r ?? {})
+    .map(([k, n]) => `${k} ${n}`)
+    .join(' · ');
 
 /** 可信度：三个点，颜色越暖越可信 */
 export const LevelDots: React.FC<{ level: number; name: string }> = ({
@@ -226,14 +235,14 @@ const Label: React.FC<{ children: React.ReactNode; required?: boolean }> = ({
   );
 };
 
-const ReviewDrawer: React.FC<{
+export const ReviewDrawer: React.FC<{
   id?: number;
   canReview: boolean;
   onClose: () => void;
   onDone: () => void;
 }> = ({ id, canReview, onClose, onDone }) => {
   const { palette } = useAppTheme();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [c, setC] = useState<Candidate>();
   const [error, setError] = useState<string>();
   const [brands, setBrands] = useState<BrandOption[]>([]);
@@ -319,6 +328,45 @@ const ReviewDrawer: React.FC<{
     }
   };
 
+  /** 通过建档；改型号后与已建档商品重复时，先确认并入再提交 */
+  const approve = async (cand: Candidate, confirmMerge?: boolean) => {
+    const body = {
+      ...form,
+      seriesId: form.seriesId && form.seriesId > 0 ? form.seriesId : undefined,
+      confirmMerge,
+    };
+    setBusy(true);
+    try {
+      await candidateApi.approve(cand.id, body);
+      message.success(confirmMerge ? '已并入' : '已建档');
+      onDone();
+    } catch (e) {
+      const err = readBizError(e);
+      const d = err.detail as WillMerge | undefined;
+      if (err.errorCode === 'CANDIDATE_WILL_MERGE' && d) {
+        modal.confirm({
+          title: `商品库已有 ${d.targetLabel}`,
+          content: (
+            <div style={{ display: 'grid', gap: 6 }}>
+              <span>确认后这个候选并入已有商品，不再新建。</span>
+              {refText(d.references) && (
+                <span>
+                  引用它的单据一起改为已有商品：{refText(d.references)}
+                </span>
+              )}
+            </div>
+          ),
+          okText: '并入',
+          onOk: () => approve(cand, true),
+        });
+      } else {
+        message.error(err.message);
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const seriesOptions = [
     ...series.map((s) => ({ value: s.id, label: s.seriesName })),
     ...(seriesSearch.trim() &&
@@ -340,8 +388,13 @@ const ReviewDrawer: React.FC<{
           <span
             style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}
           >
-            {pending ? '审核候选' : '候选'} · {c.brandName || c.brandText} ·{' '}
-            {c.mpnRaw}
+            {[
+              pending ? '审核候选' : '候选',
+              c.brandName || c.brandText,
+              c.mpnRaw,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
             <LevelDots level={c.level} name={c.levelName} />
           </span>
         ) : (
@@ -365,6 +418,8 @@ const ReviewDrawer: React.FC<{
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Button
                 icon={<CloseOutlined />}
+                disabled={!!c?.usedByOrders}
+                title={c?.usedByOrders ? '已成交，不能驳回' : undefined}
                 onClick={() => setRejecting(true)}
               >
                 驳回
@@ -391,20 +446,7 @@ const ReviewDrawer: React.FC<{
                 icon={<CheckOutlined />}
                 loading={busy}
                 disabled={!!finalProblem}
-                onClick={() =>
-                  c &&
-                  run(
-                    () =>
-                      candidateApi.approve(c.id, {
-                        ...form,
-                        seriesId:
-                          form.seriesId && form.seriesId > 0
-                            ? form.seriesId
-                            : undefined,
-                      }),
-                    '已建档',
-                  )
-                }
+                onClick={() => c && approve(c)}
               >
                 通过建档
               </Button>
@@ -859,9 +901,9 @@ const ReviewDrawer: React.FC<{
           open={merging}
           candidate={c}
           onClose={() => setMerging(false)}
-          onSubmit={(productId) => {
+          onSubmit={(productId, reason) => {
             setMerging(false);
-            run(() => candidateApi.merge(c.id, productId), '已并入');
+            run(() => candidateApi.merge(c.id, productId, reason), '已并入');
           }}
         />
       )}
@@ -1008,11 +1050,12 @@ const MergeModal: React.FC<{
   open: boolean;
   candidate: Candidate;
   onClose: () => void;
-  onSubmit: (productId: number) => void;
+  onSubmit: (productId: number, reason?: string) => void;
 }> = ({ open, candidate, onClose, onSubmit }) => {
   const { palette } = useAppTheme();
   const [options, setOptions] = useState<ProductOption[]>([]);
   const [value, setValue] = useState<number>();
+  const [reason, setReason] = useState('');
   const search = useCallback(
     (kw: string) => {
       productApi
@@ -1025,6 +1068,7 @@ const MergeModal: React.FC<{
   useEffect(() => {
     if (open) {
       setValue(undefined);
+      setReason('');
       search('');
     }
   }, [open, search]);
@@ -1035,23 +1079,35 @@ const MergeModal: React.FC<{
       okText="并入"
       okButtonProps={{ disabled: !value }}
       onCancel={onClose}
-      onOk={() => value && onSubmit(value)}
+      onOk={() => value && onSubmit(value, reason.trim() || undefined)}
       destroyOnHidden
     >
       <div style={{ color: palette.sub, marginBottom: 12 }}>
         适合写法不同的同一型号：并入后所有来源的询盘型号关联到所选商品。
+        {refText(candidate.references) &&
+          ` 引用它的单据一起改为所选商品：${refText(candidate.references)}。`}
       </div>
       <Select
         value={value}
         showSearch={{ filterOption: false, onSearch: search }}
         onChange={setValue}
         placeholder="搜索型号或名称"
-        options={options.map((p) => ({
-          value: p.id,
-          label: `${p.brandName} · ${p.mpnDisplay}${p.productName ? ` · ${p.productName}` : ''}`,
-        }))}
+        options={options
+          .filter((p) => !p.candidate)
+          .map((p) => ({
+            value: p.id,
+            label: `${p.brandName} · ${p.mpnDisplay}${p.productName ? ` · ${p.productName}` : ''}`,
+          }))}
         style={{ width: '100%' }}
         aria-label="商品"
+      />
+      <Input
+        value={reason}
+        maxLength={180}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="并入原因（选填），如：写法不同的同一型号"
+        style={{ marginTop: 12 }}
+        aria-label="并入原因"
       />
     </Modal>
   );
@@ -1067,7 +1123,8 @@ const Candidates: React.FC = () => {
   const [tab, setTab] = useState<Tab>(1);
   const [counts, setCounts] = useState<TabCounts>();
   const [importOpen, setImportOpen] = useState(false);
-  const [keyword, setKeyword] = useState('');
+  const [search] = useSearchParams();
+  const [keyword, setKeyword] = useState(search.get('keyword') ?? '');
   const [level, setLevel] = useState<number>();
   const [brandState, setBrandState] = useState<number>();
   const [categoryState, setCategoryState] = useState<number>();
@@ -1076,7 +1133,7 @@ const Candidates: React.FC = () => {
     level?: number;
     brandState?: number;
     categoryState?: number;
-  }>({});
+  }>(() => ({ keyword: search.get('keyword') || undefined }));
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<Candidate[]>([]);
@@ -1091,6 +1148,7 @@ const Candidates: React.FC = () => {
   const [editing, setEditing] = useState(false);
 
   const load = useCallback(async () => {
+    if (tab === 5) return;
     setLoading(true);
     setError(undefined);
     try {
@@ -1109,12 +1167,19 @@ const Candidates: React.FC = () => {
     }
   }, [page, pageSize, tab, query]);
 
+  const [unlinkedCount, setUnlinkedCount] = useState<number>();
   const refreshCount = useCallback(() => {
     candidateApi
       .counts(query)
       .then(setCounts)
       .catch(() => setCounts(undefined));
-  }, [query]);
+    if (canReview) {
+      candidateApi
+        .unlinked({ page: 1, pageSize: 1 })
+        .then((r) => setUnlinkedCount(r.total))
+        .catch(() => setUnlinkedCount(undefined));
+    }
+  }, [query, canReview]);
 
   useEffect(() => {
     load();
@@ -1304,6 +1369,7 @@ const Candidates: React.FC = () => {
               ? ''
               : '品牌 ✓'}
           {c.orderCode ? ` · 订货号 ${c.orderCode}` : ''}
+          {c.status === 1 && c.productId ? ` · 商品编号 ${c.productId}` : ''}
         </div>
       </div>
     ) : (
@@ -1318,6 +1384,7 @@ const Candidates: React.FC = () => {
             '品牌未识别'
           )}
           {c.orderCode ? ` · 订货号 ${c.orderCode}` : ''}
+          {c.status === 1 && c.productId ? ` · 商品编号 ${c.productId}` : ''}
         </div>
       </div>
     );
@@ -1371,7 +1438,28 @@ const Candidates: React.FC = () => {
       render: (_, c) => <Heat c={c} />,
     },
     ...(tab === 1
-      ? []
+      ? [
+          {
+            title: '被单据引用',
+            key: 'refs',
+            width: 190,
+            render: (_: unknown, c: Candidate) =>
+              refText(c.references) ? (
+                <div style={{ fontSize: 12 }}>
+                  <div style={{ color: palette.ink }}>
+                    {refText(c.references)}
+                  </div>
+                  {c.usedByOrders && (
+                    <div style={{ color: palette.orange }}>
+                      已成交，不能驳回
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <span style={{ color: palette.mute }}>—</span>
+              ),
+          },
+        ]
       : [
           {
             title: '结果',
@@ -1498,68 +1586,86 @@ const Candidates: React.FC = () => {
             setPage(1);
             setSelected([]);
           }}
-          options={TABS.map((t) => {
-            const n = counts?.[t.key];
-            return {
-              value: t.value,
-              label: n === undefined ? t.label : `${t.label} · ${n}`,
-            };
-          })}
-        />
-        <Input
-          allowClear
-          prefix={<SearchOutlined />}
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          onPressEnter={apply}
-          placeholder="品牌、型号、名称"
-          style={{ width: 260 }}
-          aria-label="关键词"
-        />
-        <Select
-          allowClear
-          value={level}
-          onChange={setLevel}
-          placeholder="全部可信度"
           options={[
-            { value: 3, label: '已成交' },
-            { value: 2, label: '采购问到有货' },
-            { value: 1, label: '询盘出现' },
+            ...TABS.map((t) => {
+              const n = counts?.[t.key];
+              return {
+                value: t.value,
+                label: n === undefined ? t.label : `${t.label} · ${n}`,
+              };
+            }),
+            ...(canReview
+              ? [
+                  {
+                    value: 5 as Tab,
+                    label:
+                      unlinkedCount === undefined
+                        ? '待关联单据'
+                        : `待关联单据 · ${unlinkedCount}`,
+                  },
+                ]
+              : []),
           ]}
-          style={{ width: 150 }}
-          aria-label="可信度"
         />
-        <Select
-          allowClear
-          value={brandState}
-          onChange={setBrandState}
-          placeholder="全部品牌"
-          options={[
-            { value: 1, label: '品牌已确认' },
-            { value: 2, label: '待确认品牌' },
-            { value: 3, label: 'AI 未识别（Others）' },
-          ]}
-          style={{ width: 170 }}
-          aria-label="品牌"
-        />
-        <Select
-          allowClear
-          value={categoryState}
-          onChange={setCategoryState}
-          placeholder="全部品类"
-          options={[
-            { value: 1, label: '已选品类' },
-            { value: 2, label: '未选品类' },
-          ]}
-          style={{ width: 150 }}
-          aria-label="品类"
-        />
-        <span style={{ flex: 1 }} />
-        <Button type="primary" onClick={apply}>
-          查询
-        </Button>
+        {tab !== 5 && (
+          <>
+            <Input
+              allowClear
+              prefix={<SearchOutlined />}
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onPressEnter={apply}
+              placeholder="品牌、型号、名称"
+              style={{ width: 260 }}
+              aria-label="关键词"
+            />
+            <Select
+              allowClear
+              value={level}
+              onChange={setLevel}
+              placeholder="全部可信度"
+              options={[
+                { value: 3, label: '已成交' },
+                { value: 2, label: '采购问到有货' },
+                { value: 1, label: '询盘出现' },
+              ]}
+              style={{ width: 150 }}
+              aria-label="可信度"
+            />
+            <Select
+              allowClear
+              value={brandState}
+              onChange={setBrandState}
+              placeholder="全部品牌"
+              options={[
+                { value: 1, label: '品牌已确认' },
+                { value: 2, label: '待确认品牌' },
+                { value: 3, label: 'AI 未识别（Others）' },
+              ]}
+              style={{ width: 170 }}
+              aria-label="品牌"
+            />
+            <Select
+              allowClear
+              value={categoryState}
+              onChange={setCategoryState}
+              placeholder="全部品类"
+              options={[
+                { value: 1, label: '已选品类' },
+                { value: 2, label: '未选品类' },
+              ]}
+              style={{ width: 150 }}
+              aria-label="品类"
+            />
+            <span style={{ flex: 1 }} />
+            <Button type="primary" onClick={apply}>
+              查询
+            </Button>
+          </>
+        )}
       </div>
-      {aiJob?.taskId && (
+      {tab === 5 && <UnlinkedPanel onChanged={refreshCount} />}
+      {tab !== 5 && aiJob?.taskId && (
         <Card style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <Spin size="small" />
@@ -1574,7 +1680,7 @@ const Candidates: React.FC = () => {
           </div>
         </Card>
       )}
-      {aiDone && (
+      {tab !== 5 && aiDone && (
         <Card style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <CheckOutlined style={{ color: palette.green }} />
@@ -1610,7 +1716,7 @@ const Candidates: React.FC = () => {
           </div>
         </Card>
       )}
-      {error ? (
+      {tab === 5 ? null : error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
         <Card style={{ padding: 0 }}>
@@ -1648,7 +1754,14 @@ const Candidates: React.FC = () => {
           />
         </Card>
       )}
-      <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
+      <div
+        style={{
+          fontSize: 12,
+          color: palette.mute,
+          marginTop: 8,
+          display: tab === 5 ? 'none' : undefined,
+        }}
+      >
         {tab === 1
           ? '按可信度从高到低、再按更新时间倒序；批量通过只处理品牌与品类都已确定的候选（生命周期按采购核实自动填写），其余跳过并提示'
           : '按可信度从高到低、再按更新时间倒序'}

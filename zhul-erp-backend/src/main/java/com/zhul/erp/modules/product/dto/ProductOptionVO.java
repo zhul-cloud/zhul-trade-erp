@@ -10,4 +10,6 @@ public class ProductOptionVO {
     private String brandName;
     private String categoryName;
     private String productName;
+    /** 候选商品（还没建档），选择器里标「候选」 */
+    private Boolean candidate;
 }

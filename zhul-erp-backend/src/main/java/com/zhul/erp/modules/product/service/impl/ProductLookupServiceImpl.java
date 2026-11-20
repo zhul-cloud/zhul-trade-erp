@@ -35,6 +35,7 @@ public class ProductLookupServiceImpl implements ProductLookupService {
     private final ProductNames productNames;
     private final IndustryScope industryScope;
     private final ProductOrderCodes orderCodes;
+    private final com.zhul.erp.modules.product.support.PlatformScopeGuard platformScopeGuard;
 
     @Override
     public List<ProductOptionVO> search(String keyword, Integer limit, Long brandId) {
@@ -47,6 +48,8 @@ public class ProductLookupServiceImpl implements ProductLookupService {
 
         LambdaQueryWrapper<ProductDO> wrapper = selectable()
                 .eq(brandId != null, ProductDO::getBrandId, brandId)
+                // 已建档的排在候选前面（只返回这两种，已建档的值更大）
+                .orderByDesc(ProductDO::getArchiveStatus)
                 .orderByAsc(ProductDO::getMpnNormalized)
                 .orderByAsc(ProductDO::getId)
                 .last("LIMIT " + size);
@@ -83,9 +86,11 @@ public class ProductLookupServiceImpl implements ProductLookupService {
                     .eq(ProductBrandDO::getBrandName, brand.trim())
                     .last("LIMIT 1"));
             if (matchedBrand != null) {
-                exact = productMapper.selectOne(selectable()
+                // 候选商品对所有公司都参与精确匹配（同一型号只有一个商品 ID），已建档的优先
+                exact = productMapper.selectOne(selectable(true)
                         .eq(ProductDO::getBrandId, matchedBrand.getId())
                         .eq(ProductDO::getMpnNormalized, normalized)
+                        .orderByDesc(ProductDO::getArchiveStatus)
                         .last("LIMIT 1"));
             }
         }
@@ -104,6 +109,12 @@ public class ProductLookupServiceImpl implements ProductLookupService {
             all.add(exact);
         }
         List<ProductOptionVO> options = toOptions(all);
+        if (exact != null && isCandidate(exact) && !candidateVisible(exact.getId())) {
+            // 别家公司询到的候选：只给商品 ID 与型号，不带由别家询盘带来的名称、品类
+            ProductOptionVO bare = options.get(options.size() - 1);
+            bare.setProductName(null);
+            bare.setCategoryName(null);
+        }
         if (exact != null) {
             result.setExact(options.get(options.size() - 1));
             options = options.subList(0, options.size() - 1);
@@ -153,29 +164,63 @@ public class ProductLookupServiceImpl implements ProductLookupService {
                         .select(ProductDO::getId, ProductDO::getBrandId, ProductDO::getMpnNormalized)
                         .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                         .isNull(ProductDO::getDeletedAt)
+                        .in(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE, ProductConstants.ARCHIVE_CANDIDATE)
                         .in(ProductDO::getBrandId, brandKeys.keySet())
                         .in(ProductDO::getMpnNormalized, mpns)
+                        .orderByDesc(ProductDO::getArchiveStatus)
                         .orderByAsc(ProductDO::getId))
                 .forEach(p -> result.putIfAbsent(brandKeys.get(p.getBrandId()) + "|" + p.getMpnNormalized(), p.getId()));
         return result;
     }
 
-    /** 只有启用且未删除的商品才能被业务单据选用 */
+    /**
+     * 只有启用且未删除的商品才能被业务单据选用：已建档的（租户只在本行业的商品里查找，按所属品类的一级品类），
+     * 以及候选商品（spec product/product-lookup「选择器搜索」：只给在商品候选里有本公司来源的租户）。
+     */
     private LambdaQueryWrapper<ProductDO> selectable() {
+        return selectable(false);
+    }
+
+    /** anyCandidate 为 true 时候选商品不按来源公司过滤（只用于精确匹配） */
+    private LambdaQueryWrapper<ProductDO> selectable(boolean anyCandidate) {
         LambdaQueryWrapper<ProductDO> wrapper = new LambdaQueryWrapper<ProductDO>()
                 .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .isNull(ProductDO::getDeletedAt)
                 .eq(ProductDO::getStatus, ProductConstants.STATUS_ENABLED);
-        // 租户只在本行业的商品里查找（按所属品类的一级品类）
         java.util.Set<Long> visibleCategories = industryScope.visibleCategoryIds();
-        if (visibleCategories != null) {
-            if (visibleCategories.isEmpty()) {
-                wrapper.apply("1 = 0");
-            } else {
-                wrapper.in(ProductDO::getCategoryId, visibleCategories);
-            }
-        }
+        boolean platform = platformScopeGuard.isPlatform();
+        Integer tenant = com.zhul.erp.framework.tenant.TenantContext.getTenantId();
+        wrapper.and(w -> {
+            w.and(a -> {
+                a.eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE);
+                if (visibleCategories != null) {
+                    if (visibleCategories.isEmpty()) {
+                        a.apply("1 = 0");
+                    } else {
+                        a.in(ProductDO::getCategoryId, visibleCategories);
+                    }
+                }
+            });
+            w.or(c -> {
+                c.eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_CANDIDATE);
+                if (!anyCandidate && !platform) {
+                    c.apply(CANDIDATE_OF_TENANT, tenant == null ? -1 : tenant);
+                }
+            });
+        });
         return wrapper;
+    }
+
+    /** 候选商品在商品候选里有这家公司的来源 */
+    private static final String CANDIDATE_OF_TENANT = "EXISTS (SELECT 1 FROM product_candidate pc JOIN product_candidate_source ps"
+            + " ON ps.candidate_id = pc.id AND ps.deleted_at IS NULL WHERE pc.product_id = product.id AND ps.tenant_id = {0})";
+
+    private static boolean isCandidate(ProductDO p) {
+        return java.util.Objects.equals(p.getArchiveStatus(), ProductConstants.ARCHIVE_CANDIDATE);
+    }
+
+    private boolean candidateVisible(Long productId) {
+        return productMapper.selectCount(selectable().eq(ProductDO::getId, productId)) > 0;
     }
 
     private List<ProductOptionVO> toOptions(List<ProductDO> products) {
@@ -190,6 +235,7 @@ public class ProductLookupServiceImpl implements ProductLookupService {
             ProductCategoryDO category = lookup.categories().get(product.getCategoryId());
             vo.setCategoryName(category == null ? null : category.getCategoryName());
             vo.setProductName(product.getProductName());
+            vo.setCandidate(isCandidate(product));
             options.add(vo);
         }
         return options;

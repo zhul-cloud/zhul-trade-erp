@@ -3,6 +3,7 @@ package com.zhul.erp.modules.supply.support;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.framework.tenant.TenantContext;
+import com.zhul.erp.modules.product.constants.ProductConstants;
 import com.zhul.erp.modules.product.entity.ProductDO;
 import com.zhul.erp.modules.product.repository.ProductMapper;
 import com.zhul.erp.modules.product.support.ProductCategoryChangedEvent;
@@ -85,6 +86,7 @@ public class DemandCategorySync {
         Set<Long> level2 = level2();
         Map<String, Long> categoryOf = new HashMap<>(productIds.size() * 2);
         for (ProductDO p : productMapper.selectList(new LambdaQueryWrapper<ProductDO>()
+                .eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE)
                 .select(ProductDO::getBrandId, ProductDO::getMpnNormalized, ProductDO::getCategoryId)
                 .in(ProductDO::getId, productIds)
                 .isNull(ProductDO::getDeletedAt))) {

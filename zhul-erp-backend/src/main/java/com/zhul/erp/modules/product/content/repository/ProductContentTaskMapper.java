@@ -14,7 +14,7 @@ public interface ProductContentTaskMapper extends BaseMapper<ProductContentTaskD
 
     String FROM = "FROM product p LEFT JOIN product_content_task t ON t.product_id = p.id AND t.tenant_id = #{tenantId} "
             + "AND t.deleted_at IS NULL LEFT JOIN product_fact_task f ON f.product_id = p.id AND f.tenant_id = 0 "
-            + "AND f.deleted_at IS NULL WHERE p.tenant_id = 0 AND p.deleted_at IS NULL AND p.status = 1 ";
+            + "AND f.deleted_at IS NULL WHERE p.tenant_id = 0 AND p.deleted_at IS NULL AND p.status = 1 AND p.archive_status = 2 ";
 
     /** 某平台没标不发布（本公司）：NOT_SKIPPED + 平台编码 + NOT_SKIPPED_END */
     String NOT_SKIPPED = "NOT EXISTS (SELECT 1 FROM product_marketing_skip s WHERE s.tenant_id = #{tenantId} "

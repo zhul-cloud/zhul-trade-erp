@@ -83,6 +83,7 @@ public class RequirementLifecycle {
             r.setSoId(o.getId());
             r.setSoItemId(i.getId());
             r.setQuotationItemId(Objects.requireNonNullElse(i.getQuotationItemId(), 0L));
+            r.setProductId(i.getProductId());
             r.setModel(i.getModel());
             r.setBrand(i.getBrand());
             r.setCategory(Objects.requireNonNullElse(i.getCategory(), ""));
@@ -288,6 +289,7 @@ public class RequirementLifecycle {
         PurchaseOrderItemDO x = new PurchaseOrderItemDO();
         x.setTenantId(i.getTenantId());
         x.setPoId(i.getPoId());
+        x.setProductId(i.getProductId());
         x.setModel(i.getModel());
         x.setBrand(i.getBrand());
         x.setDescription(i.getDescription());

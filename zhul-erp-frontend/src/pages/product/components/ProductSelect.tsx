@@ -1,4 +1,4 @@
-import { Select } from 'antd';
+import { Select, Tag } from 'antd';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { type ProductOption, productApi } from '../service';
 
@@ -70,7 +70,8 @@ export const ProductSelect: React.FC<{
     () =>
       options.map((o) => ({
         value: o.id,
-        label: `${o.mpnDisplay} · ${o.brandName} · ${o.categoryName}`,
+        label: `${o.mpnDisplay} · ${o.brandName}${o.categoryName ? ` · ${o.categoryName}` : ''}`,
+        candidate: !!o.candidate,
       })),
     [options],
   );
@@ -90,6 +91,16 @@ export const ProductSelect: React.FC<{
           options.find((o) => o.id === id),
         )
       }
+      optionRender={(o) => (
+        <span>
+          {o.label}
+          {o.data.candidate && (
+            <Tag color="orange" style={{ marginInlineStart: 6 }}>
+              候选
+            </Tag>
+          )}
+        </span>
+      )}
       notFoundContent="没有找到启用的商品，换个型号写法试试"
       popupMatchSelectWidth={footer ? 380 : true}
       labelRender={

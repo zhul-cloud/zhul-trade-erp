@@ -90,6 +90,7 @@ public class ContentBatchService {
             return out;
         }
         productMapper.selectList(new LambdaQueryWrapper<ProductDO>()
+                        .eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE)
                         .select(ProductDO::getId, ProductDO::getMpnRaw, ProductDO::getMpnDisplay)
                         .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                         .in(ProductDO::getId, ids))
