@@ -87,7 +87,7 @@ function wbShell(T, W, H, name) {
 
 function workbench(T, name, boards) {
   const K = kit(T); const { tx, box, icon, card, label } = K;
-  const content = wbShell(T, 1440, 924, name);
+  const content = wbShell(T, 1440, 1080, name);
   // 页头：问候；一人多看板时右侧切换（Segmented）
   const head = box(content, { width: 'fill_container', layout: 'horizontal', alignItems: 'center' });
   tx(head, '下午好，Kevin', { fontSize: 22, fontWeight: 600, fill: solid(T.ink), width: 'fill_container' });
@@ -95,7 +95,8 @@ function workbench(T, name, boards) {
     const seg = box(head, { layout: 'horizontal', gap: 2, padding: [3, 3], cornerRadius: 8, fill: solid(T.tonal) });
     boards.forEach((b, i) => { const s = box(seg, { layout: 'horizontal', height: 32, alignItems: 'center', padding: [0, 14], cornerRadius: 6, fill: solid(i === 0 ? T.card : T.tonal), effects: i === 0 && T.key === 'light' ? SH : [] }); tx(s, b, { fontSize: 13, fontWeight: i === 0 ? 600 : 400, fill: solid(i === 0 ? T.ink : T.sub) }); });
   }
-  const tone = { info: T.st.info, ok: T.st.ok, warn: T.st.warn, err: T.st.err, neu: T.st.neu };
+  const tone = { info: T.st.info, ok: T.st.ok, warn: T.st.warn, err: T.st.err, neu: T.st.neu, pri: [P, T.soft], blue: ['#3B82F6', T.key === 'light' ? '#E7F0FE' : '#172741'] };
+  const avatar = (p, ic, tn, size, round) => { const a = box(p, { width: size, height: size, cornerRadius: round ? size / 2 : 8, layout: 'horizontal', justifyContent: 'center', alignItems: 'center', fill: solid(tone[tn][1]) }); icon(a, ic, Math.round(size * 0.47), tone[tn][0], false); return a; };
   const widget = (p, title, o) => {
     o = o || {};
     const c = card(p, { width: 566, layout: 'vertical', gap: 16, padding: [20, 24] });
@@ -110,7 +111,9 @@ function workbench(T, name, boards) {
   // 指标：数值 22/700，较上月变化（变好绿、变坏红）或说明
   const metric = (p, l, v, o) => {
     o = o || {};
-    const m = box(p, { width: 'fill_container', layout: 'vertical', gap: 4, padding: [14, 16], cornerRadius: 8, fill: solid(T.tonal) });
+    // 指标小卡照 PrimeDash 统计块：白底细边框，图标的彩色浅底才清楚
+    const m = box(p, { width: 'fill_container', layout: 'vertical', gap: 4, padding: [14, 16], cornerRadius: 8, fill: solid(T.card), stroke: { thickness: 1, fill: solid(T.line) } });
+    if (o.ic) { avatar(m, o.ic, o.tn, 36, true); box(m, { width: 4, height: 4 }); }
     const lr = box(m, { layout: 'horizontal', gap: 4, alignItems: 'center' }); tx(lr, l, { fontSize: 13, fill: solid(T.sub) }); if (o.link) icon(lr, 'chevron-right', 12, T.sub);
     tx(m, v, { fontSize: 22, fontWeight: 700, fontFamily: NUM, fill: solid(T.ink) });
     if (o.delta) { const up = o.delta[0] === '+'; const col = (up === (o.better !== false)) ? T.st.ok[0] : T.st.err[0]; const d = box(m, { layout: 'horizontal', gap: 4, alignItems: 'center' }); icon(d, up ? 'trending-up' : 'trending-down', 14, col); tx(d, '较上月 ' + o.delta, { fontSize: 12, fontFamily: NUM, fill: solid(col) }); }
@@ -124,30 +127,33 @@ function workbench(T, name, boards) {
   const row1 = colL;
   // 我的待办
   let c = widget(row1, '我的待办');
-  const todos = [['inbox', 'info', '待确认的询盘', 'AI 解析完成，等你核对型号', 3, 1], ['file-text', 'ok', '可以报价', '采购已回价，还没做报价单', 5, 1], ['wallet', 'warn', 'PI 待收款', '已发给客户，还没付清', 4, 0], ['ship', 'neu', '订单待出运', '货已到齐，等安排交货代', 3, 0], ['alarm-clock', 'err', '售后要更新客户', '已逾期或 1 小时内到期的售后单', 1, 1]];
-  for (const [ic, tn, t, d, n, alert] of todos) {
-    const r = box(c, { width: 'fill_container', layout: 'horizontal', gap: 12, alignItems: 'center', padding: [10, 14], cornerRadius: 8, fill: solid(T.tonal) });
-    // 图标中性，颜色只留给需要处理的数字
-    const ci = box(r, { width: 34, height: 34, cornerRadius: 17, layout: 'horizontal', justifyContent: 'center', alignItems: 'center', fill: solid(T.st.neu[1]) }); icon(ci, ic === 'ship' ? 'rocket' : ic, 16, T.sub, false);
+  const todos = [['inbox', 'info', '待确认的询盘', 'AI 解析完成，等你核对型号', 3, 1], ['file-text', 'ok', '可以报价', '采购已回价，还没做报价单', 5, 1], ['wallet', 'pri', 'PI 待收款', '已发给客户，还没付清', 4, 0], ['ship', 'blue', '订单待出运', '货已到齐，等安排交货代', 3, 0], ['alarm-clock', 'err', '售后要更新客户', '已逾期或 1 小时内到期的售后单', 1, 1]];
+  // 列表行照 PrimeDash「Crypto Holdings」：无底色，行间分隔线
+  const tl = box(c, { width: 'fill_container', layout: 'vertical' });
+  todos.forEach(([ic, tn, t, d, n, alert], ti) => {
+    if (ti > 0) I(tl, { type: 'frame', width: 'fill_container', height: 1, fill: solid(T.line) });
+    const r = box(tl, { width: 'fill_container', layout: 'horizontal', gap: 12, alignItems: 'center', padding: [12, 0] });
+    // 每项一种颜色（PrimeDash 列表行：38、圆角 8、tonal）
+    avatar(r, ic === 'ship' ? 'rocket' : ic, tn, 38, false);
     const tc = box(r, { width: 'fill_container', layout: 'vertical', gap: 2 }); tx(tc, t, { fontWeight: 600, fill: solid(T.ink) }); tx(tc, d, { fontSize: 12, fill: solid(T.sub) });
     tx(r, String(n), { fontSize: 22, fontWeight: 700, fontFamily: NUM, fill: solid(alert && n > 0 ? tone[tn][0] : T.ink) });
     icon(r, 'chevron-right', 16, T.faint, false);
-  }
+  });
   // 我的业绩
   c = widget(colR, '我的业绩', { sub: '本月', help: 1 });
   const pg = box(c, { width: 'fill_container', layout: 'vertical', gap: 12 });
   let pr = box(pg, { width: 'fill_container', layout: 'horizontal', gap: 12 });
-  metric(pr, '成交额', 'CNY 412,860.00', { delta: '+9.6%' });
-  metric(pr, '毛利', 'CNY 87,940.00', { delta: '+6.1%' });
+  metric(pr, '成交额', 'CNY 412,860.00', { delta: '+9.6%', ic: 'badge-dollar-sign', tn: 'pri' });
+  metric(pr, '毛利', 'CNY 87,940.00', { delta: '+6.1%', ic: 'piggy-bank', tn: 'ok' });
   pr = box(pg, { width: 'fill_container', layout: 'horizontal', gap: 12 });
-  metric(pr, '实收回款', 'CNY 386,420.00', { delta: '-4.3%' });
-  metric(pr, '成交订单', '26', { delta: '+18.2%' });
+  metric(pr, '实收回款', 'CNY 386,420.00', { delta: '-4.3%', ic: 'landmark', tn: 'info' });
+  metric(pr, '成交订单', '26', { delta: '+18.2%', ic: 'shopping-bag', tn: 'blue' });
 
   // 询价进度
   c = widget(colR, '询价进度', { help: 1 });
   pr = box(c, { width: 'fill_container', layout: 'horizontal', gap: 12 });
-  metric(pr, '等采购回价的型号', '14', { link: 1, hint: '来自 4 张询盘' });
-  metric(pr, '已过报价截止', '1', { hint: '截止日期已过，还在询价', hintCol: T.st.err[0] });
+  metric(pr, '等采购回价的型号', '14', { link: 1, hint: '来自 4 张询盘', ic: 'hourglass', tn: 'info' });
+  metric(pr, '已过报价截止', '1', { hint: '截止日期已过，还在询价', hintCol: T.st.err[0], ic: 'calendar-x', tn: 'err' });
   // 过期未收款的 PI
   c = widget(colL, '过期未收款的 PI', { more: '查看全部' });
   const sm = box(c, { layout: 'horizontal', gap: 8, alignItems: 'end' });
@@ -167,9 +173,9 @@ function workbench(T, name, boards) {
   // 我的商机（半宽，右侧留空与代码一致）
   c = widget(colR, '我的商机', { sub: '本月' });
   pr = box(c, { width: 'fill_container', layout: 'horizontal', gap: 12 });
-  metric(pr, '本月新增商机', '12', { link: 1 });
-  metric(pr, '有效商机', '8', { hint: '有效率 66.7%' });
-  metric(pr, '赢单', '2');
+  metric(pr, '本月新增商机', '12', { link: 1, ic: 'user-plus', tn: 'pri' });
+  metric(pr, '有效商机', '8', { hint: '有效率 66.7%', ic: 'badge-check', tn: 'ok' });
+  metric(pr, '赢单', '2', { ic: 'trophy', tn: 'blue' });
 }
 
 workbench(LIGHT, 'D1 工作台 · 业务员 · 浅色');
@@ -183,10 +189,11 @@ function wbStates(T, name) {
   tx(head, '下午好，Kevin', { fontSize: 22, fontWeight: 600, fill: solid(T.ink), width: 'fill_container' });
   const seg = box(head, { layout: 'horizontal', gap: 2, padding: [3, 3], cornerRadius: 8, fill: solid(T.tonal) });
   ['业务负责人', '业务员'].forEach((b, i) => { const on = i === 1; const s = box(seg, { layout: 'horizontal', height: 32, alignItems: 'center', padding: [0, 14], cornerRadius: 6, fill: solid(on ? T.card : T.tonal), effects: on && T.key === 'light' ? SH : [] }); tx(s, b, { fontSize: 13, fontWeight: on ? 600 : 400, fill: solid(on ? T.ink : T.sub) }); });
-  const c = card(root, { width: 566, layout: 'vertical', gap: 16, padding: [20, 24] });
+  const c = card(root, { width: 566, layout: 'vertical', gap: 12, padding: [20, 24] });
   tx(c, '过期未收款的 PI', { fontSize: 18, fontWeight: 500, fill: solid(T.ink) });
-  const e = box(c, { width: 'fill_container', layout: 'horizontal', gap: 10, alignItems: 'center', padding: [18, 16], cornerRadius: 8, fill: solid(T.tonal) });
-  icon(e, 'circle-check', 18, T.st.ok[0]); tx(e, '没有过期未收款的 PI', { fill: solid(T.body) });
+  // 空状态：卡片里直接一行字，不再套灰底框（与费用订单、出库单等空状态一致）
+  const e = box(c, { layout: 'horizontal', gap: 8, alignItems: 'center' });
+  icon(e, 'circle-check', 16, T.st.ok[0]); tx(e, '没有过期未收款的 PI', { fill: solid(T.sub) });
 }
 wbStates(LIGHT, 'D1b 工作台状态 · 浅色');
 // 涨跌颜色（每人自选，和主题色放在一起）：颜色只表示方向，上涨一种颜色、下跌一种颜色；盈亏同理
