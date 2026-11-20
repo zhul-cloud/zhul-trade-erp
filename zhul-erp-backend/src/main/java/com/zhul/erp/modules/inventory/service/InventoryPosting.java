@@ -59,6 +59,24 @@ public class InventoryPosting {
     private final CurrentUserResolver currentUser;
     private final InquiryLookups lookups;
 
+    /** 已并入其他商品的商品 → 最终的主商品（沿并入链找到底）；没并入的不在结果里 */
+    Map<Long, Long> currentProducts(java.util.Collection<Long> productIds) {
+        Map<Long, Long> out = new HashMap<>();
+        List<Long> ids = productIds.stream().filter(Objects::nonNull).distinct().toList();
+        for (int depth = 0; depth < 5 && !ids.isEmpty(); depth++) {
+            List<Long> next = new ArrayList<>();
+            for (com.zhul.erp.modules.product.entity.ProductDO p : productMapper.selectBatchIds(ids)) {
+                if (p.getMergedIntoId() != null) {
+                    next.add(p.getMergedIntoId());
+                    out.replaceAll((k, v) -> v.equals(p.getId()) ? p.getMergedIntoId() : v);
+                    out.putIfAbsent(p.getId(), p.getMergedIntoId());
+                }
+            }
+            ids = next;
+        }
+        return out;
+    }
+
     /** 余额键 */
     public record Loc(long warehouseId, long productId, long batchId, int status) {
     }
@@ -247,13 +265,16 @@ public class InventoryPosting {
     public List<InvMoveDO> reverse(List<InvMoveDO> originals, String reverseBiz) {
         List<Line> lines = new ArrayList<>(originals.size());
         Map<ResKey, Integer> left = new HashMap<>();
+        Map<Long, Long> current = currentProducts(originals.stream().map(InvMoveDO::getProductId).toList());
         for (InvMoveDO m : originals) {
             if (m.getReverseOf() != null) {
                 throw new BizException("冲销流水不能再冲销");
             }
             Target t = m.getTargetType() == null ? null : new Target(m.getTargetType(), m.getTargetId());
             Doc d = new Doc(reverseBiz, m.getBizLabel(), m.getDocType(), m.getDocId(), m.getDocNo(), m.getDocItemId());
-            Loc loc = new Loc(m.getWarehouseId(), m.getProductId(), m.getBatchId(), m.getStockStatus());
+            // 原商品已并入其他商品时，库存已转到主商品上，反向记在主商品
+            Loc loc = new Loc(m.getWarehouseId(), current.getOrDefault(m.getProductId(), m.getProductId()), m.getBatchId(),
+                    m.getStockStatus());
             int op = InvConstants.opposite(m.getOpType());
             int qty = Math.abs(m.getQuantity());
             if (t == null || m.getQuantity() < 0) {

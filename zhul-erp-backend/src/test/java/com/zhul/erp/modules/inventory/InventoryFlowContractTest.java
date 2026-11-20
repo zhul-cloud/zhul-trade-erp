@@ -24,6 +24,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  */
 class InventoryFlowContractTest extends SalesContractSupport {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.zhul.erp.modules.product.merge.service.ProductMergeService productMerge;
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.transaction.support.TransactionTemplate tx;
+
     private static final String SHIP = "/api/v1/purchase/shipments";
     private static final String GR = "/api/v1/warehouse/receipts";
     private static final String DIFF = "/api/v1/purchase/discrepancies";
@@ -77,6 +82,15 @@ class InventoryFlowContractTest extends SalesContractSupport {
         return priceAndConfirm(draft, "800", admin);
     }
 
+    private static long itemOf(JsonNode po, String model) {
+        for (JsonNode i : po.path("items")) {
+            if (model.equals(i.path("model").asText())) {
+                return i.path("id").asLong();
+            }
+        }
+        throw new IllegalStateException("没有型号 " + model);
+    }
+
     private static long item(JsonNode po, int index) {
         return po.path("items").get(index).path("id").asLong();
     }
@@ -101,6 +115,18 @@ class InventoryFlowContractTest extends SalesContractSupport {
             int[] q = qty[i];
             items.add(Map.of("shipmentItemId", s.path("shipment").path("items").get(i).path("id").asLong(),
                     "receivedQty", q[0], "qualifiedQty", q[1], "defectiveQty", q[2]));
+        }
+        return ok(call(json(post(GR), write(Map.of("shipmentId", shipmentId, "receivedDate", LocalDate.now().toString(), "items", items))),
+                keeper)).path("receipt").path("id").asLong();
+    }
+
+    /** 按采购订单行验收：{实收, 合格, 不良}；返回采购入库单 ID */
+    private long acceptBy(long shipmentId, Map<Long, int[]> byPoItem) throws Exception {
+        JsonNode s = ok(call(get(GR + "/shipments/" + shipmentId), keeper));
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (JsonNode i : s.path("shipment").path("items")) {
+            int[] q = byPoItem.get(i.path("poItemId").asLong());
+            items.add(Map.of("shipmentItemId", i.path("id").asLong(), "receivedQty", q[0], "qualifiedQty", q[1], "defectiveQty", q[2]));
         }
         return ok(call(json(post(GR), write(Map.of("shipmentId", shipmentId, "receivedDate", LocalDate.now().toString(), "items", items))),
                 keeper)).path("receipt").path("id").asLong();
@@ -396,5 +422,48 @@ class InventoryFlowContractTest extends SalesContractSupport {
         assertStock(new int[]{1, 0, 0}, stock(product, 2), "货代仓 1 个成为可用");
         assertEquals(2, jdbc.queryForObject("select count(*) from inv_move where tenant_id = 0 and op_type = 8 and target_id = ?"
                 + " and biz_label = ?", Integer.class, soItem, "订单取消 · " + soNo), "先公司仓库后货代仓各释放一笔");
+    }
+
+    // ---------------------------------------------------------------- 商品合并
+
+    /** spec warehouse/inventory 商品合并：被并入商品的余额转到主商品（同批次），预占一起转；之后冲销入库记在主商品上 */
+    @Test
+    void productMerge_movesStockAndReservations() throws Exception {
+        long sup = supplier("华控自动化", null);
+        JsonNode po = orderedPo(sup, l("A-1", 3, "1000", "200"), l("A-2", 1, "1000", "200"));
+        long itemA = itemOf(po, "A-1");
+        long itemB = itemOf(po, "A-2");
+        long from = productOfPoItem(itemA);
+        long to = productOfPoItem(itemB);
+        long soItemA = soItemOfPoItem(itemA);
+        long gr = acceptBy(ship(po.path("id").asLong(), Map.of(itemA, 3, itemB, 1)), Map.of(itemA, new int[]{3, 2, 1}, itemB, new int[]{1, 1, 0}));
+        // 商品是全局数据，测试结束还原两个商品，不影响其他测试
+        Map<String, Object> fromRow = jdbc.queryForMap("select archive_status, brand_key from product where id = ?", from);
+        Integer toStatus = jdbc.queryForObject("select archive_status from product where id = ?", Integer.class, to);
+        try {
+            jdbc.update("update product set archive_status = 2 where id = ?", to);
+            assertStock(new int[]{2, 1, 2}, stock(from, 1), "合并前 A-1");
+            assertStock(new int[]{1, 0, 1}, stock(to, 1), "合并前 A-2");
+            com.zhul.erp.framework.tenant.TenantContext.runAs(0, () -> tx.executeWithoutResult(st -> productMerge.merge(from, to, "同一型号")));
+            assertMerged(from, to, soItemA, gr);
+        } finally {
+            jdbc.update("update product set archive_status = ?, brand_key = ?, merged_into_id = null where id = ?",
+                    fromRow.get("archive_status"), fromRow.get("brand_key"), from);
+            jdbc.update("update product set archive_status = ? where id = ?", toStatus, to);
+            jdbc.update("delete from product_merge where from_product_id = ?", from);
+        }
+    }
+
+    private void assertMerged(long from, long to, long soItemA, long gr) throws Exception {
+        assertStock(new int[]{0, 0, 0}, stock(from, 1), "原商品没有库存了");
+        assertStock(new int[]{3, 1, 3}, stock(to, 1), "主商品：合格 1+2、不良 1，预占 1+2");
+        assertEquals(2, reservedFor(soItemA), "A-1 型号行的预占跟着转");
+        assertEquals(to, jdbc.queryForObject("select product_id from inv_reservation where tenant_id = 0 and target_id = ? and quantity > 0",
+                Long.class, soItemA));
+        assertEquals(4, jdbc.queryForObject("select count(*) from inv_move where tenant_id = 0 and biz_type = 'MERGE'", Integer.class),
+                "合格（预占 2）、不良 1 各转出、转入一笔");
+
+        ok(call(json(post(GR + "/" + gr + "/reverse"), "{\"reason\":\"录错\"}"), keeper));
+        assertStock(new int[]{0, 0, 0}, stock(to, 1), "冲销入库：反向记在主商品上");
     }
 }

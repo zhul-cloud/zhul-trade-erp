@@ -39,6 +39,7 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class ProductMergeService {
 
+    private final com.zhul.erp.modules.inventory.service.InventoryMerge inventoryMerge;
     private final NamedParameterJdbcTemplate jdbc;
     private final ProductMapper productMapper;
     private final ProductMergeMapper mergeMapper;
@@ -113,6 +114,8 @@ public class ProductMergeService {
                 byTable.put(e.table(), n);
             }
         }
+        // 库存：各租户在原商品上的余额转到主商品（同批次，预占一起转），写「商品合并」流水
+        inventoryMerge.merge(fromId, toId, cut(label(from), 100));
         orderCodes.addAll(to.getId(), to.getBrandId(), orderCodes.codesOf(fromId));
         productMapper.update(null, new LambdaUpdateWrapper<ProductDO>()
                 .eq(ProductDO::getId, fromId)
