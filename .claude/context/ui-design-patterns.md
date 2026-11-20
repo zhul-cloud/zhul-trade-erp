@@ -135,6 +135,9 @@
 6. **例外页面**：审计日志类页面（登录日志、操作日志）不适用——日志不可编辑，
    只有 `operateTime` + 操作人，没有"更新"语义，保持现状（`operateTime` 倒序 +
    操作人列）。纯占位 / 无真实后端的页面、脚手架模板页同样不适用。
+   库存查询、库存流水、库存台账（2026-11-21，openspec inventory-foundation）也不适用：
+   库存查询与库存台账是按商品 × 仓库、按月汇总出来的数，没有单行的创建 / 更新人；库存流水
+   只增不改，显示「发生时间」倒序 + 操作人。三页默认排序分别为最近变动倒序、发生时间倒序、按商品。
 
 后端侧 `createBy`/`updateBy` 来自 `BaseEntity`/各表的 `create_by`/`update_by` 列
 （`FieldFill.INSERT` / `INSERT_UPDATE` 自动填充，见 `.claude/rules/coding.md`

@@ -11,6 +11,7 @@ import com.zhul.erp.modules.inventory.dto.MoveQuery;
 import com.zhul.erp.modules.inventory.dto.StockBatchVO;
 import com.zhul.erp.modules.inventory.dto.StockQuery;
 import com.zhul.erp.modules.inventory.dto.StockRowVO;
+import com.zhul.erp.modules.inventory.dto.StockSummaryVO;
 import com.zhul.erp.modules.inventory.entity.InvBalanceDO;
 import com.zhul.erp.modules.inventory.entity.InvBatchDO;
 import com.zhul.erp.modules.inventory.entity.InvMoveDO;
@@ -70,14 +71,18 @@ public class InventoryQueryService {
 
     // ---------------------------------------------------------------- 库存查询
 
-    public PageResult<StockRowVO> stocks(StockQuery q) {
+    /** 按商品 × 仓库汇总的 SQL 与参数；筛选结果必为空时返回 null */
+    private record Grouped(String sql, List<Object> args) {
+    }
+
+    private Grouped stocksSql(StockQuery q) {
         int tenant = PiStore.tenantId();
         StringBuilder where = new StringBuilder(" WHERE b.tenant_id = ?");
         List<Object> args = new ArrayList<>(List.of(tenant));
         List<Long> whIds = warehouseFilter(q.getWarehouseId(), q.getWarehouseScope());
         if (whIds != null) {
             if (whIds.isEmpty()) {
-                return PageResult.of(0L, List.of());
+                return null;
             }
             where.append(" AND b.warehouse_id IN (").append(marks(whIds.size())).append(')');
             args.addAll(whIds);
@@ -85,7 +90,7 @@ public class InventoryQueryService {
         List<Long> productIds = keywordProducts(q.getKeyword());
         if (productIds != null) {
             if (productIds.isEmpty()) {
-                return PageResult.of(0L, List.of());
+                return null;
             }
             where.append(" AND b.product_id IN (").append(marks(productIds.size())).append(')');
             args.addAll(productIds);
@@ -104,6 +109,17 @@ public class InventoryQueryService {
                 + " SUM(b.on_hand * COALESCE(t.unit_price_cny, 0)) amount, MAX(b.last_move_time) last_move"
                 + " FROM inv_balance b LEFT JOIN inv_batch t ON t.id = b.batch_id AND t.tenant_id = b.tenant_id"
                 + where + " GROUP BY b.product_id, b.warehouse_id" + having;
+        return new Grouped(grouped, args);
+    }
+
+    public PageResult<StockRowVO> stocks(StockQuery q) {
+        int tenant = PiStore.tenantId();
+        Grouped g = stocksSql(q);
+        if (g == null) {
+            return PageResult.of(0L, List.of());
+        }
+        String grouped = g.sql();
+        List<Object> args = g.args();
         Long total = jdbc.queryForObject("SELECT COUNT(*) FROM (" + grouped + ") x", Long.class, args.toArray());
         if (total == null || total == 0) {
             return PageResult.of(0L, List.of());
@@ -126,6 +142,31 @@ public class InventoryQueryService {
         }, pageArgs.toArray());
         fillStockRows(tenant, rows);
         return PageResult.of(total, rows);
+    }
+
+    /** 库存查询顶部汇总：与列表同样的筛选；退货待寄出 = 采购退货单的预占 */
+    public StockSummaryVO stockSummary(StockQuery q) {
+        StockSummaryVO v = new StockSummaryVO();
+        Grouped g = stocksSql(q);
+        if (g == null) {
+            return v;
+        }
+        jdbc.query("SELECT COALESCE(SUM(amount), 0), COUNT(DISTINCT product_id), COUNT(DISTINCT warehouse_id),"
+                + " COALESCE(SUM(available), 0), COALESCE(SUM(defective), 0) FROM (" + g.sql() + ") x", rs -> {
+            v.setAmountCny(rs.getBigDecimal(1).setScale(2, RoundingMode.HALF_UP));
+            v.setProductCount(rs.getInt(2));
+            v.setWarehouseCount(rs.getInt(3));
+            v.setAvailable(rs.getInt(4));
+            v.setDefective(rs.getInt(5));
+        }, g.args().toArray());
+        List<Object> args = new ArrayList<>(g.args());
+        args.add(PiStore.tenantId());
+        args.add(InvConstants.TARGET_RETURN_ITEM);
+        Integer pending = jdbc.queryForObject("SELECT COALESCE(SUM(r.quantity), 0) FROM inv_reservation r JOIN (" + g.sql() + ") x"
+                + " ON x.product_id = r.product_id AND x.warehouse_id = r.warehouse_id WHERE r.tenant_id = ? AND r.target_type = ?",
+                Integer.class, args.toArray());
+        v.setReturnPending(pending == null ? 0 : pending);
+        return v;
     }
 
     private void fillStockRows(int tenant, List<StockRowVO> rows) {
@@ -192,9 +233,25 @@ public class InventoryQueryService {
                 .gt(InvReservationDO::getQuantity, 0));
         Map<String, String> nos = moves.targetNos(rs.stream().collect(Collectors.groupingBy(InvReservationDO::getTargetType,
                 Collectors.mapping(InvReservationDO::getTargetId, Collectors.toSet()))));
+        Map<Long, Map<String, Object>> pos = new HashMap<>();
+        List<Long> poItems = batches.values().stream().map(InvBatchDO::getPoItemId).filter(Objects::nonNull).distinct().toList();
+        if (!poItems.isEmpty()) {
+            jdbc.queryForList("SELECT i.id, o.id po_id, o.po_no, o.supplier_id, COALESCE(s.name, o.shop_name) supplier_name"
+                    + " FROM purchase_order_item i JOIN purchase_order o ON o.id = i.po_id AND o.tenant_id = i.tenant_id"
+                    + " LEFT JOIN supplier s ON s.id = o.supplier_id AND s.tenant_id = o.tenant_id"
+                    + " WHERE i.tenant_id = ? AND i.id IN (" + String.join(",", poItems.stream().map(x -> "?").toList()) + ")",
+                    concat(PiStore.tenantId(), poItems)).forEach(r -> pos.put(((Number) r.get("id")).longValue(), r));
+        }
         return rows.stream().map(b -> {
             InvBatchDO t = batches.get(b.getBatchId());
             StockBatchVO v = new StockBatchVO();
+            Map<String, Object> po = t == null || t.getPoItemId() == null ? null : pos.get(t.getPoItemId());
+            if (po != null) {
+                v.setPoId(((Number) po.get("po_id")).longValue());
+                v.setPoNo((String) po.get("po_no"));
+                v.setSupplierId(((Number) po.get("supplier_id")).longValue());
+                v.setSupplierName(Objects.toString(po.get("supplier_name"), ""));
+            }
             v.setBatchId(b.getBatchId());
             v.setStockStatus(b.getStockStatus());
             v.setStockStatusName(InvConstants.STATUS_NAMES.get(b.getStockStatus()));

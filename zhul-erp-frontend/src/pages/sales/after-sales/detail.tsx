@@ -637,7 +637,7 @@ const AfterSalesDetail: React.FC = () => {
         </div>
       )}
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-        退款冲减订单收入，费用计入订单成本；退货去向处理后，退回供应商或转闲置冲减订单成本；补发订单的成本计入原订单。
+        退款冲减订单收入，费用计入订单成本；退货去向处理后，退回供应商或转可用库存冲减订单成本；补发订单的成本计入原订单。
       </div>
     </Card>
   );

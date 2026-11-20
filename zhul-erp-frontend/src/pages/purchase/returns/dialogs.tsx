@@ -24,7 +24,11 @@ import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { CARRIERS } from '../shipments/ShipmentDrawer';
-import { PR_SOURCE, type PurchaseReturn, purchaseReturnApi } from './service';
+import {
+  creditsPayable,
+  type PurchaseReturn,
+  purchaseReturnApi,
+} from './service';
 
 const Label: React.FC<{ text: string; required?: boolean }> = ({
   text,
@@ -216,14 +220,15 @@ export const CompleteModal: React.FC<{
   const [note, setNote] = useState('');
   const [payable, setPayable] = useState<Payable | null>();
   const [busy, setBusy] = useState(false);
-  const afterSales = data?.sourceType === PR_SOURCE.AFTER_SALES;
+  // 售后退货、库存退回：登记供应商退款或抵扣，冲减应付
+  const afterSales = creditsPayable(data?.sourceType);
   useEffect(() => {
     if (!data) return;
     setDate(dayjs());
     setAmount(null);
     setNote('');
     setPayable(undefined);
-    if (data.sourceType === PR_SOURCE.AFTER_SALES && data.poId)
+    if (afterSales && data.poId)
       payableApi
         .bySource(SOURCE.PO, data.poId)
         .then(setPayable)

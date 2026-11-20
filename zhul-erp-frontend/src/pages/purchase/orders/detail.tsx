@@ -1063,7 +1063,7 @@ const PurchaseOrderDetail: React.FC = () => {
             type="warning"
             showIcon
             title={`来源订单减少：${reducedLines.length} 个型号共少 ${reducedLines.reduce((n, i) => n + (i.soReducedQuantity ?? 0), 0)} 个`}
-            description={`${[...new Set(reducedLines.map((i) => i.soNo))].join('、')} 部分取消了型号。请和供应商确认：能退就取消本采购订单后重新下单；保留的话，到货验收时超出订单需要的合格数量会自动转入闲置库存。`}
+            description={`${[...new Set(reducedLines.map((i) => i.soNo))].join('、')} 部分取消了型号。请和供应商确认：能退就取消本采购订单后重新下单；保留的话，到货验收时超出订单需要的合格数量留作可用库存。`}
           />
         )}
         {isDraft && (

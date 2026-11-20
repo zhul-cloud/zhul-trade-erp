@@ -26,6 +26,11 @@ public class StockBatchVO {
     private String currencyCode = "CNY";
     private BigDecimal unitPriceCny;
     private BigDecimal amountCny;
+    /** 采购批次的采购订单与供应商（退回供应商默认选它；线上店铺 supplierId=0、supplierName 为店铺名） */
+    private Long poId;
+    private String poNo;
+    private Long supplierId;
+    private String supplierName;
     private List<Reservation> reservations;
 
     @Data

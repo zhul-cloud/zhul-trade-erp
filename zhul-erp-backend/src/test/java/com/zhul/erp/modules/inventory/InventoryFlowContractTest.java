@@ -354,8 +354,13 @@ class InventoryFlowContractTest extends SalesContractSupport {
         ok(call(json(put(OB + "/" + obId + "/pack"), write(Map.of("boxes", List.of(Map.of("length", 50, "width", 40, "height", 30,
                 "grossWeight", "10", "items", List.of(Map.of("outboundItemId", ob.path("items").get(0).path("id").asLong(),
                         "quantity", 3))))))), keeper));
-        String msg = fail(handOverCall(obId)).path("message").asText();
+        JsonNode err = fail(handOverCall(obId));
+        String msg = err.path("message").asText();
         assertTrue(msg.startsWith("库存不足：A-1 × 缺 3"), msg);
+        // 前端「不能交货代」弹窗逐行显示（原型 I8）
+        assertEquals("STOCK_SHORTAGE", err.path("data").path("errorCode").asText());
+        assertEquals("A-1", err.path("data").path("detail").path("items").get(0).path("model").asText());
+        assertEquals(3, err.path("data").path("detail").path("items").get(0).path("shortage").asInt());
 
         jdbc.update("update sys_config set config_value = 'dropship' where tenant_id = 0 and config_key = 'inventory.mode'");
         ok(handOverCall(obId));
@@ -485,6 +490,16 @@ class InventoryFlowContractTest extends SalesContractSupport {
         assertEquals(3, batches.get(0).path("free").asInt());
         assertEquals(soNo + ":2", batches.get(0).path("reservations").get(0).path("docNo").asText() + ":"
                 + batches.get(0).path("reservations").get(0).path("quantity").asInt());
+        // 退回供应商默认批次的采购订单供应商
+        assertEquals(sup, batches.get(0).path("supplierId").asLong());
+        assertEquals("华控自动化", batches.get(0).path("supplierName").asText());
+        assertEquals(po.path("id").asLong(), batches.get(0).path("poId").asLong());
+
+        // 顶部汇总与列表同样的筛选
+        JsonNode sum = ok(call(json(post("/api/v1/warehouse/stocks/summary"), write(Map.of("keyword", "A-1"))), keeper));
+        assertEquals("1/1/3/0/0", sum.path("productCount").asInt() + "/" + sum.path("warehouseCount").asInt() + "/"
+                + sum.path("available").asInt() + "/" + sum.path("defective").asInt() + "/" + sum.path("returnPending").asInt());
+        assertEquals(0, new java.math.BigDecimal(row.path("amountCny").asText()).compareTo(new java.math.BigDecimal(sum.path("amountCny").asText())));
 
         // 交货代后撤销：按出库单号查到调出、调入与两笔反向
         long fwd = forwarder();

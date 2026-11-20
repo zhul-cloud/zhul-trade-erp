@@ -9,6 +9,7 @@ import com.zhul.erp.modules.inventory.dto.MoveQuery;
 import com.zhul.erp.modules.inventory.dto.StockBatchVO;
 import com.zhul.erp.modules.inventory.dto.StockQuery;
 import com.zhul.erp.modules.inventory.dto.StockRowVO;
+import com.zhul.erp.modules.inventory.dto.StockSummaryVO;
 import com.zhul.erp.modules.inventory.service.InventoryQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ContentDisposition;
@@ -38,6 +39,12 @@ public class InventoryQueryController {
     @PreAuthorize("@perm.canAccessMenu('/warehouse/stocks')")
     public Result<PageResult<StockRowVO>> stocks(@RequestBody StockQuery q) {
         return Result.ok(service.stocks(q));
+    }
+
+    @PostMapping("/stocks/summary")
+    @PreAuthorize("@perm.canAccessMenu('/warehouse/stocks')")
+    public Result<StockSummaryVO> stockSummary(@RequestBody StockQuery q) {
+        return Result.ok(service.stockSummary(q));
     }
 
     @GetMapping("/stocks/batches")

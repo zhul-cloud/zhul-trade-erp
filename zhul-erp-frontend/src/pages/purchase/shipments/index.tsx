@@ -487,7 +487,7 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
             onClick={() =>
               modal.confirm({
                 title: `重新打开「${r.model} ${r.typeName} ${r.quantity}」？`,
-                content: `撤销「${r.resolutionName}」：采购订单数量、闲置库存与订单进度恢复到处理前，差异回到待处理。`,
+                content: `撤销「${r.resolutionName}」：采购订单数量、库存与订单进度恢复到处理前，差异回到待处理。`,
                 okText: '重新打开',
                 onOk: async () => {
                   try {

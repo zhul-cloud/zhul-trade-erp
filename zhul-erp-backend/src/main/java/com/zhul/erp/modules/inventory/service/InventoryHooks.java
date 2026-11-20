@@ -147,6 +147,13 @@ public class InventoryHooks {
                 InvConstants.BIZ_DISCOUNT_ACCEPT_UNDO);
     }
 
+    /** 库存模式下库存不够：错误码 STOCK_SHORTAGE，明细给前端逐行显示（原型 I8） */
+    private static com.zhul.erp.common.exception.BizException shortage(List<String> text, String hint, String docNo,
+                                                                     List<Map<String, Object>> items) {
+        return com.zhul.erp.common.exception.BizException.of("STOCK_SHORTAGE", "库存不足：" + String.join("、", text) + hint,
+                Map.of("docNo", docNo, "items", items));
+    }
+
     // ---------------------------------------------------------------- 交货代
 
     /** 交货代的一行：销售出库单行 */
@@ -166,6 +173,7 @@ public class InventoryHooks {
         Doc doc = Doc.of(InvConstants.BIZ_HANDOVER, "OB", outboundId, obNo);
         List<Line> lines = new ArrayList<>();
         List<String> shortages = new ArrayList<>();
+        List<Map<String, Object>> shortageItems = new ArrayList<>();
         Map<Long, Integer> usedFree = new HashMap<>();
         int sysSeq = 0;
         for (HandoverLine it : items) {
@@ -213,6 +221,7 @@ public class InventoryHooks {
             if (left > 0) {
                 if (!dropship) {
                     shortages.add(it.model() + " × 缺 " + left);
+                    shortageItems.add(Map.of("model", it.model(), "shortage", left));
                     continue;
                 }
                 sysSeq++;
@@ -224,8 +233,7 @@ public class InventoryHooks {
             }
         }
         if (!shortages.isEmpty()) {
-            throw new com.zhul.erp.common.exception.BizException("库存不足：" + String.join("、", shortages)
-                    + "。库存模式下不能交货代，请先完成采购入库");
+            throw shortage(shortages, "。库存模式下不能交货代，请先完成采购入库", obNo, shortageItems);
         }
         posting.post(lines);
     }
@@ -254,6 +262,7 @@ public class InventoryHooks {
         Doc doc = Doc.of(InvConstants.BIZ_SALES_OUT, "SH", shipmentId, shNo);
         List<Line> lines = new ArrayList<>();
         List<String> shortages = new ArrayList<>();
+        List<Map<String, Object>> shortageItems = new ArrayList<>();
         Map<Long, Integer> usedFree = new HashMap<>();
         Map<Long, Integer> usedReserved = new HashMap<>();
         int sysSeq = 0;
@@ -303,6 +312,7 @@ public class InventoryHooks {
             if (left > 0) {
                 if (!dropship) {
                     shortages.add(it.model() + " × 缺 " + left);
+                    shortageItems.add(Map.of("model", it.model(), "shortage", left));
                     continue;
                 }
                 sysSeq++;
@@ -314,8 +324,7 @@ public class InventoryHooks {
             }
         }
         if (!shortages.isEmpty()) {
-            throw new com.zhul.erp.common.exception.BizException("库存不足：" + String.join("、", shortages)
-                    + "。库存模式下不能出运，请先核对货代仓的库存");
+            throw shortage(shortages, "。库存模式下不能出运，请先核对货代仓的库存", shNo, shortageItems);
         }
         posting.post(lines);
     }

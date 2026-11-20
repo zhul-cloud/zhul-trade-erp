@@ -40,6 +40,7 @@ import {
   type ModelTagMap,
   ModelTags,
 } from '@/pages/warehouse/components';
+import { showStockShortage } from '@/pages/warehouse/inventoryParts';
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
@@ -328,7 +329,7 @@ export const HandOverModal: React.FC<{
   onDone: () => void;
 }> = ({ open, outbounds, onClose, onDone }) => {
   const { palette } = useAppTheme();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { initialState } = useModel('@@initialState');
   const [carrier, setCarrier] = useState('顺丰');
   const [trackingNo, setTrackingNo] = useState('');
@@ -373,7 +374,8 @@ export const HandOverModal: React.FC<{
       message.success('已交货代');
       onDone();
     } catch (e) {
-      message.error(readBizError(e).message);
+      const err = readBizError(e);
+      if (!showStockShortage(modal, err, '交货代')) message.error(err.message);
     } finally {
       setBusy(false);
     }
