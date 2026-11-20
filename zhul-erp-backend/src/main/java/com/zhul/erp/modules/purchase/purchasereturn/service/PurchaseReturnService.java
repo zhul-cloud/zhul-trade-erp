@@ -50,6 +50,9 @@ import com.zhul.erp.modules.warehouse.repository.ReceivingDiscrepancyMapper;
 import com.zhul.erp.modules.warehouse.service.DiscrepancyService;
 import com.zhul.erp.modules.warehouse.support.ReceivingSupport;
 import org.springframework.context.annotation.Lazy;
+import com.zhul.erp.modules.inventory.constants.InvConstants;
+import com.zhul.erp.modules.inventory.service.InventoryHooks;
+import com.zhul.erp.modules.inventory.service.InventoryPosting;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -103,6 +106,7 @@ public class PurchaseReturnService {
     private final CurrentUserResolver currentUser;
     private final LogService logService;
     private final DiscrepancyService discrepancyService;
+    private final InventoryHooks inventory;
 
     @SuppressWarnings("java:S107")
     public PurchaseReturnService(PurchaseReturnMapper mapper, PurchaseReturnItemMapper itemMapper, SupplierMapper supplierMapper,
@@ -112,7 +116,7 @@ public class PurchaseReturnService {
                                  SalesOrderItemMapper orderItemMapper, InquiryLookups lookups, AttachmentService attachments, DocLogs docLogs,
                                  AfterSalesLogs afterSalesLogs, PayableSyncService payables,
                                  DocumentNumberService numbers, CurrentUserResolver currentUser, LogService logService,
-                                 @Lazy DiscrepancyService discrepancyService) {
+                                 @Lazy DiscrepancyService discrepancyService, InventoryHooks inventory) {
         this.mapper = mapper;
         this.itemMapper = itemMapper;
         this.supplierMapper = supplierMapper;
@@ -134,6 +138,7 @@ public class PurchaseReturnService {
         this.currentUser = currentUser;
         this.logService = logService;
         this.discrepancyService = discrepancyService;
+        this.inventory = inventory;
     }
 
     // ---------------------------------------------------------------- 生成（调用方事务内）
@@ -175,6 +180,9 @@ public class PurchaseReturnService {
                 i.setBrand(l.receiptItem().getBrand());
                 i.setQuantity(l.disposition().getQuantity());
                 itemMapper.insert(i);
+                // 退货待寄出：锁住退货批次的货（不良优先），防止被交货代或其他出库取走
+                inventory.reserveForReturn(i.getId(), inventory.returnBatchOf(l.receiptItem().getId()),
+                        List.of(InvConstants.DEFECTIVE, InvConstants.GOOD), null, i.getQuantity(), reserveDoc(p, i), false);
                 l.disposition().setPurchaseReturnId(p.getId());
                 dispositionMapper.updateById(l.disposition());
             }
@@ -206,6 +214,10 @@ public class PurchaseReturnService {
         i.setBrand(d.getBrand());
         i.setQuantity(d.getQuantity());
         itemMapper.insert(i);
+        // 退货待寄出：不良退货锁该入库批次的不良，多发退回锁合格
+        inventory.reserveForReturn(i.getId(), inventory.purchaseBatchOf(d.getReceiptItemId()),
+                List.of(d.getType() == WarehouseConstants.DIFF_DEFECTIVE ? InvConstants.DEFECTIVE : InvConstants.GOOD), null,
+                i.getQuantity(), reserveDoc(p, i), false);
         docLogs.add(DocumentType.PR, p.getId(), "生成", "由到货差异「" + WarehouseConstants.RESOLUTION_NAMES.get(d.getResolution()) + "」生成："
                 + d.getModel() + " × " + d.getQuantity());
         return p;
@@ -228,7 +240,24 @@ public class PurchaseReturnService {
         p.setStatus(PurchaseReturnConstants.VOID);
         p.setVoidReason("到货差异重新打开");
         mapper.updateById(p);
+        releaseAll(p);
         docLogs.add(DocumentType.PR, p.getId(), "作废", "到货差异重新打开，随之作废");
+    }
+
+    private static InventoryPosting.Doc reserveDoc(PurchaseReturnDO p, PurchaseReturnItemDO i) {
+        return InventoryPosting.Doc.of(InvConstants.BIZ_RESERVE, "PR", p.getId(), p.getReturnNo()).item(i.getId());
+    }
+
+    private static InventoryPosting.Doc releaseDoc(PurchaseReturnDO p, PurchaseReturnItemDO i) {
+        return InventoryPosting.Doc.of(InvConstants.BIZ_RELEASE, "PR", p.getId(), p.getReturnNo()).item(i.getId());
+    }
+
+    /** 释放整张采购退货单的退货预占 */
+    private void releaseAll(PurchaseReturnDO p) {
+        for (PurchaseReturnItemDO i : itemMapper.selectList(new LambdaQueryWrapper<PurchaseReturnItemDO>()
+                .eq(PurchaseReturnItemDO::getPurchaseReturnId, p.getId()))) {
+            inventory.releaseReturn(i.getId(), Integer.MAX_VALUE, releaseDoc(p, i));
+        }
     }
 
     private PurchaseReturnDO newReturn(Integer tenantId, Long supplierId, int source, PurchaseOrderDO po) {
@@ -291,6 +320,7 @@ public class PurchaseReturnService {
                 continue;
             }
             giveBack(rr, i, less);
+            inventory.releaseReturn(i.getId(), less, releaseDoc(p, i));
             text.add(i.getModel() + " " + i.getQuantity() + " → " + q);
             i.setQuantity(q);
             if (q == 0) {
@@ -322,6 +352,9 @@ public class PurchaseReturnService {
                 ? (req.getPayerId() != null ? req.getPayerId() : me()) : null);
         p.setStatus(PurchaseReturnConstants.SHIPPED);
         mapper.updateById(p);
+        // 库存：按退货预占出库
+        inventory.returnShipped(p.getId(), p.getReturnNo(),
+                itemsOf(List.of(id)).getOrDefault(id, List.of()).stream().map(PurchaseReturnItemDO::getId).toList());
         if (p.getPayerId() != null) {
             attachments.attach(AttachmentService.RETURN_PROOF, p.getId(), req.getProofIds());
         }
@@ -434,6 +467,7 @@ public class PurchaseReturnService {
             for (PurchaseReturnItemDO i : itemsOf(List.of(id)).getOrDefault(id, List.of())) {
                 giveBack(rr, i, i.getQuantity());
             }
+            releaseAll(p);
         }
         docLogs.add(DocumentType.PR, id, "作废", p.getVoidReason());
         afterSales(p, "作废采购退货单 " + p.getReturnNo() + "：" + p.getVoidReason());

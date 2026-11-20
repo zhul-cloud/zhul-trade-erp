@@ -238,20 +238,51 @@ public class InventoryPosting {
         return moves.stream().filter(m -> !reversed.contains(m.getId())).toList();
     }
 
-    /** 按原流水逐条生成数量相反、操作类型相反的流水，业务类型改为 reverseBiz */
+    /**
+     * 按原流水逐条生成数量相反、操作类型相反的流水，业务类型改为 reverseBiz。
+     * 原流水是带预占对象的入库、调入、转入或预占时，只冲掉该对象现在还剩的预占，其余按没有预占的货反向
+     * （例如入库后订单已取消、预占已释放，冲销入库时不再去减预占）。
+     */
     @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
     public List<InvMoveDO> reverse(List<InvMoveDO> originals, String reverseBiz) {
         List<Line> lines = new ArrayList<>(originals.size());
+        Map<ResKey, Integer> left = new HashMap<>();
         for (InvMoveDO m : originals) {
             if (m.getReverseOf() != null) {
                 throw new BizException("冲销流水不能再冲销");
             }
             Target t = m.getTargetType() == null ? null : new Target(m.getTargetType(), m.getTargetId());
             Doc d = new Doc(reverseBiz, m.getBizLabel(), m.getDocType(), m.getDocId(), m.getDocNo(), m.getDocItemId());
-            lines.add(new Line(new Loc(m.getWarehouseId(), m.getProductId(), m.getBatchId(), m.getStockStatus()),
-                    InvConstants.opposite(m.getOpType()), Math.abs(m.getQuantity()), t, d, m.getId()));
+            Loc loc = new Loc(m.getWarehouseId(), m.getProductId(), m.getBatchId(), m.getStockStatus());
+            int op = InvConstants.opposite(m.getOpType());
+            int qty = Math.abs(m.getQuantity());
+            if (t == null || m.getQuantity() < 0) {
+                lines.add(new Line(loc, op, qty, t, d, m.getId()));
+                continue;
+            }
+            ResKey key = new ResKey(t, loc);
+            int still = left.computeIfAbsent(key, k -> reservedOf(k));
+            int withTarget = Math.min(qty, still);
+            left.put(key, still - withTarget);
+            if (withTarget > 0) {
+                lines.add(new Line(loc, op, withTarget, t, d, m.getId()));
+            }
+            if (qty > withTarget && !InvConstants.reservationOnly(op)) {
+                lines.add(new Line(loc, op, qty - withTarget, null, d, withTarget > 0 ? null : m.getId()));
+            }
         }
         return post(lines);
+    }
+
+    private int reservedOf(ResKey k) {
+        InvReservationDO r = reservationMapper.selectOne(new LambdaQueryWrapper<InvReservationDO>()
+                .eq(InvReservationDO::getTenantId, PiStore.tenantId())
+                .eq(InvReservationDO::getTargetType, k.target().type())
+                .eq(InvReservationDO::getTargetId, k.target().id())
+                .eq(InvReservationDO::getWarehouseId, k.loc().warehouseId())
+                .eq(InvReservationDO::getBatchId, k.loc().batchId())
+                .eq(InvReservationDO::getStockStatus, k.loc().status()));
+        return r == null ? 0 : r.getQuantity();
     }
 
     /** 某个预占对象当前的预占（数量 > 0），按批次先进先出 */

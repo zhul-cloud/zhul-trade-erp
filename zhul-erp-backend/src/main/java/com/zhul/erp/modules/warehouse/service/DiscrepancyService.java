@@ -63,6 +63,7 @@ public class DiscrepancyService {
             WarehouseConstants.RES_RETURN_OVER);
     private static final Set<Integer> REDUCE_ORDER = Set.of(WarehouseConstants.RES_NO_RESEND, WarehouseConstants.RES_RETURN_NO_RESEND);
 
+    private final com.zhul.erp.modules.inventory.service.InventoryHooks inventoryHooks;
     private final ReceivingDiscrepancyMapper discrepancyMapper;
     private final PayableSyncService payables;
     private final PurchaseReceiptMapper receiptMapper;
@@ -318,6 +319,10 @@ public class DiscrepancyService {
             }
             d.setDiscountAmount(PurchaseCalc.money(req.getDiscountAmount()));
             detail.add("折价 " + p.getCurrencyCode() + " " + d.getDiscountAmount());
+            // 库存：该批次的不良转为合格，按订单预占
+            PurchaseReceiptDO gr = receiptMapper.selectById(d.getReceiptId());
+            inventoryHooks.discountAccepted(d.getId(), gr == null ? "" : gr.getGrNo(), d.getReceiptItemId(), d.getProductId(),
+                    item.getSoItemId(), d.getQuantity());
         }
         if (res == WarehouseConstants.RES_HOLD) {
             boolean free = Boolean.TRUE.equals(req.getFreeOfCharge());
@@ -377,6 +382,9 @@ public class DiscrepancyService {
         // 采购退货单还在待寄出才能重新打开，随之作废；已寄出的提示先处理采购退货单
         purchaseReturns.cancelForDiscrepancy(d);
         PurchaseOrderItemDO item = poItemMapper.selectById(d.getPoItemId());
+        if (res == WarehouseConstants.RES_DISCOUNT) {
+            inventoryHooks.discountReopened(d.getId());
+        }
         if (res == WarehouseConstants.RES_HOLD) {
             StockHoldDO h = holdMapper.selectOne(new LambdaQueryWrapper<StockHoldDO>()
                     .eq(StockHoldDO::getDiscrepancyId, d.getId())

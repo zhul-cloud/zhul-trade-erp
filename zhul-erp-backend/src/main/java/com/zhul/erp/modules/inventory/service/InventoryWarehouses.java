@@ -134,15 +134,22 @@ public class InventoryWarehouses {
 
     // ---------------------------------------------------------------- 批次
 
-    /** 批次单价：原币 × 汇率，人民币 HALF_UP 6 位；汇率 6 位 */
-    public record Price(String currency, BigDecimal unitPrice, BigDecimal rate) {
-        public static final Price ZERO = new Price("CNY", BigDecimal.ZERO, BigDecimal.ONE);
+    /** 批次单价：原币、币种、汇率；cny 为空时 = 原币 × 汇率（HALF_UP 6 位），采购入库直接取采购订单行的人民币不含税单价 */
+    public record Price(String currency, BigDecimal unitPrice, BigDecimal rate, BigDecimal cny) {
+        public static final Price ZERO = new Price("CNY", BigDecimal.ZERO, BigDecimal.ONE, null);
+
+        public Price(String currency, BigDecimal unitPrice, BigDecimal rate) {
+            this(currency, unitPrice, rate, null);
+        }
 
         public static Price cny(BigDecimal p) {
-            return new Price("CNY", p == null ? BigDecimal.ZERO : p, BigDecimal.ONE);
+            return new Price("CNY", p == null ? BigDecimal.ZERO : p, BigDecimal.ONE, null);
         }
 
         BigDecimal cnyValue() {
+            if (cny != null) {
+                return cny.setScale(6, RoundingMode.HALF_UP);
+            }
             BigDecimal r = rate == null ? BigDecimal.ONE : rate;
             return (unitPrice == null ? BigDecimal.ZERO : unitPrice).multiply(r).setScale(6, RoundingMode.HALF_UP);
         }
@@ -168,6 +175,10 @@ public class InventoryWarehouses {
         b.setUnitPriceCny(p.cnyValue());
         batchMapper.insert(b);
         return b;
+    }
+
+    public InvBatchDO batchOf(Long batchId) {
+        return batchId == null ? null : batchMapper.selectById(batchId);
     }
 
     /** 某来源单据行已有的批次（采购入库单行、退货入库单行只建一个批次） */
