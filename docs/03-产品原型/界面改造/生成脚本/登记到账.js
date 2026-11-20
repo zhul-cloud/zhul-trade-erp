@@ -105,8 +105,8 @@ function receiptForm(T, b, o) {
   if (o.amountNote) o.amountNote(am); else { const n = box(am, { layout: 'horizontal', gap: 4, alignItems: 'center' }); icon(n, 'circle-check', 14, T.st.ok[0]); tx(n, '本次到账后结清', { fontSize: 12, fill: solid(T.st.ok[0]) }); }
   field(g1, '到账日期', '2026-11-24', { req: 1, num: 1, date: 1 });
   const g2 = box(b, { width: 'fill_container', layout: 'horizontal', gap: 16, alignItems: 'start' });
-  field(g2, '收款账户', o.account || '中国银行 ****6688', { req: 1, sel: 1 });
-  field(g2, '对应水单（选填）', '2026-11-23 USD 9,002.00 · 尾款', { sel: 1, num: 1 });
+  field(g2, '收款账户', (o.account !== undefined ? o.account : '中国银行 ****6688 · 福州事业部'), { req: 1, sel: 1 });
+  field(g2, '对应水单（选填）', o.slip || '2026-11-23 USD 9,002.00 · 尾款', { sel: 1, num: 1, ph: o.slipPh });
   // 收错账户的警告跨两栏放在这一行下方，文字原样
   if (o.accountNote) o.accountNote(b);
   const g3 = box(b, { width: 'fill_container', layout: 'horizontal', gap: 16, alignItems: 'start' });
@@ -114,12 +114,13 @@ function receiptForm(T, b, o) {
   field(g3, '说明（选填）', '', { ph: 1 });
 }
 
-function receiptFooter(T, f, ok) {
+function receiptFooter(T, f, ok, disabled) {
   const MK = modalKit(T); const { tx, box, icon, primaryBtn, textBtn } = MK;
   const note = box(f, { width: 'fill_container', layout: 'horizontal', gap: 6, alignItems: 'center' });
   icon(note, 'lock', 14, T.sub); tx(note, '到账记录保存后不能修改，登记错误时作废后重新登记', { fontSize: 12, fill: solid(T.sub) });
   textBtn(f, '取消', null, T.sub);
-  primaryBtn(f, ok || '登记');
+  if (disabled) { const d = box(f, { layout: 'horizontal', alignItems: 'center', height: 36, padding: [0, 16], cornerRadius: 8, fill: solid(T.navOn) }); tx(d, ok || '登记', { fontWeight: 500, fill: solid(T.faint) }); }
+  else primaryBtn(f, ok || '登记');
 }
 
 function modalScreen(T, name) {
@@ -132,7 +133,7 @@ function modalScreen(T, name) {
 
 // 状态：可能收错账户、多收、差额记手续费、帮助悬停
 function modalStates(T, name) {
-  const root = I(null, { type: 'frame', name, width: 1940, height: 980, layout: 'horizontal', gap: 32, padding: [32, 32], alignItems: 'start', fill: solid(SCRIM[T.key]) });
+  const root = I(null, { type: 'frame', name, width: 1940, height: 1170, layout: 'horizontal', gap: 32, padding: [32, 32], alignItems: 'start', fill: solid(SCRIM[T.key]) });
   const MK = modalKit(T); const { tx, box, icon, label, primaryBtn, textBtn } = MK;
   // ① 可能收错账户（启用事业部时）：警告条原文保留
   let M = MK.modal(root, '登记到账');
@@ -149,6 +150,21 @@ function modalStates(T, name) {
   receiptFooter(T, M.f, '确认没收错，继续保存');
 
   const col = box(root, { layout: 'vertical', gap: 32 });
+  // ④ 没有该币种的收款账户 + 没有待确认水单 + 部分到账（差额超过容差）
+  M = MK.modal(col, '登记到账');
+  receiptForm(T, M.b, {
+    amount: '5,000.00', focus: 1, account: '', slip: '没有待确认的水单', slipPh: 1,
+    top: (b) => {
+      const w = box(b, { width: 'fill_container', layout: 'horizontal', gap: 10, alignItems: 'center', padding: [12, 16], cornerRadius: 8, fill: solid(T.st.warn[1]) });
+      icon(w, 'circle-alert', 18, T.st.warn[0]);
+      tx(w, '还没有 USD 收款账户，请先在「系统管理 → 收款账户」中添加', { fill: solid(T.key === 'light' ? '#7A5200' : '#FFD27A'), width: 'fill_container', textGrowth: 'fixed-width', lineHeight: 1.5 });
+    },
+    amountNote: (am) => {
+      tx(am, '本次到账后还差 USD 4,002.00', { fontSize: 12, fill: solid(T.sub) });
+      const n = box(am, { layout: 'horizontal', gap: 4, alignItems: 'center' }); icon(n, 'info', 12, T.sub); tx(n, '差额不超过 USD 50.00 时可记为手续费', { fontSize: 12, fill: solid(T.sub) });
+    },
+  });
+  receiptFooter(T, M.f, '登记', true);
   // ② 多收：金额下方提示 + 提交时确认框（文字原样）
   M = MK.modal(col, '登记到账');
   receiptForm(T, M.b, {

@@ -95,7 +95,7 @@ const COST_ROWS = [
   { m: '6ES7214-1AG40-0XB0', q: 10, tips: ['10 个没入库'], pv: 'CNY 24,800.00', cost: 'CNY 24,800.00', rev: 'CNY 30,195.69', pf: 'CNY 5,395.69', pr: '17.87%' },
   { m: '6ES7223-1PL32-0XB0', q: 5, tips: ['5 个没入库'], pv: 'CNY 10,450.00', cost: 'CNY 10,450.00', rev: 'CNY 13,659.95', pf: 'CNY 3,209.95', pr: '23.50%' },
   { m: '1769-L33ER', q: 5, tips: ['5 个没入库'], pv: 'CNY 28,500.00', cost: 'CNY 28,500.00', rev: 'CNY 43,136.69', pf: 'CNY 14,636.69', pr: '33.93%' },
-  { m: '6EP1334-3BA10', q: 3, tips: ['3 个没下采购订单（按采购成本价估算）· 没入库'], pv: 'CNY 3,300.00', cost: 'CNY 3,300.00', rev: 'CNY 4,313.67', pf: 'CNY 1,013.67', pr: '23.50%' },
+  { m: '6EP1334-3BA10', q: 3, tips: ['3 个没下单（按成本价估算）· 没入库'], pv: 'CNY 3,300.00', cost: 'CNY 3,300.00', rev: 'CNY 4,313.67', pf: 'CNY 1,013.67', pr: '23.50%' },
 ];
 function costCard(T, parent, scrolled) {
   const { tx, box, icon, card, label } = kit(T);
@@ -107,7 +107,7 @@ function costCard(T, parent, scrolled) {
   const cols = scrolled ? COST_COLS.slice(7, 13) : COST_COLS.slice(0, 8);
   const LASTC = COST_COLS[COST_COLS.length - 1];
   const t = box(c, { width: 'fill_container', layout: 'horizontal' });
-  const fixedCol = box(t, { width: 260, layout: 'vertical', fill: solid(T.card), effects: scrolled ? [{ type: 'shadow', offsetX: 6, offsetY: 0, blur: 8, spread: -4, color: T.key === 'light' ? 'rgba(145,158,171,0.35)' : 'rgba(0,0,0,0.6)' }] : [] });
+  const fixedCol = box(t, { width: 300, layout: 'vertical', fill: solid(T.card), effects: scrolled ? [{ type: 'shadow', offsetX: 6, offsetY: 0, blur: 8, spread: -4, color: T.key === 'light' ? 'rgba(145,158,171,0.35)' : 'rgba(0,0,0,0.6)' }] : [] });
   const sc = box(t, { width: 'fill_container', layout: 'vertical', clipContent: true });
   const rc = box(t, { width: LASTC[1] + 12, layout: 'vertical', fill: solid(T.card), effects: [{ type: 'shadow', offsetX: -6, offsetY: 0, blur: 8, spread: -4, color: T.key === 'light' ? 'rgba(145,158,171,0.35)' : 'rgba(0,0,0,0.6)' }] });
   const rch = box(rc, { width: 'fill_container', height: 44, layout: 'horizontal', alignItems: 'center', justifyContent: 'end', padding: [0, 24, 0, 0], fill: solid(T.head) });
