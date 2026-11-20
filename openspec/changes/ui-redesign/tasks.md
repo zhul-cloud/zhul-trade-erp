@@ -5,29 +5,29 @@
 ## 1. 依据整理
 
 - [ ] 1.1 从代码现有的 `Pill`、`Tag` 着色整理出「状态 → 语义色」对照表 `status-colors.md`；有分歧的逐条列出请产品负责人定，定完即完成
-- [ ] 1.2 一次性读完所有带关键字搜索的列表的后端查询条件，建立 `search-scope.md`，每行写明页面、可搜字段、匹配方式、后端代码位置。用搜索核对前端所有关键字输入框都已收录，查不到的标「待核实」并问用户
+- [x] 1.2 一次性读完所有带关键字搜索的列表的后端查询条件，建立 `search-scope.md`，每行写明页面、可搜字段、匹配方式、后端代码位置。用搜索核对前端所有关键字输入框都已收录，查不到的标「待核实」并问用户
 - [ ] 1.3 建立 `stat-cards.md`：列出每个列表的统计卡片、口径、与页签的关系、属于状态类（并入状态下拉数量）、条件类（转快捷筛选）还是指标类（转汇总行），以及涉及的主规范条款。用搜索核对前端所有统计卡片都已收录，分类经产品负责人确认
 
 ## 2. 原型与确认
 
-- [ ] 2.1 用 OpenPencil 画 4 张样板页的浅色版：工作台、销售订单列表、销售订单详情、登记表单弹窗。交付物是 `docs/03-产品原型/界面改造/` 下的 `.op` 文件和导出的 PNG，快捷筛选、关键字帮助和状态颜色取自第 1 组的依据表，并按 `specs/system/interface-style` 逐条自查
-- [ ] 2.2 画深色版（4 张样板页各一版），再画主题色对比图（6 种预设在浅色和深色下并排），导出 PNG；无界面服务用完后执行 `op stop`
-- [ ] 2.3 独立审核者复审原型：对照 `interface-style`、配色取值与对比度，并用 Impeccable critique 打分。问题改完、`review-log.md` 记为通过后，再交给用户
-- [ ] 2.4 用户确认原型后，同步修订 specs、`design.md`、`tasks.md`（含 Open Questions 的结论），用 `openspec validate ui-redesign --strict` 验证通过。未确认前不开始 3.3 和第 4 组及以后的任务
+- [x] 2.1 用 OpenPencil 画 4 张样板页的浅色版：工作台、销售订单列表、销售订单详情、登记表单弹窗。交付物是 `docs/03-产品原型/界面改造/` 下的 `.op` 文件和导出的 PNG，快捷筛选、关键字帮助和状态颜色取自第 1 组的依据表，并按 `specs/system/interface-style` 逐条自查
+- [x] 2.2 画深色版（4 张样板页各一版），再画主题色对比图（6 种预设在浅色和深色下并排），导出 PNG；无界面服务用完后执行 `op stop`
+- [x] 2.3 独立审核者复审原型：对照 `interface-style`、配色取值与对比度，并用 Impeccable critique 打分。问题改完、`review-log.md` 记为通过后，再交给用户
+- [x] 2.4 用户确认原型后，同步修订 specs、`design.md`、`tasks.md`（含 Open Questions 的结论），用 `openspec validate ui-redesign --strict` 验证通过。未确认前不开始 3.3 和第 4 组及以后的任务
 
 ## 3. 文档清理与新规范
 
-- [ ] 3.1 列出要清理的文档和句子，排除 `openspec/changes/archive/`、其他人的变更目录和 PRD 修订历史行；经用户确认后执行
-- [ ] 3.2 把旧版 `ui-design-patterns.md` 全文和 `docs/03-产品原型/02-商品域/_备选方案存档/` 移入 `docs/_backup/ui-v3/`，写首页说明「已作废，仅供追溯」；用 `git status` 核对原位置已没有这些文件
-- [ ] 3.3 按确认的原型，整份重写 `.claude/context/ui-design-patterns.md`。内容包括令牌、页面骨架、说明文字放置、文案禁用写法，以及 `design.md` 第 6 节列出的仍然有效的各节。验证：用搜索确认文中不再出现 V1、V3、方案 D、渐变、深色默认；`AGENTS.md`、`coding.md` 引用的节名都还在，或者引用已同步更新
-- [ ] 3.4 修改 3.1 清单里其他文档的旧视觉句子，在 `docs/03-产品原型/` 首页写明「视觉以 `ui-design-patterns.md` 为准，旧原型只作业务确认」；用搜索核对清单内的文档不再有旧规则
+- [x] 3.1 列出要清理的文档和句子，排除 `openspec/changes/archive/`、其他人的变更目录和 PRD 修订历史行；经用户确认后执行
+- [x] 3.2 把旧版 `ui-design-patterns.md` 全文和 `docs/03-产品原型/02-商品域/_备选方案存档/` 移入 `docs/_backup/ui-v3/`，写首页说明「已作废，仅供追溯」；用 `git status` 核对原位置已没有这些文件
+- [ ] 3.3 按确认的原型，整份重写 `.claude/context/ui-design-patterns.md`。内容包括令牌、页面骨架、说明文字放置、文案禁用写法，以及 `design.md` 第 6 节列出的仍然有效的各节。验证：用搜索确认文中不再出现 V1、V3、方案 D、深色默认等旧规则，「渐变」只作为禁止项出现；`AGENTS.md`、`coding.md` 引用的节名都还在，或者引用已同步更新
+- [x] 3.4 修改 3.1 清单里其他文档的旧视觉句子，在 `docs/03-产品原型/` 首页写明「视觉以 `ui-design-patterns.md` 为准，旧原型只作业务确认」；用搜索核对清单内的文档不再有旧规则
 
 ## 4. 主题令牌与外壳
 
 - [ ] 4.1 开始改代码前，先把 develop 同步进来一次，记入 `sync-log.md`，并跑本机全量前端检查
 - [ ] 4.2 按 `design.md` 第 2 节重写 `src/theme/palette.ts`：保留、改名、删除各键，删除三个渐变常量，修好所有编译报错的引用处；验证 `npm run lint` 通过
 - [ ] 4.3 改掉编译抓不到的渐变和旧字体：`LOGO_GRADIENT_STOPS` 和 `BrandLogo`、`public/logo.svg`、`public/favicon.ico`、`AuthLayout` 的光晕、4 处 `IBM Plex Mono`。默认 Logo 按 `site-appearance` 增量实现；用 BrowserOS neo 截图核对登录页、侧边栏和浏览器标签图标
-- [ ] 4.4 更新 `src/theme/antd.ts`、`shell.ts`、`AppTheme.tsx`：主按钮、危险按钮、圆角、阴影、焦点色、状态标签（按 `status-colors.md`），加入 Inter 依赖。验证：切换主题后弹窗、消息、登录页都跟着变
+- [ ] 4.4 更新 `src/theme/antd.ts`、`shell.ts`、`AppTheme.tsx`：主按钮、危险按钮、圆角、阴影、焦点色、状态标签（按 `status-colors.md`），加入 Public Sans 依赖。验证：切换主题后弹窗、消息、登录页都跟着变
 - [ ] 4.5 补 Jest 测试：主题切换后的令牌、默认 Logo 随主题变化、浏览器标签图标固定为功能蓝；验证 `npm test` 通过
 
 ## 5. 骨架组件与检查规则
