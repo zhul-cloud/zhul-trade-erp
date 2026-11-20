@@ -76,7 +76,7 @@ public class QuotationDocumentServiceImpl implements QuotationDocumentService {
                 store.enabledCodes(QuotationConstants.DICT_CONDITION));
         List<Integer> leadOrder = store.enabledCodes(QuotationConstants.DICT_LEAD_TIME);
         String lead = QuoteTextOptions.leadTime(leadTime, leadOrder);
-        Map<Long, Integer> purchaseLeads = QuoteTextOptions.SHIFT.equals(lead)
+        Map<Long, Integer> purchaseLeads = QuoteTextOptions.SHIFT.equals(lead) || QuoteTextOptions.PURCHASE.equals(lead)
                 ? store.purchaseLeadTimes(v.items().stream().map(QuotationItemDO::getCostQuoteId).toList()) : Map.of();
         List<QuotationItemDO> items = QuoteTextOptions.apply(v.items(), cond, lead, leadOrder, purchaseLeads);
         DocumentTemplateService.Resolved tpl = templateService.resolveDefault(DocTypes.TEXT_QUOTE);

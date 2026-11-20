@@ -15,20 +15,23 @@ public final class QuoteTextOptions {
 
     /** 报价货期「按采购货期顺延」 */
     public static final String SHIFT = "shift";
+    /** 报价货期「按采购货期」：原样取采购回价的货期，不顺延 */
+    public static final String PURCHASE = "purchase";
 
     private QuoteTextOptions() {
     }
 
     /**
      * @param condition     货况码值
-     * @param leadTime      {@link #SHIFT} 或货期码值
+     * @param leadTime      {@link #SHIFT}、{@link #PURCHASE} 或货期码值
      * @param leadOrder     启用的货期码值，按字典顺序
      * @param purchaseLeads 采购回价 ID → 采购报的货期（回价已删除的不在里面）
      */
     public static List<QuotationItemDO> apply(List<QuotationItemDO> items, int condition, String leadTime,
                                               List<Integer> leadOrder, Map<Long, Integer> purchaseLeads) {
         boolean shift = SHIFT.equals(leadTime);
-        Integer fixed = shift ? null : Integer.valueOf(leadTime);
+        boolean asPurchase = PURCHASE.equals(leadTime);
+        Integer fixed = shift || asPurchase ? null : Integer.valueOf(leadTime);
         return items.stream().map(i -> {
             if (QuotationRenderModels.isNoStockLine(i)) {
                 return i;
@@ -36,16 +39,23 @@ public final class QuoteTextOptions {
             QuotationItemDO c = new QuotationItemDO();
             BeanUtils.copyProperties(i, c);
             c.setItemCondition(condition);
-            c.setLeadTime(shift ? shifted(i, leadOrder, purchaseLeads) : fixed);
+            c.setLeadTime(shift ? shifted(i, leadOrder, purchaseLeads)
+                    : asPurchase ? purchaseLead(i, purchaseLeads) : fixed);
             return c;
         }).toList();
     }
 
-    /** 采购回价的货期（没有回价时取行上的货期）往后挪一档；最后一档不变，未填（0）保持为空 */
-    static int shifted(QuotationItemDO i, List<Integer> leadOrder, Map<Long, Integer> purchaseLeads) {
+    /** 采购回价的货期，没有回价时取行上的货期；未填为 0 */
+    static int purchaseLead(QuotationItemDO i, Map<Long, Integer> purchaseLeads) {
         Integer base = i.getCostQuoteId() != null && purchaseLeads.containsKey(i.getCostQuoteId())
                 ? purchaseLeads.get(i.getCostQuoteId()) : i.getLeadTime();
-        if (base == null || base == 0) {
+        return base == null ? 0 : base;
+    }
+
+    /** 采购回价的货期（没有回价时取行上的货期）往后挪一档；最后一档不变，未填（0）保持为空 */
+    static int shifted(QuotationItemDO i, List<Integer> leadOrder, Map<Long, Integer> purchaseLeads) {
+        int base = purchaseLead(i, purchaseLeads);
+        if (base == 0) {
             return 0;
         }
         int idx = leadOrder.indexOf(base);
@@ -67,6 +77,9 @@ public final class QuoteTextOptions {
     public static String leadTime(String requested, List<Integer> enabled) {
         if (requested == null || requested.isBlank() || SHIFT.equals(requested.trim())) {
             return SHIFT;
+        }
+        if (PURCHASE.equals(requested.trim())) {
+            return PURCHASE;
         }
         String v = requested.trim();
         if (!v.matches("\\d{1,9}") || !enabled.contains(Integer.parseInt(v))) {
