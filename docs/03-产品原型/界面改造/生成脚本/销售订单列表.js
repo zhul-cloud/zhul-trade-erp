@@ -142,7 +142,7 @@ function draw(T, W, name, scrolled) {
     c = cell(96); tx(c, r.br, { fontSize: 13, fill: solid(T.body) });
     c = cell(96); tx(c, r.ca, { fontSize: 13, fill: solid(T.body) });
     c = cell(128); tx(c, r.amt, { fontFamily: NUM, fill: solid(T.ink) });
-    c = cell(140); tx(c, r.gp, { fontFamily: NUM, fill: solid(r.gp.indexOf('-') >= 0 ? T.st.err[0] : T.ink) }); tx(c, r.gr, { fontSize: 12, fill: solid(T.sub) });
+    c = cell(140); tx(c, r.gp, { fontFamily: NUM, fill: solid(r.gp.indexOf('-') >= 0 ? T.st.err[0] : T.st.ok[0]) }); tx(c, r.gr, { fontSize: 12, fill: solid(T.sub) });
     c = cell(150, { gap: 6 });
     const pb = box(c, { layout: 'horizontal', gap: 8, alignItems: 'center' });
     const bar = box(pb, { width: 100, height: 6, cornerRadius: 3, fill: solid(T.line), layout: 'horizontal', clipContent: true }); if (r.payPct > 0) I(bar, { type: 'frame', width: Math.round(100 * r.payPct), height: 6, fill: solid(r.payBar) });
