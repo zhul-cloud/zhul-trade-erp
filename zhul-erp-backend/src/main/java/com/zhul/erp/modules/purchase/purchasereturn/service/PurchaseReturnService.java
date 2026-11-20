@@ -50,6 +50,13 @@ import com.zhul.erp.modules.warehouse.repository.ReceivingDiscrepancyMapper;
 import com.zhul.erp.modules.warehouse.service.DiscrepancyService;
 import com.zhul.erp.modules.warehouse.support.ReceivingSupport;
 import org.springframework.context.annotation.Lazy;
+import com.zhul.erp.modules.inventory.constants.InvConstants;
+import com.zhul.erp.modules.inventory.service.InventoryHooks;
+import com.zhul.erp.modules.inventory.service.InventoryPosting;
+import com.zhul.erp.modules.inventory.service.InventoryProducts;
+import com.zhul.erp.modules.inventory.service.InventoryWarehouses;
+import com.zhul.erp.modules.inventory.entity.InvBatchDO;
+import com.zhul.erp.modules.purchase.purchasereturn.dto.StockReturnRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -61,6 +68,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -103,6 +111,9 @@ public class PurchaseReturnService {
     private final CurrentUserResolver currentUser;
     private final LogService logService;
     private final DiscrepancyService discrepancyService;
+    private final InventoryHooks inventory;
+    private final InventoryWarehouses inventoryWarehouses;
+    private final InventoryProducts inventoryProducts;
 
     @SuppressWarnings("java:S107")
     public PurchaseReturnService(PurchaseReturnMapper mapper, PurchaseReturnItemMapper itemMapper, SupplierMapper supplierMapper,
@@ -112,7 +123,8 @@ public class PurchaseReturnService {
                                  SalesOrderItemMapper orderItemMapper, InquiryLookups lookups, AttachmentService attachments, DocLogs docLogs,
                                  AfterSalesLogs afterSalesLogs, PayableSyncService payables,
                                  DocumentNumberService numbers, CurrentUserResolver currentUser, LogService logService,
-                                 @Lazy DiscrepancyService discrepancyService) {
+                                 @Lazy DiscrepancyService discrepancyService, InventoryHooks inventory,
+                                 InventoryWarehouses inventoryWarehouses, InventoryProducts inventoryProducts) {
         this.mapper = mapper;
         this.itemMapper = itemMapper;
         this.supplierMapper = supplierMapper;
@@ -134,6 +146,9 @@ public class PurchaseReturnService {
         this.currentUser = currentUser;
         this.logService = logService;
         this.discrepancyService = discrepancyService;
+        this.inventory = inventory;
+        this.inventoryWarehouses = inventoryWarehouses;
+        this.inventoryProducts = inventoryProducts;
     }
 
     // ---------------------------------------------------------------- 生成（调用方事务内）
@@ -175,6 +190,9 @@ public class PurchaseReturnService {
                 i.setBrand(l.receiptItem().getBrand());
                 i.setQuantity(l.disposition().getQuantity());
                 itemMapper.insert(i);
+                // 退货待寄出：锁住退货批次的货（不良优先），防止被交货代或其他出库取走
+                inventory.reserveForReturn(i.getId(), inventory.returnBatchOf(l.receiptItem().getId()),
+                        List.of(InvConstants.DEFECTIVE, InvConstants.GOOD), null, i.getQuantity(), reserveDoc(p, i), false);
                 l.disposition().setPurchaseReturnId(p.getId());
                 dispositionMapper.updateById(l.disposition());
             }
@@ -183,6 +201,71 @@ public class PurchaseReturnService {
             out.add(p);
         }
         return out;
+    }
+
+    /** 库存退回：从公司仓库选同一商品的若干批次退回一个供应商，生成采购退货单并做退货预占（取不够报库存不足） */
+    @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
+    public PurchaseReturnVO createFromStock(StockReturnRequest req) {
+        Long own = inventoryWarehouses.own().getId();
+        Map<Long, InvBatchDO> batches = new LinkedHashMap<>();
+        Set<String> seen = new HashSet<>();
+        for (StockReturnRequest.Line l : req.getLines()) {
+            InvBatchDO b = inventoryWarehouses.batchOf(l.getBatchId());
+            if (b == null || !Objects.equals(b.getTenantId(), PiStore.tenantId())) {
+                throw new BizException("批次不存在");
+            }
+            if (l.getStockStatus() != InvConstants.GOOD && l.getStockStatus() != InvConstants.DEFECTIVE) {
+                throw new BizException("库存状态不正确");
+            }
+            if (!seen.add(l.getBatchId() + ":" + l.getStockStatus())) {
+                throw new BizException("同一批次同一状态不能重复选择");
+            }
+            batches.put(b.getId(), b);
+        }
+        if (batches.values().stream().map(InvBatchDO::getProductId).distinct().count() > 1) {
+            throw new BizException("一次只能退同一个商品的批次");
+        }
+        PurchaseOrderDO po = req.getPoId() == null ? null : support.po(req.getPoId(), false);
+        if (req.getSupplierId() == 0) {
+            if (po == null || !Objects.equals(po.getSupplierId(), 0L)) {
+                throw new BizException("请选择供应商");
+            }
+        } else {
+            SupplierDO sup = supplierMapper.selectById(req.getSupplierId());
+            if (sup == null || !Objects.equals(sup.getTenantId(), PiStore.tenantId()) || sup.getDeletedAt() != null) {
+                throw new BizException("供应商不存在");
+            }
+        }
+        InvBatchDO first = batches.values().iterator().next();
+        com.zhul.erp.modules.purchase.entity.PurchaseOrderItemDO poItem = first.getPoItemId() == null ? null : support.poItemOf(first.getPoItemId());
+        InventoryProducts.Label label = inventoryProducts.label(first.getProductId());
+        PurchaseReturnDO p = newReturn(PiStore.tenantId(), req.getSupplierId(), PurchaseReturnConstants.SRC_STOCK, po);
+        p.setOwnerId(me());
+        p.setRemark(trim(req.getRemark()));
+        mapper.insert(p);
+        List<String> text = new ArrayList<>();
+        for (StockReturnRequest.Line l : req.getLines()) {
+            InvBatchDO b = batches.get(l.getBatchId());
+            PurchaseReturnItemDO i = new PurchaseReturnItemDO();
+            i.setTenantId(p.getTenantId());
+            i.setPurchaseReturnId(p.getId());
+            i.setPoItemId(po != null && poItem != null && Objects.equals(poItem.getPoId(), po.getId()) ? poItem.getId() : null);
+            i.setSoItemId(b.getSoItemId());
+            i.setProductId(b.getProductId());
+            i.setModel(poItem != null ? poItem.getModel() : label.model());
+            i.setBrand(poItem != null ? poItem.getBrand() : label.brand());
+            i.setQuantity(l.getQuantity());
+            i.setWarehouseId(own);
+            i.setBatchId(b.getId());
+            i.setStockStatus(l.getStockStatus());
+            itemMapper.insert(i);
+            inventory.reserveForReturn(i.getId(), b.getId(), List.of(l.getStockStatus()), own, l.getQuantity(), reserveDoc(p, i), true);
+            text.add(b.getBatchNo() + (l.getStockStatus() == InvConstants.DEFECTIVE ? " 不良" : " 合格") + " × " + l.getQuantity());
+        }
+        docLogs.add(DocumentType.PR, p.getId(), "生成", "库存退回：" + label.model() + "，" + String.join("、", text));
+        logService.recordOperateLog(PurchaseReturnConstants.MENU, "库存退回供应商", null, Map.of("returnNo", p.getReturnNo(),
+                "items", text));
+        return detail(p.getId());
     }
 
     /** 到货差异选退货换货、退货不补、退回供应商：生成一张采购退货单；调用方已锁采购订单与差异 */
@@ -206,6 +289,10 @@ public class PurchaseReturnService {
         i.setBrand(d.getBrand());
         i.setQuantity(d.getQuantity());
         itemMapper.insert(i);
+        // 退货待寄出：不良退货锁该入库批次的不良，多发退回锁合格
+        inventory.reserveForReturn(i.getId(), inventory.purchaseBatchOf(d.getReceiptItemId()),
+                List.of(d.getType() == WarehouseConstants.DIFF_DEFECTIVE ? InvConstants.DEFECTIVE : InvConstants.GOOD), null,
+                i.getQuantity(), reserveDoc(p, i), false);
         docLogs.add(DocumentType.PR, p.getId(), "生成", "由到货差异「" + WarehouseConstants.RESOLUTION_NAMES.get(d.getResolution()) + "」生成："
                 + d.getModel() + " × " + d.getQuantity());
         return p;
@@ -228,7 +315,24 @@ public class PurchaseReturnService {
         p.setStatus(PurchaseReturnConstants.VOID);
         p.setVoidReason("到货差异重新打开");
         mapper.updateById(p);
+        releaseAll(p);
         docLogs.add(DocumentType.PR, p.getId(), "作废", "到货差异重新打开，随之作废");
+    }
+
+    private static InventoryPosting.Doc reserveDoc(PurchaseReturnDO p, PurchaseReturnItemDO i) {
+        return InventoryPosting.Doc.of(InvConstants.BIZ_RESERVE, "PR", p.getId(), p.getReturnNo()).item(i.getId());
+    }
+
+    private static InventoryPosting.Doc releaseDoc(PurchaseReturnDO p, PurchaseReturnItemDO i) {
+        return InventoryPosting.Doc.of(InvConstants.BIZ_RELEASE, "PR", p.getId(), p.getReturnNo()).item(i.getId());
+    }
+
+    /** 释放整张采购退货单的退货预占 */
+    private void releaseAll(PurchaseReturnDO p) {
+        for (PurchaseReturnItemDO i : itemMapper.selectList(new LambdaQueryWrapper<PurchaseReturnItemDO>()
+                .eq(PurchaseReturnItemDO::getPurchaseReturnId, p.getId()))) {
+            inventory.releaseReturn(i.getId(), Integer.MAX_VALUE, releaseDoc(p, i));
+        }
     }
 
     private PurchaseReturnDO newReturn(Integer tenantId, Long supplierId, int source, PurchaseOrderDO po) {
@@ -261,7 +365,7 @@ public class PurchaseReturnService {
         ReturnReceiptDO rr = lockReceipt(p);
         p = lock(id);
         requireStatus(p, PurchaseReturnConstants.PENDING, "寄出后不能修改数量");
-        if (p.getSourceType() != PurchaseReturnConstants.SRC_AFTER_SALES) {
+        if (p.getSourceType() != PurchaseReturnConstants.SRC_AFTER_SALES && p.getSourceType() != PurchaseReturnConstants.SRC_STOCK) {
             throw new BizException("到货差异生成的采购退货单数量随差异，不能修改");
         }
         Map<Long, PurchaseReturnItemDO> items = itemsOf(List.of(id)).getOrDefault(id, List.of()).stream()
@@ -291,6 +395,7 @@ public class PurchaseReturnService {
                 continue;
             }
             giveBack(rr, i, less);
+            inventory.releaseReturn(i.getId(), less, releaseDoc(p, i));
             text.add(i.getModel() + " " + i.getQuantity() + " → " + q);
             i.setQuantity(q);
             if (q == 0) {
@@ -300,7 +405,8 @@ public class PurchaseReturnService {
         }
         if (!text.isEmpty()) {
             mapper.updateById(p);
-            docLogs.add(DocumentType.PR, id, "修改数量", String.join("；", text) + "，减少的数量回到退货入库单待处理");
+            docLogs.add(DocumentType.PR, id, "修改数量", String.join("；", text) + (p.getSourceType() == PurchaseReturnConstants.SRC_STOCK
+                    ? "，减少的数量回到可用库存" : "，减少的数量回到退货入库单待处理"));
         }
         return detail(id);
     }
@@ -322,6 +428,9 @@ public class PurchaseReturnService {
                 ? (req.getPayerId() != null ? req.getPayerId() : me()) : null);
         p.setStatus(PurchaseReturnConstants.SHIPPED);
         mapper.updateById(p);
+        // 库存：按退货预占出库
+        inventory.returnShipped(p.getId(), p.getReturnNo(),
+                itemsOf(List.of(id)).getOrDefault(id, List.of()).stream().map(PurchaseReturnItemDO::getId).toList());
         if (p.getPayerId() != null) {
             attachments.attach(AttachmentService.RETURN_PROOF, p.getId(), req.getProofIds());
         }
@@ -347,7 +456,7 @@ public class PurchaseReturnService {
         if (p.getShipDate() != null && req.getSignedDate().isBefore(p.getShipDate())) {
             throw new BizException("签收日期不能早于寄出日期");
         }
-        boolean afterSales = p.getSourceType() == PurchaseReturnConstants.SRC_AFTER_SALES;
+        boolean afterSales = PurchaseReturnConstants.refundable(p.getSourceType());
         if (afterSales && req.getRefundAmount() == null) {
             throw new BizException("请填写供应商退款或抵扣金额（没有就填 0）");
         }
@@ -395,7 +504,7 @@ public class PurchaseReturnService {
         p.setRefundCny(BigDecimal.ZERO.setScale(2));
         mapper.updateById(p);
         syncCosts(p);
-        if (po != null && p.getSourceType() == PurchaseReturnConstants.SRC_AFTER_SALES) {
+        if (po != null && PurchaseReturnConstants.refundable(p.getSourceType())) {
             payables.syncPurchaseOrder(po.getId());
         }
         docLogs.add(DocumentType.PR, id, "重新打开", why);
@@ -414,7 +523,15 @@ public class PurchaseReturnService {
         PurchaseReturnDO p = visible(id);
         requireStatus(p, PurchaseReturnConstants.PENDING, "已寄出的采购退货单不能作废");
         String voidReason = why.length() > 200 ? why.substring(0, 200) : why;
-        if (p.getSourceType() != PurchaseReturnConstants.SRC_AFTER_SALES) {
+        if (p.getSourceType() == PurchaseReturnConstants.SRC_STOCK) {
+            // 库存退回：释放退货预占，货回到可用库存
+            p = lock(id);
+            requireStatus(p, PurchaseReturnConstants.PENDING, "已寄出的采购退货单不能作废");
+            p.setStatus(PurchaseReturnConstants.VOID);
+            p.setVoidReason(voidReason);
+            mapper.updateById(p);
+            releaseAll(p);
+        } else if (p.getSourceType() != PurchaseReturnConstants.SRC_AFTER_SALES) {
             // 到货差异来源按「重新打开差异」处理（加锁顺序同差异页：采购订单 → 差异 → 采购退货单），差异重新打开时随之作废本单
             for (PurchaseReturnItemDO i : itemsOf(List.of(id)).getOrDefault(id, List.of())) {
                 if (i.getDiscrepancyId() != null) {
@@ -434,6 +551,7 @@ public class PurchaseReturnService {
             for (PurchaseReturnItemDO i : itemsOf(List.of(id)).getOrDefault(id, List.of())) {
                 giveBack(rr, i, i.getQuantity());
             }
+            releaseAll(p);
         }
         docLogs.add(DocumentType.PR, id, "作废", p.getVoidReason());
         afterSales(p, "作废采购退货单 " + p.getReturnNo() + "：" + p.getVoidReason());
@@ -663,6 +781,8 @@ public class PurchaseReturnService {
         }
         List<Long> ids = rows.stream().map(PurchaseReturnDO::getId).toList();
         Map<Long, List<PurchaseReturnItemDO>> items = itemsOf(ids);
+        Map<Long, String> batchNos = byIds(items.values().stream().flatMap(List::stream).map(PurchaseReturnItemDO::getBatchId).toList(),
+                inventoryWarehouses::batches, InvBatchDO::getId, InvBatchDO::getBatchNo);
         Map<Long, PurchaseOrderDO> pos = support.pos(rows.stream().map(PurchaseReturnDO::getPoId).filter(Objects::nonNull).toList());
         Map<Long, String> shopNames = support.counterparties(pos.values());
         List<Long> supplierIds = rows.stream().map(PurchaseReturnDO::getSupplierId).filter(x -> x != null && x > 0).distinct().toList();
@@ -699,8 +819,14 @@ public class PurchaseReturnService {
             v.setSourceType(p.getSourceType());
             v.setSourceTypeName(PurchaseReturnConstants.SOURCE_NAMES.get(p.getSourceType()));
             boolean afterSales = p.getSourceType() == PurchaseReturnConstants.SRC_AFTER_SALES;
-            v.setSourceId(afterSales ? p.getReturnReceiptId() : p.getPurchaseReceiptId());
-            v.setSourceNo(afterSales ? rrNos.get(p.getReturnReceiptId()) : grNos.get(p.getPurchaseReceiptId()));
+            if (p.getSourceType() != PurchaseReturnConstants.SRC_STOCK) {
+                v.setSourceId(afterSales ? p.getReturnReceiptId() : p.getPurchaseReceiptId());
+                v.setSourceNo(afterSales ? rrNos.get(p.getReturnReceiptId()) : grNos.get(p.getPurchaseReceiptId()));
+            } else {
+                // 库存退回没有来源单据，来源单号显示退回的批次号
+                v.setSourceNo(items.getOrDefault(p.getId(), List.of()).stream().map(i -> batchNos.get(i.getBatchId()))
+                        .filter(Objects::nonNull).distinct().collect(Collectors.joining("、")));
+            }
             v.setPoId(p.getPoId());
             PurchaseOrderDO po = p.getPoId() == null ? null : pos.get(p.getPoId());
             v.setPoNo(po == null ? null : po.getPoNo());
@@ -745,6 +871,9 @@ public class PurchaseReturnService {
                 x.setSoItemId(i.getSoItemId());
                 x.setPoItemId(i.getPoItemId());
                 x.setReceiptItemId(i.getReceiptItemId());
+                x.setBatchId(i.getBatchId());
+                x.setBatchNo(i.getBatchId() == null ? null : batchNos.get(i.getBatchId()));
+                x.setStockStatusName(i.getStockStatus() == null ? null : i.getStockStatus() == InvConstants.DEFECTIVE ? "不良" : "合格");
                 x.setDiscrepancyId(i.getDiscrepancyId());
                 x.setDiscrepancyName(d == null ? null : WarehouseConstants.DIFF_TYPE_NAMES.get(d.getType()) + " " + d.getQuantity());
                 return x;

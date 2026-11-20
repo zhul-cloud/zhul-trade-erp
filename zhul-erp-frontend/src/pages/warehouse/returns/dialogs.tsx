@@ -30,7 +30,7 @@ import type { Attachment } from '../service';
 
 export const DISP_OPTIONS = [
   { value: DISP.SUPPLIER, label: '退回供应商' },
-  { value: DISP.HOLD, label: '转闲置库存' },
+  { value: DISP.HOLD, label: '转可用库存' },
   { value: DISP.SCRAP, label: '报废' },
 ];
 export const DISP_TONE: Record<number, 'orange' | 'cyan' | 'gray'> = {
@@ -443,7 +443,7 @@ export const DisposeModal: React.FC<{
         )}
         {holdCredit > 0 && (
           <div style={{ fontSize: 13, color: palette.sub }}>
-            转闲置冲减原订单 {data.soNo} 成本{' '}
+            转可用库存冲减原订单 {data.soNo} 成本{' '}
             <b style={{ color: palette.green }}>
               {formatAmount(holdCredit, 'CNY')}
             </b>

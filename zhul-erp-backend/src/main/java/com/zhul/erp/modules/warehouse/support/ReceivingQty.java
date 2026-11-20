@@ -5,6 +5,7 @@ import com.zhul.erp.modules.warehouse.repository.ReceivingQtyMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import com.zhul.erp.modules.sales.entity.SalesOrderItemDO;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -18,6 +19,7 @@ import java.util.function.Function;
 public class ReceivingQty {
 
     private final ReceivingQtyMapper mapper;
+    private final com.zhul.erp.modules.sales.repository.SalesOrderItemMapper soItemMapper;
 
     public Map<Long, Integer> shippedByPoItem(Collection<Long> ids) {
         return query(ids, mapper::shippedByPoItem);
@@ -27,8 +29,21 @@ public class ReceivingQty {
         return query(ids, mapper::qualifiedByPoItem);
     }
 
+    /**
+     * 订单型号行的合格入库数量。部分取消过的型号行不超过取消后的数量：取消时在仓的、之后到货超出订单需要的合格数量
+     * 已释放成可用库存（openspec inventory-foundation），不再算这个型号行的（历史转入闲置库存的已在 SQL 里扣除）。
+     */
     public Map<Long, Integer> qualifiedBySoItem(Collection<Long> ids) {
-        return query(ids, mapper::qualifiedBySoItem);
+        Map<Long, Integer> out = query(ids, mapper::qualifiedBySoItem);
+        if (out.isEmpty()) {
+            return out;
+        }
+        for (SalesOrderItemDO i : soItemMapper.selectBatchIds(out.keySet())) {
+            if (Objects.requireNonNullElse(i.getCancelledQuantity(), 0) > 0 && i.getQuantity() != null) {
+                out.computeIfPresent(i.getId(), (k, v) -> Math.min(v, i.getQuantity()));
+            }
+        }
+        return out;
     }
 
     public Map<Long, Integer> shippedBySoItem(Collection<Long> ids) {

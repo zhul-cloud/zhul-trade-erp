@@ -20,7 +20,7 @@ public class DisposeReturnRequest {
         /** 退货入库单行 ID */
         @NotNull(message = "请选择退货行")
         private Long itemId;
-        /** 1-退回供应商、2-转闲置库存、3-报废 */
+        /** 1-退回供应商、2-转可用库存、3-报废 */
         @NotNull(message = "请选择去向")
         private Integer disposition;
         @NotNull(message = "请填写数量")

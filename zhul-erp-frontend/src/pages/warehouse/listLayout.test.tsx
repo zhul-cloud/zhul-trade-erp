@@ -1,4 +1,11 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { request } from '@umijs/max';
 import { App } from 'antd';
 import React from 'react';
@@ -19,7 +26,9 @@ jest.mock('@umijs/max', () => ({
   useModel: () => ({ initialState: {} }),
 }));
 
-const page = (records: unknown[] = []) => ({ data: { total: records.length, records } });
+const page = (records: unknown[] = []) => ({
+  data: { total: records.length, records },
+});
 
 const pickStatus = async (label: RegExp) => {
   const box = screen.getByRole('combobox', { name: '状态' });
@@ -36,7 +45,8 @@ it('采购入库：状态在搜索条件栏，切到已入库请求入库单', a
   const urls: string[] = [];
   (request as jest.Mock).mockImplementation((url: string) => {
     urls.push(url);
-    if (url.endsWith('/counts')) return Promise.resolve({ data: { pending: 3 } });
+    if (url.endsWith('/counts'))
+      return Promise.resolve({ data: { pending: 3 } });
     return Promise.resolve(page());
   });
   render(React.createElement(App, null, React.createElement(Receipts)));

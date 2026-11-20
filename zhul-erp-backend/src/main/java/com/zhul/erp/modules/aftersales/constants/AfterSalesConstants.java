@@ -64,7 +64,7 @@ public final class AfterSalesConstants {
     public static final int DISP_SUPPLIER = 1;
     public static final int DISP_HOLD = 2;
     public static final int DISP_SCRAP = 3;
-    public static final Map<Integer, String> DISP_NAMES = Map.of(DISP_SUPPLIER, "退回供应商", DISP_HOLD, "转闲置库存", DISP_SCRAP, "报废");
+    public static final Map<Integer, String> DISP_NAMES = Map.of(DISP_SUPPLIER, "退回供应商", DISP_HOLD, "转可用库存", DISP_SCRAP, "报废");
 
     /** 截止事项（spec sales/after-sales「处理时限」） */
     public static final int DUE_NONE = 0;

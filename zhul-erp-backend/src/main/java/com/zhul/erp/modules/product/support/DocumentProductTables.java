@@ -55,7 +55,12 @@ public final class DocumentProductTables {
 
     /** 带 product_id 但不是单据明细的表（以 product 开头的商品资料表另行排除） */
     public static final Map<String, String> NOT_DOCUMENT = Map.of(
-            "listing_task", "发品任务：只能选已建档商品，候选不会出现在这里，合并不涉及");
+            "listing_task", "发品任务：只能选已建档商品，候选不会出现在这里，合并不涉及",
+            "inv_batch", "库存表：商品合并时由 InventoryMerge 按余额生成「商品合并」流水转到主商品，不批量改指向（流水只增不改）",
+            "inv_move", "库存表：商品合并时由 InventoryMerge 按余额生成「商品合并」流水转到主商品，不批量改指向（流水只增不改）",
+            "inv_balance", "库存表：商品合并时由 InventoryMerge 按余额生成「商品合并」流水转到主商品，不批量改指向（流水只增不改）",
+            "inv_reservation", "库存表：商品合并时由 InventoryMerge 按余额生成「商品合并」流水转到主商品，不批量改指向（流水只增不改）",
+            "inv_other_outbound_item", "库存表：商品合并时由 InventoryMerge 按余额生成「商品合并」流水转到主商品，不批量改指向（流水只增不改）");
 
     public static Optional<Entry> find(String table) {
         return ENTRIES.stream().filter(e -> e.table().equals(table)).findFirst();

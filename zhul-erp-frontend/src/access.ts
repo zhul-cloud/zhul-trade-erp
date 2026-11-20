@@ -98,7 +98,11 @@ export default function access(initialState: {
       '/warehouse/receipts',
       '/warehouse/outbounds',
       '/warehouse/returns',
-      '/warehouse/holds',
+      '/warehouse/other-outbounds',
+      '/warehouse/stocks',
+      '/warehouse/moves',
+      '/warehouse/ledger',
+      '/warehouse/warehouses',
       '/warehouse/shoots',
     ),
     warehouseReceipts: can('/warehouse/receipts'),
@@ -112,7 +116,16 @@ export default function access(initialState: {
     // 销售出库单详情：业务员从销售订单打开（按订单业务员），仓库看全部
     outboundDetail: any('/warehouse/outbounds', '/sales/orders'),
     'warehouse:outbound:pack': can('warehouse:outbound:pack'),
-    warehouseHolds: can('/warehouse/holds'),
+    // 库存（openspec inventory-foundation）
+    warehouseOtherOutbounds: can('/warehouse/other-outbounds'),
+    warehouseStocks: can('/warehouse/stocks'),
+    warehouseMoves: can('/warehouse/moves'),
+    warehouseLedger: can('/warehouse/ledger'),
+    warehouseArchive: can('/warehouse/warehouses'),
+    'inventory:other-outbound:edit': can('inventory:other-outbound:edit'),
+    'inventory:other-outbound:void': can('inventory:other-outbound:void'),
+    'inventory:return-to-supplier': can('inventory:return-to-supplier'),
+    'inventory:warehouse:edit': can('inventory:warehouse:edit'),
     warehouseReturns: can('/warehouse/returns'),
     // 退货入库单详情：售后、销售退货也能从关联单据打开查看
     returnReceiptDetail: any(
@@ -124,7 +137,6 @@ export default function access(initialState: {
     'purchase:return:dispose': can('purchase:return:dispose'),
     warehouseShoots: can('/warehouse/shoots'),
     'warehouse:receipt:create': can('warehouse:receipt:create'),
-    'warehouse:hold:handle': can('warehouse:hold:handle'),
     'warehouse:shoot:edit': can('warehouse:shoot:edit'),
     // 物流管理
     logisticsMenu: any(

@@ -34,7 +34,6 @@ class ReceivingContractTest extends SalesContractSupport {
     private static final String SHIP = "/api/v1/purchase/shipments";
     private static final String DIFF = "/api/v1/purchase/discrepancies";
     private static final String GR = "/api/v1/warehouse/receipts";
-    private static final String HOLD = "/api/v1/warehouse/holds";
     private static final String SHOOT = "/api/v1/warehouse/shoots";
     private static final String FILE = "/api/v1/attachments";
     private static final long KEEPER = 99000041L;
@@ -466,44 +465,22 @@ class ReceivingContractTest extends SalesContractSupport {
         assertEquals("补发已经登记，不能重新打开", fail(call(post(DIFF + "/" + badId + "/reopen"), lin)).path("message").asText());
     }
 
-    // ---------------------------------------------------------------- 闲置库存
+    // ---------------------------------------------------------------- 多发暂存（openspec inventory-foundation：留在可用库存）
 
     @Test
-    void over_hold_freeOfCharge_handleOnce_reopenBlocked() throws Exception {
+    void over_hold_staysAvailable_noStockHold_reopen() throws Exception {
         long sup = supplier("华控自动化", null);
         JsonNode po = orderedPo(sup, l("A-1", 2, "1000", "200"));
         long sid = ok(ship(po.path("id").asLong(), Map.of(item(po, 0), 2), lin)).path("shipment").path("id").asLong();
         JsonNode gr = ok(accept(sid, List.of(new int[] {5, 5, 0}), keeper));
         long overId = gr.path("discrepancies").get(0).path("id").asLong();
         assertEquals("多发不能选择「等补发」", fail(handle(overId, Map.of("resolution", 1))).path("message").asText());
-        ok(handle(overId, Map.of("resolution", 7, "freeOfCharge", true, "locationNote", "2 号架")));
-
-        JsonNode holds = ok(call(json(post(HOLD + "/page"), write(Map.of("status", 1))), keeper));
-        assertEquals(1, holds.path("total").asInt());
-        JsonNode h = holds.path("records").get(0);
-        assertEquals(3, h.path("quantity").asInt());
-        money("0.00", h.path("costPrice"));
-        assertEquals("2 号架", h.path("locationNote").asText());
-        assertEquals(po.path("poNo").asText(), h.path("poNo").asText());
-
-        long holdId = h.path("id").asLong();
-        JsonNode done = ok(call(json(post(HOLD + "/" + holdId + "/handle"), write(Map.of("status", 4, "note", "给业务员做展示"))), keeper));
-        assertEquals("已转样品", done.path("statusName").asText());
-        assertEquals(0, ok(call(json(post(HOLD + "/page"), write(Map.of("status", 1))), keeper)).path("total").asInt());
-        assertEquals("闲置库存已处置，不能再处置",
-                fail(call(json(post(HOLD + "/" + holdId + "/handle"), write(Map.of("status", 3, "note", "x"))), keeper)).path("message").asText());
-        assertEquals("闲置库存已转样品，不能重新打开", fail(call(post(DIFF + "/" + overId + "/reopen"), lin)).path("message").asText());
-    }
-
-    @Test
-    void over_hold_costFromNetPrice() throws Exception {
-        long sup = supplier("华控自动化", null);
-        JsonNode po = orderedPo(sup, l("A-1", 2, "1000", "200"));
-        long sid = ok(ship(po.path("id").asLong(), Map.of(item(po, 0), 2), lin)).path("shipment").path("id").asLong();
-        long overId = ok(accept(sid, List.of(new int[] {3, 3, 0}), keeper)).path("discrepancies").get(0).path("id").asLong();
-        ok(handle(overId, Map.of("resolution", 7)));
-        JsonNode h = ok(call(json(post(HOLD + "/page"), "{}"), keeper)).path("records").get(0);
-        money("800.00", h.path("costPrice"));
+        ok(handle(overId, Map.of("resolution", 7, "freeOfCharge", true)));
+        assertEquals(0, jdbc.queryForObject("select count(*) from stock_hold where tenant_id = 0", Integer.class), "不再生成闲置库存");
+        long product = jdbc.queryForObject("select product_id from purchase_order_item where id = ?", Long.class, item(po, 0));
+        assertEquals("5/2", jdbc.queryForObject("select concat(sum(on_hand), '/', sum(reserved)) from inv_balance where tenant_id = 0"
+                + " and product_id = ?", String.class, product), "多发 3 个留在可用库存，订单预占 2");
+        ok(call(post(DIFF + "/" + overId + "/reopen"), lin));
     }
 
     // ---------------------------------------------------------------- 冲销
