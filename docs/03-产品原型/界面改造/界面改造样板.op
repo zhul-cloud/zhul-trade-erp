@@ -41559,7 +41559,7 @@
                                     }
                                   ],
                                   "width": "fill_container",
-                                  "height": 96.0,
+                                  "height": "fit_content",
                                   "layout": "vertical",
                                   "gap": 4.0,
                                   "padding": [
@@ -41634,14 +41634,14 @@
                                     {
                                       "type": "text",
                                       "id": "n7371",
-                                      "name": "fill=#919EAB",
+                                      "name": "fill=#637381",
                                       "width": "fill_container",
-                                      "height": "fit_content",
+                                      "height": 34.0,
                                       "content": "货代已发出",
                                       "fontFamily": "Noto Sans SC",
                                       "fontSize": 12.0,
                                       "lineHeight": 1.4,
-                                      "textGrowth": "fixed-width",
+                                      "textGrowth": "fixed-width-height",
                                       "fill": [
                                         {
                                           "type": "solid",
@@ -41679,7 +41679,7 @@
                                     }
                                   ],
                                   "width": "fill_container",
-                                  "height": 96.0,
+                                  "height": "fit_content",
                                   "layout": "vertical",
                                   "gap": 4.0,
                                   "padding": [
@@ -41754,14 +41754,14 @@
                                     {
                                       "type": "text",
                                       "id": "n7377",
-                                      "name": "fill=#919EAB",
+                                      "name": "fill=#637381",
                                       "width": "fill_container",
-                                      "height": "fit_content",
+                                      "height": 34.0,
                                       "content": "在货代，等出运",
                                       "fontFamily": "Noto Sans SC",
                                       "fontSize": 12.0,
                                       "lineHeight": 1.4,
-                                      "textGrowth": "fixed-width",
+                                      "textGrowth": "fixed-width-height",
                                       "fill": [
                                         {
                                           "type": "solid",
@@ -41799,7 +41799,7 @@
                                     }
                                   ],
                                   "width": "fill_container",
-                                  "height": 96.0,
+                                  "height": "fit_content",
                                   "layout": "vertical",
                                   "gap": 4.0,
                                   "padding": [
@@ -41874,14 +41874,14 @@
                                     {
                                       "type": "text",
                                       "id": "n7383",
-                                      "name": "fill=#919EAB",
+                                      "name": "fill=#637381",
                                       "width": "fill_container",
-                                      "height": "fit_content",
+                                      "height": 34.0,
                                       "content": "福州仓库",
                                       "fontFamily": "Noto Sans SC",
                                       "fontSize": 12.0,
                                       "lineHeight": 1.4,
-                                      "textGrowth": "fixed-width",
+                                      "textGrowth": "fixed-width-height",
                                       "fill": [
                                         {
                                           "type": "solid",
@@ -41919,7 +41919,7 @@
                                     }
                                   ],
                                   "width": "fill_container",
-                                  "height": 96.0,
+                                  "height": "fit_content",
                                   "layout": "vertical",
                                   "gap": 4.0,
                                   "padding": [
@@ -41994,14 +41994,14 @@
                                     {
                                       "type": "text",
                                       "id": "n7389",
-                                      "name": "fill=#919EAB",
+                                      "name": "fill=#637381",
                                       "width": "fill_container",
-                                      "height": "fit_content",
+                                      "height": 34.0,
                                       "content": "最早 11-25 到",
                                       "fontFamily": "Noto Sans SC",
                                       "fontSize": 12.0,
                                       "lineHeight": 1.4,
-                                      "textGrowth": "fixed-width",
+                                      "textGrowth": "fixed-width-height",
                                       "fill": [
                                         {
                                           "type": "solid",
@@ -42039,7 +42039,7 @@
                                     }
                                   ],
                                   "width": "fill_container",
-                                  "height": 96.0,
+                                  "height": "fit_content",
                                   "layout": "vertical",
                                   "gap": 4.0,
                                   "padding": [
@@ -42114,14 +42114,14 @@
                                     {
                                       "type": "text",
                                       "id": "n7395",
-                                      "name": "fill=#919EAB",
+                                      "name": "fill=#637381",
                                       "width": "fill_container",
-                                      "height": "fit_content",
+                                      "height": 34.0,
                                       "content": "已下单，供应商还没发",
                                       "fontFamily": "Noto Sans SC",
                                       "fontSize": 12.0,
                                       "lineHeight": 1.4,
-                                      "textGrowth": "fixed-width",
+                                      "textGrowth": "fixed-width-height",
                                       "fill": [
                                         {
                                           "type": "solid",
@@ -42159,7 +42159,7 @@
                                     }
                                   ],
                                   "width": "fill_container",
-                                  "height": 96.0,
+                                  "height": "fit_content",
                                   "layout": "vertical",
                                   "gap": 4.0,
                                   "padding": [
@@ -42234,14 +42234,14 @@
                                     {
                                       "type": "text",
                                       "id": "n7401",
-                                      "name": "fill=#919EAB",
+                                      "name": "fill=#637381",
                                       "width": "fill_container",
-                                      "height": "fit_content",
+                                      "height": 34.0,
                                       "content": "还没下采购订单",
                                       "fontFamily": "Noto Sans SC",
                                       "fontSize": 12.0,
                                       "lineHeight": 1.4,
-                                      "textGrowth": "fixed-width",
+                                      "textGrowth": "fixed-width-height",
                                       "fill": [
                                         {
                                           "type": "solid",
@@ -42563,7 +42563,7 @@
                                     {
                                       "type": "frame",
                                       "id": "n7420",
-                                      "width": 190.0,
+                                      "width": 150.0,
                                       "height": "fit_content",
                                       "layout": "horizontal",
                                       "padding": 0.0,
@@ -43116,7 +43116,7 @@
                                     {
                                       "type": "frame",
                                       "id": "n7458",
-                                      "width": 190.0,
+                                      "width": 150.0,
                                       "height": "fit_content",
                                       "layout": "vertical",
                                       "gap": 4.0,
@@ -43743,7 +43743,7 @@
                                               "fill": [
                                                 {
                                                   "type": "solid",
-                                                  "color": "#FFF5E0"
+                                                  "color": "#ECEEF0"
                                                 }
                                               ],
                                               "children": [
@@ -43760,14 +43760,14 @@
                                                     {
                                                       "type": "icon_font",
                                                       "id": "n7502",
-                                                      "name": "fill=#FFAB00",
+                                                      "name": "fill=#3E4750",
                                                       "iconFontName": "message-square",
                                                       "width": 12.0,
                                                       "height": 12.0,
                                                       "fill": [
                                                         {
                                                           "type": "solid",
-                                                          "color": "#17191D"
+                                                          "color": "#3E4750"
                                                         }
                                                       ]
                                                     }
@@ -43776,7 +43776,7 @@
                                                 {
                                                   "type": "text",
                                                   "id": "n7503",
-                                                  "name": "fill=#FFAB00",
+                                                  "name": "fill=#3E4750",
                                                   "width": "fit_content",
                                                   "height": "fit_content",
                                                   "content": "客户要求原厂包装",
@@ -43786,7 +43786,7 @@
                                                   "fill": [
                                                     {
                                                       "type": "solid",
-                                                      "color": "#17191D"
+                                                      "color": "#3E4750"
                                                     }
                                                   ]
                                                 }
@@ -43823,7 +43823,7 @@
                                         {
                                           "type": "text",
                                           "id": "n7506",
-                                          "name": "fill=#919EAB",
+                                          "name": "fill=#637381",
                                           "width": "fit_content",
                                           "height": "fit_content",
                                           "content": "Kevin · 11-19 16:05",
@@ -43833,7 +43833,7 @@
                                           "fill": [
                                             {
                                               "type": "solid",
-                                              "color": "#17191D"
+                                              "color": "#637381"
                                             }
                                           ]
                                         }
@@ -43842,7 +43842,7 @@
                                     {
                                       "type": "frame",
                                       "id": "n7507",
-                                      "width": 190.0,
+                                      "width": 150.0,
                                       "height": "fit_content",
                                       "layout": "vertical",
                                       "gap": 4.0,
@@ -44504,7 +44504,7 @@
                                     {
                                       "type": "frame",
                                       "id": "n7552",
-                                      "width": 190.0,
+                                      "width": 150.0,
                                       "height": "fit_content",
                                       "layout": "vertical",
                                       "gap": 4.0,
@@ -45166,7 +45166,7 @@
                                     {
                                       "type": "frame",
                                       "id": "n7597",
-                                      "width": 190.0,
+                                      "width": 150.0,
                                       "height": "fit_content",
                                       "layout": "vertical",
                                       "gap": 4.0,
@@ -45530,7 +45530,7 @@
                                         {
                                           "type": "text",
                                           "id": "n7621",
-                                          "name": "fill=#919EAB",
+                                          "name": "fill=#637381",
                                           "width": "fit_content",
                                           "height": "fit_content",
                                           "content": "还没有下采购订单",
@@ -45540,7 +45540,7 @@
                                           "fill": [
                                             {
                                               "type": "solid",
-                                              "color": "#17191D"
+                                              "color": "#637381"
                                             }
                                           ]
                                         }
@@ -46965,7 +46965,7 @@
                                         {
                                           "type": "text",
                                           "id": "n7712",
-                                          "name": "fill=#919EAB",
+                                          "name": "fill=#637381",
                                           "width": "fit_content",
                                           "height": "fit_content",
                                           "content": "268 KB",
@@ -46975,7 +46975,7 @@
                                           "fill": [
                                             {
                                               "type": "solid",
-                                              "color": "#17191D"
+                                              "color": "#637381"
                                             }
                                           ]
                                         }
@@ -47065,7 +47065,7 @@
                                         {
                                           "type": "text",
                                           "id": "n7718",
-                                          "name": "fill=#919EAB",
+                                          "name": "fill=#637381",
                                           "width": "fit_content",
                                           "height": "fit_content",
                                           "content": "1.2 MB",
@@ -47075,7 +47075,7 @@
                                           "fill": [
                                             {
                                               "type": "solid",
-                                              "color": "#17191D"
+                                              "color": "#637381"
                                             }
                                           ]
                                         }
@@ -49748,7 +49748,7 @@
                             {
                               "type": "text",
                               "id": "n7878",
-                              "name": "fill=#919EAB",
+                              "name": "fill=#637381",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "还没有销售出库单",
@@ -49758,7 +49758,7 @@
                               "fill": [
                                 {
                                   "type": "solid",
-                                  "color": "#17191D"
+                                  "color": "#637381"
                                 }
                               ]
                             }
@@ -50369,7 +50369,7 @@
                                         {
                                           "type": "text",
                                           "id": "n7917",
-                                          "name": "fill=#919EAB",
+                                          "name": "fill=#637381",
                                           "width": "fit_content",
                                           "height": "fit_content",
                                           "content": "11-19",
@@ -50379,7 +50379,7 @@
                                           "fill": [
                                             {
                                               "type": "solid",
-                                              "color": "#17191D"
+                                              "color": "#637381"
                                             }
                                           ]
                                         }
@@ -50521,7 +50521,7 @@
                                         {
                                           "type": "text",
                                           "id": "n7927",
-                                          "name": "fill=#919EAB",
+                                          "name": "fill=#637381",
                                           "width": "fit_content",
                                           "height": "fit_content",
                                           "content": "11-18",
@@ -50531,7 +50531,7 @@
                                           "fill": [
                                             {
                                               "type": "solid",
-                                              "color": "#17191D"
+                                              "color": "#637381"
                                             }
                                           ]
                                         }
@@ -50857,7 +50857,7 @@
                             {
                               "type": "text",
                               "id": "n7947",
-                              "name": "fill=#919EAB",
+                              "name": "fill=#637381",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "没有费用订单",
@@ -50867,7 +50867,7 @@
                               "fill": [
                                 {
                                   "type": "solid",
-                                  "color": "#17191D"
+                                  "color": "#637381"
                                 }
                               ]
                             }
@@ -55053,7 +55053,7 @@
                                     }
                                   ],
                                   "width": "fill_container",
-                                  "height": 96.0,
+                                  "height": "fit_content",
                                   "layout": "vertical",
                                   "gap": 4.0,
                                   "padding": [
@@ -55128,18 +55128,18 @@
                                     {
                                       "type": "text",
                                       "id": "n8211",
-                                      "name": "fill=#6E6E6E",
+                                      "name": "fill=#A0A0A0",
                                       "width": "fill_container",
-                                      "height": "fit_content",
+                                      "height": 34.0,
                                       "content": "货代已发出",
                                       "fontFamily": "Noto Sans SC",
                                       "fontSize": 12.0,
                                       "lineHeight": 1.4,
-                                      "textGrowth": "fixed-width",
+                                      "textGrowth": "fixed-width-height",
                                       "fill": [
                                         {
                                           "type": "solid",
-                                          "color": "#FAF8F3"
+                                          "color": "#FFFFFF"
                                         }
                                       ]
                                     }
@@ -55173,7 +55173,7 @@
                                     }
                                   ],
                                   "width": "fill_container",
-                                  "height": 96.0,
+                                  "height": "fit_content",
                                   "layout": "vertical",
                                   "gap": 4.0,
                                   "padding": [
@@ -55248,18 +55248,18 @@
                                     {
                                       "type": "text",
                                       "id": "n8217",
-                                      "name": "fill=#6E6E6E",
+                                      "name": "fill=#A0A0A0",
                                       "width": "fill_container",
-                                      "height": "fit_content",
+                                      "height": 34.0,
                                       "content": "在货代，等出运",
                                       "fontFamily": "Noto Sans SC",
                                       "fontSize": 12.0,
                                       "lineHeight": 1.4,
-                                      "textGrowth": "fixed-width",
+                                      "textGrowth": "fixed-width-height",
                                       "fill": [
                                         {
                                           "type": "solid",
-                                          "color": "#FAF8F3"
+                                          "color": "#FFFFFF"
                                         }
                                       ]
                                     }
@@ -55293,7 +55293,7 @@
                                     }
                                   ],
                                   "width": "fill_container",
-                                  "height": 96.0,
+                                  "height": "fit_content",
                                   "layout": "vertical",
                                   "gap": 4.0,
                                   "padding": [
@@ -55368,18 +55368,18 @@
                                     {
                                       "type": "text",
                                       "id": "n8223",
-                                      "name": "fill=#6E6E6E",
+                                      "name": "fill=#A0A0A0",
                                       "width": "fill_container",
-                                      "height": "fit_content",
+                                      "height": 34.0,
                                       "content": "福州仓库",
                                       "fontFamily": "Noto Sans SC",
                                       "fontSize": 12.0,
                                       "lineHeight": 1.4,
-                                      "textGrowth": "fixed-width",
+                                      "textGrowth": "fixed-width-height",
                                       "fill": [
                                         {
                                           "type": "solid",
-                                          "color": "#FAF8F3"
+                                          "color": "#FFFFFF"
                                         }
                                       ]
                                     }
@@ -55413,7 +55413,7 @@
                                     }
                                   ],
                                   "width": "fill_container",
-                                  "height": 96.0,
+                                  "height": "fit_content",
                                   "layout": "vertical",
                                   "gap": 4.0,
                                   "padding": [
@@ -55488,18 +55488,18 @@
                                     {
                                       "type": "text",
                                       "id": "n8229",
-                                      "name": "fill=#6E6E6E",
+                                      "name": "fill=#A0A0A0",
                                       "width": "fill_container",
-                                      "height": "fit_content",
+                                      "height": 34.0,
                                       "content": "最早 11-25 到",
                                       "fontFamily": "Noto Sans SC",
                                       "fontSize": 12.0,
                                       "lineHeight": 1.4,
-                                      "textGrowth": "fixed-width",
+                                      "textGrowth": "fixed-width-height",
                                       "fill": [
                                         {
                                           "type": "solid",
-                                          "color": "#FAF8F3"
+                                          "color": "#FFFFFF"
                                         }
                                       ]
                                     }
@@ -55533,7 +55533,7 @@
                                     }
                                   ],
                                   "width": "fill_container",
-                                  "height": 96.0,
+                                  "height": "fit_content",
                                   "layout": "vertical",
                                   "gap": 4.0,
                                   "padding": [
@@ -55608,18 +55608,18 @@
                                     {
                                       "type": "text",
                                       "id": "n8235",
-                                      "name": "fill=#6E6E6E",
+                                      "name": "fill=#A0A0A0",
                                       "width": "fill_container",
-                                      "height": "fit_content",
+                                      "height": 34.0,
                                       "content": "已下单，供应商还没发",
                                       "fontFamily": "Noto Sans SC",
                                       "fontSize": 12.0,
                                       "lineHeight": 1.4,
-                                      "textGrowth": "fixed-width",
+                                      "textGrowth": "fixed-width-height",
                                       "fill": [
                                         {
                                           "type": "solid",
-                                          "color": "#FAF8F3"
+                                          "color": "#FFFFFF"
                                         }
                                       ]
                                     }
@@ -55653,7 +55653,7 @@
                                     }
                                   ],
                                   "width": "fill_container",
-                                  "height": 96.0,
+                                  "height": "fit_content",
                                   "layout": "vertical",
                                   "gap": 4.0,
                                   "padding": [
@@ -55728,18 +55728,18 @@
                                     {
                                       "type": "text",
                                       "id": "n8241",
-                                      "name": "fill=#6E6E6E",
+                                      "name": "fill=#A0A0A0",
                                       "width": "fill_container",
-                                      "height": "fit_content",
+                                      "height": 34.0,
                                       "content": "还没下采购订单",
                                       "fontFamily": "Noto Sans SC",
                                       "fontSize": 12.0,
                                       "lineHeight": 1.4,
-                                      "textGrowth": "fixed-width",
+                                      "textGrowth": "fixed-width-height",
                                       "fill": [
                                         {
                                           "type": "solid",
-                                          "color": "#FAF8F3"
+                                          "color": "#FFFFFF"
                                         }
                                       ]
                                     }
@@ -56032,7 +56032,7 @@
                                     {
                                       "type": "frame",
                                       "id": "n8260",
-                                      "width": 190.0,
+                                      "width": 150.0,
                                       "height": "fit_content",
                                       "layout": "horizontal",
                                       "padding": 0.0,
@@ -56576,7 +56576,7 @@
                                     {
                                       "type": "frame",
                                       "id": "n8298",
-                                      "width": 190.0,
+                                      "width": 150.0,
                                       "height": "fit_content",
                                       "layout": "vertical",
                                       "gap": 4.0,
@@ -57194,7 +57194,7 @@
                                               "fill": [
                                                 {
                                                   "type": "solid",
-                                                  "color": "#3F3116"
+                                                  "color": "#2F2F2F"
                                                 }
                                               ],
                                               "children": [
@@ -57211,14 +57211,14 @@
                                                     {
                                                       "type": "icon_font",
                                                       "id": "n8342",
-                                                      "name": "fill=#FFAB00",
+                                                      "name": "fill=#E0E0E0",
                                                       "iconFontName": "message-square",
                                                       "width": 12.0,
                                                       "height": 12.0,
                                                       "fill": [
                                                         {
                                                           "type": "solid",
-                                                          "color": "#FFAB00"
+                                                          "color": "#E0E0E0"
                                                         }
                                                       ]
                                                     }
@@ -57227,7 +57227,7 @@
                                                 {
                                                   "type": "text",
                                                   "id": "n8343",
-                                                  "name": "fill=#FFAB00",
+                                                  "name": "fill=#E0E0E0",
                                                   "width": "fit_content",
                                                   "height": "fit_content",
                                                   "content": "客户要求原厂包装",
@@ -57237,7 +57237,7 @@
                                                   "fill": [
                                                     {
                                                       "type": "solid",
-                                                      "color": "#FFFFFF"
+                                                      "color": "#E0E0E0"
                                                     }
                                                   ]
                                                 }
@@ -57274,7 +57274,7 @@
                                         {
                                           "type": "text",
                                           "id": "n8346",
-                                          "name": "fill=#6E6E6E",
+                                          "name": "fill=#A0A0A0",
                                           "width": "fit_content",
                                           "height": "fit_content",
                                           "content": "Kevin · 11-19 16:05",
@@ -57284,7 +57284,7 @@
                                           "fill": [
                                             {
                                               "type": "solid",
-                                              "color": "#FAF8F3"
+                                              "color": "#A0A0A0"
                                             }
                                           ]
                                         }
@@ -57293,7 +57293,7 @@
                                     {
                                       "type": "frame",
                                       "id": "n8347",
-                                      "width": 190.0,
+                                      "width": 150.0,
                                       "height": "fit_content",
                                       "layout": "vertical",
                                       "gap": 4.0,
@@ -57946,7 +57946,7 @@
                                     {
                                       "type": "frame",
                                       "id": "n8392",
-                                      "width": 190.0,
+                                      "width": 150.0,
                                       "height": "fit_content",
                                       "layout": "vertical",
                                       "gap": 4.0,
@@ -58599,7 +58599,7 @@
                                     {
                                       "type": "frame",
                                       "id": "n8437",
-                                      "width": 190.0,
+                                      "width": 150.0,
                                       "height": "fit_content",
                                       "layout": "vertical",
                                       "gap": 4.0,
@@ -58963,7 +58963,7 @@
                                         {
                                           "type": "text",
                                           "id": "n8461",
-                                          "name": "fill=#6E6E6E",
+                                          "name": "fill=#A0A0A0",
                                           "width": "fit_content",
                                           "height": "fit_content",
                                           "content": "还没有下采购订单",
@@ -58973,7 +58973,7 @@
                                           "fill": [
                                             {
                                               "type": "solid",
-                                              "color": "#FAF8F3"
+                                              "color": "#A0A0A0"
                                             }
                                           ]
                                         }
@@ -60341,7 +60341,7 @@
                                         {
                                           "type": "text",
                                           "id": "n8552",
-                                          "name": "fill=#6E6E6E",
+                                          "name": "fill=#A0A0A0",
                                           "width": "fit_content",
                                           "height": "fit_content",
                                           "content": "268 KB",
@@ -60351,7 +60351,7 @@
                                           "fill": [
                                             {
                                               "type": "solid",
-                                              "color": "#FAF8F3"
+                                              "color": "#A0A0A0"
                                             }
                                           ]
                                         }
@@ -60432,7 +60432,7 @@
                                         {
                                           "type": "text",
                                           "id": "n8558",
-                                          "name": "fill=#6E6E6E",
+                                          "name": "fill=#A0A0A0",
                                           "width": "fit_content",
                                           "height": "fit_content",
                                           "content": "1.2 MB",
@@ -60442,7 +60442,7 @@
                                           "fill": [
                                             {
                                               "type": "solid",
-                                              "color": "#FAF8F3"
+                                              "color": "#A0A0A0"
                                             }
                                           ]
                                         }
@@ -63083,7 +63083,7 @@
                             {
                               "type": "text",
                               "id": "n8718",
-                              "name": "fill=#6E6E6E",
+                              "name": "fill=#A0A0A0",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "还没有销售出库单",
@@ -63093,7 +63093,7 @@
                               "fill": [
                                 {
                                   "type": "solid",
-                                  "color": "#FAF8F3"
+                                  "color": "#A0A0A0"
                                 }
                               ]
                             }
@@ -63675,7 +63675,7 @@
                                         {
                                           "type": "text",
                                           "id": "n8757",
-                                          "name": "fill=#6E6E6E",
+                                          "name": "fill=#A0A0A0",
                                           "width": "fit_content",
                                           "height": "fit_content",
                                           "content": "11-19",
@@ -63685,7 +63685,7 @@
                                           "fill": [
                                             {
                                               "type": "solid",
-                                              "color": "#FAF8F3"
+                                              "color": "#A0A0A0"
                                             }
                                           ]
                                         }
@@ -63814,7 +63814,7 @@
                                         {
                                           "type": "text",
                                           "id": "n8767",
-                                          "name": "fill=#6E6E6E",
+                                          "name": "fill=#A0A0A0",
                                           "width": "fit_content",
                                           "height": "fit_content",
                                           "content": "11-18",
@@ -63824,7 +63824,7 @@
                                           "fill": [
                                             {
                                               "type": "solid",
-                                              "color": "#FAF8F3"
+                                              "color": "#A0A0A0"
                                             }
                                           ]
                                         }
@@ -64134,7 +64134,7 @@
                             {
                               "type": "text",
                               "id": "n8787",
-                              "name": "fill=#6E6E6E",
+                              "name": "fill=#A0A0A0",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "没有费用订单",
@@ -64144,7 +64144,7 @@
                               "fill": [
                                 {
                                   "type": "solid",
-                                  "color": "#FAF8F3"
+                                  "color": "#A0A0A0"
                                 }
                               ]
                             }
@@ -66728,17 +66728,17 @@
                   "fill": [
                     {
                       "type": "solid",
-                      "color": "#FFF5E0"
+                      "color": "#ECEEF0"
                     }
                   ],
                   "children": [
                     {
                       "type": "text",
                       "id": "n4554",
-                      "name": "fill=#FFAB00",
+                      "name": "fill=#637381",
                       "width": "fit_content",
                       "height": "fit_content",
-                      "content": "待到账",
+                      "content": "未付款",
                       "fontFamily": "Noto Sans SC",
                       "fontSize": 12.0,
                       "lineHeight": 1.5,
@@ -67232,7 +67232,7 @@
                         {
                           "type": "text",
                           "id": "n4580",
-                          "name": "fill=#919EAB",
+                          "name": "fill=#637381",
                           "width": "fit_content",
                           "height": "fit_content",
                           "content": "11-21 10:30",
@@ -67350,7 +67350,7 @@
                             {
                               "type": "text",
                               "id": "n4587",
-                              "name": "fill=#919EAB",
+                              "name": "fill=#637381",
                               "width": "fit_content",
                               "height": "fit_content",
                               "content": "Kevin",
