@@ -104,13 +104,17 @@ function costCard(T, parent, scrolled) {
   const ch1 = box(chd, { layout: 'horizontal', gap: 8, alignItems: 'center' });
   tx(ch1, '成本明细', { fontSize: 18, fontWeight: 500, fill: solid(T.ink) }); icon(ch1, 'info', 14, T.sub); label(ch1, '未结算', T.st.warn);
   tx(chd, '还差：货款没收齐 · 1 个型号没下采购订单 · 4 个型号没入库', { fontSize: 12, fill: solid(T.sub) });
-  const cols = scrolled ? COST_COLS.slice(6) : COST_COLS.slice(0, 9);
+  const cols = scrolled ? COST_COLS.slice(7, 13) : COST_COLS.slice(0, 8);
+  const LASTC = COST_COLS[COST_COLS.length - 1];
   const t = box(c, { width: 'fill_container', layout: 'horizontal' });
   const fixedCol = box(t, { width: 260, layout: 'vertical', fill: solid(T.card), effects: scrolled ? [{ type: 'shadow', offsetX: 6, offsetY: 0, blur: 8, spread: -4, color: T.key === 'light' ? 'rgba(145,158,171,0.35)' : 'rgba(0,0,0,0.6)' }] : [] });
   const sc = box(t, { width: 'fill_container', layout: 'vertical', clipContent: true });
+  const rc = box(t, { width: LASTC[1] + 12, layout: 'vertical', fill: solid(T.card), effects: [{ type: 'shadow', offsetX: -6, offsetY: 0, blur: 8, spread: -4, color: T.key === 'light' ? 'rgba(145,158,171,0.35)' : 'rgba(0,0,0,0.6)' }] });
+  const rch = box(rc, { width: 'fill_container', height: 44, layout: 'horizontal', alignItems: 'center', justifyContent: 'end', padding: [0, 24, 0, 0], fill: solid(T.head) });
+  tx(rch, LASTC[0], { fontSize: 13, fontWeight: 500, fill: solid(T.ink) });
   const fh = box(fixedCol, { width: 'fill_container', height: 44, layout: 'horizontal', alignItems: 'center', padding: [0, 24], fill: solid(T.head) });
   tx(fh, '型号', { fontSize: 13, fontWeight: 500, fill: solid(T.ink) });
-  const hh = box(sc, { layout: 'horizontal', height: 44, alignItems: 'center', fill: solid(T.head) });
+  const hh = box(sc, { width: 2000, layout: 'horizontal', height: 44, alignItems: 'center', fill: solid(T.head) });
   for (const [h, w] of cols) { const hc = box(hh, { width: w, layout: 'horizontal', justifyContent: 'end', padding: [0, 12, 0, 0] }); tx(hc, h, { fontSize: 13, fontWeight: 500, fill: solid(T.ink) }); }
   const val = (r, h) => ({ '采购货款': [r.pv, 1], '实际成本': [r.cost, 0, 1], '行收入': [r.rev], '行毛利': [r.pf + ' · ' + r.pr, 0, 1, T.st.ok[0]] })[h] || ['—'];
   for (const r of COST_ROWS) {
@@ -121,6 +125,9 @@ function costCard(T, parent, scrolled) {
     const ml = box(mc, { layout: 'horizontal', gap: 4 });
     tx(ml, r.m, { fontSize: 13, fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) }); tx(ml, '× ' + r.q, { fontSize: 13, fontFamily: NUM, fill: solid(T.body) });
     for (const tp of r.tips) label(mc, tp, T.st.warn, 'triangle-alert');
+    I(rc, { type: 'frame', width: 'fill_container', height: 1, fill: solid(T.line) });
+    const rcr = box(rc, { width: 'fill_container', height: RH, layout: 'horizontal', alignItems: 'center', justifyContent: 'end', padding: [0, 24, 0, 0] });
+    tx(rcr, r.pf + ' · ' + r.pr, { fontSize: 13, fontWeight: 600, fontFamily: NUM, fill: solid(T.st.ok[0]) });
     const row = box(sc, { layout: 'horizontal', height: RH, alignItems: 'center' });
     for (const [h, w] of cols) {
       const [v, dim, bold, col] = val(r, h);
@@ -132,7 +139,10 @@ function costCard(T, parent, scrolled) {
   I(sc, { type: 'frame', width: 2000, height: 1, fill: solid(T.line) });
   const ft = box(fixedCol, { width: 'fill_container', height: 48, layout: 'horizontal', alignItems: 'center', padding: [0, 24], fill: solid(T.head) });
   tx(ft, '合计', { fontWeight: 600, fill: solid(T.ink) });
-  const fr = box(sc, { layout: 'horizontal', height: 48, alignItems: 'center', fill: solid(T.head) });
+  I(rc, { type: 'frame', width: 'fill_container', height: 1, fill: solid(T.line) });
+  const rct = box(rc, { width: 'fill_container', height: 48, layout: 'horizontal', alignItems: 'center', justifyContent: 'end', padding: [0, 24, 0, 0], fill: solid(T.head) });
+  tx(rct, 'CNY 24,256.00 · 26.57%', { fontSize: 13, fontWeight: 600, fontFamily: NUM, fill: solid(T.st.ok[0]) });
+  const fr = box(sc, { width: 2000, layout: 'horizontal', height: 48, alignItems: 'center', fill: solid(T.head) });
   const tot = { '实际成本': ['CNY 67,050.00', T.ink], '退款': ['—', T.faint], '行收入': ['CNY 91,306.00', T.ink], '行毛利': ['CNY 24,256.00 · 26.57%', T.st.ok[0]] };
   for (const [h, w] of cols) { const cc = box(fr, { width: w, layout: 'horizontal', justifyContent: 'end', padding: [0, 12, 0, 0] }); const v = tot[h]; if (v) tx(cc, v[0], { fontSize: 13, fontWeight: 600, fontFamily: NUM, fill: solid(v[1]) }); }
   const sb = box(c, { width: 'fill_container', height: 14, layout: 'horizontal', padding: [5, 24], fill: solid(T.card) });
@@ -142,7 +152,7 @@ function costCard(T, parent, scrolled) {
 
 function detail(T, name) {
   const K = kit(T); const { tx, box, icon, hr, card, label, primaryBtn, textBtn, cardHead, kv } = K;
-  const content = shell(T, 1440, 2720, name);
+  const content = shell(T, 1440, 2800, name);
 
   // 返回条（标签页框架提供）
   const back = box(content, { layout: 'horizontal', gap: 6, alignItems: 'center', height: 28, padding: [0, 12], cornerRadius: 999, fill: solid(T.soft) });
@@ -240,22 +250,27 @@ function detail(T, name) {
   const tw = box(c, { width: 'fill_container', layout: 'horizontal' });
   const fx = box(tw, { width: fixW, layout: 'vertical', fill: solid(T.card) });
   const sc = box(tw, { width: 'fill_container', layout: 'vertical', clipContent: true });
+  const fr = box(tw, { width: 116, layout: 'vertical', fill: solid(T.card), effects: [{ type: 'shadow', offsetX: -6, offsetY: 0, blur: 8, spread: -4, color: T.key === 'light' ? 'rgba(145,158,171,0.35)' : 'rgba(0,0,0,0.6)' }] });
+  const LAST = cols.length - 1;
   const chk = (p, on) => { const b = box(p, { width: 18, height: 18, cornerRadius: 4, layout: 'horizontal', justifyContent: 'center', alignItems: 'center', fill: solid(on ? P : T.card), stroke: on ? undefined : { thickness: 1.5, fill: solid(T.faint) } }); if (on) icon(b, 'check', 14, '#FFFFFF', false); };
   const right = ['数量', '单价', '小计'];
   const hf = box(fx, { width: 'fill_container', height: 52, layout: 'horizontal', alignItems: 'center', fill: solid(T.head), padding: [0, 0, 0, 16] });
-  const hs = box(sc, { layout: 'horizontal', height: 52, alignItems: 'center', fill: solid(T.head) });
+  const hs = box(sc, { width: 2000, layout: 'horizontal', height: 52, alignItems: 'center', fill: solid(T.head) });
+  const hr2 = box(fr, { width: 'fill_container', height: 52, layout: 'horizontal', alignItems: 'center', fill: solid(T.head), padding: [0, 16] });
   cols.forEach(([h, w], ci) => {
-    const hc = box(ci < NFIX ? hf : hs, { width: w, layout: 'horizontal', alignItems: 'center', justifyContent: right.includes(h) ? 'end' : 'start', padding: right.includes(h) ? [0, 12, 0, 0] : 0 });
+    const hc = box(ci < NFIX ? hf : ci === LAST ? hr2 : hs, { width: w, layout: 'horizontal', alignItems: 'center', justifyContent: right.includes(h) ? 'end' : 'start', padding: right.includes(h) ? [0, 12, 0, 0] : 0 });
     if (ci === 0) chk(hc, 0); else tx(hc, h, { fontWeight: 500, fill: solid(T.ink) });
   });
   items.forEach((it, idx) => {
     const RH = it.remark ? 108 : 88;
     I(fx, { type: 'frame', width: 'fill_container', height: 1, fill: solid(T.line) });
     I(sc, { type: 'frame', width: 2000, height: 1, fill: solid(T.line) });
+    I(fr, { type: 'frame', width: 'fill_container', height: 1, fill: solid(T.line) });
+    const rr2 = box(fr, { width: 'fill_container', height: RH, layout: 'horizontal', alignItems: 'center', padding: [0, 16] });
     const rf = box(fx, { width: 'fill_container', height: RH, layout: 'horizontal', alignItems: 'center', padding: [0, 0, 0, 16] });
     const rs = box(sc, { layout: 'horizontal', height: RH, alignItems: 'center' });
     let ci = 0;
-    const cell = (w, o) => box(ci++ < NFIX ? rf : rs, Object.assign({ width: w, layout: 'vertical', gap: 4 }, o || {}));
+    const cell = (w, o) => { const k = ci++; return box(k < NFIX ? rf : k === LAST ? rr2 : rs, Object.assign({ width: k === LAST ? 'fit_content' : w, layout: 'vertical', gap: 4 }, o || {})); };
     const rt = (w) => cell(w, { alignItems: 'end', padding: [0, 12, 0, 0] });
     chk(cell(40), 0);
     tx(cell(36), String(idx + 1), { fontFamily: NUM, fill: solid(T.sub) });
@@ -265,7 +280,7 @@ function detail(T, name) {
     const vm = box(x, { layout: 'horizontal', gap: 4, alignItems: 'center' }); icon(vm, 'image', 12, T.sub); tx(vm, '查看素材', { fontSize: 12, fill: solid(T.sub) });
     if (it.remark) { const rr = box(x, { layout: 'horizontal', gap: 6, alignItems: 'center' }); label(rr, it.remark, [T.body, T.st.neu[1]], 'message-square'); icon(rr, 'pencil', 12, T.faint); tx(x, 'Kevin · 11-19 16:05', { fontSize: 12, fontFamily: NUM, fill: solid(T.sub) }); }
     else { const ab = box(x, { layout: 'horizontal', gap: 2, alignItems: 'center' }); icon(ab, 'plus', 12, P); tx(ab, '备注', { fontSize: 12, fill: solid(P) }); }
-    tx(cell(150), it.d, { fontSize: 13, fontFamily: NUM, fill: solid(T.body) });
+    tx(cell(150, { padding: [0, 12, 0, 0] }), it.d, { fontSize: 13, fontFamily: NUM, fill: solid(T.body), width: 'fill_container', textGrowth: 'fixed-width', lineHeight: 1.4 });
     tx(rt(70), it.q, { fontFamily: NUM, fill: solid(T.ink) });
     tx(rt(110), it.up, { fontFamily: NUM, fill: solid(T.body) });
     tx(rt(120), it.amt, { fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) });
@@ -305,7 +320,13 @@ function detail(T, name) {
   const cny = box(tr, { width: 'fill_container', layout: 'horizontal', justifyContent: 'end', padding: [0, 4] });
   tx(cny, '≈ CNY 91,306.00（汇率 7.100000）', { fontSize: 12, fontFamily: NUM, fill: solid(T.sub) });
 
-  // ⑤ 来源 / 去向
+  // 费用订单（通栏，紧跟金额与条款）
+  c = card(F, { width: 'fill_container', layout: 'horizontal', alignItems: 'center', gap: 12, padding: [18, 24] });
+  tx(c, '费用订单', { fontSize: 18, fontWeight: 500, fill: solid(T.ink) });
+  tx(c, '已收齐款或已完成的订单，还要另收运费等费用时新建', { fill: solid(T.sub), width: 'fill_container' });
+  textBtn(c, '新建费用订单', 'plus');
+
+  // ⑤ 来源 / 去向（左栏）
   c = card(L, { width: 'fill_container', layout: 'vertical', gap: 14, padding: [20, 24] });
   cardHead(c, '来源 / 去向', { help: 1 });
   const ch = box(c, { width: 'fill_container', layout: 'horizontal', gap: 12, alignItems: 'end' });
@@ -319,8 +340,8 @@ function detail(T, name) {
     tx(n, st, { fontSize: 12, fill: solid(T.sub) });
   });
 
-  // ⑥ 附件与备注
-  c = card(L, { width: 'fill_container', layout: 'vertical', gap: 14, padding: [20, 24] });
+  // ⑥ 附件与备注（通栏）
+  c = card(F, { width: 'fill_container', layout: 'vertical', gap: 14, padding: [20, 24] });
   const ah = cardHead(c, '附件与备注'); textBtn(ah, '上传附件', 'upload');
   const files = box(c, { width: 'fill_container', layout: 'horizontal', gap: 12 });
   for (const [n, ic, s] of [['客户PO-AA-2611.pdf', 'file-text', '268 KB'], ['原厂包装要求.jpg', 'image', '1.2 MB']]) {
@@ -373,11 +394,6 @@ function detail(T, name) {
   };
   rec('到账', 'landmark', 'SK20261119003', 'USD 3,858.00', null, '11-19', '电汇 · 王敏 登记 · 实收 CNY 27,391.80');
   rec('水单', 'file-text', '', 'USD 3,858.00', ['已到账', T.st.ok], '11-18', '电汇 · Kevin 上传', '水单-AA-1118.jpg');
-
-  // 费用订单
-  c = card(R, { width: 'fill_container', layout: 'vertical', gap: 12, padding: [20, 20] });
-  const fh = cardHead(c, '费用订单', { help: 1 }); textBtn(fh, '新建', 'plus');
-  tx(c, '订单收齐款后还要另收运费等费用时新建', { fill: solid(T.sub), width: 'fill_container', textGrowth: 'fixed-width', lineHeight: 1.5 });
 
   // 订单毛利
   c = card(R, { width: 'fill_container', layout: 'vertical', gap: 4, padding: [20, 20] });

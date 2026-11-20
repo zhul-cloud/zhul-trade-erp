@@ -28,15 +28,19 @@ def roots():
 
 
 def main():
-    status = json.loads(op('status'))
-    if not status.get('running'):
+    for attempt in range(2):
+        if json.loads(op('status')).get('running'):
+            break
+        if attempt:
+            subprocess.run(['op', 'stop'], capture_output=True, cwd=HERE)
+            time.sleep(3)
         subprocess.Popen(['op', 'start', '--headless', '--file', OP], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=HERE)
         for _ in range(30):
             time.sleep(2)
             if json.loads(op('status')).get('running'):
                 break
-        else:
-            sys.exit('OpenPencil 没有启动')
+    if not json.loads(op('status')).get('running'):
+        sys.exit('OpenPencil 没有启动')
     for n in roots():
         op('delete', n['id'])
     for s in SCRIPTS:
