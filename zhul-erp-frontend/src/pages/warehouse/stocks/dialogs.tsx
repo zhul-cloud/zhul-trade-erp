@@ -87,7 +87,7 @@ const BatchPicker: React.FC<{
             }}
           >
             <span style={{ flex: 1, minWidth: 0, color: palette.ink }}>
-              {b.batchNo} · {b.stockStatusName} · 可用 {b.free}
+              {b.batchNo} · {b.stockStatusName} · 可出 {b.free}
             </span>
             <InputNumber
               min={0}

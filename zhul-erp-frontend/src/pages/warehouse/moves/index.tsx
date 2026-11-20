@@ -13,6 +13,7 @@ import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { WarehousePageTitle } from '../components';
 import {
+  bizText,
   FilterCard,
   ModelCell,
   SignedQty,
@@ -128,10 +129,8 @@ const MovesPage: React.FC = () => {
       title: '业务类型',
       dataIndex: 'bizName',
       width: 150,
-      render: (v: string, r) => (
-        <b style={{ color: palette.ink }}>
-          {r.bizLabel && r.bizLabel !== v ? `${v} · ${r.bizLabel}` : v}
-        </b>
+      render: (_: string, r) => (
+        <b style={{ color: palette.ink }}>{bizText(r)}</b>
       ),
     },
     {

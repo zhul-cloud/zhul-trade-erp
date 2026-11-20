@@ -19,7 +19,12 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { MenuLink } from '@/utils/menuName';
 import { ReasonModal, WarehousePageTitle } from '../components';
-import { BatchLink, SignedQty, StockStatusPill } from '../inventoryParts';
+import {
+  BatchLink,
+  bizText,
+  SignedQty,
+  StockStatusPill,
+} from '../inventoryParts';
 import {
   docHref,
   type InvMove,
@@ -108,10 +113,8 @@ const OtherOutboundDetail: React.FC = () => {
       title: '业务类型',
       dataIndex: 'bizName',
       width: 150,
-      render: (v: string, m) => (
-        <Pill tone={m.reversal ? 'gray' : 'red'}>
-          {m.bizLabel && m.bizLabel !== v ? `${v} · ${m.bizLabel}` : v}
-        </Pill>
+      render: (_: string, m) => (
+        <Pill tone={m.reversal ? 'gray' : 'red'}>{bizText(m)}</Pill>
       ),
     },
     { title: '仓库', dataIndex: 'warehouseName', width: 130 },

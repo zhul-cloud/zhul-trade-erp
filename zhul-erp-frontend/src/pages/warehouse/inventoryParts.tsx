@@ -36,6 +36,13 @@ export const ModelCell: React.FC<{
   );
 };
 
+/** 流水的业务类型：有显示文字（如「其他出库 · 报废」）用它；反向流水只显示反向的业务名（如「作废其他出库」） */
+export const bizText = (m: {
+  bizName: string;
+  bizLabel?: string;
+  reversal?: boolean;
+}) => (m.reversal || !m.bizLabel ? m.bizName : m.bizLabel);
+
 /** 仓库名 + 自有仓 / 货代仓 */
 export const WarehouseCell: React.FC<{ name?: string; type?: number }> = ({
   name,
