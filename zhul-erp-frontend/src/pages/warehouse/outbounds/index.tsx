@@ -5,14 +5,15 @@ import {
   InfoCircleOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
-import { Link, useAccess } from '@umijs/max';
+import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Input, Segmented, Space, Table } from 'antd';
+import { App, Button, Input, Select, Space, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { FilterCard, FilterField, MainCard } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import {
@@ -32,16 +33,17 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import {
-  Card,
-  DOC_PATHS,
-  distinctOf,
-  sub,
-  WarehousePageTitle,
-} from '../components';
+import { DOC_PATHS, distinctOf, sub, WarehousePageTitle } from '../components';
 import { HandOverModal, PackDrawer } from './dialogs';
 
 type Tab = 'pending' | 'packed' | 'handed' | 'all';
+
+const TAB_NAMES: Record<Tab, string> = {
+  pending: '待打包',
+  packed: '待交快递',
+  handed: '已交货代',
+  all: '全部',
+};
 const STATUS: Record<Tab, number | undefined> = {
   pending: 1,
   packed: 2,
@@ -206,7 +208,12 @@ const Outbounds: React.FC = () => {
       key: 'items',
       width: 200,
       render: (_, r) => (
-        <ModelQtyCell items={r.items} totalQty={r.totalQuantity} />
+        <ModelQtyCell
+          items={r.items}
+          totalQty={r.totalQuantity}
+          docLabel={`${r.obNo} · ${r.customerName ?? ''}`}
+          onOpenDetail={() => history.push(DOC_PATHS.outbound(r.id))}
+        />
       ),
     },
     {
@@ -312,117 +319,126 @@ const Outbounds: React.FC = () => {
     setQuery(keyword.trim() || undefined);
     setPage(1);
   };
+  const changeTab = (t: Tab) => {
+    setTab(t);
+    setPage(1);
+    setSelected([]);
+  };
 
   return (
     <div>
       <WarehousePageTitle description="按业务员的发货通知打包：逐箱登记尺寸、重量和箱内型号，交国内快递发往深圳货代；同一客户、同一货代的几张单可以合并打包。" />
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          marginBottom: 16,
+      <FilterCard
+        onSearch={apply}
+        onReset={() => {
+          setKeyword('');
+          setQuery(undefined);
+          changeTab('pending');
         }}
       >
-        <Segmented<Tab>
-          value={tab}
-          onChange={(t) => {
-            setTab(t);
-            setPage(1);
-            setSelected([]);
-          }}
-          options={[
-            {
-              value: 'pending',
-              label: counts?.pending ? `待打包 · ${counts.pending}` : '待打包',
-            },
-            {
-              value: 'packed',
-              label: counts?.packed
-                ? `待交快递 · ${counts.packed}`
-                : '待交快递',
-            },
-            { value: 'handed', label: '已交货代' },
-            { value: 'all', label: '全部' },
-          ]}
-        />
-        <Input
-          allowClear
-          prefix={<SearchOutlined />}
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          onPressEnter={apply}
-          placeholder="销售出库单号、订单号、客户、型号"
-          style={{ width: 320 }}
-          aria-label="关键词"
-        />
-        <span style={{ flex: 1 }} />
-        <Button type="primary" onClick={apply}>
-          查询
-        </Button>
-      </div>
-      {selectable && selected.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            gap: 12,
-            marginBottom: 12,
-            padding: '10px 16px',
-            borderRadius: 12,
-            background: palette.accentSoft,
-            border: `1px solid ${palette.accentLine}`,
-          }}
-        >
-          <CheckCircleOutlined style={{ color: palette.link }} />
-          <b style={{ color: palette.ink }}>已选 {selected.length} 张</b>
-          <span style={{ color: palette.sub }}>
-            {tab === 'pending'
-              ? `${selected[0].customerName ?? ''} · ${selected[0].forwarderName ?? ''}`
-              : selected[0].forwarderName}
-            {tab === 'packed' &&
-              selected.some((r) => r.packId) &&
-              ' · 合并打包的同组单已一起选中'}
-          </span>
-          <span style={{ flex: 1 }} />
-          {rows.some(conflicts) && (
-            <span style={{ fontSize: 12, color: palette.mute }}>
-              <InfoCircleOutlined />{' '}
-              {tab === 'pending'
-                ? selected.length >= MERGE_MAX
-                  ? `一次最多合并 ${MERGE_MAX} 张`
-                  : '灰掉的单客户或货代不同，不能一起合并'
-                : '灰掉的单货代不同，不能一起交快递'}
-            </span>
-          )}
-          <Button onClick={() => setSelected([])}>取消选择</Button>
-          {tab === 'pending' ? (
-            <Button
-              type="primary"
-              icon={<InboxOutlined />}
-              disabled={selected.length < 2}
-              title={selected.length < 2 ? '再选一张才能合并打包' : undefined}
-              onClick={() => setMerging(selected.map((r) => r.id))}
-            >
-              合并打包
-            </Button>
-          ) : (
-            <Button
-              type="primary"
-              icon={<CarOutlined />}
-              onClick={() => setHanding(true)}
-            >
-              交快递
-            </Button>
-          )}
-        </div>
-      )}
+        <FilterField label="关键词" span={2}>
+          <Input
+            allowClear
+            prefix={<SearchOutlined />}
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={apply}
+            placeholder="销售出库单号、订单号、客户、型号"
+            aria-label="关键词"
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select<Tab>
+            value={tab}
+            onChange={changeTab}
+            options={[
+              {
+                value: 'pending',
+                label: counts?.pending
+                  ? `待打包 · ${counts.pending}`
+                  : '待打包',
+              },
+              {
+                value: 'packed',
+                label: counts?.packed
+                  ? `待交快递 · ${counts.packed}`
+                  : '待交快递',
+              },
+              { value: 'handed', label: '已交货代' },
+              { value: 'all', label: '全部' },
+            ]}
+            aria-label="状态"
+          />
+        </FilterField>
+      </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 0 }}>
+        <MainCard
+          left={
+            selectable && selected.length > 0 ? (
+              <>
+                <CheckCircleOutlined style={{ color: palette.link }} />
+                <b style={{ color: palette.ink }}>已选 {selected.length} 张</b>
+                <span style={{ color: palette.sub }}>
+                  {tab === 'pending'
+                    ? `${selected[0].customerName ?? ''} · ${selected[0].forwarderName ?? ''}`
+                    : selected[0].forwarderName}
+                  {tab === 'packed' &&
+                    selected.some((r) => r.packId) &&
+                    ' · 合并打包的同组单已一起选中'}
+                </span>
+                <button
+                  type="button"
+                  className="zhul-link"
+                  onClick={() => setSelected([])}
+                >
+                  取消选择
+                </button>
+              </>
+            ) : (
+              `${TAB_NAMES[tab]} ${total} 张`
+            )
+          }
+          right={
+            selectable &&
+            selected.length > 0 && (
+              <>
+                {rows.some(conflicts) && (
+                  <span style={{ fontSize: 12, color: palette.mute }}>
+                    <InfoCircleOutlined />{' '}
+                    {tab === 'pending'
+                      ? selected.length >= MERGE_MAX
+                        ? `一次最多合并 ${MERGE_MAX} 张`
+                        : '灰掉的单客户或货代不同，不能一起合并'
+                      : '灰掉的单货代不同，不能一起交快递'}
+                  </span>
+                )}
+                {tab === 'pending' ? (
+                  <Button
+                    type="primary"
+                    icon={<InboxOutlined />}
+                    disabled={selected.length < 2}
+                    title={
+                      selected.length < 2 ? '再选一张才能合并打包' : undefined
+                    }
+                    onClick={() => setMerging(selected.map((r) => r.id))}
+                  >
+                    合并打包
+                  </Button>
+                ) : (
+                  <Button
+                    type="primary"
+                    icon={<CarOutlined />}
+                    onClick={() => setHanding(true)}
+                  >
+                    交快递
+                  </Button>
+                )}
+              </>
+            )
+          }
+        >
           <Table<Outbound>
             rowKey="id"
             columns={columns}
@@ -461,7 +477,7 @@ const Outbounds: React.FC = () => {
               },
             }}
           />
-        </Card>
+        </MainCard>
       )}
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
         {tab === 'pending'
