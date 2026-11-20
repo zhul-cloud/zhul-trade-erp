@@ -43,6 +43,7 @@ import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
 import com.zhul.erp.modules.sales.support.PiStore;
 import com.zhul.erp.modules.system.constants.DocumentType;
 import com.zhul.erp.modules.system.doclog.DocLogs;
+import com.zhul.erp.modules.inventory.service.InventoryHooks;
 import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.LogService;
 import com.zhul.erp.modules.warehouse.constants.WarehouseConstants;
@@ -89,6 +90,7 @@ public class ReturnReceiptService {
     private final StockHoldMapper holdMapper;
     private final ReceivingSupport receivingSupport;
     private final ReturnCost returnCost;
+    private final InventoryHooks inventoryHooks;
     private final RefundRequestService refundRequests;
     private final PurchaseReturnService purchaseReturns;
     private final DocumentNumberService numbers;
@@ -209,6 +211,13 @@ public class ReturnReceiptService {
         }
         boolean allDisposed = items.values().stream().allMatch(x -> x.getReceivedQty() == 0);
         rr.setStatus(allDisposed ? AfterSalesConstants.RR_DONE : AfterSalesConstants.RR_RECEIVED);
+        // 库存：公司仓库退货入库，合格、不良分开
+        Map<Long, ReturnCost.Origin> costs = returnCost.originsOf(items.values().stream().map(ReturnReceiptItemDO::getSoItemId).toList());
+        inventoryHooks.returnReceived(rr.getId(), rr.getReceiptNo(), req.getReceivedDate(), itemsOf(List.of(id)).getOrDefault(id, List.of())
+                .stream().map(x -> new InventoryHooks.ReturnLine(x.getId(), x.getSoItemId(), x.getProductId(), x.getModel(),
+                        x.getReceivedQty(), x.getQualifiedQty(),
+                        costs.getOrDefault(x.getSoItemId(), ReturnCost.Origin.NONE).unitCost()))
+                .toList());
         rr.setReceivedDate(req.getReceivedDate());
         rr.setReceivedBy(me());
         rr.setReceiveNote(trim(req.getNote()));
@@ -246,6 +255,7 @@ public class ReturnReceiptService {
             x.setQualifiedQty(null);
             itemMapper.updateById(x);
         });
+        inventoryHooks.returnUnreceived(id);
         rr.setStatus(AfterSalesConstants.RR_PENDING);
         rr.setReceivedDate(null);
         rr.setReceivedBy(null);
@@ -378,7 +388,11 @@ public class ReturnReceiptService {
                 text.add(x.getModel() + " × " + l.getQuantity() + " 转闲置库存，冲减 ¥" + d.getCostCny());
             } else {
                 dispositionMapper.insert(d);
-                text.add(x.getModel() + " × " + l.getQuantity() + " 报废" + (d.getRemark().isEmpty() ? "" : "：" + d.getRemark()));
+                // 报废：生成一张已出库的其他出库单，从退货批次出库
+                String oo = inventoryHooks.returnScrapped(rr.getId(), rr.getReceiptNo(), x.getId(), d.getId(), l.getQuantity(),
+                        d.getRemark().isEmpty() ? "退货报废" : d.getRemark());
+                text.add(x.getModel() + " × " + l.getQuantity() + " 报废" + (d.getRemark().isEmpty() ? "" : "：" + d.getRemark())
+                        + (oo == null ? "" : "，其他出库单 " + oo));
             }
             x.setDisposedQty(x.getDisposedQty() + l.getQuantity());
         }

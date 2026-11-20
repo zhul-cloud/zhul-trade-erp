@@ -100,6 +100,14 @@ class AfterSalesContractTest extends SalesContractSupport {
         return so;
     }
 
+    /** 某退货入库单批次在公司仓库的 合格/不良/预占 */
+    private String returnStock(long rid) {
+        return jdbc.queryForObject("select concat(coalesce(sum(case when b.stock_status = 1 then b.on_hand end), 0), '/',"
+                + " coalesce(sum(case when b.stock_status = 2 then b.on_hand end), 0), '/', coalesce(sum(b.reserved), 0))"
+                + " from inv_balance b join inv_batch t on t.id = b.batch_id where t.tenant_id = 0 and t.source_type = 2 and t.source_id = ?",
+                String.class, rid);
+    }
+
     private long soItem(long so) {
         return jdbc.queryForObject("select id from sales_order_item where so_id = ? order by line_no limit 1", Long.class, so);
     }
@@ -206,6 +214,10 @@ class AfterSalesContractTest extends SalesContractSupport {
         rec.put("items", List.of(Map.of("itemId", rItem, "receivedQty", 2, "qualifiedQty", 1)));
         JsonNode received = ok(call(json(post(RT + "/" + rid + "/receive"), write(rec)), admin));
         assertEquals("待处理", received.path("statusName").asText());
+        // 库存（openspec inventory-foundation）：公司仓库退货入库，批次 RR…-1，合格 1、不良 1，不预占
+        assertEquals("1/1/0", returnStock(rid), "退货入库：合格 1、不良 1");
+        assertEquals(rr.path("receiptNo").asText() + "-1", jdbc.queryForObject("select batch_no from inv_batch where tenant_id = 0"
+                + " and source_type = 2 and source_id = ?", String.class, rid));
         money("200", received.path("items").get(0).path("unitCost"));
         assertEquals(sup, received.path("items").get(0).path("supplierId").asLong());
         long poId = received.path("items").get(0).path("poId").asLong();
@@ -214,6 +226,7 @@ class AfterSalesContractTest extends SalesContractSupport {
                 .path("message").asText());
         // 撤回入库再验收
         ok(call(json(post(RT + "/" + rid + "/unreceive"), "{\"reason\":\"数量录错\"}"), admin));
+        assertEquals("0/0/0", returnStock(rid), "撤回入库：反向");
         assertEquals("待入库", ok(call(get(TH + "/" + thId), admin)).path("statusName").asText());
         ok(call(json(post(RT + "/" + rid + "/receive"), write(rec)), admin));
 
@@ -231,6 +244,7 @@ class AfterSalesContractTest extends SalesContractSupport {
                 .path("message").asText());
         JsonNode done = ok(call(json(post(RT + "/" + rid + "/dispose"), write(Map.of("lines", List.of(toSupplier)))), admin));
         assertEquals("已处理", done.path("statusName").asText());
+        assertEquals("1/1/1", returnStock(rid), "退回供应商：不良 1 退货预占；转可用的合格 1 留在可用库存");
         money("200", done.path("costCny"));
         assertEquals("已经处理过去向，不能撤回入库", fail(call(json(post(RT + "/" + rid + "/unreceive"), "{\"reason\":\"x\"}"), admin))
                 .path("message").asText());
@@ -253,6 +267,7 @@ class AfterSalesContractTest extends SalesContractSupport {
         assertEquals(0, new java.math.BigDecimal("2000").compareTo(jdbc.queryForObject("select sum(amount) from fin_payable where source_type = 1 and source_id = ? and deleted_at is null", java.math.BigDecimal.class, poId)));
         ok(call(json(post(PRS + "/" + prId + "/ship"), write(Map.of("shipDate", LocalDate.now().toString(), "carrier", "顺丰",
                 "trackingNo", "SF7788", "freightCny", 45, "companyPaid", true))), admin));
+        assertEquals("1/0/0", returnStock(rid), "采购退货寄出：不良 1 出库");
         assertEquals("请填写供应商退款或抵扣金额（没有就填 0）", fail(call(json(post(PRS + "/" + prId + "/complete"),
                 write(Map.of("signedDate", LocalDate.now().toString()))), admin)).path("message").asText());
         JsonNode prDone = ok(call(json(post(PRS + "/" + prId + "/complete"), write(Map.of("signedDate", LocalDate.now().toString(),
@@ -654,6 +669,10 @@ class AfterSalesContractTest extends SalesContractSupport {
                 Map.of("itemId", rItem, "disposition", 1, "quantity", 0, "supplierId", 1))))), admin));
         money("600", done.path("costCny"));
         assertEquals(2, done.path("dispositions").size());
+        // 报废：生成一张已出库的报废其他出库单（来源单号为退货入库单号），从退货批次出不良 1；转可用的合格 2 留在可用库存
+        assertEquals("2/0/0", returnStock(rid));
+        assertEquals(rr.path("receiptNo").asText() + ":1:烧坏", jdbc.queryForObject("select concat(source_doc_no, ':', outbound_type, ':', reason)"
+                + " from inv_other_outbound where tenant_id = 0 and source_doc_type = 'RR' and source_doc_id = ?", String.class, rid));
         assertTrue(done.path("dispositions").toString().contains("烧坏"));
         assertEquals("退货已处理完", msg(call(json(post(d), write(Map.of("lines", List.of(Map.of("itemId", rItem, "disposition", 3,
                 "quantity", 3))))), admin)));

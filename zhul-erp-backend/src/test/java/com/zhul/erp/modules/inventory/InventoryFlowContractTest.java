@@ -13,8 +13,10 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 /**
  * spec warehouse/inventory「现有单据的自动过账」「预占」等：各流程跑完后核对库存余额、预占与流水
@@ -26,10 +28,12 @@ class InventoryFlowContractTest extends SalesContractSupport {
     private static final String GR = "/api/v1/warehouse/receipts";
     private static final String DIFF = "/api/v1/purchase/discrepancies";
     private static final String PRN = "/api/v1/purchase/returns";
+    private static final String OB = "/api/v1/logistics/outbounds";
+    private static final String SH = "/api/v1/logistics/shipments";
     private static final long KEEPER = 99000041L;
     private static final int MENU_PO = 100088;
     private static final int MENU_SHIP = 100089;
-    private static final int[] BUYER_BUTTONS = {110189, 110190, 110191, 110192, 110232, 110233};
+    private static final int[] BUYER_BUTTONS = {110189, 110190, 110191, 110192, 110232, 110233, 100125, 110250};
 
     private String lin;
     private String keeper;
@@ -237,5 +241,136 @@ class InventoryFlowContractTest extends SalesContractSupport {
         assertStock(new int[]{2, 0, 2}, stock(product, 1), "寄出：不良 2 出库");
         assertEquals(-2, jdbc.queryForObject("select sum(quantity) from inv_move where tenant_id = 0 and doc_type = 'PR' and doc_id = ?"
                 + " and biz_type = 'PURCHASE_RETURN_OUT'", Integer.class, pr2));
+    }
+
+    // ---------------------------------------------------------------- 交货代与出运
+
+    private long forwarder() {
+        long id = supplier("深圳捷运", null);
+        jdbc.update("update supplier set supplier_type = 3, volume_divisor = 5000 where id = ?", id);
+        return id;
+    }
+
+    /** 建出库通知、打包、交快递；返回销售出库单 ID */
+    private long handOver(long soItemId, long fwd, int qty) throws Exception {
+        long soId = jdbc.queryForObject("select so_id from sales_order_item where id = ?", Long.class, soItemId);
+        JsonNode ob = ok(call(json(post(OB + "/notice"), write(Map.of("soId", soId, "forwarderId", fwd,
+                "items", List.of(Map.of("soItemId", soItemId, "quantity", qty))))), admin));
+        long obId = ob.path("id").asLong();
+        long obItem = ob.path("items").get(0).path("id").asLong();
+        ok(call(json(put(OB + "/" + obId + "/pack"), write(Map.of("boxes", List.of(Map.of("length", 50, "width", 40, "height", 30,
+                "grossWeight", "10", "items", List.of(Map.of("outboundItemId", obItem, "quantity", qty))))))), keeper));
+        JsonNode r = handOverCall(obId);
+        ok(r);
+        return obId;
+    }
+
+    private JsonNode handOverCall(long obId) throws Exception {
+        return call(json(post(OB + "/hand-over"), write(Map.of("outboundIds", List.of(obId), "carrier", "顺丰", "trackingNo", "SF1500",
+                "sentDate", LocalDate.now().toString(), "freight", "30"))), keeper);
+    }
+
+    /** spec「交货代调拨」「登记出运销售出库」：预占随货到货代仓；撤销交货代退回自有仓；出运后从货代仓出库 */
+    @Test
+    void handover_transfersReserved_undo_thenShipOut() throws Exception {
+        long sup = supplier("华控自动化", null);
+        JsonNode po = orderedPo(sup, l("A-1", 4, "1000", "200"));
+        long poItem = item(po, 0);
+        long product = productOfPoItem(poItem);
+        long soItem = soItemOfPoItem(poItem);
+        accept(ship(po.path("id").asLong(), Map.of(poItem, 4)), new int[]{4, 4, 0});
+        long fwd = forwarder();
+
+        long obId = handOver(soItem, fwd, 4);
+        assertStock(new int[]{0, 0, 0}, stock(product, 1), "自有仓调出");
+        assertStock(new int[]{4, 0, 4}, stock(product, 2), "货代仓调入，预占随货");
+
+        ok(call(json(post(OB + "/" + obId + "/undo-hand-over"), "{\"reason\":\"快递退回\"}"), keeper));
+        assertStock(new int[]{4, 0, 4}, stock(product, 1), "撤销：退回自有仓，仍预占给订单");
+        assertStock(new int[]{0, 0, 0}, stock(product, 2), "货代仓清空");
+
+        ok(handOverCall(obId));
+        long customerId = ok(call(get(SH + "/pending"), admin)).get(0).path("customerId").asLong();
+        long shId = ok(call(json(post(SH), write(Map.of("customerId", customerId, "forwarderId", fwd,
+                "outboundIds", List.of(obId)))), admin)).path("id").asLong();
+        ok(call(json(post(SH + "/" + shId + "/ship"), write(Map.of("carrier", "DHL", "waybillNo", "1234567890",
+                "shippedDate", LocalDate.now().toString(), "freight", "100"))), admin));
+        assertStock(new int[]{0, 0, 0}, stock(product, 2), "出运：货代仓出库");
+        assertEquals(0, reservedFor(soItem));
+        assertEquals(-4, jdbc.queryForObject("select sum(quantity) from inv_move where tenant_id = 0 and biz_type = 'SALES_OUT'"
+                + " and op_type = 2 and target_id = ?", Integer.class, soItem));
+    }
+
+    /** spec「无货源模式自动补入库」：交货代时库存不够，补系统外入库（单价 0）；库存模式报库存不足 */
+    @Test
+    void handover_shortage_dropshipAutoIn_stockModeRejects() throws Exception {
+        long sup = supplier("华控自动化", null);
+        JsonNode po = orderedPo(sup, l("A-1", 3, "1000", "200"));
+        long poItem = item(po, 0);
+        long product = productOfPoItem(poItem);
+        long soItem = soItemOfPoItem(poItem);
+        accept(ship(po.path("id").asLong(), Map.of(poItem, 3)), new int[]{3, 3, 0});
+        // 模拟上线前已入库、期初没推出来的货
+        for (String t : List.of("inv_move", "inv_balance", "inv_reservation", "inv_batch")) {
+            jdbc.update("delete from " + t + " where tenant_id = 0");
+        }
+        long fwd = forwarder();
+
+        jdbc.update("insert into sys_config (tenant_id, config_key, config_name, config_value, config_type, is_builtin, is_encrypted,"
+                + " config_group, remark) values (0, 'inventory.mode', '库存模式', 'stock', 'STRING', 0, 0, '库存', '')");
+        long soId = jdbc.queryForObject("select so_id from sales_order_item where id = ?", Long.class, soItem);
+        JsonNode ob = ok(call(json(post(OB + "/notice"), write(Map.of("soId", soId, "forwarderId", fwd,
+                "items", List.of(Map.of("soItemId", soItem, "quantity", 3))))), admin));
+        long obId = ob.path("id").asLong();
+        ok(call(json(put(OB + "/" + obId + "/pack"), write(Map.of("boxes", List.of(Map.of("length", 50, "width", 40, "height", 30,
+                "grossWeight", "10", "items", List.of(Map.of("outboundItemId", ob.path("items").get(0).path("id").asLong(),
+                        "quantity", 3))))))), keeper));
+        String msg = fail(handOverCall(obId)).path("message").asText();
+        assertTrue(msg.startsWith("库存不足：A-1 × 缺 3"), msg);
+
+        jdbc.update("update sys_config set config_value = 'dropship' where tenant_id = 0 and config_key = 'inventory.mode'");
+        ok(handOverCall(obId));
+        assertStock(new int[]{0, 0, 0}, stock(product, 1), "系统外入库后立即调出");
+        assertStock(new int[]{3, 0, 3}, stock(product, 2), "货代仓预占给订单");
+        String batchNo = jdbc.queryForObject("select batch_no from inv_batch where tenant_id = 0 and source_type = 3", String.class);
+        assertTrue(batchNo.startsWith("SYS-") && batchNo.endsWith("-1"), batchNo);
+        assertEquals(0, jdbc.queryForObject("select unit_price_cny from inv_batch where tenant_id = 0 and source_type = 3",
+                java.math.BigDecimal.class).signum());
+    }
+
+    // ---------------------------------------------------------------- 库存退回
+
+    private JsonNode fromStock(long sup, long batchId, int status, int qty) throws Exception {
+        return call(json(post(PRN + "/from-stock"), write(Map.of("supplierId", sup, "lines",
+                List.of(Map.of("batchId", batchId, "stockStatus", status, "quantity", qty))))), lin);
+    }
+
+    /** spec purchase/purchase-return「库存退回」：只能退没有预占的；退货待寄出锁住，作废释放，寄出出库 */
+    @Test
+    void stockReturn_reservesFreeStock_voidReleases_shipOut() throws Exception {
+        long sup = supplier("华控自动化", null);
+        JsonNode po = orderedPo(sup, l("A-1", 4, "1000", "200"));
+        long poItem = item(po, 0);
+        long product = productOfPoItem(poItem);
+        accept(ship(po.path("id").asLong(), Map.of(poItem, 4)), new int[]{4, 3, 1});
+        long batch = jdbc.queryForObject("select id from inv_batch where tenant_id = 0 and product_id = ? and source_type = 1", Long.class, product);
+        String batchNo = jdbc.queryForObject("select batch_no from inv_batch where id = ?", String.class, batch);
+
+        String msg = fail(fromStock(sup, batch, 1, 1)).path("message").asText();
+        assertEquals("库存不足：批次 " + batchNo + " 没有预占的只有 0，要退 1", msg, "合格 3 都预占给订单");
+
+        JsonNode pr = ok(fromStock(sup, batch, 2, 1));
+        assertEquals("库存退回", pr.path("sourceTypeName").asText());
+        assertEquals(batchNo, pr.path("sourceNo").asText());
+        assertEquals("不良", pr.path("items").get(0).path("stockStatusName").asText());
+        assertStock(new int[]{3, 1, 4}, stock(product, 1), "不良 1 退货预占");
+
+        ok(call(json(post(PRN + "/" + pr.path("id").asLong() + "/void"), "{\"reason\":\"供应商不收\"}"), lin));
+        assertStock(new int[]{3, 1, 3}, stock(product, 1), "作废：释放");
+
+        long pr2 = ok(fromStock(sup, batch, 2, 1)).path("id").asLong();
+        ok(call(json(post(PRN + "/" + pr2 + "/ship"), write(Map.of("shipDate", LocalDate.now().toString(), "carrier", "顺丰",
+                "trackingNo", "SF99887766", "companyPaid", true))), lin));
+        assertStock(new int[]{3, 0, 3}, stock(product, 1), "寄出：不良 1 出库");
     }
 }

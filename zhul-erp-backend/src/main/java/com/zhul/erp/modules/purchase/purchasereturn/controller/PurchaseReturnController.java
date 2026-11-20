@@ -5,6 +5,7 @@ import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.aftersales.dto.ReasonBody;
 import com.zhul.erp.modules.purchase.purchasereturn.dto.CompletePurchaseReturnRequest;
 import com.zhul.erp.modules.purchase.purchasereturn.dto.PurchaseReturnQtyRequest;
+import com.zhul.erp.modules.purchase.purchasereturn.dto.StockReturnRequest;
 import com.zhul.erp.modules.purchase.purchasereturn.dto.PurchaseReturnQuery;
 import com.zhul.erp.modules.purchase.purchasereturn.dto.PurchaseReturnVO;
 import com.zhul.erp.modules.purchase.purchasereturn.dto.ShipPurchaseReturnRequest;
@@ -59,6 +60,13 @@ public class PurchaseReturnController {
     @PreAuthorize("@perm.canAccessMenu('/purchase/orders') or @perm.canAccessMenu('/purchase/returns')")
     public Result<List<PurchaseReturnVO>> ofOrder(@PathVariable Long poId) {
         return Result.ok(service.ofPurchaseOrder(poId));
+    }
+
+    /** 库存退回：库存查询的「退回供应商」按钮 */
+    @PostMapping("/from-stock")
+    @PreAuthorize("@perm.canAccessMenu('/warehouse/stocks') and @perm.has('inventory:return-to-supplier')")
+    public Result<PurchaseReturnVO> fromStock(@Valid @RequestBody StockReturnRequest req) {
+        return Result.ok(service.createFromStock(req));
     }
 
     @PutMapping("/{id}/quantities")

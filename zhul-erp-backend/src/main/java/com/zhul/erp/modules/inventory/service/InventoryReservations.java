@@ -107,7 +107,8 @@ public class InventoryReservations {
                         .eq(InvMoveDO::getTenantId, PiStore.tenantId())
                         .eq(InvMoveDO::getTargetType, InvConstants.TARGET_SO_ITEM)
                         .in(InvMoveDO::getTargetId, soItemIds)
-                        .in(InvMoveDO::getBizType, List.of(InvConstants.BIZ_SALES_OUT, InvConstants.BIZ_SALES_OUT_UNDO)))
+                        .in(InvMoveDO::getBizType, List.of(InvConstants.BIZ_SALES_OUT, InvConstants.BIZ_SALES_OUT_UNDO))
+                        .in(InvMoveDO::getOpType, List.of(InvConstants.OP_OUT, InvConstants.OP_IN)))
                 .forEach(m -> out.merge(m.getTargetId(), -m.getQuantity(), Integer::sum));
         return out;
     }

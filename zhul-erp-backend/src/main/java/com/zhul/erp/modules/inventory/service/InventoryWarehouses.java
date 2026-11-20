@@ -177,6 +177,20 @@ public class InventoryWarehouses {
         return b;
     }
 
+    /** 更新批次的单价与入库日期（撤回退货入库后再次验收） */
+    public void reprice(InvBatchDO b, LocalDate inDate, Price price) {
+        b.setInDate(inDate == null ? LocalDate.now() : inDate);
+        b.setCurrencyCode(price.currency() == null ? "CNY" : price.currency());
+        b.setUnitPrice((price.unitPrice() == null ? BigDecimal.ZERO : price.unitPrice()).setScale(6, RoundingMode.HALF_UP));
+        b.setExchangeRate((price.rate() == null ? BigDecimal.ONE : price.rate()).setScale(6, RoundingMode.HALF_UP));
+        b.setUnitPriceCny(price.cnyValue());
+        batchMapper.updateById(b);
+    }
+
+    public List<InvBatchDO> batches(List<Long> ids) {
+        return ids.isEmpty() ? List.of() : batchMapper.selectBatchIds(ids);
+    }
+
     public InvBatchDO batchOf(Long batchId) {
         return batchId == null ? null : batchMapper.selectById(batchId);
     }

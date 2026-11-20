@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.inventory.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import java.math.BigDecimal;
 import com.zhul.erp.modules.inventory.constants.InvConstants;
 import com.zhul.erp.modules.inventory.entity.InvBalanceDO;
 import com.zhul.erp.modules.inventory.repository.InvBalanceMapper;
@@ -51,6 +52,8 @@ public class InventoryHooks {
     private final SalesOrderItemMapper soItemMapper;
     private final DictItemService dictItemService;
     private final InvBalanceMapper balanceMapper;
+    private final com.zhul.erp.modules.inventory.repository.InvMoveMapper moveMapper;
+    private final OtherOutboundService otherOutbounds;
 
     // ---------------------------------------------------------------- 采购入库
 
@@ -142,6 +145,296 @@ public class InventoryHooks {
     public void discountReopened(Long discrepancyId) {
         posting.reverse(posting.activeMoves("RD", discrepancyId, List.of(InvConstants.BIZ_DISCOUNT_ACCEPT)),
                 InvConstants.BIZ_DISCOUNT_ACCEPT_UNDO);
+    }
+
+    // ---------------------------------------------------------------- 交货代
+
+    /** 交货代的一行：销售出库单行 */
+    public record HandoverLine(Long obItemId, Long soItemId, Long productId, String model, int qty) {
+    }
+
+    /**
+     * 交国内快递：自有仓 → 该货代仓调拨。每行依次取：预占给这个型号行的合格批次（先进先出）；
+     * 同一商品没有预占的合格批次（先进先出，调入货代仓时预占给这个型号行）；还不够时，无货源模式补一笔
+     * 「系统外入库」（批次 SYS-出库单号-序号，单价 0），库存模式报「库存不足」。
+     */
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
+    public void handedOver(Long outboundId, String obNo, Long forwarderId, List<HandoverLine> items) {
+        Long own = warehouses.own().getId();
+        Long fwd = warehouses.forwarder(forwarderId).getId();
+        boolean dropship = warehouses.dropship();
+        Doc doc = Doc.of(InvConstants.BIZ_HANDOVER, "OB", outboundId, obNo);
+        List<Line> lines = new ArrayList<>();
+        List<String> shortages = new ArrayList<>();
+        Map<Long, Integer> usedFree = new HashMap<>();
+        int sysSeq = 0;
+        for (HandoverLine it : items) {
+            if (it.qty() <= 0) {
+                continue;
+            }
+            if (it.productId() == null) {
+                log.warn("销售出库单行没有关联商品，不过账：obNo={}, itemId={}, model={}", obNo, it.obItemId(), it.model());
+                continue;
+            }
+            Doc d = doc.item(it.obItemId());
+            Target t = Target.soItem(it.soItemId());
+            int left = it.qty();
+            // 1) 预占给这个型号行的
+            if (t != null) {
+                for (InvReservationDO r : posting.reservations(t)) {
+                    if (left == 0) {
+                        break;
+                    }
+                    if (!Objects.equals(r.getWarehouseId(), own) || r.getStockStatus() != InvConstants.GOOD) {
+                        continue;
+                    }
+                    int n = Math.min(left, r.getQuantity());
+                    transfer(lines, own, fwd, r.getProductId(), r.getBatchId(), n, t, t, d);
+                    left -= n;
+                }
+            }
+            // 2) 同一商品没有预占的
+            if (left > 0) {
+                for (InvBalanceDO b : freeOfProduct(own, it.productId())) {
+                    if (left == 0) {
+                        break;
+                    }
+                    int free = b.getOnHand() - b.getReserved() - usedFree.getOrDefault(b.getId(), 0);
+                    if (free <= 0) {
+                        continue;
+                    }
+                    int n = Math.min(left, free);
+                    usedFree.merge(b.getId(), n, Integer::sum);
+                    transfer(lines, own, fwd, b.getProductId(), b.getBatchId(), n, null, t, d);
+                    left -= n;
+                }
+            }
+            // 3) 不够
+            if (left > 0) {
+                if (!dropship) {
+                    shortages.add(it.model() + " × 缺 " + left);
+                    continue;
+                }
+                sysSeq++;
+                InvBatchDO sys = warehouses.newBatch("SYS-" + obNo + "-" + sysSeq, it.productId(), "", InvConstants.BATCH_SYSTEM,
+                        outboundId, it.obItemId(), null, it.soItemId(), java.time.LocalDate.now(), Price.ZERO);
+                Loc in = new Loc(own, it.productId(), sys.getId(), InvConstants.GOOD);
+                lines.add(Line.of(in, InvConstants.OP_IN, left, null, d.biz(InvConstants.BIZ_SYSTEM_IN)));
+                transfer(lines, own, fwd, it.productId(), sys.getId(), left, null, t, d);
+            }
+        }
+        if (!shortages.isEmpty()) {
+            throw new com.zhul.erp.common.exception.BizException("库存不足：" + String.join("、", shortages)
+                    + "。库存模式下不能交货代，请先完成采购入库");
+        }
+        posting.post(lines);
+    }
+
+    private static void transfer(List<Line> lines, Long from, Long to, Long productId, Long batchId, int n, Target fromTarget,
+                                 Target toTarget, Doc d) {
+        lines.add(Line.of(new Loc(from, productId, batchId, InvConstants.GOOD), InvConstants.OP_TRANSFER_OUT, n, fromTarget, d));
+        lines.add(Line.of(new Loc(to, productId, batchId, InvConstants.GOOD), InvConstants.OP_TRANSFER_IN, n, toTarget, d));
+    }
+
+    /** 撤销交货代：按原调拨流水反向（系统外入库保留在自有仓，成为可用库存），再释放超出订单需要的预占 */
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
+    public void handoverUndone(Long outboundId, String obNo, List<Long> soItemIds) {
+        posting.reverse(posting.activeMoves("OB", outboundId, List.of(InvConstants.BIZ_HANDOVER)), InvConstants.BIZ_HANDOVER_UNDO);
+        reservations.trim(soItemIds, Doc.of(InvConstants.BIZ_RELEASE, "OB", outboundId, obNo), warehouses.own().getId());
+    }
+
+    /**
+     * 登记出运：从货代仓销售出库。每行先出预占给该型号行的，再出同一商品没有预占的；还不够时无货源模式补系统外入库
+     * （上线前已交货代、期初没推出来的货），库存模式报库存不足。出运后不能撤销，没有反向。
+     */
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
+    public void shipped(Long shipmentId, String shNo, Long forwarderId, List<HandoverLine> items) {
+        Long fwd = warehouses.forwarder(forwarderId).getId();
+        boolean dropship = warehouses.dropship();
+        Doc doc = Doc.of(InvConstants.BIZ_SALES_OUT, "SH", shipmentId, shNo);
+        List<Line> lines = new ArrayList<>();
+        List<String> shortages = new ArrayList<>();
+        Map<Long, Integer> usedFree = new HashMap<>();
+        Map<Long, Integer> usedReserved = new HashMap<>();
+        int sysSeq = 0;
+        for (HandoverLine it : items) {
+            if (it.qty() <= 0) {
+                continue;
+            }
+            if (it.productId() == null) {
+                log.warn("出运的销售出库单行没有关联商品，不过账：shNo={}, itemId={}, model={}", shNo, it.obItemId(), it.model());
+                continue;
+            }
+            Doc d = doc.item(it.obItemId());
+            Target t = Target.soItem(it.soItemId());
+            int left = it.qty();
+            if (t != null) {
+                for (InvReservationDO r : posting.reservations(t)) {
+                    if (left == 0) {
+                        break;
+                    }
+                    int avail = r.getQuantity() - usedReserved.getOrDefault(r.getId(), 0);
+                    if (!Objects.equals(r.getWarehouseId(), fwd) || r.getStockStatus() != InvConstants.GOOD || avail <= 0) {
+                        continue;
+                    }
+                    int n = Math.min(left, avail);
+                    usedReserved.merge(r.getId(), n, Integer::sum);
+                    lines.add(Line.of(new Loc(fwd, r.getProductId(), r.getBatchId(), InvConstants.GOOD), InvConstants.OP_OUT, n, t, d));
+                    left -= n;
+                }
+            }
+            if (left > 0) {
+                for (InvBalanceDO b : freeOfProduct(fwd, it.productId())) {
+                    if (left == 0) {
+                        break;
+                    }
+                    int free = b.getOnHand() - b.getReserved() - usedFree.getOrDefault(b.getId(), 0);
+                    if (free <= 0) {
+                        continue;
+                    }
+                    int n = Math.min(left, free);
+                    usedFree.merge(b.getId(), n, Integer::sum);
+                    // 出没有预占的货也记到这个型号行上（已销售出库数按型号行统计），但不减预占
+                    lines.add(Line.of(new Loc(fwd, b.getProductId(), b.getBatchId(), InvConstants.GOOD), InvConstants.OP_RESERVE, n, t, d));
+                    lines.add(Line.of(new Loc(fwd, b.getProductId(), b.getBatchId(), InvConstants.GOOD), InvConstants.OP_OUT, n, t, d));
+                    left -= n;
+                }
+            }
+            if (left > 0) {
+                if (!dropship) {
+                    shortages.add(it.model() + " × 缺 " + left);
+                    continue;
+                }
+                sysSeq++;
+                InvBatchDO sys = warehouses.newBatch("SYS-" + shNo + "-" + sysSeq, it.productId(), "", InvConstants.BATCH_SYSTEM,
+                        shipmentId, it.obItemId(), null, it.soItemId(), java.time.LocalDate.now(), Price.ZERO);
+                Loc loc = new Loc(fwd, it.productId(), sys.getId(), InvConstants.GOOD);
+                lines.add(Line.of(loc, InvConstants.OP_IN, left, t, d.biz(InvConstants.BIZ_SYSTEM_IN)));
+                lines.add(Line.of(loc, InvConstants.OP_OUT, left, t, d));
+            }
+        }
+        if (!shortages.isEmpty()) {
+            throw new com.zhul.erp.common.exception.BizException("库存不足：" + String.join("、", shortages)
+                    + "。库存模式下不能出运，请先核对货代仓的库存");
+        }
+        posting.post(lines);
+    }
+
+    /** 某仓库某商品没有预占的合格余额，按批次先进先出 */
+    List<InvBalanceDO> freeOfProduct(Long warehouseId, Long productId) {
+        return balanceMapper.selectList(new LambdaQueryWrapper<InvBalanceDO>()
+                .eq(InvBalanceDO::getTenantId, PiStore.tenantId())
+                .eq(InvBalanceDO::getWarehouseId, warehouseId)
+                .eq(InvBalanceDO::getProductId, productId)
+                .eq(InvBalanceDO::getStockStatus, InvConstants.GOOD)
+                .apply("on_hand > reserved")
+                .orderByAsc(InvBalanceDO::getBatchId));
+    }
+
+    // ---------------------------------------------------------------- 退货入库
+
+    /** 退货入库单行：实收、合格；fallbackCny 为原订单没有销售出库流水时用的单价（原采购成本） */
+    public record ReturnLine(Long itemId, Long soItemId, Long productId, String model, int received, int qualified, BigDecimal fallbackCny) {
+    }
+
+    /** 退货入库验收：自有仓「退货入库」，每行一个批次（退货入库单号-行序号），合格、不良分开，不预占 */
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
+    public void returnReceived(Long receiptId, String rrNo, java.time.LocalDate date, List<ReturnLine> items) {
+        Long own = warehouses.own().getId();
+        Doc doc = Doc.of(InvConstants.BIZ_RETURN_IN, "RR", receiptId, rrNo);
+        Map<Long, String> grades = grades(items.stream().map(ReturnLine::soItemId).toList());
+        Map<Long, BigDecimal> soldPrice = soldUnitPrice(items.stream().map(ReturnLine::soItemId).toList());
+        List<Line> lines = new ArrayList<>();
+        int seq = 0;
+        for (ReturnLine it : items) {
+            seq++;
+            if (it.received() <= 0) {
+                continue;
+            }
+            if (it.productId() == null) {
+                log.warn("退货入库单行没有关联商品，不过账：rrNo={}, itemId={}, model={}", rrNo, it.itemId(), it.model());
+                continue;
+            }
+            BigDecimal unit = soldPrice.get(it.soItemId());
+            if (unit == null) {
+                unit = it.fallbackCny() == null ? BigDecimal.ZERO : it.fallbackCny();
+            }
+            // 撤回后再次验收沿用原批次（批次号不变），更新单价与入库日期
+            InvBatchDO b = warehouses.batchOf(InvConstants.BATCH_RETURN, it.itemId());
+            if (b == null) {
+                b = warehouses.newBatch(rrNo + "-" + seq, it.productId(), grades.getOrDefault(it.soItemId(), ""),
+                        InvConstants.BATCH_RETURN, receiptId, it.itemId(), null, it.soItemId(), date, Price.cny(unit));
+            } else {
+                warehouses.reprice(b, date, Price.cny(unit));
+            }
+            Doc d = doc.item(it.itemId());
+            if (it.qualified() > 0) {
+                lines.add(Line.of(new Loc(own, it.productId(), b.getId(), InvConstants.GOOD), InvConstants.OP_IN, it.qualified(), null, d));
+            }
+            int bad = it.received() - it.qualified();
+            if (bad > 0) {
+                lines.add(Line.of(new Loc(own, it.productId(), b.getId(), InvConstants.DEFECTIVE), InvConstants.OP_IN, bad, null, d));
+            }
+        }
+        posting.post(lines);
+    }
+
+    /** 撤回退货入库：按原流水反向（批次保留，再次验收时沿用） */
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
+    public void returnUnreceived(Long receiptId) {
+        posting.reverse(posting.activeMoves("RR", receiptId, List.of(InvConstants.BIZ_RETURN_IN)), InvConstants.BIZ_RETURN_IN_UNDO);
+    }
+
+    /** 退货去向报废：从该行退货批次没有预占的结存出库（不良优先），生成一张报废的其他出库单 */
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
+    public String returnScrapped(Long receiptId, String rrNo, Long receiptItemId, Long dispositionId, int qty, String reason) {
+        Long batchId = returnBatchOf(receiptItemId);
+        if (batchId == null || qty <= 0) {
+            log.warn("退货入库单行没有批次，报废不出库：rrNo={}, itemId={}", rrNo, receiptItemId);
+            return null;
+        }
+        Long own = warehouses.own().getId();
+        List<OtherOutboundService.Pick> picks = new ArrayList<>();
+        int left = qty;
+        for (int status : List.of(InvConstants.DEFECTIVE, InvConstants.GOOD)) {
+            for (InvBalanceDO b : freeBalances(batchId, status, own)) {
+                if (left == 0) {
+                    break;
+                }
+                int n = Math.min(left, b.getOnHand() - b.getReserved());
+                picks.add(new OtherOutboundService.Pick(b.getProductId(), batchId, status, n));
+                left -= n;
+            }
+        }
+        if (left > 0) {
+            throw new com.zhul.erp.common.exception.BizException("库存不足：退货批次没有预占的只有 " + (qty - left) + "，要报废 " + qty);
+        }
+        return otherOutbounds.create(InvConstants.OO_SCRAP, own, java.time.LocalDate.now(), reason, picks,
+                new OtherOutboundService.Source("RR", receiptId, rrNo, dispositionId)).getOutboundNo();
+    }
+
+    /** 型号行销售出库的加权人民币单价（HALF_UP 6 位）；没有销售出库流水的不在结果里 */
+    Map<Long, BigDecimal> soldUnitPrice(List<Long> soItemIds) {
+        List<Long> ids = soItemIds.stream().filter(Objects::nonNull).distinct().toList();
+        Map<Long, BigDecimal[]> sum = new HashMap<>();
+        if (!ids.isEmpty()) {
+            moveMapper.selectList(new LambdaQueryWrapper<InvMoveDO>()
+                            .select(InvMoveDO::getTargetId, InvMoveDO::getQuantity, InvMoveDO::getAmountCny)
+                            .eq(InvMoveDO::getTenantId, PiStore.tenantId())
+                            .eq(InvMoveDO::getTargetType, InvConstants.TARGET_SO_ITEM)
+                            .in(InvMoveDO::getTargetId, ids)
+                            .in(InvMoveDO::getBizType, List.of(InvConstants.BIZ_SALES_OUT, InvConstants.BIZ_SALES_OUT_UNDO))
+                            .in(InvMoveDO::getOpType, List.of(InvConstants.OP_OUT, InvConstants.OP_IN)))
+                    .forEach(m -> sum.merge(m.getTargetId(), new BigDecimal[]{BigDecimal.valueOf(m.getQuantity()), m.getAmountCny()},
+                            (x, y) -> new BigDecimal[]{x[0].add(y[0]), x[1].add(y[1])}));
+        }
+        Map<Long, BigDecimal> out = new HashMap<>();
+        sum.forEach((k, v) -> {
+            if (v[0].signum() != 0) {
+                out.put(k, v[1].divide(v[0], 6, java.math.RoundingMode.HALF_UP));
+            }
+        });
+        return out;
     }
 
     // ---------------------------------------------------------------- 采购退货

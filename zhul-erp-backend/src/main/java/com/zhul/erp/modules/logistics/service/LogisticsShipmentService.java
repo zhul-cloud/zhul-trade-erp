@@ -23,6 +23,7 @@ import com.zhul.erp.modules.logistics.entity.LogisticsShipmentDO;
 import com.zhul.erp.modules.logistics.entity.OutboundBoxDO;
 import com.zhul.erp.modules.logistics.entity.OutboundOrderDO;
 import com.zhul.erp.modules.logistics.entity.OutboundOrderItemDO;
+import com.zhul.erp.modules.inventory.service.InventoryHooks;
 import com.zhul.erp.modules.logistics.entity.ShipmentDocGroupDO;
 import com.zhul.erp.modules.logistics.repository.ForwarderStatementLineMapper;
 import com.zhul.erp.modules.logistics.repository.ForwarderStatementMapper;
@@ -81,6 +82,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class LogisticsShipmentService {
 
+    private final InventoryHooks inventoryHooks;
     private final LogisticsShipmentMapper shipmentMapper;
     private final OutboundOrderMapper outboundMapper;
     private final OutboundOrderItemMapper outboundItemMapper;
@@ -431,6 +433,12 @@ public class LogisticsShipmentService {
         applyWaybill(sh, req);
         sh.setStatus(LogisticsConstants.SH_SHIPPED);
         shipmentMapper.updateById(sh);
+        // 库存：从货代仓销售出库
+        Map<Long, List<OutboundOrderItemDO>> shipItems = outbounds.itemsOf(obs.stream().map(OutboundOrderDO::getId).toList());
+        inventoryHooks.shipped(id, sh.getShNo(), sh.getForwarderId(), obs.stream()
+                .flatMap(ob -> shipItems.getOrDefault(ob.getId(), List.of()).stream())
+                .map(i -> new InventoryHooks.HandoverLine(i.getId(), i.getSoItemId(), i.getProductId(), i.getModel(), i.getQuantity()))
+                .toList());
         freight.allocateInternational(id, sh.getFreight(), obs.stream().map(OutboundOrderDO::getId).toList(), support.divisorOf(sh.getForwarderId()));
         progress.sync(outbounds.soItemIds(obs.stream().map(OutboundOrderDO::getId).toList()));
         logService.recordOperateLog(LogisticsConstants.MENU_SHIPMENT, "登记出运", null, Map.of("shNo", sh.getShNo(),
