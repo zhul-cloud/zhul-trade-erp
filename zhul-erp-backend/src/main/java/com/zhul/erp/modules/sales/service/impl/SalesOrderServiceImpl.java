@@ -1665,6 +1665,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             x.setPurchaserNames(who.stream().map(purchaserNames::get).filter(Objects::nonNull).toList());
             var lp = links.get(i.getId());
             x.setPurchaseTracked(lp != null && lp.tracked());
+            x.setNotNeededQty(lp == null ? 0 : lp.removed());
+            x.setNotNeededReasons(lp == null ? List.of() : lp.removeReasons());
             x.setPurchaseOrderedQty(lp == null ? 0 : lp.ordered());
             x.setPurchaseDraftQty(lp == null ? 0 : lp.draft());
             x.setPurchaseReceivedQty(lp == null ? 0 : lp.received());
@@ -2377,7 +2379,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             sum.setShipped(sum.getShipped() + g.shippedOut());
             sum.setHanded(sum.getHanded() + g.handedOut());
             sum.setInWarehouse(sum.getInWarehouse() + g.inWarehouse());
-            sum.setTotal(sum.getTotal() + i.getQuantity());
+            sum.setTotal(sum.getTotal() + lp.need(i.getQuantity()));
             lp.transits().stream().map(com.zhul.erp.modules.purchase.support.PurchaseLinks.Transit::expectedArrival)
                     .filter(Objects::nonNull)
                     .filter(d -> sum.getEarliestArrival() == null || d.isBefore(sum.getEarliestArrival()))

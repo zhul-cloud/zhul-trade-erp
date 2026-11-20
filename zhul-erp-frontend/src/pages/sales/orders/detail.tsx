@@ -90,6 +90,7 @@ import {
   STOCK,
   StockPill,
 } from './dialogs';
+import { NotNeededNote } from './notNeeded';
 import { OrderFilesCard } from './OrderFiles';
 import {
   PartialCancelModal,
@@ -796,10 +797,15 @@ const OrderDetail: React.FC = () => {
       render: (v: string, r) =>
         r.quantity === 0 ? (
           <span style={{ fontSize: 12, color: palette.mute }}>不再跟进</span>
-        ) : completed ? (
-          <ProgressPill code="COMPLETED" name={o.progressName} />
         ) : (
-          <ProgressPill code={v} name={r.progressName} />
+          <div>
+            {completed ? (
+              <ProgressPill code="COMPLETED" name={o.progressName} />
+            ) : (
+              <ProgressPill code={v} name={r.progressName} />
+            )}
+            <NotNeededNote qty={r.notNeededQty} reasons={r.notNeededReasons} />
+          </div>
         ),
     },
   ];
