@@ -449,6 +449,84 @@ class InventoryFlowContractTest extends SalesContractSupport {
         assertEquals(403, perform(json(put(WH + "/mode"), "{\"mode\":\"stock\"}"), keeper).getStatus(), "仓库档案只给租户管理员");
     }
 
+    // ---------------------------------------------------------------- 查询、流水、台账
+
+    /** spec warehouse/inventory「查看可用库存」「按单号查流水」「月度台账」 */
+    @Test
+    void query_stocksBatches_movesByDocNo_monthlyLedger() throws Exception {
+        long sup = supplier("华控自动化", null);
+        JsonNode po = orderedPo(sup, l("A-1", 2, "1000", "200"));
+        long poItem = item(po, 0);
+        long product = productOfPoItem(poItem);
+        long soItem = soItemOfPoItem(poItem);
+        ok(call(json(post(GR + "/direct"), write(Map.of("poId", po.path("id").asLong(), "receivedDate", LocalDate.now().toString(),
+                "items", List.of(Map.of("poItemId", poItem, "receivedQty", 5, "qualifiedQty", 5, "defectiveQty", 0))))), keeper));
+        String soNo = jdbc.queryForObject("select so.so_no from sales_order so join sales_order_item i on i.so_id = so.id where i.id = ?",
+                String.class, soItem);
+        java.math.BigDecimal net = jdbc.queryForObject("select net_price_cny from purchase_order_item where id = ?", java.math.BigDecimal.class, poItem);
+        // 另一张采购订单同型号发货未收：在途 1
+        JsonNode po2 = orderedPo(sup, l("A-1", 1, "1000", "200"));
+        ship(po2.path("id").asLong(), Map.of(item(po2, 0), 1));
+
+        JsonNode page = ok(call(json(post("/api/v1/warehouse/stocks/page"), write(Map.of("onlyAvailable", true, "keyword", "A-1"))), keeper));
+        assertEquals(1, page.path("total").asInt());
+        JsonNode row = page.path("records").get(0);
+        assertEquals("公司仓库", row.path("warehouseName").asText());
+        assertEquals("5/2/3/1", row.path("good").asInt() + "/" + row.path("orderReserved").asInt() + "/" + row.path("available").asInt()
+                + "/" + row.path("inTransit").asInt(), "合格 5、订单预占 2、可用 3、在途 1");
+        assertEquals(0, net.multiply(java.math.BigDecimal.valueOf(5)).setScale(2, java.math.RoundingMode.HALF_UP)
+                .compareTo(new java.math.BigDecimal(row.path("amountCny").asText())));
+        assertEquals(0, ok(call(json(post("/api/v1/warehouse/stocks/page"), write(Map.of("onlyDefective", true))), keeper)).path("total").asInt());
+
+        JsonNode batches = ok(call(get("/api/v1/warehouse/stocks/batches").param("warehouseId", row.path("warehouseId").asText())
+                .param("productId", String.valueOf(product)), keeper));
+        assertEquals(1, batches.size());
+        assertEquals("采购入库", batches.get(0).path("sourceTypeName").asText());
+        assertEquals(3, batches.get(0).path("free").asInt());
+        assertEquals(soNo + ":2", batches.get(0).path("reservations").get(0).path("docNo").asText() + ":"
+                + batches.get(0).path("reservations").get(0).path("quantity").asInt());
+
+        // 交货代后撤销：按出库单号查到调出、调入与两笔反向
+        long fwd = forwarder();
+        long obId = handOver(soItem, fwd, 2);
+        ok(call(json(post(OB + "/" + obId + "/undo-hand-over"), "{\"reason\":\"快递退回\"}"), keeper));
+        String obNo = jdbc.queryForObject("select ob_no from outbound_order where id = ?", String.class, obId);
+        JsonNode moves = ok(call(json(post("/api/v1/warehouse/moves/page"), write(Map.of("keyword", obNo))), admin));
+        assertEquals(4, moves.path("total").asInt(), moves.toString());
+        List<String> ops = new ArrayList<>();
+        moves.path("records").forEach(m -> ops.add(m.path("warehouseName").asText() + m.path("opName").asText() + m.path("quantity").asInt()));
+        assertEquals(List.of("公司仓库调入2", "深圳捷运调出-2"), ops.subList(0, 2).stream().sorted().toList(), "后发生的反向在前");
+        assertEquals(List.of("公司仓库调出-2", "深圳捷运调入2"), ops.subList(2, 4).stream().sorted().toList());
+        assertEquals(0, ok(call(json(post("/api/v1/warehouse/moves/page"), write(Map.of("keyword", obNo, "opType", 7))), admin))
+                .path("total").asInt(), "交货代不动预占流水");
+        long withReserve = ok(call(json(post("/api/v1/warehouse/moves/page"), write(Map.of("productId", product, "includeReservation", true))),
+                admin)).path("total").asLong();
+        long withoutReserve = ok(call(json(post("/api/v1/warehouse/moves/page"), write(Map.of("productId", product))), admin)).path("total").asLong();
+        assertTrue(withReserve >= withoutReserve);
+
+        // 台账：公司仓库 入库 5 + 调入 2、出库（调出）2，期末 5；全部仓库调拨抵消：入 5、出 0
+        long own = row.path("warehouseId").asLong();
+        JsonNode ownLedger = ok(call(json(post("/api/v1/warehouse/ledger/page"), write(Map.of("warehouseId", own, "keyword", "A-1"))), admin))
+                .path("records").get(0);
+        assertEquals("0/7/2/5", ownLedger.path("openingQty").asInt() + "/" + ownLedger.path("inQty").asInt() + "/"
+                + ownLedger.path("outQty").asInt() + "/" + ownLedger.path("closingQty").asInt());
+        JsonNode allLedger = ok(call(json(post("/api/v1/warehouse/ledger/page"), write(Map.of("keyword", "A-1"))), admin)).path("records").get(0);
+        assertEquals("0/5/0/5", allLedger.path("openingQty").asInt() + "/" + allLedger.path("inQty").asInt() + "/"
+                + allLedger.path("outQty").asInt() + "/" + allLedger.path("closingQty").asInt());
+        assertEquals("全部仓库", allLedger.path("warehouseName").asText());
+        String next = java.time.YearMonth.now().plusMonths(1).toString();
+        JsonNode nextMonth = ok(call(json(post("/api/v1/warehouse/ledger/page"), write(Map.of("month", next, "keyword", "A-1"))), admin))
+                .path("records").get(0);
+        assertEquals("5/0/0/5", nextMonth.path("openingQty").asInt() + "/" + nextMonth.path("inQty").asInt() + "/"
+                + nextMonth.path("outQty").asInt() + "/" + nextMonth.path("closingQty").asInt(), "下月期初 = 本月期末");
+        assertEquals(0, nextMonth.path("openingAmount").decimalValue().compareTo(allLedger.path("closingAmount").decimalValue()));
+        assertEquals("月份格式应为 2026-11", fail(call(json(post("/api/v1/warehouse/ledger/page"), "{\"month\":\"2026/11\"}"), admin))
+                .path("message").asText());
+        var export = perform(json(post("/api/v1/warehouse/ledger/export"), "{}"), admin);
+        assertEquals(200, export.getStatus());
+        assertTrue(export.getContentAsByteArray().length > 100, "xlsx");
+    }
+
     // ---------------------------------------------------------------- 其他出库单
 
     private JsonNode otherOut(int type, long warehouseId, long batchId, int status, int qty, String reason) throws Exception {

@@ -65,6 +65,8 @@ public final class InvConstants {
     public static final int BATCH_RETURN = 2;
     public static final int BATCH_SYSTEM = 3;
     public static final int BATCH_OPENING = 4;
+    public static final Map<Integer, String> BATCH_SOURCE_NAMES = Map.of(BATCH_PURCHASE, "采购入库", BATCH_RETURN, "退货入库",
+            BATCH_SYSTEM, "系统外入库", BATCH_OPENING, "期初");
 
     /** 业务类型 */
     public static final String BIZ_PURCHASE_IN = "PURCHASE_IN";
