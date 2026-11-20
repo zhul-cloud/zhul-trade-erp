@@ -52,7 +52,7 @@ import java.util.Set;
 
 /**
  * 到货差异：验收时按入库行生成（少发 / 不良 / 多发），负责人为采购订单的采购员，由采购员选择处理方式。
- * 事务边界：处理 / 重新打开 = 差异状态、采购订单行数量与合计（不补）、闲置库存（暂存）、订单进度、需求更新时间、采购订单日志。
+ * 事务边界：处理 / 重新打开 = 差异状态、采购订单行数量与合计（不补）、订单进度、需求更新时间、采购订单日志。
  * 金额精度：折价金额、退货运费按两位小数 HALF_UP 存储（PurchaseCalc.money）。
  */
 @Service
@@ -327,24 +327,8 @@ public class DiscrepancyService {
         if (res == WarehouseConstants.RES_HOLD) {
             boolean free = Boolean.TRUE.equals(req.getFreeOfCharge());
             d.setFreeOfCharge(free ? 1 : 0);
-            StockHoldDO h = new StockHoldDO();
-            h.setTenantId(d.getTenantId());
-            h.setSourceType(WarehouseConstants.HOLD_SRC_DISCREPANCY);
-            h.setDiscrepancyId(d.getId());
-            h.setReceiptId(d.getReceiptId());
-            h.setPoId(d.getPoId());
-            h.setModel(d.getModel());
-            h.setBrand(d.getBrand());
-            h.setCategory(d.getCategory());
-            h.setQuantity(d.getQuantity());
-            h.setCostPrice(free || item.getNetPriceCny() == null ? BigDecimal.ZERO.setScale(2) : PurchaseCalc.money(item.getNetPriceCny()));
-            h.setLocationNote(ReceivingSupport.trim(req.getLocationNote()));
-            h.setStatus(WarehouseConstants.HOLD_ACTIVE);
-            h.setReturnCarrier("");
-            h.setReturnTrackingNo("");
-            h.setHandleNote("");
-            holdMapper.insert(h);
-            detail.add("进入闲置库存" + (free ? "（供应商白送）" : "") + (h.getLocationNote().isEmpty() ? "" : "，位置 " + h.getLocationNote()));
+            // 多发的货验收时已入库（没有预占），暂存就是留在可用库存，不再生成闲置库存（openspec inventory-foundation）
+            detail.add("留在可用库存" + (free ? "（供应商白送）" : ""));
         }
         Long operator = currentUser.resolve();
         d.setResolution(res);

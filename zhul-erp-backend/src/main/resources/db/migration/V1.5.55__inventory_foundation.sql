@@ -232,7 +232,7 @@ SELECT v.* FROM (
 WHERE NOT EXISTS (SELECT 1 FROM `resource` r WHERE r.`id` = v.id);
 
 -- 闲置库存菜单与「处置闲置库存」按钮停用（system/navigation：/warehouse/holds 重定向到库存查询）
-UPDATE `resource` SET `status` = 0, `update_time` = NOW() WHERE `id` IN (100092, 110194);
+UPDATE `resource` SET `status` = 0, `is_hidden` = 1, `update_time` = NOW() WHERE `id` IN (100092, 110194);
 
 -- 仓库管理排序：采购入库、销售出库、退货入库、其他出库、库存查询、库存流水、库存台账、仓库档案、实拍任务
 UPDATE `resource` SET `sort` = CASE `id` WHEN 100091 THEN 1 WHEN 100095 THEN 2 WHEN 100121 THEN 3 WHEN 100124 THEN 4
@@ -275,7 +275,7 @@ WHERE r.`code` = 'ROLE_ADMIN' AND r.`is_built_in` = 1
 -- 先把可用库存导回闲置库存（上线期间新产生的暂存）：按 inv_balance 中没有预占的合格结存，人工核对后补 stock_hold。
 -- DELETE FROM `role_resource` WHERE `resource_id` IN (100124, 100125, 100126, 100127, 100128, 110248, 110249, 110250, 110251);
 -- DELETE FROM `resource` WHERE `id` IN (100124, 100125, 100126, 100127, 100128, 110248, 110249, 110250, 110251);
--- UPDATE `resource` SET `status` = 1 WHERE `id` IN (100092, 110194);
+-- UPDATE `resource` SET `status` = 1, `is_hidden` = 0 WHERE `id` IN (100092, 110194);
 -- ALTER TABLE `purchase_return_item` DROP KEY `idx_batch_id`, DROP COLUMN `stock_status`, DROP COLUMN `batch_id`, DROP COLUMN `warehouse_id`;
 -- DROP TABLE `inv_other_outbound_item`, `inv_other_outbound`, `inv_reservation`, `inv_balance`, `inv_move`, `inv_batch`, `inv_warehouse`;
 -- DELETE FROM `sys_config` WHERE `config_key` IN ('inventory.mode', 'inventory.opening.done');

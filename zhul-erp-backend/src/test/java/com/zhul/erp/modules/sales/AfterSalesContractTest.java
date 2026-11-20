@@ -24,7 +24,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 /**
  * spec sales/after-sales、sales/sales-return、warehouse/sales-return、purchase/purchase-return、finance/refund-request，
  * 以及 finance/order-cost「售后退货冲减订单成本」、
- * finance/expense「费用单关联售后单」、finance/customer-refund「退款单关联售后」、warehouse/stock-hold「售后退货转入闲置库存」。
+ * finance/expense「费用单关联售后单」、finance/customer-refund「退款单关联售后」、warehouse/inventory「退货入库」。
  */
 class AfterSalesContractTest extends SalesContractSupport {
 
@@ -42,7 +42,6 @@ class AfterSalesContractTest extends SalesContractSupport {
     private static final String RQ = "/api/v1/finance/refund-requests";
     private static final String REFUND = "/api/v1/finance/refunds";
     private static final String FE = "/api/v1/finance/expenses";
-    private static final String HOLD = "/api/v1/warehouse/holds";
     private static final String SHIP = "/api/v1/purchase/shipments";
     private static final String GR = "/api/v1/warehouse/receipts";
 
@@ -237,11 +236,11 @@ class AfterSalesContractTest extends SalesContractSupport {
         assertEquals("待入库", ok(call(get(TH + "/" + thId), admin)).path("statusName").asText());
         ok(call(json(post(RT + "/" + rid + "/receive"), write(rec)), admin));
 
-        // 去向：不良不能转闲置；可以分几次处理，累计不超过实收
+        // 去向：不良不能转可用库存；可以分几次处理，累计不超过实收
         Map<String, Object> toSupplier = new HashMap<>(Map.of("itemId", rItem, "disposition", 1, "quantity", 1, "supplierId", sup,
                 "poId", poId));
         Map<String, Object> toHold = new HashMap<>(Map.of("itemId", rItem, "disposition", 2, "quantity", 2));
-        assertEquals("只有合格的才能转闲置库存（合格 1 个）", fail(call(json(post(RT + "/" + rid + "/dispose"),
+        assertEquals("只有合格的才能转可用库存（合格 1 个）", fail(call(json(post(RT + "/" + rid + "/dispose"),
                 write(Map.of("lines", List.of(toHold)))), admin)).path("message").asText());
         toHold.put("quantity", 1);
         JsonNode half = ok(call(json(post(RT + "/" + rid + "/dispose"), write(Map.of("lines", List.of(toHold)))), admin));
@@ -286,17 +285,14 @@ class AfterSalesContractTest extends SalesContractSupport {
         money("350", rrAfter.path("costCny"));
         money("45", rrAfter.path("freightCny"));
 
-        // 闲置库存来源「售后退货」，来源单号为退货入库单；订单成本冲减 150 + 1 × 200、退回运费 45
-        JsonNode hold = ok(call(json(post(HOLD + "/page"), write(Map.of("sourceType", 3))), admin)).path("records").get(0);
-        assertEquals("售后退货", hold.path("sourceName").asText());
-        assertEquals(rr.path("receiptNo").asText(), hold.path("returnNo").asText());
-        money("200", hold.path("costPrice"));
+        // 转可用库存不再生成闲置库存；订单成本冲减 150 + 1 × 200、退回运费 45
+        assertEquals(0, jdbc.queryForObject("select count(*) from stock_hold where tenant_id = 0", Integer.class));
         JsonNode cost = ok(call(get(SO + "/" + so), admin)).path("cost").path("lines").get(0);
         money("350", cost.path("salesReturnCredit"));
         money("45", cost.path("returnFreight"));
         money("1695", cost.path("cost"));
         JsonNode srcs = cost.path("sources").path("salesReturn");
-        assertEquals(2, srcs.size(), "退回供应商与转闲置各一条");
+        assertEquals(2, srcs.size(), "退回供应商与转可用库存各一条");
         assertTrue(srcs.toString().contains(pr.path("returnNo").asText()) && srcs.toString().contains(rr.path("receiptNo").asText()), srcs.toString());
 
         // 退款申请：可申请 = 已到账 − 已退 − 待处理申请
@@ -669,7 +665,7 @@ class AfterSalesContractTest extends SalesContractSupport {
         assertEquals("供应商不存在", msg(call(json(post(d), write(Map.of("lines", List.of(
                 Map.of("itemId", rItem, "disposition", 1, "quantity", 1, "supplierId", 999999999L),
                 Map.of("itemId", rItem, "disposition", 2, "quantity", 2))))), admin)));
-        // 转闲置 2 个按 ¥300 冲减；报废 1 个带原因；数量为 0 的行跳过
+        // 转可用库存 2 个按 ¥300 冲减；报废 1 个带原因；数量为 0 的行跳过
         JsonNode done = ok(call(json(post(d), write(Map.of("lines", List.of(
                 Map.of("itemId", rItem, "disposition", 2, "quantity", 2),
                 Map.of("itemId", rItem, "disposition", 3, "quantity", 1, "remark", "烧坏"),
