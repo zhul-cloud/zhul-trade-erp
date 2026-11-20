@@ -60,7 +60,7 @@ const PRESETS = [
   { n: '天蓝', c: '#078DEE', soft: '#E1F1FD', dl: '#2098F0', ds: '#172C3C', drop: '#3B82F6', note: '与信息色同为蓝绿系，信息标签靠浅底区分' },
   { n: '紫', c: '#7635DC', soft: '#EFE7FB', dl: '#A77EE9', ds: '#291E39', drop: '#3B82F6', note: '与各状态色都分得开' },
   { n: '宝蓝', c: '#2065D1', soft: '#E4EDF9', dl: '#5E94E6', ds: '#1B2637', drop: '#3B82F6', note: '与各状态色都分得开' },
-  { n: '红', c: '#FF3030', soft: '#FFE6E6', dl: '#FF5959', ds: '#3F1E1E', drop: '#E8664A', note: '与错误色相近；与默认涨红跌绿的红也相近，可换涨绿跌红' },
+  { n: '红', c: '#FF3030', soft: '#FFE6E6', dl: '#FF5959', ds: '#3F1E1E', drop: '#E8664A', note: '与错误色、涨跌色里的红都相近，不另加提示' },
 ];
 
 // ———— 外壳：入口以现有代码为准（TopBar、SidebarUser + AvatarDropdown、NotificationBell、ThemeToggle、LangDropdown、PageTabs）
@@ -247,18 +247,6 @@ function themePanel(T, root, x, y, o) {
       icon(d, ic, 14, cc); tx(d, v, { fontSize: 12, fontFamily: NUM, fill: solid(cc) });
     }
   }
-  // 只在「红色主题 + 涨红跌绿」时显示
-  if (o.hint) {
-    const n = box(dsec, { width: 'fill_container', layout: 'horizontal', gap: 6, alignItems: 'start' });
-    icon(n, 'info', 14, T.sub);
-    tx(n, '红色主题下，单号和上涨都是红色，可改成涨绿跌红', { fontSize: 12, fill: solid(T.sub), width: 'fill_container', textGrowth: 'fixed-width' });
-  }
-}
-
-// 只画弹出层：选红时的提示（画板不能太窄，否则 OpenPencil 当成手机画面加状态栏）
-function themeAlone(T, name, pr) {
-  const root = I(null, { type: 'frame', name, width: 560, height: 440, layout: 'none', fill: solid(T.page) });
-  themePanel(T, root, 110, 36, { mode: 1, preset: pr, hint: 1 });
 }
 
 // 外壳状态：焦点与悬停名称、跳到主要内容、语言下拉、收起侧栏的悬停子菜单、标签放不下与全部标签
@@ -341,5 +329,4 @@ shell(LIGHT, 'F1 外壳 · 浅色 · 头像菜单', { userMenu: 1 });
 shell(DARK, 'F2 外壳 · 深色 · 头像菜单', { userMenu: 1 });
 shell(LIGHT, 'F1b 外壳 · 浅色 · 收起侧栏与主题设置', { collapsed: 1, theme: 1 });
 shell(DARK, 'F2b 外壳 · 深色 · 收起侧栏与主题设置', { collapsed: 1, theme: 1 });
-themeAlone(LIGHT, 'F1c 主题设置 · 选红', PRESETS[5]);
 shellStates(LIGHT, 'F1d 外壳状态 · 浅色');

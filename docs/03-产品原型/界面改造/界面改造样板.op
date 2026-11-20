@@ -97830,7 +97830,7 @@
                       "name": "fill=#637381",
                       "width": "fit_content",
                       "height": "fit_content",
-                      "content": "与错误色相近；与默认涨红跌绿的红也相近，可换涨绿跌红",
+                      "content": "与错误色、涨跌色里的红都相近，不另加提示",
                       "fontFamily": "Noto Sans SC",
                       "fontSize": 12.0,
                       "lineHeight": 1.5,
@@ -107198,7 +107198,7 @@
                       "name": "fill=#A0A0A0",
                       "width": "fit_content",
                       "height": "fit_content",
-                      "content": "与错误色相近；与默认涨红跌绿的红也相近，可换涨绿跌红",
+                      "content": "与错误色、涨跌色里的红都相近，不另加提示",
                       "fontFamily": "Noto Sans SC",
                       "fontSize": 12.0,
                       "lineHeight": 1.5,
@@ -115724,1209 +115724,6 @@
     {
       "type": "frame",
       "id": "n7674",
-      "name": "F1c 主题设置 · 选红",
-      "width": 560.0,
-      "height": 440.0,
-      "layout": "none",
-      "fill": [
-        {
-          "type": "solid",
-          "color": "#F9FAFB"
-        }
-      ],
-      "children": [
-        {
-          "type": "frame",
-          "id": "n7675",
-          "x": 110.0,
-          "y": 36.0,
-          "width": 340.0,
-          "height": "fit_content",
-          "layout": "vertical",
-          "gap": 16.0,
-          "padding": [
-            16.0,
-            16.0
-          ],
-          "cornerRadius": 8.0,
-          "fill": [
-            {
-              "type": "solid",
-              "color": "#FFFFFF"
-            }
-          ],
-          "effects": [
-            {
-              "type": "shadow",
-              "offsetX": 0.0,
-              "offsetY": 8.0,
-              "blur": 16.0,
-              "spread": 0.0,
-              "color": "rgba(145,158,171,0.24)"
-            }
-          ],
-          "children": [
-            {
-              "type": "text",
-              "id": "n7676",
-              "name": "fill=#212B36",
-              "width": "fit_content",
-              "height": "fit_content",
-              "content": "主题设置",
-              "fontFamily": "Noto Sans SC",
-              "fontSize": 16.0,
-              "fontWeight": 500,
-              "lineHeight": 1.5,
-              "fill": [
-                {
-                  "type": "solid",
-                  "color": "#212B36"
-                }
-              ]
-            },
-            {
-              "type": "frame",
-              "id": "n7677",
-              "width": "fill_container",
-              "height": "fit_content",
-              "layout": "vertical",
-              "gap": 8.0,
-              "children": [
-                {
-                  "type": "text",
-                  "id": "n7678",
-                  "name": "fill=#637381",
-                  "width": "fit_content",
-                  "height": "fit_content",
-                  "content": "模式",
-                  "fontFamily": "Noto Sans SC",
-                  "fontSize": 13.0,
-                  "fontWeight": 500,
-                  "lineHeight": 1.5,
-                  "fill": [
-                    {
-                      "type": "solid",
-                      "color": "#637381"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "n7679",
-                  "width": "fill_container",
-                  "height": "fit_content",
-                  "layout": "horizontal",
-                  "gap": 2.0,
-                  "padding": [
-                    3.0,
-                    3.0
-                  ],
-                  "cornerRadius": 8.0,
-                  "fill": [
-                    {
-                      "type": "solid",
-                      "color": "#F1F3F5"
-                    }
-                  ],
-                  "children": [
-                    {
-                      "type": "frame",
-                      "id": "n7680",
-                      "width": "fill_container",
-                      "height": 32.0,
-                      "layout": "horizontal",
-                      "gap": 6.0,
-                      "justifyContent": "center",
-                      "alignItems": "center",
-                      "cornerRadius": 6.0,
-                      "fill": [
-                        {
-                          "type": "solid",
-                          "color": "#F1F3F5"
-                        }
-                      ],
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "n7681",
-                          "name": "icon",
-                          "width": 16.0,
-                          "height": 18.0,
-                          "layout": "vertical",
-                          "justifyContent": "end",
-                          "children": [
-                            {
-                              "type": "icon_font",
-                              "id": "n7682",
-                              "name": "fill=#637381",
-                              "iconFontName": "monitor",
-                              "width": 16.0,
-                              "height": 16.0,
-                              "fill": [
-                                {
-                                  "type": "solid",
-                                  "color": "#637381"
-                                }
-                              ]
-                            }
-                          ]
-                        },
-                        {
-                          "type": "text",
-                          "id": "n7683",
-                          "name": "fill=#637381",
-                          "width": "fit_content",
-                          "height": "fit_content",
-                          "content": "跟随系统",
-                          "fontFamily": "Noto Sans SC",
-                          "fontSize": 13.0,
-                          "fontWeight": 400,
-                          "lineHeight": 1.5,
-                          "fill": [
-                            {
-                              "type": "solid",
-                              "color": "#637381"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "n7684",
-                      "width": "fill_container",
-                      "height": 32.0,
-                      "layout": "horizontal",
-                      "gap": 6.0,
-                      "justifyContent": "center",
-                      "alignItems": "center",
-                      "cornerRadius": 6.0,
-                      "fill": [
-                        {
-                          "type": "solid",
-                          "color": "#FFE6E6"
-                        }
-                      ],
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "n7685",
-                          "name": "icon",
-                          "width": 16.0,
-                          "height": 18.0,
-                          "layout": "vertical",
-                          "justifyContent": "end",
-                          "children": [
-                            {
-                              "type": "icon_font",
-                              "id": "n7686",
-                              "name": "fill=#FF3030",
-                              "iconFontName": "sun",
-                              "width": 16.0,
-                              "height": 16.0,
-                              "fill": [
-                                {
-                                  "type": "solid",
-                                  "color": "#FF3030"
-                                }
-                              ]
-                            }
-                          ]
-                        },
-                        {
-                          "type": "text",
-                          "id": "n7687",
-                          "name": "fill=#FF3030",
-                          "width": "fit_content",
-                          "height": "fit_content",
-                          "content": "浅色",
-                          "fontFamily": "Noto Sans SC",
-                          "fontSize": 13.0,
-                          "fontWeight": 500,
-                          "lineHeight": 1.5,
-                          "fill": [
-                            {
-                              "type": "solid",
-                              "color": "#FF3030"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "n7688",
-                      "width": "fill_container",
-                      "height": 32.0,
-                      "layout": "horizontal",
-                      "gap": 6.0,
-                      "justifyContent": "center",
-                      "alignItems": "center",
-                      "cornerRadius": 6.0,
-                      "fill": [
-                        {
-                          "type": "solid",
-                          "color": "#F1F3F5"
-                        }
-                      ],
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "n7689",
-                          "name": "icon",
-                          "width": 16.0,
-                          "height": 18.0,
-                          "layout": "vertical",
-                          "justifyContent": "end",
-                          "children": [
-                            {
-                              "type": "icon_font",
-                              "id": "n7690",
-                              "name": "fill=#637381",
-                              "iconFontName": "moon",
-                              "width": 16.0,
-                              "height": 16.0,
-                              "fill": [
-                                {
-                                  "type": "solid",
-                                  "color": "#637381"
-                                }
-                              ]
-                            }
-                          ]
-                        },
-                        {
-                          "type": "text",
-                          "id": "n7691",
-                          "name": "fill=#637381",
-                          "width": "fit_content",
-                          "height": "fit_content",
-                          "content": "深色",
-                          "fontFamily": "Noto Sans SC",
-                          "fontSize": 13.0,
-                          "fontWeight": 400,
-                          "lineHeight": 1.5,
-                          "fill": [
-                            {
-                              "type": "solid",
-                              "color": "#637381"
-                            }
-                          ]
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "frame",
-              "id": "n7692",
-              "width": "fill_container",
-              "height": "fit_content",
-              "layout": "vertical",
-              "gap": 8.0,
-              "children": [
-                {
-                  "type": "text",
-                  "id": "n7693",
-                  "name": "fill=#637381",
-                  "width": "fit_content",
-                  "height": "fit_content",
-                  "content": "主题色",
-                  "fontFamily": "Noto Sans SC",
-                  "fontSize": 13.0,
-                  "fontWeight": 500,
-                  "lineHeight": 1.5,
-                  "fill": [
-                    {
-                      "type": "solid",
-                      "color": "#637381"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "n7694",
-                  "width": "fill_container",
-                  "height": "fit_content",
-                  "layout": "horizontal",
-                  "gap": 4.0,
-                  "children": [
-                    {
-                      "type": "frame",
-                      "id": "n7695",
-                      "width": "fill_container",
-                      "height": "fit_content",
-                      "layout": "vertical",
-                      "gap": 6.0,
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "n7696",
-                          "width": 36.0,
-                          "height": 36.0,
-                          "layout": "horizontal",
-                          "justifyContent": "center",
-                          "alignItems": "center",
-                          "cornerRadius": 18.0,
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "n7697",
-                              "width": 28.0,
-                              "height": 28.0,
-                              "layout": "horizontal",
-                              "justifyContent": "center",
-                              "alignItems": "center",
-                              "cornerRadius": 14.0,
-                              "fill": [
-                                {
-                                  "type": "solid",
-                                  "color": "#FDA92D"
-                                }
-                              ],
-                              "children": []
-                            }
-                          ]
-                        },
-                        {
-                          "type": "text",
-                          "id": "n7698",
-                          "name": "fill=#637381",
-                          "width": "fit_content",
-                          "height": "fit_content",
-                          "content": "琥珀",
-                          "fontFamily": "Noto Sans SC",
-                          "fontSize": 12.0,
-                          "lineHeight": 1.5,
-                          "fill": [
-                            {
-                              "type": "solid",
-                              "color": "#637381"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "n7699",
-                      "width": "fill_container",
-                      "height": "fit_content",
-                      "layout": "vertical",
-                      "gap": 6.0,
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "n7700",
-                          "width": 36.0,
-                          "height": 36.0,
-                          "layout": "horizontal",
-                          "justifyContent": "center",
-                          "alignItems": "center",
-                          "cornerRadius": 18.0,
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "n7701",
-                              "width": 28.0,
-                              "height": 28.0,
-                              "layout": "horizontal",
-                              "justifyContent": "center",
-                              "alignItems": "center",
-                              "cornerRadius": 14.0,
-                              "fill": [
-                                {
-                                  "type": "solid",
-                                  "color": "#0D9394"
-                                }
-                              ],
-                              "children": []
-                            }
-                          ]
-                        },
-                        {
-                          "type": "text",
-                          "id": "n7702",
-                          "name": "fill=#637381",
-                          "width": "fit_content",
-                          "height": "fit_content",
-                          "content": "青绿",
-                          "fontFamily": "Noto Sans SC",
-                          "fontSize": 12.0,
-                          "lineHeight": 1.5,
-                          "fill": [
-                            {
-                              "type": "solid",
-                              "color": "#637381"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "n7703",
-                      "width": "fill_container",
-                      "height": "fit_content",
-                      "layout": "vertical",
-                      "gap": 6.0,
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "n7704",
-                          "width": 36.0,
-                          "height": 36.0,
-                          "layout": "horizontal",
-                          "justifyContent": "center",
-                          "alignItems": "center",
-                          "cornerRadius": 18.0,
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "n7705",
-                              "width": 28.0,
-                              "height": 28.0,
-                              "layout": "horizontal",
-                              "justifyContent": "center",
-                              "alignItems": "center",
-                              "cornerRadius": 14.0,
-                              "fill": [
-                                {
-                                  "type": "solid",
-                                  "color": "#078DEE"
-                                }
-                              ],
-                              "children": []
-                            }
-                          ]
-                        },
-                        {
-                          "type": "text",
-                          "id": "n7706",
-                          "name": "fill=#637381",
-                          "width": "fit_content",
-                          "height": "fit_content",
-                          "content": "天蓝",
-                          "fontFamily": "Noto Sans SC",
-                          "fontSize": 12.0,
-                          "lineHeight": 1.5,
-                          "fill": [
-                            {
-                              "type": "solid",
-                              "color": "#637381"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "n7707",
-                      "width": "fill_container",
-                      "height": "fit_content",
-                      "layout": "vertical",
-                      "gap": 6.0,
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "n7708",
-                          "width": 36.0,
-                          "height": 36.0,
-                          "layout": "horizontal",
-                          "justifyContent": "center",
-                          "alignItems": "center",
-                          "cornerRadius": 18.0,
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "n7709",
-                              "width": 28.0,
-                              "height": 28.0,
-                              "layout": "horizontal",
-                              "justifyContent": "center",
-                              "alignItems": "center",
-                              "cornerRadius": 14.0,
-                              "fill": [
-                                {
-                                  "type": "solid",
-                                  "color": "#7635DC"
-                                }
-                              ],
-                              "children": []
-                            }
-                          ]
-                        },
-                        {
-                          "type": "text",
-                          "id": "n7710",
-                          "name": "fill=#637381",
-                          "width": "fit_content",
-                          "height": "fit_content",
-                          "content": "紫",
-                          "fontFamily": "Noto Sans SC",
-                          "fontSize": 12.0,
-                          "lineHeight": 1.5,
-                          "fill": [
-                            {
-                              "type": "solid",
-                              "color": "#637381"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "n7711",
-                      "width": "fill_container",
-                      "height": "fit_content",
-                      "layout": "vertical",
-                      "gap": 6.0,
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "n7712",
-                          "width": 36.0,
-                          "height": 36.0,
-                          "layout": "horizontal",
-                          "justifyContent": "center",
-                          "alignItems": "center",
-                          "cornerRadius": 18.0,
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "n7713",
-                              "width": 28.0,
-                              "height": 28.0,
-                              "layout": "horizontal",
-                              "justifyContent": "center",
-                              "alignItems": "center",
-                              "cornerRadius": 14.0,
-                              "fill": [
-                                {
-                                  "type": "solid",
-                                  "color": "#2065D1"
-                                }
-                              ],
-                              "children": []
-                            }
-                          ]
-                        },
-                        {
-                          "type": "text",
-                          "id": "n7714",
-                          "name": "fill=#637381",
-                          "width": "fit_content",
-                          "height": "fit_content",
-                          "content": "宝蓝",
-                          "fontFamily": "Noto Sans SC",
-                          "fontSize": 12.0,
-                          "lineHeight": 1.5,
-                          "fill": [
-                            {
-                              "type": "solid",
-                              "color": "#637381"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "n7715",
-                      "width": "fill_container",
-                      "height": "fit_content",
-                      "layout": "vertical",
-                      "gap": 6.0,
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "n7716",
-                          "width": 36.0,
-                          "height": 36.0,
-                          "layout": "horizontal",
-                          "justifyContent": "center",
-                          "alignItems": "center",
-                          "cornerRadius": 18.0,
-                          "stroke": {
-                            "thickness": 2.0,
-                            "fill": [
-                              {
-                                "type": "solid",
-                                "color": "#FF3030"
-                              }
-                            ]
-                          },
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "n7717",
-                              "width": 28.0,
-                              "height": 28.0,
-                              "layout": "horizontal",
-                              "justifyContent": "center",
-                              "alignItems": "center",
-                              "cornerRadius": 14.0,
-                              "fill": [
-                                {
-                                  "type": "solid",
-                                  "color": "#FF3030"
-                                }
-                              ],
-                              "children": [
-                                {
-                                  "type": "icon_font",
-                                  "id": "n7718",
-                                  "name": "fill=#FFFFFF",
-                                  "iconFontName": "check",
-                                  "width": 16.0,
-                                  "height": 16.0,
-                                  "fill": [
-                                    {
-                                      "type": "solid",
-                                      "color": "#FFFFFF"
-                                    }
-                                  ]
-                                }
-                              ]
-                            }
-                          ]
-                        },
-                        {
-                          "type": "text",
-                          "id": "n7719",
-                          "name": "fill=#212B36",
-                          "width": "fit_content",
-                          "height": "fit_content",
-                          "content": "红",
-                          "fontFamily": "Noto Sans SC",
-                          "fontSize": 12.0,
-                          "lineHeight": 1.5,
-                          "fill": [
-                            {
-                              "type": "solid",
-                              "color": "#212B36"
-                            }
-                          ]
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "frame",
-              "id": "n7720",
-              "width": "fill_container",
-              "height": "fit_content",
-              "layout": "vertical",
-              "gap": 8.0,
-              "children": [
-                {
-                  "type": "text",
-                  "id": "n7721",
-                  "name": "fill=#637381",
-                  "width": "fit_content",
-                  "height": "fit_content",
-                  "content": "涨跌颜色",
-                  "fontFamily": "Noto Sans SC",
-                  "fontSize": 13.0,
-                  "fontWeight": 500,
-                  "lineHeight": 1.5,
-                  "fill": [
-                    {
-                      "type": "solid",
-                      "color": "#637381"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "n7722",
-                  "width": "fill_container",
-                  "height": "fit_content",
-                  "layout": "horizontal",
-                  "gap": 8.0,
-                  "children": [
-                    {
-                      "type": "frame",
-                      "id": "n7723",
-                      "width": "fill_container",
-                      "height": "fit_content",
-                      "layout": "vertical",
-                      "gap": 8.0,
-                      "padding": [
-                        10.0,
-                        12.0
-                      ],
-                      "cornerRadius": 8.0,
-                      "fill": [
-                        {
-                          "type": "solid",
-                          "color": "#F1F3F5"
-                        }
-                      ],
-                      "stroke": {
-                        "thickness": 1.0,
-                        "fill": [
-                          {
-                            "type": "solid",
-                            "color": "#D4D6D9"
-                          }
-                        ]
-                      },
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "n7724",
-                          "width": "fit_content",
-                          "height": "fit_content",
-                          "layout": "horizontal",
-                          "gap": 6.0,
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "n7725",
-                              "width": 16.0,
-                              "height": 16.0,
-                              "layout": "horizontal",
-                              "justifyContent": "center",
-                              "alignItems": "center",
-                              "cornerRadius": 8.0,
-                              "stroke": {
-                                "thickness": 1.5,
-                                "fill": [
-                                  {
-                                    "type": "solid",
-                                    "color": "#FF3030"
-                                  }
-                                ]
-                              },
-                              "children": [
-                                {
-                                  "type": "ellipse",
-                                  "id": "n7726",
-                                  "width": 8.0,
-                                  "height": 8.0,
-                                  "fill": [
-                                    {
-                                      "type": "solid",
-                                      "color": "#FF3030"
-                                    }
-                                  ]
-                                }
-                              ]
-                            },
-                            {
-                              "type": "text",
-                              "id": "n7727",
-                              "name": "fill=#212B36",
-                              "width": "fit_content",
-                              "height": "fit_content",
-                              "content": "涨红跌绿",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 13.0,
-                              "fontWeight": 500,
-                              "lineHeight": 1.5,
-                              "fill": [
-                                {
-                                  "type": "solid",
-                                  "color": "#212B36"
-                                }
-                              ]
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "n7728",
-                          "width": "fit_content",
-                          "height": "fit_content",
-                          "layout": "horizontal",
-                          "gap": 10.0,
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "n7729",
-                              "width": "fit_content",
-                              "height": "fit_content",
-                              "layout": "horizontal",
-                              "gap": 3.0,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "n7730",
-                                  "name": "icon",
-                                  "width": 14.0,
-                                  "height": 16.0,
-                                  "layout": "vertical",
-                                  "justifyContent": "end",
-                                  "children": [
-                                    {
-                                      "type": "icon_font",
-                                      "id": "n7731",
-                                      "name": "fill=#FF5630",
-                                      "iconFontName": "trending-up",
-                                      "width": 14.0,
-                                      "height": 14.0,
-                                      "fill": [
-                                        {
-                                          "type": "solid",
-                                          "color": "#FF5630"
-                                        }
-                                      ]
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "n7732",
-                                  "name": "fill=#FF5630",
-                                  "width": "fit_content",
-                                  "height": "fit_content",
-                                  "content": "+12.5%",
-                                  "fontFamily": "Public Sans",
-                                  "fontSize": 12.0,
-                                  "lineHeight": 1.5,
-                                  "fill": [
-                                    {
-                                      "type": "solid",
-                                      "color": "#FF5630"
-                                    }
-                                  ]
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
-                              "id": "n7733",
-                              "width": "fit_content",
-                              "height": "fit_content",
-                              "layout": "horizontal",
-                              "gap": 3.0,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "n7734",
-                                  "name": "icon",
-                                  "width": 14.0,
-                                  "height": 16.0,
-                                  "layout": "vertical",
-                                  "justifyContent": "end",
-                                  "children": [
-                                    {
-                                      "type": "icon_font",
-                                      "id": "n7735",
-                                      "name": "fill=#22C55E",
-                                      "iconFontName": "trending-down",
-                                      "width": 14.0,
-                                      "height": 14.0,
-                                      "fill": [
-                                        {
-                                          "type": "solid",
-                                          "color": "#22C55E"
-                                        }
-                                      ]
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "n7736",
-                                  "name": "fill=#22C55E",
-                                  "width": "fit_content",
-                                  "height": "fit_content",
-                                  "content": "-3.7%",
-                                  "fontFamily": "Public Sans",
-                                  "fontSize": 12.0,
-                                  "lineHeight": 1.5,
-                                  "fill": [
-                                    {
-                                      "type": "solid",
-                                      "color": "#22C55E"
-                                    }
-                                  ]
-                                }
-                              ]
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "n7737",
-                      "width": "fill_container",
-                      "height": "fit_content",
-                      "layout": "vertical",
-                      "gap": 8.0,
-                      "padding": [
-                        10.0,
-                        12.0
-                      ],
-                      "cornerRadius": 8.0,
-                      "fill": [
-                        {
-                          "type": "solid",
-                          "color": "#FFFFFF"
-                        }
-                      ],
-                      "stroke": {
-                        "thickness": 1.0,
-                        "fill": [
-                          {
-                            "type": "solid",
-                            "color": "#E5E8EB"
-                          }
-                        ]
-                      },
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "n7738",
-                          "width": "fit_content",
-                          "height": "fit_content",
-                          "layout": "horizontal",
-                          "gap": 6.0,
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "n7739",
-                              "width": 16.0,
-                              "height": 16.0,
-                              "layout": "horizontal",
-                              "justifyContent": "center",
-                              "alignItems": "center",
-                              "cornerRadius": 8.0,
-                              "stroke": {
-                                "thickness": 1.5,
-                                "fill": [
-                                  {
-                                    "type": "solid",
-                                    "color": "#919EAB"
-                                  }
-                                ]
-                              },
-                              "children": []
-                            },
-                            {
-                              "type": "text",
-                              "id": "n7740",
-                              "name": "fill=#212B36",
-                              "width": "fit_content",
-                              "height": "fit_content",
-                              "content": "涨绿跌红",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 13.0,
-                              "fontWeight": 500,
-                              "lineHeight": 1.5,
-                              "fill": [
-                                {
-                                  "type": "solid",
-                                  "color": "#212B36"
-                                }
-                              ]
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "n7741",
-                          "width": "fit_content",
-                          "height": "fit_content",
-                          "layout": "horizontal",
-                          "gap": 10.0,
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "n7742",
-                              "width": "fit_content",
-                              "height": "fit_content",
-                              "layout": "horizontal",
-                              "gap": 3.0,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "n7743",
-                                  "name": "icon",
-                                  "width": 14.0,
-                                  "height": 16.0,
-                                  "layout": "vertical",
-                                  "justifyContent": "end",
-                                  "children": [
-                                    {
-                                      "type": "icon_font",
-                                      "id": "n7744",
-                                      "name": "fill=#22C55E",
-                                      "iconFontName": "trending-up",
-                                      "width": 14.0,
-                                      "height": 14.0,
-                                      "fill": [
-                                        {
-                                          "type": "solid",
-                                          "color": "#22C55E"
-                                        }
-                                      ]
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "n7745",
-                                  "name": "fill=#22C55E",
-                                  "width": "fit_content",
-                                  "height": "fit_content",
-                                  "content": "+12.5%",
-                                  "fontFamily": "Public Sans",
-                                  "fontSize": 12.0,
-                                  "lineHeight": 1.5,
-                                  "fill": [
-                                    {
-                                      "type": "solid",
-                                      "color": "#22C55E"
-                                    }
-                                  ]
-                                }
-                              ]
-                            },
-                            {
-                              "type": "frame",
-                              "id": "n7746",
-                              "width": "fit_content",
-                              "height": "fit_content",
-                              "layout": "horizontal",
-                              "gap": 3.0,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "frame",
-                                  "id": "n7747",
-                                  "name": "icon",
-                                  "width": 14.0,
-                                  "height": 16.0,
-                                  "layout": "vertical",
-                                  "justifyContent": "end",
-                                  "children": [
-                                    {
-                                      "type": "icon_font",
-                                      "id": "n7748",
-                                      "name": "fill=#FF5630",
-                                      "iconFontName": "trending-down",
-                                      "width": 14.0,
-                                      "height": 14.0,
-                                      "fill": [
-                                        {
-                                          "type": "solid",
-                                          "color": "#FF5630"
-                                        }
-                                      ]
-                                    }
-                                  ]
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "n7749",
-                                  "name": "fill=#FF5630",
-                                  "width": "fit_content",
-                                  "height": "fit_content",
-                                  "content": "-3.7%",
-                                  "fontFamily": "Public Sans",
-                                  "fontSize": 12.0,
-                                  "lineHeight": 1.5,
-                                  "fill": [
-                                    {
-                                      "type": "solid",
-                                      "color": "#FF5630"
-                                    }
-                                  ]
-                                }
-                              ]
-                            }
-                          ]
-                        }
-                      ]
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "n7750",
-                  "width": "fill_container",
-                  "height": "fit_content",
-                  "layout": "horizontal",
-                  "gap": 6.0,
-                  "alignItems": "start",
-                  "children": [
-                    {
-                      "type": "frame",
-                      "id": "n7751",
-                      "name": "icon",
-                      "width": 14.0,
-                      "height": 16.0,
-                      "layout": "vertical",
-                      "justifyContent": "end",
-                      "children": [
-                        {
-                          "type": "icon_font",
-                          "id": "n7752",
-                          "name": "fill=#637381",
-                          "iconFontName": "info",
-                          "width": 14.0,
-                          "height": 14.0,
-                          "fill": [
-                            {
-                              "type": "solid",
-                              "color": "#637381"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "text",
-                      "id": "n7753",
-                      "name": "fill=#637381",
-                      "width": "fill_container",
-                      "height": "fit_content",
-                      "content": "红色主题下，单号和上涨都是红色，可改成涨绿跌红",
-                      "fontFamily": "Noto Sans SC",
-                      "fontSize": 12.0,
-                      "lineHeight": 1.5,
-                      "textGrowth": "fixed-width",
-                      "fill": [
-                        {
-                          "type": "solid",
-                          "color": "#637381"
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "type": "frame",
-      "id": "n7754",
       "name": "F1d 外壳状态 · 浅色",
       "width": 1440.0,
       "height": 760.0,
@@ -116945,7 +115742,7 @@
       "children": [
         {
           "type": "frame",
-          "id": "n7755",
+          "id": "n7675",
           "width": "fill_container",
           "height": "fit_content",
           "layout": "horizontal",
@@ -116954,7 +115751,7 @@
           "children": [
             {
               "type": "frame",
-              "id": "n7756",
+              "id": "n7676",
               "width": 300.0,
               "height": "fit_content",
               "layout": "vertical",
@@ -116962,7 +115759,7 @@
               "children": [
                 {
                   "type": "text",
-                  "id": "n7757",
+                  "id": "n7677",
                   "name": "fill=#637381",
                   "width": "fit_content",
                   "height": "fit_content",
@@ -116980,7 +115777,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n7758",
+                  "id": "n7678",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "vertical",
@@ -117026,7 +115823,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n7759",
+                      "id": "n7679",
                       "width": "fit_content",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -117035,7 +115832,7 @@
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n7760",
+                          "id": "n7680",
                           "width": 44.0,
                           "height": 44.0,
                           "layout": "horizontal",
@@ -117051,7 +115848,7 @@
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n7761",
+                              "id": "n7681",
                               "width": 40.0,
                               "height": 40.0,
                               "layout": "horizontal",
@@ -117076,7 +115873,7 @@
                               "children": [
                                 {
                                   "type": "icon_font",
-                                  "id": "n7762",
+                                  "id": "n7682",
                                   "name": "fill=#3E4750",
                                   "iconFontName": "swatch-book",
                                   "width": 20.0,
@@ -117094,7 +115891,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n7763",
+                          "id": "n7683",
                           "width": 36.0,
                           "height": 36.0,
                           "layout": "horizontal",
@@ -117110,7 +115907,7 @@
                           "children": [
                             {
                               "type": "icon_font",
-                              "id": "n7764",
+                              "id": "n7684",
                               "name": "fill=#3E4750",
                               "iconFontName": "languages",
                               "width": 20.0,
@@ -117126,14 +115923,14 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n7765",
+                          "id": "n7685",
                           "width": 36.0,
                           "height": 36.0,
                           "layout": "none",
                           "children": [
                             {
                               "type": "icon_font",
-                              "id": "n7766",
+                              "id": "n7686",
                               "name": "fill=#3E4750",
                               "x": 8.0,
                               "y": 8.0,
@@ -117149,7 +115946,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n7767",
+                              "id": "n7687",
                               "x": 20.0,
                               "y": 0.0,
                               "width": "fit_content",
@@ -117179,7 +115976,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n7768",
+                                  "id": "n7688",
                                   "name": "fill=#FFFFFF",
                                   "width": "fit_content",
                                   "height": "fit_content",
@@ -117203,7 +116000,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7769",
+                      "id": "n7689",
                       "width": "fit_content",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -117221,7 +116018,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n7770",
+                          "id": "n7690",
                           "name": "fill=#FFFFFF",
                           "width": "fit_content",
                           "height": "fit_content",
@@ -117244,7 +116041,7 @@
             },
             {
               "type": "frame",
-              "id": "n7771",
+              "id": "n7691",
               "width": 260.0,
               "height": "fit_content",
               "layout": "vertical",
@@ -117252,7 +116049,7 @@
               "children": [
                 {
                   "type": "text",
-                  "id": "n7772",
+                  "id": "n7692",
                   "name": "fill=#637381",
                   "width": "fit_content",
                   "height": "fit_content",
@@ -117270,7 +116067,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n7773",
+                  "id": "n7693",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "vertical",
@@ -117314,7 +116111,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n7774",
+                      "id": "n7694",
                       "width": "fit_content",
                       "height": "fit_content",
                       "layout": "horizontal",
@@ -117332,7 +116129,7 @@
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n7775",
+                          "id": "n7695",
                           "width": "fit_content",
                           "height": 36.0,
                           "layout": "horizontal",
@@ -117361,7 +116158,7 @@
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n7776",
+                              "id": "n7696",
                               "name": "icon",
                               "width": 16.0,
                               "height": 18.0,
@@ -117370,7 +116167,7 @@
                               "children": [
                                 {
                                   "type": "icon_font",
-                                  "id": "n7777",
+                                  "id": "n7697",
                                   "name": "fill=#212B36",
                                   "iconFontName": "corner-down-right",
                                   "width": 16.0,
@@ -117386,7 +116183,7 @@
                             },
                             {
                               "type": "text",
-                              "id": "n7778",
+                              "id": "n7698",
                               "name": "fill=#212B36",
                               "width": "fit_content",
                               "height": "fit_content",
@@ -117412,7 +116209,7 @@
             },
             {
               "type": "frame",
-              "id": "n7779",
+              "id": "n7699",
               "width": 220.0,
               "height": "fit_content",
               "layout": "vertical",
@@ -117420,7 +116217,7 @@
               "children": [
                 {
                   "type": "text",
-                  "id": "n7780",
+                  "id": "n7700",
                   "name": "fill=#637381",
                   "width": "fit_content",
                   "height": "fit_content",
@@ -117438,7 +116235,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n7781",
+                  "id": "n7701",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "vertical",
@@ -117466,7 +116263,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n7782",
+                      "id": "n7702",
                       "width": "fill_container",
                       "height": 36.0,
                       "layout": "horizontal",
@@ -117486,7 +116283,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n7783",
+                          "id": "n7703",
                           "name": "fill=#FDA92D",
                           "width": "fill_container",
                           "height": "fit_content",
@@ -117503,7 +116300,7 @@
                         },
                         {
                           "type": "icon_font",
-                          "id": "n7784",
+                          "id": "n7704",
                           "name": "fill=#FDA92D",
                           "iconFontName": "check",
                           "width": 16.0,
@@ -117519,7 +116316,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7785",
+                      "id": "n7705",
                       "width": "fill_container",
                       "height": 36.0,
                       "layout": "horizontal",
@@ -117539,7 +116336,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n7786",
+                          "id": "n7706",
                           "name": "fill=#3E4750",
                           "width": "fill_container",
                           "height": "fit_content",
@@ -117558,7 +116355,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7787",
+                      "id": "n7707",
                       "width": "fill_container",
                       "height": 36.0,
                       "layout": "horizontal",
@@ -117578,7 +116375,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n7788",
+                          "id": "n7708",
                           "name": "fill=#3E4750",
                           "width": "fill_container",
                           "height": "fit_content",
@@ -117597,7 +116394,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7789",
+                      "id": "n7709",
                       "width": "fill_container",
                       "height": 36.0,
                       "layout": "horizontal",
@@ -117617,7 +116414,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n7790",
+                          "id": "n7710",
                           "name": "fill=#3E4750",
                           "width": "fill_container",
                           "height": "fit_content",
@@ -117636,7 +116433,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7791",
+                      "id": "n7711",
                       "width": "fill_container",
                       "height": 36.0,
                       "layout": "horizontal",
@@ -117656,7 +116453,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n7792",
+                          "id": "n7712",
                           "name": "fill=#3E4750",
                           "width": "fill_container",
                           "height": "fit_content",
@@ -117675,7 +116472,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7793",
+                      "id": "n7713",
                       "width": "fill_container",
                       "height": 36.0,
                       "layout": "horizontal",
@@ -117695,7 +116492,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n7794",
+                          "id": "n7714",
                           "name": "fill=#3E4750",
                           "width": "fill_container",
                           "height": "fit_content",
@@ -117714,7 +116511,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7795",
+                      "id": "n7715",
                       "width": "fill_container",
                       "height": 36.0,
                       "layout": "horizontal",
@@ -117734,7 +116531,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n7796",
+                          "id": "n7716",
                           "name": "fill=#3E4750",
                           "width": "fill_container",
                           "height": "fit_content",
@@ -117753,7 +116550,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7797",
+                      "id": "n7717",
                       "width": "fill_container",
                       "height": 36.0,
                       "layout": "horizontal",
@@ -117773,7 +116570,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n7798",
+                          "id": "n7718",
                           "name": "fill=#3E4750",
                           "width": "fill_container",
                           "height": "fit_content",
@@ -117796,7 +116593,7 @@
             },
             {
               "type": "frame",
-              "id": "n7799",
+              "id": "n7719",
               "width": "fill_container",
               "height": "fit_content",
               "layout": "vertical",
@@ -117804,7 +116601,7 @@
               "children": [
                 {
                   "type": "text",
-                  "id": "n7800",
+                  "id": "n7720",
                   "name": "fill=#637381",
                   "width": "fit_content",
                   "height": "fit_content",
@@ -117822,7 +116619,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n7801",
+                  "id": "n7721",
                   "width": "fit_content",
                   "height": "fit_content",
                   "layout": "horizontal",
@@ -117831,7 +116628,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n7802",
+                      "id": "n7722",
                       "width": 64.0,
                       "height": "fit_content",
                       "layout": "vertical",
@@ -117877,7 +116674,7 @@
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n7803",
+                          "id": "n7723",
                           "width": 40.0,
                           "height": 40.0,
                           "layout": "horizontal",
@@ -117893,7 +116690,7 @@
                           "children": [
                             {
                               "type": "icon_font",
-                              "id": "n7804",
+                              "id": "n7724",
                               "name": "fill=#3E4750",
                               "iconFontName": "layout-dashboard",
                               "width": 20.0,
@@ -117909,7 +116706,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n7805",
+                          "id": "n7725",
                           "width": 40.0,
                           "height": 40.0,
                           "layout": "horizontal",
@@ -117925,7 +116722,7 @@
                           "children": [
                             {
                               "type": "icon_font",
-                              "id": "n7806",
+                              "id": "n7726",
                               "name": "fill=#FDA92D",
                               "iconFontName": "briefcase",
                               "width": 20.0,
@@ -117941,7 +116738,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n7807",
+                          "id": "n7727",
                           "width": 40.0,
                           "height": 40.0,
                           "layout": "horizontal",
@@ -117957,7 +116754,7 @@
                           "children": [
                             {
                               "type": "icon_font",
-                              "id": "n7808",
+                              "id": "n7728",
                               "name": "fill=#3E4750",
                               "iconFontName": "shopping-cart",
                               "width": 20.0,
@@ -117973,7 +116770,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n7809",
+                          "id": "n7729",
                           "width": 40.0,
                           "height": 40.0,
                           "layout": "horizontal",
@@ -117989,7 +116786,7 @@
                           "children": [
                             {
                               "type": "icon_font",
-                              "id": "n7810",
+                              "id": "n7730",
                               "name": "fill=#3E4750",
                               "iconFontName": "warehouse",
                               "width": 20.0,
@@ -118007,7 +116804,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7811",
+                      "id": "n7731",
                       "width": "fit_content",
                       "height": "fit_content",
                       "layout": "vertical",
@@ -118020,7 +116817,7 @@
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n7812",
+                          "id": "n7732",
                           "width": 200.0,
                           "height": "fit_content",
                           "layout": "vertical",
@@ -118048,7 +116845,7 @@
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n7813",
+                              "id": "n7733",
                               "width": "fill_container",
                               "height": "fit_content",
                               "padding": [
@@ -118058,7 +116855,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n7814",
+                                  "id": "n7734",
                                   "name": "fill=#637381",
                                   "width": "fit_content",
                                   "height": "fit_content",
@@ -118078,7 +116875,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n7815",
+                              "id": "n7735",
                               "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
@@ -118098,7 +116895,7 @@
                               "children": [
                                 {
                                   "type": "frame",
-                                  "id": "n7816",
+                                  "id": "n7736",
                                   "name": "icon",
                                   "width": 12.0,
                                   "height": 14.0,
@@ -118107,7 +116904,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n7817",
+                                      "id": "n7737",
                                       "name": "fill=#919EAB",
                                       "iconFontName": "circle",
                                       "width": 12.0,
@@ -118123,7 +116920,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n7818",
+                                  "id": "n7738",
                                   "name": "fill=#3E4750",
                                   "width": "fit_content",
                                   "height": "fit_content",
@@ -118142,7 +116939,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n7819",
+                              "id": "n7739",
                               "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
@@ -118162,7 +116959,7 @@
                               "children": [
                                 {
                                   "type": "frame",
-                                  "id": "n7820",
+                                  "id": "n7740",
                                   "name": "icon",
                                   "width": 12.0,
                                   "height": 14.0,
@@ -118171,7 +116968,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n7821",
+                                      "id": "n7741",
                                       "name": "fill=#919EAB",
                                       "iconFontName": "circle",
                                       "width": 12.0,
@@ -118187,7 +116984,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n7822",
+                                  "id": "n7742",
                                   "name": "fill=#3E4750",
                                   "width": "fit_content",
                                   "height": "fit_content",
@@ -118206,7 +117003,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n7823",
+                              "id": "n7743",
                               "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
@@ -118226,7 +117023,7 @@
                               "children": [
                                 {
                                   "type": "frame",
-                                  "id": "n7824",
+                                  "id": "n7744",
                                   "name": "icon",
                                   "width": 12.0,
                                   "height": 14.0,
@@ -118235,7 +117032,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n7825",
+                                      "id": "n7745",
                                       "name": "fill=#919EAB",
                                       "iconFontName": "circle",
                                       "width": 12.0,
@@ -118251,7 +117048,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n7826",
+                                  "id": "n7746",
                                   "name": "fill=#3E4750",
                                   "width": "fit_content",
                                   "height": "fit_content",
@@ -118270,7 +117067,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n7827",
+                              "id": "n7747",
                               "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
@@ -118290,7 +117087,7 @@
                               "children": [
                                 {
                                   "type": "frame",
-                                  "id": "n7828",
+                                  "id": "n7748",
                                   "name": "icon",
                                   "width": 12.0,
                                   "height": 14.0,
@@ -118299,7 +117096,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n7829",
+                                      "id": "n7749",
                                       "name": "fill=#919EAB",
                                       "iconFontName": "circle",
                                       "width": 12.0,
@@ -118315,7 +117112,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n7830",
+                                  "id": "n7750",
                                   "name": "fill=#3E4750",
                                   "width": "fit_content",
                                   "height": "fit_content",
@@ -118334,7 +117131,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n7831",
+                              "id": "n7751",
                               "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
@@ -118354,7 +117151,7 @@
                               "children": [
                                 {
                                   "type": "frame",
-                                  "id": "n7832",
+                                  "id": "n7752",
                                   "name": "icon",
                                   "width": 12.0,
                                   "height": 14.0,
@@ -118363,7 +117160,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n7833",
+                                      "id": "n7753",
                                       "name": "fill=#FDA92D",
                                       "iconFontName": "circle-dot",
                                       "width": 12.0,
@@ -118379,7 +117176,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n7834",
+                                  "id": "n7754",
                                   "name": "fill=#FDA92D",
                                   "width": "fit_content",
                                   "height": "fit_content",
@@ -118398,7 +117195,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n7835",
+                              "id": "n7755",
                               "width": "fill_container",
                               "height": 36.0,
                               "layout": "horizontal",
@@ -118418,7 +117215,7 @@
                               "children": [
                                 {
                                   "type": "frame",
-                                  "id": "n7836",
+                                  "id": "n7756",
                                   "name": "icon",
                                   "width": 12.0,
                                   "height": 14.0,
@@ -118427,7 +117224,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n7837",
+                                      "id": "n7757",
                                       "name": "fill=#919EAB",
                                       "iconFontName": "circle",
                                       "width": 12.0,
@@ -118443,7 +117240,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n7838",
+                                  "id": "n7758",
                                   "name": "fill=#3E4750",
                                   "width": "fit_content",
                                   "height": "fit_content",
@@ -118472,7 +117269,7 @@
         },
         {
           "type": "frame",
-          "id": "n7839",
+          "id": "n7759",
           "width": "fill_container",
           "height": "fit_content",
           "layout": "vertical",
@@ -118480,7 +117277,7 @@
           "children": [
             {
               "type": "text",
-              "id": "n7840",
+              "id": "n7760",
               "name": "fill=#637381",
               "width": "fit_content",
               "height": "fit_content",
@@ -118498,7 +117295,7 @@
             },
             {
               "type": "frame",
-              "id": "n7841",
+              "id": "n7761",
               "width": "fill_container",
               "height": "fit_content",
               "layout": "horizontal",
@@ -118507,7 +117304,7 @@
               "children": [
                 {
                   "type": "frame",
-                  "id": "n7842",
+                  "id": "n7762",
                   "width": 1074.0,
                   "height": 64.0,
                   "layout": "horizontal",
@@ -118553,7 +117350,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n7843",
+                      "id": "n7763",
                       "width": "fill_container",
                       "height": "fill_container",
                       "layout": "horizontal",
@@ -118562,14 +117359,14 @@
                       "children": [
                         {
                           "type": "frame",
-                          "id": "n7844",
+                          "id": "n7764",
                           "width": "fit_content",
                           "height": "fill_container",
                           "layout": "vertical",
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n7845",
+                              "id": "n7765",
                               "width": "fit_content",
                               "height": "fill_container",
                               "layout": "horizontal",
@@ -118584,7 +117381,7 @@
                               "children": [
                                 {
                                   "type": "frame",
-                                  "id": "n7846",
+                                  "id": "n7766",
                                   "name": "icon",
                                   "width": 14.0,
                                   "height": 16.0,
@@ -118593,7 +117390,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n7847",
+                                      "id": "n7767",
                                       "name": "fill=#3E4750",
                                       "iconFontName": "house",
                                       "width": 14.0,
@@ -118609,7 +117406,7 @@
                                 },
                                 {
                                   "type": "text",
-                                  "id": "n7848",
+                                  "id": "n7768",
                                   "name": "fill=#3E4750",
                                   "width": "fit_content",
                                   "height": "fit_content",
@@ -118629,7 +117426,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n7849",
+                              "id": "n7769",
                               "width": "fill_container",
                               "height": 2.0,
                               "fill": [
@@ -118644,14 +117441,14 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n7850",
+                          "id": "n7770",
                           "width": "fit_content",
                           "height": "fill_container",
                           "layout": "vertical",
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n7851",
+                              "id": "n7771",
                               "width": "fit_content",
                               "height": "fill_container",
                               "layout": "horizontal",
@@ -118666,7 +117463,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n7852",
+                                  "id": "n7772",
                                   "name": "fill=#3E4750",
                                   "width": "fit_content",
                                   "height": "fit_content",
@@ -118684,7 +117481,7 @@
                                 },
                                 {
                                   "type": "frame",
-                                  "id": "n7853",
+                                  "id": "n7773",
                                   "width": 24.0,
                                   "height": 24.0,
                                   "layout": "horizontal",
@@ -118694,7 +117491,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n7854",
+                                      "id": "n7774",
                                       "name": "fill=#637381",
                                       "iconFontName": "x",
                                       "width": 14.0,
@@ -118712,7 +117509,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n7855",
+                              "id": "n7775",
                               "width": "fill_container",
                               "height": 2.0,
                               "fill": [
@@ -118727,14 +117524,14 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n7856",
+                          "id": "n7776",
                           "width": "fit_content",
                           "height": "fill_container",
                           "layout": "vertical",
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n7857",
+                              "id": "n7777",
                               "width": "fit_content",
                               "height": "fill_container",
                               "layout": "horizontal",
@@ -118749,7 +117546,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n7858",
+                                  "id": "n7778",
                                   "name": "fill=#FDA92D",
                                   "width": "fit_content",
                                   "height": "fit_content",
@@ -118767,7 +117564,7 @@
                                 },
                                 {
                                   "type": "frame",
-                                  "id": "n7859",
+                                  "id": "n7779",
                                   "width": "fit_content",
                                   "height": "fit_content",
                                   "layout": "horizontal",
@@ -118780,7 +117577,7 @@
                                   "children": [
                                     {
                                       "type": "ellipse",
-                                      "id": "n7860",
+                                      "id": "n7780",
                                       "width": 6.0,
                                       "height": 6.0,
                                       "fill": [
@@ -118794,7 +117591,7 @@
                                 },
                                 {
                                   "type": "frame",
-                                  "id": "n7861",
+                                  "id": "n7781",
                                   "width": 24.0,
                                   "height": 24.0,
                                   "layout": "horizontal",
@@ -118804,7 +117601,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n7862",
+                                      "id": "n7782",
                                       "name": "fill=#FDA92D",
                                       "iconFontName": "x",
                                       "width": 14.0,
@@ -118822,7 +117619,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n7863",
+                              "id": "n7783",
                               "width": "fill_container",
                               "height": 2.0,
                               "fill": [
@@ -118837,14 +117634,14 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n7864",
+                          "id": "n7784",
                           "width": "fit_content",
                           "height": "fill_container",
                           "layout": "vertical",
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n7865",
+                              "id": "n7785",
                               "width": "fit_content",
                               "height": "fill_container",
                               "layout": "horizontal",
@@ -118859,7 +117656,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n7866",
+                                  "id": "n7786",
                                   "name": "fill=#3E4750",
                                   "width": "fit_content",
                                   "height": "fit_content",
@@ -118877,7 +117674,7 @@
                                 },
                                 {
                                   "type": "frame",
-                                  "id": "n7867",
+                                  "id": "n7787",
                                   "width": 24.0,
                                   "height": 24.0,
                                   "layout": "horizontal",
@@ -118887,7 +117684,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n7868",
+                                      "id": "n7788",
                                       "name": "fill=#637381",
                                       "iconFontName": "x",
                                       "width": 14.0,
@@ -118905,7 +117702,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n7869",
+                              "id": "n7789",
                               "width": "fill_container",
                               "height": 2.0,
                               "fill": [
@@ -118920,14 +117717,14 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n7870",
+                          "id": "n7790",
                           "width": "fit_content",
                           "height": "fill_container",
                           "layout": "vertical",
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n7871",
+                              "id": "n7791",
                               "width": "fit_content",
                               "height": "fill_container",
                               "layout": "horizontal",
@@ -118942,7 +117739,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n7872",
+                                  "id": "n7792",
                                   "name": "fill=#3E4750",
                                   "width": "fit_content",
                                   "height": "fit_content",
@@ -118960,7 +117757,7 @@
                                 },
                                 {
                                   "type": "frame",
-                                  "id": "n7873",
+                                  "id": "n7793",
                                   "width": 24.0,
                                   "height": 24.0,
                                   "layout": "horizontal",
@@ -118970,7 +117767,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n7874",
+                                      "id": "n7794",
                                       "name": "fill=#637381",
                                       "iconFontName": "x",
                                       "width": 14.0,
@@ -118988,7 +117785,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n7875",
+                              "id": "n7795",
                               "width": "fill_container",
                               "height": 2.0,
                               "fill": [
@@ -119003,14 +117800,14 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n7876",
+                          "id": "n7796",
                           "width": "fit_content",
                           "height": "fill_container",
                           "layout": "vertical",
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n7877",
+                              "id": "n7797",
                               "width": "fit_content",
                               "height": "fill_container",
                               "layout": "horizontal",
@@ -119025,7 +117822,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n7878",
+                                  "id": "n7798",
                                   "name": "fill=#3E4750",
                                   "width": "fit_content",
                                   "height": "fit_content",
@@ -119043,7 +117840,7 @@
                                 },
                                 {
                                   "type": "frame",
-                                  "id": "n7879",
+                                  "id": "n7799",
                                   "width": 24.0,
                                   "height": 24.0,
                                   "layout": "horizontal",
@@ -119053,7 +117850,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n7880",
+                                      "id": "n7800",
                                       "name": "fill=#637381",
                                       "iconFontName": "x",
                                       "width": 14.0,
@@ -119071,7 +117868,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n7881",
+                              "id": "n7801",
                               "width": "fill_container",
                               "height": 2.0,
                               "fill": [
@@ -119086,14 +117883,14 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n7882",
+                          "id": "n7802",
                           "width": "fit_content",
                           "height": "fill_container",
                           "layout": "vertical",
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n7883",
+                              "id": "n7803",
                               "width": "fit_content",
                               "height": "fill_container",
                               "layout": "horizontal",
@@ -119108,7 +117905,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n7884",
+                                  "id": "n7804",
                                   "name": "fill=#3E4750",
                                   "width": "fit_content",
                                   "height": "fit_content",
@@ -119126,7 +117923,7 @@
                                 },
                                 {
                                   "type": "frame",
-                                  "id": "n7885",
+                                  "id": "n7805",
                                   "width": 24.0,
                                   "height": 24.0,
                                   "layout": "horizontal",
@@ -119136,7 +117933,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n7886",
+                                      "id": "n7806",
                                       "name": "fill=#637381",
                                       "iconFontName": "x",
                                       "width": 14.0,
@@ -119154,7 +117951,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n7887",
+                              "id": "n7807",
                               "width": "fill_container",
                               "height": 2.0,
                               "fill": [
@@ -119169,14 +117966,14 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n7888",
+                          "id": "n7808",
                           "width": "fit_content",
                           "height": "fill_container",
                           "layout": "vertical",
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n7889",
+                              "id": "n7809",
                               "width": "fit_content",
                               "height": "fill_container",
                               "layout": "horizontal",
@@ -119191,7 +117988,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n7890",
+                                  "id": "n7810",
                                   "name": "fill=#3E4750",
                                   "width": "fit_content",
                                   "height": "fit_content",
@@ -119209,7 +118006,7 @@
                                 },
                                 {
                                   "type": "frame",
-                                  "id": "n7891",
+                                  "id": "n7811",
                                   "width": 24.0,
                                   "height": 24.0,
                                   "layout": "horizontal",
@@ -119219,7 +118016,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n7892",
+                                      "id": "n7812",
                                       "name": "fill=#637381",
                                       "iconFontName": "x",
                                       "width": 14.0,
@@ -119237,7 +118034,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n7893",
+                              "id": "n7813",
                               "width": "fill_container",
                               "height": 2.0,
                               "fill": [
@@ -119252,14 +118049,14 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n7894",
+                          "id": "n7814",
                           "width": "fit_content",
                           "height": "fill_container",
                           "layout": "vertical",
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n7895",
+                              "id": "n7815",
                               "width": "fit_content",
                               "height": "fill_container",
                               "layout": "horizontal",
@@ -119274,7 +118071,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n7896",
+                                  "id": "n7816",
                                   "name": "fill=#3E4750",
                                   "width": "fit_content",
                                   "height": "fit_content",
@@ -119292,7 +118089,7 @@
                                 },
                                 {
                                   "type": "frame",
-                                  "id": "n7897",
+                                  "id": "n7817",
                                   "width": 24.0,
                                   "height": 24.0,
                                   "layout": "horizontal",
@@ -119302,7 +118099,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n7898",
+                                      "id": "n7818",
                                       "name": "fill=#637381",
                                       "iconFontName": "x",
                                       "width": 14.0,
@@ -119320,7 +118117,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n7899",
+                              "id": "n7819",
                               "width": "fill_container",
                               "height": 2.0,
                               "fill": [
@@ -119335,14 +118132,14 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n7900",
+                          "id": "n7820",
                           "width": "fit_content",
                           "height": "fill_container",
                           "layout": "vertical",
                           "children": [
                             {
                               "type": "frame",
-                              "id": "n7901",
+                              "id": "n7821",
                               "width": "fit_content",
                               "height": "fill_container",
                               "layout": "horizontal",
@@ -119357,7 +118154,7 @@
                               "children": [
                                 {
                                   "type": "text",
-                                  "id": "n7902",
+                                  "id": "n7822",
                                   "name": "fill=#3E4750",
                                   "width": "fit_content",
                                   "height": "fit_content",
@@ -119375,7 +118172,7 @@
                                 },
                                 {
                                   "type": "frame",
-                                  "id": "n7903",
+                                  "id": "n7823",
                                   "width": 24.0,
                                   "height": 24.0,
                                   "layout": "horizontal",
@@ -119385,7 +118182,7 @@
                                   "children": [
                                     {
                                       "type": "icon_font",
-                                      "id": "n7904",
+                                      "id": "n7824",
                                       "name": "fill=#637381",
                                       "iconFontName": "x",
                                       "width": 14.0,
@@ -119403,7 +118200,7 @@
                             },
                             {
                               "type": "frame",
-                              "id": "n7905",
+                              "id": "n7825",
                               "width": "fill_container",
                               "height": 2.0,
                               "fill": [
@@ -119420,7 +118217,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7906",
+                      "id": "n7826",
                       "width": "fit_content",
                       "height": 32.0,
                       "layout": "horizontal",
@@ -119442,7 +118239,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n7907",
+                          "id": "n7827",
                           "name": "fill=#3E4750",
                           "width": "fit_content",
                           "height": "fit_content",
@@ -119460,7 +118257,7 @@
                         },
                         {
                           "type": "icon_font",
-                          "id": "n7908",
+                          "id": "n7828",
                           "name": "fill=#3E4750",
                           "iconFontName": "chevron-down",
                           "width": 16.0,
@@ -119476,7 +118273,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7909",
+                      "id": "n7829",
                       "width": 1.0,
                       "height": 24.0,
                       "fill": [
@@ -119489,7 +118286,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7910",
+                      "id": "n7830",
                       "width": 36.0,
                       "height": 36.0,
                       "layout": "horizontal",
@@ -119505,7 +118302,7 @@
                       "children": [
                         {
                           "type": "icon_font",
-                          "id": "n7911",
+                          "id": "n7831",
                           "name": "fill=#3E4750",
                           "iconFontName": "swatch-book",
                           "width": 20.0,
@@ -119521,7 +118318,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7912",
+                      "id": "n7832",
                       "width": 36.0,
                       "height": 36.0,
                       "layout": "horizontal",
@@ -119537,7 +118334,7 @@
                       "children": [
                         {
                           "type": "icon_font",
-                          "id": "n7913",
+                          "id": "n7833",
                           "name": "fill=#3E4750",
                           "iconFontName": "languages",
                           "width": 20.0,
@@ -119553,14 +118350,14 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7914",
+                      "id": "n7834",
                       "width": 36.0,
                       "height": 36.0,
                       "layout": "none",
                       "children": [
                         {
                           "type": "icon_font",
-                          "id": "n7915",
+                          "id": "n7835",
                           "name": "fill=#3E4750",
                           "x": 8.0,
                           "y": 8.0,
@@ -119576,7 +118373,7 @@
                         },
                         {
                           "type": "frame",
-                          "id": "n7916",
+                          "id": "n7836",
                           "x": 20.0,
                           "y": 0.0,
                           "width": "fit_content",
@@ -119606,7 +118403,7 @@
                           "children": [
                             {
                               "type": "text",
-                              "id": "n7917",
+                              "id": "n7837",
                               "name": "fill=#FFFFFF",
                               "width": "fit_content",
                               "height": "fit_content",
@@ -119628,7 +118425,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7918",
+                      "id": "n7838",
                       "width": 36.0,
                       "height": 36.0,
                       "layout": "horizontal",
@@ -119644,7 +118441,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n7919",
+                          "id": "n7839",
                           "name": "fill=#FDA92D",
                           "width": "fit_content",
                           "height": "fit_content",
@@ -119666,7 +118463,7 @@
                 },
                 {
                   "type": "frame",
-                  "id": "n7920",
+                  "id": "n7840",
                   "width": "fill_container",
                   "height": "fit_content",
                   "layout": "vertical",
@@ -119694,7 +118491,7 @@
                   "children": [
                     {
                       "type": "frame",
-                      "id": "n7921",
+                      "id": "n7841",
                       "width": "fill_container",
                       "height": "fit_content",
                       "padding": [
@@ -119704,7 +118501,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n7922",
+                          "id": "n7842",
                           "name": "fill=#637381",
                           "width": "fill_container",
                           "height": "fit_content",
@@ -119724,7 +118521,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7923",
+                      "id": "n7843",
                       "width": "fill_container",
                       "height": 34.0,
                       "layout": "horizontal",
@@ -119744,7 +118541,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n7924",
+                          "id": "n7844",
                           "name": "fill=#3E4750",
                           "width": "fill_container",
                           "height": "fit_content",
@@ -119763,7 +118560,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7925",
+                      "id": "n7845",
                       "width": "fill_container",
                       "height": 34.0,
                       "layout": "horizontal",
@@ -119783,7 +118580,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n7926",
+                          "id": "n7846",
                           "name": "fill=#3E4750",
                           "width": "fill_container",
                           "height": "fit_content",
@@ -119802,7 +118599,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7927",
+                      "id": "n7847",
                       "width": "fill_container",
                       "height": 34.0,
                       "layout": "horizontal",
@@ -119822,7 +118619,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n7928",
+                          "id": "n7848",
                           "name": "fill=#FDA92D",
                           "width": "fill_container",
                           "height": "fit_content",
@@ -119839,7 +118636,7 @@
                         },
                         {
                           "type": "ellipse",
-                          "id": "n7929",
+                          "id": "n7849",
                           "width": 6.0,
                           "height": 6.0,
                           "fill": [
@@ -119853,7 +118650,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7930",
+                      "id": "n7850",
                       "width": "fill_container",
                       "height": 34.0,
                       "layout": "horizontal",
@@ -119873,7 +118670,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n7931",
+                          "id": "n7851",
                           "name": "fill=#3E4750",
                           "width": "fill_container",
                           "height": "fit_content",
@@ -119892,7 +118689,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7932",
+                      "id": "n7852",
                       "width": "fill_container",
                       "height": 34.0,
                       "layout": "horizontal",
@@ -119912,7 +118709,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n7933",
+                          "id": "n7853",
                           "name": "fill=#3E4750",
                           "width": "fill_container",
                           "height": "fit_content",
@@ -119931,7 +118728,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7934",
+                      "id": "n7854",
                       "width": "fill_container",
                       "height": 34.0,
                       "layout": "horizontal",
@@ -119951,7 +118748,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n7935",
+                          "id": "n7855",
                           "name": "fill=#3E4750",
                           "width": "fill_container",
                           "height": "fit_content",
@@ -119970,7 +118767,7 @@
                     },
                     {
                       "type": "frame",
-                      "id": "n7936",
+                      "id": "n7856",
                       "width": "fill_container",
                       "height": "fit_content",
                       "padding": [
@@ -119980,7 +118777,7 @@
                       "children": [
                         {
                           "type": "text",
-                          "id": "n7937",
+                          "id": "n7857",
                           "name": "fill=#919EAB",
                           "width": "fit_content",
                           "height": "fit_content",

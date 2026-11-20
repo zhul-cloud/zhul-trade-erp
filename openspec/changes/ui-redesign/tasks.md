@@ -29,6 +29,8 @@
 - [ ] 4.3 改掉编译抓不到的渐变和旧字体：`LOGO_GRADIENT_STOPS` 和 `BrandLogo`、`public/logo.svg`、`public/favicon.ico`、`AuthLayout` 的光晕、4 处 `IBM Plex Mono`。默认 Logo 按 `site-appearance` 增量实现；用 BrowserOS neo 截图核对登录页、侧边栏和浏览器标签图标
 - [ ] 4.4 更新 `src/theme/antd.ts`、`shell.ts`、`AppTheme.tsx`：主按钮、危险按钮、圆角、阴影、焦点色、状态标签（按 `status-colors.md`），加入 Public Sans 依赖。验证：切换主题后弹窗、消息、登录页都跟着变
 - [ ] 4.5 补 Jest 测试：主题切换后的令牌、默认 Logo 随主题变化、浏览器标签图标固定为功能蓝；验证 `npm test` 通过
+- [ ] 4.6 按定稿的外壳原型（F1–F1d）改外壳：`TopBar`、`AppLogo`、`SidebarUser`、`AvatarDropdown`、`PageTabs`、`ThemeToggle`（改为主题设置弹出层）、`LangDropdown`、`NotificationBell`，补「跳到主要内容」；删除 `VersionDropdown` 和 `AvatarDropdown` 的模板遗留分支。主题设置的模式、主题色、涨跌颜色保存在本机浏览器，读写失败时用默认值。验证：Jest 覆盖主题设置三项的保存与恢复、收起侧栏状态、全部标签下拉的数量；`npm run lint`、`npm test` 通过；用 BrowserOS neo 截图与 F 图逐张对照（浅色、深色、收起侧栏、1366 宽开满 10 个标签），键盘能用 Tab、Enter、Esc 打开和关闭两个弹出层，关闭后焦点回到触发按钮
+- [ ] 4.7 涨跌颜色落地：提供按方向取色的统一方法（默认涨红跌绿），替换 `design.md` 第 8 节涨跌颜色一条里「纳入的地方」按正负着色的代码，去掉 `higherIsBetter` 对颜色的影响；告警色不动。验证：Jest 覆盖两种设置下的上涨、下跌、盈利、亏损、零值；用搜索核对列出的文件不再直接按正负写死绿色或红色
 
 ## 5. 骨架组件与检查规则
 
