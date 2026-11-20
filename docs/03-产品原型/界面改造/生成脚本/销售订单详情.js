@@ -99,12 +99,12 @@ const COST_ROWS = [
 ];
 function costCard(T, parent, scrolled) {
   const { tx, box, icon, card, label } = kit(T);
-  const c = card(parent, { width: scrolled ? 792 : 'fill_container', layout: 'vertical', clipContent: true });
+  const c = card(parent, { width: scrolled ? 1148 : 'fill_container', layout: 'vertical', clipContent: true });
   const chd = box(c, { width: 'fill_container', layout: 'vertical', gap: 8, padding: [18, 24, 14, 24] });
   const ch1 = box(chd, { layout: 'horizontal', gap: 8, alignItems: 'center' });
   tx(ch1, '成本明细', { fontSize: 18, fontWeight: 500, fill: solid(T.ink) }); icon(ch1, 'info', 14, T.sub); label(ch1, '未结算', T.st.warn);
   tx(chd, '还差：货款没收齐 · 1 个型号没下采购订单 · 4 个型号没入库', { fontSize: 12, fill: solid(T.sub) });
-  const cols = scrolled ? COST_COLS.slice(10) : COST_COLS.slice(0, 7);
+  const cols = scrolled ? COST_COLS.slice(6) : COST_COLS.slice(0, 9);
   const t = box(c, { width: 'fill_container', layout: 'horizontal' });
   const fixedCol = box(t, { width: 260, layout: 'vertical', fill: solid(T.card), effects: scrolled ? [{ type: 'shadow', offsetX: 6, offsetY: 0, blur: 8, spread: -4, color: T.key === 'light' ? 'rgba(145,158,171,0.35)' : 'rgba(0,0,0,0.6)' }] : [] });
   const sc = box(t, { width: 'fill_container', layout: 'vertical', clipContent: true });
@@ -170,6 +170,8 @@ function detail(T, name) {
   const body = box(content, { width: 'fill_container', layout: 'horizontal', gap: 16 });
   const L = box(body, { width: 'fill_container', layout: 'vertical', gap: 16 });
   const R = box(body, { width: 340, layout: 'vertical', gap: 16 });
+  // 宽表放通栏（Carbon：把最多的宽度留给数据表格）
+  const F = box(content, { width: 'fill_container', layout: 'vertical', gap: 16 });
 
   // ① 信息卡：PrimeDash Customer Info 等 tonal 卡片，2×2
   const infoCard = (p, title, ic, primary) => {
@@ -221,8 +223,8 @@ function detail(T, name) {
     tx(g, hint, { fontSize: 12, fill: solid(T.sub), width: 'fill_container', height: 34, textGrowth: 'fixed-width-height', lineHeight: 1.4 });
   }
 
-  // ③ 型号明细：表格卡片（可横向滚动），工具行左侧数量
-  c = card(L, { width: 'fill_container', layout: 'vertical', clipContent: true });
+  // ③ 型号明细：通栏表格，勾选、序号、品牌、品类、型号固定在左，其余横向滚动
+  c = card(F, { width: 'fill_container', layout: 'vertical', clipContent: true });
   const th = box(c, { width: 'fill_container', layout: 'horizontal', alignItems: 'center', gap: 8, padding: [18, 24, 14, 24] });
   tx(th, '型号明细', { fontSize: 18, fontWeight: 500, fill: solid(T.ink) }); icon(th, 'info', 14, T.sub);
   tx(th, '4 个型号 · 23 件', { fontSize: 13, fill: solid(T.sub) });
@@ -233,14 +235,27 @@ function detail(T, name) {
     { br: 'AB', ca: 'PLC', m: '1769-L33ER', d: 'CompactLogix 5370 控制器', q: '5', up: 'USD 1,200.00', amt: 'USD 6,000.00', pu: '林熙', g: [[5, G.transit]], gl: [['在途 5 · 预计 11-26 到', G.transit]], docs: ['PO20261119003', 'SD20261121002 在途 5'], pr: ['已下单', 'info'] },
     { br: '西门子', ca: '电源', m: '6EP1334-3BA10', d: 'SITOP PSU100S 24V/10A', q: '3', up: 'USD 200.00', amt: 'USD 600.00', pu: '', g: [[3, G.pendBuy]], gl: [['待采购 3', 'warnLabel']], docs: [], pr: ['待采购', 'neu'] },
   ];
-  const tb = box(c, { width: 'fill_container', layout: 'vertical', clipContent: true });
-  const hdr = box(tb, { layout: 'horizontal', height: 52, alignItems: 'center', fill: solid(T.head), padding: [0, 0, 0, 16] });
+  const NFIX = 5;
+  const fixW = cols.slice(0, NFIX).reduce((a, [, w]) => a + w, 0) + 16;
+  const tw = box(c, { width: 'fill_container', layout: 'horizontal' });
+  const fx = box(tw, { width: fixW, layout: 'vertical', fill: solid(T.card) });
+  const sc = box(tw, { width: 'fill_container', layout: 'vertical', clipContent: true });
   const chk = (p, on) => { const b = box(p, { width: 18, height: 18, cornerRadius: 4, layout: 'horizontal', justifyContent: 'center', alignItems: 'center', fill: solid(on ? P : T.card), stroke: on ? undefined : { thickness: 1.5, fill: solid(T.faint) } }); if (on) icon(b, 'check', 14, '#FFFFFF', false); };
-  for (const [h, w] of cols) { const hc = box(hdr, { width: w, layout: 'horizontal', alignItems: 'center', justifyContent: ['数量', '单价', '小计'].includes(h) ? 'end' : 'start', padding: ['数量', '单价', '小计'].includes(h) ? [0, 12, 0, 0] : 0 }); if (w === 40) chk(hc, 0); else tx(hc, h, { fontWeight: 500, fill: solid(T.ink) }); }
+  const right = ['数量', '单价', '小计'];
+  const hf = box(fx, { width: 'fill_container', height: 52, layout: 'horizontal', alignItems: 'center', fill: solid(T.head), padding: [0, 0, 0, 16] });
+  const hs = box(sc, { layout: 'horizontal', height: 52, alignItems: 'center', fill: solid(T.head) });
+  cols.forEach(([h, w], ci) => {
+    const hc = box(ci < NFIX ? hf : hs, { width: w, layout: 'horizontal', alignItems: 'center', justifyContent: right.includes(h) ? 'end' : 'start', padding: right.includes(h) ? [0, 12, 0, 0] : 0 });
+    if (ci === 0) chk(hc, 0); else tx(hc, h, { fontWeight: 500, fill: solid(T.ink) });
+  });
   items.forEach((it, idx) => {
-    I(tb, { type: 'frame', width: 2000, height: 1, fill: solid(T.line) });
-    const r = box(tb, { layout: 'horizontal', alignItems: 'center', padding: [14, 0, 14, 16] });
-    const cell = (w, o) => box(r, Object.assign({ width: w, layout: 'vertical', gap: 4 }, o || {}));
+    const RH = it.remark ? 108 : 88;
+    I(fx, { type: 'frame', width: 'fill_container', height: 1, fill: solid(T.line) });
+    I(sc, { type: 'frame', width: 2000, height: 1, fill: solid(T.line) });
+    const rf = box(fx, { width: 'fill_container', height: RH, layout: 'horizontal', alignItems: 'center', padding: [0, 0, 0, 16] });
+    const rs = box(sc, { layout: 'horizontal', height: RH, alignItems: 'center' });
+    let ci = 0;
+    const cell = (w, o) => box(ci++ < NFIX ? rf : rs, Object.assign({ width: w, layout: 'vertical', gap: 4 }, o || {}));
     const rt = (w) => cell(w, { alignItems: 'end', padding: [0, 12, 0, 0] });
     chk(cell(40), 0);
     tx(cell(36), String(idx + 1), { fontFamily: NUM, fill: solid(T.sub) });
@@ -269,10 +284,11 @@ function detail(T, name) {
     label(cell(100), it.pr[0], T.st[it.pr[1]]);
   });
   const sb = box(c, { width: 'fill_container', height: 14, layout: 'horizontal', padding: [5, 24], fill: solid(T.card) });
-  I(sb, { type: 'frame', width: 300, height: 4, cornerRadius: 2, fill: solid(T.faint) });
+  box(sb, { width: fixW - 24 });
+  I(sb, { type: 'frame', width: 420, height: 4, cornerRadius: 2, fill: solid(T.faint) });
 
-  // ④ 金额与条款：PrimeDash Price & Taxes 的「标签：数值」行
-  c = card(L, { width: 'fill_container', layout: 'vertical', gap: 10, padding: [20, 24] });
+  // ④ 金额与条款：PrimeDash Price & Taxes 的「标签：数值」行（通栏）
+  c = card(F, { width: 'fill_container', layout: 'vertical', gap: 10, padding: [20, 24] });
   cardHead(c, '金额与条款');
   const two = box(c, { width: 'fill_container', layout: 'horizontal', gap: 32 });
   const tl = box(two, { width: 'fill_container', layout: 'vertical' });
@@ -319,12 +335,12 @@ function detail(T, name) {
   textBtn(rm, '编辑', 'pencil');
 
   // ⑦ 成本明细（表格，横向滚动；列顺序照 CostCard）
-  costCard(T, L, false);
+  costCard(T, F, false);
 
-  // ⑧ 销售出库单
-  c = card(L, { width: 'fill_container', layout: 'vertical', gap: 12, padding: [20, 24] });
+  // ⑧ 销售出库单（通栏）
+  c = card(F, { width: 'fill_container', layout: 'vertical', gap: 12, padding: [20, 24] });
   cardHead(c, '销售出库单');
-  tx(c, '还没有销售出库单', { fill: solid(T.sub) });
+  tx(c, '发货通知后生成销售出库单', { fill: solid(T.sub) });
 
   // —— 右侧栏 ——
   // 收款
@@ -361,7 +377,7 @@ function detail(T, name) {
   // 费用订单
   c = card(R, { width: 'fill_container', layout: 'vertical', gap: 12, padding: [20, 20] });
   const fh = cardHead(c, '费用订单', { help: 1 }); textBtn(fh, '新建', 'plus');
-  tx(c, '没有费用订单', { fill: solid(T.sub) });
+  tx(c, '订单收齐款后还要另收运费等费用时新建', { fill: solid(T.sub), width: 'fill_container', textGrowth: 'fixed-width', lineHeight: 1.5 });
 
   // 订单毛利
   c = card(R, { width: 'fill_container', layout: 'vertical', gap: 4, padding: [20, 20] });
@@ -465,7 +481,7 @@ function stateCombo(T, name) {
 
 // 成本明细滚到最右
 function costScrolled(T, name) {
-  const root = I(null, { type: 'frame', name, width: 840, height: 520, layout: 'vertical', padding: [24, 24], fill: solid(T.page) });
+  const root = I(null, { type: 'frame', name, width: 1196, height: 520, layout: 'vertical', padding: [24, 24], fill: solid(T.page) });
   costCard(T, root, true);
 }
 
