@@ -71,9 +71,9 @@ public class ForwarderController {
 
     @PutMapping("/{id}/status")
     @PreAuthorize("@perm.has('logistics:forwarder:status')")
-    public Result<Void> updateStatus(@PathVariable Long id, @RequestBody Map<String, Integer> body) {
-        service.updateStatus(id, body.get("status"));
-        return Result.ok();
+    /** 返回停用时的提示（货代仓还有货），没有提示为 null */
+    public Result<String> updateStatus(@PathVariable Long id, @RequestBody Map<String, Integer> body) {
+        return Result.ok(service.updateStatus(id, body.get("status")));
     }
 
     /** 客户详情「客户指定货代」：客户在自己的数据范围内即可查看 */

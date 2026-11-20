@@ -7,7 +7,7 @@
 - [x] 2.1 迁移 V1.5.55：`inv_warehouse`、`inv_batch`、`inv_move`、`inv_balance`、`inv_reservation`、`inv_other_outbound`(`_item`)；`purchase_return` 增加来源「库存退回」与批次、状态列；菜单与权限（闲置库存停用，新增 5 个菜单）；回退脚本 → 验证：本机迁移、回退、再迁移各一次成功
 - [x] 2.2 新表在 `TenantTables` 归为私有，`DocumentProductTables` 登记带 `product_id` 的库存表 → 验证：`TenantIsolationContractTest`、`DocumentProductTablesContractTest` 通过
 - [x] 2.3 `InventoryPosting` 过账服务：按操作类型（入库、出库、调入调出、转入转出、预占释放）记流水，反向冲销取相反操作类型；余额不能为负、同一流水不能重复冲销、固定加锁顺序 → 验证：`InventoryPostingTest` 覆盖零值、负数、重复冲销、并发两笔出同一批次只成功一笔
-- [ ] 2.4 仓库档案：自有仓、货代仓随货代新建与改名；库存模式设置与操作日志 → 验证：契约测试「新建货代自动建仓」「修改库存模式写日志」
+- [x] 2.4 仓库档案：自有仓、货代仓随货代新建与改名；库存模式设置与操作日志 → 验证：契约测试「新建货代自动建仓」「修改库存模式写日志」
 
 ## 3. 现有单据接入过账
 

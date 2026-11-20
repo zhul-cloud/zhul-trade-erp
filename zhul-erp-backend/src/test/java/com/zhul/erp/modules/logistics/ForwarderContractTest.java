@@ -66,6 +66,7 @@ class ForwarderContractTest extends IntegrationTestBase {
     }
 
     private void cleanup() {
+        jdbc.update("delete from inv_warehouse where tenant_id = 0 and forwarder_id in (select id from supplier where tenant_id = 0 and name like 'ITFW%')");
         jdbc.update("delete from supplier_bank_account where supplier_id in (select id from supplier where tenant_id = 0 and name like 'ITFW%')");
         jdbc.update("delete from supplier where tenant_id = 0 and name like 'ITFW%'");
         jdbc.update("delete from customer_contact where tenant_id = 0");
@@ -165,6 +166,36 @@ class ForwarderContractTest extends IntegrationTestBase {
         TenantContext.setTenantId(0);
         mergeService.merge(acme, siam);
         assertEquals(acme, jdbc.queryForObject("select customer_id from supplier where id = ?", Long.class, siamFw));
+    }
+
+    /** spec logistics/forwarder「新建货代自动建仓」：名称、状态跟着货代；停用时货代仓有货给出提示 */
+    @Test
+    void createForwarder_createsWarehouse_followsNameAndStatus() throws Exception {
+        long fw = forwarder("ITFW 深圳捷运国际", null);
+        Map<String, Object> w = jdbc.queryForMap("select id, name, type, status from inv_warehouse where tenant_id = 0 and forwarder_id = ?", fw);
+        assertEquals("ITFW 深圳捷运国际", w.get("name"));
+        assertEquals(2, ((Number) w.get("type")).intValue(), "货代仓");
+        long wid = ((Number) w.get("id")).longValue();
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("name", "ITFW 深圳捷运");
+        body.put("volumeDivisor", 6000);
+        body.put("status", 1);
+        ok(call(json(put(FW + "/" + fw), body)));
+        assertEquals("ITFW 深圳捷运", jdbc.queryForObject("select name from inv_warehouse where id = ?", String.class, wid), "改名跟着货代");
+
+        JsonNode none = ok(call(json(put(FW + "/" + fw + "/status"), Map.of("status", 0))));
+        assertTrue(none.isNull() || none.isMissingNode(), "没有货不提示");
+        assertEquals(0, jdbc.queryForObject("select status from inv_warehouse where id = ?", Integer.class, wid), "停用跟着货代");
+        ok(call(json(put(FW + "/" + fw + "/status"), Map.of("status", 1))));
+        jdbc.update("insert into inv_balance (tenant_id, warehouse_id, product_id, batch_id, stock_status, on_hand, reserved) values (0, ?, 1, 1, 1, 3, 0)", wid);
+        try {
+            assertEquals("货代仓还有 3 件货", ok(call(json(put(FW + "/" + fw + "/status"), Map.of("status", 0)))).asText());
+        } finally {
+            jdbc.update("delete from inv_balance where tenant_id = 0 and warehouse_id = ?", wid);
+        }
+        assertEquals(1, jdbc.queryForObject("select count(*) from inv_warehouse where tenant_id = 0 and forwarder_id = ?", Integer.class, fw),
+                "只有一个货代仓");
     }
 
     /** audit BUS-085：只有费用管理菜单的财务也能取货代列表（费用单收款方选「货代」） */

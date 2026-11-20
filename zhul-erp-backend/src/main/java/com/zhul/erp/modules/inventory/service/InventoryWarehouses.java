@@ -35,6 +35,7 @@ public class InventoryWarehouses {
     private final InvBatchMapper batchMapper;
     private final SysConfigMapper sysConfigMapper;
     private final SupplierMapper supplierMapper;
+    private final com.zhul.erp.modules.inventory.repository.InvBalanceMapper balanceMapper;
 
     /** 本租户的自有仓，没有就建 */
     public InvWarehouseDO own() {
@@ -63,6 +64,44 @@ public class InventoryWarehouses {
         lockTenantWarehouses();
         w = findForwarder(forwarderId);
         return w != null ? w : create(InvConstants.WH_FORWARDER, s.getName(), forwarderId);
+    }
+
+    /**
+     * 新建、修改、启停货代后同步货代仓（spec logistics/forwarder）：没有就建，名称、状态跟着货代。在货代的事务内执行。
+     */
+    public InvWarehouseDO syncForwarder(Long forwarderId, String name, Integer status) {
+        InvWarehouseDO w = forwarder(forwarderId);
+        String n = name == null ? w.getName() : (name.length() > 64 ? name.substring(0, 64) : name);
+        int st = status == null ? w.getStatus() : (status == 1 ? 1 : 0);
+        if (!Objects.equals(w.getName(), n) || w.getStatus() != st) {
+            w.setName(n);
+            w.setStatus(st);
+            w.setUpdateTime(java.time.LocalDateTime.now());
+            warehouseMapper.updateById(w);
+        }
+        return w;
+    }
+
+    /** 某仓库的结存件数（合格 + 不良） */
+    public int onHand(Long warehouseId) {
+        Integer n = onHandOf(List.of(warehouseId)).get(warehouseId);
+        return n == null ? 0 : n;
+    }
+
+    /** 各仓库的结存件数 */
+    public java.util.Map<Long, Integer> onHandOf(java.util.Collection<Long> warehouseIds) {
+        java.util.Map<Long, Integer> out = new java.util.HashMap<>();
+        if (warehouseIds.isEmpty()) {
+            return out;
+        }
+        balanceMapper.selectList(new LambdaQueryWrapper<com.zhul.erp.modules.inventory.entity.InvBalanceDO>()
+                        .select(com.zhul.erp.modules.inventory.entity.InvBalanceDO::getWarehouseId,
+                                com.zhul.erp.modules.inventory.entity.InvBalanceDO::getOnHand)
+                        .eq(com.zhul.erp.modules.inventory.entity.InvBalanceDO::getTenantId, PiStore.tenantId())
+                        .in(com.zhul.erp.modules.inventory.entity.InvBalanceDO::getWarehouseId, warehouseIds)
+                        .gt(com.zhul.erp.modules.inventory.entity.InvBalanceDO::getOnHand, 0))
+                .forEach(b -> out.merge(b.getWarehouseId(), b.getOnHand(), Integer::sum));
+        return out;
     }
 
     public InvWarehouseDO require(Long id) {

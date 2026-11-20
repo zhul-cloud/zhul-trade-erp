@@ -403,6 +403,52 @@ class InventoryFlowContractTest extends SalesContractSupport {
         assertStock(new int[]{3, 0, 3}, stock(product, 1), "寄出：不良 1 出库");
     }
 
+    // ---------------------------------------------------------------- 仓库档案与库存模式
+
+    /** spec warehouse/inventory「库存模式」「仓库档案」：改模式写操作日志；自有仓可改名，货代仓不能 */
+    @Test
+    void warehouseArchive_modeLogged_renameOwnOnly() throws Exception {
+        String WH = "/api/v1/warehouse/warehouses";
+        long logsBefore = jdbc.queryForObject("select count(*) from sys_log where menu = '仓库档案' and operation = '修改库存模式'", Long.class);
+        assertEquals("dropship", ok(call(get(WH + "/mode"), admin)).path("mode").asText(), "默认无货源");
+        try {
+            assertEquals("库存模式", ok(call(json(put(WH + "/mode"), "{\"mode\":\"stock\"}"), admin)).path("modeName").asText());
+            assertEquals(logsBefore + 1, jdbc.queryForObject("select count(*) from sys_log where menu = '仓库档案' and operation = '修改库存模式'",
+                    Long.class));
+            ok(call(json(put(WH + "/mode"), "{\"mode\":\"stock\"}"), admin));
+            assertEquals(logsBefore + 1, jdbc.queryForObject("select count(*) from sys_log where menu = '仓库档案' and operation = '修改库存模式'",
+                    Long.class), "没变不记");
+            assertEquals("库存模式不正确", fail(call(json(put(WH + "/mode"), "{\"mode\":\"x\"}"), admin)).path("message").asText());
+        } finally {
+            ok(call(json(put(WH + "/mode"), "{\"mode\":\"dropship\"}"), admin));
+        }
+
+        jdbc.update("insert into inv_warehouse (tenant_id, code, name, type, forwarder_id) values (0, 'WH9901', '深圳捷运', 2, ?)", forwarder());
+        JsonNode list = ok(call(get(WH), admin));
+        JsonNode own = null;
+        JsonNode fwd = null;
+        for (JsonNode w : list) {
+            if (w.path("type").asInt() == 1) {
+                own = w;
+            } else if ("深圳捷运".equals(w.path("name").asText())) {
+                fwd = w;
+            }
+        }
+        assertEquals("自有仓", own.path("typeName").asText());
+        assertTrue(own.path("code").asText().startsWith("WH"));
+        assertEquals("货代仓", fwd.path("typeName").asText());
+        String name = own.path("name").asText();
+        try {
+            ok(call(json(put(WH + "/" + own.path("id").asLong()), "{\"name\":\"深圳仓\"}"), admin));
+            assertEquals("深圳仓", jdbc.queryForObject("select name from inv_warehouse where id = ?", String.class, own.path("id").asLong()));
+        } finally {
+            jdbc.update("update inv_warehouse set name = ? where id = ?", name, own.path("id").asLong());
+        }
+        assertEquals("货代仓名称跟着货代，请在货代管理修改",
+                fail(call(json(put(WH + "/" + fwd.path("id").asLong()), "{\"name\":\"x\"}"), admin)).path("message").asText());
+        assertEquals(403, perform(json(put(WH + "/mode"), "{\"mode\":\"stock\"}"), keeper).getStatus(), "仓库档案只给租户管理员");
+    }
+
     // ---------------------------------------------------------------- 其他出库单
 
     private JsonNode otherOut(int type, long warehouseId, long batchId, int status, int qty, String reason) throws Exception {
