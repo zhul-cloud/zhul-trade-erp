@@ -1,5 +1,12 @@
-import json,subprocess
-d=json.loads(subprocess.run(['op','get','--depth','30'],capture_output=True,text=True,encoding='utf-8').stdout)
+import json,subprocess,time
+# op 偶尔返回空输出（连接抖动），读画布失败时重试
+for i in range(4):
+    out=subprocess.run(['op','get','--depth','30'],capture_output=True,text=True,encoding='utf-8').stdout
+    try:
+        d=json.loads(out); break
+    except ValueError:
+        if i==3: raise
+        time.sleep(3)
 todo=[]
 def walk(n):
     nm=n.get('name') or ''

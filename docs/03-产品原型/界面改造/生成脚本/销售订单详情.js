@@ -116,7 +116,7 @@ function costCard(T, parent, scrolled) {
   tx(fh, '型号', { fontSize: 13, fontWeight: 500, fill: solid(T.ink) });
   const hh = box(sc, { width: 2000, layout: 'horizontal', height: 44, alignItems: 'center', fill: solid(T.head) });
   for (const [h, w] of cols) { const hc = box(hh, { width: w, layout: 'horizontal', justifyContent: 'end', padding: [0, 12, 0, 0] }); tx(hc, h, { fontSize: 13, fontWeight: 500, fill: solid(T.ink) }); }
-  const val = (r, h) => ({ '采购货款': [r.pv, 1], '实际成本': [r.cost, 0, 1], '行收入': [r.rev], '行毛利': [r.pf + ' · ' + r.pr, 0, 1, T.st.ok[0]] })[h] || ['—'];
+  const val = (r, h) => ({ '采购货款': [r.pv, 1], '实际成本': [r.cost, 0, 1], '行收入': [r.rev], '行毛利': [r.pf + ' · ' + r.pr, 0, 1, T.st.err[0]] })[h] || ['—'];
   for (const r of COST_ROWS) {
     const RH = 64 + 26 * (r.tips.length - 1);
     I(fixedCol, { type: 'frame', width: 'fill_container', height: 1, fill: solid(T.line) });
@@ -127,7 +127,7 @@ function costCard(T, parent, scrolled) {
     for (const tp of r.tips) label(mc, tp, T.st.warn, 'triangle-alert');
     I(rc, { type: 'frame', width: 'fill_container', height: 1, fill: solid(T.line) });
     const rcr = box(rc, { width: 'fill_container', height: RH, layout: 'horizontal', alignItems: 'center', justifyContent: 'end', padding: [0, 24, 0, 0] });
-    tx(rcr, r.pf + ' · ' + r.pr, { fontSize: 13, fontWeight: 600, fontFamily: NUM, fill: solid(T.st.ok[0]) });
+    tx(rcr, r.pf + ' · ' + r.pr, { fontSize: 13, fontWeight: 600, fontFamily: NUM, fill: solid(T.st.err[0]) });
     const row = box(sc, { layout: 'horizontal', height: RH, alignItems: 'center' });
     for (const [h, w] of cols) {
       const [v, dim, bold, col] = val(r, h);
@@ -141,9 +141,9 @@ function costCard(T, parent, scrolled) {
   tx(ft, '合计', { fontWeight: 600, fill: solid(T.ink) });
   I(rc, { type: 'frame', width: 'fill_container', height: 1, fill: solid(T.line) });
   const rct = box(rc, { width: 'fill_container', height: 48, layout: 'horizontal', alignItems: 'center', justifyContent: 'end', padding: [0, 24, 0, 0], fill: solid(T.head) });
-  tx(rct, 'CNY 24,256.00 · 26.57%', { fontSize: 13, fontWeight: 600, fontFamily: NUM, fill: solid(T.st.ok[0]) });
+  tx(rct, 'CNY 24,256.00 · 26.57%', { fontSize: 13, fontWeight: 600, fontFamily: NUM, fill: solid(T.st.err[0]) });
   const fr = box(sc, { width: 2000, layout: 'horizontal', height: 48, alignItems: 'center', fill: solid(T.head) });
-  const tot = { '实际成本': ['CNY 67,050.00', T.ink], '退款': ['—', T.faint], '行收入': ['CNY 91,306.00', T.ink], '行毛利': ['CNY 24,256.00 · 26.57%', T.st.ok[0]] };
+  const tot = { '实际成本': ['CNY 67,050.00', T.ink], '退款': ['—', T.faint], '行收入': ['CNY 91,306.00', T.ink], '行毛利': ['CNY 24,256.00 · 26.57%', T.st.err[0]] };
   for (const [h, w] of cols) { const cc = box(fr, { width: w, layout: 'horizontal', justifyContent: 'end', padding: [0, 12, 0, 0] }); const v = tot[h]; if (v) tx(cc, v[0], { fontSize: 13, fontWeight: 600, fontFamily: NUM, fill: solid(v[1]) }); }
   const sb = box(c, { width: 'fill_container', height: 14, layout: 'horizontal', padding: [5, 24], fill: solid(T.card) });
   if (scrolled) box(sb, { width: 380 });
@@ -403,7 +403,7 @@ function detail(T, name) {
   kv(c, '实际成本', 'CNY 67,050.00', { num: 1, right: 1, kw: 72 });
   const pf = box(c, { width: 'fill_container', height: 52, layout: 'horizontal', alignItems: 'center', padding: [0, 4] });
   tx(pf, '预计毛利 · 26.57%', { fontWeight: 600, fill: solid(T.ink), width: 'fill_container' });
-  tx(pf, 'CNY 24,256.00', { fontSize: 20, fontWeight: 700, fontFamily: NUM, fill: solid(T.st.ok[0]) });
+  tx(pf, 'CNY 24,256.00', { fontSize: 20, fontWeight: 700, fontFamily: NUM, fill: solid(T.st.err[0]) });  // 盈利同涨色，默认涨红跌绿
 }
 
 // 状态补充：勾选型号后的批量操作行；「更多」菜单
@@ -426,7 +426,8 @@ function states(T, name) {
   // 「更多」菜单：低频操作收进来，取消订单标红
   const col = box(root, { layout: 'vertical', gap: 8, alignItems: 'end' });
   const mb = box(col, { width: 36, height: 36, cornerRadius: 18, layout: 'horizontal', justifyContent: 'center', alignItems: 'center', fill: solid(T.navOn) }); icon(mb, 'ellipsis', 20, T.body, false);
-  const menu = box(col, Object.assign({ width: 180, layout: 'vertical', padding: [6, 6], cornerRadius: 8, fill: solid(T.card), effects: T.key === 'light' ? [{ type: 'shadow', offsetX: 0, offsetY: 8, blur: 16, spread: 0, color: 'rgba(145,158,171,0.24)' }] : [] }, T.stroke ? { stroke: T.stroke } : {}));
+  // 弹出层：深色 #222222 底加 1px #3A3A3A 边（与外壳原型一致）
+  const menu = box(col, Object.assign({ width: 180, layout: 'vertical', padding: [6, 6], cornerRadius: 8 }, T.key === 'light' ? { fill: solid(T.card), effects: [{ type: 'shadow', offsetX: 0, offsetY: 8, blur: 16, spread: 0, color: 'rgba(145,158,171,0.24)' }] } : { fill: solid('#222222'), stroke: { thickness: 1, fill: solid('#3A3A3A') } }));
   for (const [t, ic, red] of [['申请退款', 'undo-2'], ['部分取消', 'circle-minus'], ['取消订单', 'ban', 1]]) {
     if (red) I(menu, { type: 'frame', width: 'fill_container', height: 1, fill: solid(T.line) });
     const it = box(menu, { width: 'fill_container', height: 38, layout: 'horizontal', gap: 10, alignItems: 'center', padding: [0, 10], cornerRadius: 6 });

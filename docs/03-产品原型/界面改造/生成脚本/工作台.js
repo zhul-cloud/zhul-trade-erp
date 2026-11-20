@@ -108,7 +108,7 @@ function workbench(T, name, boards) {
     if (o.more) { const m = box(r, { layout: 'horizontal', gap: 2, alignItems: 'center' }); tx(m, o.more, { fontSize: 13, fontWeight: 500, fill: solid(P) }); icon(m, 'chevron-right', 14, P); }
     return c;
   };
-  // 指标：数值 22/700，较上月变化（变好绿、变坏红）或说明
+  // 指标：数值 22/700，较上月变化（按方向着色，默认涨红跌绿）或说明
   const metric = (p, l, v, o) => {
     o = o || {};
     // 指标小卡照 PrimeDash 统计块：白底细边框，图标的彩色浅底才清楚
@@ -116,7 +116,7 @@ function workbench(T, name, boards) {
     // 图标 24 与标签同一行（不单独占行，免得把卡片挤出第一屏）
     const lr = box(m, { layout: 'horizontal', gap: 8, alignItems: 'center' }); if (o.ic) avatar(lr, o.ic, o.tn, 24, true); tx(lr, l, { fontSize: 13, fill: solid(T.sub) }); if (o.link) icon(lr, 'chevron-right', 12, T.sub);
     tx(m, v, { fontSize: 22, fontWeight: 700, fontFamily: NUM, fill: solid(T.ink) });
-    if (o.delta) { const up = o.delta[0] === '+'; const col = (up === (o.better !== false)) ? T.st.ok[0] : T.st.err[0]; const d = box(m, { layout: 'horizontal', gap: 4, alignItems: 'center' }); icon(d, up ? 'trending-up' : 'trending-down', 14, col); tx(d, '较上月 ' + o.delta, { fontSize: 12, fontFamily: NUM, fill: solid(col) }); }
+    if (o.delta) { const up = o.delta[0] === '+'; const col = up ? T.st.err[0] : T.st.ok[0]; const d = box(m, { layout: 'horizontal', gap: 4, alignItems: 'center' }); icon(d, up ? 'trending-up' : 'trending-down', 14, col); tx(d, '较上月 ' + o.delta, { fontSize: 12, fontFamily: NUM, fill: solid(col) }); }
     if (o.hint) tx(m, o.hint, { fontSize: 12, fill: solid(o.hintCol || T.sub) });
     else if (!o.delta) box(m, { width: 10, height: 17 });
   };
@@ -200,7 +200,7 @@ wbStates(LIGHT, 'D1b 工作台状态 · 浅色');
 function deltaColors(T, name) {
   const K = kit(T); const { tx, box, icon, card } = K;
   const root = I(null, { type: 'frame', name, width: 1196, height: 250, layout: 'horizontal', gap: 24, padding: [24, 24], fill: solid(T.page) });
-  const opts = [['涨绿跌红（默认）', T.st.ok[0], T.st.err[0], 1], ['涨红跌绿', T.st.err[0], T.st.ok[0], 0]];
+  const opts = [['涨红跌绿（默认）', T.st.err[0], T.st.ok[0], 1], ['涨绿跌红', T.st.ok[0], T.st.err[0], 0]];
   for (const [t, upC, downC, on] of opts) {
     const c = card(root, { width: 'fill_container', layout: 'vertical', gap: 14, padding: [20, 24], stroke: on ? { thickness: 1.5, fill: solid(P) } : (T.stroke || undefined) });
     const h = box(c, { layout: 'horizontal', gap: 8, alignItems: 'center' });

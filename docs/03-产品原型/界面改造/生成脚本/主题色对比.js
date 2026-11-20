@@ -61,7 +61,7 @@ const PRESETS = [
   { n: '天蓝', c: '#078DEE', soft: '#E1F1FD', dl: '#2098F0', ds: '#172C3C', drop: '#3B82F6', note: '与信息色同为蓝绿系，信息标签靠浅底区分' },
   { n: '紫', c: '#7635DC', soft: '#EFE7FB', dl: '#A77EE9', ds: '#291E39', drop: '#3B82F6', note: '与各状态色都分得开' },
   { n: '宝蓝', c: '#2065D1', soft: '#E4EDF9', dl: '#5E94E6', ds: '#1B2637', drop: '#3B82F6', note: '与各状态色都分得开' },
-  { n: '红', c: '#FF3030', soft: '#FFE6E6', dl: '#FF5959', ds: '#3F1E1E', drop: '#E8664A', note: '与错误色相近；与默认涨跌色的红也相近，可换涨红跌绿' },
+  { n: '红', c: '#FF3030', soft: '#FFE6E6', dl: '#FF5959', ds: '#3F1E1E', drop: '#E8664A', note: '与错误色相近；与默认涨红跌绿的红也相近，可换涨绿跌红' },
 ];
 
 function presetCell(T, parent, pr) {
