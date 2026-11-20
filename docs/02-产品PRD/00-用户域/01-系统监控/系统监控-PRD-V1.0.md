@@ -286,17 +286,17 @@ GET /admin/monitor/cache/key?key=xxx
 | 搜索按钮 | Button | type="primary"；图标=\<SearchOutlined/>；文字"搜索"；点击后重置到第1页 |
 | 重置按钮 | Button | type="default"；文字"重置"；点击清空所有筛选条件，重置到第1页，重新查询 |
 | 刷新按钮 | Button | type="default"；图标=\<ReloadOutlined/>；文字"立即刷新"；位于页面标题右侧；click时图标旋转loading；完成后停止 |
-| 自动刷新提示 | Text | "N秒后刷新"；12px；color:#8c8c8c；刷新按钮左侧 |
+| 自动刷新提示 | Text | "N秒后刷新"；12px；次要文字色；刷新按钮左侧 |
 
 #### 5.1.3 表格列规格
 
 | 列名 | 对应字段 | 宽度 | 对齐 | 说明 |
 |------|----------|------|------|------|
 | 用户名 | `username` | 120px | 左 | 文字超出省略；hover Tooltip显示完整 |
-| 昵称 | `nickname` | 100px | 左 | 无值显示"-"；color:#8c8c8c |
+| 昵称 | `nickname` | 100px | 左 | 无值显示"-"；次要文字色 |
 | 租户 | `tenant_name` | 130px | 左 | 超管账号在名称后附橙色Tag"超管" |
 | 登录IP | `login_ip` | 140px | 左 | 等宽字体（font-family:monospace） |
-| IP归属地 | `ip_location` | 120px | 左 | 无法解析显示"-"；color:#8c8c8c |
+| IP归属地 | `ip_location` | 120px | 左 | 无法解析显示"-"；次要文字色 |
 | 登录时间 | `login_time` | 170px | 左 | 按浏览器本地时区显示"YYYY-MM-DD HH:mm:ss" |
 | Token有效期 | `expires_at` | 110px | 左 | 计算剩余时间：>60min显示"Xh Xmin"；10-60min显示"Xmin"橙色；<10min显示"X秒"红色闪烁 |
 | 设备信息 | `device_info` | 150px | 左 | 文字超出省略；hover Tooltip显示完整User-Agent摘要 |
@@ -321,7 +321,7 @@ GET /admin/monitor/cache/key?key=xxx
 | 确认Modal - okText | "确定下线" |
 | 确认Modal - okType | "danger" |
 | 确认Modal - cancelText | "取消" |
-| 确认Modal - icon | \<ExclamationCircleOutlined/> color=#faad14 |
+| 确认Modal - icon | \<ExclamationCircleOutlined/> 警告色 |
 | 确认Modal - width | 440px |
 | 接口调用 | DELETE /admin/monitor/online-users/{token_id}；后端删除Redis中对应Token并软删除account_access_token记录 |
 | 成功处理 | message.success "已将用户「{username}」强制下线"（duration:3s）；Modal关闭；列表刷新回第1页 |
@@ -393,8 +393,8 @@ GET /admin/monitor/cache/key?key=xxx
 | 组件 | 规格 |
 |------|------|
 | 刷新间隔Select | 宽100px；options=[{label:"关闭",value:0},{label:"10秒",value:10},{label:"30秒",value:30},{label:"60秒",value:60}]；默认30秒 |
-| 状态指示灯 | 刷新中：●（#52c41a）+ "自动刷新中"；已关闭：●（#8c8c8c）+ "已关闭" |
-| 最后更新时间 | "最后更新：HH:mm:ss"；color:#8c8c8c；font-size:12px |
+| 状态指示灯 | 刷新中：●（成功色）+ "自动刷新中"；已关闭：●（中性色）+ "已关闭" |
+| 最后更新时间 | "最后更新：HH:mm:ss"；次要文字色；font-size:12px |
 | 手动刷新按钮 | Button；type="default"；图标=\<ReloadOutlined/>；文字"刷新"；loading时图标旋转；完成后停止 |
 
 #### 5.2.3 CPU信息卡片
@@ -404,7 +404,7 @@ GET /admin/monitor/cache/key?key=xxx
 | Card | title="CPU 信息"；extra=CPU型号文字（超出省略，Tooltip全文）；width:calc(50% - 8px) |
 | 核心数 | 静态描述行；label="核心数："；value="N核" |
 | 进度条行 | 每行布局：固定宽60px的label + 宽100px的Progress + 60px的百分比文字 |
-| 进度条颜色 | <60%：strokeColor="#52c41a"；60-80%：strokeColor="#faad14"；>80%：strokeColor="#ff4d4f" |
+| 进度条颜色 | <60%：成功色；60-80%：警告色；>80%：错误色 |
 | 展示项 | 系统使用率（cpu_sys）、用户使用率（cpu_user）、等待（cpu_wait）、空闲（cpu_free）共4行 |
 
 #### 5.2.4 内存信息卡片
@@ -415,7 +415,7 @@ GET /admin/monitor/cache/key?key=xxx
 | 物理内存区 | 子标题"物理内存"（14px灰色）；Progress横向宽100%；strokeColor动态；showInfo=false；下方StatisticRow：总计/已用/剩余，3等分水平排列；单位自动换算 |
 | JVM内存区 | 子标题"JVM内存"；同上布局；"最大(Xmx)"替换"剩余"显示 |
 | 内存换算规则 | <1024B→"NB"；<1048576→"N KB"；<1073741824→"N MB"；否则"N.N GB"（保留1位小数） |
-| 使用率告警 | >80%：strokeColor="#faad14"；>90%：strokeColor="#ff4d4f" |
+| 使用率告警 | >80%：警告色；>90%：错误色 |
 
 #### 5.2.5 JVM信息卡片
 
@@ -431,7 +431,7 @@ GET /admin/monitor/cache/key?key=xxx
 |------|------|
 | Card | title="磁盘信息"；width:100% |
 | Table | 无分页（一次展示全部）；size="small" |
-| 使用率列 | 行内mini Progress（宽80px）+ 百分比文字；>80%标橙；>90%整行背景#fff2f0，使用率标红 |
+| 使用率列 | 行内mini Progress（宽80px）+ 百分比文字；>80%标橙；>90%整行错误色浅底，使用率标红 |
 | 列定义 | 盘符路径(100px)/文件类型(80px)/文件系统(80px)/总大小(100px)/已用(100px)/剩余(100px)/使用率(150px) |
 
 #### 5.2.7 首次加载处理
@@ -490,10 +490,10 @@ GET /admin/monitor/cache/key?key=xxx
 |------|------|-----------|-----------|----------|
 | Redis版本 | `redis_version` | 原始字符串 | "Redis 版本" | 无 |
 | 运行天数 | `uptime_in_days` | "N 天" | "持续运行" | 无 |
-| 客户端连接数 | `connected_clients` | 千分位整数 | "客户端连接" | >100：value颜色#faad14；>500：value颜色#ff4d4f |
+| 客户端连接数 | `connected_clients` | 千分位整数 | "客户端连接" | >100：value 警告色；>500：value 错误色 |
 | Key总数 | `total_keys` | 千分位整数 | "Key 总数" | 无 |
 
-4卡片水平均分布局；每卡Card；padding 20px 24px；border-radius 6px；label font-size:13px color:#8c8c8c；value font-size:28px font-weight:600 color:#262626（默认）。
+4卡片水平均分布局；卡片样式见界面规范；label font-size:13px 次要文字色；value font-size:28px font-weight:600 主文字色（默认）。
 
 #### 5.3.3 内存信息卡
 
@@ -504,7 +504,7 @@ Card，title="内存信息"，宽calc(50% - 8px)。Descriptions，column=1，lay
 | 已用内存 | `used_memory_human` | Redis原格式 | 无 |
 | 内存峰值 | `used_memory_peak_human` | Redis原格式 | 无 |
 | 内存上限 | `maxmemory_human` | maxmemory=0→"无限制（灰色）" | 无 |
-| 内存使用率 | `mem_usage` | "XX.X%"+Progress条（宽100%） | >80%：strokeColor=#faad14；>90%：strokeColor=#ff4d4f；maxmemory=0不显示此行 |
+| 内存使用率 | `mem_usage` | "XX.X%"+Progress条（宽100%） | >80%：警告色；>90%：错误色；maxmemory=0不显示此行 |
 | 内存碎片率 | `mem_fragmentation_ratio` | "X.XX （状态说明）" | <1.0："(内存不足，可能使用Swap)"红色；1.0~1.5："(正常)"绿色；>1.5："(碎片较多)"橙色 |
 
 #### 5.3.4 命令统计卡
@@ -546,7 +546,7 @@ Card，title="基础信息"，宽100%。Descriptions，column=3，bordered=false
 | 列名 | 字段 | 宽度 | 对齐 | 说明 |
 |------|------|------|------|------|
 | Key名称 | `key` | 自适应 | 左 | 等宽字体（monospace）；超出省略；hover Tooltip完整名称；整行可点击 |
-| 数据类型 | `type` | 90px | 居中 | Tag展示：string=蓝(#1890ff)；hash=紫(#722ed1)；list=绿(#52c41a)；set=橙(#fa8c16)；zset=红(#f5222d) |
+| 数据类型 | `type` | 90px | 居中 | Tag展示类型名（string / hash / list / set / zset），统一用中性标签 |
 | 剩余TTL | `ttl` | 130px | 左 | -1→"永不过期"（灰色）；>3600→"Xh Xmin"；600~3600→"Xmin"（橙色）；<600→"X秒"（红色+闪烁）；-2→"已过期"（灰色删除线样式） |
 | 大小 | `size_bytes` | 100px | 右 | <1024→"N B"；<1048576→"N KB"（保留1位小数）；否则"N MB" |
 
@@ -603,7 +603,7 @@ Value内容预览区（Drawer底部占大部分高度）：
 | 服务器信息接口超时（>10秒） | 停止loading，保留上次数据；顶部警告条 | "数据获取失败，显示上次缓存数据（更新于 HH:mm:ss）" |
 | 服务器CPU使用率 > 90% | CPU卡片各进度条标红，数值红色 | 无弹窗，仅视觉告警 |
 | 服务器内存使用率 > 90% | 内存进度条标红 | 无弹窗，仅视觉告警 |
-| 磁盘使用率 > 90% | 对应行整行背景#fff2f0，使用率列字体#ff4d4f | 无弹窗，仅视觉告警 |
+| 磁盘使用率 > 90% | 对应行整行错误色浅底，使用率列错误色 | 无弹窗，仅视觉告警 |
 | Redis连接失败 | M03页面显示全屏Result错误状态，不展示任何数据 | "Redis连接失败，请检查Redis服务是否正常运行" + 重试按钮 |
 | Redis内存碎片率 < 1.0（使用Swap） | 碎片率字段标红+说明 | "(内存不足，可能正在使用Swap，请关注系统内存)" |
 | Redis内存碎片率 > 1.5 | 碎片率字段标橙+说明 | "(碎片较多，建议在低峰期执行 MEMORY PURGE 清理)" |
