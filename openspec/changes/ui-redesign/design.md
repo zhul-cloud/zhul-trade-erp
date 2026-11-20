@@ -166,7 +166,7 @@ PrimeDash 的组件尺寸、字体与本变更的取舍见 `reference-primedash.
 
   统计页的口径同样以代码为准。
 
-文案清理参考 Impeccable 的 clarify、distill 和 unslop 的 AI 痕迹清单，只改措辞，不增删业务事实。
+文案清理用 Impeccable 的 clarify、distill，只改措辞，不增删业务事实。
 
 ### 6. 文档清理
 
@@ -188,11 +188,7 @@ PrimeDash 的组件尺寸、字体与本变更的取舍见 `reference-primedash.
 - **确认后**：用户确认原型后，同步修订 specs、design、tasks，重跑 `openspec validate --strict`，然后才开始重写规范和改代码。
 - **后续批次**：有新结构的页面（如工作台各岗位看板、客户跟进页），先补原型再开发。
 - **工具**：pencil MCP 连不上时改用 `op` 命令行；无界面服务用完后执行 `op stop`。
-- **以图和生成脚本为准**：原型由 `docs/03-产品原型/界面改造/生成脚本/` 里的脚本生成，导出的 PNG 是确认依据。`.op` 存盘再打开时，排版、根画板高度和底色会走样，不能当源文件改。改原型就改脚本，按以下顺序重跑：
-  1. `op design @<脚本>`；
-  2. `python fixfill.py`，跑两遍，把被 OpenPencil 自动改成近黑的文字和图标颜色还原；
-  3. 在同一次会话里导出 PNG，并 `op save`；
-  4. `python checkop.py <.op>`，确认颜色标记全部一致。
+- **以图和生成脚本为准**：原型由 `docs/03-产品原型/界面改造/生成脚本/` 里的脚本生成，导出的 PNG 是确认依据。`.op` 存盘再打开时，排版、根画板高度和底色会走样，不能当源文件改。改原型就改脚本，再在 `生成脚本/` 目录运行 `python build.py`。它依次清空画布、跑全部脚本、用 `fixfill.py` 还原被 OpenPencil 自动改成近黑的颜色、导出 PNG、`op save`、用 `checkop.py` 校验颜色，最后停止服务；任何一步失败都会停下，不会删掉旧图。
 
 ### 8. 审核角色：完成的任务都要复审
 
@@ -205,9 +201,23 @@ PrimeDash 的组件尺寸、字体与本变更的取舍见 `reference-primedash.
   - 文案：有没有常识性套话，说明放的位置对不对，业务字段和匹配规则有没有代码依据；
   - 行为：对比改造前后的提交，确认只改了展示，接口调用、字段、校验、状态流转没有变化；
   - 代码：用 `/code-review` 查缺陷、重复实现、遗漏的写死颜色；
-  - 效果：用 Impeccable 的 critique、audit 给页面打分，指出层次、留白、对齐不理想的地方。
+  - 效果：用 Impeccable 的 critique（按「操作」模式与 `reference/critique-rubric.md` 打分）和 audit，指出层次、留白、对齐不理想的地方。参考站已定的标准（`reference-primedash.md`）优先于 Impeccable 的审美建议，冲突时以参考站为准。
 - **记录**：结论分「通过」和「需修改」两种，写进本变更目录 `review-log.md`，记任务编号、依据、问题和处理结果。「需修改」的改完后重新复审，直到通过。
 - **人工复审**：原型、文档清理清单、每个业务域完成后，再交用户看一次。
+
+**原型带来的行为变化**（销售订单详情，用户确认原型时一并确认）：
+- 销售出库单卡片：原来没有出库单时整张不显示，改为显示空状态「还没有销售出库单」（spec「空状态」）。
+- 页头低频操作收进「更多」菜单（2026-11-20 用户同意）。
+
+**用到的技能**（2026-11-20 筛选，装在项目内，不经 Skills Manager）：
+
+| 技能 | 位置 | 用途 |
+|---|---|---|
+| `openpencil-design` | 用户级 | 画原型（`op` 命令行） |
+| `impeccable` v4.9.1 | `zhul-erp-frontend/.claude/skills/`、`zhul-erp-frontend/.agents/skills/`（Claude Code、Codex 各一份，内容相同） | 复审打分（critique、audit），文案（clarify、distill），改页面时的细节（polish、layout） |
+| `antd` | 同上，项目原有 | 写 antd 代码前核对 API |
+
+不装 `unslop`、`frontend-design`：两者都先为产品另定视觉方向，与「照 PrimeDash 标准」冲突。Impeccable 自带的上游脚本不按本项目规范检查，`biome.json` 排除了两个技能目录；`impeccable.cmd` 按上游保留 CRLF（`.gitattributes`）。
 
 ### 9. 导航规范增量的写法
 

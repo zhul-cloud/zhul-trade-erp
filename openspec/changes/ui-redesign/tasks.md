@@ -46,7 +46,7 @@
 
 每个批次都包含以下工作：
 - 页面迁移到骨架组件，去掉面包屑和写死的颜色、样式；
-- 按规则处理说明文字（参考 Impeccable clarify、distill 和 unslop 的 AI 痕迹清单，只改措辞）；
+- 按规则处理说明文字（用 Impeccable clarify、distill，只改措辞）；
 - 列表关键字帮助按 `search-scope.md` 写，统计卡片按 `stat-cards.md` 处理；
 - 页面结构有变化的先补原型，再在本变更补对应主规范的增量；
 - 页面文案变化后同步修改 Jest 断言。

@@ -88,9 +88,61 @@ function shell(T, W, H, name) {
   return box(main, { width: 'fill_container', layout: 'vertical', gap: 16 });
 }
 
+// 成本明细卡片（照 CostCard 列顺序）：scrolled=true 时画滚到最右（实际成本、退款、行收入、行毛利与合计行）
+// 数值为 0 显示「—」；收入未收齐时按销售额折人民币，按型号金额分摊（OrderCostCalc）
+const COST_COLS = [['采购货款', 110], ['开票成本', 90], ['采购费用', 90], ['质量索赔', 90], ['退货运费', 90], ['售后退货冲减', 110], ['国内运费', 90], ['国际运费', 100], ['费用单', 90], ['收款手续费', 100], ['实际成本', 120], ['退款', 100], ['行收入', 120], ['行毛利', 168]];
+const COST_ROWS = [
+  { m: '6ES7214-1AG40-0XB0', q: 10, tips: ['10 个没入库'], pv: 'CNY 24,800.00', cost: 'CNY 24,800.00', rev: 'CNY 30,195.69', pf: 'CNY 5,395.69', pr: '17.87%' },
+  { m: '6ES7223-1PL32-0XB0', q: 5, tips: ['5 个没入库'], pv: 'CNY 10,450.00', cost: 'CNY 10,450.00', rev: 'CNY 13,659.95', pf: 'CNY 3,209.95', pr: '23.50%' },
+  { m: '1769-L33ER', q: 5, tips: ['5 个没入库'], pv: 'CNY 28,500.00', cost: 'CNY 28,500.00', rev: 'CNY 43,136.69', pf: 'CNY 14,636.69', pr: '33.93%' },
+  { m: '6EP1334-3BA10', q: 3, tips: ['3 个没下采购订单，按采购成本价估算', '3 个没入库'], pv: 'CNY 3,300.00', cost: 'CNY 3,300.00', rev: 'CNY 4,313.67', pf: 'CNY 1,013.67', pr: '23.50%' },
+];
+function costCard(T, parent, scrolled) {
+  const { tx, box, icon, card, label } = kit(T);
+  const c = card(parent, { width: scrolled ? 792 : 'fill_container', layout: 'vertical', clipContent: true });
+  const chd = box(c, { width: 'fill_container', layout: 'vertical', gap: 8, padding: [18, 24, 14, 24] });
+  const ch1 = box(chd, { layout: 'horizontal', gap: 8, alignItems: 'center' });
+  tx(ch1, '成本明细', { fontSize: 18, fontWeight: 500, fill: solid(T.ink) }); icon(ch1, 'info', 14, T.sub); label(ch1, '未结算', T.st.warn);
+  tx(chd, '还差：货款没收齐 · 1 个型号没下采购订单 · 4 个型号没入库', { fontSize: 12, fill: solid(T.sub) });
+  const cols = scrolled ? COST_COLS.slice(10) : COST_COLS.slice(0, 7);
+  const t = box(c, { width: 'fill_container', layout: 'horizontal' });
+  const fixedCol = box(t, { width: 260, layout: 'vertical', fill: solid(T.card), effects: scrolled ? [{ type: 'shadow', offsetX: 6, offsetY: 0, blur: 8, spread: -4, color: T.key === 'light' ? 'rgba(145,158,171,0.35)' : 'rgba(0,0,0,0.6)' }] : [] });
+  const sc = box(t, { width: 'fill_container', layout: 'vertical', clipContent: true });
+  const fh = box(fixedCol, { width: 'fill_container', height: 44, layout: 'horizontal', alignItems: 'center', padding: [0, 24], fill: solid(T.head) });
+  tx(fh, '型号', { fontSize: 13, fontWeight: 500, fill: solid(T.ink) });
+  const hh = box(sc, { layout: 'horizontal', height: 44, alignItems: 'center', fill: solid(T.head) });
+  for (const [h, w] of cols) { const hc = box(hh, { width: w, layout: 'horizontal', justifyContent: 'end', padding: [0, 12, 0, 0] }); tx(hc, h, { fontSize: 13, fontWeight: 500, fill: solid(T.ink) }); }
+  const val = (r, h) => ({ '采购货款': [r.pv, 1], '实际成本': [r.cost, 0, 1], '行收入': [r.rev], '行毛利': [r.pf + ' · ' + r.pr, 0, 1, T.st.ok[0]] })[h] || ['—'];
+  for (const r of COST_ROWS) {
+    const RH = 64 + 26 * (r.tips.length - 1);
+    I(fixedCol, { type: 'frame', width: 'fill_container', height: 1, fill: solid(T.line) });
+    I(sc, { type: 'frame', width: 2000, height: 1, fill: solid(T.line) });
+    const mc = box(fixedCol, { width: 'fill_container', height: RH, layout: 'vertical', gap: 4, justifyContent: 'center', padding: [0, 12, 0, 24] });
+    const ml = box(mc, { layout: 'horizontal', gap: 4 });
+    tx(ml, r.m, { fontSize: 13, fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) }); tx(ml, '× ' + r.q, { fontSize: 13, fontFamily: NUM, fill: solid(T.body) });
+    for (const tp of r.tips) label(mc, tp, T.st.warn, 'triangle-alert');
+    const row = box(sc, { layout: 'horizontal', height: RH, alignItems: 'center' });
+    for (const [h, w] of cols) {
+      const [v, dim, bold, col] = val(r, h);
+      const cc = box(row, { width: w, layout: 'horizontal', justifyContent: 'end', padding: [0, 12, 0, 0] });
+      tx(cc, v, { fontSize: 13, fontWeight: bold ? 600 : 400, fontFamily: NUM, fill: solid(col || (v === '—' || dim ? T.faint : T.body)) });
+    }
+  }
+  I(fixedCol, { type: 'frame', width: 'fill_container', height: 1, fill: solid(T.line) });
+  I(sc, { type: 'frame', width: 2000, height: 1, fill: solid(T.line) });
+  const ft = box(fixedCol, { width: 'fill_container', height: 48, layout: 'horizontal', alignItems: 'center', padding: [0, 24], fill: solid(T.head) });
+  tx(ft, '合计', { fontWeight: 600, fill: solid(T.ink) });
+  const fr = box(sc, { layout: 'horizontal', height: 48, alignItems: 'center', fill: solid(T.head) });
+  const tot = { '实际成本': ['CNY 67,050.00', T.ink], '退款': ['—', T.faint], '行收入': ['CNY 91,306.00', T.ink], '行毛利': ['CNY 24,256.00 · 26.57%', T.st.ok[0]] };
+  for (const [h, w] of cols) { const cc = box(fr, { width: w, layout: 'horizontal', justifyContent: 'end', padding: [0, 12, 0, 0] }); const v = tot[h]; if (v) tx(cc, v[0], { fontSize: 13, fontWeight: 600, fontFamily: NUM, fill: solid(v[1]) }); }
+  const sb = box(c, { width: 'fill_container', height: 14, layout: 'horizontal', padding: [5, 24], fill: solid(T.card) });
+  if (scrolled) box(sb, { width: 380 });
+  I(sb, { type: 'frame', width: 360, height: 4, cornerRadius: 2, fill: solid(T.faint) });
+}
+
 function detail(T, name) {
   const K = kit(T); const { tx, box, icon, hr, card, label, primaryBtn, textBtn, cardHead, kv } = K;
-  const content = shell(T, 1440, 2470, name);
+  const content = shell(T, 1440, 2720, name);
 
   // 返回条（标签页框架提供）
   const back = box(content, { layout: 'horizontal', gap: 6, alignItems: 'center', height: 28, padding: [0, 12], cornerRadius: 999, fill: solid(T.soft) });
@@ -121,7 +173,7 @@ function detail(T, name) {
 
   // ① 信息卡：PrimeDash Customer Info 等 tonal 卡片，2×2
   const infoCard = (p, title, ic, primary) => {
-    const c = box(p, { width: 'fill_container', height: 'fill_container', layout: 'vertical', gap: 10, padding: [18, 20], cornerRadius: 10, fill: solid(primary ? T.soft : T.tonal) });
+    const c = box(p, { width: 'fill_container', height: 'fill_container', layout: 'vertical', gap: 10, padding: [18, 20], cornerRadius: 10, fill: solid(primary ? (T.key === 'light' ? T.soft : '#2A2318') : T.tonal) });
     const h = box(c, { width: 'fill_container', layout: 'horizontal', alignItems: 'center' });
     tx(h, title, { fontSize: 16, fontWeight: 500, fill: solid(T.ink), width: 'fill_container' });
     const it = box(h, { width: 32, height: 32, cornerRadius: 16, layout: 'horizontal', justifyContent: 'center', alignItems: 'center', fill: solid(primary ? (T.key === 'light' ? '#FDE7C4' : '#5A4422') : (T.key === 'light' ? '#E3E7EB' : '#2E2E2E')) });
@@ -163,7 +215,7 @@ function detail(T, name) {
   const gg = box(c, { width: 'fill_container', layout: 'horizontal', gap: 10 });
   const goods = [['已出运', 0, G.shipped, '货代已发出'], ['已交货代', 0, G.handed, '在货代，等出运'], ['在仓', 0, G.inWh, '福州仓库'], ['在途', 20, G.transit, '最早 11-25 到'], ['待发货', 0, G.pendShip, '已下单，供应商还没发'], ['待采购', 3, G.pendBuy, '还没下采购订单']];
   for (const [n, q, col, hint] of goods) {
-    const g = box(gg, { width: 'fill_container', layout: 'vertical', gap: 4, padding: [10, 12], cornerRadius: 8, fill: solid(T.tonal) });
+    const g = box(gg, { width: 'fill_container', height: 96, layout: 'vertical', gap: 4, padding: [10, 12], cornerRadius: 8, fill: solid(T.tonal) });
     const gl = box(g, { layout: 'horizontal', gap: 6, alignItems: 'center' }); I(gl, { type: 'ellipse', width: 8, height: 8, fill: solid(col) }); tx(gl, n, { fontSize: 12, fill: solid(T.sub) });
     tx(g, q + ' 件', { fontSize: 18, fontWeight: 700, fontFamily: NUM, fill: solid(q ? T.ink : T.faint) });
     tx(g, hint, { fontSize: 12, fill: solid(T.faint), width: 'fill_container', textGrowth: 'fixed-width', lineHeight: 1.4 });
@@ -196,7 +248,8 @@ function detail(T, name) {
     tx(cell(64), it.ca, { fill: solid(T.body) });
     let x = cell(210); tx(x, it.m, { fontSize: 13, fontWeight: 600, fontFamily: MONO, fill: solid(P) });
     const vm = box(x, { layout: 'horizontal', gap: 4, alignItems: 'center' }); icon(vm, 'image', 12, T.sub); tx(vm, '查看素材', { fontSize: 12, fill: solid(T.sub) });
-    if (it.remark) label(x, it.remark, T.st.warn, 'message-square');
+    if (it.remark) { const rr = box(x, { layout: 'horizontal', gap: 6, alignItems: 'center' }); label(rr, it.remark, T.st.warn, 'message-square'); icon(rr, 'pencil', 12, T.faint); tx(x, 'Kevin · 11-19 16:05', { fontSize: 12, fontFamily: NUM, fill: solid(T.faint) }); }
+    else { const ab = box(x, { layout: 'horizontal', gap: 2, alignItems: 'center' }); icon(ab, 'plus', 12, P); tx(ab, '备注', { fontSize: 12, fill: solid(P) }); }
     tx(cell(190), it.d, { fontSize: 13, fontFamily: NUM, fill: solid(T.body) });
     tx(rt(70), it.q, { fontFamily: NUM, fill: solid(T.ink) });
     tx(rt(110), it.up, { fontFamily: NUM, fill: solid(T.body) });
@@ -265,26 +318,8 @@ function detail(T, name) {
   tx(rm, '客户 12 月初要赶项目，尽量合并一次出运', { fill: solid(T.ink), width: 'fill_container' });
   textBtn(rm, '编辑', 'pencil');
 
-  // ⑦ 成本明细（表格，横向滚动）
-  c = card(L, { width: 'fill_container', layout: 'vertical', clipContent: true });
-  const chd = box(c, { width: 'fill_container', layout: 'vertical', gap: 8, padding: [18, 24, 14, 24] });
-  const ch1 = box(chd, { layout: 'horizontal', gap: 8, alignItems: 'center' });
-  tx(ch1, '成本明细', { fontSize: 18, fontWeight: 500, fill: solid(T.ink) }); icon(ch1, 'info', 14, T.sub); label(ch1, '未结算', T.st.warn);
-  tx(chd, '还差：货款没收齐 · 1 个型号没下采购订单 · 4 个型号没入库', { fontSize: 12, fill: solid(T.sub) });
-  const ccols = [['型号', 290], ['采购货款', 110], ['开票成本', 90], ['采购费用', 90], ['质量索赔', 90], ['退货运费', 90], ['国内运费', 90], ['国际运费', 100]];
-  const ct = box(c, { width: 'fill_container', layout: 'vertical', clipContent: true });
-  const chh = box(ct, { layout: 'horizontal', height: 44, alignItems: 'center', fill: solid(T.head), padding: [0, 0, 0, 24] });
-  for (const [h, w] of ccols) { const hc = box(chh, { width: w, layout: 'horizontal', justifyContent: h === '型号' ? 'start' : 'end', padding: h === '型号' ? 0 : [0, 12, 0, 0] }); tx(hc, h, { fontSize: 13, fontWeight: 500, fill: solid(T.ink) }); }
-  const crow = [['6ES7214-1AG40-0XB0 × 10', '', 'CNY 24,800.00', 1], ['6ES7223-1PL32-0XB0 × 5', '', 'CNY 10,450.00', 1], ['1769-L33ER × 5', '', 'CNY 28,500.00', 1], ['6EP1334-3BA10 × 3', '3 个没下采购订单，按采购成本价估算', 'CNY 3,300.00', 1]];
-  for (const [m, warn, pv, dim] of crow) {
-    I(ct, { type: 'frame', width: 2000, height: 1, fill: solid(T.line) });
-    const r = box(ct, { layout: 'horizontal', alignItems: 'center', padding: [10, 0, 10, 24] });
-    const mc = box(r, { width: 290, layout: 'vertical', gap: 3 }); tx(mc, m, { fontSize: 13, fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) });
-    if (warn) label(mc, warn, T.st.warn, 'triangle-alert');
-    for (const [h, w] of ccols.slice(1)) { const v = box(r, { width: w, layout: 'horizontal', justifyContent: 'end', padding: [0, 12, 0, 0] }); tx(v, h === '采购货款' ? pv : h === '国内运费' ? 'CNY 0.00' : '—', { fontSize: 13, fontFamily: NUM, fill: solid(h === '采购货款' && dim ? T.faint : T.body) }); }
-  }
-  const sb2 = box(c, { width: 'fill_container', height: 14, layout: 'horizontal', padding: [5, 24], fill: solid(T.card) });
-  I(sb2, { type: 'frame', width: 360, height: 4, cornerRadius: 2, fill: solid(T.faint) });
+  // ⑦ 成本明细（表格，横向滚动；列顺序照 CostCard）
+  costCard(T, L, false);
 
   // ⑧ 销售出库单
   c = card(L, { width: 'fill_container', layout: 'vertical', gap: 12, padding: [20, 24] });
@@ -294,21 +329,21 @@ function detail(T, name) {
   // —— 右侧栏 ——
   // 收款
   c = card(R, { width: 'fill_container', layout: 'vertical', gap: 14, padding: [20, 20] });
-  cardHead(c, '收款', { help: 1, labels: [['部分到账', T.st.info]] });
+  const rh = cardHead(c, '收款', { help: 1, labels: [['部分到账', T.st.info]] }); tx(rh, '来自', { fontSize: 12, fill: solid(T.sub) }); tx(rh, 'PI20261118003', { fontSize: 12, fontWeight: 600, fontFamily: NUM, fill: solid(P) });
   const rcv = box(c, { width: 'fill_container', layout: 'vertical', gap: 8 });
   const rr = box(rcv, { width: 'fill_container', layout: 'horizontal', alignItems: 'end' });
   tx(rr, '已到账', { fontSize: 13, fill: solid(T.sub), width: 'fill_container' });
-  tx(rr, 'USD 5,144.00', { fontSize: 18, fontWeight: 700, fontFamily: NUM, fill: solid(T.ink) });
+  tx(rr, 'USD 3,858.00', { fontSize: 18, fontWeight: 700, fontFamily: NUM, fill: solid(T.ink) });
   tx(rr, ' / USD 12,860.00', { fontSize: 13, fontFamily: NUM, fill: solid(T.sub) });
   const pb = box(rcv, { width: 'fill_container', layout: 'horizontal', gap: 8, alignItems: 'center' });
-  const bar = box(pb, { width: 'fill_container', height: 6, cornerRadius: 3, fill: solid(T.line), layout: 'horizontal', clipContent: true }); I(bar, { type: 'frame', width: 104, height: 6, fill: solid(P) });
-  tx(pb, '40%', { fontSize: 12, fontFamily: NUM, fill: solid(T.sub) });
-  label(rcv, '剩余 USD 7,716.00', T.st.warn);
+  const bar = box(pb, { width: 'fill_container', height: 6, cornerRadius: 3, fill: solid(T.line), layout: 'horizontal', clipContent: true }); I(bar, { type: 'frame', width: 78, height: 6, fill: solid(P) });
+  tx(pb, '30%', { fontSize: 12, fontFamily: NUM, fill: solid(T.sub) });
+  label(rcv, '剩余 USD 9,002.00', T.st.warn);
   hr(c);
   tx(c, '按付款方式', { fontSize: 12, fill: solid(T.sub) });
   const pm = box(c, { width: 'fill_container', layout: 'horizontal', gap: 8, alignItems: 'center' });
   tx(pm, '电汇', { fill: solid(T.body) }); label(pm, '线下', T.st.neu);
-  const pmv = box(pm, { width: 'fill_container', layout: 'horizontal', justifyContent: 'end' }); tx(pmv, 'USD 5,144.00', { fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) });
+  const pmv = box(pm, { width: 'fill_container', layout: 'horizontal', justifyContent: 'end' }); tx(pmv, 'USD 3,858.00', { fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) });
   hr(c);
   const rec = (title, ic, no, amt, st, date, sub, file) => {
     const b = box(c, { width: 'fill_container', layout: 'vertical', gap: 6, padding: [12, 14], cornerRadius: 8, stroke: { thickness: 1, fill: solid(T.line) } });
@@ -320,8 +355,8 @@ function detail(T, name) {
     tx(b, sub, { fontSize: 12, fill: solid(T.sub), width: 'fill_container', textGrowth: 'fixed-width', lineHeight: 1.5 });
     if (file) { const f = box(b, { layout: 'horizontal', gap: 4, alignItems: 'center' }); icon(f, 'paperclip', 12, P); tx(f, file, { fontSize: 12, fontFamily: NUM, fill: solid(P) }); }
   };
-  rec('到账', 'landmark', 'RC20261119003', 'USD 5,144.00', null, '11-19', '电汇 · 王敏 登记 · 实收 CNY 36,522.40');
-  rec('水单', 'file-text', '', 'USD 5,144.00', ['已到账', T.st.ok], '11-18', '电汇 · Kevin 上传', '水单-AA-1118.jpg');
+  rec('到账', 'landmark', 'SK20261119003', 'USD 3,858.00', null, '11-19', '电汇 · 王敏 登记 · 实收 CNY 27,391.80');
+  rec('水单', 'file-text', '', 'USD 3,858.00', ['已到账', T.st.ok], '11-18', '电汇 · Kevin 上传', '水单-AA-1118.jpg');
 
   // 费用订单
   c = card(R, { width: 'fill_container', layout: 'vertical', gap: 12, padding: [20, 20] });
@@ -332,11 +367,11 @@ function detail(T, name) {
   c = card(R, { width: 'fill_container', layout: 'vertical', gap: 4, padding: [20, 20] });
   cardHead(c, '订单毛利', { help: 1, labels: [['未结算', T.st.warn]] });
   kv(c, '销售额', (v) => { const vc = box(v, { layout: 'vertical', gap: 2, alignItems: 'end' }); tx(vc, 'USD 12,860.00', { fontFamily: NUM, fill: solid(T.ink) }); tx(vc, '≈ CNY 91,306.00', { fontSize: 12, fontFamily: NUM, fill: solid(T.sub) }); }, { right: 1, kw: 72, h: 56 });
-  kv(c, '收入', 'CNY 86,483.50', { num: 1, right: 1, kw: 72 });
-  kv(c, '实际成本', 'CNY 68,063.50', { num: 1, right: 1, kw: 72 });
+  kv(c, '收入', 'CNY 91,306.00', { num: 1, right: 1, kw: 72 });
+  kv(c, '实际成本', 'CNY 67,050.00', { num: 1, right: 1, kw: 72 });
   const pf = box(c, { width: 'fill_container', height: 52, layout: 'horizontal', alignItems: 'center', padding: [0, 4] });
-  tx(pf, '预计毛利 · 21.3%', { fontWeight: 600, fill: solid(T.ink), width: 'fill_container' });
-  tx(pf, 'CNY 18,420.00', { fontSize: 20, fontWeight: 700, fontFamily: NUM, fill: solid(T.st.ok[0]) });
+  tx(pf, '预计毛利 · 26.57%', { fontWeight: 600, fill: solid(T.ink), width: 'fill_container' });
+  tx(pf, 'CNY 24,256.00', { fontSize: 20, fontWeight: 700, fontFamily: NUM, fill: solid(T.st.ok[0]) });
 }
 
 // 状态补充：勾选型号后的批量操作行；「更多」菜单
@@ -348,7 +383,7 @@ function states(T, name) {
   const bar = box(a, { width: 'fill_container', layout: 'horizontal', alignItems: 'center', gap: 8, padding: [14, 20], fill: solid(T.soft) });
   tx(bar, '已选 2 个型号', { fontWeight: 600, fill: solid(T.ink) }); tx(bar, '取消选择', { fontSize: 13, fill: solid(P) });
   const br = box(bar, { width: 'fill_container', layout: 'horizontal', justifyContent: 'end', alignItems: 'center', gap: 2 });
-  textBtn(br, '指定采购员', 'user'); textBtn(br, '现货/期货', 'arrow-left-right'); primaryBtn(br, '更新进度');
+  textBtn(br, '指定采购员', 'user'); const sk = textBtn(br, '现货/期货', 'arrow-left-right'); icon(sk, 'chevron-down', 14, P); primaryBtn(br, '更新进度');
   const hdr = box(a, { width: 'fill_container', layout: 'horizontal', height: 44, alignItems: 'center', fill: solid(T.head), padding: [0, 20], gap: 16 });
   const ck = (p, on) => { const b = box(p, { width: 18, height: 18, cornerRadius: 4, layout: 'horizontal', justifyContent: 'center', alignItems: 'center', fill: solid(on === 2 ? P : on ? P : T.card), stroke: on ? undefined : { thickness: 1.5, fill: solid(T.faint) } }); if (on === 1) icon(b, 'check', 14, '#FFFFFF', false); if (on === 2) icon(b, 'minus', 14, '#FFFFFF', false); };
   ck(hdr, 2); tx(hdr, '型号', { fontWeight: 500, fill: solid(T.ink) });
@@ -371,3 +406,68 @@ detail(LIGHT, 'B1 销售订单详情 · 浅色 · 1440');
 detail(DARK, 'B2 销售订单详情 · 深色 · 1440');
 states(LIGHT, 'B1c 批量操作与更多菜单 · 浅色');
 states(DARK, 'B2c 批量操作与更多菜单 · 深色');
+
+// 状态组合：已取消、先采购后收款、售后单、部分取消记录（文字取自 detail.tsx 与字典）
+function alertBar(T, p, text, action) {
+  const { tx, box, icon } = kit(T);
+  const deep = T.key === 'light' ? '#7A5200' : '#FFD27A';
+  const a = box(p, { width: 'fill_container', layout: 'horizontal', gap: 10, alignItems: 'center', padding: [12, 16], cornerRadius: 8, fill: solid(T.st.warn[1]) });
+  icon(a, 'circle-alert', 18, T.st.warn[0]);
+  tx(a, text, { fill: solid(deep), width: 'fill_container', textGrowth: 'fixed-width', lineHeight: 1.5 });
+  if (action) tx(a, action, { fontWeight: 600, fill: solid(P) });
+}
+function stateCombo(T, name) {
+  const K = kit(T); const { tx, box, icon, hr, card, label } = K;
+  const root = I(null, { type: 'frame', name, width: 1180, height: 590, layout: 'vertical', gap: 24, padding: [24, 24], fill: solid(T.page) });
+  const cap = (t) => tx(root, t, { fontSize: 13, fontWeight: 600, fill: solid(T.sub) });
+
+  cap('已取消：页头没有操作，订单进度隐藏');
+  let h = box(root, { width: 'fill_container', layout: 'vertical', gap: 12 });
+  let t1 = box(h, { layout: 'horizontal', gap: 10, alignItems: 'center' });
+  tx(t1, 'SO20261116001', { fontSize: 22, fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) });
+  label(t1, '已取消', T.st.neu); label(t1, '现货', T.st.ok); label(t1, '待到账', T.st.warn);
+  alertBar(T, h, '订单已取消（Kevin 2026-11-20 10:15）：客户项目暂停');
+
+  cap('先采购后收款：页头多一个标签，提示条带操作');
+  h = box(root, { width: 'fill_container', layout: 'vertical', gap: 12 });
+  t1 = box(h, { layout: 'horizontal', gap: 10, alignItems: 'center' });
+  tx(t1, 'SO20261118006', { fontSize: 22, fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) });
+  label(t1, '已下单', T.st.info); label(t1, '现货', T.st.ok); label(t1, '待到账', T.st.warn); label(t1, '先采购后收款', T.st.warn);
+  alertBar(T, h, '客户还没有付款（先采购后收款：老客户月底结款 · 王敏 11-18），请跟进收款', '去 PI 上传水单');
+
+  const row2 = box(root, { width: 'fill_container', layout: 'horizontal', gap: 16 });
+  // 售后单卡片
+  let c = card(row2, { width: 'fill_container', layout: 'vertical', gap: 12, padding: [20, 24] });
+  let hh = box(c, { width: 'fill_container', layout: 'horizontal', alignItems: 'center', gap: 8 });
+  tx(hh, '售后单', { fontSize: 18, fontWeight: 500, fill: solid(T.ink), width: 'fill_container' }); tx(hh, '1 张', { fontSize: 12, fill: solid(T.sub) });
+  let r = box(c, { width: 'fill_container', layout: 'horizontal', gap: 10, alignItems: 'center', padding: [10, 14], cornerRadius: 8, fill: solid(T.tonal) });
+  tx(r, 'AS20261125001', { fontSize: 13, fontWeight: 600, fontFamily: NUM, fill: solid(P) });
+  label(r, 'S3', T.st.info);
+  tx(r, '6ES7214-1AG40-0XB0 × 1 · 产品质量 · 换货', { fontSize: 12, fontFamily: NUM, fill: solid(T.sub), width: 'fill_container' });
+  label(r, '处理中', T.st.info);
+  // 部分取消记录 + 合计标题变化
+  c = card(row2, { width: 'fill_container', layout: 'vertical', gap: 12, padding: [20, 24] });
+  hh = box(c, { width: 'fill_container', layout: 'horizontal', alignItems: 'center', gap: 8 });
+  tx(hh, '部分取消记录', { fontSize: 18, fontWeight: 500, fill: solid(T.ink), width: 'fill_container' }); tx(hh, '共 1 次 · 少了 USD 600.00', { fontSize: 12, fontFamily: NUM, fill: solid(T.sub) });
+  r = box(c, { width: 'fill_container', layout: 'vertical', gap: 6, padding: [10, 14], cornerRadius: 8, fill: solid(T.tonal) });
+  const l1 = box(r, { width: 'fill_container', layout: 'horizontal', gap: 10, alignItems: 'center' });
+  tx(l1, '11-21 10:30', { fontSize: 12, fontFamily: NUM, fill: solid(T.faint) });
+  tx(l1, '6EP1334-3BA10', { fontSize: 13, fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) });
+  tx(l1, '取消 3 个', { fill: solid(T.sub) }); label(l1, '供应商缺货', T.st.warn);
+  const am = box(l1, { width: 'fill_container', layout: 'horizontal', justifyContent: 'end', gap: 8, alignItems: 'center' });
+  tx(am, '−USD 600.00', { fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) }); tx(am, 'Kevin', { fontSize: 12, fontFamily: NUM, fill: solid(T.faint) });
+  tx(r, '采购与库存：关闭未排单的需求 3 个', { fontSize: 12, fill: solid(T.sub) });
+  hr(c);
+  const tt = box(c, { width: 'fill_container', layout: 'horizontal', alignItems: 'center' });
+  tx(tt, '订单合计（部分取消后）', { fontSize: 16, fontWeight: 600, fill: solid(T.ink), width: 'fill_container' });
+  tx(tt, 'USD 12,260.00', { fontSize: 22, fontWeight: 700, fontFamily: NUM, fill: solid(T.ink) });
+}
+
+// 成本明细滚到最右
+function costScrolled(T, name) {
+  const root = I(null, { type: 'frame', name, width: 840, height: 520, layout: 'vertical', padding: [24, 24], fill: solid(T.page) });
+  costCard(T, root, true);
+}
+
+stateCombo(LIGHT, 'B1e 状态组合 · 浅色');
+costScrolled(LIGHT, 'B1d 成本明细滚到最右 · 浅色');
