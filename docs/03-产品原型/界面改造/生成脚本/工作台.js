@@ -87,7 +87,7 @@ function wbShell(T, W, H, name) {
 
 function workbench(T, name, boards) {
   const K = kit(T); const { tx, box, icon, card, label } = K;
-  const content = wbShell(T, 1440, 1120, name);
+  const content = wbShell(T, 1440, 924, name);
   // 页头：问候；一人多看板时右侧切换（Segmented）
   const head = box(content, { width: 'fill_container', layout: 'horizontal', alignItems: 'center' });
   tx(head, '下午好，Kevin', { fontSize: 22, fontWeight: 600, fill: solid(T.ink), width: 'fill_container' });
@@ -98,7 +98,7 @@ function workbench(T, name, boards) {
   const tone = { info: T.st.info, ok: T.st.ok, warn: T.st.warn, err: T.st.err, neu: T.st.neu };
   const widget = (p, title, o) => {
     o = o || {};
-    const c = card(p, { width: 566, height: 'fill_container', layout: 'vertical', gap: 16, padding: [20, 24] });
+    const c = card(p, { width: 566, layout: 'vertical', gap: 16, padding: [20, 24] });
     const h = box(c, { width: 'fill_container', layout: 'horizontal', gap: 8, alignItems: 'center' });
     tx(h, title, { fontSize: 18, fontWeight: 500, fill: solid(T.ink) });
     if (o.sub) tx(h, o.sub, { fontSize: 13, fill: solid(T.sub) });
@@ -117,36 +117,39 @@ function workbench(T, name, boards) {
     if (o.hint) tx(m, o.hint, { fontSize: 12, fill: solid(o.hintCol || T.sub) });
     else if (!o.delta) box(m, { width: 10, height: 17 });
   };
-  const grid = box(content, { width: 'fill_container', layout: 'vertical', gap: 16 });
-  const row1 = box(grid, { width: 'fill_container', layout: 'horizontal', gap: 16 });
+  // 两列瀑布流：卡片保持自身高度，按模板顺序放进当前较矮的一列（左：待办、过期 PI；右：业绩、询价进度、商机）
+  const grid = box(content, { width: 'fill_container', layout: 'horizontal', gap: 16, alignItems: 'start' });
+  const colL = box(grid, { width: 566, layout: 'vertical', gap: 16 });
+  const colR = box(grid, { width: 566, layout: 'vertical', gap: 16 });
+  const row1 = colL;
   // 我的待办
   let c = widget(row1, '我的待办');
-  const todos = [['inbox', 'info', '待确认的询盘', 'AI 解析完成，等你核对型号', 3, 1], ['file-text', 'ok', '可以报价', '采购已回价，还没做报价单', 5, 1], ['wallet', 'warn', 'PI 待收款', '已发给客户，还没付清', 4, 0], ['ship', 'neu', '订单待出运', '货已到齐，等安排交货代', 2, 0], ['alarm-clock', 'err', '售后要更新客户', '已逾期或 1 小时内到期的售后单', 1, 1]];
+  const todos = [['inbox', 'info', '待确认的询盘', 'AI 解析完成，等你核对型号', 3, 1], ['file-text', 'ok', '可以报价', '采购已回价，还没做报价单', 5, 1], ['wallet', 'warn', 'PI 待收款', '已发给客户，还没付清', 4, 0], ['ship', 'neu', '订单待出运', '货已到齐，等安排交货代', 3, 0], ['alarm-clock', 'err', '售后要更新客户', '已逾期或 1 小时内到期的售后单', 1, 1]];
   for (const [ic, tn, t, d, n, alert] of todos) {
     const r = box(c, { width: 'fill_container', layout: 'horizontal', gap: 12, alignItems: 'center', padding: [10, 14], cornerRadius: 8, fill: solid(T.tonal) });
-    const ci = box(r, { width: 34, height: 34, cornerRadius: 17, layout: 'horizontal', justifyContent: 'center', alignItems: 'center', fill: solid(tone[tn][1]) }); icon(ci, ic === 'ship' ? 'rocket' : ic, 16, tone[tn][0], false);
+    // 图标中性，颜色只留给需要处理的数字
+    const ci = box(r, { width: 34, height: 34, cornerRadius: 17, layout: 'horizontal', justifyContent: 'center', alignItems: 'center', fill: solid(T.st.neu[1]) }); icon(ci, ic === 'ship' ? 'rocket' : ic, 16, T.sub, false);
     const tc = box(r, { width: 'fill_container', layout: 'vertical', gap: 2 }); tx(tc, t, { fontWeight: 600, fill: solid(T.ink) }); tx(tc, d, { fontSize: 12, fill: solid(T.sub) });
     tx(r, String(n), { fontSize: 22, fontWeight: 700, fontFamily: NUM, fill: solid(alert && n > 0 ? tone[tn][0] : T.ink) });
     icon(r, 'chevron-right', 16, T.faint, false);
   }
   // 我的业绩
-  c = widget(row1, '我的业绩', { sub: '本月', help: 1 });
+  c = widget(colR, '我的业绩', { sub: '本月', help: 1 });
   const pg = box(c, { width: 'fill_container', layout: 'vertical', gap: 12 });
   let pr = box(pg, { width: 'fill_container', layout: 'horizontal', gap: 12 });
-  metric(pr, '成交额', 'CNY 128,640.00', { delta: '+12.5%' });
-  metric(pr, '毛利', 'CNY 27,350.00', { delta: '+8.2%' });
+  metric(pr, '成交额', 'CNY 412,860.00', { delta: '+9.6%' });
+  metric(pr, '毛利', 'CNY 87,940.00', { delta: '+6.1%' });
   pr = box(pg, { width: 'fill_container', layout: 'horizontal', gap: 12 });
-  metric(pr, '实收回款', 'CNY 96,300.00', { delta: '-4.3%' });
-  metric(pr, '成交订单', '9', { delta: '+28.6%' });
+  metric(pr, '实收回款', 'CNY 386,420.00', { delta: '-4.3%' });
+  metric(pr, '成交订单', '26', { delta: '+18.2%' });
 
-  const row2 = box(grid, { width: 'fill_container', layout: 'horizontal', gap: 16 });
   // 询价进度
-  c = widget(row2, '询价进度', { help: 1 });
+  c = widget(colR, '询价进度', { help: 1 });
   pr = box(c, { width: 'fill_container', layout: 'horizontal', gap: 12 });
   metric(pr, '等采购回价的型号', '14', { link: 1, hint: '来自 4 张询盘' });
   metric(pr, '已过报价截止', '1', { hint: '截止日期已过，还在询价', hintCol: T.st.err[0] });
   // 过期未收款的 PI
-  c = widget(row2, '过期未收款的 PI', { more: '查看全部' });
+  c = widget(colL, '过期未收款的 PI', { more: '查看全部' });
   const sm = box(c, { layout: 'horizontal', gap: 8, alignItems: 'end' });
   tx(sm, '3', { fontSize: 22, fontWeight: 700, fontFamily: NUM, fill: solid(T.ink) });
   tx(sm, '张 · 合计 USD 18,600.00、EUR 2,400.00', { fontSize: 13, fontFamily: NUM, fill: solid(T.sub) });
@@ -161,15 +164,49 @@ function workbench(T, name, boards) {
     label(r, '已过期 ' + d + ' 天', T.st.err);
   });
 
-  const row3 = box(grid, { width: 'fill_container', layout: 'horizontal', gap: 16 });
   // 我的商机（半宽，右侧留空与代码一致）
-  c = widget(row3, '我的商机', { sub: '本月' });
+  c = widget(colR, '我的商机', { sub: '本月' });
   pr = box(c, { width: 'fill_container', layout: 'horizontal', gap: 12 });
   metric(pr, '本月新增商机', '12', { link: 1 });
   metric(pr, '有效商机', '8', { hint: '有效率 66.7%' });
   metric(pr, '赢单', '2');
-  box(row3, { width: 566 });
 }
 
 workbench(LIGHT, 'D1 工作台 · 业务员 · 浅色');
 workbench(DARK, 'D2 工作台 · 业务员 · 深色');
+
+// 状态补充：一人多看板时的切换器；过期 PI 为 0
+function wbStates(T, name) {
+  const K = kit(T); const { tx, box, icon, card } = K;
+  const root = I(null, { type: 'frame', name, width: 1196, height: 330, layout: 'vertical', gap: 24, padding: [24, 24], fill: solid(T.page) });
+  const head = box(root, { width: 'fill_container', layout: 'horizontal', alignItems: 'center' });
+  tx(head, '下午好，Kevin', { fontSize: 22, fontWeight: 600, fill: solid(T.ink), width: 'fill_container' });
+  const seg = box(head, { layout: 'horizontal', gap: 2, padding: [3, 3], cornerRadius: 8, fill: solid(T.tonal) });
+  ['业务负责人', '业务员'].forEach((b, i) => { const s = box(seg, { layout: 'horizontal', height: 32, alignItems: 'center', padding: [0, 14], cornerRadius: 6, fill: solid(i === 0 ? T.card : T.tonal), effects: i === 0 && T.key === 'light' ? SH : [] }); tx(s, b, { fontSize: 13, fontWeight: i === 0 ? 600 : 400, fill: solid(i === 0 ? T.ink : T.sub) }); });
+  const c = card(root, { width: 566, layout: 'vertical', gap: 16, padding: [20, 24] });
+  tx(c, '过期未收款的 PI', { fontSize: 18, fontWeight: 500, fill: solid(T.ink) });
+  const e = box(c, { width: 'fill_container', layout: 'horizontal', gap: 10, alignItems: 'center', padding: [18, 16], cornerRadius: 8, fill: solid(T.tonal) });
+  icon(e, 'circle-check', 18, T.st.ok[0]); tx(e, '没有过期未收款的 PI', { fill: solid(T.body) });
+}
+wbStates(LIGHT, 'D1b 工作台状态 · 浅色');
+// 涨跌颜色（每人自选，和主题色放在一起）：颜色表示好坏，箭头表示涨跌方向
+function deltaColors(T, name) {
+  const K = kit(T); const { tx, box, icon, card } = K;
+  const root = I(null, { type: 'frame', name, width: 1196, height: 250, layout: 'horizontal', gap: 24, padding: [24, 24], fill: solid(T.page) });
+  const opts = [['涨绿跌红（默认）', T.st.ok[0], T.st.err[0], 1], ['涨红跌绿', T.st.err[0], T.st.ok[0], 0]];
+  for (const [t, good, bad, on] of opts) {
+    const c = card(root, { width: 'fill_container', layout: 'vertical', gap: 14, padding: [20, 24], stroke: on ? { thickness: 1.5, fill: solid(P) } : (T.stroke || undefined) });
+    const h = box(c, { layout: 'horizontal', gap: 8, alignItems: 'center' });
+    const rd = box(h, { width: 18, height: 18, cornerRadius: 9, layout: 'horizontal', justifyContent: 'center', alignItems: 'center', stroke: { thickness: 1.5, fill: solid(on ? P : T.faint) } }); if (on) I(rd, { type: 'ellipse', width: 8, height: 8, fill: solid(P) });
+    tx(h, t, { fontWeight: 600, fill: solid(T.ink) });
+    const r = box(c, { width: 'fill_container', layout: 'horizontal', gap: 12 });
+    for (const [l, v, d, up, isGood] of [['实收回款', 'CNY 386,420.00', '+12.5%', 1, 1], ['费用', 'CNY 42,100.00', '+6.0%', 1, 0], ['成交订单', '26', '-3.7%', 0, 0]]) {
+      const m = box(r, { width: 'fill_container', layout: 'vertical', gap: 4, padding: [12, 14], cornerRadius: 8, fill: solid(T.tonal) });
+      tx(m, l, { fontSize: 12, fill: solid(T.sub) }); tx(m, v, { fontSize: 18, fontWeight: 700, fontFamily: NUM, fill: solid(T.ink) });
+      const col = isGood ? good : bad; const dd = box(m, { layout: 'horizontal', gap: 4, alignItems: 'center' }); icon(dd, up ? 'trending-up' : 'trending-down', 14, col); tx(dd, '较上月 ' + d, { fontSize: 12, fontFamily: NUM, fill: solid(col) });
+    }
+    tx(c, '颜色表示变好或变坏，箭头表示涨跌；费用越低越好，上涨按变坏着色', { fontSize: 12, fill: solid(T.sub) });
+  }
+}
+deltaColors(LIGHT, 'D1c 涨跌颜色 · 浅色');
+
