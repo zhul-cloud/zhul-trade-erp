@@ -6,12 +6,12 @@
 
 - [ ] 1.1 从代码现有的 `Pill`、`Tag` 着色整理出「状态 → 语义色」对照表 `status-colors.md`；有分歧的逐条列出请产品负责人定，定完即完成
 - [ ] 1.2 一次性读完所有带关键字搜索的列表的后端查询条件，建立 `search-scope.md`，每行写明页面、可搜字段、匹配方式、后端代码位置。用搜索核对前端所有关键字输入框都已收录，查不到的标「待核实」并问用户
-- [ ] 1.3 建立 `stat-cards.md`：列出每个列表的统计卡片、口径、与页签的关系、属于条件类（转快捷筛选）还是指标类（转汇总行），以及涉及的主规范条款。用搜索核对前端所有统计卡片都已收录，分类经产品负责人确认
+- [ ] 1.3 建立 `stat-cards.md`：列出每个列表的统计卡片、口径、与页签的关系、属于状态类（并入状态下拉数量）、条件类（转快捷筛选）还是指标类（转汇总行），以及涉及的主规范条款。用搜索核对前端所有统计卡片都已收录，分类经产品负责人确认
 
 ## 2. 原型与确认
 
 - [ ] 2.1 用 OpenPencil 画 4 张样板页的浅色版：工作台、销售订单列表、销售订单详情、登记表单弹窗。交付物是 `docs/03-产品原型/界面改造/` 下的 `.op` 文件和导出的 PNG，快捷筛选、关键字帮助和状态颜色取自第 1 组的依据表，并按 `specs/system/interface-style` 逐条自查
-- [ ] 2.2 画深色版：工作台出纯黑白、电光黄大数字两版，其余样板页各出一版，导出 PNG；无界面服务用完后执行 `op stop`
+- [ ] 2.2 画深色版（4 张样板页各一版），再画主题色对比图（4 种预设在浅色和深色下并排），导出 PNG；无界面服务用完后执行 `op stop`
 - [ ] 2.3 独立审核者复审原型：对照 `interface-style`、配色取值与对比度，并用 Impeccable critique 打分。问题改完、`review-log.md` 记为通过后，再交给用户
 - [ ] 2.4 用户确认原型后，同步修订 specs、`design.md`、`tasks.md`（含 Open Questions 的结论），用 `openspec validate ui-redesign --strict` 验证通过。未确认前不开始 3.3 和第 4 组及以后的任务
 
@@ -28,17 +28,17 @@
 - [ ] 4.2 按 `design.md` 第 2 节重写 `src/theme/palette.ts`：保留、改名、删除各键，删除三个渐变常量，修好所有编译报错的引用处；验证 `npm run lint` 通过
 - [ ] 4.3 改掉编译抓不到的渐变和旧字体：`LOGO_GRADIENT_STOPS` 和 `BrandLogo`、`public/logo.svg`、`public/favicon.ico`、`AuthLayout` 的光晕、4 处 `IBM Plex Mono`。默认 Logo 按 `site-appearance` 增量实现；用 BrowserOS neo 截图核对登录页、侧边栏和浏览器标签图标
 - [ ] 4.4 更新 `src/theme/antd.ts`、`shell.ts`、`AppTheme.tsx`：主按钮、危险按钮、圆角、阴影、焦点色、状态标签（按 `status-colors.md`），加入 Inter 依赖。验证：切换主题后弹窗、消息、登录页都跟着变
-- [ ] 4.5 补 Jest 测试：主题切换后的令牌、默认 Logo 随主题变化、浏览器标签图标固定为近黑；验证 `npm test` 通过
+- [ ] 4.5 补 Jest 测试：主题切换后的令牌、默认 Logo 随主题变化、浏览器标签图标固定为功能蓝；验证 `npm test` 通过
 
 ## 5. 骨架组件与检查规则
 
-- [ ] 5.1 在 `src/components/Page/` 下新增 `PageHeader`、`SummaryBar`、`QuickFilters`、`FilterBar`、`Section`、`HelpTip`，并写 Jest 测试，覆盖汇总行的金额按币种显示、更多筛选的生效数量、快捷筛选选中与「全部」恢复、帮助图标悬停弹出；验证 `npm test` 通过
+- [ ] 5.1 在 `src/components/ListLayout/` 下扩展：`FilterCard` 增加「更多筛选」，新增 `PageHeader`、`SummaryBar`、`QuickFilters`、`Section`、`HelpTip`。写 Jest 测试，覆盖汇总行的金额按币种显示、更多筛选的生效数量、快捷筛选的选中与取消、帮助图标悬停弹出；已用 `ListLayout` 的采购入库、销售出库测试仍然通过。验证 `npm test` 通过
 - [ ] 5.2 新增 `npm run lint:ui`，按 `design.md` 第 4 节检查，可按目录运行，确认弹窗和警告条不检查，支持写明原因的例外，并为脚本写自测。在全仓库跑一次，报出的问题按业务域整理成 `migration-list.md`
 - [ ] 5.3 在 `ui-design-patterns.md` 写明骨架组件的用法和 `lint:ui` 的例外写法；验证文中示例与组件的实际 API 一致
 
 ## 6. 样板页落地
 
-- [ ] 6.1 按确认的原型改造销售订单列表和详情，关键字帮助按 `search-scope.md` 写，统计卡片按 `stat-cards.md` 转成快捷筛选或汇总行。补 Jest 测试，验证快捷筛选和汇总行的数字与改造前的统计一致；验证 lint、`lint:ui`（销售订单目录）、Jest 通过，截图与原型一致
+- [ ] 6.1 按确认的原型改造销售订单列表和详情，关键字帮助按 `search-scope.md` 写，统计卡片按 `stat-cards.md` 并入状态下拉、转成快捷筛选或汇总行。补 Jest 测试，验证状态数量、快捷筛选和汇总行的数字与改造前的统计一致；验证 lint、`lint:ui`（销售订单目录）、Jest 通过，截图与原型一致
 - [ ] 6.2 按原型改造工作台，各岗位看板的数据和口径不变；验证在同一时刻与改造前各看板的数字一致，没有数据的组件按「空状态」显示
 - [ ] 6.3 按原型改造登记表单弹窗样板，说明文字按放置规则处理；验证 lint、`lint:ui`（该弹窗所在目录）通过，表单提交行为不变
 
