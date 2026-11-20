@@ -56,12 +56,12 @@ function kit(T) {
 
 // ———— 主题色对比板：6 种预设（PrimeDash 色相）在浅色、深色下各一张；取值见 design.md 第 2 节预设表
 const PRESETS = [
-  { n: '琥珀', c: '#FDA92D', def: 1, soft: '#FFF5E6', dl: '#FDA92D', ds: '#3E311D', note: '与警告色相近，警告靠图标和浅底标签区分' },
-  { n: '青绿', c: '#0D9394', soft: '#E2F2F2', dl: '#0D9394', ds: '#182D2E', note: '与成功色同为绿系，成功标签靠浅底区分' },
-  { n: '天蓝', c: '#078DEE', soft: '#E1F1FD', dl: '#078DEE', ds: '#172C3C', note: '与信息色同为蓝绿系，信息标签靠浅底区分' },
-  { n: '紫', c: '#7635DC', soft: '#EFE7FB', dl: '#9969E5', ds: '#291E39', note: '与各状态色都分得开' },
-  { n: '宝蓝', c: '#2065D1', soft: '#E4EDF9', dl: '#4482E2', ds: '#1B2637', note: '与各状态色都分得开' },
-  { n: '红', c: '#FF3030', soft: '#FFE6E6', dl: '#FF5050', ds: '#3F1E1E', note: '与错误色相近，危险操作靠描边按钮和确认框区分' },
+  { n: '琥珀', c: '#FDA92D', def: 1, soft: '#FFF5E6', dl: '#FDA92D', ds: '#3E311D', drop: '#B87A14', note: '与警告色相近，警告靠图标和浅底标签区分' },
+  { n: '青绿', c: '#0D9394', soft: '#E2F2F2', dl: '#2FA2A3', ds: '#182D2E', drop: '#2F9E99', note: '与成功色同为绿系，成功标签靠浅底区分' },
+  { n: '天蓝', c: '#078DEE', soft: '#E1F1FD', dl: '#2098F0', ds: '#172C3C', drop: '#3B82F6', note: '与信息色同为蓝绿系，信息标签靠浅底区分' },
+  { n: '紫', c: '#7635DC', soft: '#EFE7FB', dl: '#A77EE9', ds: '#291E39', drop: '#3B82F6', note: '与各状态色都分得开' },
+  { n: '宝蓝', c: '#2065D1', soft: '#E4EDF9', dl: '#5E94E6', ds: '#1B2637', drop: '#3B82F6', note: '与各状态色都分得开' },
+  { n: '红', c: '#FF3030', soft: '#FFE6E6', dl: '#FF5959', ds: '#3F1E1E', drop: '#E8664A', note: '与错误色相近；与默认涨跌色的红也相近，可换涨红跌绿' },
 ];
 
 function presetCell(T, parent, pr) {
@@ -100,6 +100,19 @@ function presetCell(T, parent, pr) {
   const pg = box(r2, { width: 'fill_container', layout: 'horizontal', gap: 8, alignItems: 'center' });
   const bar = box(pg, { width: 'fill_container', height: 6, cornerRadius: 3, fill: solid(T.line), layout: 'horizontal', clipContent: true }); I(bar, { type: 'frame', width: 50, height: 6, fill: solid(C) });
   tx(pg, '30%', { fontSize: 12, fontFamily: NUM, fill: solid(T.sub) });
+  // 表单控件、头像、焦点框、图表第一个系列
+  const r4 = box(c, { width: 'fill_container', layout: 'horizontal', gap: 12, alignItems: 'center' });
+  const cb = box(r4, { width: 16, height: 16, cornerRadius: 4, layout: 'horizontal', justifyContent: 'center', alignItems: 'center', fill: solid(C) }); icon(cb, 'check', 12, '#FFFFFF', false);
+  const rd = box(r4, { width: 16, height: 16, cornerRadius: 8, layout: 'horizontal', justifyContent: 'center', alignItems: 'center', stroke: { thickness: 1.5, fill: solid(C) } }); I(rd, { type: 'ellipse', width: 8, height: 8, fill: solid(C) });
+  const sw = box(r4, { width: 30, height: 16, cornerRadius: 8, layout: 'horizontal', justifyContent: 'end', alignItems: 'center', padding: [0, 2], fill: solid(C) }); I(sw, { type: 'ellipse', width: 12, height: 12, fill: solid('#FFFFFF') });
+  const av = box(r4, { width: 26, height: 26, cornerRadius: 13, layout: 'horizontal', justifyContent: 'center', alignItems: 'center', fill: solid(S) }); tx(av, 'K', { fontSize: 12, fontWeight: 700, fill: solid(L) });
+  // 焦点框：浅色 = 主题色 + 外侧 #637381；深色 = 深色链接色
+  const fo = box(r4, { width: 'fill_container', layout: 'horizontal', padding: T.key === 'light' ? [2, 2] : [0, 0], cornerRadius: 10, fill: solid(T.key === 'light' ? '#637381' : T.card) });
+  const fi = box(fo, { width: 'fill_container', height: 30, layout: 'horizontal', alignItems: 'center', padding: [0, 10], cornerRadius: 8, fill: solid(T.card), stroke: { thickness: 2, fill: solid(L) } }); tx(fi, '获得焦点', { fontSize: 12, fill: solid(T.body) });
+  // 图表：主题色为第一个系列，去掉色相最接近的系列色
+  const series = [C].concat(['#3B82F6', '#2F9E99', '#B87A14', '#E8664A', '#2E9A62', '#7A8794'].filter((x) => x !== pr.drop)).slice(0, 3);
+  const ch = box(r4, { layout: 'horizontal', gap: 6, alignItems: 'end', height: 30 });
+  [[18, 26, 12], [24, 14, 20]].forEach((grp) => { const gg = box(ch, { layout: 'horizontal', gap: 2, alignItems: 'end', height: 30 }); grp.forEach((h, k) => I(gg, { type: 'frame', width: 6, height: h, cornerRadius: 2, fill: solid(series[k]) })); });
   // 状态标签（不随主题色变化）
   const r3 = box(c, { width: 'fill_container', layout: 'horizontal', gap: 6, alignItems: 'center' });
   tx(r3, '状态色不变', { fontSize: 12, fill: solid(T.sub) });
@@ -108,7 +121,7 @@ function presetCell(T, parent, pr) {
 }
 
 function presetBoard(T, name) {
-  const root = I(null, { type: 'frame', name, width: 1440, height: 790, layout: 'vertical', gap: 20, padding: [24, 24], fill: solid(T.page) });
+  const root = I(null, { type: 'frame', name, width: 1440, height: 880, layout: 'vertical', gap: 20, padding: [24, 24], fill: solid(T.page) });
   const { tx, box } = kit(T);
   tx(root, T.key === 'light' ? '主题色对比 · 浅色' : '主题色对比 · 深色', { fontSize: 20, fontWeight: 600, fill: solid(T.ink) });
   for (let r = 0; r < 2; r++) {
