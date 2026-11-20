@@ -11,7 +11,7 @@
 ## 2. 原型与确认
 
 - [ ] 2.1 用 OpenPencil 画 4 张样板页的浅色版：工作台、销售订单列表、销售订单详情、登记表单弹窗。交付物是 `docs/03-产品原型/界面改造/` 下的 `.op` 文件和导出的 PNG，快捷筛选、关键字帮助和状态颜色取自第 1 组的依据表，并按 `specs/system/interface-style` 逐条自查
-- [ ] 2.2 画深色版（4 张样板页各一版），再画主题色对比图（4 种预设在浅色和深色下并排），导出 PNG；无界面服务用完后执行 `op stop`
+- [ ] 2.2 画深色版（4 张样板页各一版），再画主题色对比图（6 种预设在浅色和深色下并排），导出 PNG；无界面服务用完后执行 `op stop`
 - [ ] 2.3 独立审核者复审原型：对照 `interface-style`、配色取值与对比度，并用 Impeccable critique 打分。问题改完、`review-log.md` 记为通过后，再交给用户
 - [ ] 2.4 用户确认原型后，同步修订 specs、`design.md`、`tasks.md`（含 Open Questions 的结论），用 `openspec validate ui-redesign --strict` 验证通过。未确认前不开始 3.3 和第 4 组及以后的任务
 
