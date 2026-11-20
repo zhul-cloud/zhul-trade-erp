@@ -1,11 +1,12 @@
 import { InboxOutlined, SearchOutlined } from '@ant-design/icons';
 import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Button, Input, Segmented, Space, Table } from 'antd';
+import { Button, Input, Select, Space, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { FilterCard, FilterField, MainCard } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -15,7 +16,6 @@ import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   ArrivalCell,
-  Card,
   DOC_PATHS,
   distinctOf,
   ReceiptStatusPill,
@@ -128,7 +128,12 @@ const Receipts: React.FC = () => {
       key: 'items',
       width: 200,
       render: (_, r) => (
-        <ModelQtyCell items={r.items} totalQty={r.totalQuantity} />
+        <ModelQtyCell
+          items={r.items}
+          totalQty={r.totalQuantity}
+          docLabel={`${r.sdNo} · ${r.supplierName ?? ''}`}
+          onOpenDetail={() => history.push(DOC_PATHS.shipment(r.id))}
+        />
       ),
     },
     {
@@ -241,8 +246,12 @@ const Receipts: React.FC = () => {
           items={r.items?.map((i) => ({
             model: i.model,
             quantity: i.receivedQty,
+            brand: i.brand,
+            category: i.category,
           }))}
           totalQty={r.receivedQty}
+          docLabel={`${r.grNo} · ${r.supplierName ?? ''}`}
+          onOpenDetail={() => history.push(DOC_PATHS.receipt(r.id))}
         />
       ),
     },
@@ -325,6 +334,10 @@ const Receipts: React.FC = () => {
     setQuery(keyword.trim() || undefined);
     setPage(1);
   };
+  const changeTab = (t: Tab) => {
+    setTab(t);
+    setPage(1);
+  };
   const pagination = {
     current: page,
     pageSize,
@@ -339,86 +352,88 @@ const Receipts: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle
-        description="按发货单验收：只记录实收、合格、不良，差异由采购员处理。"
-        actions={
-          canEdit && (
-            <Button icon={<InboxOutlined />} onClick={() => setDirect(true)}>
-              直接收货
-            </Button>
-          )
-        }
-      />
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          marginBottom: 16,
+      <WarehousePageTitle description="按发货单验收：只记录实收、合格、不良，差异由采购员处理。" />
+      <FilterCard
+        onSearch={apply}
+        onReset={() => {
+          setKeyword('');
+          setQuery(undefined);
+          changeTab('pending');
         }}
       >
-        <Segmented<Tab>
-          value={tab}
-          onChange={(t) => {
-            setTab(t);
-            setPage(1);
-          }}
-          options={[
-            {
-              value: 'pending',
-              label: pending ? `待收货 · ${pending}` : '待收货',
-            },
-            { value: 'received', label: '已入库' },
-          ]}
-        />
-        <Input
-          allowClear
-          prefix={<SearchOutlined />}
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          onPressEnter={apply}
-          placeholder={
-            tab === 'pending'
-              ? '快递单号、采购订单号、型号、采购对象'
-              : '采购入库单号、发货单号、快递单号、采购订单号、型号'
-          }
-          style={{ width: 340 }}
-          aria-label="关键词"
-        />
-        <span style={{ flex: 1 }} />
-        <Button type="primary" onClick={apply}>
-          查询
-        </Button>
-      </div>
+        <FilterField label="关键词" span={2}>
+          <Input
+            allowClear
+            prefix={<SearchOutlined />}
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={apply}
+            placeholder={
+              tab === 'pending'
+                ? '快递单号、采购订单号、型号、采购对象'
+                : '采购入库单号、发货单号、快递单号、采购订单号、型号'
+            }
+            aria-label="关键词"
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select<Tab>
+            value={tab}
+            onChange={changeTab}
+            options={[
+              {
+                value: 'pending',
+                label: pending ? `待收货 · ${pending}` : '待收货',
+              },
+              { value: 'received', label: '已入库' },
+            ]}
+            aria-label="状态"
+          />
+        </FilterField>
+      </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
-      ) : tab === 'pending' ? (
-        <Card style={{ padding: 0 }}>
-          <Table<Shipment>
-            rowKey="id"
-            columns={shipColumns}
-            dataSource={ships}
-            loading={loading}
-            scroll={{ x: tableScrollX(shipColumns) }}
-            locale={{
-              emptyText: query
-                ? '没有匹配的在途发货单；货到了但没有发货单，点右上角「直接收货」'
-                : '没有待收货的发货单',
-            }}
-            pagination={pagination}
-          />
-        </Card>
       ) : (
-        <Table<Receipt>
-          rowKey="id"
-          columns={receiptColumns}
-          dataSource={receipts}
-          loading={loading}
-          scroll={{ x: tableScrollX(receiptColumns) }}
-          locale={{ emptyText: '还没有采购入库单' }}
-          pagination={pagination}
-        />
+        <MainCard
+          left={tab === 'pending' ? `待收货 ${total} 张` : `已入库 ${total} 张`}
+          right={
+            canEdit && (
+              <Button
+                type="primary"
+                icon={<InboxOutlined />}
+                onClick={() => setDirect(true)}
+              >
+                直接收货
+              </Button>
+            )
+          }
+        >
+          {tab === 'pending' ? (
+            <Table<Shipment>
+              rowKey="id"
+              columns={shipColumns}
+              dataSource={ships}
+              loading={loading}
+              scroll={{ x: tableScrollX(shipColumns) }}
+              locale={{
+                emptyText: query
+                  ? '没有匹配的在途发货单；货到了但没有发货单，点「直接收货」'
+                  : '没有待收货的发货单',
+              }}
+              pagination={pagination}
+            />
+          ) : (
+            <Table<Receipt>
+              rowKey="id"
+              columns={receiptColumns}
+              dataSource={receipts}
+              loading={loading}
+              scroll={{ x: tableScrollX(receiptColumns) }}
+              locale={{ emptyText: '还没有采购入库单' }}
+              pagination={pagination}
+            />
+          )}
+        </MainCard>
       )}
       {tab === 'pending' && (
         <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
