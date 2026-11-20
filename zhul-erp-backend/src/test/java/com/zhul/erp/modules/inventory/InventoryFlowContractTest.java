@@ -58,6 +58,7 @@ class InventoryFlowContractTest extends SalesContractSupport {
 
     @AfterEach
     void cleanup() {
+        InventoryConsistency.check(jdbc, 0);
         jdbc.update("delete from account where id = ?", KEEPER);
         jdbc.update("delete from user_basic where id = ?", KEEPER);
     }
@@ -336,10 +337,11 @@ class InventoryFlowContractTest extends SalesContractSupport {
         long product = productOfPoItem(poItem);
         long soItem = soItemOfPoItem(poItem);
         accept(ship(po.path("id").asLong(), Map.of(poItem, 3)), new int[]{3, 3, 0});
-        // 模拟上线前已入库、期初没推出来的货
+        // 模拟上线前已入库、期初没推出来的货（这张入库单当作历史单据，不参与一致性核对）
         for (String t : List.of("inv_move", "inv_balance", "inv_reservation", "inv_batch")) {
             jdbc.update("delete from " + t + " where tenant_id = 0");
         }
+        jdbc.update("update purchase_receipt_item set product_id = null where tenant_id = 0");
         long fwd = forwarder();
 
         jdbc.update("insert into sys_config (tenant_id, config_key, config_name, config_value, config_type, is_builtin, is_encrypted,"

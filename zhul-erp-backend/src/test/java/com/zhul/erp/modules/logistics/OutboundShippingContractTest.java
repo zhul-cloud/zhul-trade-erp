@@ -37,6 +37,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  */
 class OutboundShippingContractTest extends SalesContractSupport {
 
+    /** 跑完流程后核对库存（openspec inventory-foundation tasks 3.9） */
+    @org.junit.jupiter.api.AfterEach
+    void inventoryConsistency() {
+        com.zhul.erp.modules.inventory.InventoryConsistency.check(jdbc, 0);
+    }
+
+
     @org.springframework.boot.test.mock.mockito.SpyBean
     private com.zhul.erp.modules.warehouse.service.ShipmentService shipments;
 
