@@ -122,6 +122,8 @@ public class AttachmentOwnerScope {
             case AttachmentService.RETURN_RECEIPT -> anyMenu("/warehouse/returns")
                     || afterSalesVisible(afterSalesOfReceipt(returnReceiptMapper.selectById(id)));
             case AttachmentService.PURCHASE_RETURN -> purchaseReturnVisible(purchaseReturnMapper.selectById(id));
+            // 其他出库单：内部单据，有其他出库菜单就能看
+            case AttachmentService.OTHER_OUTBOUND -> anyMenu("/warehouse/other-outbounds");
             // 退款申请：财务看全部，申请侧按订单负责人
             case AttachmentService.REFUND_REQUEST -> anyMenu("/finance/refunds")
                     || orderVisible(orderOfRequest(refundRequestMapper.selectById(id)));

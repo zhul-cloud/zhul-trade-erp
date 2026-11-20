@@ -35,6 +35,7 @@ class InventoryFlowContractTest extends SalesContractSupport {
     private static final String PRN = "/api/v1/purchase/returns";
     private static final String OB = "/api/v1/logistics/outbounds";
     private static final String SH = "/api/v1/logistics/shipments";
+    private static final String OO = "/api/v1/warehouse/other-outbounds";
     private static final long KEEPER = 99000041L;
     private static final int MENU_PO = 100088;
     private static final int MENU_SHIP = 100089;
@@ -400,6 +401,90 @@ class InventoryFlowContractTest extends SalesContractSupport {
         ok(call(json(post(PRN + "/" + pr2 + "/ship"), write(Map.of("shipDate", LocalDate.now().toString(), "carrier", "顺丰",
                 "trackingNo", "SF99887766", "companyPaid", true))), lin));
         assertStock(new int[]{3, 0, 3}, stock(product, 1), "寄出：不良 1 出库");
+    }
+
+    // ---------------------------------------------------------------- 其他出库单
+
+    private JsonNode otherOut(int type, long warehouseId, long batchId, int status, int qty, String reason) throws Exception {
+        return call(json(post(OO), write(Map.of("outboundType", type, "warehouseId", warehouseId, "reason", reason,
+                "lines", List.of(Map.of("batchId", batchId, "stockStatus", status, "quantity", qty))))), keeper);
+    }
+
+    private long warehouseOf(int type) {
+        return jdbc.queryForObject("select id from inv_warehouse where tenant_id = 0 and type = ? order by id desc limit 1", Long.class, type);
+    }
+
+    /** spec warehouse/other-outbound「报废可用库存」「作废报废单」：只能出没有预占的；作废货回原批次 */
+    @Test
+    void otherOutbound_scrapFree_voidRestores() throws Exception {
+        long sup = supplier("华控自动化", null);
+        JsonNode po = orderedPo(sup, l("A-1", 2, "1000", "200"));
+        long poItem = item(po, 0);
+        long product = productOfPoItem(poItem);
+        ok(call(json(post(GR + "/direct"), write(Map.of("poId", po.path("id").asLong(), "receivedDate", LocalDate.now().toString(),
+                "items", List.of(Map.of("poItemId", poItem, "receivedQty", 5, "qualifiedQty", 5, "defectiveQty", 0))))), keeper));
+        long batch = jdbc.queryForObject("select id from inv_batch where tenant_id = 0 and product_id = ?", Long.class, product);
+        String batchNo = jdbc.queryForObject("select batch_no from inv_batch where id = ?", String.class, batch);
+        String soNo = jdbc.queryForObject("select so.so_no from sales_order so join sales_order_item i on i.so_id = so.id where i.id = ?",
+                String.class, soItemOfPoItem(poItem));
+        long own = warehouseOf(1);
+
+        assertEquals("货代丢失只能从货代仓出", fail(otherOut(3, own, batch, 1, 1, "丢了")).path("message").asText());
+        assertEquals("A-1 在公司仓库（批次 " + batchNo + "，合格）可出 3 个，其余预占给了订单，先对 " + soNo + " 部分取消再出库",
+                fail(otherOut(1, own, batch, 1, 4, "外壳破损")).path("message").asText());
+        assertEquals("库存不足：A-1 在公司仓库（批次 " + batchNo + "，不良）可出 0 个，要出 1",
+                fail(otherOut(1, own, batch, 2, 1, "外壳破损")).path("message").asText());
+
+        JsonNode oo = ok(otherOut(1, own, batch, 1, 2, "外壳破损"));
+        assertTrue(oo.path("outboundNo").asText().startsWith("OO"));
+        assertEquals("已出库", oo.path("statusName").asText());
+        assertEquals("报废", oo.path("outboundTypeName").asText());
+        assertEquals("公司仓库", oo.path("warehouseName").asText());
+        java.math.BigDecimal net = jdbc.queryForObject("select net_price_cny from purchase_order_item where id = ?", java.math.BigDecimal.class, poItem);
+        assertEquals(0, net.multiply(java.math.BigDecimal.valueOf(2)).setScale(2, java.math.RoundingMode.HALF_UP).compareTo(
+                new java.math.BigDecimal(oo.path("amountCny").asText())), "金额 = 批次单价 × 2");
+        assertEquals(batchNo, oo.path("items").get(0).path("batchNo").asText());
+        assertEquals(1, oo.path("moves").size());
+        assertEquals(-2, oo.path("moves").get(0).path("quantity").asInt());
+        assertEquals("其他出库 · 报废", oo.path("moves").get(0).path("bizLabel").asText());
+        assertEquals("新建", oo.path("logs").get(0).path("action").asText());
+        assertTrue(oo.path("voidable").asBoolean());
+        assertStock(new int[]{3, 0, 2}, stock(product, 1), "可用 3 出 2");
+
+        long id = oo.path("id").asLong();
+        JsonNode page = ok(call(json(post(OO + "/page"), write(Map.of("keyword", "A-1"))), keeper));
+        assertEquals(1, page.path("total").asInt());
+        assertEquals("A-1", page.path("records").get(0).path("firstModel").asText());
+        assertEquals(2, page.path("records").get(0).path("totalQuantity").asInt());
+        ok(call(json(put(OO + "/" + id + "/remark"), "{\"remark\":\"拍照存档\"}"), keeper));
+
+        assertEquals("请填写作废原因", fail(call(json(post(OO + "/" + id + "/void"), "{}"), keeper)).path("message").asText());
+        JsonNode voided = ok(call(json(post(OO + "/" + id + "/void"), "{\"reason\":\"误报废，货还在\"}"), keeper));
+        assertEquals("已作废", voided.path("statusName").asText());
+        assertEquals(2, voided.path("moves").size(), "原流水 + 反向流水");
+        assertStock(new int[]{5, 0, 2}, stock(product, 1), "作废：可用加回 2");
+        assertEquals("其他出库单已作废", fail(call(json(post(OO + "/" + id + "/void"), "{\"reason\":\"x\"}"), keeper)).path("message").asText());
+        assertEquals("其他出库单已作废", fail(call(json(put(OO + "/" + id + "/remark"), "{\"remark\":\"x\"}"), keeper)).path("message").asText());
+        assertEquals(403, perform(json(post(OO + "/page"), "{}"), lin).getStatus(), "采购员没有其他出库菜单");
+    }
+
+    /** spec warehouse/other-outbound「货代丢件」：货代仓的货都预占给了订单，提示先部分取消 */
+    @Test
+    void otherOutbound_forwarderLost_reservedRejected() throws Exception {
+        long sup = supplier("华控自动化", null);
+        JsonNode po = orderedPo(sup, l("A-1", 2, "1000", "200"));
+        long poItem = item(po, 0);
+        long soItem = soItemOfPoItem(poItem);
+        accept(ship(po.path("id").asLong(), Map.of(poItem, 2)), new int[]{2, 2, 0});
+        long fwd = forwarder();
+        handOver(soItem, fwd, 2);
+        long batch = jdbc.queryForObject("select id from inv_batch where tenant_id = 0 and product_id = ?", Long.class, productOfPoItem(poItem));
+        String soNo = jdbc.queryForObject("select so.so_no from sales_order so join sales_order_item i on i.so_id = so.id where i.id = ?",
+                String.class, soItem);
+        long fwdWh = warehouseOf(2);
+        assertEquals("报废只能从公司仓库出", fail(otherOut(1, fwdWh, batch, 1, 1, "坏了")).path("message").asText());
+        assertEquals("A-1 在深圳捷运的货都预占给了订单，先对 " + soNo + " 部分取消再出库",
+                fail(otherOut(3, fwdWh, batch, 1, 1, "货代弄丢")).path("message").asText());
     }
 
     // ---------------------------------------------------------------- 订单取消

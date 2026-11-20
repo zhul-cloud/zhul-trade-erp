@@ -677,6 +677,10 @@ class AfterSalesContractTest extends SalesContractSupport {
         assertEquals(rr.path("receiptNo").asText() + ":1:烧坏", jdbc.queryForObject("select concat(source_doc_no, ':', outbound_type, ':', reason)"
                 + " from inv_other_outbound where tenant_id = 0 and source_doc_type = 'RR' and source_doc_id = ?", String.class, rid));
         assertTrue(done.path("dispositions").toString().contains("烧坏"));
+        long ooId = jdbc.queryForObject("select id from inv_other_outbound where tenant_id = 0 and source_doc_type = 'RR' and source_doc_id = ?",
+                Long.class, rid);
+        assertEquals("由退货入库单 " + rr.path("receiptNo").asText() + " 报废生成，不能单独作废",
+                msg(call(json(post("/api/v1/warehouse/other-outbounds/" + ooId + "/void"), "{\"reason\":\"x\"}"), admin)));
         assertEquals("退货已处理完", msg(call(json(post(d), write(Map.of("lines", List.of(Map.of("itemId", rItem, "disposition", 3,
                 "quantity", 3))))), admin)));
         assertEquals("退货入库单不存在", msg(call(get(RT + "/999999999"), admin)));
