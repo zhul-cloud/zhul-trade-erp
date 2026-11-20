@@ -25,16 +25,22 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 /**
  * spec sales/sales-order「按型号部分取消」「部分取消后的采购需求」、sales/payment-receipt「订单部分取消后的收款」、
- * warehouse/stock-hold「闲置库存」。
+ * warehouse/inventory「预占」（openspec inventory-foundation：在仓的、之后到货超出的释放成可用库存，不再转闲置库存）。
  */
 class SalesOrderPartialCancelContractTest extends SalesContractSupport {
+
+    /** 跑完流程后核对库存（openspec inventory-foundation tasks 3.9） */
+    @org.junit.jupiter.api.AfterEach
+    void inventoryConsistency() {
+        com.zhul.erp.modules.inventory.InventoryConsistency.check(jdbc, 0);
+    }
+
 
     private static final String CREDIT = "/api/v1/finance/credits";
 
     @Autowired @Qualifier("cashWidget") private WorkbenchWidget cashWidget;
     private static final String SHIP = "/api/v1/purchase/shipments";
     private static final String GR = "/api/v1/warehouse/receipts";
-    private static final String HOLD = "/api/v1/warehouse/holds";
 
     // ---------------------------------------------------------------- 准备数据
 
@@ -170,24 +176,17 @@ class SalesOrderPartialCancelContractTest extends SalesContractSupport {
         money("750", over.get(0).path("total"));
         assertEquals(0, jdbc.queryForObject("select count(*) from fin_customer_refund where tenant_id = 0", Integer.class));
 
-        // 采购员保留：到货 10 个，超出订单需要的 5 个转闲置库存，订单型号按 5 个算已入库
+        // 采购员保留：到货 10 个，订单需要的 5 个预占给订单，超出的 5 个成为可用库存；订单型号按 5 个算已入库
         JsonNode gr = receiveAll(draft, 10);
-        JsonNode holds = ok(call(json(post(HOLD + "/page"), write(Map.of("sourceType", 2))), admin));
-        assertEquals(1, holds.path("total").asInt());
-        JsonNode h = holds.path("records").get(0);
-        assertEquals(5, h.path("quantity").asInt());
-        assertEquals("订单部分取消", h.path("sourceName").asText());
-        assertEquals(after.path("soNo").asText(), h.path("soNo").asText());
-        money("200", h.path("costPrice"));
+        assertEquals("10/5", ownStock(a), "公司仓库结存 10、预占 5");
+        assertEquals(0, holdCount(), "不再转闲置库存");
         JsonNode got = detail(so);
         assertEquals(5, got.path("items").get(0).path("purchaseReceivedQty").asInt());
         assertEquals(5, got.path("items").get(0).path("goodsInWarehouse").asInt(), "在仓按订单需要的 5 个");
         assertEquals("RECEIVED", got.path("items").get(0).path("progressCode").asText());
-        // 按关键字搜订单号能找到
-        assertEquals(1, ok(call(json(post(HOLD + "/page"), write(Map.of("keyword", after.path("soNo").asText()))), admin)).path("total").asInt());
-        // 冲销入库：这张入库单转入的闲置库存一并撤回
+        // 冲销入库：预占的 5 个与可用的 5 个一并冲回
         ok(call(json(post(GR + "/" + gr.path("receipt").path("id").asLong() + "/reverse"), "{\"reason\":\"录错\"}"), admin));
-        assertEquals(0, ok(call(json(post(HOLD + "/page"), write(Map.of("sourceType", 2))), admin)).path("total").asInt());
+        assertEquals("0/0", ownStock(a));
         assertEquals(0, detail(so).path("items").get(0).path("purchaseReceivedQty").asInt());
     }
 
@@ -282,17 +281,20 @@ class SalesOrderPartialCancelContractTest extends SalesContractSupport {
                 Integer.class, draft, a));
         assertEquals(3, jdbc.queryForObject("select quantity from purchase_requirement where so_item_id = ?", Integer.class, a));
 
-        // B 全部到货入库后取消 4 个：转闲置库存，成本取采购单价
+        // B 全部到货入库后取消 4 个：释放预占 4 个，成为可用库存
         priceAndConfirm(draft, "100", admin);
         receiveAll(draft, 100);
+        assertEquals("10/10", ownStock(b));
         JsonNode pv2 = ok(preview(so, body("OTHER", b, 4)));
         assertEquals(4, pv2.path("items").get(0).path("held").asInt());
         JsonNode after = ok(cancel(so, body("OTHER", b, 4)));
         assertEquals(6, after.path("items").get(1).path("purchaseReceivedQty").asInt());
-        JsonNode holds = ok(call(json(post(HOLD + "/page"), write(Map.of("status", 1))), admin));
-        assertEquals(1, holds.path("total").asInt());
-        assertEquals(4, holds.path("records").get(0).path("quantity").asInt());
-        money("100", holds.path("records").get(0).path("costPrice"));
+        assertTrue(after.path("partialCancels").toString().contains("在仓 4 个转可用库存"), after.path("partialCancels").toString());
+        assertEquals("10/6", ownStock(b), "预占 10 → 6，可用增加 4");
+        assertEquals("释放:-4:订单部分取消 · " + after.path("soNo").asText(), jdbc.queryForObject(
+                "select concat('释放:', quantity, ':', biz_label) from inv_move where tenant_id = 0 and op_type = 8 and target_id = ?",
+                String.class, b));
+        assertEquals(0, holdCount(), "不再转闲置库存");
         assertEquals(6, jdbc.queryForObject("select quantity from purchase_requirement where so_item_id = ?", Integer.class, b));
     }
 
@@ -405,11 +407,11 @@ class SalesOrderPartialCancelContractTest extends SalesContractSupport {
     }
 
     /**
-     * audit BUS-072：入库后部分取消，在仓的数量转入闲置库存（不挂在入库单上）；冲销这张入库单时一并撤回这部分闲置库存，
-     * 订单已入库数不变成负数；闲置库存已处置时不能冲销
+     * audit BUS-072（新口径）：入库后部分取消，在仓的数量释放成可用库存；冲销这张入库单时预占与可用一并冲回，
+     * 订单已入库数不变成负数
      */
     @Test
-    void reverseReceipt_withdrawsHoldMovedAtCancel() throws Exception {
+    void reverseReceipt_afterPartialCancel() throws Exception {
         long sup = supplier("华北工控", null);
         long so = order(sup, null, null, "1000", l("A-1", 10, "100", "50"));
         long draft = draftPo(sup);
@@ -417,20 +419,11 @@ class SalesOrderPartialCancelContractTest extends SalesContractSupport {
         priceAndConfirm(draft, "100", admin);
         long gr = receiveAll(draft, 100).path("receipt").path("id").asLong();
         ok(cancel(so, body("OTHER", a, 4)));
-        JsonNode holds = ok(call(json(post(HOLD + "/page"), write(Map.of("sourceType", 2))), admin));
-        assertEquals(1, holds.path("total").asInt());
-        assertEquals(4, holds.path("records").get(0).path("quantity").asInt());
-
-        // 闲置库存已处置：不能冲销
-        long hold = holds.path("records").get(0).path("id").asLong();
-        jdbc.update("update stock_hold set status = 4 where id = ?", hold);
-        assertEquals("部分取消时转入的闲置库存已处置，不能冲销",
-                fail(call(json(post(GR + "/" + gr + "/reverse"), "{\"reason\":\"录错\"}"), admin)).path("message").asText());
-        jdbc.update("update stock_hold set status = 1 where id = ?", hold);
+        assertEquals("10/6", ownStock(a));
+        assertEquals(6, detail(so).path("items").get(0).path("purchaseReceivedQty").asInt());
 
         ok(call(json(post(GR + "/" + gr + "/reverse"), "{\"reason\":\"录错\"}"), admin));
-        assertEquals(0, ok(call(json(post(HOLD + "/page"), write(Map.of("sourceType", 2))), admin)).path("total").asInt(),
-                "冲销后货不在仓，部分取消时转入的闲置库存一并撤回");
+        assertEquals("0/0", ownStock(a), "冲销：预占 6 与可用 4 一并冲回");
         assertEquals(0, detail(so).path("items").get(0).path("purchaseReceivedQty").asInt(), "订单已入库数不出现负数");
     }
 
@@ -450,18 +443,26 @@ class SalesOrderPartialCancelContractTest extends SalesContractSupport {
         JsonNode after = ok(cancel(so, body("CUSTOMER", b, 3)));
         assertEquals("系统外采购，只改订单", after.path("partialCancels").get(0).path("result").asText());
 
-        // A 下单后取消 4 个，保留采购；到货转入的闲置库存处置后，这张入库单不能冲销
+        // A 下单后取消 4 个，保留采购；整批到货后只预占订单需要的数量，超出的成为可用库存
         priceAndConfirm(draft, "100", admin);
         ok(cancel(so, body("OUT_OF_STOCK", a, 4)));
-        JsonNode gr = receiveAll(draft, 100);
-        // B 被取消 3 个后整批到货，超出的 3 个同样转入；A 超出 4 个
-        JsonNode rows = ok(call(json(post(HOLD + "/page"), write(Map.of("sourceType", 2))), admin)).path("records");
-        assertEquals(2, rows.size());
-        JsonNode h = rows.get(0).path("model").asText().equals("A-1") ? rows.get(0) : rows.get(1);
-        assertEquals(4, h.path("quantity").asInt());
-        ok(call(json(post(HOLD + "/" + h.path("id").asLong() + "/handle"), write(Map.of("status", 4, "note", "留作样品"))), admin));
-        assertEquals("这张入库单转入的闲置库存已处置，不能冲销",
-                fail(call(json(post(GR + "/" + gr.path("receipt").path("id").asLong() + "/reverse"), "{\"reason\":\"录错\"}"), admin))
-                        .path("message").asText());
+        receiveAll(draft, 100);
+        assertEquals("10/6", ownStock(a));
+        assertEquals("10/7", ownStock(b), "B 被取消 3 个后整批到货，预占 7");
+        JsonNode got = detail(so);
+        assertEquals(6, got.path("items").get(0).path("purchaseReceivedQty").asInt());
+        assertEquals(7, got.path("items").get(1).path("purchaseReceivedQty").asInt());
+        assertEquals(0, holdCount(), "不再转闲置库存");
+    }
+
+    /** 订单型号行商品在公司仓库的 结存/预占 */
+    private String ownStock(long soItemId) {
+        return jdbc.queryForObject("select concat(coalesce(sum(b.on_hand), 0), '/', coalesce(sum(b.reserved), 0)) from inv_balance b"
+                + " join inv_warehouse w on w.id = b.warehouse_id where w.tenant_id = 0 and w.type = 1"
+                + " and b.product_id = (select product_id from sales_order_item where id = ?)", String.class, soItemId);
+    }
+
+    private int holdCount() {
+        return jdbc.queryForObject("select count(*) from stock_hold where tenant_id = 0 and deleted_at is null", Integer.class);
     }
 }

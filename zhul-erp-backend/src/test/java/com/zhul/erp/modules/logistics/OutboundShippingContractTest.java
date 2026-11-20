@@ -37,6 +37,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  */
 class OutboundShippingContractTest extends SalesContractSupport {
 
+    /** 跑完流程后核对库存（openspec inventory-foundation tasks 3.9） */
+    @org.junit.jupiter.api.AfterEach
+    void inventoryConsistency() {
+        com.zhul.erp.modules.inventory.InventoryConsistency.check(jdbc, 0);
+    }
+
+
     @org.springframework.boot.test.mock.mockito.SpyBean
     private com.zhul.erp.modules.warehouse.service.ShipmentService shipments;
 
@@ -136,6 +143,12 @@ class OutboundShippingContractTest extends SalesContractSupport {
     private JsonNode handOver(List<Long> ids, String freight) throws Exception {
         return call(json(post(OB + "/hand-over"), write(Map.of("outboundIds", ids, "carrier", "顺丰", "trackingNo", "SF1500",
                 "sentDate", LocalDate.now().toString(), "freight", freight))), keeper);
+    }
+
+    /** 本测试货代的货代仓 结存/预占 */
+    private String forwarderStock() {
+        return jdbc.queryForObject("select concat(coalesce(sum(b.on_hand), 0), '/', coalesce(sum(b.reserved), 0)) from inv_balance b"
+                + " join inv_warehouse w on w.id = b.warehouse_id where w.tenant_id = 0 and w.forwarder_id = ?", String.class, forwarder);
     }
 
     private JsonNode order(long soId) throws Exception {
@@ -655,10 +668,13 @@ class OutboundShippingContractTest extends SalesContractSupport {
         JsonNode it = order(soId).path("items").get(0);
         assertEquals(4, it.path("goodsHanded").asInt());
         assertEquals("已下单", it.path("progressName").asText(), "5 个只交了 4 个");
+        // 库存（openspec inventory-foundation）：直发确认入该货代的货代仓，预占给订单型号行
+        assertEquals("4/4", forwarderStock(), "货代仓结存 4、预占 4");
 
         ok(call(json(post(SH + "/" + shId + "/ship"), write(Map.of("carrier", "DHL", "waybillNo", "1",
                 "shippedDate", LocalDate.now().toString(), "freight", "10"))), admin));
         assertEquals(4, order(soId).path("items").get(0).path("goodsShipped").asInt());
+        assertEquals("0/0", forwarderStock(), "登记出运：从货代仓销售出库");
         assertFalse(order(soId).path("items").get(0).path("progressName").asText().equals("已出运"));
     }
 

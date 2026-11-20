@@ -141,6 +141,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     private final com.zhul.erp.modules.purchase.support.PurchaseLinks purchaseLinks;
     private final com.zhul.erp.modules.finance.service.CreditUsageService creditUsage;
     private final com.zhul.erp.modules.purchase.support.RequirementReduction requirementReduction;
+    private final com.zhul.erp.modules.inventory.service.InventoryHooks inventoryHooks;
     private final com.zhul.erp.modules.purchase.support.PurchaseNotices purchaseNotices;
     private final com.zhul.erp.modules.purchase.support.OrderPurchaseProgress purchaseProgress;
     private final com.zhul.erp.modules.logistics.support.LogisticsQty logisticsQty;
@@ -755,6 +756,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         productArchiver.sync(items.stream().map(SalesOrderItemDO::getInquiryItemId).filter(Objects::nonNull).toList());
         // 没下单的采购需求关闭，已下单的标「订单已取消」交给采购员
         requirementLifecycle.onOrderCancelled(o, currentUserId());
+        // 库存：释放这张订单的预占，货成为可用库存
+        inventoryHooks.orderReduced(o.getId(), o.getSoNo(), items.stream().map(SalesOrderItemDO::getId).toList(),
+                o.getDeletedAt() != null ? "订单删除" : "订单取消");
         if (pi == null) {
             // 手动订单上的余额抵扣随订单作废，释放余额
             creditUsage.releaseOrder(o);
@@ -1000,7 +1004,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     }
 
     /**
-     * 事务边界：型号行与订单合计、取消记录、采购需求扣减（草稿撤出、转闲置库存、采购单标记）、进度与收款状态在同一本地事务内；
+     * 事务边界：型号行与订单合计、取消记录、采购需求扣减（草稿撤出、在仓的释放库存预占、采购单标记）、进度与收款状态在同一本地事务内；
      * 锁顺序 PI → 订单 → 采购需求 → 采购订单，与取消订单、下单一致。
      */
     @Override
@@ -1052,6 +1056,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         }
         List<OrderProgress.Step> ordered = progress.ordered();
         recompute(o, plan.items(), ordered);
+        // 库存：在仓的超出部分释放预占，成为可用库存
+        inventoryHooks.orderReduced(o.getId(), o.getSoNo(), plan.cancel().keySet(), "订单部分取消");
         purchaseProgress.sync(plan.cancel().keySet());
         if (manual) {
             piSummary.refreshOrder(orderMapper.selectById(id));

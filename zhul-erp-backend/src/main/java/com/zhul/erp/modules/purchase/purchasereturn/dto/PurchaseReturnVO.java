@@ -71,6 +71,10 @@ public class PurchaseReturnVO {
         private Long soItemId;
         private Long poItemId;
         private Long receiptItemId;
+        /** 库存退回：批次号与库存状态名称 */
+        private Long batchId;
+        private String batchNo;
+        private String stockStatusName;
         private Long discrepancyId;
         private String discrepancyName;
     }

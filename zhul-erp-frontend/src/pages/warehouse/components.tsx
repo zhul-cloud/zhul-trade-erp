@@ -28,7 +28,6 @@ export { Card, Pill };
 export const WAREHOUSE_PATHS = {
   shipments: '/purchase/shipments',
   receipts: '/warehouse/receipts',
-  holds: '/warehouse/holds',
   shoots: '/warehouse/shoots',
   order: (id: number) => `/purchase/orders/${id}`,
   salesOrder: (id: number) => `/sales/orders/${id}`,
@@ -54,13 +53,6 @@ export const DiffTypePill = tone({ 1: 'orange', 2: 'red', 3: 'cyan' });
 export const DiffStatusPill = tone({ 1: 'orange', 2: 'green' });
 /** 采购入库单：有效 / 已冲销 */
 export const ReceiptStatusPill = tone({ 1: 'green', 2: 'mute' });
-/** 闲置库存：暂存中 / 已退回 / 已报废 / 已转样品 */
-export const HoldStatusPill = tone({
-  1: 'accent',
-  2: 'gray',
-  3: 'mute',
-  4: 'violet',
-});
 /** 实拍任务：待拍摄 / 已完成 / 已跳过 */
 export const ShootStatusPill = tone({ 1: 'gray', 2: 'green', 3: 'mute' });
 

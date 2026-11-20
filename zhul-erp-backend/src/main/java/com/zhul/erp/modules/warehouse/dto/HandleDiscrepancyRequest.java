@@ -21,7 +21,4 @@ public class HandleDiscrepancyRequest {
     private BigDecimal discountAmount;
     /** 暂存：供应商白送（成本为 0） */
     private Boolean freeOfCharge;
-    /** 暂存：位置备注 */
-    @Size(max = 100, message = "位置备注不能超过100个字")
-    private String locationNote;
 }

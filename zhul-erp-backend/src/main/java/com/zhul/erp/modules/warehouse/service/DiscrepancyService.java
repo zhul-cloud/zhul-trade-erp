@@ -52,7 +52,7 @@ import java.util.Set;
 
 /**
  * 到货差异：验收时按入库行生成（少发 / 不良 / 多发），负责人为采购订单的采购员，由采购员选择处理方式。
- * 事务边界：处理 / 重新打开 = 差异状态、采购订单行数量与合计（不补）、闲置库存（暂存）、订单进度、需求更新时间、采购订单日志。
+ * 事务边界：处理 / 重新打开 = 差异状态、采购订单行数量与合计（不补）、订单进度、需求更新时间、采购订单日志。
  * 金额精度：折价金额、退货运费按两位小数 HALF_UP 存储（PurchaseCalc.money）。
  */
 @Service
@@ -63,6 +63,7 @@ public class DiscrepancyService {
             WarehouseConstants.RES_RETURN_OVER);
     private static final Set<Integer> REDUCE_ORDER = Set.of(WarehouseConstants.RES_NO_RESEND, WarehouseConstants.RES_RETURN_NO_RESEND);
 
+    private final com.zhul.erp.modules.inventory.service.InventoryHooks inventoryHooks;
     private final ReceivingDiscrepancyMapper discrepancyMapper;
     private final PayableSyncService payables;
     private final PurchaseReceiptMapper receiptMapper;
@@ -318,28 +319,16 @@ public class DiscrepancyService {
             }
             d.setDiscountAmount(PurchaseCalc.money(req.getDiscountAmount()));
             detail.add("折价 " + p.getCurrencyCode() + " " + d.getDiscountAmount());
+            // 库存：该批次的不良转为合格，按订单预占
+            PurchaseReceiptDO gr = receiptMapper.selectById(d.getReceiptId());
+            inventoryHooks.discountAccepted(d.getId(), gr == null ? "" : gr.getGrNo(), d.getReceiptItemId(), d.getProductId(),
+                    item.getSoItemId(), d.getQuantity());
         }
         if (res == WarehouseConstants.RES_HOLD) {
             boolean free = Boolean.TRUE.equals(req.getFreeOfCharge());
             d.setFreeOfCharge(free ? 1 : 0);
-            StockHoldDO h = new StockHoldDO();
-            h.setTenantId(d.getTenantId());
-            h.setSourceType(WarehouseConstants.HOLD_SRC_DISCREPANCY);
-            h.setDiscrepancyId(d.getId());
-            h.setReceiptId(d.getReceiptId());
-            h.setPoId(d.getPoId());
-            h.setModel(d.getModel());
-            h.setBrand(d.getBrand());
-            h.setCategory(d.getCategory());
-            h.setQuantity(d.getQuantity());
-            h.setCostPrice(free || item.getNetPriceCny() == null ? BigDecimal.ZERO.setScale(2) : PurchaseCalc.money(item.getNetPriceCny()));
-            h.setLocationNote(ReceivingSupport.trim(req.getLocationNote()));
-            h.setStatus(WarehouseConstants.HOLD_ACTIVE);
-            h.setReturnCarrier("");
-            h.setReturnTrackingNo("");
-            h.setHandleNote("");
-            holdMapper.insert(h);
-            detail.add("进入闲置库存" + (free ? "（供应商白送）" : "") + (h.getLocationNote().isEmpty() ? "" : "，位置 " + h.getLocationNote()));
+            // 多发的货验收时已入库（没有预占），暂存就是留在可用库存，不再生成闲置库存（openspec inventory-foundation）
+            detail.add("留在可用库存" + (free ? "（供应商白送）" : ""));
         }
         Long operator = currentUser.resolve();
         d.setResolution(res);
@@ -377,6 +366,9 @@ public class DiscrepancyService {
         // 采购退货单还在待寄出才能重新打开，随之作废；已寄出的提示先处理采购退货单
         purchaseReturns.cancelForDiscrepancy(d);
         PurchaseOrderItemDO item = poItemMapper.selectById(d.getPoItemId());
+        if (res == WarehouseConstants.RES_DISCOUNT) {
+            inventoryHooks.discountReopened(d.getId());
+        }
         if (res == WarehouseConstants.RES_HOLD) {
             StockHoldDO h = holdMapper.selectOne(new LambdaQueryWrapper<StockHoldDO>()
                     .eq(StockHoldDO::getDiscrepancyId, d.getId())

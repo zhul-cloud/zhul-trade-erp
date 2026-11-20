@@ -58,6 +58,7 @@ public class AttachmentController {
             Map.entry(AttachmentService.SALES_RETURN, List.of("/sales/returns", "/sales/after-sales")),
             Map.entry(AttachmentService.RETURN_RECEIPT, List.of("/warehouse/returns", "/sales/returns", "/sales/after-sales")),
             Map.entry(AttachmentService.PURCHASE_RETURN, List.of("/purchase/returns")),
+            Map.entry(AttachmentService.OTHER_OUTBOUND, List.of("/warehouse/other-outbounds")),
             Map.entry(AttachmentService.REFUND_REQUEST, List.of("/finance/refunds", "/sales/after-sales", "/sales/orders")),
             Map.entry(AttachmentService.SOURCING_QUOTE, List.of("/inquiry/my-tasks", "/inquiry/sourcing-board",
                     "/inquiry/price-history", "/inquiry/customer-inquiries", "/quotation/quotations")));

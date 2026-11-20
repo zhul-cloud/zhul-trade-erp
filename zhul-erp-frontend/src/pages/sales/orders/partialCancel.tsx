@@ -546,7 +546,7 @@ export const PartialCancelModal: React.FC<{
               step(
                 ++n,
                 `${prefix}已在仓（合格入库、还没出库）`,
-                <Pill tone="cyan">{l.held} 个转闲置库存</Pill>,
+                <Pill tone="cyan">{l.held} 个转可用库存</Pill>,
                 '来源「订单部分取消」，成本按入库成本',
               ),
             );
@@ -556,7 +556,7 @@ export const PartialCancelModal: React.FC<{
                 ++n,
                 `${prefix}已下单 ${p.poNo ?? ''}`,
                 <Pill tone="orange">减少 {p.quantity} 个</Pill>,
-                `采购单行标「来源订单减少 ${p.quantity} 个」，由采购员决定取消或保留；保留的到货后多出部分自动转闲置库存`,
+                `采购单行标「来源订单减少 ${p.quantity} 个」，由采购员决定取消或保留；保留的到货后多出部分留作可用库存`,
               ),
             );
           if (l.untracked > 0)

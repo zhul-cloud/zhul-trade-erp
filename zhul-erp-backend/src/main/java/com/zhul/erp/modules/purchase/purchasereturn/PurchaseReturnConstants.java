@@ -16,8 +16,15 @@ public final class PurchaseReturnConstants {
     public static final int SRC_DEFECT_EXCHANGE = 2;
     public static final int SRC_DEFECT_RETURN = 3;
     public static final int SRC_OVER_RETURN = 4;
+    /** 库存退回：在库存查询对公司仓库的库存选「退回供应商」（openspec inventory-foundation） */
+    public static final int SRC_STOCK = 5;
     public static final Map<Integer, String> SOURCE_NAMES = Map.of(SRC_AFTER_SALES, "售后退货", SRC_DEFECT_EXCHANGE, "到货不良 · 退货换货",
-            SRC_DEFECT_RETURN, "到货不良 · 退货不补", SRC_OVER_RETURN, "多发退回");
+            SRC_DEFECT_RETURN, "到货不良 · 退货不补", SRC_OVER_RETURN, "多发退回", SRC_STOCK, "库存退回");
+
+    /** 供应商退款或抵扣冲减应付的来源：售后退货、库存退回（货款已付，退回的货由供应商退款或抵扣） */
+    public static boolean refundable(int sourceType) {
+        return sourceType == SRC_AFTER_SALES || sourceType == SRC_STOCK;
+    }
 
     /** 状态 */
     public static final int PENDING = 1;

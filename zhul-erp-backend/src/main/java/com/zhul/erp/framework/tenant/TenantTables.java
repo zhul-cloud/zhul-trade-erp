@@ -140,6 +140,14 @@ public final class TenantTables {
             Map.entry("supplier_shipment_item", Policy.PRIVATE),
             // 仓储、出库与物流
             Map.entry("stock_hold", Policy.PRIVATE),
+            // 库存（openspec inventory-foundation）
+            Map.entry("inv_warehouse", Policy.PRIVATE),
+            Map.entry("inv_batch", Policy.PRIVATE),
+            Map.entry("inv_move", Policy.PRIVATE),
+            Map.entry("inv_balance", Policy.PRIVATE),
+            Map.entry("inv_reservation", Policy.PRIVATE),
+            Map.entry("inv_other_outbound", Policy.PRIVATE),
+            Map.entry("inv_other_outbound_item", Policy.PRIVATE),
             Map.entry("outbound_box", Policy.PRIVATE),
             Map.entry("outbound_box_item", Policy.PRIVATE),
             Map.entry("outbound_pack", Policy.PRIVATE),

@@ -11,7 +11,6 @@ import com.zhul.erp.modules.purchase.repository.PurchaseOrderMapper;
 import com.zhul.erp.modules.purchase.repository.PurchaseRequirementMapper;
 import com.zhul.erp.modules.sales.entity.SalesOrderDO;
 import com.zhul.erp.modules.sales.entity.SalesOrderItemDO;
-import com.zhul.erp.modules.warehouse.support.PartialCancelHolds;
 import com.zhul.erp.modules.warehouse.support.ReceivingQty;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -27,7 +26,7 @@ import java.util.Set;
 
 /**
  * 订单型号部分取消后扣减采购需求（spec sales/sales-order「部分取消后的采购需求」），依次：
- * 还没排进采购单的数量 → 草稿采购订单撤出 → 已在仓（合格入库、还没出库）转闲置库存 → 已下单没到货的数量
+ * 还没排进采购单的数量 → 草稿采购订单撤出 → 已在仓（合格入库、还没出库）释放预占成为可用库存 → 已下单没到货的数量
  * （采购订单行累计「来源订单减少」，写采购日志，由采购员决定取消或保留）。
  * 没有采购需求的型号（系统外采购）不处理。preview 只计算不写库，供确认框展示；apply 在调用方事务内执行。
  */
@@ -43,14 +42,13 @@ public class RequirementReduction {
     private final PurchaseLogs logs;
     private final ReceivingQty receivingQty;
     private final LogisticsQty logisticsQty;
-    private final PartialCancelHolds holds;
 
     /** 采购订单上被减少的数量 */
     public record PoQty(Long poId, String poNo, int quantity) {
     }
 
     /**
-     * 扣减结果：tracked 为是否有采购需求；unplaced 未排单、drafts 草稿撤出（按采购订单）、held 转闲置库存、
+     * 扣减结果：tracked 为是否有采购需求；unplaced 未排单、drafts 草稿撤出（按采购订单）、held 在仓释放预占、
      * ordered 已下单的减少（按采购订单）；left 为没有对应采购的部分（只改订单）
      */
     public record Result(boolean tracked, int unplaced, List<PoQty> drafts, int held, List<PoQty> ordered, int left) {
@@ -66,7 +64,7 @@ public class RequirementReduction {
             }
             drafts.forEach(p -> parts.add("草稿采购单 " + p.poNo() + " 撤出 " + p.quantity() + " 个"));
             if (held > 0) {
-                parts.add("在仓 " + held + " 个转闲置库存");
+                parts.add("在仓 " + held + " 个转可用库存");
             }
             ordered.forEach(p -> parts.add("采购订单 " + p.poNo() + " 来源订单减少 " + p.quantity() + " 个"));
             if (left > 0) {
@@ -144,14 +142,11 @@ public class RequirementReduction {
             held = Math.min(left, inWarehouse);
             left -= held;
             if (held > 0) {
-                // 按合格入库最多的采购订单行取成本，扣到它的需求上
+                // 扣到合格入库最多的采购订单行的需求上
                 PurchaseOrderItemDO src = orderedLines.stream()
                         .max(Comparator.comparingInt(l -> qualifiedByLine.getOrDefault(l.getId(), 0))).orElse(null);
                 Long reqId = src == null ? reqs.get(0).getId() : src.getRequirementId();
                 reduced.merge(reqId, held, Integer::sum);
-                if (write) {
-                    holds.atCancel(o, item, held, src);
-                }
             }
         }
         // 4. 已下单还没到货的数量：采购订单行累计「来源订单减少」，后下单的先扣
@@ -194,7 +189,7 @@ public class RequirementReduction {
             }
             orderedByPo.forEach((poId, x) -> logs.add(poId, "来源订单部分取消",
                     "订单 " + o.getSoNo() + " 取消 " + item.getModel() + " × " + n + "，本单减少 " + x
-                            + " 个：请和供应商确认取消采购，或保留——到货后超出订单需要的合格数量自动转入闲置库存", operatorId));
+                            + " 个：请和供应商确认取消采购，或保留——到货后超出订单需要的合格数量成为可用库存", operatorId));
         }
         return new Result(true, unplaced, toList(draftByPo, poNos), held, toList(orderedByPo, poNos), left);
     }
