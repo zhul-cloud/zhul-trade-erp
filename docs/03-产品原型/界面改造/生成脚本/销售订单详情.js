@@ -95,7 +95,7 @@ const COST_ROWS = [
   { m: '6ES7214-1AG40-0XB0', q: 10, tips: ['10 个没入库'], pv: 'CNY 24,800.00', cost: 'CNY 24,800.00', rev: 'CNY 30,195.69', pf: 'CNY 5,395.69', pr: '17.87%' },
   { m: '6ES7223-1PL32-0XB0', q: 5, tips: ['5 个没入库'], pv: 'CNY 10,450.00', cost: 'CNY 10,450.00', rev: 'CNY 13,659.95', pf: 'CNY 3,209.95', pr: '23.50%' },
   { m: '1769-L33ER', q: 5, tips: ['5 个没入库'], pv: 'CNY 28,500.00', cost: 'CNY 28,500.00', rev: 'CNY 43,136.69', pf: 'CNY 14,636.69', pr: '33.93%' },
-  { m: '6EP1334-3BA10', q: 3, tips: ['3 个没下采购订单，按采购成本价估算', '3 个没入库'], pv: 'CNY 3,300.00', cost: 'CNY 3,300.00', rev: 'CNY 4,313.67', pf: 'CNY 1,013.67', pr: '23.50%' },
+  { m: '6EP1334-3BA10', q: 3, tips: ['3 个没下采购订单（按采购成本价估算）· 没入库'], pv: 'CNY 3,300.00', cost: 'CNY 3,300.00', rev: 'CNY 4,313.67', pf: 'CNY 1,013.67', pr: '23.50%' },
 ];
 function costCard(T, parent, scrolled) {
   const { tx, box, icon, card, label } = kit(T);
@@ -200,7 +200,7 @@ function detail(T, name) {
   const row = (p, k, f) => { const r = box(p, { width: 'fill_container', layout: 'horizontal', gap: 8, alignItems: 'center' }); tx(r, k, { fill: solid(T.sub), width: 72 }); f(r); };
   row(c, '销售日期', (r) => { tx(r, '2026-11-19', { fontFamily: NUM, fill: solid(T.ink) }); icon(r, 'pencil', 14, P); });
   row(c, '现货/期货', (r) => label(r, '现货', T.st.ok));
-  row(c, '采购员', (r) => { tx(r, '林熙', { fill: solid(T.ink) }); tx(r, '3 个型号', { fontSize: 12, fill: solid(T.sub) }); label(r, '未指定 1 个型号', T.st.warn, 'triangle-alert'); });
+  row(c, '采购员', (r) => { tx(r, '林熙', { fill: solid(T.ink) }); tx(r, '3 个型号', { fontSize: 12, fill: solid(T.sub) }); const ul = label(r, '未指定 1 个型号', T.st.warn, 'triangle-alert'); icon(ul, 'chevron-right', 12, T.st.warn[0]); });
   const r2 = box(L, { width: 'fill_container', layout: 'horizontal', gap: 16 });
   c = infoCard(r2, '买方（Bill To）', 'file-text');
   tx(c, 'Arabian Automation LLC', { fontWeight: 700, fontFamily: NUM, fill: solid(T.ink) });
@@ -238,7 +238,7 @@ function detail(T, name) {
   const th = box(c, { width: 'fill_container', layout: 'horizontal', alignItems: 'center', gap: 8, padding: [18, 24, 14, 24] });
   tx(th, '型号明细', { fontSize: 18, fontWeight: 500, fill: solid(T.ink) }); icon(th, 'info', 14, T.sub);
   tx(th, '4 个型号 · 23 件', { fontSize: 13, fill: solid(T.sub) });
-  const cols = [['', 40], ['#', 36], ['品牌', 72], ['品类', 64], ['型号', 210], ['描述', 150], ['数量', 70], ['单价', 110], ['小计', 120], ['现货/期货', 90], ['采购员', 90], ['货物', 250], ['采购订单 · 发货单', 170], ['进度', 100]];
+  const cols = [['', 40], ['#', 36], ['品牌', 72], ['品类', 64], ['型号', 210], ['描述', 130], ['数量', 64], ['单价', 100], ['小计', 115], ['现货/期货', 90], ['采购员', 90], ['货物', 250], ['采购订单 · 发货单', 170], ['进度', 100]];
   const items = [
     { br: '西门子', ca: 'PLC', m: '6ES7214-1AG40-0XB0', d: 'CPU 1214C DC/DC/DC', q: '10', up: 'USD 420.00', amt: 'USD 4,200.00', pu: '林熙', g: [[10, G.transit]], gl: [['在途 10 · 预计 11-25 到（顺丰）', G.transit]], docs: ['PO20261119002', 'SD20261120001 在途 10'], pr: ['已下单', 'info'] },
     { br: '西门子', ca: 'PLC', m: '6ES7223-1PL32-0XB0', d: 'SM 1223 DI16/DQ16', q: '5', up: 'USD 380.00', amt: 'USD 1,900.00', pu: '林熙', remark: '客户要求原厂包装', g: [[5, G.transit]], gl: [['在途 5 · 预计 11-25 到（顺丰）', G.transit]], docs: ['PO20261119002', 'SD20261120001 在途 5'], pr: ['已下单', 'info'] },
@@ -280,10 +280,10 @@ function detail(T, name) {
     const vm = box(x, { layout: 'horizontal', gap: 4, alignItems: 'center' }); icon(vm, 'image', 12, T.sub); tx(vm, '查看素材', { fontSize: 12, fill: solid(T.sub) });
     if (it.remark) { const rr = box(x, { layout: 'horizontal', gap: 6, alignItems: 'center' }); label(rr, it.remark, [T.body, T.st.neu[1]], 'message-square'); icon(rr, 'pencil', 12, T.faint); tx(x, 'Kevin · 11-19 16:05', { fontSize: 12, fontFamily: NUM, fill: solid(T.sub) }); }
     else { const ab = box(x, { layout: 'horizontal', gap: 2, alignItems: 'center' }); icon(ab, 'plus', 12, P); tx(ab, '备注', { fontSize: 12, fill: solid(P) }); }
-    tx(cell(150, { padding: [0, 12, 0, 0] }), it.d, { fontSize: 13, fontFamily: NUM, fill: solid(T.body), width: 'fill_container', textGrowth: 'fixed-width', lineHeight: 1.4 });
-    tx(rt(70), it.q, { fontFamily: NUM, fill: solid(T.ink) });
-    tx(rt(110), it.up, { fontFamily: NUM, fill: solid(T.body) });
-    tx(rt(120), it.amt, { fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) });
+    tx(cell(130, { padding: [0, 12, 0, 0] }), it.d, { fontSize: 13, fontFamily: NUM, fill: solid(T.body), width: 'fill_container', textGrowth: 'fixed-width', lineHeight: 1.4 });
+    tx(rt(64), it.q, { fontFamily: NUM, fill: solid(T.ink) });
+    tx(rt(100), it.up, { fontFamily: NUM, fill: solid(T.body) });
+    tx(rt(115), it.amt, { fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) });
     label(cell(90), '现货', T.st.ok);
     x = cell(90); if (it.pu) tx(x, it.pu, { fill: solid(T.body) }); else label(x, '未指定', T.st.warn, 'triangle-alert');
     x = cell(250, { gap: 5 });
@@ -379,7 +379,7 @@ function detail(T, name) {
   hr(c);
   tx(c, '按付款方式', { fontSize: 12, fill: solid(T.sub) });
   const pm = box(c, { width: 'fill_container', layout: 'horizontal', gap: 8, alignItems: 'center' });
-  tx(pm, '电汇', { fill: solid(T.body) }); label(pm, '线下', T.st.neu);
+  tx(pm, '银行转账', { fill: solid(T.body) }); label(pm, '线下', T.st.neu);
   const pmv = box(pm, { width: 'fill_container', layout: 'horizontal', justifyContent: 'end' }); tx(pmv, 'USD 3,858.00', { fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) });
   hr(c);
   const rec = (title, ic, no, amt, st, date, sub, file) => {
@@ -392,8 +392,8 @@ function detail(T, name) {
     tx(b, sub, { fontSize: 12, fill: solid(T.sub), width: 'fill_container', textGrowth: 'fixed-width', lineHeight: 1.5 });
     if (file) { const f = box(b, { layout: 'horizontal', gap: 4, alignItems: 'center' }); icon(f, 'paperclip', 12, P); tx(f, file, { fontSize: 12, fontFamily: NUM, fill: solid(P) }); }
   };
-  rec('到账', 'landmark', 'SK20261119003', 'USD 3,858.00', null, '11-19', '电汇 · 王敏 登记 · 实收 CNY 27,391.80');
-  rec('水单', 'file-text', '', 'USD 3,858.00', ['已到账', T.st.ok], '11-18', '电汇 · Kevin 上传', '水单-AA-1118.jpg');
+  rec('到账', 'landmark', 'SK20261119003', 'USD 3,858.00', null, '11-19', '银行转账 · 王敏 登记 · 实收 CNY 27,391.80');
+  rec('水单', 'file-text', '', 'USD 3,858.00', ['已到账', T.st.ok], '11-18', '银行转账 · Kevin 上传', '水单-AA-1118.jpg');
 
   // 订单毛利
   c = card(R, { width: 'fill_container', layout: 'vertical', gap: 4, padding: [20, 20] });
