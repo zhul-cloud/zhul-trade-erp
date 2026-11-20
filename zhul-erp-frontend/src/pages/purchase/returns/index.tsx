@@ -1,4 +1,4 @@
-import { Link } from '@umijs/max';
+import { history, Link } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Input, Segmented, Select, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -116,7 +116,12 @@ const PurchaseReturnsPage: React.FC = () => {
       key: 'items',
       width: 200,
       render: (_, r) => (
-        <ModelQtyCell summary={r.itemSummary} totalQty={r.totalQty} />
+        <ModelQtyCell
+          summary={r.itemSummary}
+          totalQty={r.totalQty}
+          docLabel={`${r.returnNo} · ${r.supplierName ?? ''}`}
+          onOpenDetail={() => history.push(SALES_PATHS.purchaseReturn(r.id))}
+        />
       ),
     },
     {

@@ -1,4 +1,4 @@
-import { Link } from '@umijs/max';
+import { history, Link } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Input, Segmented, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -100,7 +100,12 @@ const ReturnsPage: React.FC = () => {
       key: 'items',
       width: 200,
       render: (_, r) => (
-        <ModelQtyCell summary={r.itemSummary} totalQty={r.totalQty} />
+        <ModelQtyCell
+          summary={r.itemSummary}
+          totalQty={r.totalQty}
+          docLabel={`${r.receiptNo} · ${r.customerName ?? ''}`}
+          onOpenDetail={() => history.push(PATHS.returnReceipt(r.id))}
+        />
       ),
     },
     {

@@ -122,7 +122,7 @@ public class WarehouseNotices {
                 return;
             }
             tracked++;
-            pieces += i.getQuantity();
+            pieces += lp.need(i.getQuantity());
         }
         if (tracked == 0) {
             return;

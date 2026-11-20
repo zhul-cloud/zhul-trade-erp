@@ -141,7 +141,12 @@ const ShipmentsTab: React.FC = () => {
       key: 'items',
       width: 200,
       render: (_, r) => (
-        <ModelQtyCell items={r.items} totalQty={r.totalQuantity} />
+        <ModelQtyCell
+          items={r.items}
+          totalQty={r.totalQuantity}
+          docLabel={`${r.sdNo} · ${r.supplierName ?? ''}`}
+          onOpenDetail={() => history.push(DOC_PATHS.shipment(r.id))}
+        />
       ),
     },
     {

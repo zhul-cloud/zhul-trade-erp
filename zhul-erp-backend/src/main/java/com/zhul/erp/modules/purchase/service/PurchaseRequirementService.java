@@ -25,6 +25,9 @@ public interface PurchaseRequirementService {
 
     void split(Long id, SplitRequirementRequest req);
 
+    /** 删除需求里还没下单的数量（openspec purchase-requirement-delete） */
+    void remove(Long id, com.zhul.erp.modules.purchase.dto.RemoveRequirementRequest req);
+
     void assign(AssignRequirementsRequest req);
 
     GeneratePreviewVO preview(List<Long> ids);

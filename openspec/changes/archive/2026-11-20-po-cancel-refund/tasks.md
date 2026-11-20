@@ -29,4 +29,4 @@
 ## 6. 走查与收尾
 
 - [x] 6.1 本机走查：按规范五个取消场景与撤回场景逐条操作，结果记入 `acceptance.md` → 验证：acceptance.md 逐条通过
-- [ ] 6.2 后端全量测试与 `openspec validate po-cancel-refund` 通过，PR 说明列出迁移 V1.5.51 及可回退 → 验证：CI 通过
+- [x] 6.2 后端全量测试与 `openspec validate po-cancel-refund` 通过，PR 说明列出迁移 V1.5.51 及可回退 → 验证：CI 通过

@@ -54,6 +54,9 @@ export interface Requirement {
   /** 描述（中文，来自销售订单型号行） */
   description?: string;
   quantity: number;
+  /** 删除的数量（不需采购）与原因，openspec purchase-requirement-delete */
+  removedQty?: number;
+  removeReason?: string | null;
   draftQty: number;
   orderedQty: number;
   availableQty: number;
@@ -470,6 +473,10 @@ export const requirementApi = {
     id: number,
     body: { quantity: number; purchaserId?: number } & CounterpartyValue,
   ) => send<void>('POST', `${REQ}/${id}/split`, body),
+  remove: (
+    id: number,
+    body: { reason: 'stock' | 'outside' | 'other'; note?: string },
+  ) => send<void>('POST', `${REQ}/${id}/remove`, body),
   source: (ids: number[], cp: CounterpartyValue) =>
     send<void>('POST', `${REQ}/source`, { ids, ...cp }),
   assign: (ids: number[], purchaserId?: number | null) =>

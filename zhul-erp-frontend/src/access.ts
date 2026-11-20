@@ -142,6 +142,7 @@ export default function access(initialState: {
     'logistics:forwarder:status': can('logistics:forwarder:status'),
     'sales:order:ship-notice': can('sales:order:ship-notice'),
     'purchase:requirement:split': can('purchase:requirement:split'),
+    'purchase:requirement:delete': can('purchase:requirement:delete'),
     'purchase:requirement:assign': can('purchase:requirement:assign'),
     'purchase:order:create': can('purchase:order:create'),
     'purchase:order:cancel': can('purchase:order:cancel'),

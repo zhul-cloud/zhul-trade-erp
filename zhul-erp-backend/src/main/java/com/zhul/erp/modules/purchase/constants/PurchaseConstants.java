@@ -11,6 +11,7 @@ public final class PurchaseConstants {
     public static final String PATH_ORDER = "/purchase/orders";
 
     public static final String PERM_SPLIT = "purchase:requirement:split";
+    public static final String PERM_REQ_DELETE = "purchase:requirement:delete";
     public static final String PERM_ASSIGN = "purchase:requirement:assign";
     public static final String PERM_CREATE = "purchase:order:create";
     public static final String PERM_CANCEL = "purchase:order:cancel";

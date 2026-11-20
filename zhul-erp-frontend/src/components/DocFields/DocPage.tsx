@@ -1,6 +1,7 @@
 import { RightOutlined } from '@ant-design/icons';
 import { Link } from '@umijs/max';
-import React from 'react';
+import { Button, Modal, Table } from 'antd';
+import React, { useState } from 'react';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -198,18 +199,46 @@ export const DocLogCard: React.FC<{
   );
 };
 
-/** 列表「型号 · 数量」：第一个型号，下面一行「共 N 个型号 · M 件」 */
+export interface ModelQtyLine {
+  model: string;
+  quantity: number;
+  brand?: string;
+  category?: string;
+}
+
+/** 摘要「A × 2、B × 3」拆成型号行（退货类列表只返回摘要） */
+const parseSummary = (summary?: string): ModelQtyLine[] =>
+  (summary ?? '')
+    .split('、')
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => {
+      const i = p.lastIndexOf(' × ');
+      return i < 0
+        ? { model: p, quantity: 0 }
+        : { model: p.slice(0, i), quantity: Number(p.slice(i + 3)) || 0 };
+    });
+
+/**
+ * 列表「型号 · 数量」：第一个型号，下面一行「共 N 个型号 · M 件 · 查看」；
+ * 多个型号时点「查看」弹出全部型号（openspec doc-list-unify），可打开详情
+ */
 export const ModelQtyCell: React.FC<{
-  items?: { model: string; quantity: number }[];
+  items?: ModelQtyLine[];
   summary?: string;
   totalQty?: number;
-}> = ({ items, summary, totalQty }) => {
+  /** 弹窗标题里的单号 · 对方 */
+  docLabel?: string;
+  onOpenDetail?: () => void;
+}> = ({ items, summary, totalQty, docLabel, onOpenDetail }) => {
   const { palette } = useAppTheme();
-  const first = items?.[0]?.model ?? summary?.split(' × ')[0];
-  const count = items?.length ?? (summary ? summary.split('、').length : 0);
-  const qty =
-    totalQty ?? items?.reduce((s, i) => s + (i.quantity ?? 0), 0) ?? 0;
+  const [open, setOpen] = useState(false);
+  const lines = items ?? parseSummary(summary);
+  const first = lines[0]?.model;
+  const count = lines.length;
+  const qty = totalQty ?? lines.reduce((s, i) => s + (i.quantity ?? 0), 0);
   if (!first) return <span style={{ color: palette.mute }}>—</span>;
+  const showBrand = lines.some((l) => l.brand || l.category);
   return (
     <div style={{ minWidth: 0 }}>
       <div
@@ -228,7 +257,103 @@ export const ModelQtyCell: React.FC<{
       <div style={{ color: palette.mute, fontSize: 12 }}>
         {count > 1 ? `共 ${count} 个型号 · ` : ''}
         {qty} 件
+        {count > 1 && (
+          <>
+            {' · '}
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => setOpen(true)}
+            >
+              查看
+            </button>
+          </>
+        )}
       </div>
+      {open && (
+        <Modal
+          open
+          width={showBrand ? 640 : 480}
+          title={
+            <div>
+              <div>
+                {count} 个型号 · {qty} 件
+              </div>
+              {docLabel && (
+                <div
+                  style={{ fontSize: 12, fontWeight: 400, color: palette.mute }}
+                >
+                  {docLabel}
+                </div>
+              )}
+            </div>
+          }
+          onCancel={() => setOpen(false)}
+          footer={
+            <>
+              {onOpenDetail && (
+                <Button
+                  onClick={() => {
+                    setOpen(false);
+                    onOpenDetail();
+                  }}
+                >
+                  打开详情
+                </Button>
+              )}
+              <Button onClick={() => setOpen(false)}>关闭</Button>
+            </>
+          }
+        >
+          <Table<ModelQtyLine & { no: number }>
+            size="small"
+            rowKey="no"
+            pagination={false}
+            scroll={{ y: 420 }}
+            dataSource={lines.map((l, i) => ({ ...l, no: i + 1 }))}
+            columns={[
+              { title: '#', dataIndex: 'no', width: 48 },
+              ...(showBrand
+                ? [
+                    {
+                      title: '品牌',
+                      dataIndex: 'brand',
+                      width: 110,
+                      render: (v?: string) => v || '—',
+                    },
+                    {
+                      title: '品类',
+                      dataIndex: 'category',
+                      width: 100,
+                      render: (v?: string) => v || '—',
+                    },
+                  ]
+                : []),
+              {
+                title: '型号',
+                dataIndex: 'model',
+                render: (v: string) => (
+                  <span
+                    style={{
+                      fontFamily:
+                        'ui-monospace, SFMono-Regular, Menlo, monospace',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {v}
+                  </span>
+                ),
+              },
+              {
+                title: '数量',
+                dataIndex: 'quantity',
+                width: 80,
+                align: 'right' as const,
+              },
+            ]}
+          />
+        </Modal>
+      )}
     </div>
   );
 };
