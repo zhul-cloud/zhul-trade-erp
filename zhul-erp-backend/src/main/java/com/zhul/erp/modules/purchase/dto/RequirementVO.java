@@ -23,6 +23,9 @@ public class RequirementVO {
     /** 描述（中文，来自销售订单型号行） */
     private String description;
     private Integer quantity;
+    /** 删除的数量（不需采购）与原因，openspec purchase-requirement-delete */
+    private Integer removedQty;
+    private String removeReason;
     private Integer draftQty;
     private Integer orderedQty;
     private Integer availableQty;

@@ -673,6 +673,98 @@ class PurchaseContractTest extends SalesContractSupport {
                 Integer.class, id));
     }
 
+    // ---------------------------------------------------------------- 删除采购需求（openspec purchase-requirement-delete）
+
+    private static final int BTN_DELETE = 110247;
+
+    private JsonNode remove(long reqId, String reason, String note, String token) throws Exception {
+        Map<String, Object> b = new java.util.HashMap<>();
+        b.put("reason", reason);
+        b.put("note", note);
+        return call(json(post(REQ + "/" + reqId + "/remove"), write(b)), token);
+    }
+
+    private JsonNode reqRow(long soId) throws Exception {
+        JsonNode recs = ok(call(json(post(REQ + "/page"), "{\"view\":\"all\"}"), admin)).path("records");
+        for (JsonNode r : recs) {
+            if (r.path("soId").asLong() == soId) {
+                return r;
+            }
+        }
+        return com.fasterxml.jackson.databind.node.MissingNode.getInstance();
+    }
+
+    private void receiveAll(long poId) throws Exception {
+        JsonNode p = po(poId, admin);
+        List<Map<String, Object>> items = new ArrayList<>();
+        p.path("items").forEach(i -> items.add(Map.of("poItemId", i.path("id").asLong(), "quantity", i.path("quantity").asInt())));
+        JsonNode s = ok(call(json(post("/api/v1/purchase/shipments"), write(Map.of("poId", poId, "carrier", "顺丰",
+                "trackingNo", "SF" + System.nanoTime(), "shipDate", LocalDate.now().toString(), "items", items))), admin));
+        long sid = s.path("shipment").path("id").asLong();
+        JsonNode form = ok(call(get("/api/v1/warehouse/receipts/shipments/" + sid), admin));
+        List<Map<String, Object>> lines = new ArrayList<>();
+        form.path("shipment").path("items").forEach(i -> lines.add(Map.of("shipmentItemId", i.path("id").asLong(),
+                "receivedQty", i.path("quantity").asInt(), "qualifiedQty", i.path("quantity").asInt(), "defectiveQty", 0)));
+        ok(call(json(post("/api/v1/warehouse/receipts"), write(Map.of("shipmentId", sid, "receivedDate", LocalDate.now().toString(),
+                "items", lines))), admin));
+    }
+
+    @Test
+    void removeRequirement_draftWhole_deletesDraftAndCountsAsNotNeeded() throws Exception {
+        long sup = supplier("删需求工控", null);
+        JsonNode so = orderFrom(sup, l("RM-1", 100, "100", "20"));
+        long soId = so.path("id").asLong();
+        long req = requirementIds(soId).get(0);
+        long draft = drafts(sup).get(0);
+        assertEquals("草稿中", reqRow(soId).path("statusName").asText());
+
+        assertEquals("请填写删除说明", fail(remove(req, "other", " ", admin)).path("message").asText());
+        assertEquals(403, perform(json(post(REQ + "/" + req + "/remove"), "{\"reason\":\"stock\"}"), lin).getStatus(),
+                "没有删除权限不能删");
+        ok(remove(req, "stock", "仓库有 100 个现货", admin));
+
+        assertTrue(absent(reqRow(soId)), "整条删除的需求不再出现在列表");
+        assertTrue(jdbc.queryForObject("select deleted_at is not null from purchase_order where id = ?", Boolean.class, draft),
+                "草稿没有型号时自动删除");
+        assertEquals(100, jdbc.queryForObject("select removed_qty from purchase_requirement where id = ?", Integer.class, req));
+        JsonNode item = order(soId).path("items").get(0);
+        assertEquals(100, item.path("notNeededQty").asInt());
+        assertEquals("仓库有库存：仓库有 100 个现货", item.path("notNeededReasons").get(0).asText());
+        assertTrue(absent(item.path("goodsPendingPurchase")), "全部删除按系统外采购，不计货物状态");
+        assertEquals("需求不存在", fail(remove(req, "stock", "", admin)).path("message").asText(), "已删除的需求不能再删");
+    }
+
+    @Test
+    void removeRequirement_partial_onlyUnordered_progressByNeededQty() throws Exception {
+        long sup = supplier("部分删需求工控", null);
+        JsonNode so = orderFrom(sup, l("RM-2", 100, "100", "20"));
+        long soId = so.path("id").asLong();
+        long req = requirementIds(soId).get(0);
+        long draft = drafts(sup).get(0);
+        Map<String, Object> body = poBody(po(draft, admin), "100");
+        setQty(body, 60);
+        ok(savePo(draft, body, admin));
+        ok(confirmPo(draft, admin));
+        assertEquals("部分下单", reqRow(soId).path("statusName").asText());
+        assertEquals("待采购", order(soId).path("items").get(0).path("progressName").asText());
+
+        ok(remove(req, "outside", "", admin));
+        JsonNode row = reqRow(soId);
+        assertEquals(60, row.path("quantity").asInt());
+        assertEquals("已下单", row.path("statusName").asText());
+        assertEquals(40, row.path("removedQty").asInt());
+        assertEquals("在系统外采购", row.path("removeReason").asText());
+        assertEquals(60, po(draft, admin).path("items").get(0).path("quantity").asInt(), "已下单的采购订单不变");
+        JsonNode item = order(soId).path("items").get(0);
+        assertEquals("已下单", item.path("progressName").asText(), "其余数量全部下单即为已下单");
+        assertEquals(0, item.path("goodsPendingPurchase").asInt(), "不需采购的数量不计入待采购");
+        assertEquals(40, item.path("notNeededQty").asInt());
+        assertEquals("这条需求已经全部下单，不能删除", fail(remove(req, "stock", "", admin)).path("message").asText());
+
+        receiveAll(draft);
+        assertEquals("已入库", order(soId).path("items").get(0).path("progressName").asText(), "其余数量入库即为已入库");
+    }
+
     @SuppressWarnings("unchecked")
     private static void setQty(Map<String, Object> body, int qty) {
         for (Map<String, Object> item : (List<Map<String, Object>>) body.get("items")) {

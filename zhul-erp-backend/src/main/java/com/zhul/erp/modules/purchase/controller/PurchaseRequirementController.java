@@ -8,6 +8,7 @@ import com.zhul.erp.modules.purchase.dto.GeneratePurchaseRequest;
 import com.zhul.erp.modules.purchase.dto.RequirementPageQuery;
 import com.zhul.erp.modules.purchase.dto.RequirementStatsVO;
 import com.zhul.erp.modules.purchase.dto.RequirementVO;
+import com.zhul.erp.modules.purchase.dto.RemoveRequirementRequest;
 import com.zhul.erp.modules.purchase.dto.SplitRequirementRequest;
 import com.zhul.erp.modules.purchase.service.PurchaseRequirementService;
 import jakarta.validation.Valid;
@@ -60,6 +61,13 @@ public class PurchaseRequirementController {
     @PreAuthorize("@perm.canAccessMenu('/purchase/requirements') and @perm.has('purchase:requirement:split')")
     public Result<Void> split(@PathVariable Long id, @Valid @RequestBody SplitRequirementRequest req) {
         service.split(id, req);
+        return Result.ok();
+    }
+
+    @PostMapping("/{id}/remove")
+    @PreAuthorize("@perm.canAccessMenu('/purchase/requirements') and @perm.has('purchase:requirement:delete')")
+    public Result<Void> remove(@PathVariable Long id, @Valid @RequestBody RemoveRequirementRequest req) {
+        service.remove(id, req);
         return Result.ok();
     }
 

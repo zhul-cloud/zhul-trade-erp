@@ -119,6 +119,18 @@ class QuoteTextOptionsTest {
     }
 
     @Test
+    void purchaseLeadTimeAsIs() {
+        line("A", 11L, 1, 2);
+        line("B", 12L, 6, 1);
+        line("C", null, 7, 1);
+        line("D", 13L, 3, 1);
+        when(store.purchaseLeadTimes(anyList())).thenReturn(Map.of(11L, 4, 12L, 9, 13L, 0));
+        // A：采购 3-5天 原样；B：最后一档 8周以上；C：没有采购回价取行上 2-4周；D：采购没填货期保持为空
+        assertThat(text(null, "purchase")).containsExactly("A 1 $100 3-5 days original new",
+                "B 1 $100 over 8 weeks original new", "C 1 $100 2-4 weeks original new", "D 1 $100  original new");
+    }
+
+    @Test
     void withoutPurchaseQuoteUsesLineLeadTime() {
         line("A", null, 6, 1);
         // 采购回价已删除：退回行上的货期

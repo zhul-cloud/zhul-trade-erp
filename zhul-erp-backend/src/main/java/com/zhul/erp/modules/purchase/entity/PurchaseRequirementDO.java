@@ -27,6 +27,10 @@ public class PurchaseRequirementDO {
     /** 描述（中文，来自销售订单型号行） */
     private String description;
     private Integer quantity;
+    /** 删除的数量（不需采购，openspec purchase-requirement-delete），0 表示没有删除 */
+    private Integer removedQty;
+    /** 删除原因，如「仓库有库存：仓库有 100 个现货」 */
+    private String removeReason;
     /** 目标价（CNY，不含税），为空表示没有 */
     private BigDecimal targetPrice;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)

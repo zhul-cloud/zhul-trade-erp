@@ -10,7 +10,7 @@ public interface QuotationDocumentService {
 
     /**
      * @param condition 报价货况码值，省略为全新原装
-     * @param leadTime  报价货期：shift（按采购货期顺延，省略时同此）或货期码值
+     * @param leadTime  报价货期：shift（按采购货期顺延，省略时同此）、purchase（按采购货期）或货期码值
      */
     QuoteTextVO text(Long id, Integer versionNo, Integer condition, String leadTime);
 

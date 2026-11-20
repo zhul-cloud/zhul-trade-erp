@@ -11,6 +11,7 @@ import React from 'react';
 import { TextQuoteModal } from './dialogs';
 import {
   DEFAULT_TEXT_OPTIONS,
+  LEAD_PURCHASE,
   LEAD_SHIFT,
   leadChoices,
   textQuery,
@@ -92,8 +93,13 @@ describe('textOptions', () => {
       condition: 3,
       leadTime: '6',
     });
+    expect(textQuery({ condition: 1, leadTime: LEAD_PURCHASE })).toEqual({
+      condition: 1,
+      leadTime: 'purchase',
+    });
     expect(leadChoices([{ value: 1, label: '现货' }])).toEqual([
       { value: LEAD_SHIFT, label: '按采购货期顺延' },
+      { value: LEAD_PURCHASE, label: '按采购货期' },
       { value: 1, label: '现货' },
     ]);
   });

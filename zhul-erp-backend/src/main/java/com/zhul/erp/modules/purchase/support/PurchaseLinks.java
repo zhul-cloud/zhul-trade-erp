@@ -11,6 +11,7 @@ import com.zhul.erp.modules.purchase.repository.PurchaseRequirementMapper;
 import com.zhul.erp.modules.sales.support.PiStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -43,13 +44,21 @@ public class PurchaseLinks {
 
     /**
      * tracked：有采购需求（存量中进度已过「待采购」的型号没有）；received：合格入库数量（含折价接收）；
-     * shipped：已发数量；transits：在途发货单
+     * shipped：已发数量；transits：在途发货单；removed：删除采购需求的数量（不需采购，openspec purchase-requirement-delete），
+     * removeReasons：删除原因
      */
     public record ItemPurchase(boolean tracked, Set<Long> purchaserIds, int ordered, int draft, int received, List<PoRef> orders,
-                               int shipped, List<Transit> transits, int handedOut, int shippedOut) {
+                               int shipped, List<Transit> transits, int handedOut, int shippedOut, int removed,
+                               List<String> removeReasons) {
 
-        /** 货物状态（件数，quantity 为型号数量）：已出运、已交货代、在仓、在途、待发货、待采购 */
-        public Goods goods(int quantity) {
+        /** 需采购数量 = 型号数量 − 不需采购数量 */
+        public int need(int quantity) {
+            return Math.max(0, quantity - removed);
+        }
+
+        /** 货物状态（件数，quantity 为型号数量，按需采购数量算）：已出运、已交货代、在仓、在途、待发货、待采购 */
+        public Goods goods(int lineQuantity) {
+            int quantity = need(lineQuantity);
             int inTransit = transits.stream().mapToInt(Transit::quantity).sum();
             int receivedQty = Math.min(received, quantity);
             // 待发货不超过订单还需要的数量（部分取消后采购单上可能多挂着）
@@ -74,6 +83,22 @@ public class PurchaseLinks {
             tracked.add(r.getSoItemId());
             if (r.getStatus() == PurchaseConstants.REQ_ACTIVE && r.getPurchaserId() != null) {
                 purchasers.computeIfAbsent(r.getSoItemId(), k -> new LinkedHashSet<>()).add(r.getPurchaserId());
+            }
+        }
+        Map<Long, Integer> removed = new HashMap<>();
+        Map<Long, List<String>> reasons = new HashMap<>();
+        for (PurchaseRequirementDO r : requirementMapper.selectList(new LambdaQueryWrapper<PurchaseRequirementDO>()
+                .select(PurchaseRequirementDO::getSoItemId, PurchaseRequirementDO::getRemovedQty,
+                        PurchaseRequirementDO::getRemoveReason)
+                .in(PurchaseRequirementDO::getSoItemId, ids)
+                .gt(PurchaseRequirementDO::getRemovedQty, 0)
+                .orderByAsc(PurchaseRequirementDO::getId))) {
+            removed.merge(r.getSoItemId(), r.getRemovedQty(), Integer::sum);
+            if (StringUtils.hasText(r.getRemoveReason())) {
+                List<String> list = reasons.computeIfAbsent(r.getSoItemId(), k -> new ArrayList<>());
+                if (!list.contains(r.getRemoveReason())) {
+                    list.add(r.getRemoveReason());
+                }
             }
         }
         Map<Long, List<PoRef>> orders = new HashMap<>();
@@ -106,7 +131,8 @@ public class PurchaseLinks {
                     orders.getOrDefault(id, List.of()), shipped.getOrDefault(id, 0), transits.getOrDefault(id, List.of()).stream()
                     .map(t -> new Transit(t.getShipmentId(), t.getSdNo(), t.getCarrier(), t.getQuantity(), t.getExpectedArrivalDate())).toList(),
                     outbound.getOrDefault(id, com.zhul.erp.modules.logistics.support.LogisticsQty.Qty.ZERO).handed(),
-                    outbound.getOrDefault(id, com.zhul.erp.modules.logistics.support.LogisticsQty.Qty.ZERO).shipped()));
+                    outbound.getOrDefault(id, com.zhul.erp.modules.logistics.support.LogisticsQty.Qty.ZERO).shipped(),
+                    removed.getOrDefault(id, 0), reasons.getOrDefault(id, List.of())));
         }
         return out;
     }

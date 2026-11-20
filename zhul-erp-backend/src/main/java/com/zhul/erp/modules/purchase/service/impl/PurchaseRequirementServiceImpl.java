@@ -22,6 +22,7 @@ import com.zhul.erp.modules.purchase.dto.SourceRequest;
 import com.zhul.erp.modules.purchase.dto.RequirementStatsVO;
 import com.zhul.erp.modules.purchase.dto.RequirementVO;
 import com.zhul.erp.modules.purchase.dto.SplitRequirementRequest;
+import com.zhul.erp.modules.purchase.dto.RemoveRequirementRequest;
 import com.zhul.erp.modules.purchase.entity.PurchaseOrderDO;
 import com.zhul.erp.modules.purchase.entity.PurchaseOrderItemDO;
 import com.zhul.erp.modules.purchase.entity.PurchaseRequirementDO;
@@ -90,6 +91,7 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
     private final InquiryLookups lookups;
     private final LogService logService;
     private final SysConfigMapper sysConfigMapper;
+    private final com.zhul.erp.modules.purchase.support.OrderPurchaseProgress progress;
 
     // ---------------------------------------------------------------- 列表与统计
 
@@ -337,6 +339,8 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
             vo.setCategory(r.getCategory());
             vo.setDescription(r.getDescription());
             vo.setQuantity(r.getQuantity());
+            vo.setRemovedQty(r.getRemovedQty() == null ? 0 : r.getRemovedQty());
+            vo.setRemoveReason(r.getRemoveReason());
             vo.setDraftQty(x.draft());
             vo.setOrderedQty(x.ordered());
             vo.setAvailableQty(r.getStatus() == PurchaseConstants.REQ_ACTIVE ? RequirementQty.available(r, x) : 0);
@@ -497,6 +501,54 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
         lifecycle.placeAvailable(List.of(y), "拆分需求", operator);
         logService.recordOperateLog(PurchaseConstants.MENU_REQUIREMENT, "拆分采购需求", null,
                 Map.of("model", r.getModel(), "remain", r.getQuantity(), "split", n));
+    }
+
+    /** 删除原因（openspec purchase-requirement-delete） */
+    private static final Map<String, String> REMOVE_REASONS = Map.of("stock", "仓库有库存", "outside", "在系统外采购", "other", "其他");
+
+    /**
+     * 删除需求里还没下单的数量（含草稿中的）：先从草稿行扣出，再减需求数量；全部没下单时整条软删除。
+     * 一个事务内完成，需求加行锁，防止与下单、拆分并发；结束后重算来源型号行的进度。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void remove(Long id, RemoveRequirementRequest req) {
+        String note = req.getNote() == null ? "" : req.getNote().trim();
+        if ("other".equals(req.getReason()) && note.isEmpty()) {
+            throw new BizException("请填写删除说明");
+        }
+        PurchaseRequirementDO r = lockVisible(List.of(id)).get(0);
+        if (r.getStatus() != PurchaseConstants.REQ_ACTIVE) {
+            throw new BizException("需求已关闭，不能删除");
+        }
+        RequirementQty.Qty x = qty.of(id);
+        int n = r.getQuantity() - x.ordered();
+        if (n <= 0) {
+            throw new BizException("这条需求已经全部下单，不能删除");
+        }
+        Long operator = currentUser.resolve();
+        Set<Long> touched = new LinkedHashSet<>();
+        if (x.draft() > 0) {
+            drafts.takeFromDrafts(r.getId(), x.draft(), touched);
+        }
+        String reason = REMOVE_REASONS.get(req.getReason()) + (note.isEmpty() ? "" : "：" + note);
+        r.setQuantity(x.ordered());
+        r.setRemovedQty((r.getRemovedQty() == null ? 0 : r.getRemovedQty()) + n);
+        r.setRemoveReason(reason);
+        if (x.ordered() == 0) {
+            r.setDeletedAt(LocalDateTime.now());
+        }
+        requirementMapper.updateById(r);
+        drafts.settle(touched, operator);
+        progress.sync(List.of(r.getSoItemId()));
+        SalesOrderDO o = soMapper.selectById(r.getSoId());
+        Map<String, Object> after = new LinkedHashMap<>();
+        after.put("soNo", o == null ? "" : o.getSoNo());
+        after.put("items", r.getModel() + " × " + n);
+        after.put("reason", reason);
+        after.put("remain", r.getQuantity());
+        logService.recordOperateLog(PurchaseConstants.MENU_REQUIREMENT, "删除采购需求", null, after);
+        logService.recordOperateLog(com.zhul.erp.modules.sales.constants.SalesConstants.MENU_SO, "删除采购需求", null, after);
     }
 
     @Override
