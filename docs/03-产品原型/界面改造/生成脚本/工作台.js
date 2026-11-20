@@ -87,7 +87,7 @@ function wbShell(T, W, H, name) {
 
 function workbench(T, name, boards) {
   const K = kit(T); const { tx, box, icon, card, label } = K;
-  const content = wbShell(T, 1440, 1080, name);
+  const content = wbShell(T, 1440, 960, name);
   // 页头：问候；一人多看板时右侧切换（Segmented）
   const head = box(content, { width: 'fill_container', layout: 'horizontal', alignItems: 'center' });
   tx(head, '下午好，Kevin', { fontSize: 22, fontWeight: 600, fill: solid(T.ink), width: 'fill_container' });
@@ -113,8 +113,8 @@ function workbench(T, name, boards) {
     o = o || {};
     // 指标小卡照 PrimeDash 统计块：白底细边框，图标的彩色浅底才清楚
     const m = box(p, { width: 'fill_container', layout: 'vertical', gap: 4, padding: [14, 16], cornerRadius: 8, fill: solid(T.card), stroke: { thickness: 1, fill: solid(T.line) } });
-    if (o.ic) { avatar(m, o.ic, o.tn, 36, true); box(m, { width: 4, height: 4 }); }
-    const lr = box(m, { layout: 'horizontal', gap: 4, alignItems: 'center' }); tx(lr, l, { fontSize: 13, fill: solid(T.sub) }); if (o.link) icon(lr, 'chevron-right', 12, T.sub);
+    // 图标 24 与标签同一行（不单独占行，免得把卡片挤出第一屏）
+    const lr = box(m, { layout: 'horizontal', gap: 8, alignItems: 'center' }); if (o.ic) avatar(lr, o.ic, o.tn, 24, true); tx(lr, l, { fontSize: 13, fill: solid(T.sub) }); if (o.link) icon(lr, 'chevron-right', 12, T.sub);
     tx(m, v, { fontSize: 22, fontWeight: 700, fontFamily: NUM, fill: solid(T.ink) });
     if (o.delta) { const up = o.delta[0] === '+'; const col = (up === (o.better !== false)) ? T.st.ok[0] : T.st.err[0]; const d = box(m, { layout: 'horizontal', gap: 4, alignItems: 'center' }); icon(d, up ? 'trending-up' : 'trending-down', 14, col); tx(d, '较上月 ' + o.delta, { fontSize: 12, fontFamily: NUM, fill: solid(col) }); }
     if (o.hint) tx(m, o.hint, { fontSize: 12, fill: solid(o.hintCol || T.sub) });
