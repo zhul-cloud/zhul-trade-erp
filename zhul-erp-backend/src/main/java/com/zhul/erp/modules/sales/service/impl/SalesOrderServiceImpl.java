@@ -175,6 +175,23 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         }
         PiVersionDO v = piStore.version(piId, pi.getCurrentVersionNo());
         List<PiItemDO> items = piStore.items(v.getId());
+        // 订单是内部单据：型号按询盘型号当前的单据型号（真实型号优先），采购照这个型号买（openspec actual-model-and-description）
+        Map<Long, com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO> first = docModelLookup.items(
+                items.stream().map(PiItemDO::getInquiryItemId).toList());
+        // 还没关联商品的询盘型号（如上线前没走过自动建档的）先按建档规则补一次，再取商品
+        List<Long> unsynced = items.stream().filter(i -> productOf(i, first) == null).map(PiItemDO::getInquiryItemId)
+                .filter(Objects::nonNull).distinct().toList();
+        if (!unsynced.isEmpty()) {
+            productArchiver.sync(unsynced);
+        }
+        Map<Long, com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO> docs = unsynced.isEmpty() ? first
+                : docModelLookup.items(items.stream().map(PiItemDO::getInquiryItemId).toList());
+        // 每个型号都要先关联商品（spec product/document-product-link「转销售订单前型号须关联商品」）
+        List<String> unlinked = items.stream().filter(i -> productOf(i, docs) == null)
+                .map(i -> StringUtils.hasText(i.getModel()) ? i.getModel().trim() : "第 " + i.getLineNo() + " 行").distinct().toList();
+        if (!unlinked.isEmpty()) {
+            throw new BizException(String.join("、", unlinked) + " 还没有真实型号，先回填真实型号");
+        }
         List<PiFeeDO> fees = piStore.fees(v.getId());
         LocalDate salesDate = req == null || req.getSalesDate() == null ? defaultSalesDate(piId) : req.getSalesDate();
         requirePastOrToday(salesDate);
@@ -225,11 +242,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         o.setCancelReason("");
         orderMapper.insert(o);
         List<SalesOrderItemDO> created = new ArrayList<>(items.size());
-        // 订单是内部单据：型号按询盘型号当前的单据型号（真实型号优先），采购照这个型号买（openspec actual-model-and-description）
-        Map<Long, com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO> docs = docModelLookup.items(
-                items.stream().map(PiItemDO::getInquiryItemId).toList());
         for (PiItemDO i : items) {
             SalesOrderItemDO x = toOrderItem(o, i);
+            x.setProductId(productOf(i, docs));
             var src = docs.get(i.getInquiryItemId());
             if (src != null) {
                 x.setModel(DocModels.docModel(src));
@@ -640,6 +655,12 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         if (found < ids.size()) {
             throw new BizException("采购员不存在");
         }
+    }
+
+    /** PI 行引用的商品：来源询盘型号当前的商品优先（可能刚回填了真实型号），没有来源时取 PI 行自己的 */
+    private static Long productOf(PiItemDO i, Map<Long, com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO> docs) {
+        com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO src = i.getInquiryItemId() == null ? null : docs.get(i.getInquiryItemId());
+        return src != null && src.getProductId() != null ? src.getProductId() : i.getProductId();
     }
 
     private static SalesOrderItemDO toOrderItem(SalesOrderDO o, PiItemDO i) {
@@ -1650,6 +1671,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             x.setItemRemarkAt(remark == null ? null : remark.at());
             DocItemProducts.Info product = products.next();
             x.setProductId(product.productId());
+            x.setProductCandidate(product.candidate());
+            x.setProductCandidateId(product.candidateId());
             x.setOrderCode(product.orderCode());
             x.setStockType(i.getStockType());
             int out = outbound.getOrDefault(i.getId(), com.zhul.erp.modules.logistics.support.LogisticsQty.Qty.ZERO).occupied();

@@ -116,6 +116,7 @@ public class DiscrepancyService {
         d.setPoId(p.getId());
         d.setPoItemId(i.getPoItemId());
         d.setPurchaserId(p.getPurchaserId() == null ? 0L : p.getPurchaserId());
+        d.setProductId(i.getProductId());
         d.setModel(i.getModel());
         d.setBrand(i.getBrand());
         d.setCategory(i.getCategory());

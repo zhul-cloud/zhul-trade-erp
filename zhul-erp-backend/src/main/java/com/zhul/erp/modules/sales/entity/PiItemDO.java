@@ -25,6 +25,8 @@ public class PiItemDO {
     private Long quotationItemId;
     private Long customerInquiryId;
     private Long inquiryItemId;
+    /** 引用的商品ID（由上一张单据带下来，spec product/document-product-link）；NULL 表示还没关联 */
+    private Long productId;
     private String model;
     /** 客户型号（询盘确认的型号）；为空或与型号相同时不显示 */
     private String customerModel;

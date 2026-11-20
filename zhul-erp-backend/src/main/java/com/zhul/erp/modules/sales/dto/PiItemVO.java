@@ -29,6 +29,10 @@ public class PiItemVO {
     private String orderCode;
     /** 对应的商品档案；没有时为空 */
     private Long productId;
+    /** 引用的商品是候选（还没建档），型号旁标「候选」 */
+    private Boolean productCandidate;
+    /** 候选审核用的候选 ID，productCandidate 为 true 时有值 */
+    private Long productCandidateId;
     private String description;
     /** 英文描述（给客户看的单据用；系统内显示中文 description） */
     private String descriptionEn;

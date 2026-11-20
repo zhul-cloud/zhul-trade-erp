@@ -516,6 +516,7 @@ class AfterSalesContractTest extends SalesContractSupport {
         ok(call(json(post(PRS + "/" + prId + "/void"), "{\"reason\":\"供应商不收\"}"), admin));
         assertEquals(0, ok(call(get(RT + "/" + rid3), admin)).path("items").get(0).path("disposedQty").asInt());
         assertEquals("已作废", ok(call(get(PRS + "/" + prId), admin)).path("statusName").asText());
+        assertLinesLinked("sales_return_item", "return_receipt_item", "purchase_return_item");
     }
 
     /** 手动订单（没有采购订单）：A-9 × 4 售价 USD 100、采购成本价 ¥300，已到账 400，全部出运；返回订单 ID */

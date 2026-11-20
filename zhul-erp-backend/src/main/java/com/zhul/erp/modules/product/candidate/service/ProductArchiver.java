@@ -14,6 +14,7 @@ import com.zhul.erp.modules.product.candidate.entity.ProductCandidateDO;
 import com.zhul.erp.modules.product.candidate.entity.ProductCandidateSourceDO;
 import com.zhul.erp.modules.product.candidate.repository.ProductCandidateMapper;
 import com.zhul.erp.modules.product.candidate.repository.ProductCandidateSourceMapper;
+import com.zhul.erp.modules.product.constants.LifecycleStatus;
 import com.zhul.erp.modules.product.constants.ProductConstants;
 import com.zhul.erp.modules.product.entity.ProductCategoryDO;
 import com.zhul.erp.modules.product.entity.ProductDO;
@@ -21,6 +22,7 @@ import com.zhul.erp.modules.product.repository.ProductCategoryMapper;
 import com.zhul.erp.modules.product.repository.ProductMapper;
 import com.zhul.erp.modules.product.candidate.support.ModelRules;
 import com.zhul.erp.modules.product.support.CategoryMatcher;
+import com.zhul.erp.modules.product.support.DocLineProducts;
 import com.zhul.erp.modules.product.support.MpnNormalizer;
 import com.zhul.erp.modules.product.support.ProductOrderCodes;
 import com.zhul.erp.modules.sales.constants.SalesConstants;
@@ -69,6 +71,7 @@ public class ProductArchiver {
     private final ProductCandidateMapper candidateMapper;
     private final ProductCandidateSourceMapper sourceMapper;
     private final ProductOrderCodes orderCodes;
+    private final DocLineProducts lines;
 
     /** 重算这些询盘型号的建档状态与候选来源 */
     public void sync(Collection<Long> itemIds) {
@@ -104,6 +107,7 @@ public class ProductArchiver {
                 .eq(ProductDO::getBrandId, item.getBrandId())
                 .eq(ProductDO::getMpnNormalized, key)
                 .eq(ProductDO::getStatus, ProductConstants.STATUS_ENABLED)
+                .eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE)
                 .isNull(ProductDO::getDeletedAt)
                 .last("LIMIT 1"));
         List<String> codes = ProductOrderCodes.split(item.getOrderCode());
@@ -113,6 +117,7 @@ public class ProductArchiver {
             product = byCode == null ? null : productMapper.selectOne(new LambdaQueryWrapper<ProductDO>()
                     .eq(ProductDO::getId, byCode)
                     .eq(ProductDO::getStatus, ProductConstants.STATUS_ENABLED)
+                    .eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE)
                     .isNull(ProductDO::getDeletedAt));
         }
         if (product != null) {
@@ -136,7 +141,7 @@ public class ProductArchiver {
         } else if (c.getStatus() == CandidateConstants.STATUS_REJECTED) {
             mark(item.getId(), null, CandidateConstants.ARCHIVE_NEED_MODEL);
         } else {
-            mark(item.getId(), null, CandidateConstants.ARCHIVE_CANDIDATE);
+            mark(item.getId(), c.getProductId(), CandidateConstants.ARCHIVE_CANDIDATE);
         }
         return touched;
     }
@@ -175,6 +180,7 @@ public class ProductArchiver {
                 c.setDeletedAt(null);
                 c.setStatus(CandidateConstants.STATUS_PENDING);
             }
+            ensureProduct(c);
             return c;
         }
         c = new ProductCandidateDO();
@@ -204,7 +210,52 @@ public class ProductArchiver {
             // 并发进池：唯一键兜底，取已插入的那一行
             c = byKey(brandKey, key);
         }
+        ensureProduct(c);
         return c;
+    }
+
+    /**
+     * 候选进池即生成商品（spec product/product-candidate「商品候选池」）：候选还没有商品时，在商品库插入一条「候选」状态的商品，
+     * 品牌键与归一化型号沿用候选的；同一个键已有商品（如曾被删除或停用的同型号）时直接引用它。须在调用方事务内、持有候选键锁时执行。
+     */
+    void ensureProduct(ProductCandidateDO c) {
+        if (c == null || c.getProductId() != null && c.getProductId() > 0) {
+            return;
+        }
+        ProductDO p = productByKey(c.getBrandKey(), c.getMpnNormalized());
+        if (p == null) {
+            p = new ProductDO();
+            p.setTenantId(ProductConstants.PLATFORM_TENANT_ID);
+            p.setOwnerTenantId(ProductConstants.PLATFORM_TENANT_ID);
+            p.setBrandId(c.getBrandId() == null ? 0L : c.getBrandId());
+            p.setBrandKey(c.getBrandKey());
+            p.setMpnRaw(cut(nz(c.getMpnRaw()), 128));
+            p.setMpnNormalized(c.getMpnNormalized());
+            p.setMpnDisplay(p.getMpnRaw());
+            p.setCategoryId(c.getCategoryId() == null ? 0L : c.getCategoryId());
+            p.setProductName(cut(nz(c.getProductName()), 128));
+            p.setShortDescription(cut(nz(c.getDescription()), TEXT_MAX));
+            p.setLifecycleStatus(LifecycleStatus.UNKNOWN);
+            p.setStatus(ProductConstants.STATUS_ENABLED);
+            p.setArchiveStatus(ProductConstants.ARCHIVE_CANDIDATE);
+            try {
+                productMapper.insert(p);
+            } catch (DuplicateKeyException e) {
+                p = productByKey(c.getBrandKey(), c.getMpnNormalized());
+            }
+        }
+        c.setProductId(p.getId());
+        candidateMapper.update(null, new LambdaUpdateWrapper<ProductCandidateDO>()
+                .eq(ProductCandidateDO::getId, c.getId())
+                .set(ProductCandidateDO::getProductId, p.getId()));
+    }
+
+    private ProductDO productByKey(String brandKey, String key) {
+        return productMapper.selectOne(new LambdaQueryWrapper<ProductDO>()
+                .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                .eq(ProductDO::getBrandKey, brandKey)
+                .eq(ProductDO::getMpnNormalized, key)
+                .last("LIMIT 1"));
     }
 
     /** 一个导入文件要写进候选池的内容（spec product/product-candidate「从商品文件导入候选」） */
@@ -281,6 +332,7 @@ public class ProductArchiver {
         if (fill) {
             candidateMapper.updateById(c);
         }
+        ensureProduct(c);
         ProductCandidateSourceDO s = new ProductCandidateSourceDO();
         s.setTenantId(TenantContext.getTenantId());
         s.setCandidateId(c.getId());
@@ -289,6 +341,71 @@ public class ProductArchiver {
         sourceMapper.insert(s);
         refresh(c.getId());
         return created;
+    }
+
+    /**
+     * 历史单据或待关联清单里出现、商品库没有的型号：按候选池规则进池（来源「历史单据」，记在单据所属公司名下），返回它的商品 ID。
+     * 候选已建档或已并入时返回对应商品；已驳回时返回 null（不是有效型号）。须在调用方事务内执行。
+     */
+    public Long historySource(int tenantId, Long brandId, String brandKey, String brandText, String model, String note) {
+        String key = MpnNormalizer.normalize(model);
+        if (key.isEmpty() || !ModelRules.looksLikeModel(model)) {
+            return null;
+        }
+        candidateMapper.lockByKey(brandKey, key);
+        ProductCandidateDO c = byKey(brandKey, key);
+        if (c == null) {
+            c = new ProductCandidateDO();
+            c.setTenantId(ProductConstants.PLATFORM_TENANT_ID);
+            c.setBrandId(brandId);
+            c.setBrandText(cut(nz(brandText).trim(), 64));
+            c.setBrandKey(brandKey);
+            c.setMpnRaw(cut(model.trim(), 128));
+            c.setMpnNormalized(key);
+            c.setOrderCode("");
+            c.setCategoryText("");
+            c.setProductName("");
+            c.setDescription("");
+            c.setDescriptionEn("");
+            c.setStatus(CandidateConstants.STATUS_PENDING);
+            c.setLevel(CandidateConstants.LEVEL_DEAL);
+            c.setSourceCount(0);
+            c.setRejectReason(0);
+            c.setRejectNote("");
+            try {
+                candidateMapper.insert(c);
+            } catch (DuplicateKeyException e) {
+                c = byKey(brandKey, key);
+            }
+        } else if (c.getDeletedAt() != null) {
+            candidateMapper.update(null, new LambdaUpdateWrapper<ProductCandidateDO>()
+                    .eq(ProductCandidateDO::getId, c.getId())
+                    .set(ProductCandidateDO::getDeletedAt, null)
+                    .set(ProductCandidateDO::getStatus, CandidateConstants.STATUS_PENDING));
+            c.setDeletedAt(null);
+            c.setStatus(CandidateConstants.STATUS_PENDING);
+        }
+        if (c.getStatus() == CandidateConstants.STATUS_REJECTED) {
+            return null;
+        }
+        if (c.getStatus() == CandidateConstants.STATUS_PENDING) {
+            ensureProduct(c);
+            boolean has = sourceMapper.selectCount(new LambdaQueryWrapper<ProductCandidateSourceDO>()
+                    .eq(ProductCandidateSourceDO::getCandidateId, c.getId())
+                    .eq(ProductCandidateSourceDO::getTenantId, tenantId)
+                    .eq(ProductCandidateSourceDO::getSourceType, CandidateConstants.SOURCE_HISTORY)
+                    .isNull(ProductCandidateSourceDO::getDeletedAt)) > 0;
+            if (!has) {
+                ProductCandidateSourceDO s = new ProductCandidateSourceDO();
+                s.setTenantId(tenantId);
+                s.setCandidateId(c.getId());
+                s.setSourceType(CandidateConstants.SOURCE_HISTORY);
+                s.setFileName(cut(nz(note), 255));
+                sourceMapper.insert(s);
+                refresh(c.getId());
+            }
+        }
+        return c.getProductId();
     }
 
     private ProductCandidateDO byKey(String brandKey, String key) {
@@ -413,6 +530,22 @@ public class ProductArchiver {
                     .set(InquiryItemDO::getProductId, productId)
                     .set(InquiryItemDO::getArchiveStatus, CandidateConstants.ARCHIVE_DONE)
                     .set(InquiryItemDO::getUpdateTime, LocalDateTime.now()));
+            itemIds.forEach(i -> lines.followInquiryItem(i, productId));
+        }
+    }
+
+    /** 运营直接在商品库新建了一个已是候选商品的型号：对应候选随之变为已建档，来源询盘型号关联到它 */
+    public void archived(Long productId) {
+        List<ProductCandidateDO> rows = candidateMapper.selectList(new LambdaQueryWrapper<ProductCandidateDO>()
+                .eq(ProductCandidateDO::getProductId, productId)
+                .in(ProductCandidateDO::getStatus, CandidateConstants.STATUS_PENDING, CandidateConstants.STATUS_REJECTED)
+                .isNull(ProductCandidateDO::getDeletedAt));
+        for (ProductCandidateDO c : rows) {
+            candidateMapper.update(null, new LambdaUpdateWrapper<ProductCandidateDO>()
+                    .eq(ProductCandidateDO::getId, c.getId())
+                    .set(ProductCandidateDO::getStatus, CandidateConstants.STATUS_ARCHIVED)
+                    .set(ProductCandidateDO::getReviewedAt, LocalDateTime.now()));
+            linkSources(c.getId(), productId);
         }
     }
 
@@ -430,6 +563,7 @@ public class ProductArchiver {
                     .set(InquiryItemDO::getProductId, null)
                     .set(InquiryItemDO::getArchiveStatus, CandidateConstants.ARCHIVE_NEED_MODEL)
                     .set(InquiryItemDO::getUpdateTime, LocalDateTime.now()));
+            itemIds.forEach(i -> lines.followInquiryItem(i, null));
         }
     }
 
@@ -438,6 +572,7 @@ public class ProductArchiver {
                 .eq(InquiryItemDO::getId, itemId)
                 .set(InquiryItemDO::getProductId, productId)
                 .set(InquiryItemDO::getArchiveStatus, status));
+        lines.followInquiryItem(itemId, productId);
     }
 
     /**

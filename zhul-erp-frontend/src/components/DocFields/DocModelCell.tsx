@@ -1,7 +1,7 @@
 import { WarningOutlined } from '@ant-design/icons';
 import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Tooltip } from 'antd';
+import { Tag, Tooltip } from 'antd';
 import React from 'react';
 import ViewMediaLink from '@/pages/operations/media/ViewMediaLink';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -9,6 +9,25 @@ import { useAppTheme } from '@/theme/AppTheme';
 /** 商品档案详情地址；从哪里点进来，由标签页的返回入口负责回去 */
 export const productHref = (productId: number) =>
   `/product/products/${productId}`;
+
+/** 候选商品标记：有候选审核权限的点开去候选池按商品编号查找 */
+export const CandidateTag: React.FC<{ productId?: number | null }> = ({
+  productId,
+}) => {
+  const access = useAccess() as Record<string, boolean>;
+  const reviewable = !!productId && !!access['product:candidate:review'];
+  return (
+    <Tooltip title="还没审核建档的候选商品，审核通过后自动转正">
+      <Tag color="orange" style={{ marginInlineStart: 6, fontWeight: 400 }}>
+        {reviewable ? (
+          <Link to={`/product/candidates?keyword=${productId}`}>候选</Link>
+        ) : (
+          '候选'
+        )}
+      </Tag>
+    </Tooltip>
+  );
+};
 
 /**
  * 单据型号单元格（询盘单、报价单、形式发票、销售订单共用）：
@@ -20,6 +39,8 @@ const DocModelCell: React.FC<{
   brand?: string;
   orderCode?: string;
   productId?: number | null;
+  /** 关联的是候选商品（还没审核建档）：型号不链到商品档案，后面标「候选」，有审核权限的点开去审核 */
+  candidate?: boolean;
   /** 型号后面紧跟的内容，如停产替代 */
   suffix?: React.ReactNode;
   /** 客户询价时写的型号（与型号不同时后端才给） */
@@ -36,6 +57,7 @@ const DocModelCell: React.FC<{
   brand,
   orderCode,
   productId,
+  candidate,
   suffix,
   customerModel,
   updatedTo,
@@ -45,7 +67,7 @@ const DocModelCell: React.FC<{
 }) => {
   const { palette } = useAppTheme();
   const access = useAccess() as Record<string, boolean>;
-  const linkable = !!productId && !!access.productList;
+  const linkable = !!productId && !candidate && !!access.productList;
   const tone = updatedTone === 'red' ? palette.red : palette.orange;
   return (
     <span
@@ -57,6 +79,7 @@ const DocModelCell: React.FC<{
         ) : (
           model
         )}
+        {candidate && <CandidateTag productId={productId} />}
         {suffix}
       </span>
       {customerModel && (

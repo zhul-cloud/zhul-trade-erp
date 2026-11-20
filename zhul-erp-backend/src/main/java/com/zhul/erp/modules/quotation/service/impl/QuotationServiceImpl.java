@@ -366,6 +366,7 @@ public class QuotationServiceImpl implements QuotationService {
             line.setLineNo(lineNo++);
             line.setCustomerInquiryId(src.getCustomerInquiryId());
             line.setInquiryItemId(src.getId());
+            line.setProductId(src.getProductId());
             line.setCostQuoteId(c.costQuote() == null ? null : c.costQuote().getId());
             line.setModel(DocModels.docModel(src));
             line.setCustomerModel(DocModels.customerModel(src));
@@ -813,6 +814,7 @@ public class QuotationServiceImpl implements QuotationService {
         l.setLineNo(s.getLineNo());
         l.setCustomerInquiryId(s.getCustomerInquiryId());
         l.setInquiryItemId(s.getInquiryItemId());
+        l.setProductId(s.getProductId());
         l.setCostQuoteId(s.getCostQuoteId());
         l.setModel(s.getModel());
         l.setCustomerModel(s.getCustomerModel());
@@ -1010,7 +1012,7 @@ public class QuotationServiceImpl implements QuotationService {
         }
         Map<String, String> brandsEn = brandResolver.displayNames(items.stream().map(QuotationItemDO::getBrand).toList());
         List<com.zhul.erp.modules.inquiry.support.DocItemProducts.Info> products = docItemProducts.resolve(items.stream()
-                .map(i -> new com.zhul.erp.modules.inquiry.support.DocItemProducts.Line(null, i.getInquiryItemId(), i.getBrand(), i.getModel())).toList());
+                .map(i -> new com.zhul.erp.modules.inquiry.support.DocItemProducts.Line(i.getProductId(), i.getInquiryItemId(), i.getBrand(), i.getModel())).toList());
         Map<Long, com.zhul.erp.modules.inquiry.support.NoStockReasons.Reason> sourcingNoStock = noStockReasons.of(items.stream()
                 .filter(i -> Objects.equals(i.getNoStock(), 1)).map(QuotationItemDO::getInquiryItemId).toList());
         // 供应提示只在还能发送的版本上算（草稿、修改中的版本）
@@ -1035,6 +1037,8 @@ public class QuotationServiceImpl implements QuotationService {
             x.setBrandEn(brandsEn.getOrDefault(i.getBrand(), i.getBrand()));
             x.setOrderCode(products.get(k).orderCode());
             x.setProductId(products.get(k).productId());
+            x.setProductCandidate(products.get(k).candidate());
+            x.setProductCandidateId(products.get(k).candidateId());
             com.zhul.erp.modules.inquiry.support.NoStockReasons.Reason reason = sourcingNoStock.get(i.getInquiryItemId());
             if (reason != null) {
                 x.setSourcingNoStockReasonName(reason.name());

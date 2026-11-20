@@ -32,4 +32,7 @@ public class ApproveCandidateRequest {
     private Integer lifecycleStatus;
     @Size(max = 255, message = "生命周期依据不能超过 255 字")
     private String lifecycleSource;
+
+    /** 与已建档商品重复时确认并入（第一次提交不带，后端返回「将并入」及受影响单据，用户确认后带 true 再提交） */
+    private Boolean confirmMerge;
 }

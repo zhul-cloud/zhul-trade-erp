@@ -28,6 +28,8 @@ public class ProductDO {
     private String mpnDisplay;
     /** 品牌ID，关联product_brand.id；被引用后不可修改 */
     private Long brandId;
+    /** 品牌键（识别到品牌为 #品牌ID，否则为小写去空格的品牌原文；已并入的为 ~商品ID），与归一化型号唯一 */
+    private String brandKey;
     /** 品类ID，关联product_category.id */
     private Long categoryId;
     /** AI 建议的细分品类ID，0 表示没有建议（spec product/category-refine） */
@@ -50,6 +52,10 @@ public class ProductDO {
     private String lifecycleSource;
     /** 状态（0-禁用、1-启用） */
     private Integer status;
+    /** 建档状态（1-候选、2-已建档、3-已并入、4-已驳回），见 ProductConstants.ARCHIVE_* */
+    private Integer archiveStatus;
+    /** 已并入时的主商品ID */
+    private Long mergedIntoId;
     /** 软删除时间，NULL表示未删除 */
     private LocalDateTime deletedAt;
     /** 创建时间 */

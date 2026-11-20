@@ -373,6 +373,7 @@ public class LogisticsShipmentService {
             x.setTenantId(ob.getTenantId());
             x.setOutboundId(ob.getId());
             x.setSoItemId(si.getSoItemId());
+            x.setProductId(soi.getProductId() != null ? soi.getProductId() : si.getProductId());
             x.setModel(si.getModel());
             x.setBrand(si.getBrand());
             x.setQuantity(e.getValue());

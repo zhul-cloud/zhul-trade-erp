@@ -42,9 +42,9 @@ public abstract class SalesContractSupport extends InquiryContractSupport {
                 + "where not exists (select 1 from product_brand where tenant_id = 0 and brand_name = 'Manual Order Test')");
         long brand = jdbc.queryForObject("select id from product_brand where tenant_id = 0 and brand_name = 'Manual Order Test'", Long.class);
         String normalized = com.zhul.erp.modules.product.support.MpnNormalizer.normalize(model);
-        jdbc.update("insert into product (tenant_id, brand_id, mpn_raw, mpn_normalized, mpn_display, product_name, status) "
-                + "select 0, ?, ?, ?, ?, ?, 1 from dual where not exists (select 1 from product where brand_id = ? and mpn_normalized = ?)",
-                brand, model, normalized, model, model, brand, normalized);
+        jdbc.update("insert into product (tenant_id, brand_id, brand_key, mpn_raw, mpn_normalized, mpn_display, product_name, status) "
+                + "select 0, ?, ?, ?, ?, ?, ?, 1 from dual where not exists (select 1 from product where brand_id = ? and mpn_normalized = ?)",
+                brand, "#" + brand, model, normalized, model, model, brand, normalized);
         return jdbc.queryForObject("select id from product where brand_id = ? and mpn_normalized = ?", Long.class, brand, normalized);
     }
 
@@ -68,6 +68,17 @@ public abstract class SalesContractSupport extends InquiryContractSupport {
             jdbc.update("delete from " + t + " where tenant_id = 0");
         }
         jdbc.update("delete from supplier where tenant_id = 0 and supplier_code like 'ITSUP%'");
+    }
+
+    /** 这些明细表本用例生成的行都带上了商品（spec product/document-product-link「单据明细关联商品」一路带下去） */
+    protected void assertLinesLinked(String... tables) {
+        for (String t : tables) {
+            int all = jdbc.queryForObject("select count(*) from " + t + " where tenant_id = 0 and deleted_at is null", Integer.class);
+            int nulls = jdbc.queryForObject("select count(*) from " + t + " where tenant_id = 0 and deleted_at is null and product_id is null",
+                    Integer.class);
+            org.junit.jupiter.api.Assertions.assertTrue(all > 0, t + " 没有数据");
+            org.junit.jupiter.api.Assertions.assertEquals(0, nulls, t + " 有 " + nulls + " 行没带上商品");
+        }
     }
 
     // ---------------------------------------------------------------- 采购（spec purchase/*）

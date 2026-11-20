@@ -99,6 +99,7 @@ public class ContentAiService {
         aiConfigService.resolveChainForCurrentTenant();
         lockOpen();
         Set<Long> existing = productMapper.selectList(new LambdaQueryWrapper<ProductDO>()
+                        .eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE)
                         .select(ProductDO::getId)
                         .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                         .in(ProductDO::getId, ids)

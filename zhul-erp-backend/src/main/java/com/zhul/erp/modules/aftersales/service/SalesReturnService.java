@@ -309,6 +309,7 @@ public class SalesReturnService {
             SalesReturnItemDO x = new SalesReturnItemDO();
             x.setTenantId(o.getTenantId());
             x.setSoItemId(i.getId());
+            x.setProductId(i.getProductId());
             x.setModel(i.getModel());
             x.setBrand(Objects.requireNonNullElse(i.getBrand(), ""));
             x.setQuantity(e.getValue());

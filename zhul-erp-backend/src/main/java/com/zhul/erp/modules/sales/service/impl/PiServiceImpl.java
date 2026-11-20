@@ -476,6 +476,7 @@ public class PiServiceImpl implements PiService {
             i.setCustomerInquiryId(s.getCustomerInquiryId());
             i.setInquiryItemId(s.getInquiryItemId());
             InquiryItemDO src = docs.get(s.getInquiryItemId());
+            i.setProductId(src != null && src.getProductId() != null ? src.getProductId() : s.getProductId());
             i.setModel(src != null ? DocModels.docModel(src) : nz(s.getModel()));
             i.setCustomerModel(src != null ? DocModels.customerModel(src) : nz(s.getCustomerModel()));
             i.setBrand(nz(s.getBrand()));
@@ -972,7 +973,7 @@ public class PiServiceImpl implements PiService {
         vo.setMarginRate(v.getMarginRate());
         vo.setSentAt(v.getSentAt());
         Iterator<DocItemProducts.Info> products = docItemProducts.resolve(items.stream()
-                .map(i -> new DocItemProducts.Line(null, i.getInquiryItemId(), i.getBrand(), i.getModel())).toList()).iterator();
+                .map(i -> new DocItemProducts.Line(i.getProductId(), i.getInquiryItemId(), i.getBrand(), i.getModel())).toList()).iterator();
         Map<Long, com.zhul.erp.modules.sales.support.ItemRemarks.Remark> remarks = itemRemarks.ofInquiryItems(
                 items.stream().map(PiItemDO::getInquiryItemId).toList());
         vo.setItems(items.stream().map(i -> {
@@ -981,6 +982,8 @@ public class PiServiceImpl implements PiService {
             x.setItemRemark(remark == null ? "" : remark.text());
             DocItemProducts.Info product = products.next();
             x.setProductId(product.productId());
+            x.setProductCandidate(product.candidate());
+            x.setProductCandidateId(product.candidateId());
             x.setOrderCode(product.orderCode());
             x.setId(i.getId());
             x.setLineNo(i.getLineNo());

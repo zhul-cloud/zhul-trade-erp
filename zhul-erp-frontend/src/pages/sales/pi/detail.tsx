@@ -1216,6 +1216,7 @@ const PiDetail: React.FC = () => {
       brand={src.brand}
       orderCode={src.orderCode}
       productId={src.productId}
+      candidate={src.productCandidate}
       customerModel={src.customerModel}
       updatedTo={src.modelUpdatedTo}
       updatedTail="，请与客户确认"

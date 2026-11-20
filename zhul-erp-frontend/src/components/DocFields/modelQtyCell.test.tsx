@@ -22,7 +22,12 @@ it('多个型号点查看列出全部，能打开详情', () => {
   view(
     React.createElement(ModelQtyCell, {
       items: [
-        { model: '6ES7214-1AG40-0XB0', quantity: 10, brand: '西门子', category: 'PLC' },
+        {
+          model: '6ES7214-1AG40-0XB0',
+          quantity: 10,
+          brand: '西门子',
+          category: 'PLC',
+        },
         { model: '1756-PB72', quantity: 4, brand: 'AB', category: '电源' },
       ],
       docLabel: 'OB20261120001 · Arabian Automation LLC',
@@ -31,7 +36,9 @@ it('多个型号点查看列出全部，能打开详情', () => {
   );
   fireEvent.click(screen.getByRole('button', { name: '查看' }));
   expect(screen.getByText('2 个型号 · 14 件')).toBeTruthy();
-  expect(screen.getByText('OB20261120001 · Arabian Automation LLC')).toBeTruthy();
+  expect(
+    screen.getByText('OB20261120001 · Arabian Automation LLC'),
+  ).toBeTruthy();
   expect(screen.getByText('电源')).toBeTruthy();
   expect(screen.getAllByText('1756-PB72').length).toBeGreaterThan(0);
   fireEvent.click(screen.getByRole('button', { name: '打开详情' }));
