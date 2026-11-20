@@ -451,6 +451,8 @@ export interface ProductOption {
   brandName: string;
   categoryName: string;
   productName: string;
+  /** 候选商品：还没审核建档，可以先用在单据上 */
+  candidate?: boolean;
 }
 
 export interface ProductMatch {

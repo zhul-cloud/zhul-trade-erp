@@ -544,7 +544,7 @@ class PayableContractTest extends SalesContractSupport {
     @Test
     void currencyChange_blockedWhilePurchaseReturnExists() throws Exception {
         long sup = supplier("退货币种工控", null);
-        long poId = orderedPo(sup, "CUR-PR", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        long poId = orderedPo(sup, "CUR-PR-1", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
         jdbc.update("insert into purchase_return (tenant_id, return_no, supplier_id, source_type, po_id, status, currency_code, exchange_rate) "
                 + "values (0, 'ITBUS050', ?, 1, ?, 1, 'CNY', 1)", sup, poId);
         Map<String, Object> body = poBody(po(poId, admin), null);
@@ -563,7 +563,7 @@ class PayableContractTest extends SalesContractSupport {
     @Test
     void discountOnPayment_locksOrderBeforeReading() throws Exception {
         long sup = supplier("并发优惠工控", null);
-        long poId = orderedPo(sup, "DIS-LOCK", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        long poId = orderedPo(sup, "DIS-LOCK-1", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
         java.util.concurrent.CountDownLatch held = new java.util.concurrent.CountDownLatch(1);
         // 另一事务先改采购订单并持锁一会儿再提交（如登记已开票、撤销已开票这类不经过应付锁的写操作）
         Thread other = new Thread(() -> tx.executeWithoutResult(st -> {

@@ -1,5 +1,5 @@
 import { request } from '@umijs/max';
-import type { PageResult } from '../service';
+import type { PageResult, ProductOption } from '../service';
 
 export { readBizError } from '../service';
 
@@ -49,6 +49,10 @@ export interface Candidate {
   lastSeenAt?: string;
   productId?: number | null;
   productLabel?: string;
+  /** 候选商品被各类单据引用的条数（单据类型 → 条数），待审核时才有 */
+  references?: Record<string, number>;
+  /** 已被销售订单及之后的单据引用：不能驳回，只能建档或并入 */
+  usedByOrders?: boolean;
   rejectReason?: number;
   rejectReasonName?: string;
   rejectNote?: string;
@@ -83,6 +87,26 @@ export interface ApproveBody {
   shortDescription?: string;
   lifecycleStatus?: number;
   lifecycleSource?: string;
+  /** 改型号后与已建档商品重复时，确认并入 */
+  confirmMerge?: boolean;
+}
+
+/** 通过建档时会并入已有商品：CANDIDATE_WILL_MERGE 的 detail */
+export interface WillMerge {
+  targetId: number;
+  targetLabel: string;
+  references: Record<string, number>;
+}
+
+/** 待关联清单的一组：同品牌原文 + 归一化型号的未关联商品的单据明细 */
+export interface UnlinkedGroup {
+  key: string;
+  brand: string;
+  model: string;
+  docs: Record<string, number>;
+  lineCount: number;
+  lastSeenAt?: string;
+  suggestion?: ProductOption;
 }
 
 const quiet = { skipErrorHandler: true } as const;
@@ -131,8 +155,24 @@ export const candidateApi = {
     send<AiFill>('POST', `${C}/ai-fill`, { mode, ids }),
   aiFillStatus: (taskId: number) =>
     send<AiFill>('GET', `${C}/ai-fill/${taskId}`),
-  merge: (id: number, productId: number) =>
-    send<Candidate>('POST', `${C}/${id}/merge`, { productId }),
+  merge: (id: number, productId: number, reason?: string) =>
+    send<Candidate>('POST', `${C}/${id}/merge`, { productId, reason }),
+  /** 候选商品被各类单据引用的条数 */
+  references: (id: number) =>
+    send<Record<string, number>>('GET', `${C}/${id}/references`),
+  /** 待关联清单：还没关联商品的单据明细，按型号归并 */
+  unlinked: (q: { keyword?: string; page: number; pageSize: number }) =>
+    request<{ data: PageResult<UnlinkedGroup> }>(`${C}/unlinked`, {
+      params: { keyword: q.keyword, page: q.page, page_size: q.pageSize },
+      ...quiet,
+    }).then((r) => r.data),
+  /** 选择商品（productId）或填写真实型号（brand + model）后批量关联，返回关联的条数 */
+  linkUnlinked: (body: {
+    key: string;
+    productId?: number;
+    brand?: string;
+    model?: string;
+  }) => send<number>('POST', `${C}/unlinked/link`, body),
   reject: (id: number, reason: number, note?: string) =>
     send<Candidate>('POST', `${C}/${id}/reject`, { reason, note }),
   reopen: (id: number) => send<Candidate>('POST', `${C}/${id}/reopen`),

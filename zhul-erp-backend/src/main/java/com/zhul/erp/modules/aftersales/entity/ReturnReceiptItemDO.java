@@ -20,6 +20,8 @@ public class ReturnReceiptItemDO {
     private Long receiptId;
     private Long returnItemId;
     private Long soItemId;
+    /** 引用的商品ID（由上一张单据带下来，spec product/document-product-link）；NULL 表示还没关联 */
+    private Long productId;
     private String model;
     private String brand;
     private Integer quantity;

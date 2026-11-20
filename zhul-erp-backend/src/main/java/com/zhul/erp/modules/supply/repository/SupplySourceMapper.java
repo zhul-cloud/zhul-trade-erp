@@ -156,7 +156,7 @@ public interface SupplySourceMapper {
 
     /** 商品主数据里型号的品牌与品类（按归一化型号） */
     @Select("<script>SELECT p.mpn_normalized AS modelKey, p.brand_id AS brandId, p.category_id AS categoryId FROM product p"
-            + " WHERE p.deleted_at IS NULL AND p.mpn_normalized IN"
+            + " WHERE p.deleted_at IS NULL AND p.archive_status = 2 AND p.mpn_normalized IN"
             + " <foreach collection='keys' item='k' open='(' separator=',' close=')'>#{k}</foreach></script>")
     List<Map<String, Object>> productScopes(@Param("keys") List<String> keys);
 

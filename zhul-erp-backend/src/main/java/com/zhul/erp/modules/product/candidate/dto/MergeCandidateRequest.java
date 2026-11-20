@@ -8,4 +8,8 @@ import lombok.Data;
 public class MergeCandidateRequest {
     @NotNull(message = "请选择要并入的商品")
     private Long productId;
+
+    /** 并入原因，可空 */
+    @jakarta.validation.constraints.Size(max = 180, message = "原因不能超过 180 个字")
+    private String reason;
 }

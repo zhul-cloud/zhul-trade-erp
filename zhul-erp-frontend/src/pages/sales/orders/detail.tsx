@@ -571,6 +571,7 @@ const OrderDetail: React.FC = () => {
           brand={r.brand}
           orderCode={r.orderCode}
           productId={r.productId}
+          candidate={r.productCandidate}
           customerModel={r.customerModel}
           suffix={
             r.quantity === 0 && (

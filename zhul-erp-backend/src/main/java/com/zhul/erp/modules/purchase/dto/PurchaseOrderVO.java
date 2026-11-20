@@ -109,6 +109,9 @@ public class PurchaseOrderVO implements ShipFields {
         private String description;
         /** 已下单：真实型号已更新为这个型号，本行未修改（与型号不同时才有值） */
         private String modelUpdatedTo;
+        /** 关联的商品（候选或已建档）与是否候选商品（spec product/document-product-link「单据上的商品标记」） */
+        private Long productId;
+        private Boolean productCandidate;
         private String brand;
         private String category;
         private Integer quantity;

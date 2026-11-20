@@ -60,6 +60,9 @@ public class OutboundVO {
     public static class Item {
         private Long id;
         private Long soItemId;
+        /** 关联的商品（候选或已建档）与是否候选商品（spec product/document-product-link「单据上的商品标记」） */
+        private Long productId;
+        private Boolean productCandidate;
         private String model;
         private String brand;
         /** 品类取订单型号行 */

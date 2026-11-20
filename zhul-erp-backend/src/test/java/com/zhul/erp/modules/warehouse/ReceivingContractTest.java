@@ -290,6 +290,7 @@ class ReceivingContractTest extends SalesContractSupport {
         assertEquals("采购入库单已冲销", fail(call(json(post(GR + "/" + grId + "/remark"), "{\"remark\":\"x\"}"), keeper))
                 .path("message").asText(), "冲销后只读");
         assertTrue(actions(ok(call(get(SHIP + "/" + sid), lin))).contains("入库单冲销"));
+        assertLinesLinked("supplier_shipment_item", "purchase_receipt_item");
     }
 
     private static List<String> actions(JsonNode doc) {

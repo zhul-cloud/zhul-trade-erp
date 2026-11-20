@@ -86,6 +86,7 @@ public class PurchaseDrafts {
                 x.setRequirementId(r.getId());
                 x.setSoId(r.getSoId());
                 x.setSoItemId(r.getSoItemId());
+                x.setProductId(r.getProductId());
                 x.setModel(r.getModel());
                 x.setBrand(r.getBrand());
                 x.setDescription(Objects.requireNonNullElse(r.getDescription(), ""));

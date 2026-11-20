@@ -170,6 +170,7 @@ public class PurchaseReturnService {
                 i.setDispositionId(l.disposition().getId());
                 i.setSoItemId(l.receiptItem().getSoItemId());
                 i.setPoItemId(poItems.get(l.receiptItem().getSoItemId()));
+                i.setProductId(l.receiptItem().getProductId());
                 i.setModel(l.receiptItem().getModel());
                 i.setBrand(l.receiptItem().getBrand());
                 i.setQuantity(l.disposition().getQuantity());
@@ -200,6 +201,7 @@ public class PurchaseReturnService {
         i.setPurchaseReturnId(p.getId());
         i.setDiscrepancyId(d.getId());
         i.setPoItemId(d.getPoItemId());
+        i.setProductId(d.getProductId());
         i.setModel(d.getModel());
         i.setBrand(d.getBrand());
         i.setQuantity(d.getQuantity());

@@ -253,6 +253,10 @@ export interface PoStats {
 }
 
 export interface PoItem {
+  /** 关联的商品（候选或已建档） */
+  productId?: number | null;
+  /** 关联的是候选商品（还没审核建档） */
+  productCandidate?: boolean;
   id: number;
   requirementId: number;
   soId: number;

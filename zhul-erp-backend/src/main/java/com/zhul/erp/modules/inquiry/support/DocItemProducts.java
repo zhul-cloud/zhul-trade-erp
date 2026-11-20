@@ -3,7 +3,7 @@ package com.zhul.erp.modules.inquiry.support;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO;
 import com.zhul.erp.modules.inquiry.item.repository.InquiryItemMapper;
-import com.zhul.erp.modules.product.service.ProductLookupService;
+import com.zhul.erp.modules.product.support.ProductTags;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -12,25 +12,26 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
- * 报价单、PI、销售订单明细显示用：补出每行对应的商品档案与订货号（spec 各单据「型号明细格式与商品档案跳转」）。
- * 商品档案依次取：行自身记下的（手动订单）→ 来源询盘型号已建档的 → 品牌 + 型号精确匹配；订货号取来源询盘型号。
- * 整张单据只查两次（询盘型号、商品档案），不逐行查。
+ * 报价单、PI、销售订单明细显示用：补出每行引用的商品与订货号（spec 各单据「型号明细格式与商品档案跳转」、
+ * product/document-product-link「单据上的商品标记」）。商品取行上记下的（由上一张单据带下来），行上没有时取来源询盘型号的；
+ * 已并入的换成主商品，候选的带「候选」标记。订货号取来源询盘型号。整张单据只查固定几次，不逐行查。
  */
 @Component
 @RequiredArgsConstructor
 public class DocItemProducts {
 
     private final InquiryItemMapper inquiryItemMapper;
-    private final ProductLookupService productLookup;
+    private final ProductTags productTags;
 
-    /** 一行明细的已知信息 */
+    /** 一行明细的已知信息（brand、model 仅保留兼容调用方，不再按文字匹配商品） */
     public record Line(Long productId, Long inquiryItemId, String brand, String model) {
     }
 
-    /** 补出的商品档案与订货号，可能为空 */
-    public record Info(Long productId, String orderCode) {
+    /** 补出的商品与订货号，可能为空；candidate 为 true 时 candidateId 是候选审核用的 ID */
+    public record Info(Long productId, String orderCode, boolean candidate, Long candidateId) {
     }
 
     /** 按传入顺序返回 */
@@ -43,22 +44,20 @@ public class DocItemProducts {
                             .in(InquiryItemDO::getId, itemIds))
                     .forEach(i -> items.put(i.getId(), i));
         }
-        List<String[]> toMatch = new ArrayList<>();
+        List<Long> raw = new ArrayList<>(lines.size());
         for (Line l : lines) {
             InquiryItemDO i = l.inquiryItemId() == null ? null : items.get(l.inquiryItemId());
-            if (l.productId() == null && (i == null || i.getProductId() == null)) {
-                toMatch.add(new String[] {l.brand(), l.model()});
-            }
+            raw.add(l.productId() != null ? l.productId() : i == null ? null : i.getProductId());
         }
-        Map<String, Long> matched = toMatch.isEmpty() ? Map.of() : productLookup.matchAll(toMatch);
+        Map<Long, ProductTags.Tag> tags = productTags.of(raw.stream().filter(Objects::nonNull).toList());
         List<Info> result = new ArrayList<>(lines.size());
-        for (Line l : lines) {
+        for (int k = 0; k < lines.size(); k++) {
+            Line l = lines.get(k);
             InquiryItemDO i = l.inquiryItemId() == null ? null : items.get(l.inquiryItemId());
-            Long productId = l.productId() != null ? l.productId()
-                    : i != null && i.getProductId() != null ? i.getProductId()
-                    : matched.get(ProductLookupService.matchKey(l.brand(), l.model()));
+            ProductTags.Tag tag = raw.get(k) == null ? null : tags.get(raw.get(k));
             String orderCode = i != null && StringUtils.hasText(i.getOrderCode()) ? i.getOrderCode() : null;
-            result.add(new Info(productId, orderCode));
+            result.add(tag == null ? new Info(null, orderCode, false, null)
+                    : new Info(tag.productId(), orderCode, tag.candidate(), tag.candidateId()));
         }
         return result;
     }

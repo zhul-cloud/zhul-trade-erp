@@ -236,6 +236,7 @@ class OutboundShippingContractTest extends SalesContractSupport {
 
         assertEquals("仓库已经打包，不能撤回", fail(call(json(post(OB + "/" + ob1.path("id").asLong() + "/withdraw"), "{\"reason\":\"x\"}"), admin))
                 .path("message").asText());
+        assertLinesLinked("sales_order_item", "purchase_requirement", "purchase_order_item", "outbound_order_item");
     }
 
     @Test

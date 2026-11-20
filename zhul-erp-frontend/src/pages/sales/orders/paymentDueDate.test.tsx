@@ -56,9 +56,9 @@ it('修改约定付款日：显示金额，清空后保存传 null', async () =>
     }),
   );
   expect(screen.getByText('USD 666.65')).toBeTruthy();
-  expect(
-    (screen.getByLabelText('约定付款日') as HTMLInputElement).value,
-  ).toBe('2026-11-10');
+  expect((screen.getByLabelText('约定付款日') as HTMLInputElement).value).toBe(
+    '2026-11-10',
+  );
 
   await save(/保\s*存/);
   expect(orderApi.paymentDueDate).toHaveBeenLastCalledWith(1, '2026-11-10');

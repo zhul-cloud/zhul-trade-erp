@@ -127,6 +127,7 @@ public class ReturnReceiptService {
             i.setReceiptId(rr.getId());
             i.setReturnItemId(x.getId());
             i.setSoItemId(x.getSoItemId());
+            i.setProductId(x.getProductId());
             i.setModel(x.getModel());
             i.setBrand(x.getBrand());
             i.setQuantity(x.getQuantity());

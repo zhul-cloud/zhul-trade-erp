@@ -160,6 +160,7 @@ public class CandidateImportService {
         }
         if (brand.brandId() != null) {
             ProductDO product = productMapper.selectOne(new LambdaQueryWrapper<ProductDO>()
+                    .eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE)
                     .select(ProductDO::getId)
                     .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                     .eq(ProductDO::getBrandId, brand.brandId())
