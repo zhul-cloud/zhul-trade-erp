@@ -597,6 +597,9 @@ export interface OrderItem extends PiItem {
   /** 有采购需求：「待采购 / 已下单 / 已入库」由采购与入库推进 */
   purchaseTracked?: boolean;
   purchaseOrderedQty?: number;
+  /** 不需采购的数量与原因（删除采购需求，openspec purchase-requirement-delete） */
+  notNeededQty?: number;
+  notNeededReasons?: string[];
   /** 合格入库数量（含折价接收） */
   purchaseReceivedQty?: number;
   /** 货物状态（件数）；系统外采购的型号为空 */

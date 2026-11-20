@@ -32,6 +32,9 @@ public class SalesOrderItemVO extends PiItemVO {
     /** 合格入库数量（含折价接收） */
     private Integer purchaseReceivedQty;
     /** 货物状态（件数）：已入库、在途、待发货、待采购；系统外采购的型号为空 */
+    /** 不需采购的数量（删除采购需求，openspec purchase-requirement-delete）与原因 */
+    private Integer notNeededQty;
+    private java.util.List<String> notNeededReasons;
     private Integer goodsReceived;
     private Integer goodsInTransit;
     private Integer goodsPendingShip;

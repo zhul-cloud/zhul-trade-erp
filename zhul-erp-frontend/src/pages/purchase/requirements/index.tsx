@@ -17,6 +17,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Radio,
   Segmented,
   Select,
   Skeleton,
@@ -96,6 +97,7 @@ const RequirementList: React.FC = () => {
   const access = useAccess();
   const users = useUserOptions();
   const canSplit = !!access['purchase:requirement:split'];
+  const canRemove = !!access['purchase:requirement:delete'];
   const canAssign = !!access['purchase:requirement:assign'];
   const canCreate = !!access['purchase:order:create'];
   // 采购负责人（有指派权限）默认看全部，采购员默认看自己负责的
@@ -114,6 +116,7 @@ const RequirementList: React.FC = () => {
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
   const [selected, setSelected] = useState<Map<number, Requirement>>(new Map());
   const [splitting, setSplitting] = useState<Requirement>();
+  const [removing, setRemoving] = useState<Requirement>();
   const [assigning, setAssigning] = useState<Requirement[]>();
   const [sourcing, setSourcing] = useState<Requirement[]>();
   const [generating, setGenerating] = useState<Requirement[]>();
@@ -192,6 +195,12 @@ const RequirementList: React.FC = () => {
   const statusCell = (r: Requirement) => (
     <div>
       <ReqStatusPill status={r.status} name={r.statusName} />
+      {!!r.removedQty && (
+        <div style={{ fontSize: 12, color: palette.mute }}>
+          删除 {r.removedQty}
+          {r.removeReason ? ` · ${r.removeReason}` : ''}
+        </div>
+      )}
       {r.purchaseOrders.map((p) => (
         <div key={p.id} style={{ fontSize: 12 }}>
           <button
@@ -335,6 +344,16 @@ const RequirementList: React.FC = () => {
                 onClick={() => setSplitting(r)}
               >
                 拆分
+              </button>
+            )}
+            {canRemove && open && (
+              <button
+                type="button"
+                className="zhul-link"
+                style={{ color: palette.red }}
+                onClick={() => setRemoving(r)}
+              >
+                删除
               </button>
             )}
           </div>
@@ -829,6 +848,15 @@ const RequirementList: React.FC = () => {
           refresh();
         }}
       />
+      <RemoveModal
+        target={removing}
+        onClose={() => setRemoving(undefined)}
+        onDone={() => {
+          setRemoving(undefined);
+          message.success('已删除');
+          refresh();
+        }}
+      />
       <AssignModal
         targets={assigning}
         users={users}
@@ -916,6 +944,170 @@ const SourceModal: React.FC<{
               : '所选采购对象'}
             」的草稿采购订单（没有时新建）；已在草稿里的型号会改过去，已填的单价保留。没有采购员的型号会归到你名下。
           </div>
+        </div>
+      )}
+    </Modal>
+  );
+};
+
+// ---------------------------------------------------------------- 删除（openspec purchase-requirement-delete）
+
+const REMOVE_REASONS = [
+  { value: 'stock', label: '仓库有库存' },
+  { value: 'outside', label: '在系统外采购' },
+  { value: 'other', label: '其他' },
+] as const;
+type RemoveReason = (typeof REMOVE_REASONS)[number]['value'];
+
+export const RemoveModal: React.FC<{
+  target?: Requirement;
+  onClose: () => void;
+  onDone: () => void;
+}> = ({ target, onClose, onDone }) => {
+  const { palette } = useAppTheme();
+  const { message } = App.useApp();
+  const [reason, setReason] = useState<RemoveReason>('stock');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (target) {
+      setReason('stock');
+      setNote('');
+    }
+  }, [target]);
+
+  const ordered = target?.orderedQty ?? 0;
+  const n = target ? target.quantity - ordered : 0;
+  const partial = ordered > 0;
+  const needNote = reason === 'other' && !note.trim();
+
+  const submit = async () => {
+    if (!target) return;
+    if (needNote) {
+      message.error('请填写删除说明');
+      return;
+    }
+    setBusy(true);
+    try {
+      await requirementApi.remove(target.id, {
+        reason,
+        note: note.trim(),
+      });
+      onDone();
+    } catch (e) {
+      message.error(readBizError(e).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const stat = (label: string, value: number, danger?: boolean) => (
+    <div>
+      <div style={{ fontSize: 12, color: palette.mute }}>{label}</div>
+      <b style={{ fontSize: 16, color: danger ? palette.red : palette.ink }}>
+        {value}
+      </b>
+    </div>
+  );
+
+  return (
+    <Modal
+      open={!!target}
+      title={partial ? '删除没下单的数量' : '删除采购需求'}
+      width={560}
+      onCancel={onClose}
+      okText={partial ? `删除 ${n} 个` : '删除'}
+      okButtonProps={{ danger: true, loading: busy, disabled: n <= 0 }}
+      onOk={submit}
+    >
+      {target && (
+        <div style={{ display: 'grid', gap: 14 }}>
+          {sub(
+            palette.mute,
+            partial
+              ? `已下单的 ${ordered} 个不受影响，只删还没下单的 ${n} 个`
+              : '删除后这个型号不再需要采购，数量从采购需求里去掉',
+          )}
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: 10,
+              background: palette.inset,
+            }}
+          >
+            <b style={{ color: palette.ink }}>
+              {target.model}
+              {target.brand ? ` · ${target.brand}` : ''}
+              {target.category ? ` · ${target.category}` : ''}
+            </b>
+            {sub(
+              palette.mute,
+              [
+                target.soNo,
+                target.customerName,
+                target.purchaserName && `采购员 ${target.purchaserName}`,
+              ]
+                .filter(Boolean)
+                .join(' · '),
+            )}
+          </div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 12,
+              padding: '10px 14px',
+              borderRadius: 10,
+              border: `1px solid ${palette.hairline}`,
+            }}
+          >
+            {stat('需求数量', target.quantity)}
+            {partial
+              ? stat('已下单', ordered)
+              : stat('草稿中', target.draftQty)}
+            {partial ? stat('可下单', n) : stat('已下单', ordered)}
+            {stat('删除', n, true)}
+          </div>
+          {target.draftQty > 0 && (
+            <Alert
+              type="warning"
+              showIcon
+              title="草稿采购订单上的这个型号一并移除；草稿没有其他型号时自动删除。"
+            />
+          )}
+          <div>
+            <div style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}>
+              删除原因 <span style={{ color: palette.red }}>*</span>
+            </div>
+            <Radio.Group
+              optionType="button"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              options={REMOVE_REASONS.map((x) => ({ ...x }))}
+              aria-label="删除原因"
+            />
+            <Input.TextArea
+              style={{ marginTop: 8 }}
+              rows={2}
+              maxLength={180}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder={
+                reason === 'other' ? '请填写删除说明（必填）' : '说明（选填）'
+              }
+              aria-label="删除说明"
+            />
+          </div>
+          <Alert
+            type="info"
+            showIcon
+            title={
+              partial
+                ? `删除后需求数量变为 ${ordered}，状态为「已下单」；销售订单上这 ${n} 个记为「不需采购」。`
+                : '客户不要这个型号了，请在销售订单上用「部分取消」。'
+            }
+          />
         </div>
       )}
     </Modal>

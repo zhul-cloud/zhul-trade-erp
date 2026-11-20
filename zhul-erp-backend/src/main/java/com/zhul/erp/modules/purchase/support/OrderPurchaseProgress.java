@@ -24,7 +24,8 @@ import java.util.stream.Collectors;
 /**
  * 订单型号进度的「已出运 / 已交货代」由出运单与销售出库单驱动（出运数、交货代数达到型号数量），其次
  * 「待采购 / 已下单 / 已入库」由采购与入库驱动：合格入库数量（含折价接收）达到型号数量为已入库，
- * 否则全部数量都在已下单的采购订单上为已下单，否则待采购；字典里停用的步骤跳过。
+ * 否则全部数量都在已下单的采购订单上为已下单，否则待采购；字典里停用的步骤跳过。采购与入库按需采购数量
+ * （型号数量 − 删除采购需求的数量，openspec purchase-requirement-delete）判断。
  * 只处理当前进度为这五步之一的型号；没有出库记录的型号只看采购与入库（系统外采购的不处理），
  * 以前手动推进到「已交货代」「已出运」、没有出库记录的不回退。已手动推进到后面的不回退。在调用方事务内执行。
  */
@@ -63,6 +64,12 @@ public class OrderPurchaseProgress {
                         .in(PurchaseRequirementDO::getSoItemId, ids)
                         .isNull(PurchaseRequirementDO::getDeletedAt))
                 .stream().map(PurchaseRequirementDO::getSoItemId).collect(Collectors.toSet());
+        Map<Long, Integer> removed = new java.util.HashMap<>();
+        requirementMapper.selectList(new LambdaQueryWrapper<PurchaseRequirementDO>()
+                        .select(PurchaseRequirementDO::getSoItemId, PurchaseRequirementDO::getRemovedQty)
+                        .in(PurchaseRequirementDO::getSoItemId, ids)
+                        .gt(PurchaseRequirementDO::getRemovedQty, 0))
+                .forEach(r -> removed.merge(r.getSoItemId(), r.getRemovedQty(), Integer::sum));
         Map<Long, RequirementQty.Qty> placed = qty.bySoItem(ids);
         Map<Long, Integer> received = receivingQty.qualifiedBySoItem(ids);
         Map<Long, com.zhul.erp.modules.logistics.support.LogisticsQty.Qty> out = logisticsQty.bySoItem(ids);
@@ -86,8 +93,9 @@ public class OrderPurchaseProgress {
                 // 系统外采购的型号：没交货代时回到待采购（采购与入库在系统外）
                 want = SalesConstants.PROGRESS_PENDING;
             } else {
-                boolean allOrdered = placed.getOrDefault(i.getId(), RequirementQty.Qty.ZERO).ordered() >= i.getQuantity();
-                boolean allReceived = received.getOrDefault(i.getId(), 0) >= i.getQuantity();
+                int need = Math.max(0, i.getQuantity() - removed.getOrDefault(i.getId(), 0));
+                boolean allOrdered = placed.getOrDefault(i.getId(), RequirementQty.Qty.ZERO).ordered() >= need;
+                boolean allReceived = received.getOrDefault(i.getId(), 0) >= need;
                 if (allReceived && receivedEnabled) {
                     want = SalesConstants.PROGRESS_RECEIVED;
                 } else if (allOrdered || allReceived) {
