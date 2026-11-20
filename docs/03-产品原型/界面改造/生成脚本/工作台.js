@@ -182,30 +182,30 @@ function wbStates(T, name) {
   const head = box(root, { width: 'fill_container', layout: 'horizontal', alignItems: 'center' });
   tx(head, '下午好，Kevin', { fontSize: 22, fontWeight: 600, fill: solid(T.ink), width: 'fill_container' });
   const seg = box(head, { layout: 'horizontal', gap: 2, padding: [3, 3], cornerRadius: 8, fill: solid(T.tonal) });
-  ['业务负责人', '业务员'].forEach((b, i) => { const s = box(seg, { layout: 'horizontal', height: 32, alignItems: 'center', padding: [0, 14], cornerRadius: 6, fill: solid(i === 0 ? T.card : T.tonal), effects: i === 0 && T.key === 'light' ? SH : [] }); tx(s, b, { fontSize: 13, fontWeight: i === 0 ? 600 : 400, fill: solid(i === 0 ? T.ink : T.sub) }); });
+  ['业务负责人', '业务员'].forEach((b, i) => { const on = i === 1; const s = box(seg, { layout: 'horizontal', height: 32, alignItems: 'center', padding: [0, 14], cornerRadius: 6, fill: solid(on ? T.card : T.tonal), effects: on && T.key === 'light' ? SH : [] }); tx(s, b, { fontSize: 13, fontWeight: on ? 600 : 400, fill: solid(on ? T.ink : T.sub) }); });
   const c = card(root, { width: 566, layout: 'vertical', gap: 16, padding: [20, 24] });
   tx(c, '过期未收款的 PI', { fontSize: 18, fontWeight: 500, fill: solid(T.ink) });
   const e = box(c, { width: 'fill_container', layout: 'horizontal', gap: 10, alignItems: 'center', padding: [18, 16], cornerRadius: 8, fill: solid(T.tonal) });
   icon(e, 'circle-check', 18, T.st.ok[0]); tx(e, '没有过期未收款的 PI', { fill: solid(T.body) });
 }
 wbStates(LIGHT, 'D1b 工作台状态 · 浅色');
-// 涨跌颜色（每人自选，和主题色放在一起）：颜色表示好坏，箭头表示涨跌方向
+// 涨跌颜色（每人自选，和主题色放在一起）：颜色只表示方向，上涨一种颜色、下跌一种颜色；盈亏同理
 function deltaColors(T, name) {
   const K = kit(T); const { tx, box, icon, card } = K;
   const root = I(null, { type: 'frame', name, width: 1196, height: 250, layout: 'horizontal', gap: 24, padding: [24, 24], fill: solid(T.page) });
   const opts = [['涨绿跌红（默认）', T.st.ok[0], T.st.err[0], 1], ['涨红跌绿', T.st.err[0], T.st.ok[0], 0]];
-  for (const [t, good, bad, on] of opts) {
+  for (const [t, upC, downC, on] of opts) {
     const c = card(root, { width: 'fill_container', layout: 'vertical', gap: 14, padding: [20, 24], stroke: on ? { thickness: 1.5, fill: solid(P) } : (T.stroke || undefined) });
     const h = box(c, { layout: 'horizontal', gap: 8, alignItems: 'center' });
     const rd = box(h, { width: 18, height: 18, cornerRadius: 9, layout: 'horizontal', justifyContent: 'center', alignItems: 'center', stroke: { thickness: 1.5, fill: solid(on ? P : T.faint) } }); if (on) I(rd, { type: 'ellipse', width: 8, height: 8, fill: solid(P) });
     tx(h, t, { fontWeight: 600, fill: solid(T.ink) });
     const r = box(c, { width: 'fill_container', layout: 'horizontal', gap: 12 });
-    for (const [l, v, d, up, isGood] of [['实收回款', 'CNY 386,420.00', '+12.5%', 1, 1], ['费用', 'CNY 42,100.00', '+6.0%', 1, 0], ['成交订单', '26', '-3.7%', 0, 0]]) {
+    for (const [l, v, d, up] of [['实收回款', 'CNY 386,420.00', '+12.5%', 1], ['费用', 'CNY 42,100.00', '+6.0%', 1], ['成交订单', '26', '-3.7%', 0]]) {
       const m = box(r, { width: 'fill_container', layout: 'vertical', gap: 4, padding: [12, 14], cornerRadius: 8, fill: solid(T.tonal) });
       tx(m, l, { fontSize: 12, fill: solid(T.sub) }); tx(m, v, { fontSize: 18, fontWeight: 700, fontFamily: NUM, fill: solid(T.ink) });
-      const col = isGood ? good : bad; const dd = box(m, { layout: 'horizontal', gap: 4, alignItems: 'center' }); icon(dd, up ? 'trending-up' : 'trending-down', 14, col); tx(dd, '较上月 ' + d, { fontSize: 12, fontFamily: NUM, fill: solid(col) });
+      const col = up ? upC : downC; const dd = box(m, { layout: 'horizontal', gap: 4, alignItems: 'center' }); icon(dd, up ? 'trending-up' : 'trending-down', 14, col); tx(dd, '较上月 ' + d, { fontSize: 12, fontFamily: NUM, fill: solid(col) });
     }
-    tx(c, '颜色表示变好或变坏，箭头表示涨跌；费用越低越好，上涨按变坏着色', { fontSize: 12, fill: solid(T.sub) });
+    const pl = box(c, { layout: 'horizontal', gap: 8, alignItems: 'center' }); tx(pl, '盈亏同理：', { fontSize: 12, fill: solid(T.sub) }); tx(pl, '毛利 CNY 24,256.00', { fontSize: 12, fontWeight: 600, fontFamily: NUM, fill: solid(upC) }); tx(pl, '毛利 CNY -860.00', { fontSize: 12, fontWeight: 600, fontFamily: NUM, fill: solid(downC) });
   }
 }
 deltaColors(LIGHT, 'D1c 涨跌颜色 · 浅色');
