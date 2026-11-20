@@ -15,9 +15,10 @@
 
 ## 4. 收尾
 
-- [ ] 4.1 `npm run lint`、`npx antd lint ./src`、`npm test`、`npm run build` 通过，CI 通过
+- [x] 4.1 `npm run lint`、`npx antd lint ./src`、`npm test`、`npm run build` 通过，CI 通过
 - [ ] 4.2 后续批次按 design.md 清单逐批开 PR（每批完成后在本文件追加记录）
 
 ## 记录
 
 - 2026-11-20 第一批：公共组件 `src/components/ListLayout/`（FilterCard、FilterField、MainCard）；`ModelQtyCell` 可点开（采购入库、采购发货、销售出库、销售退货、采购退货、退货入库六个列表生效）；采购入库、销售出库改为新骨架。本机 1366×768 走查两页无横向撑出。
+- 2026-11-20 第一批随 v1.40.0 上线，生产验收通过（采购入库、销售出库、型号查看弹窗）；本变更保留到后续批次全部完成再归档。
