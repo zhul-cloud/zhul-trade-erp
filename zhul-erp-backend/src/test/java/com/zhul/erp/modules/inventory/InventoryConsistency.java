@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /**
  * 库存一致性核对（openspec inventory-foundation tasks 3.9）：跑完流程后比对
  * ①余额结存 = 流水合计；②余额预占 = 预占表合计；③预占 = 带该对象的流水合计；④没有负数、预占不超过结存；
- * ⑤每张有效采购入库单的入库流水 = 合格 + 不良；⑥每个型号行的销售出库 = 已出运出运单里的销售出库单数量。
+ * ⑤每张有效采购入库单的入库流水 = 合格 + 不良（期初推算的除外）；⑥每个型号行的销售出库 = 已出运出运单里的销售出库单数量。
  * 只看指定租户，单据核对只看关联了商品的行。
  */
 public final class InventoryConsistency {
@@ -51,7 +51,10 @@ public final class InventoryConsistency {
                 + "   WHERE i.tenant_id = ? AND i.deleted_at IS NULL AND i.product_id IS NOT NULL GROUP BY receipt_id) d ON d.receipt_id = r.id"
                 + " LEFT JOIN (SELECT doc_id, SUM(quantity) q FROM inv_move WHERE tenant_id = ? AND doc_type = 'GR'"
                 + "   AND biz_type IN ('PURCHASE_IN', 'PURCHASE_IN_REVERSE') AND op_type IN (1, 2) GROUP BY doc_id) m ON m.doc_id = r.id"
-                + " WHERE r.tenant_id = ? AND COALESCE(m.q, 0) <> d.q", String.class, tenant, tenant, tenant));
+                + " WHERE r.tenant_id = ? AND COALESCE(m.q, 0) <> d.q"
+                // 期初推算的入库单（上线前的单据）没有采购入库流水
+                + " AND NOT EXISTS (SELECT 1 FROM inv_move o JOIN inv_batch b ON b.id = o.batch_id WHERE o.tenant_id = r.tenant_id"
+                + "   AND o.biz_type = 'OPENING' AND b.source_type = 1 AND b.source_id = r.id)", String.class, tenant, tenant, tenant));
         // ⑥ 型号行销售出库 = 已出运出运单里的销售出库单数量
         bad.addAll(jdbc.queryForList("SELECT CONCAT('销售出库≠出运 ', d.so_item_id, '：', COALESCE(m.q, 0), ' vs ', d.q) FROM"
                 + " (SELECT oi.so_item_id, SUM(oi.quantity) q FROM outbound_order_item oi JOIN outbound_order o ON o.id = oi.outbound_id"

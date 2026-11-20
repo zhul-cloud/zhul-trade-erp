@@ -527,6 +527,59 @@ class InventoryFlowContractTest extends SalesContractSupport {
         assertTrue(export.getContentAsByteArray().length > 100, "xlsx");
     }
 
+    // ---------------------------------------------------------------- 期初
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.zhul.erp.modules.inventory.service.InventoryOpening opening;
+
+    private void wipeInventory() {
+        for (String t : List.of("inv_move", "inv_balance", "inv_reservation", "inv_batch")) {
+            jdbc.update("delete from " + t + " where tenant_id = 0");
+        }
+        jdbc.update("delete from sys_config where tenant_id = 0 and config_key = 'inventory.opening.done'");
+    }
+
+    /** spec warehouse/inventory「期初的已交货代」：上线前已交货代未出运的进货代仓并预占；公司仓库没有；只执行一次 */
+    @Test
+    void opening_handedOverGoesToForwarder_reservedOnce() throws Exception {
+        long sup = supplier("华控自动化", null);
+        JsonNode po = orderedPo(sup, l("A-1", 6, "1000", "200"), l("A-2", 3, "500", "100"));
+        long itemA = itemOf(po, "A-1");
+        long itemB = itemOf(po, "A-2");
+        long gr = acceptBy(ship(po.path("id").asLong(), Map.of(itemA, 6, itemB, 3)), Map.of(itemA, new int[]{6, 6, 0}, itemB, new int[]{3, 2, 1}));
+        long soA = soItemOfPoItem(itemA);
+        handOver(soA, forwarder(), 6);
+        Map<String, Object> before = jdbc.queryForMap("select (select group_concat(batch_no order by batch_no) from inv_batch where tenant_id = 0) b");
+        // 模拟上线前的单据：库存表清空、期初未执行
+        wipeInventory();
+        try {
+            com.zhul.erp.modules.inventory.service.InventoryOpening.Report r = opening.openTenant(0);
+            assertEquals(List.of(), r.negatives());
+            assertEquals(6 + 3, r.quantity(), "A 货代仓 6，B 合格 2、不良 1");
+            assertStock(new int[]{0, 0, 0}, stock(productOfPoItem(itemA), 1), "公司仓库没有 A");
+            assertStock(new int[]{6, 0, 6}, stock(productOfPoItem(itemA), 2), "货代仓 A × 6，预占给型号行");
+            assertEquals(6, reservedFor(soA));
+            assertStock(new int[]{2, 1, 2}, stock(productOfPoItem(itemB), 1), "B 合格 2 预占给订单，不良 1");
+            assertEquals(before.get("b"), jdbc.queryForObject("select group_concat(batch_no order by batch_no) from inv_batch where tenant_id = 0",
+                    String.class), "批次号与过账钩子一致");
+            assertEquals(0, jdbc.queryForObject("select count(*) from inv_move where tenant_id = 0 and biz_type <> 'OPENING'", Integer.class));
+            assertEquals(0, opening.openTenant(0).quantity(), "只执行一次");
+            // 期初后照常出运：从货代仓出库
+            long customerId = ok(call(get(SH + "/pending"), admin)).get(0).path("customerId").asLong();
+            long fwd = jdbc.queryForObject("select forwarder_id from outbound_order where tenant_id = 0 order by id desc limit 1", Long.class);
+            long obId = jdbc.queryForObject("select id from outbound_order where tenant_id = 0 order by id desc limit 1", Long.class);
+            long shId = ok(call(json(post(SH), write(Map.of("customerId", customerId, "forwarderId", fwd, "outboundIds", List.of(obId)))), admin))
+                    .path("id").asLong();
+            ok(call(json(post(SH + "/" + shId + "/ship"), write(Map.of("carrier", "DHL", "waybillNo", "1234567890",
+                    "shippedDate", LocalDate.now().toString(), "freight", "100"))), admin));
+            assertStock(new int[]{0, 0, 0}, stock(productOfPoItem(itemA), 2), "出运后货代仓清空，没有补系统外入库");
+            assertEquals(0, jdbc.queryForObject("select count(*) from inv_batch where tenant_id = 0 and source_type = 3", Integer.class));
+        } finally {
+            jdbc.update("delete from sys_config where tenant_id = 0 and config_key = 'inventory.opening.done'");
+        }
+        assertTrue(gr > 0);
+    }
+
     // ---------------------------------------------------------------- 其他出库单
 
     private JsonNode otherOut(int type, long warehouseId, long batchId, int status, int qty, String reason) throws Exception {
