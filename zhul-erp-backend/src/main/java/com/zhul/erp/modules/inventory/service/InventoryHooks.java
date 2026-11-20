@@ -331,6 +331,18 @@ public class InventoryHooks {
                 .orderByAsc(InvBalanceDO::getBatchId));
     }
 
+    // ---------------------------------------------------------------- 订单取消
+
+    /**
+     * 订单取消、删除、部分取消后：型号行超出新需要数量的预占释放（先公司仓库，同仓从最新批次往前），货成为可用库存。
+     * action 为「订单取消」「订单部分取消」等，写进流水的业务类型。
+     */
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
+    public int orderReduced(Long soId, String soNo, java.util.Collection<Long> soItemIds, String action) {
+        return reservations.trim(soItemIds, Doc.of(InvConstants.BIZ_RELEASE, "SO", soId, soNo).label(action + " · " + soNo),
+                warehouses.own().getId());
+    }
+
     // ---------------------------------------------------------------- 退货入库
 
     /** 退货入库单行：实收、合格；fallbackCny 为原订单没有销售出库流水时用的单价（原采购成本） */

@@ -543,8 +543,6 @@ public class ReceiptService {
         // 库存：自有仓（直发货代确认入该货代仓），合格的按来源型号行预占
         inventoryHooks.receiptAccepted(r, items, p, poItems, s.getDirectForwarderId());
         int diffCount = discrepancies.createForReceipt(r, items, p);
-        // 来源订单部分取消过的型号：超出订单需要的合格数量转入闲置库存
-        partialCancelHolds.afterReceipt(r, items, poItems, operator);
         Map<Long, Long> soIds = new HashMap<>();
         poItems.forEach((k, v) -> soIds.put(k, v.getSoId()));
         if (shoot) {

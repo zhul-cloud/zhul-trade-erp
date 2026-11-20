@@ -373,4 +373,28 @@ class InventoryFlowContractTest extends SalesContractSupport {
                 "trackingNo", "SF99887766", "companyPaid", true))), lin));
         assertStock(new int[]{3, 0, 3}, stock(product, 1), "寄出：不良 1 出库");
     }
+
+    // ---------------------------------------------------------------- 订单取消
+
+    /** spec warehouse/inventory「预占」：整单取消后预占全部释放，货成为可用库存（公司仓库与货代仓） */
+    @Test
+    void orderCancel_releasesAllReservations() throws Exception {
+        long sup = supplier("华控自动化", null);
+        JsonNode po = orderedPo(sup, l("A-1", 4, "1000", "200"));
+        long poItem = item(po, 0);
+        long product = productOfPoItem(poItem);
+        long soItem = soItemOfPoItem(poItem);
+        accept(ship(po.path("id").asLong(), Map.of(poItem, 4)), new int[]{4, 4, 0});
+        long fwd = forwarder();
+        // 交货代 1 个，3 个留在公司仓库
+        handOver(soItem, fwd, 1);
+        long soId = jdbc.queryForObject("select so_id from sales_order_item where id = ?", Long.class, soItem);
+        String soNo = jdbc.queryForObject("select so_no from sales_order where id = ?", String.class, soId);
+        ok(call(json(post(SO + "/" + soId + "/cancel"), "{\"reason\":\"客户取消\"}"), admin));
+        assertEquals(0, reservedFor(soItem));
+        assertStock(new int[]{3, 0, 0}, stock(product, 1), "公司仓库 3 个成为可用");
+        assertStock(new int[]{1, 0, 0}, stock(product, 2), "货代仓 1 个成为可用");
+        assertEquals(2, jdbc.queryForObject("select count(*) from inv_move where tenant_id = 0 and op_type = 8 and target_id = ?"
+                + " and biz_label = ?", Integer.class, soItem, "订单取消 · " + soNo), "先公司仓库后货代仓各释放一笔");
+    }
 }
