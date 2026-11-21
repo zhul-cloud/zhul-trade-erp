@@ -50,6 +50,7 @@ class InventoryCostingTest extends IntegrationTestBase {
     @Autowired private InventoryPosting posting;
     @Autowired private InventoryWarehouses warehouses;
     @Autowired private TransactionTemplate tx;
+    @Autowired private com.zhul.erp.modules.inventory.service.InventoryCostingJob job;
 
     @BeforeEach
     void clean() {
@@ -68,6 +69,7 @@ class InventoryCostingTest extends IntegrationTestBase {
                 "inv_cost_adjust", "inv_period", "purchase_order", "purchase_order_item", "fin_payable", "receiving_discrepancy")) {
             jdbc.update("delete from " + t + " where tenant_id = ?", TENANT);
         }
+        jdbc.update("delete from sys_config where tenant_id = ? and config_key = ?", TENANT, InvConstants.CONFIG_COSTING_UPGRADED);
     }
 
     // ---------------------------------------------------------------- 准备数据
@@ -233,6 +235,28 @@ class InventoryCostingTest extends IntegrationTestBase {
         money("8.00", adj.getStockAmount());
         money("0", adj.getCogsAmount());
         money("2.00", adj.getOtherAmount());
+    }
+
+    @Test
+    void 上线重算_旧口径批次生成成本口径升级调整单_只执行一次() {
+        po("CNY", "1", "100.00", "10.00", "0.00");
+        poItem(PO_ITEM_A, "10.00", 10);
+        // 旧口径批次：只有货款 10（期初、二期入库的批次）
+        InvBatchDO a = tx.execute(s -> {
+            InvBatchDO b = warehouses.newBatch("GR-OLD-1", PRODUCT, "", InvConstants.BATCH_PURCHASE, 1L, GR_ITEM, PO_ITEM_A, SO_ITEM,
+                    LocalDate.now().minusYears(1), Price.cny(new BigDecimal("10")));
+            posting.post(List.of(Line.of(stock(b), InvConstants.OP_IN, 10, Target.soItem(SO_ITEM),
+                    Doc.of(InvConstants.BIZ_OPENING, "OPENING", 0L, "期初").item(GR_ITEM))));
+            return b;
+        });
+        money("10", cost(a)[4]);
+
+        InvCostAdjustDO adj = job.upgradeTenant(TENANT);
+        assertNotNull(adj);
+        assertEquals(InvConstants.CA_UPGRADE, adj.getReason());
+        money("10.00", adj.getStockAmount()); // 采购费用 1.00/个 × 10
+        money("11", cost(a)[4]);
+        assertNull(job.upgradeTenant(TENANT), "每个租户只执行一次");
     }
 
     // ---------------------------------------------------------------- 结账锁定

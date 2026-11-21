@@ -272,6 +272,17 @@ public class InventoryCosting {
                 .orderByAsc(InvBatchDO::getId));
     }
 
+    /** 重算入库日期在 since 之后（含）的批次所属采购订单下的全部批次（每日核对） */
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
+    public InvCostAdjustDO recostRecent(LocalDate since, Trigger trigger) {
+        List<Long> poItemIds = purchaseBatches(since).stream().map(InvBatchDO::getPoItemId).distinct().toList();
+        if (poItemIds.isEmpty()) {
+            return null;
+        }
+        Set<Long> poIds = poItemMapper.selectBatchIds(poItemIds).stream().map(PurchaseOrderItemDO::getPoId).collect(Collectors.toSet());
+        return recost(poIds, trigger);
+    }
+
     /** 重算采购订单下的批次；有变化时生成一张成本调整单并返回，没有变化返回 null */
     @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
     public InvCostAdjustDO recost(Collection<Long> poIds, Trigger trigger) {
