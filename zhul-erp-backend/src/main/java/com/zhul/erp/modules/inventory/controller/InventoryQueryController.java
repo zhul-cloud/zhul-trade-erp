@@ -35,6 +35,7 @@ public class InventoryQueryController {
 
     private final InventoryQueryService service;
     private final com.zhul.erp.modules.inventory.service.InventoryPeriods periods;
+    private final com.zhul.erp.modules.inventory.service.InventoryPeriodService periodService;
 
     @PostMapping("/stocks/page")
     @PreAuthorize("@perm.canAccessMenu('/warehouse/stocks')")
@@ -66,6 +67,16 @@ public class InventoryQueryController {
         return Result.ok(service.ledger(q));
     }
 
+    /** 类目账：按一级品类汇总的台账，合计即总账（spec warehouse/inventory「库存台账」） */
+    @PostMapping("/ledger/category")
+    @PreAuthorize("@perm.canAccessMenu('/warehouse/ledger')")
+    public Result<com.zhul.erp.modules.inventory.dto.CategoryLedgerVO> categoryLedger(@RequestBody LedgerQuery q) {
+        if (q.getWarehouseId() != null) {
+            service.requireWarehouse(q.getWarehouseId());
+        }
+        return Result.ok(periodService.categoryLedger(InventoryQueryService.month(q.getMonth()).toString(), q.getWarehouseId()));
+    }
+
     /** 台账月份的结账状态（已结账时台账为结账快照，页面标「已结账」与结账人） */
     @GetMapping("/ledger/period")
     @PreAuthorize("@perm.canAccessMenu('/warehouse/ledger')")
@@ -77,10 +88,15 @@ public class InventoryQueryController {
     @PostMapping("/ledger/export")
     @PreAuthorize("@perm.canAccessMenu('/warehouse/ledger')")
     public ResponseEntity<byte[]> exportLedger(@RequestBody LedgerQuery q) {
-        String name = "库存台账-" + InventoryQueryService.month(q.getMonth()) + ".xlsx";
+        String month = InventoryQueryService.month(q.getMonth()).toString();
+        boolean category = "category".equals(q.getView());
+        if (category && q.getWarehouseId() != null) {
+            service.requireWarehouse(q.getWarehouseId());
+        }
+        String name = (category ? "库存类目账-" : "库存台账-") + month + ".xlsx";
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(name, StandardCharsets.UTF_8).build().toString())
                 .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-                .body(service.exportLedger(q));
+                .body(category ? periodService.exportCategoryLedger(month, q.getWarehouseId()) : service.exportLedger(q));
     }
 }

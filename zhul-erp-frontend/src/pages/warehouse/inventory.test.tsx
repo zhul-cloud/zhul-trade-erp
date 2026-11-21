@@ -221,6 +221,99 @@ it('库存台账：成本调整列与合计；已结账月份标明结账人，�
   expect(screen.getByText(/张敏 2026-12-02 10:12/)).toBeTruthy();
 });
 
+/** openspec inventory-category-ledger 4.1、4.2：类目账（合计即总账）、点品类下钻到明细账、按仓库不显示销售成本 */
+const categoryLedgerData = (withCogs = true) => ({
+  month: '2026-11',
+  rows: [
+    {
+      categoryId: 1,
+      categoryName: 'PLC 与控制器',
+      productCount: 6,
+      openingAmount: 0,
+      inAmount: 38600,
+      outAmount: 15500,
+      adjustAmount: 12,
+      closingAmount: 23112,
+      ...(withCogs ? { cogsAmount: 15500 } : {}),
+    },
+    {
+      categoryId: 0,
+      categoryName: '未分类',
+      productCount: 3,
+      openingAmount: 0,
+      inAmount: 1352,
+      outAmount: 0,
+      adjustAmount: 0,
+      closingAmount: 1352,
+      ...(withCogs ? { cogsAmount: 0 } : {}),
+    },
+  ],
+  total: {
+    categoryName: '合计',
+    productCount: 9,
+    openingAmount: 0,
+    inAmount: 39952,
+    outAmount: 15500,
+    adjustAmount: 12,
+    closingAmount: 24464,
+    ...(withCogs ? { cogsAmount: 15500 } : {}),
+  },
+});
+
+it('库存台账：类目账按一级品类汇总，合计即总账，点品类切到明细账并带上品类', async () => {
+  const calls: { url: string; data?: unknown }[] = [];
+  (request as jest.Mock).mockImplementation(
+    (url: string, opt: { data?: Record<string, unknown> } = {}) => {
+      calls.push({ url, data: opt.data });
+      if (url.endsWith('/warehouses')) return Promise.resolve({ data: [] });
+      if (url.endsWith('/categories/options'))
+        return Promise.resolve({
+          data: [
+            {
+              id: 1,
+              categoryCode: 'plc',
+              categoryName: 'PLC',
+              categoryNameZh: 'PLC 与控制器',
+            },
+          ],
+        });
+      if (url.endsWith('/ledger/period'))
+        return Promise.resolve({
+          data: { month: '2026-11', status: 0, statusName: '未结账' },
+        });
+      if (url.endsWith('/ledger/category'))
+        return Promise.resolve({
+          data: categoryLedgerData(!opt.data?.warehouseId),
+        });
+      return Promise.resolve(page([]));
+    },
+  );
+  mount(React.createElement(Ledger));
+  await act(async () => {
+    fireEvent.click(await screen.findByText('类目账'));
+  });
+  await screen.findByText('PLC 与控制器');
+  expect(screen.getByText('总账合计')).toBeTruthy();
+  expect(screen.getAllByText('= 期末金额').length).toBeGreaterThan(0);
+  expect(screen.getByText('24,464.00')).toBeTruthy();
+  expect(screen.getAllByText('本月销售成本').length).toBeGreaterThan(0);
+  expect(screen.queryByText('关键词')).toBeNull();
+
+  await act(async () => {
+    fireEvent.click(screen.getByText('PLC 与控制器'));
+  });
+  await waitFor(() =>
+    expect(
+      calls.some(
+        (c) =>
+          c.url.endsWith('/ledger/page') &&
+          (c.data as { categoryId?: number }).categoryId === 1,
+      ),
+    ).toBe(true),
+  );
+  expect(screen.getByText('一级品类')).toBeTruthy();
+});
+
 it('仓库档案：切换库存模式要二次确认，确认后才保存', async () => {
   const calls: { url: string; method?: string; data?: unknown }[] = [];
   (request as jest.Mock).mockImplementation(
