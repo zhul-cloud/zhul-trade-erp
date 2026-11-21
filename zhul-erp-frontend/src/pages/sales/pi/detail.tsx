@@ -1,25 +1,14 @@
 import {
   BankOutlined,
   BranchesOutlined,
-  CalculatorOutlined,
-  CloseCircleOutlined,
   DeleteOutlined,
-  DownloadOutlined,
-  DownOutlined,
-  EditOutlined,
   EyeInvisibleOutlined,
-  EyeOutlined,
-  FileDoneOutlined,
   FileTextOutlined,
   InboxOutlined,
   LockOutlined,
   PaperClipOutlined,
   PlusOutlined,
-  RedoOutlined,
-  RollbackOutlined,
-  SendOutlined,
   ShopOutlined,
-  StopOutlined,
   UploadOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
@@ -42,6 +31,23 @@ import {
   Tooltip,
 } from 'antd';
 import dayjs from 'dayjs';
+import {
+  Ban,
+  Calculator,
+  ChevronDown,
+  CircleX,
+  Download,
+  Ellipsis,
+  Eye,
+  EyeOff,
+  FileCheck,
+  FileText,
+  Pencil,
+  Redo2,
+  Send,
+  Trash2,
+  Undo2,
+} from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -65,6 +71,7 @@ import DocModelCell, {
 } from '@/components/DocFields/DocModelCell';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import SourceNos from '@/components/DocFields/SourceNos';
+import { CardTitle, HelpTip, PageHeader, Panel } from '@/components/ListLayout';
 import { usePageTitle, useTabDirty } from '@/components/PageTabs/hooks';
 import { type DiffRow, VersionPanel } from '@/components/VersionPanel';
 import { useQuoteDicts, useWide } from '@/pages/inquiry/shared/components';
@@ -82,7 +89,6 @@ import {
   DICT_WARRANTY,
 } from '@/utils/dict';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   Card,
@@ -97,7 +103,6 @@ import {
   partyAddress,
   RECEIPT_STATUS,
   ReceiptStatusPill,
-  SalesPageTitle,
 } from '../components';
 import { ConvertOrderModal } from '../orders/dialogs';
 import {
@@ -656,6 +661,7 @@ const PiDetail: React.FC = () => {
         if (editable) {
           setDraft((d) => (d ? { ...d, ...disc } : d));
           setBargainOpen(false);
+          // lint-ui-ignore filler-maybe: 只改了草稿，提醒还要保存
           message.success('已带入整单折扣，保存后生效');
           return;
         }
@@ -735,7 +741,9 @@ const PiDetail: React.FC = () => {
 
   const previewToggle = wide && (
     <Button
-      icon={previewOpen ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+      type="text"
+      style={{ color: palette.link }}
+      icon={previewOpen ? <EyeOff size={16} /> : <Eye size={16} />}
       onClick={() => {
         setPreviewOpen(!previewOpen);
         savePref(!previewOpen);
@@ -745,19 +753,59 @@ const PiDetail: React.FC = () => {
     </Button>
   );
 
+  // 页头操作（照销售订单详情 B1）：每个页头一个主按钮；常用的次要操作为文字按钮；删除、放弃、作废、关闭收进「更多」
+  const textBtn = (
+    label: React.ReactNode,
+    icon: React.ReactNode,
+    onClick: () => void,
+    extra?: React.ComponentProps<typeof Button>,
+  ) => (
+    <Button
+      type="text"
+      icon={icon}
+      style={{ color: palette.link }}
+      onClick={onClick}
+      {...extra}
+    >
+      {label}
+    </Button>
+  );
+  const moreMenu = (
+    items: {
+      key: string;
+      label: string;
+      icon: React.ReactNode;
+      danger?: boolean;
+      onClick: () => void;
+    }[],
+  ) =>
+    items.length > 0 && (
+      <Dropdown
+        trigger={['click']}
+        placement="bottomRight"
+        menu={{
+          items: items.map(({ onClick: _, ...it }) => it),
+          onClick: ({ key }) => items.find((x) => x.key === key)?.onClick(),
+        }}
+      >
+        <Button
+          type="text"
+          shape="circle"
+          icon={<Ellipsis size={18} />}
+          aria-label="更多操作"
+        />
+      </Dropdown>
+    );
+  const bargainBtn =
+    hasCost &&
+    textBtn('议价测算', <Calculator size={16} />, () => setBargainOpen(true));
+
   const actions = historical ? (
     <>
-      {hasCost && (
-        <Button
-          icon={<CalculatorOutlined />}
-          onClick={() => setBargainOpen(true)}
-        >
-          议价测算
-        </Button>
+      {bargainBtn}
+      {textBtn(`导出 Rev.${v.versionNo}`, <Download size={16} />, () =>
+        setExportOpen(true),
       )}
-      <Button icon={<DownloadOutlined />} onClick={() => setExportOpen(true)}>
-        导出 Rev.{v.versionNo}
-      </Button>
       <Button type="primary" onClick={() => showVersion()}>
         回到当前版本
       </Button>
@@ -765,40 +813,10 @@ const PiDetail: React.FC = () => {
   ) : editable ? (
     <>
       {previewToggle}
-      {revising ? (
-        <Button
-          icon={<RollbackOutlined />}
-          onClick={() =>
-            modal.confirm({
-              title: `放弃 Rev.${pi.editingVersionNo}？`,
-              content: `放弃后回到 Rev.${pi.currentVersionNo}，这次的修改不保留。`,
-              okText: '放弃',
-              okButtonProps: { danger: true },
-              onOk: () => act(() => piApi.abandon(pi.id), '已放弃这个版本'),
-            })
-          }
-        >
-          放弃这个版本
-        </Button>
-      ) : (
-        <Button icon={<DeleteOutlined />} onClick={removeDraft}>
-          删除
-        </Button>
-      )}
-      {hasCost && (
-        <Button
-          icon={<CalculatorOutlined />}
-          onClick={() => setBargainOpen(true)}
-        >
-          议价测算
-        </Button>
-      )}
-      <Button
-        icon={<DownloadOutlined />}
-        onClick={async () => (await ensureSaved()) && setExportOpen(true)}
-      >
-        导出
-      </Button>
+      {bargainBtn}
+      {textBtn('导出', <Download size={16} />, async () => {
+        if (await ensureSaved()) setExportOpen(true);
+      })}
       <Button
         loading={saving}
         disabled={!dirty}
@@ -806,54 +824,79 @@ const PiDetail: React.FC = () => {
       >
         {dirty ? '保存' : '已保存'}
       </Button>
+      {moreMenu(
+        revising
+          ? [
+              {
+                key: 'abandon',
+                label: '放弃这个版本',
+                icon: <Undo2 size={16} />,
+                danger: true,
+                onClick: () =>
+                  modal.confirm({
+                    title: `放弃 Rev.${pi.editingVersionNo}？`,
+                    content: `放弃后回到 Rev.${pi.currentVersionNo}，这次的修改不保留。`,
+                    okText: '放弃',
+                    okButtonProps: { danger: true },
+                    onOk: () =>
+                      act(() => piApi.abandon(pi.id), '已放弃这个版本'),
+                  }),
+              },
+            ]
+          : [
+              {
+                key: 'delete',
+                label: '删除草稿',
+                icon: <Trash2 size={16} />,
+                danger: true,
+                onClick: removeDraft,
+              },
+            ],
+      )}
       <Dropdown menu={sentMenu} trigger={['click']}>
-        <Button type="primary" icon={<SendOutlined />}>
+        <Button type="primary" icon={<Send size={16} />}>
           {revising ? `发送 Rev.${pi.editingVersionNo}` : '标为已发送'}{' '}
-          <DownOutlined />
+          <ChevronDown size={14} aria-hidden />
         </Button>
       </Dropdown>
     </>
   ) : (
     <>
-      {hasCost && (
-        <Button
-          icon={<CalculatorOutlined />}
-          onClick={() => setBargainOpen(true)}
-        >
-          议价测算
-        </Button>
-      )}
-      <Button icon={<DownloadOutlined />} onClick={() => setExportOpen(true)}>
-        导出
-      </Button>
+      {bargainBtn}
+      {textBtn('导出', <Download size={16} />, () => setExportOpen(true))}
       {pi.status === PI_STATUS.SENT && (
         <>
-          {pi.editingVersionNo ? (
-            <Button icon={<EditOutlined />} onClick={() => showVersion()}>
-              继续修改 Rev.{pi.editingVersionNo}
-            </Button>
-          ) : (
-            <Button
-              icon={<EditOutlined />}
-              onClick={() => act(() => piApi.revise(pi.id), '已生成新版本草稿')}
-            >
-              修改（出新版本）
-            </Button>
-          )}
-          <Button icon={<StopOutlined />} onClick={voidPi}>
-            作废
-          </Button>
-          {pi.receiptStatus === RECEIPT_STATUS.NONE && (
-            <Button
-              icon={<CloseCircleOutlined />}
-              onClick={() => {
-                setMarkLost(true);
-                setCloseOpen(true);
-              }}
-            >
-              关闭
-            </Button>
-          )}
+          {pi.editingVersionNo
+            ? textBtn(
+                `继续修改 Rev.${pi.editingVersionNo}`,
+                <Pencil size={16} />,
+                () => showVersion(),
+              )
+            : textBtn('修改（出新版本）', <Pencil size={16} />, () =>
+                act(() => piApi.revise(pi.id), '已生成新版本草稿'),
+              )}
+          {moreMenu([
+            ...(pi.receiptStatus === RECEIPT_STATUS.NONE
+              ? [
+                  {
+                    key: 'close',
+                    label: '关闭',
+                    icon: <CircleX size={16} />,
+                    onClick: () => {
+                      setMarkLost(true);
+                      setCloseOpen(true);
+                    },
+                  },
+                ]
+              : []),
+            {
+              key: 'void',
+              label: '作废',
+              icon: <Ban size={16} />,
+              danger: true,
+              onClick: voidPi,
+            },
+          ])}
           <Tooltip
             title={
               canConvert && pi.receiptStatus === RECEIPT_STATUS.NONE
@@ -863,7 +906,7 @@ const PiDetail: React.FC = () => {
           >
             <Button
               type="primary"
-              icon={<FileDoneOutlined />}
+              icon={<FileCheck size={16} />}
               disabled={!canConvert}
               onClick={convert}
             >
@@ -875,7 +918,7 @@ const PiDetail: React.FC = () => {
       {pi.status === PI_STATUS.CLOSED && (
         <Button
           type="primary"
-          icon={<RedoOutlined />}
+          icon={<Redo2 size={16} />}
           onClick={() => {
             setReopenUntil(
               pi.expired ||
@@ -892,7 +935,7 @@ const PiDetail: React.FC = () => {
       {pi.status === PI_STATUS.CONVERTED && pi.order && (
         <Button
           type="primary"
-          icon={<FileTextOutlined />}
+          icon={<FileText size={16} />}
           onClick={() => history.push(PATHS.order(pi.order?.id as number))}
         >
           查看订单 {pi.order.soNo}
@@ -1046,6 +1089,7 @@ const PiDetail: React.FC = () => {
           <DictTextInput
             dictType={DICT_PI_DELIVERY_TIME}
             value={draft.deliveryTime}
+            // lint-ui-ignore long-placeholder: 英文示例值
             placeholder="3-5 days after payment"
             onChange={(v) => setDraft({ ...draft, deliveryTime: v })}
             ariaLabel="交期"
@@ -1524,22 +1568,25 @@ const PiDetail: React.FC = () => {
   ];
 
   const itemsBlock = (
-    <div>
+    <Panel style={{ padding: '20px 24px', minWidth: 0 }}>
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 12,
-          margin: '0 0 10px',
+          gap: 8,
+          margin: '0 0 16px',
         }}
       >
-        <b style={{ fontSize: 16, color: palette.ink }}>
-          型号（{editable ? draft.items.length : v.items.length}）
-        </b>
-        <span style={{ fontSize: 12, color: palette.mute }}>
-          {editable
-            ? '单价默认取报价单售价，改了会提示原报价；HS 编码、原产国取商品主数据；采购成本、毛利率、净利润不会出现在 PI 上'
-            : '采购成本、毛利率、净利润只在系统内显示'}
+        <CardTitle>型号明细</CardTitle>
+        <HelpTip
+          title={
+            editable
+              ? '单价默认取报价单售价，改了会提示原报价；HS 编码、原产国取商品主数据；采购成本、毛利率、净利润不会出现在 PI 上'
+              : '采购成本、毛利率、净利润只在系统内显示'
+          }
+        />
+        <span style={{ fontSize: 13, color: palette.mute }}>
+          {editable ? draft.items.length : v.items.length} 个型号
         </span>
         {editable && (
           <Button
@@ -1668,7 +1715,7 @@ const PiDetail: React.FC = () => {
           }
         />
       )}
-    </div>
+    </Panel>
   );
 
   // ---------------------------------------------------------------- 费用、折扣与合计
@@ -1762,10 +1809,8 @@ const PiDetail: React.FC = () => {
           marginBottom: 12,
         }}
       >
-        <b style={{ color: palette.ink }}>费用与折扣</b>
-        <span style={{ fontSize: 12, color: palette.mute }}>
-          运费、手续费不计入毛利率；折扣按小计计算
-        </span>
+        <CardTitle>费用与折扣</CardTitle>
+        <HelpTip title="运费、手续费不计入毛利率；折扣按小计计算" />
         <button
           type="button"
           className="zhul-link"
@@ -1800,6 +1845,7 @@ const PiDetail: React.FC = () => {
           <Input
             value={f.feeName}
             maxLength={64}
+            // lint-ui-ignore long-placeholder: 英文示例值
             placeholder="Shipping Cost、Bank Charge"
             onChange={(e) =>
               setFees(
@@ -1917,9 +1963,9 @@ const PiDetail: React.FC = () => {
     </Card>
   ) : (
     <Card style={{ padding: 20, flex: 1, minWidth: 0 }}>
-      <b style={{ display: 'block', color: palette.ink, marginBottom: 12 }}>
-        费用与折扣
-      </b>
+      <div style={{ marginBottom: 12 }}>
+        <CardTitle>费用与折扣</CardTitle>
+      </div>
       {v.fees.length === 0 && v.discountAmount === 0 && (
         <div style={{ color: palette.mute, fontSize: 13 }}>没有费用与折扣</div>
       )}
@@ -1986,7 +2032,7 @@ const PiDetail: React.FC = () => {
           margin: '10px 0 2px',
         }}
       >
-        <b style={{ fontSize: 16, color: palette.ink }}>合计</b>
+        <CardTitle>合计</CardTitle>
         <b style={{ ...num, fontSize: 24, color: palette.ink }}>
           {formatAmount(t.totalAmount, cur)}
         </b>
@@ -2100,7 +2146,7 @@ const PiDetail: React.FC = () => {
           marginBottom: 12,
         }}
       >
-        <b style={{ fontSize: 16, color: palette.ink }}>收款</b>
+        <CardTitle>收款</CardTitle>
         <ReceiptStatusPill status={pi.receiptStatus} />
       </div>
       <div
@@ -2538,11 +2584,10 @@ const PiDetail: React.FC = () => {
 
   return (
     <div>
-      <SalesPageTitle
-        crumbs={[<MenuLink key="list" to={PATHS.piList} />, pi.piNo]}
-        title={
+      <PageHeader
+        title={pi.piNo}
+        tags={
           <>
-            {pi.piNo}
             <PiStatusPill status={pi.status} />
             {pi.status !== PI_STATUS.DRAFT && (
               <ReceiptStatusPill status={pi.receiptStatus} />
@@ -2551,15 +2596,13 @@ const PiDetail: React.FC = () => {
               <Pill tone="orange">正在修改 Rev.{pi.editingVersionNo}</Pill>
             )}
             {dirty && (
-              <span
-                style={{ fontSize: 12, fontWeight: 400, color: palette.orange }}
-              >
+              <span style={{ fontSize: 12, color: palette.orange }}>
                 有未保存的修改
               </span>
             )}
           </>
         }
-        description={
+        sub={
           <>
             {pi.customerName} ·{' '}
             <SourceNos
@@ -2569,11 +2612,11 @@ const PiDetail: React.FC = () => {
                 href: PATHS.quotation(q.id),
               }))}
             />{' '}
-            · {pi.ownerName ?? '—'} {formatDateTime(pi.createTime).slice(0, 16)}{' '}
-            创建
+            · {pi.ownerName ?? '—'} ·{' '}
+            {formatDateTime(pi.createTime).slice(0, 16)} 创建
           </>
         }
-        actions={actions}
+        extra={actions}
       />
 
       {compact ? (
