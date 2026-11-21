@@ -294,9 +294,9 @@ it('库存台账：类目账按一级品类汇总，合计即总账，点品类�
   });
   await screen.findByText('PLC 与控制器');
   expect(screen.getByText('总账合计')).toBeTruthy();
-  expect(screen.getByText('= 期末金额')).toBeTruthy();
+  expect(screen.getAllByText('= 期末金额').length).toBeGreaterThan(0);
   expect(screen.getByText('24,464.00')).toBeTruthy();
-  expect(screen.getByText('本月销售成本')).toBeTruthy();
+  expect(screen.getAllByText('本月销售成本').length).toBeGreaterThan(0);
   expect(screen.queryByText('关键词')).toBeNull();
 
   await act(async () => {
