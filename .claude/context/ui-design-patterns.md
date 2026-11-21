@@ -179,6 +179,100 @@
 
 ---
 
+## 骨架组件
+
+列表页、详情页的公共骨架都在 `src/components/ListLayout/`，新页面和迁移的页面都用它，不再各写一套页头和卡片。
+
+```tsx
+import { Button, Descriptions, Input, Select, Table } from 'antd';
+import { Plus } from 'lucide-react';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  QuickFilters,
+  Section,
+  SummaryBar,
+} from '@/components/ListLayout';
+
+<PageHeader
+  title="销售订单"
+  extra={<Button type="primary" icon={<Plus size={18} />}>新建销售订单</Button>}
+/>
+<SummaryBar
+  items={[
+    { label: '本月实收人民币', value: 386420, currency: 'CNY', sub: '线上 CNY 120,300.00 · 线下 CNY 266,120.00' },
+    { label: '进行中', value: 18, help: '未完成也未取消的订单', sub: '待采购 5 · 已下单 7', subHideable: true },
+  ]}
+/>
+<FilterCard
+  onSearch={search}
+  onReset={reset}
+  more={<FilterField label="品牌"><Select options={brands} /></FilterField>}
+  moreCount={brand ? 1 : 0}
+  quick={<QuickFilters options={[{ value: 'negative', label: '毛利为负' }]} value={quick} onChange={setQuick} />}
+>
+  <FilterField label="关键词" span={2} help="订单编号、PI 编号、客户名称或简称、型号">
+    <Input placeholder="订单编号、客户、型号" allowClear />
+  </FilterField>
+  <FilterField label="订单状态"><Select options={statusOptions} /></FilterField>
+</FilterCard>
+<MainCard left={`共 ${total} 条`}>
+  <Table rowKey="id" columns={columns} dataSource={rows} />
+</MainCard>
+
+<Section title="订单毛利" help="收入减实际成本" extra={<Button type="link">编辑</Button>}>
+  <Descriptions items={profitItems} column={1} />
+</Section>
+```
+
+| 组件 | 属性 | 说明 |
+|---|---|---|
+| `PageHeader` | `title`、`extra` | 一行页头：左侧标题（20/600，`h1`），右侧主操作；每个页头最多一个主按钮 |
+| `SummaryBar` | `items: SummaryItem[]` | 汇总行。每项 `label`、`value`；金额传 `currency`，按 `formatAmount` 显示；口径写 `help`；副文字写 `sub`，只有页面别处也能看到的副文字才设 `subHideable`（宽度不够时整段隐藏） |
+| `FilterCard` | `onSearch`、`onReset`、`more`、`moreCount`、`quick` | 搜索条件区。常用项写在 children；其余放 `more`（「更多筛选」展开），`moreCount` 为其中生效的条件数；`quick` 放快捷筛选行（上方自动加分隔线） |
+| `FilterField` | `label`、`span`、`help` | 搜索条件的一项，标签在上；关键词 `span={2}`；完整搜索范围写在 `help`（以 `search-scope.md` 为准） |
+| `QuickFilters` | `options`、`value`、`onChange`、`label` | 快捷筛选，多选，点一下选中、再点取消；前提是接口已有对应筛选 |
+| `MainCard` | `left`、`right` | 主内容区：操作行（左侧结果数或「已选 N 张」，右侧批量操作）+ 表格 |
+| `Section` | `title`、`help`、`extra`、`id` | 详情页分区：卡片标题 18/500，`id` 加在标题上用于页内定位 |
+| `HelpTip` | `title` | 帮助图标，只在鼠标悬停时显示；表单项优先用 `Form.Item` 的 `tooltip` |
+| `Panel` | `style`、`as` | 卡片外框（圆角 10，浅色阴影、深色边框），以上组件都用它 |
+
+状态下拉沿用 `doc-list-unify` 的写法：放在 `FilterCard` 里，选项带数量（如「待打包 · 2」），切换立即查询。
+
+---
+
+## 界面检查（lint:ui）
+
+`npm run lint:ui` 按本规范查出还没改的写法（脚本 `zhul-erp-frontend/scripts/lint-ui.js`）：
+
+| 规则名 | 级别 | 查什么 |
+|---|---|---|
+| `gradient` | 错误 | 渐变（CSS 渐变函数、canvas 渐变） |
+| `glow` | 错误 | 发光（文字阴影、`drop-shadow`、`0 0 Npx` 外发光） |
+| `hardcoded-color` | 错误 | 页面文件（`src/pages`）里写死的颜色，纯白除外 |
+| `old-header` | 错误 | `PageTitle`、`PageContainer`、`Breadcrumb`、`crumbs` |
+| `ibm-plex` | 错误 | `IBM Plex Mono` |
+| `filler` | 错误 | 常识性套话，如「点击进入」「点击可跳转」 |
+| `filler-maybe` | 提示 | 「保存后生效」，有时带有用信息，人工判断 |
+| `long-placeholder` | 错误 / 提示 | 单行输入框提示超过三项为错误，超过 20 个字为提示；多行文本框不查 |
+
+- 确认弹窗（`confirm`）、警告条（`Alert`）、`Popconfirm` 里的文字不检查，按「说明文字」一节原样保留。
+- `npm run lint:ui -- src/pages/sales` 只查指定目录，有错误就失败；不带参数时扫全仓库，只有已迁移目录（脚本里的 `ENFORCED`）有错误才失败。每迁完一个业务域，把目录加进 `ENFORCED`。全部迁完后（任务 7.8）并入 `npm run lint`。
+- `npm run lint:ui -- --by-domain` 按业务域汇总，迁移清单见 `openspec/changes/ui-redesign/migration-list.md`。
+
+**例外**：确有必要时，在代码行上或上一行写明规则名和原因，缺原因的例外本身报错：
+
+```tsx
+// lint-ui-ignore hardcoded-color: 品牌官方色，与品牌方提供的 Logo 一致
+const brandColor = '#E60012';
+```
+
+JSX 里写成 `{/* lint-ui-ignore gradient: 两端同色，只是背景图上的半透明遮罩 */}`。
+
+---
+
 ## 单据页统一规范
 
 所有业务单据（询盘、报价、形式发票、销售订单、各类退货单、入库单、退款申请，以及以后新增的单据）的列表与详情**以销售订单为标准**（`src/pages/sales/orders/index.tsx`、`detail.tsx`，原型 `docs/03-产品原型/界面改造/` 的 A、B 组）。主规范见 `openspec/specs/system/navigation`「单据页统一显示」。
@@ -350,9 +444,9 @@
   - `canvas`、`card`、`sidebar`、`inset`、`head`、`navOn`、`hover`、`hairline`、`control`、`elevated`、`elevatedLine`：页面底、卡片、侧栏、中性浅底、表头、展开的父级菜单、悬停、分隔线、输入框边框、弹出层底与边；
   - 旧键 `accentSoft`、`accentLine` 已改名为 `primarySoft`、`primaryLine`；`violet`、`violetSoft`、`cyan` 已删除（先统一改为 `info`、`infoSoft`，各业务域迁移时按 `status-colors.md` 改）；三个渐变常量已删除。
 - **外壳**：`src/components/Shell/`（`AppLogo`、`SidebarUser`、`TopBar`）；默认 Logo 见 `src/utils/appearance.ts`、`BrandLogo.tsx`。
-- **公共骨架组件**：`src/components/ListLayout/`。
+- **公共骨架组件**：`src/components/ListLayout/`，用法见「骨架组件」一节。
 - **写 antd 代码前**先用 `npx antd info <组件>` 核对。
-- **界面检查**：`npm run lint:ui`，规则见 `openspec/changes/ui-redesign/design.md` 第 4 节。
+- **界面检查**：`npm run lint:ui`，规则与例外写法见「界面检查（lint:ui）」一节。
 
 ---
 

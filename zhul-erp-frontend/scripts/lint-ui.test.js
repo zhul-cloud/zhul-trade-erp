@@ -128,6 +128,17 @@ describe('lint:ui', () => {
     ).toContain('hardcoded-color:error');
   });
 
+  it('JSX 里写的例外同样放行', () => {
+    expect(
+      rules(
+        [
+          '{/* lint-ui-ignore gradient: 两端同色的遮罩 */}',
+          "<div style={{ background: 'linear-gradient(#000, #000)' }} />",
+        ].join('\n'),
+      ),
+    ).toEqual(['hardcoded-color:error']);
+  });
+
   it('注释里的说法不检查', () => {
     expect(
       rules('// 原来是 linear-gradient(...) 和 #2563EB，已改\nconst a = 1;'),
