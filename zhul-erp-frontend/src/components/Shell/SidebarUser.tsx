@@ -37,7 +37,7 @@ export const SidebarUser: React.FC<{ collapsed?: boolean }> = ({
         <Avatar
           src={user.avatar || undefined}
           style={{
-            background: palette.accentSoft,
+            background: palette.primarySoft,
             color: palette.link,
             flex: 'none',
           }}

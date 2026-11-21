@@ -506,7 +506,7 @@ const RequirementList: React.FC = () => {
           />
           <StatCard
             icon={<FileTextOutlined />}
-            color={palette.violet}
+            color={palette.info}
             label="草稿采购订单"
             value={
               <button
@@ -650,8 +650,8 @@ const RequirementList: React.FC = () => {
             padding: '12px 18px',
             marginBottom: 12,
             borderRadius: 12,
-            background: palette.accentSoft,
-            border: `1px solid ${palette.accentLine}`,
+            background: palette.primarySoft,
+            border: `1px solid ${palette.primaryLine}`,
             flexWrap: 'wrap',
           }}
         >
@@ -715,9 +715,9 @@ const RequirementList: React.FC = () => {
                       gap: 10,
                       alignItems: 'baseline',
                       padding: '10px 18px 10px 56px',
-                      background: palette.accentSoft,
-                      borderTop: `1px solid ${palette.accentLine}`,
-                      borderBottom: `1px solid ${palette.accentLine}`,
+                      background: palette.primarySoft,
+                      borderTop: `1px solid ${palette.primaryLine}`,
+                      borderBottom: `1px solid ${palette.primaryLine}`,
                     }}
                   >
                     <b style={{ color: palette.link, whiteSpace: 'nowrap' }}>

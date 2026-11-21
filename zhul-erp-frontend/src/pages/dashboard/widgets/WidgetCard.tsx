@@ -16,11 +16,11 @@ export const useTone = () => {
   return (tone: Tone): [string, string] =>
     (
       ({
-        blue: [palette.link, palette.accentSoft],
+        blue: [palette.link, palette.primarySoft],
         green: [palette.green, palette.greenSoft],
         orange: [palette.orange, palette.orangeSoft],
         red: [palette.red, palette.redSoft],
-        violet: [palette.violet, palette.violetSoft],
+        violet: [palette.info, palette.infoSoft],
         gray: [palette.faint, palette.hover],
       }) as Record<Tone, [string, string]>
     )[tone];

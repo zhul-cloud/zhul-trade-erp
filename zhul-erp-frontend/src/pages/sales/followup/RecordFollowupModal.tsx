@@ -611,7 +611,7 @@ const RecordFollowupModal: React.FC<{
     fontSize: 13,
     borderRadius: 14,
     borderColor: active ? palette.link : palette.hairline,
-    background: active ? palette.accentSoft : 'transparent',
+    background: active ? palette.primarySoft : 'transparent',
     color: active ? palette.link : palette.sub,
   });
 
@@ -819,11 +819,11 @@ const RecordFollowupModal: React.FC<{
               marginTop: 10,
               padding: '10px 12px',
               borderRadius: 10,
-              background: palette.violetSoft,
+              background: palette.infoSoft,
             }}
           >
             <div
-              style={{ fontSize: 12, color: palette.violet, marginBottom: 4 }}
+              style={{ fontSize: 12, color: palette.info, marginBottom: 4 }}
             >
               <RobotOutlined /> AI 摘要（可修改）
               {truncated && '　· 原文过长，只整理了最后 20,000 字'}
@@ -979,7 +979,7 @@ const RecordFollowupModal: React.FC<{
               borderRadius: 10,
               fontSize: 12,
               color: palette.link,
-              background: palette.accentSoft,
+              background: palette.primarySoft,
             }}
           >
             <HourglassOutlined />

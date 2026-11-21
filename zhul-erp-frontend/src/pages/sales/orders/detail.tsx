@@ -820,7 +820,7 @@ const OrderDetail: React.FC = () => {
         flexWrap: 'wrap',
         padding: '10px 16px',
         borderRadius: 12,
-        background: palette.accentSoft,
+        background: palette.primarySoft,
         marginBottom: 10,
       }}
     >
@@ -1190,7 +1190,7 @@ const OrderDetail: React.FC = () => {
                   {slip ? (
                     <FileTextOutlined style={{ color: palette.link }} />
                   ) : r.platformOrderNo ? (
-                    <ShopOutlined style={{ color: palette.violet }} />
+                    <ShopOutlined style={{ color: palette.info }} />
                   ) : (
                     <BankOutlined style={{ color: palette.green }} />
                   )}

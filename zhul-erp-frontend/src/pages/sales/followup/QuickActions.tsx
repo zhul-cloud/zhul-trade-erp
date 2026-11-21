@@ -314,7 +314,7 @@ export const QuickBatchModal: React.FC<{
 
   const chip = (active: boolean): React.CSSProperties => ({
     borderColor: active ? palette.link : palette.hairline,
-    background: active ? palette.accentSoft : 'transparent',
+    background: active ? palette.primarySoft : 'transparent',
     color: active ? palette.link : palette.sub,
   });
 
@@ -367,7 +367,7 @@ export const QuickBatchModal: React.FC<{
                       padding: '1px 8px',
                       borderRadius: 6,
                       color: palette.link,
-                      background: palette.accentSoft,
+                      background: palette.primarySoft,
                     }}
                   >
                     {g.stage} {g.stageName}
@@ -733,7 +733,7 @@ export const AdjustStageModal: React.FC<{
                 padding: '10px 14px',
                 borderRadius: 10,
                 border: `1px solid ${active ? palette.link : palette.hairline}`,
-                background: active ? palette.accentSoft : 'transparent',
+                background: active ? palette.primarySoft : 'transparent',
                 color: palette.ink,
               }}
             >
@@ -757,7 +757,7 @@ export const AdjustStageModal: React.FC<{
             style={{
               borderColor: reason === r.value ? palette.link : palette.hairline,
               background:
-                reason === r.value ? palette.accentSoft : 'transparent',
+                reason === r.value ? palette.primarySoft : 'transparent',
               color: reason === r.value ? palette.link : palette.sub,
             }}
           >

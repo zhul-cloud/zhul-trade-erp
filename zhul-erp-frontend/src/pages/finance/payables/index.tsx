@@ -478,7 +478,7 @@ const PayableManagement: React.FC = () => {
               marginBottom: 12,
               padding: '10px 16px',
               borderRadius: 12,
-              background: palette.accentSoft,
+              background: palette.primarySoft,
               flexWrap: 'wrap',
             }}
           >

@@ -468,7 +468,7 @@ const PurchaseOrderList: React.FC = () => {
           </button>
           <StatCard
             icon={<FileTextOutlined />}
-            color={palette.violet}
+            color={palette.info}
             label="草稿"
             value={stats.drafts}
             hint={

@@ -196,7 +196,7 @@ const ShipmentsTab: React.FC = () => {
             {v}
           </span>
           {r.directForwarderName &&
-            sub(palette.violet, `直发 ${r.directForwarderName}`)}
+            sub(palette.info, `直发 ${r.directForwarderName}`)}
         </div>
       ),
     },

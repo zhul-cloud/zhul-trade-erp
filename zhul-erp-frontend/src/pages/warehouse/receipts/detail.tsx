@@ -107,7 +107,7 @@ const ReceiptDetailPage: React.FC = () => {
         if (gap > 0)
           return <span style={{ color: palette.orange }}>少 {gap}</span>;
         if (gap < 0)
-          return <span style={{ color: palette.cyan }}>多 {-gap}</span>;
+          return <span style={{ color: palette.info }}>多 {-gap}</span>;
         return 0;
       },
     },

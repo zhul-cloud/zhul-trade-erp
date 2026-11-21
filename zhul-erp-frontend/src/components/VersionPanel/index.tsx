@@ -98,7 +98,7 @@ export const VersionPanel: React.FC<{
                 boxSizing: 'border-box',
                 padding: '8px 10px',
                 borderRadius: 10,
-                background: active ? palette.accentSoft : 'transparent',
+                background: active ? palette.primarySoft : 'transparent',
               }}
             >
               <b style={{ color: palette.ink }}>Rev.{x.versionNo}</b>

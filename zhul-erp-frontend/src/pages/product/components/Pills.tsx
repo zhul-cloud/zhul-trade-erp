@@ -16,8 +16,8 @@ export const Pill: React.FC<{
     orange: { fg: palette.orange, bg: palette.orangeSoft },
     red: { fg: palette.red, bg: palette.redSoft },
     gray: { fg: palette.sub, bg: palette.inset },
-    accent: { fg: palette.link, bg: palette.accentSoft },
-    violet: { fg: palette.violet, bg: palette.violetSoft },
+    accent: { fg: palette.link, bg: palette.primarySoft },
+    violet: { fg: palette.info, bg: palette.infoSoft },
   };
   const c = map[tone];
   return (
@@ -63,7 +63,7 @@ export const BrandMark: React.FC<{
         width: size,
         height: size,
         borderRadius: size / 3,
-        background: color || palette.accentSoft,
+        background: color || palette.primarySoft,
         color: color ? '#FFFFFF' : palette.link,
         fontWeight: 700,
         fontSize: Math.round(size * 0.46),

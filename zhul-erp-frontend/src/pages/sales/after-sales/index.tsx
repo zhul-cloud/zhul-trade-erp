@@ -350,15 +350,15 @@ const AfterSalesPage: React.FC = () => {
           counts?.open,
           '还在跟进的售后单',
           palette.link,
-          palette.accentSoft,
+          palette.primarySoft,
         )}
         {stat(
           <MessageOutlined />,
           '待客户确认',
           counts?.waiting,
           '方案已给，等客户回复',
-          palette.violet,
-          palette.violetSoft,
+          palette.info,
+          palette.infoSoft,
         )}
         <button
           type="button"

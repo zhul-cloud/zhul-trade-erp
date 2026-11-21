@@ -96,7 +96,7 @@ const Highlight: React.FC<{ text: string; keyword?: string }> = ({
       {text.slice(0, i)}
       <mark
         style={{
-          background: palette.accentSoft,
+          background: palette.primarySoft,
           color: palette.link,
           padding: 0,
           borderRadius: 3,
@@ -272,7 +272,7 @@ const ByInquiryPanel: React.FC<{
             marginTop: 12,
             padding: '10px 14px',
             borderRadius: 12,
-            background: palette.accentSoft,
+            background: palette.primarySoft,
             fontSize: 13,
           }}
         >
@@ -340,8 +340,8 @@ const ByInquiryPanel: React.FC<{
                 gap: 12,
                 padding: '12px 16px',
                 borderRadius: 12,
-                background: checked ? palette.accentSoft : palette.inset,
-                border: `1px solid ${checked ? palette.accentLine : palette.hairline}`,
+                background: checked ? palette.primarySoft : palette.inset,
+                border: `1px solid ${checked ? palette.primaryLine : palette.hairline}`,
                 cursor: disabled ? 'not-allowed' : 'pointer',
                 transition: 'background 150ms ease-out',
               };
@@ -524,7 +524,7 @@ const ItemRow: React.FC<{
         gap: 12,
         padding: '10px 12px',
         borderRadius: 10,
-        background: checked ? palette.accentSoft : 'transparent',
+        background: checked ? palette.primarySoft : 'transparent',
         cursor: disabled ? 'not-allowed' : 'pointer',
       }}
     >
@@ -565,7 +565,7 @@ const ItemRow: React.FC<{
             已在报价单 {item.draftQuotationNo} 草稿中
           </span>
         ) : item.quoted ? (
-          <span style={{ color: palette.violet }}>已报过价</span>
+          <span style={{ color: palette.info }}>已报过价</span>
         ) : item.noStock ? (
           <span style={{ color: palette.orange }}>无货，报价单上标明无货</span>
         ) : item.pendingAsNoStock ? (
@@ -937,7 +937,7 @@ const ModeCard: React.FC<{
         padding: 20,
         borderRadius: 14,
         cursor: 'pointer',
-        background: active ? palette.accentSoft : palette.inset,
+        background: active ? palette.primarySoft : palette.inset,
         border: `1.5px solid ${active ? palette.link : palette.hairline}`,
         transition: 'border-color 150ms ease-out, background 150ms ease-out',
       }}

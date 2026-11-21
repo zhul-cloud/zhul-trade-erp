@@ -36,7 +36,7 @@ type Tab = 'todo' | 'all';
 /** 节点图标与配色：询价蓝、采购紫、收货绿、差异与收款橙、销售灰 */
 const nodeStyle = (node: string, p: Palette) => {
   if (node.startsWith('SOURCING') || node === 'INQUIRY_QUOTABLE') {
-    return { icon: <SearchOutlined />, color: p.link, bg: p.accentSoft };
+    return { icon: <SearchOutlined />, color: p.link, bg: p.primarySoft };
   }
   if (node === 'MODEL_DOUBT') {
     return { icon: <SearchOutlined />, color: p.orange, bg: p.orangeSoft };
@@ -44,8 +44,8 @@ const nodeStyle = (node: string, p: Palette) => {
   if (node.startsWith('SO_') || node === 'PURCHASER_CHANGED') {
     return {
       icon: <ShoppingCartOutlined />,
-      color: p.violet,
-      bg: p.violetSoft,
+      color: p.info,
+      bg: p.infoSoft,
     };
   }
   if (node.startsWith('RECEIPT')) {
@@ -159,7 +159,7 @@ const Row: React.FC<{
           {item.kind === 'TODO' &&
             (item.done
               ? chip('已处理', palette.mute, palette.inset)
-              : chip('待办', palette.link, palette.accentSoft))}
+              : chip('待办', palette.link, palette.primarySoft))}
           {item.urgent &&
             !item.done &&
             chip('紧急', palette.red, palette.redSoft)}

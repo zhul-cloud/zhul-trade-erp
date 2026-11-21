@@ -73,8 +73,8 @@ const QuotationLines: React.FC<{
               alignItems: 'center',
               padding: '8px 10px',
               borderRadius: 10,
-              background: checked ? palette.accentSoft : palette.inset,
-              border: `1px solid ${checked ? palette.accentLine : palette.hairline}`,
+              background: checked ? palette.primarySoft : palette.inset,
+              border: `1px solid ${checked ? palette.primaryLine : palette.hairline}`,
             }}
           >
             <Checkbox
@@ -383,8 +383,8 @@ const NewPiModal: React.FC<{
                         cursor: 'pointer',
                         padding: '10px 12px',
                         borderRadius: 10,
-                        background: active ? palette.accentSoft : palette.inset,
-                        border: `1px solid ${active ? palette.accentLine : palette.hairline}`,
+                        background: active ? palette.primarySoft : palette.inset,
+                        border: `1px solid ${active ? palette.primaryLine : palette.hairline}`,
                       }}
                     >
                       <div

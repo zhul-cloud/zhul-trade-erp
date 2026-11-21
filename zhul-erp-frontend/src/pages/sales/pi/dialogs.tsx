@@ -176,8 +176,8 @@ export const ExportModal: React.FC<{
                 padding: '12px 16px',
                 borderRadius: 12,
                 width: '100%',
-                background: active ? palette.accentSoft : palette.inset,
-                border: `1px solid ${active ? palette.accentLine : palette.hairline}`,
+                background: active ? palette.primarySoft : palette.inset,
+                border: `1px solid ${active ? palette.primaryLine : palette.hairline}`,
               }}
             >
               <span
@@ -472,8 +472,8 @@ export const PartyModal: React.FC<{
                   cursor: 'pointer',
                   padding: '12px 14px',
                   borderRadius: 12,
-                  background: active ? palette.accentSoft : palette.inset,
-                  border: `1px solid ${active ? palette.accentLine : palette.hairline}`,
+                  background: active ? palette.primarySoft : palette.inset,
+                  border: `1px solid ${active ? palette.primaryLine : palette.hairline}`,
                 }}
               >
                 <div

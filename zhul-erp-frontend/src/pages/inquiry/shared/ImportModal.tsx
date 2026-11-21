@@ -269,8 +269,8 @@ const ImportModal: React.FC<{
                     cursor: 'pointer',
                     textAlign: 'left',
                     background:
-                      i === active ? palette.accentSoft : palette.inset,
-                    border: `1px solid ${i === active ? palette.accentLine : palette.hairline}`,
+                      i === active ? palette.primarySoft : palette.inset,
+                    border: `1px solid ${i === active ? palette.primaryLine : palette.hairline}`,
                   }}
                 >
                   <FileExcelOutlined

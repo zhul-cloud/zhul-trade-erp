@@ -3,24 +3,27 @@ import { theme as antdTheme } from 'antd';
 import React, { useEffect, useMemo, useRef } from 'react';
 import { buildAntdTheme } from './antd';
 import {
-  PALETTE,
+  buildPalette,
   type Palette,
-  PRIMARY_GRADIENT,
+  type PresetKey,
   type ThemeMode,
 } from './palette';
-import { toggleThemeMode, useThemeMode } from './store';
+import { toggleThemeMode, useThemeMode, useThemePreset } from './store';
 
-/** 当前的主题模式与令牌，以及切换函数 */
+/** 当前的主题模式、主题色与令牌，以及切换函数 */
 export function useAppTheme(): {
   mode: ThemeMode;
+  preset: PresetKey;
   palette: Palette;
   toggle: () => void;
 } {
   const mode = useThemeMode();
-  return { mode, palette: PALETTE[mode], toggle: toggleThemeMode };
+  const preset = useThemePreset();
+  const palette = useMemo(() => buildPalette(mode, preset), [mode, preset]);
+  return { mode, preset, palette, toggle: toggleThemeMode };
 }
 
-/** 全站共用的样式：主按钮渐变、焦点环、等宽数字、减少动效 */
+/** 全站共用的样式：主按钮、焦点环、等宽数字、减少动效 */
 const globalCss = (p: Palette, link: { hover: string; active: string }) => `
   :root { ${Object.entries(p)
     .map(([k, v]) => `--z-${k}: ${v};`)
@@ -29,9 +32,8 @@ const globalCss = (p: Palette, link: { hover: string; active: string }) => `
   /* 深色模式下让滚动条等浏览器原生控件也用深色 */
   :root[data-theme='dark'] { color-scheme: dark; }
   .ant-btn-primary:not(:disabled):not(.ant-btn-dangerous):not(.ant-btn-background-ghost) {
-    background: ${PRIMARY_GRADIENT};
+    background: ${p.primary};
     border: none;
-    box-shadow: 0 8px 26px rgba(59, 130, 246, 0.35);
   }
   a:focus-visible, button:focus-visible, [role='button']:focus-visible, [role='switch']:focus-visible,
   [role='radio']:focus-visible, [tabindex]:focus-visible, .ant-btn:focus-visible, .ant-switch:focus-visible {
@@ -44,14 +46,14 @@ const globalCss = (p: Palette, link: { hover: string; active: string }) => `
     outline-offset: 2px;
   }
   .ant-input-clear-icon, .ant-select-clear { padding: 6px; margin: -6px; box-sizing: content-box; }
-  /* 主色 #2563EB 直接当文字放在深色卡片上对比度不够，这几处文字改用链接色 */
+  /* 深色下主题原色当文字对比度不够，这几处文字改用链接色 */
   .ant-pro-query-filter-collapse-button,
   .ant-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn { color: ${p.link}; }
   /* 状态标签统一用语义色 + 浅底，浅色下 antd 预设色的对比度不够 */
   html body .ant-tag.ant-tag-success, html body .ant-tag.ant-tag-green { color: ${p.green} !important; background: ${p.greenSoft} !important; border-color: transparent !important; }
   html body .ant-tag.ant-tag-warning, html body .ant-tag.ant-tag-orange { color: ${p.orange} !important; background: ${p.orangeSoft} !important; border-color: transparent !important; }
   html body .ant-tag.ant-tag-error, html body .ant-tag.ant-tag-red { color: ${p.red} !important; background: ${p.redSoft} !important; border-color: transparent !important; }
-  html body .ant-tag.ant-tag-processing, html body .ant-tag.ant-tag-blue { color: ${p.link} !important; background: ${p.accentSoft} !important; border-color: transparent !important; }
+  html body .ant-tag.ant-tag-processing, html body .ant-tag.ant-tag-blue { color: ${p.info} !important; background: ${p.infoSoft} !important; border-color: transparent !important; }
   .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
   /* 浏览器自动填充（账号、密码）会给输入框加浅蓝底：改回主题的输入框底色与文字色，深色模式下不再出现亮色块 */
   input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus, input:-webkit-autofill:active {
@@ -86,23 +88,23 @@ export const AppThemeSync: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const setAntdConfig = useAntdConfigSetter();
-  const { mode, palette } = useAppTheme();
+  const { mode, preset, palette } = useAppTheme();
   const css = useMemo(() => {
-    const t = antdTheme.getDesignToken(buildAntdTheme(mode));
+    const t = antdTheme.getDesignToken(buildAntdTheme(mode, preset));
     return globalCss(palette, {
       hover: t.colorLinkHover,
       active: t.colorLinkActive,
     });
-  }, [mode, palette]);
+  }, [mode, preset, palette]);
 
-  // setter 的引用会随 antd 配置变化，放进依赖会形成「设置配置 → 换引用 → 再设置」的死循环，所以用 ref 只在 mode 变化时触发
+  // setter 的引用会随 antd 配置变化，放进依赖会形成「设置配置 → 换引用 → 再设置」的死循环，所以用 ref 只在主题变化时触发
   const setterRef = useRef(setAntdConfig);
   setterRef.current = setAntdConfig;
 
   useEffect(() => {
-    setterRef.current({ theme: buildAntdTheme(mode) });
+    setterRef.current({ theme: buildAntdTheme(mode, preset) });
     document.documentElement.dataset.theme = mode;
-  }, [mode]);
+  }, [mode, preset]);
 
   return (
     <>

@@ -182,7 +182,7 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
       label: '新商机',
       value: r.newOpportunities.value,
       sub: `${prevLabel} ${r.newOpportunities.prev}`,
-      color: palette.violet,
+      color: palette.info,
     },
     {
       label: '发出报价',
@@ -247,13 +247,13 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
       label: '主动开发 · 新增对象',
       value: r.developNew,
       sub: '本期新建或加入',
-      color: palette.violet,
+      color: palette.info,
     },
     {
       label: '首次触达',
       value: r.developTouched,
       sub: '首次触达日在本期',
-      color: palette.violet,
+      color: palette.info,
     },
     {
       label: '回复',
@@ -262,19 +262,19 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
         r.developReplyPercent != null
           ? `回复率 ${r.developReplyPercent}%（${r.developReplied} ÷ ${r.developTouched}）`
           : '本期还没有首次触达',
-      color: palette.violet,
+      color: palette.info,
     },
     {
       label: '转为商机',
       value: r.developConverted,
       sub: '进入商机成交',
-      color: palette.violet,
+      color: palette.info,
     },
     {
       label: '停止开发',
       value: r.developStopped,
       sub: '可在客户详情重新开发',
-      color: palette.violet,
+      color: palette.info,
     },
   ];
 

@@ -305,7 +305,7 @@ const TaskDetailDrawer: React.FC<{
                               fontSize: 13,
                               background:
                                 q.id === it.selectedQuoteId
-                                  ? palette.accentSoft
+                                  ? palette.primarySoft
                                   : palette.hover,
                             }}
                           >

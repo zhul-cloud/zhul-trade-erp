@@ -158,7 +158,7 @@ const CoverageModelsPage: React.FC = () => {
         !d.channelCount ? (
           '—'
         ) : d.channelCount === 1 ? (
-          <span style={{ color: palette.cyan }}>
+          <span style={{ color: palette.info }}>
             <BranchesOutlined /> 单一渠道
           </span>
         ) : (

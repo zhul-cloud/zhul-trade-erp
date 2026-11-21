@@ -982,7 +982,7 @@ export const RefundRequestModal: React.FC<{
                     borderRadius: 12,
                     cursor: disabled ? 'not-allowed' : 'pointer',
                     opacity: disabled ? 0.45 : 1,
-                    background: on ? palette.accentSoft : palette.inset,
+                    background: on ? palette.primarySoft : palette.inset,
                     border: `${on ? 1.5 : 1}px solid ${on ? palette.link : palette.hairline}`,
                     color: palette.ink,
                     font: 'inherit',
@@ -1143,7 +1143,7 @@ export const ReplacementModal: React.FC<{
           style={{
             padding: '10px 14px',
             borderRadius: 12,
-            background: palette.accentSoft,
+            background: palette.primarySoft,
             fontSize: 13,
             color: palette.sub,
           }}
@@ -1299,7 +1299,7 @@ export const ReplacementModal: React.FC<{
             <span style={{ color: palette.sub }}>申报货值（CI / PL 用）</span>
             <b>{formatAmount(declaredTotal, cur)}</b>
           </div>
-          <div style={{ color: palette.cyan, fontWeight: 600 }}>
+          <div style={{ color: palette.info, fontWeight: 600 }}>
             出运单据注明 Free of charge replacement, no commercial value
           </div>
         </div>

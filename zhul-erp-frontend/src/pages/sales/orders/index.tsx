@@ -395,7 +395,7 @@ const OrderList: React.FC = () => {
           g.shipped >= g.total
             ? { text: '全部出运', color: palette.green }
             : g.shipped + g.handed >= g.total
-              ? { text: '全部交货代，等出运', color: palette.cyan }
+              ? { text: '全部交货代，等出运', color: palette.info }
               : g.received >= g.total
                 ? { text: '货已到齐，可以发货通知', color: palette.green }
                 : g.inTransit > 0 && g.earliestArrival

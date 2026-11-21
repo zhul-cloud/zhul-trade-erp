@@ -36,9 +36,9 @@ export const Pill: React.FC<{
   const colors: Record<Tone, { fg: string; bg: string }> = {
     gray: { fg: palette.sub, bg: palette.inset },
     mute: { fg: palette.mute, bg: palette.inset },
-    cyan: { fg: palette.cyan, bg: palette.inset },
-    accent: { fg: palette.link, bg: palette.accentSoft },
-    violet: { fg: palette.violet, bg: palette.violetSoft },
+    cyan: { fg: palette.info, bg: palette.inset },
+    accent: { fg: palette.link, bg: palette.primarySoft },
+    violet: { fg: palette.info, bg: palette.infoSoft },
     orange: { fg: palette.orange, bg: palette.orangeSoft },
     green: { fg: palette.green, bg: palette.greenSoft },
     red: { fg: palette.red, bg: palette.redSoft },
@@ -253,7 +253,7 @@ export const FileChip: React.FC<{
           borderRadius: 8,
           fontSize: 16,
           color: image ? palette.link : palette.green,
-          background: image ? palette.accentSoft : palette.greenSoft,
+          background: image ? palette.primarySoft : palette.greenSoft,
         }}
       >
         {image ? <FileImageOutlined /> : <FileExcelOutlined />}

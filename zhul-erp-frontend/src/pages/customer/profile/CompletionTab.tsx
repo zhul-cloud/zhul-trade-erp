@@ -97,8 +97,8 @@ const Chips: React.FC<{
             fontSize: 13,
             cursor: 'pointer',
             color: picked(o.value) ? palette.link : palette.sub,
-            background: picked(o.value) ? palette.accentSoft : 'transparent',
-            border: `1px solid ${picked(o.value) ? palette.accentLine : palette.hairline}`,
+            background: picked(o.value) ? palette.primarySoft : 'transparent',
+            border: `1px solid ${picked(o.value) ? palette.primaryLine : palette.hairline}`,
           }}
         >
           {o.label}
@@ -143,7 +143,7 @@ const Choice: React.FC<{
           </button>
         ))}
         {suggestedStars ? (
-          <span style={{ fontSize: 12, color: palette.violet }}>
+          <span style={{ fontSize: 12, color: palette.info }}>
             背调建议 {suggestedStars} 星
           </span>
         ) : null}
@@ -175,7 +175,7 @@ const Choice: React.FC<{
   );
 };
 
-const STEP_TONE = ['green', 'violet', 'link', 'orange'] as const;
+const STEP_TONE = ['green', 'info', 'link', 'orange'] as const;
 
 const StepCard: React.FC<{
   step: CompletionStep;
@@ -308,8 +308,8 @@ const Queue: React.FC<{
               padding: '10px 12px',
               borderRadius: 12,
               cursor: 'pointer',
-              background: on ? palette.accentSoft : 'transparent',
-              border: `1px solid ${on ? palette.accentLine : 'transparent'}`,
+              background: on ? palette.primarySoft : 'transparent',
+              border: `1px solid ${on ? palette.primaryLine : 'transparent'}`,
               display: 'flex',
               flexDirection: 'column',
               gap: 4,
@@ -358,8 +358,8 @@ const Queue: React.FC<{
                   style={{
                     padding: '0 6px',
                     borderRadius: 6,
-                    color: palette.violet,
-                    background: palette.violetSoft,
+                    color: palette.info,
+                    background: palette.infoSoft,
                   }}
                 >
                   已问 {r.askedDays} 天
@@ -679,8 +679,8 @@ const Wizard: React.FC<{
                     padding: '1px 8px',
                     borderRadius: 6,
                     fontSize: 12,
-                    color: palette.violet,
-                    background: palette.violetSoft,
+                    color: palette.info,
+                    background: palette.infoSoft,
                   }}
                 >
                   {report.reportNo}
@@ -796,7 +796,7 @@ const Wizard: React.FC<{
                   {i.contact && w.contactName ? ` · ${w.contactName}` : ''}
                 </span>
                 {i.askedDays != null && (
-                  <span style={{ fontSize: 12, color: palette.violet }}>
+                  <span style={{ fontSize: 12, color: palette.info }}>
                     {i.askedByName} 已问 {i.askedDays} 天
                   </span>
                 )}

@@ -273,7 +273,7 @@ const DictPage: React.FC = () => {
           padding: '8px 10px',
           borderRadius: 8,
           cursor: 'pointer',
-          background: selected ? p.accentSoft : 'transparent',
+          background: selected ? p.primarySoft : 'transparent',
           marginBottom: 2,
         }}
       >

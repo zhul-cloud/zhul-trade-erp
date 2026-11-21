@@ -1,14 +1,17 @@
 import { theme as antdTheme, type ThemeConfig } from 'antd';
-import { PALETTE, type ThemeMode } from './palette';
+import { buildPalette, type PresetKey, type ThemeMode } from './palette';
 
-/** 由主题模式生成 Ant Design 的主题配置（令牌见 ui-design-patterns.md「Ant Design 落地」） */
-export function buildAntdTheme(mode: ThemeMode): ThemeConfig {
-  const p = PALETTE[mode];
+/** 由主题模式和主题色生成 Ant Design 的主题配置（令牌见 ui-design-patterns.md「设计令牌」） */
+export function buildAntdTheme(
+  mode: ThemeMode,
+  preset?: PresetKey,
+): ThemeConfig {
+  const p = buildPalette(mode, preset);
   return {
     algorithm:
       mode === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
     token: {
-      colorPrimary: '#2563EB',
+      colorPrimary: p.primary,
       colorLink: p.link,
       colorBgLayout: p.canvas,
       colorBgContainer: p.card,
@@ -40,9 +43,9 @@ export function buildAntdTheme(mode: ThemeMode): ThemeConfig {
         darkItemColor: p.sub,
         darkItemHoverBg: p.hover,
         darkItemHoverColor: p.ink,
-        darkItemSelectedBg: p.accentSoft,
+        darkItemSelectedBg: p.primarySoft,
         darkItemSelectedColor: p.link,
-        itemSelectedBg: p.accentSoft,
+        itemSelectedBg: p.primarySoft,
         itemSelectedColor: p.link,
       },
       // 交互目标不小于 24×24：开关 44×24

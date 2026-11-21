@@ -212,8 +212,8 @@ export const ChainCard: React.FC<{
         padding: '4px 10px',
         borderRadius: 8,
         fontSize: 13,
-        background: n.current ? palette.accentSoft : palette.inset,
-        border: `1px solid ${n.current ? palette.accentLine : palette.hairline}`,
+        background: n.current ? palette.primarySoft : palette.inset,
+        border: `1px solid ${n.current ? palette.primaryLine : palette.hairline}`,
         color: n.current ? palette.ink : palette.link,
         fontWeight: n.current ? 600 : 400,
       }}

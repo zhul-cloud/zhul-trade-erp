@@ -375,8 +375,8 @@ const NewInquiryModal: React.FC<{
                     style={{
                       color:
                         typeHint.type === CUSTOMER_RETURNING
-                          ? palette.violet
-                          : palette.cyan,
+                          ? palette.info
+                          : palette.info,
                     }}
                   >
                     {typeHint.type === CUSTOMER_RETURNING

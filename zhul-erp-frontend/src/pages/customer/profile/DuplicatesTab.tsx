@@ -87,7 +87,7 @@ export const MergeModal: React.FC<{
         minWidth: 0,
         padding: 14,
         borderRadius: 14,
-        border: `1px solid ${keep ? palette.accentLine : palette.hairline}`,
+        border: `1px solid ${keep ? palette.primaryLine : palette.hairline}`,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

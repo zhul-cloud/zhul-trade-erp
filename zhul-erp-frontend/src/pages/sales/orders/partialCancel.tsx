@@ -236,7 +236,7 @@ export const PartialCancelModal: React.FC<{
           gap: 10,
           padding: '10px 14px',
           borderRadius: 12,
-          background: palette.accentSoft,
+          background: palette.primarySoft,
           marginBottom: 14,
           fontSize: 13,
         }}
@@ -395,7 +395,7 @@ export const PartialCancelModal: React.FC<{
           style={{
             padding: '12px 16px',
             borderRadius: 12,
-            background: palette.violetSoft,
+            background: palette.infoSoft,
             fontSize: 13,
             color: palette.sub,
           }}
@@ -420,7 +420,7 @@ export const PartialCancelModal: React.FC<{
           width: 22,
           height: 22,
           borderRadius: 11,
-          background: palette.accentSoft,
+          background: palette.primarySoft,
           color: palette.link,
           fontSize: 12,
           fontWeight: 700,
@@ -576,10 +576,10 @@ export const PartialCancelModal: React.FC<{
           style={{
             padding: '12px 16px',
             borderRadius: 12,
-            background: palette.violetSoft,
+            background: palette.infoSoft,
           }}
         >
-          <b style={{ color: palette.violet }}>
+          <b style={{ color: palette.info }}>
             已到账 {formatAmount(preview.received, cur)}，多出{' '}
             {formatAmount(preview.overpaidAfter, cur)}
           </b>

@@ -666,7 +666,7 @@ export const UploadDrawer: React.FC<{
                       borderRadius: 10,
                       textAlign: 'left',
                       cursor: 'pointer',
-                      background: on ? palette.accentSoft : palette.inset,
+                      background: on ? palette.primarySoft : palette.inset,
                       border: `1px solid ${on ? palette.link : 'transparent'}`,
                       color: palette.ink,
                     }}

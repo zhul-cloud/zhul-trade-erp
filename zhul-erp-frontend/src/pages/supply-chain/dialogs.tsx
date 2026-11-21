@@ -459,7 +459,7 @@ export const CoverageModal: React.FC<{
                 padding: '10px 12px',
                 borderRadius: 10,
                 border: `1px solid ${status === k ? palette.link : 'transparent'}`,
-                background: status === k ? palette.accentSoft : undefined,
+                background: status === k ? palette.primarySoft : undefined,
               }}
             >
               <div style={{ fontWeight: 600 }}>{COVER_NAMES[k]}</div>

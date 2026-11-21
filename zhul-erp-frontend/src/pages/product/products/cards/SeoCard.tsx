@@ -587,8 +587,8 @@ const KeywordLibrary: React.FC<{ keywords: PlatformContent['keywords'] }> = ({
   const { palette } = useProductTheme();
   if (keywords.length === 0) return muted(palette);
   const tiers = [
-    { tier: 1, name: '核心', fg: palette.link, bg: palette.accentSoft },
-    { tier: 2, name: '主要', fg: palette.violet, bg: palette.violetSoft },
+    { tier: 1, name: '核心', fg: palette.link, bg: palette.primarySoft },
+    { tier: 2, name: '主要', fg: palette.info, bg: palette.infoSoft },
     { tier: 3, name: '长尾', fg: palette.sub, bg: palette.inset },
   ];
   return (

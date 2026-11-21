@@ -432,7 +432,7 @@ export const DisposeModal: React.FC<{
             style={{
               padding: '10px 14px',
               borderRadius: 10,
-              background: palette.accentSoft,
+              background: palette.primarySoft,
               fontSize: 13,
               color: palette.sub,
             }}

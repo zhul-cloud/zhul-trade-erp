@@ -177,7 +177,7 @@ const StatCard: React.FC<{
         transition: 'border-color 150ms ease-out',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = palette.accentLine;
+        e.currentTarget.style.borderColor = palette.primaryLine;
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.borderColor = palette.hairline;
@@ -684,7 +684,7 @@ const CustomerInquiryPage: React.FC = () => {
         <StatCard
           icon={<SyncOutlined />}
           color={palette.link}
-          soft={palette.accentSoft}
+          soft={palette.primarySoft}
           label="询价中"
           value={stats?.sourcing}
           hint={
@@ -722,7 +722,7 @@ const CustomerInquiryPage: React.FC = () => {
         />
         <StatCard
           icon={<InboxOutlined />}
-          color={palette.cyan}
+          color={palette.info}
           soft={palette.inset}
           label="今日新增"
           value={stats?.today}

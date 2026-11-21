@@ -159,7 +159,7 @@ export const AiStartModal: React.FC<{
       destroyOnHidden
       title={
         <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-          <ThunderboltOutlined style={{ color: palette.violet }} />
+          <ThunderboltOutlined style={{ color: palette.info }} />
           AI 生成 {todo.length} 个商品
         </span>
       }

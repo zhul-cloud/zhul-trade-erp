@@ -757,7 +757,7 @@ const TenantListPage: React.FC = () => {
                 alignItems: 'center',
                 padding: 12,
                 borderRadius: 8,
-                background: palette.accentSoft,
+                background: palette.primarySoft,
               }}
             >
               <span style={{ color: palette.sub }}>临时密码</span>

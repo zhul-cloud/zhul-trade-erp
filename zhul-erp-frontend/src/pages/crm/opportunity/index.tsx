@@ -375,7 +375,7 @@ const OpportunityPage: React.FC = () => {
                     height: 32,
                     borderRadius: 10,
                     color: k.color,
-                    background: palette.accentSoft,
+                    background: palette.primarySoft,
                   }}
                 >
                   {k.icon}

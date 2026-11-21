@@ -294,8 +294,8 @@ export const DocsModal: React.FC<{
         display: 'flex',
         padding: '12px 14px',
         borderRadius: 10,
-        border: `1px solid ${mode === value ? palette.accentLine : palette.hairline}`,
-        background: mode === value ? palette.accentSoft : undefined,
+        border: `1px solid ${mode === value ? palette.primaryLine : palette.hairline}`,
+        background: mode === value ? palette.primarySoft : undefined,
         marginBottom: 10,
       }}
     >
@@ -566,7 +566,7 @@ export const ShipModal: React.FC<{
               borderRadius: 10,
               alignItems: 'flex-start',
               border: `1px solid ${customer === o.value ? palette.link : palette.hairline}`,
-              background: customer === o.value ? palette.accentSoft : undefined,
+              background: customer === o.value ? palette.primarySoft : undefined,
             }}
           >
             <div style={{ fontWeight: 600, color: palette.ink }}>{o.title}</div>

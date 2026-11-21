@@ -84,13 +84,17 @@
 
 | 现有键 | 去向 |
 |---|---|
-| `canvas`、`card`、`hairline`、`control`、`ink`、`sub`、`mute`、`link`、`hover` | 保留，换新色值 |
+| `canvas`、`card`、`hairline`、`control`、`hover` | 保留，换新色值 |
+| `ink`、`sub`、`mute`、`faint` | 保留，依次为主文字、正文、次要文字、禁用与占位（`faint` 不作正文） |
+| `link` | 保留，随主题色变化（浅色为原色，深色为深色链接色） |
 | `green`/`greenSoft`、`orange`/`orangeSoft`、`red`/`redSoft` | 保留，对应成功、警告、错误 |
-| `faint` | 保留，只用于禁用、占位，不作正文 |
-| `sidebar`、`inset` | 保留：侧栏与页面底色相同，凹底用浅灰 |
-| `accentSoft`、`accentLine` | 改名为信息浅底、信息描边，旧名删除 |
-| `violet`、`violetSoft`、`cyan` | 删除，引用处按语义改用状态色或中性色 |
+| `sidebar`、`inset` | 保留：侧栏与卡片同色（悬浮卡片），`inset` 为中性浅底 |
+| `accentSoft`、`accentLine` | 改名为 `primarySoft`、`primaryLine`（主题色选中浅底、选中描边），旧名删除。2026-11-21 实施时改：原计划改名为信息浅底，但 180 多处都和 `link` 搭配表示选中或强调，改成信息色会出现主题色字配青色底；用作状态的地方在第 7 组按 `status-colors.md` 改用信息色 |
+| `violet`、`violetSoft`、`cyan` | 删除，引用处先统一改为 `info`、`infoSoft`；真实型号提示等有明确规定的地方在第 7 组按规范改 |
+| 新增 | `primary`（主按钮底色）、`info`/`infoSoft`、`neutralSoft`、`head`（表头）、`navOn`（展开的父级菜单）、`elevated`/`elevatedLine`（弹出层）；另导出 `PRESETS`、`chartSeries()`、`CARD_SHADOW`、`POPUP_SHADOW` |
 | `PRIMARY_GRADIENT`、`ACCENT_GRADIENT`、`LOGO_GRADIENT` | 删除 |
+
+令牌由 `buildPalette(模式, 主题色)` 生成，`useAppTheme()` 返回当前的 `palette`、`mode`、`preset`；主题色存在本机浏览器（`zhul_theme_preset`），读不到时用琥珀。
 
 **编译抓不到的渐变**：`LOGO_GRADIENT_STOPS`、`public/logo.svg`、`public/favicon.ico`、`AuthLayout` 的光晕，以及 4 处 `IBM Plex Mono`，在任务 4.3 里逐个改掉，并由界面检查规则兜底。
 

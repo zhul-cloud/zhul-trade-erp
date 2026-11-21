@@ -130,7 +130,7 @@ const ManualMergeModal: React.FC<{
               style={{
                 padding: 14,
                 borderRadius: 14,
-                border: `1px solid ${palette.accentLine}`,
+                border: `1px solid ${palette.primaryLine}`,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -208,7 +208,7 @@ const ManualMergeModal: React.FC<{
                           i < candidates.length - 1
                             ? `1px solid ${palette.hairline}`
                             : 'none',
-                        background: sel ? palette.accentSoft : 'transparent',
+                        background: sel ? palette.primarySoft : 'transparent',
                         cursor: 'pointer',
                         textAlign: 'left',
                         color: palette.ink,

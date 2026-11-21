@@ -911,8 +911,8 @@ const ProductListInner: React.FC = () => {
             padding: '12px 16px',
             marginBottom: 16,
             borderRadius: 12,
-            background: palette.accentSoft,
-            border: `1px solid ${palette.accentLine}`,
+            background: palette.primarySoft,
+            border: `1px solid ${palette.primaryLine}`,
           }}
         >
           <div
@@ -960,7 +960,7 @@ const ProductListInner: React.FC = () => {
                 flexWrap: 'wrap',
                 marginTop: 12,
                 paddingTop: 12,
-                borderTop: `1px solid ${palette.accentLine}`,
+                borderTop: `1px solid ${palette.primaryLine}`,
               }}
             >
               <RefineTabs
@@ -984,7 +984,7 @@ const ProductListInner: React.FC = () => {
                       padding: '0 16px',
                       borderRadius: 10,
                       background: palette.card,
-                      border: `1px solid ${palette.accentLine}`,
+                      border: `1px solid ${palette.primaryLine}`,
                     }}
                   >
                     <Spin size="small" />
@@ -1210,8 +1210,8 @@ const ProductListInner: React.FC = () => {
             padding: '10px 16px',
             marginBottom: 12,
             borderRadius: 12,
-            background: palette.accentSoft,
-            border: `1px solid ${palette.accentLine}`,
+            background: palette.primarySoft,
+            border: `1px solid ${palette.primaryLine}`,
           }}
         >
           <span style={{ fontWeight: 600 }}>

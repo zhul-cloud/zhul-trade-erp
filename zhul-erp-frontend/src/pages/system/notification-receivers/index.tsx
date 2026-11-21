@@ -27,7 +27,7 @@ const postStyle = (post: string, p: Palette) => {
   if (post === 'FINANCE') {
     return { icon: <WalletOutlined />, color: p.orange, bg: p.orangeSoft };
   }
-  return { icon: <SearchOutlined />, color: p.link, bg: p.accentSoft };
+  return { icon: <SearchOutlined />, color: p.link, bg: p.primarySoft };
 };
 
 /** 一个岗位：接收人（收货人可跟采购订单的采购员走）+ 它接收的通知 */
@@ -133,7 +133,7 @@ const PostCard: React.FC<{
                   borderRadius: 999,
                   fontSize: 13,
                   color: palette.ink,
-                  background: palette.accentSoft,
+                  background: palette.primarySoft,
                 }}
               >
                 <span

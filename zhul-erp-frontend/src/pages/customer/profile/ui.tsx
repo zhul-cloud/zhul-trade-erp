@@ -44,7 +44,7 @@ export const GradeBadge: React.FC<{
     value === 1
       ? { fg: palette.red, bg: palette.redSoft }
       : value === 2
-        ? { fg: palette.link, bg: palette.accentSoft }
+        ? { fg: palette.link, bg: palette.primarySoft }
         : { fg: palette.sub, bg: palette.inset };
   const box = size === 'large' ? 34 : 24;
   return (
@@ -65,7 +65,7 @@ export const GradeBadge: React.FC<{
         {GRADE_NAMES[value]}
       </span>
       {adjusted && (
-        <span style={{ fontSize: 11, color: palette.violet }}>已调整</span>
+        <span style={{ fontSize: 11, color: palette.info }}>已调整</span>
       )}
     </span>
   );
@@ -126,9 +126,9 @@ export const SourceTag: React.FC<{
             : `人工${source?.operatorName ? ` · ${source.operatorName}` : ''}`);
   const color =
     system || s === SOURCE.SYSTEM
-      ? palette.cyan
+      ? palette.info
       : s === SOURCE.REPORT
-        ? palette.violet
+        ? palette.info
         : s === SOURCE.FOLLOWUP
           ? palette.link
           : palette.mute;
@@ -251,7 +251,7 @@ export const Chip: React.FC<{ children: React.ReactNode; count?: number }> = ({
       }}
     >
       {children}
-      {count != null && <span style={{ color: palette.cyan }}>{count}</span>}
+      {count != null && <span style={{ color: palette.info }}>{count}</span>}
     </span>
   );
 };

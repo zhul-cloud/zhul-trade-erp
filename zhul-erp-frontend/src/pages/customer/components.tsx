@@ -47,11 +47,11 @@ export const Pill: React.FC<{ tone: Tone; children: React.ReactNode }> = ({
 }) => {
   const { palette } = useAppTheme();
   const colors: Record<Tone, { fg: string; bg: string }> = {
-    accent: { fg: palette.link, bg: palette.accentSoft },
-    cyan: { fg: palette.cyan, bg: palette.inset },
+    accent: { fg: palette.link, bg: palette.primarySoft },
+    cyan: { fg: palette.info, bg: palette.inset },
     orange: { fg: palette.orange, bg: palette.orangeSoft },
     green: { fg: palette.green, bg: palette.greenSoft },
-    violet: { fg: palette.violet, bg: palette.violetSoft },
+    violet: { fg: palette.info, bg: palette.infoSoft },
     gray: { fg: palette.sub, bg: palette.inset },
   };
   const c = colors[tone];
@@ -257,7 +257,7 @@ export const PartyCard: React.FC<{
         padding: 16,
         borderRadius: 12,
         background: palette.inset,
-        border: `1px solid ${party.defaultParty ? palette.accentLine : palette.hairline}`,
+        border: `1px solid ${party.defaultParty ? palette.primaryLine : palette.hairline}`,
       }}
     >
       <div
@@ -718,7 +718,7 @@ export const TransferModal: React.FC<{
         style={{
           padding: '10px 12px',
           borderRadius: 10,
-          background: palette.accentSoft,
+          background: palette.primarySoft,
           fontSize: 12,
           color: palette.sub,
         }}

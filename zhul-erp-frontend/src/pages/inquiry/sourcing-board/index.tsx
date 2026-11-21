@@ -277,7 +277,7 @@ const SourcingBoardPage: React.FC = () => {
             <Stat
               icon={<ApartmentOutlined />}
               color={palette.link}
-              soft={palette.accentSoft}
+              soft={palette.primarySoft}
               label="询价中"
               value={s.sourcing}
               hint={
@@ -303,7 +303,7 @@ const SourcingBoardPage: React.FC = () => {
             <Stat
               icon={<SafetyCertificateOutlined />}
               color={palette.link}
-              soft={palette.accentSoft}
+              soft={palette.primarySoft}
               label="待审核"
               value={s.pendingReview ?? 0}
               hint={
@@ -449,8 +449,8 @@ const SourcingBoardPage: React.FC = () => {
                       gap: 10,
                       padding: '12px 16px',
                       borderRadius: 12,
-                      background: palette.accentSoft,
-                      border: `1px solid ${palette.accentLine}`,
+                      background: palette.primarySoft,
+                      border: `1px solid ${palette.primaryLine}`,
                     }}
                   >
                     <span style={{ color: palette.ink, fontWeight: 600 }}>
@@ -1000,7 +1000,7 @@ const SourcingBoardPage: React.FC = () => {
                           borderRadius: 12,
                           background:
                             dragOver === p.id
-                              ? palette.accentSoft
+                              ? palette.primarySoft
                               : palette.inset,
                           border: `1px ${dragOver === p.id ? 'dashed' : 'solid'} ${dragOver === p.id ? palette.link : 'transparent'}`,
                           transition: 'background 150ms ease-out',
@@ -1012,9 +1012,9 @@ const SourcingBoardPage: React.FC = () => {
                             height: 30,
                             borderRadius: 15,
                             background: p.partTime
-                              ? palette.violetSoft
-                              : palette.accentSoft,
-                            color: p.partTime ? palette.violet : palette.link,
+                              ? palette.infoSoft
+                              : palette.primarySoft,
+                            color: p.partTime ? palette.info : palette.link,
                             fontWeight: 700,
                             display: 'inline-flex',
                             alignItems: 'center',

@@ -267,7 +267,7 @@ export const RfmModal: React.FC<{
               fontSize: 12,
               color: hit ? palette.ink : palette.sub,
               fontWeight: hit ? 600 : 400,
-              background: hit ? palette.accentSoft : undefined,
+              background: hit ? palette.primarySoft : undefined,
             }}
           >
             <span style={{ color: hit ? palette.link : palette.mute }}>
@@ -341,8 +341,8 @@ export const RfmModal: React.FC<{
             marginTop: 16,
             padding: '12px 16px',
             borderRadius: 12,
-            background: palette.accentSoft,
-            border: `1px solid ${palette.accentLine}`,
+            background: palette.primarySoft,
+            border: `1px solid ${palette.primaryLine}`,
             fontSize: 13,
           }}
         >
@@ -364,11 +364,11 @@ export const RfmModal: React.FC<{
             }}
           >
             {data.adjust !== 0 && (
-              <span style={{ color: palette.violet, fontWeight: 600 }}>
+              <span style={{ color: palette.info, fontWeight: 600 }}>
                 {adjustText(data)} → 最终 {GRADE_NAMES[data.finalGrade]}
               </span>
             )}
-            <span style={{ color: palette.cyan, fontWeight: 600 }}>
+            <span style={{ color: palette.info, fontWeight: 600 }}>
               建议每 {data.followDays} 天跟进
             </span>
           </span>
@@ -555,8 +555,8 @@ const GradeCard: React.FC<{
               padding: '2px 10px',
               borderRadius: 10,
               fontSize: 12,
-              color: palette.violet,
-              background: palette.violetSoft,
+              color: palette.info,
+              background: palette.infoSoft,
             }}
           >
             已调整 · 计算等级 {GRADE_NAMES[g.calc]}，{adjustText(g)}
@@ -568,7 +568,7 @@ const GradeCard: React.FC<{
               R{g.r} · F{g.f} · M{g.m} · 综合 {g.score}
             </span>
             <span
-              style={{ fontSize: 12, fontWeight: 600, color: palette.cyan }}
+              style={{ fontSize: 12, fontWeight: 600, color: palette.info }}
             >
               建议每 {g.followDays} 天跟进一次
             </span>

@@ -462,7 +462,7 @@ const WizardInner: React.FC = () => {
 
   const bigChoice = (active: boolean): React.CSSProperties => ({
     border: `2px solid ${active ? palette.link : palette.control}`,
-    background: active ? palette.accentSoft : palette.card,
+    background: active ? palette.primarySoft : palette.card,
     borderRadius: 16,
     padding: 16,
     cursor: 'pointer',

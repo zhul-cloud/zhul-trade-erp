@@ -154,7 +154,7 @@ export const CloseModal: React.FC<{
             borderRadius: 8,
             fontSize: 12,
             color: palette.link,
-            background: palette.accentSoft,
+            background: palette.primarySoft,
           }}
         >
           按最近跟进推荐：

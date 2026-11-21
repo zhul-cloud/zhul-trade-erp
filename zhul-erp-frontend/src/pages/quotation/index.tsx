@@ -417,7 +417,7 @@ const QuotationList: React.FC = () => {
           <Stat
             icon={<SendOutlined />}
             color={palette.link}
-            soft={palette.accentSoft}
+            soft={palette.primarySoft}
             label="已发送待回复"
             value={stats?.sentCount ?? '—'}
             hint={

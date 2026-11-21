@@ -437,7 +437,7 @@ const UserPage: React.FC = () => {
     {
       icon: <TeamOutlined />,
       color: p.link,
-      bg: p.accentSoft,
+      bg: p.primarySoft,
       label: '总用户数',
       value: stats?.total,
     },
@@ -457,8 +457,8 @@ const UserPage: React.FC = () => {
     },
     {
       icon: <UserAddOutlined />,
-      color: p.violet,
-      bg: p.violetSoft,
+      color: p.info,
+      bg: p.infoSoft,
       label: '本月新增',
       value: stats?.newThisMonth,
     },

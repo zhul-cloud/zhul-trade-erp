@@ -401,8 +401,8 @@ const OpportunityDetailPage: React.FC = () => {
                 style={{
                   padding: '12px 14px',
                   borderRadius: 12,
-                  background: cur ? palette.accentSoft : palette.inset,
-                  border: `1px solid ${cur ? palette.accentLine : palette.hairline}`,
+                  background: cur ? palette.primarySoft : palette.inset,
+                  border: `1px solid ${cur ? palette.primaryLine : palette.hairline}`,
                   opacity: !isActive && !cur && !done ? 0.6 : 1,
                 }}
               >

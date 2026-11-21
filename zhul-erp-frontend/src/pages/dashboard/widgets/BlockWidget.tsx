@@ -518,7 +518,7 @@ const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
                   style={{
                     padding: '3px 10px',
                     borderRadius: 11,
-                    background: palette.accentSoft,
+                    background: palette.primarySoft,
                     color: palette.link,
                     fontSize: 12,
                     fontWeight: 600,

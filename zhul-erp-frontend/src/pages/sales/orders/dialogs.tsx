@@ -1398,7 +1398,7 @@ export const NewOrderDrawer: React.FC<{
           borderRadius: 14,
           cursor: disabled ? 'not-allowed' : 'pointer',
           opacity: disabled ? 0.5 : 1,
-          background: on ? palette.accentSoft : palette.inset,
+          background: on ? palette.primarySoft : palette.inset,
           border: `1.5px solid ${on ? palette.link : palette.hairline}`,
         }}
       >
@@ -1570,7 +1570,7 @@ export const NewOrderDrawer: React.FC<{
                       padding: '12px 14px',
                       borderRadius: 12,
                       cursor: 'pointer',
-                      background: on ? palette.accentSoft : palette.inset,
+                      background: on ? palette.primarySoft : palette.inset,
                       border: `1.5px solid ${on ? palette.link : palette.hairline}`,
                     }}
                   >
@@ -1970,7 +1970,7 @@ export const CreateFeeOrderModal: React.FC<{
           marginTop: 12,
           padding: '12px 14px',
           borderRadius: 12,
-          background: palette.accentSoft,
+          background: palette.primarySoft,
         }}
       >
         <span style={{ color: palette.sub }}>合计</span>

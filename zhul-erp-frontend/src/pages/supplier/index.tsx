@@ -514,8 +514,8 @@ const SupplierListPage: React.FC = () => {
             padding: '10px 16px',
             marginBottom: 12,
             borderRadius: 12,
-            background: palette.accentSoft,
-            border: `1px solid ${palette.accentLine}`,
+            background: palette.primarySoft,
+            border: `1px solid ${palette.primaryLine}`,
           }}
         >
           <span style={{ fontWeight: 600, color: palette.link }}>

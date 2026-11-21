@@ -279,8 +279,8 @@ const ReviewDrawer: React.FC<{
                   flexWrap: 'wrap',
                   padding: '12px 16px',
                   borderRadius: 12,
-                  background: palette.accentSoft,
-                  border: `1px solid ${palette.accentLine}`,
+                  background: palette.primarySoft,
+                  border: `1px solid ${palette.primaryLine}`,
                 }}
               >
                 <Checkbox
@@ -349,7 +349,7 @@ const ReviewDrawer: React.FC<{
                   gap: 8,
                   padding: '14px 16px',
                   borderRadius: 12,
-                  border: `1px solid ${err ? palette.red : s.checked && canReview ? palette.accentLine : palette.hairline}`,
+                  border: `1px solid ${err ? palette.red : s.checked && canReview ? palette.primaryLine : palette.hairline}`,
                   transition: 'border-color 150ms ease-out',
                 }}
               >
@@ -436,7 +436,7 @@ const ReviewDrawer: React.FC<{
                           borderRadius: 10,
                           fontSize: 13,
                           background: rec
-                            ? palette.accentSoft
+                            ? palette.primarySoft
                             : voided
                               ? 'transparent'
                               : palette.hover,

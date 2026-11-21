@@ -443,7 +443,7 @@ const SupplyFollowupPage: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         gap: 12,
-        background: palette.accentSoft,
+        background: palette.primarySoft,
       }}
     >
       <b style={{ flex: 1 }}>

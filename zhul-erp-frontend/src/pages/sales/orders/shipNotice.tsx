@@ -210,8 +210,8 @@ export const ShipNoticeModal: React.FC<{
             style={{
               padding: '12px 14px',
               borderRadius: 12,
-              background: palette.accentSoft,
-              border: `1px solid ${palette.accentLine}`,
+              background: palette.primarySoft,
+              border: `1px solid ${palette.primaryLine}`,
             }}
           >
             <div style={{ color: palette.sub, marginBottom: 6 }}>

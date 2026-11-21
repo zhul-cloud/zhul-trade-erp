@@ -392,7 +392,7 @@ const RefundPage: React.FC = () => {
                 label: '余额提现（人民币）',
                 value: sum?.withdraw ?? 0,
                 hint: `${sum?.withdrawCount ?? 0} 笔 · 不影响利润`,
-                color: palette.cyan,
+                color: palette.info,
               },
             ].map((c) => (
               <div

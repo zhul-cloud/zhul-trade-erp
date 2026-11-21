@@ -482,7 +482,7 @@ const PiList: React.FC = () => {
         <Stat
           icon={<WalletOutlined />}
           color={palette.link}
-          soft={palette.accentSoft}
+          soft={palette.primarySoft}
           label="本月到账"
           value={stats ? formatAmount(stats.monthReceivedUsd, 'USD') : '—'}
           hint={

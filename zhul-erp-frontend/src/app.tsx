@@ -30,7 +30,7 @@ import type { CurrentUser } from '@/services/zhul/auth';
 import { type AppearanceInfo, getAppearance } from '@/services/zhul/public';
 import { AppThemeSync, useAppTheme } from '@/theme/AppTheme';
 import { buildShellSettings } from '@/theme/shell';
-import { getThemeMode } from '@/theme/store';
+import { getThemeMode, getThemePreset } from '@/theme/store';
 import { firstMenuPath, toProLayoutMenu } from '@/utils/menuOrder';
 import { normalizePath } from '@/utils/tokenStore';
 import defaultSettings from '../config/defaultSettings';
@@ -38,9 +38,9 @@ import { errorConfig } from './requestErrorConfig';
 
 /** 主题切换时把外壳令牌（侧栏、顶栏、内容区）同步进 initialState.settings，ProLayout 从那里读 */
 const ShellThemeSync: React.FC = () => {
-  const { mode } = useAppTheme();
+  const { mode, preset } = useAppTheme();
   const { setInitialState } = useModel('@@initialState');
-  // setInitialState 的引用会随 initialState 变化，依赖它会死循环，只在 mode 变化时同步
+  // setInitialState 的引用会随 initialState 变化，依赖它会死循环，只在主题变化时同步
   const setterRef = React.useRef(setInitialState);
   setterRef.current = setInitialState;
   React.useEffect(() => {
@@ -48,10 +48,10 @@ const ShellThemeSync: React.FC = () => {
       ...s,
       settings: {
         ...s?.settings,
-        ...buildShellSettings(mode),
+        ...buildShellSettings(mode, preset),
       } as Partial<LayoutSettings>,
     }));
-  }, [mode]);
+  }, [mode, preset]);
   return null;
 };
 
@@ -59,7 +59,7 @@ const ShellThemeSync: React.FC = () => {
 const initialShellSettings = () =>
   ({
     ...defaultSettings,
-    ...buildShellSettings(getThemeMode()),
+    ...buildShellSettings(getThemeMode(), getThemePreset()),
   }) as Partial<LayoutSettings>;
 const loginPath = '/login';
 const publicPaths = [

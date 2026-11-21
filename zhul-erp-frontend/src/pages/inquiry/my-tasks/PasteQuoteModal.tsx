@@ -546,7 +546,7 @@ const PasteQuoteModal: React.FC<{
             </div>
           </div>
           {aiRun && (
-            <div style={banner(palette.accentSoft, palette.accentLine)}>
+            <div style={banner(palette.primarySoft, palette.primaryLine)}>
               <LoadingOutlined style={{ color: palette.link }} />
               <span style={{ color: palette.link, flex: 1 }}>
                 AI 识别中 · 已用 {elapsed} 秒

@@ -15,8 +15,8 @@ export const LIST_PATH = '/supplier/list';
 export const SupplierTypePill: React.FC<{ value?: number }> = ({ value }) => {
   const { palette } = useAppTheme();
   const colors: Record<SupplierTypeTone, { fg: string; bg: string }> = {
-    accent: { fg: palette.link, bg: palette.accentSoft },
-    cyan: { fg: palette.cyan, bg: palette.inset },
+    accent: { fg: palette.link, bg: palette.primarySoft },
+    cyan: { fg: palette.info, bg: palette.inset },
     orange: { fg: palette.orange, bg: palette.orangeSoft },
     green: { fg: palette.green, bg: palette.greenSoft },
     gray: { fg: palette.sub, bg: palette.inset },

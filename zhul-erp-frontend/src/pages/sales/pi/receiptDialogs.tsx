@@ -380,8 +380,8 @@ export const ClaimReceiptModal = <T extends ReceiptResult>({
                 borderRadius: 12,
                 margin: 0,
                 background:
-                  selected === r.id ? palette.accentSoft : palette.inset,
-                border: `1px solid ${selected === r.id ? palette.accentLine : palette.hairline}`,
+                  selected === r.id ? palette.primarySoft : palette.inset,
+                border: `1px solid ${selected === r.id ? palette.primaryLine : palette.hairline}`,
               }}
             >
               <b style={{ ...num, color: palette.ink }}>

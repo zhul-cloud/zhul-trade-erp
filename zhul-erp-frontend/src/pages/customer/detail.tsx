@@ -495,8 +495,8 @@ const CustomerDetailPage: React.FC = () => {
               borderRadius: 12,
               fontSize: 13,
               color: palette.ink,
-              background: palette.accentSoft,
-              border: `1px solid ${palette.accentLine}`,
+              background: palette.primarySoft,
+              border: `1px solid ${palette.primaryLine}`,
             }}
           >
             <b>在公海</b>
@@ -607,8 +607,8 @@ const CustomerDetailPage: React.FC = () => {
                   borderRadius: 12,
                   fontSize: 16,
                   fontWeight: 600,
-                  background: palette.accentSoft,
-                  border: `1px solid ${palette.accentLine}`,
+                  background: palette.primarySoft,
+                  border: `1px solid ${palette.primaryLine}`,
                 }}
               >
                 {summary}
@@ -703,7 +703,7 @@ const CustomerDetailPage: React.FC = () => {
                     justifyContent: 'center',
                     fontWeight: 700,
                     color: palette.link,
-                    background: palette.accentSoft,
+                    background: palette.primarySoft,
                   }}
                 >
                   {(r.ownerName || '?').slice(0, 1)}

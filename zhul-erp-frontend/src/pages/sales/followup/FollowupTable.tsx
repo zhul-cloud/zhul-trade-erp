@@ -171,7 +171,7 @@ export const StageBar: React.FC<{
               fontWeight: groupOn || value.group === g.group ? 600 : 400,
               color: value.group === g.group ? palette.link : palette.mute,
               background:
-                value.group === g.group ? palette.accentSoft : 'transparent',
+                value.group === g.group ? palette.primarySoft : 'transparent',
             }}
           >
             {g.name} {g.count}
@@ -184,7 +184,7 @@ export const StageBar: React.FC<{
               padding: groupOn ? 3 : 0,
               margin: groupOn ? -3 : 0,
               borderRadius: 12,
-              background: groupOn ? palette.accentSoft : 'transparent',
+              background: groupOn ? palette.primarySoft : 'transparent',
             }}
           >
             {stages}
@@ -1436,7 +1436,7 @@ export const FollowupTable: React.FC<{
             opacity: r._out ? 0.45 : undefined,
             background:
               r._key === selectedKey
-                ? palette.accentSoft
+                ? palette.primarySoft
                 : r._child
                   ? palette.inset
                   : undefined,

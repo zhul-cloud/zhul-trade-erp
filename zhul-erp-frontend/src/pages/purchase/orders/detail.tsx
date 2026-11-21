@@ -762,7 +762,7 @@ const PurchaseOrderDetail: React.FC = () => {
         />
         <StatCard
           icon={<CalendarOutlined />}
-          color={palette.violet}
+          color={palette.info}
           label="付款条件"
           value={
             draft.paymentTerms.length === 0
@@ -2245,7 +2245,7 @@ export const CancelModal: React.FC<{
                     alignItems: 'flex-start',
                     border: `1px solid ${refund === o.value ? palette.link : palette.hairline}`,
                     background:
-                      refund === o.value ? palette.accentSoft : undefined,
+                      refund === o.value ? palette.primarySoft : undefined,
                   }}
                 >
                   <div style={{ fontWeight: 600, color: palette.ink }}>

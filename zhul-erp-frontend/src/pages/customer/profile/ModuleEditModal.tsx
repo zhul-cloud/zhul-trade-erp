@@ -408,7 +408,7 @@ const ModuleEditModal: React.FC<{
             required
             extra={
               derived.length > 0 && (
-                <span style={{ color: palette.cyan }}>
+                <span style={{ color: palette.info }}>
                   <ThunderboltOutlined /> 询盘里常用：
                   {derived.map((b) => `${b.name} ${b.count}`).join(' · ')}{' '}
                   <button
@@ -451,7 +451,7 @@ const ModuleEditModal: React.FC<{
             required
             extra={
               cp?.voltages.length ? (
-                <span style={{ color: palette.cyan }}>
+                <span style={{ color: palette.info }}>
                   不填时用国家资料：{zhOf(p.country)}{' '}
                   {cp.voltages.map((v) => d.voltage.labelOf(v)).join(' · ')}
                 </span>

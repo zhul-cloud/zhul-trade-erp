@@ -493,8 +493,8 @@ const DocumentTemplatePage: React.FC = () => {
                   cursor: 'pointer',
                   padding: '14px 16px',
                   borderRadius: 14,
-                  background: active ? palette.accentSoft : palette.card,
-                  border: `1px solid ${active ? palette.accentLine : palette.hairline}`,
+                  background: active ? palette.primarySoft : palette.card,
+                  border: `1px solid ${active ? palette.primaryLine : palette.hairline}`,
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
@@ -535,7 +535,7 @@ const DocumentTemplatePage: React.FC = () => {
                 dataSource={versions}
                 onRow={(v) =>
                   v.isDefault
-                    ? { style: { background: palette.accentSoft } }
+                    ? { style: { background: palette.primarySoft } }
                     : {}
                 }
                 columns={versionColumns}

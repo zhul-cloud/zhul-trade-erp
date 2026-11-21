@@ -180,7 +180,7 @@ const StatsPanel: React.FC = () => {
                 >
                   {[
                     ['有效', palette.link],
-                    ['跟进中（未到 S3）', palette.accentLine],
+                    ['跟进中（未到 S3）', palette.primaryLine],
                     ['无效', palette.control],
                   ].map(([n, c]) => (
                     <span
@@ -249,7 +249,7 @@ const StatsPanel: React.FC = () => {
                           title={`有效 ${r.valid}，跟进中 ${doing}，无效 ${r.invalid}`}
                         >
                           {seg(r.valid, palette.link)}
-                          {seg(doing, palette.accentLine)}
+                          {seg(doing, palette.primaryLine)}
                           {seg(r.invalid, palette.control)}
                         </div>
                         <span

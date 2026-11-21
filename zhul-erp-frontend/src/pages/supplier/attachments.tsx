@@ -131,7 +131,7 @@ const FileChip: React.FC<{
           borderRadius: 8,
           fontSize: 16,
           color: pdf ? palette.red : palette.link,
-          background: pdf ? palette.redSoft : palette.accentSoft,
+          background: pdf ? palette.redSoft : palette.primarySoft,
         }}
       >
         {pdf ? <FilePdfOutlined /> : <FileImageOutlined />}

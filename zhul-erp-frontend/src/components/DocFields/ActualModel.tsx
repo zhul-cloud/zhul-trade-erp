@@ -128,7 +128,7 @@ export const ActualModelLine: React.FC<{
   if (editing) {
     return (
       <>
-        <span style={{ color: palette.violet, fontSize: 12, fontWeight: 500 }}>
+        <span style={{ color: palette.info, fontSize: 12, fontWeight: 500 }}>
           真实型号
         </span>
         <ActualModelEditor
@@ -148,7 +148,7 @@ export const ActualModelLine: React.FC<{
     return (
       <span
         style={{
-          color: palette.violet,
+          color: palette.info,
           fontSize: 12,
           fontWeight: 500,
           display: 'inline-flex',

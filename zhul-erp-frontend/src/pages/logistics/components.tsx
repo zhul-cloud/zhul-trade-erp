@@ -157,7 +157,7 @@ const GroupTag: React.FC<{ no?: string; shorts: Map<string, string> }> = ({
         padding: '1px 8px',
         borderRadius: 6,
         fontSize: 12,
-        background: palette.accentSoft,
+        background: palette.primarySoft,
         color: palette.link,
       }}
     >

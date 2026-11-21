@@ -415,7 +415,7 @@ export const AccountPanel: React.FC<{
       ) : (
         <Box tone="inset">
           {card.suggestStrategic && (
-            <div style={{ color: palette.violet, marginBottom: 4 }}>
+            <div style={{ color: palette.info, marginBottom: 4 }}>
               <CrownOutlined /> S 级客户，建议设为战略客户：每 90
               天季度回顾，填写年度计划
             </div>

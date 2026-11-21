@@ -1883,7 +1883,7 @@ const QuotationDetail: React.FC = () => {
             gap: 10,
             padding: '10px 16px',
             borderRadius: 12,
-            background: palette.accentSoft,
+            background: palette.primarySoft,
             marginBottom: 10,
           }}
         >

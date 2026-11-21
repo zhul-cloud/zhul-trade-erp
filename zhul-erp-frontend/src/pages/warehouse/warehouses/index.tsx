@@ -104,7 +104,7 @@ const ModeCard: React.FC<{ editable: boolean }> = ({ editable }) => {
                   padding: '12px 16px',
                   borderRadius: 12,
                   border: `1px solid ${on ? palette.link : palette.hairline}`,
-                  background: on ? palette.accentSoft : palette.inset,
+                  background: on ? palette.primarySoft : palette.inset,
                   cursor: editable && !on ? 'pointer' : 'default',
                   opacity: !editable && !on ? 0.6 : 1,
                 }}

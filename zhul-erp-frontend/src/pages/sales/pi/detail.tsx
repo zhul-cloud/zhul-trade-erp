@@ -1692,7 +1692,7 @@ const PiDetail: React.FC = () => {
         marginTop: 12,
         padding: '12px 14px',
         borderRadius: 12,
-        border: `1px solid ${palette.accentLine}`,
+        border: `1px solid ${palette.primaryLine}`,
       }}
     >
       <div
@@ -1902,8 +1902,8 @@ const PiDetail: React.FC = () => {
             marginTop: 12,
             padding: '10px 12px',
             borderRadius: 12,
-            background: palette.violetSoft,
-            color: palette.violet,
+            background: palette.infoSoft,
+            color: palette.info,
             fontSize: 12,
           }}
         >
@@ -1928,7 +1928,7 @@ const PiDetail: React.FC = () => {
             f.feeType === FEE_COLLECTION ? `${f.feeName}（代收）` : f.feeName
           }
           value={formatAmount(f.amount, cur)}
-          color={f.feeType === FEE_COLLECTION ? palette.violet : undefined}
+          color={f.feeType === FEE_COLLECTION ? palette.info : undefined}
         />
       ))}
       {v.discountAmount > 0 && (
@@ -2003,7 +2003,7 @@ const PiDetail: React.FC = () => {
         </div>
       )}
       {shownCollection > 0 && (
-        <div style={{ fontSize: 12, color: palette.violet, marginTop: 4 }}>
+        <div style={{ fontSize: 12, color: palette.info, marginTop: 4 }}>
           其中代收 {formatAmount(shownCollection, cur)}，收齐后转入客户余额
         </div>
       )}
@@ -2022,7 +2022,7 @@ const PiDetail: React.FC = () => {
               padding: '10px 12px',
               marginTop: 6,
               borderRadius: 12,
-              background: palette.accentSoft,
+              background: palette.primarySoft,
             }}
           >
             <b style={{ color: palette.ink }}>Amount Due 应付</b>

@@ -80,8 +80,8 @@ export const SourcePill: React.FC<{ source: number }> = ({ source }) => {
         borderRadius: 6,
         fontSize: 12,
         fontWeight: 600,
-        color: ai ? palette.violet : palette.sub,
-        background: ai ? palette.violetSoft : palette.inset,
+        color: ai ? palette.info : palette.sub,
+        background: ai ? palette.infoSoft : palette.inset,
         whiteSpace: 'nowrap',
       }}
     >
@@ -757,7 +757,7 @@ const UploadModal: React.FC<{
             gap: 10,
             padding: '12px 16px',
             borderRadius: 12,
-            background: palette.accentSoft,
+            background: palette.primarySoft,
           }}
         >
           <InfoCircleOutlined style={{ color: palette.link, marginTop: 3 }} />

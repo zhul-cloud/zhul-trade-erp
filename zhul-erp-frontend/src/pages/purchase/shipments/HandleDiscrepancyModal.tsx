@@ -163,7 +163,7 @@ const HandleDiscrepancyModal: React.FC<{
               padding: '12px 14px',
               borderRadius: 10,
               border: `1px solid ${r === o.value ? palette.link : palette.hairline}`,
-              background: r === o.value ? palette.accentSoft : palette.inset,
+              background: r === o.value ? palette.primarySoft : palette.inset,
             }}
           >
             <b style={{ color: palette.ink }}>{o.label}</b>
@@ -204,7 +204,7 @@ const HandleDiscrepancyModal: React.FC<{
               gridColumn: '1 / -1',
               padding: '10px 12px',
               borderRadius: 10,
-              background: palette.accentSoft,
+              background: palette.primarySoft,
               color: palette.sub,
               fontSize: 13,
             }}

@@ -404,7 +404,7 @@ const ShipmentDetail: React.FC = () => {
                         style={{
                           marginLeft: 6,
                           fontSize: 12,
-                          color: palette.violet,
+                          color: palette.info,
                         }}
                       >
                         直发

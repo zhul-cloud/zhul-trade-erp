@@ -130,7 +130,7 @@ const Suggestions: React.FC<{
               padding: '12px 14px',
               borderRadius: 12,
               background: palette.inset,
-              border: `1px solid ${on ? palette.accentLine : 'transparent'}`,
+              border: `1px solid ${on ? palette.primaryLine : 'transparent'}`,
               opacity: s.state === 'ignored' ? 0.6 : 1,
             }}
           >

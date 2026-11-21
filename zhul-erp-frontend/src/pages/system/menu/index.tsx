@@ -576,7 +576,7 @@ const MenuPage: React.FC = () => {
     {
       icon: <AppstoreOutlined />,
       color: p.link,
-      bg: p.accentSoft,
+      bg: p.primarySoft,
       label: '节点总数',
       value: stats.total,
       hint: '3 级树形结构',
@@ -584,7 +584,7 @@ const MenuPage: React.FC = () => {
     {
       icon: <FolderOutlined />,
       color: p.link,
-      bg: p.accentSoft,
+      bg: p.primarySoft,
       label: '目录',
       value: stats.dir,
       hint: '第一级节点',

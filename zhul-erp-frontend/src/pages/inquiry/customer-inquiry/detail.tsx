@@ -760,7 +760,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
                 width={200}
               />
               {quotedCount > 0 && (
-                <span style={{ color: palette.violet, fontSize: 12 }}>
+                <span style={{ color: palette.info, fontSize: 12 }}>
                   已报出 {quotedCount}/{inq.totalItemCount}
                 </span>
               )}

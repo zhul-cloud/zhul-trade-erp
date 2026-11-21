@@ -669,7 +669,7 @@ const CustomerFormPage: React.FC = () => {
                       onClick={onTranslateName}
                       style={{
                         color: palette.link,
-                        background: palette.accentSoft,
+                        background: palette.primarySoft,
                       }}
                     >
                       {translating ? '翻译中' : 'AI 翻译'}
@@ -1047,7 +1047,7 @@ const CustomerFormPage: React.FC = () => {
                 alignItems: 'center',
                 padding: '10px 12px',
                 borderRadius: 10,
-                background: palette.accentSoft,
+                background: palette.primarySoft,
                 fontSize: 12,
                 color: palette.sub,
               }}

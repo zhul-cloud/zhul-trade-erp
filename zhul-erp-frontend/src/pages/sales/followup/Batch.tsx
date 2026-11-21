@@ -126,8 +126,8 @@ export const BatchBar: React.FC<{
         display: 'flex',
         alignItems: 'center',
         gap: 12,
-        border: `1px solid ${palette.accentLine}`,
-        background: palette.accentSoft,
+        border: `1px solid ${palette.primaryLine}`,
+        background: palette.primarySoft,
       }}
     >
       {selectAll ? (
@@ -368,7 +368,7 @@ export const BatchFollowupModal: React.FC<{
                 borderRadius: 6,
                 fontSize: 12,
                 color: palette.link,
-                background: palette.accentSoft,
+                background: palette.primarySoft,
               }}
             >
               {p.customerName} · {p.items.length} 张
@@ -467,7 +467,7 @@ export const BatchFollowupModal: React.FC<{
             borderRadius: 10,
             fontSize: 12,
             color: palette.link,
-            background: palette.accentSoft,
+            background: palette.primarySoft,
           }}
         >
           <InfoCircleOutlined /> 每个客户各写一条跟进记录，作用到名下全部单据

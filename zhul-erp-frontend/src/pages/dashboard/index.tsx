@@ -186,7 +186,7 @@ const Dashboard: React.FC = () => {
               width: 48,
               height: 48,
               borderRadius: 14,
-              background: palette.accentSoft,
+              background: palette.primarySoft,
               color: palette.link,
               display: 'inline-flex',
               alignItems: 'center',

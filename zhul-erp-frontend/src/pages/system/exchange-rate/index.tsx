@@ -209,7 +209,7 @@ const ExchangeRatePage: React.FC = () => {
                 onRow={(r) => ({
                   style:
                     r.currencyCode === logCurrency
-                      ? { background: palette.accentSoft }
+                      ? { background: palette.primarySoft }
                       : undefined,
                 })}
                 columns={rateColumns}

@@ -138,7 +138,7 @@ export const PutIntoPoolModal: React.FC<{
         style={{
           padding: '10px 12px',
           borderRadius: 10,
-          background: palette.accentSoft,
+          background: palette.primarySoft,
           fontSize: 12,
           color: palette.sub,
         }}

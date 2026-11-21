@@ -93,7 +93,7 @@ export const RefineTabs: React.FC<{
               padding: '0 14px',
               borderRadius: 8,
               border: `1px solid ${on ? '#2563EB' : 'transparent'}`,
-              background: on ? palette.accentSoft : 'transparent',
+              background: on ? palette.primarySoft : 'transparent',
               color: on ? palette.ink : palette.sub,
               fontWeight: on ? 600 : 400,
               fontSize: 13,

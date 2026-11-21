@@ -211,7 +211,7 @@ const AfterSalesDetail: React.FC = () => {
     const bg = {
       red: palette.redSoft,
       orange: palette.orangeSoft,
-      accent: palette.accentSoft,
+      accent: palette.primarySoft,
       gray: palette.inset,
       green: palette.greenSoft,
     }[tone];
@@ -733,7 +733,7 @@ const AfterSalesDetail: React.FC = () => {
                   display: 'grid',
                   placeItems: 'center',
                   flexShrink: 0,
-                  background: palette.accentSoft,
+                  background: palette.primarySoft,
                   color: palette.link,
                   fontSize: 16,
                 }}

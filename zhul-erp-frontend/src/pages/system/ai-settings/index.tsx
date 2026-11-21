@@ -246,7 +246,7 @@ const ConnectionCard: React.FC<{
           border: `${selected ? 1.5 : 1}px solid ${
             selected ? palette.link : palette.hairline
           }`,
-          background: selected ? palette.accentSoft : palette.card,
+          background: selected ? palette.primarySoft : palette.card,
           boxShadow: isDragging ? '0 8px 24px -4px rgba(0,0,0,0.16)' : 'none',
           transition: 'background 200ms ease-out, border-color 200ms ease-out',
         }}

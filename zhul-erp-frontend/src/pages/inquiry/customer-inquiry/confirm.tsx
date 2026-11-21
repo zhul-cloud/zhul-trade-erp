@@ -712,7 +712,7 @@ const ConfirmPage: React.FC = () => {
     return (
       <div style={{ display: 'grid', gap: 10, padding: '4px 8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <DatabaseOutlined style={{ color: palette.cyan }} />
+          <DatabaseOutlined style={{ color: palette.info }} />
           <span style={{ fontWeight: 600, color: palette.ink }}>
             询价记录里 {r.brand} {r.confirmedModel}{' '}
             的价格（同品牌、型号写法不同也会归到一起）
@@ -744,8 +744,8 @@ const ConfirmPage: React.FC = () => {
                 padding: '8px 12px',
                 borderRadius: 10,
                 background:
-                  r.reuseQuoteId === q.id ? palette.accentSoft : 'transparent',
-                border: `1px solid ${r.reuseQuoteId === q.id ? palette.accentLine : 'transparent'}`,
+                  r.reuseQuoteId === q.id ? palette.primarySoft : 'transparent',
+                border: `1px solid ${r.reuseQuoteId === q.id ? palette.primaryLine : 'transparent'}`,
               }}
             >
               <span
@@ -1044,7 +1044,7 @@ const ConfirmPage: React.FC = () => {
                 style: {
                   borderRadius: 14,
                   overflow: 'hidden',
-                  border: `1px solid ${open ? palette.accentLine : palette.hairline}`,
+                  border: `1px solid ${open ? palette.primaryLine : palette.hairline}`,
                   background: palette.card,
                 },
                 styles: { body: { padding: 0 } },
@@ -1155,7 +1155,7 @@ const ConfirmPage: React.FC = () => {
                         width: 30,
                         height: 30,
                         borderRadius: 8,
-                        background: palette.accentSoft,
+                        background: palette.primarySoft,
                         color: palette.link,
                         fontWeight: 700,
                         display: 'inline-flex',

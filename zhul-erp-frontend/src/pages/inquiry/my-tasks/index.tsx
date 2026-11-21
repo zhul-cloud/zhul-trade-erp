@@ -940,8 +940,8 @@ const MyTasksPage: React.FC = () => {
                   padding: 16,
                   borderRadius: 16,
                   background:
-                    t.id === activeId ? palette.accentSoft : palette.card,
-                  border: `1px solid ${t.id === activeId ? palette.accentLine : palette.hairline}`,
+                    t.id === activeId ? palette.primarySoft : palette.card,
+                  border: `1px solid ${t.id === activeId ? palette.primaryLine : palette.hairline}`,
                   display: 'grid',
                   gap: 6,
                 }}
@@ -1534,7 +1534,7 @@ const MyTasksPage: React.FC = () => {
                             gap: 4,
                             padding: '2px 10px',
                             borderRadius: 12,
-                            background: palette.accentSoft,
+                            background: palette.primarySoft,
                             fontSize: 12,
                           }}
                         >

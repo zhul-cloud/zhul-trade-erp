@@ -139,7 +139,7 @@ const OpportunityCard: React.FC = () => {
             width: 32,
             height: 32,
             borderRadius: 10,
-            background: palette.accentSoft,
+            background: palette.primarySoft,
             color: palette.link,
             display: 'inline-flex',
             alignItems: 'center',
@@ -193,7 +193,7 @@ const OpportunityCard: React.FC = () => {
             <Stat
               icon={<UserAddOutlined />}
               color={palette.link}
-              soft={palette.accentSoft}
+              soft={palette.primarySoft}
               label="新增"
               value={sum.total}
               hint={

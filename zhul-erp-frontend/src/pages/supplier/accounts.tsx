@@ -82,7 +82,7 @@ const TypePill: React.FC<{ type: number }> = ({ type }) => {
         fontSize: 12,
         fontWeight: 600,
         color: corporate ? palette.link : palette.orange,
-        background: corporate ? palette.accentSoft : palette.orangeSoft,
+        background: corporate ? palette.primarySoft : palette.orangeSoft,
       }}
     >
       {corporate ? '对公' : '对私'}
@@ -115,7 +115,7 @@ export const AccountCard: React.FC<{
         padding: '14px 18px',
         borderRadius: 12,
         background: palette.inset,
-        border: `1px solid ${row.defaultAccount ? palette.accentLine : palette.hairline}`,
+        border: `1px solid ${row.defaultAccount ? palette.primaryLine : palette.hairline}`,
       }}
     >
       <span
@@ -130,7 +130,7 @@ export const AccountCard: React.FC<{
           borderRadius: 10,
           fontSize: 18,
           color: corporate ? palette.link : palette.orange,
-          background: corporate ? palette.accentSoft : palette.orangeSoft,
+          background: corporate ? palette.primarySoft : palette.orangeSoft,
         }}
       >
         {corporate ? <BankOutlined /> : <UserOutlined />}

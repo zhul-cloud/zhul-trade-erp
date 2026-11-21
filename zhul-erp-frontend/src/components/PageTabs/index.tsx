@@ -231,8 +231,8 @@ export const TabBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
                   fontSize: 13,
                   fontWeight: on ? 600 : 400,
                   color: on ? palette.ink : palette.sub,
-                  background: on ? palette.accentSoft : 'transparent',
-                  border: `1px solid ${on ? palette.accentLine : 'transparent'}`,
+                  background: on ? palette.primarySoft : 'transparent',
+                  border: `1px solid ${on ? palette.primaryLine : 'transparent'}`,
                   userSelect: 'none',
                 }}
               >
@@ -330,7 +330,7 @@ const BackBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
           padding: '4px 12px',
           border: 0,
           borderRadius: 999,
-          background: palette.accentSoft,
+          background: palette.primarySoft,
           color: palette.link,
           fontSize: 13,
           fontWeight: 600,

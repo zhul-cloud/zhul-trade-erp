@@ -7,14 +7,13 @@ import { useMenu } from '@/utils/menuName';
 export type { ThemeMode } from '@/theme/palette';
 // 商品页早先自带一套主题；全站主题升级后，主题由 src/theme 统一提供，这里只保留商品页沿用的名字，
 // 避免改动每一个页面的导入。
-export { ACCENT_GRADIENT, PALETTE, PRIMARY_GRADIENT } from '@/theme/palette';
 
 /** 当前主题（模式、令牌、切换函数），与全站一致 */
 export const useProductTheme = useAppTheme;
 
 /**
  * 商品页容器：提供"跳到主要内容"链接。整页模式（新建向导，没有外壳）占满视口。
- * 颜色、主按钮渐变、焦点环等都来自全站主题，这里不再重复。
+ * 颜色、主按钮、焦点环等都来自全站主题，这里不再重复。
  */
 export const ProductThemeProvider: React.FC<{
   children: React.ReactNode;

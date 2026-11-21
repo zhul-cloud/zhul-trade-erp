@@ -55,7 +55,7 @@ export const useCoverColors = () => {
   const { palette } = useAppTheme();
   return {
     1: palette.red,
-    2: palette.cyan,
+    2: palette.info,
     3: palette.orange,
     4: palette.green,
   } as Record<number, string>;

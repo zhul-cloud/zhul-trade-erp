@@ -185,7 +185,7 @@ const RefundModal: React.FC<{
             style={{
               padding: '10px 14px',
               borderRadius: 12,
-              background: palette.accentSoft,
+              background: palette.primarySoft,
               fontSize: 13,
               color: palette.sub,
             }}
@@ -320,7 +320,7 @@ const RefundModal: React.FC<{
                     borderRadius: 12,
                     cursor: disabled ? 'not-allowed' : 'pointer',
                     opacity: disabled ? 0.45 : 1,
-                    background: on ? palette.accentSoft : palette.inset,
+                    background: on ? palette.primarySoft : palette.inset,
                     border: `${on ? 1.5 : 1}px solid ${on ? palette.link : palette.hairline}`,
                     color: palette.ink,
                     font: 'inherit',
@@ -341,7 +341,7 @@ const RefundModal: React.FC<{
               style={{
                 padding: '12px 14px',
                 borderRadius: 12,
-                background: palette.accentSoft,
+                background: palette.primarySoft,
                 fontSize: 12,
                 color: palette.sub,
                 display: 'grid',

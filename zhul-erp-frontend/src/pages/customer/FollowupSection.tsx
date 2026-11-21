@@ -144,7 +144,7 @@ const RecordRow: React.FC<{ r: FollowupRecord; last: boolean }> = ({
             justifyContent: 'center',
             fontSize: 12,
             color: user ? palette.link : palette.mute,
-            background: user ? palette.accentSoft : palette.inset,
+            background: user ? palette.primarySoft : palette.inset,
           }}
         >
           {channelIcon(r)}
@@ -555,7 +555,7 @@ export const FollowupSection: React.FC<{
                 marginTop: 14,
                 padding: '10px 14px',
                 borderRadius: 10,
-                background: palette.violetSoft,
+                background: palette.infoSoft,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
@@ -563,7 +563,7 @@ export const FollowupSection: React.FC<{
                 fontSize: 13,
               }}
             >
-              <b style={{ color: palette.violet }}>主动开发</b>
+              <b style={{ color: palette.info }}>主动开发</b>
               <span style={{ color: palette.ink, flex: 1, minWidth: 0 }}>
                 {develop.state === 'open'
                   ? `${develop.stageCode} ${develop.stageName} · 已触达 ${develop.touchCount ?? 0} 次${develop.prospectReason ? ` · ${develop.prospectReason}` : ''}`

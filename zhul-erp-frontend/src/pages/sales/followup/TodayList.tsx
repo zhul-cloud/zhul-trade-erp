@@ -220,7 +220,7 @@ const TodayCard: React.FC<{
         gap: 8,
         padding: '12px 16px 12px 18px',
         borderRadius: 12,
-        border: `1px solid ${checked ? palette.accentLine : palette.hairline}`,
+        border: `1px solid ${checked ? palette.primaryLine : palette.hairline}`,
         background: palette.card,
       }}
     >
@@ -519,7 +519,7 @@ export const TodayList: React.FC<{
           'today',
           `今天 ${today.today.length}`,
           palette.link,
-          palette.accentSoft,
+          palette.primarySoft,
         )}
         {chip(
           undefined,

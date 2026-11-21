@@ -128,8 +128,8 @@ const NameplateUploader: React.FC<{
         gap: 10,
         padding: '14px 16px',
         borderRadius: 12,
-        background: palette.accentSoft,
-        border: `1px solid ${palette.accentLine}`,
+        background: palette.primarySoft,
+        border: `1px solid ${palette.primaryLine}`,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

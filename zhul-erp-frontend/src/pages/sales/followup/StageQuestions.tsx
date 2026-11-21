@@ -72,7 +72,7 @@ const Choice: React.FC<{
         background: active
           ? danger
             ? palette.redSoft
-            : palette.accentSoft
+            : palette.primarySoft
           : 'transparent',
         transition: 'background .15s, border-color .15s',
       }}

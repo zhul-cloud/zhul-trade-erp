@@ -245,7 +245,7 @@ export const BatchPayModal: React.FC<{
                 padding: '14px 16px',
                 borderRadius: 12,
                 background: palette.inset,
-                border: `1px solid ${problem ? palette.accentLine : palette.hairline}`,
+                border: `1px solid ${problem ? palette.primaryLine : palette.hairline}`,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

@@ -83,8 +83,8 @@ export const useGoodsColors = () => {
   const { palette } = useAppTheme();
   return {
     shipped: palette.green,
-    handed: palette.cyan,
-    inWarehouse: palette.violet,
+    handed: palette.info,
+    inWarehouse: palette.info,
     inTransit: palette.link,
     pendingShip: palette.orange,
     pendingPurchase: palette.faint,

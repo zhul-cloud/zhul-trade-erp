@@ -128,8 +128,8 @@ const SalesPending: React.FC<{
             gap: 10,
             padding: '12px 16px',
             borderRadius: 12,
-            background: palette.accentSoft,
-            border: `1px solid ${palette.accentLine}`,
+            background: palette.primarySoft,
+            border: `1px solid ${palette.primaryLine}`,
           }}
         >
           <span style={{ color: palette.ink, fontWeight: 600 }}>

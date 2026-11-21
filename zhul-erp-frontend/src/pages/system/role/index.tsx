@@ -501,7 +501,7 @@ const RolePage: React.FC = () => {
         {
           icon: <SafetyOutlined />,
           color: p.link,
-          bg: p.accentSoft,
+          bg: p.primarySoft,
           label: '角色总数',
           value: stats.total,
           hint: `覆盖 ${stats.deptCoverage} 个部门`,
@@ -516,8 +516,8 @@ const RolePage: React.FC = () => {
         },
         {
           icon: <LockOutlined />,
-          color: p.violet,
-          bg: p.violetSoft,
+          color: p.info,
+          bg: p.infoSoft,
           label: '内置角色',
           value: stats.builtInCount,
           hint: '不可删除',

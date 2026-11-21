@@ -288,7 +288,7 @@ const CreditPage: React.FC = () => {
                 key={c.currencyCode}
                 icon={<WalletOutlined />}
                 color={palette.link}
-                soft={palette.accentSoft}
+                soft={palette.primarySoft}
                 label={`${c.currencyCode} 可用余额`}
                 value={formatAmount(c.amount, c.currencyCode)}
                 hint={`${c.count} 个客户 · 价值 ${formatAmount(c.amountCny, 'CNY')}`}

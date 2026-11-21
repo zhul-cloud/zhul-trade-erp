@@ -308,7 +308,7 @@ const PaymentRecords: React.FC = () => {
         {card('付款合计（人民币）', stats?.total ?? 0, palette.ink)}
         {card('公司对公', stats?.company ?? 0, palette.link)}
         {card('员工垫付', stats?.advance ?? 0, palette.orange)}
-        {card('私对私', stats?.personal ?? 0, palette.violet)}
+        {card('私对私', stats?.personal ?? 0, palette.info)}
         {card('报销付款（不计入合计）', stats?.reimburse ?? 0, palette.sub)}
       </div>
       <Card>

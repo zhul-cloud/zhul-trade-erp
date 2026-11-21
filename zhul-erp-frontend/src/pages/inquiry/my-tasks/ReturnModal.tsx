@@ -132,7 +132,7 @@ const ReturnModal: React.FC<{
                     gap: 12,
                     padding: '8px 12px',
                     borderRadius: 10,
-                    background: on ? palette.accentSoft : undefined,
+                    background: on ? palette.primarySoft : undefined,
                   }}
                 >
                   <Checkbox
