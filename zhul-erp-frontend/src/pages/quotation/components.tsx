@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Card, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 
 export { Card, Pill };
@@ -37,14 +37,5 @@ export const QuotationStatusPill: React.FC<{ status: number }> = ({
   status,
 }) => {
   const m = STATUS_META[status] ?? { label: '未知', tone: 'gray' as const };
-  return (
-    <Pill tone={m.tone} dot>
-      {m.label}
-    </Pill>
-  );
+  return <Pill tone={m.tone}>{m.label}</Pill>;
 };
-
-/** 面包屑「分组 / …」（报价单在销售管理、定价策略在业务设置，按页面路径取） */
-export const QuotationPageTitle: React.FC<
-  Omit<React.ComponentProps<typeof PageTitle>, 'root'>
-> = (props) => <PageTitle {...props} />;

@@ -18,12 +18,13 @@ import {
   Tag,
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { HelpTip, PageHeader } from '@/components/ListLayout';
 import { ConditionPill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { exchangeRateApi } from '@/pages/system/exchange-rate/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatMargin } from '../calc';
-import { Card, QuotationPageTitle } from '../components';
+import { Card } from '../components';
 import { type PricingStrategy, pricingApi, readBizError } from '../service';
 
 const DOMESTIC_ALT = 6;
@@ -202,7 +203,7 @@ const PricingStrategyPage: React.FC = () => {
 
   return (
     <div>
-      <QuotationPageTitle description="依据《工控自动化产品定价策略 SOP》V6 第十章：按品相给建议毛利率与红线，售价 = 采购成本价 ÷ (1 − 毛利率)；报价时也可以按加价定价。" />
+      <PageHeader help="依据《工控自动化产品定价策略 SOP》V6 第十章：按品相给建议毛利率与红线，售价 = 采购成本价 ÷ (1 − 毛利率)；报价时也可以按加价定价" />
       {!canEdit && (
         <Alert
           type="info"
@@ -725,10 +726,21 @@ const PricingStrategyPage: React.FC = () => {
             </Tag>
           ))}
         </div>
-        <div style={{ margin: '12px 0 6px', color: palette.sub }}>添加品牌</div>
+        <div
+          style={{
+            margin: '12px 0 6px',
+            color: palette.sub,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          添加品牌
+          <HelpTip title="按品牌及别名识别，如「恩德斯豪斯」" />
+        </div>
         <Input
           value={brandInput}
-          placeholder="输入品牌名后回车，按品牌及别名识别（如「恩德斯豪斯」）"
+          placeholder="输入品牌名后回车"
           onChange={(e) => setBrandInput(e.target.value)}
           onPressEnter={() => {
             const v = brandInput.trim();

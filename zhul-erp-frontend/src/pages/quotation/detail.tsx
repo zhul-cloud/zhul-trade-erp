@@ -1,20 +1,10 @@
 import {
   CheckCircleOutlined,
-  CopyOutlined,
   DeleteOutlined,
-  DownloadOutlined,
-  DownOutlined,
-  EditOutlined,
   EyeInvisibleOutlined,
-  EyeOutlined,
-  FileDoneOutlined,
   HistoryOutlined,
   LockOutlined,
-  MessageOutlined,
   PlusOutlined,
-  RollbackOutlined,
-  SendOutlined,
-  StopOutlined,
   ThunderboltOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
@@ -35,6 +25,22 @@ import {
   Tooltip,
 } from 'antd';
 import dayjs from 'dayjs';
+import {
+  Ban,
+  ChevronDown,
+  CircleX,
+  Copy,
+  Download,
+  Ellipsis,
+  Eye,
+  EyeOff,
+  FileCheck,
+  MessageSquareText,
+  Pencil,
+  Send,
+  Undo2,
+  Zap,
+} from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -63,6 +69,7 @@ import DocModelCell, {
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { CardTitle, HelpTip, PageHeader, Panel } from '@/components/ListLayout';
 import { usePageTitle, useTabDirty } from '@/components/PageTabs/hooks';
 import { type DiffRow, VersionPanel } from '@/components/VersionPanel';
 import {
@@ -78,7 +85,6 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { useDeltaColor } from '@/theme/delta';
 import { DICT_WARRANTY } from '@/utils/dict';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   calcLine,
@@ -96,7 +102,6 @@ import {
   CURRENCIES,
   PATHS,
   Pill,
-  QuotationPageTitle,
   QuotationStatusPill,
   STATUS,
 } from './components';
@@ -734,6 +739,7 @@ const QuotationDetail: React.FC = () => {
       ),
     });
     setStrategyOpen(false);
+    // lint-ui-ignore filler-maybe: 只改了草稿，提醒还要保存
     message.success(`已按报价策略更新 ${prices.size} 个型号的售价，保存后生效`);
   };
   // 缺英文描述：导出会退回中文，可一键生成
@@ -1449,11 +1455,55 @@ const QuotationDetail: React.FC = () => {
     onClick: ({ key }: { key: string }) => markSent(Number(key)),
   };
 
+  // 页头操作（照销售订单详情 B1）：每个页头一个主按钮；常用的次要操作为文字按钮；放弃版本、作废、标为未成交收进「更多」
+  const textBtn = (
+    label: React.ReactNode,
+    icon: React.ReactNode,
+    onClick: () => void,
+  ) => (
+    <Button
+      type="text"
+      icon={icon}
+      style={{ color: palette.link }}
+      onClick={onClick}
+    >
+      {label}
+    </Button>
+  );
+  const moreMenu = (
+    items: {
+      key: string;
+      label: string;
+      icon: React.ReactNode;
+      danger?: boolean;
+      onClick: () => void;
+    }[],
+  ) =>
+    items.length > 0 && (
+      <Dropdown
+        trigger={['click']}
+        placement="bottomRight"
+        menu={{
+          items: items.map(({ onClick: _, ...it }) => it),
+          onClick: ({ key }) => items.find((x) => x.key === key)?.onClick(),
+        }}
+      >
+        <Button
+          type="text"
+          shape="circle"
+          icon={<Ellipsis size={18} />}
+          aria-label="更多操作"
+        />
+      </Dropdown>
+    );
+
   const actions = editable ? (
     <>
       {wide && (
         <Button
-          icon={previewOpen ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+          type="text"
+          style={{ color: palette.link }}
+          icon={previewOpen ? <EyeOff size={16} /> : <Eye size={16} />}
           onClick={() => {
             setPreviewOpen(!previewOpen);
             savePreviewPref(!previewOpen);
@@ -1462,41 +1512,13 @@ const QuotationDetail: React.FC = () => {
           {previewOpen ? '收起预览' : '显示预览'}
         </Button>
       )}
-      {revising && (
-        <Button
-          icon={<RollbackOutlined />}
-          onClick={() =>
-            modal.confirm({
-              title: `放弃 Rev.${q.editingVersionNo}？`,
-              content: `放弃后回到 Rev.${q.currentVersionNo}，这次的修改不保留。`,
-              okText: '放弃',
-              okButtonProps: { danger: true },
-              onOk: () =>
-                act(() => quotationApi.abandon(q.id), '已放弃这个版本'),
-            })
-          }
-        >
-          放弃这个版本
-        </Button>
-      )}
-      <Button
-        icon={<ThunderboltOutlined />}
-        onClick={() => setStrategyOpen(true)}
-      >
-        报价策略
-      </Button>
-      <Button
-        icon={<MessageOutlined />}
-        onClick={async () => (await ensureSaved()) && setTextOpen(true)}
-      >
-        文字报价
-      </Button>
-      <Button
-        icon={<DownloadOutlined />}
-        onClick={async () => (await ensureSaved()) && setExportOpen(true)}
-      >
-        导出
-      </Button>
+      {textBtn('报价策略', <Zap size={16} />, () => setStrategyOpen(true))}
+      {textBtn('文字报价', <MessageSquareText size={16} />, async () => {
+        if (await ensureSaved()) setTextOpen(true);
+      })}
+      {textBtn('导出', <Download size={16} />, async () => {
+        if (await ensureSaved()) setExportOpen(true);
+      })}
       <Button
         loading={saving}
         disabled={!dirty}
@@ -1504,39 +1526,56 @@ const QuotationDetail: React.FC = () => {
       >
         {dirty ? '保存' : '已保存'}
       </Button>
+      {revising &&
+        moreMenu([
+          {
+            key: 'abandon',
+            label: '放弃这个版本',
+            icon: <Undo2 size={16} />,
+            danger: true,
+            onClick: () =>
+              modal.confirm({
+                title: `放弃 Rev.${q.editingVersionNo}？`,
+                content: `放弃后回到 Rev.${q.currentVersionNo}，这次的修改不保留。`,
+                okText: '放弃',
+                okButtonProps: { danger: true },
+                onOk: () =>
+                  act(() => quotationApi.abandon(q.id), '已放弃这个版本'),
+              }),
+          },
+        ])}
       <Dropdown menu={sentMenu} trigger={['click']}>
-        <Button type="primary" icon={<SendOutlined />}>
+        <Button type="primary" icon={<Send size={16} />}>
           {revising ? `发送 Rev.${q.editingVersionNo}` : '标为已发送'}{' '}
-          <DownOutlined />
+          <ChevronDown size={14} aria-hidden />
         </Button>
       </Dropdown>
     </>
   ) : (
     <>
-      <Button icon={<MessageOutlined />} onClick={() => setTextOpen(true)}>
-        文字报价
-      </Button>
-      <Button icon={<DownloadOutlined />} onClick={() => setExportOpen(true)}>
-        导出
-      </Button>
-      <Button icon={<CopyOutlined />} onClick={copyAsNew}>
-        复制为新报价单
-      </Button>
-      {historical && (
-        <Button onClick={() => showVersion()}>
-          回到 Rev.{q.editingVersionNo ?? q.currentVersionNo}
-        </Button>
+      {textBtn('文字报价', <MessageSquareText size={16} />, () =>
+        setTextOpen(true),
       )}
-      {q.status === STATUS.SENT && !historical && (
-        <Button icon={<EditOutlined />} onClick={revise}>
-          修改（出新版本）
-        </Button>
-      )}
-      {q.status === STATUS.SENT && !historical && (
-        <>
-          <Button
-            icon={<StopOutlined />}
-            onClick={() =>
+      {textBtn('导出', <Download size={16} />, () => setExportOpen(true))}
+      {textBtn('复制为新报价单', <Copy size={16} />, copyAsNew)}
+      {q.status === STATUS.SENT &&
+        !historical &&
+        textBtn('修改（出新版本）', <Pencil size={16} />, revise)}
+      {q.status === STATUS.SENT &&
+        !historical &&
+        moreMenu([
+          {
+            key: 'lost',
+            label: '标为未成交',
+            icon: <CircleX size={16} />,
+            onClick: () => setLostOpen(true),
+          },
+          {
+            key: 'void',
+            label: '作废',
+            icon: <Ban size={16} />,
+            danger: true,
+            onClick: () =>
               modal.confirm({
                 title: '作废这张报价单？',
                 content:
@@ -1545,22 +1584,20 @@ const QuotationDetail: React.FC = () => {
                 okButtonProps: { danger: true },
                 onOk: () =>
                   act(() => quotationApi.voidQuotation(q.id), '报价单已作废'),
-              })
-            }
-          >
-            作废
-          </Button>
-          <Button danger onClick={() => setLostOpen(true)}>
-            标为未成交
-          </Button>
-        </>
+              }),
+          },
+        ])}
+      {historical && (
+        <Button type="primary" onClick={() => showVersion()}>
+          回到 Rev.{q.editingVersionNo ?? q.currentVersionNo}
+        </Button>
       )}
       {(q.status === STATUS.SENT || q.status === STATUS.PARTIAL) &&
         !historical &&
         access.salesPi && (
           <Button
             type="primary"
-            icon={<FileDoneOutlined />}
+            icon={<FileCheck size={16} />}
             onClick={() => setPiOpen(true)}
           >
             {q.status === STATUS.PARTIAL ? '就未成交的型号开 PI' : '开 PI'}
@@ -1825,24 +1862,27 @@ const QuotationDetail: React.FC = () => {
   ).length;
 
   const itemsCard = (
-    <div>
+    <Panel style={{ padding: '20px 24px', minWidth: 0 }}>
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 12,
-          margin: '0 0 10px',
+          gap: 8,
+          margin: '0 0 16px',
         }}
       >
-        <b style={{ fontSize: 16, color: palette.ink }}>
-          型号（{editable ? draft.items.length : q.items.length}）
-        </b>
-        <span style={{ fontSize: 12, color: palette.mute }}>
-          {editable
-            ? compact
-              ? '预览展开时为紧凑列；货况货期、质保、描述点型号行前的展开按钮查看与编辑'
-              : '每行可按毛利率或按加价定价，也可直接改外币售价；采购成本价、毛利率、净利润不会出现在发给客户的文件里'
-            : '采购成本价、毛利率、净利润只在系统内显示'}
+        <CardTitle>型号明细</CardTitle>
+        <HelpTip
+          title={
+            editable
+              ? compact
+                ? '预览展开时为紧凑列；货况货期、质保、描述点型号行前的展开按钮查看与编辑'
+                : '每行可按毛利率或按加价定价，也可直接改外币售价；采购成本价、毛利率、净利润不会出现在发给客户的文件里'
+              : '采购成本价、毛利率、净利润只在系统内显示'
+          }
+        />
+        <span style={{ fontSize: 13, color: palette.mute }}>
+          {editable ? draft.items.length : q.items.length} 个型号
         </span>
         {editable && (
           <Button
@@ -2005,7 +2045,7 @@ const QuotationDetail: React.FC = () => {
           scroll={{ x: tableScrollX(viewColumns) }}
         />
       )}
-    </div>
+    </Panel>
   );
 
   const feesCard = (
@@ -2018,10 +2058,8 @@ const QuotationDetail: React.FC = () => {
           marginBottom: 12,
         }}
       >
-        <b style={{ color: palette.ink }}>费用</b>
-        <span style={{ fontSize: 12, color: palette.mute }}>
-          运费、手续费不计入毛利率与净利润
-        </span>
+        <CardTitle>费用</CardTitle>
+        <HelpTip title="运费、手续费不计入毛利率与净利润" />
         {editable && (
           <button
             type="button"
@@ -2065,7 +2103,7 @@ const QuotationDetail: React.FC = () => {
                 style={{ flex: 1 }}
                 value={f.feeName}
                 maxLength={64}
-                placeholder="费用名称，如 Shipping Cost、Bank Charge"
+                placeholder="费用名称，如 Shipping Cost"
                 onChange={(e) =>
                   setFees(
                     fees.map((x) =>
@@ -2150,7 +2188,7 @@ const QuotationDetail: React.FC = () => {
           margin: '10px 0 2px',
         }}
       >
-        <b style={{ fontSize: 16, color: palette.ink }}>合计</b>
+        <CardTitle>合计</CardTitle>
         <b style={{ ...num, fontSize: 24, color: palette.ink }}>
           {formatAmount(t.totalAmount, currency)}
         </b>
@@ -2222,10 +2260,8 @@ const QuotationDetail: React.FC = () => {
               marginBottom: 12,
             }}
           >
-            <b style={{ color: palette.ink, fontSize: 16 }}>PI 与订单</b>
-            <span style={{ fontSize: 12, color: palette.mute }}>
-              由这张报价单开出的 PI；订单取消后报价单回到「已发送」
-            </span>
+            <CardTitle>PI 与订单</CardTitle>
+            <HelpTip title="由这张报价单开出的 PI；订单取消后报价单回到「已发送」" />
           </div>
           <div style={{ display: 'grid', gap: 8 }}>
             {pis.map((p) => (
@@ -2295,27 +2331,24 @@ const QuotationDetail: React.FC = () => {
 
   return (
     <div>
-      <QuotationPageTitle
-        crumbs={[<MenuLink key="list" to={PATHS.list} />, q.quotationNo]}
-        title={
+      <PageHeader
+        title={q.quotationNo}
+        tags={
           <>
-            {q.quotationNo}
             <QuotationStatusPill status={q.status} />
             {q.editingVersionNo ? (
               <Pill tone="orange">正在修改 Rev.{q.editingVersionNo}</Pill>
             ) : q.currentVersionNo > 1 ? (
-              <Pill tone="accent">Rev.{q.currentVersionNo}</Pill>
+              <Pill tone="gray">Rev.{q.currentVersionNo}</Pill>
             ) : null}
             {dirty && (
-              <span
-                style={{ fontSize: 12, fontWeight: 400, color: palette.orange }}
-              >
+              <span style={{ fontSize: 12, color: palette.orange }}>
                 有未保存的修改
               </span>
             )}
           </>
         }
-        description={
+        sub={
           <>
             {q.customerName} ·{' '}
             <SourceNos
@@ -2325,10 +2358,11 @@ const QuotationDetail: React.FC = () => {
                 href: `/inquiry/customer-inquiries/${x.id}`,
               }))}
             />{' '}
-            · {q.ownerName ?? '—'} {formatDateTime(q.createTime).slice(0, 16)}{' '}
+            · {q.ownerName ?? '—'} · {formatDateTime(q.createTime).slice(0, 16)}{' '}
             创建
             {q.copiedFromNo && (
-              <span style={{ marginLeft: 8 }}>
+              <>
+                {' '}
                 · 复制自{' '}
                 <button
                   type="button"
@@ -2339,11 +2373,11 @@ const QuotationDetail: React.FC = () => {
                 >
                   {q.copiedFromNo}
                 </button>
-              </span>
+              </>
             )}
           </>
         }
-        actions={actions}
+        extra={actions}
       />
 
       {compact ? (

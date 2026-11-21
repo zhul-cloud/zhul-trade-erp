@@ -1044,7 +1044,7 @@ const BatchResult: React.FC<{
           ? `，跳过 ${result.skipped.length} 个询盘`
           : ''}
         <span style={{ fontWeight: 400, fontSize: 12, color: palette.sub }}>
-          都是草稿，点击进入编辑后再发送
+          都是草稿，编辑后再发送
         </span>
       </div>
       <div

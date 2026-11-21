@@ -76,10 +76,12 @@ export const HelpTip: React.FC<{
  */
 export const PageHeader: React.FC<{
   title?: React.ReactNode;
+  /** 页面口径或规则说明，放在标题旁的帮助图标里（页头不写说明文字） */
+  help?: React.ReactNode;
   tags?: React.ReactNode;
   sub?: React.ReactNode;
   extra?: React.ReactNode;
-}> = ({ title, tags, sub, extra }) => {
+}> = ({ title, help, tags, sub, extra }) => {
   const { palette } = useAppTheme();
   const menu = useMenu();
   return (
@@ -115,6 +117,7 @@ export const PageHeader: React.FC<{
           >
             {title ?? menu?.name}
           </h1>
+          {help && <HelpTip title={help} />}
           {tags}
         </div>
         {sub && (

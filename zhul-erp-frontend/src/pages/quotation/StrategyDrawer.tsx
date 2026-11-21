@@ -677,6 +677,7 @@ const StrategyDrawer: React.FC<{
       footer={
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 12, color: palette.mute }}>
+            {/* lint-ui-ignore filler-maybe: 应用后只改了草稿，提醒还要保存 */}
             应用后写入报价单，仍可逐行微调；保存后生效
           </span>
           <span style={{ marginLeft: 'auto' }} />
