@@ -154,6 +154,28 @@
 
 原表格上方的「已建档 / 待完善」切换条改为搜索条件里的「建档状态」下拉，选项带数量，选了立即查询。
 
+## 销售退货列表
+
+代码位置：`zhul-erp-frontend/src/pages/sales/returns/index.tsx`（`HELP`）。
+
+| 位置 | 帮助文字 | 来源 |
+|---|---|---|
+| 页面标题 | 售后单选「仅退货」或「退货退款」后生成；确认后生成退货入库单 | 原空状态提示与页面注释（spec sales/after-sales） |
+| 关键词 | 可搜：退货单号、快递单号、订单编号、售后单号、型号 | `search-scope.md` 销售退货行；输入框提示缩为三项 |
+
+原「待确认 / 待入库」切换条并入状态下拉（带数量），默认待确认，重置回到待确认。
+
+## 售后管理列表
+
+代码位置：`zhul-erp-frontend/src/pages/sales/after-sales/index.tsx`（`HELP`），口径取自 `AfterSalesService.counts()`。
+
+| 位置 | 帮助文字 | 来源 |
+|---|---|---|
+| 页面标题 | 客户收货后的问题：跟进进度、退货、退款和费用都记在售后单上 | 原页头说明 |
+| 汇总行「本月结案」 | 这个月已结案的售后单数 | 原卡片副文字；`counts().closedThisMonth` 按结案时间 |
+
+统计卡片：「处理中」「待客户确认」并入状态下拉；「需要更新客户」转快捷筛选（`overdue`，已过截止时间）；另加快捷筛选「已逾期或快到期」（`dueSoon`，已逾期或 1 小时内到期，数量为 overdue + dueSoon，与工作台带来的口径一致）；「本月结案」列表接口没有结案时间筛选，按指标类放汇总行。
+
 ## 登记到账弹窗
 
 代码位置：`zhul-erp-frontend/src/pages/sales/pi/dialogs.tsx`（`ConfirmReceiptModal`）、`receiptDialogs.tsx`（`PaymentMethodSelect`、`FxEstimateHint`）。

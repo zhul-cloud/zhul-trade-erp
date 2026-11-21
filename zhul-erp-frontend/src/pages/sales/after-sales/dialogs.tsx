@@ -1307,7 +1307,7 @@ export const ReplacementModal: React.FC<{
           value={remark}
           maxLength={300}
           onChange={(e) => setRemark(e.target.value)}
-          placeholder="说明（选填），如 换新 1 台伺服电机，随货补寄编码器线缆"
+          placeholder="选填，如 换新 1 台伺服电机"
           aria-label="补发说明"
         />
       </Space>

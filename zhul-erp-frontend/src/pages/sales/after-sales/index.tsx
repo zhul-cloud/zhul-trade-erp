@@ -1,29 +1,23 @@
-import {
-  AlertOutlined,
-  CheckCircleOutlined,
-  MessageOutlined,
-  PlusOutlined,
-  SyncOutlined,
-} from '@ant-design/icons';
 import { history, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import {
-  App,
-  Button,
-  Checkbox,
-  Input,
-  Segmented,
-  Select,
-  Table,
-  Tag,
-} from 'antd';
+import { App, Button, Form, Input, Select, Table } from 'antd';
 import dayjs from 'dayjs';
+import { Eye, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  QuickFilters,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { IconButton } from '@/components/Shell';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import { searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -44,6 +38,25 @@ import {
 } from './service';
 import { DUE_TONE, dueLeftText } from './sla';
 
+type Filters = {
+  keyword?: string;
+  status?: number;
+  customerId?: number;
+  levelCode?: string;
+  reasonCode?: string;
+  ownerId?: number;
+};
+
+/** 快捷筛选：已逾期（需要更新客户）、已逾期或快到期（工作台带过来的口径） */
+const QUICK_OVERDUE = 'overdue';
+const QUICK_SOON = 'soon';
+
+/** 帮助文字：help-texts.md「售后管理列表」，口径取自 AfterSalesService.counts() */
+export const HELP = {
+  page: '客户收货后的问题：跟进进度、退货、退款和费用都记在售后单上',
+  closedThisMonth: '这个月已结案的售后单数',
+} as const;
+
 /** 销售管理 → 售后管理（spec sales/after-sales） */
 const AfterSalesPage: React.FC = () => {
   const { message } = App.useApp();
@@ -52,27 +65,25 @@ const AfterSalesPage: React.FC = () => {
   const reasons = useDictTexts(DICT_REASON);
   const owners = useOwnerOptions();
   const [search] = useSearchParams();
+  const [form] = Form.useForm<Filters>();
   /** 工作台带过来：overdue=1 只看逾期，overdue=soon 已逾期或快到期 */
   const [due, setDue] = useState<'overdue' | 'soon' | undefined>(() => {
     const v = search.get('overdue');
     return v === '1' ? 'overdue' : v === 'soon' ? 'soon' : undefined;
   });
-  const [status, setStatus] = useState<number | 'all'>(() =>
-    search.get('overdue') ? 'all' : AS_STATUS.OPEN,
-  );
-  const [keyword, setKeyword] = useState('');
-  const [query, setQuery] = useState('');
-  const [level, setLevel] = useState<string>();
-  const [reason, setReason] = useState<string>();
-  const [customerId, setCustomerId] = useState<number>();
+  // 默认看处理中；从工作台带逾期条件跳来时看全部状态。
+  // 工作台「售后要更新客户」带上本人，列表与待办数字同口径（audit UI-081）
+  const [defaults] = useState<Filters>(() => {
+    const owner = Number(search.get('ownerId'));
+    return {
+      status: search.get('overdue') ? undefined : AS_STATUS.OPEN,
+      ownerId: Number.isInteger(owner) && owner > 0 ? owner : undefined,
+    };
+  });
+  const [filters, setFilters] = useState<Filters>(defaults);
   const [customerOptions, setCustomerOptions] = useState<
     { value: number; label: string }[]
   >([]);
-  /** 工作台「售后要更新客户」带上本人，列表与待办数字同口径（audit UI-081） */
-  const [ownerId, setOwnerId] = useState<number | undefined>(() => {
-    const v = Number(search.get('ownerId'));
-    return Number.isInteger(v) && v > 0 ? v : undefined;
-  });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<AfterSales[]>([]);
@@ -94,12 +105,12 @@ const AfterSalesPage: React.FC = () => {
         afterSalesApi.page({
           page,
           pageSize,
-          status: status === 'all' ? undefined : status,
-          keyword: query || undefined,
-          customerId,
-          levelCode: level,
-          reasonCode: reason,
-          ownerId,
+          status: filters.status,
+          keyword: filters.keyword?.trim() || undefined,
+          customerId: filters.customerId,
+          levelCode: filters.levelCode,
+          reasonCode: filters.reasonCode,
+          ownerId: filters.ownerId,
           overdue: due === 'overdue' || undefined,
           dueSoon: due === 'soon' || undefined,
         }),
@@ -113,25 +124,18 @@ const AfterSalesPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [
-    page,
-    pageSize,
-    status,
-    query,
-    customerId,
-    level,
-    reason,
-    ownerId,
-    due,
-    message,
-  ]);
+  }, [page, pageSize, filters, due, message]);
+
+  const searchNow = () => {
+    setFilters(form.getFieldsValue());
+    setPage(1);
+  };
 
   useEffect(() => {
     load();
   }, [load]);
 
   // 从其他页面返回时重新取数（audit UI-055）
-
   useOnReactivate(load);
 
   const searchCust = async (kw: string) => {
@@ -277,247 +281,189 @@ const AfterSalesPage: React.FC = () => {
       ),
     },
     ...auditColumns<AfterSales>(),
+    {
+      title: '操作',
+      key: 'op',
+      width: 64,
+      fixed: 'right',
+      render: (_, r) => (
+        <IconButton
+          label="查看"
+          size={32}
+          icon={<Eye size={18} />}
+          onClick={() => history.push(`/sales/after-sales/${r.id}`)}
+        />
+      ),
+    },
   ];
 
-  const stat = (
-    icon: React.ReactNode,
+  /** 搜索条件里的下拉：标签在上，读屏名称与标签相同 */
+  const select = (
+    name: keyof Filters,
     label: string,
-    value: number | undefined,
-    hint: string,
-    color: string,
-    soft: string,
-    hintColor?: string,
+    options: { value: string | number; label: string }[],
+    extra?: React.ComponentProps<typeof Select>,
   ) => (
-    <Card style={{ padding: '18px 20px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 10,
-            background: soft,
-            color,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {icon}
-        </span>
-        <span style={{ color: palette.sub }}>{label}</span>
-      </div>
-      <div
-        style={{
-          fontSize: 24,
-          fontWeight: 700,
-          color: palette.ink,
-          margin: '8px 0 2px',
-        }}
-      >
-        {value ?? '—'}
-      </div>
-      <div style={{ fontSize: 12, color: hintColor ?? palette.mute }}>
-        {hint}
-      </div>
-    </Card>
+    <FilterField label={label}>
+      <Form.Item name={name} noStyle>
+        <Select
+          allowClear
+          placeholder="全部"
+          aria-label={label}
+          options={options}
+          {...extra}
+        />
+      </Form.Item>
+    </FilterField>
   );
+  /** 下拉选项后面带数量（stat-cards.md：状态并入下拉） */
+  const withCount = (label: string, n?: number) =>
+    n ? `${label} · ${n}` : label;
 
   return (
     <div>
-      <PageTitle
-        description="客户收货后的问题：跟进进度、退货、退款和费用都记在售后单上。"
-        actions={
+      <PageHeader
+        help={HELP.page}
+        extra={
           <Button
             type="primary"
-            icon={<PlusOutlined />}
+            icon={<Plus size={18} />}
             onClick={() => setCreating(true)}
           >
             新建售后单
           </Button>
         }
       />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: 16,
-          marginBottom: 16,
-        }}
-      >
-        {stat(
-          <SyncOutlined />,
-          '处理中',
-          counts?.open,
-          '还在跟进的售后单',
-          palette.link,
-          palette.primarySoft,
-        )}
-        {stat(
-          <MessageOutlined />,
-          '待客户确认',
-          counts?.waiting,
-          '方案已给，等客户回复',
-          palette.info,
-          palette.infoSoft,
-        )}
-        <button
-          type="button"
-          aria-pressed={due === 'overdue'}
-          title="只看逾期"
-          style={{
-            all: 'unset',
-            display: 'block',
-            cursor: 'pointer',
-            borderRadius: 16,
-            outline: due === 'overdue' ? `1px solid ${palette.red}` : undefined,
-          }}
-          onClick={() => {
-            setDue(due === 'overdue' ? undefined : 'overdue');
-            setStatus('all');
+      {counts && (
+        <SummaryBar
+          items={[
+            {
+              key: 'closed',
+              label: '本月结案',
+              help: HELP.closedThisMonth,
+              value: counts.closedThisMonth,
+            },
+          ]}
+        />
+      )}
+      <Form form={form} initialValues={defaults} component={false}>
+        <FilterCard
+          onSearch={searchNow}
+          onReset={() => {
+            // 重置回默认视图：处理中，不带逾期条件
+            const d = { status: AS_STATUS.OPEN };
+            form.resetFields();
+            form.setFieldsValue({ ...d, ownerId: undefined });
+            setFilters(d);
+            setDue(undefined);
             setPage(1);
           }}
+          // 列宽 110：关键词、状态、客户排一行
+          minColumn={110}
+          moreCount={
+            [filters.levelCode, filters.reasonCode, filters.ownerId].filter(
+              (v) => v != null,
+            ).length
+          }
+          more={
+            <>
+              {select(
+                'levelCode',
+                '等级',
+                levels.map((l) => ({ value: l.code, label: l.name })),
+              )}
+              {select(
+                'reasonCode',
+                '原因',
+                reasons.map((r) => ({ value: r.code, label: r.name })),
+              )}
+              {select('ownerId', '负责人', owners, {
+                showSearch: { optionFilterProp: 'label' },
+              })}
+            </>
+          }
+          quick={
+            <QuickFilters
+              options={[
+                {
+                  value: QUICK_OVERDUE,
+                  label: withCount('需要更新客户', counts?.overdue),
+                },
+                {
+                  value: QUICK_SOON,
+                  label: withCount(
+                    '已逾期或快到期',
+                    counts && counts.overdue + counts.dueSoon,
+                  ),
+                },
+              ]}
+              value={due ? [due] : []}
+              onChange={(v) => {
+                // 两个条件互斥，取刚点的那个；逾期单可能在处理中或待客户确认，状态放开看全部
+                const next = v.find((x) => x !== due) as typeof due;
+                setDue(next);
+                if (next) {
+                  form.setFieldValue('status', undefined);
+                  setFilters({ ...form.getFieldsValue(), status: undefined });
+                }
+                setPage(1);
+              }}
+            />
+          }
         >
-          {stat(
-            <AlertOutlined />,
-            '需要更新客户',
-            counts?.overdue,
-            `已过截止时间${counts?.dueSoon ? ` · 另有 ${counts.dueSoon} 张快到期` : ''}`,
-            palette.red,
-            palette.redSoft,
-            (counts?.overdue ?? 0) > 0 ? palette.red : undefined,
-          )}
-        </button>
-        {stat(
-          <CheckCircleOutlined />,
-          '本月结案',
-          counts?.closedThisMonth,
-          '这个月已结案的售后单',
-          palette.green,
-          palette.greenSoft,
-        )}
-      </div>
-      <Card style={{ padding: 16 }}>
-        <div
-          style={{
-            display: 'flex',
-            gap: 12,
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            marginBottom: 12,
-          }}
-        >
-          <Segmented<number | 'all'>
-            value={status}
-            onChange={(v) => {
-              setStatus(v);
-              setPage(1);
-            }}
-            options={[
-              { value: AS_STATUS.OPEN, label: `处理中 ${counts?.open ?? ''}` },
+          <FilterField label="关键词" span={2}>
+            <Form.Item name="keyword" noStyle>
+              <Input
+                allowClear
+                prefix={<Search size={16} />}
+                placeholder="售后单号、订单编号、型号"
+                aria-label="关键词"
+                onPressEnter={searchNow}
+              />
+            </Form.Item>
+          </FilterField>
+          {select(
+            'status',
+            '状态',
+            [
+              {
+                value: AS_STATUS.OPEN,
+                label: withCount('处理中', counts?.open),
+              },
               {
                 value: AS_STATUS.WAITING,
-                label: `待客户确认 ${counts?.waiting ?? ''}`,
+                label: withCount('待客户确认', counts?.waiting),
               },
               { value: AS_STATUS.CLOSED, label: '已结案' },
               { value: AS_STATUS.CANCELLED, label: '已撤销' },
-              { value: 'all', label: '全部' },
-            ]}
-          />
-          <Input.Search
-            allowClear
-            placeholder="售后单号、订单号、型号"
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            onSearch={(v) => {
-              setQuery(v.trim());
-              setPage(1);
-            }}
-            style={{ width: 240 }}
-            aria-label="关键词"
-          />
-          <Select<number>
-            allowClear
-            showSearch={{ filterOption: false, onSearch: searchCust }}
-            placeholder="全部客户"
-            value={customerId}
-            options={customerOptions}
-            onFocus={() => customerOptions.length === 0 && searchCust('')}
-            onChange={(v) => {
-              setCustomerId(v);
-              setPage(1);
-            }}
-            style={{ width: 200 }}
-            aria-label="客户"
-          />
-          <Select
-            allowClear
-            placeholder="全部等级"
-            value={level}
-            onChange={(v) => {
-              setLevel(v);
-              setPage(1);
-            }}
-            options={levels.map((l) => ({ value: l.code, label: l.name }))}
-            style={{ width: 170 }}
-            aria-label="等级"
-          />
-          <Select
-            allowClear
-            placeholder="全部原因"
-            value={reason}
-            onChange={(v) => {
-              setReason(v);
-              setPage(1);
-            }}
-            options={reasons.map((r) => ({ value: r.code, label: r.name }))}
-            style={{ width: 150 }}
-            aria-label="原因"
-          />
-          <Select
-            allowClear
-            showSearch={{ optionFilterProp: 'label' }}
-            placeholder="全部负责人"
-            value={ownerId}
-            onChange={(v) => {
-              setOwnerId(v);
-              setPage(1);
-            }}
-            options={owners}
-            style={{ width: 150 }}
-            aria-label="负责人"
-          />
-          <Checkbox
-            checked={due === 'overdue'}
-            onChange={(e) => {
-              setDue(e.target.checked ? 'overdue' : undefined);
-              setPage(1);
-            }}
-          >
-            只看逾期
-          </Checkbox>
-          {due === 'soon' && (
-            <Tag
-              closable
-              color="orange"
-              onClose={() => {
-                setDue(undefined);
-                setPage(1);
-              }}
-            >
-              已逾期或 1 小时内到期
-            </Tag>
+            ],
+            // 切换状态立即查询（doc-list-unify 状态下拉的写法）
+            { onChange: () => searchNow() },
           )}
-        </div>
+          <FilterField label="客户">
+            <Form.Item name="customerId" noStyle>
+              <Select<number>
+                allowClear
+                showSearch={{ filterOption: false, onSearch: searchCust }}
+                placeholder="全部"
+                options={customerOptions}
+                onFocus={() => customerOptions.length === 0 && searchCust('')}
+                aria-label="客户"
+              />
+            </Form.Item>
+          </FilterField>
+        </FilterCard>
+      </Form>
+      <MainCard left={`共 ${total} 条`}>
         <Table<AfterSales>
           rowKey="id"
-          size="middle"
           loading={loading}
           columns={columns}
           dataSource={rows}
           scroll={{ x: tableScrollX(columns) }}
           locale={{
             emptyText:
-              status === AS_STATUS.OPEN
+              filters.status === AS_STATUS.OPEN
                 ? '没有处理中的售后单；客户反馈问题时点右上角「新建售后单」，或在订单详情点「售后」'
                 : '没有符合条件的售后单',
           }}
@@ -526,14 +472,14 @@ const AfterSalesPage: React.FC = () => {
             pageSize,
             total,
             showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
+            showTotal: (t, [from, to]) => `${from}-${to} 共 ${t} 条`,
             onChange: (p, s) => {
               setPage(p);
               setPageSize(s);
             },
           }}
         />
-      </Card>
+      </MainCard>
       <CreateAfterSalesModal
         open={creating}
         onClose={() => setCreating(false)}

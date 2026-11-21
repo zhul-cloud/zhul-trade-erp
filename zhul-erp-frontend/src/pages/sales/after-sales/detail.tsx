@@ -4,22 +4,22 @@ import {
   ClockCircleOutlined,
   DollarOutlined,
   EditOutlined,
-  FileTextOutlined,
   HistoryOutlined,
   MessageOutlined,
   PauseCircleOutlined,
   RollbackOutlined,
   SendOutlined,
   ShoppingCartOutlined,
-  StopOutlined,
   SwapOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 import { history, useAccess, useParams } from '@umijs/max';
-import { App, Button, Checkbox, Input, Skeleton } from 'antd';
+import { App, Button, Checkbox, Dropdown, Input, Skeleton } from 'antd';
 import dayjs from 'dayjs';
+import { CircleCheck, CircleX, Ellipsis, Receipt } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { RelatedDocsCard } from '@/components/DocFields/DocPage';
+import { PageHeader } from '@/components/ListLayout';
 import {
   useOnReactivate,
   usePageTitle,
@@ -35,8 +35,7 @@ import {
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
-import { Card, PATHS, Pill, SalesPageTitle } from '../components';
+import { Card, PATHS, Pill } from '../components';
 import { CreateReturnModal } from '../returns/dialogs';
 import { readBizError } from '../service';
 import {
@@ -834,11 +833,10 @@ const AfterSalesDetail: React.FC = () => {
 
   return (
     <div>
-      <SalesPageTitle
-        crumbs={[<MenuLink key="list" to="/sales/after-sales" />, a.asNo]}
-        title={
+      <PageHeader
+        title={a.asNo}
+        tags={
           <>
-            {a.asNo}
             <Pill tone={LEVEL_TONE[a.levelCode] ?? 'gray'}>
               {levelShort(a.levelCode, a.levelName)}
             </Pill>
@@ -847,7 +845,7 @@ const AfterSalesDetail: React.FC = () => {
             </Pill>
           </>
         }
-        description={
+        sub={
           <>
             {a.customerName}
             {a.soId ? (
@@ -867,12 +865,15 @@ const AfterSalesDetail: React.FC = () => {
             {` · 负责人 ${a.ownerName ?? '—'} · ${formatDateTime(a.createTime).slice(0, 16)} 创建`}
           </>
         }
-        actions={
+        // 页头操作（照销售订单详情）：结案为主按钮，登记费用为文字按钮，撤销收进「更多」
+        extra={
           active && (
             <>
               {a.soId && access['finance:expense:edit'] && (
                 <Button
-                  icon={<FileTextOutlined />}
+                  type="text"
+                  icon={<Receipt size={16} />}
+                  style={{ color: palette.link }}
                   onClick={() => setDialog('expense')}
                 >
                   登记费用
@@ -880,18 +881,33 @@ const AfterSalesDetail: React.FC = () => {
               )}
               <Button
                 type="primary"
-                icon={<CheckCircleOutlined />}
+                icon={<CircleCheck size={18} />}
                 onClick={() => setDialog('close')}
               >
                 结案
               </Button>
-              <Button
-                danger
-                icon={<StopOutlined />}
-                onClick={() => setDialog('cancel')}
+              <Dropdown
+                trigger={['click']}
+                placement="bottomRight"
+                menu={{
+                  items: [
+                    {
+                      key: 'cancel',
+                      icon: <CircleX size={16} />,
+                      label: '撤销',
+                      danger: true,
+                    },
+                  ],
+                  onClick: () => setDialog('cancel'),
+                }}
               >
-                撤销
-              </Button>
+                <Button
+                  type="text"
+                  shape="circle"
+                  icon={<Ellipsis size={18} />}
+                  aria-label="更多操作"
+                />
+              </Dropdown>
             </>
           )
         }

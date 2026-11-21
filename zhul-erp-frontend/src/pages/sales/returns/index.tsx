@@ -1,13 +1,21 @@
 import { history, Link } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Input, Segmented, Select, Table } from 'antd';
+import { App, Form, Input, Select, Table } from 'antd';
+import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { IconButton } from '@/components/Shell';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
-import { Card, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import {
   HANDLING,
@@ -22,24 +30,36 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import { PATHS, SalesPageTitle } from '../components';
+import { PATHS } from '../components';
 import { readBizError } from '../service';
 
 /** 销售管理 → 销售退货（spec sales/after-sales）：售后单生成的销售退货单，确认后生成退货入库单 */
+type Filters = {
+  keyword?: string;
+  status?: number;
+  customerId?: number;
+  handling?: number;
+};
+
+/** 帮助文字：help-texts.md「销售退货列表」，关键词范围以 search-scope.md 为准 */
+export const HELP = {
+  page: '售后单选「仅退货」或「退货退款」后生成；确认后生成退货入库单',
+  keyword: '可搜：退货单号、快递单号、订单编号、售后单号、型号',
+} as const;
+
 const SalesReturnsPage: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
   const url = useUrlFilter();
-  const [status, setStatus] = useState<number | 'all'>(
-    url.keyword ? 'all' : TH_STATUS.CONFIRMING,
+  const [form] = Form.useForm<Filters>();
+  // 默认看待确认；从别的单据带单号跳来时看全部
+  const [defaults] = useState<Filters>(() =>
+    url.keyword ? { keyword: url.keyword } : { status: TH_STATUS.CONFIRMING },
   );
-  const [handling, setHandling] = useState<number>();
-  const [customerId, setCustomerId] = useState<number>();
+  const [filters, setFilters] = useState<Filters>(defaults);
   const [customerOptions, setCustomerOptions] = useState<
     { value: number; label: string }[]
   >([]);
-  const [keyword, setKeyword] = useState(url.keyword);
-  const [query, setQuery] = useState(url.keyword);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<SalesReturn[]>([]);
@@ -50,6 +70,11 @@ const SalesReturnsPage: React.FC = () => {
   }>();
   const [loading, setLoading] = useState(true);
 
+  const searchNow = () => {
+    setFilters(form.getFieldsValue());
+    setPage(1);
+  };
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -57,10 +82,10 @@ const SalesReturnsPage: React.FC = () => {
         salesReturnApi.page({
           page,
           pageSize,
-          status: status === 'all' ? undefined : status,
-          handling,
-          customerId,
-          keyword: query || undefined,
+          status: filters.status,
+          handling: filters.handling,
+          customerId: filters.customerId,
+          keyword: filters.keyword?.trim() || undefined,
         }),
         salesReturnApi.counts(),
       ]);
@@ -72,7 +97,7 @@ const SalesReturnsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, status, handling, customerId, query, message]);
+  }, [page, pageSize, filters, message]);
   useEffect(() => {
     load();
   }, [load]);
@@ -214,97 +239,111 @@ const SalesReturnsPage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 80,
+      width: 64,
       fixed: 'right',
-      render: (_, r) => <Link to={PATHS.salesReturn(r.id)}>查看</Link>,
+      render: (_, r) => (
+        <IconButton
+          label="查看"
+          size={32}
+          icon={<Eye size={18} />}
+          onClick={() => history.push(PATHS.salesReturn(r.id))}
+        />
+      ),
     },
   ];
 
+  /** 下拉选项后面带数量（stat-cards.md：状态并入下拉） */
+  const withCount = (label: string, n?: number) =>
+    n ? `${label} · ${n}` : label;
+
   return (
     <div>
-      <SalesPageTitle />
-      <Card style={{ padding: 16 }}>
-        <Segmented<number | 'all'>
-          value={status}
-          onChange={(v) => {
-            setStatus(v);
+      <PageHeader help={HELP.page} />
+      <Form form={form} initialValues={defaults} component={false}>
+        <FilterCard
+          onSearch={searchNow}
+          onReset={() => {
+            // 重置回默认视图：待确认
+            const d = { status: TH_STATUS.CONFIRMING };
+            form.resetFields();
+            form.setFieldsValue({ ...d, keyword: undefined });
+            setFilters(d);
             setPage(1);
           }}
-          options={[
-            {
-              value: TH_STATUS.CONFIRMING,
-              label: `待确认 ${counts?.confirming ?? ''}`,
-            },
-            {
-              value: TH_STATUS.PENDING,
-              label: `待入库 ${counts?.pending ?? ''}`,
-            },
-            { value: TH_STATUS.RECEIVED, label: '已入库' },
-            { value: TH_STATUS.VOID, label: '已作废' },
-            { value: 'all', label: '全部' },
-          ]}
-          style={{ marginBottom: 12 }}
-        />
-        <div
-          style={{
-            display: 'flex',
-            gap: 12,
-            flexWrap: 'wrap',
-            marginBottom: 12,
-          }}
+          // 列宽 110：关键词、状态、客户、处理方式排一行
+          minColumn={110}
         >
-          <Select<number>
-            allowClear
-            showSearch={{ filterOption: false, onSearch: searchCust }}
-            placeholder="客户"
-            value={customerId}
-            options={customerOptions}
-            onFocus={() => customerOptions.length === 0 && searchCust('')}
-            onChange={(v) => {
-              setCustomerId(v);
-              setPage(1);
-            }}
-            style={{ width: 200 }}
-            aria-label="客户"
-          />
-          <Select<number>
-            allowClear
-            placeholder="处理方式"
-            value={handling}
-            options={[
-              { value: HANDLING.RETURN, label: '仅退货' },
-              { value: HANDLING.REFUND, label: '退货退款' },
-            ]}
-            onChange={(v) => {
-              setHandling(v);
-              setPage(1);
-            }}
-            style={{ width: 160 }}
-            aria-label="处理方式"
-          />
-          <Input.Search
-            allowClear
-            placeholder="单号、售后单号、订单号、型号、快递单号"
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            onSearch={(v) => {
-              setQuery(v.trim());
-              setPage(1);
-            }}
-            style={{ width: 320 }}
-            aria-label="关键词"
-          />
-        </div>
+          <FilterField label="关键词" span={2} help={HELP.keyword}>
+            <Form.Item name="keyword" noStyle>
+              <Input
+                allowClear
+                prefix={<Search size={16} />}
+                placeholder="退货单号、订单编号、型号"
+                aria-label="关键词"
+                onPressEnter={searchNow}
+              />
+            </Form.Item>
+          </FilterField>
+          <FilterField label="状态">
+            <Form.Item name="status" noStyle>
+              <Select<number>
+                allowClear
+                placeholder="全部"
+                aria-label="状态"
+                options={[
+                  {
+                    value: TH_STATUS.CONFIRMING,
+                    label: withCount('待确认', counts?.confirming),
+                  },
+                  {
+                    value: TH_STATUS.PENDING,
+                    label: withCount('待入库', counts?.pending),
+                  },
+                  { value: TH_STATUS.RECEIVED, label: '已入库' },
+                  { value: TH_STATUS.VOID, label: '已作废' },
+                ]}
+                // 切换状态立即查询（doc-list-unify 状态下拉的写法）
+                onChange={() => searchNow()}
+              />
+            </Form.Item>
+          </FilterField>
+          <FilterField label="客户">
+            <Form.Item name="customerId" noStyle>
+              <Select<number>
+                allowClear
+                showSearch={{ filterOption: false, onSearch: searchCust }}
+                placeholder="全部"
+                options={customerOptions}
+                onFocus={() => customerOptions.length === 0 && searchCust('')}
+                aria-label="客户"
+              />
+            </Form.Item>
+          </FilterField>
+          <FilterField label="处理方式">
+            <Form.Item name="handling" noStyle>
+              <Select<number>
+                allowClear
+                placeholder="全部"
+                options={[
+                  { value: HANDLING.RETURN, label: '仅退货' },
+                  { value: HANDLING.REFUND, label: '退货退款' },
+                ]}
+                aria-label="处理方式"
+              />
+            </Form.Item>
+          </FilterField>
+        </FilterCard>
+      </Form>
+      <MainCard left={`共 ${total} 条`}>
         <Table<SalesReturn>
           rowKey="id"
-          size="middle"
           loading={loading}
           columns={columns}
           dataSource={rows}
           scroll={{ x: tableScrollX(columns) }}
           locale={{
             emptyText:
-              status === TH_STATUS.CONFIRMING
+              filters.status === TH_STATUS.CONFIRMING
                 ? '没有待确认的退货；在售后单选择「仅退货」或「退货退款」后会出现在这里'
                 : '没有符合条件的销售退货单',
           }}
@@ -313,14 +352,14 @@ const SalesReturnsPage: React.FC = () => {
             pageSize,
             total,
             showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
+            showTotal: (t, [from, to]) => `${from}-${to} 共 ${t} 条`,
             onChange: (p, s) => {
               setPage(p);
               setPageSize(s);
             },
           }}
         />
-      </Card>
+      </MainCard>
     </div>
   );
 };

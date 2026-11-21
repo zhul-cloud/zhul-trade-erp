@@ -1,6 +1,7 @@
 import { Link, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table } from 'antd';
+import { App, Button, Dropdown, Skeleton, Table } from 'antd';
+import { CircleX, Ellipsis, Pencil } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
   docBrandColumns,
@@ -13,6 +14,7 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -29,8 +31,7 @@ import {
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
-import { PATHS, SalesPageTitle } from '../components';
+import { PATHS } from '../components';
 import { readBizError } from '../service';
 import { ConfirmReturnModal, EditReturnModal, lineRefund } from './dialogs';
 
@@ -233,23 +234,17 @@ const SalesReturnDetail: React.FC = () => {
 
   return (
     <div>
-      <SalesPageTitle
-        crumbs={[
-          <MenuLink key="list" to={PATHS.salesReturnList} />,
-          r.returnNo,
-        ]}
-        title={
+      <PageHeader
+        title={r.returnNo}
+        tags={
           <>
-            {r.returnNo}
             <Pill tone={TH_STATUS_TONE[r.status] ?? 'gray'}>
               {r.statusName}
             </Pill>
-            <span style={{ fontSize: 13, fontWeight: 400 }}>
-              {r.handlingName}
-            </span>
+            <Pill tone="gray">{r.handlingName}</Pill>
           </>
         }
-        description={
+        sub={
           <>
             {r.customerName} ·{' '}
             <SourceNos
@@ -260,21 +255,47 @@ const SalesReturnDetail: React.FC = () => {
             创建
           </>
         }
-        actions={
+        // 页头操作（照销售订单详情）：一个主按钮，修改、补填快递为文字按钮，作废收进「更多」
+        extra={
           <>
             {(r.status === TH_STATUS.CONFIRMING || receiptPending) && (
-              <Button onClick={() => setDialog('void')}>作废</Button>
-            )}
-            {r.status === TH_STATUS.CONFIRMING && (
-              <Button onClick={() => setDialog('edit')}>修改</Button>
-            )}
-            {receiptPending && (
-              <Button onClick={() => setDialog('edit')}>补填快递</Button>
+              <Button
+                type="text"
+                icon={<Pencil size={16} />}
+                style={{ color: palette.link }}
+                onClick={() => setDialog('edit')}
+              >
+                {receiptPending ? '补填快递' : '修改'}
+              </Button>
             )}
             {r.status === TH_STATUS.CONFIRMING && (
               <Button type="primary" onClick={() => setDialog('confirm')}>
                 确认退货
               </Button>
+            )}
+            {(r.status === TH_STATUS.CONFIRMING || receiptPending) && (
+              <Dropdown
+                trigger={['click']}
+                placement="bottomRight"
+                menu={{
+                  items: [
+                    {
+                      key: 'void',
+                      icon: <CircleX size={16} />,
+                      label: '作废',
+                      danger: true,
+                    },
+                  ],
+                  onClick: () => setDialog('void'),
+                }}
+              >
+                <Button
+                  type="text"
+                  shape="circle"
+                  icon={<Ellipsis size={18} />}
+                  aria-label="更多操作"
+                />
+              </Dropdown>
             )}
           </>
         }

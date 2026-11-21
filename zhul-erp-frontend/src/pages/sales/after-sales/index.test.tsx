@@ -50,8 +50,11 @@ it('按客户与原因筛选', async () => {
   render(React.createElement(App, null, React.createElement(AfterSalesPage)));
   await waitFor(() => expect(afterSalesApi.page).toHaveBeenCalled());
 
-  fireEvent.mouseDown(screen.getByLabelText('原因'));
+  // ui-redesign 7.1 起：原因在「更多筛选」里，选好后点「查询」生效
+  fireEvent.click(screen.getByRole('button', { name: /更多筛选/ }));
+  fireEvent.mouseDown(await screen.findByLabelText('原因'));
   fireEvent.click(await screen.findByText('产品质量'));
+  fireEvent.click(screen.getByRole('button', { name: /查\s*询/ }));
   await waitFor(() =>
     expect(lastQuery()).toMatchObject({ reasonCode: 'QUALITY', page: 1 }),
   );
@@ -60,6 +63,7 @@ it('按客户与原因筛选', async () => {
   fireEvent.focus(customer);
   fireEvent.mouseDown(customer);
   fireEvent.click(await screen.findByText('Siam Automation'));
+  fireEvent.click(screen.getByRole('button', { name: /查\s*询/ }));
   await waitFor(() =>
     expect(lastQuery()).toMatchObject({ customerId: 5, reasonCode: 'QUALITY' }),
   );
