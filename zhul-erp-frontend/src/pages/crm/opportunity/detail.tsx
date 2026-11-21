@@ -5,14 +5,15 @@ import {
   DownloadOutlined,
   DownOutlined,
   EditOutlined,
-  FileAddOutlined,
   RollbackOutlined,
   StopOutlined,
   TrophyOutlined,
 } from '@ant-design/icons';
 import { history, useAccess, useParams } from '@umijs/max';
 import { Alert, App, Button, Dropdown, Skeleton } from 'antd';
+import { Ellipsis, FilePlus, Pencil, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle } from '@/components/PageTabs/hooks';
 import { StatusPill } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -26,7 +27,6 @@ import {
   fileMeta,
   iconButton,
   MigratedPill,
-  PageTitle,
   Pill,
   PreviewButton,
   StagePill,
@@ -108,7 +108,7 @@ const OpportunityDetailPage: React.FC = () => {
   if (loading && detail === undefined) {
     return (
       <>
-        <PageTitle title="商机详情" current="商机详情" />
+        <PageHeader title="商机详情" />
         <Card>
           <Skeleton active paragraph={{ rows: 8 }} />
         </Card>
@@ -118,7 +118,7 @@ const OpportunityDetailPage: React.FC = () => {
   if (error) {
     return (
       <>
-        <PageTitle title="商机详情" current="商机详情" />
+        <PageHeader title="商机详情" />
         <ErrorHint message={error} onRetry={load} />
       </>
     );
@@ -126,7 +126,7 @@ const OpportunityDetailPage: React.FC = () => {
   if (!detail) {
     return (
       <>
-        <PageTitle title="商机详情" current="商机详情" />
+        <PageHeader title="商机详情" />
         <EmptyHint
           title="商机不存在"
           description="它可能已被删除，或不在你的数据权限范围内。"
@@ -305,19 +305,10 @@ const OpportunityDetailPage: React.FC = () => {
 
   return (
     <div style={{ color: palette.ink }}>
-      <PageTitle
-        title={d.customerName}
-        current={d.opportunityCode}
-        description={
-          <div
-            style={{
-              display: 'flex',
-              gap: 10,
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              marginTop: 4,
-            }}
-          >
+      <PageHeader
+        title={d.opportunityCode}
+        tags={
+          <>
             <StagePill
               code={d.stageCode}
               name={d.stageName}
@@ -330,27 +321,50 @@ const OpportunityDetailPage: React.FC = () => {
             </Pill>
             {d.customerNameMissing && <Pill tone="orange">未填客户名称</Pill>}
             <MigratedPill migrated={d.migrated} />
-            <span style={{ color: palette.mute }}>
-              首次接触 {d.firstContactDate} · 负责人 {d.ownerName || '未分配'} ·{' '}
-              {d.country}
-            </span>
-          </div>
+          </>
         }
-        actions={
+        sub={`${d.customerName} · 首次接触 ${d.firstContactDate} · 负责人 ${d.ownerName || '未分配'}${d.country ? ` · ${d.country}` : ''}`}
+        extra={
           <>
-            {canDelete && (
-              <Button disabled={busy} onClick={askDelete}>
-                删除
-              </Button>
-            )}
             {canEdit && (
-              <Button icon={<EditOutlined />} onClick={() => setEditing(true)}>
+              <Button
+                type="text"
+                icon={<Pencil size={16} />}
+                style={{ color: palette.link }}
+                onClick={() => setEditing(true)}
+              >
                 编辑
               </Button>
             )}
+            {canDelete && (
+              <Dropdown
+                trigger={['click']}
+                placement="bottomRight"
+                disabled={busy}
+                menu={{
+                  items: [
+                    {
+                      key: 'delete',
+                      icon: <Trash2 size={16} />,
+                      label: '删除',
+                      danger: true,
+                    },
+                  ],
+                  onClick: askDelete,
+                }}
+              >
+                <Button
+                  type="text"
+                  shape="circle"
+                  icon={<Ellipsis size={18} />}
+                  aria-label="更多操作"
+                />
+              </Dropdown>
+            )}
             {isActive && (
               <Button
-                icon={<FileAddOutlined />}
+                type="primary"
+                icon={<FilePlus size={16} />}
                 onClick={() => setCreatingInquiry(true)}
               >
                 创建询盘单

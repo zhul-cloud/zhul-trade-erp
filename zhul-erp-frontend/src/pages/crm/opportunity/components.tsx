@@ -3,18 +3,16 @@ import {
   FileExcelOutlined,
   FileImageOutlined,
 } from '@ant-design/icons';
-import { App, Breadcrumb } from 'antd';
+import { App } from 'antd';
 import React from 'react';
 import { Panel } from '@/components/ListLayout';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
-import { MenuLink, useMenu } from '@/utils/menuName';
 import {
   CATEGORY_ACTIVE,
   CATEGORY_INVALID,
   CATEGORY_LOST,
   CATEGORY_WON,
-  LIST_PATH,
 } from './constants';
 import { opportunityApi, readBizError } from './service';
 
@@ -102,65 +100,6 @@ export const StagePill: React.FC<{
     <Pill tone={tone} dot>
       {label}
     </Pill>
-  );
-};
-
-/** 面包屑 + 标题 + 右侧操作；分组、页面名称取「菜单管理」（列表页、统计页不用传标题），详情页传 current */
-export const PageTitle: React.FC<{
-  title?: React.ReactNode;
-  current?: string;
-  description?: React.ReactNode;
-  actions?: React.ReactNode;
-}> = ({ title, current, description, actions }) => {
-  const { palette } = useAppTheme();
-  const page = useMenu();
-  const list = useMenu(LIST_PATH);
-  const items = current
-    ? [
-        { title: list?.group },
-        { title: <MenuLink to={LIST_PATH} /> },
-        { title: current },
-      ]
-    : [{ title: page?.group }, { title: page?.name }];
-  return (
-    <header
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-end',
-        gap: 16,
-        marginBottom: 20,
-        flexWrap: 'wrap',
-      }}
-    >
-      <div style={{ minWidth: 0 }}>
-        <Breadcrumb items={items} style={{ fontSize: 13 }} />
-        <h1
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            flexWrap: 'wrap',
-            fontSize: 28,
-            fontWeight: 700,
-            margin: '8px 0 0',
-            color: palette.ink,
-          }}
-        >
-          {title ?? page?.name}
-        </h1>
-        {description && (
-          <div style={{ margin: '6px 0 0', color: palette.sub, fontSize: 14 }}>
-            {description}
-          </div>
-        )}
-      </div>
-      {actions && (
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          {actions}
-        </div>
-      )}
-    </header>
   );
 };
 
