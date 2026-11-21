@@ -45,6 +45,20 @@ export const ShellStyle: React.FC = () => {
     width: 40px !important; margin: 4px auto !important; padding: 0 !important; display: flex; justify-content: center; align-items: center;
   }
   .ant-pro-sider.ant-layout-sider-collapsed .ant-menu-submenu-selected > .ant-menu-submenu-title { background: ${p.primarySoft} !important; }
+  /* 浮出展开：ProLayout 按展开渲染，占位仍是收起时的宽度，侧栏浮在内容上 */
+  [data-sider-peek='true'] > div:first-child {
+    width: 80px !important; min-width: 80px !important; max-width: 80px !important; flex: 0 0 80px !important;
+  }
+  [data-sider-peek='true'] > .ant-pro-sider { z-index: 120 !important; }
+  .ant-pro-layout [data-sider-peek='true'] > .ant-pro-sider > .ant-layout-sider-children {
+    box-shadow: ${light ? POPUP_SHADOW : 'none'}; border: ${light ? 'none' : `1px solid ${p.elevatedLine}`};
+  }
+  /* 图标栏：菜单图标 20，与展开时一致 */
+  .ant-pro-sider.ant-layout-sider-collapsed .ant-menu-item [class*='-item-icon'],
+  .ant-pro-sider.ant-layout-sider-collapsed .ant-menu-submenu-title [class*='-item-icon'] {
+    width: 20px !important; height: 20px !important; font-size: 20px !important; line-height: 20px !important;
+  }
+  .ant-pro-sider.ant-layout-sider-collapsed .anticon { font-size: 20px !important; }
   /* 收起后悬停弹出的子菜单（挂在 body 下）：弹出层样式，子项照展开时 */
   .ant-menu-submenu-popup { backdrop-filter: none !important; background: transparent !important; }
   .ant-menu-submenu-popup > .ant-menu {

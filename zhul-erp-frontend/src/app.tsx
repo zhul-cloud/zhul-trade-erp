@@ -22,6 +22,7 @@ import {
   AppLogo,
   NotificationBell,
   ShellStyle,
+  SiderPeek,
   SkipLink,
   ThemeSettings,
   TopBar,
@@ -93,6 +94,8 @@ export async function getInitialState(): Promise<{
   appearance?: AppearanceInfo;
   /** 侧边栏是否收起：顶栏左侧的按钮切换（audit UI-041） */
   collapsed?: boolean;
+  /** 收起侧栏时鼠标移上去临时浮出展开（SiderPeek） */
+  siderPeek?: boolean;
 }> {
   const fetchUserInfo = async () => {
     try {
@@ -173,8 +176,11 @@ export const layout: RunTimeLayoutConfig = ({
     // 侧栏是悬浮卡片（外壳原型 F1）：宽 244，左侧留 16 的边距，所以占位 260；收起后图标栏 64，占位 80
     siderWidth: SIDER_WIDTH,
     // 收起按钮在侧栏 Logo 右侧（AppLogo）；ProLayout 自带的浮动圆钮压在侧栏边线上，不用
-    collapsed: initialState?.collapsed,
-    onCollapse: (collapsed) => setInitialState((s) => ({ ...s, collapsed })),
+    // 收起后鼠标移上去浮出展开：按展开渲染，占位宽度保持收起时的宽度
+    collapsed: !!initialState?.collapsed && !initialState?.siderPeek,
+    onCollapse: (collapsed) =>
+      setInitialState((s) => ({ ...s, collapsed, siderPeek: false })),
+    menuRender: (_props, dom) => <SiderPeek>{dom}</SiderPeek>,
     collapsedButtonRender: false,
     // 侧边栏菜单树完全由「菜单管理」的数据 + 当前用户的有效权限决定，不再从 umi 由
     // routes.ts 派生出的 menuData 上打补丁（那棵树里混着重定向占位节点，容易把只用
@@ -193,6 +199,8 @@ export const layout: RunTimeLayoutConfig = ({
     menu: { locale: false, collapsedWidth: SIDER_COLLAPSED_WIDTH },
     // 菜单组的箭头：收起时向右、展开时向下（外壳原型 F1）
     menuProps: {
+      // 收起时不弹出子菜单：鼠标移上去整个侧栏会浮出展开
+      triggerSubMenuAction: 'click',
       expandIcon: ({ isOpen }: { isOpen?: boolean }) =>
         isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />,
     },

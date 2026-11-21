@@ -23,10 +23,16 @@ export const AppLogo: React.FC<{ collapsed?: boolean }> = ({ collapsed }) => {
   const appearance = initialState?.appearance;
   if (!appearance) return null;
   const tenant = initialState?.currentUser?.tenantName;
+  // 收起状态（initialState.collapsed）下浮出展开时，collapsed 属性为 false
+  const peeking = !collapsed && !!initialState?.collapsed;
   // ProLayout 给侧栏头部绑了「点击回首页」，按钮点击不往上传
   const toggle = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setInitialState((s) => ({ ...s, collapsed: !collapsed }));
+    setInitialState((s) => ({
+      ...s,
+      collapsed: !peeking,
+      siderPeek: false,
+    }));
   };
   const logo = appearance.logoUrl ? (
     <img
@@ -38,6 +44,7 @@ export const AppLogo: React.FC<{ collapsed?: boolean }> = ({ collapsed }) => {
     <DefaultLogo siteName={appearance.siteName} size={30} />
   );
 
+  // 图标栏：只留 Logo 和一条分隔线；鼠标移上去整个侧栏浮出展开（SiderPeek）
   if (collapsed) {
     return (
       <div
@@ -45,19 +52,12 @@ export const AppLogo: React.FC<{ collapsed?: boolean }> = ({ collapsed }) => {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: 4,
+          gap: 14,
         }}
       >
         <span title={[appearance.siteName, tenant].filter(Boolean).join(' · ')}>
           {logo}
         </span>
-        <IconButton
-          label="展开侧边栏"
-          icon={<PanelLeftOpen size={18} />}
-          size={40}
-          onClick={toggle}
-          style={{ color: palette.mute }}
-        />
         <span
           aria-hidden
           style={{ width: 32, height: 1, background: palette.hairline }}
@@ -100,8 +100,10 @@ export const AppLogo: React.FC<{ collapsed?: boolean }> = ({ collapsed }) => {
         )}
       </div>
       <IconButton
-        label="收起侧边栏"
-        icon={<PanelLeftClose size={18} />}
+        label={peeking ? '固定展开侧边栏' : '收起侧边栏'}
+        icon={
+          peeking ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />
+        }
         size={32}
         onClick={toggle}
         style={{ color: palette.mute }}

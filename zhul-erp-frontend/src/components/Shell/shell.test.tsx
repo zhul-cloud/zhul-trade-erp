@@ -152,12 +152,24 @@ describe('侧栏顶部', () => {
     expect(update({ collapsed: false }).collapsed).toBe(true);
   });
 
-  it('收起后只留 Logo 和展开按钮', () => {
+  it('收起后图标栏只留 Logo，没有按钮', () => {
     render(h(AppLogo, { collapsed: true }));
     expect(screen.queryByText('示例贸易有限公司')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: '展开侧边栏' }));
-    const update = mockSetInitialState.mock.calls[0][0];
-    expect(update({ collapsed: true }).collapsed).toBe(false);
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('收起状态下浮出展开时，按钮为「固定展开」，点了固定展开并结束浮出', () => {
+    mockState.collapsed = true;
+    try {
+      render(h(AppLogo, { collapsed: false }));
+      fireEvent.click(screen.getByRole('button', { name: '固定展开侧边栏' }));
+      const update = mockSetInitialState.mock.calls[0][0];
+      const next = update({ collapsed: true, siderPeek: true });
+      expect(next.collapsed).toBe(false);
+      expect(next.siderPeek).toBe(false);
+    } finally {
+      mockState.collapsed = undefined;
+    }
   });
 });
 
