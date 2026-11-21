@@ -51,6 +51,12 @@ class PayableContractTest extends SalesContractSupport {
     private com.zhul.erp.modules.purchase.service.PurchaseOrderService purchaseOrderService;
     @Autowired
     private org.springframework.transaction.support.TransactionTemplate tx;
+    @Autowired
+    private com.zhul.erp.modules.inventory.service.InventoryWarehouses invWarehouses;
+    @Autowired
+    private com.zhul.erp.modules.inventory.service.InventoryPosting posting;
+    @Autowired
+    private com.zhul.erp.modules.inventory.service.InventoryCosting costing;
 
     private String lin;
     private long account;
@@ -462,6 +468,50 @@ class PayableContractTest extends SalesContractSupport {
         JsonNode ap = bySource(poId, admin);
         assertEquals(3, ap.path("status").asInt());
         money("80.00", ap.path("exchangeDiff"));
+    }
+
+    /**
+     * openspec inventory-costing 4.2：外币付款、作废付款后重算该采购订单的批次成本，生成成本调整单，来源单号为付款单号
+     * （spec finance/inventory-cost「外币付清后调整」）。
+     */
+    @Test
+    void usdPaymentAndVoid_generateCostAdjustWithPaymentNo() throws Exception {
+        long sup = supplier("Omron HK", null);
+        JsonNode po = orderedPo(sup, "E-2", 1, "1000", List.of(term(100, 1, 0)));
+        long poId = po.path("id").asLong();
+        long poItem = po.path("items").get(0).path("id").asLong();
+        jdbc.update("update purchase_order set currency_code = 'USD', exchange_rate = 7.100000 where id = ?", poId);
+        jdbc.update("update fin_payable set currency_code = 'USD', exchange_rate = 7.100000 where source_id = ? and source_type = 1", poId);
+        long product = manualProduct("E-2");
+        // 已入库 1 个（批次按下单汇率 7.1 计 ¥7,100.00）
+        com.zhul.erp.framework.tenant.TenantContext.runAs(0, () -> tx.executeWithoutResult(s -> {
+            com.zhul.erp.modules.inventory.entity.InvBatchDO b = invWarehouses.newBatch("GR-PAY-1", product, "",
+                    com.zhul.erp.modules.inventory.constants.InvConstants.BATCH_PURCHASE, 1L, 1L, poItem, null, LocalDate.now(),
+                    com.zhul.erp.modules.inventory.service.InventoryWarehouses.Price.ZERO);
+            costing.initialize(b);
+            posting.post(List.of(com.zhul.erp.modules.inventory.service.InventoryPosting.Line.of(
+                    new com.zhul.erp.modules.inventory.service.InventoryPosting.Loc(invWarehouses.own().getId(), product, b.getId(), 1),
+                    com.zhul.erp.modules.inventory.constants.InvConstants.OP_IN, 1, null,
+                    com.zhul.erp.modules.inventory.service.InventoryPosting.Doc.of("PURCHASE_IN", "GR", 1L, "GR-PAY"))));
+        }));
+        long apId = bySource(poId, admin).path("id").asLong();
+        Map<String, Object> body = payBody(1, "1000.00", Map.of(apId, "1000.00"), admin);
+        body.put("amountCny", new BigDecimal("7180.00"));
+        JsonNode p = ok(pay(body, admin));
+
+        Map<String, Object> paid = jdbc.queryForMap("select reason, source_doc_type, source_doc_no, stock_amount from inv_cost_adjust"
+                + " where tenant_id = 0 order by id desc limit 1");
+        assertEquals(1, ((Number) paid.get("reason")).intValue(), "外币付款");
+        assertEquals("PY", paid.get("source_doc_type"));
+        assertEquals(p.path("paymentNo").asText(), paid.get("source_doc_no"));
+        money("80.00", objectMapper.valueToTree(paid.get("stock_amount")));
+
+        ok(call(json(post(PY + "/" + p.path("id").asLong() + "/void"), write(Map.of("reason", "金额填错"))), admin));
+        Map<String, Object> voided = jdbc.queryForMap("select reason, source_doc_no, stock_amount from inv_cost_adjust"
+                + " where tenant_id = 0 order by id desc limit 1");
+        assertEquals(2, ((Number) voided.get("reason")).intValue(), "作废付款");
+        assertEquals(p.path("paymentNo").asText(), voided.get("source_doc_no"));
+        money("-80.00", objectMapper.valueToTree(voided.get("stock_amount")));
     }
 
     @Test
