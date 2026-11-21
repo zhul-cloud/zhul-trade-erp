@@ -32,6 +32,8 @@ class FeeOrderContractTest extends SalesContractSupport {
                 write(Map.of("fees", List.of(Map.of("feeName", "Freight", "amount", "180")), "remark", "改走我们货代"))), admin));
         long feeId = fee.path("id").asLong();
         assertEquals(SalesConstants.SO_FEE, fee.path("source").asInt());
+        // 手动订单、费用订单都不是由 PI 转成，不计入 PI 列表的「本月转订单」（BUS-090）
+        assertEquals(0, ok(call(get(PI + "/stats"), admin)).path("monthOrderCount").asInt());
         assertEquals(original, fee.path("originalSoId").asLong());
         assertEquals(0, fee.path("items").size());
         money("180", fee.path("totalAmount"));

@@ -129,6 +129,8 @@ class AfterSalesReplacementContractTest extends SalesContractSupport {
         assertEquals(jdbc.queryForObject("select as_no from after_sales where id = ?", String.class, asId),
                 page.path("records").get(0).path("afterSalesNo").asText());
         assertEquals(1, ok(call(get(SO + "/stats"), admin)).path("monthCount").asInt());
+        // PI 列表「本月转订单」只算由 PI 转成的那一张，补发订单不算（BUS-090）
+        assertEquals(1, ok(call(get(PI + "/stats"), admin)).path("monthOrderCount").asInt());
         JsonNode profit = ok(call(get("/api/v1/finance/profit-stats"), admin));
         assertEquals(1, profit.path("summary").path("orderCount").asInt());
         String from = LocalDate.now().withDayOfMonth(1).toString();
