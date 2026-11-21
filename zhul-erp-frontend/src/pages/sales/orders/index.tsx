@@ -440,7 +440,7 @@ const OrderList: React.FC = () => {
               {r.status === 2 ? '—' : '系统外采购'}
             </span>
           );
-        // 提示文字用所指那一段的颜色；「还有型号没下采购订单」是提醒，用警告标签（status-colors.md）
+        // 提示文字前的小圆点用所指那一段的颜色；「还有型号没下采购订单」是提醒，用警告标签（status-colors.md）
         const hint =
           g.shipped >= g.total
             ? { text: '全部出运', color: goodsColors.shipped }
@@ -463,14 +463,37 @@ const OrderList: React.FC = () => {
             <span style={{ fontSize: 12, color: palette.sub }}>
               {goodsText(g)} / {g.total} 件
             </span>
-            {hint
-              ? sub(hint.text, hint.color)
-              : g.pendingPurchase > 0 && (
-                  <Pill tone="orange">
-                    <TriangleAlert size={12} aria-hidden />
-                    还有型号没下采购订单
-                  </Pill>
-                )}
+            {hint ? (
+              // 文字用次要灰，前面的小圆点用所指那一段的颜色（图表系列色当文字对比度不足 4.5:1）
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 12,
+                  color: palette.sub,
+                }}
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    width: 6,
+                    height: 6,
+                    flex: 'none',
+                    borderRadius: 3,
+                    background: hint.color,
+                  }}
+                />
+                {hint.text}
+              </span>
+            ) : (
+              g.pendingPurchase > 0 && (
+                <Pill tone="orange">
+                  <TriangleAlert size={12} aria-hidden />
+                  还有型号没下采购订单
+                </Pill>
+              )
+            )}
           </div>
         );
       },
