@@ -5,7 +5,6 @@ import {
   FileImageOutlined,
   FilePdfOutlined,
   InboxOutlined,
-  InfoCircleOutlined,
   LoadingOutlined,
   SendOutlined,
   WarningOutlined,
@@ -27,7 +26,9 @@ import {
   Upload,
 } from 'antd';
 import dayjs from 'dayjs';
+import { CircleCheck, Info, Lock, TriangleAlert } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { HelpTip } from '@/components/ListLayout';
 import { searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useBusinessUnits } from '@/utils/businessUnit';
@@ -46,7 +47,7 @@ import {
   type ReceiptResult,
   readBizError,
 } from '../service';
-import { FxEstimateHint, PaymentMethodSelect } from './receiptDialogs';
+import { fxEstimateText, PaymentMethodSelect } from './receiptDialogs';
 import { defaultSlipAmount } from './slipAmount';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
@@ -835,34 +836,139 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
     }
   };
 
+  /** 表单项：标签在上（必填带红星，可带帮助图标），输入在下（原型 C1） */
+  const field = (
+    name: string,
+    input: React.ReactNode,
+    opts?: { required?: boolean; help?: string; below?: React.ReactNode },
+  ) => (
+    <div style={{ minWidth: 0 }}>
+      <div
+        style={{
+          ...label,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          color: palette.sub,
+        }}
+      >
+        {opts?.required && (
+          <span aria-hidden style={{ color: palette.red }}>
+            *
+          </span>
+        )}
+        {name}
+        {opts?.help && <HelpTip title={opts.help} />}
+      </div>
+      {input}
+      {opts?.below}
+    </div>
+  );
+
+  // 到账金额下方随输入变化的结果（help-texts.md：照常显示，不收进帮助图标）
+  const amountResult = amount != null && amount > 0 && (
+    <div style={{ marginTop: 6, fontSize: 12 }}>
+      {after < 0 ? (
+        <Pill tone="orange">
+          <TriangleAlert size={12} aria-hidden />
+          多收 {formatAmount(-after, cur)}，将记为预收
+        </Pill>
+      ) : after === 0 ? (
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            color: palette.green,
+            fontWeight: 600,
+          }}
+        >
+          <CircleCheck size={14} aria-hidden />
+          本次到账后结清
+        </span>
+      ) : (
+        <>
+          <div style={{ color: palette.sub }}>
+            本次到账后还差 {formatAmount(after, cur)}
+          </div>
+          {canFee ? (
+            <Checkbox
+              checked={feeDiff}
+              onChange={(e) => setFeeDiff(e.target.checked)}
+              style={{ marginTop: 4, fontSize: 13 }}
+            >
+              差额记为银行中转手续费（视为结清）
+            </Checkbox>
+          ) : (
+            <div
+              style={{
+                marginTop: 4,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                color: palette.mute,
+              }}
+            >
+              <Info size={12} aria-hidden />
+              差额不超过 {formatAmount(tolerance, cur)} 时可记为手续费
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+
   return (
     <Modal
       open={open}
       onCancel={onClose}
       width={600}
       title="登记到账"
-      footer={[
-        <Button key="cancel" onClick={onClose}>
-          取消
-        </Button>,
-        <Button
-          key="ok"
-          type="primary"
-          loading={busy}
-          disabled={!amount || amount <= 0 || !date || !bankId}
-          onClick={submit}
+      footer={
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flexWrap: 'wrap',
+          }}
         >
-          {mismatch ? '确认没收错，继续保存' : '登记'}
-        </Button>,
-      ]}
+          <span
+            style={{
+              flex: 1,
+              minWidth: 0,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 12,
+              color: palette.mute,
+              textAlign: 'left',
+            }}
+          >
+            <Lock size={14} aria-hidden style={{ flex: 'none' }} />
+            到账记录保存后不能修改，登记错误时作废后重新登记
+          </span>
+          <Button type="text" onClick={onClose}>
+            取消
+          </Button>
+          <Button
+            type="primary"
+            loading={busy}
+            disabled={!amount || amount <= 0 || !date || !bankId}
+            onClick={submit}
+          >
+            {mismatch ? '确认没收错，继续保存' : '登记'}
+          </Button>
+        </div>
+      }
     >
       <div
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
           gap: 12,
-          padding: 14,
-          borderRadius: 12,
+          padding: '12px 16px',
+          borderRadius: 8,
           background: palette.inset,
           marginBottom: 16,
         }}
@@ -874,12 +980,7 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
         ].map(([k, v]) => (
           <div key={k as string}>
             <div style={{ fontSize: 12, color: palette.mute }}>{k}</div>
-            <b
-              style={{
-                ...num,
-                color: k === '剩余' ? palette.orange : palette.ink,
-              }}
-            >
+            <b style={{ ...num, fontSize: 15, color: palette.ink }}>
               {formatAmount(v as number, cur)}
             </b>
           </div>
@@ -890,20 +991,18 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
           type="warning"
           showIcon
           title={`还没有 ${cur} 收款账户，请先在「系统管理 → 收款账户」中添加`}
-          style={{ marginBottom: 12 }}
+          style={{ marginBottom: 16 }}
         />
       )}
       <div
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-          gap: 12,
+          gap: 16,
         }}
       >
-        <div>
-          <div style={{ ...label, color: palette.sub }}>
-            到账金额（银行实收）
-          </div>
+        {field(
+          '到账金额（银行实收）',
           <InputNumber
             style={{ width: '100%' }}
             prefix={cur}
@@ -912,19 +1011,21 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
             value={amount}
             onChange={setAmount}
             aria-label="到账金额"
-          />
-        </div>
-        <div>
-          <div style={{ ...label, color: palette.sub }}>到账日期</div>
+          />,
+          { required: true, help: fxEstimateText(cur), below: amountResult },
+        )}
+        {field(
+          '到账日期',
           <DatePicker
             style={{ width: '100%' }}
             value={date}
             onChange={setDate}
             aria-label="到账日期"
-          />
-        </div>
-        <div>
-          <div style={{ ...label, color: palette.sub }}>收款账户</div>
+          />,
+          { required: true },
+        )}
+        {field(
+          '收款账户',
           <Select
             style={{ width: '100%' }}
             value={bankId}
@@ -934,47 +1035,11 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
               label: `${b.bankName} ${b.accountNoMasked}${b.accountType === 2 ? '（对私）' : ''}${bu.enabled ? ` · ${unitName(b.businessUnitId)}` : ''}`,
             }))}
             aria-label="收款账户"
-          />
-          {mismatch && (
-            <div
-              role="alert"
-              style={{
-                marginTop: 10,
-                padding: '12px 14px',
-                borderRadius: 10,
-                background: palette.orangeSoft,
-                border: `1px solid ${palette.orange}`,
-              }}
-            >
-              <div style={{ fontWeight: 700, color: palette.ink }}>
-                <WarningOutlined
-                  style={{ color: palette.orange, marginRight: 8 }}
-                />
-                可能收错账户
-              </div>
-              <div style={{ marginTop: 6, color: palette.sub, fontSize: 13 }}>
-                这个账户属于「{unitName(chosenBank?.businessUnitId)}
-                」，订单属于「
-                {unitName(pi?.businessUnitId)}」。
-              </div>
-              <div style={{ marginTop: 4, color: palette.mute, fontSize: 12 }}>
-                确认保存后，这笔收款仍计入{unitName(pi?.businessUnitId)}
-                （以订单为准），收款记录会标记「账户与订单不一致」，方便财务事后调账。
-              </div>
-              {ownDefault && (
-                <Button
-                  size="small"
-                  style={{ marginTop: 10 }}
-                  onClick={() => setBankId(ownDefault)}
-                >
-                  改选{unitName(pi?.businessUnitId)}的账户
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-        <div>
-          <div style={{ ...label, color: palette.sub }}>对应水单（选填）</div>
+          />,
+          { required: true },
+        )}
+        {field(
+          '对应水单（选填）',
           <Select
             style={{ width: '100%' }}
             allowClear
@@ -990,61 +1055,76 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
               label: `${s.receiptDate ?? ''} ${formatAmount(s.amount, cur)}${s.note ? ` · ${s.note}` : ''}`,
             }))}
             aria-label="对应水单"
-          />
-        </div>
-      </div>
-      {amount != null && amount > 0 && (
-        <div style={{ marginTop: 12, fontSize: 13 }}>
-          {after < 0 ? (
-            <span style={{ color: palette.orange }}>
-              <WarningOutlined /> 多收 {formatAmount(-after, cur)}，将记为预收
-            </span>
-          ) : after === 0 ? (
-            <span style={{ color: palette.green }}>本次到账后结清</span>
-          ) : (
-            <>
-              <span style={{ color: palette.sub }}>
-                本次到账后还差 {formatAmount(after, cur)}
-              </span>
-              {canFee ? (
-                <Checkbox
-                  checked={feeDiff}
-                  onChange={(e) => setFeeDiff(e.target.checked)}
-                  style={{ marginLeft: 12 }}
-                >
-                  差额记为银行中转手续费（视为结清）
-                </Checkbox>
-              ) : (
-                <span
-                  style={{ marginLeft: 12, color: palette.mute, fontSize: 12 }}
-                >
-                  <InfoCircleOutlined /> 差额不超过{' '}
-                  {formatAmount(tolerance, cur)} 时可记为手续费
-                </span>
-              )}
-            </>
-          )}
-        </div>
-      )}
-      <div style={{ marginTop: 12 }}>
-        <div style={{ ...label, color: palette.sub }}>付款方式</div>
-        <PaymentMethodSelect
-          online={false}
-          value={method}
-          onChange={setMethod}
-        />
-      </div>
-      <FxEstimateHint currency={cur} />
-      <div style={{ marginTop: 12 }}>
-        <div style={{ ...label, color: palette.sub }}>说明（选填）</div>
-        <Input
-          value={note}
-          maxLength={300}
-          onChange={(e) => setNote(e.target.value)}
-        />
-      </div>
-      <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
-        到账记录保存后不能修改，登记错误时作废后重新登记。
+          />,
+        )}
+        {mismatch && (
+          <div
+            role="alert"
+            style={{
+              gridColumn: '1 / -1',
+              padding: '12px 16px',
+              borderRadius: 8,
+              background: palette.orangeSoft,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                fontWeight: 600,
+                color: palette.ink,
+              }}
+            >
+              <TriangleAlert
+                size={16}
+                aria-hidden
+                style={{ color: palette.orangeMain }}
+              />
+              可能收错账户
+            </div>
+            <div style={{ marginTop: 6, color: palette.sub, fontSize: 13 }}>
+              这个账户属于「{unitName(chosenBank?.businessUnitId)}
+              」，订单属于「
+              {unitName(pi?.businessUnitId)}」。
+            </div>
+            <div style={{ marginTop: 4, color: palette.mute, fontSize: 12 }}>
+              确认保存后，这笔收款仍计入{unitName(pi?.businessUnitId)}
+              （以订单为准），收款记录会标记「账户与订单不一致」，方便财务事后调账。
+            </div>
+            {ownDefault && (
+              <Button
+                size="small"
+                style={{
+                  marginTop: 10,
+                  color: palette.orange,
+                  borderColor: palette.orangeMain,
+                  background: 'transparent',
+                }}
+                onClick={() => setBankId(ownDefault)}
+              >
+                改选{unitName(pi?.businessUnitId)}的账户
+              </Button>
+            )}
+          </div>
+        )}
+        {field(
+          '付款方式',
+          <PaymentMethodSelect
+            online={false}
+            value={method}
+            onChange={setMethod}
+          />,
+        )}
+        {field(
+          '说明（选填）',
+          <Input
+            value={note}
+            maxLength={300}
+            onChange={(e) => setNote(e.target.value)}
+            aria-label="说明"
+          />,
+        )}
       </div>
     </Modal>
   );
