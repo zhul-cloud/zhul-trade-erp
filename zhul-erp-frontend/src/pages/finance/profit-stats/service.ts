@@ -40,6 +40,9 @@ export interface CostLine {
   profitRate?: number | null;
   unreceivedQty: number;
   unorderedQty: number;
+  /** 已出运数量（读出运结转的销售成本）；其中来自系统外入库、按采购订单单价计的数量 */
+  shippedQty?: number;
+  systemQty?: number;
   missingCostPrice: boolean;
   sources: Record<string, CostSource[]>;
 }

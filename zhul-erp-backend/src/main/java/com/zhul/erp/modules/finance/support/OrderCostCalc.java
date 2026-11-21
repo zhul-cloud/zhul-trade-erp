@@ -61,10 +61,24 @@ public final class OrderCostCalc {
     public record Receipt(BigDecimal amountCny, BigDecimal netAmountCny, BigDecimal feeDiff, BigDecimal rate, int settleStatus) {
     }
 
+    /**
+     * 型号行已出运的结转成本（spec finance/order-cost「已出运的数量读结转成本」）：出运数量、其中来自系统外入库（成本 0）的数量，
+     * 四项为结转金额加之后针对这些出运的成本调整（人民币，两位）；claim 为质量索赔冲减额（正数）。
+     */
+    public record Shipped(int qty, int systemQty, BigDecimal goods, BigDecimal invoice, BigDecimal fee, BigDecimal claim) {
+    }
+
     /** refund：有效退款单的人民币合计，从收入中扣减（spec finance/customer-refund） */
     /** deduction：已到账时从收入扣除的代收与多收（人民币）；feeDeduction：代收承担的平台手续费（人民币，由客户承担） */
+    /** shipped：型号行 ID → 已出运的结转成本（没有出运的不在里面） */
     public record Input(boolean paid, BigDecimal salesAmountCny, List<Item> items, List<PoLine> lines, Map<Long, Po> pos,
-                        List<Receipt> receipts, BigDecimal refund, BigDecimal deduction, BigDecimal feeDeduction) {
+                        List<Receipt> receipts, BigDecimal refund, BigDecimal deduction, BigDecimal feeDeduction,
+                        Map<Long, Shipped> shipped) {
+        public Input(boolean paid, BigDecimal salesAmountCny, List<Item> items, List<PoLine> lines, Map<Long, Po> pos,
+                     List<Receipt> receipts, BigDecimal refund, BigDecimal deduction, BigDecimal feeDeduction) {
+            this(paid, salesAmountCny, items, lines, pos, receipts, refund, deduction, feeDeduction, Map.of());
+        }
+
         public Input(boolean paid, BigDecimal salesAmountCny, List<Item> items, List<PoLine> lines, Map<Long, Po> pos,
                      List<Receipt> receipts) {
             this(paid, salesAmountCny, items, lines, pos, receipts, BigDecimal.ZERO);
@@ -81,7 +95,7 @@ public final class OrderCostCalc {
                        BigDecimal expense, BigDecimal receiptFee, BigDecimal cost, BigDecimal revenue, BigDecimal refund,
                        BigDecimal profit,
                        BigDecimal profitRate, int unreceivedQty, int unorderedQty, boolean missingCostPrice,
-                       Set<Long> unpaidForeignPos, BigDecimal salesReturnCredit) {
+                       Set<Long> unpaidForeignPos, BigDecimal salesReturnCredit, int shippedQty, int systemQty) {
     }
 
     public record Result(BigDecimal revenue, BigDecimal refund, BigDecimal cost, BigDecimal receiptFee, BigDecimal profit,
@@ -105,6 +119,24 @@ public final class OrderCostCalc {
         BigDecimal used = paid.min(amount);
         BigDecimal cny = used.multiply(paidRate, MC).add(amount.subtract(used).multiply(po.orderRate(), MC));
         return cny.divide(amount, 6, RoundingMode.HALF_UP);
+    }
+
+    /** 采购订单行一个单位的人民币成本（完整精度，不舍入）：货款、开票成本、采购费用；订单成本与库存批次成本共用 */
+    public record UnitCost(BigDecimal goods, BigDecimal invoice, BigDecimal fee) {
+        public BigDecimal total() {
+            return goods.add(invoice).add(fee);
+        }
+    }
+
+    /**
+     * 单位成本：货款 = 原币单价 × 实际汇率；开票成本、采购费用 = 采购订单的开票成本、费用 × 单价占采购订单货款合计的比例 × 实际汇率
+     * （与按行货款比例分摊再除以数量相同）。
+     */
+    public static UnitCost unitCost(Po po, BigDecimal unitPrice, BigDecimal rate) {
+        BigDecimal price = nz(unitPrice);
+        BigDecimal share = nz(po.itemAmount()).signum() == 0 ? BigDecimal.ZERO : price.divide(po.itemAmount(), MC);
+        return new UnitCost(price.multiply(rate, MC), nz(po.invoiceCost()).multiply(share, MC).multiply(rate, MC),
+                nz(po.feeAmount()).multiply(share, MC).multiply(rate, MC));
     }
 
     public static boolean foreignUnpaid(Po po) {
@@ -183,6 +215,18 @@ public final class OrderCostCalc {
             int ordered = 0;
             int qualified = 0;
             Set<Long> unpaidPos = new LinkedHashSet<>();
+            // 已出运的数量读结转成本，先占采购订单行的数量；其中系统外入库的按该采购订单行推算，其余只按剩下的数量推算
+            Shipped sh = in.shipped() == null ? null : in.shipped().get(item.id());
+            int shippedQty = sh == null ? 0 : Math.max(0, Math.min(sh.qty(), item.quantity()));
+            int systemQty = sh == null ? 0 : Math.max(0, Math.min(sh.systemQty(), shippedQty));
+            int shippedLeft = shippedQty;
+            int systemLeft = systemQty;
+            if (sh != null) {
+                purchase = purchase.add(nz(sh.goods()));
+                invoice = invoice.add(nz(sh.invoice()));
+                poFee = poFee.add(nz(sh.fee()));
+                claim = claim.add(nz(sh.claim()));
+            }
             for (PoLine l : linesByItem.getOrDefault(item.id(), List.of())) {
                 Po po = in.pos().get(l.poId());
                 if (po == null || cap <= 0) {
@@ -190,24 +234,35 @@ public final class OrderCostCalc {
                 }
                 int eff = Math.min(l.quantity(), cap);
                 cap -= eff;
-                ordered += eff;
-                qualified += Math.min(l.qualified(), eff);
+                int out1 = Math.min(eff, shippedLeft);
+                shippedLeft -= out1;
+                int sys = Math.min(out1, systemLeft);
+                systemLeft -= sys;
+                int rest = eff - out1;
+                int q = Math.min(l.qualified(), eff);
+                ordered += rest;
+                qualified += Math.max(0, q - out1);
                 BigDecimal rate = rates.get(l.poId());
-                BigDecimal goods = nz(l.unitPrice()).multiply(BigDecimal.valueOf(eff), MC);
-                purchase = purchase.add(goods.multiply(rate, MC));
-                BigDecimal share = nz(po.itemAmount()).signum() == 0 ? BigDecimal.ZERO : goods.divide(po.itemAmount(), MC);
-                invoice = invoice.add(nz(po.invoiceCost()).multiply(share, MC).multiply(rate, MC));
-                poFee = poFee.add(nz(po.feeAmount()).multiply(share, MC).multiply(rate, MC));
-                claim = claim.add(nz(l.discount()).multiply(rate, MC));
+                UnitCost u = unitCost(po, l.unitPrice(), rate);
+                BigDecimal n = BigDecimal.valueOf(rest + sys);
+                purchase = purchase.add(u.goods().multiply(n, MC));
+                invoice = invoice.add(u.invoice().multiply(n, MC));
+                poFee = poFee.add(u.fee().multiply(n, MC));
+                // 折价只摊到没出运的合格数量（已出运的已在结转成本里）
+                BigDecimal discount = nz(l.discount()).multiply(rate, MC);
+                claim = claim.add(q > 0 ? discount.multiply(BigDecimal.valueOf(Math.max(0, q - out1)), MC)
+                        .divide(BigDecimal.valueOf(q), MC) : discount);
                 returnFreight = returnFreight.add(nz(l.returnFreight()));
                 if (foreignUnpaid(po)) {
                     unpaidPos.add(po.id());
                 }
             }
-            int unordered = Math.max(0, item.quantity() - ordered);
-            boolean missingCost = unordered > 0 && item.costPrice() == null;
-            if (unordered > 0 && item.costPrice() != null) {
-                purchase = purchase.add(item.costPrice().multiply(BigDecimal.valueOf(unordered), MC));
+            int unordered = Math.max(0, item.quantity() - ordered - shippedQty);
+            // 没有采购订单行的系统外入库数量按采购成本价
+            int fallback = unordered + systemLeft;
+            boolean missingCost = fallback > 0 && item.costPrice() == null;
+            if (fallback > 0 && item.costPrice() != null) {
+                purchase = purchase.add(item.costPrice().multiply(BigDecimal.valueOf(fallback), MC));
             }
             if (missingCost) {
                 missing++;
@@ -237,7 +292,8 @@ public final class OrderCostCalc {
             BigDecimal rf2 = refundByItem.getOrDefault(item.id(), BigDecimal.ZERO.setScale(2));
             BigDecimal profit = rev.subtract(rf2).subtract(cost);
             out.add(new Line(item.id(), p, unordered == 0 && unreceived == 0 && unpaidPos.isEmpty(), inv, f, c, rt, dom, intl, ex, rf,
-                    cost, rev, rf2, profit, rate(profit, rev.subtract(rf2)), unreceived, unordered, missingCost, unpaidPos, sr));
+                    cost, rev, rf2, profit, rate(profit, rev.subtract(rf2)), unreceived, unordered, missingCost, unpaidPos, sr,
+                    shippedQty, systemQty));
         }
         BigDecimal cost = out.stream().map(Line::cost).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal profit = revenue.subtract(refund).subtract(cost);

@@ -97,7 +97,8 @@ class NavigationContractTest extends InquiryContractSupport {
         assertEquals(List.of("询价分配", "我的询价", "询价记录", "采购需求", "采购订单", "发货跟踪", "采购退货", "供应商库"), all.get("采购管理"));
         assertEquals(List.of("采购入库", "销售出库", "退货入库", "其他出库", "库存查询", "库存流水", "库存台账", "仓库档案", "实拍任务"), all.get("仓库管理"));
         assertEquals(List.of("出运管理", "运费账单", "货代管理"), all.get("物流管理"));
-        assertEquals(List.of("收款管理", "退款管理", "余额管理", "结汇管理", "应付管理", "付款管理", "报销管理", "费用管理", "其他收入"), all.get("财务管理"));
+        assertEquals(List.of("收款管理", "退款管理", "余额管理", "结汇管理", "应付管理", "付款管理", "报销管理", "费用管理", "其他收入", "成本调整",
+                "库存月结"), all.get("财务管理"));
         assertEquals(List.of("定价策略", "汇率设置", "收款账户", "单据模板", "编号规则", "快递时效", "AI 设置", "国家资料", "通知接收人"), all.get("业务设置"));
         assertEquals(List.of("用户管理", "角色管理", "部门管理", "岗位管理", "菜单管理", "字典管理", "系统设置", "操作日志", "登录日志"), all.get("系统管理"));
         assertEquals(List.of("租户列表", "套餐管理"), all.get("租户管理"));

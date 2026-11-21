@@ -68,7 +68,8 @@ export type OwnerType =
   | 'PAYMENT_RECEIPT'
   | 'PAYABLE'
   | 'FX_SETTLEMENT'
-  | 'OTHER_OUTBOUND';
+  | 'OTHER_OUTBOUND'
+  | 'COST_ADJUST';
 
 export interface ShipmentItem {
   id: number;

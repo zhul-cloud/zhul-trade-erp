@@ -804,6 +804,32 @@ export default [
         access: 'financeOperatingReport',
         component: './finance/operating-report',
       },
+      {
+        path: '/finance/cost-adjustments',
+        name: 'costAdjustments',
+        icon: 'swap',
+        access: 'financeCostAdjustments',
+        component: './finance/cost-adjustments',
+      },
+      {
+        path: '/finance/cost-adjustments/:id',
+        hideInMenu: true,
+        access: 'financeCostAdjustments',
+        component: './finance/cost-adjustments/detail',
+      },
+      {
+        path: '/finance/periods',
+        name: 'periods',
+        icon: 'lock',
+        access: 'financePeriods',
+        component: './finance/periods',
+      },
+      {
+        path: '/finance/periods/:month',
+        hideInMenu: true,
+        access: 'financePeriods',
+        component: './finance/periods/detail',
+      },
     ],
   },
   {
