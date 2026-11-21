@@ -11,4 +11,5 @@
 - 本机没有已过完的月份，结账后改品类、已结账月份读快照、导出三张表由下面的自动化测试覆盖。
 - 自动化：
   - 后端 `InventoryCategoryLedgerContractTest`（4）：按一级品类汇总且合计等于总账与月结、下钻筛选、按仓库不带销售成本、品类已删除归未分类、结账后改品类已结月份不变、两种导出。`InventoryPeriodContractTest`（6）通过。
-  - 前端 `npm run lint`、`npx antd lint ./src` 通过；财务与仓库目录 Jest 56 个用例通过，新增库存台账类目账下钻 1 个、月结详情类目账页签 1 个。
+  - 后端全量测试：本机跑到一半 MySQL（colima）宕掉，改由 PR #450 的 CI 跑，后端测试（两组）全部通过。
+  - 前端 `npm run lint`、`npx antd lint ./src` 通过；财务与仓库目录 Jest 56 个用例通过，新增库存台账类目账下钻 1 个、月结详情类目账页签 1 个。CI 首次因类目账表头在横向滚动后渲染两次而失败，已改用 `getAllByText`，重跑前端检查通过。
