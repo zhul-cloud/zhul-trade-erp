@@ -302,6 +302,23 @@ class InventoryCostingTest extends IntegrationTestBase {
         assertNotNull(recost(InvConstants.CA_PAYMENT), "结账后的调整记当前月，不受锁定");
     }
 
+    @Test
+    void 已结月份不能冲销() {
+        LocalDate last = LocalDate.now().minusMonths(1).withDayOfMonth(10);
+        po("CNY", "1", "100.00", "0.00", "0.00");
+        poItem(PO_ITEM_A, "10.00", 10);
+        InvBatchDO b = tx.execute(s -> warehouses.newBatch("GR-LAST-1", PRODUCT, "", InvConstants.BATCH_PURCHASE, 3L, GR_ITEM, PO_ITEM_A,
+                null, last, Price.ZERO));
+        tx.executeWithoutResult(s -> posting.post(List.of(Line.of(stock(b), InvConstants.OP_IN, 5, null,
+                Doc.of(InvConstants.BIZ_PURCHASE_IN, "GR", 3L, "GR-LAST").date(last)))));
+        jdbc.update("insert into inv_period (tenant_id, period_month, status) values (?, ?, 1)", TENANT, monthOf(last));
+
+        BizException e = assertThrows(BizException.class, () -> tx.executeWithoutResult(s -> posting.reverse(
+                posting.activeMoves("GR", 3L, List.of(InvConstants.BIZ_PURCHASE_IN)), InvConstants.BIZ_PURCHASE_IN_REVERSE)));
+        assertEquals("PERIOD_CLOSED", e.getErrorCode());
+        assertEquals(monthOf(last) + " 已结账，不能冲销业务日期在 " + monthOf(last) + " 的单据", e.getMessage());
+    }
+
     static String monthOf(LocalDate d) {
         return d.toString().substring(0, 7);
     }

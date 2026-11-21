@@ -34,6 +34,7 @@ import java.util.List;
 public class InventoryQueryController {
 
     private final InventoryQueryService service;
+    private final com.zhul.erp.modules.inventory.service.InventoryPeriods periods;
 
     @PostMapping("/stocks/page")
     @PreAuthorize("@perm.canAccessMenu('/warehouse/stocks')")
@@ -63,6 +64,13 @@ public class InventoryQueryController {
     @PreAuthorize("@perm.canAccessMenu('/warehouse/ledger')")
     public Result<PageResult<LedgerRowVO>> ledger(@RequestBody LedgerQuery q) {
         return Result.ok(service.ledger(q));
+    }
+
+    /** 台账月份是否已结账（已结账时台账为结账快照，页面标「已结账」） */
+    @GetMapping("/ledger/closed")
+    @PreAuthorize("@perm.canAccessMenu('/warehouse/ledger')")
+    public Result<Boolean> ledgerClosed(@RequestParam(required = false) String month) {
+        return Result.ok(periods.closed(InventoryQueryService.month(month).toString()));
     }
 
     /** 台账导出：高资源操作，只导当前筛选（最多 5000 行） */

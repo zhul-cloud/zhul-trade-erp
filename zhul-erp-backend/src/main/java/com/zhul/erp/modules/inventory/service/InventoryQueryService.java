@@ -337,45 +337,109 @@ public class InventoryQueryService {
     }
 
     private PageResult<LedgerRowVO> ledger(LedgerQuery q, int size, int page) {
-        int tenant = PiStore.tenantId();
         YearMonth ym = month(q.getMonth());
-        LocalDateTime start = ym.atDay(1).atStartOfDay();
-        LocalDateTime end = ym.plusMonths(1).atDay(1).atStartOfDay();
-        boolean all = q.getWarehouseId() == null;
-        if (!all) {
+        if (q.getWarehouseId() != null) {
             warehouses.require(q.getWarehouseId());
         }
-        // 入库：入库、调入（全部仓库合计时调入调出抵消，不计）、商品合并转入；出库同理。转入转出（合格↔不良）与预占不计
+        List<Long> pids = keywordProducts(q.getKeyword());
+        if (pids != null && pids.isEmpty()) {
+            return PageResult.of(0L, List.of());
+        }
+        // 已结账月份读结账时的快照（spec finance/period-close「月结快照」）
+        Long periodId = closedPeriodId(ym);
+        PageResult<LedgerRowVO> result = periodId != null ? snapshotLedger(periodId, q.getWarehouseId(), pids, size, page)
+                : liveLedger(ym, q.getWarehouseId(), pids, size, page);
+        Map<Long, InventoryProducts.Label> labels = products.labels(result.getRecords().stream().map(LedgerRowVO::getProductId).toList());
+        String whName = q.getWarehouseId() == null ? "全部仓库" : warehouses.require(q.getWarehouseId()).getName();
+        for (LedgerRowVO v : result.getRecords()) {
+            InventoryProducts.Label l = labels.getOrDefault(v.getProductId(), InventoryProducts.Label.NONE);
+            v.setModel(l.model());
+            v.setBrand(l.brand());
+            v.setCategory(l.category());
+            v.setWarehouseId(q.getWarehouseId());
+            v.setWarehouseName(whName);
+        }
+        return result;
+    }
+
+    /** 已结账月份的月结 ID；未结账为空 */
+    private Long closedPeriodId(YearMonth ym) {
+        List<Long> ids = jdbc.queryForList("SELECT id FROM inv_period WHERE tenant_id = ? AND period_month = ? AND status = ?"
+                + " AND deleted_at IS NULL", Long.class, PiStore.tenantId(), ym.toString(), InvConstants.PERIOD_CLOSED);
+        return ids.isEmpty() ? null : ids.get(0);
+    }
+
+    private PageResult<LedgerRowVO> snapshotLedger(long periodId, Long warehouseId, List<Long> pids, int size, int page) {
+        StringBuilder where = new StringBuilder(" FROM inv_period_ledger WHERE tenant_id = ? AND period_id = ? AND warehouse_id = ?"
+                + " AND deleted_at IS NULL");
+        List<Object> args = new ArrayList<>(List.of(PiStore.tenantId(), periodId, warehouseId == null ? 0L : warehouseId));
+        if (pids != null) {
+            where.append(" AND product_id IN (").append(marks(pids.size())).append(')');
+            args.addAll(pids);
+        }
+        Long total = jdbc.queryForObject("SELECT COUNT(*)" + where, Long.class, args.toArray());
+        if (total == null || total == 0) {
+            return PageResult.of(0L, List.of());
+        }
+        args.add((long) (page - 1) * size);
+        args.add(size);
+        List<LedgerRowVO> rows = jdbc.query("SELECT product_id, opening_qty, opening_amount, in_qty, in_amount, out_qty, out_amount,"
+                + " adjust_amount, closing_qty, closing_amount" + where + " ORDER BY product_id DESC LIMIT ?, ?", (rs, i) -> {
+            LedgerRowVO v = new LedgerRowVO();
+            v.setProductId(rs.getLong("product_id"));
+            v.setOpeningQty(rs.getInt("opening_qty"));
+            v.setOpeningAmount(money(rs.getBigDecimal("opening_amount")));
+            v.setInQty(rs.getInt("in_qty"));
+            v.setInAmount(money(rs.getBigDecimal("in_amount")));
+            v.setOutQty(rs.getInt("out_qty"));
+            v.setOutAmount(money(rs.getBigDecimal("out_amount")));
+            v.setAdjustAmount(money(rs.getBigDecimal("adjust_amount")));
+            v.setClosingQty(rs.getInt("closing_qty"));
+            v.setClosingAmount(money(rs.getBigDecimal("closing_amount")));
+            return v;
+        }, args.toArray());
+        return PageResult.of(total, rows);
+    }
+
+    /** 某月全部商品的实时台账（不分页，结账生成快照用）；warehouseId 为空时为全部仓库合计 */
+    public List<LedgerRowVO> liveLedgerAll(YearMonth ym, Long warehouseId) {
+        return liveLedger(ym, warehouseId, null, Integer.MAX_VALUE, 1).getRecords();
+    }
+
+    /**
+     * 实时台账：按流水的业务日期（biz_date）归月。入库：入库、调入（全部仓库合计时调入调出抵消，不计）、商品合并转入；出库同理；
+     * 成本调整：数量 0 的成本调整流水（op_type 9）金额。转入转出（合格↔不良）与预占不计。期末 = 期初 + 入库 − 出库 + 成本调整。
+     */
+    private PageResult<LedgerRowVO> liveLedger(YearMonth ym, Long warehouseId, List<Long> pids, int size, int page) {
+        int tenant = PiStore.tenantId();
+        java.sql.Date start = java.sql.Date.valueOf(ym.atDay(1));
+        java.sql.Date end = java.sql.Date.valueOf(ym.plusMonths(1).atDay(1));
+        boolean all = warehouseId == null;
         String in = all ? "(op_type = 1 OR (op_type = 5 AND biz_type = 'MERGE'))" : "(op_type IN (1, 3) OR (op_type = 5 AND biz_type = 'MERGE'))";
         String out = all ? "(op_type = 2 OR (op_type = 6 AND biz_type = 'MERGE'))" : "(op_type IN (2, 4) OR (op_type = 6 AND biz_type = 'MERGE'))";
-        String period = "move_time >= ? AND move_time < ?";
-        StringBuilder where = new StringBuilder(" WHERE tenant_id = ? AND op_type NOT IN (7, 8) AND move_time < ?");
-        List<Object> whereArgs = new ArrayList<>(List.of(tenant, Timestamp.valueOf(end)));
+        String period = "biz_date >= ? AND biz_date < ?";
+        StringBuilder where = new StringBuilder(" WHERE tenant_id = ? AND op_type NOT IN (7, 8) AND biz_date < ?");
+        List<Object> whereArgs = new ArrayList<>(List.of(tenant, end));
         if (!all) {
             where.append(" AND warehouse_id = ?");
-            whereArgs.add(q.getWarehouseId());
+            whereArgs.add(warehouseId);
         }
-        List<Long> pids = keywordProducts(q.getKeyword());
         if (pids != null) {
-            if (pids.isEmpty()) {
-                return PageResult.of(0L, List.of());
-            }
             where.append(" AND product_id IN (").append(marks(pids.size())).append(')');
             whereArgs.addAll(pids);
         }
         String grouped = "SELECT product_id,"
-                + " SUM(CASE WHEN move_time < ? THEN quantity ELSE 0 END) oq,"
-                + " SUM(CASE WHEN move_time < ? THEN amount_cny ELSE 0 END) oa,"
+                + " SUM(CASE WHEN biz_date < ? THEN quantity ELSE 0 END) oq,"
+                + " SUM(CASE WHEN biz_date < ? THEN amount_cny ELSE 0 END) oa,"
                 + " SUM(CASE WHEN " + period + " AND " + in + " THEN quantity ELSE 0 END) iq,"
                 + " SUM(CASE WHEN " + period + " AND " + in + " THEN amount_cny ELSE 0 END) ia,"
                 + " SUM(CASE WHEN " + period + " AND " + out + " THEN -quantity ELSE 0 END) xq,"
                 + " SUM(CASE WHEN " + period + " AND " + out + " THEN -amount_cny ELSE 0 END) xa,"
+                + " SUM(CASE WHEN " + period + " AND op_type = " + InvConstants.OP_COST_ADJUST + " THEN amount_cny ELSE 0 END) aa,"
                 + " SUM(quantity) cq, SUM(amount_cny) ca"
                 + " FROM inv_move" + where + " GROUP BY product_id"
-                + " HAVING oq <> 0 OR oa <> 0 OR iq <> 0 OR xq <> 0 OR cq <> 0 OR ca <> 0";
-        Timestamp s = Timestamp.valueOf(start);
-        Timestamp e = Timestamp.valueOf(end);
-        List<Object> args = new ArrayList<>(List.of(s, s, s, e, s, e, s, e, s, e));
+                + " HAVING oq <> 0 OR oa <> 0 OR iq <> 0 OR xq <> 0 OR aa <> 0 OR cq <> 0 OR ca <> 0";
+        List<Object> args = new ArrayList<>(List.of(start, start, start, end, start, end, start, end, start, end, start, end));
         args.addAll(whereArgs);
         Long total = jdbc.queryForObject("SELECT COUNT(*) FROM (" + grouped + ") x", Long.class, args.toArray());
         if (total == null || total == 0) {
@@ -393,27 +457,19 @@ public class InventoryQueryService {
             v.setInAmount(money(rs.getBigDecimal("ia")));
             v.setOutQty(rs.getInt("xq"));
             v.setOutAmount(money(rs.getBigDecimal("xa")));
+            v.setAdjustAmount(money(rs.getBigDecimal("aa")));
             v.setClosingQty(rs.getInt("cq"));
             v.setClosingAmount(money(rs.getBigDecimal("ca")));
             return v;
         }, pageArgs.toArray());
-        Map<Long, InventoryProducts.Label> labels = products.labels(rows.stream().map(LedgerRowVO::getProductId).toList());
-        String whName = all ? "全部仓库" : warehouses.require(q.getWarehouseId()).getName();
-        for (LedgerRowVO v : rows) {
-            InventoryProducts.Label l = labels.getOrDefault(v.getProductId(), InventoryProducts.Label.NONE);
-            v.setModel(l.model());
-            v.setBrand(l.brand());
-            v.setCategory(l.category());
-            v.setWarehouseId(q.getWarehouseId());
-            v.setWarehouseName(whName);
-        }
         return PageResult.of(total, rows);
     }
 
     /** 台账导出 Excel（最多 5000 行） */
     public byte[] exportLedger(LedgerQuery q) {
         List<LedgerRowVO> rows = ledger(q, EXPORT_LIMIT, 1).getRecords();
-        String[] head = {"品牌", "型号", "品类", "仓库", "期初数量", "期初金额", "入库数量", "入库金额", "出库数量", "出库金额", "期末数量", "期末金额"};
+        String[] head = {"品牌", "型号", "品类", "仓库", "期初数量", "期初金额", "入库数量", "入库金额", "出库数量", "出库金额", "成本调整",
+                "期末数量", "期末金额"};
         try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
             Sheet sheet = wb.createSheet("库存台账 " + month(q.getMonth()));
             Row h = sheet.createRow(0);
@@ -433,8 +489,9 @@ public class InventoryQueryService {
                 row.createCell(7).setCellValue(v.getInAmount().doubleValue());
                 row.createCell(8).setCellValue(v.getOutQty());
                 row.createCell(9).setCellValue(v.getOutAmount().doubleValue());
-                row.createCell(10).setCellValue(v.getClosingQty());
-                row.createCell(11).setCellValue(v.getClosingAmount().doubleValue());
+                row.createCell(10).setCellValue(v.getAdjustAmount().doubleValue());
+                row.createCell(11).setCellValue(v.getClosingQty());
+                row.createCell(12).setCellValue(v.getClosingAmount().doubleValue());
             }
             wb.write(bos);
             return bos.toByteArray();
