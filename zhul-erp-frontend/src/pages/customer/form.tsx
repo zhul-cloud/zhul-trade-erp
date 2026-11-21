@@ -23,6 +23,7 @@ import {
   Space,
 } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
+import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
 import {
@@ -35,13 +36,7 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { UnitSelect, useBusinessUnits } from '@/utils/businessUnit';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
-import {
-  LIST_PATH,
-  PageTitle,
-  PartyDrawer,
-  PartyGroups,
-  SectionCard,
-} from './components';
+import { LIST_PATH, PartyDrawer, PartyGroups, SectionCard } from './components';
 import {
   CJK_PATTERN,
   CURRENCY_OPTIONS,
@@ -482,7 +477,7 @@ const CustomerFormPage: React.FC = () => {
   if (!allowed) {
     return (
       <>
-        <PageTitle title={title} current={title} />
+        <PageHeader title={title} />
         <EmptyHint
           title="没有权限"
           description={`你的账号没有${editing ? '编辑' : '新增'}客户的权限，请联系管理员开通。`}
@@ -550,7 +545,7 @@ const CustomerFormPage: React.FC = () => {
   );
   return (
     <div style={{ color: palette.ink }}>
-      <PageTitle title={title} current={title} />
+      <PageHeader title={title} />
 
       {body ?? (
         <Form<FormState>

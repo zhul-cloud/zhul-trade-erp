@@ -133,7 +133,8 @@ const Choice: React.FC<{
               height: 30,
               borderRadius: 8,
               cursor: 'pointer',
-              color: (value as number) >= n ? '#FBBF24' : palette.faint,
+              color:
+                (value as number) >= n ? palette.orangeMain : palette.faint,
               background:
                 (value as number) >= n ? palette.orangeSoft : 'transparent',
               border: `1px solid ${palette.hairline}`,

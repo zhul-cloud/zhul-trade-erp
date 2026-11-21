@@ -21,13 +21,13 @@ export const Stars: React.FC<{ value?: number }> = ({ value }) => {
         padding: '0 8px',
         borderRadius: 8,
         background: palette.orangeSoft,
-        color: '#FBBF24',
+        color: palette.orange,
         fontWeight: 700,
         fontSize: 12,
         whiteSpace: 'nowrap',
       }}
     >
-      <StarFilled /> {value} / 5
+      <StarFilled style={{ color: palette.orangeMain }} /> {value} / 5
     </span>
   );
 };

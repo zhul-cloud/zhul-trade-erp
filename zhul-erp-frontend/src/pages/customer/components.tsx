@@ -6,7 +6,6 @@ import {
 } from '@ant-design/icons';
 import {
   App,
-  Breadcrumb,
   Button,
   Checkbox,
   Drawer,
@@ -18,10 +17,10 @@ import {
   Switch,
 } from 'antd';
 import React, { useEffect, useState } from 'react';
+import { HelpTip } from '@/components/ListLayout';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useBusinessUnits } from '@/utils/businessUnit';
-import { MenuLink, useMenu } from '@/utils/menuName';
 import {
   CJK_PATTERN,
   ENGLISH_ONLY_MESSAGE,
@@ -88,75 +87,17 @@ export const StatusPill: React.FC<{ status?: number }> = ({ status }) => (
   </Pill>
 );
 
-/** 面包屑 + 标题 + 右侧操作；分组、页面名称取「菜单管理」（列表页不用传标题），详情页传 current */
-export const PageTitle: React.FC<{
-  title?: React.ReactNode;
-  current?: string;
-  description?: React.ReactNode;
-  actions?: React.ReactNode;
-}> = ({ title, current, description, actions }) => {
-  const { palette } = useAppTheme();
-  const page = useMenu();
-  const list = useMenu(LIST_PATH);
-  const items = current
-    ? [
-        { title: list?.group },
-        { title: <MenuLink to={LIST_PATH} /> },
-        { title: current },
-      ]
-    : [{ title: page?.group }, { title: page?.name }];
-  return (
-    <header
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-end',
-        gap: 16,
-        marginBottom: 20,
-        flexWrap: 'wrap',
-      }}
-    >
-      <div style={{ minWidth: 0 }}>
-        <Breadcrumb items={items} style={{ fontSize: 13 }} />
-        <h1
-          id="customer-main"
-          tabIndex={-1}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            flexWrap: 'wrap',
-            fontSize: 28,
-            fontWeight: 700,
-            margin: '8px 0 0',
-            color: palette.ink,
-          }}
-        >
-          {title ?? page?.name}
-        </h1>
-        {description && (
-          <p style={{ margin: '6px 0 0', color: palette.sub, fontSize: 14 }}>
-            {description}
-          </p>
-        )}
-      </div>
-      {actions && (
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          {actions}
-        </div>
-      )}
-    </header>
-  );
-};
-
-/** 分组卡片：图标 + 标题（右侧可放操作），下方是内容 */
+/**
+ * 分组卡片：标题（右侧可放操作），下方是内容；标题照详情页 Section（18/500），说明放进帮助图标。
+ * icon 保留参数以免改动调用处，ui-redesign 起不再显示（卡片标题不带图标）
+ */
 export const SectionCard: React.FC<{
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   title: string;
   extra?: React.ReactNode;
   description?: string;
   children: React.ReactNode;
-}> = ({ icon, title, extra, description, children }) => {
+}> = ({ title, extra, description, children }) => {
   const { palette } = useAppTheme();
   const id = `customer-section-${title}`;
   return (
@@ -166,7 +107,7 @@ export const SectionCard: React.FC<{
         background: palette.card,
         border: `1px solid ${palette.hairline}`,
         borderRadius: 16,
-        padding: 24,
+        padding: '20px 24px',
         marginBottom: 20,
       }}
     >
@@ -178,29 +119,23 @@ export const SectionCard: React.FC<{
           gap: 12,
         }}
       >
-        <h2
-          id={id}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            margin: 0,
-            fontSize: 16,
-            fontWeight: 600,
-            color: palette.ink,
-          }}
-        >
-          <span style={{ color: palette.link, fontSize: 15 }}>{icon}</span>
-          {title}
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h2
+            id={id}
+            style={{
+              margin: 0,
+              fontSize: 18,
+              fontWeight: 500,
+              color: palette.ink,
+            }}
+          >
+            {title}
+          </h2>
+          {description && <HelpTip title={description} />}
+        </div>
         {extra}
       </div>
-      {description && (
-        <p style={{ margin: '6px 0 0', fontSize: 12, color: palette.mute }}>
-          {description}
-        </p>
-      )}
-      <div style={{ marginTop: 20 }}>{children}</div>
+      <div style={{ marginTop: 16 }}>{children}</div>
     </section>
   );
 };

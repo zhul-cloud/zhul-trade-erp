@@ -187,7 +187,11 @@ it('客户名称为空：标题和流水抽屉用展示名', async () => {
 it('当前客户被合并：用替换打开保留的客户', async () => {
   render(h(Page, { active: true }));
   await flush();
-  fireEvent.click(screen.getByRole('button', { name: /合\s*并/ }));
+  // ui-redesign 7.1 起「合并」收进页头的「更多」菜单
+  fireEvent.click(screen.getByRole('button', { name: '更多操作' }));
+  await act(async () => {
+    fireEvent.click(await screen.findByRole('menuitem', { name: /合\s*并/ }));
+  });
   fireEvent.click(screen.getByText('模拟合并完成'));
   expect(history.replace).toHaveBeenCalledWith('/customer/list/99');
   expect(history.push).not.toHaveBeenCalled();

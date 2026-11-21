@@ -6,12 +6,11 @@ import {
   FireOutlined,
   InfoCircleOutlined,
   LoadingOutlined,
-  ThunderboltOutlined,
-  UploadOutlined,
   UpOutlined,
 } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { App, Button, Input, Modal, Segmented, Upload } from 'antd';
+import { FileUp, Sparkles } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTabActive } from '@/components/PageTabs/hooks';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -443,6 +442,7 @@ export const BackgroundActions: React.FC<{
   onFix?: (target: string) => void;
 }> = ({ customerId, customerName, running, onStarted, precheck, onFix }) => {
   const { message } = App.useApp();
+  const { palette } = useAppTheme();
   const [starting, setStarting] = useState(false);
   const [checking, setChecking] = useState(false);
   const { open: checkOpen, setOpen: setCheckOpen } = precheck;
@@ -483,13 +483,18 @@ export const BackgroundActions: React.FC<{
 
   return (
     <>
-      <Button icon={<UploadOutlined />} onClick={() => setUploadOpen(true)}>
+      <Button
+        type="text"
+        icon={<FileUp size={16} />}
+        style={{ color: palette.link }}
+        onClick={() => setUploadOpen(true)}
+      >
         上传报告
       </Button>
       <Button
         type="primary"
-        icon={running ? <LoadingOutlined /> : <ThunderboltOutlined />}
-        loading={checking || (starting && !checkOpen)}
+        icon={<Sparkles size={18} />}
+        loading={running || checking || (starting && !checkOpen)}
         disabled={running}
         onClick={check}
       >

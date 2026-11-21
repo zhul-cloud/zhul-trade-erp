@@ -5,6 +5,7 @@ import {
 } from '@ant-design/icons';
 import { Button, Input, Modal, Skeleton } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
+import { HelpTip } from '@/components/ListLayout';
 import { useAppTheme } from '@/theme/AppTheme';
 import { liveRequests } from '@/utils/liveRequests';
 import { Pill } from '../components';
@@ -157,7 +158,11 @@ const ManualMergeModal: React.FC<{
             allowClear
             autoFocus
             prefix={<SearchOutlined />}
-            placeholder="搜索客户名称、编号、联系人、邮箱、WhatsApp（至少 2 个字）"
+            placeholder="客户名称、编号、联系人"
+            aria-label="搜索要合并的客户"
+            suffix={
+              <HelpTip title="可搜：客户名称、编号、联系人、邮箱、WhatsApp，至少输入 2 个字" />
+            }
             value={keyword}
             onChange={(e) => {
               setKeyword(e.target.value);
