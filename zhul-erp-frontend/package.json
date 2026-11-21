@@ -9,6 +9,7 @@
     "dev": "cross-env UMI_ENV=dev MOCK=none max dev",
     "i18n-remove": "node scripts/i18n-remove.js",
     "lint": "npm run biome:lint && npm run tsc",
+    "lint:ui": "node scripts/lint-ui.js",
     "lint-staged": "lint-staged",
     "biome:lint": "biome lint",
     "biome": "biome check --write",

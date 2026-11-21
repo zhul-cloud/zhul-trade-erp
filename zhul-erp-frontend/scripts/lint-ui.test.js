@@ -1,0 +1,136 @@
+const path = require('node:path');
+const { checkSource } = require('./lint-ui');
+
+const PAGE = path.join('src', 'pages', 'sales', 'demo.tsx');
+const COMP = path.join('src', 'components', 'Demo', 'index.tsx');
+const rules = (src, rel = PAGE) =>
+  checkSource(src, rel).map((i) => `${i.rule}:${i.level}`);
+
+describe('lint:ui', () => {
+  it('查出渐变与发光', () => {
+    expect(
+      rules("const a = { background: 'linear-gradient(90deg, red, blue)' };"),
+    ).toContain('gradient:error');
+    expect(rules('ctx.createLinearGradient(0, 0, 1, 1);', COMP)).toContain(
+      'gradient:error',
+    );
+    expect(rules("const a = { textShadow: '0 0 4px red' };", COMP)).toContain(
+      'glow:error',
+    );
+    expect(
+      rules(
+        "const a = { boxShadow: '0 0 24px rgba(59, 130, 246, 0.6)' };",
+        COMP,
+      ),
+    ).toContain('glow:error');
+    // 普通投影、焦点环不算发光
+    expect(
+      rules("const a = { boxShadow: '0 0 0 4px #637381' };", COMP),
+    ).not.toContain('glow:error');
+    expect(
+      rules(
+        "const a = { boxShadow: '0 8px 16px rgba(145,158,171,.24)' };",
+        COMP,
+      ),
+    ).not.toContain('glow:error');
+  });
+
+  it('页面里写死的颜色报错，纯白和组件目录不报', () => {
+    expect(rules("const a = { color: '#2563EB' };")).toContain(
+      'hardcoded-color:error',
+    );
+    expect(rules("const a = { color: 'rgba(0, 0, 0, .5)' };")).toContain(
+      'hardcoded-color:error',
+    );
+    expect(rules("const a = { color: '#fff' };")).not.toContain(
+      'hardcoded-color:error',
+    );
+    expect(rules("const a = { color: '#FFFFFF' };")).not.toContain(
+      'hardcoded-color:error',
+    );
+    expect(rules("const a = { color: '#2563EB' };", COMP)).not.toContain(
+      'hardcoded-color:error',
+    );
+    // 链接锚点不是颜色
+    expect(rules('<a href="#main">跳</a>')).not.toContain(
+      'hardcoded-color:error',
+    );
+  });
+
+  it('旧页头、面包屑与旧等宽字体', () => {
+    expect(rules('<PageTitle title="客户" description="说明" />')).toContain(
+      'old-header:error',
+    );
+    expect(rules('<Breadcrumb items={items} />')).toContain('old-header:error');
+    expect(rules("<Detail crumbs={['客户']} />")).toContain('old-header:error');
+    expect(rules("const a = { fontFamily: 'IBM Plex Mono' };")).toContain(
+      'ibm-plex:error',
+    );
+  });
+
+  it('常识性套话报错，「保存后生效」只提示', () => {
+    expect(rules('<span>点击进入对应列表</span>')).toContain('filler:error');
+    expect(rules('<span>保存后生效</span>')).toContain('filler-maybe:warn');
+  });
+
+  it('确认弹窗、警告条、气泡确认里的文字不检查', () => {
+    const src = [
+      'modal.confirm({',
+      "  title: '确认',",
+      "  content: '点击进入对应列表',",
+      '});',
+      '<Alert type="warning" message="保存后生效" />',
+      '<Popconfirm title="点击可跳转">',
+      '  <a>删</a>',
+      '</Popconfirm>',
+    ].join('\n');
+    expect(rules(src)).toEqual([]);
+  });
+
+  it('单行输入框提示超过三项报错，过长只提示，多行文本框不查', () => {
+    expect(
+      rules('<Input placeholder="订单编号、PI 编号、客户、型号" />'),
+    ).toContain('long-placeholder:error');
+    expect(rules('<Input placeholder="订单编号、客户、型号" />')).toEqual([]);
+    expect(
+      rules(
+        '<Input placeholder="请输入客户的完整英文名称或者常用的英文简称" />',
+      ),
+    ).toContain('long-placeholder:warn');
+    expect(
+      rules(
+        '<Input.TextArea placeholder="订单编号、PI 编号、客户、型号、备注" />',
+      ),
+    ).toEqual([]);
+  });
+
+  it('写明原因的例外放行，没写原因的例外报错', () => {
+    expect(
+      rules(
+        "// lint-ui-ignore hardcoded-color: 品牌官方色\nconst a = { color: '#E60012' };",
+      ),
+    ).toEqual([]);
+    expect(
+      rules(
+        "const a = { color: '#E60012' }; // lint-ui-ignore hardcoded-color: 品牌官方色",
+      ),
+    ).toEqual([]);
+    expect(
+      rules(
+        "// lint-ui-ignore hardcoded-color\nconst a = { color: '#E60012' };",
+      ),
+    ).toEqual(['ignore-no-reason:error']);
+    // 例外只管它写明的规则
+    expect(
+      rules(
+        "// lint-ui-ignore gradient: 遮罩\nconst a = { color: '#E60012' };",
+      ),
+    ).toContain('hardcoded-color:error');
+  });
+
+  it('注释里的说法不检查', () => {
+    expect(
+      rules('// 原来是 linear-gradient(...) 和 #2563EB，已改\nconst a = 1;'),
+    ).toEqual([]);
+  });
+});
