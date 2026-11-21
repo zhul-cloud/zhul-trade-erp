@@ -514,6 +514,111 @@ class PayableContractTest extends SalesContractSupport {
         money("-80.00", objectMapper.valueToTree(voided.get("stock_amount")));
     }
 
+    /** 某采购订单最新一张成本调整单：原因、来源单据类型与单号、在库调整金额 */
+    private Map<String, Object> lastAdjust() {
+        return jdbc.queryForMap("select reason, source_doc_type, source_doc_no, stock_amount from inv_cost_adjust where tenant_id = 0"
+                + " order by id desc limit 1");
+    }
+
+    private long adjustCount() {
+        return jdbc.queryForObject("select count(*) from inv_cost_adjust where tenant_id = 0", Long.class);
+    }
+
+    /**
+     * openspec inventory-costing 4.2：折价接收、重新打开折价、采购订单补登费用后重算批次成本，
+     * 成本调整单的来源单号为采购订单号。
+     */
+    @Test
+    void discountReopenAndPoFee_generateCostAdjustWithPoNo() throws Exception {
+        long sup = supplier("苏州欧姆龙二级", null);
+        JsonNode po = orderedPo(sup, "C-1", 10, "500", List.of(term(100, 1, 0)));
+        long poId = po.path("id").asLong();
+        String poNo = po.path("poNo").asText();
+        long poItem = po.path("items").get(0).path("id").asLong();
+        jdbc.update("update purchase_order_item set product_id = ? where id = ?", manualProduct("C-1"), poItem);
+
+        // 到货 10，合格 8、不良 2 → 入库生成批次（单位成本 500）
+        JsonNode s = ok(call(json(post(SHIP), write(Map.of("poId", poId, "carrier", "顺丰", "trackingNo", "SF99887767",
+                "shipDate", LocalDate.now().toString(), "items", List.of(Map.of("poItemId", poItem, "quantity", 10))))), lin));
+        long shipmentId = s.path("shipment").path("id").asLong();
+        JsonNode form = ok(call(get(GR + "/shipments/" + shipmentId), admin));
+        ok(call(json(post(GR), write(Map.of("shipmentId", shipmentId, "receivedDate", LocalDate.now().toString(),
+                "items", List.of(Map.of("shipmentItemId", form.path("shipment").path("items").get(0).path("id").asLong(),
+                        "receivedQty", 10, "qualifiedQty", 8, "defectiveQty", 2))))), admin));
+        assertEquals(1L, jdbc.queryForObject("select count(*) from inv_batch where tenant_id = 0 and po_item_id = ?", Long.class, poItem));
+        long before = adjustCount();
+
+        // 不良 2 个折价接收 ¥100：批次单位成本 −10（100 ÷ 10 个）
+        long diff = jdbc.queryForObject("select id from receiving_discrepancy where po_id = ? and type = 2", Long.class, poId);
+        ok(call(json(post(DIFF + "/" + diff + "/handle"), write(Map.of("resolution", 5, "discountAmount", 100, "note", "外壳划伤"))), lin));
+        assertEquals(before + 1, adjustCount());
+        Map<String, Object> a = lastAdjust();
+        assertEquals(5, ((Number) a.get("reason")).intValue(), "折价接收");
+        assertEquals("PO", a.get("source_doc_type"));
+        assertEquals(poNo, a.get("source_doc_no"));
+        money("-100.00", objectMapper.valueToTree(a.get("stock_amount")));
+
+        // 重新打开折价：成本恢复
+        ok(call(post(DIFF + "/" + diff + "/reopen"), lin));
+        a = lastAdjust();
+        assertEquals(6, ((Number) a.get("reason")).intValue(), "重新打开折价");
+        assertEquals(poNo, a.get("source_doc_no"));
+        money("100.00", objectMapper.valueToTree(a.get("stock_amount")));
+
+        // 采购订单补登运费 ¥50：单位成本 +5
+        Map<String, Object> body = poBody(po(poId, admin), "500");
+        body.put("fees", List.of(Map.of("feeName", "运费", "feeType", 1, "amount", 50)));
+        ok(savePo(poId, body, admin));
+        a = lastAdjust();
+        assertEquals(4, ((Number) a.get("reason")).intValue(), "采购订单费用");
+        assertEquals(poNo, a.get("source_doc_no"));
+        money("50.00", objectMapper.valueToTree(a.get("stock_amount")));
+    }
+
+    /** openspec inventory-costing 4.2：外币供应商退款改变实付汇率，成本调整单的来源单号为退款单号 */
+    @Test
+    void usdSupplierRefund_generatesCostAdjustWithRefundNo() throws Exception {
+        long sup = supplier("Omron SG", null);
+        JsonNode po = orderedPo(sup, "D-1", 10, "100", List.of(term(100, 1, 0)));
+        long poId = po.path("id").asLong();
+        long poItem = po.path("items").get(0).path("id").asLong();
+        jdbc.update("update purchase_order set currency_code = 'USD', exchange_rate = 7.100000 where id = ?", poId);
+        jdbc.update("update fin_payable set currency_code = 'USD', exchange_rate = 7.100000 where source_id = ? and source_type = 1", poId);
+        jdbc.update("update purchase_order_item set product_id = ? where id = ?", manualProduct("D-1"), poItem);
+        long apId = bySource(poId, admin).path("id").asLong();
+        Map<String, Object> paid = payBody(1, "1000.00", Map.of(apId, "1000.00"), admin);
+        paid.put("amountCny", new BigDecimal("7100.00"));
+        ok(pay(paid, admin));
+
+        JsonNode s = ok(call(json(post(SHIP), write(Map.of("poId", poId, "carrier", "DHL", "trackingNo", "DHL5566778",
+                "shipDate", LocalDate.now().toString(), "items", List.of(Map.of("poItemId", poItem, "quantity", 10))))), lin));
+        long shipmentId = s.path("shipment").path("id").asLong();
+        JsonNode form = ok(call(get(GR + "/shipments/" + shipmentId), admin));
+        ok(call(json(post(GR), write(Map.of("shipmentId", shipmentId, "receivedDate", LocalDate.now().toString(),
+                "items", List.of(Map.of("shipmentItemId", form.path("shipment").path("items").get(0).path("id").asLong(),
+                        "receivedQty", 10, "qualifiedQty", 8, "defectiveQty", 2))))), admin));
+        // 不良折价 100 美元 → 欠款 100 美元
+        long diff = jdbc.queryForObject("select id from receiving_discrepancy where po_id = ? and type = 2", Long.class, poId);
+        ok(call(json(post(DIFF + "/" + diff + "/handle"), write(Map.of("resolution", 5, "discountAmount", 100, "note", "划伤"))), lin));
+        long before = adjustCount();
+
+        // 供应商退回 100 美元，实收 ¥720（汇率 7.2）：净实付 ¥6,380 / 900 美元，实付汇率变化
+        Map<String, Object> refund = new HashMap<>();
+        refund.put("payableId", apId);
+        refund.put("amount", 100);
+        refund.put("amountCny", new BigDecimal("720.00"));
+        refund.put("refundDate", LocalDate.now().toString());
+        refund.put("bankAccountId", account);
+        refund.put("attachmentIds", List.of(screenshot(admin)));
+        refund.put("idempotencyKey", UUID.randomUUID().toString());
+        JsonNode r = ok(call(json(post(PY + "/refunds"), write(refund)), admin));
+        assertEquals(before + 1, adjustCount());
+        Map<String, Object> a = lastAdjust();
+        assertEquals(3, ((Number) a.get("reason")).intValue(), "供应商退款");
+        assertEquals("PY", a.get("source_doc_type"));
+        assertEquals(r.path("paymentNo").asText(), a.get("source_doc_no"));
+    }
+
     @Test
     void backfillCreatesMissingPayables_onlyOnce() throws Exception {
         long sup = supplier("老供应商", null);
