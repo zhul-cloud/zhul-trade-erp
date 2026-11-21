@@ -118,6 +118,17 @@
 
 列：型号与总数量保留两列（单据页统一规范是合成「型号 · 数量」一列），因为两者都能排序，用来判断询盘价值，合成一列会丢掉一种排序。
 
+## 询盘详情与确认型号
+
+代码位置：`zhul-erp-frontend/src/pages/inquiry/customer-inquiry/detail.tsx`、`confirm.tsx`。
+
+| 位置 | 帮助文字 | 来源 |
+|---|---|---|
+| 型号明细（详情） | 同品牌、同品类的型号排在一起 | 原标题行右侧灰字 |
+| 铭牌图片（确认页） | 点图片预览；改对应的行用图片下面的下拉。删掉某行时，对应这行的图变为未对应 | 原标题行右侧灰字 |
+
+页头：详情标题由客户名改为询盘编号，状态、紧急、历史迁移标签放标题后，副信息「客户 · 新 / 老客户 · 询盘日期」；修改、追加型号、手动录入为文字按钮，取消询盘、删除收进「更多」。确认页副信息补上询盘编号。
+
 ## 登记到账弹窗
 
 代码位置：`zhul-erp-frontend/src/pages/sales/pi/dialogs.tsx`（`ConfirmReceiptModal`）、`receiptDialogs.tsx`（`PaymentMethodSelect`、`FxEstimateHint`）。

@@ -41,6 +41,7 @@ const RemoveButton: React.FC<{ name: string; onClick: () => void }> = ({
       border: 0,
       padding: 0,
       cursor: 'pointer',
+      // lint-ui-ignore hardcoded-color: 压在照片上的深色圆钮，不随主题变
       background: 'rgba(15,23,42,0.85)',
       color: '#fff',
       fontSize: 10,

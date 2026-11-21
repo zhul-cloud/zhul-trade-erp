@@ -5,7 +5,6 @@ import {
   DeleteOutlined,
   InfoCircleOutlined,
   PlusOutlined,
-  RobotOutlined,
   SyncOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
@@ -22,22 +21,22 @@ import {
   Skeleton,
   Table,
 } from 'antd';
+import { RefreshCw, Sparkles } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import BrandCategoryPicker from '@/components/BrandCategoryPicker';
+import { CardTitle, HelpTip, PageHeader } from '@/components/ListLayout';
 import { usePageTitle } from '@/components/PageTabs/hooks';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { type CategoryOption, categoryApi } from '@/pages/product/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   AgeText,
   Card,
   ConditionPill,
   LeadTimeText,
-  PageTitle,
   Pill,
   SupplierText,
   TaxHint,
@@ -861,8 +860,7 @@ const ConfirmPage: React.FC = () => {
     });
   return (
     <div>
-      <PageTitle
-        crumbs={[<MenuLink key="list" to={PATHS.inquiries} />, inq.inquiryCode]}
+      <PageHeader
         title={
           appendId
             ? manual
@@ -872,20 +870,29 @@ const ConfirmPage: React.FC = () => {
               ? '手动录入型号'
               : '确认解析结果'
         }
-        description={`${inq.customerName} · ${sourceLabel(inq.source)} · ${inq.inquiryDate}${inq.urgent ? ' · 紧急' : ''}`}
-        actions={
+        sub={`${inq.inquiryCode} · ${inq.customerName} · ${sourceLabel(inq.source)} · ${inq.inquiryDate}${inq.urgent ? ' · 紧急' : ''}`}
+        extra={
           <>
             <Button
+              type="text"
+              style={{ color: palette.link }}
               onClick={() => history.push(`${PATHS.inquiries}/${inquiryId}`)}
             >
               {manual ? '稍后再录入' : '稍后再确认'}
             </Button>
-            <Button icon={<RobotOutlined />} onClick={reparse}>
+            <Button
+              type="text"
+              style={{ color: palette.link }}
+              icon={<Sparkles size={16} />}
+              onClick={reparse}
+            >
               {manual ? '改用 AI 解析' : '重新解析'}
             </Button>
             {reused.length > 0 && (
               <Button
-                icon={<SyncOutlined />}
+                type="text"
+                style={{ color: palette.link }}
+                icon={<RefreshCw size={16} />}
                 onClick={() =>
                   setRows((prev) =>
                     prev.map((x) => ({ ...x, reuseQuoteId: null })),
@@ -916,7 +923,7 @@ const ConfirmPage: React.FC = () => {
               marginBottom: 12,
             }}
           >
-            <b style={{ color: palette.ink }}>铭牌图片</b>
+            <CardTitle>铭牌图片</CardTitle>
             <Pill tone="green">
               已对应 {plates.filter((p) => owners.has(p.id)).length}
             </Pill>
@@ -925,11 +932,7 @@ const ConfirmPage: React.FC = () => {
                 未对应 {plates.filter((p) => !owners.has(p.id)).length}
               </Pill>
             )}
-            <span
-              style={{ marginLeft: 'auto', fontSize: 12, color: palette.mute }}
-            >
-              点图片预览；改对应的行用图片下面的下拉。删掉某行时，对应这行的图变为未对应
-            </span>
+            <HelpTip title="点图片预览；改对应的行用图片下面的下拉。删掉某行时，对应这行的图变为未对应" />
           </div>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             {plates.map((f) => {

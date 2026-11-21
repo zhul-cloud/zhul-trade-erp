@@ -32,9 +32,10 @@ type Tone =
 /** 状态标签：语义色浅底 + 文字色，圆角 4（界面规范「状态标签」）；提醒类在文字前放图标 */
 export const Pill: React.FC<{
   tone: Tone;
+  /** 已不再画圆点（规范「状态标签」：浅底 + 文字），保留参数兼容旧调用 */
   dot?: boolean;
   children: React.ReactNode;
-}> = ({ tone, dot, children }) => {
+}> = ({ tone, children }) => {
   const { palette } = useAppTheme();
   const colors: Record<Tone, { fg: string; bg: string }> = {
     gray: { fg: palette.sub, bg: palette.neutralSoft },
@@ -64,12 +65,6 @@ export const Pill: React.FC<{
         whiteSpace: 'nowrap',
       }}
     >
-      {dot && (
-        <span
-          aria-hidden
-          style={{ width: 6, height: 6, borderRadius: 3, background: c.fg }}
-        />
-      )}
       {children}
     </span>
   );
