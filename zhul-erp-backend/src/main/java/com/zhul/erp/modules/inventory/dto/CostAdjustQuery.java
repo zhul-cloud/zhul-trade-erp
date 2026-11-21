@@ -8,6 +8,8 @@ public class CostAdjustQuery {
     private String month;
     private Integer reason;
     private String keyword;
+    /** 只看有销售成本调整的 */
+    private Boolean cogsOnly;
     private Integer page;
     private Integer pageSize;
 }

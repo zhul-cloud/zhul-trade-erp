@@ -6,6 +6,7 @@ import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.modules.attachment.service.AttachmentService;
 import com.zhul.erp.modules.inventory.constants.InvConstants;
 import com.zhul.erp.modules.inventory.dto.CostAdjustQuery;
+import com.zhul.erp.modules.inventory.dto.CostAdjustSummaryVO;
 import com.zhul.erp.modules.inventory.dto.CostAdjustVO;
 import com.zhul.erp.modules.inventory.entity.InvBatchDO;
 import com.zhul.erp.modules.inventory.entity.InvCostAdjustDO;
@@ -63,7 +64,86 @@ public class CostAdjustService {
     // ---------------------------------------------------------------- 查询
 
     public PageResult<CostAdjustVO> page(CostAdjustQuery q) {
+        LambdaQueryWrapper<InvCostAdjustDO> w = filtered(q);
+        int size = q.getPageSize() == null || q.getPageSize() <= 0 ? 20 : Math.min(q.getPageSize(), 100);
+        int page = Math.max(1, q.getPage() == null ? 1 : q.getPage());
+        long total = mapper.selectCount(w);
+        if (total == 0) {
+            return PageResult.of(0L, List.of());
+        }
+        w.last("ORDER BY update_time DESC, id DESC LIMIT " + (long) (page - 1) * size + ", " + size);
+        return PageResult.of(total, mapper.selectList(w).stream().map(CostAdjustService::head).toList());
+    }
+
+    /** 某月份的合计：在库、销售成本、其他出库调整金额与按原因的张数（列表顶部卡片） */
+    public CostAdjustSummaryVO summary(String month) {
+        CostAdjustQuery q = new CostAdjustQuery();
+        q.setMonth(month);
+        CostAdjustSummaryVO v = new CostAdjustSummaryVO();
+        BigDecimal stock = BigDecimal.ZERO;
+        BigDecimal cogs = BigDecimal.ZERO;
+        BigDecimal other = BigDecimal.ZERO;
+        Map<String, Integer> byReason = new LinkedHashMap<>();
+        List<InvCostAdjustDO> rows = mapper.selectList(filtered(q).orderByAsc(InvCostAdjustDO::getReason));
+        for (InvCostAdjustDO a : rows) {
+            stock = stock.add(a.getStockAmount());
+            cogs = cogs.add(a.getCogsAmount());
+            other = other.add(a.getOtherAmount());
+            byReason.merge(InvConstants.CA_REASON_NAMES.getOrDefault(a.getReason(), ""), 1, Integer::sum);
+        }
+        v.setMonth(month);
+        v.setStockAmount(stock);
+        v.setCogsAmount(cogs);
+        v.setOtherAmount(other);
+        v.setCount(rows.size());
+        v.setCountByReason(byReason);
+        return v;
+    }
+
+    /** 导出当前筛选（最多 5000 张） */
+    public byte[] export(CostAdjustQuery q) {
+        List<InvCostAdjustDO> rows = mapper.selectList(filtered(q).last("ORDER BY update_time DESC, id DESC LIMIT 5000"));
+        String[] head = {"调整单号", "调整日期", "所属月份", "触发原因", "来源单号", "型号", "批次数", "在库调整", "销售成本调整",
+                "其他出库调整", "合计", "创建时间", "创建人", "更新时间", "更新人"};
+        try (org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
+             java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream()) {
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("成本调整");
+            org.apache.poi.ss.usermodel.Row h = sheet.createRow(0);
+            for (int i = 0; i < head.length; i++) {
+                h.createCell(i).setCellValue(head[i]);
+            }
+            int r = 1;
+            for (InvCostAdjustDO a : rows) {
+                CostAdjustVO v = head(a);
+                org.apache.poi.ss.usermodel.Row row = sheet.createRow(r++);
+                row.createCell(0).setCellValue(v.getAdjustNo());
+                row.createCell(1).setCellValue(String.valueOf(v.getAdjustDate()));
+                row.createCell(2).setCellValue(v.getPeriodMonth());
+                row.createCell(3).setCellValue(v.getReasonName());
+                row.createCell(4).setCellValue(Objects.requireNonNullElse(v.getSourceDocNo(), ""));
+                row.createCell(5).setCellValue(Objects.requireNonNullElse(v.getFirstModel(), ""));
+                row.createCell(6).setCellValue(v.getBatchCount() == null ? 0 : v.getBatchCount());
+                row.createCell(7).setCellValue(v.getStockAmount().doubleValue());
+                row.createCell(8).setCellValue(v.getCogsAmount().doubleValue());
+                row.createCell(9).setCellValue(v.getOtherAmount().doubleValue());
+                row.createCell(10).setCellValue(v.getTotalAmount().doubleValue());
+                row.createCell(11).setCellValue(String.valueOf(v.getCreateTime()).replace('T', ' '));
+                row.createCell(12).setCellValue(Objects.requireNonNullElse(v.getCreateBy(), ""));
+                row.createCell(13).setCellValue(String.valueOf(v.getUpdateTime()).replace('T', ' '));
+                row.createCell(14).setCellValue(Objects.requireNonNullElse(v.getUpdateBy(), ""));
+            }
+            wb.write(bos);
+            return bos.toByteArray();
+        } catch (java.io.IOException ex) {
+            throw new java.io.UncheckedIOException("成本调整导出失败", ex);
+        }
+    }
+
+    private LambdaQueryWrapper<InvCostAdjustDO> filtered(CostAdjustQuery q) {
         LambdaQueryWrapper<InvCostAdjustDO> w = scoped();
+        if (Boolean.TRUE.equals(q.getCogsOnly())) {
+            w.ne(InvCostAdjustDO::getCogsAmount, BigDecimal.ZERO);
+        }
         if (StringUtils.hasText(q.getMonth())) {
             w.eq(InvCostAdjustDO::getPeriodMonth, q.getMonth().trim());
         }
@@ -80,14 +160,7 @@ public class CostAdjustService {
                 }
             });
         }
-        int size = q.getPageSize() == null || q.getPageSize() <= 0 ? 20 : Math.min(q.getPageSize(), 100);
-        int page = Math.max(1, q.getPage() == null ? 1 : q.getPage());
-        long total = mapper.selectCount(w);
-        if (total == 0) {
-            return PageResult.of(0L, List.of());
-        }
-        w.last("ORDER BY update_time DESC, id DESC LIMIT " + (long) (page - 1) * size + ", " + size);
-        return PageResult.of(total, mapper.selectList(w).stream().map(CostAdjustService::head).toList());
+        return w;
     }
 
     /** 型号、批次号命中的调整单 */

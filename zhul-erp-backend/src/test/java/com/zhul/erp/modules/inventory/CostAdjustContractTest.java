@@ -80,6 +80,18 @@ class CostAdjustContractTest extends SalesContractSupport {
     }
 
     @Test
+    void 月份合计_只看销售成本调整_导出() throws Exception {
+        JsonNode sum = ok(call(get(CA + "/summary").param("month", "2026-12"), admin));
+        assertEquals(0, new BigDecimal("12.00").compareTo(sum.path("stockAmount").decimalValue()));
+        assertEquals(0, new BigDecimal("18.00").compareTo(sum.path("cogsAmount").decimalValue()));
+        assertEquals(1, sum.path("count").asInt());
+        assertEquals(1, sum.path("countByReason").path("外币付款").asInt());
+        assertEquals(1, page("{\"cogsOnly\":true}").path("total").asInt());
+        byte[] xlsx = perform(json(post(CA + "/export"), "{\"month\":\"2026-12\"}"), admin).getContentAsByteArray();
+        assertEquals('P', (char) xlsx[0], "xlsx");
+    }
+
+    @Test
     void 没有成本调整菜单的人看不到() throws Exception {
         String lin = token("it_lin");
         assertEquals(403, perform(json(post(CA + "/page"), "{}"), lin).getStatus());
