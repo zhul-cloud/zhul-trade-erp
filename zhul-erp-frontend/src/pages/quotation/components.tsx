@@ -15,9 +15,10 @@ export const STATUS = {
 
 export const STATUS_META: Record<number, { label: string; tone: Tone }> = {
   1: { label: '草稿', tone: 'gray' },
-  2: { label: '已发送', tone: 'accent' },
+  // 颜色按 status-colors.md：已发出为信息色，未成交是终止状态为中性
+  2: { label: '已发送', tone: 'info' },
   3: { label: '已成交', tone: 'green' },
-  4: { label: '未成交', tone: 'orange' },
+  4: { label: '未成交', tone: 'gray' },
   5: { label: '已作废', tone: 'mute' },
   6: { label: '部分成交', tone: 'green' },
 };

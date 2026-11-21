@@ -1359,6 +1359,9 @@ public class QuotationServiceImpl implements QuotationService {
             vo.setOwnerId(q.getOwnerId());
             vo.setOwnerName(users.get(q.getOwnerId()));
             vo.setCreateTime(q.getCreateTime());
+            vo.setCreateBy(q.getCreateBy());
+            vo.setUpdateTime(q.getUpdateTime());
+            vo.setUpdateBy(q.getUpdateBy());
             vo.setSentAt(q.getSentAt());
             vo.setCurrentVersionNo(q.getCurrentVersionNo());
             vo.setEditingVersionNo(q.getEditingVersionNo());

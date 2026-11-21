@@ -241,6 +241,9 @@ export interface QuotationListItem {
   ownerId: number;
   ownerName?: string;
   createTime: string;
+  createBy?: string;
+  updateTime?: string;
+  updateBy?: string;
   sentAt?: string;
   currentVersionNo?: number;
   /** 修改中的新版本号 */
