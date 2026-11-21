@@ -401,6 +401,13 @@ public class InventoryQueryService {
         return PageResult.of(total, rows);
     }
 
+    /** 某月全部仓库合计的台账（不分页，已结账读快照），带型号等标签；月结详情的汇总与导出用 */
+    public List<LedgerRowVO> ledgerAll(String month) {
+        LedgerQuery q = new LedgerQuery();
+        q.setMonth(month);
+        return ledger(q, Integer.MAX_VALUE, 1).getRecords();
+    }
+
     /** 某月全部商品的实时台账（不分页，结账生成快照用）；warehouseId 为空时为全部仓库合计 */
     public List<LedgerRowVO> liveLedgerAll(YearMonth ym, Long warehouseId) {
         return liveLedger(ym, warehouseId, null, Integer.MAX_VALUE, 1).getRecords();

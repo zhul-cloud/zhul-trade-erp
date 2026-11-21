@@ -163,7 +163,13 @@ class InventoryPeriodContractTest extends SalesContractSupport {
         assertEquals(2, row.path("quantity").asInt());
         assertEquals(0, new BigDecimal("1420.00").compareTo(row.path("amountCny").decimalValue()));
         assertEquals(0, new BigDecimal("1420.00").compareTo(ok(call(get(P + "/" + m1), admin)).path("cogsAmount").decimalValue()));
+        JsonNode d = ok(call(get(P + "/" + m1), admin));
+        assertEquals(0, BigDecimal.ZERO.compareTo(d.path("openingAmount").decimalValue()));
+        assertEquals(0, new BigDecimal("4260.00").compareTo(d.path("inAmount").decimalValue()), "入库 4 + 2 个 × 710");
+        assertEquals(0, new BigDecimal("1420.00").compareTo(d.path("outAmount").decimalValue()));
         ok(close(m1));
         assertEquals(1, ok(call(get(P + "/" + m1 + "/cogs"), admin)).path("total").asInt(), "已结账读快照");
+        byte[] xlsx = perform(post(P + "/" + m1 + "/export"), admin).getContentAsByteArray();
+        assertEquals('P', (char) xlsx[0], "xlsx");
     }
 }

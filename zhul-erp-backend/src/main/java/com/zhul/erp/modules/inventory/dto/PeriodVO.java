@@ -13,6 +13,10 @@ public class PeriodVO {
     private Integer status;
     private String statusName;
     private String currencyCode = "CNY";
+    /** 详情才有：期初、本月入库、本月出库金额（全部仓库合计） */
+    private BigDecimal openingAmount;
+    private BigDecimal inAmount;
+    private BigDecimal outAmount;
     private BigDecimal closingAmount;
     private BigDecimal cogsAmount;
     private BigDecimal adjustAmount;

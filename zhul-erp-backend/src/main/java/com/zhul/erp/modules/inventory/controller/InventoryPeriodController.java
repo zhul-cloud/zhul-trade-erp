@@ -56,7 +56,19 @@ public class InventoryPeriodController {
     public Result<PageResult<PeriodCogsVO>> cogs(@PathVariable String month, @RequestParam(required = false) String keyword,
                                                  @RequestParam(required = false) Integer page,
                                                  @RequestParam(required = false) Integer pageSize) {
-        return Result.ok(service.cogs(month, keyword, page, pageSize));
+        return Result.ok(service.cogs(month, keyword, page, pageSize == null ? null : Math.min(pageSize, 100)));
+    }
+
+    /** 导出：库存台账与销售成本两张表 */
+    @PostMapping("/{month}/export")
+    @PreAuthorize(VIEW)
+    public org.springframework.http.ResponseEntity<byte[]> export(@PathVariable String month) {
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, org.springframework.http.ContentDisposition.attachment()
+                        .filename("库存月结-" + month + ".xlsx", java.nio.charset.StandardCharsets.UTF_8).build().toString())
+                .contentType(org.springframework.http.MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(service.export(month));
     }
 
     @PostMapping("/{month}/close")

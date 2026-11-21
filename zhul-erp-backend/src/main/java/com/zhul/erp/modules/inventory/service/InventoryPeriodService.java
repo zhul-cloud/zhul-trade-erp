@@ -116,6 +116,10 @@ public class InventoryPeriodService {
         Map<String, InvPeriodDO> rows = periodMapper.selectList(scoped()).stream()
                 .collect(Collectors.toMap(InvPeriodDO::getPeriodMonth, Function.identity(), (a, b) -> a));
         PeriodVO v = toVo(m, rows.get(m.toString()), rows, latestClosed(rows.values()));
+        List<LedgerRowVO> ledger = queries.ledgerAll(m.toString());
+        v.setOpeningAmount(ledger.stream().map(LedgerRowVO::getOpeningAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
+        v.setInAmount(ledger.stream().map(LedgerRowVO::getInAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
+        v.setOutAmount(ledger.stream().map(LedgerRowVO::getOutAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
         if (!Objects.equals(v.getStatus(), InvConstants.PERIOD_CLOSED)) {
             v.setReminders(reminders(m));
         }
@@ -193,10 +197,53 @@ public class InventoryPeriodService {
             String kw = keyword.trim().toLowerCase();
             vos = vos.stream().filter(v -> (v.getSoNo() + " " + v.getModel() + " " + v.getDocNo()).toLowerCase().contains(kw)).toList();
         }
-        int size = pageSize == null || pageSize <= 0 ? 20 : Math.min(pageSize, 100);
+        int size = pageSize == null || pageSize <= 0 ? 20 : pageSize;
         int pg = Math.max(1, page == null ? 1 : page);
         int from = Math.min(vos.size(), (pg - 1) * size);
         return PageResult.of((long) vos.size(), vos.subList(from, Math.min(vos.size(), from + size)));
+    }
+
+    /** 导出月份详情：库存台账（全部仓库合计）与销售成本两张表；已结账为快照 */
+    public byte[] export(String month) {
+        YearMonth m = parse(month);
+        List<LedgerRowVO> ledger = queries.ledgerAll(m.toString());
+        List<PeriodCogsVO> cogs = cogs(m.toString(), null, 1, Integer.MAX_VALUE).getRecords();
+        try (org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
+             java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream()) {
+            org.apache.poi.ss.usermodel.Sheet a = wb.createSheet("库存台账");
+            row(a, 0, "品牌", "型号", "品类", "期初数量", "期初金额", "入库数量", "入库金额", "出库数量", "出库金额", "成本调整",
+                    "期末数量", "期末金额");
+            int r = 1;
+            for (LedgerRowVO v : ledger) {
+                row(a, r++, v.getBrand(), v.getModel(), v.getCategory(), v.getOpeningQty(), v.getOpeningAmount(), v.getInQty(),
+                        v.getInAmount(), v.getOutQty(), v.getOutAmount(), v.getAdjustAmount(), v.getClosingQty(), v.getClosingAmount());
+            }
+            org.apache.poi.ss.usermodel.Sheet b = wb.createSheet("销售成本");
+            row(b, 0, "类型", "订单号", "品牌", "型号", "单号", "日期", "数量", "其中系统外入库", "货款", "开票", "采购费用", "质量索赔",
+                    "销售成本");
+            r = 1;
+            for (PeriodCogsVO v : cogs) {
+                row(b, r++, v.getKindName(), v.getSoNo(), v.getBrand(), v.getModel(), v.getDocNo(), String.valueOf(v.getBizDate()),
+                        v.getQuantity(), v.getSystemQty(), v.getAmountGoods(), v.getAmountInvoice(), v.getAmountFee(), v.getAmountClaim(),
+                        v.getAmountCny());
+            }
+            wb.write(bos);
+            return bos.toByteArray();
+        } catch (java.io.IOException ex) {
+            throw new java.io.UncheckedIOException("库存月结导出失败", ex);
+        }
+    }
+
+    private static void row(org.apache.poi.ss.usermodel.Sheet sheet, int index, Object... values) {
+        org.apache.poi.ss.usermodel.Row row = sheet.createRow(index);
+        for (int i = 0; i < values.length; i++) {
+            Object v = values[i];
+            if (v instanceof Number n) {
+                row.createCell(i).setCellValue(n.doubleValue());
+            } else {
+                row.createCell(i).setCellValue(v == null ? "" : v.toString());
+            }
+        }
     }
 
     // ---------------------------------------------------------------- 结账与反结账
@@ -492,6 +539,10 @@ public class InventoryPeriodService {
             if (unsettled > 0) {
                 out.add(unsettled + " 张当月出运的订单成本还未结算（收款或运费没定），结账后变化记到之后的月份");
             }
+        }
+        int system = cogsRows(m).stream().mapToInt(InvPeriodCogsDO::getSystemQty).sum();
+        if (system > 0) {
+            out.add("当月出运里有 " + system + " 件来自系统外入库，成本为 0；订单成本按采购订单单价计");
         }
         return out;
     }
