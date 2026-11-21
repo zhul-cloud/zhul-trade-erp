@@ -5,7 +5,7 @@ import {
   SearchOutlined,
   UnlockOutlined,
 } from '@ant-design/icons';
-import { Link, useAccess, useParams } from '@umijs/max';
+import { history, Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Input, Select, Skeleton, Table, Tabs } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -13,7 +13,12 @@ import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { ModelCell, useWarehouses } from '@/pages/warehouse/inventoryParts';
-import { docHref, type LedgerRow } from '@/pages/warehouse/inventoryService';
+import {
+  type CategoryLedger,
+  docHref,
+  type LedgerRow,
+} from '@/pages/warehouse/inventoryService';
+import { CategoryLedgerTable } from '@/pages/warehouse/ledger/CategoryLedgerTable';
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
@@ -394,6 +399,40 @@ const AdjustTab: React.FC<{ month: string }> = ({ month }) => {
 };
 
 /** 月份详情（spec finance/period-close「月结页」，原型 P2）：汇总与库存台账、销售成本、成本调整三个页签 */
+/** 类目账（spec finance/period-close「库存月结页」）：与库存台账页的类目账同一口径；点品类打开库存台账的明细账 */
+const CategoryTab: React.FC<{ month: string }> = ({ month }) => {
+  const [data, setData] = useState<CategoryLedger>();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>();
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(undefined);
+    try {
+      setData(await periodApi.categoryLedger(month));
+    } catch (e) {
+      setError(readBizError(e).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [month]);
+  useEffect(() => {
+    load();
+  }, [load]);
+  if (error) return <ErrorHint message={error} onRetry={load} />;
+  return (
+    <CategoryLedgerTable
+      data={data}
+      loading={loading}
+      totalLabel="合计"
+      onPick={(id) =>
+        history.push(
+          `/warehouse/ledger?view=detail&month=${month}&categoryId=${id}`,
+        )
+      }
+    />
+  );
+};
+
 const PeriodDetail: React.FC = () => {
   const month = useParams<{ month: string }>().month ?? '';
   const { palette } = useAppTheme();
@@ -401,7 +440,7 @@ const PeriodDetail: React.FC = () => {
   const access = useAccess() as Record<string, boolean>;
   const [p, setP] = useState<Period>();
   const [error, setError] = useState<string>();
-  const [tab, setTab] = useState('ledger');
+  const [tab, setTab] = useState('category');
   const [closing, setClosing] = useState(false);
   const [reopening, setReopening] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -514,6 +553,11 @@ const PeriodDetail: React.FC = () => {
           activeKey={tab}
           onChange={setTab}
           items={[
+            {
+              key: 'category',
+              label: '类目账',
+              children: <CategoryTab key={version} month={month} />,
+            },
             {
               key: 'ledger',
               label: '库存台账',

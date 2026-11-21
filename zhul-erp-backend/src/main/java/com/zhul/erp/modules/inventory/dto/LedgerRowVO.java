@@ -11,6 +11,9 @@ public class LedgerRowVO {
     private String model;
     private String brand;
     private String category;
+    /** 一级品类 ID（0 为未分类）与名称；已结账月份取结账时的品类 */
+    private Long categoryL1Id;
+    private String categoryL1Name;
     private Long warehouseId;
     private String warehouseName;
     private Integer openingQty;

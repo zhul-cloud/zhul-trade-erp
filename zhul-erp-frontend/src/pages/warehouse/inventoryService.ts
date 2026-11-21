@@ -203,6 +203,9 @@ export interface LedgerRow {
   model: string;
   brand?: string;
   category?: string;
+  /** 一级品类（0 为未分类）；已结账月份取结账时的品类 */
+  categoryL1Id?: number;
+  categoryL1Name?: string;
   openingQty: number;
   openingAmount: number;
   inQty: number;
@@ -219,8 +222,32 @@ export interface LedgerQuery {
   month: string;
   warehouseId?: number;
   keyword?: string;
+  /** 一级品类，0 为未分类 */
+  categoryId?: number;
   page: number;
   pageSize: number;
+}
+
+/** 类目账一行（合计行 categoryId 为空）：期初 + 入库 − 出库 + 在库成本调整 = 期末 */
+export interface CategoryLedgerRow {
+  categoryId?: number;
+  categoryName: string;
+  productCount: number;
+  openingAmount: number;
+  inAmount: number;
+  outAmount: number;
+  adjustAmount: number;
+  closingAmount: number;
+  /** 本月销售成本；按仓库查看时没有 */
+  cogsAmount?: number;
+}
+
+/** 库存类目账：按一级品类汇总，合计即总账 */
+export interface CategoryLedger {
+  month: string;
+  warehouseId?: number;
+  rows: CategoryLedgerRow[];
+  total: CategoryLedgerRow;
 }
 
 export interface InvWarehouse extends Audit {
@@ -359,9 +386,18 @@ export const stockApi = {
       closedByName?: string;
       closedAt?: string;
     }>(`${WH}/ledger/period`, { month }),
-  /** 台账导出 Excel：出错时接口返回 JSON 提示 */
-  exportLedger: (q: Omit<LedgerQuery, 'page' | 'pageSize'>) =>
-    downloadXlsx(`${WH}/ledger/export`, q, `库存台账-${q.month}.xlsx`),
+  /** 类目账：按一级品类汇总（已结账读快照） */
+  categoryLedger: (q: { month: string; warehouseId?: number }) =>
+    send<CategoryLedger>('POST', `${WH}/ledger/category`, q),
+  /** 台账导出 Excel（view 为 category 时导出类目账）：出错时接口返回 JSON 提示 */
+  exportLedger: (
+    q: Omit<LedgerQuery, 'page' | 'pageSize'> & { view?: 'category' },
+  ) =>
+    downloadXlsx(
+      `${WH}/ledger/export`,
+      q,
+      `${q.view === 'category' ? '库存类目账' : '库存台账'}-${q.month}.xlsx`,
+    ),
   /** 库存退回：生成采购退货单（来源「库存退回」） */
   returnToSupplier: (body: {
     supplierId: number;

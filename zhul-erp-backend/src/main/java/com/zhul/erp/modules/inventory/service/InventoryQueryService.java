@@ -347,15 +347,32 @@ public class InventoryQueryService {
         }
         // 已结账月份读结账时的快照（spec finance/period-close「月结快照」）
         Long periodId = closedPeriodId(ym);
-        PageResult<LedgerRowVO> result = periodId != null ? snapshotLedger(periodId, q.getWarehouseId(), pids, size, page)
-                : liveLedger(ym, q.getWarehouseId(), pids, size, page);
-        Map<Long, InventoryProducts.Label> labels = products.labels(result.getRecords().stream().map(LedgerRowVO::getProductId).toList());
+        // 一级品类：已结账按快照里结账时的品类，未结账按商品当前品类
+        PageResult<LedgerRowVO> result = periodId != null
+                ? snapshotLedger(periodId, q.getWarehouseId(), pids, q.getCategoryId(), size, page)
+                : liveLedger(ym, q.getWarehouseId(), pids, q.getCategoryId(), size, page);
+        List<Long> ids = result.getRecords().stream().map(LedgerRowVO::getProductId).toList();
+        Map<Long, InventoryProducts.Label> labels = products.labels(ids);
+        Map<Long, String> topNames = Map.of();
+        Map<Long, InventoryProducts.TopCategory> tops = Map.of();
+        if (periodId != null) {
+            topNames = products.topCategoryNames(result.getRecords().stream().map(LedgerRowVO::getCategoryL1Id).toList());
+        } else {
+            tops = products.topCategories(ids);
+        }
         String whName = q.getWarehouseId() == null ? "全部仓库" : warehouses.require(q.getWarehouseId()).getName();
         for (LedgerRowVO v : result.getRecords()) {
             InventoryProducts.Label l = labels.getOrDefault(v.getProductId(), InventoryProducts.Label.NONE);
             v.setModel(l.model());
             v.setBrand(l.brand());
             v.setCategory(l.category());
+            if (periodId != null) {
+                v.setCategoryL1Name(topNames.getOrDefault(v.getCategoryL1Id(), ""));
+            } else {
+                InventoryProducts.TopCategory t = tops.getOrDefault(v.getProductId(), InventoryProducts.TopCategory.NONE);
+                v.setCategoryL1Id(t.id());
+                v.setCategoryL1Name(t.name());
+            }
             v.setWarehouseId(q.getWarehouseId());
             v.setWarehouseName(whName);
         }
@@ -369,7 +386,8 @@ public class InventoryQueryService {
         return ids.isEmpty() ? null : ids.get(0);
     }
 
-    private PageResult<LedgerRowVO> snapshotLedger(long periodId, Long warehouseId, List<Long> pids, int size, int page) {
+    private PageResult<LedgerRowVO> snapshotLedger(long periodId, Long warehouseId, List<Long> pids, Long categoryId, int size,
+                                                   int page) {
         StringBuilder where = new StringBuilder(" FROM inv_period_ledger WHERE tenant_id = ? AND period_id = ? AND warehouse_id = ?"
                 + " AND deleted_at IS NULL");
         List<Object> args = new ArrayList<>(List.of(PiStore.tenantId(), periodId, warehouseId == null ? 0L : warehouseId));
@@ -377,16 +395,21 @@ public class InventoryQueryService {
             where.append(" AND product_id IN (").append(marks(pids.size())).append(')');
             args.addAll(pids);
         }
+        if (categoryId != null) {
+            where.append(" AND category_l1_id = ?");
+            args.add(categoryId);
+        }
         Long total = jdbc.queryForObject("SELECT COUNT(*)" + where, Long.class, args.toArray());
         if (total == null || total == 0) {
             return PageResult.of(0L, List.of());
         }
         args.add((long) (page - 1) * size);
         args.add(size);
-        List<LedgerRowVO> rows = jdbc.query("SELECT product_id, opening_qty, opening_amount, in_qty, in_amount, out_qty, out_amount,"
+        List<LedgerRowVO> rows = jdbc.query("SELECT product_id, category_l1_id, opening_qty, opening_amount, in_qty, in_amount, out_qty, out_amount,"
                 + " adjust_amount, closing_qty, closing_amount" + where + " ORDER BY product_id DESC LIMIT ?, ?", (rs, i) -> {
             LedgerRowVO v = new LedgerRowVO();
             v.setProductId(rs.getLong("product_id"));
+            v.setCategoryL1Id(rs.getLong("category_l1_id"));
             v.setOpeningQty(rs.getInt("opening_qty"));
             v.setOpeningAmount(money(rs.getBigDecimal("opening_amount")));
             v.setInQty(rs.getInt("in_qty"));
@@ -403,21 +426,28 @@ public class InventoryQueryService {
 
     /** 某月全部仓库合计的台账（不分页，已结账读快照），带型号等标签；月结详情的汇总与导出用 */
     public List<LedgerRowVO> ledgerAll(String month) {
+        return ledgerAll(month, null);
+    }
+
+    /** 某月某仓库（空为全部仓库合计）的台账，不分页，已结账读快照；类目账按它汇总 */
+    public List<LedgerRowVO> ledgerAll(String month, Long warehouseId) {
         LedgerQuery q = new LedgerQuery();
         q.setMonth(month);
+        q.setWarehouseId(warehouseId);
         return ledger(q, Integer.MAX_VALUE, 1).getRecords();
     }
 
     /** 某月全部商品的实时台账（不分页，结账生成快照用）；warehouseId 为空时为全部仓库合计 */
     public List<LedgerRowVO> liveLedgerAll(YearMonth ym, Long warehouseId) {
-        return liveLedger(ym, warehouseId, null, Integer.MAX_VALUE, 1).getRecords();
+        return liveLedger(ym, warehouseId, null, null, Integer.MAX_VALUE, 1).getRecords();
     }
 
     /**
      * 实时台账：按流水的业务日期（biz_date）归月。入库：入库、调入（全部仓库合计时调入调出抵消，不计）、商品合并转入；出库同理；
      * 成本调整：数量 0 的成本调整流水（op_type 9）金额。转入转出（合格↔不良）与预占不计。期末 = 期初 + 入库 − 出库 + 成本调整。
      */
-    private PageResult<LedgerRowVO> liveLedger(YearMonth ym, Long warehouseId, List<Long> pids, int size, int page) {
+    private PageResult<LedgerRowVO> liveLedger(YearMonth ym, Long warehouseId, List<Long> pids, Long categoryId, int size,
+                                               int page) {
         int tenant = PiStore.tenantId();
         java.sql.Date start = java.sql.Date.valueOf(ym.atDay(1));
         java.sql.Date end = java.sql.Date.valueOf(ym.plusMonths(1).atDay(1));
@@ -434,6 +464,10 @@ public class InventoryQueryService {
         if (pids != null) {
             where.append(" AND product_id IN (").append(marks(pids.size())).append(')');
             whereArgs.addAll(pids);
+        }
+        if (categoryId != null) {
+            where.append(" AND product_id IN (").append(InventoryProducts.PRODUCTS_OF_TOP_CATEGORY_SQL).append(')');
+            whereArgs.add(categoryId);
         }
         String grouped = "SELECT product_id,"
                 + " SUM(CASE WHEN biz_date < ? THEN quantity ELSE 0 END) oq,"
@@ -475,7 +509,7 @@ public class InventoryQueryService {
     /** 台账导出 Excel（最多 5000 行） */
     public byte[] exportLedger(LedgerQuery q) {
         List<LedgerRowVO> rows = ledger(q, EXPORT_LIMIT, 1).getRecords();
-        String[] head = {"品牌", "型号", "品类", "仓库", "期初数量", "期初金额", "入库数量", "入库金额", "出库数量", "出库金额", "成本调整",
+        String[] head = {"品牌", "型号", "一级品类", "品类", "仓库", "期初数量", "期初金额", "入库数量", "入库金额", "出库数量", "出库金额", "成本调整",
                 "期末数量", "期末金额"};
         try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
             Sheet sheet = wb.createSheet("库存台账 " + month(q.getMonth()));
@@ -488,23 +522,29 @@ public class InventoryQueryService {
                 Row row = sheet.createRow(r++);
                 row.createCell(0).setCellValue(v.getBrand());
                 row.createCell(1).setCellValue(v.getModel());
-                row.createCell(2).setCellValue(v.getCategory());
-                row.createCell(3).setCellValue(v.getWarehouseName());
-                row.createCell(4).setCellValue(v.getOpeningQty());
-                row.createCell(5).setCellValue(v.getOpeningAmount().doubleValue());
-                row.createCell(6).setCellValue(v.getInQty());
-                row.createCell(7).setCellValue(v.getInAmount().doubleValue());
-                row.createCell(8).setCellValue(v.getOutQty());
-                row.createCell(9).setCellValue(v.getOutAmount().doubleValue());
-                row.createCell(10).setCellValue(v.getAdjustAmount().doubleValue());
-                row.createCell(11).setCellValue(v.getClosingQty());
-                row.createCell(12).setCellValue(v.getClosingAmount().doubleValue());
+                row.createCell(2).setCellValue(v.getCategoryL1Name());
+                row.createCell(3).setCellValue(v.getCategory());
+                row.createCell(4).setCellValue(v.getWarehouseName());
+                row.createCell(5).setCellValue(v.getOpeningQty());
+                row.createCell(6).setCellValue(v.getOpeningAmount().doubleValue());
+                row.createCell(7).setCellValue(v.getInQty());
+                row.createCell(8).setCellValue(v.getInAmount().doubleValue());
+                row.createCell(9).setCellValue(v.getOutQty());
+                row.createCell(10).setCellValue(v.getOutAmount().doubleValue());
+                row.createCell(11).setCellValue(v.getAdjustAmount().doubleValue());
+                row.createCell(12).setCellValue(v.getClosingQty());
+                row.createCell(13).setCellValue(v.getClosingAmount().doubleValue());
             }
             wb.write(bos);
             return bos.toByteArray();
         } catch (IOException ex) {
             throw new UncheckedIOException("库存台账导出失败", ex);
         }
+    }
+
+    /** 仓库须属于当前公司 */
+    public void requireWarehouse(Long warehouseId) {
+        warehouses.require(warehouseId);
     }
 
     public static YearMonth month(String m) {
