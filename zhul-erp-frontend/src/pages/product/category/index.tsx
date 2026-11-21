@@ -13,6 +13,7 @@ import { useAccess } from '@umijs/max';
 import { App, Button, Tooltip } from 'antd';
 import React, { useRef, useState } from 'react';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import { MONO_FONT } from '@/theme/fonts';
 import { useIndustryOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
@@ -120,9 +121,7 @@ const CategoryPage: React.FC = () => {
       search: false,
       width: 200,
       render: (_, r) => (
-        <code style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
-          {r.categoryCode}
-        </code>
+        <code style={{ fontFamily: MONO_FONT }}>{r.categoryCode}</code>
       ),
     },
     {

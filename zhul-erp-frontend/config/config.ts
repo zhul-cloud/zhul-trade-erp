@@ -116,7 +116,7 @@ export default defineConfig({
    */
   title: '烛龙ERP',
   // 浏览器标签页图标，与侧栏 AppLogo 一致；改图标时把 v 改一下，避免浏览器沿用缓存
-  favicons: ['/favicon.ico?v=2'],
+  favicons: ['/favicon.ico?v=3'],
   layout: {
     locale: true,
     ...defaultSettings,

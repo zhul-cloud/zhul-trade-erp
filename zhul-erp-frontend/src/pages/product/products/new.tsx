@@ -16,6 +16,7 @@ import React, {
 } from 'react';
 import { useUnsavedGuard } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
+import { MONO_FONT } from '@/theme/fonts';
 import { CompletenessBar } from '../components/CompletenessBar';
 import { BrandMark, LifecyclePill, Pill } from '../components/Pills';
 import {
@@ -1279,7 +1280,7 @@ const WizardInner: React.FC = () => {
             >
               <div
                 style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontFamily: MONO_FONT,
                   fontSize: 12,
                   letterSpacing: 2,
                   color: palette.link,

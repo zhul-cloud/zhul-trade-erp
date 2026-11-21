@@ -23,6 +23,7 @@ import React, {
 } from 'react';
 import { usePageTitle, useTabDirty } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
+import { MONO_FONT } from '@/theme/fonts';
 import { CompletenessBar } from '../components/CompletenessBar';
 import { ErrorHint } from '../components/EmptyHint';
 import { LifecyclePill, Pill } from '../components/Pills';
@@ -250,7 +251,7 @@ const Sidebar: React.FC<{
         )}
         {row(
           '归一化型号',
-          <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+          <span style={{ fontFamily: MONO_FONT }}>
             {product.mpnNormalized}
           </span>,
         )}

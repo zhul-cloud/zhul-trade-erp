@@ -6,17 +6,7 @@ import {
   useAppearance,
 } from '@/components/Shell/BrandLogo';
 import { useAppTheme } from '@/theme/AppTheme';
-
-/** 极光底：蓝、靛、青三团柔光叠在主题底色上，深色下亮一些，浅色下淡一些 */
-const aurora = (dark: boolean, canvas: string) => {
-  const a = dark ? [0.32, 0.26, 0.16] : [0.16, 0.12, 0.1];
-  return [
-    `radial-gradient(60% 50% at 18% 8%, rgba(37, 99, 235, ${a[0]}), transparent)`,
-    `radial-gradient(50% 42% at 88% 0%, rgba(99, 102, 241, ${a[1]}), transparent)`,
-    `radial-gradient(46% 40% at 62% 100%, rgba(34, 211, 238, ${a[2]}), transparent)`,
-    canvas,
-  ].join(', ');
-};
+import { CARD_SHADOW } from '@/theme/palette';
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -34,7 +24,7 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({
   useEffect(() => {
     // 自定义背景图可能是占位值（如种子数据里的 /bg.jpg）而实际文件并不存在；
     // CSS background 加载失败时不会像 <img onError> 那样自动回退，
-    // 因此这里预加载探测一次，确认真的能显示再切换背景，否则保留渐变兜底。
+    // 因此这里预加载探测一次，确认真的能显示再切换背景，否则用页面底色。
     if (!appearance?.loginBackgroundUrl) {
       setBgLoaded(false);
       return;
@@ -53,11 +43,11 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({
     };
   }, [appearance?.loginBackgroundUrl]);
 
-  // 后台配置了可用的背景图就用图（叠一层主题底色保证文字对比度），否则用极光底
+  // 后台配置了可用的背景图就用图（叠一层页面底色保证文字对比度），否则用页面底色
   const bg =
     bgLoaded && appearance?.loginBackgroundUrl
       ? `linear-gradient(${p.canvas}b3, ${p.canvas}b3), url(${appearance.loginBackgroundUrl}) center / cover no-repeat`
-      : aurora(mode === 'dark', p.canvas);
+      : p.canvas;
 
   return (
     <div
@@ -107,10 +97,10 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({
           width: cardWidth,
           maxWidth: '100%',
           background: p.card,
-          border: `1px solid ${p.hairline}`,
-          borderRadius: 16,
+          border: mode === 'dark' ? `1px solid ${p.hairline}` : 'none',
+          borderRadius: 10,
           padding: 32,
-          boxShadow: '0 12px 40px rgba(2, 6, 23, 0.28)',
+          boxShadow: mode === 'dark' ? 'none' : CARD_SHADOW,
           boxSizing: 'border-box',
         }}
       >

@@ -2,6 +2,7 @@ import { MoonOutlined, SunOutlined } from '@ant-design/icons';
 import { Button, Tooltip } from 'antd';
 import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
+import { MONO_FONT } from '@/theme/fonts';
 import { useMenu } from '@/utils/menuName';
 
 export type { ThemeMode } from '@/theme/palette';
@@ -61,7 +62,7 @@ export const PageHeader: React.FC<{
         {eyebrow && (
           <div
             style={{
-              fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+              fontFamily: MONO_FONT,
               fontSize: 12,
               letterSpacing: 2,
               color: palette.link,
