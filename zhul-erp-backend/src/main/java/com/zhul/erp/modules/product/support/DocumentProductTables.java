@@ -60,7 +60,10 @@ public final class DocumentProductTables {
             "inv_move", "库存表：商品合并时由 InventoryMerge 按余额生成「商品合并」流水转到主商品，不批量改指向（流水只增不改）",
             "inv_balance", "库存表：商品合并时由 InventoryMerge 按余额生成「商品合并」流水转到主商品，不批量改指向（流水只增不改）",
             "inv_reservation", "库存表：商品合并时由 InventoryMerge 按余额生成「商品合并」流水转到主商品，不批量改指向（流水只增不改）",
-            "inv_other_outbound_item", "库存表：商品合并时由 InventoryMerge 按余额生成「商品合并」流水转到主商品，不批量改指向（流水只增不改）");
+            "inv_other_outbound_item", "库存表：商品合并时由 InventoryMerge 按余额生成「商品合并」流水转到主商品，不批量改指向（流水只增不改）",
+            "inv_cost_adjust_item", "成本调整明细：系统生成的历史记录，记调整当时的商品，合并不改",
+            "inv_period_ledger", "月结快照：结账时的历史数字，合并不改",
+            "inv_period_cogs", "月结快照：结账时的历史数字，合并不改");
 
     public static Optional<Entry> find(String table) {
         return ENTRIES.stream().filter(e -> e.table().equals(table)).findFirst();

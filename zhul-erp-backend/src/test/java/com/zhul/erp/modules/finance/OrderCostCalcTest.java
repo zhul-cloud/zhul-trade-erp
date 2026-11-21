@@ -201,4 +201,60 @@ class OrderCostCalcTest {
         eq("334.50", r.lines().get(0).refund());
         eq("257.50", r.lines().get(0).profit());
     }
+
+    // ---------------------------------------------------------------- 已出运读结转成本（openspec inventory-costing 5.2）
+
+    private static Input shippedInput(Item it, List<PoLine> lines, Map<Long, Po> pos, OrderCostCalc.Shipped sh) {
+        return new Input(true, d("5000"), List.of(it), lines, pos, List.of(settled("5000", "5000", "1")), BigDecimal.ZERO,
+                BigDecimal.ZERO, BigDecimal.ZERO, Map.of(it.id(), sh));
+    }
+
+    @Test
+    void 已出运的读结转成本_加之后的成本调整() {
+        // A × 10 全部出运：结转货款 1000、开票 30、采购费用 50，之后外币付清调整货款 +12
+        OrderCostCalc.Shipped sh = new OrderCostCalc.Shipped(10, 0, d("1012.00"), d("30.00"), d("50.00"), d("0"));
+        Po usd = new Po(300, "USD", d("7.00"), d("1000"), BigDecimal.ZERO, BigDecimal.ZERO, d("1000"), d("1000"), d("7200"));
+        Result r = OrderCostCalc.compute(shippedInput(item(1, 10, "3000", null, "0", "0", "0"),
+                List.of(new PoLine(11, 300, 1, 10, 10, d("14.2857"), null, null)), Map.of(300L, usd), sh));
+        OrderCostCalc.Line l = r.lines().get(0);
+        eq("1012.00", l.purchase());
+        eq("30.00", l.invoice());
+        eq("50.00", l.poFee());
+        assertEquals(10, l.shippedQty());
+        assertEquals(0, l.unreceivedQty());
+        assertTrue(l.purchaseSettled());
+    }
+
+    @Test
+    void 部分出运_剩下的照旧按采购订单推算() {
+        // C × 10：已出运 4 个（结转货款 320），另外 6 个已下单单价 80、未入库
+        OrderCostCalc.Shipped sh = new OrderCostCalc.Shipped(4, 0, d("320.00"), d("0"), d("0"), d("0"));
+        Result r = OrderCostCalc.compute(shippedInput(item(3, 10, "1500", "90", "0", "0", "0"),
+                List.of(new PoLine(31, 600, 3, 10, 4, d("80"), null, null)), Map.of(600L, cnyPo(600, "800", "0", "0")), sh));
+        OrderCostCalc.Line l = r.lines().get(0);
+        eq("800.00", l.purchase());
+        assertEquals(6, l.unreceivedQty());
+        assertEquals(0, l.unorderedQty());
+        assertFalse(l.purchaseSettled());
+    }
+
+    @Test
+    void 系统外入库回退采购订单单价() {
+        // D × 5 已出运，其中 2 个来自系统外入库（成本 0），另 3 个结转 300；采购订单单价 100
+        OrderCostCalc.Shipped sh = new OrderCostCalc.Shipped(5, 2, d("300.00"), d("0"), d("0"), d("0"));
+        Result r = OrderCostCalc.compute(shippedInput(item(4, 5, "1000", null, "0", "0", "0"),
+                List.of(new PoLine(41, 700, 4, 5, 3, d("100"), null, null)), Map.of(700L, cnyPo(700, "500", "0", "0")), sh));
+        OrderCostCalc.Line l = r.lines().get(0);
+        eq("500.00", l.purchase());
+        assertEquals(2, l.systemQty());
+        assertEquals(0, l.unreceivedQty());
+    }
+
+    @Test
+    void 系统外入库没有采购订单时按采购成本价() {
+        OrderCostCalc.Shipped sh = new OrderCostCalc.Shipped(3, 3, d("0"), d("0"), d("0"), d("0"));
+        Result r = OrderCostCalc.compute(shippedInput(item(5, 3, "600", "90", "0", "0", "0"), List.of(), Map.of(), sh));
+        eq("270.00", r.lines().get(0).purchase());
+        assertEquals(0, r.lines().get(0).unorderedQty());
+    }
 }

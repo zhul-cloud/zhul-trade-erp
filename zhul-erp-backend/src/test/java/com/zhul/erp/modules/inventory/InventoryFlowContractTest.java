@@ -29,6 +29,10 @@ class InventoryFlowContractTest extends SalesContractSupport {
     private com.zhul.erp.modules.product.merge.service.ProductMergeService productMerge;
     @org.springframework.beans.factory.annotation.Autowired
     private org.springframework.transaction.support.TransactionTemplate tx;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.zhul.erp.modules.finance.service.OrderCostService orderCost;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.zhul.erp.modules.sales.repository.SalesOrderMapper soMapper;
 
     private static final String SHIP = "/api/v1/purchase/shipments";
     private static final String GR = "/api/v1/warehouse/receipts";
@@ -136,6 +140,19 @@ class InventoryFlowContractTest extends SalesContractSupport {
     }
 
     // ---------------------------------------------------------------- 核对
+
+    private com.zhul.erp.modules.finance.dto.OrderCostVO.Line orderCostLine(long soItem) {
+        long soId = jdbc.queryForObject("select so_id from sales_order_item where id = ?", Long.class, soItem);
+        com.zhul.erp.modules.finance.dto.OrderCostVO[] out = new com.zhul.erp.modules.finance.dto.OrderCostVO[1];
+        com.zhul.erp.framework.tenant.TenantContext.runAs(0, () -> out[0] = orderCost.of(soMapper.selectById(soId)));
+        return out[0].getLines().stream().filter(l -> l.getSoItemId() == soItem).findFirst().orElseThrow();
+    }
+
+    /** 型号行采购货款、开票成本、采购费用、质量索赔 */
+    private String purchaseParts(long soItem) {
+        com.zhul.erp.modules.finance.dto.OrderCostVO.Line l = orderCostLine(soItem);
+        return l.getPurchase() + "/" + l.getInvoice() + "/" + l.getPoFee() + "/" + l.getClaim();
+    }
 
     /** 某商品在某类仓库的 {合格结存, 不良结存, 预占} */
     private int[] stock(long productId, int warehouseType) {
@@ -319,12 +336,16 @@ class InventoryFlowContractTest extends SalesContractSupport {
         assertStock(new int[]{0, 0, 0}, stock(product, 2), "货代仓清空");
 
         ok(handOverCall(obId));
+        String before = purchaseParts(soItem);
         long customerId = ok(call(get(SH + "/pending"), admin)).get(0).path("customerId").asLong();
         long shId = ok(call(json(post(SH), write(Map.of("customerId", customerId, "forwarderId", fwd,
                 "outboundIds", List.of(obId)))), admin)).path("id").asLong();
         ok(call(json(post(SH + "/" + shId + "/ship"), write(Map.of("carrier", "DHL", "waybillNo", "1234567890",
                 "shippedDate", LocalDate.now().toString(), "freight", "100"))), admin));
         assertStock(new int[]{0, 0, 0}, stock(product, 2), "出运：货代仓出库");
+        // spec finance/order-cost「已出运的读结转成本」：全部出运后采购货款、开票、采购费用、质量索赔与出运前一致，来源列出运单
+        assertEquals(before, purchaseParts(soItem), "全部出运后订单成本与改动前一致");
+        assertTrue(orderCostLine(soItem).getSources().get("purchase").stream().anyMatch(x -> "SHIPMENT".equals(x.getType())));
         assertEquals(0, reservedFor(soItem));
         assertEquals(-4, jdbc.queryForObject("select sum(quantity) from inv_move where tenant_id = 0 and biz_type = 'SALES_OUT'"
                 + " and op_type = 2 and target_id = ?", Integer.class, soItem));

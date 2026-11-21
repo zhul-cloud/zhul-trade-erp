@@ -102,3 +102,19 @@ it('售后补发订单：只有实际成本合计，也对齐', () => {
     headerColumn(container, '实际成本'),
   );
 });
+
+it('库存成本：已出运数量单列，系统外入库的数量标明按采购单价计', () => {
+  const { container, getByText } = render(
+    React.createElement(OrderCostCard, {
+      cost: {
+        ...cost,
+        lines: [{ ...line, quantity: 5, shippedQty: 5, systemQty: 5 }],
+      } as never,
+    }),
+  );
+  expect(headerColumn(container, '已出运')).toBeGreaterThan(0);
+  expect(getByText('5 个系统外入库，按采购单价计')).toBeTruthy();
+  expect(summaryColumn(container, '1,111.11')).toBe(
+    headerColumn(container, '实际成本'),
+  );
+});

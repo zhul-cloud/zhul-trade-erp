@@ -167,6 +167,60 @@ it('库存台账：点数量跳到这个商品当月的流水', async () => {
   expect(screen.getByText('合计')).toBeTruthy();
 });
 
+it('库存台账：成本调整列与合计；已结账月份标明结账人，读快照', async () => {
+  (request as jest.Mock).mockImplementation((url: string) => {
+    if (url.endsWith('/warehouses')) return Promise.resolve({ data: [] });
+    if (url.endsWith('/ledger/period'))
+      return Promise.resolve({
+        data: {
+          month: '2026-11',
+          status: 1,
+          statusName: '已结账',
+          closedByName: '张敏',
+          closedAt: '2026-12-02T10:12:00',
+        },
+      });
+    return Promise.resolve(
+      page([
+        {
+          productId: 11,
+          model: '6ES7214-1AG40-0XB0',
+          openingQty: 5,
+          openingAmount: 3550,
+          inQty: 0,
+          inAmount: 0,
+          outQty: 0,
+          outAmount: 0,
+          adjustAmount: 15,
+          closingQty: 5,
+          closingAmount: 3565,
+        },
+        {
+          productId: 12,
+          model: 'AX32-30-10-80',
+          openingQty: 4,
+          openingAmount: 2184,
+          inQty: 0,
+          inAmount: 0,
+          outQty: 2,
+          outAmount: 1092,
+          adjustAmount: -4.2,
+          closingQty: 2,
+          closingAmount: 1087.8,
+        },
+      ]),
+    );
+  });
+  mount(React.createElement(Ledger));
+  await screen.findByText('AX32-30-10-80');
+  expect(screen.getAllByText('成本调整').length).toBeGreaterThan(0);
+  expect(screen.getByText('+15.00')).toBeTruthy();
+  expect(screen.getByText('−4.20')).toBeTruthy();
+  expect(screen.getByText('+10.80')).toBeTruthy();
+  expect(screen.getByText('已结账')).toBeTruthy();
+  expect(screen.getByText(/张敏 2026-12-02 10:12/)).toBeTruthy();
+});
+
 it('仓库档案：切换库存模式要二次确认，确认后才保存', async () => {
   const calls: { url: string; method?: string; data?: unknown }[] = [];
   (request as jest.Mock).mockImplementation(

@@ -43,7 +43,8 @@ import java.util.TreeMap;
  * 库存过账服务（openspec inventory-foundation 决策 2）：只给业务服务调用，在调用方事务里执行。
  * 每次过账：按余额键（仓库 → 商品 → 批次 → 状态）的固定顺序加锁，先算出每行的净变动再校验，
  * 结存、预占都不能为负，预占不能超过结存；然后写流水、改余额、改预占。任何一步不满足就抛错，整个业务动作回滚。
- * 金额：数量 × 批次人民币单价，HALF_UP 两位；预占、释放不计金额。
+ * 金额：按批次单位成本的四项（货款、开票成本、采购费用、质量索赔）各自 × 数量，HALF_UP 两位，合计为流水金额；预占、释放不计金额。
+ * 业务日期：取单据日期（Doc.bizDate），没有时为当天；所在月份已结账时拒绝（openspec inventory-costing 决策 6、7）。
  */
 @Slf4j
 @Service
@@ -58,6 +59,7 @@ public class InventoryPosting {
     private final ProductMapper productMapper;
     private final CurrentUserResolver currentUser;
     private final InquiryLookups lookups;
+    private final InventoryPeriods periods;
 
     /** 已并入其他商品的商品 → 最终的主商品（沿并入链找到底）；没并入的不在结果里 */
     Map<Long, Long> currentProducts(java.util.Collection<Long> productIds) {
@@ -84,22 +86,27 @@ public class InventoryPosting {
     private static final Comparator<Loc> LOCK_ORDER = Comparator.comparingLong(Loc::warehouseId)
             .thenComparingLong(Loc::productId).thenComparingLong(Loc::batchId).thenComparingInt(Loc::status);
 
-    /** 来源单据与业务类型 */
-    public record Doc(String bizType, String bizLabel, String docType, Long docId, String docNo, Long docItemId) {
+    /** 来源单据与业务类型；bizDate 为单据日期（为空时取当天） */
+    public record Doc(String bizType, String bizLabel, String docType, Long docId, String docNo, Long docItemId,
+                      java.time.LocalDate bizDate) {
         public static Doc of(String bizType, String docType, Long docId, String docNo) {
-            return new Doc(bizType, "", docType, docId, docNo, null);
+            return new Doc(bizType, "", docType, docId, docNo, null, null);
         }
 
         public Doc item(Long itemId) {
-            return new Doc(bizType, bizLabel, docType, docId, docNo, itemId);
+            return new Doc(bizType, bizLabel, docType, docId, docNo, itemId, bizDate);
         }
 
         public Doc label(String l) {
-            return new Doc(bizType, l == null ? "" : l, docType, docId, docNo, docItemId);
+            return new Doc(bizType, l == null ? "" : l, docType, docId, docNo, docItemId, bizDate);
         }
 
         public Doc biz(String b) {
-            return new Doc(b, bizLabel, docType, docId, docNo, docItemId);
+            return new Doc(b, bizLabel, docType, docId, docNo, docItemId, bizDate);
+        }
+
+        public Doc date(java.time.LocalDate d) {
+            return new Doc(bizType, bizLabel, docType, docId, docNo, docItemId, d);
         }
     }
 
@@ -144,6 +151,15 @@ public class InventoryPosting {
             return List.of();
         }
         int tenantId = PiStore.tenantId();
+        // 0) 结账锁定：改结存的流水，业务日期所在月份不能已结账（预占、释放不改结存，不锁）
+        java.time.LocalDate today = java.time.LocalDate.now();
+        Set<String> checked = new java.util.HashSet<>();
+        for (Line l : lines) {
+            java.time.LocalDate d = l.doc().bizDate() == null ? today : l.doc().bizDate();
+            if (!InvConstants.reservationOnly(l.op()) && checked.add(InventoryPeriods.month(d) + "|" + l.doc().bizType())) {
+                periods.requireOpen(d, l.doc().bizType());
+            }
+        }
         // 1) 汇总每个余额键、每个预占的净变动
         Map<Loc, int[]> balanceDelta = new TreeMap<>(LOCK_ORDER);
         Map<ResKey, Integer> resDelta = new LinkedHashMap<>();
@@ -188,12 +204,13 @@ public class InventoryPosting {
         LocalDateTime now = LocalDateTime.now();
         Long operator = currentUser.resolve();
         String operatorName = operator == null ? "系统" : Objects.requireNonNullElse(lookups.userNames(List.of(operator)).get(operator), "");
-        Map<Long, BigDecimal> prices = batchPrices(balanceDelta.keySet().stream().map(Loc::batchId).toList());
+        Map<Long, InvBatchDO> batches = batchesById(balanceDelta.keySet().stream().map(Loc::batchId).toList());
         List<InvMoveDO> out = new ArrayList<>(lines.size());
         for (Line l : lines) {
             InvMoveDO m = new InvMoveDO();
             m.setTenantId(tenantId);
             m.setMoveTime(now);
+            m.setBizDate(l.doc().bizDate() == null ? today : l.doc().bizDate());
             m.setWarehouseId(l.loc().warehouseId());
             m.setProductId(l.loc().productId());
             m.setBatchId(l.loc().batchId());
@@ -202,10 +219,11 @@ public class InventoryPosting {
             m.setQuantity(l.signed());
             m.setTargetType(l.target() == null ? null : l.target().type());
             m.setTargetId(l.target() == null ? null : l.target().id());
-            BigDecimal price = prices.getOrDefault(l.loc().batchId(), BigDecimal.ZERO);
-            m.setUnitPriceCny(price);
-            m.setAmountCny(InvConstants.reservationOnly(l.op()) ? BigDecimal.ZERO.setScale(2)
-                    : price.multiply(BigDecimal.valueOf(l.signed())).setScale(2, RoundingMode.HALF_UP));
+            InvBatchDO batch = batches.get(l.loc().batchId());
+            m.setUnitPriceCny(batch == null ? BigDecimal.ZERO : nz(batch.getUnitPriceCny()));
+            int qty = InvConstants.reservationOnly(l.op()) ? 0 : l.signed();
+            setAmounts(m, batch == null ? new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO}
+                    : new BigDecimal[]{nz(batch.getCostGoods()), nz(batch.getCostInvoice()), nz(batch.getCostFee()), nz(batch.getCostClaim())}, qty);
             m.setBizType(l.doc().bizType());
             m.setBizLabel(Objects.requireNonNullElse(l.doc().bizLabel(), ""));
             m.setDocType(Objects.requireNonNullElse(l.doc().docType(), ""));
@@ -265,13 +283,21 @@ public class InventoryPosting {
     public List<InvMoveDO> reverse(List<InvMoveDO> originals, String reverseBiz) {
         List<Line> lines = new ArrayList<>(originals.size());
         Map<ResKey, Integer> left = new HashMap<>();
+        // 被冲销流水的业务日期所在月份已结账时不能冲销、撤回、作废（反向流水本身记当天）
+        Set<String> checked = new java.util.HashSet<>();
+        for (InvMoveDO m : originals) {
+            if (!InvConstants.reservationOnly(m.getOpType()) && m.getBizDate() != null
+                    && checked.add(InventoryPeriods.month(m.getBizDate()))) {
+                periods.requireOpen(m.getBizDate(), reverseBiz);
+            }
+        }
         Map<Long, Long> current = currentProducts(originals.stream().map(InvMoveDO::getProductId).toList());
         for (InvMoveDO m : originals) {
             if (m.getReverseOf() != null) {
                 throw new BizException("冲销流水不能再冲销");
             }
             Target t = m.getTargetType() == null ? null : new Target(m.getTargetType(), m.getTargetId());
-            Doc d = new Doc(reverseBiz, m.getBizLabel(), m.getDocType(), m.getDocId(), m.getDocNo(), m.getDocItemId());
+            Doc d = new Doc(reverseBiz, m.getBizLabel(), m.getDocType(), m.getDocId(), m.getDocNo(), m.getDocItemId(), null);
             // 原商品已并入其他商品时，库存已转到主商品上，反向记在主商品
             Loc loc = new Loc(m.getWarehouseId(), current.getOrDefault(m.getProductId(), m.getProductId()), m.getBatchId(),
                     m.getStockStatus());
@@ -396,12 +422,96 @@ public class InventoryPosting {
                 .last("FOR UPDATE"));
     }
 
-    private Map<Long, BigDecimal> batchPrices(List<Long> batchIds) {
-        Map<Long, BigDecimal> map = new HashMap<>();
+    private Map<Long, InvBatchDO> batchesById(List<Long> batchIds) {
+        Map<Long, InvBatchDO> map = new HashMap<>();
         if (!batchIds.isEmpty()) {
-            batchMapper.selectBatchIds(batchIds).forEach(b -> map.put(b.getId(), b.getUnitPriceCny()));
+            batchMapper.selectBatchIds(batchIds).forEach(b -> map.put(b.getId(), b));
         }
         return map;
+    }
+
+    /** 四项金额 = 单位成本分项 × 数量，各自 HALF_UP 两位；流水金额为四项之和 */
+    static void setAmounts(InvMoveDO m, BigDecimal[] unit, int qty) {
+        BigDecimal q = BigDecimal.valueOf(qty);
+        BigDecimal g = unit[0].multiply(q).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal i = unit[1].multiply(q).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal f = unit[2].multiply(q).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal c = unit[3].multiply(q).setScale(2, RoundingMode.HALF_UP);
+        m.setAmountGoods(g);
+        m.setAmountInvoice(i);
+        m.setAmountFee(f);
+        m.setAmountClaim(c);
+        m.setAmountCny(g.add(i).add(f).add(c));
+    }
+
+    private static BigDecimal nz(BigDecimal v) {
+        return v == null ? BigDecimal.ZERO : v;
+    }
+
+    /** 成本调整流水：数量 0，只有金额（四项为已舍入的调整额），不动余额；业务日期为当天，不受结账锁定 */
+    public record CostMove(Loc loc, BigDecimal unitCost, BigDecimal goods, BigDecimal invoice, BigDecimal fee, BigDecimal claim,
+                           Doc doc) {
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
+    public void postCostAdjust(List<CostMove> moves) {
+        if (moves.isEmpty()) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        Long operator = currentUser.resolve();
+        String operatorName = operator == null ? "系统" : Objects.requireNonNullElse(lookups.userNames(List.of(operator)).get(operator), "");
+        for (CostMove c : moves) {
+            InvMoveDO m = new InvMoveDO();
+            m.setTenantId(PiStore.tenantId());
+            m.setMoveTime(now);
+            m.setBizDate(now.toLocalDate());
+            m.setWarehouseId(c.loc().warehouseId());
+            m.setProductId(c.loc().productId());
+            m.setBatchId(c.loc().batchId());
+            m.setStockStatus(c.loc().status());
+            m.setOpType(InvConstants.OP_COST_ADJUST);
+            m.setQuantity(0);
+            m.setUnitPriceCny(c.unitCost());
+            m.setAmountGoods(c.goods());
+            m.setAmountInvoice(c.invoice());
+            m.setAmountFee(c.fee());
+            m.setAmountClaim(c.claim());
+            m.setAmountCny(c.goods().add(c.invoice()).add(c.fee()).add(c.claim()));
+            m.setBizType(InvConstants.BIZ_COST_ADJUST);
+            m.setBizLabel(Objects.requireNonNullElse(c.doc().bizLabel(), ""));
+            m.setDocType(c.doc().docType());
+            m.setDocId(c.doc().docId());
+            m.setDocNo(c.doc().docNo());
+            m.setDocItemId(c.doc().docItemId());
+            m.setOperatorId(operator);
+            m.setOperatorName(operatorName);
+            moveMapper.insert(m);
+        }
+    }
+
+    /**
+     * 单据改了业务日期（如出运单改出运日期）：原日期与新日期所在月份都不能已结账，然后把这张单据没被冲销的流水改到新日期
+     * （流水的数量、金额不变，只改归属月份）。
+     */
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
+    public void redate(String docType, Long docId, Collection<String> bizTypes, java.time.LocalDate newDate) {
+        if (newDate == null) {
+            return;
+        }
+        List<InvMoveDO> moves = activeMoves(docType, docId, bizTypes);
+        String verb = bizTypes == null || bizTypes.isEmpty() ? "" : bizTypes.iterator().next();
+        for (InvMoveDO m : moves) {
+            if (newDate.equals(m.getBizDate())) {
+                continue;
+            }
+            periods.requireOpen(m.getBizDate(), verb);
+            periods.requireOpen(newDate, verb);
+            InvMoveDO u = new InvMoveDO();
+            u.setId(m.getId());
+            u.setBizDate(newDate);
+            moveMapper.updateById(u);
+        }
     }
 
     private BizException shortage(Loc k, InvBalanceDO b, int[] delta) {

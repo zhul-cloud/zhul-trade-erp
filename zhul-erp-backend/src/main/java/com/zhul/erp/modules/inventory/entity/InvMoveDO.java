@@ -19,18 +19,24 @@ public class InvMoveDO {
     private Long id;
     private Integer tenantId;
     private LocalDateTime moveTime;
+    /** 业务日期：按它归属月份 */
+    private java.time.LocalDate bizDate;
     private Long warehouseId;
     private Long productId;
     private Long batchId;
     /** 1-合格、2-不良 */
     private Integer stockStatus;
-    /** 1-入库、2-出库、3-调入、4-调出、5-转入、6-转出、7-预占、8-释放 */
+    /** 1-入库、2-出库、3-调入、4-调出、5-转入、6-转出、7-预占、8-释放、9-成本调整 */
     private Integer opType;
     private Integer quantity;
     private Integer targetType;
     private Long targetId;
     private BigDecimal unitPriceCny;
     private BigDecimal amountCny;
+    private BigDecimal amountGoods;
+    private BigDecimal amountInvoice;
+    private BigDecimal amountFee;
+    private BigDecimal amountClaim;
     private String bizType;
     private String bizLabel;
     private String docType;

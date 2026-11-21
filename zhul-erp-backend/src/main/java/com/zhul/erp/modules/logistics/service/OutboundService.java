@@ -398,7 +398,7 @@ public class OutboundService {
             ob.setCourierWaybillId(w.getId());
             outboundMapper.updateById(ob);
             // 库存：自有仓 → 货代仓
-            inventoryHooks.handedOver(ob.getId(), ob.getObNo(), ob.getForwarderId(), obItems.getOrDefault(ob.getId(), List.of()).stream()
+            inventoryHooks.handedOver(ob.getId(), ob.getObNo(), ob.getForwarderId(), w.getSentDate(), obItems.getOrDefault(ob.getId(), List.of()).stream()
                     .map(i -> new InventoryHooks.HandoverLine(i.getId(), i.getSoItemId(), i.getProductId(), i.getModel(), i.getQuantity()))
                     .toList());
         }

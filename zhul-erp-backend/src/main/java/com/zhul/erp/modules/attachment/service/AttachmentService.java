@@ -95,10 +95,13 @@ public class AttachmentService {
     public static final String FX_SETTLEMENT = "FX_SETTLEMENT";
     /** 其他出库单附件：照片、报废证明等 */
     public static final String OTHER_OUTBOUND = "OTHER_OUTBOUND";
+    /** 成本调整单附件：汇率说明、费用凭证等 */
+    public static final String COST_ADJUST = "COST_ADJUST";
     private static final Set<String> AFTER_SALES_TYPES = Set.of(AFTER_SALES, AFTER_SALES_LOG);
     /** 单据附件：图片、视频、PDF 与 Excel，每单最多 20 个 */
     private static final Set<String> DOCUMENT_TYPES = Set.of(SALES_RETURN, RETURN_RECEIPT, PURCHASE_RETURN, REFUND_REQUEST,
-            OUTBOUND, LOGISTICS_DOC, PAYMENT_RECEIPT, PAYABLE, FX_SETTLEMENT, OTHER_OUTBOUND);
+            OUTBOUND, LOGISTICS_DOC, PAYMENT_RECEIPT, PAYABLE, FX_SETTLEMENT, OTHER_OUTBOUND,
+            COST_ADJUST);
     /** 只收图片或 PDF 的归属类型 */
     private static final Set<String> PROOF_TYPES = Set.of(PAYMENT, COURIER_PROOF, RETURN_PROOF, EXPENSE, REIMBURSE, PO_INVOICE, REFUND, OTHER_INCOME,
             SOURCING_QUOTE, CREDIT);
@@ -110,7 +113,8 @@ public class AttachmentService {
             Map.entry(AFTER_SALES, 20), Map.entry(AFTER_SALES_LOG, 10), Map.entry(SALES_RETURN, 20),
             Map.entry(RETURN_RECEIPT, 20), Map.entry(PURCHASE_RETURN, 20), Map.entry(REFUND_REQUEST, 20),
             Map.entry(OUTBOUND, 20), Map.entry(LOGISTICS_DOC, 20), Map.entry(PAYMENT_RECEIPT, 20),
-            Map.entry(PAYABLE, 20), Map.entry(FX_SETTLEMENT, 20), Map.entry(OTHER_OUTBOUND, 20));
+            Map.entry(PAYABLE, 20), Map.entry(FX_SETTLEMENT, 20), Map.entry(OTHER_OUTBOUND, 20),
+            Map.entry(COST_ADJUST, 20));
     /** 只收图片的归属类型（不传视频） */
     private static final Set<String> IMAGE_ONLY_TYPES = Set.of(RECEIPT_DEFECT, PACKING, NETWORK);
     public static final int IMAGE = 1;
@@ -140,7 +144,7 @@ public class AttachmentService {
             Map.entry(REFUND_REQUEST, StorageArea.FINANCE), Map.entry(OUTBOUND, StorageArea.PACKING),
             Map.entry(LOGISTICS_DOC, StorageArea.LOGISTICS), Map.entry(PAYMENT_RECEIPT, StorageArea.FINANCE),
             Map.entry(PAYABLE, StorageArea.FINANCE), Map.entry(FX_SETTLEMENT, StorageArea.FINANCE),
-            Map.entry(OTHER_OUTBOUND, StorageArea.RECEIPT));
+            Map.entry(OTHER_OUTBOUND, StorageArea.RECEIPT), Map.entry(COST_ADJUST, StorageArea.FINANCE));
 
     private final BizAttachmentMapper mapper;
     private final BizAttachmentModelMapper tagMapper;

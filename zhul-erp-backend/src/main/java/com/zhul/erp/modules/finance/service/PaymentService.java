@@ -186,7 +186,9 @@ public class PaymentService {
         paymentMapper.insert(pay);
         allocate(pay, targets, credits);
         attachments.attach(OWNER_TYPE, pay.getId(), req.getAttachmentIds());
-        ids.forEach(sync::refresh);
+        // 外币采购订单付款后实际汇率变化，重算库存批次成本（openspec inventory-costing）
+        com.zhul.erp.modules.inventory.service.InventoryCosting.Trigger paid = new com.zhul.erp.modules.inventory.service.InventoryCosting.Trigger(com.zhul.erp.modules.inventory.constants.InvConstants.CA_PAYMENT, "PY", pay.getId(), pay.getPaymentNo());
+        ids.forEach(id -> sync.refresh(id, paid));
         logPayables(pay, allocationsOf(List.of(pay.getId())).getOrDefault(pay.getId(), List.of()), false);
         docLogs.add(DocumentType.PY, pay.getId(), "登记", "付款：" + pay.getCurrencyCode() + " " + amount.toPlainString()
                 + "，" + FinanceConstants.METHOD_NAMES.get(method) + "，收款方 " + pay.getPayeeName());
@@ -431,7 +433,7 @@ public class PaymentService {
         a.setFromCredit(2);
         allocationMapper.insert(a);
         attachments.attach(OWNER_TYPE, pay.getId(), req.getAttachmentIds());
-        sync.refresh(p.getId());
+        sync.refresh(p.getId(), new com.zhul.erp.modules.inventory.service.InventoryCosting.Trigger(com.zhul.erp.modules.inventory.constants.InvConstants.CA_SUPPLIER_REFUND, "PY", pay.getId(), pay.getPaymentNo()));
         logPayables(pay, List.of(a), false);
         docLogs.add(DocumentType.PY, pay.getId(), "登记", "供应商退款：" + pay.getCurrencyCode() + " " + amount.toPlainString()
                 + "，冲减应付单 " + p.getPayableNo());
@@ -513,7 +515,7 @@ public class PaymentService {
         a.setFromCredit(2);
         allocationMapper.insert(a);
         attachments.attach(OWNER_TYPE, pay.getId(), attachmentIds);
-        sync.refresh(p.getId());
+        sync.refresh(p.getId(), new com.zhul.erp.modules.inventory.service.InventoryCosting.Trigger(com.zhul.erp.modules.inventory.constants.InvConstants.CA_SUPPLIER_REFUND, "PY", pay.getId(), pay.getPaymentNo()));
         logPayables(pay, List.of(a), false);
         docLogs.add(DocumentType.PY, pay.getId(), "登记", "已收到供应商退款：" + pay.getCurrencyCode() + " " + amount.toPlainString()
                 + "，冲减应付单 " + p.getPayableNo());
@@ -585,7 +587,8 @@ public class PaymentService {
                 .set(PaymentAllocationDO::getDeletedAt, now)
                 .set(PaymentAllocationDO::getUpdateTime, now)
                 .set(PaymentAllocationDO::getUpdateBy, SecurityUtils.getCurrentUsername()));
-        ids.forEach(sync::refresh);
+        com.zhul.erp.modules.inventory.service.InventoryCosting.Trigger voided = new com.zhul.erp.modules.inventory.service.InventoryCosting.Trigger(com.zhul.erp.modules.inventory.constants.InvConstants.CA_PAYMENT_VOID, "PY", pay.getId(), pay.getPaymentNo());
+        ids.forEach(payableId -> sync.refresh(payableId, voided));
         docLogs.add(DocumentType.PY, id, "作废", reason.trim());
         logPayables(pay, allocs, true);
         logService.recordOperateLog(MENU, "作废付款", Map.of("paymentNo", pay.getPaymentNo(), "status", "有效"),

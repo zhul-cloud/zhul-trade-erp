@@ -212,6 +212,11 @@ public class InventoryWarehouses {
         b.setUnitPrice((p.unitPrice() == null ? BigDecimal.ZERO : p.unitPrice()).setScale(6, RoundingMode.HALF_UP));
         b.setExchangeRate((p.rate() == null ? BigDecimal.ONE : p.rate()).setScale(6, RoundingMode.HALF_UP));
         b.setUnitPriceCny(p.cnyValue());
+        // 四项成本：先全部记为货款；采购批次随后由 InventoryCosting 按新口径重算
+        b.setCostGoods(p.cnyValue());
+        b.setCostInvoice(BigDecimal.ZERO);
+        b.setCostFee(BigDecimal.ZERO);
+        b.setCostClaim(BigDecimal.ZERO);
         batchMapper.insert(b);
         return b;
     }
@@ -223,6 +228,10 @@ public class InventoryWarehouses {
         b.setUnitPrice((price.unitPrice() == null ? BigDecimal.ZERO : price.unitPrice()).setScale(6, RoundingMode.HALF_UP));
         b.setExchangeRate((price.rate() == null ? BigDecimal.ONE : price.rate()).setScale(6, RoundingMode.HALF_UP));
         b.setUnitPriceCny(price.cnyValue());
+        b.setCostGoods(price.cnyValue());
+        b.setCostInvoice(BigDecimal.ZERO);
+        b.setCostFee(BigDecimal.ZERO);
+        b.setCostClaim(BigDecimal.ZERO);
         batchMapper.updateById(b);
     }
 
