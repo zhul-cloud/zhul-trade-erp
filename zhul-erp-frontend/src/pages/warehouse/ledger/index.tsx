@@ -5,10 +5,11 @@ import { App, Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card } from '@/pages/inquiry/shared/components';
+import { SignedMoney } from '@/pages/finance/costingParts';
+import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount } from '@/utils/format';
+import { formatAmount, formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { WarehousePageTitle } from '../components';
@@ -22,7 +23,7 @@ interface Filters {
   keyword?: string;
 }
 
-/** 仓库管理 → 库存台账（spec warehouse/inventory「库存台账」，原型 I3）：期末 = 期初 + 本月入库 − 本月出库 */
+/** 仓库管理 → 库存台账（spec warehouse/inventory「库存台账」，原型 I3、L1）：期末金额 = 期初 + 入库 − 出库 + 成本调整 */
 const LedgerPage: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
@@ -37,6 +38,8 @@ const LedgerPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string>();
+  const [period, setPeriod] =
+    useState<Awaited<ReturnType<typeof stockApi.ledgerPeriod>>>();
 
   const query = {
     month: filters.month.format('YYYY-MM'),
@@ -49,12 +52,13 @@ const LedgerPage: React.FC = () => {
     setLoading(true);
     setError(undefined);
     try {
-      const res = await stockApi.ledger({
-        ...JSON.parse(queryKey),
-        page,
-        pageSize,
-      });
+      const q = JSON.parse(queryKey);
+      const [res, st] = await Promise.all([
+        stockApi.ledger({ ...q, page, pageSize }),
+        stockApi.ledgerPeriod(q.month),
+      ]);
       setRows(res.records);
+      setPeriod(st);
       setTotal(res.total);
     } catch (e) {
       setError(readBizError(e).message);
@@ -122,6 +126,12 @@ const LedgerPage: React.FC = () => {
       render: (v: number, r) => movesLink(r, v),
     },
     { title: '出库金额', dataIndex: 'outAmount', width: 120, render: money },
+    {
+      title: '成本调整',
+      dataIndex: 'adjustAmount',
+      width: 110,
+      render: (v: number) => <SignedMoney value={v} />,
+    },
     {
       title: '期末数量',
       dataIndex: 'closingQty',
@@ -195,11 +205,25 @@ const LedgerPage: React.FC = () => {
               flexWrap: 'wrap',
             }}
           >
-            <span style={{ color: palette.sub, fontSize: 13 }}>
-              期末 = 期初 + 本月入库 − 本月出库
-              {filters.warehouseId ? '' : '（全部仓库不含仓库之间的调拨）'}
-              ；点数量查看对应流水
-            </span>
+            {period?.status === 1 ? (
+              <span style={{ color: palette.sub, fontSize: 13 }}>
+                <Pill tone="green">已结账</Pill> {period.closedByName}{' '}
+                {formatDateTime(period.closedAt).slice(0, 16)}{' '}
+                结账，显示结账时的快照；之后的成本调整记在当前未结账月份
+              </span>
+            ) : (
+              <span style={{ color: palette.sub, fontSize: 13 }}>
+                按单据的业务日期归月；期末金额 = 期初 + 入库 − 出库 + 成本调整
+                {filters.warehouseId ? '' : '（全部仓库不含仓库之间的调拨）'}
+                ；点数量查看对应流水
+                {period && (
+                  <>
+                    {' '}
+                    <Pill tone="orange">{period.month} 未结账</Pill>
+                  </>
+                )}
+              </span>
+            )}
             <Button
               icon={<DownloadOutlined />}
               loading={exporting}
@@ -225,7 +249,11 @@ const LedgerPage: React.FC = () => {
             columns={columns}
             dataSource={rows}
             scroll={{ x: tableScrollX(columns) }}
-            locale={{ emptyText: '这个月没有库存' }}
+            locale={{
+              emptyText: filters.warehouseId
+                ? `${warehouses.find((w) => w.id === filters.warehouseId)?.name ?? '该仓库'} 在 ${query.month} 没有库存往来`
+                : '这个月没有库存',
+            }}
             summary={() =>
               rows.length > 0 ? (
                 <Table.Summary.Row>
@@ -240,12 +268,21 @@ const LedgerPage: React.FC = () => {
                       ['inAmount', true],
                       ['outQty', false],
                       ['outAmount', true],
+                      ['adjustAmount', true],
                       ['closingQty', false],
                       ['closingAmount', true],
                     ] as const
                   ).map(([k, isMoney], i) => (
                     <Table.Summary.Cell key={k} index={i + 1}>
-                      <b>{isMoney ? money(sum(k)) : sum(k)}</b>
+                      <b>
+                        {k === 'adjustAmount' ? (
+                          <SignedMoney value={sum(k)} />
+                        ) : isMoney ? (
+                          money(sum(k))
+                        ) : (
+                          sum(k)
+                        )}
+                      </b>
                     </Table.Summary.Cell>
                   ))}
                 </Table.Summary.Row>

@@ -54,6 +54,7 @@ public class InventoryHooks {
     private final InvBalanceMapper balanceMapper;
     private final com.zhul.erp.modules.inventory.repository.InvMoveMapper moveMapper;
     private final OtherOutboundService otherOutbounds;
+    private final InventoryCosting costing;
 
     // ---------------------------------------------------------------- 采购入库
 
@@ -67,7 +68,7 @@ public class InventoryHooks {
         InvWarehouseDO wh = directForwarderId == null ? warehouses.own() : warehouses.forwarder(directForwarderId);
         Map<Long, Integer> need = new HashMap<>(reservations.need(items.stream().map(PurchaseReceiptItemDO::getSoItemId).toList()));
         Map<Long, String> grades = grades(items.stream().map(PurchaseReceiptItemDO::getSoItemId).toList());
-        Doc doc = Doc.of(InvConstants.BIZ_PURCHASE_IN, "GR", r.getId(), r.getGrNo());
+        Doc doc = Doc.of(InvConstants.BIZ_PURCHASE_IN, "GR", r.getId(), r.getGrNo()).date(r.getReceivedDate());
         List<Line> lines = new ArrayList<>();
         int seq = 0;
         for (PurchaseReceiptItemDO i : items) {
@@ -85,6 +86,8 @@ public class InventoryHooks {
             InvBatchDO b = warehouses.newBatch(r.getGrNo() + "-" + seq, i.getProductId(), grades.get(i.getSoItemId()),
                     InvConstants.BATCH_PURCHASE, r.getId(), i.getId(), i.getPoItemId(), i.getSoItemId(), r.getReceivedDate(),
                     price(po, pi));
+            // 新口径：货款按实际汇率，加开票成本、采购费用，减已有的质量索赔（spec finance/inventory-cost「批次成本」）
+            costing.initialize(b);
             Doc d = doc.item(i.getId());
             if (good > 0) {
                 Loc loc = new Loc(wh.getId(), i.getProductId(), b.getId(), InvConstants.GOOD);
@@ -125,7 +128,7 @@ public class InventoryHooks {
             return;
         }
         Long wh = warehouseHolding(b.getId(), InvConstants.DEFECTIVE, qty);
-        Doc d = Doc.of(InvConstants.BIZ_DISCOUNT_ACCEPT, "RD", discrepancyId, grNo).item(receiptItemId);
+        Doc d = Doc.of(InvConstants.BIZ_DISCOUNT_ACCEPT, "RD", discrepancyId, grNo).item(receiptItemId).date(java.time.LocalDate.now());
         Loc bad = new Loc(wh, b.getProductId(), b.getId(), InvConstants.DEFECTIVE);
         Loc good = new Loc(wh, b.getProductId(), b.getId(), InvConstants.GOOD);
         int reserve = soItemId == null ? 0 : Math.min(qty, reservations.need(List.of(soItemId)).getOrDefault(soItemId, 0));
@@ -166,11 +169,11 @@ public class InventoryHooks {
      * 「系统外入库」（批次 SYS-出库单号-序号，单价 0），库存模式报「库存不足」。
      */
     @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
-    public void handedOver(Long outboundId, String obNo, Long forwarderId, List<HandoverLine> items) {
+    public void handedOver(Long outboundId, String obNo, Long forwarderId, java.time.LocalDate date, List<HandoverLine> items) {
         Long own = warehouses.own().getId();
         Long fwd = warehouses.forwarder(forwarderId).getId();
         boolean dropship = warehouses.dropship();
-        Doc doc = Doc.of(InvConstants.BIZ_HANDOVER, "OB", outboundId, obNo);
+        Doc doc = Doc.of(InvConstants.BIZ_HANDOVER, "OB", outboundId, obNo).date(date);
         List<Line> lines = new ArrayList<>();
         List<String> shortages = new ArrayList<>();
         List<Map<String, Object>> shortageItems = new ArrayList<>();
@@ -256,10 +259,10 @@ public class InventoryHooks {
      * （上线前已交货代、期初没推出来的货），库存模式报库存不足。出运后不能撤销，没有反向。
      */
     @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
-    public void shipped(Long shipmentId, String shNo, Long forwarderId, List<HandoverLine> items) {
+    public void shipped(Long shipmentId, String shNo, Long forwarderId, java.time.LocalDate date, List<HandoverLine> items) {
         Long fwd = warehouses.forwarder(forwarderId).getId();
         boolean dropship = warehouses.dropship();
-        Doc doc = Doc.of(InvConstants.BIZ_SALES_OUT, "SH", shipmentId, shNo);
+        Doc doc = Doc.of(InvConstants.BIZ_SALES_OUT, "SH", shipmentId, shNo).date(date);
         List<Line> lines = new ArrayList<>();
         List<String> shortages = new ArrayList<>();
         List<Map<String, Object>> shortageItems = new ArrayList<>();
@@ -362,7 +365,7 @@ public class InventoryHooks {
     @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
     public void returnReceived(Long receiptId, String rrNo, java.time.LocalDate date, List<ReturnLine> items) {
         Long own = warehouses.own().getId();
-        Doc doc = Doc.of(InvConstants.BIZ_RETURN_IN, "RR", receiptId, rrNo);
+        Doc doc = Doc.of(InvConstants.BIZ_RETURN_IN, "RR", receiptId, rrNo).date(date);
         Map<Long, String> grades = grades(items.stream().map(ReturnLine::soItemId).toList());
         Map<Long, BigDecimal> soldPrice = soldUnitPrice(items.stream().map(ReturnLine::soItemId).toList());
         List<Line> lines = new ArrayList<>();
@@ -530,10 +533,16 @@ public class InventoryHooks {
         posting.post(lines);
     }
 
+    /** 出运单改了出运日期：原日期、新日期所在月份都没结账时，把这张出运单的流水改到新日期 */
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
+    public void shipmentRedated(Long shipmentId, java.time.LocalDate date) {
+        posting.redate("SH", shipmentId, List.of(InvConstants.BIZ_SALES_OUT, InvConstants.BIZ_SYSTEM_IN), date);
+    }
+
     /** 采购退货寄出：按各行的退货预占出库（采购退货出库）；寄出后不能作废，没有反向 */
     @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
-    public void returnShipped(Long purchaseReturnId, String returnNo, List<Long> returnItemIds) {
-        Doc doc = Doc.of(InvConstants.BIZ_PURCHASE_RETURN_OUT, "PR", purchaseReturnId, returnNo);
+    public void returnShipped(Long purchaseReturnId, String returnNo, java.time.LocalDate date, List<Long> returnItemIds) {
+        Doc doc = Doc.of(InvConstants.BIZ_PURCHASE_RETURN_OUT, "PR", purchaseReturnId, returnNo).date(date);
         List<Line> lines = new ArrayList<>();
         for (Long itemId : returnItemIds) {
             for (InvReservationDO r : posting.reservations(Target.returnItem(itemId))) {

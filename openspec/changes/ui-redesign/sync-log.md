@@ -6,6 +6,7 @@
 |---|---|---|---|
 | 2026-11-20 | `8b284d01..f79ac93f`，19 个提交，含 v1.40.0 | `doc-list-unify` 第一批（烛龙开源）：新增公共组件 `src/components/ListLayout/`（FilterCard、FilterField、MainCard）；`ModelQtyCell` 多型号可点开；采购入库、销售出库改为新骨架；`ui-design-patterns.md`「单据页统一规范」增加列表页骨架。另有采购需求删除、文字报价货期，以及几个变更的归档 | 已合并，没有冲突。与本变更的规则有重叠，待用户确定取舍后修订 specs、design，见下方说明 |
 | 2026-11-21 | `f79ac93f..fab4cb75`，46 个提交，含 v1.42.0、v1.42.1 | `inventory-foundation`：新增库存查询、库存流水、库存台账、仓库档案、其他出库列表与详情（`src/pages/warehouse/` 下 stocks、moves、ledger、warehouses、other-outbounds），闲置库存页下线；商品候选新增「待关联单据」面板（`UnlinkedPanel`）；`DocModelCell` 有改动；菜单与路由调整。规范在列表页规则 6 加了库存三页的例外 | 已合并。`ui-design-patterns.md` 冲突：保留本分支重写的版本，把库存三页的例外补进新版「列表页统一规范」第 6 条。新页面按新骨架改造的工作归入任务 5.2 的 `migration-list.md`。`navigation` 增量的「按部门分组的菜单框架」同步主规格：仓库管理菜单项改为库存一期后的列表，补「闲置库存菜单下线」场景；「菜单命名规则」的基础资料示例改为「仓库档案」 |
+| 2026-11-21 | `fab4cb75..d693ede8`，28 个提交，含 v1.43.0 | `inventory-costing`：新增成本调整列表与详情、库存月结列表与详情（`src/pages/finance/cost-adjustments`、`periods`），库存台账与销售订单成本明细（`CostCard.tsx`）有改动；规范新增「汇总数字按算式排」；导航主规格财务管理加成本调整、库存月结 | 已合并。`ui-design-patterns.md` 冲突：保留本分支重写的版本，补入「汇总数字按算式排」一节（注明迁移时用汇总行承载）。`CostCard.tsx` 自动合并，测试通过。`navigation` 增量同步财务管理菜单与新场景。新页面 `lint:ui` 有 11 个错误（旧页头等），归入 7.3、7.4。本机 lint、类型检查、Jest 151 个套件 631 个用例通过 |
 
 ## 2026-11-20 与 doc-list-unify 的重叠
 

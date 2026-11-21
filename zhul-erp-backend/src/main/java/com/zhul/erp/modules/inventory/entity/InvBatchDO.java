@@ -31,7 +31,12 @@ public class InvBatchDO {
     private String currencyCode;
     private BigDecimal unitPrice;
     private BigDecimal exchangeRate;
+    /** 单位成本（人民币）= 四项之和 */
     private BigDecimal unitPriceCny;
+    private BigDecimal costGoods;
+    private BigDecimal costInvoice;
+    private BigDecimal costFee;
+    private BigDecimal costClaim;
     private LocalDateTime deletedAt;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

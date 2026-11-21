@@ -104,6 +104,10 @@ public class OrderCostVO {
         private Integer unreceivedQty;
         private Integer unorderedQty;
         private Boolean missingCostPrice;
+        /** 已出运数量（采购货款等四项读出运结转成本） */
+        private Integer shippedQty;
+        /** 其中来自系统外入库、按采购订单单价计的数量 */
+        private Integer systemQty;
         /** 各成本项的来源单据：purchase、domestic、international、expense */
         private Map<String, List<Source>> sources;
     }

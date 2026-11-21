@@ -19,6 +19,7 @@ const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 const SOURCE_PATH: Record<string, (id: number) => string | undefined> = {
   PO: (id) => `/purchase/orders/${id}`,
   SHIPMENT: (id) => `/logistics/shipments/${id}`,
+  COST_ADJUST: (id) => `/finance/cost-adjustments/${id}`,
   EXPENSE: (id) => `/finance/expenses/${id}`,
   RETURN: (id) => `/sales/returns/${id}`,
   RETURN_RECEIPT: (id) => `/warehouse/returns/${id}`,
@@ -118,8 +119,20 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
               {l.unreceivedQty} 个没入库
             </div>
           )}
+          {(l.systemQty ?? 0) > 0 && (
+            <div style={{ fontSize: 12, color: palette.orange }}>
+              {l.systemQty} 个系统外入库，按采购单价计
+            </div>
+          )}
         </div>
       ),
+    },
+    {
+      title: '已出运',
+      dataIndex: 'shippedQty',
+      width: 70,
+      align: 'right',
+      render: (v?: number) => v ?? 0,
     },
     {
       title: '采购货款',

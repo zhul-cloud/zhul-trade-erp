@@ -210,7 +210,7 @@ public class OtherOutboundService {
         o.setRemark("");
         o.setVoidReason("");
         mapper.insert(o);
-        Doc doc = Doc.of(InvConstants.BIZ_OTHER_OUT, "OO", o.getId(), o.getOutboundNo())
+        Doc doc = Doc.of(InvConstants.BIZ_OTHER_OUT, "OO", o.getId(), o.getOutboundNo()).date(o.getOutboundDate())
                 .label("其他出库 · " + InvConstants.OO_TYPE_NAMES.get(type));
         BigDecimal total = BigDecimal.ZERO;
         for (Pick p : picks) {

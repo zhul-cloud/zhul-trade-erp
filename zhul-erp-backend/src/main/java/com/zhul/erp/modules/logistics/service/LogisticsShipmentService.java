@@ -435,7 +435,7 @@ public class LogisticsShipmentService {
         shipmentMapper.updateById(sh);
         // 库存：从货代仓销售出库
         Map<Long, List<OutboundOrderItemDO>> shipItems = outbounds.itemsOf(obs.stream().map(OutboundOrderDO::getId).toList());
-        inventoryHooks.shipped(id, sh.getShNo(), sh.getForwarderId(), obs.stream()
+        inventoryHooks.shipped(id, sh.getShNo(), sh.getForwarderId(), sh.getShippedDate(), obs.stream()
                 .flatMap(ob -> shipItems.getOrDefault(ob.getId(), List.of()).stream())
                 .map(i -> new InventoryHooks.HandoverLine(i.getId(), i.getSoItemId(), i.getProductId(), i.getModel(), i.getQuantity()))
                 .toList());
@@ -465,6 +465,8 @@ public class LogisticsShipmentService {
         }
         applyWaybill(sh, req);
         shipmentMapper.updateById(sh);
+        // 改出运日期：已结账月份不能改进、改出（openspec inventory-costing 决策 7）
+        inventoryHooks.shipmentRedated(id, sh.getShippedDate());
         if (before == null || before.compareTo(after) != 0) {
             freight.allocateInternational(id, after, outboundsOf(id).stream().map(OutboundOrderDO::getId).toList(), support.divisorOf(sh.getForwarderId()));
         }

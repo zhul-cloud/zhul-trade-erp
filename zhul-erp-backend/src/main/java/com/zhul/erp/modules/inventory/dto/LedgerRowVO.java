@@ -19,6 +19,8 @@ public class LedgerRowVO {
     private BigDecimal inAmount;
     private Integer outQty;
     private BigDecimal outAmount;
+    /** 本月成本调整金额（在库部分，见 spec finance/inventory-cost「成本调整」） */
+    private BigDecimal adjustAmount;
     private Integer closingQty;
     private BigDecimal closingAmount;
     private String currencyCode = "CNY";
