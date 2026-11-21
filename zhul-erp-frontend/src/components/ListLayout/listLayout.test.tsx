@@ -11,6 +11,22 @@ import {
   SummaryBar,
 } from './index';
 
+jest.mock('@umijs/max', () => ({
+  Link: () => null,
+  useLocation: () => ({ pathname: '/sales/orders' }),
+  useModel: () => ({
+    initialState: {
+      menuTree: [
+        {
+          name: '销售管理',
+          type: 1,
+          children: [{ name: '销售订单', type: 2, path: '/sales/orders' }],
+        },
+      ],
+    },
+  }),
+}));
+
 const h = React.createElement;
 
 describe('汇总行', () => {
@@ -177,7 +193,7 @@ describe('搜索条件区', () => {
 });
 
 describe('快捷筛选', () => {
-  const Demo: React.FC = () => {
+  const Demo = () => {
     const [v, setV] = useState<string[]>([]);
     return h(QuickFilters, {
       options: [
@@ -223,6 +239,13 @@ describe('帮助图标', () => {
 });
 
 describe('页头与分区', () => {
+  it('列表页的页头不传标题时取当前页面的菜单名称', () => {
+    render(h(PageHeader, {}));
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(
+      '销售订单',
+    );
+  });
+
   it('页头显示标题和主操作；分区显示标题、帮助和右侧操作', () => {
     render(
       h(

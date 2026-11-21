@@ -11,6 +11,7 @@ import React, {
 import { useAppTheme } from '@/theme/AppTheme';
 import { CARD_SHADOW } from '@/theme/palette';
 import { formatAmount } from '@/utils/format';
+import { useMenu } from '@/utils/menuName';
 
 /**
  * 页面骨架（openspec ui-redesign 设计第 3 节，UI 规范「列表页统一规范」）：
@@ -68,12 +69,16 @@ export const HelpTip: React.FC<{
   );
 };
 
-/** 页头：一行，左侧页面标题，右侧主操作（每个页头最多一个主按钮） */
+/**
+ * 页头：一行，左侧页面标题，右侧主操作（每个页头最多一个主按钮）。
+ * 列表页不用传 title：取当前页面在「菜单管理」里的名称；详情页传单号等自己的标题。
+ */
 export const PageHeader: React.FC<{
-  title: React.ReactNode;
+  title?: React.ReactNode;
   extra?: React.ReactNode;
 }> = ({ title, extra }) => {
   const { palette } = useAppTheme();
+  const menu = useMenu();
   return (
     <div
       style={{
@@ -94,7 +99,7 @@ export const PageHeader: React.FC<{
           minWidth: 0,
         }}
       >
-        {title}
+        {title ?? menu?.name}
       </h1>
       {extra && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -358,7 +363,8 @@ export const FilterCard: React.FC<{
             flex: 1,
             minWidth: 0,
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
+            // 列宽 110 起：1366 宽时关键词、状态、日期、收款状态四项排一行（销售订单原型 A3）
+            gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))',
             gap: 12,
             alignItems: 'end',
           }}

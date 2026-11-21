@@ -197,7 +197,6 @@ import {
 } from '@/components/ListLayout';
 
 <PageHeader
-  title="销售订单"
   extra={<Button type="primary" icon={<Plus size={18} />}>新建销售订单</Button>}
 />
 <SummaryBar
@@ -229,7 +228,7 @@ import {
 
 | 组件 | 属性 | 说明 |
 |---|---|---|
-| `PageHeader` | `title`、`extra` | 一行页头：左侧标题（20/600，`h1`），右侧主操作；每个页头最多一个主按钮 |
+| `PageHeader` | `title`、`extra` | 一行页头：左侧标题（20/600，`h1`），右侧主操作；每个页头最多一个主按钮。列表页不传 `title`，取当前页面的菜单名称 |
 | `SummaryBar` | `items: SummaryItem[]` | 汇总行。每项 `label`、`value`；金额传 `currency`，按 `formatAmount` 显示；口径写 `help`；副文字写 `sub`，只有页面别处也能看到的副文字才设 `subHideable`（宽度不够时整段隐藏） |
 | `FilterCard` | `onSearch`、`onReset`、`more`、`moreCount`、`quick` | 搜索条件区。常用项写在 children；其余放 `more`（「更多筛选」展开），`moreCount` 为其中生效的条件数；`quick` 放快捷筛选行（上方自动加分隔线） |
 | `FilterField` | `label`、`span`、`help` | 搜索条件的一项，标签在上；关键词 `span={2}`；完整搜索范围写在 `help`（以 `search-scope.md` 为准） |
@@ -281,12 +280,12 @@ JSX 里写成 `{/* lint-ui-ignore gradient: 两端同色，只是背景图上的
 
 **列表**：骨架见「列表页统一规范」。列顺序：
 1. 单号 · 日期：单号链到详情，下面一行单据日期，固定在左；需要的标签（如「费用订单」）放单号下面。
-2. 客户：单独一列（`CustomerCell`：名称、新 / 老客户与国家 / 地区、主联系人）。供应商单据的「供应商」同样单独一列。
+2. 客户：单独一列（`CustomerCell`：名称一行，下面一行「新 / 老客户 · 国家 / 地区 · 主联系人」，都是文字，不用标签）。供应商单据的「供应商」同样单独一列。
 3. 型号 · 数量：第一个型号（等宽、单行省略），下面一行「共 N 个型号 · M 件 · 查看」；点「查看」弹出全部型号，可打开详情。单据自己没有专门的弹窗时用 `ModelQtyCell`（`src/components/DocFields/DocPage.tsx`），传 `docLabel` 和 `onOpenDetail`。
-4. 品牌、品类：各一列，`TagList`。
+4. 品牌、品类：各一列，`TagList`（纯文字，前两个用「、」连接，其余收成「+N」，悬停看全部）。
 5. 金额、状态等单据自己的列。金额按「金额显示规范」；毛利等盈亏按涨跌颜色。
 6. 来源单号：单独一列（`SourceNos mode="cell"`）。
-7. 负责人，然后是创建时间、创建人、更新时间、更新人，最后是操作列。
+7. 负责人，然后是创建时间、创建人、更新时间、更新人，最后是操作列。操作列固定在右，只放图标按钮（`IconButton`，size 32、图标 18），悬停显示名称。
 
 **详情页**：
 - **页头**：标题行为单号加状态标签（20–22/600），操作按钮在右。

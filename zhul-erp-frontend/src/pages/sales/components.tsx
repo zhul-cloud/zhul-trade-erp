@@ -40,7 +40,7 @@ export const RECEIPT_STATUS = {
 export const RECEIPT_META: Record<number, { label: string; tone: Tone }> = {
   1: { label: '未付款', tone: 'gray' },
   2: { label: '待到账', tone: 'orange' },
-  3: { label: '部分到账', tone: 'accent' },
+  3: { label: '部分到账', tone: 'info' },
   4: { label: '已到账', tone: 'green' },
   5: { label: '无需收款', tone: 'gray' },
 };

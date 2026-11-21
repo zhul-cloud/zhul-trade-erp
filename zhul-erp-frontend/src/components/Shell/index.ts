@@ -1,5 +1,6 @@
 export { AppLogo } from './AppLogo';
 export { DefaultLogo, SiteFavicon } from './BrandLogo';
+export { IconButton } from './IconButton';
 export { NotificationBell } from './NotificationBell';
 export { ShellStyle } from './ShellStyle';
 export { SiderPeek } from './SiderPeek';

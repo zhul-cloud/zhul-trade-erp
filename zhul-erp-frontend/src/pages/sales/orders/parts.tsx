@@ -1,15 +1,15 @@
 import React from 'react';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 import { useAppTheme } from '@/theme/AppTheme';
+import { CHART_SERIES } from '@/theme/palette';
 import { Pill, RECEIPT_META } from '../components';
 
-/** 订单状态（进度）的颜色：内置码与初始步骤有固定颜色，字典里新加的步骤用主题色 */
+/**
+ * 订单状态（进度）的颜色（status-colors.md）：待采购、已取消为中性，进行中的各步为信息，已完成为成功；
+ * 字典里新加的步骤也是进行中的一步，用信息色。
+ */
 const PROGRESS_TONE: Record<string, Tone> = {
   PENDING_PURCHASE: 'gray',
-  ORDERED: 'accent',
-  RECEIVED: 'violet',
-  TO_FORWARDER: 'cyan',
-  SHIPPED: 'orange',
   COMPLETED: 'green',
   CANCELLED: 'mute',
 };
@@ -17,7 +17,7 @@ const PROGRESS_TONE: Record<string, Tone> = {
 export const ProgressPill: React.FC<{ code: string; name?: string }> = ({
   code,
   name,
-}) => <Pill tone={PROGRESS_TONE[code] ?? 'accent'}>{name ?? code}</Pill>;
+}) => <Pill tone={PROGRESS_TONE[code] ?? 'info'}>{name ?? code}</Pill>;
 
 /** 收款进度条：已到账（毛额）÷ 合计，最多显示 100%，多收时标注 */
 export const ReceiptProgress: React.FC<{
@@ -31,7 +31,11 @@ export const ReceiptProgress: React.FC<{
   const pct = Math.min(100, Math.round(ratio * 100));
   const meta = status ? RECEIPT_META[status] : undefined;
   const color =
-    status === 4 ? palette.green : status === 2 ? palette.orange : palette.link;
+    status === 4
+      ? palette.greenMain
+      : status === 2
+        ? palette.orangeMain
+        : palette.primary;
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -78,18 +82,20 @@ export const ReceiptProgress: React.FC<{
 
 // ---------------------------------------------------------------- 货物状态
 
-/** 已出运 / 已交货代 / 在仓 / 在途 / 待发货 / 待采购 的颜色 */
-export const useGoodsColors = () => {
-  const { palette } = useAppTheme();
-  return {
-    shipped: palette.green,
-    handed: palette.info,
-    inWarehouse: palette.info,
-    inTransit: palette.link,
-    pendingShip: palette.orange,
-    pendingPurchase: palette.faint,
-  };
-};
+/**
+ * 已出运 / 已交货代 / 在仓 / 在途 / 待发货 / 待采购 的颜色：6 段相邻，套语义色会撞色，
+ * 改用图表系列色（status-colors.md「货物进度条」，2026-11-20 用户确认），不随主题色变化
+ */
+const GOODS_COLORS = {
+  shipped: CHART_SERIES[4],
+  handed: CHART_SERIES[1],
+  inWarehouse: CHART_SERIES[0],
+  inTransit: CHART_SERIES[2],
+  pendingShip: CHART_SERIES[3],
+  pendingPurchase: CHART_SERIES[5],
+} as const;
+
+export const useGoodsColors = () => GOODS_COLORS;
 
 export const GOODS_LABELS = {
   shipped: '已出运',

@@ -3,8 +3,8 @@ import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 
 /**
- * 顶栏、侧栏的图标按钮：只有图标，悬停显示名称；pressed 为弹出层打开时的按下态。
- * 圆形 36，图标 20（外壳原型 F1–F1d）。
+ * 只有图标的按钮：悬停显示名称；pressed 为弹出层打开时的按下态。
+ * 顶栏、侧栏用圆形 36、图标 20（外壳原型 F1–F1d）；表格操作列用 size 32、图标 18（销售订单原型 A1c）。
  */
 export const IconButton = React.forwardRef<
   HTMLButtonElement,

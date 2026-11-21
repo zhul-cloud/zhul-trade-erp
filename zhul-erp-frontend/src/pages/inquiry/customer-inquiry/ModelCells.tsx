@@ -5,7 +5,6 @@ import React, { useEffect, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { Pill } from '../shared/components';
 import { PATHS } from '../shared/constants';
 import {
   type CustomerInquiry,
@@ -13,7 +12,10 @@ import {
   readBizError,
 } from '../shared/service';
 
-/** 品牌、品类：显示前两个，其余收成「+N」，鼠标移上去看全部 */
+/**
+ * 品牌、品类：纯文字显示前两个（「西门子、AB」，销售订单原型 A1），其余收成「+N」，鼠标移上去看全部。
+ * 品牌、品类是属性不是状态，不用标签。
+ */
 export const TagList: React.FC<{ values?: string[]; label: string }> = ({
   values,
   label,
@@ -22,12 +24,8 @@ export const TagList: React.FC<{ values?: string[]; label: string }> = ({
   if (!values?.length) return <span style={{ color: palette.mute }}>—</span>;
   const rest = values.length - 2;
   return (
-    <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
-      {values.slice(0, 2).map((v) => (
-        <Pill key={v} tone="gray">
-          {v}
-        </Pill>
-      ))}
+    <span style={{ color: palette.ink }}>
+      {values.slice(0, 2).join('、')}
       {rest > 0 && (
         <Tooltip
           title={
@@ -39,8 +37,10 @@ export const TagList: React.FC<{ values?: string[]; label: string }> = ({
             </div>
           }
         >
-          <span style={{ cursor: 'default' }}>
-            <Pill tone="accent">+{rest}</Pill>
+          <span
+            style={{ marginLeft: 6, color: palette.link, cursor: 'default' }}
+          >
+            +{rest}
           </span>
         </Tooltip>
       )}

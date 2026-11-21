@@ -2,7 +2,6 @@ import { ExpandOutlined, UserOutlined } from '@ant-design/icons';
 import { AutoComplete, Button, Drawer, Select, Space } from 'antd';
 import React, { useState } from 'react';
 import { INCOTERMS } from '@/pages/customer/constants';
-import { CustomerTypePill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_TRADE_TERM_PLACE, useDictTexts } from '@/utils/dict';
 
@@ -145,7 +144,10 @@ export const CustomerSub: React.FC<{
   );
 };
 
-/** 列表的客户列：名称 + 新 / 老客户、国家 / 地区、主联系人，分三行，缺哪行不显示哪行 */
+/**
+ * 列表的客户列：名称一行，下面一行「新 / 老客户 · 国家 / 地区 · 主联系人」（销售订单原型 A1），缺哪项不显示哪项。
+ * 新 / 老客户是客户的属性，不是状态，写成文字不用标签。
+ */
 export const CustomerCell: React.FC<{
   name?: string;
   country?: string;
@@ -153,21 +155,19 @@ export const CustomerCell: React.FC<{
   contact?: string;
 }> = ({ name, country, type, contact }) => {
   const { palette } = useAppTheme();
+  const sub = [
+    type ? (type === 2 ? '老客户' : '新客户') : undefined,
+    country,
+    contact,
+  ].filter(Boolean);
   return (
     <div style={{ minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-        <span style={{ color: palette.ink, fontWeight: 600, minWidth: 0 }}>
-          {name || '—'}
-        </span>
-        {type ? (
-          <span style={{ flex: 'none' }}>
-            <CustomerTypePill type={type} />
-          </span>
-        ) : null}
-      </div>
-      <div style={{ color: palette.mute, fontSize: 12, lineHeight: '18px' }}>
-        <CustomerSub country={country} contact={contact} empty={null} />
-      </div>
+      <div style={{ color: palette.ink, minWidth: 0 }}>{name || '—'}</div>
+      {sub.length > 0 && (
+        <div style={{ color: palette.mute, fontSize: 12, lineHeight: '18px' }}>
+          {sub.join(' · ')}
+        </div>
+      )}
     </div>
   );
 };
