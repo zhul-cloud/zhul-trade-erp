@@ -1,19 +1,202 @@
-import { Button } from 'antd';
-import React from 'react';
-import { Card } from '@/pages/inquiry/shared/components';
+import { Button, Tooltip } from 'antd';
+import { Check, Info, SlidersHorizontal } from 'lucide-react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
+import { CARD_SHADOW } from '@/theme/palette';
+import { formatAmount } from '@/utils/format';
 
 /**
- * 单据列表骨架（openspec doc-list-unify，UI 规范「单据页统一规范 · 列表页骨架」）：
- * 搜索条件区（标签在上的网格，状态放这里的下拉）+ 主内容区（操作行、表格、分页）。
+ * 页面骨架（openspec ui-redesign 设计第 3 节，UI 规范「列表页统一规范」）：
+ * 页头 PageHeader → 汇总行 SummaryBar → 搜索条件区 FilterCard（含更多筛选、快捷筛选）→ 主内容区 MainCard；
+ * 详情页的分区用 Section，口径说明用 HelpTip。用法见 ui-design-patterns.md「骨架组件」。
  */
 
-/** 搜索条件区的一项：标签在上、输入在下；关键词占两格 */
+/** 卡片：圆角 10；浅色柔和阴影不加边框，深色加边框不用阴影 */
+export const Panel: React.FC<{
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+  as?: 'section' | 'div';
+  'aria-label'?: string;
+}> = ({ children, style, as = 'section', ...rest }) => {
+  const { palette, mode } = useAppTheme();
+  const Tag = as;
+  return (
+    <Tag
+      {...rest}
+      style={{
+        background: palette.card,
+        borderRadius: 10,
+        boxShadow: mode === 'light' ? CARD_SHADOW : 'none',
+        border: mode === 'light' ? 'none' : `1px solid ${palette.hairline}`,
+        ...style,
+      }}
+    >
+      {children}
+    </Tag>
+  );
+};
+
+/** 帮助图标：口径、匹配规则等背景知识；只在鼠标悬停时显示（按用户决定豁免可见焦点要求） */
+export const HelpTip: React.FC<{ title: React.ReactNode }> = ({ title }) => {
+  const { palette } = useAppTheme();
+  return (
+    <Tooltip title={title}>
+      <span
+        role="img"
+        aria-label={typeof title === 'string' ? title : '说明'}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          color: palette.mute,
+          cursor: 'help',
+        }}
+      >
+        <Info size={14} />
+      </span>
+    </Tooltip>
+  );
+};
+
+/** 页头：一行，左侧页面标题，右侧主操作（每个页头最多一个主按钮） */
+export const PageHeader: React.FC<{
+  title: React.ReactNode;
+  extra?: React.ReactNode;
+}> = ({ title, extra }) => {
+  const { palette } = useAppTheme();
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 16,
+        marginBottom: 12,
+        minHeight: 36,
+      }}
+    >
+      <h1
+        style={{
+          margin: 0,
+          fontSize: 20,
+          fontWeight: 600,
+          color: palette.ink,
+          minWidth: 0,
+        }}
+      >
+        {title}
+      </h1>
+      {extra && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {extra}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export interface SummaryItem {
+  key?: string;
+  label: string;
+  /** 口径从名称看不出时写在这里，名称旁显示帮助图标 */
+  help?: React.ReactNode;
+  value: React.ReactNode;
+  /** 金额的币种：有币种时数值按 formatAmount 显示（如「CNY 386,420.00」） */
+  currency?: string;
+  /** 数字后面的一行副文字 */
+  sub?: React.ReactNode;
+  /** 宽度不够时可以整段隐藏副文字；只给页面别处也能看到的副文字设 true */
+  subHideable?: boolean;
+}
+
+/**
+ * 汇总行：页头下方一行指标，每项「名称 + 数字」，可带一行副文字。
+ * 宽度不够时，subHideable 的副文字整段隐藏（不截断、不换行）。
+ */
+export const SummaryBar: React.FC<{ items: SummaryItem[] }> = ({ items }) => {
+  const { palette } = useAppTheme();
+  const box = useRef<HTMLDivElement>(null);
+  const [hideSub, setHideSub] = useState(false);
+  // 副文字都显示时的整行宽度；隐藏后用它判断宽度够了没有
+  const full = useRef(0);
+
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return undefined;
+    const check = () => {
+      if (!hideSub) full.current = el.scrollWidth;
+      const tooWide = full.current > el.clientWidth + 1;
+      if (tooWide !== hideSub) setHideSub(tooWide);
+    };
+    check();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [hideSub, items]);
+
+  return (
+    <div
+      ref={box}
+      style={{
+        display: 'flex',
+        alignItems: 'flex-end',
+        gap: 32,
+        marginBottom: 16,
+        overflow: 'hidden',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {items.map((it) => (
+        <div
+          key={it.key ?? it.label}
+          style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+        >
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              fontSize: 12,
+              color: palette.mute,
+            }}
+          >
+            {it.label}
+            {it.help && <HelpTip title={it.help} />}
+          </span>
+          <span
+            style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8 }}
+          >
+            <span
+              className="num"
+              style={{ fontSize: 18, fontWeight: 700, color: palette.ink }}
+            >
+              {it.currency &&
+              (typeof it.value === 'number' || typeof it.value === 'string')
+                ? formatAmount(it.value, it.currency)
+                : it.value}
+            </span>
+            {it.sub && !(hideSub && it.subHideable) && (
+              <span
+                className="num"
+                style={{ fontSize: 12, color: palette.mute }}
+              >
+                {it.sub}
+              </span>
+            )}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+/** 搜索条件区的一项：标签在上（13/500）、输入在下；关键词占两格，标签旁可放帮助图标 */
 export const FilterField: React.FC<{
   label: string;
   span?: 1 | 2;
+  help?: React.ReactNode;
   children: React.ReactNode;
-}> = ({ label, span = 1, children }) => {
+}> = ({ label, span = 1, help, children }) => {
   const { palette } = useAppTheme();
   return (
     <div
@@ -25,46 +208,164 @@ export const FilterField: React.FC<{
         minWidth: 0,
       }}
     >
-      <span style={{ fontSize: 12, color: palette.mute }}>{label}</span>
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          fontSize: 13,
+          fontWeight: 500,
+          color: palette.sub,
+        }}
+      >
+        {label}
+        {help && <HelpTip title={help} />}
+      </span>
       {children}
     </div>
   );
 };
 
-/** 搜索条件区：筛选项网格，「重置」「查询」靠右 */
+export interface QuickFilterOption {
+  value: string;
+  label: React.ReactNode;
+}
+
+/**
+ * 快捷筛选（参考站 Chips）：高 30、全圆角；未选中为中性浅底，选中为主题色浅底、主题色字、前面加勾选。
+ * 可多选，点一下选中、再点取消。
+ */
+export const QuickFilters: React.FC<{
+  options: QuickFilterOption[];
+  value: string[];
+  onChange: (value: string[]) => void;
+  label?: string;
+}> = ({ options, value, onChange, label = '快捷筛选' }) => {
+  const { palette } = useAppTheme();
+  return (
+    <fieldset
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        flexWrap: 'wrap',
+        border: 0,
+        margin: 0,
+        padding: 0,
+        minWidth: 0,
+      }}
+    >
+      <legend className="zhul-sr-only">{label}</legend>
+      <span aria-hidden style={{ fontSize: 13, color: palette.mute }}>
+        {label}
+      </span>
+      {options.map((o) => {
+        const on = value.includes(o.value);
+        return (
+          <button
+            key={o.value}
+            type="button"
+            aria-pressed={on}
+            onClick={() =>
+              onChange(
+                on ? value.filter((v) => v !== o.value) : [...value, o.value],
+              )
+            }
+            style={{
+              height: 30,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              padding: on ? '0 12px 0 8px' : '0 12px',
+              border: 0,
+              borderRadius: 999,
+              background: on ? palette.primarySoft : palette.neutralSoft,
+              color: on ? palette.link : palette.sub,
+              fontSize: 13,
+              fontWeight: on ? 500 : 400,
+              cursor: 'pointer',
+            }}
+          >
+            {on && <Check size={16} aria-hidden />}
+            {o.label}
+          </button>
+        );
+      })}
+    </fieldset>
+  );
+};
+
+/**
+ * 搜索条件区：常用筛选项网格，右侧「更多筛选」「重置」「查询」；
+ * more 为收起来的其余条件，按钮显示生效数量 moreCount；quick 为下方的快捷筛选行。
+ */
 export const FilterCard: React.FC<{
   children: React.ReactNode;
   onSearch: () => void;
   onReset: () => void;
-}> = ({ children, onSearch, onReset }) => (
-  <Card style={{ marginBottom: 16, padding: 20 }}>
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
-        gap: 12,
-        alignItems: 'end',
-      }}
-    >
-      {children}
+  more?: React.ReactNode;
+  moreCount?: number;
+  quick?: React.ReactNode;
+}> = ({ children, onSearch, onReset, more, moreCount = 0, quick }) => {
+  const { palette } = useAppTheme();
+  const [open, setOpen] = useState(false);
+  return (
+    <Panel style={{ marginBottom: 16, padding: 20 }} aria-label="搜索条件">
       <div
         style={{
-          gridColumn: '-2 / -1',
-          display: 'flex',
-          gap: 8,
-          justifyContent: 'flex-end',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
+          gap: 12,
+          alignItems: 'end',
         }}
       >
-        <Button onClick={onReset}>重置</Button>
-        <Button type="primary" onClick={onSearch}>
-          查询
-        </Button>
+        {children}
+        {more && open && more}
+        <div
+          style={{
+            gridColumn: '-2 / -1',
+            display: 'flex',
+            gap: 8,
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+          }}
+        >
+          {more && (
+            <Button
+              type="text"
+              aria-expanded={open}
+              icon={<SlidersHorizontal size={16} />}
+              onClick={() => setOpen((v) => !v)}
+              style={{ color: palette.link, paddingInline: 6 }}
+            >
+              更多筛选
+              {moreCount > 0 && <span className="num"> · {moreCount}</span>}
+            </Button>
+          )}
+          <Button danger onClick={onReset}>
+            重置
+          </Button>
+          <Button type="primary" onClick={onSearch}>
+            查询
+          </Button>
+        </div>
       </div>
-    </div>
-  </Card>
-);
+      {quick && (
+        <div
+          style={{
+            marginTop: 16,
+            paddingTop: 16,
+            borderTop: `1px solid ${palette.hairline}`,
+          }}
+        >
+          {quick}
+        </div>
+      )}
+    </Panel>
+  );
+};
 
-/** 主内容区：操作行（左：结果数或已选；右：主操作）+ 表格 */
+/** 主内容区：操作行（左：结果数或已选；右：批量操作）+ 表格 */
 export const MainCard: React.FC<{
   left?: React.ReactNode;
   right?: React.ReactNode;
@@ -72,7 +373,7 @@ export const MainCard: React.FC<{
 }> = ({ left, right, children }) => {
   const { palette } = useAppTheme();
   return (
-    <Card style={{ padding: 16, minWidth: 0 }}>
+    <Panel style={{ padding: 16, minWidth: 0 }}>
       {(left || right) && (
         <div
           style={{
@@ -100,6 +401,56 @@ export const MainCard: React.FC<{
         </div>
       )}
       {children}
-    </Card>
+    </Panel>
+  );
+};
+
+/** 详情页分区：卡片标题 18/500，可带帮助图标和右侧操作；id 加在标题上，用于页内定位 */
+export const Section: React.FC<{
+  title: React.ReactNode;
+  help?: React.ReactNode;
+  extra?: React.ReactNode;
+  children: React.ReactNode;
+  id?: string;
+  style?: React.CSSProperties;
+}> = ({ title, help, extra, children, id, style }) => {
+  const { palette } = useAppTheme();
+  return (
+    <Panel style={{ padding: '20px 24px', minWidth: 0, ...style }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 16,
+        }}
+      >
+        <h2
+          id={id}
+          style={{
+            margin: 0,
+            fontSize: 18,
+            fontWeight: 500,
+            color: palette.ink,
+          }}
+        >
+          {title}
+        </h2>
+        {help && <HelpTip title={help} />}
+        {extra && (
+          <div
+            style={{
+              marginInlineStart: 'auto',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            {extra}
+          </div>
+        )}
+      </div>
+      {children}
+    </Panel>
   );
 };
