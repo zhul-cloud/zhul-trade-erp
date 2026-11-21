@@ -6,6 +6,7 @@ import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO;
 import com.zhul.erp.modules.inquiry.item.repository.InquiryItemMapper;
 import com.zhul.erp.modules.inquiry.support.PriceKeys;
+import com.zhul.erp.modules.inventory.service.InventoryOpening;
 import com.zhul.erp.modules.product.candidate.constants.CandidateConstants;
 import com.zhul.erp.modules.product.candidate.dto.UnlinkedGroupVO;
 import com.zhul.erp.modules.product.candidate.entity.ProductCandidateDO;
@@ -33,6 +34,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -63,6 +65,7 @@ public class DocProductLinkService {
     private final PriceKeys priceKeys;
     private final PlatformScopeGuard platformScopeGuard;
     private final LogService logService;
+    private final InventoryOpening inventoryOpening;
 
     // ---------------------------------------------------------------- 历史回填
 
@@ -102,6 +105,13 @@ public class DocProductLinkService {
         }
         if (!filled.isEmpty()) {
             log.info("单据明细关联商品回填完成，补上={}，仍待关联={}", filled, remaining);
+        }
+        if (touchesStock(filled.keySet())) {
+            try {
+                inventoryOpening.catchUpAll();
+            } catch (RuntimeException ex) {
+                log.warn("回填后补库存失败，下次启动重试", ex);
+            }
         }
         return new Report(filled, remaining);
     }
@@ -308,8 +318,14 @@ public class DocProductLinkService {
         return n;
     }
 
+    /** 采购入库、退货入库的明细关联上商品后要补库存（audit BUS-089） */
+    private static boolean touchesStock(Collection<String> tables) {
+        return tables.contains("purchase_receipt_item") || tables.contains("return_receipt_item");
+    }
+
     private int apply(String key, Long productId) {
         int n = 0;
+        List<String> touched = new ArrayList<>();
         for (DocumentProductTables.Entry e : DocumentProductTables.ENTRIES) {
             if (e.table().equals("inquiry_item")) {
                 continue;
@@ -318,11 +334,18 @@ public class DocProductLinkService {
             if (ids.isEmpty()) {
                 continue;
             }
-            n += jdbc.update("UPDATE `" + e.table() + "` SET product_id = :pid WHERE id IN (:ids) AND product_id IS NULL",
+            int updated = jdbc.update("UPDATE `" + e.table() + "` SET product_id = :pid WHERE id IN (:ids) AND product_id IS NULL",
                     new MapSqlParameterSource().addValue("pid", productId).addValue("ids", ids));
+            if (updated > 0) {
+                touched.add(e.table());
+            }
+            n += updated;
         }
         if (n == 0) {
             throw new BizException("这组单据已关联，请刷新");
+        }
+        if (touchesStock(touched)) {
+            inventoryOpening.catchUpAll();
         }
         return n;
     }
