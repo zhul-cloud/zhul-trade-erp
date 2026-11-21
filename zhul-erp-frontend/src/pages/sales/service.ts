@@ -346,6 +346,9 @@ export interface PiListItem {
   ownerId: number;
   ownerName?: string;
   createTime: string;
+  createBy?: string;
+  updateTime?: string;
+  updateBy?: string;
   sentAt?: string;
   validUntil?: string;
   expired?: boolean;
