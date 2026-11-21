@@ -69,6 +69,9 @@ export const docHref = (docType?: string, docId?: number) => {
     OO: '/warehouse/other-outbounds',
     SH: '/logistics/shipments',
     SO: '/sales/orders',
+    PO: '/purchase/orders',
+    PY: '/finance/payments',
+    CA: '/finance/cost-adjustments',
   };
   return docType && base[docType] ? `${base[docType]}/${docId}` : undefined;
 };
@@ -206,6 +209,8 @@ export interface LedgerRow {
   inAmount: number;
   outQty: number;
   outAmount: number;
+  /** 本月成本调整金额（只计金额） */
+  adjustAmount: number;
   closingQty: number;
   closingAmount: number;
 }
@@ -299,6 +304,38 @@ const get = <T>(url: string, params?: object) =>
 const send = <T>(method: string, url: string, data?: unknown) =>
   request<{ data: T }>(url, { method, data, ...quiet }).then((r) => r.data);
 
+/** 下载接口返回的 Excel；出错时接口返回 JSON 提示，抛出其中的提示 */
+export const downloadXlsx = async (
+  url: string,
+  body: unknown,
+  fallbackName: string,
+) => {
+  const res = (await request<Blob>(url, {
+    method: 'POST',
+    data: body,
+    responseType: 'blob',
+    getResponse: true,
+    ...quiet,
+  })) as unknown as {
+    data: Blob;
+    headers: Record<string, string | undefined>;
+  };
+  if (res.data.type.includes('json')) {
+    const msg = JSON.parse(await res.data.text()) as { message?: string };
+    throw new Error(msg.message || '导出失败，请稍后重试');
+  }
+  const disposition = res.headers?.['content-disposition'] ?? '';
+  const match = /filename\*=UTF-8''([^;]+)/.exec(disposition);
+  const href = window.URL.createObjectURL(res.data);
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = match ? decodeURIComponent(match[1]) : fallbackName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => window.URL.revokeObjectURL(href), 1000);
+};
+
 const WH = '/api/v1/warehouse';
 const OO = '/api/v1/warehouse/other-outbounds';
 
@@ -313,35 +350,18 @@ export const stockApi = {
     send<PageResult<InvMove>>('POST', `${WH}/moves/page`, q),
   ledger: (q: LedgerQuery) =>
     send<PageResult<LedgerRow>>('POST', `${WH}/ledger/page`, q),
+  /** 台账月份的结账状态（status 1-已结账） */
+  ledgerPeriod: (month: string) =>
+    get<{
+      month: string;
+      status: number;
+      statusName: string;
+      closedByName?: string;
+      closedAt?: string;
+    }>(`${WH}/ledger/period`, { month }),
   /** 台账导出 Excel：出错时接口返回 JSON 提示 */
-  exportLedger: async (q: Omit<LedgerQuery, 'page' | 'pageSize'>) => {
-    const res = (await request<Blob>(`${WH}/ledger/export`, {
-      method: 'POST',
-      data: q,
-      responseType: 'blob',
-      getResponse: true,
-      ...quiet,
-    })) as unknown as {
-      data: Blob;
-      headers: Record<string, string | undefined>;
-    };
-    if (res.data.type.includes('json')) {
-      const body = JSON.parse(await res.data.text()) as { message?: string };
-      throw new Error(body.message || '导出失败，请稍后重试');
-    }
-    const disposition = res.headers?.['content-disposition'] ?? '';
-    const match = /filename\*=UTF-8''([^;]+)/.exec(disposition);
-    const href = window.URL.createObjectURL(res.data);
-    const a = document.createElement('a');
-    a.href = href;
-    a.download = match
-      ? decodeURIComponent(match[1])
-      : `库存台账-${q.month}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.setTimeout(() => window.URL.revokeObjectURL(href), 1000);
-  },
+  exportLedger: (q: Omit<LedgerQuery, 'page' | 'pageSize'>) =>
+    downloadXlsx(`${WH}/ledger/export`, q, `库存台账-${q.month}.xlsx`),
   /** 库存退回：生成采购退货单（来源「库存退回」） */
   returnToSupplier: (body: {
     supplierId: number;

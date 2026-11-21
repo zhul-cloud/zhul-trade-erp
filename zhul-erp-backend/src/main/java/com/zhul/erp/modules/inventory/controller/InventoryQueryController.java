@@ -66,11 +66,11 @@ public class InventoryQueryController {
         return Result.ok(service.ledger(q));
     }
 
-    /** 台账月份是否已结账（已结账时台账为结账快照，页面标「已结账」） */
-    @GetMapping("/ledger/closed")
+    /** 台账月份的结账状态（已结账时台账为结账快照，页面标「已结账」与结账人） */
+    @GetMapping("/ledger/period")
     @PreAuthorize("@perm.canAccessMenu('/warehouse/ledger')")
-    public Result<Boolean> ledgerClosed(@RequestParam(required = false) String month) {
-        return Result.ok(periods.closed(InventoryQueryService.month(month).toString()));
+    public Result<com.zhul.erp.modules.inventory.dto.PeriodVO> ledgerPeriod(@RequestParam(required = false) String month) {
+        return Result.ok(periods.ledgerStatus(InventoryQueryService.month(month).toString()));
     }
 
     /** 台账导出：高资源操作，只导当前筛选（最多 5000 行） */

@@ -107,12 +107,14 @@ class InventoryPeriodContractTest extends SalesContractSupport {
         });
         JsonNode closedLedger = ok(call(json(post(LEDGER + "/page"), "{\"month\":\"" + m1 + "\"}"), admin)).path("records").get(0);
         assertEquals(0, new BigDecimal("2840.00").compareTo(closedLedger.path("closingAmount").decimalValue()));
-        assertTrue(ok(call(get(LEDGER + "/closed?month=" + m1), admin)).asBoolean());
+        JsonNode st = ok(call(get(LEDGER + "/period?month=" + m1), admin));
+        assertEquals("已结账", st.path("statusName").asText());
+        assertFalse(st.path("closedByName").asText().isEmpty());
         JsonNode now = ok(call(json(post(LEDGER + "/page"), "{\"month\":\"" + YearMonth.now() + "\"}"), admin)).path("records").get(0);
         assertEquals(0, new BigDecimal("2840.00").compareTo(now.path("openingAmount").decimalValue()));
         assertEquals(0, new BigDecimal("12.00").compareTo(now.path("adjustAmount").decimalValue()));
         assertEquals(0, new BigDecimal("2852.00").compareTo(now.path("closingAmount").decimalValue()));
-        assertFalse(ok(call(get(LEDGER + "/closed"), admin)).asBoolean());
+        assertEquals("未结账", ok(call(get(LEDGER + "/period"), admin)).path("statusName").asText());
     }
 
     @Test

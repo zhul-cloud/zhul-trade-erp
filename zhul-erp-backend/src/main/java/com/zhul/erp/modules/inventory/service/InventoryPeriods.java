@@ -63,6 +63,24 @@ public class InventoryPeriods {
                 .isNull(InvPeriodDO::getDeletedAt)) > 0;
     }
 
+    /** 台账页的月份状态：已结账时带结账人与结账时间 */
+    public com.zhul.erp.modules.inventory.dto.PeriodVO ledgerStatus(String month) {
+        InvPeriodDO p = periodMapper.selectOne(new LambdaQueryWrapper<InvPeriodDO>()
+                .eq(InvPeriodDO::getTenantId, PiStore.tenantId())
+                .eq(InvPeriodDO::getPeriodMonth, month)
+                .eq(InvPeriodDO::getStatus, InvConstants.PERIOD_CLOSED)
+                .isNull(InvPeriodDO::getDeletedAt));
+        com.zhul.erp.modules.inventory.dto.PeriodVO v = new com.zhul.erp.modules.inventory.dto.PeriodVO();
+        v.setMonth(month);
+        v.setStatus(p == null ? InvConstants.PERIOD_OPEN : InvConstants.PERIOD_CLOSED);
+        v.setStatusName(p == null ? "未结账" : "已结账");
+        if (p != null) {
+            v.setClosedByName(p.getClosedByName());
+            v.setClosedAt(p.getClosedAt());
+        }
+        return v;
+    }
+
     /** 业务日期所在月份已结账时报 PERIOD_CLOSED；bizType 决定提示里的动作 */
     public void requireOpen(LocalDate date, String bizType) {
         String m = month(date == null ? LocalDate.now() : date);
