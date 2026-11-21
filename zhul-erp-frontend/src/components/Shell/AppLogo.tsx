@@ -1,15 +1,56 @@
 import { useModel } from '@umijs/max';
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-import React from 'react';
+import { Tooltip } from 'antd';
+import { Circle, CircleDot } from 'lucide-react';
+import React, { useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DefaultLogo } from './BrandLogo';
-import { IconButton } from './IconButton';
 
 const ellipsis: React.CSSProperties = {
   display: 'block',
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
+};
+
+/**
+ * 收起 / 固定展开侧栏的圆钮（照参考站 PrimeDash 的 tonal 圆钮）：32px 圆形，底色是图标色的 12%，
+ * 悬停加深到 16%，明暗模式通用。固定展开时是带点的圆圈，收起后浮出时是空心圆（点它固定展开）
+ */
+const SiderToggle: React.FC<{
+  pinned: boolean;
+  onClick: (e: React.MouseEvent) => void;
+}> = ({ pinned, onClick }) => {
+  const { palette } = useAppTheme();
+  const [hover, setHover] = useState(false);
+  const label = pinned ? '收起侧边栏' : '固定展开侧边栏';
+  const Icon = pinned ? CircleDot : Circle;
+  return (
+    <Tooltip title={label} placement="bottom">
+      <button
+        type="button"
+        aria-label={label}
+        onClick={onClick}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        style={{
+          width: 32,
+          height: 32,
+          flex: 'none',
+          display: 'grid',
+          placeItems: 'center',
+          padding: 0,
+          border: 0,
+          borderRadius: '50%',
+          color: palette.sub,
+          background: `color-mix(in srgb, currentColor ${hover ? 16 : 12}%, transparent)`,
+          cursor: 'pointer',
+          transition: 'background 0.28s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      >
+        <Icon size={20} strokeWidth={2} />
+      </button>
+    </Tooltip>
+  );
 };
 
 /**
@@ -72,6 +113,9 @@ export const AppLogo: React.FC<{ collapsed?: boolean }> = ({ collapsed }) => {
         display: 'flex',
         alignItems: 'center',
         gap: 10,
+        // 撑满 logo 行，切换按钮贴在最右（照参考站）
+        flex: 1,
+        minWidth: 0,
         // Logo 中心与下面的菜单图标列对齐
         paddingInlineStart: 11,
       }}
@@ -99,15 +143,7 @@ export const AppLogo: React.FC<{ collapsed?: boolean }> = ({ collapsed }) => {
           </span>
         )}
       </div>
-      <IconButton
-        label={peeking ? '固定展开侧边栏' : '收起侧边栏'}
-        icon={
-          peeking ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />
-        }
-        size={32}
-        onClick={toggle}
-        style={{ color: palette.mute }}
-      />
+      <SiderToggle pinned={!peeking} onClick={toggle} />
     </div>
   );
 };
