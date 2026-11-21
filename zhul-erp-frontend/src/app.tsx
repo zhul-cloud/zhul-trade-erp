@@ -20,9 +20,10 @@ import PasteToUpload from '@/components/PasteToUpload';
 import {
   AppLogo,
   NotificationBell,
-  SidebarUser,
-  ThemeToggle,
+  ShellStyle,
+  ThemeSettings,
   TopBar,
+  UserMenu,
 } from '@/components/Shell';
 import { SiteFavicon } from '@/components/Shell/BrandLogo';
 import { getMenuTree, type MenuItem } from '@/pages/system/menu/service';
@@ -160,14 +161,19 @@ const homePath = (initialState?: {
   return firstMenuPath(toProLayoutMenu(initialState?.menuTree ?? [], allowed));
 };
 
+/** 侧栏占位宽度：卡片宽 244 + 左边距 16；收起后图标栏 64 + 16 */
+const SIDER_WIDTH = 260;
+const SIDER_COLLAPSED_WIDTH = 80;
+
 // ProLayout 支持的api https://procomponents.ant.design/components/layout
 export const layout: RunTimeLayoutConfig = ({
   initialState,
   setInitialState,
 }) => {
   return {
-    siderWidth: 240,
-    // 收起按钮放在顶栏左侧（TopBar）；ProLayout 自带的浮动圆钮压在侧栏边线和顶栏上，不用
+    // 侧栏是悬浮卡片（外壳原型 F1）：宽 244，左侧留 16 的边距，所以占位 260；收起后图标栏 64，占位 80
+    siderWidth: SIDER_WIDTH,
+    // 收起按钮在侧栏 Logo 右侧（AppLogo）；ProLayout 自带的浮动圆钮压在侧栏边线上，不用
     collapsed: initialState?.collapsed,
     onCollapse: (collapsed) => setInitialState((s) => ({ ...s, collapsed })),
     collapsedButtonRender: false,
@@ -185,7 +191,7 @@ export const layout: RunTimeLayoutConfig = ({
       const allowed = new Set(initialState?.currentUser?.permissions ?? []);
       return toProLayoutMenu(initialState?.menuTree ?? [], allowed);
     },
-    menu: { locale: false },
+    menu: { locale: false, collapsedWidth: SIDER_COLLAPSED_WIDTH },
     menuItemRender: (item, dom) => {
       if (item.path) {
         return (
@@ -218,11 +224,10 @@ export const layout: RunTimeLayoutConfig = ({
       }
       return dom;
     },
-    // 当前用户卡放在侧栏底部（menuFooterRender），顶栏不再重复放头像
+    // 侧栏顶部：Logo、站点名、公司名和收起按钮；当前用户在顶栏右端的头像菜单里
     menuHeaderRender: (_logo, _title, props) => (
       <AppLogo collapsed={props?.collapsed} />
     ),
-    menuFooterRender: (props) => <SidebarUser collapsed={props?.collapsed} />,
     footerRender: () => <Footer />,
     onPageChange: () => {
       const { location } = history;
@@ -260,27 +265,34 @@ export const layout: RunTimeLayoutConfig = ({
     childrenRender: (children) => (
       <>
         <ShellThemeSync />
+        <ShellStyle />
         <PasteToUpload />
         <SiteFavicon
           siteName={initialState?.appearance?.siteName}
           logoUrl={initialState?.appearance?.logoUrl}
         />
+        <a className="zhul-skip" href="#main-content">
+          跳到主要内容
+        </a>
         <TopBar>
-          <NotificationBell />
-          <ThemeToggle />
+          <ThemeSettings />
           <LangDropdown />
+          <NotificationBell />
+          <UserMenu />
         </TopBar>
-        {initialState?.currentUser ? (
-          <PageTabs
-            userKey={String(initialState.currentUser.userid ?? '')}
-            homePath={homePath(initialState)}
-            canOpen={(p) =>
-              (initialState.currentUser?.permissions ?? []).includes(p)
-            }
-          />
-        ) : (
-          children
-        )}
+        <main id="main-content" tabIndex={-1} style={{ outline: 'none' }}>
+          {initialState?.currentUser ? (
+            <PageTabs
+              userKey={String(initialState.currentUser.userid ?? '')}
+              homePath={homePath(initialState)}
+              canOpen={(p) =>
+                (initialState.currentUser?.permissions ?? []).includes(p)
+              }
+            />
+          ) : (
+            children
+          )}
+        </main>
       </>
     ),
     ...initialState?.settings,

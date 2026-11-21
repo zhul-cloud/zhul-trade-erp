@@ -95,6 +95,12 @@ const globalCss = (
     clip-path: inset(50%); width: 1px; height: 1px; overflow: hidden; white-space: nowrap;
   }
   .zhul-skip:focus { clip-path: none; width: auto; height: auto; overflow: visible; }
+  /* 只给读屏看的文字；原生单选框隐藏，焦点框画在后面的可见内容上 */
+  .zhul-sr-only, .zhul-radio {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap; opacity: 0;
+  }
+  .zhul-radio:focus-visible + * { ${focus} }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
   }

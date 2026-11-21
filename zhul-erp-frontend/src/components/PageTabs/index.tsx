@@ -1,11 +1,9 @@
-import {
-  ArrowLeftOutlined,
-  CloseOutlined,
-  HomeOutlined,
-} from '@ant-design/icons';
+import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useLocation, useModel, useOutlet } from '@umijs/max';
 import { App, Dropdown } from 'antd';
+import { ChevronDown, House, X } from 'lucide-react';
 import React, {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -74,18 +72,67 @@ export const Pane: React.FC<{
   );
 };
 
+/** 没有完整露出来的标签数：左右边缘超出可见区域 1px 以上就算 */
+export const hiddenCount = (
+  box: { left: number; right: number },
+  items: { left: number; right: number }[],
+) =>
+  items.filter((r) => r.left < box.left - 1 || r.right > box.right + 1).length;
+
+/** 未保存修改的小圆点：正文色，避开琥珀主题色 */
+const DirtyDot: React.FC<{ color: string }> = ({ color }) => (
+  <span
+    role="img"
+    aria-label="有未保存的修改"
+    style={{
+      flex: 'none',
+      width: 6,
+      height: 6,
+      marginInlineStart: 4,
+      borderRadius: '50%',
+      background: color,
+    }}
+  />
+);
+
+/**
+ * 顶栏里的标签栏（外壳原型 F1、F1d）：页签撑满顶栏高度、文字垂直居中，选中为主题色字加底部 2px 主题色线。
+ * 放不下时超出部分截断，末尾「全部标签」按钮显示没露出来的数量，下拉列出全部标签。
+ */
 export const TabBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
   const s = useTabsState();
   const { palette } = useAppTheme();
   const { modal } = App.useApp();
   const refs = useRef(new Map<string, HTMLDivElement>());
+  const strip = useRef<HTMLDivElement>(null);
+  const [hidden, setHidden] = useState(0);
+
+  const measure = useCallback(() => {
+    const box = strip.current?.getBoundingClientRect();
+    if (!box) return;
+    setHidden(
+      hiddenCount(
+        box,
+        [...refs.current.values()].map((el) => el.getBoundingClientRect()),
+      ),
+    );
+  }, []);
 
   useEffect(() => {
     if (s.active)
       refs.current
         .get(s.active)
         ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [s.active]);
+    measure();
+  }, [s.active, s.tabs, measure]);
+
+  useEffect(() => {
+    const el = strip.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [measure]);
 
   /** 关掉的标签里有未保存修改时先确认 */
   const confirmClose = (closing: Tab[], run: () => void) => {
@@ -141,28 +188,25 @@ export const TabBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
 
   return (
     <div
-      role="tablist"
-      aria-label="已打开的页面"
       style={{
-        position: 'sticky',
-        top: 60,
-        zIndex: 19,
-        height: 44,
+        flex: 1,
+        minWidth: 0,
+        height: '100%',
         display: 'flex',
         alignItems: 'center',
-        gap: 4,
-        margin: '-20px -28px 16px',
-        padding: '0 28px',
-        background: palette.canvas,
-        borderBottom: `1px solid ${palette.hairline}`,
+        gap: 8,
       }}
     >
       <div
+        ref={strip}
+        role="tablist"
+        aria-label="已打开的页面"
+        onScroll={measure}
         style={{
           flex: 1,
           minWidth: 0,
+          height: '100%',
           display: 'flex',
-          alignItems: 'center',
           gap: 4,
           overflowX: 'auto',
           scrollbarWidth: 'none',
@@ -220,23 +264,21 @@ export const TabBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
                 }}
                 style={{
                   flex: 'none',
-                  height: 32,
-                  maxWidth: 220,
+                  height: '100%',
+                  maxWidth: 240,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 6,
-                  padding: t.pinned ? '0 12px' : '0 8px 0 12px',
-                  borderRadius: 8,
+                  gap: 4,
+                  padding: t.pinned ? '0 16px' : '0 8px 0 16px',
                   cursor: on ? 'default' : 'pointer',
-                  fontSize: 13,
-                  fontWeight: on ? 600 : 400,
-                  color: on ? palette.ink : palette.sub,
-                  background: on ? palette.primarySoft : 'transparent',
-                  border: `1px solid ${on ? palette.primaryLine : 'transparent'}`,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: on ? palette.link : palette.sub,
+                  boxShadow: on ? `inset 0 -2px 0 ${palette.link}` : 'none',
                   userSelect: 'none',
                 }}
               >
-                {t.pinned && <HomeOutlined style={{ fontSize: 13 }} />}
+                {t.pinned && <House size={14} style={{ flex: 'none' }} />}
                 <span
                   style={{
                     overflow: 'hidden',
@@ -246,19 +288,7 @@ export const TabBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
                 >
                   {label}
                 </span>
-                {isDirty(t) && (
-                  <span
-                    role="img"
-                    aria-label="有未保存的修改"
-                    style={{
-                      flex: 'none',
-                      width: 7,
-                      height: 7,
-                      borderRadius: '50%',
-                      background: palette.orange,
-                    }}
-                  />
-                )}
+                {isDirty(t) && <DirtyDot color={palette.sub} />}
                 {!t.pinned && (
                   <button
                     type="button"
@@ -269,20 +299,19 @@ export const TabBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
                     }}
                     style={{
                       flex: 'none',
-                      width: 18,
-                      height: 18,
+                      width: 24,
+                      height: 24,
                       display: 'grid',
                       placeItems: 'center',
                       padding: 0,
                       border: 0,
-                      borderRadius: 4,
+                      borderRadius: '50%',
                       background: 'transparent',
-                      color: palette.mute,
+                      color: on ? palette.link : palette.mute,
                       cursor: 'pointer',
-                      fontSize: 10,
                     }}
                   >
-                    <CloseOutlined />
+                    <X size={14} />
                   </button>
                 )}
               </div>
@@ -290,9 +319,69 @@ export const TabBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
           );
         })}
       </div>
-      <span style={{ flex: 'none', fontSize: 12, color: palette.mute }}>
-        {s.tabs.length} / {MAX_TABS}
-      </span>
+      {hidden > 0 && (
+        <Dropdown
+          trigger={['click']}
+          placement="bottomRight"
+          menu={{
+            selectedKeys: s.active ? [s.active] : [],
+            items: [
+              {
+                type: 'group',
+                label: `已打开 ${s.tabs.length} / ${MAX_TABS}，再打开会关掉最久没用的标签`,
+                children: s.tabs.map((t) => ({
+                  key: t.menuPath,
+                  label: (
+                    <span
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        maxWidth: 280,
+                      }}
+                    >
+                      <span
+                        style={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {tabLabel(tree, t)}
+                      </span>
+                      {isDirty(t) && <DirtyDot color={palette.sub} />}
+                    </span>
+                  ),
+                })),
+              },
+            ],
+            onClick: ({ key }) => tabsActions.switchTo(key),
+          }}
+        >
+          <button
+            type="button"
+            aria-label={`全部标签，还有 ${hidden} 个没露出来`}
+            className="num"
+            style={{
+              flex: 'none',
+              height: 32,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              padding: '0 6px 0 10px',
+              border: 0,
+              borderRadius: 16,
+              background: palette.navOn,
+              color: palette.sub,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            +{hidden}
+            <ChevronDown size={16} />
+          </button>
+        </Dropdown>
+      )}
     </div>
   );
 };
@@ -452,7 +541,6 @@ const PageTabs: React.FC<{
 
   return (
     <>
-      <TabBar tree={tree} />
       <BackBar tree={tree} />
       {panes}
       {/* 地址还没归到标签（理论上不会发生）时直接显示页面，不留空白 */}

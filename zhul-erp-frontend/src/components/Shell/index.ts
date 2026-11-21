@@ -1,6 +1,8 @@
 export { AppLogo } from './AppLogo';
 export { DefaultLogo, SiteFavicon } from './BrandLogo';
 export { NotificationBell } from './NotificationBell';
-export { SidebarUser } from './SidebarUser';
+export { ShellStyle } from './ShellStyle';
+export { ThemeSettings } from './ThemeSettings';
 export { ThemeToggle } from './ThemeToggle';
 export { TopBar } from './TopBar';
+export { UserMenu } from './UserMenu';

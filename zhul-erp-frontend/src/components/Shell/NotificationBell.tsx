@@ -1,5 +1,4 @@
 import {
-  BellOutlined,
   CodeSandboxOutlined,
   FileTextOutlined,
   SearchOutlined,
@@ -8,17 +7,9 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import { history } from '@umijs/max';
-import {
-  App,
-  Badge,
-  Button,
-  Drawer,
-  Empty,
-  Segmented,
-  Spin,
-  Tooltip,
-} from 'antd';
+import { App, Badge, Button, Drawer, Empty, Segmented, Spin } from 'antd';
 import dayjs from 'dayjs';
+import { Bell } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   type NotificationItem,
@@ -27,6 +18,7 @@ import {
 import { useAppTheme } from '@/theme/AppTheme';
 import type { Palette } from '@/theme/palette';
 import { liveRequests } from '@/utils/liveRequests';
+import { IconButton } from './IconButton';
 
 const POLL_MS = 60_000;
 const PAGE_SIZE = 20;
@@ -325,16 +317,19 @@ export const NotificationBell: React.FC = () => {
 
   return (
     <>
-      <Tooltip title="通知">
-        <Badge count={count} size="small" offset={[-6, 6]}>
-          <Button
-            type="text"
-            aria-label="通知"
-            icon={<BellOutlined />}
-            onClick={() => setOpen(true)}
-          />
-        </Badge>
-      </Tooltip>
+      {/* 角标：未处理的待办 + 未读的知会，12px 错误色底白字，外加卡片色描边与图标分开 */}
+      <Badge
+        count={count}
+        offset={[-6, 6]}
+        style={{ boxShadow: `0 0 0 1.5px ${palette.card}` }}
+      >
+        <IconButton
+          label="通知"
+          icon={<Bell size={20} />}
+          pressed={open}
+          onClick={() => setOpen(true)}
+        />
+      </Badge>
       <Drawer
         title="通知"
         open={open}
