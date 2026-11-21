@@ -33,7 +33,7 @@ const PAGE_SIZE = 20;
 
 type Tab = 'todo' | 'all';
 
-/** 节点图标与配色：询价蓝、采购紫、收货绿、差异与收款橙、销售灰 */
+/** 节点图标与配色：询价主题色、采购信息色、收货成功色、差异与收款警告色、销售中性 */
 const nodeStyle = (node: string, p: Palette) => {
   if (node.startsWith('SOURCING') || node === 'INQUIRY_QUOTABLE') {
     return { icon: <SearchOutlined />, color: p.link, bg: p.primarySoft };

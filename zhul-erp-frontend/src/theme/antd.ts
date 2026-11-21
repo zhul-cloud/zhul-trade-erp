@@ -1,42 +1,92 @@
 import { theme as antdTheme, type ThemeConfig } from 'antd';
-import { buildPalette, type PresetKey, type ThemeMode } from './palette';
+import { SANS_FONT } from './fonts';
+import {
+  buildPalette,
+  CARD_SHADOW,
+  POPUP_SHADOW,
+  type PresetKey,
+  type ThemeMode,
+} from './palette';
 
-/** 由主题模式和主题色生成 Ant Design 的主题配置（令牌见 ui-design-patterns.md「设计令牌」） */
+/** 对话框的深阴影（照参考站 Dialog，elevation 24） */
+const DIALOG_SHADOW =
+  '0 11px 15px -7px rgba(145,158,171,.2), 0 24px 38px 3px rgba(145,158,171,.14), 0 9px 46px 8px rgba(145,158,171,.12)';
+
+/** 由主题模式和主题色生成 Ant Design 的主题配置（令牌见 ui-design-patterns.md「设计令牌」「组件标准」） */
 export function buildAntdTheme(
   mode: ThemeMode,
   preset?: PresetKey,
 ): ThemeConfig {
   const p = buildPalette(mode, preset);
+  const light = mode === 'light';
   return {
-    algorithm:
-      mode === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+    algorithm: light ? antdTheme.defaultAlgorithm : antdTheme.darkAlgorithm,
     token: {
       colorPrimary: p.primary,
       colorLink: p.link,
-      colorBgLayout: p.canvas,
-      colorBgContainer: p.card,
-      colorBgElevated: p.card,
-      colorBorder: p.control,
-      colorBorderSecondary: p.hairline,
-      colorText: p.ink,
-      colorTextSecondary: p.sub,
-      colorTextTertiary: p.mute,
-      colorTextQuaternary: p.mute,
-      colorTextDescription: p.mute,
-      colorTextPlaceholder: p.mute,
+      colorInfo: p.info,
       colorSuccess: p.green,
       colorWarning: p.orange,
       colorError: p.red,
-      borderRadius: 10,
-      borderRadiusLG: 16,
+      colorBgLayout: p.canvas,
+      colorBgContainer: p.card,
+      colorBgElevated: p.elevated,
+      colorBgSpotlight: light ? p.ink : '#000000',
+      colorBorder: p.control,
+      colorBorderSecondary: p.hairline,
+      colorSplit: p.hairline,
+      colorText: p.ink,
+      colorTextSecondary: p.mute,
+      colorTextTertiary: p.mute,
+      colorTextQuaternary: p.faint,
+      colorTextDescription: p.mute,
+      colorTextPlaceholder: p.faint,
+      colorTextDisabled: p.faint,
+      colorFillAlter: p.head,
+      colorBgMask: light ? 'rgba(33,43,54,.5)' : 'rgba(0,0,0,.7)',
+      // 圆角：按钮、输入框、对话框 8；卡片 10；状态标签 4
+      borderRadius: 8,
+      borderRadiusLG: 10,
+      borderRadiusSM: 4,
+      // 按钮高 36；输入类控件在下面单独设为 40
       controlHeight: 36,
-      fontFamily:
-        "'Noto Sans SC', AlibabaSans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      boxShadow: light ? CARD_SHADOW : 'none',
+      boxShadowSecondary: light ? POPUP_SHADOW : 'none',
+      boxShadowTertiary: light ? CARD_SHADOW : 'none',
+      fontFamily: SANS_FONT,
     },
     components: {
-      Table: { headerBg: p.card, rowHoverBg: p.hover, borderColor: p.hairline },
-      Card: { headerFontSize: 16 },
-      // 深色菜单默认选中项是实心主色，这里改成强调色浅底 + 链接色文字
+      Button: {
+        fontWeight: 500,
+        primaryShadow: light ? CARD_SHADOW : 'none',
+        dangerShadow: 'none',
+        defaultShadow: 'none',
+      },
+      Input: { controlHeight: 40 },
+      InputNumber: { controlHeight: 40 },
+      Select: { controlHeight: 40 },
+      DatePicker: { controlHeight: 40 },
+      Cascader: { controlHeight: 40 },
+      TreeSelect: { controlHeight: 40 },
+      Mentions: { controlHeight: 40 },
+      Card: { headerFontSize: 18 },
+      Modal: {
+        titleFontSize: 18,
+        contentBg: p.card,
+        headerBg: p.card,
+        footerBg: p.card,
+        boxShadow: light ? DIALOG_SHADOW : 'none',
+      },
+      Table: {
+        headerBg: p.head,
+        headerColor: p.ink,
+        headerSplitColor: 'transparent',
+        rowHoverBg: p.hover,
+        borderColor: p.hairline,
+      },
+      // 状态标签：12px，圆角 4，中性为中性浅底配次要文字色；语义色见全局样式
+      Tag: { defaultBg: p.neutralSoft, defaultColor: p.mute },
+      Tooltip: { colorTextLightSolid: '#FFFFFF' },
       Menu: {
         darkItemBg: p.sidebar,
         darkSubMenuItemBg: p.sidebar,

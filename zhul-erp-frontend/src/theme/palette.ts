@@ -86,9 +86,9 @@ export const PRESET_ORDER: PresetKey[] = [
 export const DEFAULT_PRESET: PresetKey = 'amber';
 
 export const isPresetKey = (v: unknown): v is PresetKey =>
-  typeof v === 'string' && v in PRESETS;
+  typeof v === 'string' && Object.hasOwn(PRESETS, v);
 
-/** 中性灰阶与状态色；状态色浅色、深色相同，浅底按各自的卡片色叠出 */
+/** 中性灰阶与状态色；状态色浅色、深色相同，浅底为语义色叠在卡片色上：浅色 12%，深色 16%（12% 的中性浅底会和分隔线同色） */
 const BASE = {
   light: {
     canvas: '#F9FAFB',
@@ -171,7 +171,7 @@ export function buildPalette(
   preset: PresetKey = DEFAULT_PRESET,
 ) {
   const base = BASE[mode];
-  const pr = PRESETS[preset] ?? PRESETS[DEFAULT_PRESET];
+  const pr = isPresetKey(preset) ? PRESETS[preset] : PRESETS[DEFAULT_PRESET];
   const link = mode === 'light' ? pr.primary : pr.darkLink;
   return {
     ...base,
@@ -181,7 +181,7 @@ export function buildPalette(
     link,
     /** 选中浅底：选中的菜单子项、快捷筛选、当前标签 */
     primarySoft: mode === 'light' ? pr.lightSoft : pr.darkSoft,
-    /** 选中描边：主题色 40% 叠在卡片上 */
+    /** 选中描边：链接色 40% 叠在卡片上 */
     primaryLine: mix(link, base.card, 0.4),
   };
 }
@@ -198,11 +198,20 @@ export const CHART_SERIES = [
   '#7A8794',
 ] as const;
 
-/** 主题色作为第一个系列时的系列色：去掉色相最接近的一个，其余顺延 */
-export const chartSeries = (preset: PresetKey = DEFAULT_PRESET): string[] => [
-  PRESETS[preset].primary,
-  ...CHART_SERIES.filter((c) => c !== PRESETS[preset].chartDrop),
-];
+/**
+ * 主题色作为第一个系列时的系列色：去掉色相最接近的一个，其余顺延。
+ * 第一个系列在深色下用深色链接色（原色在近黑底上可能不到 3:1，如紫 2.75）。
+ */
+export const chartSeries = (
+  mode: ThemeMode = 'light',
+  preset: PresetKey = DEFAULT_PRESET,
+): string[] => {
+  const pr = isPresetKey(preset) ? PRESETS[preset] : PRESETS[DEFAULT_PRESET];
+  return [
+    mode === 'light' ? pr.primary : pr.darkLink,
+    ...CHART_SERIES.filter((c) => c !== pr.chartDrop),
+  ];
+};
 
 /** 浅色卡片、侧栏、顶栏、主按钮的三层柔和阴影；深色不用阴影 */
 export const CARD_SHADOW =

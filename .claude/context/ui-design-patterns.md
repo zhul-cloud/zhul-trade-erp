@@ -343,11 +343,12 @@
   - `AppTheme.tsx`：`useAppTheme`、全站样式、`AppThemeSync`。
 
   页面取色只走 `useAppTheme().palette` 或 CSS 变量 `var(--z-*)`，不写十六进制。
-- **旧 palette 键的去向**：
-  - 保留并换新色值：`canvas`、`card`、`hairline`、`control`、`ink`、`sub`、`mute`、`link`、`hover`、`faint`、`sidebar`、`inset`；
-  - 对应成功、警告、错误：`green`、`orange`、`red` 及各自的 `Soft`；
-  - 改名为信息浅底、信息描边：`accentSoft`、`accentLine`；
-  - 删除：`violet`、`violetSoft`、`cyan`、三个渐变常量。引用处会编译报错，借此逐一改掉。
+- **令牌**：`src/theme/palette.ts` 的 `buildPalette(模式, 主题色)`，页面里用 `useAppTheme().palette`；字体栈在 `src/theme/fonts.ts`。
+  - `ink`、`sub`、`mute`、`faint`：主文字、正文、次要文字、禁用与占位；
+  - `link`、`primary`、`primarySoft`、`primaryLine`：链接与选中文字、主按钮底色、选中浅底、选中描边（链接色 40% 叠在卡片上）；
+  - `green`、`orange`、`red`、`info` 及各自的 `Soft`：成功、警告、错误、信息；`neutralSoft` 为中性标签底；浅底在浅色下为语义色 12% 叠在卡片上，深色下为 16%；
+  - `canvas`、`card`、`sidebar`、`inset`、`head`、`navOn`、`hover`、`hairline`、`control`、`elevated`、`elevatedLine`：页面底、卡片、侧栏、中性浅底、表头、展开的父级菜单、悬停、分隔线、输入框边框、弹出层底与边；
+  - 旧键 `accentSoft`、`accentLine` 已改名为 `primarySoft`、`primaryLine`；`violet`、`violetSoft`、`cyan` 已删除（先统一改为 `info`、`infoSoft`，各业务域迁移时按 `status-colors.md` 改）；三个渐变常量已删除。
 - **外壳**：`src/components/Shell/`（`AppLogo`、`SidebarUser`、`TopBar`）；默认 Logo 见 `src/utils/appearance.ts`、`BrandLogo.tsx`。
 - **公共骨架组件**：`src/components/ListLayout/`。
 - **写 antd 代码前**先用 `npx antd info <组件>` 核对。

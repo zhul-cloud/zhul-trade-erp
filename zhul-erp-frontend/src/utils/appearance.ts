@@ -1,8 +1,9 @@
-import { PRESETS } from '@/theme/palette';
 /**
  * 外观（系统参数 → 外观，平台统一）：系统名称、副标题、Logo、登录页背景与底部文字。
  * 默认值与后端迁移 V1.3.14 写入的一致，接口失败时使用。
  */
+
+import { PRESETS } from '@/theme/palette';
 export interface Appearance {
   siteName: string;
   siteSubtitle: string;
