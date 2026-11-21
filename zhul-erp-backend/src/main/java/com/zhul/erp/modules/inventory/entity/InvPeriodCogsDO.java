@@ -24,6 +24,8 @@ public class InvPeriodCogsDO {
     private Integer kind;
     private Long soItemId;
     private Long productId;
+    /** 结账时商品所属的一级品类 ID，0 为未分类 */
+    private Long categoryL1Id;
     private Long docId;
     private String docNo;
     private LocalDate bizDate;

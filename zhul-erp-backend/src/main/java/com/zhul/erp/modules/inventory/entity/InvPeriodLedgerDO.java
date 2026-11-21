@@ -22,6 +22,8 @@ public class InvPeriodLedgerDO {
     private String periodMonth;
     private Long warehouseId;
     private Long productId;
+    /** 结账时商品所属的一级品类 ID，0 为未分类 */
+    private Long categoryL1Id;
     private Integer openingQty;
     private BigDecimal openingAmount;
     private Integer inQty;

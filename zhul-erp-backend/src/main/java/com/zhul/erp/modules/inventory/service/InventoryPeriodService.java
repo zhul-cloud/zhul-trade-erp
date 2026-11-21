@@ -10,6 +10,7 @@ import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.inquiry.support.InquiryLookups;
 import com.zhul.erp.modules.inventory.constants.InvConstants;
 import com.zhul.erp.modules.inventory.dto.LedgerRowVO;
+import com.zhul.erp.modules.inventory.dto.CategoryLedgerVO;
 import com.zhul.erp.modules.inventory.dto.PeriodCogsVO;
 import com.zhul.erp.modules.inventory.dto.PeriodVO;
 import com.zhul.erp.modules.inventory.entity.InvBatchDO;
@@ -206,13 +207,132 @@ public class InventoryPeriodService {
         return PageResult.of((long) vos.size(), vos.subList(from, Math.min(vos.size(), from + size)));
     }
 
-    /** 导出月份详情：库存台账（全部仓库合计）与销售成本两张表；已结账为快照 */
+    // ---------------------------------------------------------------- 类目账
+
+    /**
+     * 类目账（spec warehouse/inventory「库存台账」）：由该月该仓库的明细台账（已结账读快照）按一级品类求和，合计即总账，
+     * 与明细账、库存月结汇总同源。全部仓库时附各品类的本月销售成本（已结账按快照里的品类）。按期末金额倒序。
+     */
+    public CategoryLedgerVO categoryLedger(String month, Long warehouseId) {
+        YearMonth m = parse(month);
+        List<LedgerRowVO> ledger = queries.ledgerAll(m.toString(), warehouseId);
+        Map<Long, CategoryLedgerVO.Row> rows = new LinkedHashMap<>();
+        for (LedgerRowVO r : ledger) {
+            CategoryLedgerVO.Row x = rows.computeIfAbsent(r.getCategoryL1Id(), id -> emptyRow(id, warehouseId == null));
+            x.setCategoryName(r.getCategoryL1Name());
+            x.setProductCount(x.getProductCount() + 1);
+            addLedger(x, r);
+        }
+        if (warehouseId == null) {
+            InvPeriodDO p = closedPeriod(m);
+            List<InvPeriodCogsDO> cogs = p != null ? cogsMapper.selectList(new LambdaQueryWrapper<InvPeriodCogsDO>()
+                    .eq(InvPeriodCogsDO::getTenantId, PiStore.tenantId())
+                    .eq(InvPeriodCogsDO::getPeriodId, p.getId())
+                    .isNull(InvPeriodCogsDO::getDeletedAt)) : cogsRows(m);
+            Map<Long, InventoryProducts.TopCategory> tops = p != null ? Map.of()
+                    : products.topCategories(cogs.stream().map(InvPeriodCogsDO::getProductId).toList());
+            for (InvPeriodCogsDO c : cogs) {
+                long top = p != null ? c.getCategoryL1Id() : tops.getOrDefault(c.getProductId(), InventoryProducts.TopCategory.NONE).id();
+                CategoryLedgerVO.Row x = rows.computeIfAbsent(top, id -> emptyRow(id, true));
+                x.setCogsAmount(x.getCogsAmount().add(c.getAmountCny()));
+            }
+            Map<Long, String> names = products.topCategoryNames(rows.keySet());
+            rows.forEach((id, x) -> {
+                if (x.getCategoryName() == null) {
+                    x.setCategoryName(names.getOrDefault(id, ""));
+                }
+            });
+        }
+        CategoryLedgerVO.Row total = emptyRow(null, warehouseId == null);
+        total.setCategoryName("合计");
+        for (CategoryLedgerVO.Row x : rows.values()) {
+            total.setProductCount(total.getProductCount() + x.getProductCount());
+            total.setOpeningAmount(total.getOpeningAmount().add(x.getOpeningAmount()));
+            total.setInAmount(total.getInAmount().add(x.getInAmount()));
+            total.setOutAmount(total.getOutAmount().add(x.getOutAmount()));
+            total.setAdjustAmount(total.getAdjustAmount().add(x.getAdjustAmount()));
+            total.setClosingAmount(total.getClosingAmount().add(x.getClosingAmount()));
+            if (total.getCogsAmount() != null) {
+                total.setCogsAmount(total.getCogsAmount().add(x.getCogsAmount()));
+            }
+        }
+        CategoryLedgerVO v = new CategoryLedgerVO();
+        v.setMonth(m.toString());
+        v.setWarehouseId(warehouseId);
+        v.setRows(rows.values().stream()
+                .sorted(Comparator.comparing(CategoryLedgerVO.Row::getClosingAmount).reversed()
+                        .thenComparing(x -> x.getCategoryId() == 0L ? 1 : 0)
+                        .thenComparing(CategoryLedgerVO.Row::getCategoryId))
+                .toList());
+        v.setTotal(total);
+        return v;
+    }
+
+    private static CategoryLedgerVO.Row emptyRow(Long categoryId, boolean withCogs) {
+        CategoryLedgerVO.Row x = new CategoryLedgerVO.Row();
+        BigDecimal zero = BigDecimal.ZERO.setScale(2);
+        x.setCategoryId(categoryId);
+        x.setProductCount(0);
+        x.setOpeningAmount(zero);
+        x.setInAmount(zero);
+        x.setOutAmount(zero);
+        x.setAdjustAmount(zero);
+        x.setClosingAmount(zero);
+        x.setCogsAmount(withCogs ? zero : null);
+        return x;
+    }
+
+    private static void addLedger(CategoryLedgerVO.Row x, LedgerRowVO r) {
+        x.setOpeningAmount(x.getOpeningAmount().add(r.getOpeningAmount()));
+        x.setInAmount(x.getInAmount().add(r.getInAmount()));
+        x.setOutAmount(x.getOutAmount().add(r.getOutAmount()));
+        x.setAdjustAmount(x.getAdjustAmount().add(r.getAdjustAmount()));
+        x.setClosingAmount(x.getClosingAmount().add(r.getClosingAmount()));
+    }
+
+    /** 类目账导出（库存台账页「类目账」视图） */
+    public byte[] exportCategoryLedger(String month, Long warehouseId) {
+        CategoryLedgerVO v = categoryLedger(month, warehouseId);
+        try (org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
+             java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream()) {
+            categorySheet(wb, v);
+            wb.write(bos);
+            return bos.toByteArray();
+        } catch (java.io.IOException ex) {
+            throw new java.io.UncheckedIOException("类目账导出失败", ex);
+        }
+    }
+
+    private static void categorySheet(org.apache.poi.xssf.usermodel.XSSFWorkbook wb, CategoryLedgerVO v) {
+        boolean withCogs = v.getTotal().getCogsAmount() != null;
+        org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("类目账");
+        List<Object> head = new ArrayList<>(List.of("一级品类", "期初金额", "本月入库", "本月出库", "在库成本调整", "期末金额", "商品数"));
+        if (withCogs) {
+            head.add("本月销售成本");
+        }
+        row(sheet, 0, head.toArray());
+        int r = 1;
+        List<CategoryLedgerVO.Row> all = new ArrayList<>(v.getRows());
+        all.add(v.getTotal());
+        for (CategoryLedgerVO.Row x : all) {
+            List<Object> cells = new ArrayList<>(List.of(x.getCategoryId() == null ? "总账合计" : x.getCategoryName(),
+                    x.getOpeningAmount(), x.getInAmount(), x.getOutAmount(), x.getAdjustAmount(), x.getClosingAmount(),
+                    x.getProductCount()));
+            if (withCogs) {
+                cells.add(x.getCogsAmount());
+            }
+            row(sheet, r++, cells.toArray());
+        }
+    }
+
+    /** 导出月份详情：类目账、库存台账（全部仓库合计）、销售成本三张表；已结账为快照 */
     public byte[] export(String month) {
         YearMonth m = parse(month);
         List<LedgerRowVO> ledger = queries.ledgerAll(m.toString());
         List<PeriodCogsVO> cogs = cogs(m.toString(), null, 1, Integer.MAX_VALUE).getRecords();
         try (org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
              java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream()) {
+            categorySheet(wb, categoryLedger(m.toString(), null));
             org.apache.poi.ss.usermodel.Sheet a = wb.createSheet("库存台账");
             row(a, 0, "品牌", "型号", "品类", "期初数量", "期初金额", "入库数量", "入库金额", "出库数量", "出库金额", "成本调整",
                     "期末数量", "期末金额");
@@ -265,21 +385,28 @@ public class InventoryPeriodService {
             throw new BizException(block);
         }
         int tenant = PiStore.tenantId();
-        // 台账快照：全部仓库合计 + 各仓库
+        // 台账快照：全部仓库合计 + 各仓库；每行记下商品此刻所属的一级品类（类目账按它汇总，之后改品类不影响已结月份）
+        List<LedgerRowVO> all = queries.liveLedgerAll(m, null);
+        List<InvPeriodCogsDO> cogsRows = cogsRows(m);
+        Set<Long> productIds = new java.util.HashSet<>();
+        all.forEach(r -> productIds.add(r.getProductId()));
+        cogsRows.forEach(c -> productIds.add(c.getProductId()));
+        Map<Long, InventoryProducts.TopCategory> tops = products.topCategories(productIds);
         BigDecimal closing = BigDecimal.ZERO.setScale(2);
-        for (LedgerRowVO r : queries.liveLedgerAll(m, null)) {
-            ledgerMapper.insert(ledgerRow(tenant, p, 0L, r));
+        for (LedgerRowVO r : all) {
+            ledgerMapper.insert(ledgerRow(tenant, p, 0L, r, tops));
             closing = closing.add(r.getClosingAmount());
         }
         for (InvWarehouseDO w : warehouseMapper.selectList(new LambdaQueryWrapper<InvWarehouseDO>()
                 .eq(InvWarehouseDO::getTenantId, tenant))) {
             for (LedgerRowVO r : queries.liveLedgerAll(m, w.getId())) {
-                ledgerMapper.insert(ledgerRow(tenant, p, w.getId(), r));
+                ledgerMapper.insert(ledgerRow(tenant, p, w.getId(), r, tops));
             }
         }
         BigDecimal cogs = BigDecimal.ZERO.setScale(2);
-        for (InvPeriodCogsDO c : cogsRows(m)) {
+        for (InvPeriodCogsDO c : cogsRows) {
             c.setPeriodId(p.getId());
+            c.setCategoryL1Id(tops.getOrDefault(c.getProductId(), InventoryProducts.TopCategory.NONE).id());
             cogsMapper.insert(c);
             cogs = cogs.add(c.getAmountCny());
         }
@@ -351,13 +478,16 @@ public class InventoryPeriodService {
         return periodMapper.selectOne(scoped().eq(InvPeriodDO::getPeriodMonth, m.toString()).last("FOR UPDATE"));
     }
 
-    private static InvPeriodLedgerDO ledgerRow(int tenant, InvPeriodDO p, long warehouseId, LedgerRowVO r) {
+    private InvPeriodLedgerDO ledgerRow(int tenant, InvPeriodDO p, long warehouseId, LedgerRowVO r,
+                                        Map<Long, InventoryProducts.TopCategory> tops) {
         InvPeriodLedgerDO x = new InvPeriodLedgerDO();
         x.setTenantId(tenant);
         x.setPeriodId(p.getId());
         x.setPeriodMonth(p.getPeriodMonth());
         x.setWarehouseId(warehouseId);
         x.setProductId(r.getProductId());
+        // 只在单个仓库出现的商品（如月内调拨进出抵消）不在全部仓库合计里，补查一次
+        x.setCategoryL1Id(tops.computeIfAbsent(r.getProductId(), id -> products.topCategories(List.of(id)).get(id)).id());
         x.setOpeningQty(r.getOpeningQty());
         x.setOpeningAmount(r.getOpeningAmount());
         x.setInQty(r.getInQty());

@@ -51,6 +51,13 @@ public class InventoryPeriodController {
         return Result.ok(service.ledger(month, q));
     }
 
+    /** 月份的类目账（全部仓库，按一级品类汇总；已结账读快照） */
+    @GetMapping("/{month}/category-ledger")
+    @PreAuthorize(VIEW)
+    public Result<com.zhul.erp.modules.inventory.dto.CategoryLedgerVO> categoryLedger(@PathVariable String month) {
+        return Result.ok(service.categoryLedger(month, null));
+    }
+
     @GetMapping("/{month}/cogs")
     @PreAuthorize(VIEW)
     public Result<PageResult<PeriodCogsVO>> cogs(@PathVariable String month, @RequestParam(required = false) String keyword,
