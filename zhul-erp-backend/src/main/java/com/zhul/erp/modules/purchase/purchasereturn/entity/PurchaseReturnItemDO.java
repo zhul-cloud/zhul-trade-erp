@@ -22,6 +22,12 @@ public class PurchaseReturnItemDO {
     private Long discrepancyId;
     private Long soItemId;
     private Long poItemId;
+    /** 库存退回：出库的仓库、批次与库存状态（1-合格、2-不良） */
+    private Long warehouseId;
+    private Long batchId;
+    private Integer stockStatus;
+    /** 引用的商品ID（由上一张单据带下来，spec product/document-product-link）；NULL 表示还没关联 */
+    private Long productId;
     private String model;
     private String brand;
     private Integer quantity;

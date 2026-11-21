@@ -92,6 +92,7 @@ public class ReplacementOrders {
                 }
                 x.setQuotationId(Objects.requireNonNullElse(src.getQuotationId(), 0L));
                 x.setQuotationItemId(Objects.requireNonNullElse(src.getQuotationItemId(), 0L));
+                x.setProductId(src.getProductId());
                 x.setModel(src.getModel());
                 x.setBrand(src.getBrand());
                 x.setCategory(Objects.requireNonNullElse(src.getCategory(), ""));

@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.supply.support;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.zhul.erp.modules.product.constants.ProductConstants;
 import com.zhul.erp.modules.product.entity.ProductBrandDO;
 import com.zhul.erp.modules.product.entity.ProductCategoryDO;
 import com.zhul.erp.modules.product.entity.ProductDO;
@@ -121,6 +122,7 @@ public class SupplyLookups {
         List<Long> list = productIds.stream().filter(i -> i != null && i > 0).distinct().toList();
         for (int from = 0; from < list.size(); from += 500) {
             productMapper.selectList(new LambdaQueryWrapper<ProductDO>()
+                            .eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE)
                             .select(ProductDO::getId, ProductDO::getCategoryId)
                             .in(ProductDO::getId, list.subList(from, Math.min(list.size(), from + 500))))
                     .forEach(p -> {

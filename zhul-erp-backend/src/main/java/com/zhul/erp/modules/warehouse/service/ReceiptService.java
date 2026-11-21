@@ -100,6 +100,7 @@ public class ReceiptService {
     private final InquiryLookups lookups;
     private final LogService logService;
     private final com.zhul.erp.modules.warehouse.support.PartialCancelHolds partialCancelHolds;
+    private final com.zhul.erp.modules.inventory.service.InventoryHooks inventoryHooks;
     private final com.zhul.erp.modules.crm.followup.support.FollowupHooks followupHooks;
     private final ShootTaskMapper shootTaskMapper;
     private final DocLogs docLogs;
@@ -457,6 +458,7 @@ public class ReceiptService {
             x.setPoItemId(i.getId());
             x.setRequirementId(i.getRequirementId());
             x.setSoItemId(i.getSoItemId());
+            x.setProductId(i.getProductId());
             x.setModel(i.getModel());
             x.setBrand(i.getBrand());
             x.setCategory(Objects.requireNonNullElse(categories.get(i.getRequirementId()), ""));
@@ -522,6 +524,8 @@ public class ReceiptService {
             x.setPoItemId(i.getPoItemId());
             x.setRequirementId(i.getRequirementId());
             x.setSoItemId(i.getSoItemId());
+            PurchaseOrderItemDO po = poItems.get(i.getPoItemId());
+            x.setProductId(i.getProductId() != null ? i.getProductId() : po == null ? null : po.getProductId());
             x.setModel(i.getModel());
             x.setBrand(i.getBrand());
             x.setCategory(i.getCategory());
@@ -536,9 +540,9 @@ public class ReceiptService {
         }
         s.setStatus(WarehouseConstants.SHIP_RECEIVED);
         shipmentMapper.updateById(s);
+        // 库存：自有仓（直发货代确认入该货代仓），合格的按来源型号行预占
+        inventoryHooks.receiptAccepted(r, items, p, poItems, s.getDirectForwarderId());
         int diffCount = discrepancies.createForReceipt(r, items, p);
-        // 来源订单部分取消过的型号：超出订单需要的合格数量转入闲置库存
-        partialCancelHolds.afterReceipt(r, items, poItems, operator);
         Map<Long, Long> soIds = new HashMap<>();
         poItems.forEach((k, v) -> soIds.put(k, v.getSoId()));
         if (shoot) {
@@ -592,6 +596,7 @@ public class ReceiptService {
         s.setStatus(WarehouseConstants.SHIP_IN_TRANSIT);
         shipmentMapper.updateById(s);
         discrepancies.voidForReceipt(id);
+        inventoryHooks.receiptReversed(r);
         partialCancelHolds.voidForReceipt(id);
         shoots.voidForReceipt(id);
         media.retireDocument(AttachmentService.RECEIPT, id, r.getTenantId());

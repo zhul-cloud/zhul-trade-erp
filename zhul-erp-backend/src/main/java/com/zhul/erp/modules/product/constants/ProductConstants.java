@@ -9,6 +9,20 @@ public final class ProductConstants {
     /** 平台级共享数据的租户ID，本模块所有行的 tenant_id 恒为 0 */
     public static final int PLATFORM_TENANT_ID = 0;
 
+    /** 建档状态：候选（询盘等业务里出现、还没审核，spec product/product「商品建档状态」） */
+    public static final int ARCHIVE_CANDIDATE = 1;
+    /** 建档状态：已建档 */
+    public static final int ARCHIVE_DONE = 2;
+    /** 建档状态：已并入（重复，指向主商品） */
+    public static final int ARCHIVE_MERGED = 3;
+    /** 建档状态：已驳回（不是有效型号） */
+    public static final int ARCHIVE_REJECTED = 4;
+
+    /** 识别到品牌时的品牌键：#品牌ID（与候选池同一套规则） */
+    public static String brandKeyOf(Long brandId) {
+        return "#" + brandId;
+    }
+
     /** 平台品牌 Others（迁移 V1.5.26 种子数据，按名称查找）：AI 认不出品牌的商品候选统一归到这里 */
     public static final String OTHERS_BRAND = "Others";
 

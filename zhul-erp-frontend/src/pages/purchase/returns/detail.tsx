@@ -32,6 +32,7 @@ import { MenuLink } from '@/utils/menuName';
 import { PATHS, PurchasePageTitle } from '../components';
 import { CompleteModal, QuantityModal, ShipModal } from './dialogs';
 import {
+  creditsPayable,
   PR_SOURCE,
   PR_STATUS,
   type PurchaseReturn,
@@ -66,7 +67,7 @@ const PurchaseReturnDetail: React.FC = () => {
     try {
       const x = await purchaseReturnApi.detail(id);
       setP(x);
-      if (x.sourceType === PR_SOURCE.AFTER_SALES && x.poId)
+      if (creditsPayable(x.sourceType) && x.poId)
         payableApi
           .bySource(SOURCE.PO, x.poId)
           .then(setPayable)
@@ -88,6 +89,7 @@ const PurchaseReturnDetail: React.FC = () => {
   const canEdit = !!access['purchase:purchase-return:edit'];
   const voided = p.status === PR_STATUS.VOID;
   const afterSales = p.sourceType === PR_SOURCE.AFTER_SALES;
+  const fromStock = p.sourceType === PR_SOURCE.STOCK;
   const cur = p.currencyCode ?? 'CNY';
   const done = () => {
     setDialog(undefined);
@@ -104,16 +106,28 @@ const PurchaseReturnDetail: React.FC = () => {
       render: (_, x) => <DocModelCell model={x.model} brand={x.brand} />,
     },
     { title: '数量', dataIndex: 'quantity', width: 80 },
-    ...(afterSales
-      ? []
-      : [
+    ...(fromStock
+      ? [
           {
-            title: '到货差异',
-            dataIndex: 'discrepancyName',
-            width: 160,
-            render: (v?: string) => v || '—',
+            title: '批次',
+            dataIndex: 'batchNo',
+            width: 180,
+            render: (v: string | undefined, x: PurchaseReturnItem) =>
+              v
+                ? `${v}${x.stockStatusName ? ` · ${x.stockStatusName}` : ''}`
+                : '—',
           },
-        ]),
+        ]
+      : afterSales
+        ? []
+        : [
+            {
+              title: '到货差异',
+              dataIndex: 'discrepancyName',
+              width: 160,
+              render: (v?: string) => v || '—',
+            },
+          ]),
   ];
 
   const payer = p.payerName
@@ -176,7 +190,7 @@ const PurchaseReturnDetail: React.FC = () => {
                       : `（${formatAmount(p.refundCny ?? 0, 'CNY')}）`
                   }`
                 : undefined,
-            hidden: !afterSales,
+            hidden: !creditsPayable(p.sourceType),
           },
           {
             label: '完成说明',
@@ -222,7 +236,7 @@ const PurchaseReturnDetail: React.FC = () => {
   const src = prSourceRef(p);
   const related: RelatedDoc[] = [
     {
-      label: afterSales ? '退货入库单' : '采购入库单',
+      label: afterSales ? '退货入库单' : fromStock ? '退回批次' : '采购入库单',
       no: src.no,
       href: src.href,
     },
@@ -330,7 +344,9 @@ const PurchaseReturnDetail: React.FC = () => {
         description={
           afterSales
             ? '数量回到退货入库单「待处理」，可重新选择去向。'
-            : '对应的到货差异重新打开，可重新处理。'
+            : fromStock
+              ? '退货预占释放，货回到可用库存。'
+              : '对应的到货差异重新打开，可重新处理。'
         }
         okText="作废"
         onCancel={() => setDialog(undefined)}

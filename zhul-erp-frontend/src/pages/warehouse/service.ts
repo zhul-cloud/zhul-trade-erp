@@ -67,7 +67,8 @@ export type OwnerType =
   | 'REFUND_REQUEST'
   | 'PAYMENT_RECEIPT'
   | 'PAYABLE'
-  | 'FX_SETTLEMENT';
+  | 'FX_SETTLEMENT'
+  | 'OTHER_OUTBOUND';
 
 export interface ShipmentItem {
   id: number;
@@ -319,39 +320,6 @@ export interface ReceivableOrder {
   }[];
 }
 
-export interface Hold extends Audit {
-  id: number;
-  /** 来源（1-到货差异、2-订单部分取消） */
-  sourceType: number;
-  sourceName?: string;
-  /** 来源销售订单（订单部分取消） */
-  soId?: number | null;
-  soNo?: string;
-  /** 来源退货单（售后退货） */
-  returnId?: number | null;
-  returnNo?: string;
-  model: string;
-  brand?: string;
-  category?: string;
-  quantity: number;
-  costPrice: number;
-  locationNote?: string;
-  /** 1-暂存中、2-已退回、3-已报废、4-已转样品 */
-  status: number;
-  statusName: string;
-  receiptId: number;
-  grNo?: string;
-  poId: number;
-  poNo?: string;
-  supplierName?: string;
-  returnCarrier?: string;
-  returnTrackingNo?: string;
-  returnFreight?: number | null;
-  handledByName?: string;
-  handledAt?: string;
-  handleNote?: string;
-}
-
 export interface ShootTask extends Audit {
   id: number;
   model: string;
@@ -404,7 +372,6 @@ const send = <T>(method: string, url: string, data?: unknown) =>
 const SHIP = '/api/v1/purchase/shipments';
 const DIFF = '/api/v1/purchase/discrepancies';
 const GR = '/api/v1/warehouse/receipts';
-const HOLD = '/api/v1/warehouse/holds';
 const SHOOT = '/api/v1/warehouse/shoots';
 const FILE = '/api/v1/attachments';
 
@@ -534,28 +501,6 @@ export const receiptApi = {
       'DELETE',
       `${GR}/${id}/attachments/${attachmentId}?defect=${defect}`,
     ),
-};
-
-export const holdApi = {
-  page: (q: {
-    page: number;
-    pageSize: number;
-    keyword?: string;
-    status?: number;
-    /** 1-到货差异、2-订单部分取消 */
-    sourceType?: number;
-  }) => send<PageResult<Hold>>('POST', `${HOLD}/page`, q),
-  counts: () => get<{ pending: number }>(`${HOLD}/counts`),
-  handle: (
-    id: number,
-    body: {
-      status: number;
-      note: string;
-      returnCarrier?: string;
-      returnTrackingNo?: string;
-      returnFreight?: number | null;
-    },
-  ) => send<Hold>('POST', `${HOLD}/${id}/handle`, body),
 };
 
 export const shootApi = {

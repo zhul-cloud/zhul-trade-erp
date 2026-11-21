@@ -14,6 +14,7 @@ jest.mock('@umijs/max', () => ({
   useAccess: () => ({ 'product:candidate:review': true }),
   useLocation: () => ({ pathname: '/product/candidates', search: '' }),
   useModel: () => ({ initialState: {} }),
+  useSearchParams: () => [new URLSearchParams()],
 }));
 
 jest.mock('../service', () => ({
@@ -29,6 +30,7 @@ jest.mock('./service', () => ({
   candidateApi: {
     page: jest.fn(),
     counts: jest.fn(),
+    unlinked: jest.fn(() => Promise.resolve({ records: [], total: 0 })),
     detail: jest.fn(),
     aiFillStatus: jest.fn(),
   },

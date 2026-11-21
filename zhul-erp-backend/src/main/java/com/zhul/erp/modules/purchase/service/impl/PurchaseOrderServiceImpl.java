@@ -107,6 +107,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
 
     private final PurchaseOrderMapper orderMapper;
     private final PurchaseOrderItemMapper itemMapper;
+    private final com.zhul.erp.modules.product.support.ProductTags productTags;
     private final com.zhul.erp.modules.sales.support.ItemRemarks itemRemarks;
     private final PurchaseOrderFeeMapper feeMapper;
     private final PurchaseOrderAttachmentMapper attachmentMapper;
@@ -482,9 +483,14 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         vo.setEditable(p.getStatus() != PurchaseConstants.PO_CANCELLED);
         Map<Long, com.zhul.erp.modules.sales.support.ItemRemarks.Remark> remarks = itemRemarks.ofSoItems(lines.stream().map(PurchaseOrderItemDO::getSoItemId).toList());
         vo.setRemarkAlerts((int) lines.stream().filter(i -> Objects.equals(i.getRemarkAlert(), 1)).count());
+        Map<Long, com.zhul.erp.modules.product.support.ProductTags.Tag> tags = productTags.of(
+                lines.stream().map(PurchaseOrderItemDO::getProductId).toList());
         vo.setItems(lines.stream().map(i -> {
             PurchaseOrderVO.Item x = new PurchaseOrderVO.Item();
             x.setId(i.getId());
+            var tag = i.getProductId() == null ? null : tags.get(i.getProductId());
+            x.setProductId(tag == null ? i.getProductId() : tag.productId());
+            x.setProductCandidate(tag != null && tag.candidate());
             var remark = remarks.get(i.getSoItemId());
             x.setItemRemark(remark == null ? "" : remark.text());
             x.setRemarkAlert(Objects.equals(i.getRemarkAlert(), 1));

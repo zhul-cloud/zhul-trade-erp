@@ -36,7 +36,10 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
-import { DocDescription } from '@/components/DocFields/DocModelCell';
+import {
+  CandidateTag,
+  DocDescription,
+} from '@/components/DocFields/DocModelCell';
 import { RelatedDocsCard } from '@/components/DocFields/DocPage';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
@@ -388,7 +391,9 @@ const PurchaseOrderDetail: React.FC = () => {
       width: 200,
       render: (v: string, r) => (
         <div>
-          <b>{v}</b> {r.stockType != null && <StockPill type={r.stockType} />}
+          <b>{v}</b>
+          {r.productCandidate && <CandidateTag productId={r.productId} />}{' '}
+          {r.stockType != null && <StockPill type={r.stockType} />}
           {sub(
             palette.mute,
             [r.brand, r.category].filter(Boolean).join(' · ') || '—',
@@ -1058,7 +1063,7 @@ const PurchaseOrderDetail: React.FC = () => {
             type="warning"
             showIcon
             title={`来源订单减少：${reducedLines.length} 个型号共少 ${reducedLines.reduce((n, i) => n + (i.soReducedQuantity ?? 0), 0)} 个`}
-            description={`${[...new Set(reducedLines.map((i) => i.soNo))].join('、')} 部分取消了型号。请和供应商确认：能退就取消本采购订单后重新下单；保留的话，到货验收时超出订单需要的合格数量会自动转入闲置库存。`}
+            description={`${[...new Set(reducedLines.map((i) => i.soNo))].join('、')} 部分取消了型号。请和供应商确认：能退就取消本采购订单后重新下单；保留的话，到货验收时超出订单需要的合格数量留作可用库存。`}
           />
         )}
         {isDraft && (

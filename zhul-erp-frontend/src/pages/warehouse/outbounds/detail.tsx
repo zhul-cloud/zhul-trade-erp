@@ -113,7 +113,14 @@ const OutboundDetailPage: React.FC = () => {
       title: '型号',
       dataIndex: 'model',
       width: 220,
-      render: (_, x) => <DocModelCell model={x.model} brand={x.brand} />,
+      render: (_, x) => (
+        <DocModelCell
+          model={x.model}
+          brand={x.brand}
+          productId={x.productId}
+          candidate={x.productCandidate}
+        />
+      ),
     },
     { title: '数量', dataIndex: 'quantity', width: 80 },
     {

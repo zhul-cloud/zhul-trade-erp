@@ -13,18 +13,25 @@ const send = <T>(method: 'POST' | 'PUT', url: string, data?: unknown) =>
 
 /** 1-待寄出、2-已寄出、3-已完成、4-已作废 */
 export const PR_STATUS = { PENDING: 1, SHIPPED: 2, DONE: 3, VOID: 4 };
-/** 1-售后退货、2-到货不良·退货换货、3-到货不良·退货不补、4-多发退回 */
+/** 1-售后退货、2-到货不良·退货换货、3-到货不良·退货不补、4-多发退回、5-库存退回 */
 export const PR_SOURCE = {
   AFTER_SALES: 1,
   DEFECT_EXCHANGE: 2,
   DEFECT_RETURN: 3,
   OVER_RETURN: 4,
+  /** 库存查询对公司仓库的批次选「退回供应商」 */
+  STOCK: 5,
 };
+/** 售后退货、库存退回：完成时登记供应商退款或抵扣，冲减应付 */
+export const creditsPayable = (sourceType?: number) =>
+  sourceType === PR_SOURCE.AFTER_SALES || sourceType === PR_SOURCE.STOCK;
+
 export const PR_SOURCE_OPTIONS = [
   { value: 1, label: '售后退货' },
   { value: 2, label: '到货不良 · 退货换货' },
   { value: 3, label: '到货不良 · 退货不补' },
   { value: 4, label: '多发退回' },
+  { value: 5, label: '库存退回' },
 ];
 
 export interface PurchaseReturnItem {
@@ -38,6 +45,10 @@ export interface PurchaseReturnItem {
   receiptItemId?: number;
   discrepancyId?: number;
   discrepancyName?: string;
+  /** 库存退回：批次号与库存状态 */
+  batchId?: number;
+  batchNo?: string;
+  stockStatusName?: string;
 }
 
 export interface PurchaseReturn {

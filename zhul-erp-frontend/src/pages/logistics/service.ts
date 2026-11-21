@@ -149,6 +149,9 @@ export interface Outbound extends Audit {
     id: number;
     soItemId: number;
     model: string;
+    /** 关联的商品与是否候选商品（还没审核建档） */
+    productId?: number | null;
+    productCandidate?: boolean;
     brand?: string;
     category?: string;
     quantity: number;
@@ -383,7 +386,8 @@ export const forwarderApi = {
   update: (id: number, body: SaveForwarderBody) =>
     send<void>('PUT', `${L}/forwarders/${id}`, body),
   setStatus: (id: number, status: number) =>
-    send<void>('PUT', `${L}/forwarders/${id}/status`, { status }),
+    /** 停用时货代仓还有货，返回提醒（「货代仓还有 N 件货」），不拦停用 */
+    send<string | null>('PUT', `${L}/forwarders/${id}/status`, { status }),
   /** 客户详情「客户指定货代」 */
   ofCustomer: (customerId: number) =>
     get<ForwarderRow[]>(`${L}/forwarders/by-customer/${customerId}`),

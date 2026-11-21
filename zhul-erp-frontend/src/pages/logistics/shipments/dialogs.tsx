@@ -20,6 +20,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
+import { showStockShortage } from '@/pages/warehouse/inventoryParts';
 import { type Attachment, attachmentApi } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { liveRequests } from '@/utils/liveRequests';
@@ -451,7 +452,7 @@ export const ShipModal: React.FC<{
   onDone: (sh: Logistics) => void;
 }> = ({ sh, open, onClose, onDone }) => {
   const { palette } = useAppTheme();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const update = sh.status === 2;
   // 交给谁（openspec ship-forwarder-choice）：登记时选择，默认按货代归属；修改运单沿用登记时的选择。
   // 交给客户的货代只要求交货日期，承运商、运单号、送货运费选填（feedback-1119）
@@ -493,7 +494,8 @@ export const ShipModal: React.FC<{
       );
       onDone(next);
     } catch (e) {
-      message.error(readBizError(e).message);
+      const err = readBizError(e);
+      if (!showStockShortage(modal, err, '出运')) message.error(err.message);
     } finally {
       setBusy(false);
     }

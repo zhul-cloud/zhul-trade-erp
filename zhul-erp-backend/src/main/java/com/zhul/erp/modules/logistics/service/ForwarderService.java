@@ -54,6 +54,7 @@ public class ForwarderService {
     private final CustomerMapper customerMapper;
     private final LogisticsSupport support;
     private final LogService logService;
+    private final com.zhul.erp.modules.inventory.service.InventoryWarehouses inventoryWarehouses;
 
     public PageResult<ForwarderRowVO> page(ForwarderPageQuery q) {
         int size = q.getPageSize() == null ? 20 : Math.min(Math.max(q.getPageSize(), 1), MAX_PAGE_SIZE);
@@ -112,6 +113,8 @@ public class ForwarderService {
         }
         Long id = r.getCreatedSupplier().getId();
         setCustomer(id, customerId);
+        // 每家货代一个货代仓，同一事务内建好（spec logistics/forwarder）
+        inventoryWarehouses.syncForwarder(id, req.getName().trim(), s.getStatus());
         logService.recordOperateLog(MENU, "新增货代", null, Map.of("name", req.getName().trim(),
                 "customer", customerId == null ? "公司货代" : customerName(customerId)));
         return id;
@@ -126,6 +129,7 @@ public class ForwarderService {
         s.setStatus(req.getStatus());
         supplierService.update(id, s);
         setCustomer(id, customerId);
+        inventoryWarehouses.syncForwarder(id, req.getName().trim(), req.getStatus());
         if (!Objects.equals(before.getCustomerId(), customerId)) {
             logService.recordOperateLog(MENU, "修改货代归属客户",
                     Map.of("name", before.getName(), "customer", ownerText(before.getCustomerId())),
@@ -133,13 +137,17 @@ public class ForwarderService {
         }
     }
 
+    /** 启用、停用；货代仓随之启停。停用时货代仓还有货的，返回提示「货代仓还有 N 件货」，仍然停用 */
     @Transactional(rollbackFor = Exception.class)
-    public void updateStatus(Long id, Integer status) {
+    public String updateStatus(Long id, Integer status) {
         require(id);
         if (status == null || (status != 0 && status != 1)) {
             throw new BizException("状态不正确");
         }
         supplierService.updateStatus(id, status);
+        var w = inventoryWarehouses.syncForwarder(id, null, status);
+        int left = status == 0 ? inventoryWarehouses.onHand(w.getId()) : 0;
+        return left > 0 ? "货代仓还有 " + left + " 件货" : null;
     }
 
     // ---------------------------------------------------------------- 工具

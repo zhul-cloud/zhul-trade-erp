@@ -334,8 +334,9 @@ const ForwarderPage: React.FC = () => {
     const next = r.status === 1 ? 0 : 1;
     const apply = async () => {
       try {
-        await forwarderApi.setStatus(r.id, next);
-        message.success(next ? '已启用' : '已停用');
+        const warn = await forwarderApi.setStatus(r.id, next);
+        if (warn) message.warning(`已停用；${warn}，记得在库存查询处理`);
+        else message.success(next ? '已启用' : '已停用');
         load();
       } catch (e) {
         message.error(readBizError(e).message);

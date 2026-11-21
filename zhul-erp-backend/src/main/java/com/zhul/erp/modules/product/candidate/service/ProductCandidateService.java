@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.product.candidate.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.framework.tenant.TenantContext;
@@ -25,6 +26,7 @@ import com.zhul.erp.modules.product.candidate.repository.ProductCandidateMapper;
 import com.zhul.erp.modules.product.candidate.repository.ProductCandidateSourceMapper;
 import com.zhul.erp.modules.product.constants.LifecycleStatus;
 import com.zhul.erp.modules.product.constants.ProductConstants;
+import com.zhul.erp.modules.product.merge.service.ProductMergeService;
 import com.zhul.erp.modules.product.dto.CreateSeriesRequest;
 import com.zhul.erp.modules.product.dto.SaveBrandRequest;
 import com.zhul.erp.modules.product.dto.SaveProductRequest;
@@ -89,6 +91,8 @@ public class ProductCandidateService {
     private final ProductOrderCodes orderCodes;
     private final LogService logService;
     private final IndustryScope industryScope;
+    private final ProductMergeService mergeService;
+    private final com.zhul.erp.modules.product.support.ProductWriteGuard productWriteGuard;
 
     // ---------------------------------------------------------------- 查询
 
@@ -151,7 +155,9 @@ public class ProductCandidateService {
             w.and(x -> x.like(ProductCandidateDO::getMpnRaw, kw).or().like(ProductCandidateDO::getBrandText, kw)
                     .or().like(ProductCandidateDO::getProductName, kw)
                     .or(!key.isEmpty(), y -> y.like(ProductCandidateDO::getMpnNormalized, key))
-                    .or().like(ProductCandidateDO::getOrderCode, kw));
+                    .or().like(ProductCandidateDO::getOrderCode, kw)
+                    // 也能按商品编号找（单据上「候选」标记跳过来时用）
+                    .or(kw.matches("\\d{1,18}"), y -> y.eq(ProductCandidateDO::getProductId, kw.matches("\\d{1,18}") ? Long.valueOf(kw) : 0L)));
         }
         return w;
     }
@@ -208,6 +214,8 @@ public class ProductCandidateService {
             req.setBrandMode("EXISTING");
             req.setBrandId(c.getBrandId());
             req.setCategoryId(c.getCategoryId());
+            // 批量通过时与已建档商品重复的直接并入（与原来的批量行为一致）
+            req.setConfirmMerge(true);
             archive(c, req);
             approved++;
         }
@@ -276,15 +284,30 @@ public class ProductCandidateService {
     }
 
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
-    public CandidateVO merge(Long id, Long productId) {
+    public CandidateVO merge(Long id, Long productId, String reason) {
         ProductCandidateDO c = lockPending(id);
         ProductDO p = productMapper.selectById(productId);
-        if (p == null || p.getDeletedAt() != null) {
-            throw new BizException("商品不存在");
+        if (p == null || p.getDeletedAt() != null || !Objects.equals(p.getArchiveStatus(), ProductConstants.ARCHIVE_DONE)) {
+            throw new BizException("请选择已建档的商品");
         }
-        resolve(c, CandidateConstants.STATUS_MERGED, p.getId());
-        logService.recordOperateLog(CandidateConstants.MENU, "并入已有商品", null, Map.of("candidate", label(c), "productId", productId));
+        Map<String, Long> affected = mergeInto(c, p.getId(), reason);
+        logService.recordOperateLog(CandidateConstants.MENU, "并入已有商品", null,
+                Map.of("candidate", label(c), "productId", productId, "affected", affected));
         return detail(id);
+    }
+
+    /** 候选商品被各类单据引用的条数（并入、驳回前给用户看；spec product/product-candidate「候选审核」） */
+    public Map<String, Long> references(Long id) {
+        ProductCandidateDO c = visible(id);
+        return c.getProductId() == null ? Map.of() : mergeService.references(c.getProductId());
+    }
+
+    /** 候选商品并入已建档商品：单据改指向主商品，候选变为已并入 */
+    private Map<String, Long> mergeInto(ProductCandidateDO c, Long targetId, String reason) {
+        Map<String, Long> affected = c.getProductId() == null ? Map.of()
+                : mergeService.merge(c.getProductId(), targetId, StringUtils.hasText(reason) ? reason : "候选并入已有商品");
+        resolve(c, CandidateConstants.STATUS_MERGED, targetId);
+        return affected;
     }
 
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
@@ -297,12 +320,16 @@ public class ProductCandidateService {
         if (req.getReason() == CandidateConstants.REJECT_OTHER && note.isEmpty()) {
             throw new BizException("选择「其他」时请填写说明");
         }
+        if (c.getProductId() != null && mergeService.usedByOrders(c.getProductId())) {
+            throw new BizException("已有订单使用，只能建档或并入");
+        }
         c.setStatus(CandidateConstants.STATUS_REJECTED);
         c.setRejectReason(req.getReason());
         c.setRejectNote(note);
         c.setReviewedBy(currentUser.resolve());
         c.setReviewedAt(LocalDateTime.now());
         candidateMapper.updateById(c);
+        setArchiveStatus(c.getProductId(), ProductConstants.ARCHIVE_REJECTED);
         archiver.unlinkRejected(c.getId());
         logService.recordOperateLog(CandidateConstants.MENU, "驳回", null,
                 Map.of("candidate", label(c), "reason", CandidateConstants.REJECT_NAMES.get(req.getReason())));
@@ -323,6 +350,7 @@ public class ProductCandidateService {
         c.setReviewedBy(null);
         c.setReviewedAt(null);
         candidateMapper.updateById(c);
+        setArchiveStatus(c.getProductId(), ProductConstants.ARCHIVE_CANDIDATE);
         archiver.sync(sourceItemIds(id));
         logService.recordOperateLog(CandidateConstants.MENU, "重新打开", null, Map.of("candidate", label(c)));
         return detail(id);
@@ -341,16 +369,32 @@ public class ProductCandidateService {
             throw new BizException("品类不属于本公司行业");
         }
         String mpn = StringUtils.hasText(req.getMpnRaw()) ? req.getMpnRaw().trim() : c.getMpnRaw();
+        String key = MpnNormalizer.normalize(mpn);
+        if (key.isEmpty()) {
+            throw new BizException("型号至少包含一个字母或数字");
+        }
+        archiver.ensureProduct(c);
+        Long own = c.getProductId();
+        // 与已建档商品重复（审核时改了品牌或型号也可能撞上）：转为并入，先让用户确认受影响的单据
         ProductDO existing = productMapper.selectOne(new LambdaQueryWrapper<ProductDO>()
                 .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .eq(ProductDO::getBrandId, brandId)
-                .eq(ProductDO::getMpnNormalized, MpnNormalizer.normalize(mpn))
+                .eq(ProductDO::getMpnNormalized, key)
+                .eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE)
+                .ne(ProductDO::getId, own)
                 .isNull(ProductDO::getDeletedAt)
                 .last("LIMIT 1"));
         if (existing != null) {
+            if (!Boolean.TRUE.equals(req.getConfirmMerge())) {
+                Map<String, Object> detail = new LinkedHashMap<>();
+                detail.put("targetId", existing.getId());
+                detail.put("targetLabel", productLabel(existing));
+                detail.put("references", mergeService.references(own));
+                throw BizException.of(CandidateConstants.ERR_WILL_MERGE, "将并入 " + productLabel(existing), detail);
+            }
             clearAiMarks(c, brandId, req.getCategoryId());
             c.setBrandId(brandId);
-            resolve(c, CandidateConstants.STATUS_MERGED, existing.getId());
+            mergeInto(c, existing.getId(), "审核时与已建档商品重复");
             return existing.getId();
         }
         Long seriesId = req.getSeriesId();
@@ -375,12 +419,60 @@ public class ProductCandidateService {
         p.setLifecycleStatus(req.getLifecycleStatus() != null ? req.getLifecycleStatus() : suggested.status());
         p.setLifecycleSource(req.getLifecycleSource() != null ? req.getLifecycleSource().trim()
                 : (Objects.equals(p.getLifecycleStatus(), suggested.status()) ? suggested.source() : ""));
-        Long productId = platformScopeGuard.asCandidateReview(() -> productService.create(p)).getId();
+        // 建档沿用候选商品的 ID（spec product/product-candidate「候选审核」）：先标已建档，
+        // 同品牌同型号的其他候选商品（品牌原文不同、后来识别为同一品牌）并入它，再按商品主数据规则写资料
+        setArchiveStatus(own, ProductConstants.ARCHIVE_DONE);
+        absorbSameKeyCandidates(own, brandId, key);
+        platformScopeGuard.asCandidateReview(() -> productService.update(own, p));
+        // 所属公司按审核人记（与原来审核时新建商品一致）
+        int owner = platformScopeGuard.asCandidateReview(productWriteGuard::ownerForCreate);
+        productMapper.update(null, new LambdaUpdateWrapper<ProductDO>()
+                .eq(ProductDO::getId, own)
+                .set(ProductDO::getBrandKey, ProductConstants.brandKeyOf(brandId))
+                .set(ProductDO::getOwnerTenantId, owner));
         clearAiMarks(c, brandId, req.getCategoryId());
         c.setBrandId(brandId);
         c.setCategoryId(req.getCategoryId());
-        resolve(c, CandidateConstants.STATUS_ARCHIVED, productId);
-        return productId;
+        resolve(c, CandidateConstants.STATUS_ARCHIVED, own);
+        return own;
+    }
+
+    /** 品牌键 #品牌ID 与归一化型号相同的其他候选商品，并入刚建档的商品，对应候选一并变为已并入 */
+    private void absorbSameKeyCandidates(Long own, Long brandId, String key) {
+        List<ProductDO> others = productMapper.selectList(new LambdaQueryWrapper<ProductDO>()
+                .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
+                .and(w -> w.eq(ProductDO::getBrandKey, ProductConstants.brandKeyOf(brandId)).or().eq(ProductDO::getBrandId, brandId))
+                .eq(ProductDO::getMpnNormalized, key)
+                .in(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_CANDIDATE, ProductConstants.ARCHIVE_REJECTED)
+                .ne(ProductDO::getId, own));
+        for (ProductDO o : others) {
+            setArchiveStatus(o.getId(), ProductConstants.ARCHIVE_CANDIDATE);
+            mergeService.merge(o.getId(), own, "同品牌同型号的候选随建档并入");
+            for (ProductCandidateDO oc : candidateMapper.selectList(new LambdaQueryWrapper<ProductCandidateDO>()
+                    .eq(ProductCandidateDO::getProductId, o.getId()))) {
+                if (oc.getStatus() == CandidateConstants.STATUS_PENDING || oc.getStatus() == CandidateConstants.STATUS_REJECTED) {
+                    resolve(oc, CandidateConstants.STATUS_MERGED, own);
+                } else {
+                    candidateMapper.update(null, new LambdaUpdateWrapper<ProductCandidateDO>()
+                            .eq(ProductCandidateDO::getId, oc.getId()).set(ProductCandidateDO::getProductId, own));
+                }
+            }
+        }
+    }
+
+    private void setArchiveStatus(Long productId, int status) {
+        if (productId == null) {
+            return;
+        }
+        productMapper.update(null, new LambdaUpdateWrapper<ProductDO>()
+                .eq(ProductDO::getId, productId)
+                .set(ProductDO::getArchiveStatus, status)
+                .set(ProductDO::getUpdateTime, LocalDateTime.now()));
+    }
+
+    private static String productLabel(ProductDO p) {
+        return (p.getMpnDisplay() != null && !p.getMpnDisplay().isEmpty() ? p.getMpnDisplay() : p.getMpnRaw())
+                + "（商品编号 " + p.getId() + "）";
     }
 
     /** 审核时改了 AI 写入的品类或品牌，AI 标记随之去掉 */
@@ -574,6 +666,13 @@ public class ProductCandidateService {
                 .filter(s -> platform || s.getTenantId() == me).toList();
         Map<Long, String> codes = codesOf(visibleSources);
         Map<Long, String> soNos = soNosOf(visibleSources);
+        // 被单据引用的条数（spec product/product-candidate：已被订单及之后单据引用的不能驳回）
+        Map<Long, Map<String, Long>> refs = mergeService.references(rows.stream()
+                .filter(c -> c.getStatus() == CandidateConstants.STATUS_PENDING).map(ProductCandidateDO::getProductId)
+                .filter(Objects::nonNull).toList());
+        java.util.Set<String> orderLabels = com.zhul.erp.modules.product.support.DocumentProductTables.ENTRIES.stream()
+                .filter(com.zhul.erp.modules.product.support.DocumentProductTables.Entry::afterOrder)
+                .map(com.zhul.erp.modules.product.support.DocumentProductTables.Entry::label).collect(Collectors.toSet());
         List<CandidateVO> out = new ArrayList<>(rows.size());
         for (ProductCandidateDO c : rows) {
             List<ProductCandidateSourceDO> all = sources.getOrDefault(c.getId(), List.of());
@@ -603,6 +702,9 @@ public class ProductCandidateService {
             vo.setFirstSeenAt(c.getFirstSeenAt());
             vo.setLastSeenAt(c.getLastSeenAt());
             vo.setProductId(c.getProductId());
+            Map<String, Long> r = c.getProductId() == null ? Map.of() : refs.getOrDefault(c.getProductId(), Map.of());
+            vo.setReferences(r);
+            vo.setUsedByOrders(r.keySet().stream().anyMatch(orderLabels::contains));
             vo.setProductLabel(at(products, c.getProductId()));
             vo.setRejectReason(c.getRejectReason());
             vo.setRejectReasonName(at(CandidateConstants.REJECT_NAMES, c.getRejectReason()));

@@ -140,6 +140,14 @@ public final class TenantTables {
             Map.entry("supplier_shipment_item", Policy.PRIVATE),
             // 仓储、出库与物流
             Map.entry("stock_hold", Policy.PRIVATE),
+            // 库存（openspec inventory-foundation）
+            Map.entry("inv_warehouse", Policy.PRIVATE),
+            Map.entry("inv_batch", Policy.PRIVATE),
+            Map.entry("inv_move", Policy.PRIVATE),
+            Map.entry("inv_balance", Policy.PRIVATE),
+            Map.entry("inv_reservation", Policy.PRIVATE),
+            Map.entry("inv_other_outbound", Policy.PRIVATE),
+            Map.entry("inv_other_outbound_item", Policy.PRIVATE),
             Map.entry("outbound_box", Policy.PRIVATE),
             Map.entry("outbound_box_item", Policy.PRIVATE),
             Map.entry("outbound_pack", Policy.PRIVATE),
@@ -202,6 +210,7 @@ public final class TenantTables {
             Map.entry("product_content_import", "上传记录：资料包写入全局商品库，各公司都能看到（不显示其他公司的确认人）；"
                     + "营销包只看本公司的，ContentImportRecordService 显式带租户条件"),
             Map.entry("product", PRODUCT_LIBRARY),
+            Map.entry("product_merge", "商品合并记录：平台级操作（tenant 0），合并时跨公司改单据明细的商品引用，由 ProductMergeService 显式带条件"),
             Map.entry("product_application", PRODUCT_LIBRARY),
             Map.entry("product_brand", PRODUCT_LIBRARY),
             Map.entry("product_brand_alias", PRODUCT_LIBRARY),

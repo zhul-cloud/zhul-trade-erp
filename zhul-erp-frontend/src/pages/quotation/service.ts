@@ -79,6 +79,8 @@ export interface QuotationItem {
   orderCode?: string;
   /** 对应的商品档案；没有时为空 */
   productId?: number;
+  /** 关联的是候选商品（还没审核建档） */
+  productCandidate?: boolean;
   /** 采购填的内部无货原因（只在系统内显示）；无货但没填原因时为空串，不是无货时为空 */
   sourcingNoStockReasonName?: string;
   sourcingNoStockNote?: string;

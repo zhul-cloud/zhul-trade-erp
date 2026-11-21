@@ -17,6 +17,7 @@ import com.zhul.erp.modules.logistics.entity.OutboundBoxDO;
 import com.zhul.erp.modules.logistics.entity.OutboundBoxItemDO;
 import com.zhul.erp.modules.logistics.entity.OutboundOrderDO;
 import com.zhul.erp.modules.logistics.entity.OutboundOrderItemDO;
+import com.zhul.erp.modules.inventory.service.InventoryHooks;
 import com.zhul.erp.modules.logistics.repository.CourierWaybillMapper;
 import com.zhul.erp.modules.logistics.repository.LogisticsShipmentMapper;
 import com.zhul.erp.modules.logistics.repository.OutboundBoxItemMapper;
@@ -78,9 +79,11 @@ import com.zhul.erp.modules.attachment.service.AttachmentService;
 @RequiredArgsConstructor
 public class OutboundService {
 
+    private final InventoryHooks inventoryHooks;
     private final OutboundOrderMapper outboundMapper;
     private final ReimburseGuard reimburseGuard;
     private final OutboundOrderItemMapper itemMapper;
+    private final com.zhul.erp.modules.product.support.ProductTags productTags;
     private final OutboundBoxMapper boxMapper;
     private final OutboundBoxItemMapper boxItemMapper;
     private final OutboundPackMapper packMapper;
@@ -259,6 +262,7 @@ public class OutboundService {
             }
             OutboundOrderItemDO x = new OutboundOrderItemDO();
             x.setSoItemId(i.getId());
+            x.setProductId(i.getProductId());
             x.setModel(i.getModel());
             x.setBrand(i.getBrand() == null ? "" : i.getBrand());
             x.setQuantity(e.getValue());
@@ -388,10 +392,15 @@ public class OutboundService {
         w.setStatus(LogisticsConstants.WAYBILL_VALID);
         w.setUndoReason("");
         waybillMapper.insert(w);
+        Map<Long, List<OutboundOrderItemDO>> obItems = itemsOf(ids);
         for (OutboundOrderDO ob : obs) {
             ob.setStatus(LogisticsConstants.OB_HANDED);
             ob.setCourierWaybillId(w.getId());
             outboundMapper.updateById(ob);
+            // 库存：自有仓 → 货代仓
+            inventoryHooks.handedOver(ob.getId(), ob.getObNo(), ob.getForwarderId(), obItems.getOrDefault(ob.getId(), List.of()).stream()
+                    .map(i -> new InventoryHooks.HandoverLine(i.getId(), i.getSoItemId(), i.getProductId(), i.getModel(), i.getQuantity()))
+                    .toList());
         }
         freight.allocateDomestic(w.getId(), w.getFreight(), ids);
         progress.sync(soItemIds(ids));
@@ -427,6 +436,7 @@ public class OutboundService {
             ob.setStatus(LogisticsConstants.OB_PACKED);
             ob.setCourierWaybillId(null);
             outboundMapper.updateById(ob);
+            inventoryHooks.handoverUndone(ob.getId(), ob.getObNo(), soItemIds(List.of(ob.getId())));
         }
         for (Long waybillId : waybillIds) {
             CourierWaybillDO w = waybillMapper.selectById(waybillId);
@@ -854,9 +864,14 @@ public class OutboundService {
             List<OutboundBoxDO> bs = boxes.getOrDefault(ob.getId(), List.of());
             Map<Long, Integer> packed = bs.stream().flatMap(b -> contents.getOrDefault(b.getId(), List.of()).stream())
                     .collect(Collectors.groupingBy(OutboundBoxItemDO::getOutboundItemId, Collectors.summingInt(OutboundBoxItemDO::getQuantity)));
+            Map<Long, com.zhul.erp.modules.product.support.ProductTags.Tag> tags = productTags.of(
+                    lines.stream().map(OutboundOrderItemDO::getProductId).toList());
             vo.setItems(lines.stream().map(i -> {
                 OutboundVO.Item x = new OutboundVO.Item();
                 x.setId(i.getId());
+                var tag = i.getProductId() == null ? null : tags.get(i.getProductId());
+                x.setProductId(tag == null ? i.getProductId() : tag.productId());
+                x.setProductCandidate(tag != null && tag.candidate());
                 x.setSoItemId(i.getSoItemId());
                 x.setModel(i.getModel());
                 x.setBrand(i.getBrand());

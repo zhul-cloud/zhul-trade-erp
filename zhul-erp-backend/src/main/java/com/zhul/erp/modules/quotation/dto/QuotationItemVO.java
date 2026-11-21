@@ -24,6 +24,10 @@ public class QuotationItemVO {
     private String orderCode;
     /** 对应的商品档案（来源询盘型号已建档，或按品牌 + 型号匹配到）；没有时为空 */
     private Long productId;
+    /** 引用的商品是候选（还没建档），型号旁标「候选」 */
+    private Boolean productCandidate;
+    /** 候选审核用的候选 ID，productCandidate 为 true 时有值 */
+    private Long productCandidateId;
     /** 采购填的内部无货原因名称（只在系统内显示）；无货但没有填原因时为空串，不是无货时为空 */
     private String sourcingNoStockReasonName;
     /** 采购填的无货说明 */

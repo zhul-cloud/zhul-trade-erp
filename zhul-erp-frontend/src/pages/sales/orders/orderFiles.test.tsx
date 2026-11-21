@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { App } from 'antd';
 import React from 'react';
-import { OrderFilesCard } from './OrderFiles';
 import { orderApi } from '../service';
+import { OrderFilesCard } from './OrderFiles';
 
 jest.mock('@umijs/max', () => ({
   history: { push: jest.fn() },

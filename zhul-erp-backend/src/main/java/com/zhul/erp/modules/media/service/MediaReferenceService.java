@@ -7,6 +7,7 @@ import com.zhul.erp.modules.media.entity.MediaItemDO;
 import com.zhul.erp.modules.media.repository.MediaItemMapper;
 import com.zhul.erp.modules.media.support.MediaProducts;
 import com.zhul.erp.modules.product.candidate.repository.ProductHeatMapper;
+import com.zhul.erp.modules.product.constants.ProductConstants;
 import com.zhul.erp.modules.product.entity.ProductDO;
 import com.zhul.erp.modules.product.entity.ProductMediaDO;
 import com.zhul.erp.modules.product.repository.IdCount;
@@ -64,6 +65,7 @@ public class MediaReferenceService {
                 continue;
             }
             LambdaQueryWrapper<ProductDO> w = new LambdaQueryWrapper<ProductDO>()
+                    .eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE)
                     .eq(ProductDO::getTenantId, SHARED)
                     .ne(ProductDO::getId, selfId)
                     .isNull(ProductDO::getDeletedAt);

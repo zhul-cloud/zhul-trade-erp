@@ -95,6 +95,7 @@ public class ListingTaskSync {
         }
         Set<MarketingPlatform> enabled = platformSettings.enabled(tenantId);
         Map<Long, ProductDO> products = productMapper.selectList(new LambdaQueryWrapper<ProductDO>()
+                        .eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE)
                         .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                         .in(ProductDO::getId, productIds)
                         .eq(ProductDO::getStatus, 1)

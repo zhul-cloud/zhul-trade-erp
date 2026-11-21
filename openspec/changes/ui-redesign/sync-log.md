@@ -5,6 +5,7 @@
 | 日期 | 合入范围 | 涉及界面的改动 | 处理状态 |
 |---|---|---|---|
 | 2026-11-20 | `8b284d01..f79ac93f`，19 个提交，含 v1.40.0 | `doc-list-unify` 第一批（烛龙开源）：新增公共组件 `src/components/ListLayout/`（FilterCard、FilterField、MainCard）；`ModelQtyCell` 多型号可点开；采购入库、销售出库改为新骨架；`ui-design-patterns.md`「单据页统一规范」增加列表页骨架。另有采购需求删除、文字报价货期，以及几个变更的归档 | 已合并，没有冲突。与本变更的规则有重叠，待用户确定取舍后修订 specs、design，见下方说明 |
+| 2026-11-21 | `f79ac93f..fab4cb75`，46 个提交，含 v1.42.0、v1.42.1 | `inventory-foundation`：新增库存查询、库存流水、库存台账、仓库档案、其他出库列表与详情（`src/pages/warehouse/` 下 stocks、moves、ledger、warehouses、other-outbounds），闲置库存页下线；商品候选新增「待关联单据」面板（`UnlinkedPanel`）；`DocModelCell` 有改动；菜单与路由调整。规范在列表页规则 6 加了库存三页的例外 | 已合并。`ui-design-patterns.md` 冲突：保留本分支重写的版本，把库存三页的例外补进新版「列表页统一规范」第 6 条。新页面按新骨架改造的工作归入任务 5.2 的 `migration-list.md` |
 
 ## 2026-11-20 与 doc-list-unify 的重叠
 

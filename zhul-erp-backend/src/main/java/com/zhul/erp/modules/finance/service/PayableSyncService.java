@@ -398,13 +398,13 @@ public class PayableSyncService {
                 .stream().map(d -> nz(d.getDiscountAmount())).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    /** 已完成的售后来源采购退货单的退款或抵扣合计（采购订单币种；历史迁移的不冲减，spec finance/accounts-payable「应付金额同步」） */
+    /** 已完成的售后来源、库存退回采购退货单的退款或抵扣合计（采购订单币种；历史迁移的不冲减，spec finance/accounts-payable「应付金额同步」） */
     private BigDecimal returnCreditOf(Long poId) {
         return purchaseReturnMapper.selectList(new LambdaQueryWrapper<PurchaseReturnDO>()
                         .select(PurchaseReturnDO::getRefundAmount)
                         .eq(PurchaseReturnDO::getPoId, poId)
-                        .eq(PurchaseReturnDO::getSourceType,
-                                PurchaseReturnConstants.SRC_AFTER_SALES)
+                        .in(PurchaseReturnDO::getSourceType,
+                                PurchaseReturnConstants.SRC_AFTER_SALES, PurchaseReturnConstants.SRC_STOCK)
                         .eq(PurchaseReturnDO::getStatus,
                                 PurchaseReturnConstants.DONE)
                         .eq(PurchaseReturnDO::getMigrated, 0)

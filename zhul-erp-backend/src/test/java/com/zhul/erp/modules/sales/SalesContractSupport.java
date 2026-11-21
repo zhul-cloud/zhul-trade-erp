@@ -25,7 +25,7 @@ public abstract class SalesContractSupport extends InquiryContractSupport {
     protected static final String PI = "/api/v1/sales/pis";
     protected static final String SO = "/api/v1/sales/orders";
     protected static final long ADMIN_USER = 99000002L;
-    private static final String[] SALES_TABLES = {"after_sales_log", "after_sales_item", "document_log", "purchase_return_item", "purchase_return", "return_receipt_item", "return_receipt", "sales_return_disposition", "sales_return_item", "sales_return", "fin_refund_request_item", "fin_refund_request", "after_sales", "fin_customer_credit_consumption", "fin_customer_credit_entry", "fin_customer_refund", "fin_other_income", "fin_fx_settlement_allocation", "fin_fx_settlement", "fin_reimbursement_line", "fin_reimbursement", "fin_expense_allocation", "fin_expense", "fin_payment_allocation", "fin_payment", "fin_payable_installment", "fin_payable", "forwarder_statement_line", "forwarder_statement", "freight_allocation", "shipment_doc_group",
+    private static final String[] SALES_TABLES = {"inv_other_outbound_item", "inv_other_outbound", "inv_reservation", "inv_balance", "inv_move", "inv_batch", "inv_warehouse", "after_sales_log", "after_sales_item", "document_log", "purchase_return_item", "purchase_return", "return_receipt_item", "return_receipt", "sales_return_disposition", "sales_return_item", "sales_return", "fin_refund_request_item", "fin_refund_request", "after_sales", "fin_customer_credit_consumption", "fin_customer_credit_entry", "fin_customer_refund", "fin_other_income", "fin_fx_settlement_allocation", "fin_fx_settlement", "fin_reimbursement_line", "fin_reimbursement", "fin_expense_allocation", "fin_expense", "fin_payment_allocation", "fin_payment", "fin_payable_installment", "fin_payable", "forwarder_statement_line", "forwarder_statement", "freight_allocation", "shipment_doc_group",
             "logistics_shipment", "courier_waybill", "outbound_box_item", "outbound_box", "outbound_order_item", "outbound_order", "transit_time", "biz_attachment", "biz_attachment_model", "media_item", "media_asset", "shoot_task", "stock_hold", "receiving_discrepancy",
             "purchase_receipt_item", "purchase_receipt", "supplier_shipment_item", "supplier_shipment", "purchase_order_log", "purchase_order_attachment", "purchase_order_fee",
             "purchase_order_item", "purchase_order", "purchase_requirement", "sales_order_fee", "sales_order_partial_cancel", "sales_order_item", "sales_order", "payment_receipt",
@@ -42,9 +42,9 @@ public abstract class SalesContractSupport extends InquiryContractSupport {
                 + "where not exists (select 1 from product_brand where tenant_id = 0 and brand_name = 'Manual Order Test')");
         long brand = jdbc.queryForObject("select id from product_brand where tenant_id = 0 and brand_name = 'Manual Order Test'", Long.class);
         String normalized = com.zhul.erp.modules.product.support.MpnNormalizer.normalize(model);
-        jdbc.update("insert into product (tenant_id, brand_id, mpn_raw, mpn_normalized, mpn_display, product_name, status) "
-                + "select 0, ?, ?, ?, ?, ?, 1 from dual where not exists (select 1 from product where brand_id = ? and mpn_normalized = ?)",
-                brand, model, normalized, model, model, brand, normalized);
+        jdbc.update("insert into product (tenant_id, brand_id, brand_key, mpn_raw, mpn_normalized, mpn_display, product_name, status) "
+                + "select 0, ?, ?, ?, ?, ?, ?, 1 from dual where not exists (select 1 from product where brand_id = ? and mpn_normalized = ?)",
+                brand, "#" + brand, model, normalized, model, model, brand, normalized);
         return jdbc.queryForObject("select id from product where brand_id = ? and mpn_normalized = ?", Long.class, brand, normalized);
     }
 
@@ -68,6 +68,18 @@ public abstract class SalesContractSupport extends InquiryContractSupport {
             jdbc.update("delete from " + t + " where tenant_id = 0");
         }
         jdbc.update("delete from supplier where tenant_id = 0 and supplier_code like 'ITSUP%'");
+        jdbc.update("delete from sys_config where tenant_id = 0 and config_key like 'inventory.%'");
+    }
+
+    /** 这些明细表本用例生成的行都带上了商品（spec product/document-product-link「单据明细关联商品」一路带下去） */
+    protected void assertLinesLinked(String... tables) {
+        for (String t : tables) {
+            int all = jdbc.queryForObject("select count(*) from " + t + " where tenant_id = 0 and deleted_at is null", Integer.class);
+            int nulls = jdbc.queryForObject("select count(*) from " + t + " where tenant_id = 0 and deleted_at is null and product_id is null",
+                    Integer.class);
+            org.junit.jupiter.api.Assertions.assertTrue(all > 0, t + " 没有数据");
+            org.junit.jupiter.api.Assertions.assertEquals(0, nulls, t + " 有 " + nulls + " 行没带上商品");
+        }
     }
 
     // ---------------------------------------------------------------- 采购（spec purchase/*）

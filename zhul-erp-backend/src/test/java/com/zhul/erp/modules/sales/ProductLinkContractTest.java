@@ -60,7 +60,7 @@ class ProductLinkContractTest extends SalesContractSupport {
     }
 
     @Test
-    void quotationPiOrderDetail_resolveProduct_fromInquiryItemThenBrandModelMatch() throws Exception {
+    void quotationPiOrderDetail_resolveProduct_fromInquiryItemThenLine() throws Exception {
         long customer = customer("Link Detail Buyer", "US");
         long q = quotation(customer, 2, "USD", null, l("LINK-INQ-1", 1, "100", "200"), l("LINK-MATCH-1", 1, "100", "200"),
                 l("LINK-NONE-1", 1, "100", "200"));
@@ -71,7 +71,7 @@ class ProductLinkContractTest extends SalesContractSupport {
         // 第 1 行：询盘型号已建档、有订货号
         long archived = manualProduct("LINK-INQ-1");
         jdbc.update("update inquiry_item set product_id = ?, order_code = 'ORD-001' where id = ?", archived, inquiryItems.get(0));
-        // 第 2 行：询盘型号没建档，按品牌 + 型号（忽略大小写、分隔符）匹配商品档案
+        // 第 2 行：询盘型号没关联，报价行上已有商品（历史回填或待关联清单关联的）：按行上的商品显示，不再按文字现查（doc-product-link）
         jdbc.update("insert into product_brand (tenant_id, brand_name) select 0, 'Siemens' from dual "
                 + "where not exists (select 1 from product_brand where tenant_id = 0 and brand_name = 'Siemens')");
         long siemens = jdbc.queryForObject("select min(id) from product_brand where tenant_id = 0 and brand_name = 'Siemens'", Long.class);
@@ -79,6 +79,7 @@ class ProductLinkContractTest extends SalesContractSupport {
                 + "select 0, ?, 'link match 1', 'linkmatch1', 'LINK MATCH 1', 'x', 1 from dual "
                 + "where not exists (select 1 from product where brand_id = ? and mpn_normalized = 'linkmatch1')", siemens, siemens);
         long matched = jdbc.queryForObject("select id from product where brand_id = ? and mpn_normalized = 'linkmatch1'", Long.class, siemens);
+        jdbc.update("update quotation_item set product_id = ? where id = ?", matched, qItems.get(1));
 
         JsonNode quotation = ok(call(get(QT + "/" + q), admin)).path("items");
         assertEquals(archived, quotation.get(0).path("productId").asLong());

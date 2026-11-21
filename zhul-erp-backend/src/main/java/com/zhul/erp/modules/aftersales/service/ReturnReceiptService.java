@@ -43,11 +43,9 @@ import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
 import com.zhul.erp.modules.sales.support.PiStore;
 import com.zhul.erp.modules.system.constants.DocumentType;
 import com.zhul.erp.modules.system.doclog.DocLogs;
+import com.zhul.erp.modules.inventory.service.InventoryHooks;
 import com.zhul.erp.modules.system.service.DocumentNumberService;
 import com.zhul.erp.modules.system.service.LogService;
-import com.zhul.erp.modules.warehouse.constants.WarehouseConstants;
-import com.zhul.erp.modules.warehouse.entity.StockHoldDO;
-import com.zhul.erp.modules.warehouse.repository.StockHoldMapper;
 import com.zhul.erp.modules.warehouse.support.ReceivingSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -70,8 +68,8 @@ import java.util.stream.Collectors;
 
 /**
  * 退货入库单 RR（spec warehouse/sales-return）：销售退货单确认后生成 → 仓库验收（销售退货单变已入库、待验收的退款申请进入下一步）
- * → 采购员逐行处理去向（退回供应商生成采购退货单、转闲置库存、报废，可以分几次处理）→ 全部处理完为已处理。
- * 转闲置冲减原订单成本 = 数量 × 原采购成本（HALF_UP 两位，处理时落库）；退回供应商的冲减与运费由采购退货单写回去向行。
+ * → 采购员逐行处理去向（退回供应商生成采购退货单、转可用库存、报废生成其他出库单，可以分几次处理）→ 全部处理完为已处理。
+ * 转可用库存冲减原订单成本 = 数量 × 原采购成本（HALF_UP 两位，处理时落库）；退回供应商的冲减与运费由采购退货单写回去向行。
  * 加锁顺序：退货入库单 → 销售退货单 → 采购退货单。
  */
 @Service
@@ -86,9 +84,9 @@ public class ReturnReceiptService {
     private final SalesOrderMapper orderMapper;
     private final SalesOrderItemMapper orderItemMapper;
     private final SupplierMapper supplierMapper;
-    private final StockHoldMapper holdMapper;
     private final ReceivingSupport receivingSupport;
     private final ReturnCost returnCost;
+    private final InventoryHooks inventoryHooks;
     private final RefundRequestService refundRequests;
     private final PurchaseReturnService purchaseReturns;
     private final DocumentNumberService numbers;
@@ -127,6 +125,7 @@ public class ReturnReceiptService {
             i.setReceiptId(rr.getId());
             i.setReturnItemId(x.getId());
             i.setSoItemId(x.getSoItemId());
+            i.setProductId(x.getProductId());
             i.setModel(x.getModel());
             i.setBrand(x.getBrand());
             i.setQuantity(x.getQuantity());
@@ -208,6 +207,13 @@ public class ReturnReceiptService {
         }
         boolean allDisposed = items.values().stream().allMatch(x -> x.getReceivedQty() == 0);
         rr.setStatus(allDisposed ? AfterSalesConstants.RR_DONE : AfterSalesConstants.RR_RECEIVED);
+        // 库存：公司仓库退货入库，合格、不良分开
+        Map<Long, ReturnCost.Origin> costs = returnCost.originsOf(items.values().stream().map(ReturnReceiptItemDO::getSoItemId).toList());
+        inventoryHooks.returnReceived(rr.getId(), rr.getReceiptNo(), req.getReceivedDate(), itemsOf(List.of(id)).getOrDefault(id, List.of())
+                .stream().map(x -> new InventoryHooks.ReturnLine(x.getId(), x.getSoItemId(), x.getProductId(), x.getModel(),
+                        x.getReceivedQty(), x.getQualifiedQty(),
+                        costs.getOrDefault(x.getSoItemId(), ReturnCost.Origin.NONE).unitCost()))
+                .toList());
         rr.setReceivedDate(req.getReceivedDate());
         rr.setReceivedBy(me());
         rr.setReceiveNote(trim(req.getNote()));
@@ -245,6 +251,7 @@ public class ReturnReceiptService {
             x.setQualifiedQty(null);
             itemMapper.updateById(x);
         });
+        inventoryHooks.returnUnreceived(id);
         rr.setStatus(AfterSalesConstants.RR_PENDING);
         rr.setReceivedDate(null);
         rr.setReceivedBy(null);
@@ -264,7 +271,7 @@ public class ReturnReceiptService {
 
     // ---------------------------------------------------------------- 去向
 
-    /** 逐行选择去向，可以分几次处理，每行累计不超过实收；转闲置累计不超过合格数量 */
+    /** 逐行选择去向，可以分几次处理，每行累计不超过实收；转可用库存累计不超过合格数量 */
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public ReturnReceiptVO dispose(Long id, DisposeReturnRequest req) {
         ReturnReceiptDO rr = lock(id);
@@ -307,7 +314,7 @@ public class ReturnReceiptService {
             int qualified = Objects.requireNonNullElse(x.getQualifiedQty(), 0);
             int canHold = qualified - heldBefore.getOrDefault(x.getId(), 0);
             if (toHold.getOrDefault(x.getId(), 0) > canHold) {
-                throw new BizException("只有合格的才能转闲置库存（合格 " + Math.max(canHold, 0) + " 个）");
+                throw new BizException("只有合格的才能转可用库存（合格 " + Math.max(canHold, 0) + " 个）");
             }
         }
         Map<Long, ReturnCost.Origin> origins = returnCost.originsOf(items.values().stream().map(ReturnReceiptItemDO::getSoItemId).toList());
@@ -352,32 +359,16 @@ public class ReturnReceiptService {
             } else if (l.getDisposition() == AfterSalesConstants.DISP_HOLD) {
                 BigDecimal unit = origin.unitCost();
                 d.setCostCny(unit.multiply(BigDecimal.valueOf(l.getQuantity())).setScale(2, RoundingMode.HALF_UP));
-                StockHoldDO h = new StockHoldDO();
-                h.setTenantId(rr.getTenantId());
-                h.setSourceType(WarehouseConstants.HOLD_SRC_AFTER_SALES);
-                h.setDiscrepancyId(0L);
-                h.setReceiptId(0L);
-                h.setPoId(origin.poId() == null ? 0L : origin.poId());
-                h.setSoId(rr.getSoId());
-                h.setSoItemId(x.getSoItemId());
-                h.setReturnId(rr.getId());
-                h.setModel(x.getModel());
-                h.setBrand(x.getBrand());
-                h.setCategory("");
-                h.setQuantity(l.getQuantity());
-                h.setCostPrice(unit.setScale(2, RoundingMode.HALF_UP));
-                h.setLocationNote("");
-                h.setStatus(WarehouseConstants.HOLD_ACTIVE);
-                h.setReturnCarrier("");
-                h.setReturnTrackingNo("");
-                h.setHandleNote("");
-                holdMapper.insert(h);
-                d.setHoldId(h.getId());
+                // 转可用库存：验收时已按退货批次入库，货留在可用库存，不再生成闲置库存（openspec inventory-foundation）
                 dispositionMapper.insert(d);
-                text.add(x.getModel() + " × " + l.getQuantity() + " 转闲置库存，冲减 ¥" + d.getCostCny());
+                text.add(x.getModel() + " × " + l.getQuantity() + " 转可用库存，冲减 ¥" + d.getCostCny());
             } else {
                 dispositionMapper.insert(d);
-                text.add(x.getModel() + " × " + l.getQuantity() + " 报废" + (d.getRemark().isEmpty() ? "" : "：" + d.getRemark()));
+                // 报废：生成一张已出库的其他出库单，从退货批次出库
+                String oo = inventoryHooks.returnScrapped(rr.getId(), rr.getReceiptNo(), x.getId(), d.getId(), l.getQuantity(),
+                        d.getRemark().isEmpty() ? "退货报废" : d.getRemark());
+                text.add(x.getModel() + " × " + l.getQuantity() + " 报废" + (d.getRemark().isEmpty() ? "" : "：" + d.getRemark())
+                        + (oo == null ? "" : "，其他出库单 " + oo));
             }
             x.setDisposedQty(x.getDisposedQty() + l.getQuantity());
         }
@@ -398,7 +389,7 @@ public class ReturnReceiptService {
         return detail(id);
     }
 
-    /** 退货入库单行已转闲置的数量（有效去向） */
+    /** 退货入库单行已转可用库存的数量（有效去向） */
     private Map<Long, Integer> heldQty(Long receiptId) {
         Map<Long, Integer> m = new HashMap<>();
         dispositionMapper.selectList(new LambdaQueryWrapper<SalesReturnDispositionDO>()

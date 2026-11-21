@@ -67,6 +67,12 @@ public class ReceivingSupport {
         return byId(ids, orderMapper::selectBatchIds, PurchaseOrderDO::getId);
     }
 
+    /** 采购订单行（不存在或已删除为 null） */
+    public PurchaseOrderItemDO poItemOf(Long id) {
+        PurchaseOrderItemDO i = id == null ? null : itemMapper.selectById(id);
+        return i == null || i.getDeletedAt() != null ? null : i;
+    }
+
     public List<PurchaseOrderItemDO> poItems(Long poId) {
         return itemMapper.selectList(new LambdaQueryWrapper<PurchaseOrderItemDO>()
                 .eq(PurchaseOrderItemDO::getPoId, poId)

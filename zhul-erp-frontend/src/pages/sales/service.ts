@@ -56,6 +56,8 @@ export interface PiItem {
   orderCode?: string;
   /** 对应的商品档案；没有时为空 */
   productId?: number;
+  /** 关联的是候选商品（还没审核建档） */
+  productCandidate?: boolean;
   brand: string;
   category?: string;
   description?: string;

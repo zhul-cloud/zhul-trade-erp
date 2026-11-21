@@ -426,6 +426,7 @@ public class ContentWriter {
             return null;
         }
         ProductDO hit = productMapper.selectOne(new LambdaQueryWrapper<ProductDO>()
+                .eq(ProductDO::getArchiveStatus, ProductConstants.ARCHIVE_DONE)
                 .select(ProductDO::getId)
                 .eq(ProductDO::getTenantId, ProductConstants.PLATFORM_TENANT_ID)
                 .eq(ProductDO::getBrandId, product.getBrandId())

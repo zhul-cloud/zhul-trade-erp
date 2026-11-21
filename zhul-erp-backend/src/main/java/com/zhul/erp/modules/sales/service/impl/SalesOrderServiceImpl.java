@@ -141,6 +141,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     private final com.zhul.erp.modules.purchase.support.PurchaseLinks purchaseLinks;
     private final com.zhul.erp.modules.finance.service.CreditUsageService creditUsage;
     private final com.zhul.erp.modules.purchase.support.RequirementReduction requirementReduction;
+    private final com.zhul.erp.modules.inventory.service.InventoryHooks inventoryHooks;
     private final com.zhul.erp.modules.purchase.support.PurchaseNotices purchaseNotices;
     private final com.zhul.erp.modules.purchase.support.OrderPurchaseProgress purchaseProgress;
     private final com.zhul.erp.modules.logistics.support.LogisticsQty logisticsQty;
@@ -175,6 +176,23 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         }
         PiVersionDO v = piStore.version(piId, pi.getCurrentVersionNo());
         List<PiItemDO> items = piStore.items(v.getId());
+        // 订单是内部单据：型号按询盘型号当前的单据型号（真实型号优先），采购照这个型号买（openspec actual-model-and-description）
+        Map<Long, com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO> first = docModelLookup.items(
+                items.stream().map(PiItemDO::getInquiryItemId).toList());
+        // 还没关联商品的询盘型号（如上线前没走过自动建档的）先按建档规则补一次，再取商品
+        List<Long> unsynced = items.stream().filter(i -> productOf(i, first) == null).map(PiItemDO::getInquiryItemId)
+                .filter(Objects::nonNull).distinct().toList();
+        if (!unsynced.isEmpty()) {
+            productArchiver.sync(unsynced);
+        }
+        Map<Long, com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO> docs = unsynced.isEmpty() ? first
+                : docModelLookup.items(items.stream().map(PiItemDO::getInquiryItemId).toList());
+        // 每个型号都要先关联商品（spec product/document-product-link「转销售订单前型号须关联商品」）
+        List<String> unlinked = items.stream().filter(i -> productOf(i, docs) == null)
+                .map(i -> StringUtils.hasText(i.getModel()) ? i.getModel().trim() : "第 " + i.getLineNo() + " 行").distinct().toList();
+        if (!unlinked.isEmpty()) {
+            throw new BizException(String.join("、", unlinked) + " 还没有真实型号，先回填真实型号");
+        }
         List<PiFeeDO> fees = piStore.fees(v.getId());
         LocalDate salesDate = req == null || req.getSalesDate() == null ? defaultSalesDate(piId) : req.getSalesDate();
         requirePastOrToday(salesDate);
@@ -225,11 +243,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         o.setCancelReason("");
         orderMapper.insert(o);
         List<SalesOrderItemDO> created = new ArrayList<>(items.size());
-        // 订单是内部单据：型号按询盘型号当前的单据型号（真实型号优先），采购照这个型号买（openspec actual-model-and-description）
-        Map<Long, com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO> docs = docModelLookup.items(
-                items.stream().map(PiItemDO::getInquiryItemId).toList());
         for (PiItemDO i : items) {
             SalesOrderItemDO x = toOrderItem(o, i);
+            x.setProductId(productOf(i, docs));
             var src = docs.get(i.getInquiryItemId());
             if (src != null) {
                 x.setModel(DocModels.docModel(src));
@@ -642,6 +658,12 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         }
     }
 
+    /** PI 行引用的商品：来源询盘型号当前的商品优先（可能刚回填了真实型号），没有来源时取 PI 行自己的 */
+    private static Long productOf(PiItemDO i, Map<Long, com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO> docs) {
+        com.zhul.erp.modules.inquiry.item.entity.InquiryItemDO src = i.getInquiryItemId() == null ? null : docs.get(i.getInquiryItemId());
+        return src != null && src.getProductId() != null ? src.getProductId() : i.getProductId();
+    }
+
     private static SalesOrderItemDO toOrderItem(SalesOrderDO o, PiItemDO i) {
         SalesOrderItemDO x = new SalesOrderItemDO();
         x.setTenantId(o.getTenantId());
@@ -734,6 +756,9 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         productArchiver.sync(items.stream().map(SalesOrderItemDO::getInquiryItemId).filter(Objects::nonNull).toList());
         // 没下单的采购需求关闭，已下单的标「订单已取消」交给采购员
         requirementLifecycle.onOrderCancelled(o, currentUserId());
+        // 库存：释放这张订单的预占，货成为可用库存
+        inventoryHooks.orderReduced(o.getId(), o.getSoNo(), items.stream().map(SalesOrderItemDO::getId).toList(),
+                o.getDeletedAt() != null ? "订单删除" : "订单取消");
         if (pi == null) {
             // 手动订单上的余额抵扣随订单作废，释放余额
             creditUsage.releaseOrder(o);
@@ -979,7 +1004,7 @@ public class SalesOrderServiceImpl implements SalesOrderService {
     }
 
     /**
-     * 事务边界：型号行与订单合计、取消记录、采购需求扣减（草稿撤出、转闲置库存、采购单标记）、进度与收款状态在同一本地事务内；
+     * 事务边界：型号行与订单合计、取消记录、采购需求扣减（草稿撤出、在仓的释放库存预占、采购单标记）、进度与收款状态在同一本地事务内；
      * 锁顺序 PI → 订单 → 采购需求 → 采购订单，与取消订单、下单一致。
      */
     @Override
@@ -1031,6 +1056,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         }
         List<OrderProgress.Step> ordered = progress.ordered();
         recompute(o, plan.items(), ordered);
+        // 库存：在仓的超出部分释放预占，成为可用库存
+        inventoryHooks.orderReduced(o.getId(), o.getSoNo(), plan.cancel().keySet(), "订单部分取消");
         purchaseProgress.sync(plan.cancel().keySet());
         if (manual) {
             piSummary.refreshOrder(orderMapper.selectById(id));
@@ -1650,6 +1677,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
             x.setItemRemarkAt(remark == null ? null : remark.at());
             DocItemProducts.Info product = products.next();
             x.setProductId(product.productId());
+            x.setProductCandidate(product.candidate());
+            x.setProductCandidateId(product.candidateId());
             x.setOrderCode(product.orderCode());
             x.setStockType(i.getStockType());
             int out = outbound.getOrDefault(i.getId(), com.zhul.erp.modules.logistics.support.LogisticsQty.Qty.ZERO).occupied();

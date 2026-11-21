@@ -1028,6 +1028,7 @@ const QuotationDetail: React.FC = () => {
       brand={src.brand}
       orderCode={src.orderCode}
       productId={src.productId}
+      candidate={src.productCandidate}
       customerModel={src.customerModel}
       updatedTo={src.modelUpdatedTo}
       suffix={

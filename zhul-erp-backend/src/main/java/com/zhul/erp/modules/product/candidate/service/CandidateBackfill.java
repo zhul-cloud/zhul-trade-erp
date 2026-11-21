@@ -14,6 +14,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 历史补齐：已确认（询价中及之后、未取消）的询盘型号里，建档状态还是「未处理」的按批自动建档。
@@ -31,6 +34,19 @@ public class CandidateBackfill implements ApplicationRunner {
     private final InquiryItemMapper itemMapper;
     private final ProductArchiver archiver;
     private final TransactionTemplate tx;
+    private final DocProductLinkService docLinks;
+
+    /** 测试环境关掉：后台线程与用例同时改数据会互相干扰；回填本身由契约测试直接调用 */
+    @org.springframework.beans.factory.annotation.Value("${zhul.product.doc-backfill.enabled:true}")
+    private boolean docBackfillEnabled;
+
+    /** 单据明细关联商品的历史回填放到后台单线程执行，不拖慢启动（spec product/document-product-link） */
+    private final ThreadPoolExecutor pool = new ThreadPoolExecutor(1, 1, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>(1),
+            r -> {
+                Thread t = new Thread(r, "doc-product-backfill");
+                t.setDaemon(true);
+                return t;
+            }, new ThreadPoolExecutor.DiscardPolicy());
 
     @Override
     public void run(ApplicationArguments args) {
@@ -72,5 +88,17 @@ public class CandidateBackfill implements ApplicationRunner {
                 log.warn("待审核候选补齐建议品类失败，下次启动重试", e);
             }
         });
+        if (docBackfillEnabled) {
+            pool.execute(this::backfillDocuments);
+        }
+    }
+
+    /** 后台线程入口：自己进入平台范围（线程池里没有登录上下文） */
+    void backfillDocuments() {
+        try {
+            TenantScope.platform(docLinks::backfill);
+        } catch (RuntimeException e) {
+            log.warn("单据明细关联商品回填失败，下次启动重试", e);
+        }
     }
 }

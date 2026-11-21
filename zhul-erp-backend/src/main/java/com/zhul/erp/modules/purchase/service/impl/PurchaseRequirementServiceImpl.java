@@ -481,6 +481,7 @@ public class PurchaseRequirementServiceImpl implements PurchaseRequirementServic
         y.setSoId(r.getSoId());
         y.setSoItemId(r.getSoItemId());
         y.setQuotationItemId(r.getQuotationItemId());
+        y.setProductId(r.getProductId());
         y.setModel(r.getModel());
         y.setBrand(r.getBrand());
         y.setQuantity(n);
