@@ -51,6 +51,7 @@ class InventoryCostingTest extends IntegrationTestBase {
     @Autowired private InventoryWarehouses warehouses;
     @Autowired private TransactionTemplate tx;
     @Autowired private com.zhul.erp.modules.inventory.service.InventoryCostingJob job;
+    @Autowired private com.zhul.erp.modules.inventory.service.InventoryCogs cogs;
 
     @BeforeEach
     void clean() {
@@ -171,6 +172,29 @@ class InventoryCostingTest extends IntegrationTestBase {
         money("0", (BigDecimal) m.get("amount_claim"));
         money("-34.50", (BigDecimal) m.get("amount_cny"));
         assertEquals(LocalDate.now().toString(), m.get("biz_date").toString());
+    }
+
+    @Test
+    void 出运结转_按四项记销售成本_加之后的调整() {
+        // 单位成本 105 = 货款 100 + 开票 3 + 采购费用 2；出运 6 个
+        po("CNY", "1", "1000.00", "20.00", "30.00");
+        poItem(PO_ITEM_A, "100.00", 10);
+        InvBatchDO a = receive(PO_ITEM_A, GR_ITEM, 10);
+        ship(a, 6);
+        com.zhul.erp.modules.inventory.service.InventoryCogs.Cogs c = cogs.ofSoItems(List.of(SO_ITEM)).get(SO_ITEM);
+        assertEquals(6, c.qty());
+        money("600.00", c.goods());
+        money("18.00", c.invoice());
+        money("12.00", c.fee());
+        money("630.00", c.total());
+        assertEquals("SH", c.sources().get(0).type());
+
+        jdbc.update("update purchase_order set fee_amount = 30.00, total_amount = 1030.00 where id = ?", PO); // 采购费用 +1.00/个
+        recost(InvConstants.CA_PO_FEE);
+        c = cogs.ofSoItems(List.of(SO_ITEM)).get(SO_ITEM);
+        money("18.00", c.fee());
+        money("636.00", c.total());
+        assertEquals("CA", c.sources().get(1).type());
     }
 
     // ---------------------------------------------------------------- 成本调整

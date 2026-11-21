@@ -91,6 +91,7 @@ public class OrderCostService {
     private final CreditReceiptSync receiptSync;
     private final com.zhul.erp.modules.sales.repository.SalesOrderMapper soMapper;
     private final com.zhul.erp.modules.aftersales.repository.AfterSalesMapper afterSalesMapper;
+    private final com.zhul.erp.modules.inventory.service.InventoryCogs inventoryCogs;
 
     public OrderCostVO of(SalesOrderDO order) {
         return of(List.of(order)).get(order.getId());
@@ -236,6 +237,9 @@ public class OrderCostService {
                 .orderByAsc(SalesOrderItemDO::getLineNo));
         List<Long> itemIds = items.stream().map(SalesOrderItemDO::getId).toList();
         Map<Long, List<SalesOrderItemDO>> itemsBySo = items.stream().collect(Collectors.groupingBy(SalesOrderItemDO::getSoId));
+        // 已出运的数量读出运结转的销售成本（openspec inventory-costing 决策 3）
+        Map<Long, com.zhul.erp.modules.inventory.service.InventoryCogs.Cogs> cogs =
+                inventoryCogs.ofSoItems(items.stream().map(SalesOrderItemDO::getId).toList());
 
         // 采购：已下单的采购订单行
         List<PurchaseOrderItemDO> poLines = itemIds.isEmpty() ? List.of() : poItemMapper.selectList(new LambdaQueryWrapper<PurchaseOrderItemDO>()
@@ -380,7 +384,13 @@ public class OrderCostService {
             List<OrderCostCalc.Item> calcItems = new ArrayList<>();
             List<OrderCostCalc.PoLine> calcLines = new ArrayList<>();
             Map<Long, OrderCostCalc.Po> calcPos = new HashMap<>();
+            Map<Long, OrderCostCalc.Shipped> shipped = new HashMap<>();
             for (SalesOrderItemDO i : mine) {
+                com.zhul.erp.modules.inventory.service.InventoryCogs.Cogs c = cogs.get(i.getId());
+                if (c != null) {
+                    shipped.put(i.getId(), new OrderCostCalc.Shipped(c.qty(), c.systemQty(), c.goods(), c.invoice(), c.fee(),
+                            c.claim().negate()));
+                }
                 List<FreightAllocationDO> fs = freightByItem.getOrDefault(i.getId(), List.of());
                 BigDecimal dom = sum(fs.stream().filter(f -> f.getSourceType() == LogisticsConstants.FREIGHT_DOMESTIC).map(FreightAllocationDO::getAmount));
                 List<FreightAllocationDO> intl = fs.stream().filter(f -> f.getSourceType() == LogisticsConstants.FREIGHT_INTERNATIONAL).toList();
@@ -426,9 +436,9 @@ public class OrderCostService {
             }
             OrderCostCalc.Result res = OrderCostCalc.compute(new OrderCostCalc.Input(paid,
                     nz(o.getTotalAmountCny()).subtract(collectionCny), calcItems, calcLines, calcPos, calcReceipts, refund, deduction,
-                    feeDeduction));
+                    feeDeduction, shipped));
             OrderCostVO vo = toVo(o, mine, res, poLinesByItem, pos, qualified, freightByItem, shipments, waybills, expenseByItem, expenses,
-                    returnsByItem, sourceNos);
+                    returnsByItem, sourceNos, cogs);
             vo.setRefund(res.refund());
             vo.setRefunds(refunds.stream().map(f -> brief(f, reasonNames)).toList());
             vo.setCollectionCny(OrderCostCalc.money(collectionDeducted));
@@ -561,7 +571,7 @@ public class OrderCostService {
                              Map<Long, List<FreightAllocationDO>> freightByItem, Map<Long, LogisticsShipmentDO> shipments,
                              Map<Long, CourierWaybillDO> waybills, Map<Long, List<ExpenseAllocationDO>> expenseByItem, Map<Long, ExpenseDO> expenses,
                              Map<Long, List<com.zhul.erp.modules.aftersales.entity.SalesReturnDispositionDO>> returnsByItem,
-                             Map<String, String> sourceNos) {
+                             Map<String, String> sourceNos, Map<Long, com.zhul.erp.modules.inventory.service.InventoryCogs.Cogs> cogs) {
         OrderCostVO vo = new OrderCostVO();
         vo.setSoId(o.getId());
         vo.setSalesAmountCny(o.getTotalAmountCny());
@@ -604,13 +614,23 @@ public class OrderCostService {
             x.setUnreceivedQty(l.unreceivedQty());
             x.setUnorderedQty(l.unorderedQty());
             x.setMissingCostPrice(l.missingCostPrice());
+            x.setShippedQty(l.shippedQty());
+            x.setSystemQty(l.systemQty());
 
             Map<String, List<OrderCostVO.Source>> sources = new LinkedHashMap<>();
-            sources.put("purchase", poLinesByItem.getOrDefault(l.soItemId(), List.of()).stream().map(pl -> {
+            // 采购货款来源：出运结转的出运单、之后的成本调整单，再是采购订单（还没出运的数量照旧推算，原型 O1）
+            List<OrderCostVO.Source> purchaseSources = new ArrayList<>();
+            com.zhul.erp.modules.inventory.service.InventoryCogs.Cogs c = cogs.get(l.soItemId());
+            if (c != null) {
+                c.sources().forEach(s -> purchaseSources.add(source("SH".equals(s.type()) ? "SHIPMENT" : "COST_ADJUST", s.id(), s.no(),
+                        s.amount(), "SH".equals(s.type()) ? "出运结转 " + s.qty() + " 个" : "成本调整")));
+            }
+            poLinesByItem.getOrDefault(l.soItemId(), List.of()).forEach(pl -> {
                 PurchaseOrderDO p = pos.get(pl.getPoId());
-                return source("PO", p.getId(), p.getPoNo(), pl.getAmount(), "合格入库 " + qualified.getOrDefault(pl.getId(), 0) + " / "
-                        + pl.getQuantity() + " · 单价 " + p.getCurrencyCode() + " " + pl.getUnitPrice());
-            }).toList());
+                purchaseSources.add(source("PO", p.getId(), p.getPoNo(), pl.getAmount(), "合格入库 " + qualified.getOrDefault(pl.getId(), 0)
+                        + " / " + pl.getQuantity() + " · 单价 " + p.getCurrencyCode() + " " + pl.getUnitPrice()));
+            });
+            sources.put("purchase", purchaseSources);
             sources.put("domestic", fs.stream().filter(f -> f.getSourceType() == LogisticsConstants.FREIGHT_DOMESTIC)
                     .collect(Collectors.groupingBy(FreightAllocationDO::getSourceId, LinkedHashMap::new, Collectors.toList()))
                     .entrySet().stream().map(e -> {
