@@ -14,7 +14,6 @@ import {
   HourglassOutlined,
   InboxOutlined,
   PictureOutlined,
-  RightOutlined,
   RocketOutlined,
   SendOutlined,
   ShoppingOutlined,
@@ -24,6 +23,17 @@ import {
 } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { Tooltip } from 'antd';
+import {
+  CalendarX,
+  CircleCheck,
+  CircleDollarSign,
+  Hourglass,
+  Landmark,
+  PiggyBank,
+  ShoppingBag,
+  Trophy,
+  UserPlus,
+} from 'lucide-react';
 import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DeltaText } from '@/theme/delta';
@@ -31,6 +41,7 @@ import { formatAmount } from '@/utils/format';
 import { MenuName } from '@/utils/menuName';
 import {
   Metric,
+  MoreLink,
   TodoItem,
   type Tone,
   useTone,
@@ -117,6 +128,19 @@ const ICONS: Record<string, React.ReactNode> = {
   user: <UserAddOutlined />,
 };
 
+/** 数字小块名称前的图标（原型 D1）：后端只给名称，按名称配图标；没配的不显示图标 */
+const METRIC_ICONS: Record<string, [React.ReactNode, Tone]> = {
+  成交额: [<CircleDollarSign key="i" size={14} />, 'orange'],
+  毛利: [<PiggyBank key="i" size={14} />, 'green'],
+  实收回款: [<Landmark key="i" size={14} />, 'violet'],
+  成交订单: [<ShoppingBag key="i" size={14} />, 'blue'],
+  等采购回价的型号: [<Hourglass key="i" size={14} />, 'violet'],
+  已过报价截止: [<CalendarX key="i" size={14} />, 'red'],
+  本月新增商机: [<UserPlus key="i" size={14} />, 'orange'],
+  有效商机: [<CircleCheck key="i" size={14} />, 'green'],
+  赢单: [<Trophy key="i" size={14} />, 'blue'],
+};
+
 export const fmt = (v: number | string | null | undefined, format?: Format) => {
   if (v === null || v === undefined || v === '') return '—';
   if (typeof v === 'string') return v;
@@ -164,6 +188,8 @@ const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
               key={m.label}
               label={m.label}
               value={fmt(m.value, m.format)}
+              icon={METRIC_ICONS[m.label]?.[0]}
+              tone={METRIC_ICONS[m.label]?.[1]}
               hint={
                 m.delta !== null && m.delta !== undefined ? (
                   <Delta m={m} />
@@ -179,20 +205,30 @@ const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
       );
     case 'todos':
       return (
-        <div style={{ display: 'grid', gap: 8 }}>
+        // 行间细分隔线，最后一行的下边线被裁掉
+        <div style={{ overflow: 'hidden' }}>
           {title}
-          {(b.todos ?? []).map((t) => (
-            <TodoItem
-              key={t.title}
-              icon={ICONS[t.icon] ?? <AppstoreOutlined />}
-              tone={t.tone}
-              title={t.title}
-              desc={t.desc}
-              count={t.count}
-              alert={t.alert}
-              onClick={() => go(t.link)}
-            />
-          ))}
+          <div
+            style={{
+              display: 'grid',
+              // 第一行不要上内边距：紧跟卡片标题
+              marginTop: b.title ? 0 : -14,
+              marginBottom: -1,
+            }}
+          >
+            {(b.todos ?? []).map((t) => (
+              <TodoItem
+                key={t.title}
+                icon={ICONS[t.icon] ?? <AppstoreOutlined />}
+                tone={t.tone}
+                title={t.title}
+                desc={t.desc}
+                count={t.count}
+                alert={t.alert}
+                onClick={() => go(t.link)}
+              />
+            ))}
+          </div>
         </div>
       );
     case 'table': {
@@ -530,13 +566,14 @@ const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
   }
 };
 
-/** 通用看板组件：外框（标题、图标）由注册表给，数据块由后端给 */
+/** 通用看板组件：外框（标题、统计期间、口径）由注册表给，数据块由后端给 */
 export const blockWidget = (opts: {
   key: string;
   title: string;
-  icon: React.ReactNode;
-  tone: Tone;
-  sub?: string;
+  /** 统计期间，标题旁显示 */
+  period?: string;
+  /** 口径说明，放进帮助图标 */
+  help?: string;
   /** 「查看更多」跳转的页面，文字取该页的菜单名称 */
   more?: { link: string };
 }): React.FC => {
@@ -546,21 +583,14 @@ export const blockWidget = (opts: {
     );
     return (
       <WidgetCard
-        icon={opts.icon}
-        tone={opts.tone}
         title={opts.title}
-        sub={opts.sub}
+        period={opts.period}
+        help={opts.help}
         extra={
           opts.more && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => go(opts.more?.link)}
-              style={{ fontSize: 13 }}
-            >
-              <MenuName path={opts.more.link} />{' '}
-              <RightOutlined style={{ fontSize: 11 }} />
-            </button>
+            <MoreLink onClick={() => go(opts.more?.link)}>
+              <MenuName path={opts.more.link} />
+            </MoreLink>
           )
         }
         loading={!data}

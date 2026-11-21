@@ -7,12 +7,13 @@ import {
 import { history, useAccess, useModel } from '@umijs/max';
 import { Button, Segmented, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { readBizError } from '@/pages/crm/opportunity/service';
-import { Card, PageTitle, useWide } from '@/pages/inquiry/shared/components';
+import { Card, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
-import { MenuName, useMenu } from '@/utils/menuName';
+import { MenuName } from '@/utils/menuName';
 import { type Workbench, workbenchApi } from './service';
 import { WIDGETS } from './widgets';
 
@@ -73,7 +74,6 @@ const Dashboard: React.FC = () => {
   const wide = useWide();
   const access = useAccess() as Record<string, boolean>;
   const { initialState } = useModel('@@initialState');
-  const menu = useMenu();
   const name = initialState?.currentUser?.name;
   const user = initialState?.currentUser?.userid ?? name;
   const shortcuts = SHORTCUTS.filter((s) => access[s.access]);
@@ -106,16 +106,9 @@ const Dashboard: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        root={menu?.name}
-        crumbs={[]}
-        title={name ? `${greeting()}，${name}` : menu?.name}
-        description={
-          board && board.code !== 'general' && !board.fallback
-            ? `${board.name}看板：按你的数据范围显示，点击数字进入对应列表处理。`
-            : '按你的权限显示相关的业务数据。'
-        }
-        actions={
+      <PageHeader
+        title={name ? `${greeting()}，${name}` : undefined}
+        extra={
           bench && bench.boards.length > 1 ? (
             <Segmented<string>
               value={board?.code}
@@ -144,7 +137,7 @@ const Dashboard: React.FC = () => {
               style={{
                 marginBottom: 16,
                 padding: '10px 14px',
-                borderRadius: 12,
+                borderRadius: 8,
                 background: palette.inset,
                 color: palette.mute,
                 fontSize: 13,

@@ -1,13 +1,9 @@
 import {
-  BarChartOutlined,
   CarOutlined,
-  DashboardOutlined,
   FileDoneOutlined,
   InboxOutlined,
   RightOutlined,
   SendOutlined,
-  ShoppingOutlined,
-  UnorderedListOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 import { history } from '@umijs/max';
@@ -90,10 +86,8 @@ export const MyInquiryWidget: React.FC = () => {
   const { data, error, reload } = useWidgetData<QuoteBoard>('my-inquiry');
   return (
     <WidgetCard
-      icon={<UnorderedListOutlined />}
-      tone="blue"
       title="我的询价"
-      sub="分配给我的询价任务，最急的在前"
+      help="分配给我的询价任务，最急的在前"
       extra={
         <Button size="small" onClick={() => history.push(PATHS.myTasks)}>
           去我的询价
@@ -157,10 +151,8 @@ export const QuoteStatsWidget: React.FC = () => {
   const { data, error, reload } = useWidgetData<QuoteBoard>('quote-stats');
   return (
     <WidgetCard
-      icon={<DashboardOutlined />}
-      tone="green"
       title="回价统计"
-      sub="本月"
+      period="本月"
       loading={!data}
       error={error}
       onRetry={reload}
@@ -205,10 +197,8 @@ export const QuoteTrendWidget: React.FC = () => {
   const total = trend.reduce((sum, d) => sum + d.items, 0);
   return (
     <WidgetCard
-      icon={<BarChartOutlined />}
-      tone="blue"
       title="近 30 天回价"
-      sub="每天回价的型号数"
+      help="每天回价的型号数"
       extra={
         <span style={{ color: palette.mute, fontSize: 12 }}>
           共 {total} 个型号
@@ -324,15 +314,7 @@ export const MyPurchaseWidget: React.FC = () => {
     );
   }
   return (
-    <WidgetCard
-      icon={<ShoppingOutlined />}
-      tone="violet"
-      title="我的采购"
-      sub="点击进入对应列表"
-      loading={!data}
-      error={error}
-      onRetry={reload}
-    >
+    <WidgetCard title="我的采购" loading={!data} error={error} onRetry={reload}>
       <div
         style={{
           display: 'grid',

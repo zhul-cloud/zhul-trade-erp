@@ -1,8 +1,6 @@
 import {
-  BarChartOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  ExportOutlined,
   TrophyOutlined,
   UserAddOutlined,
 } from '@ant-design/icons';
@@ -11,6 +9,7 @@ import type { TableColumnsType } from 'antd';
 import { Alert, Button, Segmented, Skeleton, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CardTitle, HelpTip } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { rate } from '@/pages/crm/opportunity/StatsPanel';
 import {
@@ -22,6 +21,7 @@ import {
 import { Card, Stat } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DeltaText } from '@/theme/delta';
+import { MoreLink } from './widgets/WidgetCard';
 
 export type CardPreset = 'today' | 'week' | 'month';
 
@@ -125,48 +125,31 @@ const OpportunityCard: React.FC = () => {
   ];
 
   return (
-    <Card style={{ padding: 20 }}>
+    <Card>
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 10,
+          gap: 8,
           flexWrap: 'wrap',
           marginBottom: 16,
         }}
       >
-        <span
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 10,
-            background: palette.primarySoft,
-            color: palette.link,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <BarChartOutlined />
-        </span>
-        <b style={{ fontSize: 16, color: palette.ink }}>商机统计</b>
-        <span style={{ fontSize: 12, color: palette.mute }}>
-          按首次接触日期，口径同每日渠道统计
-        </span>
+        <CardTitle>商机统计</CardTitle>
+        <HelpTip title="按首次接触日期，口径同每日渠道统计" />
         <span style={{ marginLeft: 'auto' }} />
         <Segmented
           value={preset}
           onChange={(v) => setPreset(v as CardPreset)}
           options={PRESETS}
         />
-        <Button
-          icon={<ExportOutlined />}
+        <MoreLink
           onClick={() =>
             history.push(`/crm/opportunity-stats?preset=${preset}`)
           }
         >
           查看完整统计
-        </Button>
+        </MoreLink>
       </div>
       {error ? (
         <Alert

@@ -1,16 +1,14 @@
-import {
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  RightOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { Alert, Button, Skeleton } from 'antd';
+import { CircleCheck } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CardTitle } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { type OverduePis, piApi, readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { MoreLink } from './widgets/WidgetCard';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 
@@ -41,39 +39,20 @@ const OverduePiCard: React.FC = () => {
   const viewAll = () => history.push('/sales/pi?expired=1');
 
   return (
-    <Card style={{ padding: 20 }}>
+    <Card style={{ height: '100%' }}>
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 10,
-          marginBottom: 12,
+          gap: 8,
+          marginBottom: 16,
         }}
       >
-        <span
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 10,
-            background: palette.redSoft,
-            color: palette.red,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <ClockCircleOutlined />
-        </span>
-        <b style={{ color: palette.ink, fontSize: 15 }}>过期未收款的 PI</b>
+        <CardTitle>过期未收款的 PI</CardTitle>
         {data && data.count > 0 && (
-          <Button
-            type="link"
-            size="small"
-            style={{ marginLeft: 'auto' }}
-            onClick={viewAll}
-          >
-            查看全部 <RightOutlined />
-          </Button>
+          <span style={{ marginLeft: 'auto' }}>
+            <MoreLink onClick={viewAll}>查看全部</MoreLink>
+          </span>
         )}
       </div>
       {error ? (
@@ -99,7 +78,11 @@ const OverduePiCard: React.FC = () => {
             padding: '8px 0',
           }}
         >
-          <CheckCircleOutlined style={{ color: palette.green }} />
+          <CircleCheck
+            size={16}
+            aria-hidden
+            style={{ color: palette.greenMain }}
+          />
           没有过期未收款的 PI
         </div>
       ) : (
@@ -129,7 +112,8 @@ const OverduePiCard: React.FC = () => {
                 .join('、')}
             </span>
           </div>
-          <div style={{ display: 'grid', gap: 8 }}>
+          {/* 行间细分隔线（原型 D1） */}
+          <div style={{ display: 'grid' }}>
             {data.top.map((p) => (
               <button
                 type="button"
@@ -140,28 +124,42 @@ const OverduePiCard: React.FC = () => {
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 12,
-                  padding: '10px 12px',
-                  borderRadius: 10,
-                  background: palette.inset,
-                  border: `1px solid ${palette.hairline}`,
+                  gap: 16,
+                  padding: '12px 0',
+                  borderTop: `1px solid ${palette.hairline}`,
                 }}
               >
-                <span style={{ minWidth: 0, flex: 1 }}>
-                  <span
-                    style={{
-                      display: 'block',
-                      color: palette.link,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {p.piNo}
-                  </span>
-                  <span style={{ fontSize: 12, color: palette.mute }}>
-                    {p.customerName}
-                  </span>
+                <span
+                  style={{
+                    ...num,
+                    flex: 'none',
+                    color: palette.link,
+                    fontWeight: 600,
+                  }}
+                >
+                  {p.piNo}
                 </span>
-                <span style={{ ...num, color: palette.sub, fontSize: 13 }}>
+                <span
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    fontSize: 13,
+                    color: palette.ink,
+                  }}
+                >
+                  {p.customerName}
+                </span>
+                <span
+                  style={{
+                    ...num,
+                    color: palette.ink,
+                    fontWeight: 600,
+                    fontSize: 13,
+                  }}
+                >
                   {formatAmount(p.totalAmount, p.currencyCode)}
                 </span>
                 <Pill tone="red">已过期 {p.expiredDays} 天</Pill>

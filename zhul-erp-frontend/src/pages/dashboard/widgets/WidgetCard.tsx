@@ -1,7 +1,9 @@
 import { ReloadOutlined } from '@ant-design/icons';
 import { Button, Skeleton } from 'antd';
+import { ChevronRight } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import FitText from '@/components/FitText';
+import { CardTitle, HelpTip } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { readBizError } from '@/pages/crm/opportunity/service';
 import { Card } from '@/pages/inquiry/shared/components';
@@ -37,7 +39,7 @@ export const IconChip: React.FC<{
       style={{
         width: size,
         height: size,
-        borderRadius: 10,
+        borderRadius: 8,
         background: soft,
         color,
         display: 'inline-flex',
@@ -72,24 +74,27 @@ export function useWidgetData<T>(key: string) {
   return { data, error, reload: load };
 }
 
-/** 看板组件的外框：标题行（图标、标题、说明、右侧操作），加载中骨架、出错可重试 */
+/**
+ * 看板组件的外框（工作台原型 D1）：标题 18/500，旁边是统计期间（如「本月」）和口径帮助图标，右侧操作；
+ * 加载中骨架、出错可重试
+ */
 export const WidgetCard: React.FC<{
-  icon: React.ReactNode;
-  tone: Tone;
   title: string;
-  sub?: string;
+  /** 统计期间，标题旁显示，如「本月」「截至今天」 */
+  period?: string;
+  /** 口径说明，放进帮助图标 */
+  help?: string;
   extra?: React.ReactNode;
   loading?: boolean;
   error?: string;
   onRetry?: () => void;
   children?: React.ReactNode;
-}> = ({ icon, tone, title, sub, extra, loading, error, onRetry, children }) => {
+}> = ({ title, period, help, extra, loading, error, onRetry, children }) => {
   const { palette } = useAppTheme();
   return (
     // 纵向弹性布局：同一行卡片被拉成等高时，内容区（如图表）跟着长高，不在下方留空（audit UI-041）
     <Card
       style={{
-        padding: 20,
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
@@ -99,16 +104,16 @@ export const WidgetCard: React.FC<{
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 10,
+          gap: 8,
           marginBottom: 16,
           flexWrap: 'wrap',
         }}
       >
-        <IconChip icon={icon} tone={tone} />
-        <b style={{ fontSize: 16, color: palette.ink }}>{title}</b>
-        {sub && (
-          <span style={{ fontSize: 12, color: palette.mute }}>{sub}</span>
+        <CardTitle>{title}</CardTitle>
+        {period && (
+          <span style={{ fontSize: 13, color: palette.mute }}>{period}</span>
         )}
+        {help && <HelpTip title={help} />}
         <span style={{ flex: 1 }} />
         {extra}
       </div>
@@ -142,27 +147,64 @@ export const WidgetCard: React.FC<{
   );
 };
 
-/** 数字小块：标题、数值、一行说明 */
+/** 卡片右上角的「查看全部 >」一类链接 */
+export const MoreLink: React.FC<{
+  onClick: () => void;
+  children: React.ReactNode;
+}> = ({ onClick, children }) => (
+  <button
+    type="button"
+    className="zhul-link"
+    onClick={onClick}
+    style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 2,
+      fontSize: 13,
+    }}
+  >
+    {children}
+    <ChevronRight size={14} aria-hidden />
+  </button>
+);
+
+/** 数字小块（原型 D1）：带边框的小卡，名称（可带图标；能点时后面带箭头）、数值、一行说明 */
 export const Metric: React.FC<{
   label: string;
   value: React.ReactNode;
   hint?: React.ReactNode;
   hintColor?: string;
+  icon?: React.ReactNode;
+  tone?: Tone;
   onClick?: () => void;
-}> = ({ label, value, hint, hintColor, onClick }) => {
+}> = ({ label, value, hint, hintColor, icon, tone = 'blue', onClick }) => {
   const { palette } = useAppTheme();
   const body = (
     <>
-      <div style={{ fontSize: 13, color: palette.sub }}>{label}</div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          fontSize: 13,
+          color: palette.sub,
+        }}
+      >
+        {icon && <IconChip icon={icon} tone={tone} size={24} />}
+        {label}
+        {onClick && (
+          <ChevronRight size={14} aria-hidden style={{ color: palette.mute }} />
+        )}
+      </div>
       {/* 卡片变窄时自动缩小字号，金额不溢出、不截断 */}
       <FitText
-        size={26}
+        size={24}
         min={16}
         style={{
           fontWeight: 700,
           color: palette.ink,
           fontVariantNumeric: 'tabular-nums',
-          margin: '6px 0 4px',
+          margin: '8px 0 4px',
         }}
       >
         {value}
@@ -179,10 +221,10 @@ export const Metric: React.FC<{
     flex: '1 1 190px',
     minWidth: 0,
     padding: 16,
-    borderRadius: 12,
-    background: palette.inset,
+    borderRadius: 10,
+    background: palette.card,
+    border: `1px solid ${palette.hairline}`,
     textAlign: 'left',
-    border: 'none',
   };
   return onClick ? (
     <button
@@ -197,7 +239,7 @@ export const Metric: React.FC<{
   );
 };
 
-/** 待办行：图标、名称、说明、数量，点击进入对应列表 */
+/** 待办行（原型 D1）：图标、名称、说明、数量与右箭头，行间细分隔线；点击进入对应列表 */
 export const TodoItem: React.FC<{
   icon: React.ReactNode;
   tone: Tone;
@@ -218,15 +260,15 @@ export const TodoItem: React.FC<{
         alignItems: 'center',
         gap: 12,
         width: '100%',
-        padding: '12px 14px',
-        borderRadius: 12,
+        padding: '14px 0',
         border: 'none',
-        background: palette.inset,
+        borderBottom: `1px solid ${palette.hairline}`,
+        background: 'transparent',
         cursor: 'pointer',
         textAlign: 'left',
       }}
     >
-      <IconChip icon={icon} tone={tone} size={30} />
+      <IconChip icon={icon} tone={tone} size={36} />
       <span style={{ flex: 1, minWidth: 0 }}>
         <span style={{ display: 'block', fontWeight: 600, color: palette.ink }}>
           {title}
@@ -237,7 +279,7 @@ export const TodoItem: React.FC<{
       </span>
       <span
         style={{
-          fontSize: 22,
+          fontSize: 20,
           fontWeight: 700,
           color: count > 0 && alert ? color : palette.ink,
           fontVariantNumeric: 'tabular-nums',
@@ -245,6 +287,7 @@ export const TodoItem: React.FC<{
       >
         {count}
       </span>
+      <ChevronRight size={16} aria-hidden style={{ color: palette.mute }} />
     </button>
   );
 };
