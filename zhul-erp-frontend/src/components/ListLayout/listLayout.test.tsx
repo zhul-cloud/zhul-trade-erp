@@ -40,23 +40,38 @@ describe('汇总行', () => {
     ).toBeTruthy();
   });
 
+  it('宽度够时副文字都显示；内容变短后重新测量，恢复显示', () => {
+    let width = 500;
+    const sw = jest
+      .spyOn(Element.prototype, 'scrollWidth', 'get')
+      .mockImplementation(() => width);
+    const cw = jest
+      .spyOn(Element.prototype, 'clientWidth', 'get')
+      .mockReturnValue(600);
+    const items = (sub: string) => [
+      { label: '进行中', value: 18, sub, subHideable: true },
+      { label: '本月订单', value: 26 },
+    ];
+    try {
+      const { rerender } = render(h(SummaryBar, { items: items('待采购 5') }));
+      expect(screen.queryByText('待采购 5')).toBeNull();
+      width = 200;
+      rerender(h(SummaryBar, { items: items('待采购 4') }));
+      expect(screen.getByText('待采购 4')).toBeTruthy();
+    } finally {
+      sw.mockRestore();
+      cw.mockRestore();
+    }
+  });
+
   it('宽度不够时只隐藏可隐藏的副文字，整段隐藏', () => {
-    const sw = Object.getOwnPropertyDescriptor(
-      HTMLElement.prototype,
-      'scrollWidth',
-    );
-    const cw = Object.getOwnPropertyDescriptor(
-      HTMLElement.prototype,
-      'clientWidth',
-    );
-    Object.defineProperty(HTMLElement.prototype, 'scrollWidth', {
-      configurable: true,
-      get: () => 900,
-    });
-    Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
-      configurable: true,
-      get: () => 600,
-    });
+    // jsdom 把这两个属性定义在 Element.prototype 上；用 spyOn 才能在用例结束后还原
+    const sw = jest
+      .spyOn(Element.prototype, 'scrollWidth', 'get')
+      .mockReturnValue(500);
+    const cw = jest
+      .spyOn(Element.prototype, 'clientWidth', 'get')
+      .mockReturnValue(600);
     try {
       render(
         h(SummaryBar, {
@@ -81,8 +96,8 @@ describe('汇总行', () => {
         screen.getByText('线上 CNY 120,300.00 · 线下 CNY 266,120.00'),
       ).toBeTruthy();
     } finally {
-      if (sw) Object.defineProperty(HTMLElement.prototype, 'scrollWidth', sw);
-      if (cw) Object.defineProperty(HTMLElement.prototype, 'clientWidth', cw);
+      sw.mockRestore();
+      cw.mockRestore();
     }
   });
 });
@@ -108,12 +123,15 @@ describe('搜索条件区', () => {
     );
     const btn = screen.getByRole('button', { name: /更多筛选/ });
     expect(btn.textContent).toContain('· 2');
-    expect(screen.queryByText('品牌')).toBeNull();
+    const hidden = () =>
+      (screen.getByText('品牌').closest('[id]') as HTMLElement).style.display;
+    expect(hidden()).toBe('none');
+    expect(btn.getAttribute('aria-controls')).toBeTruthy();
     fireEvent.click(btn);
     expect(btn.getAttribute('aria-expanded')).toBe('true');
-    expect(screen.getByText('品牌')).toBeTruthy();
+    expect(hidden()).toBe('contents');
     fireEvent.click(btn);
-    expect(screen.queryByText('品牌')).toBeNull();
+    expect(hidden()).toBe('none');
   });
 
   it('没有生效的更多条件时不显示数量；没有更多条件时不显示按钮', () => {

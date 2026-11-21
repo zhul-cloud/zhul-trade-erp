@@ -236,8 +236,10 @@ import {
 | `QuickFilters` | `options`、`value`、`onChange`、`label` | 快捷筛选，多选，点一下选中、再点取消；前提是接口已有对应筛选 |
 | `MainCard` | `left`、`right` | 主内容区：操作行（左侧结果数或「已选 N 张」，右侧批量操作）+ 表格 |
 | `Section` | `title`、`help`、`extra`、`id` | 详情页分区：卡片标题 18/500，`id` 加在标题上用于页内定位 |
-| `HelpTip` | `title` | 帮助图标，只在鼠标悬停时显示；表单项优先用 `Form.Item` 的 `tooltip` |
+| `HelpTip` | `title`、`label` | 帮助图标，只在鼠标悬停时显示；`title` 不是纯文字时写 `label` 给读屏。表单项用 `Form.Item` 的 `tooltip={{ title, icon: <Info size={14} /> }}`，图标与 `HelpTip` 一致 |
 | `Panel` | `style`、`as` | 卡片外框（圆角 10，浅色阴影、深色边框），以上组件都用它 |
+
+「更多筛选」收起时只隐藏、不卸载里面的条件；条件值仍建议受控，方便「重置」一起清空。
 
 状态下拉沿用 `doc-list-unify` 的写法：放在 `FilterCard` 里，选项带数量（如「待打包 · 2」），切换立即查询。
 
@@ -251,18 +253,18 @@ import {
 |---|---|---|
 | `gradient` | 错误 | 渐变（CSS 渐变函数、canvas 渐变） |
 | `glow` | 错误 | 发光（文字阴影、`drop-shadow`、`0 0 Npx` 外发光） |
-| `hardcoded-color` | 错误 | 页面文件（`src/pages`）里写死的颜色，纯白除外 |
-| `old-header` | 错误 | `PageTitle`、`PageContainer`、`Breadcrumb`、`crumbs` |
+| `hardcoded-color` | 错误 | 页面文件（`src/pages`）字符串里写死的颜色（十六进制、`rgb`、`hsl`），纯白、链接锚点（`href`、`to`、`id`）除外 |
+| `old-header` | 错误 | 旧页头与面包屑：`PageTitle` 及各业务域包装的 `XxxPageTitle`、`PageContainer`、`Breadcrumb`、`crumbs`、带 `description` / `eyebrow` 或不是从 `ListLayout` 导入的 `PageHeader` |
 | `ibm-plex` | 错误 | `IBM Plex Mono` |
 | `filler` | 错误 | 常识性套话，如「点击进入」「点击可跳转」 |
 | `filler-maybe` | 提示 | 「保存后生效」，有时带有用信息，人工判断 |
-| `long-placeholder` | 错误 / 提示 | 单行输入框提示超过三项为错误，超过 20 个字为提示；多行文本框不查 |
+| `long-placeholder` | 错误 / 提示 | 搜索框（`Input.Search`、带搜索图标、放在 `FilterField` 里）提示超过三项为错误；其他输入框超过三项、或超过 20 个字为提示；多行文本框不查，网址不按 `/` 拆分 |
 
 - 确认弹窗（`confirm`）、警告条（`Alert`）、`Popconfirm` 里的文字不检查，按「说明文字」一节原样保留。
-- `npm run lint:ui -- src/pages/sales` 只查指定目录，有错误就失败；不带参数时扫全仓库，只有已迁移目录（脚本里的 `ENFORCED`）有错误才失败。每迁完一个业务域，把目录加进 `ENFORCED`。全部迁完后（任务 7.8）并入 `npm run lint`。
+- `npm run lint:ui -- src/pages/sales` 只查指定目录（按当前所在目录解析，找不到时报错），有错误就失败；不带参数时扫全仓库，只有已迁移目录（脚本里的 `ENFORCED`）有错误才失败。每迁完一个业务域，把目录加进 `ENFORCED`。全部迁完后（任务 7.8）并入 `npm run lint`。
 - `npm run lint:ui -- --by-domain` 按业务域汇总，迁移清单见 `openspec/changes/ui-redesign/migration-list.md`。
 
-**例外**：确有必要时，在代码行上或上一行写明规则名和原因，缺原因的例外本身报错：
+**例外**：确有必要时，在代码行尾、或单独一行写在它上一行，写明规则名和原因（冒号不能省）。缺原因、规则名写错的例外报错，没用上的例外提示可以删掉；行尾的例外只管本行：
 
 ```tsx
 // lint-ui-ignore hardcoded-color: 品牌官方色，与品牌方提供的 Logo 一致

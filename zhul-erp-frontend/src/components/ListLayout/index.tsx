@@ -1,6 +1,13 @@
 import { Button, Tooltip } from 'antd';
 import { Check, Info, SlidersHorizontal } from 'lucide-react';
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { CARD_SHADOW } from '@/theme/palette';
 import { formatAmount } from '@/utils/format';
@@ -37,13 +44,17 @@ export const Panel: React.FC<{
 };
 
 /** 帮助图标：口径、匹配规则等背景知识；只在鼠标悬停时显示（按用户决定豁免可见焦点要求） */
-export const HelpTip: React.FC<{ title: React.ReactNode }> = ({ title }) => {
+export const HelpTip: React.FC<{
+  title: React.ReactNode;
+  /** 读屏用的文字：title 不是纯文字时写上，否则读屏只能读到「说明」 */
+  label?: string;
+}> = ({ title, label }) => {
   const { palette } = useAppTheme();
   return (
     <Tooltip title={title}>
       <span
         role="img"
-        aria-label={typeof title === 'string' ? title : '说明'}
+        aria-label={label ?? (typeof title === 'string' ? title : '说明')}
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -108,41 +119,70 @@ export interface SummaryItem {
   subHideable?: boolean;
 }
 
+/** 用于判断内容是否变了（变了要重新测量副文字放不放得下） */
+const summaryKey = (items: SummaryItem[]) =>
+  items
+    .map((it) =>
+      [it.label, it.value, it.sub]
+        .map((v) => (typeof v === 'string' || typeof v === 'number' ? v : ''))
+        .join('|'),
+    )
+    .join(';');
+
+const SUMMARY_GAP = 32;
+
 /**
  * 汇总行：页头下方一行指标，每项「名称 + 数字」，可带一行副文字。
- * 宽度不够时，subHideable 的副文字整段隐藏（不截断、不换行）。
+ * 宽度不够时，subHideable 的副文字整段隐藏（不截断）；隐藏后仍放不下就换行，不裁掉后面的指标。
  */
 export const SummaryBar: React.FC<{ items: SummaryItem[] }> = ({ items }) => {
   const { palette } = useAppTheme();
   const box = useRef<HTMLDivElement>(null);
   const [hideSub, setHideSub] = useState(false);
-  // 副文字都显示时的整行宽度；隐藏后用它判断宽度够了没有
+  const hideRef = useRef(hideSub);
+  hideRef.current = hideSub;
+  // 副文字都显示时，各项排成一行所需的宽度；隐藏后用它判断宽度够了没有
   const full = useRef(0);
+  const key = summaryKey(items);
 
-  useLayoutEffect(() => {
+  const measure = useCallback(() => {
     const el = box.current;
-    if (!el) return undefined;
-    const check = () => {
-      if (!hideSub) full.current = el.scrollWidth;
-      const tooWide = full.current > el.clientWidth + 1;
-      if (tooWide !== hideSub) setHideSub(tooWide);
-    };
-    check();
-    if (typeof ResizeObserver === 'undefined') return undefined;
-    const ro = new ResizeObserver(check);
+    if (!el) return;
+    if (!hideRef.current) {
+      const kids = Array.from(el.children) as HTMLElement[];
+      full.current =
+        kids.reduce((w, k) => w + k.scrollWidth, 0) +
+        SUMMARY_GAP * Math.max(0, kids.length - 1);
+    }
+    const tooWide = full.current > el.clientWidth + 1;
+    if (tooWide !== hideRef.current) setHideSub(tooWide);
+  }, []);
+
+  // 内容变了：先恢复显示副文字，再按新内容测量
+  useLayoutEffect(() => {
+    setHideSub(false);
+  }, [key]);
+  useLayoutEffect(() => {
+    measure();
+  }, [key, hideSub, measure]);
+  useEffect(() => {
+    const el = box.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [hideSub, items]);
+  }, [measure]);
 
   return (
     <div
       ref={box}
       style={{
         display: 'flex',
+        flexWrap: 'wrap',
         alignItems: 'flex-end',
-        gap: 32,
+        columnGap: SUMMARY_GAP,
+        rowGap: 8,
         marginBottom: 16,
-        overflow: 'hidden',
         whiteSpace: 'nowrap',
       }}
     >
@@ -309,24 +349,33 @@ export const FilterCard: React.FC<{
 }> = ({ children, onSearch, onReset, more, moreCount = 0, quick }) => {
   const { palette } = useAppTheme();
   const [open, setOpen] = useState(false);
+  const moreId = useId();
   return (
     <Panel style={{ marginBottom: 16, padding: 20 }} aria-label="搜索条件">
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
-          gap: 12,
-          alignItems: 'end',
-        }}
-      >
-        {children}
-        {more && open && more}
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
         <div
           style={{
-            gridColumn: '-2 / -1',
+            flex: 1,
+            minWidth: 0,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
+            gap: 12,
+            alignItems: 'end',
+          }}
+        >
+          {children}
+          {/* 收起时只是隐藏，不卸载：条件里没受控的输入值不会丢 */}
+          {more && (
+            <div id={moreId} style={{ display: open ? 'contents' : 'none' }}>
+              {more}
+            </div>
+          )}
+        </div>
+        <div
+          style={{
+            flex: 'none',
             display: 'flex',
             gap: 8,
-            justifyContent: 'flex-end',
             alignItems: 'center',
           }}
         >
@@ -334,6 +383,7 @@ export const FilterCard: React.FC<{
             <Button
               type="text"
               aria-expanded={open}
+              aria-controls={moreId}
               icon={<SlidersHorizontal size={16} />}
               onClick={() => setOpen((v) => !v)}
               style={{ color: palette.link, paddingInline: 6 }}

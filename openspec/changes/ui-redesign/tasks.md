@@ -35,7 +35,7 @@
 ## 5. 骨架组件与检查规则
 
 - [x] 5.1 在 `src/components/ListLayout/` 下扩展：`FilterCard` 增加「更多筛选」，新增 `PageHeader`、`SummaryBar`、`QuickFilters`、`Section`、`HelpTip`。写 Jest 测试，覆盖汇总行的金额按币种显示、更多筛选的生效数量、快捷筛选的选中与取消、帮助图标悬停弹出；已用 `ListLayout` 的采购入库、销售出库测试仍然通过。验证 `npm test` 通过（2026-11-21：新增 `Panel`、`PageHeader`、`SummaryBar`、`QuickFilters`、`Section`、`HelpTip`，`FilterCard` 增加 `more`、`moreCount`、`quick`，卡片改为新样式；`listLayout.test.tsx` 9 个用例；采购入库、销售出库测试通过）
-- [x] 5.2 新增 `npm run lint:ui`，按 `design.md` 第 4 节检查，可按目录运行，确认弹窗和警告条不检查，支持写明原因的例外，并为脚本写自测。在全仓库跑一次，报出的问题按业务域整理成 `migration-list.md`（2026-11-21：`scripts/lint-ui.js`，自测 8 个用例；全仓库 227 个错误、34 个提示，整理成 `migration-list.md`；`ENFORCED` 先放外壳、主题、骨架组件目录）
+- [x] 5.2 新增 `npm run lint:ui`，按 `design.md` 第 4 节检查，可按目录运行，确认弹窗和警告条不检查，支持写明原因的例外，并为脚本写自测。在全仓库跑一次，报出的问题按业务域整理成 `migration-list.md`（2026-11-21：`scripts/lint-ui.js`，自测 8 个用例；复审后改用语法树判断，全仓库 338 个错误、35 个提示，整理成 `migration-list.md`；`ENFORCED` 先放外壳、主题、骨架组件目录）
 - [x] 5.3 在 `ui-design-patterns.md` 写明骨架组件的用法和 `lint:ui` 的例外写法；验证文中示例与组件的实际 API 一致（2026-11-21：新增「骨架组件」「界面检查（lint:ui）」两节；示例代码放进临时组件跑 tsc 通过）
 
 ## 6. 样板页落地

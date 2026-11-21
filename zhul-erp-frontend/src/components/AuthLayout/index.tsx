@@ -46,7 +46,8 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({
   // 后台配置了可用的背景图就用图（叠一层页面底色保证文字对比度），否则用页面底色
   const bg =
     bgLoaded && appearance?.loginBackgroundUrl
-      ? // lint-ui-ignore gradient: 两端同色，只是叠在背景图上的半透明遮罩，不是渐变效果
+      ? // 两端同色，只是叠在背景图上的半透明遮罩
+        // lint-ui-ignore gradient: 两端同色的遮罩，不是渐变效果
         `linear-gradient(${p.canvas}b3, ${p.canvas}b3), url(${appearance.loginBackgroundUrl}) center / cover no-repeat`
       : p.canvas;
 
