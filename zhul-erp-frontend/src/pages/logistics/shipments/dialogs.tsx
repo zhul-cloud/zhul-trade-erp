@@ -566,7 +566,8 @@ export const ShipModal: React.FC<{
               borderRadius: 10,
               alignItems: 'flex-start',
               border: `1px solid ${customer === o.value ? palette.link : palette.hairline}`,
-              background: customer === o.value ? palette.primarySoft : undefined,
+              background:
+                customer === o.value ? palette.primarySoft : undefined,
             }}
           >
             <div style={{ fontWeight: 600, color: palette.ink }}>{o.title}</div>

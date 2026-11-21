@@ -383,7 +383,9 @@ const NewPiModal: React.FC<{
                         cursor: 'pointer',
                         padding: '10px 12px',
                         borderRadius: 10,
-                        background: active ? palette.primarySoft : palette.inset,
+                        background: active
+                          ? palette.primarySoft
+                          : palette.inset,
                         border: `1px solid ${active ? palette.primaryLine : palette.hairline}`,
                       }}
                     >

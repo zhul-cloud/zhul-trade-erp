@@ -822,9 +822,7 @@ const RecordFollowupModal: React.FC<{
               background: palette.infoSoft,
             }}
           >
-            <div
-              style={{ fontSize: 12, color: palette.info, marginBottom: 4 }}
-            >
+            <div style={{ fontSize: 12, color: palette.info, marginBottom: 4 }}>
               <RobotOutlined /> AI 摘要（可修改）
               {truncated && '　· 原文过长，只整理了最后 20,000 字'}
             </div>

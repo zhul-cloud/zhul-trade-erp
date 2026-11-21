@@ -453,12 +453,7 @@ export const PartyDrawer: React.FC<{
         </div>
       }
     >
-      <Form
-        form={form}
-        name="party"
-        layout="vertical"
-        validateTrigger="onBlur"
-      >
+      <Form form={form} name="party" layout="vertical" validateTrigger="onBlur">
         <Form.Item name="partyType" label="类型" rules={[{ required: true }]}>
           <Segmented
             block

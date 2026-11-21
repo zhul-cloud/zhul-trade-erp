@@ -328,7 +328,8 @@ export const OtherOutboundModal: React.FC<{
                   padding: '10px 12px',
                   borderRadius: 10,
                   border: `1px solid ${type === x.value ? palette.link : palette.hairline}`,
-                  background: type === x.value ? palette.primarySoft : undefined,
+                  background:
+                    type === x.value ? palette.primarySoft : undefined,
                   margin: 0,
                 }}
               >
