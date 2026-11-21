@@ -610,9 +610,6 @@ const CustomerListPage: React.FC = () => {
 
   return (
     <div style={{ color: palette.ink }}>
-      <a className="zhul-skip" href="#customer-main">
-        跳到主要内容
-      </a>
       <PageTitle description="档案完整度 5/5 为已建档；先补有成交的客户。报价单、PI、CI 从这里带出客户信息。" />
       <Segmented
         value={tab}

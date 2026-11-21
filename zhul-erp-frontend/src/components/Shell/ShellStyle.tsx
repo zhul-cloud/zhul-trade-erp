@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
-import { CARD_SHADOW } from '@/theme/palette';
+import { CARD_SHADOW, POPUP_SHADOW } from '@/theme/palette';
 
 /**
  * 外壳样式（外壳原型 F1、F1b）：ProLayout 的侧栏做成悬浮卡片，菜单项照参考站。
@@ -14,12 +14,13 @@ export const ShellStyle: React.FC = () => {
   const light = mode === 'light';
   const css = `
   .ant-pro-sider.ant-layout-sider { background: transparent !important; border-inline-end: 0 !important; }
-  .ant-pro-sider > .ant-layout-sider-children {
+  .ant-pro-layout .ant-pro-sider > .ant-layout-sider-children {
     margin: 16px 0 16px 16px; height: calc(100% - 32px) !important; box-sizing: border-box;
     padding: 16px 14px; border-radius: 10px; overflow: hidden; background: ${p.sidebar};
     box-shadow: ${light ? CARD_SHADOW : 'none'}; border: ${light ? 'none' : `1px solid ${p.hairline}`};
+    border-inline-end: ${light ? '0' : `1px solid ${p.hairline}`}; margin-inline-end: 0;
   }
-  .ant-pro-sider.ant-layout-sider-collapsed > .ant-layout-sider-children { padding: 16px 0; }
+  .ant-pro-layout .ant-pro-sider.ant-layout-sider-collapsed > .ant-layout-sider-children { padding: 16px 0; }
   .ant-pro-sider .ant-pro-sider-logo { padding: 0 0 14px !important; height: auto !important; cursor: default; border: 0 !important; }
   .ant-pro-sider.ant-layout-sider-collapsed .ant-pro-sider-logo { justify-content: center; }
   .ant-pro-sider .ant-menu { background: transparent !important; border-inline-end: 0 !important; }
@@ -32,11 +33,11 @@ export const ShellStyle: React.FC = () => {
   .ant-pro-sider .ant-menu-submenu-selected > .ant-menu-submenu-title { color: ${p.link} !important; }
   .ant-pro-sider .ant-menu-submenu-open > .ant-menu-submenu-title { background: ${p.navOn} !important; }
   .ant-pro-sider .ant-menu-item-selected { background: ${p.primarySoft} !important; color: ${p.link} !important; }
-  .ant-pro-sider .ant-menu-sub .ant-menu-item .ant-menu-title-content::before {
-    content: ''; display: inline-block; box-sizing: border-box; width: 8px; height: 8px; margin-inline-end: 12px;
-    vertical-align: middle; border-radius: 50%; border: 1.5px solid ${p.faint};
+  /* 小圆点挂在 ProLayout 的标题容器（flex）上，与文字垂直居中 */
+  .ant-pro-sider .ant-menu-sub .ant-menu-item [class*='-item-title']::before {
+    content: ''; flex: none; box-sizing: border-box; width: 8px; height: 8px; margin-inline-end: 12px; border-radius: 50%; border: 1.5px solid ${p.faint};
   }
-  .ant-pro-sider .ant-menu-sub .ant-menu-item-selected .ant-menu-title-content::before {
+  .ant-pro-sider .ant-menu-sub .ant-menu-item-selected [class*='-item-title']::before {
     border-color: ${p.link}; background: ${p.link}; box-shadow: inset 0 0 0 1.5px ${p.primarySoft};
   }
   .ant-pro-sider.ant-layout-sider-collapsed .ant-menu-item,
@@ -44,6 +45,23 @@ export const ShellStyle: React.FC = () => {
     width: 40px !important; margin: 4px auto !important; padding: 0 !important; display: flex; justify-content: center; align-items: center;
   }
   .ant-pro-sider.ant-layout-sider-collapsed .ant-menu-submenu-selected > .ant-menu-submenu-title { background: ${p.primarySoft} !important; }
+  /* 收起后悬停弹出的子菜单（挂在 body 下）：弹出层样式，子项照展开时 */
+  .ant-menu-submenu-popup { backdrop-filter: none !important; background: transparent !important; }
+  .ant-menu-submenu-popup > .ant-menu {
+    padding: 6px !important; border-radius: 8px !important; background: ${p.elevated} !important;
+    box-shadow: ${light ? POPUP_SHADOW : 'none'} !important;
+  }
+  .ant-menu-submenu-popup .ant-menu-item {
+    height: 36px !important; line-height: 36px !important; margin: 0 !important; width: 100% !important;
+    border-radius: 6px !important; color: ${p.sub};
+  }
+  .ant-menu-submenu-popup .ant-menu-item-selected { background: ${p.primarySoft} !important; color: ${p.link} !important; }
+  .ant-menu-submenu-popup .ant-menu-item [class*='-item-title']::before {
+    content: ''; flex: none; box-sizing: border-box; width: 8px; height: 8px; margin-inline-end: 10px; border-radius: 50%; border: 1.5px solid ${p.faint};
+  }
+  .ant-menu-submenu-popup .ant-menu-item-selected [class*='-item-title']::before {
+    border-color: ${p.link}; background: ${p.link}; box-shadow: inset 0 0 0 1.5px ${p.primarySoft};
+  }
   `;
   return <style>{css}</style>;
 };

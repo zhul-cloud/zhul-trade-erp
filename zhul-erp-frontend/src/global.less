@@ -1,53 +1,10 @@
-@font-face {
-  font-family: "AlibabaSans";
-  font-style: normal;
-  font-weight: 300;
-  font-display: swap;
-  src: url("//mdn.alipayobjects.com/huamei_iwk9zp/afts/file/A*1GSgSYDD_aIAAAAAQsAAAAgAegCCAQ/AlibabaSans-Light.woff2")
-    format("woff2");
-}
-@font-face {
-  font-family: "AlibabaSans";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("//mdn.alipayobjects.com/huamei_iwk9zp/afts/file/A*2zEUQqnPNesAAAAAQtAAAAgAegCCAQ/AlibabaSans-Regular.woff2")
-    format("woff2");
-}
-@font-face {
-  font-family: "AlibabaSans";
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url("//mdn.alipayobjects.com/huamei_iwk9zp/afts/file/A*E_cxRbMlZqUAAAAAQuAAAAgAegCCAQ/AlibabaSans-Medium.woff2")
-    format("woff2");
-}
-@font-face {
-  font-family: "AlibabaSans";
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("//mdn.alipayobjects.com/huamei_iwk9zp/afts/file/A*E_cxRbMlZqUAAAAAQuAAAAgAegCCAQ/AlibabaSans-Bold.woff2")
-    format("woff2");
-}
-@font-face {
-  font-family: "AlibabaSans";
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("//mdn.alipayobjects.com/huamei_iwk9zp/afts/file/A*E_cxRbMlZqUAAAAAQuAAAAgAegCCAQ/AlibabaSans-Heavy.woff2")
-    format("woff2");
-}
-
 html,
 body,
 #root {
   height: 100%;
   margin: 0;
   padding: 0;
-  font-family:
-    AlibabaSans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans',
-    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  // 字体见 src/theme/fonts.ts 的 SANS_FONT，由 AppTheme 的全局样式设置（Public Sans 随前端打包，不从外网加载）
 }
 
 .colorWeak {

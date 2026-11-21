@@ -274,7 +274,9 @@ export const TabBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
                   fontSize: 14,
                   fontWeight: 500,
                   color: on ? palette.link : palette.sub,
-                  boxShadow: on ? `inset 0 -2px 0 ${palette.link}` : 'none',
+                  boxSizing: 'border-box',
+                  borderBottom: `2px solid ${on ? palette.link : 'transparent'}`,
+                  paddingTop: 2,
                   userSelect: 'none',
                 }}
               >
@@ -381,6 +383,17 @@ export const TabBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
             <ChevronDown size={16} />
           </button>
         </Dropdown>
+      )}
+      {hidden > 0 && (
+        <span
+          aria-hidden
+          style={{
+            flex: 'none',
+            width: 1,
+            height: 24,
+            background: palette.hairline,
+          }}
+        />
       )}
     </div>
   );

@@ -815,9 +815,6 @@ const CustomerDetailPage: React.FC = () => {
 
   return (
     <div style={{ color: palette.ink }}>
-      <a className="zhul-skip" href="#customer-main">
-        跳到主要内容
-      </a>
       <PageTitle
         title={title}
         current="客户详情"

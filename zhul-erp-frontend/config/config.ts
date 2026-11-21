@@ -150,11 +150,6 @@ export default defineConfig({
     appConfig: {},
     configProvider: {
       variant: 'outlined',
-      theme: {
-        token: {
-          fontFamily: 'AlibabaSans, sans-serif',
-        },
-      },
     },
   },
   /**

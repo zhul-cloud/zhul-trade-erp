@@ -1,6 +1,7 @@
 import { MoonOutlined, SunOutlined } from '@ant-design/icons';
 import { Button, Tooltip } from 'antd';
 import React from 'react';
+import { SkipLink } from '@/components/Shell/SkipLink';
 import { useAppTheme } from '@/theme/AppTheme';
 import { MONO_FONT } from '@/theme/fonts';
 import { useMenu } from '@/utils/menuName';
@@ -31,11 +32,7 @@ export const ProductThemeProvider: React.FC<{
       }}
     >
       {/* 外壳已提供「跳到主要内容」，只在没有外壳的整页向导里自己放一个 */}
-      {fullPage && (
-        <a className="zhul-skip" href="#product-main">
-          跳到主要内容
-        </a>
-      )}
+      {fullPage && <SkipLink target="product-main" />}
       {children}
     </div>
   );

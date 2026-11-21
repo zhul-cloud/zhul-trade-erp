@@ -351,9 +351,6 @@ const SupplierListPage: React.FC = () => {
 
   return (
     <div style={{ color: palette.ink }}>
-      <a className="zhul-skip" href="#supplier-main">
-        跳到主要内容
-      </a>
       <PageTitle description="维护企业供应商工商信息、联系方式与结算账户，作为采购与结算业务的统一数据来源。" />
 
       <Form

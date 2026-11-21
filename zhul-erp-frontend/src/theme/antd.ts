@@ -62,6 +62,8 @@ export function buildAntdTheme(
     },
     components: {
       Button: {
+        colorError: p.red,
+        colorErrorHover: p.redMain,
         fontWeight: 500,
         primaryShadow: light ? CARD_SHADOW : 'none',
         dangerShadow: 'none',
@@ -75,6 +77,8 @@ export function buildAntdTheme(
       TreeSelect: { controlHeight: 40 },
       Mentions: { controlHeight: 40 },
       Card: { headerFontSize: 18 },
+      // 表单校验提示、危险按钮直接拿 colorError / colorWarning 当文字色：换成文字色（浅色下深一档）
+      Form: { colorError: p.red, colorWarning: p.orange },
       Modal: {
         titleFontSize: 18,
         contentBg: p.card,

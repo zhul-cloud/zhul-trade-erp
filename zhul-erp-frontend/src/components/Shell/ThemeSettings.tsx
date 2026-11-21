@@ -109,8 +109,6 @@ export const ThemeSettingsPanel: React.FC<{ onClose?: () => void }> = ({
   return (
     <div
       ref={box}
-      role="dialog"
-      aria-label="主题设置"
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
           e.stopPropagation();
@@ -308,7 +306,8 @@ export const ThemeSettings: React.FC = () => {
   // 关闭后焦点回到按钮
   const close = () => {
     setOpen(false);
-    document.getElementById(TRIGGER_ID)?.focus();
+    // 等弹出层关掉（面板卸载）后再移焦点，否则焦点会随面板一起落回 body
+    window.setTimeout(() => document.getElementById(TRIGGER_ID)?.focus());
   };
   return (
     <Popover

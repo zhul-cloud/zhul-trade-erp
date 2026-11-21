@@ -242,9 +242,6 @@ const SupplierDetailPage: React.FC = () => {
 
   return (
     <div style={{ color: palette.ink }}>
-      <a className="zhul-skip" href="#supplier-main">
-        跳到主要内容
-      </a>
       <PageTitle
         title="供应商详情"
         current="供应商详情"

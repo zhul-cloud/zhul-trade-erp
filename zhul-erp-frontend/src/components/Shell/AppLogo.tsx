@@ -23,8 +23,11 @@ export const AppLogo: React.FC<{ collapsed?: boolean }> = ({ collapsed }) => {
   const appearance = initialState?.appearance;
   if (!appearance) return null;
   const tenant = initialState?.currentUser?.tenantName;
-  const toggle = () =>
+  // ProLayout 给侧栏头部绑了「点击回首页」，按钮点击不往上传
+  const toggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setInitialState((s) => ({ ...s, collapsed: !collapsed }));
+  };
   const logo = appearance.logoUrl ? (
     <img
       src={appearance.logoUrl}
@@ -55,6 +58,10 @@ export const AppLogo: React.FC<{ collapsed?: boolean }> = ({ collapsed }) => {
           onClick={toggle}
           style={{ color: palette.mute }}
         />
+        <span
+          aria-hidden
+          style={{ width: 32, height: 1, background: palette.hairline }}
+        />
       </div>
     );
   }
@@ -66,7 +73,7 @@ export const AppLogo: React.FC<{ collapsed?: boolean }> = ({ collapsed }) => {
         alignItems: 'center',
         gap: 10,
         // Logo 中心与下面的菜单图标列对齐
-        paddingInlineStart: 9,
+        paddingInlineStart: 11,
       }}
     >
       {logo}

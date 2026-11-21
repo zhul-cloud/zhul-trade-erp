@@ -26,10 +26,10 @@
 
 - [x] 4.1 开始改代码前，先把 develop 同步进来一次，记入 `sync-log.md`，并跑本机全量前端检查（2026-11-21：合入至 `fab4cb75`；基线 `npm run lint` 通过，Jest 142 个套件 552 个用例通过）
 - [x] 4.2 按 `design.md` 第 2 节重写 `src/theme/palette.ts`：保留、改名、删除各键，删除三个渐变常量，修好所有编译报错的引用处；验证 `npm run lint` 通过（2026-11-21：115 个文件 282 处改名；`accentSoft` 改为 `primarySoft`，理由见 design；默认 Logo 改纯色、浏览器图标固定琥珀一并完成；lint、Jest 通过）
-- [ ] 4.3 改掉编译抓不到的渐变和旧字体：`LOGO_GRADIENT_STOPS` 和 `BrandLogo`、`public/logo.svg`、`public/favicon.ico`、`AuthLayout` 的光晕、4 处 `IBM Plex Mono`。默认 Logo 按 `site-appearance` 增量实现；用 BrowserOS neo 截图核对登录页、侧边栏和浏览器标签图标
-- [ ] 4.4 更新 `src/theme/antd.ts`、`shell.ts`、`AppTheme.tsx`：主按钮、危险按钮、圆角、阴影、焦点色、状态标签（按 `status-colors.md`），加入 Public Sans 依赖。验证：切换主题后弹窗、消息、登录页都跟着变
+- [x] 4.3 改掉编译抓不到的渐变和旧字体：`LOGO_GRADIENT_STOPS` 和 `BrandLogo`、`public/logo.svg`、`public/favicon.ico`、`AuthLayout` 的光晕、4 处 `IBM Plex Mono`。默认 Logo 按 `site-appearance` 增量实现；用 BrowserOS neo 截图核对登录页、侧边栏和浏览器标签图标（2026-11-21：BrowserOS neo 核对登录页、侧栏默认 Logo、浏览器标签图标；`global.less` 里从外网加载的 AlibabaSans 一并删除）
+- [x] 4.4 更新 `src/theme/antd.ts`、`shell.ts`、`AppTheme.tsx`：主按钮、危险按钮、圆角、阴影、焦点色、状态标签（按 `status-colors.md`），加入 Public Sans 依赖。验证：切换主题后弹窗、消息、登录页都跟着变（2026-11-21：本机 Docker 构建通过；浅色、深色下按钮、输入框焦点框、弹出层边框、正文字体实测）
 - [x] 4.5 补 Jest 测试：主题切换后的令牌、默认 Logo 随主题变化、浏览器标签图标固定为琥珀底白字（以 `site-appearance` 增量为准）；验证 `npm test` 通过（2026-11-21：`src/theme/theme.test.tsx`；全量 Jest 通过）
-- [ ] 4.6 按定稿的外壳原型（F1–F1d）改外壳：`TopBar`、`AppLogo`、`SidebarUser`、`AvatarDropdown`、`PageTabs`、`ThemeToggle`（改为主题设置弹出层）、`LangDropdown`、`NotificationBell`，补「跳到主要内容」；删除 `VersionDropdown` 和 `AvatarDropdown` 的模板遗留分支。主题设置的模式、主题色、涨跌颜色保存在本机浏览器，读写失败时用默认值。验证：Jest 覆盖主题设置三项的保存与恢复、收起侧栏状态、全部标签下拉的数量；`npm run lint`、`npm test` 通过；用 BrowserOS neo 截图与 F 图逐张对照（浅色、深色、收起侧栏、1366 宽开满 10 个标签），键盘能用 Tab、Enter、Esc 打开和关闭两个弹出层，关闭后焦点回到触发按钮
+- [x] 4.6 按定稿的外壳原型（F1–F1d）改外壳：`TopBar`、`AppLogo`、`SidebarUser`、`AvatarDropdown`、`PageTabs`、`ThemeToggle`（改为主题设置弹出层）、`LangDropdown`、`NotificationBell`，补「跳到主要内容」；删除 `VersionDropdown` 和 `AvatarDropdown` 的模板遗留分支。主题设置的模式、主题色、涨跌颜色保存在本机浏览器，读写失败时用默认值。验证：Jest 覆盖主题设置三项的保存与恢复、收起侧栏状态、全部标签下拉的数量；`npm run lint`、`npm test` 通过；用 BrowserOS neo 截图与 F 图逐张对照（浅色、深色、收起侧栏、1366 宽开满 10 个标签），键盘能用 Tab、Enter、Esc 打开和关闭两个弹出层，关闭后焦点回到触发按钮（2026-11-21：BrowserOS neo 按 F1、F2、F1b、F2b、F1d 对照：浅色、深色、收起侧栏与悬停子菜单、1366 宽开满 10 个标签的「+N」、头像菜单、主题设置；主题设置打开时焦点进入面板、Esc 关闭后回到按钮；点 Logo 切回首页标签。与原型的差异：收起侧栏的悬停子菜单没有组名标题）
 - [x] 4.7 涨跌颜色落地：提供按方向取色的统一方法（默认涨红跌绿），替换 `design.md` 第 8 节涨跌颜色一条里「纳入的地方」按正负着色的代码，去掉 `higherIsBetter` 对颜色的影响；告警色不动。验证：Jest 覆盖两种设置下的上涨、下跌、盈利、亏损、零值；用搜索核对列出的文件不再直接按正负写死绿色或红色（2026-11-21：`src/theme/delta.tsx` 的 `useDeltaColor`、`DeltaText`，替换 13 个文件；零值与空值用正文色；`delta.test.tsx` 覆盖两种设置；搜索确认所列文件不再按正负写死红绿）
 
 ## 5. 骨架组件与检查规则

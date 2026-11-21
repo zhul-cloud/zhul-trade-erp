@@ -142,7 +142,6 @@ const flush = () => act(async () => {});
 it('切回页面：静默刷新，子卡片的数据一并重取', async () => {
   const view = render(h(Page, { active: true }));
   await flush();
-  expect(screen.getByText('跳到主要内容')).toBeTruthy();
   const section = screen.getByRole('region', { name: '跟进' });
   expect(customerApi.detail).toHaveBeenCalledTimes(1);
 

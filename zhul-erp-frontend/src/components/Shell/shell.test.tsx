@@ -12,7 +12,7 @@ import {
   setThemePreset,
 } from '@/theme/store';
 import { AppLogo } from './AppLogo';
-import { ThemeSettingsPanel } from './ThemeSettings';
+import { ThemeSettings, ThemeSettingsPanel } from './ThemeSettings';
 import { UserMenu } from './UserMenu';
 
 const mockSetInitialState = jest.fn();
@@ -124,6 +124,21 @@ describe('主题设置', () => {
       expect(s.getThemePreset()).toBe('amber');
       expect(s.getDeltaPref()).toBe('redUp');
     });
+  });
+});
+
+describe('主题设置按钮', () => {
+  it('按 Esc 关闭后焦点回到按钮', async () => {
+    render(h(App, null, h(ThemeSettings)));
+    fireEvent.click(screen.getByRole('button', { name: '主题设置' }));
+    const radio = await screen.findByLabelText(/浅色/);
+    fireEvent.keyDown(radio, { key: 'Escape' });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    const btn = screen.getByRole('button', { name: '主题设置' });
+    expect(btn.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(btn);
   });
 });
 

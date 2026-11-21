@@ -24,6 +24,7 @@ export const IconButton = React.forwardRef<
       type="button"
       aria-label={label}
       aria-expanded={pressed}
+      aria-haspopup={pressed === undefined ? undefined : true}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       {...rest}
@@ -46,12 +47,10 @@ export const IconButton = React.forwardRef<
       {icon}
     </button>
   );
-  return tip ? (
-    <Tooltip title={label} placement="bottom">
+  return (
+    <Tooltip title={label} placement="bottom" open={tip ? undefined : false}>
       {btn}
     </Tooltip>
-  ) : (
-    btn
   );
 });
 IconButton.displayName = 'IconButton';

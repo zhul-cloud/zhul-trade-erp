@@ -3,6 +3,7 @@ import type { RequestConfig, RunTimeLayoutConfig } from '@umijs/max';
 import { history, Link, request as umiRequest, useModel } from '@umijs/max';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import React from 'react';
 
 // Initialize dayjs plugins globally
@@ -21,6 +22,7 @@ import {
   AppLogo,
   NotificationBell,
   ShellStyle,
+  SkipLink,
   ThemeSettings,
   TopBar,
   UserMenu,
@@ -84,7 +86,6 @@ export async function getInitialState(): Promise<{
   fetchUserInfo?: () => Promise<
     (CurrentUser & { permissions?: string[]; tenantName?: string }) | undefined
   >;
-  settingDrawerOpen?: boolean;
   // 侧边栏的顺序/名称/图标/层级全部来自「菜单管理」的原始树，而不是 routes.ts 里
   // 写死的书写顺序/英文 name——由 layout 里的 menu.request 直接转成 ProLayout 菜单数据
   menuTree?: MenuItem[];
@@ -140,14 +141,12 @@ export async function getInitialState(): Promise<{
       menuTree,
       appearance: await appearancePromise,
       settings: initialShellSettings(),
-      settingDrawerOpen: false,
     };
   }
   return {
     fetchUserInfo,
     appearance: await appearancePromise,
     settings: initialShellSettings(),
-    settingDrawerOpen: false,
   };
 }
 
@@ -192,6 +191,11 @@ export const layout: RunTimeLayoutConfig = ({
       return toProLayoutMenu(initialState?.menuTree ?? [], allowed);
     },
     menu: { locale: false, collapsedWidth: SIDER_COLLAPSED_WIDTH },
+    // 菜单组的箭头：收起时向右、展开时向下（外壳原型 F1）
+    menuProps: {
+      expandIcon: ({ isOpen }: { isOpen?: boolean }) =>
+        isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />,
+    },
     menuItemRender: (item, dom) => {
       if (item.path) {
         return (
@@ -225,6 +229,11 @@ export const layout: RunTimeLayoutConfig = ({
       return dom;
     },
     // 侧栏顶部：Logo、站点名、公司名和收起按钮；当前用户在顶栏右端的头像菜单里
+    // 点侧栏顶部（Logo、站点名）切到首页标签；ProLayout 默认跳到 /，会多开一个标签
+    onMenuHeaderClick: () => {
+      const home = homePath(initialState);
+      if (home) tabsActions.openMenu(home);
+    },
     menuHeaderRender: (_logo, _title, props) => (
       <AppLogo collapsed={props?.collapsed} />
     ),
@@ -271,16 +280,15 @@ export const layout: RunTimeLayoutConfig = ({
           siteName={initialState?.appearance?.siteName}
           logoUrl={initialState?.appearance?.logoUrl}
         />
-        <a className="zhul-skip" href="#main-content">
-          跳到主要内容
-        </a>
+        <SkipLink target="main-content" />
         <TopBar>
           <ThemeSettings />
           <LangDropdown />
           <NotificationBell />
           <UserMenu />
         </TopBar>
-        <main id="main-content" tabIndex={-1} style={{ outline: 'none' }}>
+        {/* 内容区：「跳到主要内容」的目标；antd 的 Layout.Content 已是 <main>，这里用 div */}
+        <div id="main-content" tabIndex={-1} style={{ outline: 'none' }}>
           {initialState?.currentUser ? (
             <PageTabs
               userKey={String(initialState.currentUser.userid ?? '')}
@@ -292,7 +300,7 @@ export const layout: RunTimeLayoutConfig = ({
           ) : (
             children
           )}
-        </main>
+        </div>
       </>
     ),
     ...initialState?.settings,

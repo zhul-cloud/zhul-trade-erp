@@ -1,5 +1,5 @@
 import { history, useModel } from '@umijs/max';
-import { App, Avatar, Dropdown, Tag } from 'antd';
+import { App, Avatar, Dropdown, Tag, Tooltip } from 'antd';
 import { LogOut } from 'lucide-react';
 import React, { startTransition, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -131,35 +131,38 @@ export const UserMenu: React.FC = () => {
         </div>
       )}
     >
-      <button
-        type="button"
-        aria-label={`当前用户 ${name}，打开菜单`}
-        aria-expanded={open}
-        style={{
-          width: 40,
-          height: 40,
-          flex: 'none',
-          display: 'grid',
-          placeItems: 'center',
-          padding: 0,
-          borderRadius: '50%',
-          border: `2px solid ${open ? palette.link : 'transparent'}`,
-          background: 'transparent',
-          cursor: 'pointer',
-        }}
-      >
-        <Avatar
-          size={36}
-          src={user.avatar || undefined}
+      <Tooltip title={name} placement="bottom" open={open ? false : undefined}>
+        <button
+          type="button"
+          aria-label={`当前用户 ${name}，打开菜单`}
+          aria-expanded={open}
+          aria-haspopup="menu"
           style={{
-            background: palette.primarySoft,
-            color: palette.link,
-            fontWeight: 700,
+            width: 40,
+            height: 40,
+            flex: 'none',
+            display: 'grid',
+            placeItems: 'center',
+            padding: 0,
+            borderRadius: '50%',
+            border: `2px solid ${open ? palette.link : 'transparent'}`,
+            background: 'transparent',
+            cursor: 'pointer',
           }}
         >
-          {initial}
-        </Avatar>
-      </button>
+          <Avatar
+            size={36}
+            src={user.avatar || undefined}
+            style={{
+              background: palette.primarySoft,
+              color: palette.link,
+              fontWeight: 700,
+            }}
+          >
+            {initial}
+          </Avatar>
+        </button>
+      </Tooltip>
     </Dropdown>
   );
 };
