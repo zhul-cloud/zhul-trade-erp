@@ -88,7 +88,19 @@ export const DEFAULT_PRESET: PresetKey = 'amber';
 export const isPresetKey = (v: unknown): v is PresetKey =>
   typeof v === 'string' && Object.hasOwn(PRESETS, v);
 
-/** 中性灰阶与状态色；状态色浅色、深色相同，浅底为语义色叠在卡片色上：浅色 12%，深色 16%（12% 的中性浅底会和分隔线同色） */
+/** 状态色原色（浅色、深色相同）：标签底、进度条、圆点、角标、图标底块等填充用 */
+const STATUS_MAIN = {
+  green: '#22C55E',
+  orange: '#FFAB00',
+  red: '#FF5630',
+  info: '#00B8D9',
+} as const;
+
+/**
+ * 中性灰阶与状态色。
+ * - green、orange、red、info 是文字色：浅色下原色当文字对比度只有 1.75–3.17，取同色系深一档（2026-11-21 用户决定）；深色下用原色。
+ * - 各自的 Soft 为原色叠在卡片色上：浅色 12%，深色 16%（12% 的中性浅底会和分隔线同色）。
+ */
 const BASE = {
   light: {
     canvas: '#F9FAFB',
@@ -115,13 +127,13 @@ const BASE = {
     mute: '#637381',
     /** 只用于禁用和占位，不作正文 */
     faint: '#919EAB',
-    green: '#22C55E',
+    green: '#118D57',
     greenSoft: '#E5F8EC',
-    orange: '#FFAB00',
+    orange: '#B76E00',
     orangeSoft: '#FFF5E0',
-    red: '#FF5630',
+    red: '#B71D18',
     redSoft: '#FFEBE6',
-    info: '#00B8D9',
+    info: '#006C9C',
     infoSoft: '#E0F6FA',
     neutralSoft: '#ECEEF0',
   },
@@ -175,6 +187,10 @@ export function buildPalette(
   const link = mode === 'light' ? pr.primary : pr.darkLink;
   return {
     ...base,
+    greenMain: STATUS_MAIN.green,
+    orangeMain: STATUS_MAIN.orange,
+    redMain: STATUS_MAIN.red,
+    infoMain: STATUS_MAIN.info,
     /** 主按钮底色（白字） */
     primary: pr.primary,
     /** 链接、单号、选中文字 */

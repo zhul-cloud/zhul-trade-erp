@@ -27,6 +27,19 @@ const near = (a: string, b: string) =>
       ) <= 1,
   );
 
+/** WCAG 对比度 */
+const contrast = (a: string, b: string) => {
+  const lum = (h: string) => {
+    const [r, g, bl] = [0, 1, 2].map((i) => {
+      const c = parseInt(h.slice(1 + i * 2, 3 + i * 2), 16) / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+
 /** jsdom 把样式里的十六进制颜色读成 rgb() */
 const rgb = (hex: string) =>
   `rgb(${[0, 1, 2].map((i) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16)).join(', ')})`;
@@ -68,7 +81,22 @@ describe('设计令牌', () => {
     }
   });
 
-  it('状态色浅色、深色相同，浅底分别叠在各自的卡片色上', () => {
+  it('状态原色浅色、深色相同，浅底分别叠在各自的卡片色上', () => {
+    const l = buildPalette('light');
+    const d = buildPalette('dark');
+    for (const [fg, bg] of [
+      ['greenMain', 'greenSoft'],
+      ['orangeMain', 'orangeSoft'],
+      ['redMain', 'redSoft'],
+      ['infoMain', 'infoSoft'],
+    ] as const) {
+      expect(l[fg]).toBe(d[fg]);
+      expect(near(l[bg], mix(l[fg], l.card, 0.12))).toBe(true);
+      expect(near(d[bg], mix(d[fg], d.card, 0.16))).toBe(true);
+    }
+  });
+
+  it('浅色下状态文字色深一档，在浅底上对比度不低于 3.5；深色下用原色', () => {
     const l = buildPalette('light');
     const d = buildPalette('dark');
     for (const [fg, bg] of [
@@ -77,9 +105,8 @@ describe('设计令牌', () => {
       ['red', 'redSoft'],
       ['info', 'infoSoft'],
     ] as const) {
-      expect(l[fg]).toBe(d[fg]);
-      expect(near(l[bg], mix(l[fg], l.card, 0.12))).toBe(true);
-      expect(near(d[bg], mix(d[fg], d.card, 0.16))).toBe(true);
+      expect(contrast(l[fg], l[bg])).toBeGreaterThanOrEqual(3.5);
+      expect(d[fg]).toBe(d[`${fg}Main`]);
     }
   });
 
