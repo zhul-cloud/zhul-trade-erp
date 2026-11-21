@@ -492,7 +492,7 @@ const PeriodDetail: React.FC = () => {
         }
       />
       <Card style={{ padding: 20, marginBottom: 16 }}>
-        <PeriodTiles p={p} tiles={5} />
+        <PeriodTiles p={p} />
         {!closed && (p.reminders?.length ?? 0) > 0 && (
           <div style={{ marginTop: 12 }}>
             {p.reminders?.map((r) => (

@@ -116,10 +116,6 @@ public class InventoryPeriodService {
         Map<String, InvPeriodDO> rows = periodMapper.selectList(scoped()).stream()
                 .collect(Collectors.toMap(InvPeriodDO::getPeriodMonth, Function.identity(), (a, b) -> a));
         PeriodVO v = toVo(m, rows.get(m.toString()), rows, latestClosed(rows.values()));
-        List<LedgerRowVO> ledger = queries.ledgerAll(m.toString());
-        v.setOpeningAmount(ledger.stream().map(LedgerRowVO::getOpeningAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
-        v.setInAmount(ledger.stream().map(LedgerRowVO::getInAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
-        v.setOutAmount(ledger.stream().map(LedgerRowVO::getOutAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
         if (!Objects.equals(v.getStatus(), InvConstants.PERIOD_CLOSED)) {
             v.setReminders(reminders(m));
         }
@@ -132,15 +128,22 @@ public class InventoryPeriodService {
         boolean closed = p != null && Objects.equals(p.getStatus(), InvConstants.PERIOD_CLOSED);
         v.setStatus(closed ? InvConstants.PERIOD_CLOSED : InvConstants.PERIOD_OPEN);
         v.setStatusName(closed ? "已结账" : "未结账");
+        // 期初 + 入库 − 出库 + 在库成本调整 = 期末，都取自该月库存台账（全部仓库合计；已结账读快照）
+        List<LedgerRowVO> ledger = queries.ledgerAll(m.toString());
+        v.setOpeningAmount(sum(ledger, LedgerRowVO::getOpeningAmount));
+        v.setInAmount(sum(ledger, LedgerRowVO::getInAmount));
+        v.setOutAmount(sum(ledger, LedgerRowVO::getOutAmount));
+        v.setStockAdjustAmount(sum(ledger, LedgerRowVO::getAdjustAmount));
+        v.setClosingAmount(sum(ledger, LedgerRowVO::getClosingAmount));
+        BigDecimal[] split = adjustSplit(m);
+        v.setAdjustCogsAmount(split[1]);
+        v.setAdjustOtherAmount(split[2]);
         if (closed) {
-            v.setClosingAmount(p.getClosingAmount());
             v.setCogsAmount(p.getCogsAmount());
             v.setAdjustAmount(p.getAdjustAmount());
         } else {
-            Totals t = liveTotals(m);
-            v.setClosingAmount(t.closing());
-            v.setCogsAmount(t.cogs());
-            v.setAdjustAmount(t.adjust());
+            v.setCogsAmount(money(cogsRows(m).stream().map(InvPeriodCogsDO::getAmountCny).reduce(BigDecimal.ZERO, BigDecimal::add)));
+            v.setAdjustAmount(money(split[0].add(split[1]).add(split[2])));
         }
         if (p != null) {
             v.setClosedByName(closed ? p.getClosedByName() : "");
@@ -370,24 +373,28 @@ public class InventoryPeriodService {
 
     // ---------------------------------------------------------------- 计算
 
-    private record Totals(BigDecimal closing, BigDecimal cogs, BigDecimal adjust) {
-    }
-
-    private Totals liveTotals(YearMonth m) {
-        BigDecimal closing = jdbc.queryForObject("SELECT COALESCE(SUM(amount_cny), 0) FROM inv_move WHERE tenant_id = ?"
-                + " AND op_type NOT IN (7, 8) AND biz_date < ?", BigDecimal.class, PiStore.tenantId(), java.sql.Date.valueOf(m.plusMonths(1).atDay(1)));
-        BigDecimal cogs = cogsRows(m).stream().map(InvPeriodCogsDO::getAmountCny).reduce(BigDecimal.ZERO, BigDecimal::add);
-        return new Totals(money(closing), money(cogs), adjustTotal(m));
-    }
-
     /** 当月成本调整单合计（在库 + 销售成本 + 其他出库） */
     private BigDecimal adjustTotal(YearMonth m) {
-        return money(adjustMapper.selectList(new LambdaQueryWrapper<InvCostAdjustDO>()
-                        .eq(InvCostAdjustDO::getTenantId, PiStore.tenantId())
-                        .eq(InvCostAdjustDO::getPeriodMonth, m.toString())
-                        .isNull(InvCostAdjustDO::getDeletedAt)).stream()
-                .map(a -> a.getStockAmount().add(a.getCogsAmount()).add(a.getOtherAmount()))
-                .reduce(BigDecimal.ZERO, BigDecimal::add));
+        BigDecimal[] s = adjustSplit(m);
+        return money(s[0].add(s[1]).add(s[2]));
+    }
+
+    /** 当月成本调整单按部分合计：[在库, 销售成本, 其他出库] */
+    private BigDecimal[] adjustSplit(YearMonth m) {
+        BigDecimal[] out = {BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO};
+        for (InvCostAdjustDO a : adjustMapper.selectList(new LambdaQueryWrapper<InvCostAdjustDO>()
+                .eq(InvCostAdjustDO::getTenantId, PiStore.tenantId())
+                .eq(InvCostAdjustDO::getPeriodMonth, m.toString())
+                .isNull(InvCostAdjustDO::getDeletedAt))) {
+            out[0] = out[0].add(a.getStockAmount());
+            out[1] = out[1].add(a.getCogsAmount());
+            out[2] = out[2].add(a.getOtherAmount());
+        }
+        return new BigDecimal[]{money(out[0]), money(out[1]), money(out[2])};
+    }
+
+    private static BigDecimal sum(List<LedgerRowVO> rows, Function<LedgerRowVO, BigDecimal> f) {
+        return rows.stream().map(f).filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add).setScale(2, java.math.RoundingMode.HALF_UP);
     }
 
     /**

@@ -13,13 +13,19 @@ public class PeriodVO {
     private Integer status;
     private String statusName;
     private String currencyCode = "CNY";
-    /** 详情才有：期初、本月入库、本月出库金额（全部仓库合计） */
+    /** 期初 + 本月入库 − 本月出库 + 在库成本调整 = 期末（全部仓库合计，取自库存台账） */
     private BigDecimal openingAmount;
     private BigDecimal inAmount;
     private BigDecimal outAmount;
+    /** 在库成本调整：当月成本调整里调到库存金额的部分（台账「成本调整」列合计） */
+    private BigDecimal stockAdjustAmount;
     private BigDecimal closingAmount;
+    /** 本月销售成本（参考，不进上面的算式） */
     private BigDecimal cogsAmount;
+    /** 本月成本调整单合计 = 在库 + 销售成本 + 其他出库三部分 */
     private BigDecimal adjustAmount;
+    private BigDecimal adjustCogsAmount;
+    private BigDecimal adjustOtherAmount;
     private String closedByName;
     private LocalDateTime closedAt;
     private String reopenedByName;

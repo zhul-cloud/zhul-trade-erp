@@ -68,23 +68,50 @@ const PeriodsPage: React.FC = () => {
         <Pill tone={r.status === PERIOD_CLOSED ? 'green' : 'orange'}>{v}</Pill>
       ),
     },
+    // 汇总按算式排（ui-design-patterns「汇总数字按算式排」）：期初 + 入库 − 出库 + 在库调整 = 期末
     {
-      title: '期末库存金额',
-      dataIndex: 'closingAmount',
+      title: '期初库存金额',
+      dataIndex: 'openingAmount',
       width: 140,
+      align: 'right',
       render: (v: number) => formatAmount(v, 'CNY'),
+    },
+    {
+      title: '+ 本月入库',
+      dataIndex: 'inAmount',
+      width: 140,
+      align: 'right',
+      render: (v: number) => formatAmount(v, 'CNY'),
+    },
+    {
+      title: '− 本月出库',
+      dataIndex: 'outAmount',
+      width: 140,
+      align: 'right',
+      render: (v: number) => formatAmount(v, 'CNY'),
+    },
+    {
+      title: '+ 在库成本调整',
+      dataIndex: 'stockAdjustAmount',
+      width: 130,
+      align: 'right',
+      render: (v: number) => <SignedMoney value={v} />,
+    },
+    {
+      title: '= 期末库存金额',
+      dataIndex: 'closingAmount',
+      width: 150,
+      align: 'right',
+      render: (v: number) => <b>{formatAmount(v, 'CNY')}</b>,
     },
     {
       title: '本月销售成本',
       dataIndex: 'cogsAmount',
       width: 140,
-      render: (v: number) => formatAmount(v, 'CNY'),
-    },
-    {
-      title: '本月成本调整',
-      dataIndex: 'adjustAmount',
-      width: 130,
-      render: (v: number) => <SignedMoney value={v} />,
+      align: 'right',
+      render: (v: number) => (
+        <span style={{ color: palette.sub }}>{formatAmount(v, 'CNY')}</span>
+      ),
     },
     {
       title: '结账人',

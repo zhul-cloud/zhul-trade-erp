@@ -142,13 +142,17 @@ export interface Period {
   month: string;
   status: number;
   statusName: string;
-  /** 详情才有：期初、本月入库、本月出库金额 */
-  openingAmount?: number;
-  inAmount?: number;
-  outAmount?: number;
+  /** 期初 + 本月入库 − 本月出库 + 在库成本调整 = 期末（取自库存台账） */
+  openingAmount: number;
+  inAmount: number;
+  outAmount: number;
+  stockAdjustAmount: number;
   closingAmount: number;
+  /** 参考，不进算式：本月销售成本、本月成本调整单合计及分项 */
   cogsAmount: number;
   adjustAmount: number;
+  adjustCogsAmount?: number;
+  adjustOtherAmount?: number;
   closedByName?: string;
   closedAt?: string;
   reopenedByName?: string;

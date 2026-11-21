@@ -170,9 +170,15 @@ const periods = [
     month: '2026-12',
     status: 0,
     statusName: '未结账',
+    openingAmount: 54289.88,
+    inAmount: 28350,
+    outAmount: 23824.48,
+    stockAdjustAmount: 3105,
     closingAmount: 61920.4,
     cogsAmount: 18402.1,
     adjustAmount: 3315.61,
+    adjustCogsAmount: 210.61,
+    adjustOtherAmount: 0,
     closable: true,
     reopenable: false,
   },
@@ -180,9 +186,13 @@ const periods = [
     month: '2026-11',
     status: 1,
     statusName: '已结账',
+    openingAmount: 0,
+    inAmount: 96905.25,
+    outAmount: 42627.37,
+    stockAdjustAmount: 12,
     closingAmount: 54289.88,
     cogsAmount: 42615.37,
-    adjustAmount: 0,
+    adjustAmount: 12,
     closedByName: '张敏',
     closedAt: '2026-12-02T10:12:00',
     closable: false,
@@ -198,6 +208,14 @@ it('库存月结：没有按钮权限只能查看', async () => {
   expect(screen.queryByRole('button', { name: '结账' })).toBeNull();
   expect(screen.queryByRole('button', { name: '反结账' })).toBeNull();
   expect(screen.getAllByText('查看')).toHaveLength(2);
+  // 汇总按算式排：表头带 + − =
+  for (const t of [
+    '+ 本月入库',
+    '− 本月出库',
+    '+ 在库成本调整',
+    '= 期末库存金额',
+  ])
+    expect(screen.getAllByText(t).length).toBeGreaterThan(0);
 });
 
 it('库存月结：结账先看汇总与提醒，确认后才结账', async () => {
@@ -218,6 +236,11 @@ it('库存月结：结账先看汇总与提醒，确认后才结账', async () =
   });
   expect(
     await screen.findByText('3 条采购入库行还没关联商品，这些货不在库存里'),
+  ).toBeTruthy();
+  expect(screen.getByText('本月出库')).toBeTruthy();
+  expect(screen.getByText('+CNY 3,105.00')).toBeTruthy();
+  expect(
+    screen.getByText(/（在库 \+3,105\.00、销售成本 \+210\.61）/),
   ).toBeTruthy();
   expect(calls.some((c) => c.url.endsWith('/close'))).toBe(false);
   await act(async () => {

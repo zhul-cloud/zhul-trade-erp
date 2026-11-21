@@ -117,6 +117,16 @@ class InventoryPeriodContractTest extends SalesContractSupport {
         assertEquals(0, new BigDecimal("12.00").compareTo(now.path("adjustAmount").decimalValue()));
         assertEquals(0, new BigDecimal("2852.00").compareTo(now.path("closingAmount").decimalValue()));
         assertEquals("未结账", ok(call(get(LEDGER + "/period"), admin)).path("statusName").asText());
+
+        // 月结列表每个月：期初 + 入库 − 出库 + 在库成本调整 = 期末；当月在库调整 12.00 与台账一致
+        JsonNode months = ok(call(get(P), admin));
+        for (JsonNode r : months) {
+            BigDecimal sum = r.path("openingAmount").decimalValue().add(r.path("inAmount").decimalValue())
+                    .subtract(r.path("outAmount").decimalValue()).add(r.path("stockAdjustAmount").decimalValue());
+            assertEquals(0, sum.compareTo(r.path("closingAmount").decimalValue()), "算式对得上：" + r.path("month").asText());
+        }
+        JsonNode cur = months.get(0);
+        assertEquals(0, new BigDecimal("12.00").compareTo(cur.path("stockAdjustAmount").decimalValue()));
     }
 
     @Test

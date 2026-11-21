@@ -12,54 +12,100 @@ import { type Period, periodApi } from '../costingService';
 const nextMonth = (month: string) =>
   dayjs(`${month}-01`).add(1, 'month').format('YYYY-MM');
 
-/** 三个汇总：期末库存金额、本月销售成本、本月成本调整 */
-export const PeriodTiles: React.FC<{ p: Period; tiles?: 3 | 5 }> = ({
-  p,
-  tiles = 3,
-}) => {
+/** 带正负号的人民币金额：+CNY 12.00 / −CNY 3.50；0 为 CNY 0.00 */
+export const signedCny = (v?: number) => {
+  const n = Number(v ?? 0);
+  const text = formatAmount(Math.abs(n), 'CNY');
+  return n > 0 ? `+${text}` : n < 0 ? `−${text}` : text;
+};
+
+/**
+ * 月份汇总按算式排（ui-design-patterns「汇总数字按算式排」，原型 P1b、P2）：
+ * 期初 + 本月入库 − 本月出库 + 在库成本调整 = 期末；下面一行是不进算式的本月销售成本与成本调整单合计。
+ */
+export const PeriodTiles: React.FC<{ p: Period }> = ({ p }) => {
   const { palette } = useAppTheme();
-  const items: [string, React.ReactNode][] = [
-    ...(tiles === 5
-      ? ([
-          ['期初库存金额', formatAmount(p.openingAmount ?? 0, 'CNY')],
-          ['本月入库', formatAmount(p.inAmount ?? 0, 'CNY')],
-        ] as [string, React.ReactNode][])
-      : []),
-    ['本月销售成本', formatAmount(p.cogsAmount, 'CNY')],
-    ['本月成本调整', <SignedMoney key="a" value={p.adjustAmount} yuan />],
+  const items: [string, string, React.CSSProperties?][] = [
+    ['期初库存金额', formatAmount(p.openingAmount, 'CNY')],
+    ['本月入库', formatAmount(p.inAmount, 'CNY')],
+    ['本月出库', formatAmount(p.outAmount, 'CNY')],
+    [
+      '在库成本调整',
+      signedCny(p.stockAdjustAmount),
+      p.stockAdjustAmount
+        ? { color: p.stockAdjustAmount > 0 ? palette.green : palette.red }
+        : undefined,
+    ],
     ['期末库存金额', formatAmount(p.closingAmount, 'CNY')],
   ];
+  const ops = ['+', '−', '+', '='];
+  const parts = [
+    ['在库', p.stockAdjustAmount],
+    ['销售成本', p.adjustCogsAmount],
+    ['其他出库', p.adjustOtherAmount],
+  ].filter(([, v]) => Number(v ?? 0) !== 0);
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: `repeat(auto-fit, minmax(${tiles === 5 ? 160 : 140}px, 1fr))`,
-        gap: 12,
-      }}
-    >
-      {items.map(([label, value]) => (
-        <div
-          key={label}
-          style={{
-            border: `1px solid ${palette.hairline}`,
-            borderRadius: 12,
-            padding: '12px 16px',
-          }}
-        >
-          <div style={{ fontSize: 12, color: palette.sub }}>{label}</div>
-          <div
-            style={{
-              fontSize: 20,
-              fontWeight: 700,
-              color: palette.ink,
-              marginTop: 4,
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            {value}
-          </div>
-        </div>
-      ))}
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {items.map(([label, value, style], i) => (
+          <React.Fragment key={label}>
+            <div
+              style={{
+                flex: 1,
+                minWidth: 0,
+                border: `1px solid ${palette.hairline}`,
+                borderRadius: 12,
+                padding: '12px 14px',
+              }}
+            >
+              <div style={{ fontSize: 12, color: palette.sub }}>{label}</div>
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: i === items.length - 1 ? 700 : 600,
+                  color: palette.ink,
+                  marginTop: 4,
+                  fontVariantNumeric: 'tabular-nums',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  ...style,
+                }}
+                title={value}
+              >
+                {value}
+              </div>
+            </div>
+            {i < ops.length && (
+              <span style={{ color: palette.mute, fontSize: 16 }}>
+                {ops[i]}
+              </span>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+      <div
+        style={{
+          marginTop: 12,
+          fontSize: 13,
+          color: palette.sub,
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '4px 12px',
+        }}
+      >
+        <span>
+          本月销售成本{' '}
+          <b style={{ color: palette.ink }}>
+            {formatAmount(p.cogsAmount, 'CNY')}
+          </b>
+        </span>
+        <span>
+          本月成本调整单合计 <SignedMoney value={p.adjustAmount} />
+          {parts.length > 0 &&
+            `（${parts.map(([l, v]) => `${l} ${signedCny(v as number).replace('CNY ', '')}`).join('、')}）`}
+        </span>
+      </div>
     </div>
   );
 };
@@ -108,7 +154,7 @@ export const CloseModal: React.FC<{
           setBusy(false);
         }
       }}
-      width={600}
+      width={880}
       destroyOnHidden
     >
       {month && (
