@@ -41,4 +41,4 @@
 ## 8. 收尾
 
 - [ ] 8.1 前后端全量检查与 CI 通过；PR 说明列出迁移 V1.5.56、能否回退、成本口径升级在本机的结果（调整单数、金额） → 验证：CI 通过
-- [ ] 8.2 本机走查，写 acceptance.md → 验证：acceptance.md
+- [x] 8.2 本机走查，写 acceptance.md → 验证：acceptance.md

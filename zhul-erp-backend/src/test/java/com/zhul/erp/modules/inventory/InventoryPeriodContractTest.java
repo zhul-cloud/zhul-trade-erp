@@ -66,9 +66,11 @@ class InventoryPeriodContractTest extends SalesContractSupport {
     @Test
     void 按顺序结账_只能结已过完的月份() throws Exception {
         JsonNode list = ok(call(get(P), admin));
-        assertEquals(m2.toString(), list.get(0).path("month").asText(), "月份倒序，到上个月为止");
-        assertEquals(m1.toString(), list.get(1).path("month").asText());
-        assertEquals("请先结 " + m1, list.get(0).path("closeBlock").asText());
+        assertEquals(YearMonth.now().toString(), list.get(0).path("month").asText(), "月份倒序，当月也列出");
+        assertEquals(YearMonth.now() + " 还没过完", list.get(0).path("closeBlock").asText());
+        assertEquals(m2.toString(), list.get(1).path("month").asText());
+        assertEquals(m1.toString(), list.get(2).path("month").asText());
+        assertEquals("请先结 " + m1, list.get(1).path("closeBlock").asText());
 
         assertEquals("请先结 " + m1, fail(close(m2)).path("message").asText());
         assertEquals(YearMonth.now() + " 还没过完", fail(close(YearMonth.now())).path("message").asText());
@@ -122,8 +124,8 @@ class InventoryPeriodContractTest extends SalesContractSupport {
         ok(close(m1));
         ok(close(m2));
         JsonNode list = ok(call(get(P), admin));
-        assertTrue(list.get(0).path("reopenable").asBoolean());
-        assertFalse(list.get(1).path("reopenable").asBoolean());
+        assertTrue(list.get(1).path("reopenable").asBoolean());
+        assertFalse(list.get(2).path("reopenable").asBoolean());
         assertEquals("只能反结最近一个已结账月份（" + m2 + "）", fail(reopen(m1, "补登出运单")).path("message").asText());
         fail(reopen(m2, " "));
         long snapshots = jdbc.queryForObject("select count(*) from inv_period_ledger where tenant_id = 0 and period_month = ?"

@@ -60,7 +60,7 @@ import java.util.stream.Collectors;
 /**
  * 库存月结（spec finance/period-close）：按月份结账、反结账，结账时保存库存台账与销售成本快照。
  * <ul>
- *   <li>月份范围：库存上线当月（最早一笔流水的业务日期）到上个月；只能结已过完的月份，并按顺序结；</li>
+ *   <li>月份范围：库存上线当月（最早一笔流水的业务日期）到当月（当月列出但不能结，提示还没过完）；只能结已过完的月份，并按顺序结；</li>
  *   <li>结账锁定由 {@link InventoryPeriods} 在过账层检查；成本调整总是记在调整当天所在月份，不受影响；</li>
  *   <li>快照：台账每个仓库 × 商品一行，另存全部仓库合计（warehouse_id = 0，调入调出抵消）；销售成本按订单型号行 ×
  *       出运单（出运结转）与成本调整单（当月的已出运部分调整）。反结账把快照软删除（保留记录）。</li>
@@ -94,13 +94,13 @@ public class InventoryPeriodService {
 
     // ---------------------------------------------------------------- 列表与详情
 
-    /** 库存上线当月到上个月的各月份，月份倒序 */
+    /** 库存上线当月到当月的各月份，月份倒序 */
     public List<PeriodVO> list() {
         YearMonth first = firstMonth();
         if (first == null) {
             return List.of();
         }
-        YearMonth last = YearMonth.now().minusMonths(1);
+        YearMonth last = YearMonth.now();
         Map<String, InvPeriodDO> rows = periodMapper.selectList(scoped()).stream()
                 .collect(Collectors.toMap(InvPeriodDO::getPeriodMonth, Function.identity(), (a, b) -> a));
         String latestClosed = latestClosed(rows.values());
