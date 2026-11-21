@@ -10,7 +10,7 @@ import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import {
   FilterCard,
   FilterField,
-  HelpTip,
+  HeadHelp,
   MainCard,
   PageHeader,
   QuickFilters,
@@ -114,20 +114,6 @@ export const HELP = {
   monthCount: '按销售日期统计本月的有效订单，不含售后补发',
   unassigned: '进行中的订单里，有型号还没指定采购员的订单数',
 } as const;
-
-/** 表头文字 + 帮助图标；点帮助图标不触发表头排序 */
-const HeadHelp: React.FC<{ title: string; help: string }> = ({
-  title,
-  help,
-}) => (
-  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-    {title}
-    {/* 只拦截冒泡：点帮助图标不排序；图标本身靠悬停 */}
-    <span onClick={(e) => e.stopPropagation()}>
-      <HelpTip title={help} />
-    </span>
-  </span>
-);
 
 /**
  * 默认最近 3 个月（清空日期看全部）；从销售统计跳转时用 URL 带的销售日期、业务员、事业部。

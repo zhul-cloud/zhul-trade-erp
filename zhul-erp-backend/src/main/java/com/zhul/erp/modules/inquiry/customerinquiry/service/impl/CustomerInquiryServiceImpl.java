@@ -688,6 +688,8 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             vo.setOpportunityId(i.getOpportunityId());
             vo.setCreateTime(i.getCreateTime());
             vo.setUpdateTime(i.getUpdateTime());
+            vo.setCreateBy(i.getCreateBy());
+            vo.setUpdateBy(i.getUpdateBy());
             list.add(vo);
         }
         return list;

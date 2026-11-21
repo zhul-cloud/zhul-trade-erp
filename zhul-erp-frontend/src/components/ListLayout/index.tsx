@@ -69,6 +69,20 @@ export const HelpTip: React.FC<{
   );
 };
 
+/** 表头文字 + 帮助图标；点帮助图标不触发表头排序（排序列另设 showSorterTooltip: { target: 'sorter-icon' }） */
+export const HeadHelp: React.FC<{ title: string; help: React.ReactNode }> = ({
+  title,
+  help,
+}) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+    {title}
+    {/* 只拦截冒泡：点帮助图标不排序；图标本身靠悬停 */}
+    <span onClick={(e) => e.stopPropagation()}>
+      <HelpTip title={help} />
+    </span>
+  </span>
+);
+
 /**
  * 页头：左侧页面标题，右侧主操作（每个页头最多一个主按钮）。
  * 列表页不用传 title：取当前页面在「菜单管理」里的名称。

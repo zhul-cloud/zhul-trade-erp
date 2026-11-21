@@ -72,6 +72,8 @@ export interface CustomerInquiry {
   opportunityId?: number;
   createTime: string;
   updateTime: string;
+  createBy?: string;
+  updateBy?: string;
 }
 
 export interface PriceRecord {
