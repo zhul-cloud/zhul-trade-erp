@@ -39,6 +39,10 @@ import java.util.Set;
  * 上线后新单据已由过账钩子入账：已有流水的采购入库单、退货入库单不再推算，已有交货代流水的出库单只扣不调入，避免重复。
  * 推算为负数的不入库，记 WARN 日志。期初流水日期为执行当天，业务类型「期初」。
  * 后台入口：租户列表在平台范围查询（JdbcTemplate 手写，跨租户），每个租户用 {@link TenantContext#runAs} 执行，SQL 都带本租户条件。
+ * <p>
+ * 补关联（audit BUS-089）：期初只推算已关联商品的入库行。期初之后才关联上商品的采购入库行、退货入库行（还没有批次的），
+ * 由 {@link #catchUpAll()} 按同样的规则补进库存：同一订单型号行的其他批次先扣交货代，补的行只拿剩下的；预占只补还差的。
+ * 在「待关联单据」关联商品、历史回填补上商品后调用，启动时也补一次；有批次的行不再处理，可重复执行。
  */
 @Slf4j
 @Component
@@ -59,6 +63,10 @@ public class InventoryOpening implements ApplicationRunner {
     public record Report(int tenantId, int lines, int quantity, List<String> negatives) {
     }
 
+    /** 补关联的范围：要补的采购入库行、退货入库行，以及采购入库行涉及的订单型号行 */
+    private record Scope(Set<Long> grItems, Set<Long> rrItems, Set<Long> soItems) {
+    }
+
     @Override
     public void run(ApplicationArguments args) {
         List<Integer> tenants = TenantScope.platform(() -> jdbc.queryForList("SELECT id FROM tenant"
@@ -75,6 +83,36 @@ public class InventoryOpening implements ApplicationRunner {
                 log.info("库存期初完成，tenantId={}, 期初行数={}, 件数={}, 负数行={}", t, r.lines(), r.quantity(), r.negatives().size());
             } catch (RuntimeException e) {
                 log.warn("库存期初失败，下次启动重试，tenantId={}", t, e);
+            }
+        }
+        try {
+            catchUpAll();
+        } catch (RuntimeException e) {
+            log.warn("补关联商品的入库行补库存失败，下次启动重试", e);
+        }
+    }
+
+    /**
+     * 补关联：已完成期初的租户里，已关联商品、还没有批次的有效采购入库行与退货入库行补进库存。
+     * 在调用方的事务里执行（没有事务时每个租户一个事务）。
+     */
+    public void catchUpAll() {
+        List<Integer> tenants = TenantScope.platform(() -> jdbc.queryForList("SELECT DISTINCT i.tenant_id FROM purchase_receipt_item i"
+                + " JOIN purchase_receipt r ON r.id = i.receipt_id AND r.tenant_id = i.tenant_id"
+                + " WHERE r.status = 1 AND r.deleted_at IS NULL AND i.deleted_at IS NULL AND i.product_id IS NOT NULL"
+                + " AND NOT EXISTS (SELECT 1 FROM inv_batch b WHERE b.tenant_id = i.tenant_id AND b.source_type = ?"
+                + "   AND b.source_item_id = i.id AND b.deleted_at IS NULL)"
+                + " UNION SELECT DISTINCT i.tenant_id FROM return_receipt_item i"
+                + " JOIN return_receipt r ON r.id = i.receipt_id AND r.tenant_id = i.tenant_id"
+                + " WHERE r.status IN (2, 3) AND r.deleted_at IS NULL AND i.deleted_at IS NULL AND i.product_id IS NOT NULL"
+                + " AND NOT EXISTS (SELECT 1 FROM inv_batch b WHERE b.tenant_id = i.tenant_id AND b.source_type = ?"
+                + "   AND b.source_item_id = i.id AND b.deleted_at IS NULL)", Integer.class,
+                InvConstants.BATCH_PURCHASE, InvConstants.BATCH_RETURN));
+        for (Integer t : tenants) {
+            Report[] out = new Report[1];
+            TenantContext.runAs(t, () -> tx.executeWithoutResult(s -> out[0] = catchUp(t)));
+            if (out[0] != null && out[0].lines() > 0) {
+                log.info("补关联商品的入库行已补库存，tenantId={}, 流水行数={}, 件数={}", t, out[0].lines(), out[0].quantity());
             }
         }
     }
@@ -95,6 +133,8 @@ public class InventoryOpening implements ApplicationRunner {
         final Long soItemId;
         Long receiptId;
         long warehouseId;
+        /** 补关联要补的批次 */
+        boolean target;
         int good;
         int bad;
         final Map<Target, Integer> goodRes = new LinkedHashMap<>();
@@ -128,9 +168,9 @@ public class InventoryOpening implements ApplicationRunner {
                         ((Number) r.get("status")).intValue()));
 
         List<Slot> slots = new ArrayList<>();
-        purchaseSlots(tenant, own, slots, negatives);
-        handedOver(tenant, own, slots, negatives);
-        returnSlots(tenant, own, slots, negatives);
+        purchaseSlots(tenant, own, slots, negatives, null);
+        handedOver(tenant, own, slots, negatives, null);
+        returnSlots(tenant, own, slots, negatives, null);
         reserveForOrders(tenant, own, slots);
 
         Doc doc = Doc.of(InvConstants.BIZ_OPENING, "OPENING", 0L, "期初").label("期初");
@@ -143,6 +183,52 @@ public class InventoryOpening implements ApplicationRunner {
         posting.post(lines);
         warehouses.saveConfig(InvConstants.CONFIG_OPENING_DONE, "库存期初已完成", "1");
         negatives.forEach(n -> log.warn("库存期初推算为负数，未入库，tenantId={}：{}", tenant, n));
+        return new Report(tenant, lines.size(), qty, negatives);
+    }
+
+    private Report catchUp(int tenant) {
+        if (!"1".equals(warehouses.config(InvConstants.CONFIG_OPENING_DONE))) {
+            return new Report(tenant, 0, 0, List.of());
+        }
+        Set<Long> gr = new HashSet<>(jdbc.queryForList("SELECT i.id FROM purchase_receipt_item i"
+                + " JOIN purchase_receipt r ON r.id = i.receipt_id AND r.tenant_id = i.tenant_id"
+                + " WHERE i.tenant_id = ? AND r.status = 1 AND r.deleted_at IS NULL AND i.deleted_at IS NULL AND i.product_id IS NOT NULL"
+                + " AND NOT EXISTS (SELECT 1 FROM inv_batch b WHERE b.tenant_id = i.tenant_id AND b.source_type = ?"
+                + "   AND b.source_item_id = i.id AND b.deleted_at IS NULL)", Long.class, tenant, InvConstants.BATCH_PURCHASE));
+        Set<Long> rr = new HashSet<>(jdbc.queryForList("SELECT i.id FROM return_receipt_item i"
+                + " JOIN return_receipt r ON r.id = i.receipt_id AND r.tenant_id = i.tenant_id"
+                + " WHERE i.tenant_id = ? AND r.status IN (2, 3) AND r.deleted_at IS NULL AND i.deleted_at IS NULL AND i.product_id IS NOT NULL"
+                + " AND NOT EXISTS (SELECT 1 FROM inv_batch b WHERE b.tenant_id = i.tenant_id AND b.source_type = ?"
+                + "   AND b.source_item_id = i.id AND b.deleted_at IS NULL)", Long.class, tenant, InvConstants.BATCH_RETURN));
+        if (gr.isEmpty() && rr.isEmpty()) {
+            return new Report(tenant, 0, 0, List.of());
+        }
+        Set<Long> soItems = new HashSet<>();
+        if (!gr.isEmpty()) {
+            soItems.addAll(jdbc.queryForList("SELECT DISTINCT so_item_id FROM purchase_receipt_item WHERE tenant_id = ?"
+                    + " AND so_item_id IS NOT NULL AND id IN (" + String.join(",", gr.stream().map(String::valueOf).toList()) + ")",
+                    Long.class, tenant));
+        }
+        Scope scope = new Scope(gr, rr, soItems);
+        List<String> negatives = new ArrayList<>();
+        long own = warehouses.own().getId();
+        List<Slot> slots = new ArrayList<>();
+        purchaseSlots(tenant, own, slots, negatives, scope);
+        handedOver(tenant, own, slots, negatives, scope);
+        returnSlots(tenant, own, slots, negatives, scope);
+        reserveLeft(tenant, own, slots);
+
+        Doc doc = Doc.of(InvConstants.BIZ_OPENING, "OPENING", 0L, "期初").label("期初 · 补关联商品");
+        List<Line> lines = new ArrayList<>();
+        int qty = 0;
+        for (Slot s : slots) {
+            if (s.target) {
+                qty += addLines(lines, s, InvConstants.GOOD, s.good, s.goodRes, doc);
+                qty += addLines(lines, s, InvConstants.DEFECTIVE, s.bad, s.badRes, doc);
+            }
+        }
+        posting.post(lines);
+        negatives.forEach(n -> log.warn("补关联商品推算为负数，未入库，tenantId={}：{}", tenant, n));
         return new Report(tenant, lines.size(), qty, negatives);
     }
 
@@ -166,17 +252,24 @@ public class InventoryOpening implements ApplicationRunner {
     }
 
     /** 采购入库单行 → 批次（没有流水的有效入库单） */
-    private void purchaseSlots(int tenant, long own, List<Slot> slots, List<String> negatives) {
+    private void purchaseSlots(int tenant, long own, List<Slot> slots, List<String> negatives, Scope scope) {
         List<Map<String, Object>> rows = jdbc.queryForList("SELECT i.id, i.receipt_id, r.gr_no, r.received_date, i.product_id, i.so_item_id,"
                 + " i.po_item_id, i.model, COALESCE(i.qualified_qty, 0) good, COALESCE(i.defective_qty, 0) bad, s.direct_forwarder_id,"
-                + " p.unit_price, p.net_price_cny, po.currency_code, po.exchange_rate"
+                + " p.unit_price, p.net_price_cny, po.currency_code, po.exchange_rate,"
+                + " EXISTS (SELECT 1 FROM inv_move m WHERE m.tenant_id = r.tenant_id AND m.doc_type = 'GR' AND m.doc_id = r.id) posted"
                 + " FROM purchase_receipt_item i JOIN purchase_receipt r ON r.id = i.receipt_id AND r.tenant_id = i.tenant_id"
                 + " LEFT JOIN supplier_shipment s ON s.id = r.shipment_id AND s.tenant_id = r.tenant_id"
                 + " LEFT JOIN purchase_order_item p ON p.id = i.po_item_id AND p.tenant_id = i.tenant_id"
                 + " LEFT JOIN purchase_order po ON po.id = p.po_id AND po.tenant_id = p.tenant_id"
                 + " WHERE i.tenant_id = ? AND r.status = 1 AND r.deleted_at IS NULL AND i.deleted_at IS NULL"
-                + " AND NOT EXISTS (SELECT 1 FROM inv_move m WHERE m.tenant_id = r.tenant_id AND m.doc_type = 'GR' AND m.doc_id = r.id)"
                 + " ORDER BY r.received_date, r.id, i.id", tenant);
+        // 期初：没有流水的入库单；补关联：要补的行，加上同一订单型号行已进期初的行（先扣交货代用）
+        rows.removeIf(r -> {
+            boolean posted = ((Number) r.get("posted")).intValue() == 1;
+            long id = ((Number) r.get("id")).longValue();
+            return scope == null ? posted
+                    : !scope.grItems().contains(id) && (posted || !scope.soItems().contains(longOf(r.get("so_item_id"))));
+        });
         // 批次号的行序号按入库单全部行（与过账钩子一致）
         Map<Long, Integer> seq = new HashMap<>();
         jdbc.query("SELECT id, receipt_id FROM purchase_receipt_item WHERE tenant_id = ? ORDER BY receipt_id, id", rs -> {
@@ -214,6 +307,7 @@ public class InventoryOpening implements ApplicationRunner {
                         receiptId, itemId, longOf(r.get("po_item_id")), soItemId, toDate(r.get("received_date")), price);
             }
             Slot s = new Slot(b.getId(), productId, soItemId, wh);
+            s.target = scope != null && scope.grItems().contains(itemId);
             s.receiptId = receiptId;
             s.good = good;
             s.bad = bad;
@@ -265,7 +359,7 @@ public class InventoryOpening implements ApplicationRunner {
     }
 
     /** 已交货代：从型号行的批次扣（先扣直发到该货代的，再从公司仓库最早的批次扣）；未出运的进货代仓 */
-    private void handedOver(int tenant, long own, List<Slot> slots, List<String> negatives) {
+    private void handedOver(int tenant, long own, List<Slot> slots, List<String> negatives, Scope scope) {
         List<Map<String, Object>> rows = jdbc.queryForList("SELECT o.id, o.ob_no, o.forwarder_id, oi.so_item_id, oi.model, oi.quantity,"
                 + " COALESCE(ls.status, 0) ship_status,"
                 + " EXISTS (SELECT 1 FROM inv_move m WHERE m.tenant_id = o.tenant_id AND m.doc_type = 'OB' AND m.doc_id = o.id) posted"
@@ -273,6 +367,9 @@ public class InventoryOpening implements ApplicationRunner {
                 + " LEFT JOIN logistics_shipment ls ON ls.id = o.logistics_id AND ls.tenant_id = o.tenant_id"
                 + " WHERE oi.tenant_id = ? AND o.status = 3 AND o.deleted_at IS NULL AND oi.deleted_at IS NULL"
                 + " ORDER BY o.id, oi.id", tenant);
+        if (scope != null) {
+            rows.removeIf(r -> !scope.soItems().contains(longOf(r.get("so_item_id"))));
+        }
         List<Slot> moved = new ArrayList<>();
         for (Map<String, Object> r : rows) {
             Long soItemId = longOf(r.get("so_item_id"));
@@ -284,9 +381,14 @@ public class InventoryOpening implements ApplicationRunner {
             boolean shipped = ((Number) r.get("ship_status")).intValue() == 2;
             boolean posted = ((Number) r.get("posted")).intValue() == 1;
             int left = ((Number) r.get("quantity")).intValue();
+            // 补关联：要补的批次排在最后，其他批次的扣法与期初时一致
             List<Slot> candidates = new ArrayList<>();
-            slots.stream().filter(s -> Objects.equals(s.soItemId, soItemId) && s.warehouseId == fw).forEach(candidates::add);
-            slots.stream().filter(s -> Objects.equals(s.soItemId, soItemId) && s.warehouseId == own).forEach(candidates::add);
+            for (boolean target : new boolean[]{false, true}) {
+                slots.stream().filter(s -> s.target == target && Objects.equals(s.soItemId, soItemId) && s.warehouseId == fw)
+                        .forEach(candidates::add);
+                slots.stream().filter(s -> s.target == target && Objects.equals(s.soItemId, soItemId) && s.warehouseId == own)
+                        .forEach(candidates::add);
+            }
             for (Slot s : candidates) {
                 if (left == 0) {
                     break;
@@ -299,11 +401,12 @@ public class InventoryOpening implements ApplicationRunner {
                 left -= n;
                 if (!shipped && !posted) {
                     Slot f = new Slot(s.batchId, s.productId, s.soItemId, fw);
+                    f.target = s.target;
                     f.good = n;
                     moved.add(f);
                 }
             }
-            if (left > 0 && !shipped && !posted) {
+            if (left > 0 && !shipped && !posted && scope == null) {
                 negatives.add("出库单 " + r.get("ob_no") + " " + r.get("model") + " 已交货代缺入库 " + left + " 个");
             }
         }
@@ -319,13 +422,15 @@ public class InventoryOpening implements ApplicationRunner {
     }
 
     /** 退货入库单：未处理、转闲置未处置、退供应商待寄出的仍在库（没有流水的已验收退货入库单） */
-    private void returnSlots(int tenant, long own, List<Slot> slots, List<String> negatives) {
+    private void returnSlots(int tenant, long own, List<Slot> slots, List<String> negatives, Scope scope) {
         List<Map<String, Object>> rows = jdbc.queryForList("SELECT i.id, i.receipt_id, r.receipt_no, r.received_date, i.product_id, i.so_item_id,"
-                + " COALESCE(i.received_qty, 0) received, COALESCE(i.qualified_qty, 0) qualified"
+                + " COALESCE(i.received_qty, 0) received, COALESCE(i.qualified_qty, 0) qualified,"
+                + " EXISTS (SELECT 1 FROM inv_move m WHERE m.tenant_id = r.tenant_id AND m.doc_type = 'RR' AND m.doc_id = r.id) posted"
                 + " FROM return_receipt_item i JOIN return_receipt r ON r.id = i.receipt_id AND r.tenant_id = i.tenant_id"
                 + " WHERE i.tenant_id = ? AND r.status IN (2, 3) AND r.deleted_at IS NULL AND i.deleted_at IS NULL"
-                + " AND NOT EXISTS (SELECT 1 FROM inv_move m WHERE m.tenant_id = r.tenant_id AND m.doc_type = 'RR' AND m.doc_id = r.id)"
                 + " ORDER BY r.id, i.id", tenant);
+        rows.removeIf(r -> scope == null ? ((Number) r.get("posted")).intValue() == 1
+                : !scope.rrItems().contains(((Number) r.get("id")).longValue()));
         if (rows.isEmpty()) {
             return;
         }
@@ -391,6 +496,7 @@ public class InventoryOpening implements ApplicationRunner {
                         receiptId, itemId, null, soItemId, toDate(r.get("received_date")), Price.cny(cost.get(soItemId)));
             }
             Slot s = new Slot(b.getId(), productId, null, own);
+            s.target = scope != null;
             s.good = Math.min(inStock, qualified);
             s.bad = inStock - s.good;
             // 待寄出的退供应商：不良优先占
@@ -426,6 +532,39 @@ public class InventoryOpening implements ApplicationRunner {
         List<Slot> ordered = new ArrayList<>();
         slots.stream().filter(s -> s.warehouseId != own).forEach(ordered::add);
         slots.stream().filter(s -> s.warehouseId == own).forEach(ordered::add);
+        for (Slot s : ordered) {
+            if (s.soItemId == null) {
+                continue;
+            }
+            int n = Math.min(need.getOrDefault(s.soItemId, 0), s.good - s.reservedGood());
+            if (n > 0) {
+                s.goodRes.merge(Target.soItem(s.soItemId), n, Integer::sum);
+                need.merge(s.soItemId, -n, Integer::sum);
+            }
+        }
+    }
+
+    /** 补关联的预占：订单型号行还差的（剩余数量 − 现有预占 − 已出运）由要补的批次占，先占货代仓 */
+    private void reserveLeft(int tenant, long own, List<Slot> slots) {
+        Set<Long> soItems = new HashSet<>();
+        slots.stream().filter(s -> s.target && s.soItemId != null).map(s -> s.soItemId).forEach(soItems::add);
+        if (soItems.isEmpty()) {
+            return;
+        }
+        Map<Long, int[]> shipped = sumBy("SELECT oi.so_item_id, SUM(oi.quantity) FROM outbound_order_item oi"
+                + " JOIN outbound_order o ON o.id = oi.outbound_id AND o.tenant_id = oi.tenant_id"
+                + " JOIN logistics_shipment ls ON ls.id = o.logistics_id AND ls.tenant_id = o.tenant_id"
+                + " WHERE oi.tenant_id = ? AND ls.status = 2 AND o.deleted_at IS NULL AND oi.deleted_at IS NULL GROUP BY oi.so_item_id", tenant);
+        Map<Long, Integer> wanted = reservations.wanted(soItems);
+        Map<Long, Integer> reserved = reservations.reserved(soItems);
+        Map<Long, Integer> need = new HashMap<>();
+        for (Long id : soItems) {
+            need.put(id, Math.max(0, wanted.getOrDefault(id, 0) - reserved.getOrDefault(id, 0)
+                    - shipped.getOrDefault(id, new int[1])[0]));
+        }
+        List<Slot> ordered = new ArrayList<>();
+        slots.stream().filter(s -> s.target && s.warehouseId != own).forEach(ordered::add);
+        slots.stream().filter(s -> s.target && s.warehouseId == own).forEach(ordered::add);
         for (Slot s : ordered) {
             if (s.soItemId == null) {
                 continue;

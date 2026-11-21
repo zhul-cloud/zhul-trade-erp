@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -593,6 +594,82 @@ class InventoryFlowContractTest extends SalesContractSupport {
             jdbc.update("delete from sys_config where tenant_id = 0 and config_key = 'inventory.opening.done'");
         }
         assertTrue(gr > 0);
+    }
+
+    /**
+     * audit BUS-089：期初时没关联商品的采购入库行，之后在「待关联单据」关联上商品，按期初规则补进库存——
+     * 已交货代未出运的进货代仓，其余在公司仓库，都预占给订单；同一型号行已进期初的批次先扣交货代；重复执行不再补
+     */
+    @Test
+    void lateLink_postsSkippedReceiptLineOnce() throws Exception {
+        long sup = supplier("华控自动化", null);
+        JsonNode po = orderedPo(sup, l("A-1", 6, "1000", "200"), l("A-2", 3, "500", "100"));
+        long itemA = itemOf(po, "A-1");
+        long itemB = itemOf(po, "A-2");
+        acceptBy(ship(po.path("id").asLong(), Map.of(itemA, 6, itemB, 3)), Map.of(itemA, new int[]{6, 6, 0}, itemB, new int[]{3, 3, 0}));
+        long soA = soItemOfPoItem(itemA);
+        long productA = productOfPoItem(itemA);
+        handOver(soA, forwarder(), 4);
+        long grItemA = jdbc.queryForObject("select id from purchase_receipt_item where tenant_id = 0 and po_item_id = ?", Long.class, itemA);
+        // 上线前的单据：A 的入库行当时没关联商品，期初跳过
+        wipeInventory();
+        jdbc.update("update purchase_receipt_item set product_id = null where id = ?", grItemA);
+        try {
+            opening.openTenant(0);
+            assertStock(new int[]{0, 0, 0}, stock(productA, 1), "期初跳过没关联商品的行");
+            assertStock(new int[]{0, 0, 0}, stock(productA, 2), "期初跳过没关联商品的行");
+            assertStock(new int[]{3, 0, 3}, stock(productOfPoItem(itemB), 1), "B 照常进期初");
+
+            JsonNode list = ok(call(get("/api/v1/product/candidates/unlinked").param("table", "purchase_receipt_item"), admin));
+            String key = null;
+            for (JsonNode g : list.path("records")) {
+                if ("A-1".equals(g.path("model").asText())) {
+                    key = g.path("key").asText();
+                }
+            }
+            assertNotNull(key, "待关联单据里有 A-1");
+            ok(call(json(post("/api/v1/product/candidates/unlinked/link"), write(Map.of("key", key, "productId", productA))), admin));
+
+            assertStock(new int[]{2, 0, 2}, stock(productA, 1), "公司仓库 2，预占给型号行");
+            assertStock(new int[]{4, 0, 4}, stock(productA, 2), "已交货代未出运的 4 进货代仓");
+            assertEquals(6, reservedFor(soA));
+            assertEquals("期初 · 补关联商品", jdbc.queryForObject("select distinct biz_label from inv_move where tenant_id = 0"
+                    + " and product_id = ?", String.class, productA));
+            int moves = jdbc.queryForObject("select count(*) from inv_move where tenant_id = 0", Integer.class);
+            opening.catchUpAll();
+            assertEquals(moves, jdbc.queryForObject("select count(*) from inv_move where tenant_id = 0", Integer.class), "已补的不重复补");
+        } finally {
+            jdbc.update("delete from sys_config where tenant_id = 0 and config_key = 'inventory.opening.done'");
+        }
+    }
+
+    /** audit BUS-089：同一型号行有已进期初的批次时，交货代先扣它，补关联的行只拿剩下的 */
+    @Test
+    void lateLink_otherBatchOfSameLineConsumedFirst() throws Exception {
+        long sup = supplier("华控自动化", null);
+        JsonNode po = orderedPo(sup, l("A-1", 6, "1000", "200"));
+        long itemA = itemOf(po, "A-1");
+        // 分两次到货：第一次 2（没关联商品），第二次 4
+        acceptBy(ship(po.path("id").asLong(), Map.of(itemA, 2)), Map.of(itemA, new int[]{2, 2, 0}));
+        acceptBy(ship(po.path("id").asLong(), Map.of(itemA, 4)), Map.of(itemA, new int[]{4, 4, 0}));
+        long soA = soItemOfPoItem(itemA);
+        long productA = productOfPoItem(itemA);
+        handOver(soA, forwarder(), 4);
+        long first = jdbc.queryForObject("select min(id) from purchase_receipt_item where tenant_id = 0 and po_item_id = ?", Long.class, itemA);
+        wipeInventory();
+        jdbc.update("update purchase_receipt_item set product_id = null where id = ?", first);
+        try {
+            opening.openTenant(0);
+            assertStock(new int[]{0, 0, 0}, stock(productA, 1), "第二批 4 个全部交货代");
+            assertStock(new int[]{4, 0, 4}, stock(productA, 2), "第二批 4 个全部交货代");
+            jdbc.update("update purchase_receipt_item set product_id = ? where id = ?", productA, first);
+            opening.catchUpAll();
+            assertStock(new int[]{2, 0, 2}, stock(productA, 1), "第一批 2 个仍在公司仓库");
+            assertStock(new int[]{4, 0, 4}, stock(productA, 2), "货代仓不重复");
+            assertEquals(6, reservedFor(soA));
+        } finally {
+            jdbc.update("delete from sys_config where tenant_id = 0 and config_key = 'inventory.opening.done'");
+        }
     }
 
     // ---------------------------------------------------------------- 其他出库单
