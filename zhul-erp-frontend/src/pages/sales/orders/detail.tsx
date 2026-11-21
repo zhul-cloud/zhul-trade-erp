@@ -38,6 +38,7 @@ import RefundModal from '@/pages/finance/refunds/RefundModal';
 import { useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useDeltaColor } from '@/theme/delta';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { MenuLink } from '@/utils/menuName';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -132,6 +133,7 @@ const OrderDetail: React.FC = () => {
   const id = Number(idParam);
   const { message, modal } = App.useApp();
   const { palette } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
   const goodsColors = useGoodsColors();
   const access = useAccess();
   const wide = useWide();
@@ -1476,7 +1478,7 @@ const OrderDetail: React.FC = () => {
             style={{
               ...num,
               fontSize: 20,
-              color: m.profitCny >= 0 ? palette.green : palette.red,
+              color: deltaOf(m.profitCny),
             }}
           >
             {formatAmount(m.profitCny, 'CNY')}

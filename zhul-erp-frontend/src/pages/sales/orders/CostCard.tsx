@@ -9,6 +9,7 @@ import type {
 } from '@/pages/finance/profit-stats/service';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useDeltaColor } from '@/theme/delta';
 import { formatAmount } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 
@@ -92,6 +93,7 @@ const Amount: React.FC<{
 /** 订单成本明细：按型号行列出各项成本、行收入与行毛利（spec finance/order-cost） */
 const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
   const { palette } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
   const money = (v: number, src?: CostSource[]) => (
     <Amount value={v} sources={src} />
   );
@@ -242,9 +244,7 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
       width: 140,
       align: 'right',
       render: (_, l) => (
-        <b
-          style={{ ...num, color: l.profit >= 0 ? palette.green : palette.red }}
-        >
+        <b style={{ ...num, color: deltaOf(l.profit) }}>
           {formatAmount(l.profit, 'CNY')}
           {l.profitRate != null && (
             <span style={{ fontWeight: 400, fontSize: 12 }}>
@@ -334,8 +334,7 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
                   <b
                     style={{
                       ...num,
-                      color:
-                        (cost.profit ?? 0) >= 0 ? palette.green : palette.red,
+                      color: deltaOf(cost.profit),
                     }}
                   >
                     {formatAmount(cost.profit ?? 0, 'CNY')}
@@ -438,6 +437,7 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
 /** 历史迁移订单的成本：取旧系统《成本核算》的快照，不随入库、付款、结汇、对账变化（spec finance/order-cost） */
 const SnapshotCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
   const { palette } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
   const s = cost.snapshot ?? {};
   const item = (label: string, value: React.ReactNode) => (
     <div key={label}>
@@ -489,7 +489,7 @@ const SnapshotCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
           '毛利',
           <span
             style={{
-              color: (cost.profit ?? 0) >= 0 ? palette.green : palette.red,
+              color: deltaOf(cost.profit),
             }}
           >
             {formatAmount(cost.profit ?? 0, 'CNY')}

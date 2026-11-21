@@ -21,6 +21,7 @@ import {
 } from '@/pages/crm/opportunity/service';
 import { Card, Stat } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
+import { DeltaText } from '@/theme/delta';
 
 export type CardPreset = 'today' | 'week' | 'month';
 
@@ -200,18 +201,9 @@ const OpportunityCard: React.FC = () => {
                 delta == null ? (
                   '—'
                 ) : (
-                  <span
-                    style={{
-                      color:
-                        delta > 0
-                          ? palette.green
-                          : delta < 0
-                            ? palette.orange
-                            : palette.mute,
-                    }}
-                  >
+                  <DeltaText value={delta}>
                     较上一周期 {delta > 0 ? `+${delta}` : delta}
-                  </span>
+                  </DeltaText>
                 )
               }
             />

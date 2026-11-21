@@ -27,6 +27,7 @@ import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { getUserOptions } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useDeltaColor } from '@/theme/delta';
 import { useBusinessUnits } from '@/utils/businessUnit';
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
@@ -109,6 +110,7 @@ export const initial = (): Filters => {
 
 const OrderList: React.FC = () => {
   const { palette } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
   const { message } = App.useApp();
   const access = useAccess();
   const [form] = Form.useForm<Filters>();
@@ -338,7 +340,7 @@ const OrderList: React.FC = () => {
             <b
               style={{
                 fontVariantNumeric: 'tabular-nums',
-                color: r.profit >= 0 ? palette.green : palette.red,
+                color: deltaOf(r.profit),
               }}
             >
               {formatAmount(r.profit, 'CNY')}

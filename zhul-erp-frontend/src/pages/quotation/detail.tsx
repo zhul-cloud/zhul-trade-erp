@@ -75,6 +75,7 @@ import { ChainCard, PATHS as SALES_PATHS } from '@/pages/sales/components';
 import NewPiModal from '@/pages/sales/pi/NewPiModal';
 import { type PiListItem, piApi } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useDeltaColor } from '@/theme/delta';
 import { DICT_WARRANTY } from '@/utils/dict';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { MenuLink } from '@/utils/menuName';
@@ -360,6 +361,7 @@ const QuotationDetail: React.FC = () => {
     : undefined;
   const { message, modal } = App.useApp();
   const { palette } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
   const wide = useWide();
   const { leadTimeOptions } = useQuoteDicts();
   const [q, setQ] = useState<Quotation>();
@@ -1293,7 +1295,7 @@ const QuotationDetail: React.FC = () => {
               <div
                 style={{
                   fontSize: 12,
-                  color: r.netProfit < 0 ? palette.red : palette.green,
+                  color: deltaOf(r.netProfit),
                 }}
               >
                 {formatAmount(r.netProfit, currency)}
@@ -1313,7 +1315,7 @@ const QuotationDetail: React.FC = () => {
         const r = results.get(d.id) as LineResult;
         if (r.netProfit == null)
           return <span style={{ color: palette.mute }}>—</span>;
-        const color = r.netProfit < 0 ? palette.red : palette.green;
+        const color = deltaOf(r.netProfit);
         return (
           <div style={{ ...num, color }}>
             {formatAmount(r.netProfit, currency)}
@@ -2176,9 +2178,7 @@ const QuotationDetail: React.FC = () => {
             ? '—'
             : `${formatAmount(t.netProfit, currency)}${currency !== 'CNY' ? ` / ${formatAmount(t.netProfitCny, 'CNY')}` : ''}`
         }
-        color={
-          t.netProfit != null && t.netProfit < 0 ? palette.red : palette.green
-        }
+        color={deltaOf(t.netProfit)}
       />
       <Row
         label="合计毛利率"

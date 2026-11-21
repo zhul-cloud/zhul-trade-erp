@@ -7,6 +7,7 @@ import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useDeltaColor } from '@/theme/delta';
 import { StatsUnitSwitch, useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount } from '@/utils/format';
 import {
@@ -23,6 +24,7 @@ const rateText = (v?: number | null) => (v == null ? '—' : `${v}%`);
 const OperatingReportPage: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
   const thisYear = dayjs().year();
   const [year, setYear] = useState(thisYear);
   const [data, setData] = useState<OperatingReport>();
@@ -232,9 +234,7 @@ const OperatingReportPage: React.FC = () => {
       width: 140,
       align: 'right',
       render: (v: number) => (
-        <b style={{ ...num, color: v >= 0 ? palette.green : palette.red }}>
-          {cny(v)}
-        </b>
+        <b style={{ ...num, color: deltaOf(v) }}>{cny(v)}</b>
       ),
     },
     {
@@ -349,7 +349,7 @@ const OperatingReportPage: React.FC = () => {
             '预计盈亏',
             cny(total.net),
             `净利率 ${rateText(total.netRate)}`,
-            total.net >= 0 ? palette.green : palette.red,
+            deltaOf(total.net),
           )}
         </div>
       )}

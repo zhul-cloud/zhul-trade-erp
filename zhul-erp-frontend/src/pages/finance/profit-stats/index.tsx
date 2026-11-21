@@ -11,6 +11,7 @@ import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useDeltaColor } from '@/theme/delta';
 import { StatsUnitSwitch, useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -31,6 +32,7 @@ const rateText = (v?: number | null) => (v == null ? '—' : `${v}%`);
 const ProfitStatsPage: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
   const users = useUserOptions();
   const [range, setRange] = useState<[Dayjs, Dayjs]>(() => {
     // 经营统计跳转时 URL 带日期范围
@@ -212,7 +214,7 @@ const ProfitStatsPage: React.FC = () => {
           <b
             style={{
               ...num,
-              color: g.totals.profit >= 0 ? palette.green : palette.red,
+              color: deltaOf(g.totals.profit),
             }}
           >
             {cny(g.totals.profit)}
@@ -294,9 +296,7 @@ const ProfitStatsPage: React.FC = () => {
       width: 120,
       align: 'right',
       render: (v: number) => (
-        <b style={{ ...num, color: v >= 0 ? palette.green : palette.red }}>
-          {cny(v)}
-        </b>
+        <b style={{ ...num, color: deltaOf(v) }}>{cny(v)}</b>
       ),
     },
     {
@@ -394,7 +394,7 @@ const ProfitStatsPage: React.FC = () => {
             '毛利',
             cny(summary.profit),
             `毛利率 ${rateText(summary.profitRate)}`,
-            summary.profit >= 0 ? palette.green : palette.red,
+            deltaOf(summary.profit),
           )}
           {stat(
             '未结算',

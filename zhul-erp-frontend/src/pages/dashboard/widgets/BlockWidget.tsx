@@ -26,6 +26,7 @@ import { history } from '@umijs/max';
 import { Tooltip } from 'antd';
 import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
+import { DeltaText } from '@/theme/delta';
 import { formatAmount } from '@/utils/format';
 import { MenuName } from '@/utils/menuName';
 import {
@@ -46,6 +47,7 @@ interface MetricData {
   hintTone?: 'green' | 'orange' | 'red';
   delta?: number | null;
   deltaFormat?: 'percent' | 'points';
+  /** 越高越好；只用于说明，不参与涨跌着色 */
   higherIsBetter?: boolean;
   link?: string;
 }
@@ -125,24 +127,16 @@ export const fmt = (v: number | string | null | undefined, format?: Format) => {
 
 const go = (link?: string | null) => link && history.push(link);
 
-/** 较上月：百分比变化或百分点，变好绿色、变坏红色 */
+/** 较上月：百分比变化或百分点，按方向着色并配上下箭头（涨跌颜色见主题设置，higherIsBetter 不参与着色） */
 const Delta: React.FC<{ m: MetricData }> = ({ m }) => {
-  const { palette } = useAppTheme();
   if (m.delta === null || m.delta === undefined) return null;
-  const good =
-    m.delta === 0 ? null : m.delta > 0 === (m.higherIsBetter ?? true);
   const sign = m.delta > 0 ? '+' : '';
   return (
-    <span
-      style={{
-        color:
-          good === null ? palette.mute : good ? palette.green : palette.red,
-      }}
-    >
+    <DeltaText value={m.delta}>
       较上月 {sign}
       {m.delta}
       {m.deltaFormat === 'points' ? ' 个百分点' : '%'}
-    </span>
+    </DeltaText>
   );
 };
 

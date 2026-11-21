@@ -64,6 +64,7 @@ import {
 } from '@/pages/warehouse/components';
 import { type Attachment, shipmentApi } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useDeltaColor } from '@/theme/delta';
 import { formatAmount } from '@/utils/format';
 import { MenuLink } from '@/utils/menuName';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -191,6 +192,7 @@ const PurchaseOrderDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const poId = Number(id);
   const { palette } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
   const { message, modal } = App.useApp();
   const access = useAccess();
   const [po, setPo] = useState<PurchaseOrder>();
@@ -750,7 +752,7 @@ const PurchaseOrderDetail: React.FC = () => {
         />
         <StatCard
           icon={<FallOutlined />}
-          color={preview.bargain < 0 ? palette.red : palette.green}
+          color={deltaOf(preview.bargain)}
           label="砍价合计"
           value={formatAmount(preview.bargain, 'CNY')}
           hint={
@@ -758,7 +760,7 @@ const PurchaseOrderDetail: React.FC = () => {
               ? '填好单价后计算'
               : `整体砍价率 ${preview.bargainRate.toFixed(2)}% · 目标金额 ${formatAmount(preview.target, 'CNY')}`
           }
-          hintColor={preview.bargain < 0 ? palette.red : palette.green}
+          hintColor={deltaOf(preview.bargain)}
         />
         <StatCard
           icon={<CalendarOutlined />}

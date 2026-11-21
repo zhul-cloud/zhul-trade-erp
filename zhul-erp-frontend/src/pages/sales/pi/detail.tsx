@@ -73,6 +73,7 @@ import type { LineResult } from '@/pages/quotation/calc';
 import { formatMargin } from '@/pages/quotation/calc';
 import { LostReasonModal } from '@/pages/quotation/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useDeltaColor } from '@/theme/delta';
 import { useBusinessUnits } from '@/utils/businessUnit';
 import {
   DICT_PI_DELIVERY_TIME,
@@ -378,6 +379,7 @@ const PiDetail: React.FC = () => {
     : undefined;
   const { message, modal } = App.useApp();
   const { palette } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
   const access = useAccess();
   const wide = useWide();
   const { leadTimeOptions } = useQuoteDicts();
@@ -1428,7 +1430,7 @@ const PiDetail: React.FC = () => {
         return p == null ? (
           <span style={{ color: palette.mute }}>—</span>
         ) : (
-          <span style={{ ...num, color: p < 0 ? palette.red : palette.green }}>
+          <span style={{ ...num, color: deltaOf(p) }}>
             {formatAmount(p, cur)}
           </span>
         );
@@ -2042,16 +2044,12 @@ const PiDetail: React.FC = () => {
             ? '—'
             : `${formatAmount(t.netProfit, cur)}${cur !== 'CNY' ? ` / ${formatAmount(t.netProfitCny, 'CNY')}` : ''}`
         }
-        color={
-          t.netProfit != null && t.netProfit < 0 ? palette.red : palette.green
-        }
+        color={deltaOf(t.netProfit)}
       />
       <Row
         label="合计毛利率（折扣后）"
         value={formatMargin(t.marginRate)}
-        color={
-          t.marginRate != null && t.marginRate < 0 ? palette.red : palette.green
-        }
+        color={deltaOf(t.marginRate)}
       />
       {belowCount > 0 && (
         <div style={{ fontSize: 12, color: palette.orange, marginTop: 8 }}>

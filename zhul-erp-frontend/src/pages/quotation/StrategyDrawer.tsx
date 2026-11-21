@@ -20,6 +20,7 @@ import {
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useDeltaColor } from '@/theme/delta';
 import { formatAmount } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
 import { calcLine, formatMargin, MODE_PRICE, round2 } from './calc';
@@ -80,6 +81,7 @@ const StrategyDrawer: React.FC<{
 }) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
   const [kind, setKind] = useState<Kind>('uniform');
   const [margin, setMargin] = useState<number | null>(15);
   const [profit, setProfit] = useState<number | null>(null);
@@ -765,7 +767,7 @@ const StrategyDrawer: React.FC<{
               '合计净利润',
               formatAmount(before.profit, 'CNY'),
               formatAmount(after.profit, 'CNY'),
-              after.profit >= 0 ? palette.green : palette.red,
+              deltaOf(after.profit),
               kind === 'profit'
                 ? diffNote(profit, after.profit, 'CNY')
                 : undefined,

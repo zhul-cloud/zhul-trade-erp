@@ -19,6 +19,7 @@ import type { Tone } from '@/pages/inquiry/shared/constants';
 import { forwarderApi } from '@/pages/logistics/service';
 import { searchSuppliers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useDeltaColor } from '@/theme/delta';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { TRIGGERS, termsText, termsTotal } from './calc';
 import type {
@@ -98,10 +99,11 @@ export const BargainText: React.FC<{
   empty?: string;
 }> = ({ amount, rate, empty = '没有目标价' }) => {
   const { palette } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
   if (amount == null) {
     return <span style={{ fontSize: 12, color: palette.mute }}>{empty}</span>;
   }
-  const color = amount < 0 ? palette.red : palette.green;
+  const color = deltaOf(amount);
   return (
     <div style={{ color, fontVariantNumeric: 'tabular-nums' }}>
       <b>{formatAmount(amount, 'CNY')}</b>

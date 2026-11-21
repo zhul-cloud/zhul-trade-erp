@@ -10,6 +10,7 @@ import { SupplierPicker } from '@/pages/purchase/components';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useDeltaColor } from '@/theme/delta';
 import { formatAmount } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
@@ -36,6 +37,7 @@ const GROUP_TITLES: Record<BargainGroupBy, string> = {
 const BargainStatsPage: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
   const users = useUserOptions();
   const [range, setRange] = useState<[Dayjs, Dayjs]>(() =>
     presetRange('month'),
@@ -118,9 +120,7 @@ const BargainStatsPage: React.FC = () => {
     v == null ? (
       <span style={{ color: palette.mute }}>—</span>
     ) : (
-      <b style={{ ...num, color: v < 0 ? palette.red : palette.green }}>
-        {cny(v)}
-      </b>
+      <b style={{ ...num, color: deltaOf(v) }}>{cny(v)}</b>
     );
 
   const columns: TableColumnsType<BargainGroup> = [
@@ -345,7 +345,7 @@ const BargainStatsPage: React.FC = () => {
             '砍价金额',
             cny(summary.bargainAmount),
             `砍价率 ${rateText(summary.bargainRate)}`,
-            summary.bargainAmount < 0 ? palette.red : palette.green,
+            deltaOf(summary.bargainAmount),
           )}
           {stat('质量索赔', cny(summary.claimAmount), '不良折价，不计入砍价')}
           {stat('开票成本', cny(summary.invoiceCost), '开票税点，不计入砍价')}
