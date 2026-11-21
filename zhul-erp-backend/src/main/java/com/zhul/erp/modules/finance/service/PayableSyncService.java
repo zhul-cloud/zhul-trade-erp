@@ -73,14 +73,16 @@ public class PayableSyncService {
     private final com.zhul.erp.modules.inventory.service.InventoryCosting costing;
 
     /** 采购订单：已下单的生成或重算；取消的关闭（已付转为欠款）；草稿不处理。之后重算库存批次成本（触发原因记为采购订单） */
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public void syncPurchaseOrder(Long poId) {
         syncPurchaseOrder(poId, null);
     }
 
     /**
      * 同上，trigger 为成本调整的触发原因与来源单据（为空时记为「采购订单费用」、来源为该采购订单）。
-     * 事务边界：调用方事务内，应付与批次成本、成本调整单一起提交或回滚（openspec inventory-costing 决策 4）。
+     * 事务边界：加入调用方事务（没有时自己开一个），应付与批次成本、成本调整单一起提交或回滚（openspec inventory-costing 决策 4）。
      */
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public void syncPurchaseOrder(Long poId, com.zhul.erp.modules.inventory.service.InventoryCosting.Trigger trigger) {
         PurchaseOrderDO po = orderMapper.selectById(poId);
         if (po == null || po.getDeletedAt() != null || Objects.equals(po.getStatus(), PurchaseConstants.PO_DRAFT)) {
@@ -182,6 +184,7 @@ public class PayableSyncService {
     }
 
     /** 付款登记、作废、退款后：锁住应付单，按现有付款计划重算已付、欠款与状态 */
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public void refresh(Long payableId) {
         refresh(payableId, null);
     }
@@ -190,6 +193,7 @@ public class PayableSyncService {
      * 同上；采购订单的应付已付变了，外币实际汇率随之变化，按 trigger 重算该采购订单下的库存批次成本（为空时不重算）。
      * 事务边界：调用方（付款服务）事务内。
      */
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public void refresh(Long payableId, com.zhul.erp.modules.inventory.service.InventoryCosting.Trigger trigger) {
         PayableDO p = payableMapper.selectOne(new LambdaQueryWrapper<PayableDO>()
                 .eq(PayableDO::getId, payableId).last("FOR UPDATE"));
