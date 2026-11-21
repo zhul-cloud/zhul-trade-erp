@@ -24,7 +24,7 @@
 
 ## 4. 主题令牌与外壳
 
-- [ ] 4.1 开始改代码前，先把 develop 同步进来一次，记入 `sync-log.md`，并跑本机全量前端检查
+- [x] 4.1 开始改代码前，先把 develop 同步进来一次，记入 `sync-log.md`，并跑本机全量前端检查（2026-11-21：合入至 `fab4cb75`；基线 `npm run lint` 通过，Jest 142 个套件 552 个用例通过）
 - [ ] 4.2 按 `design.md` 第 2 节重写 `src/theme/palette.ts`：保留、改名、删除各键，删除三个渐变常量，修好所有编译报错的引用处；验证 `npm run lint` 通过
 - [ ] 4.3 改掉编译抓不到的渐变和旧字体：`LOGO_GRADIENT_STOPS` 和 `BrandLogo`、`public/logo.svg`、`public/favicon.ico`、`AuthLayout` 的光晕、4 处 `IBM Plex Mono`。默认 Logo 按 `site-appearance` 增量实现；用 BrowserOS neo 截图核对登录页、侧边栏和浏览器标签图标
 - [ ] 4.4 更新 `src/theme/antd.ts`、`shell.ts`、`AppTheme.tsx`：主按钮、危险按钮、圆角、阴影、焦点色、状态标签（按 `status-colors.md`），加入 Public Sans 依赖。验证：切换主题后弹窗、消息、登录页都跟着变
