@@ -142,6 +142,18 @@
 
 统计卡片：「今日新增」转为快捷筛选（首次接触日期取今天，与原卡片同口径）；「待跟进（S1）」的数量并入阶段下拉；原「其中无效 N」「超过 2 天未推进 N 条」不再显示。
 
+## 客户管理列表
+
+代码位置：`zhul-erp-frontend/src/pages/customer/index.tsx`（`HELP`）。
+
+| 位置 | 帮助文字 | 来源 |
+|---|---|---|
+| 页面标题 | 档案完整度 5/5 为已建档；先补有成交的客户。报价单、PI、CI 从这里带出客户信息 | 原页头说明 |
+| 客户名称 | 可搜：英文名、中文名、简称。客户编码、联系人在旁边的输入框里搜 | `search-scope.md` 客户管理行 |
+| 表头「经营等级」「潜力等级」 | 沿用原表头说明，改用 `HeadHelp` | 原表头提示 |
+
+原表格上方的「已建档 / 待完善」切换条改为搜索条件里的「建档状态」下拉，选项带数量，选了立即查询。
+
 ## 登记到账弹窗
 
 代码位置：`zhul-erp-frontend/src/pages/sales/pi/dialogs.tsx`（`ConfirmReceiptModal`）、`receiptDialogs.tsx`（`PaymentMethodSelect`、`FxEstimateHint`）。
