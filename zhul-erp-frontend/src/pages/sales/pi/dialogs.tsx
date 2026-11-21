@@ -1011,6 +1011,7 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
             value={amount}
             onChange={setAmount}
             aria-label="到账金额"
+            aria-required
           />,
           { required: true, help: fxEstimateText(cur), below: amountResult },
         )}
@@ -1021,6 +1022,7 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
             value={date}
             onChange={setDate}
             aria-label="到账日期"
+            aria-required
           />,
           { required: true },
         )}
@@ -1035,6 +1037,7 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
               label: `${b.bankName} ${b.accountNoMasked}${b.accountType === 2 ? '（对私）' : ''}${bu.enabled ? ` · ${unitName(b.businessUnitId)}` : ''}`,
             }))}
             aria-label="收款账户"
+            aria-required
           />,
           { required: true },
         )}

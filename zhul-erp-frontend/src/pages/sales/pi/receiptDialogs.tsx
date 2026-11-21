@@ -56,13 +56,13 @@ export const PaymentMethodSelect: React.FC<{
   );
 };
 
-/** 外币到账的人民币说明：登记时按最近一次结汇的汇率估算，结汇后由财务的结汇单确定 */
-/** 外币收款的人民币怎么算（人民币收款不用说明） */
+/** 外币收款的人民币怎么算（人民币收款不用说明）；登记到账弹窗放进帮助图标，其他弹窗用 FxEstimateHint 常显 */
 export const fxEstimateText = (currency: string) =>
   currency === 'CNY'
     ? undefined
     : '人民币先按最近一次结汇的汇率估算，标「未结汇」；结汇后由财务在「结汇管理」登记结汇单，系统按先进先出确定实际人民币。';
 
+/** 外币到账的人民币说明：登记时按最近一次结汇的汇率估算，结汇后由财务的结汇单确定 */
 export const FxEstimateHint: React.FC<{ currency: string }> = ({
   currency,
 }) => {

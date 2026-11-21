@@ -33,7 +33,7 @@ function toPascalCase(raw: string): string {
 
 /**
  * 菜单图标统一用 lucide 线性图标（外壳原型 F1；与参考站 PrimeDash 的 mdi outline 同一类：
- * 20px、线宽约 1.7px、造型简洁）。「菜单管理」里存的是 antd 图标名，这里按名称换成对应的 lucide 图标；
+ * 20px、线宽 2、造型简洁）。「菜单管理」里存的是 antd 图标名，这里按名称换成对应的 lucide 图标；
  * 键为去掉连字符、下划线后的小写名，兼容 file-text / fileText 两种写法。
  */
 const LUCIDE_MENU_ICONS: Record<string, LucideIcon> = {
@@ -109,7 +109,7 @@ const LUCIDE_MENU_ICONS: Record<string, LucideIcon> = {
  * 去 @ant-design/icons 里找；都找不到就不渲染图标，绝不把原始英文字符串直接显示出来——
  * ProLayout 自带的 getIcon() 遇到普通字符串时就是这么处理的，这正是菜单名称前面冒出一截英文单词的原因。
  */
-export function resolveMenuIcon(raw?: string): React.ReactNode {
+function resolveMenuIcon(raw?: string): React.ReactNode {
   if (!raw) return undefined;
   const lucide = LUCIDE_MENU_ICONS[raw.replace(/[-_\s]/g, '').toLowerCase()];
   if (lucide) return React.createElement(lucide, { size: 20, strokeWidth: 2 });

@@ -1,14 +1,8 @@
-import {
-  CarOutlined,
-  FileDoneOutlined,
-  InboxOutlined,
-  RightOutlined,
-  SendOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
+import { RightOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { Button, Tooltip } from 'antd';
 import dayjs from 'dayjs';
+import { FileCheck, Inbox, Send, TriangleAlert, Truck } from 'lucide-react';
 import React from 'react';
 import { LevelPill, Pill } from '@/pages/inquiry/shared/components';
 import { formatMinutes, PATHS } from '@/pages/inquiry/shared/constants';
@@ -254,8 +248,8 @@ export const MyPurchaseWidget: React.FC = () => {
     items.push(
       <TodoItem
         key="req"
-        icon={<InboxOutlined />}
-        tone="blue"
+        icon={<Inbox size={18} />}
+        tone="violet"
         title="待下单的采购需求"
         desc="销售订单已确认，还没全部下单"
         count={data.openRequirements}
@@ -268,8 +262,8 @@ export const MyPurchaseWidget: React.FC = () => {
     items.push(
       <TodoItem
         key="ship"
-        icon={<SendOutlined />}
-        tone="violet"
+        icon={<Send size={18} />}
+        tone="blue"
         title="待供应商发货"
         desc={
           data.overdueShip
@@ -281,7 +275,7 @@ export const MyPurchaseWidget: React.FC = () => {
       />,
       <TodoItem
         key="draft"
-        icon={<FileDoneOutlined />}
+        icon={<FileCheck size={18} />}
         tone="gray"
         title="草稿采购订单"
         desc="还没确认下单"
@@ -294,7 +288,7 @@ export const MyPurchaseWidget: React.FC = () => {
     items.push(
       <TodoItem
         key="transit"
-        icon={<CarOutlined />}
+        icon={<Truck size={18} />}
         tone="green"
         title="在途"
         desc="供应商已发货，还没到仓"
@@ -303,7 +297,7 @@ export const MyPurchaseWidget: React.FC = () => {
       />,
       <TodoItem
         key="diff"
-        icon={<WarningOutlined />}
+        icon={<TriangleAlert size={18} />}
         tone="red"
         title="到货差异待处理"
         desc="少发、错发、不良"
@@ -319,7 +313,7 @@ export const MyPurchaseWidget: React.FC = () => {
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-          gap: 8,
+          columnGap: 24,
         }}
       >
         {items}

@@ -125,9 +125,44 @@ export const WIDGETS: Record<string, React.FC> = {
   }),
   'revenue-trend': blockWidget({
     key: 'revenue-trend',
-    title: '近 12 个月',
-    help: '每月成交额',
+    title: '近 12 个月成交额',
   }),
   'risk-alerts': blockWidget({ key: 'risk-alerts', title: '风险提醒' }),
   rankings: blockWidget({ key: 'rankings', title: '排行', period: '本月' }),
+};
+
+/**
+ * 各组件的预估高度（px），只用来在首次显示时把半宽组件分到左右两列（规范「工作台」）：
+ * 按模板顺序放进预估较矮的一列，分好就固定，加载完成、刷新数据都不换列。没写的按 300 算。
+ */
+export const WIDGET_HEIGHT: Record<string, number> = {
+  'opportunity-stats': 420,
+  'overdue-pi': 300,
+  'my-inquiry': 420,
+  'quote-stats': 240,
+  'quote-trend': 320,
+  'my-purchase': 360,
+  'my-todo': 440,
+  'my-performance': 340,
+  'quote-progress': 230,
+  'my-opportunities': 230,
+  'team-performance': 340,
+  'follow-ups': 360,
+  'sales-compare': 360,
+  'quote-conversion': 320,
+  'sourcing-overview': 300,
+  'buyer-efficiency': 360,
+  'purchase-execution': 400,
+  'bargain-result': 240,
+  payables: 300,
+  'content-pipeline': 300,
+  'platform-progress': 300,
+  'media-overview': 240,
+  'monthly-output': 240,
+  'biz-overview': 220,
+  cash: 260,
+  'sales-funnel': 300,
+  'revenue-trend': 320,
+  'risk-alerts': 360,
+  rankings: 360,
 };

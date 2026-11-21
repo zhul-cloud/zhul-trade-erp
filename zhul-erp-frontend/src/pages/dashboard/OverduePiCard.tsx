@@ -39,7 +39,7 @@ const OverduePiCard: React.FC = () => {
   const viewAll = () => history.push('/sales/pi?expired=1');
 
   return (
-    <Card style={{ height: '100%' }}>
+    <Card>
       <div
         style={{
           display: 'flex',

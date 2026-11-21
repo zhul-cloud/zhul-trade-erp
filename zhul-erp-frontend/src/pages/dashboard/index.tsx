@@ -15,7 +15,7 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { MenuName } from '@/utils/menuName';
 import { type Workbench, workbenchApi } from './service';
-import { WIDGETS } from './widgets';
+import { WIDGET_HEIGHT, WIDGETS } from './widgets';
 
 /** 没有卡片时的常用入口，同样按权限过滤；按钮文字取菜单名称 */
 const SHORTCUTS: {
@@ -63,6 +63,36 @@ const saveBoard = (user: string | undefined, code: string) => {
   } catch {
     // 无痕模式等读写不了本地存储时只是不记住
   }
+};
+
+type BoardWidget = { key: string; size?: string };
+
+/** 按模板顺序切段：整行宽的组件独占一段，相邻的半宽组件合成一段分两列 */
+const segments = (widgets: BoardWidget[]) => {
+  const out: (
+    | { full: BoardWidget }
+    | { full?: undefined; half: BoardWidget[] }
+  )[] = [];
+  for (const w of widgets) {
+    const last = out[out.length - 1];
+    if (w.size === 'full') out.push({ full: w });
+    else if (last && !last.full) last.half.push(w);
+    else out.push({ half: [w] });
+  }
+  return out;
+};
+
+/**
+ * 分列：按模板顺序放进预估高度较矮的一列（一样高时放左列）。只看预估高度，
+ * 所以同一看板、同一屏宽下分法固定，加载完成、刷新都不换列。
+ */
+export const assignColumns = (widgets: BoardWidget[], columns: number) => {
+  const heights = new Array(columns).fill(0);
+  return widgets.map((w) => {
+    const column = heights.indexOf(Math.min(...heights));
+    heights[column] += (WIDGET_HEIGHT[w.key] ?? 300) + 16;
+    return { key: w.key, column };
+  });
 };
 
 /**
@@ -146,30 +176,43 @@ const Dashboard: React.FC = () => {
               {board.name}看板正在建设中，先显示通用卡片。
             </div>
           )}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: wide
-                ? 'repeat(2, minmax(0, 1fr))'
-                : 'minmax(0, 1fr)',
-              gap: 16,
-              // 同一行的卡片等高（默认拉伸），不按各自内容高度参差排列（audit UI-041）
-            }}
-          >
-            {widgets.map((w) => {
-              const Widget = WIDGETS[w.key];
-              return (
+          <div style={{ display: 'grid', gap: 16 }}>
+            {segments(widgets).map((seg) =>
+              seg.full ? (
+                <div key={seg.full.key} style={{ minWidth: 0 }}>
+                  {React.createElement(WIDGETS[seg.full.key])}
+                </div>
+              ) : (
                 <div
-                  key={w.key}
+                  key={seg.half.map((w) => w.key).join(',')}
                   style={{
-                    minWidth: 0,
-                    ...(w.size === 'full' ? { gridColumn: '1 / -1' } : {}),
+                    display: 'grid',
+                    gridTemplateColumns: wide
+                      ? 'repeat(2, minmax(0, 1fr))'
+                      : 'minmax(0, 1fr)',
+                    gap: 16,
+                    alignItems: 'start',
                   }}
                 >
-                  <Widget />
+                  {Array.from({ length: wide ? 2 : 1 }, (_, c) => (
+                    // 每列自上而下叠放，卡片保持自身高度
+                    <div
+                      // biome-ignore lint/suspicious/noArrayIndexKey: 列号固定
+                      key={c}
+                      style={{ display: 'grid', gap: 16, minWidth: 0 }}
+                    >
+                      {assignColumns(seg.half, wide ? 2 : 1)
+                        .filter((x) => x.column === c)
+                        .map(({ key }) => (
+                          <div key={key} style={{ minWidth: 0 }}>
+                            {React.createElement(WIDGETS[key])}
+                          </div>
+                        ))}
+                    </div>
+                  ))}
                 </div>
-              );
-            })}
+              ),
+            )}
           </div>
         </>
       ) : (

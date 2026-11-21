@@ -8,38 +8,60 @@ import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { readBizError } from '@/pages/crm/opportunity/service';
 import { Card } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
+import { CHART_SERIES } from '@/theme/palette';
 import { workbenchApi } from '../service';
 
-export type Tone = 'blue' | 'green' | 'orange' | 'red' | 'violet' | 'gray';
+/**
+ * 图标底块的色调（规范「图标底块」：12% 浅底配同色图标）。primary 为主题色；blue 是固定的蓝（图表系列色第一个），
+ * 不随主题色变化——默认琥珀主题下主题色与警告色相近，「蓝」要和它们分得开（工作台原型 D1）。
+ * 后端待办传的 tone 沿用 blue / green / orange / red / violet。
+ */
+export type Tone =
+  | 'primary'
+  | 'blue'
+  | 'green'
+  | 'orange'
+  | 'red'
+  | 'violet'
+  | 'gray';
+
+const BLUE = CHART_SERIES[0];
 
 /** 色调 → [主色, 浅底] */
 export const useTone = () => {
-  const { palette } = useAppTheme();
+  const { palette, mode } = useAppTheme();
   return (tone: Tone): [string, string] =>
     (
       ({
-        blue: [palette.link, palette.primarySoft],
+        primary: [palette.link, palette.primarySoft],
+        // 浅底：浅色 12%、深色 16%，同其他语义色
+        blue: [BLUE, `${BLUE}${mode === 'light' ? '1F' : '29'}`],
         green: [palette.green, palette.greenSoft],
         orange: [palette.orange, palette.orangeSoft],
         red: [palette.red, palette.redSoft],
         violet: [palette.info, palette.infoSoft],
-        gray: [palette.faint, palette.hover],
+        gray: [palette.sub, palette.neutralSoft],
       }) as Record<Tone, [string, string]>
     )[tone];
 };
+
+/** 错误、警告色只在告警时用：数量为 0 时改中性（规范「图标底块」） */
+export const alertTone = (tone: Tone, count?: number | null) =>
+  (tone === 'red' || tone === 'orange') && !count ? 'gray' : tone;
 
 export const IconChip: React.FC<{
   icon: React.ReactNode;
   tone: Tone;
   size?: number;
-}> = ({ icon, tone, size = 32 }) => {
+  round?: boolean;
+}> = ({ icon, tone, size = 32, round }) => {
   const [color, soft] = useTone()(tone);
   return (
     <span
       style={{
         width: size,
         height: size,
-        borderRadius: 8,
+        borderRadius: round ? '50%' : 8,
         background: soft,
         color,
         display: 'inline-flex',
@@ -92,14 +114,8 @@ export const WidgetCard: React.FC<{
 }> = ({ title, period, help, extra, loading, error, onRetry, children }) => {
   const { palette } = useAppTheme();
   return (
-    // 纵向弹性布局：同一行卡片被拉成等高时，内容区（如图表）跟着长高，不在下方留空（audit UI-041）
-    <Card
-      style={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
+    // 卡片保持自身内容的高度：工作台按两列瀑布流排，不为对齐拉伸（规范「工作台」，取代 UI-041 的同行等高）
+    <Card style={{ display: 'flex', flexDirection: 'column' }}>
       <div
         style={{
           display: 'flex',
@@ -177,8 +193,9 @@ export const Metric: React.FC<{
   icon?: React.ReactNode;
   tone?: Tone;
   onClick?: () => void;
-}> = ({ label, value, hint, hintColor, icon, tone = 'blue', onClick }) => {
+}> = ({ label, value, hint, hintColor, icon, tone = 'primary', onClick }) => {
   const { palette } = useAppTheme();
+  const [hover, setHover] = useState(false);
   const body = (
     <>
       <div
@@ -190,7 +207,7 @@ export const Metric: React.FC<{
           color: palette.sub,
         }}
       >
-        {icon && <IconChip icon={icon} tone={tone} size={24} />}
+        {icon && <IconChip icon={icon} tone={tone} size={24} round />}
         {label}
         {onClick && (
           <ChevronRight size={14} aria-hidden style={{ color: palette.mute }} />
@@ -198,7 +215,7 @@ export const Metric: React.FC<{
       </div>
       {/* 卡片变窄时自动缩小字号，金额不溢出、不截断 */}
       <FitText
-        size={24}
+        size={22}
         min={16}
         style={{
           fontWeight: 700,
@@ -222,14 +239,17 @@ export const Metric: React.FC<{
     minWidth: 0,
     padding: 16,
     borderRadius: 10,
-    background: palette.card,
+    background: onClick && hover ? palette.hover : palette.card,
     border: `1px solid ${palette.hairline}`,
+    transition: 'background .2s',
     textAlign: 'left',
   };
   return onClick ? (
     <button
       type="button"
       onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
       style={{ ...style, cursor: 'pointer' }}
     >
       {body}
@@ -239,7 +259,10 @@ export const Metric: React.FC<{
   );
 };
 
-/** 待办行（原型 D1）：图标、名称、说明、数量与右箭头，行间细分隔线；点击进入对应列表 */
+/**
+ * 待办行（原型 D1）：图标、名称、说明、数量与右箭头，行间细分隔线（last 为最后一行，不画下边线）；
+ * 点击进入对应列表。悬停浅底；错误、警告色的图标在数量为 0 时为中性色。
+ */
 export const TodoItem: React.FC<{
   icon: React.ReactNode;
   tone: Tone;
@@ -247,47 +270,63 @@ export const TodoItem: React.FC<{
   desc: string;
   count: number;
   alert?: boolean;
+  last?: boolean;
   onClick: () => void;
-}> = ({ icon, tone, title, desc, count, alert, onClick }) => {
+}> = ({ icon, tone, title, desc, count, alert, last, onClick }) => {
   const { palette } = useAppTheme();
-  const [color] = useTone()(tone);
+  const [hover, setHover] = useState(false);
+  const shown = alertTone(tone, count);
+  const [color] = useTone()(shown);
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    // 分隔线画在外层，按钮本身不裁剪，键盘焦点框完整可见
+    <div
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        width: '100%',
-        padding: '14px 0',
-        border: 'none',
-        borderBottom: `1px solid ${palette.hairline}`,
-        background: 'transparent',
-        cursor: 'pointer',
-        textAlign: 'left',
+        padding: '4px 0',
+        borderBottom: last ? undefined : `1px solid ${palette.hairline}`,
       }}
     >
-      <IconChip icon={icon} tone={tone} size={36} />
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'block', fontWeight: 600, color: palette.ink }}>
-          {title}
-        </span>
-        <span style={{ display: 'block', fontSize: 12, color: palette.mute }}>
-          {desc}
-        </span>
-      </span>
-      <span
+      <button
+        type="button"
+        onClick={onClick}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
         style={{
-          fontSize: 20,
-          fontWeight: 700,
-          color: count > 0 && alert ? color : palette.ink,
-          fontVariantNumeric: 'tabular-nums',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          width: '100%',
+          padding: '10px 8px',
+          border: 'none',
+          borderRadius: 8,
+          background: hover ? palette.hover : 'transparent',
+          transition: 'background .2s',
+          cursor: 'pointer',
+          textAlign: 'left',
         }}
       >
-        {count}
-      </span>
-      <ChevronRight size={16} aria-hidden style={{ color: palette.mute }} />
-    </button>
+        <IconChip icon={icon} tone={shown} size={38} />
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span
+            style={{ display: 'block', fontWeight: 600, color: palette.ink }}
+          >
+            {title}
+          </span>
+          <span style={{ display: 'block', fontSize: 12, color: palette.mute }}>
+            {desc}
+          </span>
+        </span>
+        <span
+          style={{
+            fontSize: 20,
+            fontWeight: 700,
+            color: count > 0 && alert ? color : palette.ink,
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {count}
+        </span>
+        <ChevronRight size={16} aria-hidden style={{ color: palette.mute }} />
+      </button>
+    </div>
   );
 };

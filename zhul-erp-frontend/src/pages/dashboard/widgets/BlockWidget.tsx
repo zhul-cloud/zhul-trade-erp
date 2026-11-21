@@ -1,38 +1,33 @@
-import {
-  AlertOutlined,
-  AppstoreOutlined,
-  AuditOutlined,
-  CameraOutlined,
-  CarOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  DollarOutlined,
-  FallOutlined,
-  FieldTimeOutlined,
-  FileDoneOutlined,
-  FileTextOutlined,
-  HourglassOutlined,
-  InboxOutlined,
-  PictureOutlined,
-  RocketOutlined,
-  SendOutlined,
-  ShoppingOutlined,
-  UserAddOutlined,
-  WalletOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { Tooltip } from 'antd';
 import {
+  AlarmClock,
   CalendarX,
+  Camera,
   CircleCheck,
   CircleDollarSign,
+  Clock,
+  FileCheck,
+  FileClock,
+  FileSearch,
+  FileText,
   Hourglass,
+  Image,
+  Inbox,
   Landmark,
+  LayoutGrid,
+  Package,
   PiggyBank,
+  Rocket,
+  Send,
   ShoppingBag,
+  Siren,
+  TrendingDown,
+  TriangleAlert,
   Trophy,
+  Truck,
   UserPlus,
+  Wallet,
 } from 'lucide-react';
 import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -40,6 +35,7 @@ import { DeltaText } from '@/theme/delta';
 import { formatAmount } from '@/utils/format';
 import { MenuName } from '@/utils/menuName';
 import {
+  alertTone,
   Metric,
   MoreLink,
   TodoItem,
@@ -105,38 +101,58 @@ interface Block {
 }
 type Format = 'money' | 'percent' | 'count';
 
+/** 待办图标（后端给图标键）：统一 lucide，18px 放在 38 的底块里 */
+const ICON_SIZE = 18;
 const ICONS: Record<string, React.ReactNode> = {
-  inbox: <InboxOutlined />,
-  'file-text': <FileTextOutlined />,
-  'file-done': <FileDoneOutlined />,
-  'file-clock': <FieldTimeOutlined />,
-  wallet: <WalletOutlined />,
-  ship: <RocketOutlined />,
-  send: <SendOutlined />,
-  truck: <CarOutlined />,
-  hourglass: <HourglassOutlined />,
-  alert: <AlertOutlined />,
-  warning: <WarningOutlined />,
-  audit: <AuditOutlined />,
-  clock: <ClockCircleOutlined />,
-  check: <CheckCircleOutlined />,
-  money: <DollarOutlined />,
-  down: <FallOutlined />,
-  camera: <CameraOutlined />,
-  picture: <PictureOutlined />,
-  package: <ShoppingOutlined />,
-  user: <UserAddOutlined />,
+  inbox: <Inbox size={ICON_SIZE} />,
+  'file-text': <FileText size={ICON_SIZE} />,
+  'file-done': <FileCheck size={ICON_SIZE} />,
+  'file-clock': <FileClock size={ICON_SIZE} />,
+  wallet: <Wallet size={ICON_SIZE} />,
+  ship: <Rocket size={ICON_SIZE} />,
+  send: <Send size={ICON_SIZE} />,
+  truck: <Truck size={ICON_SIZE} />,
+  hourglass: <Hourglass size={ICON_SIZE} />,
+  alert: <Siren size={ICON_SIZE} />,
+  warning: <TriangleAlert size={ICON_SIZE} />,
+  audit: <FileSearch size={ICON_SIZE} />,
+  clock: <Clock size={ICON_SIZE} />,
+  'alarm-clock': <AlarmClock size={ICON_SIZE} />,
+  check: <CircleCheck size={ICON_SIZE} />,
+  money: <CircleDollarSign size={ICON_SIZE} />,
+  down: <TrendingDown size={ICON_SIZE} />,
+  camera: <Camera size={ICON_SIZE} />,
+  picture: <Image size={ICON_SIZE} />,
+  package: <Package size={ICON_SIZE} />,
+  user: <UserPlus size={ICON_SIZE} />,
 };
 
-/** 数字小块名称前的图标（原型 D1）：后端只给名称，按名称配图标；没配的不显示图标 */
+/**
+ * 后端待办的 tone 是语义名，按工作台原型 D1 换成图标底块色：
+ * blue（待确认的询盘、待下单的需求）→ 信息色；violet（订单待出运、待供应商发货）→ 蓝；
+ * orange 不是告警时（PI 待收款）→ 主题色，告警时仍是警告色；数量为 0 的错误、警告色由 TodoItem 改中性。
+ */
+const todoTone = (tone: Tone, alert?: boolean): Tone =>
+  tone === 'blue'
+    ? 'violet'
+    : tone === 'violet'
+      ? 'blue'
+      : tone === 'orange' && !alert
+        ? 'primary'
+        : tone;
+
+/**
+ * 数字小块名称前的图标（原型 D1）：后端只给名称，按名称配图标。同一块里只有全部配齐时才显示，
+ * 否则整块都不带图标，标签行高低一致。错误色在数值为 0 时改中性。
+ */
 const METRIC_ICONS: Record<string, [React.ReactNode, Tone]> = {
-  成交额: [<CircleDollarSign key="i" size={14} />, 'orange'],
+  成交额: [<CircleDollarSign key="i" size={14} />, 'primary'],
   毛利: [<PiggyBank key="i" size={14} />, 'green'],
   实收回款: [<Landmark key="i" size={14} />, 'violet'],
   成交订单: [<ShoppingBag key="i" size={14} />, 'blue'],
   等采购回价的型号: [<Hourglass key="i" size={14} />, 'violet'],
   已过报价截止: [<CalendarX key="i" size={14} />, 'red'],
-  本月新增商机: [<UserPlus key="i" size={14} />, 'orange'],
+  本月新增商机: [<UserPlus key="i" size={14} />, 'primary'],
   有效商机: [<CircleCheck key="i" size={14} />, 'green'],
   赢单: [<Trophy key="i" size={14} />, 'blue'],
 };
@@ -180,16 +196,22 @@ const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
     </div>
   );
   switch (b.type) {
-    case 'metrics':
+    case 'metrics': {
+      const metrics = b.metrics ?? [];
+      const withIcons = metrics.every((m) => METRIC_ICONS[m.label]);
       return (
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          {(b.metrics ?? []).map((m) => (
+          {metrics.map((m) => (
             <Metric
               key={m.label}
               label={m.label}
               value={fmt(m.value, m.format)}
-              icon={METRIC_ICONS[m.label]?.[0]}
-              tone={METRIC_ICONS[m.label]?.[1]}
+              icon={withIcons ? METRIC_ICONS[m.label][0] : undefined}
+              tone={
+                withIcons
+                  ? alertTone(METRIC_ICONS[m.label][1], m.value)
+                  : undefined
+              }
               hint={
                 m.delta !== null && m.delta !== undefined ? (
                   <Delta m={m} />
@@ -203,34 +225,28 @@ const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
           ))}
         </div>
       );
-    case 'todos':
+    }
+    case 'todos': {
+      const todos = b.todos ?? [];
       return (
-        // 行间细分隔线，最后一行的下边线被裁掉
-        <div style={{ overflow: 'hidden' }}>
+        <div style={{ display: 'grid' }}>
           {title}
-          <div
-            style={{
-              display: 'grid',
-              // 第一行不要上内边距：紧跟卡片标题
-              marginTop: b.title ? 0 : -14,
-              marginBottom: -1,
-            }}
-          >
-            {(b.todos ?? []).map((t) => (
-              <TodoItem
-                key={t.title}
-                icon={ICONS[t.icon] ?? <AppstoreOutlined />}
-                tone={t.tone}
-                title={t.title}
-                desc={t.desc}
-                count={t.count}
-                alert={t.alert}
-                onClick={() => go(t.link)}
-              />
-            ))}
-          </div>
+          {todos.map((t, i) => (
+            <TodoItem
+              key={t.title}
+              icon={ICONS[t.icon] ?? <LayoutGrid size={ICON_SIZE} />}
+              tone={todoTone(t.tone, t.alert)}
+              title={t.title}
+              desc={t.desc}
+              count={t.count}
+              alert={t.alert}
+              last={i === todos.length - 1}
+              onClick={() => go(t.link)}
+            />
+          ))}
         </div>
       );
+    }
     case 'table': {
       const t = b.table as TableData;
       return (
@@ -328,16 +344,15 @@ const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
       const bars = b.bars as BarsData;
       const max = Math.max(1, ...bars.values.map(Number));
       return (
-        // 柱状图随卡片高度伸展（最少 140），等高的卡片里不在图下方留空
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        // 卡片保持自身高度（工作台瀑布流），柱状图区固定 160 高，柱子按百分比
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
           {title}
           <div
             style={{
               display: 'flex',
               alignItems: 'flex-end',
               gap: 6,
-              flex: 1,
-              minHeight: 140,
+              height: 160,
             }}
           >
             {bars.values.map((v, i) => {

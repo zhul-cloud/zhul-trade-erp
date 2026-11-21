@@ -2,6 +2,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { history } from '@umijs/max';
 import { App } from 'antd';
 import React from 'react';
+import { buildPalette } from '@/theme/palette';
+import { assignColumns } from './index';
 import { workbenchApi } from './service';
 import { WIDGETS } from './widgets';
 
@@ -122,4 +124,75 @@ it('表格没有数据时显示后端给的空状态文字', async () => {
     ],
   });
   expect(screen.getByText('本月还没有成交')).toBeTruthy();
+});
+
+/** 规范「工作台两列按内容高度排列」：业务员看板（模板顺序照 V1.3.5）左列待办、过期 PI，右列业绩、询价进度、商机 */
+it('业务员看板分两列：左列待办、过期 PI，右列业绩、询价进度、商机', () => {
+  const half = (key: string) => ({ key, size: 'half' });
+  const cols = assignColumns(
+    [
+      'my-todo',
+      'my-performance',
+      'quote-progress',
+      'overdue-pi',
+      'my-opportunities',
+    ].map(half),
+    2,
+  );
+  const left = cols.filter((c) => c.column === 0).map((c) => c.key);
+  const right = cols.filter((c) => c.column === 1).map((c) => c.key);
+  expect(left).toEqual(['my-todo', 'overdue-pi']);
+  expect(right).toEqual([
+    'my-performance',
+    'quote-progress',
+    'my-opportunities',
+  ]);
+  // 窄屏只有一列
+  expect(assignColumns(['my-todo', 'overdue-pi'].map(half), 1)).toEqual([
+    { key: 'my-todo', column: 0 },
+    { key: 'overdue-pi', column: 0 },
+  ]);
+});
+
+const rgb = (hex: string) => {
+  const n = Number.parseInt(hex.slice(1), 16);
+  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+};
+const LIGHT = buildPalette('light');
+
+const alarmTodo = (count: number) => ({
+  blocks: [
+    {
+      type: 'todos',
+      todos: [
+        {
+          icon: 'alarm-clock',
+          tone: 'red',
+          title: '售后要更新客户',
+          desc: '已逾期或 1 小时内到期的售后单',
+          count,
+          alert: true,
+          link: '/sales/after-sales',
+        },
+      ],
+    },
+  ],
+});
+
+const chipColor = () =>
+  (
+    screen
+      .getByRole('button', { name: /售后要更新客户/ })
+      .querySelector('span') as HTMLElement
+  ).style.color;
+
+/** 规范「没有告警时图标不标红」 */
+it('数量为 0 的告警待办图标为中性色', async () => {
+  await renderWidget('my-todo', alarmTodo(0));
+  expect(chipColor()).toBe(rgb(LIGHT.sub));
+});
+
+it('数量大于 0 的告警待办图标为错误色', async () => {
+  await renderWidget('my-todo', alarmTodo(2));
+  expect(chipColor()).toBe(rgb(LIGHT.red));
 });

@@ -116,3 +116,48 @@ it('差额在容差内可勾选记为手续费，勾选后随提交带上', asyn
     expect.objectContaining({ amount: 500, feeDiff: true }),
   );
 });
+
+/** 多收：先弹确认，确认后才提交（help-texts：确认框原样保留） */
+it('多收时先确认，确认后再提交', async () => {
+  const confirm = jest.fn().mockResolvedValue({ receiptStatusName: '已到账' });
+  await renderModal(confirm);
+  await act(async () => {
+    fireEvent.change(screen.getByRole('spinbutton', { name: '到账金额' }), {
+      target: { value: '600' },
+    });
+  });
+  expect(screen.getByText(/多收 USD 68\.00，将记为预收/)).toBeTruthy();
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: /登\s*记/ }));
+  });
+  expect(confirm).not.toHaveBeenCalled();
+  // 弹出了确认框
+  expect(screen.getByRole('button', { name: '继续登记' })).toBeTruthy();
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: '继续登记' }));
+  });
+  expect(confirm).toHaveBeenCalledWith(
+    expect.objectContaining({ amount: 600 }),
+  );
+});
+
+it('没有到账金额时登记按钮置灰；差额超过容差时提示可记为手续费的上限', async () => {
+  const confirm = jest.fn();
+  await renderModal(confirm);
+  await act(async () => {
+    fireEvent.change(screen.getByRole('spinbutton', { name: '到账金额' }), {
+      target: { value: '400' },
+    });
+  });
+  expect(screen.getByText(/差额不超过 USD 50\.00 时可记为手续费/)).toBeTruthy();
+  expect(screen.queryByRole('checkbox', { name: /差额记为/ })).toBeNull();
+  await act(async () => {
+    fireEvent.change(screen.getByRole('spinbutton', { name: '到账金额' }), {
+      target: { value: '' },
+    });
+  });
+  expect(
+    (screen.getByRole('button', { name: /登\s*记/ }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+});
