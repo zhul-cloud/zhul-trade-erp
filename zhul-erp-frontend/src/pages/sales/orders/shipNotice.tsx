@@ -18,6 +18,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CardTitle } from '@/components/ListLayout';
 import { ObStatusPill } from '@/pages/logistics/components';
 import {
   type Forwarder,
@@ -340,7 +341,7 @@ export const ShipNoticeModal: React.FC<{
               value={note}
               onChange={(e) => setNote(e.target.value)}
               maxLength={200}
-              placeholder="给仓库的话，如 客户要求 DHL，周五前发出"
+              placeholder="如：客户要求 DHL，周五前发出"
               aria-label="备注"
             />
           </div>
@@ -379,8 +380,8 @@ export const OrderOutbounds: React.FC<{
   if (rows.length === 0) return null;
   return (
     <Card style={{ padding: 20, marginBottom: 16 }}>
-      <b style={{ color: palette.ink }}>销售出库单</b>
-      <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+      <CardTitle>销售出库单</CardTitle>
+      <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
         {rows.map((r) => (
           <div
             key={r.id}

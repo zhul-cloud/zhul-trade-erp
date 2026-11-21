@@ -70,39 +70,69 @@ export const HelpTip: React.FC<{
 };
 
 /**
- * 页头：一行，左侧页面标题，右侧主操作（每个页头最多一个主按钮）。
- * 列表页不用传 title：取当前页面在「菜单管理」里的名称；详情页传单号等自己的标题。
+ * 页头：左侧页面标题，右侧主操作（每个页头最多一个主按钮）。
+ * 列表页不用传 title：取当前页面在「菜单管理」里的名称。
+ * 详情页 title 为单号，tags 为状态标签（跟在单号后面，不算标题文字），sub 为标题下一行的副信息（客户 · 来源单号 · 负责人 · 创建时间）。
  */
 export const PageHeader: React.FC<{
   title?: React.ReactNode;
+  tags?: React.ReactNode;
+  sub?: React.ReactNode;
   extra?: React.ReactNode;
-}> = ({ title, extra }) => {
+}> = ({ title, tags, sub, extra }) => {
   const { palette } = useAppTheme();
   const menu = useMenu();
   return (
     <div
       style={{
         display: 'flex',
-        alignItems: 'center',
+        alignItems: sub ? 'flex-start' : 'center',
         justifyContent: 'space-between',
         gap: 16,
-        marginBottom: 12,
+        marginBottom: sub ? 16 : 12,
         minHeight: 36,
+        flexWrap: 'wrap',
       }}
     >
-      <h1
-        style={{
-          margin: 0,
-          fontSize: 20,
-          fontWeight: 600,
-          color: palette.ink,
-          minWidth: 0,
-        }}
-      >
-        {title ?? menu?.name}
-      </h1>
+      <div style={{ minWidth: 0 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flexWrap: 'wrap',
+            minHeight: 36,
+          }}
+        >
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 20,
+              fontWeight: 600,
+              color: palette.ink,
+              minWidth: 0,
+            }}
+          >
+            {title ?? menu?.name}
+          </h1>
+          {tags}
+        </div>
+        {sub && (
+          <div style={{ marginTop: 2, fontSize: 13, color: palette.sub }}>
+            {sub}
+          </div>
+        )}
+      </div>
       {extra && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            minHeight: 36,
+            flexWrap: 'wrap',
+          }}
+        >
           {extra}
         </div>
       )}
@@ -461,15 +491,31 @@ export const MainCard: React.FC<{
   );
 };
 
-/** 详情页分区：卡片标题 18/500，可带帮助图标和右侧操作；id 加在标题上，用于页内定位 */
+/** 卡片标题（18/500，同 Section 标题）：给自己画卡片头部的组件用 */
+export const CardTitle: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const { palette } = useAppTheme();
+  return (
+    <h2
+      style={{ margin: 0, fontSize: 18, fontWeight: 500, color: palette.ink }}
+    >
+      {children}
+    </h2>
+  );
+};
+
+/** 详情页分区：卡片标题 18/500，可带帮助图标、标题旁计数（meta）和右侧操作；id 加在标题上，用于页内定位 */
 export const Section: React.FC<{
   title: React.ReactNode;
   help?: React.ReactNode;
+  /** 标题旁的一小段说明，如「4 个型号 · 23 件」 */
+  meta?: React.ReactNode;
   extra?: React.ReactNode;
   children: React.ReactNode;
   id?: string;
   style?: React.CSSProperties;
-}> = ({ title, help, extra, children, id, style }) => {
+}> = ({ title, help, meta, extra, children, id, style }) => {
   const { palette } = useAppTheme();
   return (
     <Panel style={{ padding: '20px 24px', minWidth: 0, ...style }}>
@@ -493,6 +539,9 @@ export const Section: React.FC<{
           {title}
         </h2>
         {help && <HelpTip title={help} />}
+        {meta && (
+          <span style={{ fontSize: 13, color: palette.mute }}>{meta}</span>
+        )}
         {extra && (
           <div
             style={{

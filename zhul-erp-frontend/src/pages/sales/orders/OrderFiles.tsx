@@ -7,6 +7,7 @@ import {
 import { App, Button, Input, Popconfirm, Upload } from 'antd';
 import React, { useState } from 'react';
 import { useDocPreview } from '@/components/DocFiles';
+import { CardTitle } from '@/components/ListLayout';
 import { useUnsavedGuard } from '@/components/PageTabs/hooks';
 import { type Attachment, attachmentApi } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -228,7 +229,7 @@ export const OrderFilesCard: React.FC<{
           marginBottom: files.length > 0 || canEdit ? 12 : 8,
         }}
       >
-        <b style={{ color: palette.ink, fontSize: 15 }}>附件与备注</b>
+        <CardTitle>附件与备注</CardTitle>
         <span style={{ flex: 1 }} />
         {canEdit && files.length < ORDER_FILE_MAX && (
           <OrderFileUpload

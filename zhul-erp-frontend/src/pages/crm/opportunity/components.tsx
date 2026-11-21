@@ -5,6 +5,7 @@ import {
 } from '@ant-design/icons';
 import { App, Breadcrumb } from 'antd';
 import React from 'react';
+import { Panel } from '@/components/ListLayout';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import { MenuLink, useMenu } from '@/utils/menuName';
@@ -169,6 +170,7 @@ export const PageTitle: React.FC<{
 };
 
 /** 卡片：标题（右侧可放操作）+ 内容 */
+/** 页面卡片：外观同骨架组件 Panel（圆角 10，浅色阴影、深色边框）；标题 18/500 同 Section */
 export const Card: React.FC<{
   title?: string;
   extra?: React.ReactNode;
@@ -177,15 +179,7 @@ export const Card: React.FC<{
 }> = ({ title, extra, children, style }) => {
   const { palette } = useAppTheme();
   return (
-    <section
-      style={{
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
-        borderRadius: 16,
-        padding: 24,
-        ...style,
-      }}
-    >
+    <Panel style={{ padding: 24, minWidth: 0, ...style }}>
       {(title || extra) && (
         <div
           style={{
@@ -199,8 +193,8 @@ export const Card: React.FC<{
           <h2
             style={{
               margin: 0,
-              fontSize: 16,
-              fontWeight: 600,
+              fontSize: 18,
+              fontWeight: 500,
               color: palette.ink,
             }}
           >
@@ -210,7 +204,7 @@ export const Card: React.FC<{
         </div>
       )}
       {children}
-    </section>
+    </Panel>
   );
 };
 

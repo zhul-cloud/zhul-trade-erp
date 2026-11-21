@@ -2,6 +2,7 @@ import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Popover, Table } from 'antd';
 import React from 'react';
+import { CardTitle } from '@/components/ListLayout';
 import type {
   CostLine,
   CostSource,
@@ -284,7 +285,7 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
           marginBottom: 12,
         }}
       >
-        <b style={{ fontSize: 16, color: palette.ink }}>成本明细</b>
+        <CardTitle>成本明细</CardTitle>
         {own && <Pill tone="cyan">计入原订单 {cost.replacementOfNo}</Pill>}
         {cost.settled ? (
           <Pill tone="green">已结算</Pill>
@@ -472,7 +473,7 @@ const SnapshotCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
           marginBottom: 16,
         }}
       >
-        <b style={{ fontSize: 16, color: palette.ink }}>订单成本</b>
+        <CardTitle>订单成本</CardTitle>
         <Pill tone="orange">历史迁移：按旧系统成本核算</Pill>
         {(s.sourceCodes || s.accountingMonth) && (
           <span style={{ fontSize: 12, color: palette.mute }}>

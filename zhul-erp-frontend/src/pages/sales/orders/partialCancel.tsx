@@ -1,10 +1,10 @@
 import {
-  HistoryOutlined,
   InfoCircleOutlined,
   ShoppingCartOutlined,
 } from '@ant-design/icons';
 import { App, Button, Input, InputNumber, Modal, Select } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
+import { CardTitle } from '@/components/ListLayout';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { Card, Pill } from '../components';
@@ -69,8 +69,7 @@ export const PartialCancelRecords: React.FC<{ order: Order }> = ({ order }) => {
           marginBottom: 12,
         }}
       >
-        <HistoryOutlined style={{ color: palette.link }} />
-        <b style={{ color: palette.ink }}>部分取消记录</b>
+        <CardTitle>部分取消记录</CardTitle>
         <span style={{ marginLeft: 'auto', fontSize: 12, color: palette.mute }}>
           共 {rows.length} 次 · 少了 {formatAmount(sum, cur)}
         </span>

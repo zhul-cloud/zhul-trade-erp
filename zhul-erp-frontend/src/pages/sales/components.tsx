@@ -2,6 +2,7 @@ import { history } from '@umijs/max';
 import { Skeleton } from 'antd';
 import React, { useEffect, useState } from 'react';
 import type { SourceRef } from '@/components/DocFields/SourceNos';
+import { CardTitle, HelpTip } from '@/components/ListLayout';
 import {
   Card,
   MigratedPill,
@@ -123,11 +124,7 @@ const StatusPill: React.FC<{
     label: '—',
     tone: 'gray' as const,
   };
-  return (
-    <Pill tone={m.tone} dot>
-      {m.label}
-    </Pill>
-  );
+  return <Pill tone={m.tone}>{m.label}</Pill>;
 };
 
 export const PiStatusPill: React.FC<{ status: number }> = ({ status }) => (
@@ -223,19 +220,17 @@ export const ChainCard: React.FC<{
     </button>
   );
   return (
-    <Card style={{ padding: '14px 20px', marginBottom: 16 }}>
+    <Card style={{ padding: 24, marginBottom: 16 }}>
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: 8,
-          marginBottom: 10,
+          marginBottom: 16,
         }}
       >
-        <b style={{ color: palette.ink }}>来源 / 去向</b>
-        <span style={{ fontSize: 12, color: palette.mute }}>
-          型号从询盘到订单经过的单据，点击可跳转
-        </span>
+        <CardTitle>来源 / 去向</CardTitle>
+        <HelpTip title="型号从询盘到订单经过的单据" />
       </div>
       {!chain ? (
         <Skeleton active paragraph={{ rows: 1 }} title={false} />

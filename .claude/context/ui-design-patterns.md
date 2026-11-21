@@ -228,13 +228,14 @@ import {
 
 | 组件 | 属性 | 说明 |
 |---|---|---|
-| `PageHeader` | `title`、`extra` | 一行页头：左侧标题（20/600，`h1`），右侧主操作；每个页头最多一个主按钮。列表页不传 `title`，取当前页面的菜单名称 |
+| `PageHeader` | `title`、`tags`、`sub`、`extra` | 页头：左侧标题（20/600，`h1`），右侧操作；每个页头最多一个主按钮，其余用文字按钮或收进「更多」菜单。列表页不传 `title`，取当前页面的菜单名称；详情页 `title` 为单号，`tags` 放状态标签，`sub` 为下一行副信息（客户 · 来源单号 · 负责人 · 创建时间） |
 | `SummaryBar` | `items: SummaryItem[]` | 汇总行。每项 `label`、`value`；金额传 `currency`，按 `formatAmount` 显示；口径写 `help`；副文字写 `sub`，只有页面别处也能看到的副文字才设 `subHideable`（宽度不够时整段隐藏） |
 | `FilterCard` | `onSearch`、`onReset`、`more`、`moreCount`、`quick` | 搜索条件区。常用项写在 children；其余放 `more`（「更多筛选」展开），`moreCount` 为其中生效的条件数；`quick` 放快捷筛选行（上方自动加分隔线） |
 | `FilterField` | `label`、`span`、`help` | 搜索条件的一项，标签在上；关键词 `span={2}`；完整搜索范围写在 `help`（以 `search-scope.md` 为准） |
 | `QuickFilters` | `options`、`value`、`onChange`、`label` | 快捷筛选，多选，点一下选中、再点取消；前提是接口已有对应筛选 |
 | `MainCard` | `left`、`right` | 主内容区：操作行（左侧结果数或「已选 N 张」，右侧批量操作）+ 表格 |
-| `Section` | `title`、`help`、`extra`、`id` | 详情页分区：卡片标题 18/500，`id` 加在标题上用于页内定位 |
+| `Section` | `title`、`help`、`meta`、`extra`、`id` | 详情页分区：卡片标题 18/500，`meta` 为标题旁的计数（如「4 个型号 · 23 件」），`id` 加在标题上用于页内定位 |
+| `CardTitle` | `children` | 自己画卡片头部时用的标题（18/500，同 `Section`）；旧的通用 `Card`（`crm/opportunity/components`）外观已与 `Panel` 一致 |
 | `HelpTip` | `title`、`label` | 帮助图标，只在鼠标悬停时显示；`title` 不是纯文字时写 `label` 给读屏。表单项用 `Form.Item` 的 `tooltip={{ title, icon: <Info size={14} /> }}`，图标与 `HelpTip` 一致 |
 | `Panel` | `style`、`as` | 卡片外框（圆角 10，浅色阴影、深色边框），以上组件都用它 |
 
