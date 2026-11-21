@@ -1,7 +1,4 @@
-import {
-  InfoCircleOutlined,
-  ShoppingCartOutlined,
-} from '@ant-design/icons';
+import { InfoCircleOutlined, ShoppingCartOutlined } from '@ant-design/icons';
 import { App, Button, Input, InputNumber, Modal, Select } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
 import { CardTitle } from '@/components/ListLayout';
@@ -53,14 +50,17 @@ export const QtyCell: React.FC<{
 };
 
 /** 部分取消记录（新的在前） */
-export const PartialCancelRecords: React.FC<{ order: Order }> = ({ order }) => {
+export const PartialCancelRecords: React.FC<{
+  order: Order;
+  style?: React.CSSProperties;
+}> = ({ order, style }) => {
   const { palette } = useAppTheme();
   const rows = order.partialCancels ?? [];
   if (rows.length === 0) return null;
   const cur = order.currencyCode;
   const sum = rows.reduce((n, r) => n + Number(r.amount), 0);
   return (
-    <Card style={{ padding: 20, marginTop: 16 }}>
+    <Card style={{ padding: 20, marginTop: 16, ...style }}>
       <div
         style={{
           display: 'flex',

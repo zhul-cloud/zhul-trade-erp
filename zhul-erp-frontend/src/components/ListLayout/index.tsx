@@ -270,8 +270,10 @@ export const FilterField: React.FC<{
   label: string;
   span?: 1 | 2;
   help?: React.ReactNode;
+  /** 输入框的 id：标签与它关联（没有 aria-label 的输入，如日期范围，靠它读出名称） */
+  htmlFor?: string;
   children: React.ReactNode;
-}> = ({ label, span = 1, help, children }) => {
+}> = ({ label, span = 1, help, htmlFor, children }) => {
   const { palette } = useAppTheme();
   return (
     <div
@@ -293,7 +295,7 @@ export const FilterField: React.FC<{
           color: palette.sub,
         }}
       >
-        {label}
+        {htmlFor ? <label htmlFor={htmlFor}>{label}</label> : label}
         {help && <HelpTip title={help} />}
       </span>
       {children}
@@ -381,7 +383,17 @@ export const FilterCard: React.FC<{
   more?: React.ReactNode;
   moreCount?: number;
   quick?: React.ReactNode;
-}> = ({ children, onSearch, onReset, more, moreCount = 0, quick }) => {
+  /** 网格最小列宽，默认 170；条件都短的页面可以调小，让常用条件排一行（销售订单用 110） */
+  minColumn?: number;
+}> = ({
+  children,
+  onSearch,
+  onReset,
+  more,
+  moreCount = 0,
+  quick,
+  minColumn = 170,
+}) => {
   const { palette } = useAppTheme();
   const [open, setOpen] = useState(false);
   const moreId = useId();
@@ -393,8 +405,7 @@ export const FilterCard: React.FC<{
             flex: 1,
             minWidth: 0,
             display: 'grid',
-            // 列宽 110 起：1366 宽时关键词、状态、日期、收款状态四项排一行（销售订单原型 A3）
-            gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))',
+            gridTemplateColumns: `repeat(auto-fill, minmax(${minColumn}px, 1fr))`,
             gap: 12,
             alignItems: 'end',
           }}

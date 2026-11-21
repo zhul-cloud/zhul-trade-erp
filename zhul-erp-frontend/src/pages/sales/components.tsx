@@ -181,7 +181,9 @@ export const ChainCard: React.FC<{
   id: number;
   /** 变化时重新加载（如转订单、取消订单之后） */
   reloadKey?: unknown;
-}> = ({ type, id, reloadKey }) => {
+  /** 放在网格里时由网格管间距，传 { marginBottom: 0 } */
+  style?: React.CSSProperties;
+}> = ({ type, id, reloadKey, style }) => {
   const { palette } = useAppTheme();
   const [chain, setChain] = useState<Chain>();
   const [failed, setFailed] = useState(false);
@@ -220,7 +222,7 @@ export const ChainCard: React.FC<{
     </button>
   );
   return (
-    <Card style={{ padding: 24, marginBottom: 16 }}>
+    <Card style={{ padding: 24, marginBottom: 16, ...style }}>
       <div
         style={{
           display: 'flex',

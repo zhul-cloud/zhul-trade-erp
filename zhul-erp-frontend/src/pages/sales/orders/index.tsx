@@ -376,6 +376,8 @@ const OrderList: React.FC = () => {
       width: 150,
       align: 'right',
       sorter: true,
+      // 排序提示只挂在排序图标上，不和表头的帮助提示同时弹出
+      showSorterTooltip: { target: 'sorter-icon' },
       sortOrder: sort.field === 'profit' ? sort.order : null,
       render: (_, r) =>
         r.profit == null ? (
@@ -633,6 +635,8 @@ const OrderList: React.FC = () => {
             applyFilters(initial());
           }}
           moreCount={moreCount}
+          // 列宽 110：1366 宽时关键词、状态、日期、收款状态四项排一行（原型 A3）
+          minColumn={110}
           more={
             <>
               {select('source', '来源', [
@@ -707,9 +711,17 @@ const OrderList: React.FC = () => {
             // 切换状态立即查询（doc-list-unify 状态下拉的写法）
             { onChange: () => search(), listHeight: 320 },
           )}
-          <FilterField label="销售日期" span={2} help={HELP.salesDate}>
+          <FilterField
+            label="销售日期"
+            span={2}
+            help={HELP.salesDate}
+            htmlFor="so-sales-date"
+          >
             <Form.Item name="range" noStyle>
-              <DatePicker.RangePicker style={{ width: '100%' }} />
+              <DatePicker.RangePicker
+                id={{ start: 'so-sales-date' }}
+                style={{ width: '100%' }}
+              />
             </Form.Item>
           </FilterField>
           {select('receiptStatus', '收款状态', [

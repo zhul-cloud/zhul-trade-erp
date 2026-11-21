@@ -3,13 +3,12 @@ import {
   FileTextOutlined,
   InboxOutlined,
   PaperClipOutlined,
-  PlusOutlined,
   ShopOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
 import { history, Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Alert, App, Button, Dropdown, Skeleton, Table } from 'antd';
+import { Alert, App, Button, Dropdown, Skeleton, Table, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import {
   ArrowLeftRight,
@@ -23,6 +22,7 @@ import {
   Headset,
   MapPin,
   Pencil,
+  Plus,
   Send,
   Trash2,
   TriangleAlert,
@@ -38,7 +38,13 @@ import DocModelCell, {
 import { ItemRemarkLine } from '@/components/DocFields/ItemRemark';
 import SourceNos from '@/components/DocFields/SourceNos';
 import EllipsisText from '@/components/EllipsisText';
-import { PageHeader, Panel, Section } from '@/components/ListLayout';
+import {
+  CardTitle,
+  HelpTip,
+  PageHeader,
+  Panel,
+  Section,
+} from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
 import RefundModal from '@/pages/finance/refunds/RefundModal';
@@ -244,14 +250,6 @@ const OrderDetail: React.FC = () => {
       okText: '确认收货',
       onOk: () => act(() => orderApi.complete(o.id), '订单已完成'),
     });
-
-  /** 卡片标题：同 Section（18/500） */
-  const cardTitle: React.CSSProperties = {
-    margin: 0,
-    fontSize: 18,
-    fontWeight: 500,
-    color: palette.ink,
-  };
 
   const changeStock = (type: number) =>
     act(() => orderApi.stockType(o.id, selected, type), '已更新现货 / 期货');
@@ -499,10 +497,7 @@ const OrderDetail: React.FC = () => {
   ];
   // 步骤条（界面规范「步骤条」）：圆点 30，已完成与当前步为主题色实底白字，未到的为浅灰底灰字
   const stepper = active && (
-    <Section
-      title="订单进度"
-      help={`订单状态取进度最慢的型号${o.trackable && canProgress ? '；在型号明细里勾选型号后可批量更新' : ''}`}
-    >
+    <Section title="订单进度" help="订单状态取进度最慢的型号">
       <ol
         style={{
           display: 'flex',
@@ -1169,13 +1164,25 @@ const OrderDetail: React.FC = () => {
           marginBottom: 12,
         }}
       >
-        <h2 style={cardTitle}>收款</h2>
+        <CardTitle>收款</CardTitle>
+        <HelpTip
+          title={
+            fee
+              ? '费用订单：收款到账后订单自动完成，不走采购和出运'
+              : manual
+                ? '手动订单：没有 PI，收款直接登记在订单上'
+                : `收款登记在 PI ${o.piNo ?? ''} 上，这里只读显示`
+          }
+        />
         <ReceiptStatusPill status={o.receiptStatus} />
-        {!manual && o.piNo && (
+        {!manual && o.piNo && o.piId && (
           <span
             style={{ marginLeft: 'auto', fontSize: 12, color: palette.mute }}
           >
-            来自 {o.piNo}
+            来自{' '}
+            <Link to={PATHS.pi(o.piId)} style={{ fontSize: 12 }}>
+              {o.piNo}
+            </Link>
           </span>
         )}
       </div>
@@ -1235,9 +1242,7 @@ const OrderDetail: React.FC = () => {
               {line(
                 <span>
                   {m.paymentMethodName}{' '}
-                  <Pill tone={m.channel === 2 ? 'violet' : 'gray'}>
-                    {m.channel === 2 ? '线上' : '线下'}
-                  </Pill>
+                  <Pill tone="gray">{m.channel === 2 ? '线上' : '线下'}</Pill>
                 </span>,
                 formatAmount(m.amount, m.currencyCode),
               )}
@@ -1283,13 +1288,6 @@ const OrderDetail: React.FC = () => {
           )}
         </div>
       )}
-      <div style={{ fontSize: 12, color: palette.mute, marginBottom: 12 }}>
-        {fee
-          ? '收款到账后订单自动完成，不走采购和出运'
-          : manual
-            ? '手动创建的订单没有 PI，收款直接登记在订单上'
-            : `收款登记在 PI ${o.piNo ?? ''} 上，这里只读显示`}
-      </div>
       <CreditInfo
         credit={o.credit}
         currency={o.currencyCode}
@@ -1438,7 +1436,7 @@ const OrderDetail: React.FC = () => {
             marginBottom: 12,
           }}
         >
-          <h2 style={cardTitle}>收款</h2>
+          <CardTitle>收款</CardTitle>
           <span style={{ marginLeft: 'auto' }}>
             <ReceiptStatusPill status={o.receiptStatus} />
           </span>
@@ -1458,7 +1456,7 @@ const OrderDetail: React.FC = () => {
               marginBottom: 12,
             }}
           >
-            <h2 style={cardTitle}>成本</h2>
+            <CardTitle>成本</CardTitle>
             <span style={{ marginLeft: 'auto' }}>
               <Pill tone="cyan">计入原订单</Pill>
             </span>
@@ -1500,23 +1498,24 @@ const OrderDetail: React.FC = () => {
           marginBottom: 12,
         }}
       >
-        <h2 style={cardTitle}>费用订单</h2>
+        <CardTitle>费用订单</CardTitle>
+        {(o.feeOrders?.length ?? 0) === 0 && (
+          <span style={{ fontSize: 13, color: palette.mute }}>
+            已收齐款或已完成的订单，还要另收运费等费用时新建
+          </span>
+        )}
         {canFeeOrder && (
           <Button
-            size="small"
-            icon={<PlusOutlined />}
-            style={{ marginLeft: 'auto' }}
+            type="text"
+            icon={<Plus size={16} />}
+            style={{ marginLeft: 'auto', color: palette.link }}
             onClick={() => setDialog('feeOrder')}
           >
             新建费用订单
           </Button>
         )}
       </div>
-      {(o.feeOrders?.length ?? 0) === 0 ? (
-        <div style={{ fontSize: 12, color: palette.mute }}>
-          订单已收齐款或已完成，后来要另收运费等费用时，新建一张费用订单单独收款
-        </div>
-      ) : (
+      {(o.feeOrders?.length ?? 0) === 0 ? null : (
         <div style={{ display: 'grid', gap: 8 }}>
           {o.feeOrders?.map((x) => (
             <div
@@ -1566,7 +1565,14 @@ const OrderDetail: React.FC = () => {
           marginBottom: 12,
         }}
       >
-        <h2 style={cardTitle}>订单毛利</h2>
+        <CardTitle>订单毛利</CardTitle>
+        <HelpTip
+          title={
+            o.cost
+              ? '毛利 = 收入（毛额 × 结汇汇率）− 实际成本（含开票成本与收款手续费）；还没确定的部分按采购订单单价或采购成本价估算。采购成本与毛利只在系统内显示，不进任何导出单据'
+              : '已取消的订单按报价时的采购成本价计算。采购成本与毛利只在系统内显示，不进任何导出单据'
+          }
+        />
         {o.cost ? (
           o.cost.settled ? (
             <Pill tone="green">已结算</Pill>
@@ -1577,7 +1583,19 @@ const OrderDetail: React.FC = () => {
           m.estimated && <Pill tone="orange">预计</Pill>
         )}
       </div>
-      <div style={{ padding: 14, borderRadius: 12, background: palette.inset }}>
+      {o.cost && !o.cost.settled && (
+        <div
+          style={{
+            fontSize: 12,
+            color: palette.orange,
+            marginTop: -4,
+            marginBottom: 12,
+          }}
+        >
+          还差：{o.cost.pending.join(' · ')}
+        </div>
+      )}
+      <div style={{ padding: 14, borderRadius: 8, background: palette.inset }}>
         {line(
           '销售额',
           cur === 'CNY'
@@ -1613,13 +1631,6 @@ const OrderDetail: React.FC = () => {
             {formatAmount(m.profitCny, 'CNY')}
           </b>
         </div>
-        <div style={{ fontSize: 12, color: palette.mute, marginTop: 6 }}>
-          {o.cost
-            ? o.cost.settled
-              ? '收入（毛额 × 结汇汇率）− 实际成本（含开票成本与收款手续费）'
-              : `还差：${o.cost.pending.join(' · ')}；还没确定的部分按采购订单单价或采购成本价估算`
-            : '已取消的订单按报价时的采购成本价计算'}
-        </div>
       </div>
       {m.missingCostCount > 0 && (
         <Alert
@@ -1629,9 +1640,6 @@ const OrderDetail: React.FC = () => {
           title={`${m.missingCostCount} 个型号没有采购成本价，毛利不完整`}
         />
       )}
-      <div style={{ fontSize: 12, color: palette.mute, marginTop: 10 }}>
-        采购成本与毛利只在系统内显示，不进任何导出单据。
-      </div>
     </Card>
   );
 
@@ -1689,7 +1697,7 @@ const OrderDetail: React.FC = () => {
   const itemsSection = !fee && (
     <Section
       title="型号明细"
-      help={`成交内容（型号、单价、费用）不能直接改：减少型号数量用「部分取消」，其他变更请取消订单（手动创建的订单，有「修改订单费用」权限的人可以改费用）；全部取消的型号保留显示，不再参与进度与货物状态。销售日期、${manual ? '约定付款日、' : ''}进度、采购员、现货 / 期货可以随时改，改动写操作日志。`}
+      help={`成交内容（型号、单价、费用）不能直接改：减少型号数量用「部分取消」，其他变更请取消订单（手动创建的订单，有「修改订单费用」权限的人可以改费用）。销售日期、${manual ? '约定付款日、' : ''}进度、采购员、现货 / 期货可以随时改，改动写操作日志`}
       meta={`${liveItems.length} 个型号 · ${liveItems.reduce((n, i) => n + i.quantity, 0)} 件`}
       style={{ marginTop: 16 }}
     >
@@ -1722,7 +1730,6 @@ const OrderDetail: React.FC = () => {
           {afterSales.length} 张
         </span>
       }
-      style={{ marginTop: 16 }}
     >
       <div style={{ display: 'grid', gap: 8 }}>
         {afterSales.map((x) => (
@@ -1850,16 +1857,22 @@ const OrderDetail: React.FC = () => {
         </Button>
       )}
       {tracking && o.trackable && (
-        <Button
-          type="text"
-          icon={<Check size={16} />}
-          disabled={!o.completable}
-          title={o.completable ? '' : '所有型号都出运后才能确认收货'}
-          style={o.completable ? { color: palette.link } : undefined}
-          onClick={complete}
+        <Tooltip
+          title={o.completable ? undefined : '所有型号都出运后才能确认收货'}
         >
-          客户已收货
-        </Button>
+          {/* 置灰按钮收不到悬停和焦点，外包一层可聚焦的元素挂提示 */}
+          <span tabIndex={o.completable ? undefined : 0}>
+            <Button
+              type="text"
+              icon={<Check size={16} />}
+              disabled={!o.completable}
+              style={o.completable ? { color: palette.link } : undefined}
+              onClick={complete}
+            >
+              客户已收货
+            </Button>
+          </span>
+        </Tooltip>
       )}
       {menuItems.length > 0 && (
         <Dropdown
@@ -1937,7 +1950,12 @@ const OrderDetail: React.FC = () => {
         <div style={{ minWidth: 0, display: 'grid', gap: 16 }}>
           {info}
           {!fee && stepper}
-          <ChainCard type="order" id={o.id} reloadKey={o.status} />
+          <ChainCard
+            type="order"
+            id={o.id}
+            reloadKey={o.status}
+            style={{ marginBottom: 0 }}
+          />
         </div>
         <div style={{ minWidth: 0 }}>
           {replacement ? (
@@ -1951,8 +1969,23 @@ const OrderDetail: React.FC = () => {
         </div>
       </div>
       {itemsSection}
-      {!fee && <PartialCancelRecords order={o} />}
-      {afterSalesCard}
+      {(afterSales.length > 0 ||
+        (!fee && (o.partialCancels?.length ?? 0) > 0)) && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: wide
+              ? 'repeat(auto-fit, minmax(360px, 1fr))'
+              : '1fr',
+            gap: 16,
+            marginTop: 16,
+            alignItems: 'start',
+          }}
+        >
+          {afterSalesCard}
+          {!fee && <PartialCancelRecords order={o} style={{ marginTop: 0 }} />}
+        </div>
+      )}
       {terms}
       {!replacement &&
         (canFeeOrder || (o.feeOrders?.length ?? 0) > 0) &&

@@ -42,6 +42,7 @@ const STATS = {
     { code: 'RECEIVED', name: '已入库', count: 3 },
     { code: 'TO_FORWARDER', name: '已交货代', count: 2 },
     { code: 'SHIPPED', name: '已出运', count: 1 },
+    { code: 'TO_CHECK', name: '待验货', count: 0 },
   ],
   monthNetCny: 386420,
   monthOnlineCny: 120300,
@@ -56,6 +57,10 @@ const renderList = async () => {
     render(React.createElement(App, null, React.createElement(OrderList)));
   });
 };
+
+/** 汇总行里某一项（名称所在的那一格）的全部文字，数字与名称绑在一起断言 */
+const summaryItem = (label: string) =>
+  (screen.getByText(label).closest('div') as HTMLElement).textContent ?? '';
 
 const lastQuery = () => {
   const calls = (orderApi.page as jest.Mock).mock.calls;
@@ -89,16 +94,16 @@ it('汇总行：本月实收、进行中（含各阶段）、本月订单、未�
   expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(
     '销售订单',
   );
-  expect(screen.getByText('CNY 386,420.00')).toBeTruthy();
-  expect(
-    screen.getByText('线上 CNY 120,300.00 · 线下 CNY 266,120.00'),
-  ).toBeTruthy();
-  expect(screen.getByText('18')).toBeTruthy();
-  expect(
-    screen.getByText('待采购 5 · 已下单 7 · 已入库 3 · 已交货代 2 · 已出运 1'),
-  ).toBeTruthy();
-  expect(screen.getByText('26')).toBeTruthy();
-  expect(screen.getByText('3')).toBeTruthy();
+  expect(summaryItem('本月实收人民币')).toContain('CNY 386,420.00');
+  expect(summaryItem('本月实收人民币')).toContain(
+    '线上 CNY 120,300.00 · 线下 CNY 266,120.00',
+  );
+  expect(summaryItem('进行中')).toContain('18');
+  expect(summaryItem('进行中')).toContain(
+    '待采购 5 · 已下单 7 · 已入库 3 · 已交货代 2 · 已出运 1 · 待验货 0',
+  );
+  expect(summaryItem('本月订单')).toMatch(/本月订单\s*26$/);
+  expect(summaryItem('未指定采购员')).toMatch(/未指定采购员\s*3$/);
   // 口径放进帮助图标
   expect(screen.getByRole('img', { name: HELP.monthCount })).toBeTruthy();
   expect(screen.getByRole('img', { name: HELP.unassigned })).toBeTruthy();
@@ -125,12 +130,33 @@ it('订单状态下拉带各阶段数量，选中后立即查询', async () => {
   ]) {
     expect(screen.getAllByTitle(label).length).toBeGreaterThan(0);
   }
+  // 数量为 0 的阶段只显示名称
+  expect(screen.getAllByTitle('待验货').length).toBeGreaterThan(0);
+  expect(screen.queryByTitle('待验货 · 0')).toBeNull();
+  const before = lastQuery();
   await act(async () => {
     fireEvent.click(screen.getAllByTitle('已入库 · 3')[0]);
   });
-  expect(lastQuery()).toEqual(
-    expect.objectContaining({ progressCode: 'RECEIVED', page: 1 }),
-  );
+  // 选状态只加状态条件，默认的销售日期等其他条件不变
+  expect(lastQuery()).toEqual({
+    ...before,
+    progressCode: 'RECEIVED',
+    page: 1,
+  });
+});
+
+/** 重置回到默认条件：最近 3 个月、不限状态、不选快捷筛选 */
+it('重置回到默认条件', async () => {
+  await renderList();
+  const initialQuery = lastQuery();
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: '毛利为负' }));
+  });
+  expect(lastQuery().lossOnly).toBe(true);
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: /重\s*置/ }));
+  });
+  expect(lastQuery()).toEqual(initialQuery);
 });
 
 /** 快捷筛选「毛利为负」：点一下按毛利为负查询，再点取消 */

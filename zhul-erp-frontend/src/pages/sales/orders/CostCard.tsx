@@ -2,7 +2,7 @@ import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Popover, Table } from 'antd';
 import React from 'react';
-import { CardTitle } from '@/components/ListLayout';
+import { CardTitle, HelpTip } from '@/components/ListLayout';
 import type {
   CostLine,
   CostSource,
@@ -286,6 +286,7 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
         }}
       >
         <CardTitle>成本明细</CardTitle>
+        <HelpTip title="浅色为还没确定的数字；虚线数字可以悬停查看来源单据" />
         {own && <Pill tone="cyan">计入原订单 {cost.replacementOfNo}</Pill>}
         {cost.settled ? (
           <Pill tone="green">已结算</Pill>
@@ -298,9 +299,6 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
           </span>
         )}
         <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 12, color: palette.mute }}>
-          浅色为还没确定的数字；虚线数字可以悬停查看来源单据
-        </span>
       </div>
       <Table<CostLine>
         rowKey="soItemId"

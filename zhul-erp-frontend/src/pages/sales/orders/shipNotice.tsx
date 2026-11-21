@@ -365,7 +365,7 @@ export const OrderOutbounds: React.FC<{
   const { message } = App.useApp();
   const access = useAccess();
   const canNotice = !!access['sales:order:ship-notice'];
-  const [rows, setRows] = useState<Outbound[]>([]);
+  const [rows, setRows] = useState<Outbound[]>();
   const [editing, setEditing] = useState<Outbound>();
   const [withdrawing, setWithdrawing] = useState<Outbound>();
 
@@ -377,7 +377,16 @@ export const OrderOutbounds: React.FC<{
   }, [soId]);
   useEffect(load, [load, version]);
 
-  if (rows.length === 0) return null;
+  if (!rows) return null;
+  if (rows.length === 0)
+    return (
+      <Card style={{ padding: 20, marginBottom: 16 }}>
+        <CardTitle>销售出库单</CardTitle>
+        <div style={{ marginTop: 8, fontSize: 13, color: palette.mute }}>
+          发货通知后生成销售出库单
+        </div>
+      </Card>
+    );
   return (
     <Card style={{ padding: 20, marginBottom: 16 }}>
       <CardTitle>销售出库单</CardTitle>
