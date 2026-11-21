@@ -107,6 +107,24 @@ public final class OrderCostCalc {
         return cny.divide(amount, 6, RoundingMode.HALF_UP);
     }
 
+    /** 采购订单行一个单位的人民币成本（完整精度，不舍入）：货款、开票成本、采购费用；订单成本与库存批次成本共用 */
+    public record UnitCost(BigDecimal goods, BigDecimal invoice, BigDecimal fee) {
+        public BigDecimal total() {
+            return goods.add(invoice).add(fee);
+        }
+    }
+
+    /**
+     * 单位成本：货款 = 原币单价 × 实际汇率；开票成本、采购费用 = 采购订单的开票成本、费用 × 单价占采购订单货款合计的比例 × 实际汇率
+     * （与按行货款比例分摊再除以数量相同）。
+     */
+    public static UnitCost unitCost(Po po, BigDecimal unitPrice, BigDecimal rate) {
+        BigDecimal price = nz(unitPrice);
+        BigDecimal share = nz(po.itemAmount()).signum() == 0 ? BigDecimal.ZERO : price.divide(po.itemAmount(), MC);
+        return new UnitCost(price.multiply(rate, MC), nz(po.invoiceCost()).multiply(share, MC).multiply(rate, MC),
+                nz(po.feeAmount()).multiply(share, MC).multiply(rate, MC));
+    }
+
     public static boolean foreignUnpaid(Po po) {
         return !"CNY".equals(po.currency()) && nz(po.paidAmount()).compareTo(nz(po.payableAmount())) < 0;
     }
@@ -193,11 +211,11 @@ public final class OrderCostCalc {
                 ordered += eff;
                 qualified += Math.min(l.qualified(), eff);
                 BigDecimal rate = rates.get(l.poId());
-                BigDecimal goods = nz(l.unitPrice()).multiply(BigDecimal.valueOf(eff), MC);
-                purchase = purchase.add(goods.multiply(rate, MC));
-                BigDecimal share = nz(po.itemAmount()).signum() == 0 ? BigDecimal.ZERO : goods.divide(po.itemAmount(), MC);
-                invoice = invoice.add(nz(po.invoiceCost()).multiply(share, MC).multiply(rate, MC));
-                poFee = poFee.add(nz(po.feeAmount()).multiply(share, MC).multiply(rate, MC));
+                UnitCost u = unitCost(po, l.unitPrice(), rate);
+                BigDecimal n = BigDecimal.valueOf(eff);
+                purchase = purchase.add(u.goods().multiply(n, MC));
+                invoice = invoice.add(u.invoice().multiply(n, MC));
+                poFee = poFee.add(u.fee().multiply(n, MC));
                 claim = claim.add(nz(l.discount()).multiply(rate, MC));
                 returnFreight = returnFreight.add(nz(l.returnFreight()));
                 if (foreignUnpaid(po)) {

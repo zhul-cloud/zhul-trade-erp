@@ -429,7 +429,7 @@ public class PurchaseReturnService {
         p.setStatus(PurchaseReturnConstants.SHIPPED);
         mapper.updateById(p);
         // 库存：按退货预占出库
-        inventory.returnShipped(p.getId(), p.getReturnNo(),
+        inventory.returnShipped(p.getId(), p.getReturnNo(), p.getShipDate(),
                 itemsOf(List.of(id)).getOrDefault(id, List.of()).stream().map(PurchaseReturnItemDO::getId).toList());
         if (p.getPayerId() != null) {
             attachments.attach(AttachmentService.RETURN_PROOF, p.getId(), req.getProofIds());
@@ -473,7 +473,7 @@ public class PurchaseReturnService {
         mapper.updateById(p);
         syncCosts(p);
         if (po != null && afterSales) {
-            payables.syncPurchaseOrder(po.getId());
+            payables.syncPurchaseOrder(po.getId(), new com.zhul.erp.modules.inventory.service.InventoryCosting.Trigger(com.zhul.erp.modules.inventory.constants.InvConstants.CA_PO_FEE, "PR", p.getId(), p.getReturnNo()));
         }
         String text = "供应商 " + p.getSignedDate() + " 签收" + (afterSales ? "，退款或抵扣 " + p.getCurrencyCode() + " " + p.getRefundAmount()
                 + ("CNY".equals(p.getCurrencyCode()) ? "" : "（¥" + p.getRefundCny() + "）") : "")
@@ -505,7 +505,7 @@ public class PurchaseReturnService {
         mapper.updateById(p);
         syncCosts(p);
         if (po != null && PurchaseReturnConstants.refundable(p.getSourceType())) {
-            payables.syncPurchaseOrder(po.getId());
+            payables.syncPurchaseOrder(po.getId(), new com.zhul.erp.modules.inventory.service.InventoryCosting.Trigger(com.zhul.erp.modules.inventory.constants.InvConstants.CA_PO_FEE, "PR", p.getId(), p.getReturnNo()));
         }
         docLogs.add(DocumentType.PR, id, "重新打开", why);
         afterSales(p, "采购退货单 " + p.getReturnNo() + " 重新打开：" + why);

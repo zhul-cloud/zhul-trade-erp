@@ -549,7 +549,8 @@ public class OrderCostService {
         return b;
     }
 
-    private static OrderCostCalc.Po toCalcPo(PurchaseOrderDO p, PayableDO ap) {
+    /** 采购订单与应付 → 计算用的采购订单（库存批次成本共用，openspec inventory-costing） */
+    public static OrderCostCalc.Po toCalcPo(PurchaseOrderDO p, PayableDO ap) {
         BigDecimal payable = ap == null ? p.getTotalAmount() : ap.getAmount();
         return new OrderCostCalc.Po(p.getId(), p.getCurrencyCode(), p.getExchangeRate(), p.getItemAmount(), p.getFeeAmount(),
                 p.getInvoiceCost(), payable, ap == null ? BigDecimal.ZERO : ap.getPaidAmount(), ap == null ? BigDecimal.ZERO : ap.getPaidCny());

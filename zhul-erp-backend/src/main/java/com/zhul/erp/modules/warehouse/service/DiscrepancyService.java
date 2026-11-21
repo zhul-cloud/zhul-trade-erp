@@ -349,7 +349,7 @@ public class DiscrepancyService {
                 + (d.getNote().isEmpty() ? "" : "；" + d.getNote());
         logs.add(p.getId(), "处理到货差异", text, operator);
         logService.recordOperateLog(WarehouseConstants.MENU_SHIPMENT, "处理到货差异", null, Map.of("poNo", p.getPoNo(), "content", text));
-        payables.syncPurchaseOrder(p.getId());
+        payables.syncPurchaseOrder(p.getId(), new com.zhul.erp.modules.inventory.service.InventoryCosting.Trigger(com.zhul.erp.modules.inventory.constants.InvConstants.CA_DISCOUNT, "PO", p.getId(), p.getPoNo()));
         followupHooks.purchaseChanged(p.getId());
         return toVos(List.of(d)).get(0);
     }
@@ -424,7 +424,7 @@ public class DiscrepancyService {
         String text = d.getModel() + " " + WarehouseConstants.DIFF_TYPE_NAMES.get(d.getType()) + " " + d.getQuantity() + "：撤销「" + was + "」";
         logs.add(p.getId(), "重新打开差异", text, currentUser.resolve());
         logService.recordOperateLog(WarehouseConstants.MENU_SHIPMENT, "重新打开到货差异", null, Map.of("poNo", p.getPoNo(), "content", text));
-        payables.syncPurchaseOrder(p.getId());
+        payables.syncPurchaseOrder(p.getId(), new com.zhul.erp.modules.inventory.service.InventoryCosting.Trigger(com.zhul.erp.modules.inventory.constants.InvConstants.CA_DISCOUNT_REOPEN, "PO", p.getId(), p.getPoNo()));
         followupHooks.purchaseChanged(p.getId());
         return toVos(List.of(d)).get(0);
     }

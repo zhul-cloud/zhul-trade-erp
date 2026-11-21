@@ -28,8 +28,11 @@ public final class InvConstants {
     public static final int OP_CONVERT_OUT = 6;
     public static final int OP_RESERVE = 7;
     public static final int OP_RELEASE = 8;
+    /** 成本调整：数量为 0，只调在库金额（openspec inventory-costing） */
+    public static final int OP_COST_ADJUST = 9;
     public static final Map<Integer, String> OP_NAMES = Map.of(OP_IN, "入库", OP_OUT, "出库", OP_TRANSFER_IN, "调入",
-            OP_TRANSFER_OUT, "调出", OP_CONVERT_IN, "转入", OP_CONVERT_OUT, "转出", OP_RESERVE, "预占", OP_RELEASE, "释放");
+            OP_TRANSFER_OUT, "调出", OP_CONVERT_IN, "转入", OP_CONVERT_OUT, "转出", OP_RESERVE, "预占", OP_RELEASE, "释放",
+            OP_COST_ADJUST, "成本调整");
 
     /** 操作类型的方向：入库、调入、转入、预占为正 */
     public static boolean positive(int op) {
@@ -87,6 +90,7 @@ public final class InvConstants {
     public static final String BIZ_RELEASE = "RELEASE";
     public static final String BIZ_MERGE = "MERGE";
     public static final String BIZ_OPENING = "OPENING";
+    public static final String BIZ_COST_ADJUST = "COST_ADJUST";
 
     public static final Map<String, String> BIZ_NAMES = Map.ofEntries(
             Map.entry(BIZ_PURCHASE_IN, "采购入库"),
@@ -106,7 +110,8 @@ public final class InvConstants {
             Map.entry(BIZ_RESERVE, "预占"),
             Map.entry(BIZ_RELEASE, "释放"),
             Map.entry(BIZ_MERGE, "商品合并"),
-            Map.entry(BIZ_OPENING, "期初"));
+            Map.entry(BIZ_OPENING, "期初"),
+            Map.entry(BIZ_COST_ADJUST, "成本调整"));
 
     /** 其他出库类型 */
     public static final int OO_SCRAP = 1;
@@ -125,10 +130,39 @@ public final class InvConstants {
     public static final String MODE_STOCK = "stock";
     public static final String CONFIG_OPENING_DONE = "inventory.opening.done";
 
+    /** 成本调整单的触发原因（openspec inventory-costing） */
+    public static final int CA_PAYMENT = 1;
+    public static final int CA_PAYMENT_VOID = 2;
+    public static final int CA_SUPPLIER_REFUND = 3;
+    public static final int CA_PO_FEE = 4;
+    public static final int CA_DISCOUNT = 5;
+    public static final int CA_DISCOUNT_REOPEN = 6;
+    public static final int CA_DAILY = 7;
+    public static final int CA_UPGRADE = 8;
+    public static final Map<Integer, String> CA_REASON_NAMES = Map.of(CA_PAYMENT, "外币付款", CA_PAYMENT_VOID, "作废付款",
+            CA_SUPPLIER_REFUND, "供应商退款", CA_PO_FEE, "采购订单费用", CA_DISCOUNT, "折价接收", CA_DISCOUNT_REOPEN, "重新打开折价",
+            CA_DAILY, "每日核对", CA_UPGRADE, "成本口径升级");
+
+    /** 成本调整明细的部分：在库、已出运、其他出库 */
+    public static final int PART_STOCK = 1;
+    public static final int PART_SHIPPED = 2;
+    public static final int PART_OTHER = 3;
+    public static final Map<Integer, String> PART_NAMES = Map.of(PART_STOCK, "在库", PART_SHIPPED, "已出运", PART_OTHER, "其他出库");
+
+    /** 库存月结状态 */
+    public static final int PERIOD_OPEN = 0;
+    public static final int PERIOD_CLOSED = 1;
+    /** 月结销售成本快照的类型 */
+    public static final int COGS_SHIPPED = 1;
+    public static final int COGS_ADJUST = 2;
+    public static final String CONFIG_COSTING_UPGRADED = "inventory.costing.upgraded";
+
     /** 菜单路径 */
     public static final String MENU_STOCKS = "/warehouse/stocks";
     public static final String MENU_MOVES = "/warehouse/moves";
     public static final String MENU_LEDGER = "/warehouse/ledger";
     public static final String MENU_WAREHOUSES = "/warehouse/warehouses";
     public static final String MENU_OTHER_OUTBOUNDS = "/warehouse/other-outbounds";
+    public static final String MENU_COST_ADJUSTMENTS = "/finance/cost-adjustments";
+    public static final String MENU_PERIODS = "/finance/periods";
 }
