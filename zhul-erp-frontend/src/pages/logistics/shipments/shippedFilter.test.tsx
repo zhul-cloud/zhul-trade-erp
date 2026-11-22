@@ -75,4 +75,8 @@ it('出运日期点「查询」才生效，按 YYYY-MM-DD 传参，计入更多�
     expect(lastQuery().shippedFrom).toBeUndefined();
     expect(lastQuery().shippedTo).toBeUndefined();
   });
+  // 日期框也要清空，否则下次点查询又会带上
+  for (const input of screen.getAllByLabelText('出运日期')) {
+    expect((input as HTMLInputElement).value).toBe('');
+  }
 });
