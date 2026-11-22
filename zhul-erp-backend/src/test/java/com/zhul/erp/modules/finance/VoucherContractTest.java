@@ -45,6 +45,7 @@ class VoucherContractTest extends SalesContractSupport {
 
     private final YearMonth m1 = YearMonth.now().minusMonths(2);
     private long supplier;
+    private Loc loc;
 
     /**
      * m1：5 日采购入库 4 个 × 710（GR-V），10 日报废 1 个（OO-V），12 日冲销入库 1 个（GR-V），
@@ -64,7 +65,7 @@ class VoucherContractTest extends SalesContractSupport {
         TenantContext.runAs(0, () -> tx.executeWithoutResult(s -> {
             InvBatchDO b = warehouses.newBatch("GR-V-1", product, "", InvConstants.BATCH_PURCHASE, 1L, 1L, poItem, null,
                     m1.atDay(5), Price.cny(new BigDecimal("710")));
-            Loc loc = new Loc(warehouses.own().getId(), product, b.getId(), InvConstants.GOOD);
+            loc = new Loc(warehouses.own().getId(), product, b.getId(), InvConstants.GOOD);
             posting.post(List.of(Line.of(loc, InvConstants.OP_IN, 4, null,
                     Doc.of(InvConstants.BIZ_PURCHASE_IN, "GR", 1L, "GR-V").date(m1.atDay(5)))));
             posting.post(List.of(Line.of(loc, InvConstants.OP_OUT, 1, null,
@@ -223,5 +224,73 @@ class VoucherContractTest extends SalesContractSupport {
         assertEquals(m1 + " 已经有凭证了", fail(call(post(V + "/months/" + m1 + "/generate"), admin)).path("message").asText());
         String open = YearMonth.now().toString();
         assertTrue(fail(call(post(V + "/months/" + open + "/generate"), admin)).path("message").asText().contains("还没结账"));
+    }
+
+    /** 随机组合的入库、出运、撤销、退货入库、其他出库、作废、冲销、期初补录，结账后核对算式恒成立（task 3.4） */
+    @Test
+    void 随机流水下核对算式恒成立() throws Exception {
+        java.util.Random rnd = new java.util.Random(20261122L);
+        int[] stock = {2};
+        TenantContext.runAs(0, () -> tx.executeWithoutResult(s -> {
+            for (int i = 0; i < 40; i++) {
+                java.time.LocalDate day = m1.atDay(1 + rnd.nextInt(m1.lengthOfMonth()));
+                int qty = 1 + rnd.nextInt(3);
+                int pick = rnd.nextInt(8);
+                boolean out = pick >= 4;
+                if (out && stock[0] < qty) {
+                    pick = rnd.nextInt(4);
+                    out = false;
+                }
+                String biz = switch (pick) {
+                    case 0 -> InvConstants.BIZ_PURCHASE_IN;
+                    case 1 -> InvConstants.BIZ_SALES_OUT_UNDO;
+                    case 2 -> InvConstants.BIZ_OTHER_OUT_VOID;
+                    case 3 -> InvConstants.BIZ_OPENING;
+                    case 4 -> InvConstants.BIZ_SALES_OUT;
+                    case 5 -> InvConstants.BIZ_OTHER_OUT;
+                    case 6 -> InvConstants.BIZ_PURCHASE_IN_REVERSE;
+                    default -> InvConstants.BIZ_PURCHASE_RETURN_OUT;
+                };
+                String type = switch (biz) {
+                    case InvConstants.BIZ_SALES_OUT, InvConstants.BIZ_SALES_OUT_UNDO -> "SH";
+                    case InvConstants.BIZ_OTHER_OUT, InvConstants.BIZ_OTHER_OUT_VOID -> "OO";
+                    case InvConstants.BIZ_PURCHASE_RETURN_OUT -> "PR";
+                    case InvConstants.BIZ_OPENING -> "OPENING";
+                    default -> "GR";
+                };
+                posting.post(List.of(Line.of(loc, out ? InvConstants.OP_OUT : InvConstants.OP_IN, qty, null,
+                        Doc.of(biz, type, 100L + rnd.nextInt(5), type + "-R" + i).date(day))));
+                stock[0] += out ? -qty : qty;
+            }
+        }));
+        close();
+        JsonNode d = detail();
+        JsonNode r = d.path("recon");
+        money("0.00", r.path("diff"));
+        BigDecimal sum = r.path("openingAmount").decimalValue().add(r.path("stockNetAmount").decimalValue())
+                .add(r.path("noVoucherAmount").decimalValue());
+        assertEquals(0, sum.compareTo(r.path("closingAmount").decimalValue()), r.toString());
+        for (JsonNode v : d.path("vouchers")) {
+            BigDecimal dr = BigDecimal.ZERO;
+            BigDecimal cr = BigDecimal.ZERO;
+            for (JsonNode e : v.path("entries")) {
+                dr = dr.add(e.path("debit").decimalValue());
+                cr = cr.add(e.path("credit").decimalValue());
+            }
+            assertEquals(0, dr.compareTo(cr), "借贷平衡：" + v.path("summary").asText());
+        }
+    }
+
+    /** 只有查看权限：能看月份，不能导出、生成、改科目（task 3.5） */
+    @Test
+    void 没有按钮权限不能导出与改科目() throws Exception {
+        close();
+        jdbc.update("insert into role_resource (role_code, resource_id, resource_code) values (?, 100131, '')", BUYER_ROLE);
+        String viewer = token("it_lin");
+        assertEquals(m1.toString(), ok(call(get(V + "/months"), viewer)).get(0).path("month").asText());
+        assertEquals(403, perform(post(V + "/months/" + m1 + "/export"), viewer).getStatus());
+        assertEquals(403, perform(json(put(V + "/accounts"), write(Map.of("items", List.of()))), viewer).getStatus());
+        assertEquals(403, perform(json(put(V + "/suppliers/" + supplier), write(Map.of("partnerCode", "X"))), viewer).getStatus());
+        assertEquals(403, perform(get(V + "/months"), token("it_wang")).getStatus(), "没有菜单权限看不到");
     }
 }
