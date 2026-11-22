@@ -239,9 +239,12 @@ const MovesPage: React.FC = () => {
           ) : null
         }
       >
-        <FilterField label="时间" span={2}>
+        <FilterField label="时间" span={2} htmlFor="wh-move-range">
           <Form.Item name="range" noStyle>
-            <DatePicker.RangePicker style={{ width: '100%' }} />
+            <DatePicker.RangePicker
+              id={{ start: 'wh-move-range' }}
+              style={{ width: '100%' }}
+            />
           </Form.Item>
         </FilterField>
         <FilterField label="关键词" span={2}>
@@ -250,6 +253,7 @@ const MovesPage: React.FC = () => {
               aria-label="关键词"
               allowClear
               prefix={<SearchOutlined />}
+              onPressEnter={() => form.submit()}
               placeholder="型号、单号、批次号"
             />
           </Form.Item>

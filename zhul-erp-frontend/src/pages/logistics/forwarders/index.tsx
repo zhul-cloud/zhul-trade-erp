@@ -514,7 +514,8 @@ const ForwarderPage: React.FC = () => {
         onReset={() => {
           setKw('');
           setKeyword('');
-          setStatus(undefined);
+          // 回到默认视图：只看启用
+          setStatus(1);
           setPage(1);
         }}
         minColumn={130}

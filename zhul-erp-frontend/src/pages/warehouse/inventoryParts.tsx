@@ -130,8 +130,8 @@ export const warehouseQuery = (f: WarehouseFilter) =>
       : { warehouseScope: f };
 
 /**
- * 筛选卡片：库存各页的表单写法套用 ListLayout 的搜索条件区（标签在上、右侧重置 / 查询）；
- * 外层保留 form 元素，输入框里按回车仍会查询
+ * 筛选卡片：库存各页的表单写法套用 ListLayout 的搜索条件区（标签在上、右侧重置 / 查询）。
+ * 「查询」不是提交按钮，回车查询由各页的关键词输入框 onPressEnter 调 form.submit()
  */
 export const FilterCard: React.FC<{
   form: FormInstance;

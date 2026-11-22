@@ -328,6 +328,7 @@ const LedgerPage: React.FC = () => {
                 aria-label="关键词"
                 allowClear
                 prefix={<SearchOutlined />}
+                onPressEnter={() => form.submit()}
                 placeholder="型号、品牌"
               />
             </Form.Item>

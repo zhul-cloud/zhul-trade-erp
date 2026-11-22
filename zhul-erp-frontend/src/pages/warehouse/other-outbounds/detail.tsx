@@ -241,13 +241,16 @@ const OtherOutboundDetail: React.FC = () => {
                   {
                     key: 'void',
                     icon: <CircleX size={16} />,
+                    // 不能作废时把原因写在菜单项里（置灰项收不到悬停和焦点）
                     label: r.voidable ? (
                       '作废'
                     ) : (
-                      <span
-                        title={`由退货入库单 ${r.sourceDocNo ?? ''} 报废生成，不能单独作废`}
-                      >
+                      <span>
                         作废
+                        <span style={{ display: 'block', fontSize: 12 }}>
+                          由退货入库单 {r.sourceDocNo ?? ''}{' '}
+                          报废生成，不能单独作废
+                        </span>
                       </span>
                     ),
                     danger: true,

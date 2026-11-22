@@ -298,6 +298,7 @@ const WarehousesPage: React.FC = () => {
               aria-label="关键词"
               allowClear
               prefix={<SearchOutlined />}
+              onPressEnter={() => form.submit()}
               placeholder="仓库名称、编码"
             />
           </Form.Item>

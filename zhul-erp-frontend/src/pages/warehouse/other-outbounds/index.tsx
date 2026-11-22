@@ -224,6 +224,7 @@ const OtherOutboundsPage: React.FC = () => {
               aria-label="关键词"
               allowClear
               prefix={<SearchOutlined />}
+              onPressEnter={() => form.submit()}
               placeholder="出库单号、型号"
             />
           </Form.Item>

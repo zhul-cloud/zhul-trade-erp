@@ -5,6 +5,7 @@ import { Form, Input, Select, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   FilterField,
+  HeadHelp,
   MainCard,
   PageHeader,
   QuickFilters,
@@ -304,9 +305,11 @@ const StocksPage: React.FC = () => {
       render: (v: number) => num(v, palette.orange),
     },
     {
-      title: '可用',
+      title: (
+        <HeadHelp title="可用" help="没有预占给订单，可以报废、转样品或退回" />
+      ),
       dataIndex: 'available',
-      width: 70,
+      width: 90,
       render: (v: number) => num(v, palette.green),
     },
     {
@@ -396,7 +399,7 @@ const StocksPage: React.FC = () => {
               },
               {
                 value: 'defective',
-                label: `只看有不良${summary?.defective ? ` · ${summary.defective} 件` : ''}`,
+                label: `只看有不良${summary ? ` · ${summary.defective ?? 0} 件` : ''}`,
               },
             ]}
             value={filters.quick ? [filters.quick] : []}
@@ -417,6 +420,7 @@ const StocksPage: React.FC = () => {
               aria-label="关键词"
               allowClear
               prefix={<SearchOutlined />}
+              onPressEnter={() => form.submit()}
               placeholder="型号、品牌"
             />
           </Form.Item>
