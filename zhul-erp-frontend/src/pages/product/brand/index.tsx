@@ -487,8 +487,9 @@ const BrandPage: React.FC = () => {
                 aria-label="等级"
                 options={LEVEL_TABS.map((t) => ({
                   value: t.value,
+                  // 为 0 时只写名称；「全部」不带数量（与各页状态下拉一致）
                   label:
-                    levelCounts[t.key] !== undefined
+                    levelCounts[t.key] && t.key !== 'all'
                       ? `${t.label} · ${levelCounts[t.key]}`
                       : t.label,
                 }))}

@@ -234,8 +234,9 @@ const ListingTasksPage: React.FC = () => {
             }}
             options={TABS.map((t) => ({
               value: t.key,
+              // 为 0 时只写名称；「全部」不是状态，不带数量
               label:
-                counts[t.key] !== undefined && t.key !== 'all'
+                counts[t.key] && t.key !== 'all'
                   ? `${t.label} · ${counts[t.key]}`
                   : t.label,
             }))}
