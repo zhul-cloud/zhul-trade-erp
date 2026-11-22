@@ -26,6 +26,6 @@ it('表格第一列是客户时按客户列显示', () => {
     }),
   );
   expect(screen.getByText('Pacific Controls')).toBeTruthy();
-  expect(screen.getByText('Australia')).toBeTruthy();
-  expect(screen.getByText('Tom')).toBeTruthy();
+  // 本分支的客户列（销售订单原型 A1）：国家 / 地区与主联系人在名称下面一行
+  expect(screen.getByText('Australia · Tom')).toBeTruthy();
 });
