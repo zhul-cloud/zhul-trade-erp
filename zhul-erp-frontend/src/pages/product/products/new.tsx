@@ -447,9 +447,9 @@ const WizardInner: React.FC = () => {
     height: 36,
     padding: '0 16px',
     borderRadius: 18,
-    border: `1px solid ${palette.control}`,
-    background: active ? '#2563EB' : 'transparent',
-    color: active ? '#FFFFFF' : palette.ink,
+    border: `1px solid ${active ? palette.primaryLine : palette.control}`,
+    background: active ? palette.primarySoft : 'transparent',
+    color: active ? palette.link : palette.ink,
     cursor: 'pointer',
   });
   const previewSeries = seriesList.find((s) => s.id === draft.seriesId);
@@ -564,7 +564,7 @@ const WizardInner: React.FC = () => {
     <div
       style={{
         minHeight: '100vh',
-        background: `radial-gradient(1200px 600px at 20% -10%, #0F2A5C 0%, #0B1638 45%, ${palette.canvas} 100%)`,
+        background: palette.canvas,
         paddingBottom: 96,
       }}
     >
@@ -576,7 +576,7 @@ const WizardInner: React.FC = () => {
           gap: 16,
           padding: '16px clamp(12px, 3vw, 32px)',
           borderBottom: `1px solid ${palette.hairline}`,
-          background: '#0A101D',
+          background: palette.card,
           flexWrap: 'wrap',
         }}
       >
@@ -585,7 +585,7 @@ const WizardInner: React.FC = () => {
           aria-label="关闭并退出新建"
           icon={<CloseOutlined />}
           onClick={close}
-          style={{ color: '#F8FAFC' }}
+          style={{ color: palette.sub }}
         />
         <ol
           aria-label="新建进度"
@@ -611,7 +611,7 @@ const WizardInner: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
-                  color: state === 'todo' ? '#94A3B8' : '#F8FAFC',
+                  color: state === 'todo' ? palette.mute : palette.ink,
                   fontSize: 14,
                   fontWeight: state === 'current' ? 700 : 500,
                 }}
@@ -625,13 +625,15 @@ const WizardInner: React.FC = () => {
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    background: state === 'done' ? '#2563EB' : 'transparent',
+                    background:
+                      state === 'done' ? palette.primarySoft : 'transparent',
+                    color: state === 'todo' ? palette.mute : palette.link,
                     border:
                       state === 'current'
-                        ? '2px solid #60A5FA'
+                        ? `2px solid ${palette.link}`
                         : state === 'done'
                           ? 'none'
-                          : '1px solid #64748B',
+                          : `1px solid ${palette.control}`,
                     fontSize: 13,
                   }}
                 >
@@ -649,14 +651,18 @@ const WizardInner: React.FC = () => {
                 {n < STEPS.length && !narrow && (
                   <span
                     aria-hidden="true"
-                    style={{ width: 24, height: 1, background: '#334155' }}
+                    style={{
+                      width: 24,
+                      height: 1,
+                      background: palette.hairline,
+                    }}
                   />
                 )}
               </li>
             );
           })}
         </ol>
-        <span style={{ color: '#94A3B8', fontSize: 13 }} role="status">
+        <span style={{ color: palette.mute, fontSize: 13 }} role="status">
           {created ? '商品已创建' : '草稿已自动保存'}
         </span>
         <Button
@@ -912,9 +918,7 @@ const WizardInner: React.FC = () => {
                       height: 36,
                       padding: '0 16px',
                       borderRadius: 18,
-                      border: `1px solid ${palette.control}`,
-                      background: !draft.seriesId ? '#2563EB' : 'transparent',
-                      color: !draft.seriesId ? '#FFFFFF' : palette.ink,
+                      ...subChoice(!draft.seriesId),
                       cursor: 'pointer',
                     }}
                   >
@@ -933,11 +937,7 @@ const WizardInner: React.FC = () => {
                         height: 36,
                         padding: '0 16px',
                         borderRadius: 18,
-                        border: `1px solid ${palette.control}`,
-                        background:
-                          draft.seriesId === s.id ? '#2563EB' : 'transparent',
-                        color:
-                          draft.seriesId === s.id ? '#FFFFFF' : palette.ink,
+                        ...subChoice(draft.seriesId === s.id),
                         cursor: 'pointer',
                       }}
                     >
@@ -1090,7 +1090,7 @@ const WizardInner: React.FC = () => {
                             width: 120,
                             height: 90,
                             borderRadius: 10,
-                            background: '#0B1220',
+                            background: palette.inset,
                           }}
                         />
                       )}
@@ -1335,7 +1335,7 @@ const WizardInner: React.FC = () => {
             bottom: 0,
             zIndex: 10,
             padding: '14px clamp(12px, 3vw, 32px)',
-            background: '#0A101D',
+            background: palette.card,
             borderTop: `1px solid ${palette.hairline}`,
             display: 'flex',
             justifyContent: 'space-between',
@@ -1347,11 +1347,7 @@ const WizardInner: React.FC = () => {
             {step === 2 && <Button onClick={() => setStep(1)}>上一步</Button>}
             {step === 4 && <Button onClick={() => setStep(3)}>上一步</Button>}
             {step === 3 && (
-              <Button
-                onClick={() => setStep(4)}
-                type="link"
-                style={{ color: '#93C5FD' }}
-              >
+              <Button onClick={() => setStep(4)} type="link">
                 跳过这一步
               </Button>
             )}

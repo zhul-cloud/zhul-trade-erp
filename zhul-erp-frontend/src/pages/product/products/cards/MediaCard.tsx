@@ -669,7 +669,7 @@ export const MediaCard: React.FC<{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      background: m.mediaType === 2 ? '#0B1220' : palette.inset,
+                      background: palette.inset,
                     }}
                   >
                     {m.mediaType === 1 ? (
@@ -689,7 +689,7 @@ export const MediaCard: React.FC<{
                         target="_blank"
                         rel="noreferrer"
                         aria-label={`播放视频 ${m.title || ''}`}
-                        style={{ color: '#F8FAFC', fontSize: 40 }}
+                        style={{ color: palette.mute, fontSize: 40 }}
                       >
                         <PlayCircleFilled />
                       </a>

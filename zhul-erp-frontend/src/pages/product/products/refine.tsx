@@ -92,7 +92,7 @@ export const RefineTabs: React.FC<{
               height: 30,
               padding: '0 14px',
               borderRadius: 8,
-              border: `1px solid ${on ? '#2563EB' : 'transparent'}`,
+              border: `1px solid ${on ? palette.primaryLine : 'transparent'}`,
               background: on ? palette.primarySoft : 'transparent',
               color: on ? palette.ink : palette.sub,
               fontWeight: on ? 600 : 400,
@@ -125,7 +125,7 @@ export const AiSuggestion: React.FC<{ row: Product }> = ({ row }) => {
   return (
     <div style={{ display: 'grid', gap: 4, justifyItems: 'start' }}>
       <span style={{ fontWeight: 600, color: palette.ink }}>
-        <RobotOutlined style={{ color: '#8B5CF6', marginRight: 6 }} />
+        <RobotOutlined style={{ color: palette.link, marginRight: 6 }} />
         {row.aiCategoryName}
       </span>
       {row.aiCategoryCross && (

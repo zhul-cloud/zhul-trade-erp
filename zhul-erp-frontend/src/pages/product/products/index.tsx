@@ -3,7 +3,6 @@ import {
   CloseOutlined,
   PlusOutlined,
   RobotOutlined,
-  SearchOutlined,
 } from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import {
@@ -22,6 +21,7 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import { Search } from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -30,6 +30,13 @@ import React, {
   useState,
 } from 'react';
 import EllipsisText from '@/components/EllipsisText';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  QuickFilters,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { auditColumns } from '@/pages/purchase/components';
 import { formatDateTime } from '@/utils/format';
@@ -58,7 +65,7 @@ import {
   type SeriesOption,
   seriesApi,
 } from '../service';
-import { PageHeader, ProductThemeProvider, useProductTheme } from '../theme';
+import { ProductThemeProvider, useProductTheme } from '../theme';
 import {
   AiSuggestion,
   REFINE_MAX,
@@ -71,6 +78,13 @@ import {
 } from './refine';
 
 const FILTER_KEY = 'zhul_product_list_filters';
+
+/** 帮助文字：help-texts.md「商品档案」，关键词范围以 search-scope.md 为准 */
+export const HELP = {
+  page: '一个「品牌 + 型号」就是一个商品。所有租户共用同一份，询盘、报价都从这里选',
+  keyword:
+    '可搜：商品名称、型号、订货号；型号忽略空格、连字符和大小写。输入即搜，在页面上按 / 键直接开始输入',
+} as const;
 
 interface Filters {
   categoryId?: number;
@@ -388,7 +402,7 @@ const ProductListInner: React.FC = () => {
     const rest = picked ? 0 : Math.max(0, total - REFINE_MAX);
     modal.confirm({
       title: 'AI 细分品类',
-      icon: <RobotOutlined style={{ color: '#8B5CF6' }} />,
+      icon: <RobotOutlined style={{ color: palette.link }} />,
       width: 480,
       content: (
         <div style={{ display: 'grid', gap: 8 }}>
@@ -486,8 +500,7 @@ const ProductListInner: React.FC = () => {
               style={{
                 padding: 12,
                 borderRadius: 12,
-                background: 'rgba(251,146,60,0.12)',
-                border: '1px solid rgba(251,146,60,0.4)',
+                background: palette.orangeSoft,
                 display: 'grid',
                 gap: 6,
               }}
@@ -875,24 +888,12 @@ const ProductListInner: React.FC = () => {
   const hasCondition =
     !!debounced ||
     Object.values(filters).some((v) => v !== undefined && v !== false);
-  const chip = (active: boolean): React.CSSProperties => ({
-    height: 36,
-    padding: '0 16px',
-    borderRadius: 18,
-    border: `1px solid ${active ? 'transparent' : palette.hairline}`,
-    background: active ? '#2563EB' : palette.card,
-    color: active ? '#FFFFFF' : palette.sub,
-    fontWeight: 600,
-    cursor: 'pointer',
-    fontSize: 14,
-  });
 
   return (
     <>
       <PageHeader
-        eyebrow="PRODUCT MASTER"
-        description="一个「品牌 + 型号」就是一个商品。所有租户共用同一份，询盘、报价都从这里选。"
-        actions={
+        help={HELP.page}
+        extra={
           access['product:product:add'] && (
             <Button
               type="primary"
@@ -904,110 +905,6 @@ const ProductListInner: React.FC = () => {
           )
         }
       />
-
-      {summary && (
-        <div
-          style={{
-            padding: '12px 16px',
-            marginBottom: 16,
-            borderRadius: 12,
-            background: palette.primarySoft,
-            border: `1px solid ${palette.primaryLine}`,
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              flexWrap: 'wrap',
-            }}
-          >
-            <span style={{ color: palette.ink, fontSize: 14, fontWeight: 600 }}>
-              档案还有可以补充的地方：
-            </span>
-            {MISSING_CHIPS.map((c) => (
-              <button
-                type="button"
-                key={c.key}
-                aria-pressed={filters.missing === c.key}
-                onClick={() => {
-                  const off = filters.missing === c.key;
-                  updateFilters({
-                    missing: off ? undefined : c.key,
-                    refineState:
-                      !off && c.key === 'refine' ? 'todo' : undefined,
-                  });
-                  setRechoose(undefined);
-                }}
-                style={{
-                  ...chip(filters.missing === c.key),
-                  height: 32,
-                  fontSize: 13,
-                }}
-              >
-                {c.label} <span className="num">{summary[c.field]}</span>
-              </button>
-            ))}
-          </div>
-          {refine && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 12,
-                flexWrap: 'wrap',
-                marginTop: 12,
-                paddingTop: 12,
-                borderTop: `1px solid ${palette.primaryLine}`,
-              }}
-            >
-              <RefineTabs
-                summary={summary}
-                value={refineState}
-                onChange={(v) => {
-                  updateFilters({ refineState: v });
-                  setRechoose(undefined);
-                }}
-              />
-              {canEdit &&
-                refineState === 'todo' &&
-                (aiJob?.taskId ? (
-                  <span
-                    role="status"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      height: 36,
-                      padding: '0 16px',
-                      borderRadius: 10,
-                      background: palette.card,
-                      border: `1px solid ${palette.primaryLine}`,
-                    }}
-                  >
-                    <Spin size="small" />
-                    <b style={{ color: palette.ink }}>AI 细分中</b>
-                    <span className="num" style={{ color: palette.sub }}>
-                      共 {aiJob.total} 个
-                    </span>
-                  </span>
-                ) : (
-                  <Button
-                    type="primary"
-                    icon={<RobotOutlined />}
-                    disabled={!total && !selected.length}
-                    onClick={startRefine}
-                  >
-                    AI 细分品类
-                  </Button>
-                ))}
-            </div>
-          )}
-        </div>
-      )}
-
       {aiDone && (
         <div
           role="status"
@@ -1048,217 +945,260 @@ const ProductListInner: React.FC = () => {
         </div>
       )}
 
-      <div style={{ marginBottom: 16 }}>
-        <Input
-          ref={searchRef}
-          size="large"
-          allowClear
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          prefix={<SearchOutlined />}
-          suffix={<kbd style={{ fontSize: 12, color: palette.mute }}>/</kbd>}
-          placeholder="搜索型号或产品名称，如 6ES7 214"
-          aria-label="搜索商品"
-          style={{ height: 48, borderRadius: 14 }}
-        />
-        <div
-          style={{
-            minHeight: 22,
-            marginTop: 6,
-            fontSize: 12,
-            color: palette.sub,
-          }}
-        >
-          {normalized && normalized !== debounced.toLowerCase()
-            ? `已按「${normalized}」匹配（忽略空格、连字符和大小写）`
-            : ''}
-        </div>
-      </div>
-
-      <fieldset
-        style={{
-          display: 'flex',
-          gap: 8,
-          flexWrap: 'wrap',
-          margin: '0 0 16px',
-          padding: 0,
-          border: 0,
+      <FilterCard
+        onSearch={() => {
+          // 输入本来就即搜；点查询或回车时不等防抖，马上按当前关键词查
+          setDebounced(keyword.trim());
+          setPage(1);
+          setSelected([]);
         }}
+        onReset={clearAll}
+        moreCount={
+          [
+            filters.seriesId,
+            filters.lifecycleStatus,
+            filters.status,
+            (platform ? filters.includeDeleted : filters.mine) || undefined,
+          ].filter((v) => v != null).length
+        }
+        more={
+          <>
+            <FilterField label="系列">
+              <Select
+                allowClear
+                placeholder={filters.brandId ? '全部' : '先选品牌'}
+                aria-label="系列"
+                disabled={!filters.brandId}
+                value={filters.seriesId}
+                options={seriesOptions.map((s) => ({
+                  value: s.id,
+                  label: s.seriesName,
+                }))}
+                onChange={(v) => updateFilters({ seriesId: v })}
+              />
+            </FilterField>
+            <FilterField label="生命周期">
+              <Select
+                allowClear
+                placeholder="全部"
+                aria-label="生命周期"
+                value={filters.lifecycleStatus}
+                options={LIFECYCLE_OPTIONS}
+                onChange={(v) => updateFilters({ lifecycleStatus: v })}
+              />
+            </FilterField>
+            <FilterField label="状态">
+              <Select
+                allowClear
+                placeholder="全部"
+                aria-label="状态"
+                value={filters.status}
+                options={[
+                  { value: 1, label: '启用' },
+                  { value: 0, label: '已停用' },
+                ]}
+                onChange={(v) => updateFilters({ status: v })}
+              />
+            </FilterField>
+            {platform ? (
+              <FilterField label="已删除">
+                <Checkbox
+                  checked={!!filters.includeDeleted}
+                  onChange={(e) =>
+                    updateFilters({ includeDeleted: e.target.checked })
+                  }
+                >
+                  一并显示
+                </Checkbox>
+              </FilterField>
+            ) : (
+              <FilterField label="维护方">
+                <Checkbox
+                  checked={!!filters.mine}
+                  onChange={(e) => updateFilters({ mine: e.target.checked })}
+                >
+                  只看本公司维护
+                </Checkbox>
+              </FilterField>
+            )}
+          </>
+        }
+        quick={
+          summary && (
+            <div style={{ display: 'grid', gap: 12 }}>
+              {/* 缺项是条件类，原来的「档案还有可以补充的地方」改为快捷筛选（互斥，再点取消） */}
+              <QuickFilters
+                label="待补充"
+                options={MISSING_CHIPS.map((c) => ({
+                  value: c.key,
+                  label: `${c.label} · ${summary[c.field] ?? 0}`,
+                }))}
+                value={filters.missing ? [filters.missing] : []}
+                onChange={(v) => {
+                  const next = v.find((x) => x !== filters.missing);
+                  updateFilters({
+                    missing: next,
+                    refineState: next === 'refine' ? 'todo' : undefined,
+                  });
+                  setRechoose(undefined);
+                }}
+              />
+              {refine && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <RefineTabs
+                    summary={summary}
+                    value={refineState}
+                    onChange={(v) => {
+                      updateFilters({ refineState: v });
+                      setRechoose(undefined);
+                    }}
+                  />
+                  {canEdit &&
+                    refineState === 'todo' &&
+                    (aiJob?.taskId ? (
+                      <span
+                        role="status"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          height: 32,
+                          color: palette.sub,
+                        }}
+                      >
+                        <Spin size="small" />
+                        <b style={{ color: palette.ink }}>AI 细分中</b>
+                        <span className="num">共 {aiJob.total} 个</span>
+                      </span>
+                    ) : (
+                      <Button
+                        icon={<RobotOutlined />}
+                        disabled={!total && !selected.length}
+                        onClick={startRefine}
+                      >
+                        AI 细分品类
+                      </Button>
+                    ))}
+                </div>
+              )}
+            </div>
+          )
+        }
       >
-        <legend
-          style={{
-            position: 'absolute',
-            width: 1,
-            height: 1,
-            overflow: 'hidden',
-            clip: 'rect(0 0 0 0)',
-          }}
-        >
-          按品类筛选
-        </legend>
-        <button
-          type="button"
-          aria-pressed={!filters.categoryId}
-          style={chip(!filters.categoryId)}
-          onClick={() => updateFilters({ categoryId: undefined })}
-        >
-          全部
-        </button>
-        {categories.map((c) => (
-          <button
-            type="button"
-            key={c.id}
-            aria-pressed={filters.categoryId === c.id}
-            style={chip(filters.categoryId === c.id)}
-            onClick={() =>
-              updateFilters({
-                categoryId: filters.categoryId === c.id ? undefined : c.id,
-              })
-            }
-          >
-            {c.categoryName} <span className="num">{c.productCount}</span>
-          </button>
-        ))}
-      </fieldset>
+        <FilterField label="关键词" span={2} help={HELP.keyword}>
+          <Input
+            ref={searchRef}
+            allowClear
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={() => {
+              setDebounced(keyword.trim());
+              setPage(1);
+              setSelected([]);
+            }}
+            prefix={<Search size={16} />}
+            suffix={<kbd style={{ fontSize: 12, color: palette.mute }}>/</kbd>}
+            placeholder="型号、产品名称、订货号"
+            aria-label="搜索商品"
+          />
+        </FilterField>
+        <FilterField label="品类">
+          <Select
+            allowClear
+            showSearch={{ optionFilterProp: 'label' }}
+            placeholder="全部"
+            aria-label="品类"
+            value={filters.categoryId}
+            options={categories.map((c) => ({
+              value: c.id,
+              label: `${c.categoryName} · ${c.productCount}`,
+            }))}
+            onChange={(v) => updateFilters({ categoryId: v })}
+          />
+        </FilterField>
+        <FilterField label="品牌">
+          <Select
+            allowClear
+            showSearch={{ optionFilterProp: 'label' }}
+            placeholder="全部"
+            aria-label="品牌"
+            value={filters.brandId}
+            options={brands.map((b) => ({ value: b.id, label: b.brandName }))}
+            onChange={(v) => updateFilters({ brandId: v, seriesId: undefined })}
+          />
+        </FilterField>
+      </FilterCard>
 
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          flexWrap: 'wrap',
-          marginBottom: 16,
-          alignItems: 'center',
-        }}
-      >
-        <Select
-          allowClear
-          showSearch={{ optionFilterProp: 'label' }}
-          placeholder="品牌"
-          aria-label="按品牌筛选"
-          style={{ width: 160 }}
-          value={filters.brandId}
-          options={brands.map((b) => ({ value: b.id, label: b.brandName }))}
-          onChange={(v) => updateFilters({ brandId: v, seriesId: undefined })}
-        />
-        <Select
-          allowClear
-          placeholder="系列"
-          aria-label="按系列筛选"
-          style={{ width: 160 }}
-          disabled={!filters.brandId}
-          value={filters.seriesId}
-          options={seriesOptions.map((s) => ({
-            value: s.id,
-            label: s.seriesName,
-          }))}
-          onChange={(v) => updateFilters({ seriesId: v })}
-        />
-        <Select
-          allowClear
-          placeholder="生命周期"
-          aria-label="按生命周期筛选"
-          style={{ width: 140 }}
-          value={filters.lifecycleStatus}
-          options={LIFECYCLE_OPTIONS}
-          onChange={(v) => updateFilters({ lifecycleStatus: v })}
-        />
-        <Select
-          allowClear
-          placeholder="状态"
-          aria-label="按状态筛选"
-          style={{ width: 120 }}
-          value={filters.status}
-          options={[
-            { value: 1, label: '启用' },
-            { value: 0, label: '已停用' },
-          ]}
-          onChange={(v) => updateFilters({ status: v })}
-        />
-        {!platform && (
-          <Checkbox
-            checked={!!filters.mine}
-            onChange={(e) => updateFilters({ mine: e.target.checked })}
-          >
-            只看本公司维护
-          </Checkbox>
-        )}
-        {platform && (
-          <Checkbox
-            checked={!!filters.includeDeleted}
-            onChange={(e) =>
-              updateFilters({ includeDeleted: e.target.checked })
-            }
-          >
-            包含已删除
-          </Checkbox>
-        )}
-        {hasCondition && (
-          <Button type="link" onClick={clearAll}>
-            清除全部条件
-          </Button>
-        )}
-      </div>
-
-      {(platform || refine) && selected.length > 0 && (
-        <div
-          role="toolbar"
-          aria-label="批量操作"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            padding: '10px 16px',
-            marginBottom: 12,
-            borderRadius: 12,
-            background: palette.primarySoft,
-            border: `1px solid ${palette.primaryLine}`,
-          }}
-        >
-          <span style={{ fontWeight: 600 }}>
-            已选 <span className="num">{selected.length}</span> 项
-          </span>
-          <Button type="link" onClick={() => setSelected([])}>
-            取消选择
-          </Button>
-          <span style={{ flex: 1 }} />
-          {platform && canEdit && (
-            <Button onClick={() => batchStatus(1)}>批量启用</Button>
-          )}
-          {platform && canEdit && (
-            <Button onClick={() => batchStatus(0)}>批量停用</Button>
-          )}
-          {platform && <Button onClick={exportSelected}>导出</Button>}
-          {refine && canEdit && refineState === 'pending' && (
+      <MainCard
+        left={
+          (platform || refine) && selected.length > 0 ? (
             <>
-              <Button onClick={() => ignoreRows(selected.map(Number))}>
-                忽略
-              </Button>
+              <b style={{ color: palette.link }}>
+                已选 <span className="num">{selected.length}</span> 项
+              </b>
               <Button
-                type="primary"
-                icon={<CheckOutlined />}
-                onClick={() =>
-                  acceptRows(rows.filter((r) => selected.includes(r.id)))
-                }
+                type="text"
+                size="small"
+                style={{ color: palette.link }}
+                onClick={() => setSelected([])}
               >
-                采纳建议
+                取消选择
               </Button>
             </>
-          )}
-          {refine && canEdit && refineState === 'ignored' && (
-            <Button onClick={() => unignoreRows(selected.map(Number))}>
-              撤销忽略
-            </Button>
-          )}
-        </div>
-      )}
-
-      <div
-        style={{
-          background: palette.card,
-          borderRadius: 16,
-          border: `1px solid ${palette.hairline}`,
-          overflow: 'hidden',
-        }}
+          ) : (
+            <>
+              {`共 ${total} 条`}
+              {normalized && normalized !== debounced.toLowerCase() && (
+                <span>
+                  · 已按「{normalized}」匹配（忽略空格、连字符和大小写）
+                </span>
+              )}
+            </>
+          )
+        }
+        right={
+          (platform || refine) &&
+          selected.length > 0 && (
+            <>
+              {platform && canEdit && (
+                <Button onClick={() => batchStatus(1)}>批量启用</Button>
+              )}
+              {platform && canEdit && (
+                <Button onClick={() => batchStatus(0)}>批量停用</Button>
+              )}
+              {platform && <Button onClick={exportSelected}>导出</Button>}
+              {refine && canEdit && refineState === 'pending' && (
+                <>
+                  <Button onClick={() => ignoreRows(selected.map(Number))}>
+                    忽略
+                  </Button>
+                  <Button
+                    type="primary"
+                    icon={<CheckOutlined />}
+                    onClick={() =>
+                      acceptRows(rows.filter((r) => selected.includes(r.id)))
+                    }
+                  >
+                    采纳建议
+                  </Button>
+                </>
+              )}
+              {refine && canEdit && refineState === 'ignored' && (
+                <Button onClick={() => unignoreRows(selected.map(Number))}>
+                  撤销忽略
+                </Button>
+              )}
+            </>
+          )
+        }
       >
         {error ? (
           <ErrorHint message={error} onRetry={load} />
@@ -1348,7 +1288,7 @@ const ProductListInner: React.FC = () => {
             }}
           />
         )}
-      </div>
+      </MainCard>
     </>
   );
 };

@@ -24,6 +24,7 @@ import React, {
 import { usePageTitle, useTabDirty } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
 import { MONO_FONT } from '@/theme/fonts';
+import { POPUP_SHADOW } from '@/theme/palette';
 import { CompletenessBar } from '../components/CompletenessBar';
 import { ErrorHint } from '../components/EmptyHint';
 import { LifecyclePill, Pill } from '../components/Pills';
@@ -515,10 +516,7 @@ const DetailInner: React.FC = () => {
                   style={{
                     fontSize: 32,
                     fontWeight: 800,
-                    background:
-                      'linear-gradient(90deg,#BFDBFE,#60A5FA,#22D3EE)',
-                    WebkitBackgroundClip: 'text',
-                    color: 'transparent',
+                    color: palette.ink,
                   }}
                 >
                   {c.done} / {c.total} 项
@@ -640,10 +638,10 @@ const DetailInner: React.FC = () => {
             gap: 16,
             padding: '12px 20px',
             borderRadius: 16,
-            background: '#0A101D',
-            color: '#F8FAFC',
-            boxShadow: '0 24px 60px -12px rgba(0,0,0,0.6)',
-            border: '1px solid #234681',
+            background: palette.elevated,
+            color: palette.ink,
+            boxShadow: POPUP_SHADOW,
+            border: `1px solid ${palette.elevatedLine}`,
           }}
         >
           <span>有 {unsavedCount} 张卡片的修改还没保存</span>
