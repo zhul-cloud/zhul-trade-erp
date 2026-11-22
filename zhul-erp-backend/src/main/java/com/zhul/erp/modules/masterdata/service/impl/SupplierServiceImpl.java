@@ -301,6 +301,7 @@ public class SupplierServiceImpl implements SupplierService {
         vo.setProductScopes(scopeSync.load(List.of(id)).getOrDefault(id, List.of()));
         vo.setAccounts(accountSync.load(List.of(id), plain).getOrDefault(id, List.of()));
         vo.setAttachments(attachmentSync.load(List.of(id)).getOrDefault(id, List.of()));
+        vo.setPayQrCodes(attachmentSync.payQrCodes(List.of(id)).getOrDefault(id, List.of()));
     }
 
     @Override
@@ -313,6 +314,23 @@ public class SupplierServiceImpl implements SupplierService {
         vo.setFileSize(stored.fileSize());
         vo.setContentType(stored.contentType());
         return vo;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public List<com.zhul.erp.modules.masterdata.dto.SupplierAttachmentVO> savePayQr(Long supplierId, int payChannel,
+                                                                                   com.zhul.erp.modules.masterdata.dto.SavePayQrRequest req) {
+        getActiveOrThrow(supplierId);
+        attachmentSync.replacePayQr(currentTenantId(), supplierId, payChannel, req.getFileKey().trim(), req.getFileName());
+        return attachmentSync.payQrCodes(List.of(supplierId)).getOrDefault(supplierId, List.of());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public List<com.zhul.erp.modules.masterdata.dto.SupplierAttachmentVO> removePayQr(Long supplierId, int payChannel) {
+        getActiveOrThrow(supplierId);
+        attachmentSync.removePayQr(supplierId, payChannel);
+        return attachmentSync.payQrCodes(List.of(supplierId)).getOrDefault(supplierId, List.of());
     }
 
     @Override

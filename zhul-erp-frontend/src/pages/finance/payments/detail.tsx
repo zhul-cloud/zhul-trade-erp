@@ -27,6 +27,7 @@ import {
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { MenuLink } from '@/utils/menuName';
+import { PAY_CHANNEL_NAMES } from '../payables/payQr';
 import { METHOD, type Payment, paymentApi } from '../payables/service';
 
 type Allocation = Payment['allocations'][number];
@@ -50,7 +51,7 @@ const methodName = (p: Payment) =>
   p.method === METHOD.ADVANCE
     ? '员工垫付'
     : p.method === METHOD.PRIVATE
-      ? '私对私'
+      ? `私对私${p.payChannel && p.payChannel !== 1 ? ` · ${PAY_CHANNEL_NAMES[p.payChannel]}` : ''}`
       : '公司对公';
 
 /** 付款单详情（change finance-cash-docs）：明细为核销的应付单，生效后只改备注与附件 */

@@ -184,6 +184,8 @@ export interface Payment {
   payeeType: number;
   payeeName: string;
   method: number;
+  /** 付款渠道：1-银行卡、2-支付宝、3-微信 */
+  payChannel?: number;
   bankAccountId?: number;
   accountName?: string;
   advanceUser?: string;
@@ -252,8 +254,19 @@ export interface PaymentStats {
   count: number;
 }
 
+/** 对方收款码：图片为临时访问链接 */
+export interface PayeeQr {
+  payChannel: number;
+  label: string;
+  url: string;
+  createBy?: string;
+  createTime?: string;
+}
+
 export interface RegisterPaymentBody {
   method: number;
+  /** 付款渠道：1-银行卡、2-支付宝、3-微信；只有私对私能选支付宝、微信 */
+  payChannel?: number;
   bankAccountId?: number;
   /** 私对私必填 */
   payerAccount?: string;
@@ -340,6 +353,9 @@ export const paymentApi = {
   /** 这张应付单收款方（供应商、货代）的收款账户，默认账户在前 */
   payeeAccounts: (payableId: number) =>
     get<PayeeAccount[]>(`${PY}/payee-accounts`, { payableId }),
+  /** 这张应付单收款方（供应商、货代）在供应商资料里上传的支付宝、微信收款码 */
+  payeeQr: (payableId: number) =>
+    get<PayeeQr[]>(`${PY}/payee-qr`, { payableId }),
   refund: (body: RefundBody) => send<Payment>(`${PY}/refunds`, body),
   voidPayment: (id: number, reason: string) =>
     send<Payment>(`${PY}/${id}/void`, { reason }),

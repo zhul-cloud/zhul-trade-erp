@@ -52,3 +52,50 @@ export const sourcingStatsApi = {
       skipErrorHandler: true,
     }).then((r) => r.data),
 };
+
+/** 无货分析（spec inquiry/sourcing-stats「无货分析」） */
+export interface NoStockTotals {
+  models: number;
+  noStock: number;
+  rate?: number | null;
+  brandCount: number;
+  topBrand?: string;
+  topBrandNoStock: number;
+}
+
+export interface NoStockGroup {
+  key: string;
+  categoryId?: number | null;
+  name: string;
+  models: number;
+  noStock: number;
+  rate?: number | null;
+  reasons: { name: string; count: number }[];
+}
+
+export interface NoStockStats {
+  period: 'WEEK' | 'MONTH';
+  dateFrom: string;
+  dateTo: string;
+  totals: NoStockTotals;
+  previous?: NoStockTotals;
+  brands: NoStockGroup[];
+  categories: NoStockGroup[];
+  trend: {
+    label: string;
+    dateFrom: string;
+    dateTo: string;
+    models: number;
+    noStock: number;
+    rate?: number | null;
+  }[];
+}
+
+export const noStockApi = {
+  stats: (params: { period: 'WEEK' | 'MONTH'; date: string }) =>
+    request<{ data: NoStockStats }>('/api/v1/inquiry/sourcing-stats/no-stock', {
+      method: 'GET',
+      params,
+      skipErrorHandler: true,
+    }).then((r) => r.data),
+};

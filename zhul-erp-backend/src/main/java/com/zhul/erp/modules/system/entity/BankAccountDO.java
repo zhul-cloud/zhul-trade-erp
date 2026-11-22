@@ -17,6 +17,8 @@ public class BankAccountDO extends BaseEntity {
     private Integer businessUnitId;
     /** 账户类型：1-对公、2-对私 */
     private Integer accountType;
+    /** 付款渠道（1-银行卡、2-支付宝、3-微信）；支付宝、微信只用于对私 */
+    private Integer payChannel;
     private String currencyCode;
     private String bankName;
     private String accountName;

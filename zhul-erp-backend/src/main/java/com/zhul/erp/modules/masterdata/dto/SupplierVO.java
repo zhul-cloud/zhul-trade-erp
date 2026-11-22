@@ -37,6 +37,8 @@ public class SupplierVO {
     private List<SupplierBankAccountVO> accounts;
     /** 附件（列表为空列表，详情与编辑取数才加载） */
     private List<SupplierAttachmentVO> attachments;
+    /** 支付宝、微信收款码（私对私付款时显示给付款人扫码） */
+    private List<SupplierAttachmentVO> payQrCodes;
     /** 默认付款条件，未设置时为空列表 */
     private List<PaymentTermDTO> paymentTerms;
     private String paymentTermsText;

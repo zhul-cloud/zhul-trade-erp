@@ -17,6 +17,8 @@ import com.zhul.erp.modules.finance.dto.PaymentStatsVO;
 import com.zhul.erp.modules.finance.dto.PaymentVO;
 import com.zhul.erp.common.utils.SensitiveDataMasker;
 import com.zhul.erp.modules.finance.dto.PayeeAccountVO;
+import com.zhul.erp.modules.finance.dto.PayeeQrVO;
+import com.zhul.erp.modules.masterdata.constants.SupplierConstants;
 import com.zhul.erp.modules.masterdata.repository.SupplierBankAccountMapper;
 import com.zhul.erp.modules.masterdata.entity.SupplierBankAccountDO;
 import com.zhul.erp.modules.finance.dto.ReceivedRefundRequest;
@@ -87,6 +89,8 @@ public class PaymentService {
     private final com.zhul.erp.modules.finance.repository.ReimbursementLineMapper reimbursementLineMapper;
     private final com.zhul.erp.modules.purchase.repository.PurchaseOrderMapper purchaseOrderMapper;
     private final com.zhul.erp.framework.security.DataScopeResolver dataScopeResolver;
+    private final com.zhul.erp.modules.masterdata.service.impl.SupplierAttachmentSync supplierAttachments;
+    private final com.zhul.erp.framework.storage.FileStorageService fileStorage;
 
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public PaymentVO register(RegisterPaymentRequest req) {
@@ -112,6 +116,7 @@ public class PaymentService {
         } else {
             throw new BizException("付款方式无效");
         }
+        int channel = payChannel(method, req.getPayChannel(), req.getBankAccountId());
         if (req.getPayDate().isAfter(LocalDate.now())) {
             throw new BizException("付款日期不能晚于今天");
         }
@@ -165,14 +170,16 @@ public class PaymentService {
         pay.setKind(FinanceConstants.KIND_PAYMENT);
         copyPayee(anchor, pay);
         pay.setMethod(method);
+        pay.setPayChannel(channel);
         boolean viaAccount = method == FinanceConstants.METHOD_COMPANY || method == FinanceConstants.METHOD_PRIVATE;
         pay.setBankAccountId(viaAccount ? req.getBankAccountId() : null);
         pay.setPayerAccount(method == FinanceConstants.METHOD_PRIVATE
                 ? accountLabel(bankAccountMapper.selectById(req.getBankAccountId())) : "");
         pay.setAdvanceUser(method == FinanceConstants.METHOD_ADVANCE ? SecurityUtils.getCurrentUsername() : "");
-        SupplierBankAccountDO payeeAccount = payeeAccount(anchor, method, req.getPayeeAccountId());
+        // 支付宝、微信扫对方收款码付款，不选对方银行账户，快照记「支付宝收款码」等
+        SupplierBankAccountDO payeeAccount = channel == CHANNEL_BANK ? payeeAccount(anchor, method, req.getPayeeAccountId()) : null;
         pay.setPayeeAccountId(payeeAccount == null ? null : payeeAccount.getId());
-        pay.setPayeeAccount(payeeAccountLabel(payeeAccount));
+        pay.setPayeeAccount(channel == CHANNEL_BANK ? payeeAccountLabel(payeeAccount) : SupplierConstants.PAY_QR_LABELS.get(channel));
         pay.setPayDate(req.getPayDate());
         pay.setCurrencyCode(anchor.getCurrencyCode());
         pay.setAmount(amount);
@@ -950,6 +957,55 @@ public class PaymentService {
         return out;
     }
 
+    static final int CHANNEL_BANK = 1;
+
+    /** 付款渠道：只有私对私能用支付宝、微信，且我方付款账户要是同一渠道的账户 */
+    private int payChannel(int method, Integer requested, Long bankAccountId) {
+        int channel = requested == null ? CHANNEL_BANK : requested;
+        if (!SupplierConstants.PAY_QR_LABELS.containsKey(channel) && channel != CHANNEL_BANK) {
+            throw new BizException("付款渠道不正确");
+        }
+        if (method != FinanceConstants.METHOD_PRIVATE) {
+            if (channel != CHANNEL_BANK) {
+                throw new BizException("只有私对私能用支付宝、微信付款");
+            }
+            return CHANNEL_BANK;
+        }
+        BankAccountDO b = bankAccountMapper.selectById(bankAccountId);
+        int own = b == null || b.getPayChannel() == null ? CHANNEL_BANK : b.getPayChannel();
+        if (own != channel) {
+            throw new BizException(channel == CHANNEL_BANK ? "银行卡付款请选择我方的对私银行账户"
+                    : "用" + (channel == 2 ? "支付宝" : "微信") + "付款请选择我方的" + (channel == 2 ? "支付宝" : "微信") + "账户");
+        }
+        return channel;
+    }
+
+    /** 登记付款时显示对方的支付宝、微信收款码：收款方为供应商或货代时取供应商资料里上传的 */
+    public List<PayeeQrVO> payeeQrCodes(Long payableId) {
+        PayableDO p = payableId == null ? null : payableMapper.selectById(payableId);
+        if (p == null || p.getDeletedAt() != null || !Objects.equals(p.getTenantId(), PiStore.tenantId())) {
+            throw new BizException("应付单不存在");
+        }
+        if (!hasSupplierAccounts(p)) {
+            return List.of();
+        }
+        List<PayeeQrVO> out = new ArrayList<>(2);
+        for (var row : supplierAttachments.payQrRows(p.getSupplierId())) {
+            PayeeQrVO vo = new PayeeQrVO();
+            SupplierConstants.PAY_QR_CATEGORY.forEach((channel, category) -> {
+                if (category.equals(row.getCategory())) {
+                    vo.setPayChannel(channel);
+                    vo.setLabel(SupplierConstants.PAY_QR_LABELS.get(channel));
+                }
+            });
+            vo.setUrl(fileStorage.link(row.getStorage(), row.getFileKey(), row.getFileName(), false).url());
+            vo.setCreateBy(row.getCreateBy());
+            vo.setCreateTime(row.getCreateTime());
+            out.add(vo);
+        }
+        return out;
+    }
+
     /** 付款账户：公司对公选对公账户，私对私选对私账户；personal 为空时（供应商退款收款）不限类型 */
     private void requireAccount(Long id, Boolean personal) {
         if (id == null) {
@@ -1131,6 +1187,7 @@ public class PaymentService {
             vo.setPayeeType(p.getPayeeType());
             vo.setPayeeName(p.getPayeeName());
             vo.setMethod(p.getMethod());
+            vo.setPayChannel(p.getPayChannel() == null ? CHANNEL_BANK : p.getPayChannel());
             vo.setBankAccountId(p.getBankAccountId());
             vo.setAccountName(accounts.get(p.getBankAccountId()));
             vo.setPayerAccount(p.getPayerAccount());
