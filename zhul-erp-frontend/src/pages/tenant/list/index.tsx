@@ -44,7 +44,6 @@ import {
 import { useAppTheme } from '@/theme/AppTheme';
 import { useIndustryOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
-import { useMenu } from '@/utils/menuName';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import type {
@@ -81,7 +80,6 @@ const RENEW_MONTHS_OPTIONS = [
 ];
 
 const TenantListPage: React.FC = () => {
-  const _menu = useMenu();
   const pager = usePagination(20);
   const { message, modal } = App.useApp();
   const access = useAccess();
@@ -483,6 +481,8 @@ const TenantListPage: React.FC = () => {
         onReset={() => {
           setDraft({});
           setFilters({});
+          // 条件清空时 ProTable 不会自动回到第 1 页
+          actionRef.current?.setPageInfo?.({ current: 1 });
         }}
         moreCount={filters.expire ? 1 : 0}
         more={

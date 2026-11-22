@@ -485,7 +485,11 @@ const ConfigPage: React.FC = () => {
         ]}
       />
       <FilterCard
-        onSearch={() => setKeyword(draftKeyword.trim())}
+        onSearch={() => {
+          // 关键词没变时条件不变，表格不会自己刷新，点查询也要重新取数
+          setKeyword(draftKeyword.trim());
+          actionRef.current?.reload();
+        }}
         onReset={() => {
           setDraftKeyword('');
           setKeyword('');

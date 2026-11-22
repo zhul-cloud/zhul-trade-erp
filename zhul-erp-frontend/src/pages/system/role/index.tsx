@@ -151,6 +151,7 @@ const RolePage: React.FC = () => {
   const access = useAccess();
 
   const [stats, setStats] = useState<RoleStats | null>(null);
+  /** 搜索条件：状态切换后立即查询，名称、编码点「查询」才生效 */
   const [filters, setFilters] = useState<{
     name?: string;
     code?: string;
@@ -513,7 +514,6 @@ const RolePage: React.FC = () => {
       code: draft.code?.trim() || undefined,
     });
 
-  /** 搜索条件：状态切换后立即查询，名称、编码点「查询」才生效 */
   const permCheckedCount = checkedKeys.length;
 
   return (
@@ -534,7 +534,7 @@ const RolePage: React.FC = () => {
               key: 'total',
               label: '角色总数',
               value: stats.total,
-              sub: `覆盖 ${stats.deptCoverage} 个部门`,
+              sub: `覆盖 ${stats.deptCoverage} 个部门 · 启用占比 ${stats.enabledRate}%`,
             },
             {
               key: 'builtIn',
@@ -556,6 +556,8 @@ const RolePage: React.FC = () => {
         onReset={() => {
           setDraft({});
           setFilters({});
+          // 条件清空时 ProTable 不会自动回到第 1 页
+          actionRef.current?.setPageInfo?.({ current: 1 });
         }}
       >
         <FilterField label="角色名称" span={2}>

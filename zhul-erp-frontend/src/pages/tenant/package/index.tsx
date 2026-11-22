@@ -26,7 +26,6 @@ import type { MenuItem } from '@/pages/system/menu/service';
 import { getMenuTree } from '@/pages/system/menu/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
-import { useMenu } from '@/utils/menuName';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import type { SaveTenantPackagePayload, TenantPackageItem } from './service';
@@ -71,7 +70,6 @@ const toAntdTree = (list: MenuItem[]): any[] =>
   }));
 
 const TenantPackagePage: React.FC = () => {
-  const _menu = useMenu();
   const pager = usePagination(20);
   const { message, modal } = App.useApp();
   const access = useAccess();
@@ -343,6 +341,8 @@ const TenantPackagePage: React.FC = () => {
         onReset={() => {
           setKeyword('');
           setFilters({});
+          // 条件清空时 ProTable 不会自动回到第 1 页
+          actionRef.current?.setPageInfo?.({ current: 1 });
         }}
       >
         <FilterField label="套餐名称" span={2}>

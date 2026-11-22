@@ -496,6 +496,8 @@ const UserPage: React.FC = () => {
           setKeyword('');
           setDraftDept(undefined);
           setFilters({});
+          // 条件清空时 ProTable 不会自动回到第 1 页
+          actionRef.current?.setPageInfo?.({ current: 1 });
         }}
       >
         <FilterField label="用户" span={2}>

@@ -263,6 +263,8 @@ const PositionPage: React.FC = () => {
         onReset={() => {
           setKeyword('');
           setFilters({});
+          // 条件清空时 ProTable 不会自动回到第 1 页
+          actionRef.current?.setPageInfo?.({ current: 1 });
         }}
       >
         <FilterField label="岗位名称" span={2}>
