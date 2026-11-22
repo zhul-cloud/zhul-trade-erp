@@ -1,7 +1,8 @@
 import { InboxOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Checkbox, Input, Select, Table } from 'antd';
+import { App, Button, Checkbox, DatePicker, Input, Select, Table } from 'antd';
+import type { Dayjs } from 'dayjs';
 import { Eye } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
@@ -271,7 +272,11 @@ const Shipments: React.FC = () => {
     keyword?: string;
     forwarderId?: number;
     status?: number;
+    shippedFrom?: string;
+    shippedTo?: string;
   }>({});
+  /** 出运日期（规范 logistics/shipment「出运单页」的筛选项），点「查询」生效 */
+  const [shipped, setShipped] = useState<[Dayjs, Dayjs] | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<Logistics[]>([]);
@@ -498,7 +503,13 @@ const Shipments: React.FC = () => {
   ];
 
   const apply = () => {
-    setQuery({ keyword: keyword.trim() || undefined, forwarderId, status });
+    setQuery({
+      keyword: keyword.trim() || undefined,
+      forwarderId,
+      status,
+      shippedFrom: shipped?.[0].format('YYYY-MM-DD'),
+      shippedTo: shipped?.[1].format('YYYY-MM-DD'),
+    });
     setPage(1);
     setVersion((v) => v + 1);
   };
@@ -513,11 +524,23 @@ const Shipments: React.FC = () => {
           setKeyword('');
           setForwarderId(undefined);
           setStatus(undefined);
+          setShipped(null);
           setQuery({});
           setPage(1);
           setVersion((v) => v + 1);
         }}
         minColumn={130}
+        moreCount={query.shippedFrom ? 1 : 0}
+        more={
+          <FilterField label="出运日期" span={2}>
+            <DatePicker.RangePicker
+              style={{ width: '100%' }}
+              aria-label="出运日期"
+              value={shipped}
+              onChange={(v) => setShipped(v?.[0] && v[1] ? [v[0], v[1]] : null)}
+            />
+          </FilterField>
+        }
       >
         <FilterField
           label="关键词"

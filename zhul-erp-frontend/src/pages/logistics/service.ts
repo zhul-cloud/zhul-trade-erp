@@ -489,6 +489,9 @@ export const logisticsApi = {
     keyword?: string;
     status?: number;
     forwarderId?: number;
+    /** 出运日期范围（YYYY-MM-DD），后端 LogisticsPageQuery.shippedFrom / shippedTo */
+    shippedFrom?: string;
+    shippedTo?: string;
   }) => send<PageResult<Logistics>>('POST', `${SH}/page`, q),
   detail: (id: number) => get<Logistics>(`${SH}/${id}`),
   create: (body: {

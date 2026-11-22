@@ -289,68 +289,25 @@ const RefundRequestDetail: React.FC = () => {
         }
         extra={
           <>
+            {/* 照原型 B1：文字按钮 → 更多 → 主按钮 */}
             {q.status === RQ_STATUS.PENDING_APPROVAL && canApprove && (
-              <>
-                <Button
-                  type="text"
-                  style={{ color: palette.link }}
-                  onClick={() => setDialog('rejectApproval')}
-                >
-                  驳回
-                </Button>
-                <Button
-                  type="primary"
-                  onClick={() =>
-                    modal.confirm({
-                      title: `通过 ${q.requestNo}？`,
-                      content: `${formatAmount(q.amount, cur)}，通过后交财务处理。`,
-                      okText: '通过',
-                      onOk: async () => {
-                        try {
-                          await refundRequestApi.approve(q.id);
-                          message.success('已通过');
-                          load();
-                        } catch (e) {
-                          message.error(readBizError(e).message);
-                        }
-                      },
-                    })
-                  }
-                >
-                  通过
-                </Button>
-              </>
+              <Button
+                type="text"
+                style={{ color: palette.link }}
+                onClick={() => setDialog('rejectApproval')}
+              >
+                驳回
+              </Button>
             )}
-            {(q.status === RQ_STATUS.PENDING_FINANCE ||
-              q.status === RQ_STATUS.PENDING_RECEIPT) &&
-              canEdit && (
-                <>
-                  {q.status === RQ_STATUS.PENDING_FINANCE && (
-                    <Button
-                      type="text"
-                      style={{ color: palette.link }}
-                      onClick={() => setDialog('reject')}
-                    >
-                      驳回
-                    </Button>
-                  )}
-                  <Tooltip
-                    title={
-                      q.status === RQ_STATUS.PENDING_RECEIPT
-                        ? '仓库验收后才能执行'
-                        : undefined
-                    }
-                  >
-                    <Button
-                      type="primary"
-                      disabled={q.status === RQ_STATUS.PENDING_RECEIPT}
-                      onClick={() => setDialog('execute')}
-                    >
-                      执行
-                    </Button>
-                  </Tooltip>
-                </>
-              )}
+            {q.status === RQ_STATUS.PENDING_FINANCE && canEdit && (
+              <Button
+                type="text"
+                style={{ color: palette.link }}
+                onClick={() => setDialog('reject')}
+              >
+                驳回
+              </Button>
+            )}
             <MoreActions
               items={[
                 open &&
@@ -379,6 +336,48 @@ const RefundRequestDetail: React.FC = () => {
                 })
               }
             />
+            {q.status === RQ_STATUS.PENDING_APPROVAL && canApprove && (
+              <Button
+                type="primary"
+                onClick={() =>
+                  modal.confirm({
+                    title: `通过 ${q.requestNo}？`,
+                    content: `${formatAmount(q.amount, cur)}，通过后交财务处理。`,
+                    okText: '通过',
+                    onOk: async () => {
+                      try {
+                        await refundRequestApi.approve(q.id);
+                        message.success('已通过');
+                        load();
+                      } catch (e) {
+                        message.error(readBizError(e).message);
+                      }
+                    },
+                  })
+                }
+              >
+                通过
+              </Button>
+            )}
+            {(q.status === RQ_STATUS.PENDING_FINANCE ||
+              q.status === RQ_STATUS.PENDING_RECEIPT) &&
+              canEdit && (
+                <Tooltip
+                  title={
+                    q.status === RQ_STATUS.PENDING_RECEIPT
+                      ? '仓库验收后才能执行'
+                      : undefined
+                  }
+                >
+                  <Button
+                    type="primary"
+                    disabled={q.status === RQ_STATUS.PENDING_RECEIPT}
+                    onClick={() => setDialog('execute')}
+                  >
+                    执行
+                  </Button>
+                </Tooltip>
+              )}
           </>
         }
       />

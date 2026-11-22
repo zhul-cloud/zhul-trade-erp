@@ -3,7 +3,7 @@
  * 界面检查（openspec ui-redesign 设计第 4 节）：按新界面规范查出还没改的写法。
  *
  * 用法：
- *   npm run lint:ui                       扫描 src；只有「已迁移目录」（ENFORCED）里有错误才失败
+ *   npm run lint:ui                       扫描 src，有错误就失败（已并入 npm run lint）
  *   npm run lint:ui -- src/pages/sales    只扫描指定目录或文件（按当前目录解析），有错误就失败
  *   npm run lint:ui -- --by-domain        按业务域汇总（整理 migration-list.md 用）
  *   npm run lint:ui -- --json             输出 JSON
@@ -18,72 +18,11 @@ const ts = require('typescript');
 
 const ROOT = path.resolve(__dirname, '..');
 
-/** 已迁移、必须通过的目录（相对 zhul-erp-frontend），每迁完一个业务域加进来（任务 7.x） */
-const ENFORCED = [
-  'src/components/ListLayout',
-  'src/components/Shell',
-  'src/components/PageTabs',
-  'src/theme',
-  // 6.x 样板页
-  'src/pages/dashboard',
-  'src/pages/sales/orders',
-  // 7.1 销售管理（sales/stats 属 7.6 统计分析）
-  'src/components/CustomerQuickCreateModal',
-  'src/pages/crm',
-  'src/pages/customer',
-  'src/pages/quotation',
-  'src/pages/inquiry/customer-inquiry',
-  'src/pages/sales/after-sales',
-  'src/pages/sales/components.tsx',
-  'src/pages/sales/followup',
-  'src/pages/sales/pi',
-  'src/pages/sales/returns',
-  // 7.2 采购管理
-  'src/pages/inquiry/my-tasks',
-  'src/pages/inquiry/price-history',
-  'src/pages/inquiry/sourcing-board',
-  'src/pages/purchase/components.tsx',
-  'src/pages/purchase/orders',
-  'src/pages/purchase/requirements',
-  'src/pages/purchase/returns',
-  'src/pages/purchase/shipments',
-  'src/pages/supplier',
-  'src/pages/supply-chain',
-  // 7.3 仓库管理与物流管理
-  'src/pages/warehouse',
-  'src/pages/logistics',
-  // 7.4 财务管理
-  'src/pages/finance/cost-adjustments',
-  'src/pages/finance/costingParts.tsx',
-  'src/pages/finance/credits',
-  'src/pages/finance/expenses',
-  'src/pages/finance/fx-settlements',
-  'src/pages/finance/other-incomes',
-  'src/pages/finance/payables',
-  'src/pages/finance/payments',
-  'src/pages/finance/periods',
-  'src/pages/finance/receipts',
-  'src/pages/finance/receivables',
-  'src/pages/finance/refunds',
-  'src/pages/finance/reimbursements',
-  'src/pages/finance/vouchers',
-  // 7.5 商品管理与运营管理
-  'src/pages/product',
-  'src/pages/operations',
-  // 7.6 统计分析
-  'src/pages/sales/stats',
-  'src/pages/inquiry/sourcing-stats',
-  'src/pages/purchase/bargain-stats',
-  'src/pages/finance/profit-stats',
-  'src/pages/finance/operating-report',
-  // 7.7 业务设置、系统管理、租户管理、登录与异常页
-  'src/pages/system',
-  'src/pages/tenant',
-  'src/pages/login',
-  'src/pages/forget-password',
-  'src/pages/exception',
-  'src/pages/inquiry/shared',
-];
+/**
+ * 必须通过的范围。任务 7.1–7.7 按业务域逐个加入，2026-11-23 全部迁移完（任务 7.8），改为整个 src：
+ * 任何新写的旧写法都会让检查失败，并随 `npm run lint` 在 CI 里拦下。
+ */
+const ENFORCED = ['src'];
 
 /** 不扫描：多语言文案、生成目录 */
 const SKIP_DIRS = new Set(['.umi', '.umi-production', '.umi-test', 'locales', 'node_modules']);
@@ -403,7 +342,7 @@ function main(argv) {
   if (!flags.has('--json')) {
     process.stderr.write(
       `\nlint:ui：${errors.length} 个错误，${issues.length - errors.length} 个提示` +
-        (explicit ? '' : `；已迁移目录里的错误 ${blocking.length} 个（${ENFORCED.join('、')}）`) +
+        
         '\n',
     );
   }

@@ -879,13 +879,6 @@ const AfterSalesDetail: React.FC = () => {
                   登记费用
                 </Button>
               )}
-              <Button
-                type="primary"
-                icon={<CircleCheck size={18} />}
-                onClick={() => setDialog('close')}
-              >
-                结案
-              </Button>
               <Dropdown
                 trigger={['click']}
                 placement="bottomRight"
@@ -908,6 +901,13 @@ const AfterSalesDetail: React.FC = () => {
                   aria-label="更多操作"
                 />
               </Dropdown>
+              <Button
+                type="primary"
+                icon={<CircleCheck size={18} />}
+                onClick={() => setDialog('close')}
+              >
+                结案
+              </Button>
             </>
           )
         }

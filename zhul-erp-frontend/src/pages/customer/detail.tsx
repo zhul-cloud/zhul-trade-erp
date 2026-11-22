@@ -477,35 +477,17 @@ const CustomerDetailPage: React.FC = () => {
       </Button>
     ) : (
       <>
+        {/* 照原型 B1：文字按钮 → 更多 → 主按钮 */}
         {canEdit &&
           profile &&
           textBtn('编辑档案', <SquarePen size={16} />, () =>
             setEditModule(profile.completeness.missing[0]?.module ?? 1),
           )}
         {canEdit &&
-          (canBackground ? (
-            textBtn('编辑', <Pencil size={16} />, () =>
-              history.push(`${LIST_PATH}/${r.id}/edit`),
-            )
-          ) : (
-            <Button
-              type="primary"
-              icon={<Pencil size={18} />}
-              onClick={() => history.push(`${LIST_PATH}/${r.id}/edit`)}
-            >
-              编辑
-            </Button>
-          ))}
-        {canBackground && (
-          <BackgroundActions
-            customerId={r.id}
-            customerName={r.displayName}
-            running={bg.running}
-            onStarted={bg.reload}
-            precheck={precheck}
-            onFix={fixPrecheck}
-          />
-        )}
+          canBackground &&
+          textBtn('编辑', <Pencil size={16} />, () =>
+            history.push(`${LIST_PATH}/${r.id}/edit`),
+          )}
         {more.length > 0 && (
           <Dropdown
             trigger={['click']}
@@ -522,6 +504,25 @@ const CustomerDetailPage: React.FC = () => {
               aria-label="更多操作"
             />
           </Dropdown>
+        )}
+        {canEdit && !canBackground && (
+          <Button
+            type="primary"
+            icon={<Pencil size={18} />}
+            onClick={() => history.push(`${LIST_PATH}/${r.id}/edit`)}
+          >
+            编辑
+          </Button>
+        )}
+        {canBackground && (
+          <BackgroundActions
+            customerId={r.id}
+            customerName={r.displayName}
+            running={bg.running}
+            onStarted={bg.reload}
+            precheck={precheck}
+            onFix={fixPrecheck}
+          />
         )}
       </>
     );

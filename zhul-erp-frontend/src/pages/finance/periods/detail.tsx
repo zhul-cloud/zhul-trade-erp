@@ -486,17 +486,6 @@ const PeriodDetail: React.FC = () => {
         }
         extra={
           <>
-            {!closed && access['inventory:period:close'] && (
-              <Button
-                type="primary"
-                icon={<LockOutlined />}
-                disabled={!p.closable}
-                title={p.closable ? undefined : p.closeBlock}
-                onClick={() => setClosing(true)}
-              >
-                结账
-              </Button>
-            )}
             <Button
               type="text"
               icon={<DownloadOutlined />}
@@ -528,6 +517,17 @@ const PeriodDetail: React.FC = () => {
               ]}
               onClick={() => setReopening(true)}
             />
+            {!closed && access['inventory:period:close'] && (
+              <Button
+                type="primary"
+                icon={<LockOutlined />}
+                disabled={!p.closable}
+                title={p.closable ? undefined : p.closeBlock}
+                onClick={() => setClosing(true)}
+              >
+                结账
+              </Button>
+            )}
           </>
         }
       />

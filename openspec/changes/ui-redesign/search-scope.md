@@ -84,8 +84,22 @@
 | 供应链跟进 · 供应商开发 | 品牌名称、品类名称（不区分大小写） | `supply/service/SupplierDevService:148` | 无（提示「搜索品牌、品类」） |
 | 覆盖矩阵 · 型号清单 | 型号（包含匹配，不规范化） | `supply/service/CoverageMatrixService:108` | 无 |
 
-## 尚未核对
+## 系统管理与租户（2026-11-22 任务 7.8 补核）
 
-以下页面在改到对应批次时再补核：
-- 系统管理各页（部门、字典、菜单、角色、配置）；
-- 各弹窗里的选择器搜索。
+| 页面 | 可搜范围 | 代码位置 | 提示问题 |
+|---|---|---|---|
+| 用户管理 | 姓名 | `system/service/impl/UserServiceImpl:62` | 无 |
+| 角色管理 | 角色名称（接口另支持角色编码，页面未用） | `system/service/impl/RoleServiceImpl:111` | 无 |
+| 岗位管理 | 岗位名称 | `system/service/impl/PositionServiceImpl:40` | 无 |
+| 部门管理 | 部门名称（前端过滤，不区分大小写） | `system/dept/index.tsx:77` | 无 |
+| 菜单管理 | 菜单名称（前端过滤，不区分大小写） | `system/menu/index.tsx:117` | 无 |
+| 字典管理 | 字典名称 | `system/service/impl/DictTypeServiceImpl:34` | 无 |
+| 系统配置 | 配置键、配置名称（不区分大小写） | `system/service/impl/ConfigServiceImpl:73` | 无 |
+| 国家档案 | 国家名称（不区分大小写） | `masterdata/customerprofile/service/CountryProfileService:79` | 无 |
+| 操作日志 | 操作名称、操作人姓名（两个输入框） | `system/service/impl/LogServiceImpl:177` | 无 |
+| 租户列表 | 租户名称 | `tenant/service/impl/TenantServiceImpl:83` | 无 |
+| 套餐管理 | 套餐名称 | `tenant/service/impl/TenantPackageServiceImpl:50` | 无 |
+
+## 落地情况（2026-11-22 任务 7.8）
+
+上表「提示问题」一栏列出的问题都已在对应批次改完：提示只列实际能搜的字段，最多 3 项，其余写进说明图标。闲置库存页已下线，不再处理。弹窗里的选择器搜索不属于列表页，不在本表范围。

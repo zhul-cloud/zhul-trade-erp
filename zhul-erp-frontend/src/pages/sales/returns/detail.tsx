@@ -268,11 +268,6 @@ const SalesReturnDetail: React.FC = () => {
                 {receiptPending ? '补填快递' : '修改'}
               </Button>
             )}
-            {r.status === TH_STATUS.CONFIRMING && (
-              <Button type="primary" onClick={() => setDialog('confirm')}>
-                确认退货
-              </Button>
-            )}
             {(r.status === TH_STATUS.CONFIRMING || receiptPending) && (
               <Dropdown
                 trigger={['click']}
@@ -296,6 +291,11 @@ const SalesReturnDetail: React.FC = () => {
                   aria-label="更多操作"
                 />
               </Dropdown>
+            )}
+            {r.status === TH_STATUS.CONFIRMING && (
+              <Button type="primary" onClick={() => setDialog('confirm')}>
+                确认退货
+              </Button>
             )}
           </>
         }
