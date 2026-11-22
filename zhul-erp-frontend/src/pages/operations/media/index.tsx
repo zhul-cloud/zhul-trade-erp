@@ -1,12 +1,18 @@
-import { SearchOutlined } from '@ant-design/icons';
 import { useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Button, Input, Segmented, Space, Table } from 'antd';
+import { Input, Select, Space, Table } from 'antd';
 import dayjs from 'dayjs';
+import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePageSize } from '@/utils/pageSize';
@@ -50,6 +56,16 @@ const MediaLibraryPage: React.FC = () => {
   );
   const [marketing, setMarketing] = useState<Tri>('all');
   const [listing, setListing] = useState<Tri>('all');
+  /** 两个条件点「查询」才生效 */
+  const [draft, setDraft] = useState<{ marketing: Tri; listing: Tri }>({
+    marketing: 'all',
+    listing: 'all',
+  });
+  const runSearch = () => {
+    setMarketing(draft.marketing);
+    setListing(draft.listing);
+    apply();
+  };
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<MediaModel[]>([]);
@@ -177,81 +193,82 @@ const MediaLibraryPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle description="一个型号在询价、到货、拍摄、发货各环节的图片和视频都汇总在这里；可发客户的可以下载发给客户，运营从中挑选用于发品的素材。" />
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          marginBottom: 16,
+      <PageHeader help="一个型号在询价、到货、拍摄、发货各环节的图片和视频都汇总在这里；可发客户的可以下载发给客户，运营从中挑选用于发品的素材" />
+      <FilterCard
+        onSearch={runSearch}
+        onReset={() => {
+          setKeyword('');
+          setQuery(undefined);
+          setDraft({ marketing: 'all', listing: 'all' });
+          setMarketing('all');
+          setListing('all');
+          setPage(1);
         }}
       >
-        <Input
-          allowClear
-          prefix={<SearchOutlined />}
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          onPressEnter={apply}
-          placeholder="品牌、型号"
-          style={{ width: 260 }}
-          aria-label="关键词"
-        />
-        <Segmented<Tri>
-          value={marketing}
-          onChange={(v) => {
-            setMarketing(v);
-            setPage(1);
-          }}
-          options={[
-            { value: 'all', label: '全部' },
-            { value: 'yes', label: '有营销实拍' },
-            { value: 'no', label: '没有营销实拍' },
-          ]}
-        />
-        <Segmented<Tri>
-          value={listing}
-          onChange={(v) => {
-            setListing(v);
-            setPage(1);
-          }}
-          options={[
-            { value: 'all', label: '全部' },
-            { value: 'yes', label: '有用于发品的' },
-            { value: 'no', label: '还没选发品素材' },
-          ]}
-        />
-        <span style={{ flex: 1 }} />
-        <Button type="primary" onClick={apply}>
-          查询
-        </Button>
-      </div>
+        <FilterField label="关键词" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={runSearch}
+            placeholder="品牌、型号"
+            aria-label="关键词"
+          />
+        </FilterField>
+        <FilterField label="营销实拍">
+          <Select<Tri>
+            value={draft.marketing}
+            onChange={(v) => setDraft({ ...draft, marketing: v })}
+            options={[
+              { value: 'all', label: '全部' },
+              { value: 'yes', label: '有营销实拍' },
+              { value: 'no', label: '没有营销实拍' },
+            ]}
+            aria-label="营销实拍"
+          />
+        </FilterField>
+        <FilterField label="发品素材">
+          <Select<Tri>
+            value={draft.listing}
+            onChange={(v) => setDraft({ ...draft, listing: v })}
+            options={[
+              { value: 'all', label: '全部' },
+              { value: 'yes', label: '有用于发品的' },
+              { value: 'no', label: '还没选发品素材' },
+            ]}
+            aria-label="发品素材"
+          />
+        </FilterField>
+      </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Table<MediaModel>
-          rowKey={(r) => `${r.brand}|${r.model}`}
-          columns={columns}
-          dataSource={rows}
-          loading={loading}
-          scroll={{ x: tableScrollX(columns) }}
-          locale={{
-            emptyText: query
-              ? '没有找到这个型号的素材'
-              : '还没有素材；询盘、回价、到货、实拍、打包时上传的图片和视频会自动汇总到这里',
-          }}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 个型号`,
-            onChange: (p, s) => {
-              setPage(p);
-              setPageSize(s);
-            },
-          }}
-        />
+        <MainCard left={`共 ${total} 个型号`}>
+          <Table<MediaModel>
+            rowKey={(r) => `${r.brand}|${r.model}`}
+            columns={columns}
+            dataSource={rows}
+            loading={loading}
+            scroll={{ x: tableScrollX(columns) }}
+            locale={{
+              emptyText: query
+                ? '没有找到这个型号的素材'
+                : '还没有素材；询盘、回价、到货、实拍、打包时上传的图片和视频会自动汇总到这里',
+            }}
+            pagination={{
+              current: page,
+              pageSize,
+              total,
+              showSizeChanger: true,
+              showTotal: (t) => `共 ${t} 个型号`,
+              onChange: (p, s) => {
+                setPage(p);
+                setPageSize(s);
+              },
+            }}
+          />
+        </MainCard>
       )}
       <MediaDrawer
         open={!!open}

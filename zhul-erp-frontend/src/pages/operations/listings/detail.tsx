@@ -1,11 +1,11 @@
 import { Link, useParams, useSearchParams } from '@umijs/max';
-import { Segmented } from 'antd';
+import { Tabs } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
-import { MenuLink, MenuName } from '@/utils/menuName';
 import { PlatformTaskChip, TABS } from './components';
 import ListingPanel from './ListingPanel';
 import { type ListingProduct, listingApi, readBizError } from './service';
@@ -51,58 +51,38 @@ const ListingProductDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[<MenuLink key="list" to="/operations/listings" />, data.model]}
-        title={
+      <PageHeader
+        title={label}
+        help="本公司 · 每个平台一个店铺，逐个平台复制内容、下载素材，发布后回填链接"
+        tags={
           <>
-            <MenuName /> · {label}
+            <Pill tone={status?.tone ?? 'gray'}>{data.statusName}</Pill>
+            {data.needMedia && <Pill tone="orange">素材待补</Pill>}
           </>
         }
-        description="本公司 · 每个平台一个店铺，逐个平台复制内容、下载素材，发布后回填链接"
+        sub={
+          <span
+            style={{
+              display: 'inline-flex',
+              gap: 10,
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
+            {[data.productName, data.category].filter(Boolean).join(' · ')}
+            {data.tasks.map((t) => (
+              <PlatformTaskChip key={t.id} task={t} />
+            ))}
+          </span>
+        }
+        extra={<Link to={`/operations/products/${productId}`}>去营销任务</Link>}
       />
-      <Card style={{ marginBottom: 16 }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            flexWrap: 'wrap',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: palette.ink }}>
-              {label}
-            </div>
-            <div style={{ fontSize: 12, color: palette.mute }}>
-              {[data.productName, data.category].filter(Boolean).join(' · ')}
-            </div>
-          </div>
-          <span style={{ flex: 1 }} />
-          <Pill tone={status?.tone ?? 'gray'}>{data.statusName}</Pill>
-          {data.needMedia && <Pill tone="orange">素材待补</Pill>}
-          <Link to={`/operations/products/${productId}`}>去营销任务 →</Link>
-        </div>
-        <div
-          style={{
-            marginTop: 10,
-            display: 'flex',
-            gap: 10,
-            alignItems: 'center',
-            flexWrap: 'wrap',
-          }}
-        >
-          <span style={{ fontSize: 12, color: palette.mute }}>各平台</span>
-          {data.tasks.map((t) => (
-            <PlatformTaskChip key={t.id} task={t} />
-          ))}
-        </div>
-      </Card>
-      <Segmented<string>
-        value={current?.platform}
+      {/* 每个平台一份内容，用页签切换（原来的分段按钮） */}
+      <Tabs
+        activeKey={current?.platform}
         onChange={(p) => setSearch({ platform: p }, { replace: true })}
-        style={{ marginBottom: 16 }}
-        options={data.tasks.map((t) => ({
-          value: t.platform,
+        items={data.tasks.map((t) => ({
+          key: t.platform,
           label: t.platformLabel,
         }))}
       />

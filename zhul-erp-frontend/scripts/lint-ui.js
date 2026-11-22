@@ -68,6 +68,9 @@ const ENFORCED = [
   'src/pages/finance/refunds',
   'src/pages/finance/reimbursements',
   'src/pages/finance/vouchers',
+  // 7.5 商品管理与运营管理
+  'src/pages/product',
+  'src/pages/operations',
 ];
 
 /** 不扫描：多语言文案、生成目录 */
