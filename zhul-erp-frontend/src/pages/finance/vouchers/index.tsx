@@ -3,8 +3,9 @@ import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Space, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -163,10 +164,12 @@ const VouchersPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        actions={
+      <PageHeader
+        extra={
           <Button
+            type="text"
             icon={<SettingOutlined />}
+            style={{ color: palette.link }}
             onClick={() => setAccountsOpen(true)}
           >
             科目设置
@@ -176,7 +179,7 @@ const VouchersPage: React.FC = () => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 16 }}>
+        <MainCard>
           <Table<VoucherMonth>
             rowKey="month"
             size="middle"
@@ -193,7 +196,7 @@ const VouchersPage: React.FC = () => {
                 : false
             }
           />
-        </Card>
+        </MainCard>
       )}
       <AccountDrawer
         open={accountsOpen}

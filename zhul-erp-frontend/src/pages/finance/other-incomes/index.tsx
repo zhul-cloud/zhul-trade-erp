@@ -15,8 +15,15 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import { readBizError } from '@/pages/sales/service';
 import { AttachmentWall, DOC_PATHS } from '@/pages/warehouse/components';
@@ -206,6 +213,12 @@ export const IncomeModal: React.FC<{
   );
 };
 
+/** 帮助文字：help-texts.md「其他收入」 */
+export const HELP = {
+  page: '不属于订单的收入（平台返点、利息、政府补贴等），按日期所在月份计入经营统计',
+  total: '按当前筛选条件统计，折人民币',
+} as const;
+
 /** 财务管理 → 其他收入：平台返点、利息、补贴等，按月计入经营统计 */
 const OtherIncomePage: React.FC = () => {
   const { message } = App.useApp();
@@ -228,6 +241,20 @@ const OtherIncomePage: React.FC = () => {
   const [sum, setSum] = useState(0);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<{ editing?: OtherIncome }>();
+  /** 搜索区里还没点「查询」的条件 */
+  const [draft, setDraft] = useState(() => ({
+    unit: unitFilter,
+    category: undefined as string | undefined,
+    range: rangeFromUrl(),
+    showVoid: false,
+  }));
+  const apply = () => {
+    setUnitFilter(draft.unit);
+    setCategory(draft.category);
+    setRange(draft.range);
+    setShowVoid(draft.showVoid);
+    setPage(1);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -334,9 +361,9 @@ const OtherIncomePage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        description="不属于订单的收入（平台返点、利息、政府补贴等），按日期所在月份计入经营统计。"
-        actions={
+      <PageHeader
+        help={HELP.page}
+        extra={
           canEdit && (
             <Button
               type="primary"
@@ -348,82 +375,84 @@ const OtherIncomePage: React.FC = () => {
           )
         }
       />
-      <div
-        style={{
-          display: 'inline-block',
-          padding: '16px 18px',
-          borderRadius: 14,
-          background: palette.card,
-          border: `1px solid ${palette.hairline}`,
-          marginBottom: 16,
-          minWidth: 240,
+      <SummaryBar
+        items={[
+          {
+            key: 'total',
+            label: '合计',
+            help: HELP.total,
+            value: sum,
+            currency: 'CNY',
+          },
+        ]}
+      />
+      <FilterCard
+        onSearch={apply}
+        onReset={() => {
+          const d = {
+            unit: undefined,
+            category: undefined,
+            range: recentRange(),
+            showVoid: false,
+          };
+          setDraft(d);
+          setUnitFilter(undefined);
+          setCategory(undefined);
+          setRange(d.range);
+          setShowVoid(false);
+          setPage(1);
         }}
+        moreCount={showVoid ? 1 : 0}
+        more={
+          <FilterField label="已作废">
+            <Checkbox
+              checked={draft.showVoid}
+              onChange={(e) =>
+                setDraft({ ...draft, showVoid: e.target.checked })
+              }
+            >
+              一并显示
+            </Checkbox>
+          </FilterField>
+        }
       >
-        <div style={{ fontSize: 13, color: palette.sub }}>合计（人民币）</div>
-        <div
-          style={{
-            ...num,
-            fontSize: 22,
-            fontWeight: 800,
-            color: palette.green,
-            marginTop: 4,
-          }}
-        >
-          {formatAmount(sum, 'CNY')}
-        </div>
-      </div>
-      <Card>
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            flexWrap: 'wrap',
-            marginBottom: 14,
-            alignItems: 'center',
-          }}
-        >
+        <FilterField label="收入日期" span={2}>
           <DatePicker.RangePicker
-            value={range}
-            onChange={(v) => {
-              setRange(v?.[0] && v[1] ? [v[0], v[1]] : null);
-              setPage(1);
-            }}
+            style={{ width: '100%' }}
+            aria-label="收入日期"
+            value={draft.range}
+            onChange={(v) =>
+              setDraft({
+                ...draft,
+                range: v?.[0] && v[1] ? [v[0], v[1]] : null,
+              })
+            }
           />
-          {bu.enabled && (
-            <Select
-              allowClear
-              placeholder="所属事业部"
-              style={{ width: 170 }}
-              value={unitFilter}
-              onChange={(v) => {
-                setUnitFilter(v);
-                setPage(1);
-              }}
-              options={unitFilterOptions(bu)}
-            />
-          )}
+        </FilterField>
+        <FilterField label="类别">
           <Select
             allowClear
-            placeholder="类别"
-            style={{ width: 140 }}
-            value={category}
-            onChange={(v) => {
-              setCategory(v);
-              setPage(1);
-            }}
+            placeholder="全部"
+            aria-label="类别"
+            value={draft.category}
+            onChange={(v) => setDraft({ ...draft, category: v })}
             options={categories.map((c) => ({ value: c.code, label: c.name }))}
           />
-          <Checkbox
-            checked={showVoid}
-            onChange={(e) => {
-              // 切换是否含作废记录：和其他筛选一样回到第 1 页，免得停在越界的空页（UI-031）
-              setShowVoid(e.target.checked);
-              setPage(1);
-            }}
-          >
-            显示已作废
-          </Checkbox>
-        </div>
+        </FilterField>
+        {bu.enabled && (
+          <FilterField label="所属事业部">
+            <Select
+              allowClear
+              placeholder="全部"
+              aria-label="所属事业部"
+              value={draft.unit}
+              onChange={(v) => setDraft({ ...draft, unit: v })}
+              options={unitFilterOptions(bu)}
+            />
+          </FilterField>
+        )}
+      </FilterCard>
+      <MainCard left={`共 ${total} 条`}>
         <Table<OtherIncome>
           rowKey="id"
           loading={loading}
@@ -442,7 +471,7 @@ const OtherIncomePage: React.FC = () => {
             },
           }}
         />
-      </Card>
+      </MainCard>
       <IncomeModal
         open={!!modal}
         editing={modal?.editing}

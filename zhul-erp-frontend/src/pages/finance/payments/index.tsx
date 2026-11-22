@@ -1,12 +1,19 @@
-import { SearchOutlined } from '@ant-design/icons';
 import { history, Link } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Checkbox, DatePicker, Input, Select, Table } from 'antd';
+import { App, Checkbox, DatePicker, Input, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
+import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import SourceNos from '@/components/DocFields/SourceNos';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { readBizError } from '@/pages/sales/service';
@@ -36,6 +43,12 @@ interface Filters {
   kind?: number;
   showVoid: boolean;
 }
+
+/** 帮助文字：help-texts.md「付款管理」，关键词范围以 search-scope.md 为准 */
+export const HELP = {
+  page: '公司对公、私对私由财务登记，员工垫付由付款的员工本人登记（进入待报销）；供应商退款也在这里。登记错了由登记人或财务在详情里作废，应付随之恢复',
+  reimburse: '不计入付款合计',
+} as const;
 
 const initial = (): Filters => ({
   keyword: '',
@@ -99,31 +112,6 @@ const PaymentRecords: React.FC = () => {
     setFilters(f);
     setPage(1);
   };
-
-  const card = (label: string, value: number, tone: string) => (
-    <div
-      style={{
-        flex: '1 1 200px',
-        padding: '16px 18px',
-        borderRadius: 14,
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
-      }}
-    >
-      <div style={{ fontSize: 13, color: palette.sub }}>{label}</div>
-      <div
-        style={{
-          ...num,
-          fontSize: 22,
-          fontWeight: 800,
-          color: tone,
-          marginTop: 4,
-        }}
-      >
-        {formatAmount(value, 'CNY')}
-      </div>
-    </div>
-  );
 
   const columns: TableColumnsType<Payment> = [
     {
@@ -307,91 +295,149 @@ const PaymentRecords: React.FC = () => {
 
   return (
     <div>
-      <PageTitle description="公司对公、私对私由财务登记，员工垫付由付款的员工本人登记（进入待报销）；供应商退款也在这里。登记错了由登记人或财务在详情里作废，应付随之恢复。" />
-      <div
-        style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}
+      <PageHeader help={HELP.page} />
+      <SummaryBar
+        items={[
+          {
+            key: 'total',
+            label: '付款合计',
+            value: stats?.total ?? 0,
+            currency: 'CNY',
+          },
+          {
+            key: 'company',
+            label: '公司对公',
+            value: stats?.company ?? 0,
+            currency: 'CNY',
+          },
+          {
+            key: 'advance',
+            label: '员工垫付',
+            value: stats?.advance ?? 0,
+            currency: 'CNY',
+          },
+          {
+            key: 'personal',
+            label: '私对私',
+            value: stats?.personal ?? 0,
+            currency: 'CNY',
+          },
+          {
+            key: 'reimburse',
+            label: '报销付款',
+            help: HELP.reimburse,
+            value: stats?.reimburse ?? 0,
+            currency: 'CNY',
+          },
+        ]}
+      />
+      <FilterCard
+        onSearch={() => apply({})}
+        onReset={() => {
+          const f = initial();
+          setDraft(f);
+          setFilters(f);
+          setPage(1);
+        }}
+        moreCount={
+          [
+            filters.advanceUser.trim() || undefined,
+            filters.kind,
+            filters.currencyCode,
+            filters.showVoid || undefined,
+          ].filter((v) => v != null).length
+        }
+        more={
+          <>
+            <FilterField label="垫付人账号">
+              <Input
+                allowClear
+                placeholder="账号"
+                aria-label="垫付人账号"
+                value={draft.advanceUser}
+                onChange={(e) =>
+                  setDraft({ ...draft, advanceUser: e.target.value })
+                }
+                onPressEnter={() => apply({})}
+              />
+            </FilterField>
+            <FilterField label="类型">
+              <Select
+                allowClear
+                placeholder="全部"
+                aria-label="类型"
+                value={draft.kind}
+                onChange={(v) => setDraft({ ...draft, kind: v })}
+                options={[
+                  { value: 1, label: '付款' },
+                  { value: 2, label: '退款' },
+                  { value: 3, label: '报销付款' },
+                ]}
+              />
+            </FilterField>
+            <FilterField label="币种">
+              <Select
+                allowClear
+                placeholder="全部"
+                aria-label="币种"
+                value={draft.currencyCode}
+                onChange={(v) => setDraft({ ...draft, currencyCode: v })}
+                options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+              />
+            </FilterField>
+            <FilterField label="已作废">
+              <Checkbox
+                checked={draft.showVoid}
+                onChange={(e) =>
+                  setDraft({ ...draft, showVoid: e.target.checked })
+                }
+              >
+                一并显示
+              </Checkbox>
+            </FilterField>
+          </>
+        }
       >
-        {card('付款合计（人民币）', stats?.total ?? 0, palette.ink)}
-        {card('公司对公', stats?.company ?? 0, palette.link)}
-        {card('员工垫付', stats?.advance ?? 0, palette.orange)}
-        {card('私对私', stats?.personal ?? 0, palette.info)}
-        {card('报销付款（不计入合计）', stats?.reimburse ?? 0, palette.sub)}
-      </div>
-      <Card>
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            flexWrap: 'wrap',
-            marginBottom: 14,
-            alignItems: 'center',
-          }}
-        >
+        <FilterField label="关键词" span={2}>
           <Input
             allowClear
-            prefix={<SearchOutlined />}
-            placeholder="编号、收款方"
-            style={{ width: 200 }}
+            prefix={<Search size={16} />}
+            placeholder="付款单号、收款方"
+            aria-label="关键词"
             value={draft.keyword}
             onChange={(e) => setDraft({ ...draft, keyword: e.target.value })}
             onPressEnter={() => apply({})}
           />
+        </FilterField>
+        <FilterField label="付款日期" span={2}>
           <DatePicker.RangePicker
+            style={{ width: '100%' }}
+            aria-label="付款日期"
             value={draft.range}
             onChange={(v) =>
-              apply({ range: v?.[0] && v[1] ? [v[0], v[1]] : null })
+              setDraft({
+                ...draft,
+                range: v?.[0] && v[1] ? [v[0], v[1]] : null,
+              })
             }
           />
+        </FilterField>
+        <FilterField label="付款方式">
           <Select
             allowClear
-            placeholder="付款方式"
-            style={{ width: 120 }}
+            placeholder="全部"
+            aria-label="付款方式"
             value={draft.method}
-            onChange={(v) => apply({ method: v })}
+            onChange={(v) => setDraft({ ...draft, method: v })}
             options={[
               { value: METHOD.COMPANY, label: '公司对公' },
               { value: METHOD.ADVANCE, label: '员工垫付' },
               { value: METHOD.PRIVATE, label: '私对私' },
             ]}
           />
-          <Input
-            allowClear
-            placeholder="垫付人账号"
-            style={{ width: 140 }}
-            value={draft.advanceUser}
-            onChange={(e) =>
-              setDraft({ ...draft, advanceUser: e.target.value })
-            }
-            onPressEnter={() => apply({})}
-          />
-          <Select
-            allowClear
-            placeholder="类型"
-            style={{ width: 100 }}
-            value={draft.kind}
-            onChange={(v) => apply({ kind: v })}
-            options={[
-              { value: 1, label: '付款' },
-              { value: 2, label: '退款' },
-              { value: 3, label: '报销付款' },
-            ]}
-          />
-          <Select
-            allowClear
-            placeholder="币种"
-            style={{ width: 100 }}
-            value={draft.currencyCode}
-            onChange={(v) => apply({ currencyCode: v })}
-            options={CURRENCIES.map((c) => ({ value: c, label: c }))}
-          />
-          <Checkbox
-            checked={draft.showVoid}
-            onChange={(e) => apply({ showVoid: e.target.checked })}
-          >
-            显示已作废
-          </Checkbox>
-          <Button onClick={() => apply({})}>查询</Button>
-        </div>
+        </FilterField>
+      </FilterCard>
+      <MainCard left={`共 ${total} 条`}>
         <Table<Payment>
           rowKey="id"
           loading={loading}
@@ -410,7 +456,7 @@ const PaymentRecords: React.FC = () => {
             },
           }}
         />
-      </Card>
+      </MainCard>
     </div>
   );
 };

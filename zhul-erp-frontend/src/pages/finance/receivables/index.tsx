@@ -1,12 +1,19 @@
-import { SearchOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Input, Segmented, Select, Table } from 'antd';
+import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  QuickFilters,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Pill } from '@/pages/crm/opportunity/components';
-import { Card, PageTitle } from '@/pages/inquiry/shared/components';
 import { PATHS } from '@/pages/sales/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -55,7 +62,9 @@ const ReceivablesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'customer' | 'order'>('customer');
   const [filters, setFilters] = useState<ReceivableFilters>({});
-  const [keyword, setKeyword] = useState('');
+  /** 搜索区里还没点「查询」的条件；到期由快捷筛选立即生效 */
+  const [draft, setDraft] = useState<ReceivableFilters>({});
+  const apply = () => setFilters((f) => ({ ...draft, due: f.due }));
   const [pageSize, setPageSize] = usePageSize(20);
 
   const load = useCallback(async () => {
@@ -95,56 +104,10 @@ const ReceivablesPage: React.FC = () => {
   const filteredCny = rows.reduce((s, r) => s + Number(r.remainingCny), 0);
 
   const s = data?.stats;
-  const stat = (
-    label: string,
-    value: number | undefined,
-    note: string,
-    due?: DueFilter,
-    color?: string,
-  ) => {
-    const active = due != null && filters.due === due;
-    const body = (
-      <>
-        <div style={{ fontSize: 13, color: palette.sub }}>{label}</div>
-        <div
-          style={{
-            ...num,
-            fontSize: 22,
-            fontWeight: 800,
-            color: color ?? palette.ink,
-            marginTop: 4,
-          }}
-        >
-          {cny(value)}
-        </div>
-        <div style={{ fontSize: 12, color: palette.mute, marginTop: 2 }}>
-          {note}
-        </div>
-      </>
-    );
-    const style: React.CSSProperties = {
-      flex: '1 1 200px',
-      padding: '16px 18px',
-      borderRadius: 14,
-      background: palette.card,
-      border: `1px solid ${active ? palette.primaryLine : palette.hairline}`,
-      textAlign: 'left',
-    };
-    return due ? (
-      <button
-        type="button"
-        aria-pressed={active}
-        style={{ ...style, cursor: 'pointer', font: 'inherit' }}
-        onClick={() =>
-          setFilters((f) => ({ ...f, due: active ? undefined : due }))
-        }
-      >
-        {body}
-      </button>
-    ) : (
-      <div style={style}>{body}</div>
-    );
-  };
+  /** 原统计卡片：应收未收为汇总行；已逾期、7 天内、本月到期为快捷筛选（互斥，再点取消） */
+  const QUICK: DueFilter[] = ['OVERDUE', 'WEEK', 'MONTH'];
+  const quickValue: string[] =
+    filters.due && QUICK.includes(filters.due) ? [filters.due] : [];
 
   const orderLink = (r: ReceivableRow) => (
     <button
@@ -342,45 +305,98 @@ const ReceivablesPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle />
-      <div
-        style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}
+      <PageHeader />
+      <SummaryBar
+        items={[
+          {
+            key: 'total',
+            label: '应收未收',
+            value: s?.totalCny ?? 0,
+            currency: 'CNY',
+            sub: `${s?.customers ?? 0} 个客户 · ${s?.orders ?? 0} 张订单`,
+          },
+        ]}
+      />
+      <FilterCard
+        onSearch={apply}
+        onReset={() => {
+          setDraft({});
+          setFilters({});
+        }}
+        moreCount={filters.due && !QUICK.includes(filters.due) ? 1 : 0}
+        more={
+          <FilterField label="到期">
+            <Select
+              allowClear
+              placeholder="全部"
+              aria-label="到期"
+              options={DUE_OPTIONS}
+              value={filters.due}
+              onChange={(v) => setFilters((f) => ({ ...f, due: v }))}
+            />
+          </FilterField>
+        }
+        quick={
+          <QuickFilters
+            options={[
+              {
+                value: 'OVERDUE',
+                label: `已逾期 · ${cny(s?.overdueCny)} · ${s?.overdueOrders ?? 0} 张`,
+              },
+              {
+                value: 'WEEK',
+                label: `7 天内到期 · ${cny(s?.weekCny)} · ${s?.weekOrders ?? 0} 张`,
+              },
+              {
+                value: 'MONTH',
+                label: `本月到期 · ${cny(s?.monthCny)} · ${s?.monthOrders ?? 0} 张`,
+              },
+            ]}
+            value={quickValue}
+            onChange={(v) => {
+              const next = v.find((x) => !quickValue.includes(x)) as
+                | DueFilter
+                | undefined;
+              setFilters((f) => ({ ...f, due: next }));
+            }}
+          />
+        }
       >
-        {stat(
-          '应收未收',
-          s?.totalCny,
-          `${s?.customers ?? 0} 个客户 · ${s?.orders ?? 0} 张订单`,
-        )}
-        {stat(
-          '已逾期',
-          s?.overdueCny,
-          `${s?.overdueOrders ?? 0} 张订单 · 点击筛出`,
-          'OVERDUE',
-          palette.red,
-        )}
-        {stat(
-          '7 天内到期',
-          s?.weekCny,
-          `${s?.weekOrders ?? 0} 张订单 · 点击筛出`,
-          'WEEK',
-          palette.orange,
-        )}
-        {stat(
-          '本月到期',
-          s?.monthCny,
-          `${s?.monthOrders ?? 0} 张订单 · 点击筛出`,
-          'MONTH',
-        )}
-      </div>
-      <Card style={{ padding: 20 }}>
-        <div
-          style={{
-            display: 'flex',
-            gap: 12,
-            flexWrap: 'wrap',
-            marginBottom: 16,
-          }}
-        >
+        <FilterField label="关键词" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="客户、订单号"
+            aria-label="关键词"
+            value={draft.keyword}
+            onChange={(e) => setDraft({ ...draft, keyword: e.target.value })}
+            onPressEnter={apply}
+          />
+        </FilterField>
+        <FilterField label="业务员">
+          <Select
+            allowClear
+            placeholder="全部"
+            aria-label="业务员"
+            options={owners}
+            value={draft.ownerId}
+            onChange={(v) => setDraft({ ...draft, ownerId: v })}
+          />
+        </FilterField>
+        <FilterField label="币种">
+          <Select
+            allowClear
+            placeholder="全部"
+            aria-label="币种"
+            options={currencies}
+            value={draft.currency}
+            onChange={(v) => setDraft({ ...draft, currency: v })}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard
+        left={footer}
+        right={
           <Segmented
             value={view}
             onChange={(v) => setView(v as 'customer' | 'order')}
@@ -389,42 +405,8 @@ const ReceivablesPage: React.FC = () => {
               { value: 'order', label: '按订单' },
             ]}
           />
-          <Input
-            allowClear
-            prefix={<SearchOutlined />}
-            placeholder="搜索客户、订单号"
-            style={{ width: 240 }}
-            value={keyword}
-            onChange={(e) => {
-              setKeyword(e.target.value);
-              setFilters((f) => ({ ...f, keyword: e.target.value }));
-            }}
-          />
-          <Select
-            allowClear
-            placeholder="业务员"
-            style={{ width: 140 }}
-            options={owners}
-            value={filters.ownerId}
-            onChange={(v) => setFilters((f) => ({ ...f, ownerId: v }))}
-          />
-          <Select
-            allowClear
-            placeholder="币种"
-            style={{ width: 110 }}
-            options={currencies}
-            value={filters.currency}
-            onChange={(v) => setFilters((f) => ({ ...f, currency: v }))}
-          />
-          <Select
-            allowClear
-            placeholder="到期"
-            style={{ width: 150 }}
-            options={DUE_OPTIONS}
-            value={filters.due}
-            onChange={(v) => setFilters((f) => ({ ...f, due: v }))}
-          />
-        </div>
+        }
+      >
         {view === 'customer' ? (
           <Table<CustomerGroup>
             rowKey="customerId"
@@ -468,7 +450,7 @@ const ReceivablesPage: React.FC = () => {
             }}
           />
         )}
-      </Card>
+      </MainCard>
     </div>
   );
 };

@@ -1,8 +1,4 @@
-import {
-  DeleteOutlined,
-  PlusOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
+import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -20,10 +16,18 @@ import {
   Table,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import {
   auditColumns,
   SHOP_CHANNELS,
@@ -772,6 +776,12 @@ interface Filters {
   unit?: number;
 }
 
+/** 帮助文字：help-texts.md「费用管理」 */
+export const HELP = {
+  page: '补发运费这类偶发成本，以及房租、工资、平台费等运营成本；公司对公生成应付，员工垫付进入垫付人的待报销，私对私保存即已付。关联订单型号的计入订单成本，不关联的按类别与分摊月数计入经营统计',
+  total: '按当前筛选条件统计的有效费用单（不含已作废），折人民币；没选日期时统计本月',
+} as const;
+
 /** 初始筛选：日期默认最近 3 个月（清空看全部）；经营统计跳转时带 dateFrom、dateTo、category、linked */
 const initial = (): Filters => {
   const p = new URLSearchParams(window.location.search);
@@ -993,9 +1003,9 @@ const ExpensePage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        description="补发运费这类偶发成本，以及房租、工资、平台费等运营成本；公司对公生成应付，员工垫付进入垫付人的待报销，私对私保存即已付。关联订单型号的计入订单成本，不关联的按类别与分摊月数计入经营统计。"
-        actions={
+      <PageHeader
+        help={HELP.page}
+        extra={
           canEdit && (
             <Button
               type="primary"
@@ -1007,116 +1017,144 @@ const ExpensePage: React.FC = () => {
           )
         }
       />
-      <div
-        style={{
-          display: 'inline-block',
-          padding: '16px 18px',
-          borderRadius: 14,
-          background: palette.card,
-          border: `1px solid ${palette.hairline}`,
-          marginBottom: 16,
-          minWidth: 240,
+      <SummaryBar
+        items={[
+          {
+            key: 'total',
+            label: filters.range ? '所选期间费用' : '本月费用',
+            help: HELP.total,
+            value: monthTotal,
+            currency: 'CNY',
+          },
+        ]}
+      />
+      <FilterCard
+        onSearch={() => apply({})}
+        onReset={() => {
+          const f: Filters = {
+            keyword: '',
+            soNo: '',
+            range: recentRange(),
+            showVoid: false,
+          };
+          setDraft(f);
+          setFilters(f);
+          setPage(1);
         }}
+        moreCount={
+          [
+            filters.soNo.trim() || undefined,
+            filters.method,
+            bu.enabled ? filters.unit : undefined,
+            filters.linked,
+            filters.showVoid || undefined,
+          ].filter((v) => v != null).length
+        }
+        more={
+          <>
+            <FilterField label="关联订单号">
+              <Input
+                allowClear
+                placeholder="订单编号"
+                aria-label="关联订单号"
+                value={draft.soNo}
+                onChange={(e) => setDraft({ ...draft, soNo: e.target.value })}
+                onPressEnter={() => apply({})}
+              />
+            </FilterField>
+            <FilterField label="付款方式">
+              <Select
+                allowClear
+                placeholder="全部"
+                aria-label="付款方式"
+                value={draft.method}
+                onChange={(v) => setDraft({ ...draft, method: v })}
+                options={[
+                  { value: METHOD.COMPANY, label: '公司对公' },
+                  { value: METHOD.ADVANCE, label: '员工垫付' },
+                  { value: METHOD.PRIVATE, label: '私对私' },
+                ]}
+              />
+            </FilterField>
+            {bu.enabled && (
+              <FilterField label="所属事业部">
+                <Select
+                  allowClear
+                  placeholder="全部"
+                  aria-label="所属事业部"
+                  value={draft.unit}
+                  onChange={(v) => setDraft({ ...draft, unit: v })}
+                  options={unitFilterOptions(bu)}
+                />
+              </FilterField>
+            )}
+            <FilterField label="是否关联订单">
+              <Select
+                allowClear
+                placeholder="全部"
+                aria-label="是否关联订单"
+                value={draft.linked == null ? undefined : String(draft.linked)}
+                onChange={(v) =>
+                  setDraft({
+                    ...draft,
+                    linked: v == null ? undefined : v === 'true',
+                  })
+                }
+                options={[
+                  { value: 'false', label: '运营成本（不关联订单）' },
+                  { value: 'true', label: '关联订单' },
+                ]}
+              />
+            </FilterField>
+            <FilterField label="已作废">
+              <Checkbox
+                checked={draft.showVoid}
+                onChange={(e) =>
+                  setDraft({ ...draft, showVoid: e.target.checked })
+                }
+              >
+                一并显示
+              </Checkbox>
+            </FilterField>
+          </>
+        }
       >
-        <div style={{ fontSize: 13, color: palette.sub }}>
-          {filters.range ? '所选期间费用' : '本月费用'}（人民币）
-        </div>
-        <div
-          style={{
-            ...num,
-            fontSize: 22,
-            fontWeight: 800,
-            color: palette.ink,
-            marginTop: 4,
-          }}
-        >
-          {formatAmount(monthTotal, 'CNY')}
-        </div>
-      </div>
-      <Card>
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            flexWrap: 'wrap',
-            marginBottom: 14,
-            alignItems: 'center',
-          }}
-        >
+        <FilterField label="关键词" span={2}>
           <Input
             allowClear
-            prefix={<SearchOutlined />}
-            placeholder="编号、名称、收款方"
-            style={{ width: 200 }}
+            prefix={<Search size={16} />}
+            placeholder="费用编号、名称、收款方"
+            aria-label="关键词"
             value={draft.keyword}
             onChange={(e) => setDraft({ ...draft, keyword: e.target.value })}
             onPressEnter={() => apply({})}
           />
-          <Input
-            allowClear
-            placeholder="关联订单号"
-            style={{ width: 180 }}
-            value={draft.soNo}
-            onChange={(e) => setDraft({ ...draft, soNo: e.target.value })}
-            onPressEnter={() => apply({})}
-          />
+        </FilterField>
+        <FilterField label="费用日期" span={2}>
           <DatePicker.RangePicker
+            style={{ width: '100%' }}
+            aria-label="费用日期"
             value={draft.range}
             onChange={(v) =>
-              apply({ range: v?.[0] && v[1] ? [v[0], v[1]] : null })
+              setDraft({
+                ...draft,
+                range: v?.[0] && v[1] ? [v[0], v[1]] : null,
+              })
             }
           />
+        </FilterField>
+        <FilterField label="费用类别">
           <Select
             allowClear
-            placeholder="付款方式"
-            style={{ width: 120 }}
-            value={draft.method}
-            onChange={(v) => apply({ method: v })}
-            options={[
-              { value: METHOD.COMPANY, label: '公司对公' },
-              { value: METHOD.ADVANCE, label: '员工垫付' },
-              { value: METHOD.PRIVATE, label: '私对私' },
-            ]}
-          />
-          {bu.enabled && (
-            <Select
-              allowClear
-              placeholder="所属事业部"
-              style={{ width: 170 }}
-              value={draft.unit}
-              onChange={(v) => apply({ unit: v })}
-              options={unitFilterOptions(bu)}
-            />
-          )}
-          <Select
-            allowClear
-            placeholder="费用类别"
-            style={{ width: 130 }}
+            placeholder="全部"
+            aria-label="费用类别"
             value={draft.category}
-            onChange={(v) => apply({ category: v })}
+            onChange={(v) => setDraft({ ...draft, category: v })}
             options={categories.map((c) => ({ value: c.code, label: c.name }))}
           />
-          <Select
-            allowClear
-            placeholder="是否关联订单"
-            style={{ width: 150 }}
-            value={draft.linked == null ? undefined : String(draft.linked)}
-            onChange={(v) =>
-              apply({ linked: v == null ? undefined : v === 'true' })
-            }
-            options={[
-              { value: 'false', label: '运营成本（不关联订单）' },
-              { value: 'true', label: '关联订单' },
-            ]}
-          />
-          <Checkbox
-            checked={draft.showVoid}
-            onChange={(e) => apply({ showVoid: e.target.checked })}
-          >
-            显示已作废
-          </Checkbox>
-          <Button onClick={() => apply({})}>查询</Button>
-        </div>
+        </FilterField>
+      </FilterCard>
+      <MainCard left={`共 ${total} 条`}>
         <Table<Expense>
           rowKey="id"
           loading={loading}
@@ -1135,7 +1173,7 @@ const ExpensePage: React.FC = () => {
             },
           }}
         />
-      </Card>
+      </MainCard>
       <ExpenseDrawer
         open={!!drawer}
         editing={drawer?.editing}

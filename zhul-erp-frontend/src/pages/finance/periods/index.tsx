@@ -2,8 +2,9 @@ import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Button, Space, Table, Tooltip } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -162,14 +163,11 @@ const PeriodsPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle />
+      <PageHeader help="按月份顺序结账；结账后，业务日期在这个月的入库、出库、出运不能再新建、作废或改日期" />
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 16 }}>
-          <div style={{ color: palette.sub, fontSize: 13, marginBottom: 12 }}>
-            按月份顺序结账；结账后，业务日期在这个月的入库、出库、出运不能再新建、作废或改日期
-          </div>
+        <MainCard>
           <Table<Period>
             rowKey="month"
             size="middle"
@@ -184,7 +182,7 @@ const PeriodsPage: React.FC = () => {
                 : false
             }
           />
-        </Card>
+        </MainCard>
       )}
       <CloseModal
         month={closing}

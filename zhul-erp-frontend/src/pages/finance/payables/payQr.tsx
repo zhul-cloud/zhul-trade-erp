@@ -21,6 +21,7 @@ export const PAY_CHANNEL_NAMES: Record<number, string> = {
   3: '微信',
 };
 
+// lint-ui-ignore hardcoded-color: 支付宝、微信的品牌色，不随主题变
 const BRAND: Record<number, string> = { 2: '#1677FF', 3: '#07C160' };
 
 export const ChannelIcon: React.FC<{ channel: number; size?: number }> = ({

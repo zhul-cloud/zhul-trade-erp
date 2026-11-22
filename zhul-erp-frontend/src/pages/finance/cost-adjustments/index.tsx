@@ -1,20 +1,21 @@
-import {
-  DatabaseOutlined,
-  DownloadOutlined,
-  FileTextOutlined,
-  SearchOutlined,
-  ShoppingOutlined,
-} from '@ant-design/icons';
+import { DownloadOutlined } from '@ant-design/icons';
 import { Link } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import SourceNos from '@/components/DocFields/SourceNos';
+import {
+  FilterField,
+  MainCard,
+  PageHeader,
+  QuickFilters,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
-import { auditColumns, StatCard } from '@/pages/purchase/components';
+import { auditColumns } from '@/pages/purchase/components';
 import { FilterCard } from '@/pages/warehouse/inventoryParts';
 import { docHref } from '@/pages/warehouse/inventoryService';
 import { readBizError } from '@/pages/warehouse/service';
@@ -38,6 +39,13 @@ interface Filters {
 }
 
 const thisMonth = () => dayjs().format('YYYY-MM');
+
+/** 帮助文字：help-texts.md「成本调整」 */
+export const HELP = {
+  page: '批次成本变化时系统自动生成，不能手工新建或修改',
+  keyword: '可搜：调整单号、来源单号、型号、批次号',
+  stock: '进库存金额',
+} as const;
 
 /** 财务管理 → 成本调整（spec finance/inventory-cost「成本调整页」，原型 C1）：批次成本变化时系统生成，只读 */
 const CostAdjustmentsPage: React.FC = () => {
@@ -191,42 +199,23 @@ const CostAdjustmentsPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: 16,
-          marginBottom: 16,
-        }}
-      >
-        <StatCard
-          icon={<DatabaseOutlined />}
-          color={palette.link}
-          label={`${monthLabel}在库调整`}
-          value={<SignedMoney value={summary?.stockAmount} yuan />}
-          hint="进库存金额"
-        />
-        <StatCard
-          icon={<ShoppingOutlined />}
-          color={palette.green}
-          label={`${monthLabel}销售成本调整`}
-          value={<SignedMoney value={summary?.cogsAmount} yuan />}
-          hint="进订单成本"
-          active={!!filters.cogsOnly}
-          onClick={() => {
-            setFilters((f) => ({ ...f, cogsOnly: !f.cogsOnly }));
-            setPage(1);
-          }}
-        />
-        <StatCard
-          icon={<FileTextOutlined />}
-          color={palette.orange}
-          label={`${monthLabel}调整单`}
-          value={`${summary?.count ?? 0} 张`}
-          hint={reasonText || '没有调整'}
-        />
-      </div>
+      <PageHeader help={HELP.page} />
+      <SummaryBar
+        items={[
+          {
+            key: 'stock',
+            label: `${monthLabel}在库调整`,
+            help: HELP.stock,
+            value: <SignedMoney value={summary?.stockAmount} yuan />,
+          },
+          {
+            key: 'count',
+            label: `${monthLabel}调整单`,
+            value: `${summary?.count ?? 0} 张`,
+            sub: reasonText || '没有调整',
+          },
+        ]}
+      />
       <FilterCard
         form={form}
         initialValues={{ month: dayjs() }}
@@ -246,84 +235,80 @@ const CostAdjustmentsPage: React.FC = () => {
           setPage(1);
         }}
         extra={
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              marginTop: 12,
+          // 原「销售成本调整」卡片是条件类，改为快捷筛选，数字仍按所选月份统计
+          <QuickFilters
+            options={[
+              {
+                value: 'cogs',
+                label: (
+                  <>
+                    {`只看有销售成本调整 · ${monthLabel} `}
+                    <SignedMoney value={summary?.cogsAmount} yuan />
+                  </>
+                ),
+              },
+            ]}
+            value={filters.cogsOnly ? ['cogs'] : []}
+            onChange={(v) => {
+              setFilters((f) => ({ ...f, cogsOnly: v.length > 0 }));
+              setPage(1);
             }}
-          >
-            <span style={{ fontSize: 12, color: palette.mute }}>快捷筛选</span>
-            <Button
-              size="small"
-              type={filters.cogsOnly ? 'primary' : 'default'}
-              aria-pressed={!!filters.cogsOnly}
-              onClick={() => {
-                setFilters((f) => ({ ...f, cogsOnly: !f.cogsOnly }));
-                setPage(1);
-              }}
-            >
-              只看有销售成本调整
-            </Button>
-          </div>
+          />
         }
       >
-        <Form.Item
-          name="keyword"
-          label="关键词"
-          style={{ marginBottom: 0, gridColumn: 'span 2' }}
-        >
-          <Input
-            allowClear
-            prefix={<SearchOutlined />}
-            placeholder="调整单号、来源单号、型号、批次号"
-          />
-        </Form.Item>
-        <Form.Item name="month" label="所属月份" style={{ marginBottom: 0 }}>
-          <DatePicker
-            picker="month"
-            placeholder="全部月份"
-            style={{ width: '100%' }}
-          />
-        </Form.Item>
-        <Form.Item name="reason" label="触发原因" style={{ marginBottom: 0 }}>
-          <Select
-            allowClear
-            placeholder="全部"
-            options={CA_REASONS.map((r) => ({
-              value: r.value,
-              label: r.label,
-            }))}
-          />
-        </Form.Item>
+        <FilterField label="关键词" span={2} help={HELP.keyword}>
+          <Form.Item name="keyword" noStyle>
+            <Input
+              allowClear
+              prefix={<Search size={16} />}
+              placeholder="调整单号、来源单号、型号"
+              aria-label="关键词"
+              onPressEnter={() => form.submit()}
+            />
+          </Form.Item>
+        </FilterField>
+        <FilterField label="所属月份" htmlFor="ca-month">
+          <Form.Item name="month" noStyle>
+            <DatePicker
+              id="ca-month"
+              picker="month"
+              placeholder="全部月份"
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+        </FilterField>
+        <FilterField label="触发原因">
+          <Form.Item name="reason" noStyle>
+            <Select
+              allowClear
+              placeholder="全部"
+              aria-label="触发原因"
+              options={CA_REASONS.map((r) => ({
+                value: r.value,
+                label: r.label,
+              }))}
+            />
+          </Form.Item>
+        </FilterField>
       </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 16 }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 12,
-              gap: 12,
-              flexWrap: 'wrap',
-            }}
-          >
-            <span style={{ color: palette.sub, fontSize: 13 }}>
-              批次成本变化时系统自动生成，不能手工新建或修改
-            </span>
+        <MainCard
+          left={`共 ${total} 条`}
+          right={
             <Button
+              type="text"
               icon={<DownloadOutlined />}
+              style={{ color: palette.link }}
               loading={exporting}
               disabled={total === 0}
               onClick={doExport}
             >
               导出
             </Button>
-          </div>
+          }
+        >
           <Table<CostAdjust>
             rowKey="id"
             size="middle"
@@ -348,7 +333,7 @@ const CostAdjustmentsPage: React.FC = () => {
               },
             }}
           />
-        </Card>
+        </MainCard>
       )}
     </div>
   );

@@ -102,7 +102,7 @@ it('成本调整列表：月份合计卡片，只看有销售成本调整，来�
     screen.getByText('FK20261205003').closest('a')?.getAttribute('href'),
   ).toBe('/finance/payments/3');
   await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: '只看有销售成本调整' }));
+    fireEvent.click(screen.getByRole('button', { name: /只看有销售成本调整/ }));
   });
   await waitFor(() =>
     expect(

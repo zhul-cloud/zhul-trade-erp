@@ -5,6 +5,7 @@ import {
   FilterCard,
   FilterField,
   HelpTip,
+  MoreActions,
   PageHeader,
   QuickFilters,
   Section,
@@ -271,5 +272,51 @@ describe('页头与分区', () => {
     ).toBeTruthy();
     expect(screen.getByRole('img', { name: '收入减实际成本' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '编辑' })).toBeTruthy();
+  });
+});
+
+describe('更多操作', () => {
+  it('没有可显示的操作时不渲染「更多」按钮', () => {
+    render(
+      h(MoreActions, { items: [false, undefined, ''], onClick: jest.fn() }),
+    );
+    expect(screen.queryByRole('button', { name: '更多操作' })).toBeNull();
+  });
+
+  it('点开菜单：不可用的操作置灰并写明原因，可用的点击后回传 key', async () => {
+    const onClick = jest.fn();
+    render(
+      h(
+        App,
+        null,
+        h(MoreActions, {
+          items: [
+            { key: 'unclaim', label: '取消认领' },
+            {
+              key: 'void',
+              label: '作废',
+              danger: true,
+              disabledReason: '已结汇，请先作废结汇单 JH001',
+            },
+          ],
+          onClick,
+        }),
+      ),
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '更多操作' }));
+    });
+    const voidItem = (
+      await screen.findByText('已结汇，请先作废结汇单 JH001')
+    ).closest('li') as HTMLElement;
+    expect(voidItem.getAttribute('aria-disabled')).toBe('true');
+    await act(async () => {
+      fireEvent.click(voidItem);
+    });
+    expect(onClick).not.toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.click(screen.getByText('取消认领'));
+    });
+    expect(onClick).toHaveBeenCalledWith('unclaim');
   });
 });

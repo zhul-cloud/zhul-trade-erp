@@ -53,6 +53,21 @@ const ENFORCED = [
   // 7.3 仓库管理与物流管理
   'src/pages/warehouse',
   'src/pages/logistics',
+  // 7.4 财务管理（finance/operating-report、finance/profit-stats 属 7.6 统计分析）
+  'src/pages/finance/cost-adjustments',
+  'src/pages/finance/costingParts.tsx',
+  'src/pages/finance/credits',
+  'src/pages/finance/expenses',
+  'src/pages/finance/fx-settlements',
+  'src/pages/finance/other-incomes',
+  'src/pages/finance/payables',
+  'src/pages/finance/payments',
+  'src/pages/finance/periods',
+  'src/pages/finance/receipts',
+  'src/pages/finance/receivables',
+  'src/pages/finance/refunds',
+  'src/pages/finance/reimbursements',
+  'src/pages/finance/vouchers',
 ];
 
 /** 不扫描：多语言文案、生成目录 */
