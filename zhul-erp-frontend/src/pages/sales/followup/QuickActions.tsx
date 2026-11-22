@@ -13,6 +13,7 @@ import { App, Button, DatePicker, Dropdown, Input, Modal, Space } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
+import { POPUP_SHADOW } from '@/theme/palette';
 import type { Picked } from './Batch';
 import { fmtDate, iso } from './components';
 import { quickDate, suggestOf } from './nextDate';
@@ -91,7 +92,7 @@ export const QuickButton: React.FC<{
   onRecord: () => void;
   onDone: () => void;
 }> = ({ customerId, items, disabled, onRecord, onDone }) => {
-  const { palette } = useAppTheme();
+  const { mode, palette } = useAppTheme();
   const { message } = App.useApp();
   const map = useQuickResults();
   const [open, setOpen] = useState(false);
@@ -168,7 +169,7 @@ export const QuickButton: React.FC<{
             borderRadius: 12,
             background: palette.card,
             border: `1px solid ${palette.hairline}`,
-            boxShadow: '0 8px 24px -4px rgba(0,0,0,0.18)',
+            boxShadow: mode === 'light' ? POPUP_SHADOW : 'none',
           }}
         >
           <div

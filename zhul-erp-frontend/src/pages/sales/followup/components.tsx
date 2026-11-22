@@ -16,7 +16,7 @@ import { Card, Pill } from '@/pages/crm/opportunity/components';
 import { GRADE_NAMES } from '@/pages/customer/profile/service';
 import { GradeBadge, Stars } from '@/pages/customer/profile/ui';
 import { useAppTheme } from '@/theme/AppTheme';
-import { styleOf } from './boardStyle';
+import { useBoardStyle } from './boardStyle';
 import {
   type BatchEntry,
   type Blocker,
@@ -82,7 +82,7 @@ export const StageTag: React.FC<{
   /** 阶段名前带阶段码，如「S4 已报价」 */
   withCode?: boolean;
 }> = ({ item, withCode }) => {
-  const s = styleOf(item.board);
+  const s = useBoardStyle()(item.board);
   return (
     <span
       style={{
@@ -91,8 +91,8 @@ export const StageTag: React.FC<{
         padding: '1px 8px',
         borderRadius: 6,
         fontSize: 12,
-        color: s.color,
-        background: `${s.color}14`,
+        color: s.text,
+        background: s.soft,
         whiteSpace: 'nowrap',
       }}
     >

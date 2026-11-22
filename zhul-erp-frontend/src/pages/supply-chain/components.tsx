@@ -523,7 +523,7 @@ export const SupplyFlow: React.FC<{
           <div style={{ display: 'flex', alignItems: 'stretch', gap: 4 }}>
             {BOARDS.map((b, i) => (
               <React.Fragment key={b.key}>
-                {i > 0 && <Arrow from={BOARDS[i - 1].color} to={b.color} />}
+                {i > 0 && <Arrow />}
                 {b.key === 'intel' ? (
                   <StageCard
                     b={b}

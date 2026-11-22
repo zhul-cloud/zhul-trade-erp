@@ -2,11 +2,11 @@ import { EditOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import { Button, Input, Segmented, Select } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { useWide } from '@/pages/inquiry/shared/components';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { getUserOptions } from '@/services/zhul/users';
-import { SalesPageTitle } from '../components';
 import { AccountInquiryModal } from './AccountPanel';
 import {
   BatchBar,
@@ -48,6 +48,12 @@ import {
 } from './service';
 import TeamView, { type TeamJump } from './TeamView';
 import { TodayList } from './TodayList';
+
+/** 帮助文字：help-texts.md「客户跟进」 */
+export const HELP = {
+  mine: '今天该跟谁、跟到哪一步、下一步做什么',
+  team: '哪里卡住了、谁需要帮一把',
+} as const;
 
 const PAGE_SIZE = 20;
 
@@ -287,13 +293,9 @@ const FollowupPage: React.FC = () => {
 
   return (
     <div>
-      <SalesPageTitle
-        description={
-          view === 'team'
-            ? '哪里卡住了、谁需要帮一把'
-            : '今天该跟谁、跟到哪一步、下一步做什么'
-        }
-        actions={
+      <PageHeader
+        help={view === 'team' ? HELP.team : HELP.mine}
+        extra={
           <>
             {canTeam && (
               <Segmented

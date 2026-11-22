@@ -11,7 +11,6 @@ import { Button, Checkbox, Skeleton } from 'antd';
 import React, { useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import type { Picked, SelectAll } from './Batch';
-import { TODAY_COLOR } from './boardStyle';
 import {
   Card,
   CustomerLink,
@@ -236,7 +235,7 @@ const TodayCard: React.FC<{
             ? palette.red
             : section === 'handled'
               ? palette.green
-              : TODAY_COLOR,
+              : palette.link,
         }}
       />
       <div

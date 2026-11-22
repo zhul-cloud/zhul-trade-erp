@@ -3,12 +3,7 @@ import { Skeleton } from 'antd';
 import React, { useEffect, useState } from 'react';
 import type { SourceRef } from '@/components/DocFields/SourceNos';
 import { CardTitle, HelpTip } from '@/components/ListLayout';
-import {
-  Card,
-  MigratedPill,
-  PageTitle,
-  Pill,
-} from '@/pages/inquiry/shared/components';
+import { Card, MigratedPill, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 import { useAppTheme } from '@/theme/AppTheme';
 import { type Chain, type ChainNode, chainApi } from './service';
@@ -138,11 +133,6 @@ export const ReceiptStatusPill: React.FC<{ status?: number }> = ({
 export const OrderStatusPill: React.FC<{ status: number }> = ({ status }) => (
   <StatusPill meta={ORDER_META} status={status} />
 );
-
-/** 面包屑「销售管理 / …」（按页面路径取分组） */
-export const SalesPageTitle: React.FC<
-  Omit<React.ComponentProps<typeof PageTitle>, 'root'>
-> = (props) => <PageTitle {...props} />;
 
 /** 买方 / 收货人的一行地址 */
 export const partyAddress = (p?: {

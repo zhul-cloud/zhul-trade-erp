@@ -6,40 +6,33 @@ import {
 import { Skeleton } from 'antd';
 import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
-import { styleOf, TODAY_COLOR, VIEW_TODAY } from './boardStyle';
+import { useBoardStyle, VIEW_TODAY } from './boardStyle';
 import { Card, Pill } from './components';
 import { OPEN_BOARDS, type Overview, type OverviewBoard } from './service';
 
-/** 卡片之间的渐变圆形箭头 */
-export const Arrow: React.FC<{ from: string; to: string }> = ({ from, to }) => (
-  <div
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      flexShrink: 0,
-      alignSelf: 'center',
-    }}
-  >
-    <span style={{ width: 6, height: 3, background: from }} />
+/** 卡片之间的箭头：中性灰小圆钮（不用渐变，颜色只留给板块本身） */
+export const Arrow: React.FC = () => {
+  const { palette } = useAppTheme();
+  return (
     <span
       style={{
-        width: 30,
-        height: 30,
-        borderRadius: 15,
+        alignSelf: 'center',
+        flexShrink: 0,
+        width: 24,
+        height: 24,
+        borderRadius: 12,
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        color: '#fff',
-        fontSize: 13,
-        background: `linear-gradient(90deg, ${from}, ${to})`,
-        boxShadow: '0 3px 8px rgba(67,56,202,0.35)',
+        color: palette.mute,
+        background: palette.inset,
+        fontSize: 11,
       }}
     >
       <RightOutlined />
     </span>
-    <span style={{ width: 6, height: 3, background: to }} />
-  </div>
-);
+  );
+};
 
 const BoardCard: React.FC<{
   b: OverviewBoard;
@@ -47,7 +40,7 @@ const BoardCard: React.FC<{
   onSelect?: (board: number) => void;
 }> = ({ b, active, onSelect }) => {
   const { palette } = useAppTheme();
-  const s = styleOf(b.board);
+  const s = useBoardStyle()(b.board);
   const open = b.available && OPEN_BOARDS.includes(b.board);
   return (
     <button
@@ -67,10 +60,9 @@ const BoardCard: React.FC<{
         padding: '12px 14px',
         borderRadius: 14,
         cursor: open ? 'pointer' : 'not-allowed',
-        background: active ? `${s.color}14` : palette.card,
+        background: active ? s.soft : palette.card,
         border: `1px solid ${active ? s.color : palette.hairline}`,
-        boxShadow: active ? '0 4px 12px -4px rgba(67,56,202,0.25)' : undefined,
-        transition: 'background .15s, border-color .15s, box-shadow .15s',
+        transition: 'background .15s, border-color .15s',
       }}
     >
       <div
@@ -90,8 +82,8 @@ const BoardCard: React.FC<{
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: s.color,
-              background: `${s.color}1F`,
+              color: s.text,
+              background: s.soft,
               fontSize: 14,
             }}
           >
@@ -101,7 +93,7 @@ const BoardCard: React.FC<{
             style={{
               fontSize: 14,
               whiteSpace: 'nowrap',
-              color: active ? s.color : palette.ink,
+              color: active ? s.text : palette.ink,
             }}
           >
             {b.name}
@@ -113,8 +105,8 @@ const BoardCard: React.FC<{
             borderRadius: 10,
             fontSize: 11,
             fontWeight: 600,
-            color: active ? '#fff' : s.color,
-            background: active ? s.color : `${s.color}1F`,
+            color: active ? s.badgeInk : s.text,
+            background: active ? s.badge : s.soft,
             whiteSpace: 'nowrap',
           }}
         >
@@ -163,89 +155,95 @@ const BoardCard: React.FC<{
 };
 
 /** 卡片下方贯穿五步的进度轨道，末尾「复购回到第 2 步」 */
-const Track: React.FC<{ boards: OverviewBoard[] }> = ({ boards }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-    {boards.map((b, i) => {
-      const s = styleOf(b.board);
-      const next = boards[i + 1] ? styleOf(boards[i + 1].board) : undefined;
-      const last = !next;
-      return (
-        <React.Fragment key={b.board}>
-          <div
-            style={{
-              flex: '1 1 0',
-              // 最后一段要放下「复购回到第 2 步」
-              minWidth: last ? 'auto' : 0,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            <span
+const Track: React.FC<{ boards: OverviewBoard[] }> = ({ boards }) => {
+  const style = useBoardStyle();
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      {boards.map((b, i) => {
+        const s = style(b.board);
+        const next = boards[i + 1] ? style(boards[i + 1].board) : undefined;
+        const last = !next;
+        return (
+          <React.Fragment key={b.board}>
+            <div
               style={{
-                width: 22,
-                height: 22,
-                borderRadius: 11,
-                flexShrink: 0,
-                display: 'inline-flex',
+                flex: '1 1 0',
+                // 最后一段要放下「复购回到第 2 步」
+                minWidth: last ? 'auto' : 0,
+                display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 11,
-                fontWeight: 700,
-                color: '#fff',
-                background: s.color,
+                gap: 6,
               }}
             >
-              {b.step}
-            </span>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: s.color,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {b.name} {b.available ? b.customers : ''}
-            </span>
-            <span
-              style={{
-                flex: 1,
-                minWidth: 12,
-                height: 6,
-                borderRadius: 3,
-                background: `linear-gradient(90deg, ${s.color}, ${(next ?? s).color})`,
-              }}
-            />
-            {last && (
+              <span
+                style={{
+                  boxSizing: 'border-box',
+                  width: 22,
+                  height: 22,
+                  borderRadius: 11,
+                  flexShrink: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  // 和卡片上的「第 N 步」同一套：浅底、板块色描边、加深的数字
+                  color: s.text,
+                  background: s.soft,
+                  border: `1.5px solid ${s.color}`,
+                }}
+              >
+                {b.step}
+              </span>
               <span
                 style={{
                   fontSize: 12,
-                  color: s.color,
+                  fontWeight: 600,
+                  color: s.text,
                   whiteSpace: 'nowrap',
-                  display: 'inline-flex',
-                  gap: 4,
                 }}
               >
-                <RetweetOutlined /> 复购回到第 2 步
+                {b.name} {b.available ? b.customers : ''}
               </span>
+              <span
+                style={{
+                  flex: 1,
+                  minWidth: 12,
+                  height: 6,
+                  borderRadius: 3,
+                  background: s.color,
+                }}
+              />
+              {last && (
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: s.text,
+                    whiteSpace: 'nowrap',
+                    display: 'inline-flex',
+                    gap: 4,
+                  }}
+                >
+                  <RetweetOutlined /> 复购回到第 2 步
+                </span>
+              )}
+            </div>
+            {!last && (
+              <span
+                style={{
+                  width: 42,
+                  height: 6,
+                  flexShrink: 0,
+                  background: next.color,
+                }}
+              />
             )}
-          </div>
-          {!last && (
-            <span
-              style={{
-                width: 42,
-                height: 6,
-                flexShrink: 0,
-                background: next.color,
-              }}
-            />
-          )}
-        </React.Fragment>
-      );
-    })}
-  </div>
-);
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+};
 
 /** 顶部链路：今日待办 + 五个板块（第 1–5 步），点卡片切换视图，当前卡片高亮 */
 export const FlowChain: React.FC<{
@@ -281,15 +279,15 @@ export const FlowChain: React.FC<{
             borderRadius: 14,
             cursor: 'pointer',
             color: today ? '#fff' : palette.ink,
-            background: today ? TODAY_COLOR : palette.card,
-            border: `1px solid ${today ? TODAY_COLOR : palette.hairline}`,
+            background: today ? palette.primary : palette.card,
+            border: `1px solid ${today ? palette.primary : palette.hairline}`,
             transition: 'background .15s',
           }}
         >
           <b
             style={{
               fontSize: 14,
-              color: today ? '#fff' : TODAY_COLOR,
+              color: today ? '#fff' : palette.link,
               display: 'inline-flex',
               gap: 6,
             }}
@@ -303,7 +301,8 @@ export const FlowChain: React.FC<{
           <span
             style={{
               fontSize: 12,
-              color: today ? 'rgba(255,255,255,0.85)' : palette.sub,
+              color: today ? '#fff' : palette.sub,
+              opacity: today ? 0.85 : 1,
             }}
           >
             逾期 {overview.todayOverdue} · 今天 {overview.todayDue}
@@ -323,12 +322,7 @@ export const FlowChain: React.FC<{
           <div style={{ display: 'flex', alignItems: 'stretch', gap: 4 }}>
             {overview.boards.map((b, i) => (
               <React.Fragment key={b.board}>
-                {i > 0 && (
-                  <Arrow
-                    from={styleOf(overview.boards[i - 1].board).color}
-                    to={styleOf(b.board).color}
-                  />
-                )}
+                {i > 0 && <Arrow />}
                 <BoardCard
                   b={b}
                   active={b.board === active}

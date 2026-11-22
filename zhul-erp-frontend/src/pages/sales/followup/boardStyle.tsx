@@ -6,20 +6,67 @@ import {
   SolutionOutlined,
 } from '@ant-design/icons';
 import type React from 'react';
+import { useAppTheme } from '@/theme/AppTheme';
+import { CHART_SERIES, mix } from '@/theme/palette';
 
-/** 五个板块的颜色与图标（原型 K1「轨迹」版） */
-export const BOARD_STYLE: Record<
-  number,
-  { color: string; soft: string; icon: React.ReactNode }
-> = {
-  1: { color: '#7E22CE', soft: '#F3E8FF', icon: <CompassOutlined /> },
-  2: { color: '#4338CA', soft: '#E0E7FF', icon: <SolutionOutlined /> },
-  3: { color: '#1D4ED8', soft: '#DBEAFE', icon: <InboxOutlined /> },
-  4: { color: '#BE185D', soft: '#FCE7F3', icon: <CommentOutlined /> },
-  5: { color: '#15803D', soft: '#DCFCE7', icon: <RiseOutlined /> },
+/** 五个板块的图标 */
+const BOARD_ICON: Record<number, React.ReactNode> = {
+  1: <CompassOutlined />,
+  2: <SolutionOutlined />,
+  3: <InboxOutlined />,
+  4: <CommentOutlined />,
+  5: <RiseOutlined />,
 };
-export const TODAY_COLOR = '#4F46E5';
+
+/**
+ * 浅色下文字色 = 板块色与正文色按这个比例混合，在 8% 浅底上不低于 4.5:1
+ * （亮绿本身最浅，要多混一些正文色）
+ */
+const LIGHT_TEXT_WEIGHT: Record<number, number> = {
+  1: 0.7,
+  2: 0.7,
+  3: 0.7,
+  4: 0.7,
+  5: 0.55,
+};
+
 /** 今日待办的视图编号（板块编号从 1 开始） */
 export const VIEW_TODAY = 0;
 
-export const styleOf = (board: number) => BOARD_STYLE[board] ?? BOARD_STYLE[2];
+export interface BoardStyle {
+  /** 图形用色：图标、轨道、描边 */
+  color: string;
+  /** 文字色：浅色下加深、深色下提亮，在浅底上不低于 4.5:1 */
+  text: string;
+  /** 浅底：浅色 8%、深色 12% */
+  soft: string;
+  /** 实心小标（步骤序号、选中的「第 N 步」）的底色与字色 */
+  badge: string;
+  badgeInk: string;
+  icon: React.ReactNode;
+}
+
+/** 按当前明暗模式取板块的颜色与图标 */
+export const useBoardStyle = (): ((board: number) => BoardStyle) => {
+  const { mode, palette } = useAppTheme();
+  const light = mode === 'light';
+  /**
+   * 五个板块各用一种颜色，不随主题色变，方便一眼区分板块：前四个取图表系列色（蓝、青、棕黄、珊瑚），
+   * 客户经营用亮绿（图表系列的绿偏暗）；主题色留给「今日待办」和选中状态（2026-11-22 用户在对比图里选定）
+   */
+  const colors = [...CHART_SERIES.slice(0, 4), palette.greenMain];
+  return (board: number) => {
+    const b = colors[board - 1] ? board : 2;
+    const color = colors[b - 1];
+    const text = mix(color, palette.ink, light ? LIGHT_TEXT_WEIGHT[b] : 0.9);
+    return {
+      color,
+      text,
+      soft: mix(color, palette.card, light ? 0.08 : 0.12),
+      // 白字放在原色上只有 3.2–3.7:1，浅色用加深色作底，深色改用深字
+      badge: light ? text : color,
+      badgeInk: light ? '#fff' : palette.card,
+      icon: BOARD_ICON[b],
+    };
+  };
+};

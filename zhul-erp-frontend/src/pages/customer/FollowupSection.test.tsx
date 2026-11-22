@@ -11,9 +11,14 @@ jest.mock('@umijs/max', () => ({
 }));
 // boardStyle 的 JSX 依赖全局 React（jest 下没有），这里只需要颜色
 jest.mock('@/pages/sales/followup/boardStyle', () => ({
-  styleOf: () => ({ color: '#4338CA', soft: '#E0E7FF', icon: null }),
-  BOARD_STYLE: {},
-  TODAY_COLOR: '#4F46E5',
+  useBoardStyle: () => () => ({
+    color: '#3B82F6',
+    text: '#3368BC',
+    soft: '#EBF3FE',
+    badge: '#3368BC',
+    badgeInk: '#fff',
+    icon: null,
+  }),
   VIEW_TODAY: 0,
 }));
 jest.mock('@/pages/sales/followup/service', () => ({
