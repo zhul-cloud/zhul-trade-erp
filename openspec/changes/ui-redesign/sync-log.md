@@ -11,6 +11,7 @@
 | 2026-11-22 | `4d2e1486..1fe23fe8`，7 个提交（含合并提交），含 v1.46.0 | `small-batch-1122`：询价记录加「回价」筛选（有价 / 无货），工作台表格组件 `BlockWidget` 第一列可显示客户名称、国家与主联系人，结汇单加手续费（`finance/fx-settlements` 列表与详情）；后端 AI 解析品牌按别名统一 | 已合并，没有冲突（任务 7.2 改询价记录之前先合入）。询价记录随 7.2 迁到新骨架，「回价」放在常用条件里；`BlockWidget` 所在的 `dashboard` 目录 `lint:ui` 仍为 0；结汇单 4 个错误（旧页头）是以前就有的，归 7.4。`small-batch-1122` 的增量（`finance/fx-settlement`、`inquiry/price-ledger`、`system/workbench`）本变更没有对应增量，不需要同步。develop 新加的 `BlockWidget.test.tsx` 断言国家、联系人分两行，本分支客户列（销售订单原型 A1）是一行「Australia · Tom」，断言随之修改。本机 lint、类型检查、antd lint、Jest 154 个套件 644 个用例、构建通过 |
 | 2026-11-22 | `1fe23fe8..dcfb0c8c`，7 个提交（含合并提交），含 v1.47.0 | `1122-batch2`：新增应收管理（`finance/receivables`），付款登记支持支付宝 / 微信私对私（应付付款弹窗加收款码 `payables/payQr.tsx`，供应商详情加收款码 `supplier/payQr.tsx`，收款账户加收款码），询价统计加无货分析（`sourcing-stats/NoStockPanel.tsx`），询价记录可从无货分析带品牌、品类、日期、无货条件跳入 | 已合并。冲突只在询价记录页：保留本分支新版搜索区，并入链接带筛选与品类标签（标签放在快捷筛选位置，可单独去掉）；首次打开也按链接填表单，不用 `initialValues`，点重置回到空。develop 新代码里的 `palette.accentLine` 本分支已改名，换成 `primaryLine`。`navigation` 增量同步 `1122-batch2`：财务管理第一项为应收管理，财务角色的几个场景补上应收管理；原「未上线的功能不占位」以应收为例，应收已上线，改用价格体系举例。`1122-batch2` 的导航增量是新增需求，与本变更整段替换的「按部门分组的菜单框架」不冲突，归档先后都可以。新页面 `lint:ui`：应收管理 2 个错误（旧页头）归 7.4；询价统计（7.6）、收款账户（7.7）的旧页头是以前就有的；供应商收款码、无货分析 0。本机 lint、类型检查、antd lint（674 个文件）、Jest 156 个套件 649 个用例通过 |
 | 2026-11-22 | `dcfb0c8c..8d412724`，2 个提交（含合并提交） | 只有文档：归档 `1122-batch2`，主规范新增 `finance/accounts-receivable`，`system/navigation` 加「财务管理下的应收管理」 | 已合并，没有冲突。应收管理随 7.4 改为汇总行 + 快捷筛选，主规范还写「顶部汇总、点卡片筛选」，本变更补 `finance/accounts-receivable` 增量（汇总行、快捷筛选、筛选点查询生效）。导航增量与新增的「财务管理下的应收管理」需求不冲突。修正 tasks.md 里重复的 7.8 编号后 `openspec validate --strict` 通过 |
+| 2026-11-22 | `8d412724..220a24e2`，2 个提交（含合并提交） | 只有文档：归档 `small-batch-1122`，主规范 `finance/fx-settlement`（手续费）、`inquiry/price-ledger`（「回价」筛选）、`system/workbench`（客户排行显示国家与联系人）同步 | 已合并，没有冲突（任务 9.1 前）。三份主规范本变更都没有增量，不需要同步；询价记录「回价」、工作台客户列在 7.2、6.2 已按新骨架实现。`openspec validate --strict` 通过 |
 
 ## 2026-11-20 与 doc-list-unify 的重叠
 
@@ -27,5 +28,6 @@
 - 统计卡片怎么处理；
 - 筛选项是全部展开，还是收进「更多筛选」。
 
+（已关闭：用户 2026-11-20 确认列表原型与 `system/interface-style` 规范后定下，见 review-log 2026-11-20「销售订单列表原型」一行；9.1 复审时补记。）
+
 **工程上的取舍**：本变更复用 `ListLayout` 组件并在它的基础上扩展，不再另建 `src/components/Page/`，避免同一种骨架出现两套组件。
-| 2026-11-22 | `8d412724..220a24e2`，2 个提交（含合并提交） | 只有文档：归档 `small-batch-1122`，主规范 `finance/fx-settlement`（手续费）、`inquiry/price-ledger`（「回价」筛选）、`system/workbench`（客户排行显示国家与联系人）同步 | 已合并，没有冲突（任务 9.1 前）。三份主规范本变更都没有增量，不需要同步；询价记录「回价」、工作台客户列在 7.2、6.2 已按新骨架实现。`openspec validate --strict` 通过 |
