@@ -1,14 +1,8 @@
-import {
-  EditOutlined,
-  FileExcelOutlined,
-  FileTextOutlined,
-  RocketOutlined,
-  StopOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
+import { FileExcelOutlined, WarningOutlined } from '@ant-design/icons';
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table } from 'antd';
+import { App, Button, Dropdown, Skeleton, Table } from 'antd';
+import { CircleX, Ellipsis, FileText, Pencil, Ship } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
   docBrandColumns,
@@ -21,11 +15,11 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import {
   Card,
   MigratedPill,
-  PageTitle,
   Pill,
   useWide,
 } from '@/pages/inquiry/shared/components';
@@ -37,7 +31,6 @@ import {
 } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
 import { kg, LOGISTICS_PATHS, ShStatusPill } from '../components';
 import {
   type DirectRef,
@@ -559,21 +552,17 @@ const ShipmentDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[
-          <MenuLink key="list" to={LOGISTICS_PATHS.shipments} />,
-          sh.shNo,
-        ]}
-        title={
+      <PageHeader
+        title={sh.shNo}
+        tags={
           <>
-            {sh.shNo}
             <ShStatusPill value={sh.status}>{sh.statusName}</ShStatusPill>
             {sh.reconciled && <Pill tone="green">已对账</Pill>}
             {sh.customerForwarder && <Pill tone="orange">客户指定货代</Pill>}
             <MigratedPill migrated={sh.migrated} />
           </>
         }
-        description={
+        sub={
           <>
             {sh.customerName ?? '—'} ·{' '}
             <SourceNos
@@ -587,49 +576,73 @@ const ShipmentDetail: React.FC = () => {
             {formatDateTime(sh.createTime).slice(0, 16)} 创建
           </>
         }
-        actions={
+        // 页头操作（照销售订单详情）：登记出运为主按钮，其余为文字按钮，作废收进「更多」
+        extra={
           canEdit &&
           !voided &&
           !sh.migrated && (
             <>
               {pending && (
-                <>
-                  <Button
-                    icon={<StopOutlined />}
-                    onClick={() => setDialog('void')}
-                  >
-                    作废
-                  </Button>
-                  <Button
-                    icon={<EditOutlined />}
-                    onClick={() => setDialog('items')}
-                  >
-                    调整货物
-                  </Button>
-                </>
+                <Button
+                  type="text"
+                  icon={<Pencil size={16} />}
+                  style={{ color: palette.link }}
+                  onClick={() => setDialog('items')}
+                >
+                  调整货物
+                </Button>
               )}
               <Button
-                icon={<FileTextOutlined />}
+                type="text"
+                icon={<FileText size={16} />}
+                style={{ color: palette.link }}
                 onClick={() => setDialog('docs')}
               >
                 生成 CI/PL
               </Button>
-              {pending ? (
+              {!pending && (
+                <Button
+                  type="text"
+                  icon={<Ship size={16} />}
+                  style={{ color: palette.link }}
+                  onClick={() => setDialog('ship')}
+                >
+                  修改出运信息
+                </Button>
+              )}
+              {pending && (
+                <Dropdown
+                  trigger={['click']}
+                  placement="bottomRight"
+                  menu={{
+                    items: [
+                      {
+                        key: 'void',
+                        icon: <CircleX size={16} />,
+                        label: '作废',
+                        danger: true,
+                      },
+                    ],
+                    onClick: () => setDialog('void'),
+                  }}
+                >
+                  <Button
+                    type="text"
+                    shape="circle"
+                    icon={<Ellipsis size={18} />}
+                    aria-label="更多操作"
+                  />
+                </Dropdown>
+              )}
+              {pending && (
                 <Button
                   type="primary"
-                  icon={<RocketOutlined />}
+                  icon={<Ship size={16} />}
                   disabled={waiting.length > 0}
                   title={waiting.length ? '直发货确认实收后才能登记出运' : ''}
                   onClick={() => setDialog('ship')}
                 >
                   登记出运
-                </Button>
-              ) : (
-                <Button
-                  icon={<RocketOutlined />}
-                  onClick={() => setDialog('ship')}
-                >
-                  修改出运信息
                 </Button>
               )}
             </>

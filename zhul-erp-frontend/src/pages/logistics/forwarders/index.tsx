@@ -14,8 +14,14 @@ import {
   Table,
 } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import {
   AccountListEditor,
@@ -286,6 +292,7 @@ const ForwarderPage: React.FC = () => {
   const canStatus = !!access['logistics:forwarder:status'];
   const [tab, setTab] = useState<Tab>('all');
   const [keyword, setKeyword] = useState('');
+  const [kw, setKw] = useState('');
   const [status, setStatus] = useState<number | undefined>(1);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
@@ -467,8 +474,8 @@ const ForwarderPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        actions={
+      <PageHeader
+        extra={
           canAdd && (
             <Button
               type="primary"
@@ -480,68 +487,75 @@ const ForwarderPage: React.FC = () => {
           )
         }
       />
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          marginBottom: 16,
-          flexWrap: 'wrap',
-          alignItems: 'center',
+      <Segmented<Tab>
+        value={tab}
+        onChange={(v) => {
+          setTab(v);
+          setPage(1);
         }}
+        style={{ marginBottom: 16 }}
+        options={[
+          { value: 'all', label: `全部${counts ? ` ${counts.all}` : ''}` },
+          {
+            value: 'company',
+            label: `公司货代${counts ? ` ${counts.company}` : ''}`,
+          },
+          {
+            value: 'customer',
+            label: `客户指定${counts ? ` ${counts.customer}` : ''}`,
+          },
+        ]}
+      />
+      <FilterCard
+        onSearch={() => {
+          setKeyword(kw.trim());
+          setPage(1);
+        }}
+        onReset={() => {
+          setKw('');
+          setKeyword('');
+          setStatus(undefined);
+          setPage(1);
+        }}
+        minColumn={130}
       >
-        <Segmented<Tab>
-          value={tab}
-          onChange={(v) => {
-            setTab(v);
-            setPage(1);
-          }}
-          options={[
-            { value: 'all', label: `全部${counts ? ` ${counts.all}` : ''}` },
-            {
-              value: 'company',
-              label: `公司货代${counts ? ` ${counts.company}` : ''}`,
-            },
-            {
-              value: 'customer',
-              label: `客户指定${counts ? ` ${counts.customer}` : ''}`,
-            },
-          ]}
-        />
-        <span style={{ flex: 1 }} />
-        <Input
-          allowClear
-          prefix={<SearchOutlined />}
-          placeholder="名称、简称、联系人"
-          aria-label="搜索货代"
-          style={{ width: 260 }}
-          onPressEnter={(e) => {
-            setKeyword((e.target as HTMLInputElement).value);
-            setPage(1);
-          }}
-          onChange={(e) => {
-            if (!e.target.value) {
-              setKeyword('');
+        <FilterField
+          label="关键词"
+          span={2}
+          help="可搜：名称、简称、联系人、联系电话"
+        >
+          <Input
+            allowClear
+            prefix={<SearchOutlined />}
+            placeholder="名称、简称、联系人"
+            aria-label="关键词"
+            value={kw}
+            onChange={(e) => setKw(e.target.value)}
+            onPressEnter={() => {
+              setKeyword(kw.trim());
               setPage(1);
-            }
-          }}
-        />
-        <Select
-          allowClear
-          aria-label="状态"
-          placeholder="全部状态"
-          style={{ width: 130 }}
-          value={status}
-          onChange={(v?: number) => {
-            setStatus(v);
-            setPage(1);
-          }}
-          options={[
-            { value: 1, label: '启用' },
-            { value: 0, label: '停用' },
-          ]}
-        />
-      </div>
-      <Card style={{ padding: 0 }}>
+            }}
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select
+            allowClear
+            aria-label="状态"
+            placeholder="全部"
+            value={status}
+            onChange={(v?: number) => {
+              // 切换状态立即查询（doc-list-unify 状态下拉的写法）
+              setStatus(v);
+              setPage(1);
+            }}
+            options={[
+              { value: 1, label: '启用' },
+              { value: 0, label: '停用' },
+            ]}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard left={`共 ${total} 条`}>
         <Table<ForwarderRow>
           rowKey="id"
           columns={columns}
@@ -554,14 +568,15 @@ const ForwarderPage: React.FC = () => {
             pageSize,
             total,
             showSizeChanger: true,
-            showTotal: (t: number) => `共 ${t} 条`,
+            showTotal: (t: number, [from, to]: [number, number]) =>
+              `${from}-${to} 共 ${t} 条`,
             onChange: (p: number, s: number) => {
               setPage(p);
               setPageSize(s);
             },
           }}
         />
-      </Card>
+      </MainCard>
       <ForwarderDrawer
         open={drawer.open}
         id={drawer.id}

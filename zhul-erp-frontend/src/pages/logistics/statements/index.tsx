@@ -20,13 +20,18 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import {
   PayablePanel,
   PayStatusPill,
 } from '@/pages/finance/payables/components';
 import { SOURCE } from '@/pages/finance/payables/service';
-import { Card, PageTitle } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -646,9 +651,9 @@ const Statements: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        description="按货代的月结账单逐票核对运费；有差额的确认后更新运费并重新分摊。"
-        actions={
+      <PageHeader
+        help="按货代的月结账单逐票核对运费；有差额的确认后更新运费并重新分摊"
+        extra={
           canEdit && (
             <Button
               type="primary"
@@ -660,24 +665,33 @@ const Statements: React.FC = () => {
           )
         }
       />
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-        <Select
-          allowClear
-          value={forwarderId}
-          onChange={(v) => {
-            setForwarderId(v);
-            setPage(1);
-          }}
-          placeholder="全部货代"
-          options={forwarders.map((f) => ({ value: f.id, label: f.name }))}
-          style={{ width: 200 }}
-          aria-label="货代"
-        />
-      </div>
+      <FilterCard
+        onSearch={() => load()}
+        onReset={() => {
+          setForwarderId(undefined);
+          setPage(1);
+        }}
+        minColumn={200}
+      >
+        <FilterField label="货代">
+          <Select
+            allowClear
+            value={forwarderId}
+            onChange={(v) => {
+              // 只有这一个条件，切换后立即查询
+              setForwarderId(v);
+              setPage(1);
+            }}
+            placeholder="全部"
+            options={forwarders.map((f) => ({ value: f.id, label: f.name }))}
+            aria-label="货代"
+          />
+        </FilterField>
+      </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 0 }}>
+        <MainCard left={`共 ${total} 条`}>
           <Table<Statement>
             rowKey="id"
             columns={columns}
@@ -692,14 +706,15 @@ const Statements: React.FC = () => {
               pageSize,
               total,
               showSizeChanger: true,
-              showTotal: (t: number) => `共 ${t} 条`,
+              showTotal: (t: number, [from, to]: [number, number]) =>
+                `${from}-${to} 共 ${t} 条`,
               onChange: (p: number, s: number) => {
                 setPage(p);
                 setPageSize(s);
               },
             }}
           />
-        </Card>
+        </MainCard>
       )}
       <CreateModal
         open={creating}

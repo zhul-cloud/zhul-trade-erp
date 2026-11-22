@@ -2,18 +2,21 @@ import { InboxOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, Input, Select, Table } from 'antd';
+import { Eye } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
-import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import {
-  Card,
-  MigratedPill,
-  PageTitle,
-  Pill,
-} from '@/pages/inquiry/shared/components';
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { IconButton } from '@/components/Shell';
+import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
+import { Card, MigratedPill, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { DOC_PATHS } from '@/pages/warehouse/components';
@@ -481,9 +484,16 @@ const Shipments: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 70,
+      width: 64,
       fixed: 'right',
-      render: (_, r) => <Link to={DOC_PATHS.logistics(r.id)}>查看</Link>,
+      render: (_, r) => (
+        <IconButton
+          label="查看"
+          size={32}
+          icon={<Eye size={18} />}
+          onClick={() => history.push(DOC_PATHS.logistics(r.id))}
+        />
+      ),
     },
   ];
 
@@ -495,58 +505,69 @@ const Shipments: React.FC = () => {
 
   return (
     <div>
-      <PageTitle description="同一客户、同一货代的货合成一票：生成 CI/PL，货代申报后登记运单号、面单和运费。" />
+      <PageHeader help="同一客户、同一货代的货合成一票：生成 CI/PL，货代申报后登记运单号、面单和运费" />
       <PendingPanel canEdit={canEdit} version={version} />
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          marginBottom: 16,
+      <FilterCard
+        onSearch={apply}
+        onReset={() => {
+          setKeyword('');
+          setForwarderId(undefined);
+          setStatus(undefined);
+          setQuery({});
+          setPage(1);
+          setVersion((v) => v + 1);
         }}
+        minColumn={130}
       >
-        <Input
-          allowClear
-          prefix={<SearchOutlined />}
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          onPressEnter={apply}
-          placeholder="出运单号、订单号、运单号、客户"
-          style={{ width: 300 }}
-          aria-label="关键词"
-        />
-        <Select
-          allowClear
-          value={forwarderId}
-          onChange={setForwarderId}
-          placeholder="全部货代"
-          options={forwarders.map((f) => ({ value: f.id, label: f.name }))}
-          style={{ width: 160 }}
-          aria-label="货代"
-        />
-        <Select
-          allowClear
-          value={status}
-          onChange={setStatus}
-          placeholder="全部状态"
-          options={[
-            { value: 1, label: '待出运' },
-            { value: 2, label: '已出运' },
-            { value: 3, label: '已作废' },
-          ]}
-          style={{ width: 130 }}
-          aria-label="状态"
-        />
-        <span style={{ flex: 1 }} />
-        <Button type="primary" onClick={apply}>
-          查询
-        </Button>
-      </div>
+        <FilterField
+          label="关键词"
+          span={2}
+          help="可搜：出运单号、运单号、销售订单编号、客户名称"
+        >
+          <Input
+            allowClear
+            prefix={<SearchOutlined />}
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={apply}
+            placeholder="出运单号、运单号、订单编号"
+            aria-label="关键词"
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select
+            allowClear
+            value={status}
+            onChange={(v) => {
+              // 切换状态立即查询（doc-list-unify 状态下拉的写法）
+              setStatus(v);
+              setQuery((q) => ({ ...q, status: v }));
+              setPage(1);
+            }}
+            placeholder="全部"
+            options={[
+              { value: 1, label: '待出运' },
+              { value: 2, label: '已出运' },
+              { value: 3, label: '已作废' },
+            ]}
+            aria-label="状态"
+          />
+        </FilterField>
+        <FilterField label="货代">
+          <Select
+            allowClear
+            value={forwarderId}
+            onChange={setForwarderId}
+            placeholder="全部"
+            options={forwarders.map((f) => ({ value: f.id, label: f.name }))}
+            aria-label="货代"
+          />
+        </FilterField>
+      </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 0 }}>
+        <MainCard left={`共 ${total} 条`}>
           <Table<Logistics>
             rowKey="id"
             columns={columns}
@@ -562,14 +583,15 @@ const Shipments: React.FC = () => {
               pageSize,
               total,
               showSizeChanger: true,
-              showTotal: (t: number) => `共 ${t} 条`,
+              showTotal: (t: number, [from, to]: [number, number]) =>
+                `${from}-${to} 共 ${t} 条`,
               onChange: (p: number, s: number) => {
                 setPage(p);
                 setPageSize(s);
               },
             }}
           />
-        </Card>
+        </MainCard>
       )}
     </div>
   );

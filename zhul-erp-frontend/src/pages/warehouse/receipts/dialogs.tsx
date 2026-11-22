@@ -560,7 +560,7 @@ export const DirectReceiveDrawer: React.FC<{
         loading={searching}
         value={po?.poId}
         onChange={pick}
-        placeholder="按采购订单号、采购对象、型号搜索已下单的采购订单"
+        placeholder="采购订单号、采购对象或型号"
         style={{ width: '100%' }}
         notFoundContent={searching ? '搜索中…' : '没有找到已下单的采购订单'}
         options={options.map((o) => ({
