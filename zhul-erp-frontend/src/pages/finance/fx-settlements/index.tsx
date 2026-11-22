@@ -696,18 +696,40 @@ const FxSettlementPage: React.FC = () => {
                     setIncludeVoid(false);
                     setPage(1);
                   }}
-                  moreCount={includeVoid ? 1 : 0}
+                  moreCount={
+                    [
+                      bu.enabled ? unitFilter : undefined,
+                      includeVoid || undefined,
+                    ].filter((v) => v != null).length
+                  }
                   more={
-                    <FilterField label="已作废">
-                      <Checkbox
-                        checked={draft.includeVoid}
-                        onChange={(e) =>
-                          setDraft({ ...draft, includeVoid: e.target.checked })
-                        }
-                      >
-                        一并显示
-                      </Checkbox>
-                    </FilterField>
+                    <>
+                      {bu.enabled && (
+                        <FilterField label="所属事业部">
+                          <Select
+                            allowClear
+                            placeholder="全部"
+                            aria-label="所属事业部"
+                            value={draft.unit}
+                            onChange={(v) => setDraft({ ...draft, unit: v })}
+                            options={unitFilterOptions(bu, false)}
+                          />
+                        </FilterField>
+                      )}
+                      <FilterField label="已作废">
+                        <Checkbox
+                          checked={draft.includeVoid}
+                          onChange={(e) =>
+                            setDraft({
+                              ...draft,
+                              includeVoid: e.target.checked,
+                            })
+                          }
+                        >
+                          一并显示
+                        </Checkbox>
+                      </FilterField>
+                    </>
                   }
                 >
                   <FilterField label="结汇日期" span={2}>
@@ -736,18 +758,6 @@ const FxSettlementPage: React.FC = () => {
                       }))}
                     />
                   </FilterField>
-                  {bu.enabled && (
-                    <FilterField label="所属事业部">
-                      <Select
-                        allowClear
-                        placeholder="全部"
-                        aria-label="所属事业部"
-                        value={draft.unit}
-                        onChange={(v) => setDraft({ ...draft, unit: v })}
-                        options={unitFilterOptions(bu, false)}
-                      />
-                    </FilterField>
-                  )}
                 </FilterCard>
                 <MainCard left={`共 ${total} 条`}>
                   <Table<FxSettlement>

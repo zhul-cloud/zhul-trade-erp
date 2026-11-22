@@ -3,11 +3,11 @@ import {
   InfoCircleOutlined,
   LockOutlined,
   SearchOutlined,
-  UnlockOutlined,
 } from '@ant-design/icons';
 import { history, Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Input, Select, Skeleton, Table, Tabs } from 'antd';
+import { LockOpen } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
@@ -522,7 +522,7 @@ const PeriodDetail: React.FC = () => {
                   access['inventory:period:reopen'] && {
                     key: 'reopen',
                     label: '反结账',
-                    icon: <UnlockOutlined />,
+                    icon: <LockOpen size={16} />,
                     danger: true,
                   },
               ]}

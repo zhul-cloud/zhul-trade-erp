@@ -64,8 +64,6 @@ const newKey = () =>
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-/** 登记已收到退款：供应商退到员工手里 */
-/** 从待报销撤回：撤回即作废这一项（openspec po-cancel-refund） */
 /** 帮助文字：help-texts.md「报销管理」，关键词范围以 search-scope.md 为准 */
 export const HELP = {
   page: '勾选自己的待报销项提交，暂不审批；快递费、退货运费在这里补传截图。供应商退到你手里的钱，登记「已收到退款」后会在报销时冲减',
@@ -73,6 +71,9 @@ export const HELP = {
     '可以代别人提交：勾选多人的垫付时，每人生成一张报销单，报销人是垫付本人',
   pendingTotal: '数据范围内待付款的报销单合计',
 } as const;
+
+/** 登记已收到退款：供应商退到员工手里 */
+/** 从待报销撤回：撤回即作废这一项（openspec po-cancel-refund） */
 
 export const WithdrawItemModal: React.FC<{
   target?: AdvanceItem;

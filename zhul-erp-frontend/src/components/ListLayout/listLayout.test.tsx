@@ -320,3 +320,30 @@ describe('更多操作', () => {
     expect(onClick).toHaveBeenCalledWith('unclaim');
   });
 });
+
+it('更多菜单：危险操作前有普通操作时，用分隔线隔开', async () => {
+  render(
+    h(
+      App,
+      null,
+      h(MoreActions, {
+        items: [
+          { key: 'unclaim', label: '取消认领' },
+          { key: 'void', label: '作废', danger: true },
+        ],
+        onClick: jest.fn(),
+      }),
+    ),
+  );
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: '更多操作' }));
+  });
+  await screen.findByText('作废');
+  const menu = document.querySelector('.ant-dropdown-menu') as HTMLElement;
+  const kinds = [...menu.children].map((li) =>
+    li.classList.contains('ant-dropdown-menu-item-divider')
+      ? '—'
+      : li.textContent,
+  );
+  expect(kinds).toEqual(['取消认领', '—', '作废']);
+});

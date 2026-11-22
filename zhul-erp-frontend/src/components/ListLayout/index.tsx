@@ -177,27 +177,33 @@ export const MoreActions: React.FC<{
 }> = ({ items, onClick }) => {
   const list = items.filter(Boolean) as MoreAction[];
   if (list.length === 0) return null;
+  // 危险操作排在后面，前面还有普通操作时用分隔线隔开（ui-design-patterns「详情页头」）
+  const firstDanger = list.findIndex((a) => a.danger);
+  const menuItems = list.flatMap((a, i) => [
+    ...(i > 0 && i === firstDanger ? [{ type: 'divider' as const }] : []),
+    {
+      key: a.key,
+      icon: a.icon,
+      danger: a.danger,
+      disabled: !!a.disabledReason,
+      label: a.disabledReason ? (
+        <span>
+          {a.label}
+          <span style={{ display: 'block', fontSize: 12 }}>
+            {a.disabledReason}
+          </span>
+        </span>
+      ) : (
+        a.label
+      ),
+    },
+  ]);
   return (
     <Dropdown
       trigger={['click']}
       placement="bottomRight"
       menu={{
-        items: list.map((a) => ({
-          key: a.key,
-          icon: a.icon,
-          danger: a.danger,
-          disabled: !!a.disabledReason,
-          label: a.disabledReason ? (
-            <span>
-              {a.label}
-              <span style={{ display: 'block', fontSize: 12 }}>
-                {a.disabledReason}
-              </span>
-            </span>
-          ) : (
-            a.label
-          ),
-        })),
+        items: menuItems,
         onClick: ({ key }) => onClick(key),
       }}
     >

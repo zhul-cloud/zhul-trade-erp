@@ -59,7 +59,8 @@ export const HELP = {
   page: '客户暂存在公司的钱：售后退款转的余额、代收款、客户多付的部分。可以抵扣下一张 PI，也可以转给客户',
   keyword: '可搜：客户显示名（不区分大小写）',
   occupied: '还没转订单的 PI 上的抵扣，客户付款前不能再用',
-  monthWithdraw: '本月退款日期的余额提现退款单；汇兑损益为本月登记的汇兑收益',
+  monthWithdraw:
+    '本月退款日期的余额提现退款单；汇兑损益为本月登记的「汇兑损益」其他收入合计，可以为负',
   recon:
     '「抵扣」= 本月占用 − 本月释放。默认月份为上月；导出的 Excel 与页面一致，用于月末和银行流水、支付宝转账记录核对',
 } as const;
@@ -111,7 +112,6 @@ const CreditPage: React.FC = () => {
   const [bu] = useBusinessUnits();
   const [tab, setTab] = useState<'accounts' | 'recon'>('accounts');
   const [summary, setSummary] = useState<CreditSummary>();
-  const [_keyword, setKeyword] = useState('');
   const [query, setQuery] = useState('');
   const [currency, setCurrency] = useState<string>();
   const [unitId, setUnitId] = useState<number>();
@@ -313,7 +313,6 @@ const CreditPage: React.FC = () => {
   const s = summary;
   const search = () => {
     const v = form.getFieldsValue();
-    setKeyword(v.keyword ?? '');
     setQuery((v.keyword ?? '').trim());
     setCurrency(v.currency);
     setUnitId(v.unitId);
@@ -588,6 +587,21 @@ export const ReconTab: React.FC<{
           setCurrency(d.currency);
           setUnitId(d.unitId);
         }}
+        moreCount={unitsEnabled && unitId != null ? 1 : 0}
+        more={
+          unitsEnabled ? (
+            <FilterField label="事业部">
+              <Select
+                allowClear
+                placeholder="全部"
+                aria-label="事业部"
+                value={draft.unitId}
+                onChange={(v) => setDraft({ ...draft, unitId: v })}
+                options={units.map((u) => ({ value: u.id, label: u.name }))}
+              />
+            </FilterField>
+          ) : undefined
+        }
       >
         <FilterField label="月份">
           <DatePicker
@@ -608,18 +622,6 @@ export const ReconTab: React.FC<{
             options={CURRENCIES.map((c) => ({ value: c, label: c }))}
           />
         </FilterField>
-        {unitsEnabled && (
-          <FilterField label="事业部">
-            <Select
-              allowClear
-              placeholder="全部"
-              aria-label="事业部"
-              value={draft.unitId}
-              onChange={(v) => setDraft({ ...draft, unitId: v })}
-              options={units.map((u) => ({ value: u.id, label: u.name }))}
-            />
-          </FilterField>
-        )}
       </FilterCard>
       <MainCard
         left={

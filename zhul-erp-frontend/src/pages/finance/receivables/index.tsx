@@ -64,7 +64,7 @@ const ReceivablesPage: React.FC = () => {
   const [filters, setFilters] = useState<ReceivableFilters>({});
   /** 搜索区里还没点「查询」的条件；到期由快捷筛选立即生效 */
   const [draft, setDraft] = useState<ReceivableFilters>({});
-  const apply = () => setFilters((f) => ({ ...draft, due: f.due }));
+  const apply = () => setFilters(draft);
   const [pageSize, setPageSize] = usePageSize(20);
 
   const load = useCallback(async () => {
@@ -331,8 +331,8 @@ const ReceivablesPage: React.FC = () => {
               placeholder="全部"
               aria-label="到期"
               options={DUE_OPTIONS}
-              value={filters.due}
-              onChange={(v) => setFilters((f) => ({ ...f, due: v }))}
+              value={draft.due}
+              onChange={(v) => setDraft({ ...draft, due: v })}
             />
           </FilterField>
         }
@@ -357,7 +357,9 @@ const ReceivablesPage: React.FC = () => {
               const next = v.find((x) => !quickValue.includes(x)) as
                 | DueFilter
                 | undefined;
+              // 快捷筛选立即生效，同步到搜索区的「到期」
               setFilters((f) => ({ ...f, due: next }));
+              setDraft((d) => ({ ...d, due: next }));
             }}
           />
         }
@@ -366,7 +368,7 @@ const ReceivablesPage: React.FC = () => {
           <Input
             allowClear
             prefix={<Search size={16} />}
-            placeholder="客户、订单号"
+            placeholder="客户、订单编号、PI 编号"
             aria-label="关键词"
             value={draft.keyword}
             onChange={(e) => setDraft({ ...draft, keyword: e.target.value })}

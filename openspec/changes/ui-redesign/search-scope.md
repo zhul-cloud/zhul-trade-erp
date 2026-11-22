@@ -51,6 +51,7 @@
 
 | 页面 | 可搜范围 | 代码位置 | 提示问题 |
 |---|---|---|---|
+| 应收管理 | 客户名称、订单编号、PI 编号（前端筛选，不区分大小写；develop v1.47.0 新增） | `zhul-erp-frontend/src/pages/finance/receivables/receivables.ts:27` | 漏了 PI 编号（7.4 已补） |
 | 收款管理 · 待确认 | PI 编号（不带前缀也能搜到）、订单编号（只限收款记在订单上的手动订单和费用订单）、客户名称或简称 | `sales/service/impl/PaymentReceiptServiceImpl:650` | 漏了订单编号 |
 | 收款管理 · 未认领到账 | 付款人、备注、金额（去掉千分位逗号后匹配） | `sales/service/impl/ReceiptLedgerServiceImpl:83` | 无 |
 | 收款管理 · 收款单 | 收款单号、平台订单号、付款人、PI 编号、订单编号（只限手动订单和费用订单）、客户名称、简称或联系人 | `sales/service/impl/ReceiptLedgerServiceImpl:248` | 漏了联系人 |

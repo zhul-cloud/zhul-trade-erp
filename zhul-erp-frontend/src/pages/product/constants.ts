@@ -5,22 +5,22 @@
 // 品牌主题色：新建品牌时从这组色里随机取一个预填。都取中深色调，
 // 白色首字母在品牌标识上、以及在深色和浅色背景上都清晰可读。
 export const BRAND_COLOR_PRESETS = [
-  '#2563EB',
-  '#0F766E',
-  '#B45309',
-  '#7C3AED',
-  '#BE123C',
-  '#0369A1',
-  '#15803D',
-  '#C2410C',
-  '#4338CA',
-  '#A21CAF',
-  '#0E7490',
-  '#475569',
-  '#9D174D',
-  '#1D4ED8',
-  '#047857',
-  '#B91C1C',
+  '#2563EB', // lint-ui-ignore hardcoded-color: 品牌预设色，存进品牌档案，不随主题变
+  '#0F766E', // lint-ui-ignore hardcoded-color: 品牌预设色，存进品牌档案，不随主题变
+  '#B45309', // lint-ui-ignore hardcoded-color: 品牌预设色，存进品牌档案，不随主题变
+  '#7C3AED', // lint-ui-ignore hardcoded-color: 品牌预设色，存进品牌档案，不随主题变
+  '#BE123C', // lint-ui-ignore hardcoded-color: 品牌预设色，存进品牌档案，不随主题变
+  '#0369A1', // lint-ui-ignore hardcoded-color: 品牌预设色，存进品牌档案，不随主题变
+  '#15803D', // lint-ui-ignore hardcoded-color: 品牌预设色，存进品牌档案，不随主题变
+  '#C2410C', // lint-ui-ignore hardcoded-color: 品牌预设色，存进品牌档案，不随主题变
+  '#4338CA', // lint-ui-ignore hardcoded-color: 品牌预设色，存进品牌档案，不随主题变
+  '#A21CAF', // lint-ui-ignore hardcoded-color: 品牌预设色，存进品牌档案，不随主题变
+  '#0E7490', // lint-ui-ignore hardcoded-color: 品牌预设色，存进品牌档案，不随主题变
+  '#475569', // lint-ui-ignore hardcoded-color: 品牌预设色，存进品牌档案，不随主题变
+  '#9D174D', // lint-ui-ignore hardcoded-color: 品牌预设色，存进品牌档案，不随主题变
+  '#1D4ED8', // lint-ui-ignore hardcoded-color: 品牌预设色，存进品牌档案，不随主题变
+  '#047857', // lint-ui-ignore hardcoded-color: 品牌预设色，存进品牌档案，不随主题变
+  '#B91C1C', // lint-ui-ignore hardcoded-color: 品牌预设色，存进品牌档案，不随主题变
 ] as const;
 
 /** 与后端一致：品牌主题色必须是 #RRGGBB */

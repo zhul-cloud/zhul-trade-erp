@@ -402,18 +402,36 @@ const OtherIncomePage: React.FC = () => {
           setShowVoid(false);
           setPage(1);
         }}
-        moreCount={showVoid ? 1 : 0}
+        moreCount={
+          [bu.enabled ? unitFilter : undefined, showVoid || undefined].filter(
+            (v) => v != null,
+          ).length
+        }
         more={
-          <FilterField label="已作废">
-            <Checkbox
-              checked={draft.showVoid}
-              onChange={(e) =>
-                setDraft({ ...draft, showVoid: e.target.checked })
-              }
-            >
-              一并显示
-            </Checkbox>
-          </FilterField>
+          <>
+            {bu.enabled && (
+              <FilterField label="所属事业部">
+                <Select
+                  allowClear
+                  placeholder="全部"
+                  aria-label="所属事业部"
+                  value={draft.unit}
+                  onChange={(v) => setDraft({ ...draft, unit: v })}
+                  options={unitFilterOptions(bu)}
+                />
+              </FilterField>
+            )}
+            <FilterField label="已作废">
+              <Checkbox
+                checked={draft.showVoid}
+                onChange={(e) =>
+                  setDraft({ ...draft, showVoid: e.target.checked })
+                }
+              >
+                一并显示
+              </Checkbox>
+            </FilterField>
+          </>
         }
       >
         <FilterField label="收入日期" span={2}>
@@ -439,18 +457,6 @@ const OtherIncomePage: React.FC = () => {
             options={categories.map((c) => ({ value: c.code, label: c.name }))}
           />
         </FilterField>
-        {bu.enabled && (
-          <FilterField label="所属事业部">
-            <Select
-              allowClear
-              placeholder="全部"
-              aria-label="所属事业部"
-              value={draft.unit}
-              onChange={(v) => setDraft({ ...draft, unit: v })}
-              options={unitFilterOptions(bu)}
-            />
-          </FilterField>
-        )}
       </FilterCard>
       <MainCard left={`共 ${total} 条`}>
         <Table<OtherIncome>
