@@ -546,12 +546,27 @@ const PurchaseOrderList: React.FC = () => {
                 },
               ]}
               value={filters.shipProgress === 'OVERDUE' ? [QUICK_OVERDUE] : []}
-              onChange={(v) =>
-                // 同原统计卡：筛逾期未发时只按这一个条件（统计不分日期），方便催货
-                v.includes(QUICK_OVERDUE)
-                  ? applyFilters({ shipProgress: 'OVERDUE' })
-                  : applyFilters({ ...filters, shipProgress: undefined })
-              }
+              onChange={(v) => {
+                if (v.includes(QUICK_OVERDUE)) {
+                  // 同原统计卡：筛逾期未发时只按这一个条件（统计不分日期），方便催货；
+                  // 其他条件在搜索条件卡片里一并清空，显示的和实际查询一致
+                  applyFilters({
+                    keyword: undefined,
+                    status: undefined,
+                    payStatus: undefined,
+                    invoiceStatus: undefined,
+                    supplierId: undefined,
+                    purchaserId: undefined,
+                    stockType: undefined,
+                    range: null,
+                    shipProgress: 'OVERDUE',
+                  });
+                } else {
+                  // 取消后回到默认视图（最近 3 个月）
+                  form.resetFields();
+                  applyFilters(defaults);
+                }
+              }}
             />
           }
         >

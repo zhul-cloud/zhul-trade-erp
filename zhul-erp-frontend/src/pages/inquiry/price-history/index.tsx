@@ -265,7 +265,6 @@ const PriceHistoryPage: React.FC = () => {
                   { value: 'priced', label: '有价' },
                   { value: 'none', label: '无货' },
                 ]}
-                onChange={() => search()}
               />
             </Form.Item>
           </FilterField>
