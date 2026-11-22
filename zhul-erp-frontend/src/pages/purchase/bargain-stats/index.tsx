@@ -260,7 +260,35 @@ const BargainStatsPage: React.FC = () => {
     <div>
       <PageHeader help={HELP.page} />
       {/* 统计条件选了就生效；品牌、品类输入后回车或离开输入框生效 */}
-      <FilterCard>
+      <FilterCard
+        moreCount={
+          [supplierId, query.category || undefined].filter((v) => v != null)
+            .length
+        }
+        more={
+          <>
+            <FilterField label="供应商">
+              <SupplierPicker
+                value={supplierId}
+                placeholder="全部"
+                style={{ width: '100%' }}
+                onChange={(id) => setSupplierId(id)}
+              />
+            </FilterField>
+            <FilterField label="品类">
+              <Input
+                allowClear
+                placeholder="全部"
+                aria-label="品类"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                onPressEnter={() => setQuery({ brand, category })}
+                onBlur={() => setQuery({ brand, category })}
+              />
+            </FilterField>
+          </>
+        }
+      >
         <FilterField label="统计期间" span={2}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <StatsRangeFilter value={range} onChange={setRange} />
@@ -277,14 +305,6 @@ const BargainStatsPage: React.FC = () => {
             showSearch={{ optionFilterProp: 'label' }}
           />
         </FilterField>
-        <FilterField label="供应商">
-          <SupplierPicker
-            value={supplierId}
-            placeholder="全部"
-            style={{ width: '100%' }}
-            onChange={(id) => setSupplierId(id)}
-          />
-        </FilterField>
         <FilterField label="品牌">
           <Input
             allowClear
@@ -292,17 +312,6 @@ const BargainStatsPage: React.FC = () => {
             aria-label="品牌"
             value={brand}
             onChange={(e) => setBrand(e.target.value)}
-            onPressEnter={() => setQuery({ brand, category })}
-            onBlur={() => setQuery({ brand, category })}
-          />
-        </FilterField>
-        <FilterField label="品类">
-          <Input
-            allowClear
-            placeholder="全部"
-            aria-label="品类"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
             onPressEnter={() => setQuery({ brand, category })}
             onBlur={() => setQuery({ brand, category })}
           />

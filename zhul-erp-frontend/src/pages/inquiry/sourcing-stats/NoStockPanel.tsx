@@ -14,6 +14,7 @@ import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { PATHS } from '@/pages/inquiry/shared/constants';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { DeltaText } from '@/theme/delta';
 import { tableScrollX } from '@/utils/tableScroll';
 import { type NoStockGroup, type NoStockStats, noStockApi } from './service';
 
@@ -21,13 +22,20 @@ const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 const rateText = (v?: number | null) => (v == null ? '—' : `${v}%`);
 
 /** 较上期：数量差或百分点差 */
+/** 较上期：按方向着色并配上下箭头（ui-design-patterns「涨跌颜色」），持平只写文字 */
 const delta = (cur?: number | null, prev?: number | null, points = false) => {
   if (cur == null || prev == null) return undefined;
   const d = Math.round((cur - prev) * 10) / 10;
   const unit = points ? ' 个百分点' : '';
-  return d === 0
-    ? '与上期持平'
-    : `较上期 ${d > 0 ? '+' : '−'}${Math.abs(d)}${unit}`;
+  return d === 0 ? (
+    '与上期持平'
+  ) : (
+    <DeltaText value={d}>
+      较上期 {d > 0 ? '+' : '−'}
+      {Math.abs(d)}
+      {unit}
+    </DeltaText>
+  );
 };
 
 /** 询价统计 → 无货分析：按周 / 按月看询价过的型号里无货的品牌、品类与走势（原型 V3） */
@@ -123,12 +131,12 @@ const NoStockPanel: React.FC = () => {
       align: 'right',
       render: (v: number, g) =>
         by === 'category' && !g.categoryId ? (
-          <b style={{ ...num, color: palette.orange }}>{v}</b>
+          <b style={num}>{v}</b>
         ) : (
           <button
             type="button"
             className="zhul-link"
-            style={{ ...num, fontWeight: 700, color: palette.orange }}
+            style={{ ...num, fontWeight: 700 }}
             onClick={() => open(g, by)}
           >
             {v}
@@ -282,7 +290,7 @@ const NoStockPanel: React.FC = () => {
                     ...num,
                     fontSize: 12,
                     fontWeight: 600,
-                    color: last ? palette.link : palette.sub,
+                    color: last ? palette.ink : palette.sub,
                   }}
                 >
                   {rateText(x.rate)}
@@ -292,7 +300,7 @@ const NoStockPanel: React.FC = () => {
                     width: 32,
                     height: Math.max(4, ((x.rate ?? 0) / maxRate) * 100),
                     borderRadius: 6,
-                    background: last ? palette.link : palette.primaryLine,
+                    background: last ? palette.link : palette.mute,
                   }}
                 />
                 <span style={{ ...num, fontSize: 11, color: palette.mute }}>

@@ -18,6 +18,7 @@ import { Pill } from '@/pages/inquiry/shared/components';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useDeltaColor } from '@/theme/delta';
 import { StatsUnitSwitch, useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -61,6 +62,7 @@ export const HELP = {
 const SalesStatsPage: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
   const users = useUserOptions();
   const [range, setRange] = useState<[Dayjs, Dayjs]>(() =>
     presetRange('month'),
@@ -194,9 +196,7 @@ const SalesStatsPage: React.FC = () => {
       align: 'right',
       render: (_, r) => (
         <div style={num}>
-          <div style={{ color: r.pending.all ? palette.orange : undefined }}>
-            {r.pending.all || '—'}
-          </div>
+          <div>{r.pending.all || '—'}</div>
           {r.pending.all > 0 && sub(cny(r.pendingAmount.all))}
         </div>
       ),
@@ -301,7 +301,7 @@ const SalesStatsPage: React.FC = () => {
           <button
             type="button"
             className="zhul-link"
-            style={{ ...num, color: palette.green }}
+            style={{ ...num, color: deltaOf(r.profit.all) }}
             onClick={() => go('/finance/profit-stats', r)}
           >
             {cny(r.profit.all)}
@@ -362,7 +362,7 @@ const SalesStatsPage: React.FC = () => {
       width: 140,
       align: 'right',
       render: (v: number) => (
-        <span style={{ ...num, color: palette.green }}>{cny(v)}</span>
+        <span style={{ ...num, color: deltaOf(v) }}>{cny(v)}</span>
       ),
     },
     {
@@ -389,7 +389,7 @@ const SalesStatsPage: React.FC = () => {
           padding: '0 14px',
           borderRadius: 8,
           background: palette.primarySoft,
-          color: palette.link,
+          color: palette.ink,
           fontSize: 18,
           fontWeight: 800,
         }}

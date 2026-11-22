@@ -1,3 +1,4 @@
+import { WarningOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Segmented, Select, Table } from 'antd';
@@ -307,6 +308,22 @@ const ProfitStatsPage: React.FC = () => {
       <PageHeader help={HELP.page} />
       {/* 统计条件选了就生效 */}
       <FilterCard
+        moreCount={customerType == null ? 0 : 1}
+        more={
+          <FilterField label="新 / 老客户">
+            <Select
+              allowClear
+              placeholder="全部"
+              aria-label="新 / 老客户"
+              value={customerType}
+              onChange={setCustomerType}
+              options={[
+                { value: 1, label: '新客户' },
+                { value: 2, label: '老客户' },
+              ]}
+            />
+          </FilterField>
+        }
         quick={
           <QuickFilters
             options={[{ value: 'settled', label: '只看已结算' }]}
@@ -334,19 +351,6 @@ const ProfitStatsPage: React.FC = () => {
             onChange={setOwnerId}
             options={users}
             showSearch={{ optionFilterProp: 'label' }}
-          />
-        </FilterField>
-        <FilterField label="新 / 老客户">
-          <Select
-            allowClear
-            placeholder="全部"
-            aria-label="新 / 老客户"
-            value={customerType}
-            onChange={setCustomerType}
-            options={[
-              { value: 1, label: '新客户' },
-              { value: 2, label: '老客户' },
-            ]}
           />
         </FilterField>
       </FilterCard>
@@ -386,14 +390,12 @@ const ProfitStatsPage: React.FC = () => {
               key: 'unsettled',
               label: '未结算',
               help: HELP.unsettled,
-              value: (
-                <span
-                  style={{
-                    color: summary.unsettledCount ? palette.orange : undefined,
-                  }}
-                >
-                  {summary.unsettledCount} 单
-                </span>
+              value: summary.unsettledCount ? (
+                <Pill tone="orange">
+                  <WarningOutlined /> {summary.unsettledCount} 单
+                </Pill>
+              ) : (
+                '0 单'
               ),
             },
           ]}

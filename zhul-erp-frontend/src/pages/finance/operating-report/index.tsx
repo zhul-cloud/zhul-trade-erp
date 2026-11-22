@@ -144,7 +144,7 @@ const OperatingReportPage: React.FC = () => {
       width: 130,
       align: 'right',
       render: (_, r) =>
-        link(r.profit, () => go('/finance/profit-stats', r), palette.green),
+        link(r.profit, () => go('/finance/profit-stats', r), deltaOf(r.profit)),
     },
     {
       title: '毛利率',
@@ -166,7 +166,7 @@ const OperatingReportPage: React.FC = () => {
               : undefined
           }
         >
-          {link(r.refund, () => go('/finance/refunds', r), palette.orange)}
+          {link(r.refund, () => go('/finance/refunds', r))}
         </span>
       ),
     },
@@ -297,8 +297,11 @@ const OperatingReportPage: React.FC = () => {
             {
               key: 'profit',
               label: '销售毛利',
-              value: total.profit,
-              currency: 'CNY',
+              value: (
+                <span style={{ color: deltaOf(total.profit) }}>
+                  {cny(total.profit)}
+                </span>
+              ),
               sub: `毛利率 ${rateText(total.profitRate)}`,
             },
             {

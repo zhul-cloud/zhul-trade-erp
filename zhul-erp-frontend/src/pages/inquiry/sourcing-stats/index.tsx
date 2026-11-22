@@ -137,16 +137,14 @@ const SourcingStatsPage: React.FC = () => {
       dataIndex: 'inProgress',
       width: 80,
       align: 'right',
-      render: (v: number) => n(v, palette.orange),
+      render: (v: number) => n(v),
     },
     {
       title: '完成率',
       dataIndex: 'completedRate',
       width: 90,
       align: 'right',
-      render: (v: number | null) => (
-        <span style={{ ...num, color: palette.green }}>{rateText(v)}</span>
-      ),
+      render: (v: number | null) => <span style={num}>{rateText(v)}</span>,
     },
     {
       title: '无法报价率',
@@ -201,7 +199,7 @@ const SourcingStatsPage: React.FC = () => {
       dataIndex: 'pending',
       width: 80,
       align: 'right',
-      render: (v: number) => n(v, palette.orange),
+      render: (v: number) => n(v),
     },
     {
       title: '转出',
@@ -215,9 +213,7 @@ const SourcingStatsPage: React.FC = () => {
       dataIndex: 'pricedRate',
       width: 80,
       align: 'right',
-      render: (v: number | null) => (
-        <span style={{ ...num, color: palette.green }}>{rateText(v)}</span>
-      ),
+      render: (v: number | null) => <span style={num}>{rateText(v)}</span>,
     },
   ];
 
@@ -382,12 +378,10 @@ const SourcingStatsPage: React.FC = () => {
                         {n(total.unquotable)}
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={4} align="right">
-                        {n(total.inProgress, palette.orange)}
+                        {n(total.inProgress)}
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={5} align="right">
-                        <span style={{ ...num, color: palette.green }}>
-                          {rateText(total.completedRate)}
-                        </span>
+                        <span style={num}>{rateText(total.completedRate)}</span>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={6} align="right">
                         {rateText(total.unquotableRate)}
