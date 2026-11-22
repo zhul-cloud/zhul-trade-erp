@@ -21,7 +21,6 @@ import { type NoStockGroup, type NoStockStats, noStockApi } from './service';
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 const rateText = (v?: number | null) => (v == null ? '—' : `${v}%`);
 
-/** 较上期：数量差或百分点差 */
 /** 较上期：按方向着色并配上下箭头（ui-design-patterns「涨跌颜色」），持平只写文字 */
 const delta = (cur?: number | null, prev?: number | null, points = false) => {
   if (cur == null || prev == null) return undefined;
@@ -289,7 +288,7 @@ const NoStockPanel: React.FC = () => {
                   style={{
                     ...num,
                     fontSize: 12,
-                    fontWeight: 600,
+                    fontWeight: last ? 700 : 600,
                     color: last ? palette.ink : palette.sub,
                   }}
                 >
