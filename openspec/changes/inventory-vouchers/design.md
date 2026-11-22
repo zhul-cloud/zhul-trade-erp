@@ -37,11 +37,11 @@
 
 | 凭证类别 | 业务类型 → 摘要里的动作（红字为反向动作） |
 | --- | --- |
-| 采购入库 | PURCHASE_IN 采购入库；PURCHASE_IN_REVERSE 冲销采购入库（红字）；DISCOUNT_ACCEPT 折价接收；DISCOUNT_ACCEPT_UNDO 重新打开折价（红字）；PURCHASE_RETURN_OUT 采购退货（借应付、贷库存） |
+| 采购入库 | PURCHASE_IN 采购入库；PURCHASE_IN_REVERSE 冲销采购入库（红字）；PURCHASE_RETURN_OUT 采购退货（借应付、贷库存） |
 | 销售成本结转 | SALES_OUT 出运结转成本；SALES_OUT_UNDO 撤销出运（红字）；RETURN_IN 退货入库（借库存、贷「退货入库」业务项）；RETURN_IN_UNDO 撤回退货入库（红字） |
 | 其他出库 | OTHER_OUT 其他出库 · {类型}；OTHER_OUT_VOID 作废其他出库（红字） |
 | 不生成凭证 | OPENING、SYSTEM_IN、MERGE（列在核对里作参考） |
-| 不计入 | HANDOVER、HANDOVER_UNDO（调拨，全部仓库合计时抵消）、RESERVE、RELEASE |
+| 不计入 | HANDOVER、HANDOVER_UNDO（调拨，全部仓库合计时抵消）；DISCOUNT_ACCEPT、DISCOUNT_ACCEPT_UNDO（不良转合格，金额不变，折价走成本调整）；RESERVE、RELEASE |
 
 - 采购退货出库的供应商取采购退货单的供应商。
 - 实现时用一个测试锁定这张表：库存流水里所有带金额的业务类型都必须有归属（凭证或「不生成凭证」），以后新增业务类型时测试会失败，提醒补上归属。
@@ -53,13 +53,13 @@
 - `fin_voucher_account`：科目设置表。字段为租户、业务项键（唯一）、T+ 科目编码、科目名称。
 - 供应商的 T+ 往来单位编码：在 `supplier` 表加 `tplus_partner_code` 列。没填时用 `supplier_code`。
 - 四张新表都按 PRIVATE 加进 `TenantTables`。
-- 菜单「业务凭证」，按钮权限「生成凭证 / 导出」「科目设置」。新租户预置默认科目：在租户初始化模板里补，存量租户由迁移补。
+- 菜单「业务凭证」，按钮权限「生成凭证 / 导出」「科目设置」。默认科目写在代码里（`VoucherRules`），`fin_voucher_account` 只存会计改过的业务项，新老租户都不用预置数据。
 
 ### 4. 生成与作废挂在结账、反结账的事务里
 - `InventoryPeriodService.close` 写完快照后调用 `VoucherService.generate(period)`；`reopen` 调用 `VoucherService.voidAll(period)`。
-- 凭证服务放在 `modules/finance/voucher`，只读库存的表，库存模块只依赖它的这两个入口。
+- 凭证服务按财务模块现有分层放在 `modules/finance`（`VoucherService`、`VoucherController`、`support/VoucherRules`），只读库存的表，库存模块只依赖它的这两个入口。
 - 生成失败会让结账一起回滚：凭证生成只做汇总，失败只可能是代码缺陷，结账不该在没有凭证的情况下成功。
-- 手动「生成凭证」只用于已结账、且还没有有效凭证的月份，并加 `zhul:erp:lock:voucher:{tenantId}:{month}` 锁，防止重复生成。
+- 手动「生成凭证」只用于已结账、且还没有有效凭证的月份，生成前用 `SELECT … FOR UPDATE` 锁住该月的月结行，与结账、反结账和并发的手动生成串行，防止重复生成。
 
 ### 5. 核对
 - 期初、期末取 `inv_period` 的期初、期末金额（快照合计）。

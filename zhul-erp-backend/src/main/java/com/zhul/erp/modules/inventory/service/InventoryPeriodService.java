@@ -92,6 +92,7 @@ public class InventoryPeriodService {
     private final InquiryLookups lookups;
     private final LogService logService;
     private final JdbcTemplate jdbc;
+    private final com.zhul.erp.modules.finance.service.VoucherService vouchers;
 
     // ---------------------------------------------------------------- 列表与详情
 
@@ -119,6 +120,8 @@ public class InventoryPeriodService {
         PeriodVO v = toVo(m, rows.get(m.toString()), rows, latestClosed(rows.values()));
         if (!Objects.equals(v.getStatus(), InvConstants.PERIOD_CLOSED)) {
             v.setReminders(reminders(m));
+        } else {
+            v.setVoucherExported(vouchers.exported(m));
         }
         return v;
     }
@@ -419,6 +422,8 @@ public class InventoryPeriodService {
         p.setCogsAmount(cogs);
         p.setAdjustAmount(adjustTotal(m));
         periodMapper.updateById(p);
+        // 业务凭证：同一事务按单据生成（spec finance/business-voucher）
+        vouchers.generate(m, p.getId());
         logService.recordOperateLog(InvConstants.MENU_PERIODS, "结账", null, Map.of("month", m.toString(),
                 "closingAmount", closing, "cogsAmount", cogs, "adjustAmount", p.getAdjustAmount()));
         log.info("库存月结已结账，month={}, closingAmount={}, cogsAmount={}", m, closing, cogs);
@@ -453,6 +458,8 @@ public class InventoryPeriodService {
                 .isNull(InvPeriodCogsDO::getDeletedAt)
                 .set(InvPeriodCogsDO::getDeletedAt, now)
                 .set(InvPeriodCogsDO::getUpdateTime, now));
+        // 业务凭证随反结账作废；已导出的由会计在 T+ 里删除对应凭证
+        vouchers.voidMonth(m);
         Long operator = currentUser.resolve();
         p.setStatus(InvConstants.PERIOD_OPEN);
         p.setReopenedBy(operator);
