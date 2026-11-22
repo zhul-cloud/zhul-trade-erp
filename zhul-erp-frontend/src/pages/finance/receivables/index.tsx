@@ -311,8 +311,8 @@ const ReceivablesPage: React.FC = () => {
           {
             key: 'total',
             label: '应收未收',
-            value: s?.totalCny ?? 0,
-            currency: 'CNY',
+            // 本页金额都写成 ¥（develop 原样），汇总行跟着用
+            value: cny(s?.totalCny),
             sub: `${s?.customers ?? 0} 个客户 · ${s?.orders ?? 0} 张订单`,
           },
         ]}
