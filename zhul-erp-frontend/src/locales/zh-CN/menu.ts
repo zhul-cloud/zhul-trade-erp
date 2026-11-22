@@ -31,6 +31,7 @@ export default {
   'menu.quotation.pricing': '定价策略',
   'menu.sales': '销售',
   'menu.finance': '财务管理',
+  'menu.finance.receivables': '应收管理',
   'menu.finance.receipts': '收款单',
   'menu.finance.fxSettlements': '结汇单',
   'menu.finance.payables': '应付单',

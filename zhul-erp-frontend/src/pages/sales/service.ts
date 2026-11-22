@@ -904,6 +904,8 @@ export interface BankOption {
   id: number;
   /** 账户类型：1-对公、2-对私 */
   accountType?: number;
+  /** 付款渠道：1-银行卡、2-支付宝、3-微信 */
+  payChannel?: number;
   currencyCode: string;
   bankName: string;
   accountName: string;

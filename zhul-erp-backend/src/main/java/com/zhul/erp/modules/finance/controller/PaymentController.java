@@ -6,6 +6,7 @@ import com.zhul.erp.modules.finance.dto.BatchPaymentRequest;
 import com.zhul.erp.modules.finance.dto.PaymentQuery;
 import com.zhul.erp.modules.finance.dto.PaymentStatsVO;
 import com.zhul.erp.modules.finance.dto.PayeeAccountVO;
+import com.zhul.erp.modules.finance.dto.PayeeQrVO;
 import com.zhul.erp.modules.finance.dto.PaymentVO;
 import com.zhul.erp.modules.finance.dto.RefundRequest;
 import com.zhul.erp.modules.finance.dto.RegisterPaymentRequest;
@@ -52,6 +53,13 @@ public class PaymentController {
     @PreAuthorize(PAYER)
     public Result<List<PayeeAccountVO>> payeeAccounts(@RequestParam Long payableId) {
         return Result.ok(service.payeeAccounts(payableId));
+    }
+
+    /** 登记付款时显示的对方支付宝、微信收款码 */
+    @GetMapping("/payee-qr")
+    @PreAuthorize(PAYER)
+    public Result<List<PayeeQrVO>> payeeQr(@RequestParam Long payableId) {
+        return Result.ok(service.payeeQrCodes(payableId));
     }
 
     @PostMapping

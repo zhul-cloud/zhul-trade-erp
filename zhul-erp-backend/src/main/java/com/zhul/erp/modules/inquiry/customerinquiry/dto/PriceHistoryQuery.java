@@ -13,6 +13,8 @@ public class PriceHistoryQuery {
     private Integer channel;
     /** 回价结果：true 只看无货、false 只看有价，不传为全部 */
     private Boolean noStock;
+    /** 一级品类：型号明细关联到这个品类或它的细分品类 */
+    private Long categoryId;
     private LocalDate dateFrom;
     private LocalDate dateTo;
     private Integer page = 1;

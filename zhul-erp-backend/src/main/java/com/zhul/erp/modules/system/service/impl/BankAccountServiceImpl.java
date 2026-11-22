@@ -29,6 +29,9 @@ public class BankAccountServiceImpl implements BankAccountService {
     private static final String MENU = "收款账户";
     public static final int TYPE_PUBLIC = 1;
     public static final int TYPE_PRIVATE = 2;
+    public static final int CHANNEL_BANK = 1;
+    public static final int CHANNEL_ALIPAY = 2;
+    public static final int CHANNEL_WECHAT = 3;
 
     private final BankAccountMapper mapper;
     private final LogService logService;
@@ -174,6 +177,18 @@ public class BankAccountServiceImpl implements BankAccountService {
             throw new BizException("账户类型不正确");
         }
         a.setAccountType(type);
+        int channel = r.getPayChannel() == null ? CHANNEL_BANK : r.getPayChannel();
+        if (channel != CHANNEL_BANK && channel != CHANNEL_ALIPAY && channel != CHANNEL_WECHAT) {
+            throw new BizException("付款渠道不正确");
+        }
+        if (channel != CHANNEL_BANK && type != TYPE_PRIVATE) {
+            throw new BizException("支付宝、微信账户只能是对私账户");
+        }
+        // 银行账号只能是字母、数字、空格与连字符；支付宝、微信账号可以是手机号或邮箱
+        if (channel == CHANNEL_BANK && !r.getAccountNo().trim().matches("^[A-Za-z0-9 -]{4,64}$")) {
+            throw new BizException("账号只能包含字母、数字、空格与连字符，4–64 位");
+        }
+        a.setPayChannel(channel);
         a.setBankName(r.getBankName().trim());
         a.setAccountName(r.getAccountName().trim());
         a.setAccountNo(r.getAccountNo().trim());
@@ -227,6 +242,7 @@ public class BankAccountServiceImpl implements BankAccountService {
         BankAccountVO vo = new BankAccountVO();
         vo.setId(a.getId());
         vo.setAccountType(a.getAccountType() == null ? TYPE_PUBLIC : a.getAccountType());
+        vo.setPayChannel(a.getPayChannel() == null ? CHANNEL_BANK : a.getPayChannel());
         vo.setCurrencyCode(a.getCurrencyCode());
         vo.setBankName(a.getBankName());
         vo.setAccountName(a.getAccountName());

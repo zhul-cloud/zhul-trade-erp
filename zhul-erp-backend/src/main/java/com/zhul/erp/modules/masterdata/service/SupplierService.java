@@ -39,4 +39,10 @@ public interface SupplierService {
 
     /** 本租户该供应商附件的临时访问链接；不存在或不属于该供应商时抛业务异常 */
     FileLink getAttachmentLink(Long supplierId, Long attachmentId, boolean download);
+
+    /** 上传或更换支付宝（2）、微信（3）收款码，返回这个供应商现有的收款码 */
+    java.util.List<com.zhul.erp.modules.masterdata.dto.SupplierAttachmentVO> savePayQr(Long supplierId, int payChannel,
+                                                                                    com.zhul.erp.modules.masterdata.dto.SavePayQrRequest req);
+
+    java.util.List<com.zhul.erp.modules.masterdata.dto.SupplierAttachmentVO> removePayQr(Long supplierId, int payChannel);
 }

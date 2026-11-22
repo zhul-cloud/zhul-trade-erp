@@ -54,6 +54,28 @@ public class InquiryCategories {
         return byId(CategoryMatcher.rootOf(categoryId, categories), categories);
     }
 
+    /**
+     * 型号的一级品类：有品类 ID 时取它的一级；没有时按品类文字与品类中文名或英文名精确匹配（不分大小写），
+     * 匹配不上为空。无货分析与询价记录的品类筛选共用这一条规则。
+     */
+    public static Long rootOfItem(Long categoryId, String text, List<ProductCategoryDO> categories) {
+        if (categoryId != null) {
+            return CategoryMatcher.rootOf(categoryId, categories);
+        }
+        if (!StringUtils.hasText(text)) {
+            return null;
+        }
+        String t = text.trim();
+        return categories.stream()
+                .filter(c -> t.equalsIgnoreCase(c.getCategoryNameZh()) || t.equalsIgnoreCase(c.getCategoryName()))
+                .findFirst().map(c -> CategoryMatcher.rootOf(c.getId(), categories)).orElse(null);
+    }
+
+    /** 一级品类连同细分的全部 ID 与名称（中文、英文），用于按一级品类筛选型号 */
+    public static List<ProductCategoryDO> under(Long rootId, List<ProductCategoryDO> categories) {
+        return categories.stream().filter(c -> rootId.equals(CategoryMatcher.rootOf(c.getId(), categories))).toList();
+    }
+
     public static String name(ProductCategoryDO c) {
         return StringUtils.hasText(c.getCategoryNameZh()) ? c.getCategoryNameZh() : c.getCategoryName();
     }

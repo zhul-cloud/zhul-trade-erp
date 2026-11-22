@@ -10,6 +10,8 @@ public class BankAccountVO {
     private Integer id;
     /** 账户类型：1-对公、2-对私 */
     private Integer accountType;
+    /** 付款渠道：1-银行卡、2-支付宝、3-微信 */
+    private Integer payChannel;
     private String currencyCode;
     private String bankName;
     private String accountName;

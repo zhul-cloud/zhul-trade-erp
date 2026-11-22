@@ -26,8 +26,10 @@ export interface SupplierAccount {
 /** 已保存的附件（不含存储路径，经下载接口获取文件） */
 export interface SupplierAttachment {
   id: number;
-  /** 1-营业执照、2-开户许可证、3-资质证书、4-合同、5-其他 */
+  /** 1-营业执照、2-开户许可证、3-资质证书、4-合同、5-其他；6、7 为收款码（不在附件里） */
   category: number;
+  /** 收款码的付款渠道：2-支付宝、3-微信 */
+  payChannel?: number;
   fileName: string;
   fileSize: number;
   contentType: string;
@@ -80,6 +82,8 @@ export interface SupplierItem {
   createBy: string;
   updateTime: string;
   updateBy: string;
+  /** 支付宝、微信收款码（私对私付款时给付款人扫码） */
+  payQrCodes?: SupplierAttachment[];
 }
 
 export interface SupplierQuery {
@@ -211,6 +215,26 @@ export const supplierApi = {
       ...quiet,
     }).then((r) => r.data);
   },
+
+  /** 上传或更换收款码（payChannel 2-支付宝、3-微信），返回现有收款码 */
+  savePayQr: (
+    supplierId: number,
+    payChannel: number,
+    file: UploadedAttachment,
+  ) =>
+    request<{ data: SupplierAttachment[] }>(
+      `${BASE}/${supplierId}/pay-qr/${payChannel}`,
+      {
+        method: 'PUT',
+        data: { fileKey: file.fileKey, fileName: file.fileName },
+        ...quiet,
+      },
+    ).then((r) => r.data),
+  removePayQr: (supplierId: number, payChannel: number) =>
+    request<{ data: SupplierAttachment[] }>(
+      `${BASE}/${supplierId}/pay-qr/${payChannel}`,
+      { method: 'DELETE', ...quiet },
+    ).then((r) => r.data),
 
   /** 附件的临时访问链接（10 分钟有效），可直接用于预览 */
   attachmentBlobUrl: (supplierId: number, attachmentId: number) =>

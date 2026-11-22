@@ -29,6 +29,8 @@ public class PaymentDO {
     private String payeeName;
     /** 1-公司对公、2-员工垫付 */
     private Integer method;
+    /** 付款渠道（1-银行卡、2-支付宝、3-微信）；支付宝、微信只用于私对私 */
+    private Integer payChannel;
     private Long bankAccountId;
     /** 私对私时的付款个人账户 */
     private String payerAccount;

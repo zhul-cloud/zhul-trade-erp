@@ -726,6 +726,13 @@ export default [
         component: './finance/fx-settlements/detail',
       },
       {
+        path: '/finance/receivables',
+        name: 'receivables',
+        icon: 'accountBook',
+        access: 'financeReceivables',
+        component: './finance/receivables',
+      },
+      {
         path: '/finance/payables',
         name: 'payables',
         icon: 'accountBook',

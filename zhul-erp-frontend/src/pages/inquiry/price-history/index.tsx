@@ -1,8 +1,8 @@
 import { SearchOutlined } from '@ant-design/icons';
-import { history, useAccess } from '@umijs/max';
+import { history, useAccess, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Button, DatePicker, Form, Input, Select, Table } from 'antd';
-import type { Dayjs } from 'dayjs';
+import { Button, DatePicker, Form, Input, Select, Table, Tag } from 'antd';
+import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -34,7 +34,24 @@ interface Filters {
   channel?: number;
   stock?: 'priced' | 'none';
   range?: [Dayjs, Dayjs];
+  /** 一级品类：从无货分析点品类跳过来时带上 */
+  categoryId?: number;
+  categoryName?: string;
 }
+
+/** 从链接带的筛选（无货分析点数字跳过来）：noStock=1、brand、categoryId + categoryName、dateFrom、dateTo */
+const fromSearch = (search: URLSearchParams): Filters => {
+  const from = search.get('dateFrom');
+  const to = search.get('dateTo');
+  const category = Number(search.get('categoryId'));
+  return {
+    brand: search.get('brand') ?? undefined,
+    stock: search.get('noStock') === '1' ? 'none' : undefined,
+    range: from && to ? [dayjs(from), dayjs(to)] : undefined,
+    categoryId: category > 0 ? category : undefined,
+    categoryName: search.get('categoryName') ?? undefined,
+  };
+};
 
 /** 询价记录：同一型号以前问到的价格，询价和报价前先查一查 */
 const PriceHistoryPage: React.FC = () => {
@@ -43,7 +60,9 @@ const PriceHistoryPage: React.FC = () => {
   const canSeeSupplier = !!access['inquiry:supplier:view'];
   const { conditionOptions } = useQuoteDicts();
   const [form] = Form.useForm<Filters>();
-  const [filters, setFilters] = useState<Filters>({});
+  const [search] = useSearchParams();
+  const searchKey = search.toString();
+  const [filters, setFilters] = useState<Filters>(() => fromSearch(search));
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<PriceHistoryGroup[]>([]);
@@ -61,6 +80,7 @@ const PriceHistoryPage: React.FC = () => {
         itemCondition: filters.itemCondition,
         channel: filters.channel,
         noStock: filters.stock ? filters.stock === 'none' : undefined,
+        categoryId: filters.categoryId,
         dateFrom: filters.range?.[0]?.format('YYYY-MM-DD'),
         dateTo: filters.range?.[1]?.format('YYYY-MM-DD'),
         page,
@@ -82,6 +102,16 @@ const PriceHistoryPage: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
 
   useOnReactivate(load);
+
+  // 标签页已打开时再从别处带筛选跳过来，按新链接重新筛
+  useEffect(() => {
+    if (!searchKey) return;
+    const f = fromSearch(new URLSearchParams(searchKey));
+    form.resetFields();
+    form.setFieldsValue(f);
+    setPage(1);
+    setFilters(f);
+  }, [searchKey]);
 
   const columns: TableColumnsType<PriceHistoryGroup> = [
     {
@@ -184,9 +214,14 @@ const PriceHistoryPage: React.FC = () => {
         <Form
           form={form}
           layout="vertical"
+          initialValues={filters}
           onFinish={() => {
             setPage(1);
-            setFilters(form.getFieldsValue());
+            setFilters({
+              ...form.getFieldsValue(),
+              categoryId: filters.categoryId,
+              categoryName: filters.categoryName,
+            });
           }}
         >
           <div
@@ -266,6 +301,23 @@ const PriceHistoryPage: React.FC = () => {
             </div>
           </div>
         </Form>
+        {filters.categoryId && (
+          <div style={{ marginTop: 12 }}>
+            <Tag
+              closable
+              onClose={() => {
+                setPage(1);
+                setFilters((f) => ({
+                  ...f,
+                  categoryId: undefined,
+                  categoryName: undefined,
+                }));
+              }}
+            >
+              品类：{filters.categoryName ?? filters.categoryId}
+            </Tag>
+          </div>
+        )}
       </Card>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
