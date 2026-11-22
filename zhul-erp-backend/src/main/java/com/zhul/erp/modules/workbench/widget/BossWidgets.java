@@ -240,10 +240,14 @@ public class BossWidgets {
             t2.getColumns().add(WidgetData.Column.of("成交额", "r", "money"));
             t2.getColumns().add(WidgetData.Column.of("订单", "r", "count"));
             t2.setEmpty("本月还没有成交");
+            t2.setCustomers(new ArrayList<>());
             (customers.getCustomers() == null ? List.<SalesStatsVO.CustomerRow>of() : customers.getCustomers()).stream()
                     .sorted(Comparator.comparing((SalesStatsVO.CustomerRow r) -> W.num(r.getRevenue())).reversed())
                     .limit(5)
-                    .forEach(r -> t2.getRows().add(List.of(r.getCustomerName(), W.num(r.getRevenue()), r.getOrders())));
+                    .forEach(r -> {
+                        t2.getRows().add(List.of(r.getCustomerName(), W.num(r.getRevenue()), r.getOrders()));
+                        t2.getCustomers().add(WidgetData.Customer.of(r.getCustomerName(), r.getCountry(), r.getCustomerContact()));
+                    });
             return W.of(W.table("业务员 · 本月成交额", t1), W.table("客户 · 本月成交额", t2));
         });
     }

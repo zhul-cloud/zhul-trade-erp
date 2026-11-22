@@ -92,6 +92,7 @@ public class OrderCostService {
     private final com.zhul.erp.modules.sales.repository.SalesOrderMapper soMapper;
     private final com.zhul.erp.modules.aftersales.repository.AfterSalesMapper afterSalesMapper;
     private final com.zhul.erp.modules.inventory.service.InventoryCogs inventoryCogs;
+    private final com.zhul.erp.modules.finance.repository.FxSettlementAllocationMapper fxAllocationMapper;
 
     public OrderCostVO of(SalesOrderDO order) {
         return of(List.of(order)).get(order.getId());
@@ -337,6 +338,15 @@ public class OrderCostService {
                     }
                 });
         List<PaymentReceiptDO> receipts = receiptMapper.selectList(rw);
+        // 结汇手续费（人民币）：有效结汇单分到每笔收款的手续费，计入收款手续费
+        Map<Long, BigDecimal> fxFeeByReceipt = receipts.isEmpty() ? Map.of() : fxAllocationMapper.selectList(
+                        new LambdaQueryWrapper<com.zhul.erp.modules.finance.entity.FxSettlementAllocationDO>()
+                                .in(com.zhul.erp.modules.finance.entity.FxSettlementAllocationDO::getReceiptId,
+                                        receipts.stream().map(PaymentReceiptDO::getId).toList())
+                                .gt(com.zhul.erp.modules.finance.entity.FxSettlementAllocationDO::getFeeAmountCny, BigDecimal.ZERO)
+                                .isNull(com.zhul.erp.modules.finance.entity.FxSettlementAllocationDO::getDeletedAt))
+                .stream().collect(Collectors.toMap(com.zhul.erp.modules.finance.entity.FxSettlementAllocationDO::getReceiptId,
+                        com.zhul.erp.modules.finance.entity.FxSettlementAllocationDO::getFeeAmountCny, BigDecimal::add));
         // 代收款（人民币）：订单费用行里类型为代收款的
         Map<Long, BigDecimal> collectionCnyBySo = orderFeeMapper.selectList(new LambdaQueryWrapper<SalesOrderFeeDO>()
                         .in(SalesOrderFeeDO::getSoId, soIds)
@@ -411,7 +421,8 @@ public class OrderCostService {
                 }
             }
             List<OrderCostCalc.Receipt> calcReceipts = myReceipts.stream().map(r -> new OrderCostCalc.Receipt(r.getAmountCny(),
-                    r.getNetAmountCny(), r.getFeeDiff(), r.getExchangeRate(), Objects.requireNonNullElse(r.getSettleStatus(), 0))).toList();
+                    r.getNetAmountCny(), r.getFeeDiff(), r.getExchangeRate(), Objects.requireNonNullElse(r.getSettleStatus(), 0),
+                    fxFeeByReceipt.getOrDefault(r.getId(), BigDecimal.ZERO))).toList();
             List<CustomerRefundDO> refunds = refundsBySo.getOrDefault(refundKey(o.getId(), o.getPiId()), List.of());
             BigDecimal refund = sum(refunds.stream().map(CustomerRefundDO::getAmountCny));
             // 代收与多收不是收入（spec finance/order-cost）：只对有代收款或多收的已到账订单查余额流水

@@ -21,6 +21,8 @@ public class FxSettlementAllocationDO {
     private Long receiptId;
     private BigDecimal amount;
     private BigDecimal amountCny;
+    /** 分到这笔收款的结汇手续费（人民币） */
+    private BigDecimal feeAmountCny;
     private Integer sortOrder;
     private LocalDateTime deletedAt;
     @TableField(fill = FieldFill.INSERT)

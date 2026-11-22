@@ -166,6 +166,30 @@ class FxSettlementContractTest extends SalesContractSupport {
         assertEquals(3, ((Number) receipt(later).get("rate_source")).intValue());
     }
 
+    @Test
+    void settlementFee_rateBeforeFee_feeSplitByAllocatedAmount() throws Exception {
+        long a = unclaimed("600", 2, "Natty Jantima");
+        long b = unclaimed("400", 1, "Erik Larsson");
+        Map<String, Object> bad = settleBody("1000", "7128");
+        bad.put("feeAmount", "1000");
+        assertEquals("手续费须小于结汇金额", call(json(post(FX), write(bad)), admin).path("message").asText());
+
+        Map<String, Object> body = settleBody("1000", "7128");
+        body.put("feeAmount", "10");
+        JsonNode s = ok(call(json(post(FX), write(body)), admin));
+        eq("7.200000", s.path("exchangeRate").decimalValue());
+        eq("10.00", s.path("feeAmount").decimalValue());
+        eq("72.00", s.path("feeAmountCny").decimalValue());
+        // 手续费按分摊的结汇金额比例分到收款；收款人民币含手续费（毛额 × 汇率），手续费另计成本
+        eq("4320.00", receipt(a).get("net_amount_cny"));
+        eq("2880.00", receipt(b).get("net_amount_cny"));
+        eq("43.20", jdbc.queryForObject("select fee_amount_cny from fin_fx_settlement_allocation where receipt_id = ?", java.math.BigDecimal.class, a));
+        eq("28.80", jdbc.queryForObject("select fee_amount_cny from fin_fx_settlement_allocation where receipt_id = ?", java.math.BigDecimal.class, b));
+        JsonNode detail = ok(call(get(FX + "/" + s.path("id").asLong()), admin));
+        eq("72.00", detail.path("allocations").get(0).path("feeAmountCny").decimalValue()
+                .add(detail.path("allocations").get(1).path("feeAmountCny").decimalValue()));
+    }
+
     /** audit BUS-008：部分结汇的到账在作废后，已结汇额必须回到有效分摊合计，不被数据库旧版本覆盖 */
     @Test
     void voidPartialSettlement_restoresSettledAmountToValidAllocations() throws Exception {

@@ -22,6 +22,9 @@ public class SaveFxSettlementRequest {
     @NotNull(message = "请填写实际入账人民币")
     @DecimalMin(value = "0.01", message = "实际入账人民币须大于 0")
     private BigDecimal amountCny;
+    /** 结汇手续费（原币），银行从结汇金额里扣；不填按 0 */
+    @DecimalMin(value = "0", message = "手续费不能为负数")
+    private BigDecimal feeAmount;
     @NotNull(message = "请选择入账账户")
     private Integer bankAccountId;
     @Size(max = 500, message = "说明不能超过 500 个字符")
