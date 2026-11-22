@@ -32,6 +32,7 @@ interface Filters {
   brand?: string;
   itemCondition?: number;
   channel?: number;
+  stock?: 'priced' | 'none';
   range?: [Dayjs, Dayjs];
 }
 
@@ -59,6 +60,7 @@ const PriceHistoryPage: React.FC = () => {
         brand: filters.brand?.trim() || undefined,
         itemCondition: filters.itemCondition,
         channel: filters.channel,
+        noStock: filters.stock ? filters.stock === 'none' : undefined,
         dateFrom: filters.range?.[0]?.format('YYYY-MM-DD'),
         dateTo: filters.range?.[1]?.format('YYYY-MM-DD'),
         page,
@@ -191,8 +193,8 @@ const PriceHistoryPage: React.FC = () => {
             style={{
               display: 'grid',
               gridTemplateColumns: canSeeSupplier
-                ? '2fr 1fr 1fr 1fr 1.5fr auto'
-                : '2fr 1fr 1fr 1.5fr auto',
+                ? '2fr 1fr 1fr 1fr 1fr 1.5fr auto'
+                : '2fr 1fr 1fr 1fr 1.5fr auto',
               gap: 12,
               alignItems: 'end',
             }}
@@ -216,6 +218,16 @@ const PriceHistoryPage: React.FC = () => {
                 allowClear
                 placeholder="全部"
                 options={conditionOptions}
+              />
+            </Form.Item>
+            <Form.Item name="stock" label="回价" style={{ marginBottom: 0 }}>
+              <Select
+                allowClear
+                placeholder="全部"
+                options={[
+                  { value: 'priced', label: '有价' },
+                  { value: 'none', label: '无货' },
+                ]}
               />
             </Form.Item>
             {canSeeSupplier && (

@@ -64,6 +64,7 @@ const RegisterModal: React.FC<{
   const [currency, setCurrency] = useState<string>();
   const [amount, setAmount] = useState<number | null>(null);
   const [rate, setRate] = useState<number | null>(null);
+  const [fee, setFee] = useState<number | null>(null);
   const [cny, setCny] = useState<number | null>(null);
   /** 人民币按银行入账手动改过：不再随金额、汇率自动重算，直到点「按汇率重算」或再改金额 / 汇率 */
   const [manual, setManual] = useState(false);
@@ -100,6 +101,7 @@ const RegisterModal: React.FC<{
     setDate(dayjs());
     setAmount(null);
     setRate(null);
+    setFee(null);
     setCny(null);
     setManual(false);
     setRemark('');
@@ -114,10 +116,11 @@ const RegisterModal: React.FC<{
   }, [open, pending]);
 
   const pool = pools.find((p) => p.currencyCode === currency);
-  /** 改金额或汇率时按「金额 × 汇率」重算人民币 */
-  const recalc = (a: number | null, r: number | null) => {
+  /** 改金额、手续费或汇率时按「(金额 − 手续费) × 汇率」重算人民币 */
+  const recalc = (a: number | null, r: number | null, f = fee) => {
     setManual(false);
-    setCny(a && r ? settleCny(a, r) : null);
+    const net = a ? round2(a - (f ?? 0)) : 0;
+    setCny(net > 0 && r ? settleCny(net, r) : null);
   };
   const preview = useMemo(() => {
     let left = amount ?? 0;
@@ -142,6 +145,7 @@ const RegisterModal: React.FC<{
         currencyCode: currency,
         amount,
         amountCny: cny,
+        feeAmount: fee ?? undefined,
         bankAccountId: accountId,
         remark: remark.trim() || undefined,
         idempotencyKey: key,
@@ -238,6 +242,27 @@ const RegisterModal: React.FC<{
               />
             </div>
             <div>
+              <div
+                style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}
+              >
+                手续费
+              </div>
+              <InputNumber<number>
+                min={0}
+                max={amount ?? undefined}
+                precision={2}
+                value={fee}
+                placeholder="银行从结汇金额里扣的"
+                onChange={(v) => {
+                  setFee(v);
+                  recalc(amount, rate, v);
+                }}
+                prefix={currency}
+                style={{ width: '100%' }}
+                aria-label="手续费"
+              />
+            </div>
+            <div>
               {label('结汇汇率')}
               <InputNumber<number>
                 min={0.000001}
@@ -270,7 +295,7 @@ const RegisterModal: React.FC<{
                   style={{ fontSize: 12, color: palette.orange, marginTop: 4 }}
                 >
                   已按银行入账修改，实际汇率{' '}
-                  {settleRate(amount, cny).toFixed(6)}
+                  {settleRate(round2(amount - (fee ?? 0)), cny).toFixed(6)}
                   {rate ? (
                     <Button
                       type="link"
@@ -485,6 +510,18 @@ const FxSettlementPage: React.FC = () => {
       render: (v: number, r) => (
         <span style={num}>{formatAmount(v, r.currencyCode)}</span>
       ),
+    },
+    {
+      title: '手续费',
+      dataIndex: 'feeAmount',
+      width: 110,
+      align: 'right',
+      render: (v: number | undefined, r) =>
+        Number(v ?? 0) > 0 ? (
+          <span style={num}>{formatAmount(v, r.currencyCode)}</span>
+        ) : (
+          <span style={{ color: palette.mute }}>—</span>
+        ),
     },
     {
       title: '入账人民币',

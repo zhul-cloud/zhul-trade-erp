@@ -339,6 +339,12 @@ class SourcingContractTest extends InquiryContractSupport {
         assertEquals(2, history.path("records").get(0).path("recordCount").asInt());
         assertEquals("通用变频器", history.path("records").get(0).path("category").asText(), "品类取自型号明细：「变频器」关联到的品类名");
         assertTrue(history.path("records").get(0).path("records").findValuesAsText("shopName").contains("明和电气"), "管理员可以看到店铺");
+        assertEquals(1, ok(call(json(post(HISTORY + "/page"), "{\"model\":\"e84 dgdv\",\"noStock\":false}"), admin)).path("total").asInt(),
+                "只看有价");
+        JsonNode noStock = ok(call(json(post(HISTORY + "/page"), "{\"noStock\":true}"), admin));
+        assertEquals(1, noStock.path("total").asInt(), "只看无货：" + noStock);
+        assertTrue(noStock.path("records").get(0).path("minPriceCny").asText("").isEmpty()
+                || noStock.path("records").get(0).path("minPriceCny").isNull(), "无货的分组没有价格：" + noStock);
         JsonNode masked = ok(call(json(post(HISTORY + "/page"), "{\"model\":\"e84 dgdv\"}"), lin)).path("records").get(0).path("records");
         assertEquals(2, masked.size());
         assertTrue(masked.findValues("channel").isEmpty(), "没有「查看货源信息」看不到平台：" + masked);

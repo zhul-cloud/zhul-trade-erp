@@ -377,6 +377,38 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
     }
 
     @Test
+    void aiParse_brandAliasesUnifiedToFormalName_sameModelMerged() throws Exception {
+        jdbc.update("delete from product_brand_alias where alias_key = 'zpb'");
+        jdbc.update("delete from product_brand where tenant_id = 0 and brand_name = 'Zhul Parse Brand'");
+        jdbc.update("insert into product_brand (tenant_id, brand_name) values (0, 'Zhul Parse Brand')");
+        long brand = jdbc.queryForObject("select id from product_brand where tenant_id = 0 and brand_name = 'Zhul Parse Brand'", Long.class);
+        jdbc.update("insert into product_brand_alias (tenant_id, brand_id, alias, alias_key) values (0, ?, 'ZPB', 'zpb')", brand);
+        try {
+            loginAsAdmin("it_inq_admin");
+            String admin = token("it_inq_admin");
+            long id = submit(admin, customer("Pacific Controls", "Australia"), "");
+            String output = "{\"groups\":[{\"brand\":\"ZPB\",\"category\":\"其他\",\"items\":["
+                    + "{\"originalModel\":\"ZP-100\",\"quantity\":2}]},"
+                    + "{\"brand\":\"zhul parse brand\",\"category\":\"其他\",\"items\":["
+                    + "{\"originalModel\":\"ZP-100\",\"quantity\":3},{\"originalModel\":\"ZP-200\",\"quantity\":1}]}]}";
+            jdbc.update("insert into ai_task (tenant_id, skill_id, status, output, requested_by) values (0, 'inquiry-parse-and-split', 3, ?, ?)", output, ADMIN_ID);
+            long task = jdbc.queryForObject("select max(id) from ai_task", Long.class);
+            jdbc.update("update customer_inquiry set status = 2, ai_task_id = ? where id = ?", task, id);
+            TenantContext.setTenantId(0);
+            inquiryService.applyParseSuccess(task, output);
+
+            JsonNode rows = ok(call(get(INQ + "/" + id + "/draft"), admin)).path("rows");
+            assertEquals(2, rows.size(), "别名与正式名是同一品牌，同一型号合并成一行");
+            assertEquals("Zhul Parse Brand", rows.get(0).path("brand").asText(), "别名换成正式品牌名");
+            assertEquals(5, rows.get(0).path("quantity").asInt());
+            assertEquals("Zhul Parse Brand", rows.get(1).path("brand").asText(), "大小写不同也统一成正式名");
+        } finally {
+            jdbc.update("delete from product_brand_alias where brand_id = ?", brand);
+            jdbc.update("delete from product_brand where id = ?", brand);
+        }
+    }
+
+    @Test
     void aiParse_successFillsDraft_failureCanRetryOrSwitchToManual() throws Exception {
         loginAsAdmin("it_inq_admin");
         String admin = token("it_inq_admin");
