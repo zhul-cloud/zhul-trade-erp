@@ -119,6 +119,9 @@ public class PriceHistoryServiceImpl implements PriceHistoryService {
         if (q.getItemCondition() != null) {
             w.eq("item_condition", q.getItemCondition());
         }
+        if (q.getNoStock() != null) {
+            w.eq("no_stock", q.getNoStock() ? 1 : 0);
+        }
         // 没有货源权限时忽略渠道筛选，避免通过筛选结果反推货源
         if (q.getChannel() != null && perm.has(InquiryConstants.PERM_SUPPLIER_VIEW)) {
             w.eq("channel", q.getChannel());

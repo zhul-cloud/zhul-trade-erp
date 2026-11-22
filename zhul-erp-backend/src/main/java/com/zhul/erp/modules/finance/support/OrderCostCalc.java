@@ -58,7 +58,9 @@ public final class OrderCostCalc {
     }
 
     /** 到账：毛额折人民币、实收折人民币、中转差额（原币）、到账汇率、结汇状态（0 不适用、1 未结汇、2 部分、3 已结汇） */
-    public record Receipt(BigDecimal amountCny, BigDecimal netAmountCny, BigDecimal feeDiff, BigDecimal rate, int settleStatus) {
+    /** 收款：毛额与实收的人民币、手续费差额、到账汇率、结汇状态、结汇手续费（人民币，结汇时银行扣的） */
+    public record Receipt(BigDecimal amountCny, BigDecimal netAmountCny, BigDecimal feeDiff, BigDecimal rate, int settleStatus,
+                          BigDecimal fxFeeCny) {
     }
 
     /**
@@ -181,7 +183,7 @@ public final class OrderCostCalc {
         for (Receipt r : in.receipts()) {
             BigDecimal diffCny = nz(r.feeDiff()).multiply(nz(r.rate()), MC);
             gross = gross.add(nz(r.amountCny())).add(diffCny);
-            fee = fee.add(nz(r.amountCny()).subtract(nz(r.netAmountCny()))).add(diffCny);
+            fee = fee.add(nz(r.amountCny()).subtract(nz(r.netAmountCny()))).add(diffCny).add(nz(r.fxFeeCny()));
             unsettledFx |= r.settleStatus() == 1 || r.settleStatus() == 2;
         }
         BigDecimal revenue = money(in.paid() ? gross.subtract(nz(in.deduction())) : nz(in.salesAmountCny()));

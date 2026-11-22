@@ -1238,6 +1238,8 @@ export const priceHistoryApi = {
     brand?: string;
     itemCondition?: number;
     channel?: number;
+    /** true 只看无货、false 只看有价 */
+    noStock?: boolean;
     dateFrom?: string;
     dateTo?: string;
     page: number;

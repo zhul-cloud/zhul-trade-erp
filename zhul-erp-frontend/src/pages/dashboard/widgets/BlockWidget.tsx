@@ -30,6 +30,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import React from 'react';
+import { CustomerCell } from '@/components/DocFields';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DeltaText } from '@/theme/delta';
 import { formatAmount } from '@/utils/format';
@@ -71,6 +72,8 @@ interface TableData {
   columns: { title: string; align: 'l' | 'r'; format?: Format }[];
   rows: (string | number | null)[][];
   links?: (string | null)[];
+  /** 第一列是客户时每行的客户：名称、国家 / 地区、主联系人 */
+  customers?: { name?: string; country?: string; contact?: string }[];
   empty?: string;
 }
 interface BarsData {
@@ -79,7 +82,7 @@ interface BarsData {
   format?: Format;
   highlightLast?: boolean;
 }
-interface Block {
+export interface Block {
   type: 'metrics' | 'todos' | 'table' | 'bars' | 'funnel' | 'progress' | 'note';
   title?: string;
   metrics?: MetricData[];
@@ -180,7 +183,7 @@ const Delta: React.FC<{ m: MetricData }> = ({ m }) => {
   );
 };
 
-const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
+export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
   const { palette } = useAppTheme();
   const tone = useTone();
   const title = b.title && (
@@ -313,25 +316,39 @@ const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
                       textAlign: 'left',
                     }}
                   >
-                    {r.map((v, i) => (
-                      <span
-                        key={t.columns[i]?.title ?? i}
-                        style={{
-                          flex: i === 0 ? 2 : 1,
-                          minWidth: 0,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          textAlign:
-                            t.columns[i]?.align === 'r' ? 'right' : 'left',
-                          fontSize: 13,
-                          color: i === 0 ? palette.ink : palette.sub,
-                          fontVariantNumeric: 'tabular-nums',
-                        }}
-                      >
-                        {fmt(v, t.columns[i]?.format)}
-                      </span>
-                    ))}
+                    {r.map((v, i) => {
+                      const customer = i === 0 ? t.customers?.[ri] : undefined;
+                      return customer ? (
+                        <span
+                          key={t.columns[i]?.title ?? i}
+                          style={{ flex: 2, minWidth: 0, fontSize: 13 }}
+                        >
+                          <CustomerCell
+                            name={customer.name}
+                            country={customer.country}
+                            contact={customer.contact}
+                          />
+                        </span>
+                      ) : (
+                        <span
+                          key={t.columns[i]?.title ?? i}
+                          style={{
+                            flex: i === 0 ? 2 : 1,
+                            minWidth: 0,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            textAlign:
+                              t.columns[i]?.align === 'r' ? 'right' : 'left',
+                            fontSize: 13,
+                            color: i === 0 ? palette.ink : palette.sub,
+                            fontVariantNumeric: 'tabular-nums',
+                          }}
+                        >
+                          {fmt(v, t.columns[i]?.format)}
+                        </span>
+                      );
+                    })}
                   </button>
                 );
               })

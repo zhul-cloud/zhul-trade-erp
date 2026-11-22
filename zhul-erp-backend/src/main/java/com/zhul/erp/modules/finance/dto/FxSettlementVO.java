@@ -20,6 +20,9 @@ public class FxSettlementVO {
     private BigDecimal amount;
     private BigDecimal amountCny;
     private BigDecimal exchangeRate;
+    /** 结汇手续费（原币）与折人民币 */
+    private BigDecimal feeAmount;
+    private BigDecimal feeAmountCny;
     private Integer bankAccountId;
     private String bankAccountName;
     private String remark;
@@ -49,6 +52,7 @@ public class FxSettlementVO {
     public static class Allocation {
         private BigDecimal amount;
         private BigDecimal amountCny;
+        private BigDecimal feeAmountCny;
         private ReceiptRowVO receipt;
     }
 }

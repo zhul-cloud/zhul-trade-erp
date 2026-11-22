@@ -109,7 +109,14 @@ public class FxSettlementService {
             throw new BizException(unit == null ? "结汇金额超过待结汇余额 " + left
                     : businessUnitService.names().get(unit) + "可结汇的" + currency + "只有 " + left);
         }
-        BigDecimal rate = amountCny.divide(amount, 6, RoundingMode.HALF_UP);
+        BigDecimal fee = req.getFeeAmount() == null ? BigDecimal.ZERO.setScale(2) : req.getFeeAmount().setScale(2, RoundingMode.HALF_UP);
+        if (fee.compareTo(amount) >= 0) {
+            throw new BizException("手续费须小于结汇金额");
+        }
+        // 银行先扣手续费，余下的外币按汇率换成人民币：汇率 = 入账人民币 ÷ (结汇金额 − 手续费)；
+        // 手续费折人民币按同一汇率，结汇金额折人民币 = 入账人民币 + 手续费人民币
+        BigDecimal rate = amountCny.divide(amount.subtract(fee), 6, RoundingMode.HALF_UP);
+        BigDecimal feeCny = fee.multiply(rate).setScale(2, RoundingMode.HALF_UP);
 
         FxSettlementDO s = new FxSettlementDO();
         s.setTenantId(PiStore.tenantId());
@@ -120,6 +127,8 @@ public class FxSettlementService {
         s.setAmount(amount);
         s.setAmountCny(amountCny);
         s.setExchangeRate(rate);
+        s.setFeeAmount(fee);
+        s.setFeeAmountCny(feeCny);
         s.setBankAccountId(bank.getId());
         s.setRemark(req.getRemark() == null ? "" : req.getRemark().trim());
         s.setMigrated(0);
@@ -129,9 +138,10 @@ public class FxSettlementService {
         s.setIdempotencyKey(req.getIdempotencyKey());
         settlementMapper.insert(s);
 
-        // 先进先出：按到账日期、登记先后分摊；人民币按汇率折算，尾差放在最后一笔
+        // 先进先出：按到账日期、登记先后分摊；人民币按汇率折算，手续费按分摊的结汇金额比例分，尾差都放在最后一笔
         BigDecimal left = amount;
-        BigDecimal cnyLeft = amountCny;
+        BigDecimal cnyLeft = amountCny.add(feeCny);
+        BigDecimal feeLeft = feeCny;
         List<PaymentReceiptDO> touched = new ArrayList<>();
         int sort = 1;
         for (PaymentReceiptDO r : open) {
@@ -145,19 +155,23 @@ public class FxSettlementService {
             left = left.subtract(take);
             BigDecimal cny = left.signum() == 0 ? cnyLeft : take.multiply(rate).setScale(2, RoundingMode.HALF_UP);
             cnyLeft = cnyLeft.subtract(cny);
+            BigDecimal feeShare = left.signum() == 0 ? feeLeft : feeCny.multiply(take).divide(amount, 2, RoundingMode.HALF_UP);
+            feeLeft = feeLeft.subtract(feeShare);
             FxSettlementAllocationDO a = new FxSettlementAllocationDO();
             a.setTenantId(s.getTenantId());
             a.setSettlementId(s.getId());
             a.setReceiptId(r.getId());
             a.setAmount(take);
             a.setAmountCny(cny);
+            a.setFeeAmountCny(feeShare);
             a.setSortOrder(sort++);
             allocationMapper.insert(a);
             r.setSettledAmount(r.getSettledAmount().add(take));
             touched.add(r);
         }
         refresh(open, rate);
-        docLogs.add(DocumentType.JH, s.getId(), "登记", currency + " " + amount.toPlainString() + "，汇率 " + rate.toPlainString()
+        docLogs.add(DocumentType.JH, s.getId(), "登记", currency + " " + amount.toPlainString()
+                + (fee.signum() > 0 ? "，手续费 " + currency + " " + fee.toPlainString() : "") + "，汇率 " + rate.toPlainString()
                 + "，入账 CNY " + amountCny.toPlainString() + "，分摊 " + touched.size() + " 笔收款单");
         logService.recordOperateLog(MENU, "登记结汇单", null, Map.of("settleNo", s.getSettleNo(), "amount", currency + " " + amount,
                 "amountCny", amountCny.toPlainString(), "rate", rate.toPlainString(), "receipts", touched.size()));
@@ -408,6 +422,8 @@ public class FxSettlementService {
             vo.setAmount(s.getAmount());
             vo.setAmountCny(s.getAmountCny());
             vo.setExchangeRate(s.getExchangeRate());
+            vo.setFeeAmount(s.getFeeAmount());
+            vo.setFeeAmountCny(s.getFeeAmountCny());
             vo.setBankAccountId(s.getBankAccountId());
             BankAccountDO b = s.getBankAccountId() == null ? null : banks.get(s.getBankAccountId());
             vo.setBankAccountName(b == null ? null : b.getBankName() + " " + BankAccountService.mask(b.getAccountNo()));
@@ -425,6 +441,7 @@ public class FxSettlementService {
                     FxSettlementVO.Allocation x = new FxSettlementVO.Allocation();
                     x.setAmount(a.getAmount());
                     x.setAmountCny(a.getAmountCny());
+                    x.setFeeAmountCny(a.getFeeAmountCny());
                     x.setReceipt(receipts.get(a.getReceiptId()));
                     return x;
                 }).toList());

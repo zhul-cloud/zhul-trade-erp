@@ -71,6 +71,8 @@ public class SalesStatsVO {
         private Long customerId;
         private String customerName;
         private String country;
+        /** 主联系人（客户名称为空、显示的就是联系人时为空） */
+        private String customerContact;
         /** 1-新客户、2-老客户（期间内首张订单的标记） */
         private Integer customerType;
         private int orders;
