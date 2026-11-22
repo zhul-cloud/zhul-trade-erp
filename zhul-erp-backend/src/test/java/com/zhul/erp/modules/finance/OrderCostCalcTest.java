@@ -40,7 +40,7 @@ class OrderCostCalcTest {
     }
 
     private static Receipt settled(String gross, String net, String rate) {
-        return new Receipt(d(gross), d(net), BigDecimal.ZERO, d(rate), 3);
+        return new Receipt(d(gross), d(net), BigDecimal.ZERO, d(rate), 3, BigDecimal.ZERO);
     }
 
     @Test
@@ -145,7 +145,7 @@ class OrderCostCalcTest {
         assertTrue(r.settled());
 
         Result est = OrderCostCalc.compute(new Input(true, in.salesAmountCny(), in.items(), in.lines(), in.pos(),
-                List.of(new Receipt(d("2066.85"), d("2004.82"), BigDecimal.ZERO, d("6.75"), 1))));
+                List.of(new Receipt(d("2066.85"), d("2004.82"), BigDecimal.ZERO, d("6.75"), 1, BigDecimal.ZERO))));
         eq("2066.85", est.revenue());
         assertEquals(List.of("收款还没结汇"), est.pending());
     }
@@ -154,10 +154,21 @@ class OrderCostCalcTest {
     void bankFeeDiffCountsInRevenueAndCost() {
         // 合计 USD 1,333.65，到账 1,308.65，中转差额 25（汇率 7）
         Input in = new Input(true, d("9335.55"), List.of(item(7, 1, "1333.65", "0", "0", "0", "0")), List.of(), Map.of(),
-                List.of(new Receipt(d("9160.55"), d("9160.55"), d("25"), d("7"), 3)));
+                List.of(new Receipt(d("9160.55"), d("9160.55"), d("25"), d("7"), 3, BigDecimal.ZERO)));
         Result r = OrderCostCalc.compute(in);
         eq("9335.55", r.revenue());
         eq("175.00", r.receiptFee());
+    }
+
+    @Test
+    void fxSettlementFeeCountsInReceiptFee() {
+        // 收款 USD 1,000 全额结汇，银行扣手续费 USD 10、入账 CNY 7,128：汇率 7.2，毛额 7,200，手续费 72
+        Input in = new Input(true, d("7200"), List.of(item(7, 1, "1000", "0", "0", "0", "0")), List.of(), Map.of(),
+                List.of(new Receipt(d("7200"), d("7200"), BigDecimal.ZERO, d("7.2"), 3, d("72"))));
+        Result r = OrderCostCalc.compute(in);
+        eq("7200.00", r.revenue());
+        eq("72.00", r.receiptFee());
+        eq("7128.00", r.profit());
     }
 
     @Test

@@ -59,6 +59,7 @@ const FxSettlementDetail: React.FC = () => {
   if (!s) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const cur = s.currencyCode;
+  const hasFee = Number(s.feeAmount ?? 0) > 0;
   const valid = s.status === 1;
   const allocations = s.allocations ?? [];
   const blocked = s.migrated
@@ -108,6 +109,19 @@ const FxSettlementDetail: React.FC = () => {
       align: 'right',
       render: (v: number) => <span style={num}>{formatAmount(v, 'CNY')}</span>,
     },
+    ...(hasFee
+      ? [
+          {
+            title: '分摊手续费',
+            dataIndex: 'feeAmountCny',
+            width: 120,
+            align: 'right' as const,
+            render: (v?: number) => (
+              <span style={num}>{formatAmount(v ?? 0, 'CNY')}</span>
+            ),
+          },
+        ]
+      : []),
     {
       title: '收款单结汇',
       key: 's',
@@ -128,6 +142,11 @@ const FxSettlementDetail: React.FC = () => {
           },
           { label: '币种', value: cur },
           { label: '结汇金额', value: <b>{formatAmount(s.amount, cur)}</b> },
+          {
+            label: '手续费',
+            value: `${formatAmount(s.feeAmount, cur)} · ${formatAmount(s.feeAmountCny, 'CNY')}`,
+            hidden: !hasFee,
+          },
           { label: '结汇汇率', value: Number(s.exchangeRate).toFixed(6) },
           {
             label: '入账人民币',
@@ -150,7 +169,10 @@ const FxSettlementDetail: React.FC = () => {
           extra={
             <b style={num}>
               合计 {formatAmount(s.amount, cur)} ·{' '}
-              {formatAmount(s.amountCny, 'CNY')}
+              {formatAmount(
+                Number(s.amountCny) + Number(s.feeAmountCny ?? 0),
+                'CNY',
+              )}
             </b>
           }
         >

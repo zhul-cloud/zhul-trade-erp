@@ -1751,10 +1751,26 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             return new AiParseOutputDTO();
         }
         try {
-            // 同一型号出现多次时合并数量；询盘统计、确认页、追加确认都读这里，结果一致
-            return ParsedItemMerger.merge(objectMapper.readValue(json, AiParseOutputDTO.class));
+            // 品牌按品牌库及别名统一成正式名（Schneider、施耐德 → Schneider Electric），再把同一型号出现多次的合并数量；
+            // 询盘统计、确认页、追加确认都读这里，结果一致
+            AiParseOutputDTO output = objectMapper.readValue(json, AiParseOutputDTO.class);
+            canonicalBrands(output);
+            return ParsedItemMerger.merge(output);
         } catch (JsonProcessingException e) {
             throw new BizException("AI 解析结果格式异常，请改为手动录入或重新解析", e);
+        }
+    }
+
+    /** AI 给的品牌文字换成品牌库的正式名；识别不到的保留原文 */
+    private void canonicalBrands(AiParseOutputDTO output) {
+        if (output == null || output.getGroups() == null) {
+            return;
+        }
+        Map<String, String> names = new HashMap<>();
+        for (AiParseGroupDTO g : output.getGroups()) {
+            if (StringUtils.hasText(g.getBrand())) {
+                g.setBrand(names.computeIfAbsent(g.getBrand().trim(), b -> priceKeys.brandText(priceKeys.brand(b), b)));
+            }
         }
     }
 

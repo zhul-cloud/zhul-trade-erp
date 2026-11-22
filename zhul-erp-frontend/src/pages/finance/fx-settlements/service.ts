@@ -24,6 +24,9 @@ export interface FxSettlement {
   amount: number;
   amountCny: number;
   exchangeRate: number;
+  /** 结汇手续费（原币）与折人民币 */
+  feeAmount?: number;
+  feeAmountCny?: number;
   bankAccountId?: number;
   bankAccountName?: string;
   remark?: string;
@@ -36,7 +39,12 @@ export interface FxSettlement {
   allocationCount: number;
   /** 该币种最新的一张有效结汇单：只有它能作废 */
   latest: boolean;
-  allocations?: { amount: number; amountCny: number; receipt: ReceiptRow }[];
+  allocations?: {
+    amount: number;
+    amountCny: number;
+    feeAmountCny?: number;
+    receipt: ReceiptRow;
+  }[];
   createTime?: string;
   createBy?: string;
   updateTime?: string;
@@ -81,6 +89,8 @@ export const fxApi = {
     currencyCode: string;
     amount: number;
     amountCny: number;
+    /** 结汇手续费（原币），银行从结汇金额里扣 */
+    feeAmount?: number;
     bankAccountId: number;
     remark?: string;
     idempotencyKey: string;

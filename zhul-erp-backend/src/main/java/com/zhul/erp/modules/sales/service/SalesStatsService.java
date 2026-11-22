@@ -277,6 +277,7 @@ public class SalesStatsService {
             r.setCustomerId(id);
             r.setCustomerName(InquiryLookups.customerName(c));
             r.setCountry(c == null ? null : c.getCountry());
+            r.setCustomerContact(InquiryLookups.contactName(c));
             r.setCustomerType(list.get(0).getCustomerType());
             r.setOrders(list.size());
             r.setRevenue(revenue.setScale(2, RoundingMode.HALF_UP));

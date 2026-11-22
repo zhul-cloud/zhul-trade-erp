@@ -76,7 +76,24 @@ public class WidgetData {
         private List<List<Object>> rows = new ArrayList<>();
         /** 每行点击进入的地址（可空） */
         private List<String> links;
+        /** 第一列是客户时每行的客户（可空）：按列表的客户列显示名称、国家 / 地区、主联系人 */
+        private List<Customer> customers;
         private String empty;
+    }
+
+    @Data
+    public static class Customer {
+        private String name;
+        private String country;
+        private String contact;
+
+        public static Customer of(String name, String country, String contact) {
+            Customer c = new Customer();
+            c.setName(name);
+            c.setCountry(country);
+            c.setContact(contact);
+            return c;
+        }
     }
 
     @Data

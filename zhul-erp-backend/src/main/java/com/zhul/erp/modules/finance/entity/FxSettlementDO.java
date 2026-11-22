@@ -29,6 +29,10 @@ public class FxSettlementDO {
     private BigDecimal amountCny;
     /** 结汇汇率（6 位小数） */
     private BigDecimal exchangeRate;
+    /** 结汇手续费（原币） */
+    private BigDecimal feeAmount;
+    /** 结汇手续费折人民币 */
+    private BigDecimal feeAmountCny;
     private Integer bankAccountId;
     private String remark;
     /** 迁移生成的不参与先进先出与估算汇率 */
