@@ -2,7 +2,6 @@ import {
   CheckOutlined,
   CopyOutlined,
   DeleteOutlined,
-  DownloadOutlined,
   DownOutlined,
   ExportOutlined,
   FireOutlined,
@@ -12,7 +11,6 @@ import {
   SnippetsOutlined,
   StarOutlined,
   UndoOutlined,
-  UploadOutlined,
 } from '@ant-design/icons';
 import {
   Alert,
@@ -30,9 +28,11 @@ import {
   theme,
 } from 'antd';
 import dayjs from 'dayjs';
+import { Download, Upload } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { actualModelStamp } from '@/components/DocFields/ActualModel';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
+import { HelpTip, PageHeader } from '@/components/ListLayout';
 import { useTabDirty } from '@/components/PageTabs/hooks';
 import { ProofLinks } from '@/pages/finance/payables/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -48,7 +48,6 @@ import {
   excludeTax,
   LeadTimeText,
   LevelPill,
-  PageTitle,
   Pill,
   TaxHint,
   useLifecycles,
@@ -174,6 +173,13 @@ const entryError = (e: DraftEntry) => {
   if (e.unitPrice < 0) return '单价不能为负';
   return '';
 };
+
+/** 帮助文字：help-texts.md「我的询价」，关键词范围以 search-scope.md 为准 */
+export const HELP = {
+  page: '逐个型号问价，填好提交即可；也可以下载询价包在 Excel 里填，填完上传回来',
+  keyword:
+    '可搜：任务编号、品牌、品类、询盘编号、型号（确认型号、原始型号，忽略大小写和符号）',
+} as const;
 
 /** 我的询价：只看分配给自己的任务，逐个型号录入各渠道的询价结果 */
 const MyTasksPage: React.FC = () => {
@@ -806,12 +812,14 @@ const MyTasksPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        description="逐个型号问价，填好提交即可；也可以下载询价包在 Excel 里填，填完上传回来。"
-        actions={
+      <PageHeader
+        help={HELP.page}
+        extra={
           <>
             <Button
-              icon={<DownloadOutlined />}
+              type="text"
+              icon={<Download size={16} />}
+              style={activeId ? { color: palette.link } : undefined}
               disabled={!activeId}
               onClick={() =>
                 activeId &&
@@ -824,6 +832,8 @@ const MyTasksPage: React.FC = () => {
             </Button>
             {tasks && tasks.length > 1 && !done && (
               <Button
+                type="text"
+                style={{ color: palette.link }}
                 onClick={() =>
                   myTaskApi
                     .downloadPackage(tasks.map((t) => t.id))
@@ -835,8 +845,7 @@ const MyTasksPage: React.FC = () => {
             )}
             <Button
               type="primary"
-              ghost
-              icon={<UploadOutlined />}
+              icon={<Upload size={18} />}
               onClick={() => setImportOpen(true)}
             >
               导入询价结果
@@ -857,26 +866,30 @@ const MyTasksPage: React.FC = () => {
       >
         <div style={{ display: 'grid', gap: 10 }}>
           {view !== 'sales' && (
-            <Input.Search
-              allowClear
-              placeholder="搜任务编号、询盘单号、品牌、型号"
-              value={keyword}
-              onChange={(e) => {
-                setKeyword(e.target.value);
-                if (!e.target.value) {
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Input.Search
+                allowClear
+                placeholder="任务编号、询盘编号、型号"
+                aria-label="搜索询价任务"
+                value={keyword}
+                onChange={(e) => {
+                  setKeyword(e.target.value);
+                  if (!e.target.value) {
+                    leave(() => {
+                      setSearch('');
+                      setDoneLimit(LOAD_STEP);
+                    });
+                  }
+                }}
+                onSearch={(v) =>
                   leave(() => {
-                    setSearch('');
+                    setSearch(v.trim());
                     setDoneLimit(LOAD_STEP);
-                  });
+                  })
                 }
-              }}
-              onSearch={(v) =>
-                leave(() => {
-                  setSearch(v.trim());
-                  setDoneLimit(LOAD_STEP);
-                })
-              }
-            />
+              />
+              <HelpTip title={HELP.keyword} />
+            </div>
           )}
           <Segmented
             value={view}

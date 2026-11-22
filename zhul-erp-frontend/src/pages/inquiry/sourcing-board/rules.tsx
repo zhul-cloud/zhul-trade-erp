@@ -1,21 +1,20 @@
 import {
   ArrowDownOutlined,
   ArrowUpOutlined,
-  PlusOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Form, Modal, Radio, Select, Switch, Table } from 'antd';
+import { Plus } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import BrandCategoryPicker from '@/components/BrandCategoryPicker';
+import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle } from '@/components/PageTabs/hooks';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
-import { MenuLink } from '@/utils/menuName';
 import { tableScrollX } from '@/utils/tableScroll';
-import { Card, PageTitle, Pill } from '../shared/components';
-import { PATHS } from '../shared/constants';
+import { Card, Pill } from '../shared/components';
 import {
   type AssignRule,
   boardApi,
@@ -237,15 +236,14 @@ const AssignRulesPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[<MenuLink key="b" to={PATHS.board} />, '分配规则']}
+      <PageHeader
         title="分配规则"
-        description="按品牌、品类指定采购，没命中时按推荐。开启后新任务自动分配；关闭时可以在工作台选中任务手动「按规则分配」试用。"
-        actions={
+        help="按品牌、品类指定采购，没命中时按推荐。开启后新任务自动分配；关闭时可以在询价分配里选中任务，手动「按规则分配」试用"
+        extra={
           canEdit && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size={18} />}
               onClick={() => setEditing('new')}
             >
               新增规则

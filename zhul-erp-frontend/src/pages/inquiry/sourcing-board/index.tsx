@@ -1,16 +1,11 @@
 import {
-  AlertOutlined,
-  ApartmentOutlined,
   ClockCircleOutlined,
   CloseOutlined,
   DownloadOutlined,
   EllipsisOutlined,
-  InboxOutlined,
   OrderedListOutlined,
   SafetyCertificateOutlined,
-  SettingOutlined,
   ThunderboltOutlined,
-  UploadOutlined,
   UserAddOutlined,
   UserOutlined,
 } from '@ant-design/icons';
@@ -28,7 +23,9 @@ import {
   Tooltip,
 } from 'antd';
 import dayjs from 'dayjs';
+import { Settings, Upload } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { HelpTip, PageHeader, SummaryBar } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -44,9 +41,7 @@ import {
   Card,
   CustomerBrief,
   LevelPill,
-  PageTitle,
   Pill,
-  Stat,
   TaskStatusPill,
   useWide,
 } from '../shared/components';
@@ -76,6 +71,14 @@ const REVIEW = 5;
 const DEFERRED = 8;
 /** 全部：全部询价任务（含已报价、已关闭），只在前端使用，走 /all 接口 */
 const ALL = 9;
+
+/** 帮助文字：help-texts.md「询价分配」，关键词范围以 search-scope.md 为准 */
+export const HELP = {
+  page: '把待分配的询价任务交给合适的采购；推荐依据近 180 天的品牌熟悉度和当前负载。上方汇总按全部任务统计，页签数字随搜索变化',
+  keyword:
+    '可搜：任务编号、品牌、品类、询盘编号、型号（确认型号、原始型号，忽略大小写和符号）',
+  review: '兼职提交的回价审核后才给业务员看',
+} as const;
 
 const TAB_HINT: Record<number, string> = {
   [REVIEW]:
@@ -219,19 +222,23 @@ const SourcingBoardPage: React.FC = () => {
   const s = board?.stats;
   return (
     <div>
-      <PageTitle
-        description="把待分配的询价任务交给合适的采购；推荐依据近 180 天的品牌熟悉度和当前负载。"
-        actions={
+      <PageHeader
+        help={HELP.page}
+        extra={
           <>
             <Button
-              icon={<SettingOutlined />}
+              type="text"
+              icon={<Settings size={16} />}
+              style={{ color: palette.link }}
               onClick={() => history.push(PATHS.rules)}
             >
               分配规则
             </Button>
             {canProxy && (
               <Button
-                icon={<UploadOutlined />}
+                type="text"
+                icon={<Upload size={16} />}
+                style={{ color: palette.link }}
                 onClick={() => setImportOpen(true)}
               >
                 导入询价结果
@@ -244,77 +251,44 @@ const SourcingBoardPage: React.FC = () => {
         <Skeleton active paragraph={{ rows: 8 }} />
       ) : (
         <>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-              gap: 16,
-              marginBottom: 16,
-            }}
-          >
-            <Stat
-              icon={<InboxOutlined />}
-              color={palette.orange}
-              soft={palette.orangeSoft}
-              label="待分配"
-              value={s.unassigned}
-              hint={
-                <span
-                  style={{
-                    color:
-                      s.longestWaitingMinutes > 120
-                        ? palette.orange
-                        : palette.mute,
-                  }}
-                >
-                  {s.unassigned
-                    ? `最久已等 ${formatMinutes(s.longestWaitingMinutes)}`
-                    : '都分配完了'}
-                  {s.deferred ? ` · 另有 ${s.deferred} 个已延后` : ''}
-                </span>
-              }
-            />
-            <Stat
-              icon={<ApartmentOutlined />}
-              color={palette.link}
-              soft={palette.primarySoft}
-              label="询价中"
-              value={s.sourcing}
-              hint={
-                <span style={{ color: palette.mute }}>
-                  {s.multiAssigned
-                    ? `其中 ${s.multiAssigned} 个多人比价`
-                    : '采购正在问价'}
-                </span>
-              }
-            />
-            <Stat
-              icon={<AlertOutlined />}
-              color={palette.red}
-              soft={palette.redSoft}
-              label="超时"
-              value={s.timeout}
-              hint={
-                <span style={{ color: palette.red }}>
-                  紧急 {s.urgentTimeoutHours} 小时 · 普通 {s.timeoutHours} 小时
-                </span>
-              }
-            />
-            <Stat
-              icon={<SafetyCertificateOutlined />}
-              color={palette.link}
-              soft={palette.primarySoft}
-              label="待审核"
-              value={s.pendingReview ?? 0}
-              hint={
-                <span style={{ color: palette.mute }}>
-                  {s.pendingReview
-                    ? `兼职回价 ${s.pendingReviewItems ?? 0} 个型号 · 最久已等 ${formatMinutes(s.longestReviewMinutes)}`
-                    : '兼职提交的回价审核后才给业务员看'}
-                </span>
-              }
-            />
-          </div>
+          {/* 原四张统计卡（stat-cards.md）：按全部任务统计，改为汇总行；页签数字随搜索变化 */}
+          <SummaryBar
+            items={[
+              {
+                key: 'unassigned',
+                label: '待分配',
+                value: s.unassigned,
+                sub: s.unassigned
+                  ? `最久已等 ${formatMinutes(s.longestWaitingMinutes)}${s.deferred ? ` · 另有 ${s.deferred} 个已延后` : ''}`
+                  : s.deferred
+                    ? `另有 ${s.deferred} 个已延后`
+                    : undefined,
+              },
+              {
+                key: 'sourcing',
+                label: '询价中',
+                value: s.sourcing,
+                sub: s.multiAssigned
+                  ? `其中 ${s.multiAssigned} 个多人比价`
+                  : undefined,
+              },
+              {
+                key: 'timeout',
+                label: '超时',
+                help: `时限：紧急 ${s.urgentTimeoutHours} 小时 · 普通 ${s.timeoutHours} 小时`,
+                value: s.timeout,
+              },
+              {
+                key: 'review',
+                label: '待审核',
+                help: HELP.review,
+                value: s.pendingReview ?? 0,
+                sub: s.pendingReview
+                  ? `兼职回价 ${s.pendingReviewItems ?? 0} 个型号 · 最久已等 ${formatMinutes(s.longestReviewMinutes)}`
+                  : undefined,
+              },
+            ]}
+          />
 
           <div
             style={{
@@ -337,7 +311,7 @@ const SourcingBoardPage: React.FC = () => {
               >
                 <Input.Search
                   allowClear
-                  placeholder="搜任务编号、询盘单号、品牌、型号"
+                  placeholder="任务编号、询盘编号、型号"
                   style={{ width: 320 }}
                   value={keyword}
                   onChange={(e) => {
@@ -347,6 +321,7 @@ const SourcingBoardPage: React.FC = () => {
                   onSearch={(v) => setSearch(v.trim())}
                   aria-label="搜索询价任务"
                 />
+                <HelpTip title={HELP.keyword} />
                 <Select
                   allowClear
                   showSearch={{ optionFilterProp: 'label' }}
@@ -360,11 +335,6 @@ const SourcingBoardPage: React.FC = () => {
                   }))}
                   aria-label="按采购员筛选"
                 />
-                {(search || purchaserId) && (
-                  <span style={{ color: palette.mute, fontSize: 12 }}>
-                    页签数字按搜索条件统计；顶部卡片仍是全部任务
-                  </span>
-                )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <Segmented
@@ -410,18 +380,7 @@ const SourcingBoardPage: React.FC = () => {
                     {showDeferred && <CloseOutlined style={{ fontSize: 10 }} />}
                   </Button>
                 )}
-                {TAB_HINT[tab] && (
-                  <span
-                    style={{
-                      color: palette.mute,
-                      fontSize: 12,
-                      flex: 1,
-                      minWidth: 0,
-                    }}
-                  >
-                    {TAB_HINT[tab]}
-                  </span>
-                )}
+                {TAB_HINT[tab] && <HelpTip title={TAB_HINT[tab]} />}
                 <span style={{ marginLeft: 'auto' }} />
                 {tab !== REVIEW && tab !== ALL && !showDeferred && (
                   <FoldToggle mode={fold.mode} onChange={fold.setAll} />
