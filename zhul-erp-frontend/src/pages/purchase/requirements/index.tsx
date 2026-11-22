@@ -2,11 +2,8 @@ import {
   CaretDownOutlined,
   CaretRightOutlined,
   ClockCircleOutlined,
-  ExclamationCircleOutlined,
   FileTextOutlined,
-  SearchOutlined,
   ShoppingCartOutlined,
-  UserDeleteOutlined,
 } from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
@@ -23,6 +20,7 @@ import {
   Skeleton,
   Table,
 } from 'antd';
+import { Search } from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -33,6 +31,14 @@ import React, {
 import { CustomerCell } from '@/components/DocFields';
 import { DocDescription } from '@/components/DocFields/DocModelCell';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  QuickFilters,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { CustomerTypePill } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -43,16 +49,13 @@ import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   auditColumns,
-  Card,
   CounterpartyPicker,
   counterpartyReady,
   counterpartyTitle,
   PATHS,
   Pill,
-  PurchasePageTitle,
   ReqStatusPill,
   SourceCell,
-  StatCard,
   sub,
 } from '../components';
 import {
@@ -86,6 +89,24 @@ const overdueText = (h: number) =>
     : h < 48
       ? `超时 ${h} 小时`
       : `超时 ${Math.floor(h / 24)} 天`;
+
+/** 帮助文字：help-texts.md「采购需求」，口径取自 PurchaseRequirementServiceImpl.stats() */
+export const HELP = {
+  page: '渠道已定的型号会自动排进草稿采购订单；点「去下单」打开对应的草稿，填价、确认下单',
+  keyword: '可搜：销售订单编号、客户名称或简称、型号、描述',
+  source: '「还没定」：没有回价，要选老供应商或填平台和店铺',
+  inDraft: '还有没下单的型号里，已排进草稿采购订单的个数',
+  unassigned:
+    '还没排进采购订单、也没指定采购员的型号；指派后会出现在采购员的列表里',
+  drafts: '谈好价后去草稿里填单价、确认下单；点数字打开采购订单列表',
+} as const;
+
+/** 快捷筛选：超时未下单 */
+const QUICK_OVERDUE = 'overdue';
+
+/** 下拉选项后面带数量（stat-cards.md：状态并入下拉） */
+const withCount = (label: string, n?: number) =>
+  n ? `${label} · ${n}` : label;
 
 const OPEN = ['pending', 'draft', 'partial'];
 const isOpen = (r: Requirement) =>
@@ -449,96 +470,19 @@ const RequirementList: React.FC = () => {
   const empty =
     !loading && (view === 'order' ? orders.length === 0 : rows.length === 0);
 
+  const searchNow = () => reset(() => setFilters(draftFilters));
+  /** 下拉、快捷筛选切换后立即查询（doc-list-unify 状态下拉的写法） */
+  const applyNow = (patch: Partial<Filters>) =>
+    reset(() => {
+      setDraftFilters((f) => ({ ...f, ...patch }));
+      setFilters((f) => ({ ...f, ...patch }));
+    });
+
   return (
     <div>
-      <PurchasePageTitle description="先看哪些订单要采购，再看每单的型号向谁买、谁负责；渠道已定的型号已自动排进草稿采购订单。" />
-
-      {stats && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: 16,
-            marginBottom: 16,
-          }}
-        >
-          <StatCard
-            icon={<ClockCircleOutlined />}
-            color={palette.link}
-            label="还没全部下单"
-            value={stats.open}
-            hint={`其中 ${stats.inDraft} 个已排入草稿`}
-          />
-          <StatCard
-            icon={<ClockCircleOutlined />}
-            color={stats.overdue > 0 ? palette.red : palette.mute}
-            label="超时未下单"
-            value={stats.overdue}
-            hint={filters.overdue ? '再点一次看全部' : '点击只看超时的型号'}
-            hintColor={stats.overdue > 0 ? palette.red : undefined}
-            active={!!filters.overdue}
-            onClick={() =>
-              reset(() => {
-                const overdue = !filters.overdue || undefined;
-                setFilters((f) => ({ ...f, overdue }));
-                setDraftFilters((f) => ({ ...f, overdue }));
-              })
-            }
-          />
-          <StatCard
-            icon={<ExclamationCircleOutlined />}
-            color={stats.unplanned > 0 ? palette.orange : palette.mute}
-            label="还没定渠道"
-            value={stats.unplanned}
-            hint="没有回价，选老供应商或填平台 + 店铺"
-            hintColor={stats.unplanned > 0 ? palette.orange : undefined}
-          />
-          <StatCard
-            icon={<UserDeleteOutlined />}
-            color={stats.unassigned > 0 ? palette.orange : palette.mute}
-            label="未指定采购员"
-            value={scope === 'mine' ? '—' : stats.unassigned}
-            hint={
-              scope === 'mine'
-                ? '切到「全部」查看'
-                : '指派后会出现在采购员的列表里'
-            }
-          />
-          <StatCard
-            icon={<FileTextOutlined />}
-            color={palette.info}
-            label="草稿采购订单"
-            value={
-              <button
-                type="button"
-                className="zhul-link"
-                onClick={() => history.push(PATHS.orders)}
-              >
-                {stats.drafts}
-              </button>
-            }
-            hint="谈好价后去草稿里填单价、确认下单"
-          />
-        </div>
-      )}
-
-      <Card style={{ marginBottom: 16, padding: 16 }}>
-        <div
-          style={{
-            display: 'flex',
-            gap: 12,
-            alignItems: 'center',
-            flexWrap: 'wrap',
-          }}
-        >
-          <Segmented
-            value={view}
-            onChange={(v) => reset(() => setView(v as View))}
-            options={[
-              { value: 'order', label: '按订单' },
-              { value: 'model', label: '按型号' },
-            ]}
-          />
+      <PageHeader
+        help={HELP.page}
+        extra={
           <Segmented
             value={scope}
             onChange={(v) => reset(() => setScope(v as Scope))}
@@ -547,287 +491,366 @@ const RequirementList: React.FC = () => {
               { value: 'all', label: '全部' },
             ]}
           />
-          <Select
-            style={{ width: 150 }}
-            value={draftFilters.status}
-            onChange={(v) => setDraftFilters((f) => ({ ...f, status: v }))}
+        }
+      />
+      {stats && (
+        <SummaryBar
+          items={[
+            {
+              key: 'inDraft',
+              label: '已排入草稿',
+              help: HELP.inDraft,
+              value: stats.inDraft,
+            },
+            ...(scope === 'all'
+              ? [
+                  {
+                    key: 'unassigned',
+                    label: '未指定采购员',
+                    help: HELP.unassigned,
+                    value: stats.unassigned,
+                  },
+                ]
+              : []),
+            {
+              key: 'drafts',
+              label: '草稿采购订单',
+              help: HELP.drafts,
+              value: (
+                <button
+                  type="button"
+                  className="zhul-link"
+                  onClick={() => history.push(PATHS.orders)}
+                >
+                  {stats.drafts}
+                </button>
+              ),
+            },
+          ]}
+        />
+      )}
+      <FilterCard
+        onSearch={searchNow}
+        onReset={() =>
+          reset(() => {
+            setDraftFilters({ status: 'open' });
+            setFilters({ status: 'open' });
+          })
+        }
+        minColumn={140}
+        moreCount={
+          [
+            scope === 'all' ? filters.purchaserId : undefined,
+            filters.stockType,
+          ].filter((v) => v != null).length
+        }
+        more={
+          <>
+            {scope === 'all' && (
+              <FilterField label="采购员">
+                <Select
+                  allowClear
+                  placeholder="全部"
+                  value={draftFilters.purchaserId}
+                  options={users}
+                  showSearch={{ optionFilterProp: 'label' }}
+                  onChange={(v) =>
+                    setDraftFilters((f) => ({ ...f, purchaserId: v }))
+                  }
+                  aria-label="采购员"
+                />
+              </FilterField>
+            )}
+            <FilterField label="现货 / 期货">
+              <Select
+                allowClear
+                placeholder="全部"
+                value={draftFilters.stockType}
+                onChange={(v) =>
+                  setDraftFilters((f) => ({ ...f, stockType: v }))
+                }
+                options={[
+                  { value: 1, label: '现货' },
+                  { value: 2, label: '期货' },
+                ]}
+                aria-label="现货 / 期货"
+              />
+            </FilterField>
+          </>
+        }
+        quick={
+          <QuickFilters
             options={[
-              { value: 'open', label: '还有没下单的' },
-              { value: 'all', label: '全部状态' },
+              {
+                value: QUICK_OVERDUE,
+                label: withCount('超时未下单', stats?.overdue),
+              },
             ]}
-            aria-label="状态"
+            value={filters.overdue ? [QUICK_OVERDUE] : []}
+            onChange={(v) =>
+              applyNow({ overdue: v.includes(QUICK_OVERDUE) || undefined })
+            }
           />
+        }
+      >
+        <FilterField label="关键词" span={2} help={HELP.keyword}>
           <Input
             allowClear
-            style={{ width: 240 }}
-            prefix={<SearchOutlined />}
-            placeholder="订单编号、客户、型号、描述"
+            prefix={<Search size={16} />}
+            placeholder="销售订单编号、客户、型号"
             value={draftFilters.keyword}
             onChange={(e) =>
               setDraftFilters((f) => ({ ...f, keyword: e.target.value }))
             }
-            onPressEnter={() => reset(() => setFilters(draftFilters))}
+            onPressEnter={searchNow}
             aria-label="关键词"
           />
+        </FilterField>
+        <FilterField label="状态">
+          <Select
+            value={draftFilters.status}
+            onChange={(v) => applyNow({ status: v })}
+            options={[
+              { value: 'open', label: withCount('还有没下单的', stats?.open) },
+              { value: 'all', label: '全部状态' },
+            ]}
+            aria-label="状态"
+          />
+        </FilterField>
+        <FilterField label="向谁买" help={HELP.source}>
           <Select
             allowClear
-            style={{ width: 140 }}
-            placeholder="向谁买"
+            placeholder="全部"
             value={draftFilters.sourceType}
-            onChange={(v) => setDraftFilters((f) => ({ ...f, sourceType: v }))}
+            onChange={(v) => applyNow({ sourceType: v })}
             options={[
               { value: 'supplier', label: '老供应商' },
               { value: 'shop', label: '线上店铺' },
-              { value: 'none', label: '还没定' },
+              { value: 'none', label: withCount('还没定', stats?.unplanned) },
             ]}
             aria-label="向谁买"
           />
-          {scope === 'all' && (
-            <Select
-              allowClear
-              style={{ width: 140 }}
-              placeholder="采购员"
-              value={draftFilters.purchaserId}
-              options={users}
-              showSearch={{ optionFilterProp: 'label' }}
-              onChange={(v) =>
-                setDraftFilters((f) => ({ ...f, purchaserId: v }))
-              }
-              aria-label="采购员"
-            />
-          )}
-          <Select
-            allowClear
-            style={{ width: 120 }}
-            placeholder="现货 / 期货"
-            value={draftFilters.stockType}
-            onChange={(v) => setDraftFilters((f) => ({ ...f, stockType: v }))}
-            options={[
-              { value: 1, label: '现货' },
-              { value: 2, label: '期货' },
-            ]}
-            aria-label="现货 / 期货"
-          />
-          <span style={{ flex: 1 }} />
-          {view === 'order' && (
+        </FilterField>
+      </FilterCard>
+
+      <MainCard
+        left={
+          selectedList.length > 0 ? (
             <>
-              <Button type="link" onClick={() => setCollapsed(new Set())}>
-                展开全部
-              </Button>
-              <Button
-                type="link"
-                onClick={() => setCollapsed(new Set(orders.map((o) => o.soId)))}
-              >
-                折叠全部
-              </Button>
+              <b style={{ color: palette.ink }}>
+                已选 {selectedList.length} 个型号
+              </b>
+              <span>
+                · 来自 {new Set(selectedList.map((r) => r.soId)).size} 张订单
+              </span>
             </>
-          )}
-          <Button
-            onClick={() =>
-              reset(() => {
-                setDraftFilters({ status: 'open' });
-                setFilters({ status: 'open' });
-              })
-            }
-          >
-            重置
-          </Button>
-          <Button
-            type="primary"
-            onClick={() => reset(() => setFilters(draftFilters))}
-          >
-            查询
-          </Button>
-        </div>
-      </Card>
-
-      {selectedList.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '12px 18px',
-            marginBottom: 12,
-            borderRadius: 12,
-            background: palette.primarySoft,
-            border: `1px solid ${palette.primaryLine}`,
-            flexWrap: 'wrap',
-          }}
-        >
-          <b style={{ color: palette.ink }}>
-            已选 {selectedList.length} 个型号
-          </b>
-          <span style={{ color: palette.sub }}>
-            · 来自 {new Set(selectedList.map((r) => r.soId)).size} 张订单
-          </span>
-          <span style={{ flex: 1 }} />
-          <Button onClick={() => setSelected(new Map())}>取消选择</Button>
-          {canAssign && (
-            <Button onClick={() => setAssigning(selectedList)}>
-              指派采购员
-            </Button>
-          )}
-          {canCreate && (
-            <Button onClick={() => setSourcing(selectedList)}>选渠道</Button>
-          )}
-          {canCreate && (
-            <Button
-              type="primary"
-              icon={<ShoppingCartOutlined />}
-              onClick={() => setGenerating(selectedList)}
-            >
-              生成采购订单
-            </Button>
-          )}
-        </div>
-      )}
-
-      {error ? (
-        <ErrorHint message={error} onRetry={load} />
-      ) : empty ? (
-        <Card>
-          <EmptyHint
-            title={
-              scope === 'mine'
-                ? '你负责的型号都已下单'
-                : '没有符合条件的采购需求'
-            }
-            description={
-              scope === 'mine'
-                ? '新的订单生成后，你负责的型号会自动出现在这里'
-                : '换个筛选条件试试'
-            }
-          />
-        </Card>
-      ) : view === 'order' ? (
-        loading && orders.length === 0 ? (
-          <Skeleton active />
-        ) : (
-          <div style={{ display: 'grid', gap: 12 }}>
-            {orders.map((o) => (
-              <Card key={o.soId} style={{ padding: 0, overflow: 'hidden' }}>
-                {orderHead(o)}
-                {o.salesRemark && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      gap: 10,
-                      alignItems: 'baseline',
-                      padding: '10px 18px 10px 56px',
-                      background: palette.primarySoft,
-                      borderTop: `1px solid ${palette.primaryLine}`,
-                      borderBottom: `1px solid ${palette.primaryLine}`,
-                    }}
-                  >
-                    <b style={{ color: palette.link, whiteSpace: 'nowrap' }}>
-                      <FileTextOutlined /> 销售备注
-                    </b>
-                    <span
-                      style={{ color: palette.ink, whiteSpace: 'pre-wrap' }}
-                    >
-                      {o.salesRemark}
-                    </span>
-                  </div>
-                )}
-                {!collapsed.has(o.soId) && (
-                  <div style={{ padding: '0 12px 12px' }}>
-                    <Table<Requirement>
-                      rowKey="id"
-                      size="middle"
-                      columns={lineColumns}
-                      dataSource={o.lines}
-                      pagination={false}
-                      scroll={{ x: tableScrollX(lineColumns) }}
-                      rowSelection={rowSelection(o.lines)}
-                      onRow={overdueRow}
-                    />
-                  </div>
-                )}
-              </Card>
-            ))}
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: 12,
-                alignItems: 'center',
-              }}
-            >
-              <span style={{ color: palette.mute }}>共 {total} 张订单</span>
-              <Button
-                size="small"
-                disabled={page <= 1}
-                onClick={() => setPage(page - 1)}
-              >
-                上一页
-              </Button>
-              <span style={{ color: palette.sub }}>第 {page} 页</span>
-              <Button
-                size="small"
-                disabled={page * pageSize >= total}
-                onClick={() => setPage(page + 1)}
-              >
-                下一页
-              </Button>
-            </div>
-          </div>
-        )
-      ) : (
-        <Table<Requirement>
-          rowKey="id"
-          columns={[
-            {
-              title: '来源单号',
-              dataIndex: 'soNo',
-              width: 160,
-              fixed: 'left',
-              render: (v: string, r) => (
-                <button
-                  type="button"
-                  className="zhul-link"
-                  onClick={() => history.push(PATHS.salesOrder(r.soId))}
+          ) : view === 'order' ? (
+            `共 ${total} 张订单`
+          ) : (
+            `共 ${total} 条`
+          )
+        }
+        right={
+          selectedList.length > 0 ? (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Button onClick={() => setSelected(new Map())}>取消选择</Button>
+              {canAssign && (
+                <Button onClick={() => setAssigning(selectedList)}>
+                  指派采购员
+                </Button>
+              )}
+              {canCreate && (
+                <Button onClick={() => setSourcing(selectedList)}>
+                  选渠道
+                </Button>
+              )}
+              {canCreate && (
+                <Button
+                  type="primary"
+                  icon={<ShoppingCartOutlined />}
+                  onClick={() => setGenerating(selectedList)}
                 >
-                  {v}
-                </button>
-              ),
-            },
-            {
-              title: '客户',
-              key: 'customer',
-              width: 200,
-              render: (_, r) => (
-                <CustomerCell
-                  name={r.customerName}
-                  country={r.customerCountry}
-                />
-              ),
-            },
-            ...lineColumns,
-          ]}
-          dataSource={rows}
-          loading={loading}
-          scroll={{ x: 'max-content' }}
-          rowSelection={rowSelection(rows)}
-          onRow={overdueRow}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
-            onChange: (p, s) => {
-              setPage(p);
-              setPageSize(s);
-            },
-          }}
-        />
-      )}
-      <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
-        {view === 'order'
-          ? '订单按其型号最近的更新时间倒序；「去下单」打开对应的草稿采购订单填价、确认下单。'
-          : '按更新时间倒序；跨订单找同一个型号时用。'}
-      </div>
+                  生成采购订单
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {view === 'order' && (
+                <>
+                  <Button type="link" onClick={() => setCollapsed(new Set())}>
+                    展开全部
+                  </Button>
+                  <Button
+                    type="link"
+                    onClick={() =>
+                      setCollapsed(new Set(orders.map((o) => o.soId)))
+                    }
+                  >
+                    折叠全部
+                  </Button>
+                </>
+              )}
+              <Segmented
+                value={view}
+                onChange={(v) => reset(() => setView(v as View))}
+                options={[
+                  { value: 'order', label: '按订单' },
+                  { value: 'model', label: '按型号' },
+                ]}
+              />
+            </div>
+          )
+        }
+      >
+        {error ? (
+          <ErrorHint message={error} onRetry={load} />
+        ) : empty ? (
+          <div>
+            <EmptyHint
+              title={
+                scope === 'mine'
+                  ? '你负责的型号都已下单'
+                  : '没有符合条件的采购需求'
+              }
+              description={
+                scope === 'mine'
+                  ? '新的订单生成后，你负责的型号会自动出现在这里'
+                  : '换个筛选条件试试'
+              }
+            />
+          </div>
+        ) : view === 'order' ? (
+          loading && orders.length === 0 ? (
+            <Skeleton active />
+          ) : (
+            <div style={{ display: 'grid', gap: 12 }}>
+              {orders.map((o) => (
+                <div
+                  key={o.soId}
+                  style={{
+                    border: `1px solid ${palette.hairline}`,
+                    borderRadius: 10,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {orderHead(o)}
+                  {o.salesRemark && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: 10,
+                        alignItems: 'baseline',
+                        padding: '10px 18px 10px 56px',
+                        background: palette.primarySoft,
+                        borderTop: `1px solid ${palette.primaryLine}`,
+                        borderBottom: `1px solid ${palette.primaryLine}`,
+                      }}
+                    >
+                      <b style={{ color: palette.link, whiteSpace: 'nowrap' }}>
+                        <FileTextOutlined /> 销售备注
+                      </b>
+                      <span
+                        style={{ color: palette.ink, whiteSpace: 'pre-wrap' }}
+                      >
+                        {o.salesRemark}
+                      </span>
+                    </div>
+                  )}
+                  {!collapsed.has(o.soId) && (
+                    <div style={{ padding: '0 12px 12px' }}>
+                      <Table<Requirement>
+                        rowKey="id"
+                        size="middle"
+                        columns={lineColumns}
+                        dataSource={o.lines}
+                        pagination={false}
+                        scroll={{ x: tableScrollX(lineColumns) }}
+                        rowSelection={rowSelection(o.lines)}
+                        onRow={overdueRow}
+                      />
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: 12,
+                  alignItems: 'center',
+                }}
+              >
+                <span style={{ color: palette.mute }}>共 {total} 张订单</span>
+                <Button
+                  size="small"
+                  disabled={page <= 1}
+                  onClick={() => setPage(page - 1)}
+                >
+                  上一页
+                </Button>
+                <span style={{ color: palette.sub }}>第 {page} 页</span>
+                <Button
+                  size="small"
+                  disabled={page * pageSize >= total}
+                  onClick={() => setPage(page + 1)}
+                >
+                  下一页
+                </Button>
+              </div>
+            </div>
+          )
+        ) : (
+          <Table<Requirement>
+            rowKey="id"
+            columns={[
+              {
+                title: '来源单号',
+                dataIndex: 'soNo',
+                width: 160,
+                fixed: 'left',
+                render: (v: string, r) => (
+                  <button
+                    type="button"
+                    className="zhul-link"
+                    onClick={() => history.push(PATHS.salesOrder(r.soId))}
+                  >
+                    {v}
+                  </button>
+                ),
+              },
+              {
+                title: '客户',
+                key: 'customer',
+                width: 200,
+                render: (_, r) => (
+                  <CustomerCell
+                    name={r.customerName}
+                    country={r.customerCountry}
+                  />
+                ),
+              },
+              ...lineColumns,
+            ]}
+            dataSource={rows}
+            loading={loading}
+            scroll={{ x: 'max-content' }}
+            rowSelection={rowSelection(rows)}
+            onRow={overdueRow}
+            pagination={{
+              current: page,
+              pageSize,
+              total,
+              showSizeChanger: true,
+              showTotal: (t) => `共 ${t} 条`,
+              onChange: (p, s) => {
+                setPage(p);
+                setPageSize(s);
+              },
+            }}
+          />
+        )}
+      </MainCard>
 
       <SourceModal
         targets={sourcing}

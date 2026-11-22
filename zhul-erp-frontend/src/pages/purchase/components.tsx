@@ -9,12 +9,7 @@ import type { TableColumnsType } from 'antd';
 import { Button, Input, InputNumber, Segmented, Select, Space } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
-import {
-  Card,
-  MigratedPill,
-  PageTitle,
-  Pill,
-} from '@/pages/inquiry/shared/components';
+import { Card, MigratedPill, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 import { forwarderApi } from '@/pages/logistics/service';
 import { searchSuppliers } from '@/services/zhul/masterdata';
@@ -38,10 +33,6 @@ export const PATHS = {
   order: (id: number) => `/purchase/orders/${id}`,
   salesOrder: (id: number) => `/sales/orders/${id}`,
 };
-
-export const PurchasePageTitle: React.FC<
-  Omit<React.ComponentProps<typeof PageTitle>, 'root'>
-> = (props) => <PageTitle {...props} />;
 
 const PO_META: Record<number, { label: string; tone: Tone }> = {
   1: { label: '草稿', tone: 'gray' },

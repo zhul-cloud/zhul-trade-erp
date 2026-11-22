@@ -1,7 +1,6 @@
 import {
   CalendarOutlined,
   CarOutlined,
-  CheckOutlined,
   DeleteOutlined,
   FallOutlined,
   FilePdfOutlined,
@@ -9,9 +8,7 @@ import {
   HistoryOutlined,
   PlusOutlined,
   ShoppingOutlined,
-  StopOutlined,
   UploadOutlined,
-  UserAddOutlined,
   WalletOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
@@ -22,6 +19,7 @@ import {
   App,
   Button,
   DatePicker,
+  Dropdown,
   Input,
   InputNumber,
   Modal,
@@ -34,6 +32,15 @@ import {
   Upload,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import {
+  Check,
+  CircleX,
+  Ellipsis,
+  Pencil,
+  Trash2,
+  Truck,
+  UserPlus,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import {
@@ -42,6 +49,7 @@ import {
 } from '@/components/DocFields/DocModelCell';
 import { RelatedDocsCard } from '@/components/DocFields/DocPage';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
+import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
 import {
   ACCEPT_PROOF,
@@ -66,7 +74,6 @@ import { type Attachment, shipmentApi } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useDeltaColor } from '@/theme/delta';
 import { formatAmount } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   bargainOf,
@@ -88,7 +95,6 @@ import {
   Pill,
   PO_STATUS,
   PoStatusPill,
-  PurchasePageTitle,
   ShipProgressPill,
   StatCard,
   sub,
@@ -601,6 +607,45 @@ const PurchaseOrderDetail: React.FC = () => {
   ];
 
   const title = po.poNo ?? `草稿采购订单 · ${po.supplierName ?? ''}`;
+  const canConvert = po.shop && canEdit && po.status !== PO_STATUS.CANCELLED;
+  const convertShop = () =>
+    modal.confirm({
+      title: `把「${po.shopName}」转为供应商？`,
+      content:
+        '将新建供应商（已有同名供应商时直接使用），并把这家店的草稿、已下单采购订单和建议这家店的需求都改为指向它。',
+      okText: '转为供应商',
+      onOk: async () => {
+        try {
+          apply(await poApi.convertShop(poId));
+          message.success('已转为供应商');
+        } catch (e) {
+          message.error(readBizError(e).message);
+        }
+      },
+    });
+  /** 「更多」里的危险操作：删除草稿、取消采购订单 */
+  const moreItems = [
+    ...(isDraft && canCancel
+      ? [
+          {
+            key: 'delete',
+            icon: <Trash2 size={16} />,
+            label: '删除草稿',
+            danger: true,
+          },
+        ]
+      : []),
+    ...(po.status === PO_STATUS.ORDERED && canCancel && !editing
+      ? [
+          {
+            key: 'cancel',
+            icon: <CircleX size={16} />,
+            label: '取消采购订单',
+            danger: true,
+          },
+        ]
+      : []),
+  ];
   const contractDiff =
     draft.contractAmount == null
       ? null
@@ -608,13 +653,10 @@ const PurchaseOrderDetail: React.FC = () => {
 
   return (
     <div>
-      <PurchasePageTitle
-        crumbs={[<MenuLink key="list" to={PATHS.orders} />, po.poNo ?? '草稿']}
-        title={
-          <span
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}
-          >
-            {title}
+      <PageHeader
+        title={title}
+        tags={
+          <>
             {po.shop && <Pill tone="orange">线上店铺</Pill>}
             <MigratedPill migrated={po.migrated} />
             <PoStatusPill status={po.status} />
@@ -622,9 +664,9 @@ const PurchaseOrderDetail: React.FC = () => {
               code={po.shipProgress}
               name={po.shipProgressName}
             />
-          </span>
+          </>
         }
-        description={
+        sub={
           <>
             {po.supplierName} · {po.purchaserName}
             {po.orderDate
@@ -634,55 +676,81 @@ const PurchaseOrderDetail: React.FC = () => {
               ` · ${po.cancelledByName ?? ''} 取消：${po.cancelReason ?? ''}${po.cancelRefund === 1 ? '（会退款）' : po.cancelRefund === 2 ? '（不退款）' : ''}`}
           </>
         }
-        actions={
-          <Space>
-            {po.shop && canEdit && po.status !== PO_STATUS.CANCELLED && (
+        // 页头操作（照销售订单详情）：一个主按钮，其余为文字按钮，删除、取消收进「更多」
+        extra={
+          <>
+            {canConvert && (
               <Button
-                icon={<UserAddOutlined />}
-                onClick={() =>
-                  modal.confirm({
-                    title: `把「${po.shopName}」转为供应商？`,
-                    content:
-                      '将新建供应商（已有同名供应商时直接使用），并把这家店的草稿、已下单采购订单和建议这家店的需求都改为指向它。',
-                    okText: '转为供应商',
-                    onOk: async () => {
-                      try {
-                        apply(await poApi.convertShop(poId));
-                        message.success('已转为供应商');
-                      } catch (e) {
-                        message.error(readBizError(e).message);
-                      }
-                    },
-                  })
-                }
+                type="text"
+                icon={<UserPlus size={16} />}
+                style={{ color: palette.link }}
+                onClick={convertShop}
               >
                 转为供应商
               </Button>
             )}
-            {isDraft && canCancel && (
-              <Button danger icon={<DeleteOutlined />} onClick={deleteDraft}>
-                删除草稿
-              </Button>
-            )}
-            {po.status === PO_STATUS.ORDERED && canCancel && !editing && (
-              <Button
-                icon={<StopOutlined />}
-                onClick={() =>
-                  po.hasShipments
-                    ? message.warning('已有发货，请在到货差异里处理少发或退货')
-                    : setCancelOpen(true)
-                }
-              >
-                取消采购订单
-              </Button>
-            )}
             {po.status === PO_STATUS.ORDERED && canEdit && !editing && (
-              <Button onClick={() => setEditing(true)}>修改</Button>
+              <Button
+                type="text"
+                icon={<Pencil size={16} />}
+                style={{ color: palette.link }}
+                onClick={() => setEditing(true)}
+              >
+                修改
+              </Button>
+            )}
+            {po.status === PO_STATUS.ORDERED && editing && (
+              <Button
+                type="text"
+                onClick={() => {
+                  setDraft(toDraft(po));
+                  setEditing(false);
+                }}
+              >
+                放弃修改
+              </Button>
+            )}
+            {editable && (
+              <Button
+                type={isDraft ? 'default' : 'primary'}
+                loading={saving}
+                disabled={termsBad}
+                onClick={async () => {
+                  const p = await save();
+                  if (p && p.status === PO_STATUS.ORDERED) setEditing(false);
+                }}
+              >
+                {isDraft ? '保存草稿' : '保存修改'}
+              </Button>
+            )}
+            {moreItems.length > 0 && (
+              <Dropdown
+                trigger={['click']}
+                placement="bottomRight"
+                menu={{
+                  items: moreItems,
+                  onClick: ({ key }) =>
+                    key === 'delete'
+                      ? deleteDraft()
+                      : po.hasShipments
+                        ? message.warning(
+                            '已有发货，请在到货差异里处理少发或退货',
+                          )
+                        : setCancelOpen(true),
+                }}
+              >
+                <Button
+                  type="text"
+                  shape="circle"
+                  icon={<Ellipsis size={18} />}
+                  aria-label="更多操作"
+                />
+              </Dropdown>
             )}
             {po.status === PO_STATUS.ORDERED && canShip && !editing && (
               <Button
                 type="primary"
-                icon={<CarOutlined />}
+                icon={<Truck size={16} />}
                 disabled={po.items.every((i) => i.unshippedQty <= 0)}
                 title={
                   po.items.every((i) => i.unshippedQty <= 0)
@@ -694,39 +762,17 @@ const PurchaseOrderDetail: React.FC = () => {
                 登记发货
               </Button>
             )}
-            {po.status === PO_STATUS.ORDERED && editing && (
-              <Button
-                onClick={() => {
-                  setDraft(toDraft(po));
-                  setEditing(false);
-                }}
-              >
-                放弃修改
-              </Button>
-            )}
-            {editable && (
-              <Button
-                loading={saving}
-                disabled={termsBad}
-                onClick={async () => {
-                  const p = await save();
-                  if (p && p.status === PO_STATUS.ORDERED) setEditing(false);
-                }}
-              >
-                {isDraft ? '保存草稿' : '保存修改'}
-              </Button>
-            )}
             {isDraft && canEdit && (
               <Button
                 type="primary"
-                icon={<CheckOutlined />}
+                icon={<Check size={16} />}
                 disabled={termsBad}
                 onClick={() => setConfirmOpen(true)}
               >
                 确认下单
               </Button>
             )}
-          </Space>
+          </>
         }
       />
 
