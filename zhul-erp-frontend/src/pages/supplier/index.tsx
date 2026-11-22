@@ -1,9 +1,3 @@
-import {
-  DeleteOutlined,
-  DownloadOutlined,
-  PlusOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import type { CheckboxProps, TableColumnsType } from 'antd';
 import {
@@ -17,14 +11,30 @@ import {
   Table,
   Tooltip,
 } from 'antd';
+import {
+  Download,
+  Eye,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { IconButton } from '@/components/Shell';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
+import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import { LIST_PATH, PageTitle, SupplierTypePill } from './components';
+import { LIST_PATH, SupplierTypePill } from './components';
 import {
   DISABLE_CONFIRM_TEXT,
   SUPPLIER_TYPE_SELECT_OPTIONS,
@@ -40,6 +50,21 @@ import {
   type SupplierQuery,
   supplierApi,
 } from './service';
+
+/** 帮助文字：help-texts.md「供应商库」 */
+export const HELP = {
+  page: '供应商的工商信息、联系方式与结算账户，采购与结算都从这里取',
+  categoryId: '同时选了主营品牌时，主营该品牌全部品类的供应商也会列出',
+} as const;
+
+/** 收在「更多筛选」里的条件 */
+const MORE_KEYS: (keyof SupplierQuery)[] = [
+  'contact',
+  'creditCode',
+  'supplierType',
+  'brandId',
+  'categoryId',
+];
 
 const STATUS_OPTIONS = [
   { value: 1, label: '启用' },
@@ -211,13 +236,6 @@ const SupplierListPage: React.FC = () => {
     });
   };
 
-  const stacked = (time: string, by: string) => (
-    <div style={{ lineHeight: 1.5 }}>
-      <div className="num">{formatDateTime(time)}</div>
-      <div style={{ fontSize: 12, color: palette.mute }}>{by || '—'}</div>
-    </div>
-  );
-
   const columns: TableColumnsType<SupplierItem> = [
     {
       title: '序号',
@@ -297,251 +315,212 @@ const SupplierListPage: React.FC = () => {
         />
       ),
     },
-    {
-      title: '创建时间 / 创建人',
-      key: 'created',
-      width: 170,
-      render: (_, r) => stacked(r.createTime, r.createBy),
-    },
-    {
-      title: '更新时间 / 更新人',
-      key: 'updated',
-      width: 170,
-      render: (_, r) => stacked(r.updateTime, r.updateBy),
-    },
+    ...auditColumns<SupplierItem>(),
     {
       title: '操作',
       key: 'actions',
-      width: 150,
+      // 16×2 内边距 + 3 个 32 的图标按钮 + 2 个 4 的间距
+      width: 136,
       fixed: 'right',
       render: (_, record) => (
-        <div style={{ display: 'flex', gap: 12 }}>
-          <button
-            type="button"
-            className="zhul-link"
+        <span style={{ display: 'inline-flex', gap: 4 }}>
+          <IconButton
+            label="查看"
+            size={32}
+            icon={<Eye size={18} />}
             onClick={() => history.push(`${LIST_PATH}/${record.id}`)}
-          >
-            查看
-          </button>
+          />
           {canEdit && (
-            <button
-              type="button"
-              className="zhul-link"
+            <IconButton
+              label="编辑"
+              size={32}
+              icon={<Pencil size={18} />}
               onClick={() => history.push(`${LIST_PATH}/${record.id}/edit`)}
-            >
-              编辑
-            </button>
+            />
           )}
           {canDelete && (
-            <button
-              type="button"
-              className="zhul-link"
+            <IconButton
+              label="删除"
+              size={32}
+              icon={<Trash2 size={18} />}
               style={{ color: palette.red }}
               onClick={() => confirmDelete(record)}
-            >
-              删除
-            </button>
+            />
           )}
-        </div>
+        </span>
       ),
     },
   ];
 
-  const filterLabel: React.CSSProperties = { fontSize: 13, color: palette.sub };
+  const moreCount = MORE_KEYS.filter(
+    (k) => query[k] != null && query[k] !== '',
+  ).length;
+  const input = (name: keyof SupplierQuery, label: string, ph: string) => (
+    <FilterField label={label}>
+      <Form.Item name={name} noStyle>
+        <Input
+          allowClear
+          placeholder={ph}
+          aria-label={label}
+          onPressEnter={search}
+        />
+      </Form.Item>
+    </FilterField>
+  );
 
   return (
     <div style={{ color: palette.ink }}>
-      <PageTitle description="维护企业供应商工商信息、联系方式与结算账户，作为采购与结算业务的统一数据来源。" />
-
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={search}
-        style={{
-          background: palette.card,
-          border: `1px solid ${palette.hairline}`,
-          borderRadius: 16,
-          padding: '20px 24px 4px',
-          marginBottom: 20,
-        }}
-      >
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-            columnGap: 24,
-          }}
-        >
-          <Form.Item
-            name="supplierCode"
-            label={<span style={filterLabel}>供应商编码</span>}
-          >
-            <Input placeholder="请输入供应商编码" allowClear />
-          </Form.Item>
-          <Form.Item
-            name="name"
-            label={<span style={filterLabel}>供应商名称</span>}
-          >
-            <Input placeholder="请输入供应商名称" allowClear />
-          </Form.Item>
-          <Form.Item
-            name="contact"
-            label={<span style={filterLabel}>联系人</span>}
-          >
-            <Input placeholder="姓名、电话、微信或邮箱" allowClear />
-          </Form.Item>
-          <Form.Item
-            name="creditCode"
-            label={<span style={filterLabel}>统一社会信用代码</span>}
-          >
-            <Input placeholder="请输入社会信用代码" allowClear />
-          </Form.Item>
-          <Form.Item
-            name="supplierType"
-            label={<span style={filterLabel}>供应商类型</span>}
-          >
-            <Select
-              placeholder="全部"
-              allowClear
-              options={SUPPLIER_TYPE_SELECT_OPTIONS}
-            />
-          </Form.Item>
-          <Form.Item
-            name="status"
-            label={<span style={filterLabel}>状态</span>}
-          >
-            <Select placeholder="全部" allowClear options={STATUS_OPTIONS} />
-          </Form.Item>
-          <Form.Item
-            name="brandId"
-            label={<span style={filterLabel}>主营品牌</span>}
-          >
-            <Select
-              placeholder="全部"
-              allowClear
-              showSearch={{
-                filterOption: (input, option) =>
-                  !!option &&
-                  [option.label, ...option.aliases].some((t) =>
-                    t.toLowerCase().includes(input.trim().toLowerCase()),
-                  ),
-              }}
-              options={brands.map((b) => ({
-                value: b.id,
-                label: b.brandName,
-                aliases: b.aliases ?? [],
-              }))}
-            />
-          </Form.Item>
-          <Form.Item
-            name="categoryId"
-            label={<span style={filterLabel}>主营品类</span>}
-            tooltip="同时选了主营品牌时，主营该品牌全部品类的供应商也会列出"
-          >
-            <Select
-              placeholder="全部"
-              allowClear
-              showSearch={{ optionFilterProp: 'label' }}
-              options={topCategoryOptions(tree)}
-            />
-          </Form.Item>
-          <Form.Item label=" " style={{ gridColumn: '-2 / -1' }}>
-            <div
-              style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}
-            >
-              <Button onClick={reset}>重置</Button>
-              <Button type="primary" htmlType="submit">
-                查询
+      <PageHeader
+        help={HELP.page}
+        extra={
+          <>
+            <Tooltip title="批量导入即将上线">
+              <span>
+                <Button type="text" icon={<Upload size={16} />} disabled>
+                  导入
+                </Button>
+              </span>
+            </Tooltip>
+            {canExport && (
+              <Button
+                type="text"
+                icon={<Download size={16} />}
+                style={{ color: total === 0 ? undefined : palette.link }}
+                loading={exporting}
+                disabled={total === 0}
+                onClick={confirmExport}
+              >
+                导出
               </Button>
-            </div>
-          </Form.Item>
-        </div>
+            )}
+            {canAdd && (
+              <Button
+                type="primary"
+                icon={<Plus size={18} />}
+                onClick={() => history.push(`${LIST_PATH}/new`)}
+              >
+                新增供应商
+              </Button>
+            )}
+          </>
+        }
+      />
+
+      <Form form={form} component={false}>
+        <FilterCard
+          onSearch={search}
+          onReset={reset}
+          minColumn={150}
+          moreCount={moreCount}
+          more={
+            <>
+              {input('contact', '联系人', '姓名、电话、微信或邮箱')}
+              {input('creditCode', '统一社会信用代码', '完整的 18 位')}
+              <FilterField label="供应商类型">
+                <Form.Item name="supplierType" noStyle>
+                  <Select
+                    placeholder="全部"
+                    allowClear
+                    aria-label="供应商类型"
+                    options={SUPPLIER_TYPE_SELECT_OPTIONS}
+                  />
+                </Form.Item>
+              </FilterField>
+              <FilterField label="主营品牌">
+                <Form.Item name="brandId" noStyle>
+                  <Select
+                    placeholder="全部"
+                    allowClear
+                    aria-label="主营品牌"
+                    showSearch={{
+                      filterOption: (input, option) =>
+                        !!option &&
+                        [option.label, ...option.aliases].some((t) =>
+                          t.toLowerCase().includes(input.trim().toLowerCase()),
+                        ),
+                    }}
+                    options={brands.map((b) => ({
+                      value: b.id,
+                      label: b.brandName,
+                      aliases: b.aliases ?? [],
+                    }))}
+                  />
+                </Form.Item>
+              </FilterField>
+              <FilterField label="主营品类" help={HELP.categoryId}>
+                <Form.Item name="categoryId" noStyle>
+                  <Select
+                    placeholder="全部"
+                    allowClear
+                    aria-label="主营品类"
+                    showSearch={{ optionFilterProp: 'label' }}
+                    options={topCategoryOptions(tree)}
+                  />
+                </Form.Item>
+              </FilterField>
+            </>
+          }
+        >
+          <FilterField label="供应商名称" span={2}>
+            <Form.Item name="name" noStyle>
+              <Input
+                allowClear
+                prefix={<Search size={16} />}
+                placeholder="供应商名称"
+                aria-label="供应商名称"
+                onPressEnter={search}
+              />
+            </Form.Item>
+          </FilterField>
+          {input('supplierCode', '供应商编码', '供应商编码')}
+          <FilterField label="状态">
+            <Form.Item name="status" noStyle>
+              <Select
+                placeholder="全部"
+                allowClear
+                aria-label="状态"
+                options={STATUS_OPTIONS}
+                // 状态下拉切换后立即查询（interface-style）
+                onChange={() => search()}
+              />
+            </Form.Item>
+          </FilterField>
+        </FilterCard>
       </Form>
 
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 12,
-          marginBottom: 12,
-          flexWrap: 'wrap',
-        }}
-      >
-        <span style={{ color: palette.sub, fontSize: 14 }}>
-          共 <span className="num">{total}</span> 条记录
-        </span>
-        <div style={{ display: 'flex', gap: 12 }}>
-          {canAdd && (
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => history.push(`${LIST_PATH}/new`)}
-            >
-              新增供应商
-            </Button>
-          )}
-          <Tooltip title="批量导入即将上线">
-            <Button icon={<UploadOutlined />} disabled>
-              导入
-            </Button>
-          </Tooltip>
-          {canExport && (
-            <Button
-              icon={<DownloadOutlined />}
-              loading={exporting}
-              disabled={total === 0}
-              onClick={confirmExport}
-            >
-              导出
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {selected.length > 0 && (
-        <div
-          role="toolbar"
-          aria-label="批量操作"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-            padding: '10px 16px',
-            marginBottom: 12,
-            borderRadius: 12,
-            background: palette.primarySoft,
-            border: `1px solid ${palette.primaryLine}`,
-          }}
-        >
-          <span style={{ fontWeight: 600, color: palette.link }}>
-            已选 <span className="num">{selected.length}</span> 条
-          </span>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button type="link" onClick={() => setSelected([])}>
-              取消选择
-            </Button>
-            {canDelete && (
+      <MainCard
+        left={
+          selected.length > 0 ? (
+            <>
+              <b style={{ color: palette.ink }}>
+                已选 <span className="num">{selected.length}</span> 条
+              </b>
+              <button
+                type="button"
+                className="zhul-link"
+                onClick={() => setSelected([])}
+              >
+                取消选择
+              </button>
+            </>
+          ) : (
+            `共 ${total} 条`
+          )
+        }
+        right={
+          selected.length > 0 &&
+          canDelete && (
+            <div role="toolbar" aria-label="批量操作">
               <Button
                 danger
-                icon={<DeleteOutlined />}
+                icon={<Trash2 size={16} />}
                 onClick={confirmBatchDelete}
               >
                 批量删除
               </Button>
-            )}
-          </div>
-        </div>
-      )}
-
-      <div
-        style={{
-          background: palette.card,
-          borderRadius: 16,
-          border: `1px solid ${palette.hairline}`,
-          overflow: 'hidden',
-        }}
+            </div>
+          )
+        }
       >
         {error ? (
           <ErrorHint message={error} onRetry={load} />
@@ -598,7 +577,7 @@ const SupplierListPage: React.FC = () => {
             }}
           />
         )}
-      </div>
+      </MainCard>
     </div>
   );
 };

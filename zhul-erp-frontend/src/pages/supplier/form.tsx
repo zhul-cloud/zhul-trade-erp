@@ -23,6 +23,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useState } from 'react';
+import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -43,7 +44,7 @@ import {
   toAttachmentPayload,
   toAttachmentRows,
 } from './attachments';
-import { LIST_PATH, PageTitle, SectionCard } from './components';
+import { LIST_PATH, SectionCard } from './components';
 import {
   CREDIT_CODE_PATTERN,
   INDUSTRY_OPTIONS,
@@ -286,7 +287,7 @@ const SupplierFormPage: React.FC = () => {
   if (!allowed) {
     return (
       <>
-        <PageTitle title={title} current={title} />
+        <PageHeader title={title} />
         <EmptyHint
           title="没有权限"
           description={`你的账号没有${editing ? '编辑' : '新增'}供应商的权限，请联系管理员开通。`}
@@ -326,7 +327,7 @@ const SupplierFormPage: React.FC = () => {
 
   return (
     <div style={{ color: palette.ink }}>
-      <PageTitle title={title} current={title} />
+      <PageHeader title={title} />
 
       {body ?? (
         <Form<FormState>

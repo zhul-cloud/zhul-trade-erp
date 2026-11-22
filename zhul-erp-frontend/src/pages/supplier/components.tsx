@@ -1,7 +1,5 @@
-import { Breadcrumb } from 'antd';
 import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
-import { MenuLink, useMenu } from '@/utils/menuName';
 import {
   labelOf,
   SUPPLIER_TYPE_OPTIONS,
@@ -62,63 +60,6 @@ export const StatusPill: React.FC<{ status?: number }> = ({ status }) => {
     >
       {enabled ? '启用' : '禁用'}
     </span>
-  );
-};
-
-/** 面包屑 + 标题 + 右侧操作；分组、页面名称取「菜单管理」（列表页不用传标题），详情页传 current */
-export const PageTitle: React.FC<{
-  title?: string;
-  current?: string;
-  description?: string;
-  actions?: React.ReactNode;
-}> = ({ title, current, description, actions }) => {
-  const { palette } = useAppTheme();
-  const page = useMenu();
-  const list = useMenu(LIST_PATH);
-  const items = current
-    ? [
-        { title: list?.group },
-        { title: <MenuLink to={LIST_PATH} /> },
-        { title: current },
-      ]
-    : [{ title: page?.group }, { title: page?.name }];
-  return (
-    <header
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-end',
-        gap: 16,
-        marginBottom: 20,
-        flexWrap: 'wrap',
-      }}
-    >
-      <div>
-        <Breadcrumb items={items} style={{ fontSize: 13 }} />
-        <h1
-          id="supplier-main"
-          tabIndex={-1}
-          style={{
-            fontSize: 28,
-            fontWeight: 700,
-            margin: '8px 0 0',
-            color: palette.ink,
-          }}
-        >
-          {title ?? page?.name}
-        </h1>
-        {description && (
-          <p style={{ margin: '6px 0 0', color: palette.sub, fontSize: 14 }}>
-            {description}
-          </p>
-        )}
-      </div>
-      {actions && (
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          {actions}
-        </div>
-      )}
-    </header>
   );
 };
 

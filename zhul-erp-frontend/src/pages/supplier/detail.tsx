@@ -1,7 +1,6 @@
 import {
   AppstoreOutlined,
   BankOutlined,
-  EditOutlined,
   HistoryOutlined,
   InfoCircleOutlined,
   PaperClipOutlined,
@@ -10,7 +9,9 @@ import {
 } from '@ant-design/icons';
 import { history, useAccess, useParams } from '@umijs/max';
 import { Button, Skeleton } from 'antd';
+import { Pencil } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -20,7 +21,6 @@ import { AccountCard } from './accounts';
 import { AttachmentGroups } from './attachments';
 import {
   LIST_PATH,
-  PageTitle,
   SectionCard,
   StatusPill,
   SupplierTypePill,
@@ -242,14 +242,25 @@ const SupplierDetailPage: React.FC = () => {
 
   return (
     <div style={{ color: palette.ink }}>
-      <PageTitle
-        title="供应商详情"
-        current="供应商详情"
-        actions={
+      <PageHeader
+        title={record?.name ?? '供应商详情'}
+        tags={
+          record && (
+            <>
+              <SupplierTypePill value={record.supplierType} />
+              <StatusPill status={record.status} />
+            </>
+          )
+        }
+        sub={
+          record &&
+          [record.supplierCode, record.shortName].filter(Boolean).join(' · ')
+        }
+        extra={
           canEdit && (
             <Button
               type="primary"
-              icon={<EditOutlined />}
+              icon={<Pencil size={18} />}
               onClick={() => history.push(`${LIST_PATH}/${id}/edit`)}
             >
               编辑
