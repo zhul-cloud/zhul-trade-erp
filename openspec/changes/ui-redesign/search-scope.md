@@ -89,7 +89,7 @@
 | 页面 | 可搜范围 | 代码位置 | 提示问题 |
 |---|---|---|---|
 | 用户管理 | 姓名 | `system/service/impl/UserServiceImpl:62` | 无 |
-| 角色管理 | 角色名称（接口另支持角色编码，页面未用） | `system/service/impl/RoleServiceImpl:111` | 无 |
+| 角色管理 | 角色名称；角色编码另有单独输入框 | `system/service/impl/RoleServiceImpl:111` | 无 |
 | 岗位管理 | 岗位名称 | `system/service/impl/PositionServiceImpl:40` | 无 |
 | 部门管理 | 部门名称（前端过滤，不区分大小写） | `system/dept/index.tsx:77` | 无 |
 | 菜单管理 | 菜单名称（前端过滤，不区分大小写） | `system/menu/index.tsx:117` | 无 |
@@ -97,6 +97,7 @@
 | 系统配置 | 配置键、配置名称（不区分大小写） | `system/service/impl/ConfigServiceImpl:73` | 无 |
 | 国家档案 | 国家名称（不区分大小写） | `masterdata/customerprofile/service/CountryProfileService:79` | 无 |
 | 操作日志 | 操作名称、操作人姓名（两个输入框） | `system/service/impl/LogServiceImpl:177` | 无 |
+| 登录日志 | 用户名、IP 地址（两个输入框，IP 支持网段） | `system/service/impl/LogServiceImpl:399` | 无 |
 | 租户列表 | 租户名称 | `tenant/service/impl/TenantServiceImpl:83` | 无 |
 | 套餐管理 | 套餐名称 | `tenant/service/impl/TenantPackageServiceImpl:50` | 无 |
 

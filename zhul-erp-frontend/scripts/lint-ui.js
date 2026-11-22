@@ -19,7 +19,7 @@ const ts = require('typescript');
 const ROOT = path.resolve(__dirname, '..');
 
 /**
- * 必须通过的范围。任务 7.1–7.7 按业务域逐个加入，2026-11-23 全部迁移完（任务 7.8），改为整个 src：
+ * 必须通过的范围。任务 7.1–7.7 按业务域逐个加入，2026-11-22 全部迁移完（任务 7.8），改为整个 src：
  * 任何新写的旧写法都会让检查失败，并随 `npm run lint` 在 CI 里拦下。
  */
 const ENFORCED = ['src'];
@@ -302,7 +302,6 @@ function run(targets, base = ROOT) {
   return { issues, missing };
 }
 
-const enforced = (file) => ENFORCED.some((d) => posix(file) === d || posix(file).startsWith(`${d}/`));
 const domainOf = (file) => posix(file).split('/').slice(1, 3).join('/');
 
 function main(argv) {
@@ -311,7 +310,7 @@ function main(argv) {
   const explicit = targets.length > 0;
   // npm run 会把当前目录记在 INIT_CWD：指定的路径按调用时所在目录解析
   const base = explicit ? process.env.INIT_CWD || process.cwd() : ROOT;
-  const { issues, missing } = run(explicit ? targets : ['src'], base);
+  const { issues, missing } = run(explicit ? targets : ENFORCED, base);
   if (missing.length) {
     process.stderr.write(`lint:ui：找不到 ${missing.join('、')}（按 ${base} 解析）\n`);
     return 2;
@@ -338,15 +337,10 @@ function main(argv) {
     }
   }
   const errors = issues.filter((i) => i.level === 'error');
-  const blocking = explicit ? errors : errors.filter((i) => enforced(i.file));
   if (!flags.has('--json')) {
-    process.stderr.write(
-      `\nlint:ui：${errors.length} 个错误，${issues.length - errors.length} 个提示` +
-        
-        '\n',
-    );
+    process.stderr.write(`\nlint:ui：${errors.length} 个错误，${issues.length - errors.length} 个提示\n`);
   }
-  return blocking.length > 0 ? 1 : 0;
+  return errors.length > 0 ? 1 : 0;
 }
 
 module.exports = { checkSource, run, main, ENFORCED };

@@ -217,7 +217,6 @@ export const QuoteTrendWidget: React.FC = () => {
                 height: d.items ? `${(d.items / max) * 100}%` : 3,
                 borderRadius: 4,
                 background: d.items ? palette.chart : palette.hairline,
-                opacity: d.items ? 0.85 : 1,
                 transition: 'height 200ms ease-out',
               }}
             />

@@ -386,8 +386,12 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
                       minWidth: 0,
                       height: Number(v) ? `${(Number(v) / max) * 100}%` : 3,
                       borderRadius: '4px 4px 0 0',
-                      background: Number(v) ? palette.chart : palette.hairline,
-                      opacity: last ? 1 : 0.7,
+                      // 本期用图表色，往期用次要文字色；不用半透明（叠在白底上会低于 3:1）
+                      background: !Number(v)
+                        ? palette.hairline
+                        : last || !(bars.highlightLast ?? true)
+                          ? palette.chart
+                          : palette.mute,
                     }}
                   />
                 </Tooltip>
@@ -465,7 +469,6 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
                     width: `${Math.max(2, (Number(x.value) / max) * 100)}%`,
                     borderRadius: 6,
                     background: palette.chart,
-                    opacity: 0.85,
                   }}
                 />
               </span>
