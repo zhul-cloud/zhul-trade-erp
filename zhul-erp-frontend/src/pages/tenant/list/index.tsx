@@ -23,15 +23,24 @@ import {
   Button,
   DatePicker,
   Divider,
+  Input,
   Modal,
   Radio,
+  Select,
   Space,
   Tag,
   Tooltip,
 } from 'antd';
-import dayjs from 'dayjs';
+import dayjs, { type Dayjs } from 'dayjs';
+import { Search } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useIndustryOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
@@ -57,6 +66,13 @@ import {
   updateTenantStatus,
 } from './service';
 
+interface TenantFilters {
+  name?: string;
+  status?: number;
+  industryCode?: string;
+  expire?: [Dayjs, Dayjs];
+}
+
 const RENEW_MONTHS_OPTIONS = [
   { label: '1 个月', value: 1 },
   { label: '3 个月', value: 3 },
@@ -65,7 +81,7 @@ const RENEW_MONTHS_OPTIONS = [
 ];
 
 const TenantListPage: React.FC = () => {
-  const menu = useMenu();
+  const _menu = useMenu();
   const pager = usePagination(20);
   const { message, modal } = App.useApp();
   const access = useAccess();
@@ -246,39 +262,18 @@ const TenantListPage: React.FC = () => {
   const { options: industryOptions, labelOf: industryLabel } =
     useIndustryOptions();
 
+  /** 搜索条件：状态切换后立即查询，其余点「查询」才生效 */
+  const [filters, setFilters] = useState<TenantFilters>({});
+  const [draft, setDraft] = useState<TenantFilters>({});
+  const [total, setTotal] = useState(0);
+  const search = () =>
+    setFilters({
+      ...draft,
+      name: draft.name?.trim() || undefined,
+      status: filters.status,
+    });
+
   const columns: ProColumns<TenantItem>[] = [
-    {
-      title: '租户名称',
-      dataIndex: 'name',
-      hideInTable: true,
-      fieldProps: { placeholder: '请输入租户名称' },
-    },
-    {
-      title: '行业',
-      dataIndex: 'industryCode',
-      hideInTable: true,
-      valueType: 'select',
-      fieldProps: { options: industryOptions },
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      hideInTable: true,
-      valueType: 'select',
-      valueEnum: { 1: { text: '启用' }, 0: { text: '禁用' } },
-    },
-    {
-      title: '到期时间',
-      dataIndex: 'expireRange',
-      hideInTable: true,
-      valueType: 'dateRange',
-      search: {
-        transform: (value) => ({
-          expireDateFrom: value?.[0],
-          expireDateTo: value?.[1],
-        }),
-      },
-    },
     {
       title: '租户编码',
       dataIndex: 'code',
@@ -474,40 +469,103 @@ const TenantListPage: React.FC = () => {
 
   return (
     <>
-      <ProTable<TenantItem>
-        headerTitle={menu?.name}
-        pagination={pager}
-        rowKey="id"
-        actionRef={actionRef}
-        columns={columns}
-        scroll={{ x: tableScrollX(columns) }}
-        search={{ labelWidth: 'auto', defaultCollapsed: false }}
-        options={false}
-        request={async (params) => {
-          const res = await getTenantList({
-            current: params.current,
-            pageSize: params.pageSize,
-            name: params.name,
-            status: params.status,
-            industryCode: params.industryCode,
-            expireDateFrom: (params as Record<string, string>).expireDateFrom,
-            expireDateTo: (params as Record<string, string>).expireDateTo,
-          });
-          return res;
-        }}
-        toolBarRender={() => [
+      <PageHeader
+        extra={
           access['tenant:list:add'] && (
-            <Button
-              key="add"
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={openCreate}
-            >
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
               新增租户
             </Button>
-          ),
-        ]}
+          )
+        }
       />
+      <FilterCard
+        onSearch={search}
+        onReset={() => {
+          setDraft({});
+          setFilters({});
+        }}
+        moreCount={filters.expire ? 1 : 0}
+        more={
+          <FilterField label="到期时间" span={2}>
+            <DatePicker.RangePicker
+              style={{ width: '100%' }}
+              aria-label="到期时间"
+              value={draft.expire}
+              onChange={(v) =>
+                setDraft({
+                  ...draft,
+                  expire: v?.[0] && v[1] ? [v[0], v[1]] : undefined,
+                })
+              }
+            />
+          </FilterField>
+        }
+      >
+        <FilterField label="租户名称" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="租户名称"
+            aria-label="租户名称"
+            value={draft.name}
+            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+            onPressEnter={search}
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select<number>
+            allowClear
+            placeholder="全部"
+            aria-label="状态"
+            value={filters.status}
+            // 状态下拉切换后立即查询
+            onChange={(v) => {
+              setFilters({ ...filters, status: v });
+              setDraft({ ...draft, status: v });
+            }}
+            options={[
+              { value: 1, label: '启用' },
+              { value: 0, label: '禁用' },
+            ]}
+          />
+        </FilterField>
+        <FilterField label="行业">
+          <Select
+            allowClear
+            placeholder="全部"
+            aria-label="行业"
+            value={draft.industryCode}
+            onChange={(v) => setDraft({ ...draft, industryCode: v })}
+            options={industryOptions}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard left={`共 ${total} 条`}>
+        <ProTable<TenantItem>
+          pagination={pager}
+          rowKey="id"
+          actionRef={actionRef}
+          columns={columns}
+          scroll={{ x: tableScrollX(columns) }}
+          params={filters}
+          search={false}
+          options={false}
+          toolBarRender={false}
+          request={async (params) => {
+            const res = await getTenantList({
+              current: params.current,
+              pageSize: params.pageSize,
+              name: filters.name,
+              status: filters.status,
+              industryCode: filters.industryCode,
+              expireDateFrom: filters.expire?.[0].format('YYYY-MM-DD'),
+              expireDateTo: filters.expire?.[1].format('YYYY-MM-DD'),
+            });
+            setTotal(res.total ?? 0);
+            return res;
+          }}
+        />
+      </MainCard>
 
       {/* 新增 / 编辑租户 */}
       <DrawerForm

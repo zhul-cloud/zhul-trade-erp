@@ -7,9 +7,16 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import { Alert, App, Badge, Button, Space, Tree } from 'antd';
+import { Alert, App, Badge, Button, Input, Select, Space, Tree } from 'antd';
+import { Search } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import {
   indexMenuTree,
   splitChecked,
@@ -64,7 +71,7 @@ const toAntdTree = (list: MenuItem[]): any[] =>
   }));
 
 const TenantPackagePage: React.FC = () => {
-  const menu = useMenu();
+  const _menu = useMenu();
   const pager = usePagination(20);
   const { message, modal } = App.useApp();
   const access = useAccess();
@@ -191,20 +198,16 @@ const TenantPackagePage: React.FC = () => {
     });
   };
 
+  /** 搜索条件：状态切换后立即查询，套餐名称点「查询」才生效 */
+  const [filters, setFilters] = useState<{ name?: string; status?: number }>(
+    {},
+  );
+  const [keyword, setKeyword] = useState('');
+  const [total, setTotal] = useState(0);
+  const search = () =>
+    setFilters({ ...filters, name: keyword.trim() || undefined });
+
   const columns: ProColumns<TenantPackageItem>[] = [
-    {
-      title: '套餐名称',
-      dataIndex: 'name',
-      hideInTable: true,
-      fieldProps: { placeholder: '请输入套餐名称' },
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      hideInTable: true,
-      valueType: 'select',
-      valueEnum: { 1: { text: '启用' }, 0: { text: '禁用' } },
-    },
     {
       title: '套餐名称',
       dataIndex: 'name',
@@ -326,37 +329,71 @@ const TenantPackagePage: React.FC = () => {
 
   return (
     <>
-      <ProTable<TenantPackageItem>
-        pagination={pager}
-        headerTitle={menu?.name}
-        rowKey="id"
-        actionRef={actionRef}
-        columns={columns}
-        scroll={{ x: tableScrollX(columns) }}
-        search={{ labelWidth: 'auto', defaultCollapsed: false }}
-        options={false}
-        request={async (params) => {
-          const res = await getPackageList({
-            current: params.current,
-            pageSize: params.pageSize,
-            name: params.name,
-            status: params.status,
-          });
-          return res;
-        }}
-        toolBarRender={() => [
+      <PageHeader
+        extra={
           access['tenant:package:add'] && (
-            <Button
-              key="add"
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={openCreate}
-            >
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
               新增套餐
             </Button>
-          ),
-        ]}
+          )
+        }
       />
+      <FilterCard
+        onSearch={search}
+        onReset={() => {
+          setKeyword('');
+          setFilters({});
+        }}
+      >
+        <FilterField label="套餐名称" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="套餐名称"
+            aria-label="套餐名称"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={search}
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select<number>
+            allowClear
+            placeholder="全部"
+            aria-label="状态"
+            value={filters.status}
+            // 状态下拉切换后立即查询
+            onChange={(v) => setFilters({ ...filters, status: v })}
+            options={[
+              { value: 1, label: '启用' },
+              { value: 0, label: '禁用' },
+            ]}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard left={`共 ${total} 条`}>
+        <ProTable<TenantPackageItem>
+          pagination={pager}
+          rowKey="id"
+          actionRef={actionRef}
+          columns={columns}
+          scroll={{ x: tableScrollX(columns) }}
+          params={filters}
+          search={false}
+          options={false}
+          toolBarRender={false}
+          request={async (params) => {
+            const res = await getPackageList({
+              current: params.current,
+              pageSize: params.pageSize,
+              name: filters.name,
+              status: filters.status,
+            });
+            setTotal(res.total ?? 0);
+            return res;
+          }}
+        />
+      </MainCard>
 
       {/* 新增 / 编辑套餐 */}
       <DrawerForm

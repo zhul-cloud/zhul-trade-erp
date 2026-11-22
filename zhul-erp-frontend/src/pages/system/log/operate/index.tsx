@@ -1,12 +1,28 @@
 import { DownloadOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
-import { Alert, App, Button, Descriptions, Modal, Tag } from 'antd';
-import dayjs from 'dayjs';
-import React, { useRef, useState } from 'react';
+import {
+  Alert,
+  App,
+  Button,
+  DatePicker,
+  Descriptions,
+  Input,
+  Modal,
+  Select,
+  Tag,
+} from 'antd';
+import dayjs, { type Dayjs } from 'dayjs';
+import { Search } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useAppTheme } from '@/theme/AppTheme';
-import { useMenu } from '@/utils/menuName';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import type { OperateLogDetail, OperateLogItem } from './service';
@@ -18,10 +34,19 @@ import {
 } from './service';
 
 const DATE_TIME_FMT = 'YYYY-MM-DD HH:mm:ss';
-const DEFAULT_RANGE: [dayjs.Dayjs, dayjs.Dayjs] = [
+/** 默认最近 7 天（含今天） */
+const defaultRange = (): [Dayjs, Dayjs] => [
   dayjs().subtract(6, 'day').startOf('day'),
   dayjs().endOf('day'),
 ];
+
+interface Filters {
+  operatorName?: string;
+  menu?: string;
+  operation?: string;
+  result?: 0 | 1;
+  range: [Dayjs, Dayjs] | null;
+}
 
 function renderJsonPanel(value: unknown, emptyText: string) {
   if (value === undefined || value === null) {
@@ -62,8 +87,21 @@ function renderJsonPanel(value: unknown, emptyText: string) {
 }
 
 const OperateLogPage: React.FC = () => {
-  const menu = useMenu();
   const pager = usePagination(20);
+  /** 搜索条件：操作结果切换后立即查询，其余点「查询」才生效 */
+  const [filters, setFilters] = useState<Filters>(() => ({
+    range: defaultRange(),
+  }));
+  const [draft, setDraft] = useState<Filters>(filters);
+  const [total, setTotal] = useState(0);
+  const [modules, setModules] = useState<string[]>([]);
+  const search = () =>
+    setFilters({
+      ...draft,
+      operatorName: draft.operatorName?.trim() || undefined,
+      operation: draft.operation?.trim() || undefined,
+      result: filters.result,
+    });
   const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>(undefined);
   const { message } = App.useApp();
@@ -75,6 +113,12 @@ const OperateLogPage: React.FC = () => {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detail, setDetail] = useState<OperateLogDetail | null>(null);
+
+  useEffect(() => {
+    getOperateModules()
+      .then(setModules)
+      .catch(() => message.error('模块列表加载失败，请刷新页面'));
+  }, [message]);
 
   const openDetail = async (record: OperateLogItem) => {
     setDetailOpen(true);
@@ -108,67 +152,34 @@ const OperateLogPage: React.FC = () => {
       title: '操作人',
       dataIndex: 'operatorName',
       width: 160,
+      search: false,
       render: ellipsisRender,
-      fieldProps: { placeholder: '请输入操作人姓名', maxLength: 50 },
     },
     {
       title: '操作模块',
       dataIndex: 'menu',
       width: 130,
       ellipsis: true,
-      valueType: 'select',
-      fieldProps: { placeholder: '全部', showSearch: true },
-      request: async () => {
-        try {
-          const modules = await getOperateModules();
-          return modules.map((m) => ({ label: m, value: m }));
-        } catch {
-          message.error('模块列表加载失败，请刷新页面');
-          return [];
-        }
-      },
+      search: false,
     },
     {
       title: '操作名称',
       dataIndex: 'operation',
       width: 150,
       ellipsis: true,
-      fieldProps: { placeholder: '请输入操作名称', maxLength: 50 },
+      search: false,
     },
     {
       title: '操作结果',
       dataIndex: 'result',
       width: 100,
       align: 'center',
-      valueType: 'select',
-      valueEnum: {
-        1: { text: '成功' },
-        0: { text: '失败' },
-      },
-      fieldProps: { placeholder: '全部' },
+      search: false,
       render: (_, r) => (
         <Tag color={r.result === 1 ? 'success' : 'error'}>
           {r.result === 1 ? '成功' : '失败'}
         </Tag>
       ),
-    },
-    {
-      title: '操作时间',
-      width: 170,
-      dataIndex: 'operateTimeRange',
-      valueType: 'dateTimeRange',
-      hideInTable: true,
-      initialValue: DEFAULT_RANGE,
-      fieldProps: {
-        showTime: { format: 'HH:mm:ss' },
-        format: DATE_TIME_FMT,
-      },
-      search: {
-        transform: (value: [string, string]) => ({
-          startTime: value?.[0],
-          endTime: value?.[1],
-        }),
-      },
     },
     {
       title: '操作时间',
@@ -207,48 +218,140 @@ const OperateLogPage: React.FC = () => {
           style={{ marginBottom: 16 }}
         />
       )}
-      <ProTable<OperateLogItem>
-        scroll={{ x: tableScrollX(columns) }}
-        headerTitle={menu?.name}
-        actionRef={actionRef}
-        rowKey="id"
-        columns={columns}
-        search={{ labelWidth: 'auto' }}
-        pagination={{ ...pager, pageSizeOptions: [20, 50, 100] }}
-        locale={{ emptyText: '暂无操作日志数据' }}
-        options={false}
-        toolBarRender={() => [
+      <PageHeader />
+      <FilterCard
+        onSearch={search}
+        onReset={() => {
+          const d = { range: defaultRange() };
+          setDraft(d);
+          setFilters(d);
+        }}
+        moreCount={[filters.menu, filters.operation].filter(Boolean).length}
+        more={
+          <>
+            <FilterField label="操作模块">
+              <Select
+                allowClear
+                showSearch
+                placeholder="全部"
+                aria-label="操作模块"
+                value={draft.menu}
+                onChange={(v) => setDraft({ ...draft, menu: v })}
+                options={modules.map((m) => ({ label: m, value: m }))}
+              />
+            </FilterField>
+            <FilterField label="操作名称">
+              <Input
+                allowClear
+                placeholder="操作名称"
+                aria-label="操作名称"
+                maxLength={50}
+                value={draft.operation}
+                onChange={(e) =>
+                  setDraft({ ...draft, operation: e.target.value })
+                }
+                onPressEnter={search}
+              />
+            </FilterField>
+          </>
+        }
+      >
+        <FilterField label="操作人" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="操作人姓名"
+            aria-label="操作人"
+            maxLength={50}
+            value={draft.operatorName}
+            onChange={(e) =>
+              setDraft({ ...draft, operatorName: e.target.value })
+            }
+            onPressEnter={search}
+          />
+        </FilterField>
+        <FilterField label="操作结果">
+          <Select<0 | 1>
+            allowClear
+            placeholder="全部"
+            aria-label="操作结果"
+            value={filters.result}
+            // 和状态一样，切换后立即查询
+            onChange={(v) => {
+              setFilters({ ...filters, result: v });
+              setDraft({ ...draft, result: v });
+            }}
+            options={[
+              { value: 1, label: '成功' },
+              { value: 0, label: '失败' },
+            ]}
+          />
+        </FilterField>
+        <FilterField label="操作时间" span={2}>
+          <DatePicker.RangePicker
+            showTime={{ format: 'HH:mm:ss' }}
+            format={DATE_TIME_FMT}
+            style={{ width: '100%' }}
+            aria-label="操作时间"
+            value={draft.range}
+            onChange={(v) =>
+              setDraft({
+                ...draft,
+                range: v?.[0] && v[1] ? [v[0], v[1]] : null,
+              })
+            }
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard
+        left={`共 ${total} 条`}
+        right={
           <Button
-            key="export"
+            type="text"
             icon={<DownloadOutlined />}
+            style={{ color: p.link }}
             loading={exporting}
             onClick={handleExport}
           >
             导出 Excel
-          </Button>,
-        ]}
-        request={async (params) => {
-          const start = params.startTime ? dayjs(params.startTime) : undefined;
-          const end = params.endTime ? dayjs(params.endTime) : undefined;
-          setRangeWarning(!!start && !!end && end.diff(start, 'day') > 90);
+          </Button>
+        }
+      >
+        <ProTable<OperateLogItem>
+          scroll={{ x: tableScrollX(columns) }}
+          actionRef={actionRef}
+          rowKey="id"
+          columns={columns}
+          params={filters}
+          search={false}
+          toolBarRender={false}
+          pagination={{ ...pager, pageSizeOptions: [20, 50, 100] }}
+          locale={{ emptyText: '暂无操作日志数据' }}
+          options={false}
+          request={async (params) => {
+            const [start, end] = filters.range ?? [];
+            setRangeWarning(!!start && !!end && end.diff(start, 'day') > 90);
 
-          const queryParams = {
-            operatorName: params.operatorName,
-            menu: params.menu,
-            operation: params.operation,
-            result: params.result,
-            startTime: params.startTime,
-            endTime: params.endTime,
-          };
-          setLastParams(queryParams);
+            const queryParams = {
+              operatorName: filters.operatorName,
+              menu: filters.menu,
+              operation: filters.operation,
+              result: filters.result,
+              startTime: start?.format(DATE_TIME_FMT),
+              endTime: end?.format(DATE_TIME_FMT),
+            };
+            setLastParams(queryParams);
 
-          return getOperateLogList({
-            current: params.current,
-            pageSize: params.pageSize,
-            ...queryParams,
-          });
-        }}
-      />
+            const res = await getOperateLogList({
+              current: params.current,
+              pageSize: params.pageSize,
+              ...queryParams,
+            });
+            setTotal(res.total ?? 0);
+            return res;
+          }}
+        />
+      </MainCard>
 
       <Modal
         title="操作详情"

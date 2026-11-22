@@ -2,26 +2,61 @@ import { DownloadOutlined, LogoutOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import { Alert, App, Button, Tag, Tooltip } from 'antd';
-import dayjs from 'dayjs';
+import {
+  Alert,
+  App,
+  Button,
+  DatePicker,
+  Input,
+  Select,
+  Tag,
+  Tooltip,
+} from 'antd';
+import dayjs, { type Dayjs } from 'dayjs';
+import { Search } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useAppTheme } from '@/theme/AppTheme';
-import { useMenu } from '@/utils/menuName';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import type { LoginLogItem } from './service';
 import { exportLoginLogs, forceLogout, getLoginLogList } from './service';
 
 const DATE_TIME_FMT = 'YYYY-MM-DD HH:mm:ss';
-const DEFAULT_RANGE: [dayjs.Dayjs, dayjs.Dayjs] = [
+/** 默认最近 7 天（含今天） */
+const defaultRange = (): [Dayjs, Dayjs] => [
   dayjs().subtract(6, 'day').startOf('day'),
   dayjs().endOf('day'),
 ];
 
+interface Filters {
+  operatorName?: string;
+  ip?: string;
+  result?: 0 | 1;
+  range: [Dayjs, Dayjs] | null;
+}
+
 const LoginLogPage: React.FC = () => {
-  const menu = useMenu();
   const pager = usePagination(20);
+  /** 搜索条件：登录结果切换后立即查询，其余点「查询」才生效 */
+  const [filters, setFilters] = useState<Filters>(() => ({
+    range: defaultRange(),
+  }));
+  const [draft, setDraft] = useState<Filters>(filters);
+  const [total, setTotal] = useState(0);
+  const search = () =>
+    setFilters({
+      ...draft,
+      operatorName: draft.operatorName?.trim() || undefined,
+      ip: draft.ip?.trim() || undefined,
+      result: filters.result,
+    });
   const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>(undefined);
   const { message, modal } = App.useApp();
@@ -92,17 +127,15 @@ const LoginLogPage: React.FC = () => {
       title: '用户名',
       dataIndex: 'operatorName',
       width: 180,
+      search: false,
       render: ellipsisRender,
-      fieldProps: { placeholder: '请输入用户名', maxLength: 50 },
     },
     {
       title: '登录结果',
       dataIndex: 'result',
       width: 110,
       align: 'center',
-      valueType: 'select',
-      valueEnum: { 1: { text: '成功' }, 0: { text: '失败' } },
-      fieldProps: { placeholder: '全部' },
+      search: false,
       render: (_, r) => (
         <span>
           <Tag color={r.result === 1 ? 'success' : 'error'}>
@@ -115,34 +148,6 @@ const LoginLogPage: React.FC = () => {
           )}
         </span>
       ),
-    },
-    {
-      title: 'IP地址',
-      width: 140,
-      dataIndex: 'ip',
-      hideInTable: true,
-      fieldProps: {
-        placeholder: '请输入IP地址，支持网段如192.168',
-        maxLength: 64,
-      },
-    },
-    {
-      title: '登录时间',
-      width: 170,
-      dataIndex: 'operateTimeRange',
-      valueType: 'dateTimeRange',
-      hideInTable: true,
-      initialValue: DEFAULT_RANGE,
-      fieldProps: {
-        showTime: { format: 'HH:mm:ss' },
-        format: DATE_TIME_FMT,
-      },
-      search: {
-        transform: (value: [string, string]) => ({
-          startTime: value?.[0],
-          endTime: value?.[1],
-        }),
-      },
     },
     {
       title: '登录IP',
@@ -197,84 +202,163 @@ const LoginLogPage: React.FC = () => {
           style={{ marginBottom: 16 }}
         />
       )}
-      <ProTable<LoginLogItem>
-        scroll={{ x: tableScrollX(columns) }}
-        headerTitle={menu?.name}
-        actionRef={actionRef}
-        rowKey="id"
-        columns={columns}
-        search={{ labelWidth: 'auto' }}
-        pagination={{ ...pager, pageSizeOptions: [20, 50, 100] }}
-        locale={{ emptyText: '暂无登录日志数据' }}
-        options={false}
-        rowSelection={
-          canForceLogout
-            ? {
-                selectedRowKeys,
-                onChange: (keys, rows) => {
-                  setSelectedRowKeys(keys);
-                  setSelectedRows(rows);
-                },
-                getCheckboxProps: (record) => ({
-                  disabled: !record.checkable,
-                }),
-              }
-            : undefined
-        }
-        toolBarRender={() => [
-          canForceLogout && (
-            <Tooltip
-              key="force-logout-tip"
-              title={
-                selectedRowKeys.length === 0 ? '请先勾选在线用户' : undefined
-              }
-            >
-              <Button
-                danger={selectedRowKeys.length > 0}
-                disabled={selectedRowKeys.length === 0}
-                icon={<LogoutOutlined />}
-                onClick={handleForceLogout}
-              >
-                强制下线
-                {selectedRowKeys.length > 0
-                  ? `（${selectedRowKeys.length}）`
-                  : ''}
-              </Button>
-            </Tooltip>
-          ),
-          <Button
-            key="export"
-            icon={<DownloadOutlined />}
-            loading={exporting}
-            onClick={handleExport}
-          >
-            导出 Excel
-          </Button>,
-        ]}
-        request={async (params) => {
-          setSelectedRowKeys([]);
-          setSelectedRows([]);
-
-          const start = params.startTime ? dayjs(params.startTime) : undefined;
-          const end = params.endTime ? dayjs(params.endTime) : undefined;
-          setRangeWarning(!!start && !!end && end.diff(start, 'day') > 90);
-
-          const queryParams = {
-            operatorName: params.operatorName,
-            ip: params.ip,
-            result: params.result,
-            startTime: params.startTime,
-            endTime: params.endTime,
-          };
-          setLastParams(queryParams);
-
-          return getLoginLogList({
-            current: params.current,
-            pageSize: params.pageSize,
-            ...queryParams,
-          });
+      <PageHeader />
+      <FilterCard
+        onSearch={search}
+        onReset={() => {
+          const d = { range: defaultRange() };
+          setDraft(d);
+          setFilters(d);
         }}
-      />
+        moreCount={filters.ip ? 1 : 0}
+        more={
+          <FilterField label="IP 地址">
+            <Input
+              allowClear
+              placeholder="支持网段，如 192.168"
+              aria-label="IP 地址"
+              maxLength={64}
+              value={draft.ip}
+              onChange={(e) => setDraft({ ...draft, ip: e.target.value })}
+              onPressEnter={search}
+            />
+          </FilterField>
+        }
+      >
+        <FilterField label="用户名" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="用户名"
+            aria-label="用户名"
+            maxLength={50}
+            value={draft.operatorName}
+            onChange={(e) =>
+              setDraft({ ...draft, operatorName: e.target.value })
+            }
+            onPressEnter={search}
+          />
+        </FilterField>
+        <FilterField label="登录结果">
+          <Select<0 | 1>
+            allowClear
+            placeholder="全部"
+            aria-label="登录结果"
+            value={filters.result}
+            // 和状态一样，切换后立即查询
+            onChange={(v) => {
+              setFilters({ ...filters, result: v });
+              setDraft({ ...draft, result: v });
+            }}
+            options={[
+              { value: 1, label: '成功' },
+              { value: 0, label: '失败' },
+            ]}
+          />
+        </FilterField>
+        <FilterField label="登录时间" span={2}>
+          <DatePicker.RangePicker
+            showTime={{ format: 'HH:mm:ss' }}
+            format={DATE_TIME_FMT}
+            style={{ width: '100%' }}
+            aria-label="登录时间"
+            value={draft.range}
+            onChange={(v) =>
+              setDraft({
+                ...draft,
+                range: v?.[0] && v[1] ? [v[0], v[1]] : null,
+              })
+            }
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard
+        left={
+          selectedRowKeys.length > 0
+            ? `已选 ${selectedRowKeys.length} 条`
+            : `共 ${total} 条`
+        }
+        right={
+          <>
+            {canForceLogout && (
+              <Tooltip
+                title={
+                  selectedRowKeys.length === 0 ? '请先勾选在线用户' : undefined
+                }
+              >
+                <Button
+                  danger={selectedRowKeys.length > 0}
+                  disabled={selectedRowKeys.length === 0}
+                  icon={<LogoutOutlined />}
+                  onClick={handleForceLogout}
+                >
+                  强制下线
+                </Button>
+              </Tooltip>
+            )}
+            <Button
+              type="text"
+              icon={<DownloadOutlined />}
+              style={{ color: p.link }}
+              loading={exporting}
+              onClick={handleExport}
+            >
+              导出 Excel
+            </Button>
+          </>
+        }
+      >
+        <ProTable<LoginLogItem>
+          scroll={{ x: tableScrollX(columns) }}
+          actionRef={actionRef}
+          rowKey="id"
+          columns={columns}
+          params={filters}
+          search={false}
+          toolBarRender={false}
+          pagination={{ ...pager, pageSizeOptions: [20, 50, 100] }}
+          locale={{ emptyText: '暂无登录日志数据' }}
+          options={false}
+          rowSelection={
+            canForceLogout
+              ? {
+                  selectedRowKeys,
+                  onChange: (keys, rows) => {
+                    setSelectedRowKeys(keys);
+                    setSelectedRows(rows);
+                  },
+                  getCheckboxProps: (record) => ({
+                    disabled: !record.checkable,
+                  }),
+                }
+              : undefined
+          }
+          request={async (params) => {
+            setSelectedRowKeys([]);
+            setSelectedRows([]);
+
+            const [start, end] = filters.range ?? [];
+            setRangeWarning(!!start && !!end && end.diff(start, 'day') > 90);
+
+            const queryParams = {
+              operatorName: filters.operatorName,
+              ip: filters.ip,
+              result: filters.result,
+              startTime: start?.format(DATE_TIME_FMT),
+              endTime: end?.format(DATE_TIME_FMT),
+            };
+            setLastParams(queryParams);
+
+            const res = await getLoginLogList({
+              current: params.current,
+              pageSize: params.pageSize,
+              ...queryParams,
+            });
+            setTotal(res.total ?? 0);
+            return res;
+          }}
+        />
+      </MainCard>
     </>
   );
 };
