@@ -1,11 +1,13 @@
 import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Input, Segmented, Space, Table } from 'antd';
+import { App, Button, Input, Select, Space, Table } from 'antd';
+import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerSub } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
+import { FilterCard, FilterField, MainCard } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import { RQ_STATUS_TONE } from '@/pages/sales/after-sales/service';
 import { PATHS } from '@/pages/sales/components';
@@ -31,6 +33,13 @@ export const refundSourceRef = (r: RefundRequest) =>
     : r.afterSalesId
       ? { no: r.asNo, href: PATHS.afterSales(r.afterSalesId) }
       : {};
+
+/** 帮助文字：关键词范围以 search-scope.md「退款申请」为准 */
+const KEYWORD_HELP = '可搜：申请号、退货单号、订单编号、售后单号';
+
+/** 下拉选项后面带数量（stat-cards.md：状态并入下拉） */
+const withCount = (label: string, n?: number) =>
+  n ? `${label} · ${n}` : label;
 
 /** 退款管理 → 退款申请（spec finance/refund-request）：审批（开关打开时）、执行、驳回 */
 const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
@@ -98,28 +107,31 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
 
   const showApproval =
     !!counts && (counts.approvalRequired > 0 || counts.pendingApproval > 0);
-  const tabs = [
+  const statusOptions = [
     {
-      value: RQ_STATUS.PENDING_RECEIPT as number | 'all',
-      label: `待验收 ${counts?.pendingReceipt ?? 0}`,
+      value: RQ_STATUS.PENDING_RECEIPT,
+      label: withCount('待验收', counts?.pendingReceipt),
     },
     ...(showApproval
       ? [
           {
-            value: RQ_STATUS.PENDING_APPROVAL as number | 'all',
-            label: `待审批 ${counts?.pendingApproval ?? 0}`,
+            value: RQ_STATUS.PENDING_APPROVAL,
+            label: withCount('待审批', counts?.pendingApproval),
           },
         ]
       : []),
     {
       value: RQ_STATUS.PENDING_FINANCE,
-      label: `待财务处理 ${counts?.pendingFinance ?? 0}`,
+      label: withCount('待财务处理', counts?.pendingFinance),
     },
     { value: RQ_STATUS.EXECUTED, label: '已执行' },
     { value: RQ_STATUS.REJECTED, label: '已驳回' },
     { value: RQ_STATUS.WITHDRAWN, label: '已撤回' },
-    { value: 'all' as const, label: '全部' },
   ];
+  const search = () => {
+    setQuery(keyword.trim());
+    setPage(1);
+  };
 
   const sub = (t?: React.ReactNode) =>
     t ? <div style={{ fontSize: 12, color: palette.mute }}>{t}</div> : null;
@@ -286,64 +298,72 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
   ];
 
   return (
-    <Card style={{ padding: 16 }}>
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          marginBottom: 12,
+    <>
+      <FilterCard
+        onSearch={search}
+        onReset={() => {
+          // 重置回默认视图：待财务处理
+          setKeyword('');
+          setQuery('');
+          setStatus(RQ_STATUS.PENDING_FINANCE);
+          setPage(1);
         }}
       >
-        <Segmented<number | 'all'>
-          value={status}
-          onChange={(v) => {
-            setStatus(v);
-            setPage(1);
+        <FilterField label="关键词" span={2} help={KEYWORD_HELP}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="申请号、退货单号、订单编号"
+            aria-label="关键词"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={search}
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select<number>
+            allowClear
+            placeholder="全部"
+            aria-label="状态"
+            value={status === 'all' ? undefined : status}
+            // 状态下拉切换后立即查询
+            onChange={(v) => {
+              setStatus(v ?? 'all');
+              setPage(1);
+            }}
+            options={statusOptions}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard left={`共 ${total} 条`}>
+        <Table<RefundRequest>
+          rowKey="id"
+          size="middle"
+          loading={loading}
+          columns={columns}
+          dataSource={rows}
+          scroll={{ x: tableScrollX(columns) }}
+          locale={{
+            emptyText:
+              status === RQ_STATUS.PENDING_RECEIPT
+                ? '没有待验收的退款申请；退货退款没勾选「先退款」时，仓库验收前在这里'
+                : status === RQ_STATUS.PENDING_FINANCE
+                  ? '没有待处理的退款申请；业务员在售后单或订单详情提出'
+                  : '没有符合条件的退款申请',
           }}
-          options={tabs}
-        />
-        <Input.Search
-          allowClear
-          placeholder="申请号、退货单号、售后单号、订单号"
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          onSearch={(v) => {
-            setQuery(v.trim());
-            setPage(1);
+          pagination={{
+            current: page,
+            pageSize,
+            total,
+            showSizeChanger: true,
+            showTotal: (t) => `共 ${t} 条`,
+            onChange: (p, s) => {
+              setPage(p);
+              setPageSize(s);
+            },
           }}
-          style={{ width: 260 }}
-          aria-label="关键词"
         />
-      </div>
-      <Table<RefundRequest>
-        rowKey="id"
-        size="middle"
-        loading={loading}
-        columns={columns}
-        dataSource={rows}
-        scroll={{ x: tableScrollX(columns) }}
-        locale={{
-          emptyText:
-            status === RQ_STATUS.PENDING_RECEIPT
-              ? '没有待验收的退款申请；退货退款没勾选「先退款」时，仓库验收前在这里'
-              : status === RQ_STATUS.PENDING_FINANCE
-                ? '没有待处理的退款申请；业务员在售后单或订单详情提出'
-                : '没有符合条件的退款申请',
-        }}
-        pagination={{
-          current: page,
-          pageSize,
-          total,
-          showSizeChanger: true,
-          showTotal: (t) => `共 ${t} 条`,
-          onChange: (p, s) => {
-            setPage(p);
-            setPageSize(s);
-          },
-        }}
-      />
+      </MainCard>
       <RefundModal
         open={!!executing}
         soId={executing?.soId}
@@ -380,7 +400,7 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
           done();
         }}
       />
-    </Card>
+    </>
   );
 };
 

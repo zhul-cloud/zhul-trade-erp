@@ -1,6 +1,7 @@
 import { useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table, Tooltip } from 'antd';
+import { App, Skeleton, Table } from 'antd';
+import { CircleX } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
   docBrandColumns,
@@ -13,20 +14,15 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import {
-  Card,
-  PageTitle,
-  Pill,
-  useWide,
-} from '@/pages/inquiry/shared/components';
+import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { PATHS } from '@/pages/sales/components';
 import { readBizError } from '@/pages/sales/service';
 import { ReasonModal, relatedRows } from '@/pages/warehouse/components';
 import { UnitPill, useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
 import {
   REFUND_TYPE_WITHDRAW,
   type Refund,
@@ -164,17 +160,14 @@ const RefundDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[<MenuLink key="list" to="/finance/refunds" />, f.refundNo]}
-        title={
-          <>
-            {f.refundNo}
-            <Pill tone={valid ? 'green' : 'mute'}>
-              {valid ? '有效' : '已作废'}
-            </Pill>
-          </>
+      <PageHeader
+        title={f.refundNo}
+        tags={
+          <Pill tone={valid ? 'green' : 'mute'}>
+            {valid ? '有效' : '已作废'}
+          </Pill>
         }
-        description={
+        sub={
           <>
             {f.customerName ?? '—'} ·{' '}
             {source ? <SourceNos mode="inline" refs={[source]} /> : '—'} ·{' '}
@@ -182,18 +175,24 @@ const RefundDetail: React.FC = () => {
             创建
           </>
         }
-        actions={
+        // 作废收进「更多」；迁移数据不能作废，原因写在菜单项里
+        extra={
           valid &&
           !!access['finance:refund:edit'] && (
-            <Tooltip title={f.migrated ? '历史迁移数据不能修改' : undefined}>
-              <Button
-                danger
-                disabled={f.migrated}
-                onClick={() => setVoiding(true)}
-              >
-                作废
-              </Button>
-            </Tooltip>
+            <MoreActions
+              items={[
+                {
+                  key: 'void',
+                  label: '作废',
+                  icon: <CircleX size={16} />,
+                  danger: true,
+                  disabledReason: f.migrated
+                    ? '历史迁移数据不能修改'
+                    : undefined,
+                },
+              ]}
+              onClick={() => setVoiding(true)}
+            />
           )
         }
       />

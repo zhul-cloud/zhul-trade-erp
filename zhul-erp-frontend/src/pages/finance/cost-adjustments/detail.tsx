@@ -12,19 +12,14 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import {
-  Card,
-  PageTitle,
-  Pill,
-  useWide,
-} from '@/pages/inquiry/shared/components';
+import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { BatchLink } from '@/pages/warehouse/inventoryParts';
 import { docHref } from '@/pages/warehouse/inventoryService';
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
-import { MenuLink } from '@/utils/menuName';
 import { ReasonPill, SignedMoney } from '../costingParts';
 import {
   type CostAdjust,
@@ -269,18 +264,10 @@ const CostAdjustDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[
-          <MenuLink key="list" to="/finance/cost-adjustments" />,
-          r.adjustNo,
-        ]}
-        title={
-          <>
-            {r.adjustNo}
-            <ReasonPill reason={r.reason} name={r.reasonName} />
-          </>
-        }
-        description={
+      <PageHeader
+        title={r.adjustNo}
+        tags={<ReasonPill reason={r.reason} name={r.reasonName} />}
+        sub={
           <>
             所属 {r.periodMonth} · {r.adjustDate} 系统生成
             {r.sourceDocNo && (

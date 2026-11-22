@@ -1,6 +1,7 @@
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table, Tooltip } from 'antd';
+import { App, Button, Skeleton, Table } from 'antd';
+import { CircleX, Pencil } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   DocLogCard,
@@ -9,11 +10,11 @@ import {
   SectionTitle,
 } from '@/components/DocFields/DocPage';
 import { DocFilesCard } from '@/components/DocFiles';
+import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import {
   Card,
   MigratedPill,
-  PageTitle,
   Pill,
   useWide,
 } from '@/pages/inquiry/shared/components';
@@ -27,7 +28,6 @@ import {
 import { useAppTheme } from '@/theme/AppTheme';
 import { UnitPill, useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
 import { PayStatusPill } from '../payables/components';
 import { METHOD } from '../payables/service';
 import {
@@ -247,18 +247,17 @@ const ExpenseDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[<MenuLink key="list" to="/finance/expenses" />, e.expenseNo]}
-        title={
+      <PageHeader
+        title={e.expenseNo}
+        tags={
           <>
-            {e.expenseNo}
             <Pill tone={valid ? 'green' : 'mute'}>
               {valid ? '有效' : '已作废'}
             </Pill>
             {e.migrated && <MigratedPill migrated />}
           </>
         }
-        description={
+        sub={
           <>
             {e.payeeName || '—'}
             {firstSo && (
@@ -272,19 +271,29 @@ const ExpenseDetail: React.FC = () => {
             创建
           </>
         }
-        actions={
+        extra={
           canEdit && (
             <>
-              <Button onClick={() => setEditing(true)}>修改</Button>
-              <Tooltip title={voidBlocked}>
-                <Button
-                  danger
-                  disabled={!!voidBlocked}
-                  onClick={() => setVoiding(true)}
-                >
-                  作废
-                </Button>
-              </Tooltip>
+              <Button
+                type="text"
+                icon={<Pencil size={16} />}
+                style={{ color: palette.link }}
+                onClick={() => setEditing(true)}
+              >
+                修改
+              </Button>
+              <MoreActions
+                items={[
+                  {
+                    key: 'void',
+                    label: '作废',
+                    icon: <CircleX size={16} />,
+                    danger: true,
+                    disabledReason: voidBlocked || undefined,
+                  },
+                ]}
+                onClick={() => setVoiding(true)}
+              />
             </>
           )
         }

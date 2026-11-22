@@ -1,15 +1,21 @@
-import { SearchOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Checkbox, DatePicker, Input, Select, Table } from 'antd';
+import { App, Checkbox, DatePicker, Input, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
+import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerSub } from '@/components/DocFields';
 import { ellipsisRender } from '@/components/EllipsisText';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
-import { Card, PATHS, Pill } from '@/pages/sales/components';
+import { PATHS, Pill } from '@/pages/sales/components';
 import { type ReceiptRow, readBizError } from '@/pages/sales/service';
 import { DOC_PATHS } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -42,6 +48,14 @@ interface Filters {
   includeVoid: boolean;
   unit?: number;
 }
+
+/** 帮助文字：help-texts.md「收款管理」，关键词范围以 search-scope.md 为准 */
+export const RECORDS_HELP = {
+  keyword:
+    '可搜：收款单号、平台订单号、付款人、PI 编号、订单编号（只限手动订单和费用订单）、客户名称、简称或联系人',
+  summary:
+    '按当前筛选条件计算（只算有效到账），和列表逐笔相加一致；未认领的到账不在这里，见「未认领到账」',
+} as const;
 
 const initial = (): Filters => ({
   keyword: '',
@@ -102,47 +116,25 @@ const RecordsTab: React.FC = () => {
 
   useOnReactivate(load);
 
-  const card = (s: ReceiptSummary) => {
-    const tone =
-      s.channel === 2 ? 'violet' : s.channel === 1 ? 'gray' : 'accent';
+  /** 线上、线下、合计三张卡改为页签内的汇总行（stat-cards.md），口径不变 */
+  const summaryItem = (s: ReceiptSummary) => {
     const name = s.channel === 2 ? '线上' : s.channel === 1 ? '线下' : '合计';
-    return (
-      <div
-        key={s.channel}
-        style={{
-          padding: '16px 18px',
-          borderRadius: 14,
-          background: palette.card,
-          border: `1px solid ${palette.hairline}`,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Pill tone={tone}>{name}</Pill>
-          <span style={{ color: palette.sub, fontSize: 13 }}>{s.count} 笔</span>
-        </div>
-        <div
-          style={{
-            ...num,
-            fontSize: 22,
-            fontWeight: 800,
-            color: palette.ink,
-            marginTop: 6,
-          }}
-        >
-          {formatAmount(s.netAmountCny, 'CNY')}
-        </div>
-        <div style={{ fontSize: 12, color: palette.mute }}>
-          实收人民币
-          {s.openNetAmountCny
-            ? ` · 其中未结完 ${formatAmount(s.openNetAmountCny, 'CNY')}（含估算）`
-            : ''}
-        </div>
-        <div style={{ fontSize: 12, color: palette.sub, marginTop: 4 }}>
-          毛额 {moneyText(s.amounts)}
-          {s.fees.length ? ` · 手续费 ${moneyText(s.fees)}` : ''}
-        </div>
-      </div>
-    );
+    const gross = `毛额 ${moneyText(s.amounts)}${s.fees.length ? `；手续费 ${moneyText(s.fees)}` : ''}`;
+    return {
+      key: String(s.channel),
+      label: name,
+      value: s.netAmountCny,
+      currency: 'CNY',
+      help:
+        s.channel === 0
+          ? `实收人民币，${RECORDS_HELP.summary}。${gross}`
+          : `实收人民币。${gross}`,
+      sub: `${s.count} 笔${s.openNetAmountCny ? ` · 未结完 ${formatAmount(s.openNetAmountCny, 'CNY')}（含估算）` : ''}`,
+    };
+  };
+  const apply = () => {
+    setFilters(draft);
+    setPage(1);
   };
 
   const open = (r: ReceiptRow) => history.push(DOC_PATHS.receiptDoc(r.id));
@@ -338,52 +330,110 @@ const RecordsTab: React.FC = () => {
 
   return (
     <div>
-      <Card style={{ marginBottom: 16, padding: 16 }}>
-        <div
-          style={{
-            display: 'flex',
-            gap: 12,
-            alignItems: 'center',
-            flexWrap: 'wrap',
-          }}
-        >
+      {summary.length > 0 && <SummaryBar items={summary.map(summaryItem)} />}
+      <FilterCard
+        onSearch={apply}
+        onReset={() => {
+          setDraft(initial());
+          setFilters(initial());
+          setPage(1);
+        }}
+        moreCount={
+          [
+            bu.enabled ? filters.unit : undefined,
+            filters.paymentMethod,
+            filters.currencyCode,
+            filters.settleStatus,
+            filters.includeVoid || undefined,
+          ].filter((v) => v != null).length
+        }
+        more={
+          <>
+            {bu.enabled && (
+              <FilterField label="所属事业部">
+                <Select
+                  allowClear
+                  placeholder="全部"
+                  aria-label="所属事业部"
+                  value={draft.unit}
+                  onChange={(v) => setDraft({ ...draft, unit: v })}
+                  options={unitFilterOptions(bu, false)}
+                />
+              </FilterField>
+            )}
+            <FilterField label="付款方式">
+              <Select
+                allowClear
+                placeholder="全部"
+                aria-label="付款方式"
+                value={draft.paymentMethod}
+                onChange={(v) => setDraft({ ...draft, paymentMethod: v })}
+                options={methods.map((m) => ({ value: m.code, label: m.name }))}
+              />
+            </FilterField>
+            <FilterField label="币种">
+              <Select
+                allowClear
+                placeholder="全部"
+                aria-label="币种"
+                value={draft.currencyCode}
+                onChange={(v) => setDraft({ ...draft, currencyCode: v })}
+                options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+              />
+            </FilterField>
+            <FilterField label="结汇状态">
+              <Select
+                allowClear
+                placeholder="全部"
+                aria-label="结汇状态"
+                value={draft.settleStatus}
+                onChange={(v) => setDraft({ ...draft, settleStatus: v })}
+                options={[
+                  { value: 1, label: '未结汇' },
+                  { value: 2, label: '部分结汇' },
+                  { value: 3, label: '已结汇' },
+                ]}
+              />
+            </FilterField>
+            <FilterField label="已作废">
+              <Checkbox
+                checked={draft.includeVoid}
+                onChange={(e) =>
+                  setDraft({ ...draft, includeVoid: e.target.checked })
+                }
+              >
+                一并显示
+              </Checkbox>
+            </FilterField>
+          </>
+        }
+      >
+        <FilterField label="关键词" span={2} help={RECORDS_HELP.keyword}>
           <Input
             allowClear
-            style={{ width: 280 }}
-            prefix={<SearchOutlined />}
-            placeholder="收款单号、PI / 订单编号、客户、平台订单号、付款人"
+            prefix={<Search size={16} />}
+            placeholder="收款单号、PI 编号、客户"
+            aria-label="关键词"
             value={draft.keyword}
             onChange={(e) => setDraft({ ...draft, keyword: e.target.value })}
+            onPressEnter={apply}
           />
+        </FilterField>
+        <FilterField label="到账日期" span={2}>
           <DatePicker.RangePicker
+            style={{ width: '100%' }}
             value={draft.range}
             onChange={(v) =>
               setDraft({ ...draft, range: v as [Dayjs, Dayjs] | null })
             }
             aria-label="到账日期"
           />
-          {bu.enabled && (
-            <Select
-              allowClear
-              style={{ width: 170 }}
-              placeholder="所属事业部"
-              value={draft.unit}
-              onChange={(v) => setDraft({ ...draft, unit: v })}
-              options={unitFilterOptions(bu, false)}
-            />
-          )}
+        </FilterField>
+        <FilterField label="线上 / 线下">
           <Select
             allowClear
-            style={{ width: 160 }}
-            placeholder="全部付款方式"
-            value={draft.paymentMethod}
-            onChange={(v) => setDraft({ ...draft, paymentMethod: v })}
-            options={methods.map((m) => ({ value: m.code, label: m.name }))}
-          />
-          <Select
-            allowClear
-            style={{ width: 130 }}
-            placeholder="线上 / 线下"
+            placeholder="全部"
+            aria-label="线上 / 线下"
             value={draft.channel}
             onChange={(v) => setDraft({ ...draft, channel: v })}
             options={[
@@ -391,95 +441,36 @@ const RecordsTab: React.FC = () => {
               { value: 1, label: '线下' },
             ]}
           />
-          <Select
-            allowClear
-            style={{ width: 120 }}
-            placeholder="全部币种"
-            value={draft.currencyCode}
-            onChange={(v) => setDraft({ ...draft, currencyCode: v })}
-            options={CURRENCIES.map((c) => ({ value: c, label: c }))}
-          />
-          <Select
-            allowClear
-            style={{ width: 130 }}
-            placeholder="结汇状态"
-            value={draft.settleStatus}
-            onChange={(v) => setDraft({ ...draft, settleStatus: v })}
-            options={[
-              { value: 1, label: '未结汇' },
-              { value: 2, label: '部分结汇' },
-              { value: 3, label: '已结汇' },
-            ]}
-          />
-          <Checkbox
-            checked={draft.includeVoid}
-            onChange={(e) =>
-              setDraft({ ...draft, includeVoid: e.target.checked })
-            }
-          >
-            含已作废
-          </Checkbox>
-          <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-            <Button
-              onClick={() => {
-                setDraft(initial());
-                setFilters(initial());
-                setPage(1);
-              }}
-            >
-              重置
-            </Button>
-            <Button
-              type="primary"
-              onClick={() => {
-                setFilters(draft);
-                setPage(1);
-              }}
-            >
-              查询
-            </Button>
-          </span>
-        </div>
-      </Card>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-          gap: 16,
-          marginBottom: 16,
-        }}
-      >
-        {summary.map(card)}
-      </div>
-      <Table<ReceiptRow>
-        rowKey="id"
-        columns={columns}
-        dataSource={rows}
-        loading={loading}
-        scroll={{ x: tableScrollX(columns) }}
-        locale={{ emptyText: '没有符合条件的收款单' }}
-        onChange={(_, __, sorter, extra) => {
-          // 翻页也会触发 onChange，只在排序时回到第 1 页（audit UI-061）
-          if (extra.action !== 'sort') return;
-          const s = Array.isArray(sorter) ? sorter[0] : sorter;
-          setByDate(s?.field === 'receiptDate' && !!s.order);
-          setPage(1);
-        }}
-        pagination={{
-          current: page,
-          pageSize,
-          total,
-          showSizeChanger: true,
-          showTotal: (t) => `共 ${t} 条`,
-          onChange: (p, s) => {
-            setPage(p);
-            setPageSize(s);
-          },
-        }}
-      />
-      <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
-        汇总按当前筛选条件计算（只算有效到账），和列表逐笔相加一致；未认领的到账不在这里，见「未认领到账」。
-      </div>
+        </FilterField>
+      </FilterCard>
+      <MainCard left={`共 ${total} 条`}>
+        <Table<ReceiptRow>
+          rowKey="id"
+          columns={columns}
+          dataSource={rows}
+          loading={loading}
+          scroll={{ x: tableScrollX(columns) }}
+          locale={{ emptyText: '没有符合条件的收款单' }}
+          onChange={(_, __, sorter, extra) => {
+            // 翻页也会触发 onChange，只在排序时回到第 1 页（audit UI-061）
+            if (extra.action !== 'sort') return;
+            const s = Array.isArray(sorter) ? sorter[0] : sorter;
+            setByDate(s?.field === 'receiptDate' && !!s.order);
+            setPage(1);
+          }}
+          pagination={{
+            current: page,
+            pageSize,
+            total,
+            showSizeChanger: true,
+            showTotal: (t) => `共 ${t} 条`,
+            onChange: (p, s) => {
+              setPage(p);
+              setPageSize(s);
+            },
+          }}
+        />
+      </MainCard>
     </div>
   );
 };

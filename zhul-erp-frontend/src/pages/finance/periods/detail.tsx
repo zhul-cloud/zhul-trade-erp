@@ -9,8 +9,9 @@ import { history, Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Input, Select, Skeleton, Table, Tabs } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { ModelCell, useWarehouses } from '@/pages/warehouse/inventoryParts';
 import {
@@ -22,7 +23,6 @@ import { CategoryLedgerTable } from '@/pages/warehouse/ledger/CategoryLedgerTabl
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
 import { ReasonPill, SignedMoney } from '../costingParts';
 import {
   type CostAdjust,
@@ -474,22 +474,17 @@ const PeriodDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[<MenuLink key="list" to="/finance/periods" />, month]}
-        title={
-          <>
-            {month} 库存月结
-            <Pill tone={closed ? 'green' : 'orange'}>{p.statusName}</Pill>
-          </>
-        }
-        description={
+      <PageHeader
+        title={`${month} 库存月结`}
+        tags={<Pill tone={closed ? 'green' : 'orange'}>{p.statusName}</Pill>}
+        sub={
           closed
             ? `${p.closedByName ?? ''} ${formatDateTime(p.closedAt).slice(0, 16)} 结账 · 显示结账时保存的快照`
             : p.reopenReason
               ? `${p.reopenedByName ?? ''} ${formatDateTime(p.reopenedAt).slice(0, 16)} 反结账：${p.reopenReason} · 显示实时数字`
               : '未结账 · 显示实时数字'
         }
-        actions={
+        extra={
           <>
             {!closed && access['inventory:period:close'] && (
               <Button
@@ -502,17 +497,10 @@ const PeriodDetail: React.FC = () => {
                 结账
               </Button>
             )}
-            {p.reopenable && access['inventory:period:reopen'] && (
-              <Button
-                danger
-                icon={<UnlockOutlined />}
-                onClick={() => setReopening(true)}
-              >
-                反结账
-              </Button>
-            )}
             <Button
+              type="text"
               icon={<DownloadOutlined />}
+              style={{ color: palette.link }}
               loading={exporting}
               onClick={async () => {
                 setExporting(true);
@@ -527,6 +515,19 @@ const PeriodDetail: React.FC = () => {
             >
               导出 Excel
             </Button>
+            {/* 反结账收进「更多」 */}
+            <MoreActions
+              items={[
+                p.reopenable &&
+                  access['inventory:period:reopen'] && {
+                    key: 'reopen',
+                    label: '反结账',
+                    icon: <UnlockOutlined />,
+                    danger: true,
+                  },
+              ]}
+              onClick={() => setReopening(true)}
+            />
           </>
         }
       />

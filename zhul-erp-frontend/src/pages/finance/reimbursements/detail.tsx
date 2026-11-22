@@ -1,6 +1,7 @@
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Skeleton, Table } from 'antd';
+import { CircleX, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   DocLogCard,
@@ -10,8 +11,9 @@ import {
 } from '@/components/DocFields/DocPage';
 import { DocFilesCard } from '@/components/DocFiles';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, useWide } from '@/pages/inquiry/shared/components';
+import { Card, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/sales/service';
 import {
@@ -21,7 +23,6 @@ import {
 } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
 import { ProofLinks } from '../payables/components';
 import { keyOf, num, PayModal, StatusPill, sourceCell } from './components';
 import {
@@ -178,33 +179,36 @@ const ReimbursementDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[
-          <MenuLink key="list" to="/finance/reimbursements" />,
-          bx.reimburseNo,
-        ]}
-        title={
-          <>
-            {bx.reimburseNo}
-            <StatusPill status={bx.status} />
-          </>
-        }
-        description={
+      <PageHeader
+        title={bx.reimburseNo}
+        tags={<StatusPill status={bx.status} />}
+        sub={
           <>
             {bx.applicantName} · {bx.lineCount} 项 ·{' '}
             {formatDateTime(bx.submittedAt).slice(0, 16)} 提交
           </>
         }
-        actions={
+        extra={
           <>
-            {bx.canWithdraw && (
-              <Button onClick={() => setReason('withdraw')}>撤回</Button>
-            )}
-            {canPay && paid && (
-              <Button danger onClick={() => setReason('unpay')}>
-                撤销已付
-              </Button>
-            )}
+            {/* 撤回、撤销已付都会退回上一步，收进「更多」 */}
+            <MoreActions
+              items={[
+                bx.canWithdraw && {
+                  key: 'withdraw',
+                  label: '撤回',
+                  icon: <Undo2 size={16} />,
+                  danger: true,
+                },
+                canPay &&
+                  paid && {
+                    key: 'unpay',
+                    label: '撤销已付',
+                    icon: <CircleX size={16} />,
+                    danger: true,
+                  },
+              ]}
+              onClick={(k) => setReason(k as 'withdraw' | 'unpay')}
+            />
             {canPay && bx.status === BX_STATUS.PENDING && (
               <Button type="primary" onClick={() => setPaying(true)}>
                 登记已付

@@ -3,8 +3,8 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, InputNumber, Modal, Segmented, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerSub } from '@/components/DocFields';
+import { HelpTip, MainCard } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
@@ -21,6 +21,11 @@ import { creditApi, type Overpaid } from '../credits/service';
 import { settleCny } from '../fx-settlements/calc';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
+
+/** 帮助文字：help-texts.md「收款管理」 */
+const OVERPAID_HELP = {
+  list: '多收不计入订单收入，处理前按到账汇率估算人民币，处理后锁定。可以分几次处理；处理后从这里消失，记录在客户余额的流水里',
+} as const;
 
 /** 收款管理 → 待处理多收（spec sales/payment-receipt「多收的处理」）：转客户余额，或退回客户 */
 const OverpaidTab: React.FC<{ onCount?: (n: number) => void }> = ({
@@ -174,7 +179,14 @@ const OverpaidTab: React.FC<{ onCount?: (n: number) => void }> = ({
   ];
 
   return (
-    <Card>
+    <MainCard
+      left={
+        <>
+          {`共 ${rows?.length ?? 0} 条`}
+          <HelpTip title={OVERPAID_HELP.list} />
+        </>
+      }
+    >
       <Table<Overpaid>
         rowKey={(r) => `${r.ownerType}-${r.ownerId}`}
         loading={rows === null}
@@ -184,9 +196,6 @@ const OverpaidTab: React.FC<{ onCount?: (n: number) => void }> = ({
         scroll={{ x: tableScrollX(columns) }}
         locale={{ emptyText: '没有待处理的多收' }}
       />
-      <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-        多收不计入订单收入，处理前按到账汇率估算人民币，处理后锁定。可以分几次处理；处理后从这里消失，记录在客户余额的流水里。
-      </div>
       <ProcessModal
         target={processing}
         onClose={() => setProcessing(undefined)}
@@ -195,7 +204,7 @@ const OverpaidTab: React.FC<{ onCount?: (n: number) => void }> = ({
           onCount?.(list.length);
         }}
       />
-    </Card>
+    </MainCard>
   );
 };
 

@@ -1,6 +1,7 @@
 import { Link, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table, Tooltip } from 'antd';
+import { App, Skeleton, Table } from 'antd';
+import { CircleX } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   DocLogCard,
@@ -10,13 +11,9 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import {
-  Card,
-  PageTitle,
-  Pill,
-  useWide,
-} from '@/pages/inquiry/shared/components';
+import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/sales/service';
 import {
@@ -26,7 +23,6 @@ import {
 } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
 import { PAY_CHANNEL_NAMES } from '../payables/payQr';
 import { METHOD, type Payment, paymentApi } from '../payables/service';
 
@@ -225,17 +221,14 @@ const PaymentDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[<MenuLink key="list" to="/finance/payments" />, p.paymentNo]}
-        title={
-          <>
-            {p.paymentNo}
-            <Pill tone={valid ? 'green' : 'mute'}>
-              {valid ? '有效' : '已作废'}
-            </Pill>
-          </>
+      <PageHeader
+        title={p.paymentNo}
+        tags={
+          <Pill tone={valid ? 'green' : 'mute'}>
+            {valid ? '有效' : '已作废'}
+          </Pill>
         }
-        description={
+        sub={
           <>
             {p.payeeName} ·{' '}
             {sources.length ? (
@@ -247,18 +240,21 @@ const PaymentDetail: React.FC = () => {
             {formatDateTime(p.createTime).slice(0, 16)} 创建
           </>
         }
-        actions={
+        extra={
           valid &&
           (p.canVoid || p.voidBlockedReason) && (
-            <Tooltip title={p.canVoid ? undefined : p.voidBlockedReason}>
-              <Button
-                danger
-                disabled={!p.canVoid}
-                onClick={() => setVoiding(true)}
-              >
-                作废
-              </Button>
-            </Tooltip>
+            <MoreActions
+              items={[
+                {
+                  key: 'void',
+                  label: '作废',
+                  icon: <CircleX size={16} />,
+                  danger: true,
+                  disabledReason: p.canVoid ? undefined : p.voidBlockedReason,
+                },
+              ]}
+              onClick={() => setVoiding(true)}
+            />
           )
         }
       />

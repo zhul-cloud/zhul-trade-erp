@@ -2,6 +2,7 @@ import { WarningOutlined } from '@ant-design/icons';
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Skeleton, Table, Tooltip } from 'antd';
+import { Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
   docBrandColumns,
@@ -15,13 +16,9 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import {
-  Card,
-  PageTitle,
-  Pill,
-  useWide,
-} from '@/pages/inquiry/shared/components';
+import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
   RQ_STATUS_TONE,
@@ -35,7 +32,6 @@ import { readBizError } from '@/pages/sales/service';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
 import RefundModal from './RefundModal';
 import { refundSourceRef } from './RequestsTab';
 import {
@@ -278,17 +274,12 @@ const RefundRequestDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[<MenuLink key="list" to="/finance/refunds" />, q.requestNo]}
-        title={
-          <>
-            {q.requestNo}
-            <Pill tone={RQ_STATUS_TONE[q.status] ?? 'gray'}>
-              {q.statusName}
-            </Pill>
-          </>
+      <PageHeader
+        title={q.requestNo}
+        tags={
+          <Pill tone={RQ_STATUS_TONE[q.status] ?? 'gray'}>{q.statusName}</Pill>
         }
-        description={
+        sub={
           <>
             {q.customerName} ·{' '}
             <SourceNos mode="inline" refs={[refundSourceRef(q)]} /> ·{' '}
@@ -296,33 +287,15 @@ const RefundRequestDetail: React.FC = () => {
             {formatDateTime(q.createTime).slice(0, 16)} 创建
           </>
         }
-        actions={
+        extra={
           <>
-            {open && canApply && (
-              <Button
-                onClick={() =>
-                  modal.confirm({
-                    title: `撤回 ${q.requestNo}？`,
-                    content: '撤回后申请结束，需要时可以重新提出。',
-                    okText: '撤回',
-                    onOk: async () => {
-                      try {
-                        await refundRequestApi.withdraw(q.id);
-                        message.success('已撤回');
-                        load();
-                      } catch (e) {
-                        message.error(readBizError(e).message);
-                      }
-                    },
-                  })
-                }
-              >
-                撤回
-              </Button>
-            )}
             {q.status === RQ_STATUS.PENDING_APPROVAL && canApprove && (
               <>
-                <Button onClick={() => setDialog('rejectApproval')}>
+                <Button
+                  type="text"
+                  style={{ color: palette.link }}
+                  onClick={() => setDialog('rejectApproval')}
+                >
                   驳回
                 </Button>
                 <Button
@@ -353,7 +326,13 @@ const RefundRequestDetail: React.FC = () => {
               canEdit && (
                 <>
                   {q.status === RQ_STATUS.PENDING_FINANCE && (
-                    <Button onClick={() => setDialog('reject')}>驳回</Button>
+                    <Button
+                      type="text"
+                      style={{ color: palette.link }}
+                      onClick={() => setDialog('reject')}
+                    >
+                      驳回
+                    </Button>
                   )}
                   <Tooltip
                     title={
@@ -372,6 +351,34 @@ const RefundRequestDetail: React.FC = () => {
                   </Tooltip>
                 </>
               )}
+            <MoreActions
+              items={[
+                open &&
+                  canApply && {
+                    key: 'withdraw',
+                    label: '撤回',
+                    icon: <Undo2 size={16} />,
+                    danger: true,
+                  },
+              ]}
+              onClick={() =>
+                modal.confirm({
+                  title: `撤回 ${q.requestNo}？`,
+                  content: '撤回后申请结束，需要时可以重新提出。',
+                  okText: '撤回',
+                  okButtonProps: { danger: true },
+                  onOk: async () => {
+                    try {
+                      await refundRequestApi.withdraw(q.id);
+                      message.success('已撤回');
+                      load();
+                    } catch (e) {
+                      message.error(readBizError(e).message);
+                    }
+                  },
+                })
+              }
+            />
           </>
         }
       />

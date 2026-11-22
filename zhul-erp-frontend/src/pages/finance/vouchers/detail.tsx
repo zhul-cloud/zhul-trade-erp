@@ -9,14 +9,14 @@ import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Alert, App, Button, Segmented, Skeleton, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { docHref } from '@/pages/warehouse/inventoryService';
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
 import {
   AccountDrawer,
   CategoryPill,
@@ -279,19 +279,16 @@ const VoucherMonthPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[<MenuLink key="list" to="/finance/vouchers" />, month]}
-        title={
-          <>
-            {month} 业务凭证
-            {d.generated && (
-              <Pill tone={exported ? 'green' : 'accent'}>
-                {exported ? '已导出' : '未导出'}
-              </Pill>
-            )}
-          </>
+      <PageHeader
+        title={`${month} 业务凭证`}
+        tags={
+          d.generated && (
+            <Pill tone={exported ? 'green' : 'accent'}>
+              {exported ? '已导出' : '未导出'}
+            </Pill>
+          )
         }
-        description={
+        sub={
           d.generated
             ? [
                 `${d.generatedByName ?? ''} ${formatDateTime(d.generatedAt).slice(0, 16)} 生成`,
@@ -305,10 +302,12 @@ const VoucherMonthPage: React.FC = () => {
                 .join(' · ')
             : '上线前结账的月份，还没有凭证'
         }
-        actions={
+        extra={
           <>
             <Button
+              type="text"
               icon={<SettingOutlined />}
+              style={{ color: palette.link }}
               onClick={() => setAccountsOpen(true)}
             >
               科目设置

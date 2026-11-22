@@ -1,7 +1,7 @@
 import { PlusOutlined } from '@ant-design/icons';
 import { Badge, Button, Tabs } from 'antd';
 import React, { useCallback, useState } from 'react';
-import { PageTitle } from '@/pages/inquiry/shared/components';
+import { PageHeader } from '@/components/ListLayout';
 import DeskTab from './DeskTab';
 import OverpaidTab from './OverpaidTab';
 import RecordsTab from './RecordsTab';
@@ -30,9 +30,9 @@ const ReceiptManagement: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        description="客户付款的三条路：业务员上传水单后在「待确认」确认到账；钱先到账的在「未认领到账」登记、由业务员认领；平台收款由业务员直接登记。"
-        actions={
+      <PageHeader
+        help="客户付款的三条路：业务员上传水单后在「待确认」确认到账；钱先到账的在「未认领到账」登记、由业务员认领；平台收款由业务员直接登记"
+        extra={
           <Button
             type="primary"
             icon={<PlusOutlined />}

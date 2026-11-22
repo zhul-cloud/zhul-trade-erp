@@ -1,6 +1,7 @@
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table, Tooltip } from 'antd';
+import { App, Skeleton, Table } from 'antd';
+import { CircleX } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   DocLogCard,
@@ -9,19 +10,14 @@ import {
   SectionTitle,
 } from '@/components/DocFields/DocPage';
 import { DocFilesCard } from '@/components/DocFiles';
+import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import {
-  Card,
-  PageTitle,
-  Pill,
-  useWide,
-} from '@/pages/inquiry/shared/components';
+import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/sales/service';
 import { ReasonModal, relatedRows } from '@/pages/warehouse/components';
 import { UnitPill, useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
 import { ReceiptWho, SettlePill } from './components';
 import { type FxSettlement, fxApi } from './service';
 
@@ -203,20 +199,14 @@ const FxSettlementDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[
-          <MenuLink key="list" to="/finance/fx-settlements" />,
-          s.settleNo,
-        ]}
-        title={
-          <>
-            {s.settleNo}
-            <Pill tone={valid ? 'green' : 'mute'}>
-              {valid ? '有效' : '已作废'}
-            </Pill>
-          </>
+      <PageHeader
+        title={s.settleNo}
+        tags={
+          <Pill tone={valid ? 'green' : 'mute'}>
+            {valid ? '有效' : '已作废'}
+          </Pill>
         }
-        description={
+        sub={
           <>
             {bu.enabled && (
               <>
@@ -227,18 +217,21 @@ const FxSettlementDetail: React.FC = () => {
             {formatDateTime(s.createTime).slice(0, 16)} 创建
           </>
         }
-        actions={
+        extra={
           valid &&
           !!access['finance:fx:settle'] && (
-            <Tooltip title={blocked}>
-              <Button
-                danger
-                disabled={!!blocked}
-                onClick={() => setVoiding(true)}
-              >
-                作废
-              </Button>
-            </Tooltip>
+            <MoreActions
+              items={[
+                {
+                  key: 'void',
+                  label: '作废',
+                  icon: <CircleX size={16} />,
+                  danger: true,
+                  disabledReason: blocked || undefined,
+                },
+              ]}
+              onClick={() => setVoiding(true)}
+            />
           )
         }
       />

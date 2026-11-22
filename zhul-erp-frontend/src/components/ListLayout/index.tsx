@@ -1,5 +1,5 @@
-import { Button, Tooltip } from 'antd';
-import { Check, Info, SlidersHorizontal } from 'lucide-react';
+import { Button, Dropdown, Tooltip } from 'antd';
+import { Check, Ellipsis, Info, SlidersHorizontal } from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -154,6 +154,60 @@ export const PageHeader: React.FC<{
         </div>
       )}
     </div>
+  );
+};
+
+export interface MoreAction {
+  key: string;
+  label: string;
+  icon?: React.ReactNode;
+  danger?: boolean;
+  /** 有值时菜单项置灰，原因写在名称下一行（置灰项收不到悬停和焦点，不能用 Tooltip） */
+  disabledReason?: React.ReactNode;
+}
+
+/**
+ * 详情页头的「更多」菜单：撤回、冲销、作废等危险或少用的操作收在这里（每个页头最多一个主按钮）。
+ * 没有可显示的操作时不渲染。
+ */
+export const MoreActions: React.FC<{
+  /** 可直接写 `条件 && { ... }`，假值会被略过 */
+  items: (MoreAction | false | null | undefined | '' | 0)[];
+  onClick: (key: string) => void;
+}> = ({ items, onClick }) => {
+  const list = items.filter(Boolean) as MoreAction[];
+  if (list.length === 0) return null;
+  return (
+    <Dropdown
+      trigger={['click']}
+      placement="bottomRight"
+      menu={{
+        items: list.map((a) => ({
+          key: a.key,
+          icon: a.icon,
+          danger: a.danger,
+          disabled: !!a.disabledReason,
+          label: a.disabledReason ? (
+            <span>
+              {a.label}
+              <span style={{ display: 'block', fontSize: 12 }}>
+                {a.disabledReason}
+              </span>
+            </span>
+          ) : (
+            a.label
+          ),
+        })),
+        onClick: ({ key }) => onClick(key),
+      }}
+    >
+      <Button
+        type="text"
+        shape="circle"
+        icon={<Ellipsis size={18} />}
+        aria-label="更多操作"
+      />
+    </Dropdown>
   );
 };
 
