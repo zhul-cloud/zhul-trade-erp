@@ -48,6 +48,11 @@ public final class SupplierConstants {
             4, "合同",
             5, "其他");
     public static final int MAX_ATTACHMENTS = 20;
+    /** 收款码（附件的两个类型，不在「附件」里显示，每种只保留一张）：键为付款渠道 2-支付宝、3-微信 */
+    public static final int ATTACHMENT_ALIPAY_QR = 6;
+    public static final int ATTACHMENT_WECHAT_QR = 7;
+    public static final Map<Integer, Integer> PAY_QR_CATEGORY = Map.of(2, ATTACHMENT_ALIPAY_QR, 3, ATTACHMENT_WECHAT_QR);
+    public static final Map<Integer, String> PAY_QR_LABELS = Map.of(2, "支付宝收款码", 3, "微信收款码");
     public static final long ATTACHMENT_MAX_BYTES = 10L * 1024 * 1024;
 
     /** 导出行数上限，超出提示缩小筛选范围 */

@@ -55,6 +55,7 @@ public class PriceHistoryServiceImpl implements PriceHistoryService {
     private final AttachmentService attachmentService;
     private final ProductOrderCodes orderCodes;
     private final com.zhul.erp.modules.inquiry.support.QuoteDicts quoteDicts;
+    private final com.zhul.erp.modules.inquiry.support.InquiryCategories inquiryCategories;
 
     @Override
     public PriceMatchVO match(String brand, String model) {
@@ -121,6 +122,23 @@ public class PriceHistoryServiceImpl implements PriceHistoryService {
         }
         if (q.getNoStock() != null) {
             w.eq("no_stock", q.getNoStock() ? 1 : 0);
+        }
+        if (q.getCategoryId() != null) {
+            // 一级品类连同细分（无货分析点品类跳过来）：关联到这些品类的型号，加上没关联品类、品类文字就是这些品类名的型号
+            var under = com.zhul.erp.modules.inquiry.support.InquiryCategories.under(q.getCategoryId(), inquiryCategories.categories());
+            List<Long> ids = under.stream().map(com.zhul.erp.modules.product.entity.ProductCategoryDO::getId).toList();
+            List<String> names = under.stream().flatMap(c -> java.util.stream.Stream.of(c.getCategoryNameZh(), c.getCategoryName()))
+                    .filter(StringUtils::hasText).distinct().toList();
+            List<Long> itemIds = ids.isEmpty() ? List.of() : itemMapper.selectList(new LambdaQueryWrapper<InquiryItemDO>()
+                            .select(InquiryItemDO::getId)
+                            .and(x -> {
+                                x.in(InquiryItemDO::getCategoryId, ids);
+                                if (!names.isEmpty()) {
+                                    x.or(y -> y.isNull(InquiryItemDO::getCategoryId).in(InquiryItemDO::getCategory, names));
+                                }
+                            }))
+                    .stream().map(InquiryItemDO::getId).toList();
+            w.in("inquiry_item_id", itemIds.isEmpty() ? List.of(-1L) : itemIds);
         }
         // 没有货源权限时忽略渠道筛选，避免通过筛选结果反推货源
         if (q.getChannel() != null && perm.has(InquiryConstants.PERM_SUPPLIER_VIEW)) {

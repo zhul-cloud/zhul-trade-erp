@@ -18,6 +18,8 @@ public class RegisterPaymentRequest {
     /** 1-公司对公、2-员工垫付、3-私对私 */
     @NotNull(message = "请选择付款方式")
     private Integer method;
+    /** 付款渠道：1-银行卡、2-支付宝、3-微信；只有私对私能选支付宝、微信，不传按银行卡 */
+    private Integer payChannel;
     /** 公司对公选对公账户，私对私选对私账户 */
     private Long bankAccountId;
     /** 对方收款账户（供应商资料的收款账户），可不选 */

@@ -12,6 +12,8 @@ public class SaveBankAccountRequest {
     private String currencyCode;
     /** 账户类型：1-对公、2-对私，不传按对公 */
     private Integer accountType;
+    /** 付款渠道：1-银行卡、2-支付宝、3-微信（后两种只能是对私），不传按银行卡 */
+    private Integer payChannel;
     @NotBlank(message = "请填写银行名称")
     @Size(max = 128, message = "银行名称不能超过 128 个字符")
     private String bankName;
@@ -19,7 +21,7 @@ public class SaveBankAccountRequest {
     @Size(max = 128, message = "账户名称不能超过 128 个字符")
     private String accountName;
     @NotBlank(message = "请填写账号")
-    @Pattern(regexp = "^[A-Za-z0-9 -]{4,64}$", message = "账号只能包含字母、数字、空格与连字符，4–64 位")
+    @Pattern(regexp = "^[A-Za-z0-9 @._-]{4,64}$", message = "账号只能包含字母、数字、空格与连字符，4–64 位")
     private String accountNo;
     @Pattern(regexp = "^$|^[A-Za-z0-9]{8}([A-Za-z0-9]{3})?$", message = "SWIFT Code 需要是 8 位或 11 位字母数字")
     private String swiftCode;

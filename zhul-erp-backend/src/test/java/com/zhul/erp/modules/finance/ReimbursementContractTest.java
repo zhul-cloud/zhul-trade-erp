@@ -55,6 +55,9 @@ class ReimbursementContractTest extends SalesContractSupport {
     @SpyBean
     private DocumentNumberService numbers;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.zhul.erp.modules.masterdata.service.impl.SupplierAttachmentSync supplierAttachments;
+
     private String lin;
     private String jiang;
     private long account;
@@ -77,6 +80,79 @@ class ReimbursementContractTest extends SalesContractSupport {
         jdbc.update("insert into tenant_bank_account (tenant_id, account_type, currency_code, bank_name, account_name, account_no, is_default) "
                 + "values (0, 2, 'CNY', '招商银行', '张总', '6225888866881234', 0)");
         personalAccount = jdbc.queryForObject("select max(id) from tenant_bank_account where tenant_id = 0", Long.class);
+    }
+
+    /**
+     * 1122-batch2 私对私付款渠道与供应商收款码：收款码不进普通附件、编辑供应商不删；支付宝付款要选我方支付宝账户，
+     * 快照记「支付宝收款码」；只有私对私能用支付宝、微信；支付宝账户只能是对私
+     */
+    @Test
+    void privatePay_alipayChannel_supplierQr() throws Exception {
+        String sup = "/api/v1/masterdata/suppliers";
+        long supplierId = supplier("收款码供应商", null);
+        long ap = payableOf(orderedPo(supplierId, "QR-1", 1, "300").path("id").asLong());
+        assertEquals(0, ok(call(get(PY + "/payee-qr").param("payableId", String.valueOf(ap)), admin)).size());
+
+        String key = ok(call(multipart(sup + "/attachments").file(new MockMultipartFile("file", "支付宝.png", "image/png", PNG)), admin))
+                .path("fileKey").asText();
+        assertTrue(fail(call(json(put(sup + "/" + supplierId + "/pay-qr/4"), write(Map.of("fileKey", key))), admin))
+                .path("message").asText().contains("支付宝、微信"));
+        JsonNode qrs = ok(call(json(put(sup + "/" + supplierId + "/pay-qr/2"), write(Map.of("fileKey", key, "fileName", "支付宝.png"))), admin));
+        assertEquals(1, qrs.size());
+        String key2 = ok(call(multipart(sup + "/attachments").file(new MockMultipartFile("file", "支付宝新.png", "image/png", PNG)), admin))
+                .path("fileKey").asText();
+        ok(call(json(put(sup + "/" + supplierId + "/pay-qr/2"), write(Map.of("fileKey", key2, "fileName", "支付宝新.png"))), admin));
+        JsonNode detail = ok(call(get(sup + "/" + supplierId), admin));
+        assertEquals(0, detail.path("attachments").size(), "收款码不在普通附件里");
+        assertEquals(1, detail.path("payQrCodes").size(), "更换后只留一张");
+        assertEquals("支付宝新.png", detail.path("payQrCodes").get(0).path("fileName").asText());
+        assertEquals(2, detail.path("payQrCodes").get(0).path("payChannel").asInt());
+
+        JsonNode qr = ok(call(get(PY + "/payee-qr").param("payableId", String.valueOf(ap)), admin));
+        assertEquals(1, qr.size());
+        assertEquals("支付宝收款码", qr.get(0).path("label").asText());
+        assertFalse(qr.get(0).path("url").asText().isEmpty());
+
+        // 我方支付宝账户只能是对私
+        Map<String, Object> acc = new HashMap<>();
+        acc.put("currencyCode", "CNY");
+        acc.put("accountType", 1);
+        acc.put("payChannel", 2);
+        acc.put("bankName", "支付宝");
+        acc.put("accountName", "张总");
+        acc.put("accountNo", "zhang@example.com");
+        assertEquals("支付宝、微信账户只能是对私账户",
+                fail(call(json(post("/api/v1/system/bank-accounts"), write(acc)), admin)).path("message").asText());
+        acc.put("accountType", 2);
+        long alipay = ok(call(json(post("/api/v1/system/bank-accounts"), write(acc)), admin)).path("id").asLong();
+
+        Map<String, Object> pay = new HashMap<>();
+        pay.put("method", 3);
+        pay.put("payChannel", 2);
+        pay.put("bankAccountId", personalAccount);
+        pay.put("payDate", LocalDate.now().toString());
+        pay.put("amount", 300);
+        pay.put("attachmentIds", List.of(upload("PAYMENT", admin)));
+        pay.put("allocations", List.of(Map.of("payableId", ap, "amount", 300)));
+        pay.put("idempotencyKey", UUID.randomUUID().toString());
+        assertEquals("用支付宝付款请选择我方的支付宝账户", fail(call(json(post(PY), write(pay)), admin)).path("message").asText());
+        pay.put("method", 1);
+        pay.put("bankAccountId", account);
+        assertEquals("只有私对私能用支付宝、微信付款", fail(call(json(post(PY), write(pay)), admin)).path("message").asText());
+        pay.put("method", 3);
+        pay.put("bankAccountId", alipay);
+        JsonNode paid = ok(call(json(post(PY), write(pay)), admin));
+        assertEquals(2, paid.path("payChannel").asInt());
+        assertEquals("支付宝收款码", paid.path("payeeAccount").asText());
+        assertTrue(paid.path("payerAccount").asText().startsWith("支付宝"));
+
+        // 编辑供应商保存附件（清单里没有收款码）时不删收款码
+        com.zhul.erp.framework.tenant.TenantContext.setTenantId(0);
+        supplierAttachments.merge(0, supplierId, List.of());
+        assertEquals(1, ok(call(get(sup + "/" + supplierId), admin)).path("payQrCodes").size());
+
+        ok(call(json(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete(sup + "/" + supplierId + "/pay-qr/2"), "{}"), admin));
+        assertEquals(0, ok(call(get(PY + "/payee-qr").param("payableId", String.valueOf(ap)), admin)).size());
     }
 
     // ---------------------------------------------------------------- 准备数据

@@ -11,6 +11,8 @@ public class SupplierAttachmentVO {
     private Long id;
     /** 附件类型（1-营业执照、2-开户许可证、3-资质证书、4-合同、5-其他） */
     private Integer category;
+    /** 收款码的付款渠道（2-支付宝、3-微信），普通附件为空 */
+    private Integer payChannel;
     private String fileName;
     private Long fileSize;
     private String contentType;

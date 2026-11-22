@@ -7,6 +7,8 @@ import com.zhul.erp.common.result.Result;
 import com.zhul.erp.modules.masterdata.dto.CreateSupplierFromChannelRequest;
 import com.zhul.erp.modules.masterdata.dto.SaveSupplierRequest;
 import com.zhul.erp.modules.masterdata.dto.SupplierAttachmentUploadVO;
+import com.zhul.erp.modules.masterdata.dto.SupplierAttachmentVO;
+import com.zhul.erp.modules.masterdata.dto.SavePayQrRequest;
 import com.zhul.erp.modules.masterdata.dto.SupplierBatchDeleteRequest;
 import com.zhul.erp.modules.masterdata.dto.SupplierBatchDeleteResultVO;
 import com.zhul.erp.modules.masterdata.dto.SupplierCreateResultVO;
@@ -115,6 +117,20 @@ public class SupplierController {
     @GetMapping("/{id}")
     public Result<SupplierVO> getById(@PathVariable Long id) {
         return Result.ok(supplierService.getById(id));
+    }
+
+    /** 上传或更换收款码：payChannel 2-支付宝、3-微信；图片先走上传附件接口 */
+    @PutMapping("/{id}/pay-qr/{payChannel}")
+    @PreAuthorize("@perm.has('partner:supplier:edit')")
+    public Result<List<SupplierAttachmentVO>> savePayQr(@PathVariable Long id, @PathVariable int payChannel,
+                                                        @Valid @RequestBody SavePayQrRequest req) {
+        return Result.ok(supplierService.savePayQr(id, payChannel, req));
+    }
+
+    @DeleteMapping("/{id}/pay-qr/{payChannel}")
+    @PreAuthorize("@perm.has('partner:supplier:edit')")
+    public Result<List<SupplierAttachmentVO>> removePayQr(@PathVariable Long id, @PathVariable int payChannel) {
+        return Result.ok(supplierService.removePayQr(id, payChannel));
     }
 
     /** 编辑页取数：收款账号、手机号为明文，所以要求编辑权限 */

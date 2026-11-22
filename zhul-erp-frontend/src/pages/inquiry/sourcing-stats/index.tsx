@@ -9,6 +9,7 @@ import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { tableScrollX } from '@/utils/tableScroll';
+import NoStockPanel from './NoStockPanel';
 import {
   type MonthRow,
   type PurchaserRow,
@@ -29,7 +30,7 @@ const SourcingStatsPage: React.FC = () => {
   );
   const [data, setData] = useState<SourcingStats>();
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'month' | 'person'>('month');
+  const [view, setView] = useState<'month' | 'person' | 'nostock'>('month');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -270,11 +271,19 @@ const SourcingStatsPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle description="按月份按询盘单统计：没有待回价型号且至少一个有价为询价完成，全部无货为无法报价，还有待回价的为询价中。按人员按分配给他的型号统计。" />
-      <div style={{ marginBottom: 16 }}>
-        <StatsRangeFilter value={range} onChange={setRange} />
-      </div>
-      {total && (
+      <PageTitle
+        description={
+          view === 'nostock'
+            ? undefined
+            : '按月份按询盘单统计：没有待回价型号且至少一个有价为询价完成，全部无货为无法报价，还有待回价的为询价中。按人员按分配给他的型号统计。'
+        }
+      />
+      {view !== 'nostock' && (
+        <div style={{ marginBottom: 16 }}>
+          <StatsRangeFilter value={range} onChange={setRange} />
+        </div>
+      )}
+      {view !== 'nostock' && total && (
         <div
           style={{
             display: 'flex',
@@ -301,8 +310,10 @@ const SourcingStatsPage: React.FC = () => {
         options={[
           { value: 'month', label: '按月份' },
           { value: 'person', label: '按人员' },
+          { value: 'nostock', label: '无货分析' },
         ]}
       />
+      {view === 'nostock' && <NoStockPanel />}
       {view === 'month' && (
         <Card style={{ marginBottom: 16 }}>
           <div
