@@ -44,6 +44,7 @@ export default {
   'menu.finance.operatingReport': '经营统计',
   'menu.finance.costAdjustments': '成本调整',
   'menu.finance.periods': '库存月结',
+  'menu.finance.vouchers': '业务凭证',
   'menu.sales.followup': '客户跟进',
   'menu.sales.pi': 'PI',
   'menu.sales.orders': '销售订单',

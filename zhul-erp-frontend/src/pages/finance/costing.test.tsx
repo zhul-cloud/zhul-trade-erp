@@ -293,6 +293,21 @@ it('库存月结：反结账必须填原因', async () => {
   );
 });
 
+it('库存月结：凭证已导出的月份反结账时提示去 T+ 删除', async () => {
+  mockAccess = { 'inventory:period:reopen': true };
+  mockApi((c) =>
+    c.url.endsWith('/periods/2026-11')
+      ? { ...periods[1], voucherExported: true }
+      : periods,
+  );
+  mount(Periods);
+  await screen.findByText('2026-11');
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: '反结账' }));
+  });
+  expect(await screen.findByText(/请在 T\+ 里删除它们/)).toBeTruthy();
+});
+
 it('库存月结详情：类目账页签在最前，合计与汇总一致，点品类打开库存台账明细账', async () => {
   mockParams = { month: '2026-11' };
   mockApi((c) => {

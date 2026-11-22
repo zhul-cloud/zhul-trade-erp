@@ -54,6 +54,10 @@ public final class TenantTables {
             Map.entry("fin_refund_request_item", Policy.PRIVATE),
             Map.entry("fin_reimbursement", Policy.PRIVATE),
             Map.entry("fin_reimbursement_line", Policy.PRIVATE),
+            Map.entry("fin_voucher", Policy.PRIVATE),
+            Map.entry("fin_voucher_entry", Policy.PRIVATE),
+            Map.entry("fin_voucher_month", Policy.PRIVATE),
+            Map.entry("fin_voucher_account", Policy.PRIVATE),
             // 客户、商机（商机阶段由平台统一定义，租户只读）
             Map.entry("customer", Policy.PRIVATE),
             Map.entry("customer_party", Policy.PRIVATE),

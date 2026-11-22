@@ -37,6 +37,8 @@ public class PeriodVO {
     private String closeBlock;
     /** 是否最近一个已结账月份（只有它能反结账） */
     private Boolean reopenable;
+    /** 该月业务凭证已导出到 T+（反结账确认框提示会计去 T+ 删除对应凭证） */
+    private Boolean voucherExported;
     /** 结账前的提醒（不阻止结账），只在详情与结账确认里给出 */
     private List<String> reminders;
 }
