@@ -162,6 +162,8 @@ export interface Period {
   closable: boolean;
   closeBlock?: string;
   reopenable: boolean;
+  /** 详情才有：已结账月份的业务凭证是否已导出到 T+ */
+  voucherExported?: boolean;
   /** 详情才有：结账前的提醒 */
   reminders?: string[];
 }
