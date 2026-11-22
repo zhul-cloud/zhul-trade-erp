@@ -172,6 +172,7 @@ export default function access(initialState: {
       '/finance/operating-report',
       '/finance/cost-adjustments',
       '/finance/periods',
+      '/finance/vouchers',
     ),
     financeRefunds: can('/finance/refunds'),
     financeCredits: can('/finance/credits'),
@@ -182,6 +183,10 @@ export default function access(initialState: {
     financePeriods: can('/finance/periods'),
     'inventory:period:close': can('inventory:period:close'),
     'inventory:period:reopen': can('inventory:period:reopen'),
+    // 业务凭证（openspec inventory-vouchers）
+    financeVouchers: can('/finance/vouchers'),
+    'finance:voucher:export': can('finance:voucher:export'),
+    'finance:voucher:account': can('finance:voucher:account'),
     'finance:refund:edit': can('finance:refund:edit'),
     'finance:refund-request:approve': can('finance:refund-request:approve'),
     'finance:credit:adjust': can('finance:credit:adjust'),
