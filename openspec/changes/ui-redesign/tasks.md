@@ -79,7 +79,7 @@
   - 2026-11-22 进展：业务设置、系统管理、租户管理各页迁移完毕（结构见 `help-texts.md`「业务设置、系统管理、租户管理」）；先合入 develop（归档 1122-batch2）并补 `finance/accounts-receivable` 增量；删除 `inquiry/shared` 的旧 `PageTitle`，全仓库 `lint:ui` 错误为 0、没有面包屑；登录、找回密码不改，403、500 页未用不改；`ENFORCED` 加入 system、tenant、login、forget-password、exception、inquiry/shared。lint、antd lint、Jest（162 个套件、660 个用例）、构建通过；BrowserOS 浅色、深色核对（租户列表、套餐管理只有平台账号能进，本机未实测）；独立复审一轮通过，建议项已改，见 review-log。待用户看过后勾选
 - [ ] 7.8 全仓库跑 `lint:ui`，确认 `src/` 下没有未写明原因的报错，然后把它并入 `npm run lint`。用搜索确认已经没有 `Breadcrumb` 和 `crumbs`；`search-scope.md` 里每个列表都已落地
   - 2026-11-22 进展：`ENFORCED` 改为整个 `src`，`lint:ui` 并入 `npm run lint`（CI 跟着跑），全仓库 0 错误、26 条提示（长提示示例，保留）；没有 `Breadcrumb`、`crumbs`；`search-scope.md` 补核系统管理与租户，各列表的提示问题都已改完；补发货单「出运日期」筛选；详情页头「更多」统一放在主按钮之前（照原型 B1），改了售后单、销售退货、库存月结、退款申请、客户详情五页并写入 `ui-design-patterns.md`
-  - 图表第一个系列（7.4、7.6 复审提出）：用户选深一档琥珀。新增令牌 `palette.chart`，琥珀浅色为 `#B87A14`，其余同链接色；无货率走势与排行条、商机统计、工作台柱状与排行条、采购员走势改用它；测试校验六种主题色在深浅卡片上都不低于 3:1；工作台和采购员走势的柱、条去掉半透明（往期柱用 `mute`）。lint、antd lint、Jest、构建通过；BrowserOS 浅色、深色核对工作台图表、出运日期筛选、客户详情页头；独立复审两轮通过，修正见 review-log。待用户看过后勾选
+  - 图表第一个系列（7.4、7.6 复审提出）：新增令牌 `palette.chart`，跟主题色走（浅色原色、深色深色链接色）；先按 3:1 选了深一档琥珀 `#B87A14`，用户看了实际效果嫌显脏，改回原色 `#FDA92D`，浅色琥珀低于 3:1 作为例外写进规范；无货率走势与排行条、商机统计、工作台柱状与排行条、采购员走势改用它；测试校验除浅色琥珀外都不低于 3:1；工作台和采购员走势的柱、条去掉半透明（往期柱用 `mute`）。lint、antd lint、Jest、构建通过；BrowserOS 浅色、深色核对工作台图表、出运日期筛选、客户详情页头；独立复审两轮通过，修正见 review-log。待用户看过后勾选
 
 ## 8. 同步 develop
 

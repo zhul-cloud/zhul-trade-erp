@@ -113,14 +113,13 @@ describe('设计令牌', () => {
   it('不认识的主题色回到默认琥珀，原型链上的键也不认', () => {
     expect(buildPalette('light', 'nope' as any).primary).toBe('#FDA92D');
     expect(buildPalette('light', 'toString' as any).primary).toBe('#FDA92D');
-    expect(chartSeries('light', 'constructor' as any)[0]).toBe('#B87A14');
+    expect(chartSeries('light', 'constructor' as any)[0]).toBe('#FDA92D');
   });
 
   it('图表第一个系列为主题色，去掉色相最接近的系列色', () => {
-    // 琥珀原色在白底只有 1.93:1，浅色改用深一档琥珀，系列色里同色的那个去掉
     const s = chartSeries('light', 'amber');
-    expect(s[0]).toBe('#B87A14');
-    expect(s.filter((c) => c === '#B87A14')).toHaveLength(1);
+    expect(s[0]).toBe('#FDA92D');
+    expect(s).not.toContain('#B87A14');
     expect(s).toHaveLength(CHART_SERIES.length);
     expect(chartSeries('dark', 'amber')[0]).toBe('#FDA92D');
     expect(chartSeries('light', 'sky')[0]).toBe('#078DEE');
@@ -128,12 +127,14 @@ describe('设计令牌', () => {
     expect(chartSeries('dark', 'purple')[0]).toBe('#A77EE9');
   });
 
-  it('每种主题色的图表第一个系列在深浅卡片上都不低于 3:1，且与 chartSeries 一致', () => {
+  it('图表第一个系列跟主题色走、与 chartSeries 一致；除浅色琥珀（用户选定的例外）外不低于 3:1', () => {
     for (const k of PRESET_ORDER) {
       for (const m of ['light', 'dark'] as const) {
         const p = buildPalette(m, k);
-        expect(contrast(p.chart, p.card)).toBeGreaterThanOrEqual(3);
+        expect(p.chart).toBe(p.link);
         expect(chartSeries(m, k)[0]).toBe(p.chart);
+        if (!(m === 'light' && k === 'amber'))
+          expect(contrast(p.chart, p.card)).toBeGreaterThanOrEqual(3);
       }
     }
   });
