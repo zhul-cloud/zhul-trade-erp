@@ -830,6 +830,19 @@ export default [
         access: 'financePeriods',
         component: './finance/periods/detail',
       },
+      {
+        path: '/finance/vouchers',
+        name: 'vouchers',
+        icon: 'book',
+        access: 'financeVouchers',
+        component: './finance/vouchers',
+      },
+      {
+        path: '/finance/vouchers/:month',
+        hideInMenu: true,
+        access: 'financeVouchers',
+        component: './finance/vouchers/detail',
+      },
     ],
   },
   {

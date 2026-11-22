@@ -11,20 +11,23 @@ import React from 'react';
 import CostAdjustments from './cost-adjustments';
 import CostAdjustDetail from './cost-adjustments/detail';
 import Periods from './periods';
+import PeriodDetail from './periods/detail';
 
 /** openspec inventory-costing 7.1、7.2：成本调整列表与详情、库存月结的结账确认与反结账 */
 let mockAccess: Record<string, boolean> = {};
+let mockParams: Record<string, string> = { id: '5' };
+const mockPush = jest.fn();
 jest.mock('@umijs/max', () => {
   const R = jest.requireActual('react');
   return {
-    history: { push: jest.fn(), replace: jest.fn() },
+    history: { push: (...a: unknown[]) => mockPush(...a), replace: jest.fn() },
     Link: ({ to, children }: { to: string; children?: unknown }) =>
       R.createElement('a', { href: to }, children),
     request: jest.fn(),
     useAccess: () => mockAccess,
     useLocation: () => ({ pathname: '/finance', search: '' }),
     useModel: () => ({ initialState: {} }),
-    useParams: () => ({ id: '5' }),
+    useParams: () => mockParams,
   };
 });
 jest.mock('@/components/PageTabs/store', () => ({
@@ -50,6 +53,8 @@ const mount = (el: unknown) =>
 afterEach(() => {
   (request as jest.Mock).mockReset();
   mockAccess = {};
+  mockParams = { id: '5' };
+  mockPush.mockReset();
 });
 
 const adjust = {
@@ -285,5 +290,72 @@ it('库存月结：反结账必须填原因', async () => {
         data: { reason: '补登 11-30 的出运单' },
       }),
     ),
+  );
+});
+
+it('库存月结：凭证已导出的月份反结账时提示去 T+ 删除', async () => {
+  mockAccess = { 'inventory:period:reopen': true };
+  mockApi((c) =>
+    c.url.endsWith('/periods/2026-11')
+      ? { ...periods[1], voucherExported: true }
+      : periods,
+  );
+  mount(Periods);
+  await screen.findByText('2026-11');
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: '反结账' }));
+  });
+  expect(await screen.findByText(/请在 T\+ 里删除它们/)).toBeTruthy();
+});
+
+it('库存月结详情：类目账页签在最前，合计与汇总一致，点品类打开库存台账明细账', async () => {
+  mockParams = { month: '2026-11' };
+  mockApi((c) => {
+    if (c.url.endsWith('/category-ledger'))
+      return {
+        month: '2026-11',
+        rows: [
+          {
+            categoryId: 1,
+            categoryName: 'PLC 与控制器',
+            productCount: 6,
+            openingAmount: 0,
+            inAmount: 96905.25,
+            outAmount: 42627.37,
+            adjustAmount: 12,
+            closingAmount: 54289.88,
+            cogsAmount: 42615.37,
+          },
+        ],
+        total: {
+          categoryName: '合计',
+          productCount: 6,
+          openingAmount: 0,
+          inAmount: 96905.25,
+          outAmount: 42627.37,
+          adjustAmount: 12,
+          closingAmount: 54289.88,
+          cogsAmount: 42615.37,
+        },
+      };
+    if (c.url.endsWith('/periods/2026-11')) return periods[1];
+    return { total: 0, records: [] };
+  });
+  mount(PeriodDetail);
+  await screen.findByText('PLC 与控制器');
+  const tabs = screen.getAllByRole('tab').map((t) => t.textContent);
+  expect(tabs.slice(0, 4)).toEqual([
+    '类目账',
+    '库存台账',
+    '销售成本',
+    '成本调整',
+  ]);
+  expect(screen.getByText('合计')).toBeTruthy();
+  expect(screen.getAllByText('54,289.88').length).toBeGreaterThan(0);
+  await act(async () => {
+    fireEvent.click(screen.getByText('PLC 与控制器'));
+  });
+  expect(mockPush).toHaveBeenCalledWith(
+    '/warehouse/ledger?view=detail&month=2026-11&categoryId=1',
   );
 });

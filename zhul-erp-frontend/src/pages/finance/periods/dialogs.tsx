@@ -210,6 +210,16 @@ export const ReopenModal: React.FC<{
   onDone: () => void;
 }> = ({ month, onClose, onDone }) => {
   const { message } = App.useApp();
+  // 业务凭证已导出时提示会计去 T+ 删除（spec finance/period-close「反结账已导出的月份」）
+  const [exported, setExported] = useState(false);
+  useEffect(() => {
+    setExported(false);
+    if (!month) return;
+    periodApi
+      .detail(month)
+      .then((p) => setExported(!!p.voucherExported))
+      .catch(() => setExported(false));
+  }, [month]);
   return (
     <ReasonModal
       open={!!month}
@@ -218,10 +228,17 @@ export const ReopenModal: React.FC<{
       okText="确认反结账"
       placeholder="例如：补登 11-30 的出运单，当时漏登"
       description={
-        <>
-          反结账后 {month}{' '}
-          的单据可以再改，结账快照作废，需要重新结账；月份、原因、操作人记入操作日志
-        </>
+        exported ? (
+          <>
+            {month} 的凭证已导入 T+。反结账后这些凭证作废，请在 T+
+            里删除它们，重新结账后再导入新凭证。
+          </>
+        ) : (
+          <>
+            反结账后 {month}{' '}
+            的单据可以再改，结账快照与业务凭证作废，需要重新结账；月份、原因、操作人记入操作日志
+          </>
+        )
       }
       onCancel={onClose}
       onOk={async (reason) => {

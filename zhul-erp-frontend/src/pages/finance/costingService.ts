@@ -1,5 +1,6 @@
 import { request } from '@umijs/max';
 import {
+  type CategoryLedger,
   downloadXlsx,
   type LedgerRow,
 } from '@/pages/warehouse/inventoryService';
@@ -161,6 +162,8 @@ export interface Period {
   closable: boolean;
   closeBlock?: string;
   reopenable: boolean;
+  /** 详情才有：已结账月份的业务凭证是否已导出到 T+ */
+  voucherExported?: boolean;
   /** 详情才有：结账前的提醒 */
   reminders?: string[];
 }
@@ -203,6 +206,9 @@ export const periodApi = {
       pageSize: number;
     },
   ) => send<PageResult<LedgerRow>>('POST', `${P}/${month}/ledger`, q),
+  /** 月份的类目账（全部仓库，已结账读快照） */
+  categoryLedger: (month: string) =>
+    get<CategoryLedger>(`${P}/${month}/category-ledger`),
   cogs: (
     month: string,
     q: { keyword?: string; page: number; pageSize: number },

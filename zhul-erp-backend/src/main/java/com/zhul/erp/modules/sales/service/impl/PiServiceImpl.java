@@ -1172,8 +1172,10 @@ public class PiServiceImpl implements PiService {
         vo.setMonthReceivedUsd(month.stream().filter(r -> "USD".equals(r.getCurrencyCode())).map(PaymentReceiptDO::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add));
         vo.setMonthReceivedCny(month.stream().map(PaymentReceiptDO::getAmountCny).reduce(BigDecimal.ZERO, BigDecimal::add));
+        // 本月转订单：只算由 PI 转成的订单，手动创建、售后补发、费用订单不算（BUS-090）
         LambdaQueryWrapper<SalesOrderDO> orders = new LambdaQueryWrapper<SalesOrderDO>()
                 .eq(SalesOrderDO::getTenantId, PiStore.tenantId())
+                .eq(SalesOrderDO::getSource, SalesConstants.SO_FROM_PI)
                 .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
                 .ge(SalesOrderDO::getCreateTime, monthStart)
                 .isNull(SalesOrderDO::getDeletedAt);
