@@ -179,7 +179,7 @@ const StatsPanel: React.FC = () => {
                   }}
                 >
                   {[
-                    ['有效', palette.link],
+                    ['有效', palette.chart],
                     ['跟进中（未到 S3）', palette.primaryLine],
                     ['无效', palette.control],
                   ].map(([n, c]) => (
@@ -248,7 +248,7 @@ const StatsPanel: React.FC = () => {
                           }}
                           title={`有效 ${r.valid}，跟进中 ${doing}，无效 ${r.invalid}`}
                         >
-                          {seg(r.valid, palette.link)}
+                          {seg(r.valid, palette.chart)}
                           {seg(doing, palette.primaryLine)}
                           {seg(r.invalid, palette.control)}
                         </div>

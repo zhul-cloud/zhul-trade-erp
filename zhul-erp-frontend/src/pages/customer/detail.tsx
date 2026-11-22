@@ -467,6 +467,23 @@ const CustomerDetailPage: React.FC = () => {
           ]
         : []),
     ];
+    const moreBtn = more.length > 0 && (
+      <Dropdown
+        trigger={['click']}
+        placement="bottomRight"
+        menu={{
+          items: more.map(({ onClick: _, ...it }) => it),
+          onClick: ({ key }) => more.find((x) => x.key === key)?.onClick(),
+        }}
+      >
+        <Button
+          type="text"
+          shape="circle"
+          icon={<Ellipsis size={18} />}
+          aria-label="更多操作"
+        />
+      </Dropdown>
+    );
     actions = inPool ? (
       <Button
         type="primary"
@@ -488,23 +505,7 @@ const CustomerDetailPage: React.FC = () => {
           textBtn('编辑', <Pencil size={16} />, () =>
             history.push(`${LIST_PATH}/${r.id}/edit`),
           )}
-        {more.length > 0 && (
-          <Dropdown
-            trigger={['click']}
-            placement="bottomRight"
-            menu={{
-              items: more.map(({ onClick: _, ...it }) => it),
-              onClick: ({ key }) => more.find((x) => x.key === key)?.onClick(),
-            }}
-          >
-            <Button
-              type="text"
-              shape="circle"
-              icon={<Ellipsis size={18} />}
-              aria-label="更多操作"
-            />
-          </Dropdown>
-        )}
+        {!canBackground && moreBtn}
         {canEdit && !canBackground && (
           <Button
             type="primary"
@@ -522,6 +523,7 @@ const CustomerDetailPage: React.FC = () => {
             onStarted={bg.reload}
             precheck={precheck}
             onFix={fixPrecheck}
+            beforePrimary={moreBtn}
           />
         )}
       </>

@@ -440,7 +440,17 @@ export const BackgroundActions: React.FC<{
   precheck: PrecheckState;
   /** 能编辑客户时传入，检查窗口里显示「去补充」 */
   onFix?: (target: string) => void;
-}> = ({ customerId, customerName, running, onStarted, precheck, onFix }) => {
+  /** 放在「上传报告」和「AI 背调」之间，页头用来放「更多」（原型 B1：文字按钮 → 更多 → 主按钮） */
+  beforePrimary?: React.ReactNode;
+}> = ({
+  customerId,
+  customerName,
+  running,
+  onStarted,
+  precheck,
+  onFix,
+  beforePrimary,
+}) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
   const [starting, setStarting] = useState(false);
@@ -491,6 +501,7 @@ export const BackgroundActions: React.FC<{
       >
         上传报告
       </Button>
+      {beforePrimary}
       <Button
         type="primary"
         icon={<Sparkles size={18} />}

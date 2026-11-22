@@ -386,7 +386,7 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
                       minWidth: 0,
                       height: Number(v) ? `${(Number(v) / max) * 100}%` : 3,
                       borderRadius: '4px 4px 0 0',
-                      background: Number(v) ? palette.link : palette.hairline,
+                      background: Number(v) ? palette.chart : palette.hairline,
                       opacity: last ? 1 : 0.7,
                     }}
                   />
@@ -464,7 +464,7 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
                     height: '100%',
                     width: `${Math.max(2, (Number(x.value) / max) * 100)}%`,
                     borderRadius: 6,
-                    background: palette.link,
+                    background: palette.chart,
                     opacity: 0.85,
                   }}
                 />

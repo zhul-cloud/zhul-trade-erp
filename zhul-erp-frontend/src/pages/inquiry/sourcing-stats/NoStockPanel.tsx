@@ -100,7 +100,7 @@ const NoStockPanel: React.FC = () => {
             display: 'block',
             width: `${Math.min(100, ((v ?? 0) / 30) * 100)}%`,
             height: '100%',
-            background: palette.link,
+            background: palette.chart,
           }}
         />
       </span>
@@ -299,7 +299,7 @@ const NoStockPanel: React.FC = () => {
                     width: 32,
                     height: Math.max(4, ((x.rate ?? 0) / maxRate) * 100),
                     borderRadius: 6,
-                    background: last ? palette.link : palette.mute,
+                    background: last ? palette.chart : palette.mute,
                   }}
                 />
                 <span style={{ ...num, fontSize: 11, color: palette.mute }}>

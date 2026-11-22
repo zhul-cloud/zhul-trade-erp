@@ -20,6 +20,8 @@ interface Preset {
   darkSoft: string;
   /** 主题色作为图表第一个系列时，去掉色相最接近的这个系列色 */
   chartDrop: string;
+  /** 浅色下原色在白底不到 3:1 时，图表第一个系列改用这个颜色（琥珀 1.93:1） */
+  lightChart?: string;
 }
 
 export const PRESETS: Record<PresetKey, Preset> = {
@@ -30,6 +32,7 @@ export const PRESETS: Record<PresetKey, Preset> = {
     darkLink: '#FDA92D',
     darkSoft: '#3E311D',
     chartDrop: '#B87A14',
+    lightChart: '#B87A14',
   },
   teal: {
     name: '青绿',
@@ -177,6 +180,10 @@ export function mix(fg: string, bg: string, alpha: number): string {
   return `#${out.join('')}`.toUpperCase();
 }
 
+/** 图表第一个系列：浅色用原色（不到 3:1 时用 lightChart），深色用深色链接色 */
+const chartPrimary = (mode: ThemeMode, pr: Preset) =>
+  mode === 'light' ? (pr.lightChart ?? pr.primary) : pr.darkLink;
+
 /** 由主题模式和主题色生成整套令牌 */
 export function buildPalette(
   mode: ThemeMode,
@@ -199,6 +206,8 @@ export function buildPalette(
     primarySoft: mode === 'light' ? pr.lightSoft : pr.darkSoft,
     /** 选中描边：链接色 40% 叠在卡片上 */
     primaryLine: mix(link, base.card, 0.4),
+    /** 图表第一个系列（柱、条、线）：深浅底上都不低于 3:1 */
+    chart: chartPrimary(mode, pr),
   };
 }
 
@@ -216,7 +225,8 @@ export const CHART_SERIES = [
 
 /**
  * 主题色作为第一个系列时的系列色：去掉色相最接近的一个，其余顺延。
- * 第一个系列在深色下用深色链接色（原色在近黑底上可能不到 3:1，如紫 2.75）。
+ * 第一个系列在深色下用深色链接色（原色在近黑底上可能不到 3:1，如紫 2.75）；
+ * 浅色下原色在白底不到 3:1 的（琥珀）用 lightChart。
  */
 export const chartSeries = (
   mode: ThemeMode = 'light',
@@ -224,7 +234,7 @@ export const chartSeries = (
 ): string[] => {
   const pr = isPresetKey(preset) ? PRESETS[preset] : PRESETS[DEFAULT_PRESET];
   return [
-    mode === 'light' ? pr.primary : pr.darkLink,
+    chartPrimary(mode, pr),
     ...CHART_SERIES.filter((c) => c !== pr.chartDrop),
   ];
 };
