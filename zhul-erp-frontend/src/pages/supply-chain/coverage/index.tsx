@@ -1,8 +1,8 @@
 import { history, Link, useAccess } from '@umijs/max';
 import { Empty, Segmented, Select, Skeleton, Switch } from 'antd';
+import { PageHeader } from '@/components/ListLayout';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { PageTitle } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { Card, CoverBar, HeatPill, useCoverColors, useOptions, useUsers } from '../components';
 import { ProjectModal } from '../dialogs';
@@ -194,11 +194,10 @@ const CoverageMatrixPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        title={
-          <span style={{ display: 'inline-flex', gap: 16, alignItems: 'center' }}>
-            覆盖矩阵
-            <Segmented
+      <PageHeader
+        title="覆盖矩阵"
+        tags={
+          <Segmented
               value={mode}
               onChange={(v) => {
                 setMode(v as Mode);
@@ -210,9 +209,8 @@ const CoverageMatrixPage: React.FC = () => {
                 { value: 'supplier', label: '按供应商' },
               ]}
             />
-          </span>
         }
-        actions={
+        extra={
           stock ? (
             <span style={{ color: palette.mute, fontSize: 13 }}>颜色越深，无货次数越多</span>
           ) : sup ? (

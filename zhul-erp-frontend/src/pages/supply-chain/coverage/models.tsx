@@ -2,9 +2,9 @@ import { BranchesOutlined, SearchOutlined } from '@ant-design/icons';
 import { Link, useLocation } from '@umijs/max';
 import { Input, Select, Table, type TableColumnsType } from 'antd';
 import dayjs from 'dayjs';
+import { PageHeader } from '@/components/ListLayout';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import { PageTitle } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
@@ -200,10 +200,9 @@ const CoverageModelsPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={['覆盖矩阵', title]}
+      <PageHeader
         title={title}
-        description={
+        sub={
           f.stockoutDays ? (
             `近 ${f.stockoutDays} 天无货 ${total} 个型号`
           ) : (
@@ -221,7 +220,7 @@ const CoverageModelsPage: React.FC = () => {
             )
           )
         }
-        actions={
+        extra={
           <>
             <Select
               allowClear

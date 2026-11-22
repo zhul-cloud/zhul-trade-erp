@@ -9,7 +9,13 @@ import { Button, Skeleton } from 'antd';
 import React, { useState } from 'react';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
-import { BOARD_COLOR, Card, CoverPill, DueText, Pill } from '../components';
+import {
+  Card,
+  CoverPill,
+  DueText,
+  Pill,
+  useSupplyBoardStyle,
+} from '../components';
 import {
   type DevTodayItem,
   modelName,
@@ -30,7 +36,8 @@ const TodayCardView: React.FC<{
   onDefer: (c: TodayCard) => void;
 }> = ({ c, canEdit, onRecord, onDefer }) => {
   const { palette } = useAppTheme();
-  const color = c.overdue ? palette.red : BOARD_COLOR[c.board];
+  const board = useSupplyBoardStyle();
+  const color = c.overdue ? palette.red : board(c.board).color;
   const top = c.items[0];
   return (
     <Card style={{ padding: '16px 20px', marginBottom: 12 }}>
@@ -166,7 +173,8 @@ const DevItemView: React.FC<{
   onOpen: (i: DevTodayItem) => void;
 }> = ({ i, onOpen }) => {
   const { palette } = useAppTheme();
-  const color = i.overdue ? palette.red : BOARD_COLOR.dev;
+  const board = useSupplyBoardStyle();
+  const color = i.overdue ? palette.red : board('dev').color;
   return (
     <Card style={{ padding: '14px 20px', marginBottom: 12 }}>
       <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>

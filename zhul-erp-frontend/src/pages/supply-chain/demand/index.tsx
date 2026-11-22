@@ -6,7 +6,6 @@ import {
   EditOutlined,
   EyeOutlined,
   MessageOutlined,
-  MoreOutlined,
   PlusOutlined,
   RobotOutlined,
   SearchOutlined,
@@ -25,15 +24,13 @@ import {
   Skeleton,
 } from 'antd';
 import dayjs from 'dayjs';
+import { Ellipsis } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { DocLogCard, SectionTitle } from '@/components/DocFields/DocPage';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import SupplierSelect from '@/pages/inquiry/my-tasks/SupplierSelect';
-import {
-  PageTitle,
-  useQuoteDicts,
-  useWide,
-} from '@/pages/inquiry/shared/components';
+import { useQuoteDicts, useWide } from '@/pages/inquiry/shared/components';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
@@ -481,18 +478,15 @@ const DemandDetailPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={['供应链跟进', modelName(d)]}
-        title={
-          <span
-            style={{ display: 'inline-flex', gap: 10, alignItems: 'center' }}
-          >
-            {modelName(d)}
+      <PageHeader
+        title={modelName(d)}
+        tags={
+          <>
             <LevelPill value={d.demandLevel} />
             <PriorityPill value={d.priority} />
-          </span>
+          </>
         }
-        description={[
+        sub={[
           d.brandName,
           d.categoryName,
           d.lastSignalAt &&
@@ -501,21 +495,38 @@ const DemandDetailPage: React.FC = () => {
         ]
           .filter(Boolean)
           .join(' · ')}
-        actions={
+        // 页头操作（照销售订单详情）：记处理为主按钮，其余为文字按钮，合并重复收进「更多」
+        extra={
           data.canEdit && (
             <>
-              <Button onClick={() => setModal('priority')}>改优先级</Button>
+              <Button
+                type="text"
+                style={{ color: palette.link }}
+                onClick={() => setModal('priority')}
+              >
+                改优先级
+              </Button>
               {d.status === DEMAND.PAUSED ? (
                 <Button
+                  type="text"
+                  style={{ color: palette.link }}
                   onClick={() => act(() => supplyApi.resume(d.id), '已恢复')}
                 >
                   恢复
                 </Button>
               ) : (
-                <Button onClick={() => setModal('pause')}>暂不覆盖</Button>
+                <Button
+                  type="text"
+                  style={{ color: palette.link }}
+                  onClick={() => setModal('pause')}
+                >
+                  暂不覆盖
+                </Button>
               )}
               {d.status === DEMAND.WATCHING && (
                 <Button
+                  type="text"
+                  style={{ color: palette.link }}
                   onClick={() =>
                     act(() => supplyApi.join(d.id), '已加入覆盖矩阵')
                   }
@@ -523,18 +534,24 @@ const DemandDetailPage: React.FC = () => {
                   加入矩阵
                 </Button>
               )}
-              <Button type="primary" onClick={() => setModal('record')}>
-                记处理
-              </Button>
               <Dropdown
                 trigger={['click']}
+                placement="bottomRight"
                 menu={{
                   items: [{ key: 'merge', label: '合并重复' }],
                   onClick: () => setModal('merge'),
                 }}
               >
-                <Button icon={<MoreOutlined />} aria-label="更多操作" />
+                <Button
+                  type="text"
+                  shape="circle"
+                  icon={<Ellipsis size={18} />}
+                  aria-label="更多操作"
+                />
               </Dropdown>
+              <Button type="primary" onClick={() => setModal('record')}>
+                记处理
+              </Button>
             </>
           )
         }

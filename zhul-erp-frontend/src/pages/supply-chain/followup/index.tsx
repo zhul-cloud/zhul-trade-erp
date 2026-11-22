@@ -8,8 +8,9 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { PageTitle, useWide } from '@/pages/inquiry/shared/components';
+import { useWide } from '@/pages/inquiry/shared/components';
 import { categoryGroups } from '@/pages/supplier/productScope';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -498,8 +499,8 @@ const SupplyFollowupPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        actions={
+      <PageHeader
+        extra={
           <>
             {canTeam && (
               <Segmented

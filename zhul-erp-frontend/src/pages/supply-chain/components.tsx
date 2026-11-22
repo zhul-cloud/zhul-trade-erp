@@ -18,6 +18,10 @@ import {
   type Category,
   categoryApi,
 } from '@/pages/product/service';
+import {
+  type StepStyle,
+  useStepStyle,
+} from '@/pages/sales/followup/boardStyle';
 import { Arrow } from '@/pages/sales/followup/FlowChain';
 import { categoryGroups } from '@/pages/supplier/productScope';
 import { getUserOptions } from '@/services/zhul/users';
@@ -209,33 +213,20 @@ export const EvidenceText: React.FC<{ d: Demand }> = ({ d }) => {
 
 // ---------------------------------------------------------------- 顶部链路
 
-/** 五个板块（与作战地图一致），第 4–5 步未上线 */
+/** 五个板块（与作战地图一致），第 4–5 步未上线；颜色按步骤取，与客户跟进同一套 */
 const BOARDS = [
-  {
-    key: 'intel',
-    name: '需求情报',
-    color: '#7E22CE',
-    icon: <CompassOutlined />,
-  },
-  {
-    key: 'cover',
-    name: '供应覆盖',
-    color: '#4338CA',
-    icon: <SafetyCertificateOutlined />,
-  },
-  { key: 'dev', name: '供应商开发', color: '#1D4ED8', icon: <AuditOutlined /> },
-  {
-    key: 'order',
-    name: '报价与订单',
-    color: '#BE185D',
-    icon: <FileTextOutlined />,
-  },
-  { key: 'review', name: '复盘补全', color: '#15803D', icon: <SyncOutlined /> },
+  { key: 'intel', name: '需求情报', icon: <CompassOutlined /> },
+  { key: 'cover', name: '供应覆盖', icon: <SafetyCertificateOutlined /> },
+  { key: 'dev', name: '供应商开发', icon: <AuditOutlined /> },
+  { key: 'order', name: '报价与订单', icon: <FileTextOutlined /> },
+  { key: 'review', name: '复盘补全', icon: <SyncOutlined /> },
 ];
-export const BOARD_COLOR = Object.fromEntries(
-  BOARDS.map((b) => [b.key, b.color]),
-);
-export const TODAY_COLOR = '#4F46E5';
+
+/** 板块的颜色（图形用色、文字色等）：按板块所在的步骤取 */
+export const useSupplyBoardStyle = (): ((key: string) => StepStyle) => {
+  const step = useStepStyle();
+  return (key: string) => step(BOARDS.findIndex((b) => b.key === key) + 1 || 1);
+};
 
 export type FlowView = 'today' | 'intel' | 'cover' | 'dev';
 
@@ -250,6 +241,7 @@ const StageCard: React.FC<{
   onSelect?: () => void;
 }> = ({ b, step, active, count, unit = '个型号', badge, sub, onSelect }) => {
   const { palette } = useAppTheme();
+  const s = useStepStyle()(step);
   const open = !!onSelect;
   return (
     <button
@@ -268,8 +260,8 @@ const StageCard: React.FC<{
         padding: '12px 14px',
         borderRadius: 14,
         cursor: open ? 'pointer' : 'not-allowed',
-        background: active ? `${b.color}14` : palette.card,
-        border: `1px solid ${active ? b.color : palette.hairline}`,
+        background: active ? s.soft : palette.card,
+        border: `1px solid ${active ? s.color : palette.hairline}`,
         transition: 'background .15s, border-color .15s',
       }}
     >
@@ -283,8 +275,9 @@ const StageCard: React.FC<{
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: b.color,
-              background: `${b.color}1F`,
+              color: s.text,
+              // 选中时卡片已是浅底，图标底块改白，免得融成一片
+              background: active ? palette.card : s.soft,
             }}
           >
             {b.icon}
@@ -293,7 +286,7 @@ const StageCard: React.FC<{
             style={{
               fontSize: 14,
               whiteSpace: 'nowrap',
-              color: active ? b.color : palette.ink,
+              color: active ? s.text : palette.ink,
             }}
           >
             {b.name}
@@ -306,8 +299,8 @@ const StageCard: React.FC<{
             fontSize: 11,
             fontWeight: 600,
             whiteSpace: 'nowrap',
-            color: active ? '#fff' : b.color,
-            background: active ? b.color : `${b.color}1F`,
+            color: active ? s.badgeInk : s.text,
+            background: active ? s.badge : s.soft,
           }}
         >
           第 {step} 步
@@ -359,86 +352,94 @@ const StageCard: React.FC<{
   );
 };
 
-const Track: React.FC<{ counts: (number | undefined)[] }> = ({ counts }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-    {BOARDS.map((b, i) => {
-      const next = BOARDS[i + 1];
-      return (
-        <React.Fragment key={b.key}>
-          <div
-            style={{
-              flex: '1 1 0',
-              minWidth: next ? 0 : 'auto',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            <span
+/** 卡片下方贯穿五步的进度轨道，末尾「复盘回到第 1 步」；与客户跟进同一套画法 */
+const Track: React.FC<{ counts: (number | undefined)[] }> = ({ counts }) => {
+  const style = useStepStyle();
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      {BOARDS.map((b, i) => {
+        const s = style(i + 1);
+        const next = BOARDS[i + 1] ? style(i + 2) : undefined;
+        return (
+          <React.Fragment key={b.key}>
+            <div
               style={{
-                width: 22,
-                height: 22,
-                borderRadius: 11,
-                flexShrink: 0,
-                display: 'inline-flex',
+                flex: '1 1 0',
+                minWidth: next ? 0 : 'auto',
+                display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 11,
-                fontWeight: 700,
-                color: '#fff',
-                background: b.color,
+                gap: 6,
               }}
             >
-              {i + 1}
-            </span>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: b.color,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {b.name} {counts[i] ?? ''}
-            </span>
-            <span
-              style={{
-                flex: 1,
-                minWidth: 12,
-                height: 6,
-                borderRadius: 3,
-                background: `linear-gradient(90deg, ${b.color}, ${(next ?? b).color})`,
-              }}
-            />
-            {!next && (
+              <span
+                style={{
+                  boxSizing: 'border-box',
+                  width: 22,
+                  height: 22,
+                  borderRadius: 11,
+                  flexShrink: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  // 和卡片上的「第 N 步」同一套：浅底、板块色描边、加深的数字
+                  color: s.text,
+                  background: s.soft,
+                  border: `1.5px solid ${s.color}`,
+                }}
+              >
+                {i + 1}
+              </span>
               <span
                 style={{
                   fontSize: 12,
-                  color: b.color,
+                  fontWeight: 600,
+                  color: s.text,
                   whiteSpace: 'nowrap',
-                  display: 'inline-flex',
-                  gap: 4,
                 }}
               >
-                <RetweetOutlined /> 复盘回到第 1 步
+                {b.name} {counts[i] ?? ''}
               </span>
+              <span
+                style={{
+                  flex: 1,
+                  minWidth: 12,
+                  height: 6,
+                  borderRadius: 3,
+                  background: s.color,
+                }}
+              />
+              {!next && (
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: s.text,
+                    whiteSpace: 'nowrap',
+                    display: 'inline-flex',
+                    gap: 4,
+                  }}
+                >
+                  <RetweetOutlined /> 复盘回到第 1 步
+                </span>
+              )}
+            </div>
+            {next && (
+              <span
+                style={{
+                  width: 42,
+                  height: 6,
+                  flexShrink: 0,
+                  background: next.color,
+                }}
+              />
             )}
-          </div>
-          {next && (
-            <span
-              style={{
-                width: 42,
-                height: 6,
-                flexShrink: 0,
-                background: next.color,
-              }}
-            />
-          )}
-        </React.Fragment>
-      );
-    })}
-  </div>
-);
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+};
 
 /** 顶部链路：今日待办 + 作战地图五个板块，已开放需求情报、供应覆盖、供应商开发 */
 export const SupplyFlow: React.FC<{
@@ -483,14 +484,14 @@ export const SupplyFlow: React.FC<{
             borderRadius: 14,
             cursor: 'pointer',
             color: today ? '#fff' : palette.ink,
-            background: today ? TODAY_COLOR : palette.card,
-            border: `1px solid ${today ? TODAY_COLOR : palette.hairline}`,
+            background: today ? palette.primary : palette.card,
+            border: `1px solid ${today ? palette.primary : palette.hairline}`,
           }}
         >
           <b
             style={{
               fontSize: 14,
-              color: today ? '#fff' : TODAY_COLOR,
+              color: today ? '#fff' : palette.link,
               display: 'inline-flex',
               gap: 6,
             }}
@@ -504,7 +505,8 @@ export const SupplyFlow: React.FC<{
           <span
             style={{
               fontSize: 12,
-              color: today ? 'rgba(255,255,255,0.85)' : palette.sub,
+              color: today ? '#fff' : palette.sub,
+              opacity: today ? 0.85 : 1,
             }}
           >
             逾期 {o.overdue} · 今天 {o.dueToday}

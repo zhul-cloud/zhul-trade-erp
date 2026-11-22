@@ -3,6 +3,7 @@ import { Link, useParams } from '@umijs/max';
 import {
   App,
   Button,
+  Dropdown,
   InputNumber,
   Modal,
   Progress,
@@ -12,10 +13,12 @@ import {
   type TableColumnsType,
 } from 'antd';
 import dayjs from 'dayjs';
+import { CircleX, Ellipsis } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { DocLogCard, SectionTitle } from '@/components/DocFields/DocPage';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import { PageTitle, useWide } from '@/pages/inquiry/shared/components';
+import { useWide } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -363,18 +366,15 @@ const ProjectDetailPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={['供应链跟进', p.name]}
-        title={
-          <span
-            style={{ display: 'inline-flex', gap: 10, alignItems: 'center' }}
-          >
-            {p.name}
+      <PageHeader
+        title={p.name}
+        tags={
+          <>
             <Pill tone={st.tone}>{st.label}</Pill>
             {devTask && <Pill tone="cyan">开发供应商</Pill>}
-          </span>
+          </>
         }
-        description={[
+        sub={[
           p.brandName,
           p.categoryName,
           p.ownerName && `负责人 ${p.ownerName}`,
@@ -388,15 +388,47 @@ const ProjectDetailPage: React.FC = () => {
         ]
           .filter(Boolean)
           .join(' · ')}
-        actions={
+        // 页头操作（照销售订单详情）：一个主按钮，其余为文字按钮，取消专项收进「更多」
+        extra={
           active &&
           p.canClose && (
             <>
-              <Button onClick={() => setTargetOpen(true)}>
+              <Button
+                type="text"
+                style={{ color: palette.link }}
+                onClick={() => setTargetOpen(true)}
+              >
                 {devTask ? '改目标' : '加开发目标'}
               </Button>
-              <Button onClick={() => setItems(true)}>增减型号</Button>
-              <Button onClick={() => setClose(false)}>取消专项</Button>
+              <Button
+                type="text"
+                style={{ color: palette.link }}
+                onClick={() => setItems(true)}
+              >
+                增减型号
+              </Button>
+              <Dropdown
+                trigger={['click']}
+                placement="bottomRight"
+                menu={{
+                  items: [
+                    {
+                      key: 'cancel',
+                      icon: <CircleX size={16} />,
+                      label: '取消专项',
+                      danger: true,
+                    },
+                  ],
+                  onClick: () => setClose(false),
+                }}
+              >
+                <Button
+                  type="text"
+                  shape="circle"
+                  icon={<Ellipsis size={18} />}
+                  aria-label="更多操作"
+                />
+              </Dropdown>
               <Button type="primary" onClick={() => setClose(true)}>
                 标为已完成
               </Button>

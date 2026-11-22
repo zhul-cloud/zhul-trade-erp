@@ -5,7 +5,7 @@ import {
   RiseOutlined,
   SolutionOutlined,
 } from '@ant-design/icons';
-import type React from 'react';
+import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { CHART_SERIES, mix } from '@/theme/palette';
 
@@ -46,17 +46,19 @@ export interface BoardStyle {
   icon: React.ReactNode;
 }
 
-/** 按当前明暗模式取板块的颜色与图标 */
-export const useBoardStyle = (): ((board: number) => BoardStyle) => {
+export type StepStyle = Omit<BoardStyle, 'icon'>;
+
+/**
+ * 按当前明暗模式取第 N 步（1–5）的颜色；客户跟进、供应链跟进两条链路共用。
+ * 五步各用一种颜色，不随主题色变，方便一眼区分：前四步取图表系列色（蓝、青、棕黄、珊瑚），
+ * 第 5 步用亮绿（图表系列的绿偏暗）；主题色留给「今日待办」和选中状态（2026-11-22 用户在对比图里选定）
+ */
+export const useStepStyle = (): ((step: number) => StepStyle) => {
   const { mode, palette } = useAppTheme();
   const light = mode === 'light';
-  /**
-   * 五个板块各用一种颜色，不随主题色变，方便一眼区分板块：前四个取图表系列色（蓝、青、棕黄、珊瑚），
-   * 客户经营用亮绿（图表系列的绿偏暗）；主题色留给「今日待办」和选中状态（2026-11-22 用户在对比图里选定）
-   */
   const colors = [...CHART_SERIES.slice(0, 4), palette.greenMain];
-  return (board: number) => {
-    const b = colors[board - 1] ? board : 2;
+  return (step: number) => {
+    const b = colors[step - 1] ? step : 2;
     const color = colors[b - 1];
     const text = mix(color, palette.ink, light ? LIGHT_TEXT_WEIGHT[b] : 0.9);
     return {
@@ -66,7 +68,15 @@ export const useBoardStyle = (): ((board: number) => BoardStyle) => {
       // 白字放在原色上只有 3.2–3.7:1，浅色用加深色作底，深色改用深字
       badge: light ? text : color,
       badgeInk: light ? '#fff' : palette.card,
-      icon: BOARD_ICON[b],
     };
+  };
+};
+
+/** 按当前明暗模式取客户跟进板块的颜色与图标 */
+export const useBoardStyle = (): ((board: number) => BoardStyle) => {
+  const step = useStepStyle();
+  return (board: number) => {
+    const b = BOARD_ICON[board] ? board : 2;
+    return { ...step(b), icon: BOARD_ICON[b] };
   };
 };
