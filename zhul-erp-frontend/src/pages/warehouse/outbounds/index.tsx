@@ -356,7 +356,19 @@ const Outbounds: React.FC = () => {
             aria-label="关键词"
           />
         </FilterField>
-        <FilterField label="状态">
+        <FilterField
+          label="状态"
+          // 原表格下方按状态显示的脚注（排序说明删去）
+          help={
+            tab === 'packed'
+              ? '勾选同一家货代的销售出库单合成一票快递，运费按计费重分摊'
+              : tab === 'handed'
+                ? '还没放进出运单的可以在详情里撤销交快递，回到待交快递'
+                : tab === 'all'
+                  ? '含已撤回的发货通知'
+                  : undefined
+          }
+        >
           <Select<Tab>
             value={tab}
             onChange={changeTab}
@@ -488,15 +500,6 @@ const Outbounds: React.FC = () => {
           />
         </MainCard>
       )}
-      <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-        {tab === 'pending'
-          ? '按通知时间从早到晚'
-          : tab === 'packed'
-            ? '勾选同一家货代的销售出库单合成一票快递，运费按计费重分摊'
-            : tab === 'handed'
-              ? '还没放进出运单的可以在详情里撤销交快递，回到待交快递'
-              : '含已撤回的发货通知'}
-      </div>
       <PackDrawer
         id={packing}
         onClose={() => setPacking(undefined)}

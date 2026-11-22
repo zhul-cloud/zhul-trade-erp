@@ -366,7 +366,7 @@ const Receipts: React.FC = () => {
   return (
     <div>
       <PageHeader
-        help="按发货单验收：只记录实收、合格、不良，差异由采购员处理"
+        help="按发货单验收：只记录实收、合格、不良，差异由采购员处理。没有发货单的货点「直接收货」，系统补一条发货记录并标「仓库补登」"
         extra={
           canEdit && (
             <Button
@@ -457,11 +457,6 @@ const Receipts: React.FC = () => {
             />
           )}
         </MainCard>
-      )}
-      {tab === 'pending' && (
-        <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-          按发货日期从早到晚；没有发货单的货点「直接收货」，系统补一条发货记录并标「仓库补登」。
-        </div>
       )}
       <AcceptDrawer
         shipmentId={accepting}
