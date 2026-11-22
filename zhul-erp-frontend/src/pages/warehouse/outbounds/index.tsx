@@ -13,7 +13,12 @@ import { CustomerCell } from '@/components/DocFields';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
-import { FilterCard, FilterField, MainCard } from '@/components/ListLayout';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import {
@@ -33,7 +38,7 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import { DOC_PATHS, distinctOf, sub, WarehousePageTitle } from '../components';
+import { DOC_PATHS, distinctOf, sub } from '../components';
 import { HandOverModal, PackDrawer } from './dialogs';
 
 type Tab = 'pending' | 'packed' | 'handed' | 'all';
@@ -327,7 +332,7 @@ const Outbounds: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle description="按业务员的发货通知打包：逐箱登记尺寸、重量和箱内型号，交国内快递发往深圳货代；同一客户、同一货代的几张单可以合并打包。" />
+      <PageHeader help="按业务员的发货通知打包：逐箱登记尺寸、重量和箱内型号，交国内快递发往深圳货代；同一客户、同一货代的几张单可以合并打包" />
       <FilterCard
         onSearch={apply}
         onReset={() => {
@@ -336,14 +341,18 @@ const Outbounds: React.FC = () => {
           changeTab('pending');
         }}
       >
-        <FilterField label="关键词" span={2}>
+        <FilterField
+          label="关键词"
+          span={2}
+          help="可搜：销售出库单号、销售订单编号、出库型号、国内快递单号、客户名称"
+        >
           <Input
             allowClear
             prefix={<SearchOutlined />}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             onPressEnter={apply}
-            placeholder="销售出库单号、订单号、客户、型号"
+            placeholder="出库单号、订单编号、客户"
             aria-label="关键词"
           />
         </FilterField>

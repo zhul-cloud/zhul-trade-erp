@@ -1,13 +1,21 @@
 import { history, Link } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Input, Segmented, Table } from 'antd';
+import { App, Input, Select, Table } from 'antd';
+import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { IconButton } from '@/components/Shell';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
-import { Card, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import {
   type ReturnReceipt,
@@ -20,7 +28,17 @@ import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import { WarehousePageTitle } from '../components';
+
+/** 帮助文字：help-texts.md「退货入库列表」，关键词范围以 search-scope.md 为准 */
+export const HELP = {
+  page: '业务员确认销售退货单后生成；验收与处理去向在详情页',
+  keyword:
+    '可搜：退货入库单号、订单编号、退货单号、退货快递单号、售后单号、型号',
+} as const;
+
+/** 下拉选项后面带数量（stat-cards.md：状态并入下拉） */
+const withCount = (label: string, n?: number) =>
+  n ? `${label} · ${n}` : label;
 
 /** 仓库管理 → 退货入库（spec warehouse/sales-return）：退货入库单列表，验收与处理去向在详情页 */
 const ReturnsPage: React.FC = () => {
@@ -165,60 +183,78 @@ const ReturnsPage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 80,
+      width: 64,
       fixed: 'right',
-      render: (_, r) => <Link to={PATHS.returnReceipt(r.id)}>查看</Link>,
+      render: (_, r) => (
+        <IconButton
+          label="查看"
+          size={32}
+          icon={<Eye size={18} />}
+          onClick={() => history.push(PATHS.returnReceipt(r.id))}
+        />
+      ),
     },
   ];
 
+  const search = () => {
+    setQuery(keyword.trim());
+    setPage(1);
+  };
+
   return (
     <div>
-      <WarehousePageTitle />
-      <Card style={{ padding: 16 }}>
-        <div
-          style={{
-            display: 'flex',
-            gap: 12,
-            flexWrap: 'wrap',
-            marginBottom: 12,
-          }}
-        >
-          <Segmented<number | 'all'>
-            value={status}
+      <PageHeader help={HELP.page} />
+      <FilterCard
+        onSearch={search}
+        onReset={() => {
+          // 重置回默认视图：待入库
+          setKeyword('');
+          setQuery('');
+          setStatus(RT_STATUS.PENDING);
+          setPage(1);
+        }}
+        minColumn={130}
+      >
+        <FilterField label="关键词" span={2} help={HELP.keyword}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="入库单号、售后单号、型号"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={search}
+            aria-label="关键词"
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select<number>
+            allowClear
+            placeholder="全部"
+            value={status === 'all' ? undefined : status}
             onChange={(v) => {
-              setStatus(v);
+              // 切换状态立即查询（doc-list-unify 状态下拉的写法）
+              setStatus(v ?? 'all');
               setPage(1);
             }}
             options={[
               {
                 value: RT_STATUS.PENDING,
-                label: `待入库 ${counts?.pending ?? ''}`,
+                label: withCount('待入库', counts?.pending),
               },
               {
                 value: RT_STATUS.RECEIVED,
-                label: `待处理 ${counts?.received ?? ''}`,
+                label: withCount('待处理', counts?.received),
               },
               { value: RT_STATUS.DONE, label: '已处理' },
               { value: RT_STATUS.VOID, label: '已作废' },
-              { value: 'all', label: '全部' },
             ]}
+            aria-label="状态"
           />
-          <Input.Search
-            allowClear
-            placeholder="单号、售后单号、订单号、型号、快递单号"
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            onSearch={(v) => {
-              setQuery(v.trim());
-              setPage(1);
-            }}
-            style={{ width: 320 }}
-            aria-label="关键词"
-          />
-        </div>
+        </FilterField>
+      </FilterCard>
+      <MainCard left={`共 ${total} 条`}>
         <Table<ReturnReceipt>
           rowKey="id"
-          size="middle"
           loading={loading}
           columns={columns}
           dataSource={rows}
@@ -234,14 +270,14 @@ const ReturnsPage: React.FC = () => {
             pageSize,
             total,
             showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
+            showTotal: (t, [from, to]) => `${from}-${to} 共 ${t} 条`,
             onChange: (p, s) => {
               setPage(p);
               setPageSize(s);
             },
           }}
         />
-      </Card>
+      </MainCard>
     </div>
   );
 };

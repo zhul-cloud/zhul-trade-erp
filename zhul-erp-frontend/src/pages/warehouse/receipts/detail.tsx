@@ -1,6 +1,7 @@
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table } from 'antd';
+import { App, Button, Dropdown, Skeleton, Table } from 'antd';
+import { CircleX, Ellipsis } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
   docBrandColumns,
@@ -14,12 +15,12 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
 import {
   Card,
   DOC_PATHS,
@@ -27,7 +28,6 @@ import {
   ReceiptStatusPill,
   relatedRows,
   WAREHOUSE_PATHS,
-  WarehousePageTitle,
 } from '../components';
 import {
   type ReceiptDetail as Detail,
@@ -143,17 +143,12 @@ const ReceiptDetailPage: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle
-        crumbs={[<MenuLink key="list" to={WAREHOUSE_PATHS.receipts} />, r.grNo]}
-        title={
-          <>
-            {r.grNo}
-            <ReceiptStatusPill value={r.status}>
-              {r.statusName}
-            </ReceiptStatusPill>
-          </>
+      <PageHeader
+        title={r.grNo}
+        tags={
+          <ReceiptStatusPill value={r.status}>{r.statusName}</ReceiptStatusPill>
         }
-        description={
+        sub={
           <>
             {r.supplierName ?? '—'} ·{' '}
             <SourceNos
@@ -164,12 +159,32 @@ const ReceiptDetailPage: React.FC = () => {
             {formatDateTime(r.createTime).slice(0, 16)} 创建
           </>
         }
-        actions={
+        // 冲销属危险操作，收进「更多」
+        extra={
           d.reversible &&
           canEdit && (
-            <Button danger onClick={() => setReversing(true)}>
-              冲销
-            </Button>
+            <Dropdown
+              trigger={['click']}
+              placement="bottomRight"
+              menu={{
+                items: [
+                  {
+                    key: 'reverse',
+                    icon: <CircleX size={16} />,
+                    label: '冲销',
+                    danger: true,
+                  },
+                ],
+                onClick: () => setReversing(true),
+              }}
+            >
+              <Button
+                type="text"
+                shape="circle"
+                icon={<Ellipsis size={18} />}
+                aria-label="更多操作"
+              />
+            </Dropdown>
           )
         }
       />

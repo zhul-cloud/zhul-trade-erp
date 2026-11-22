@@ -1,7 +1,8 @@
 import { Link } from '@umijs/max';
-import { type App, Button, Form, type FormInstance } from 'antd';
+import { type App, Form, type FormInstance } from 'antd';
 import React, { useEffect, useState } from 'react';
-import { Card, Pill } from '@/pages/inquiry/shared/components';
+import { FilterCard as ListFilterCard } from '@/components/ListLayout';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
   batchHref,
@@ -128,7 +129,10 @@ export const warehouseQuery = (f: WarehouseFilter) =>
       ? {}
       : { warehouseScope: f };
 
-/** 筛选卡片：自适应网格 + 右侧重置 / 查询 */
+/**
+ * 筛选卡片：库存各页的表单写法套用 ListLayout 的搜索条件区（标签在上、右侧重置 / 查询）；
+ * 外层保留 form 元素，输入框里按回车仍会查询
+ */
 export const FilterCard: React.FC<{
   form: FormInstance;
   initialValues: object;
@@ -137,39 +141,18 @@ export const FilterCard: React.FC<{
   children: React.ReactNode;
   extra?: React.ReactNode;
 }> = ({ form, initialValues, onSearch, onReset, children, extra }) => (
-  <Card style={{ marginBottom: 16, padding: 20 }}>
-    <Form
-      form={form}
-      layout="vertical"
-      initialValues={initialValues}
-      onFinish={onSearch}
+  <Form form={form} initialValues={initialValues} onFinish={onSearch}>
+    <ListFilterCard
+      onSearch={() => form.submit()}
+      onReset={() => {
+        form.resetFields();
+        onReset();
+      }}
+      quick={extra}
     >
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
-          gap: 12,
-          alignItems: 'end',
-        }}
-      >
-        {children}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <Button
-            onClick={() => {
-              form.resetFields();
-              onReset();
-            }}
-          >
-            重置
-          </Button>
-          <Button type="primary" htmlType="submit">
-            查询
-          </Button>
-        </div>
-      </div>
-      {extra}
-    </Form>
-  </Card>
+      {children}
+    </ListFilterCard>
+  </Form>
 );
 
 /**

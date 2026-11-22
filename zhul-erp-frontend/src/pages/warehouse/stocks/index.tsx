@@ -1,23 +1,21 @@
-import {
-  AlertOutlined,
-  CheckCircleOutlined,
-  RollbackOutlined,
-  SearchOutlined,
-  WalletOutlined,
-} from '@ant-design/icons';
+import { SearchOutlined } from '@ant-design/icons';
 import { history, Link, useAccess, useLocation } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Button, Form, Input, Select, Table } from 'antd';
+import { Form, Input, Select, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import {
+  FilterField,
+  MainCard,
+  PageHeader,
+  QuickFilters,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
-import { StatCard } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import { WarehousePageTitle } from '../components';
 import {
   BatchLink,
   FilterCard,
@@ -349,53 +347,36 @@ const StocksPage: React.FC = () => {
     setFilters(f);
     setPage(1);
   };
+  /** 帮助文字：help-texts.md「库存查询」 */
+  const HELP = {
+    page: '按商品 × 仓库汇总；展开看批次',
+    returnPending: '已生成采购退货单、还没寄出的件数',
+  };
   const quick = (k: 'available' | 'defective') =>
     apply({ ...filters, quick: filters.quick === k ? undefined : k });
 
   return (
     <div>
-      <WarehousePageTitle />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: 16,
-          marginBottom: 16,
-        }}
-      >
-        <StatCard
-          icon={<WalletOutlined />}
-          color={palette.link}
-          label="库存金额"
-          value={formatAmount(summary?.amountCny ?? 0, 'CNY')}
-          hint={`${summary?.productCount ?? 0} 个商品 · ${summary?.warehouseCount ?? 0} 个仓库`}
+      <PageHeader help={HELP.page} />
+      {summary && (
+        <SummaryBar
+          items={[
+            {
+              key: 'amount',
+              label: '库存金额',
+              value: summary.amountCny ?? 0,
+              currency: 'CNY',
+              sub: `${summary.productCount ?? 0} 个商品 · ${summary.warehouseCount ?? 0} 个仓库`,
+            },
+            {
+              key: 'returnPending',
+              label: '退货待寄出',
+              help: HELP.returnPending,
+              value: `${summary.returnPending ?? 0} 件`,
+            },
+          ]}
         />
-        <StatCard
-          icon={<CheckCircleOutlined />}
-          color={palette.green}
-          label="可用"
-          value={`${summary?.available ?? 0} 件`}
-          hint="没有预占给订单，可以报废、转样品或退回"
-          active={filters.quick === 'available'}
-          onClick={() => quick('available')}
-        />
-        <StatCard
-          icon={<AlertOutlined />}
-          color={palette.red}
-          label="不良"
-          value={`${summary?.defective ?? 0} 件`}
-          hint="等待处理"
-          active={filters.quick === 'defective'}
-          onClick={() => quick('defective')}
-        />
-        <StatCard
-          icon={<RollbackOutlined />}
-          color={palette.orange}
-          label="退货待寄出"
-          value={`${summary?.returnPending ?? 0} 件`}
-          hint="已生成采购退货单"
-        />
-      </div>
+      )}
       <FilterCard
         form={form}
         initialValues={initial()}
@@ -407,56 +388,52 @@ const StocksPage: React.FC = () => {
           apply({ warehouse: 'all' });
         }}
         extra={
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              marginTop: 12,
+          <QuickFilters
+            options={[
+              {
+                value: 'available',
+                label: `只看可用${summary ? ` · ${summary.available ?? 0} 件` : ''}`,
+              },
+              {
+                value: 'defective',
+                label: `只看有不良${summary?.defective ? ` · ${summary.defective} 件` : ''}`,
+              },
+            ]}
+            value={filters.quick ? [filters.quick] : []}
+            onChange={(v) => {
+              // 两个条件互斥，取刚点的那个
+              const next = v.find((x) => x !== filters.quick) as
+                | 'available'
+                | 'defective'
+                | undefined;
+              quick(next ?? (filters.quick as 'available' | 'defective'));
             }}
-          >
-            <span style={{ fontSize: 12, color: palette.mute }}>快捷筛选</span>
-            {(
-              [
-                ['available', '只看可用'],
-                ['defective', '只看有不良'],
-              ] as const
-            ).map(([k, label]) => (
-              <Button
-                key={k}
-                size="small"
-                type={filters.quick === k ? 'primary' : 'default'}
-                aria-pressed={filters.quick === k}
-                onClick={() => quick(k)}
-              >
-                {label}
-              </Button>
-            ))}
-          </div>
+          />
         }
       >
-        <Form.Item
-          name="keyword"
-          label="关键词"
-          style={{ marginBottom: 0, gridColumn: 'span 2' }}
-        >
-          <Input
-            allowClear
-            prefix={<SearchOutlined />}
-            placeholder="型号、品牌"
-          />
-        </Form.Item>
-        <Form.Item name="warehouse" label="仓库" style={{ marginBottom: 0 }}>
-          <Select options={warehouseFilterOptions(warehouses)} />
-        </Form.Item>
+        <FilterField label="关键词" span={2}>
+          <Form.Item name="keyword" noStyle>
+            <Input
+              aria-label="关键词"
+              allowClear
+              prefix={<SearchOutlined />}
+              placeholder="型号、品牌"
+            />
+          </Form.Item>
+        </FilterField>
+        <FilterField label="仓库">
+          <Form.Item name="warehouse" noStyle>
+            <Select
+              aria-label="仓库"
+              options={warehouseFilterOptions(warehouses)}
+            />
+          </Form.Item>
+        </FilterField>
       </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 16 }}>
-          <div style={{ color: palette.sub, fontSize: 13, marginBottom: 12 }}>
-            按商品 × 仓库汇总；展开看批次
-          </div>
+        <MainCard left={`共 ${total} 条`}>
           <Table<StockRow>
             rowKey={rowKey}
             size="middle"
@@ -494,7 +471,7 @@ const StocksPage: React.FC = () => {
               },
             }}
           />
-        </Card>
+        </MainCard>
       )}
       <OtherOutboundModal
         open={!!outbound}

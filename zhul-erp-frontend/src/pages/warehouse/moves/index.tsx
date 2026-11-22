@@ -4,14 +4,14 @@ import type { TableColumnsType } from 'antd';
 import { Button, Checkbox, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { FilterField, MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import { WarehousePageTitle } from '../components';
 import {
   bizText,
   FilterCard,
@@ -210,7 +210,7 @@ const MovesPage: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle />
+      <PageHeader help="流水只增不改；作废、冲销会生成一笔反向流水" />
       <FilterCard
         form={form}
         initialValues={initial()}
@@ -239,59 +239,58 @@ const MovesPage: React.FC = () => {
           ) : null
         }
       >
-        <Form.Item
-          name="range"
-          label="时间"
-          style={{ marginBottom: 0, gridColumn: 'span 2' }}
-        >
-          <DatePicker.RangePicker style={{ width: '100%' }} />
-        </Form.Item>
-        <Form.Item
-          name="keyword"
-          label="关键词"
-          style={{ marginBottom: 0, gridColumn: 'span 2' }}
-        >
-          <Input
-            allowClear
-            prefix={<SearchOutlined />}
-            placeholder="型号、单号、批次号"
-          />
-        </Form.Item>
-        <Form.Item name="warehouseId" label="仓库" style={{ marginBottom: 0 }}>
-          <Select
-            allowClear
-            placeholder="全部仓库"
-            options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
-          />
-        </Form.Item>
-        <Form.Item name="opType" label="操作类型" style={{ marginBottom: 0 }}>
-          <Select
-            allowClear
-            placeholder="全部"
-            options={OP_OPTIONS.filter((o) => withReservation || o.value < 7)}
-          />
-        </Form.Item>
-        <Form.Item name="bizType" label="业务类型" style={{ marginBottom: 0 }}>
-          <Select allowClear placeholder="全部" options={BIZ_OPTIONS} />
-        </Form.Item>
+        <FilterField label="时间" span={2}>
+          <Form.Item name="range" noStyle>
+            <DatePicker.RangePicker style={{ width: '100%' }} />
+          </Form.Item>
+        </FilterField>
+        <FilterField label="关键词" span={2}>
+          <Form.Item name="keyword" noStyle>
+            <Input
+              aria-label="关键词"
+              allowClear
+              prefix={<SearchOutlined />}
+              placeholder="型号、单号、批次号"
+            />
+          </Form.Item>
+        </FilterField>
+        <FilterField label="仓库">
+          <Form.Item name="warehouseId" noStyle>
+            <Select
+              aria-label="仓库"
+              allowClear
+              placeholder="全部仓库"
+              options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
+            />
+          </Form.Item>
+        </FilterField>
+        <FilterField label="操作类型">
+          <Form.Item name="opType" noStyle>
+            <Select
+              aria-label="操作类型"
+              allowClear
+              placeholder="全部"
+              options={OP_OPTIONS.filter((o) => withReservation || o.value < 7)}
+            />
+          </Form.Item>
+        </FilterField>
+        <FilterField label="业务类型">
+          <Form.Item name="bizType" noStyle>
+            <Select
+              aria-label="业务类型"
+              allowClear
+              placeholder="全部"
+              options={BIZ_OPTIONS}
+            />
+          </Form.Item>
+        </FilterField>
       </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 16 }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 12,
-              gap: 12,
-              flexWrap: 'wrap',
-            }}
-          >
-            <span style={{ color: palette.sub, fontSize: 13 }}>
-              流水只增不改；作废、冲销会生成一笔反向流水
-            </span>
+        <MainCard
+          left={`共 ${total} 条`}
+          right={
             <Checkbox
               checked={withReservation}
               onChange={(e) => {
@@ -301,7 +300,8 @@ const MovesPage: React.FC = () => {
             >
               含预占变动
             </Checkbox>
-          </div>
+          }
+        >
           <Table<InvMove>
             rowKey="id"
             size="middle"
@@ -322,7 +322,7 @@ const MovesPage: React.FC = () => {
               },
             }}
           />
-        </Card>
+        </MainCard>
       )}
     </div>
   );

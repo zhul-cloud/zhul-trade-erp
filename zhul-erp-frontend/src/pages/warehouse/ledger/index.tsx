@@ -13,16 +13,21 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import {
+  FilterField,
+  HelpTip,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { SignedMoney } from '@/pages/finance/costingParts';
-import { Card, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { categoryApi } from '@/pages/product/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import { WarehousePageTitle } from '../components';
 import { FilterCard, ModelCell, useWarehouses } from '../inventoryParts';
 import {
   type CategoryLedger,
@@ -253,8 +258,13 @@ const LedgerPage: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle
-        actions={
+      <PageHeader
+        help={
+          view === 'category'
+            ? '按单据的业务日期归月；点品类查看它的明细账'
+            : `按单据的业务日期归月；期末金额 = 期初 + 入库 − 出库 + 成本调整${filters.warehouseId ? '' : '（全部仓库不含仓库之间的调拨）'}；点数量查看对应流水`
+        }
+        extra={
           <Segmented<View>
             value={view}
             onChange={(v) => switchView(v)}
@@ -277,84 +287,76 @@ const LedgerPage: React.FC = () => {
           setPage(1);
         }}
       >
-        <Form.Item name="month" label="月份" style={{ marginBottom: 0 }}>
-          <DatePicker
-            picker="month"
-            allowClear={false}
-            style={{ width: '100%' }}
-            disabledDate={(d) => d.isAfter(dayjs(), 'month')}
-          />
-        </Form.Item>
-        <Form.Item name="warehouseId" label="仓库" style={{ marginBottom: 0 }}>
-          <Select
-            allowClear
-            placeholder="全部仓库"
-            options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
-          />
-        </Form.Item>
-        {view === 'detail' && (
-          <Form.Item
-            name="categoryId"
-            label="一级品类"
-            style={{ marginBottom: 0 }}
-          >
-            <Select
-              allowClear
-              showSearch={{ optionFilterProp: 'label' }}
-              placeholder="全部品类"
-              options={categories}
+        <FilterField label="月份">
+          <Form.Item name="month" noStyle>
+            <DatePicker
+              aria-label="月份"
+              picker="month"
+              allowClear={false}
+              style={{ width: '100%' }}
+              disabledDate={(d) => d.isAfter(dayjs(), 'month')}
             />
           </Form.Item>
+        </FilterField>
+        <FilterField label="仓库">
+          <Form.Item name="warehouseId" noStyle>
+            <Select
+              aria-label="仓库"
+              allowClear
+              placeholder="全部仓库"
+              options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
+            />
+          </Form.Item>
+        </FilterField>
+        {view === 'detail' && (
+          <FilterField label="一级品类">
+            <Form.Item name="categoryId" noStyle>
+              <Select
+                aria-label="一级品类"
+                allowClear
+                showSearch={{ optionFilterProp: 'label' }}
+                placeholder="全部品类"
+                options={categories}
+              />
+            </Form.Item>
+          </FilterField>
         )}
         {view === 'detail' && (
-          <Form.Item name="keyword" label="关键词" style={{ marginBottom: 0 }}>
-            <Input
-              allowClear
-              prefix={<SearchOutlined />}
-              placeholder="型号、品牌"
-            />
-          </Form.Item>
+          <FilterField label="关键词">
+            <Form.Item name="keyword" noStyle>
+              <Input
+                aria-label="关键词"
+                allowClear
+                prefix={<SearchOutlined />}
+                placeholder="型号、品牌"
+              />
+            </Form.Item>
+          </FilterField>
         )}
       </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 16 }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 12,
-              gap: 12,
-              flexWrap: 'wrap',
-            }}
-          >
-            {period?.status === 1 ? (
-              <span style={{ color: palette.sub, fontSize: 13 }}>
-                <Pill tone="green">已结账</Pill> {period.closedByName}{' '}
-                {formatDateTime(period.closedAt).slice(0, 16)}{' '}
-                结账，显示结账时的快照；之后的成本调整记在当前未结账月份
-              </span>
-            ) : view === 'category' ? (
-              <span>
-                {period && <Pill tone="orange">{period.month} 未结账</Pill>}
+        <MainCard
+          left={
+            period?.status === 1 ? (
+              <span
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                <Pill tone="green">已结账</Pill>
+                {period.closedByName}{' '}
+                {formatDateTime(period.closedAt).slice(0, 16)} 结账
+                <HelpTip title="显示结账时的快照；之后的成本调整记在当前未结账月份" />
               </span>
             ) : (
-              <span style={{ color: palette.sub, fontSize: 13 }}>
-                按单据的业务日期归月；期末金额 = 期初 + 入库 − 出库 + 成本调整
-                {filters.warehouseId ? '' : '（全部仓库不含仓库之间的调拨）'}
-                ；点数量查看对应流水
-                {period && (
-                  <>
-                    {' '}
-                    <Pill tone="orange">{period.month} 未结账</Pill>
-                  </>
-                )}
-              </span>
-            )}
+              period && <Pill tone="orange">{period.month} 未结账</Pill>
+            )
+          }
+          right={
             <Button
+              type="text"
               icon={<DownloadOutlined />}
+              style={{ color: palette.link }}
               loading={exporting}
               disabled={
                 view === 'category' ? !catLedger?.rows.length : total === 0
@@ -380,7 +382,8 @@ const LedgerPage: React.FC = () => {
             >
               导出 Excel
             </Button>
-          </div>
+          }
+        >
           {view === 'category' ? (
             <CategoryLedgerTable
               data={catLedger}
@@ -448,7 +451,7 @@ const LedgerPage: React.FC = () => {
               }}
             />
           )}
-        </Card>
+        </MainCard>
       )}
     </div>
   );

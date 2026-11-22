@@ -7,6 +7,7 @@ import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Form, Input, Modal, Select, Skeleton, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { FilterField, MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -14,7 +15,6 @@ import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import { WarehousePageTitle } from '../components';
 import { FilterCard } from '../inventoryParts';
 import { type InvWarehouse, WH_OWN, warehouseApi } from '../inventoryService';
 import { readBizError } from '../service';
@@ -278,7 +278,7 @@ const WarehousesPage: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle />
+      <PageHeader help="货代仓在新建货代时自动生成，名称跟着货代" />
       <ModeCard editable={editable} />
       <FilterCard
         form={form}
@@ -292,45 +292,47 @@ const WarehousesPage: React.FC = () => {
           setPage(1);
         }}
       >
-        <Form.Item
-          name="keyword"
-          label="关键词"
-          style={{ marginBottom: 0, gridColumn: 'span 2' }}
-        >
-          <Input
-            allowClear
-            prefix={<SearchOutlined />}
-            placeholder="仓库名称、编码"
-          />
-        </Form.Item>
-        <Form.Item name="type" label="类型" style={{ marginBottom: 0 }}>
-          <Select
-            allowClear
-            placeholder="全部"
-            options={[
-              { value: 1, label: '自有仓' },
-              { value: 2, label: '货代仓' },
-            ]}
-          />
-        </Form.Item>
-        <Form.Item name="status" label="状态" style={{ marginBottom: 0 }}>
-          <Select
-            allowClear
-            placeholder="全部"
-            options={[
-              { value: 1, label: '启用' },
-              { value: 0, label: '停用' },
-            ]}
-          />
-        </Form.Item>
+        <FilterField label="关键词" span={2}>
+          <Form.Item name="keyword" noStyle>
+            <Input
+              aria-label="关键词"
+              allowClear
+              prefix={<SearchOutlined />}
+              placeholder="仓库名称、编码"
+            />
+          </Form.Item>
+        </FilterField>
+        <FilterField label="类型">
+          <Form.Item name="type" noStyle>
+            <Select
+              aria-label="类型"
+              allowClear
+              placeholder="全部"
+              options={[
+                { value: 1, label: '自有仓' },
+                { value: 2, label: '货代仓' },
+              ]}
+            />
+          </Form.Item>
+        </FilterField>
+        <FilterField label="状态">
+          <Form.Item name="status" noStyle>
+            <Select
+              aria-label="状态"
+              allowClear
+              placeholder="全部"
+              options={[
+                { value: 1, label: '启用' },
+                { value: 0, label: '停用' },
+              ]}
+            />
+          </Form.Item>
+        </FilterField>
       </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 16 }}>
-          <div style={{ color: palette.sub, fontSize: 13, marginBottom: 12 }}>
-            货代仓在新建货代时自动生成，名称跟着货代
-          </div>
+        <MainCard>
           <Table<InvWarehouse>
             rowKey="id"
             size="middle"
@@ -350,7 +352,7 @@ const WarehousesPage: React.FC = () => {
               },
             }}
           />
-        </Card>
+        </MainCard>
       )}
       <Modal
         open={!!renaming}

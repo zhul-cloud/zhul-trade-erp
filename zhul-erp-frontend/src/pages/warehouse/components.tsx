@@ -8,7 +8,7 @@ import {
 } from '@ant-design/icons';
 import { App, Checkbox, Input, Modal, Spin, Upload } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Card, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 import {
   AS_STATUS_TONE,
@@ -32,10 +32,6 @@ export const WAREHOUSE_PATHS = {
   order: (id: number) => `/purchase/orders/${id}`,
   salesOrder: (id: number) => `/sales/orders/${id}`,
 };
-
-export const WarehousePageTitle: React.FC<
-  Omit<React.ComponentProps<typeof PageTitle>, 'root'>
-> = (props) => <PageTitle {...props} />;
 
 // ---------------------------------------------------------------- 状态
 

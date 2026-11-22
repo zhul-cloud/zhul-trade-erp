@@ -1,7 +1,7 @@
-import { StopOutlined } from '@ant-design/icons';
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table } from 'antd';
+import { App, Button, Dropdown, Skeleton, Table } from 'antd';
+import { CircleX, Ellipsis } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
   docBrandColumns,
@@ -13,12 +13,12 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
-import { ReasonModal, WarehousePageTitle } from '../components';
+import { ReasonModal } from '../components';
 import {
   BatchLink,
   bizText,
@@ -205,22 +205,18 @@ const OtherOutboundDetail: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle
-        crumbs={[
-          <MenuLink key="list" to="/warehouse/other-outbounds" />,
-          r.outboundNo,
-        ]}
-        title={
+      <PageHeader
+        title={r.outboundNo}
+        tags={
           <>
-            {r.outboundNo}
             <Pill tone={done ? 'green' : 'mute'}>{r.statusName}</Pill>
-          </>
-        }
-        description={
-          <>
             <Pill tone={OO_TYPE_TONE[r.outboundType] ?? 'gray'}>
               {r.outboundTypeName}
-            </Pill>{' '}
+            </Pill>
+          </>
+        }
+        sub={
+          <>
             {r.warehouseName} · {r.outboundDate} 出库 · {r.createBy ?? '—'} 创建
             {r.sourceDocNo && (
               <>
@@ -233,21 +229,41 @@ const OtherOutboundDetail: React.FC = () => {
             )}
           </>
         }
-        actions={
+        // 作废属危险操作，收进「更多」；报废生成的不能单独作废，菜单项置灰并说明
+        extra={
           done &&
           canVoid && (
-            <Button
-              icon={<StopOutlined />}
-              disabled={!r.voidable}
-              title={
-                r.voidable
-                  ? undefined
-                  : `由退货入库单 ${r.sourceDocNo ?? ''} 报废生成，不能单独作废`
-              }
-              onClick={() => setVoiding(true)}
+            <Dropdown
+              trigger={['click']}
+              placement="bottomRight"
+              menu={{
+                items: [
+                  {
+                    key: 'void',
+                    icon: <CircleX size={16} />,
+                    label: r.voidable ? (
+                      '作废'
+                    ) : (
+                      <span
+                        title={`由退货入库单 ${r.sourceDocNo ?? ''} 报废生成，不能单独作废`}
+                      >
+                        作废
+                      </span>
+                    ),
+                    danger: true,
+                    disabled: !r.voidable,
+                  },
+                ],
+                onClick: () => setVoiding(true),
+              }}
             >
-              作废
-            </Button>
+              <Button
+                type="text"
+                shape="circle"
+                icon={<Ellipsis size={18} />}
+                aria-label="更多操作"
+              />
+            </Dropdown>
           )
         }
       />

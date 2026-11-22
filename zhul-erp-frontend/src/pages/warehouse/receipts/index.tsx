@@ -2,12 +2,19 @@ import { InboxOutlined, SearchOutlined } from '@ant-design/icons';
 import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Button, Input, Select, Space, Table } from 'antd';
+import { Eye } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
-import { FilterCard, FilterField, MainCard } from '@/components/ListLayout';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { IconButton } from '@/components/Shell';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
@@ -21,7 +28,6 @@ import {
   ReceiptStatusPill,
   sub,
   WAREHOUSE_PATHS,
-  WarehousePageTitle,
 } from '../components';
 import {
   type Receipt,
@@ -324,9 +330,16 @@ const Receipts: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 70,
+      width: 64,
       fixed: 'right',
-      render: (_, r) => <Link to={DOC_PATHS.receipt(r.id)}>查看</Link>,
+      render: (_, r) => (
+        <IconButton
+          label="查看"
+          size={32}
+          icon={<Eye size={18} />}
+          onClick={() => history.push(DOC_PATHS.receipt(r.id))}
+        />
+      ),
     },
   ];
 
@@ -352,7 +365,20 @@ const Receipts: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle description="按发货单验收：只记录实收、合格、不良，差异由采购员处理。" />
+      <PageHeader
+        help="按发货单验收：只记录实收、合格、不良，差异由采购员处理"
+        extra={
+          canEdit && (
+            <Button
+              type="primary"
+              icon={<InboxOutlined />}
+              onClick={() => setDirect(true)}
+            >
+              直接收货
+            </Button>
+          )
+        }
+      />
       <FilterCard
         onSearch={apply}
         onReset={() => {
@@ -361,7 +387,15 @@ const Receipts: React.FC = () => {
           changeTab('pending');
         }}
       >
-        <FilterField label="关键词" span={2}>
+        <FilterField
+          label="关键词"
+          span={2}
+          help={
+            tab === 'pending'
+              ? '可搜：发货单号、快递单号；采购订单编号、店铺、供应商、采购订单型号'
+              : '可搜：采购入库单号；发货单号、快递单号；采购订单编号、店铺、供应商、采购订单型号'
+          }
+        >
           <Input
             allowClear
             prefix={<SearchOutlined />}
@@ -370,8 +404,8 @@ const Receipts: React.FC = () => {
             onPressEnter={apply}
             placeholder={
               tab === 'pending'
-                ? '快递单号、采购订单号、型号、采购对象'
-                : '采购入库单号、发货单号、快递单号、采购订单号、型号'
+                ? '发货单号、快递单号、采购订单编号'
+                : '采购入库单号、发货单号、快递单号'
             }
             aria-label="关键词"
           />
@@ -396,17 +430,6 @@ const Receipts: React.FC = () => {
       ) : (
         <MainCard
           left={tab === 'pending' ? `待收货 ${total} 张` : `已入库 ${total} 张`}
-          right={
-            canEdit && (
-              <Button
-                type="primary"
-                icon={<InboxOutlined />}
-                onClick={() => setDirect(true)}
-              >
-                直接收货
-              </Button>
-            )
-          }
         >
           {tab === 'pending' ? (
             <Table<Shipment>

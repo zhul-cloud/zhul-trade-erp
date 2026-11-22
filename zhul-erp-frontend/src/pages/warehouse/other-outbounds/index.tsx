@@ -5,16 +5,16 @@ import { Button, Form, Input, Select, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import EllipsisText from '@/components/EllipsisText';
+import { FilterField, MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
-import { Card, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import { WarehousePageTitle } from '../components';
 import { FilterCard, useWarehouses } from '../inventoryParts';
 import {
   docHref,
@@ -192,7 +192,20 @@ const OtherOutboundsPage: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle />
+      <PageHeader
+        help="报废、转样品、货代丢失或损坏；退回供应商请到库存查询发起"
+        extra={
+          access['inventory:other-outbound:edit'] && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setCreating(true)}
+            >
+              新建其他出库
+            </Button>
+          )
+        }
+      />
       <FilterCard
         form={form}
         initialValues={initial()}
@@ -205,73 +218,57 @@ const OtherOutboundsPage: React.FC = () => {
           setPage(1);
         }}
       >
-        <Form.Item
-          name="keyword"
-          label="关键词"
-          style={{ marginBottom: 0, gridColumn: 'span 2' }}
-        >
-          <Input
-            allowClear
-            prefix={<SearchOutlined />}
-            placeholder="出库单号、型号"
-          />
-        </Form.Item>
-        <Form.Item
-          name="outboundType"
-          label="出库类型"
-          style={{ marginBottom: 0 }}
-        >
-          <Select
-            allowClear
-            placeholder="全部"
-            options={OO_TYPES.map((t) => ({ value: t.value, label: t.label }))}
-          />
-        </Form.Item>
-        <Form.Item name="warehouseId" label="仓库" style={{ marginBottom: 0 }}>
-          <Select
-            allowClear
-            placeholder="全部仓库"
-            options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
-          />
-        </Form.Item>
-        <Form.Item name="status" label="状态" style={{ marginBottom: 0 }}>
-          <Select
-            allowClear
-            placeholder="全部"
-            options={[
-              { value: 1, label: '已出库' },
-              { value: 2, label: '已作废' },
-            ]}
-          />
-        </Form.Item>
+        <FilterField label="关键词" span={2}>
+          <Form.Item name="keyword" noStyle>
+            <Input
+              aria-label="关键词"
+              allowClear
+              prefix={<SearchOutlined />}
+              placeholder="出库单号、型号"
+            />
+          </Form.Item>
+        </FilterField>
+        <FilterField label="出库类型">
+          <Form.Item name="outboundType" noStyle>
+            <Select
+              aria-label="出库类型"
+              allowClear
+              placeholder="全部"
+              options={OO_TYPES.map((t) => ({
+                value: t.value,
+                label: t.label,
+              }))}
+            />
+          </Form.Item>
+        </FilterField>
+        <FilterField label="仓库">
+          <Form.Item name="warehouseId" noStyle>
+            <Select
+              aria-label="仓库"
+              allowClear
+              placeholder="全部仓库"
+              options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
+            />
+          </Form.Item>
+        </FilterField>
+        <FilterField label="状态">
+          <Form.Item name="status" noStyle>
+            <Select
+              aria-label="状态"
+              allowClear
+              placeholder="全部"
+              options={[
+                { value: 1, label: '已出库' },
+                { value: 2, label: '已作废' },
+              ]}
+            />
+          </Form.Item>
+        </FilterField>
       </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 16 }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 12,
-              gap: 12,
-              flexWrap: 'wrap',
-            }}
-          >
-            <span style={{ color: palette.sub, fontSize: 13 }}>
-              报废、转样品、货代丢失或损坏；退回供应商请到库存查询发起
-            </span>
-            {access['inventory:other-outbound:edit'] && (
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => setCreating(true)}
-              >
-                新建其他出库
-              </Button>
-            )}
-          </div>
+        <MainCard left={`共 ${total} 条`}>
           <Table<OtherOutbound>
             rowKey="id"
             size="middle"
@@ -296,7 +293,7 @@ const OtherOutboundsPage: React.FC = () => {
               },
             }}
           />
-        </Card>
+        </MainCard>
       )}
       <OtherOutboundModal
         open={creating}
