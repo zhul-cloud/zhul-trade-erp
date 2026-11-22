@@ -293,4 +293,25 @@ class VoucherContractTest extends SalesContractSupport {
         assertEquals(403, perform(json(put(V + "/suppliers/" + supplier), write(Map.of("partnerCode", "X"))), viewer).getStatus());
         assertEquals(403, perform(get(V + "/months"), token("it_wang")).getStatus(), "没有菜单权限看不到");
     }
+
+    /** 生成凭证失败时结账整体回滚（task 3.3）：临时触发器让写凭证月份报错 */
+    @Test
+    void 生成凭证失败_结账回滚() throws Exception {
+        jdbc.execute("DROP TRIGGER IF EXISTS it_voucher_fail");
+        jdbc.execute("CREATE TRIGGER it_voucher_fail BEFORE INSERT ON fin_voucher_month FOR EACH ROW"
+                + " SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'voucher failed'");
+        try {
+            JsonNode res = call(post(P + "/" + m1 + "/close"), admin);
+            assertTrue(res.path("code").asInt() != 0, res.toString());
+        } finally {
+            jdbc.execute("DROP TRIGGER IF EXISTS it_voucher_fail");
+        }
+        assertEquals(0, jdbc.queryForObject("select count(*) from inv_period where tenant_id = 0 and period_month = ? and status = ?",
+                Integer.class, m1.toString(), InvConstants.PERIOD_CLOSED), "月份没结上");
+        assertEquals(0, jdbc.queryForObject("select count(*) from inv_period_ledger where tenant_id = 0 and deleted_at is null",
+                Integer.class), "快照随结账回滚");
+        assertEquals(0, jdbc.queryForObject("select count(*) from fin_voucher where tenant_id = 0", Integer.class));
+        close();
+        assertEquals(4, detail().path("vouchers").size(), "触发器去掉后能正常结账");
+    }
 }
