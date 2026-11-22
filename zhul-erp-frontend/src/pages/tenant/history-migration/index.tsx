@@ -1,5 +1,5 @@
 import { InboxOutlined } from '@ant-design/icons';
-import { history, useSearchParams } from '@umijs/max';
+import { useSearchParams } from '@umijs/max';
 import {
   Alert,
   App,
@@ -13,12 +13,13 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { PageHeader } from '@/components/ListLayout';
 import {
   useOnReactivate,
   usePageTitle,
   useTabActive,
 } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import {
@@ -202,21 +203,9 @@ const HistoryMigrationPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        root="租户管理"
-        crumbs={[
-          <button
-            type="button"
-            className="zhul-link"
-            key="list"
-            onClick={() => history.push('/tenant/list')}
-          >
-            租户列表
-          </button>,
-          '历史迁移',
-        ]}
+      <PageHeader
         title={`历史迁移：${tenantName}`}
-        description="把飞书旧系统的数据导入这个租户。先干跑核对数量，再正式执行；正式执行完自动与旧报表核对，出问题可以按批次回滚。"
+        help="把飞书旧系统的数据导入这个租户。先干跑核对数量，再正式执行；正式执行完自动与旧报表核对，出问题可以按批次回滚"
       />
 
       <Card title="迁移包" style={{ marginBottom: 16 }}>

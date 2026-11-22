@@ -8,7 +8,6 @@ import {
   MenuOutlined,
   PlusOutlined,
   SafetyCertificateOutlined,
-  SearchOutlined,
   SettingOutlined,
   ThunderboltOutlined,
   WarningOutlined,
@@ -27,9 +26,11 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import { App, Button, Card, Input, Popconfirm, Space, Tag } from 'antd';
+import { App, Button, Input, Popconfirm, Space, Tag } from 'antd';
+import { Search } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { MainCard, PageHeader, SummaryBar } from '@/components/ListLayout';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -572,41 +573,6 @@ const MenuPage: React.FC = () => {
     },
   ];
 
-  const statCards = [
-    {
-      icon: <AppstoreOutlined />,
-      color: p.link,
-      bg: p.primarySoft,
-      label: '节点总数',
-      value: stats.total,
-      hint: '3 级树形结构',
-    },
-    {
-      icon: <FolderOutlined />,
-      color: p.link,
-      bg: p.primarySoft,
-      label: '目录',
-      value: stats.dir,
-      hint: '第一级节点',
-    },
-    {
-      icon: <MenuOutlined />,
-      color: p.green,
-      bg: p.greenSoft,
-      label: '菜单',
-      value: stats.menu,
-      hint: '对应前端页面',
-    },
-    {
-      icon: <ThunderboltOutlined />,
-      color: p.orange,
-      bg: p.orangeSoft,
-      label: '按钮',
-      value: stats.button,
-      hint: '页面操作权限点',
-    },
-  ];
-
   const renderSections = (t: number) => (
     <>
       {t === 2 && (
@@ -710,67 +676,9 @@ const MenuPage: React.FC = () => {
 
   return (
     <>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 16,
-          marginBottom: 16,
-        }}
-      >
-        {statCards.map((s) => (
-          <Card key={s.label} styles={{ body: { padding: 20 } }}>
-            <Space align="center">
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: s.bg,
-                  color: s.color,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 18,
-                }}
-              >
-                {s.icon}
-              </div>
-              <span style={{ color: p.mute }}>{s.label}</span>
-            </Space>
-            <div style={{ fontSize: 28, fontWeight: 700, marginTop: 12 }}>
-              {s.value}
-            </div>
-            <div style={{ fontSize: 12, color: p.green, marginTop: 4 }}>
-              {s.hint}
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      <Card style={{ marginBottom: 16 }} styles={{ body: { padding: 16 } }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <Space size={12}>
-            <Button onClick={() => setExpandedKeys(flattenIds(displayTree))}>
-              展开全部
-            </Button>
-            <Button onClick={() => setExpandedKeys([])}>折叠全部</Button>
-            <Input
-              placeholder="搜索菜单名称"
-              prefix={<SearchOutlined />}
-              allowClear
-              style={{ width: 280 }}
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-            />
-          </Space>
-          {canAdd && (
+      <PageHeader
+        extra={
+          canAdd && (
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -778,11 +686,63 @@ const MenuPage: React.FC = () => {
             >
               新增顶级目录
             </Button>
-          )}
-        </div>
-      </Card>
-
-      <Card>
+          )
+        }
+      />
+      <SummaryBar
+        items={[
+          {
+            key: 'total',
+            label: '节点总数',
+            value: stats.total,
+            sub: '3 级树形结构',
+          },
+          { key: 'dir', label: '目录', help: '第一级节点', value: stats.dir },
+          {
+            key: 'menu',
+            label: '菜单',
+            help: '对应前端页面',
+            value: stats.menu,
+          },
+          {
+            key: 'button',
+            label: '按钮',
+            help: '页面操作权限点',
+            value: stats.button,
+          },
+        ]}
+      />
+      <MainCard
+        left={
+          <Input
+            placeholder="搜索菜单名称"
+            prefix={<Search size={16} />}
+            allowClear
+            aria-label="搜索菜单名称"
+            style={{ width: 280 }}
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+          />
+        }
+        right={
+          <>
+            <Button
+              type="text"
+              style={{ color: p.link }}
+              onClick={() => setExpandedKeys(flattenIds(displayTree))}
+            >
+              展开全部
+            </Button>
+            <Button
+              type="text"
+              style={{ color: p.link }}
+              onClick={() => setExpandedKeys([])}
+            >
+              折叠全部
+            </Button>
+          </>
+        }
+      >
         <ProTable<MenuItem>
           scroll={{ x: tableScrollX(columns) }}
           rowKey="id"
@@ -797,7 +757,7 @@ const MenuPage: React.FC = () => {
             onExpandedRowsChange: (keys) => setExpandedKeys(keys as number[]),
           }}
         />
-      </Card>
+      </MainCard>
 
       <DrawerForm
         name="menuEdit"

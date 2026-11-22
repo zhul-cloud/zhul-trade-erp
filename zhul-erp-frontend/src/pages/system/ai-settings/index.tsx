@@ -47,9 +47,11 @@ import {
   Typography,
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { PageHeader } from '@/components/ListLayout';
+import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import type { Palette } from '@/theme/palette';
+import { POPUP_SHADOW } from '@/theme/palette';
 import {
   type AiFormValues,
   type CardDraft,
@@ -247,7 +249,7 @@ const ConnectionCard: React.FC<{
             selected ? palette.link : palette.hairline
           }`,
           background: selected ? palette.primarySoft : palette.card,
-          boxShadow: isDragging ? '0 8px 24px -4px rgba(0,0,0,0.16)' : 'none',
+          boxShadow: isDragging ? POPUP_SHADOW : 'none',
           transition: 'background 200ms ease-out, border-color 200ms ease-out',
         }}
       >
@@ -580,7 +582,7 @@ const AiSettingsPage: React.FC = () => {
   if (loadError) {
     return (
       <>
-        <PageTitle title="AI 设置" />
+        <PageHeader title="AI 设置" />
         <Card>
           <Result
             status="warning"
@@ -599,7 +601,7 @@ const AiSettingsPage: React.FC = () => {
   if (!config) {
     return (
       <>
-        <PageTitle title="AI 设置" />
+        <PageHeader title="AI 设置" />
         <Card>
           <Skeleton active paragraph={{ rows: 2 }} />
         </Card>
@@ -1233,7 +1235,7 @@ const AiSettingsPage: React.FC = () => {
         borderRadius: 12,
         background: palette.card,
         border: `1px solid ${palette.hairline}`,
-        boxShadow: '0 8px 24px -4px rgba(0,0,0,0.16)',
+        boxShadow: POPUP_SHADOW,
         animation: 'ai-save-bar-in 200ms ease-out',
       }}
     >
@@ -1267,9 +1269,9 @@ const AiSettingsPage: React.FC = () => {
 
   return (
     <>
-      <PageTitle
+      <PageHeader
         title="AI 设置"
-        description="询盘解析、型号描述翻译、联系人名音译使用的 AI 服务。"
+        help="询盘解析、型号描述翻译、联系人名音译使用的 AI 服务"
       />
       {statusCard}
       <Form

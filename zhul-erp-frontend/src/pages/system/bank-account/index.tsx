@@ -14,8 +14,9 @@ import {
   Table,
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -470,13 +471,13 @@ const BankAccountPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        description={
+      <PageHeader
+        help={
           bu.enabled
             ? '显示在 PI 等对外单据上的收款银行信息；开 PI 时按事业部和币种带出默认账户，只能选本事业部的账户。'
             : '显示在 PI 等对外单据上的收款银行信息；开 PI 时按币种带出默认账户。'
         }
-        actions={
+        extra={
           canEdit && (
             <Button
               type="primary"

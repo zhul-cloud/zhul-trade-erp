@@ -10,8 +10,9 @@ import {
 import { useAccess } from '@umijs/max';
 import { App, Button, Segmented, Select, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle } from '@/pages/inquiry/shared/components';
+import { Card } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/warehouse/service';
 import { type ReceiverPost, receiverApi } from '@/services/zhul/notification';
@@ -144,8 +145,8 @@ const PostCard: React.FC<{
                     display: 'grid',
                     placeItems: 'center',
                     fontSize: 11,
-                    color: '#fff',
-                    background: '#2563EB',
+                    color: palette.ink,
+                    background: palette.inset,
                   }}
                 >
                   {u.name?.slice(0, 1)}
@@ -266,7 +267,7 @@ const NotificationReceivers: React.FC = () => {
 
   return (
     <div>
-      <PageTitle />
+      <PageHeader />
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : !posts ? (

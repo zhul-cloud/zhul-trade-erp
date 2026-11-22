@@ -18,7 +18,8 @@ import {
   Table,
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Card, PageTitle } from '@/pages/inquiry/shared/components';
+import { PageHeader } from '@/components/ListLayout';
+import { Card } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { CARRIERS } from '@/pages/purchase/shipments/ShipmentDrawer';
@@ -151,9 +152,9 @@ const TransitTimes: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        description="货从供应商所在省份发到福州仓库要几天；登记发货时按这里估算预计到货日期。"
-        actions={
+      <PageHeader
+        help="货从供应商所在省份发到福州仓库要几天；登记发货时按这里估算预计到货日期"
+        extra={
           canEdit && (
             <Button
               type="primary"

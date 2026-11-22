@@ -26,6 +26,7 @@ import {
   Tooltip,
 } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
+import { PageHeader } from '@/components/ListLayout';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePagination } from '@/utils/pageSize';
 import type { DictItemRow, DictTypeItem } from './service';
@@ -389,6 +390,7 @@ const DictPage: React.FC = () => {
 
   return (
     <>
+      <PageHeader />
       <div
         style={{
           display: 'flex',

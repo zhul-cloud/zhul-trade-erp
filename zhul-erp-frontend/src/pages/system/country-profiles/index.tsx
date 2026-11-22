@@ -1,4 +1,4 @@
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { PlusOutlined } from '@ant-design/icons';
 import { useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -9,11 +9,18 @@ import {
   Input,
   Modal,
   Radio,
-  Segmented,
   Select,
   Table,
 } from 'antd';
+import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  QuickFilters,
+} from '@/components/ListLayout';
 import { Pill } from '@/pages/customer/components';
 import { labelOf } from '@/pages/customer/constants';
 import { useProfileDicts } from '@/pages/customer/profile/ProfileModules';
@@ -23,7 +30,6 @@ import {
   FX_OPTIONS,
 } from '@/pages/customer/profile/service';
 import { readBizError } from '@/pages/customer/service';
-import { PageTitle } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { auditColumns } from '@/pages/purchase/components';
@@ -321,9 +327,9 @@ const CountryProfilesPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        description="按国家维护一次，所有这个国家的客户都能看到。先补客户多的国家。"
-        actions={
+      <PageHeader
+        help="按国家维护一次，所有这个国家的客户都能看到。先补客户多的国家"
+        extra={
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -333,45 +339,45 @@ const CountryProfilesPage: React.FC = () => {
           </Button>
         }
       />
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          flexWrap: 'wrap',
-          marginBottom: 16,
+      <FilterCard
+        onSearch={() => setQuery(keyword.trim())}
+        onReset={() => {
+          setKeyword('');
+          setQuery('');
+          setFilter('all');
         }}
+        quick={
+          // 未维护、外汇管制严格是条件，改为快捷筛选（互斥，再点取消）
+          <QuickFilters
+            options={[
+              {
+                value: 'unmaintained',
+                label: `未维护 · ${unmaintained.length}`,
+              },
+              { value: 'strict', label: `外汇管制严格 · ${strict.length}` },
+            ]}
+            value={filter === 'all' ? [] : [filter]}
+            onChange={(v) =>
+              setFilter(
+                (v.find((x) => x !== filter) as Filter | undefined) ?? 'all',
+              )
+            }
+          />
+        }
       >
-        <Input
-          allowClear
-          prefix={<SearchOutlined />}
-          placeholder="搜索国家"
-          style={{ width: 280 }}
-          value={keyword}
-          onChange={(e) => {
-            setKeyword(e.target.value);
-            if (!e.target.value) setQuery('');
-          }}
-          onPressEnter={() => setQuery(keyword.trim())}
-        />
-        <Segmented
-          value={filter}
-          onChange={(v) => setFilter(v as Filter)}
-          options={[
-            { value: 'all', label: '全部' },
-            { value: 'unmaintained', label: `未维护 ${unmaintained.length}` },
-            { value: 'strict', label: `外汇管制严格 ${strict.length}` },
-          ]}
-        />
-      </div>
-      <div
-        style={{
-          background: palette.card,
-          borderRadius: 16,
-          border: `1px solid ${palette.hairline}`,
-          overflow: 'hidden',
-        }}
-      >
+        <FilterField label="国家" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="国家名称"
+            aria-label="国家"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={() => setQuery(keyword.trim())}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard left={`共 ${shown.length} 个国家`}>
         {error ? (
           <ErrorHint message={error} onRetry={load} />
         ) : (
@@ -390,7 +396,7 @@ const CountryProfilesPage: React.FC = () => {
             }}
           />
         )}
-      </div>
+      </MainCard>
       <EditModal
         editing={editing}
         maintained={maintained}

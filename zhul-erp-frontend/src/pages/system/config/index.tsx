@@ -1,6 +1,5 @@
 import {
   PlusOutlined,
-  SearchOutlined,
   UploadOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
@@ -27,8 +26,15 @@ import {
   Tag,
   Upload,
 } from 'antd';
+import { Search } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useAppTheme } from '@/theme/AppTheme';
 import { APPEARANCE_IMAGE_KEYS } from '@/utils/appearance';
 import { formatDateTime } from '@/utils/format';
@@ -155,6 +161,9 @@ const ConfigPage: React.FC = () => {
   const access = useAccess();
 
   const [keyword, setKeyword] = useState('');
+  /** 关键词点「查询」或回车才生效 */
+  const [draftKeyword, setDraftKeyword] = useState('');
+  const [total, setTotal] = useState(0);
   const [activeGroup, setActiveGroup] = useState<string>('ALL');
   const [groupCounts, setGroupCounts] = useState<ConfigGroupCount[]>([]);
 
@@ -421,7 +430,6 @@ const ConfigPage: React.FC = () => {
         );
       case 'URL':
         return <ImageUrlField key={name} name={name} allowEmpty={allowEmpty} />;
-      case 'STRING':
       default:
         if (isEncrypted) {
           return (
@@ -451,78 +459,74 @@ const ConfigPage: React.FC = () => {
 
   return (
     <>
-      <ProTable<ConfigItem>
-        scroll={{ x: tableScrollX(columns) }}
-        headerTitle="配置列表"
-        actionRef={actionRef}
-        rowKey="id"
-        columns={columns}
-        search={false}
-        pagination={pager}
-        request={(params) =>
-          getConfigList({
-            current: params.current,
-            pageSize: params.pageSize,
-            keyword,
-            group: activeGroup === 'ALL' ? undefined : activeGroup,
-          })
-        }
-        params={{ keyword, activeGroup }}
-        toolbar={{
-          filter: (
-            <Space orientation="vertical" style={{ width: '100%' }} size={16}>
-              <Space>
-                <Input
-                  placeholder="请输入配置键或配置名称"
-                  prefix={<SearchOutlined />}
-                  allowClear
-                  style={{ width: 320 }}
-                  value={keyword}
-                  onChange={(e) => setKeyword(e.target.value)}
-                  onPressEnter={() => actionRef.current?.reload()}
-                />
-                <Button
-                  type="primary"
-                  onClick={() => actionRef.current?.reload()}
-                >
-                  搜索
-                </Button>
-                <Button
-                  onClick={() => {
-                    setKeyword('');
-                    setActiveGroup('ALL');
-                  }}
-                >
-                  重置
-                </Button>
-              </Space>
-              <Tabs
-                activeKey={activeGroup}
-                onChange={(key) => setActiveGroup(key)}
-                items={[
-                  { key: 'ALL', label: `全部 (${totalCount})` },
-                  ...groupCounts.map((g) => ({
-                    key: g.group,
-                    label: `${groupLabel(g.group)} (${g.count})`,
-                  })),
-                ]}
-              />
-            </Space>
-          ),
-        }}
-        toolBarRender={() => [
+      <PageHeader
+        extra={
           canAdd && (
             <Button
-              key="add"
               type="primary"
               icon={<PlusOutlined />}
               onClick={() => setCreateOpen(true)}
             >
               新增自定义配置
             </Button>
-          ),
+          )
+        }
+      />
+      {/* 配置分组是不同类的内容，用页签；数量跟在名称后 */}
+      <Tabs
+        activeKey={activeGroup}
+        onChange={(key) => setActiveGroup(key)}
+        items={[
+          { key: 'ALL', label: `全部 · ${totalCount}` },
+          ...groupCounts.map((g) => ({
+            key: g.group,
+            label: `${groupLabel(g.group)} · ${g.count}`,
+          })),
         ]}
       />
+      <FilterCard
+        onSearch={() => setKeyword(draftKeyword.trim())}
+        onReset={() => {
+          setDraftKeyword('');
+          setKeyword('');
+          setActiveGroup('ALL');
+        }}
+      >
+        <FilterField label="关键词" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="配置键或配置名称"
+            aria-label="关键词"
+            value={draftKeyword}
+            onChange={(e) => setDraftKeyword(e.target.value)}
+            onPressEnter={() => setKeyword(draftKeyword.trim())}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard left={`共 ${total} 条`}>
+        <ProTable<ConfigItem>
+          scroll={{ x: tableScrollX(columns) }}
+          actionRef={actionRef}
+          rowKey="id"
+          columns={columns}
+          search={false}
+          options={false}
+          toolBarRender={false}
+          pagination={pager}
+          request={async (params) => {
+            const res = await getConfigList({
+              current: params.current,
+              pageSize: params.pageSize,
+              keyword,
+              group: activeGroup === 'ALL' ? undefined : activeGroup,
+            });
+            setTotal(res.total ?? 0);
+            return res;
+          }}
+          params={{ keyword, activeGroup }}
+        />
+      </MainCard>
 
       {/* 编辑配置值 */}
       <ModalForm

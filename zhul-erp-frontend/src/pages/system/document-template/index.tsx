@@ -24,13 +24,9 @@ import {
 } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
+import { PageHeader } from '@/components/ListLayout';
 import { readBizError } from '@/pages/crm/opportunity/service';
-import {
-  Card,
-  PageTitle,
-  Pill,
-  useWide,
-} from '@/pages/inquiry/shared/components';
+import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -440,16 +436,23 @@ const DocumentTemplatePage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        description="报价单、PI、CI、PL 与文字报价统一管理；每类单据只有一个默认版本，所有业务员导出都用它。"
-        actions={
+      <PageHeader
+        help="报价单、PI、CI、PL 与文字报价统一管理；每类单据只有一个默认版本，所有业务员导出都用它"
+        extra={
           <>
-            <Button icon={<BookOutlined />} onClick={() => setHelpOpen(true)}>
+            <Button
+              type="text"
+              icon={<BookOutlined />}
+              style={{ color: palette.link }}
+              onClick={() => setHelpOpen(true)}
+            >
               占位符说明
             </Button>
             {!isText && builtin && (
               <Button
+                type="text"
                 icon={<DownloadOutlined />}
+                style={{ color: palette.link }}
                 onClick={() =>
                   templateApi
                     .download(builtin.id)

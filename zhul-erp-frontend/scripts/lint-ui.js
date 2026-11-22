@@ -38,8 +38,7 @@ const ENFORCED = [
   'src/pages/sales/followup',
   'src/pages/sales/pi',
   'src/pages/sales/returns',
-  // 7.2 采购管理（purchase/bargain-stats、inquiry/sourcing-stats 属 7.6；
-  // inquiry/shared 的旧页头还有 7.3–7.7 的页面在用，最后一个用户迁完后删除）
+  // 7.2 采购管理
   'src/pages/inquiry/my-tasks',
   'src/pages/inquiry/price-history',
   'src/pages/inquiry/sourcing-board',
@@ -77,6 +76,13 @@ const ENFORCED = [
   'src/pages/purchase/bargain-stats',
   'src/pages/finance/profit-stats',
   'src/pages/finance/operating-report',
+  // 7.7 业务设置、系统管理、租户管理、登录与异常页
+  'src/pages/system',
+  'src/pages/tenant',
+  'src/pages/login',
+  'src/pages/forget-password',
+  'src/pages/exception',
+  'src/pages/inquiry/shared',
 ];
 
 /** 不扫描：多语言文案、生成目录 */

@@ -28,6 +28,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { PageHeader } from '@/components/ListLayout';
 import { readBizError } from '@/pages/crm/opportunity/service';
 import { getUserOptions } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -443,6 +444,7 @@ const DeptPage: React.FC = () => {
 
   return (
     <>
+      <PageHeader />
       <div
         style={{
           display: 'flex',

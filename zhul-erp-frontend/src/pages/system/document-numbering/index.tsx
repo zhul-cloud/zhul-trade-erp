@@ -4,7 +4,8 @@ import type { TableColumnsType } from 'antd';
 import { Alert, App, Button, Input, Skeleton, Space, Table } from 'antd';
 import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { PageHeader } from '@/components/ListLayout';
+import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { prefixApi, readBizError } from './service';
 
@@ -110,7 +111,7 @@ const DocumentNumberingPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle description="对外单据的编号前缀与编号规则。" />
+      <PageHeader help="对外单据的编号前缀与编号规则" />
       {error ? (
         <Alert type="error" showIcon title={error} />
       ) : (

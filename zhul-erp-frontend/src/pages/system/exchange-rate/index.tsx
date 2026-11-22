@@ -8,8 +8,9 @@ import type { TableColumnsType } from 'antd';
 import { App, InputNumber, Modal, Skeleton, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
+import { PageHeader } from '@/components/ListLayout';
 import { readBizError } from '@/pages/crm/opportunity/service';
-import { Card, PageTitle, useWide } from '@/pages/inquiry/shared/components';
+import { Card, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -185,7 +186,7 @@ const ExchangeRatePage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle description="全公司统一使用这里的汇率；报价单新建时取当前汇率并保存快照，单据上不能修改。" />
+      <PageHeader help="全公司统一使用这里的汇率；报价单新建时取当前汇率并保存快照，单据上不能修改" />
       <div
         style={{
           display: 'grid',
