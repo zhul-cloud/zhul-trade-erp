@@ -242,8 +242,9 @@ const PiList: React.FC = () => {
         />
       ),
     },
+    // 型号与总数量分两列（同询盘列表）：主规范要求两者都能排序，合成一列会丢掉一种排序
     {
-      title: '型号 · 数量',
+      title: '型号',
       dataIndex: 'itemCount',
       sorter: true,
       sortOrder: sortOf('itemCount'),
@@ -252,10 +253,18 @@ const PiList: React.FC = () => {
         <FirstModelCell
           model={r.firstModel}
           count={r.itemCount}
-          quantity={r.totalQuantity}
           onView={() => setViewing(r)}
         />
       ),
+    },
+    {
+      title: '总数量',
+      dataIndex: 'totalQuantity',
+      sorter: true,
+      sortOrder: sortOf('totalQuantity'),
+      width: 90,
+      align: 'right',
+      render: (v?: number) => v ?? '—',
     },
     {
       title: '品牌',
@@ -571,6 +580,7 @@ const PiList: React.FC = () => {
                   ? withCount(v.label, stats?.slipOnlyCount)
                   : v.label,
             })),
+            { onChange: () => searchNow() },
           )}
           <FilterField
             label="创建日期"

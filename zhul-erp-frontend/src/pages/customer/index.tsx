@@ -36,9 +36,9 @@ import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { IconButton } from '@/components/Shell';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useCountries } from '@/pages/product/components/useCountries';
+import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
-import { formatDateTime } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { LIST_PATH, Pill, RolePill, TransferModal } from './components';
 import { DISABLE_CONFIRM_TEXT, ROLE_OPTIONS } from './constants';
@@ -501,26 +501,8 @@ const CustomerListPage: React.FC = () => {
         />
       ),
     },
-    {
-      title: '创建时间 / 创建人',
-      key: 'created',
-      width: 170,
-      render: (_, r) =>
-        stacked(
-          <span className="num">{formatDateTime(r.createTime)}</span>,
-          r.createBy,
-        ),
-    },
-    {
-      title: '更新时间 / 更新人',
-      key: 'updated',
-      width: 170,
-      render: (_, r) =>
-        stacked(
-          <span className="num">{formatDateTime(r.updateTime)}</span>,
-          r.updateBy,
-        ),
-    },
+    // 列表页统一规范：创建时间、创建人、更新时间、更新人各一列
+    ...auditColumns<CustomerListItem>(),
     {
       title: '操作',
       key: 'actions',
@@ -642,43 +624,46 @@ const CustomerListPage: React.FC = () => {
     return Array.isArray(v) ? v.length > 0 : v != null && v !== '';
   }).length;
   const withCount = (label: string, n?: number) =>
-    n != null ? `${label} · ${n}` : label;
+    n ? `${label} · ${n}` : label;
 
   return (
     <div>
       <PageHeader
         help={HELP.page}
+        // 导入、导出、新增只属于「全部客户」页签：导出按这个页签的筛选条件
         extra={
-          <>
-            <Tooltip title="批量导入即将上线">
-              <span>
-                <Button type="text" icon={<Upload size={16} />} disabled>
-                  导入
+          tab === 'all' && (
+            <>
+              <Tooltip title="批量导入即将上线">
+                <span>
+                  <Button type="text" icon={<Upload size={16} />} disabled>
+                    导入
+                  </Button>
+                </span>
+              </Tooltip>
+              {canExport && (
+                <Button
+                  type="text"
+                  icon={<Download size={16} />}
+                  style={{ color: total === 0 ? undefined : palette.link }}
+                  loading={exporting}
+                  disabled={total === 0}
+                  onClick={confirmExport}
+                >
+                  导出
                 </Button>
-              </span>
-            </Tooltip>
-            {canExport && (
-              <Button
-                type="text"
-                icon={<Download size={16} />}
-                style={{ color: total === 0 ? undefined : palette.link }}
-                loading={exporting}
-                disabled={total === 0}
-                onClick={confirmExport}
-              >
-                导出
-              </Button>
-            )}
-            {canAdd && (
-              <Button
-                type="primary"
-                icon={<Plus size={18} />}
-                onClick={() => history.push(`${LIST_PATH}/new`)}
-              >
-                新增客户
-              </Button>
-            )}
-          </>
+              )}
+              {canAdd && (
+                <Button
+                  type="primary"
+                  icon={<Plus size={18} />}
+                  onClick={() => history.push(`${LIST_PATH}/new`)}
+                >
+                  新增客户
+                </Button>
+              )}
+            </>
+          )
         }
       />
       <Segmented
@@ -742,7 +727,10 @@ const CustomerListPage: React.FC = () => {
                       })),
                       { showSearch: { optionFilterProp: 'label' } },
                     )}
-                  {select('status', '状态', STATUS_OPTIONS)}
+                  {select('status', '状态', STATUS_OPTIONS, {
+                    // 状态下拉切换后立即查询（interface-style）
+                    onChange: () => search(),
+                  })}
                 </>
               }
             >

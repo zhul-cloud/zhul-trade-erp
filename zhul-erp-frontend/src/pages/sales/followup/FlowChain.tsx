@@ -83,7 +83,8 @@ const BoardCard: React.FC<{
               alignItems: 'center',
               justifyContent: 'center',
               color: s.text,
-              background: s.soft,
+              // 选中时卡片已是浅底，图标底块改白，免得融成一片
+              background: active ? palette.card : s.soft,
               fontSize: 14,
             }}
           >

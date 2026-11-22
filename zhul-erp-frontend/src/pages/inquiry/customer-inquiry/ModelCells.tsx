@@ -75,25 +75,20 @@ export const ModelCell: React.FC<{
 export const FirstModelCell: React.FC<{
   model?: string;
   count: number;
-  /** 总数量：传了就按「型号 · 数量」列显示（单据页统一规范第 3 条） */
-  quantity?: number;
   onView: () => void;
-}> = ({ model, count, quantity, onView }) => {
+}> = ({ model, count, onView }) => {
   const { palette } = useAppTheme();
   if (!model) return <span style={{ color: palette.mute }}>—</span>;
-  const qty = quantity != null ? `${quantity} 件` : undefined;
   return (
     <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
       <EllipsisText text={model} style={{ fontFamily: MONO_FONT }} />
-      {count > 1 ? (
+      {count > 1 && (
         <span style={{ fontSize: 12, color: palette.mute }}>
-          共 {count} 个型号 · {qty ? `${qty} · ` : ''}
+          共 {count} 个型号 ·{' '}
           <button type="button" className="zhul-link" onClick={onView}>
             查看
           </button>
         </span>
-      ) : (
-        qty && <span style={{ fontSize: 12, color: palette.mute }}>{qty}</span>
       )}
     </span>
   );

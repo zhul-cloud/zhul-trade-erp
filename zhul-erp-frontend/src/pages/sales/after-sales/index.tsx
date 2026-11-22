@@ -55,6 +55,7 @@ const QUICK_SOON = 'soon';
 export const HELP = {
   page: '客户收货后的问题：跟进进度、退货、退款和费用都记在售后单上',
   closedThisMonth: '这个月已结案的售后单数',
+  keyword: '可搜：售后单号、订单编号、型号',
 } as const;
 
 /** 销售管理 → 售后管理（spec sales/after-sales） */
@@ -403,15 +404,16 @@ const AfterSalesPage: React.FC = () => {
                 const next = v.find((x) => x !== due) as typeof due;
                 setDue(next);
                 if (next) {
+                  // 只放开状态，其他条件仍按上次查询的（没点查询的输入不生效，同 PI 列表）
                   form.setFieldValue('status', undefined);
-                  setFilters({ ...form.getFieldsValue(), status: undefined });
+                  setFilters((f) => ({ ...f, status: undefined }));
                 }
                 setPage(1);
               }}
             />
           }
         >
-          <FilterField label="关键词" span={2}>
+          <FilterField label="关键词" span={2} help={HELP.keyword}>
             <Form.Item name="keyword" noStyle>
               <Input
                 allowClear

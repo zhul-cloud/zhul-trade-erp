@@ -158,7 +158,6 @@ const toQuery = (
 
 interface Stats {
   sourcing: number;
-  sourcingTimeout: number;
   ready: number;
   pendingConfirm: number;
   today: number;
@@ -233,22 +232,15 @@ const CustomerInquiryPage: React.FC = () => {
         .then((r) => r.total);
     const today = dayjs().format('YYYY-MM-DD');
     try {
-      const [
-        sourcing,
-        sourcingTimeout,
-        readyCount,
-        pendingConfirm,
-        todayCount,
-      ] = await Promise.all([
-        count({ statusList: [STATUS.SOURCING] }),
-        count({ statusList: [STATUS.SOURCING], timeoutOnly: true }),
-        count({ statusList: [STATUS.READY] }),
-        count({ statusList: [STATUS.PENDING_CONFIRM] }),
-        count({ inquiryDateFrom: today, inquiryDateTo: today }),
-      ]);
+      const [sourcing, readyCount, pendingConfirm, todayCount] =
+        await Promise.all([
+          count({ statusList: [STATUS.SOURCING] }),
+          count({ statusList: [STATUS.READY] }),
+          count({ statusList: [STATUS.PENDING_CONFIRM] }),
+          count({ inquiryDateFrom: today, inquiryDateTo: today }),
+        ]);
       setStats({
         sourcing,
-        sourcingTimeout,
         ready: readyCount,
         pendingConfirm,
         today: todayCount,
@@ -738,6 +730,8 @@ const CustomerInquiryPage: React.FC = () => {
               <DatePicker.RangePicker
                 id={{ start: 'inquiry-date' }}
                 style={{ width: '100%' }}
+                // 「今日新增」打开时日期固定取今天，日期框置灰，避免看起来还按这里的范围查
+                disabled={todayOnly}
               />
             </Form.Item>
           </FilterField>

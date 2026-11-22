@@ -390,6 +390,8 @@ const OpportunityPage: React.FC = () => {
               <DatePicker.RangePicker
                 id={{ start: 'opportunity-first-contact' }}
                 style={{ width: '100%' }}
+                // 「今日新增」打开时日期固定取今天，日期框置灰，避免看起来还按这里的范围查
+                disabled={todayOnly}
               />
             </Form.Item>
           </FilterField>
