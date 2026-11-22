@@ -24,6 +24,32 @@ const ENFORCED = [
   'src/components/Shell',
   'src/components/PageTabs',
   'src/theme',
+  // 6.x 样板页
+  'src/pages/dashboard',
+  'src/pages/sales/orders',
+  // 7.1 销售管理（sales/stats 属 7.6 统计分析）
+  'src/components/CustomerQuickCreateModal',
+  'src/pages/crm',
+  'src/pages/customer',
+  'src/pages/quotation',
+  'src/pages/inquiry/customer-inquiry',
+  'src/pages/sales/after-sales',
+  'src/pages/sales/components.tsx',
+  'src/pages/sales/followup',
+  'src/pages/sales/pi',
+  'src/pages/sales/returns',
+  // 7.2 采购管理（purchase/bargain-stats、inquiry/sourcing-stats 属 7.6；
+  // inquiry/shared 的旧页头还有 7.3–7.7 的页面在用，最后一个用户迁完后删除）
+  'src/pages/inquiry/my-tasks',
+  'src/pages/inquiry/price-history',
+  'src/pages/inquiry/sourcing-board',
+  'src/pages/purchase/components.tsx',
+  'src/pages/purchase/orders',
+  'src/pages/purchase/requirements',
+  'src/pages/purchase/returns',
+  'src/pages/purchase/shipments',
+  'src/pages/supplier',
+  'src/pages/supply-chain',
 ];
 
 /** 不扫描：多语言文案、生成目录 */

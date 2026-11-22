@@ -75,9 +75,16 @@
 | 发品任务 | 商品名称、型号（含规范化） | `listing/repository/ListingTaskMapper:32` | 无 |
 | 素材管理 | 品牌、型号 | `media/repository/MediaItemMapper:16` | 无 |
 
+## 供应链（2026-11-22 任务 7.2 补核）
+
+| 页面 | 可搜范围 | 代码位置 | 提示问题 |
+|---|---|---|---|
+| 供应链跟进 · 需求情报、供应覆盖 | 型号（规范化后包含匹配） | `supply/service/SupplyBoardService:460` | 无（提示「搜索型号」） |
+| 供应链跟进 · 供应商开发 | 品牌名称、品类名称（不区分大小写） | `supply/service/SupplierDevService:148` | 无（提示「搜索品牌、品类」） |
+| 覆盖矩阵 · 型号清单 | 型号（包含匹配，不规范化） | `supply/service/CoverageMatrixService:108` | 无 |
+
 ## 尚未核对
 
 以下页面在改到对应批次时再补核：
-- 供应链各页（`supply-chain/*`，后端 `supply/service/*`）；
 - 系统管理各页（部门、字典、菜单、角色、配置）；
 - 各弹窗里的选择器搜索。
