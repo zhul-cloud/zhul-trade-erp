@@ -26,6 +26,8 @@ import {
   ACCOUNT_TYPE,
   type BankAccount,
   bankAccountApi,
+  PAY_CHANNEL,
+  PAY_CHANNEL_NAMES,
   readBizError,
   type SaveBankAccount,
 } from './service';
@@ -43,6 +45,11 @@ const AccountModal: React.FC<{
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [bu] = useBusinessUnits();
+  const accountType = Form.useWatch('accountType', form);
+  const channel = Form.useWatch('payChannel', form) ?? PAY_CHANNEL.BANK;
+  // 支付宝、微信只有对私账户能选；只填账户名称和账号
+  const wallet =
+    accountType === ACCOUNT_TYPE.PRIVATE && channel !== PAY_CHANNEL.BANK;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -52,6 +59,7 @@ const AccountModal: React.FC<{
       form.setFieldsValue({
         currencyCode: 'USD',
         accountType: ACCOUNT_TYPE.PUBLIC,
+        payChannel: PAY_CHANNEL.BANK,
         businessUnitId: bu.myUnitId ?? bu.units[0]?.id,
       });
       return cancel;
@@ -65,7 +73,11 @@ const AccountModal: React.FC<{
   }, [open, editing, form, message, bu]);
 
   const submit = async () => {
-    const values = await form.validateFields();
+    const raw = await form.validateFields();
+    const values: SaveBankAccount =
+      raw.accountType === ACCOUNT_TYPE.PRIVATE
+        ? raw
+        : { ...raw, payChannel: PAY_CHANNEL.BANK };
     setBusy(true);
     try {
       if (editing) await bankAccountApi.update(editing.id, values);
@@ -116,6 +128,33 @@ const AccountModal: React.FC<{
                 ]}
               />
             </Form.Item>
+            {accountType === ACCOUNT_TYPE.PRIVATE && (
+              <Form.Item
+                name="payChannel"
+                label="付款渠道"
+                extra="私对私付款时按渠道选我方账户"
+                style={{ gridColumn: '1 / -1' }}
+              >
+                <Radio.Group
+                  optionType="button"
+                  buttonStyle="solid"
+                  onChange={(e) => {
+                    const v = e.target.value as number;
+                    form.setFieldsValue({
+                      bankName:
+                        v === PAY_CHANNEL.BANK ? '' : PAY_CHANNEL_NAMES[v],
+                      ...(v === PAY_CHANNEL.BANK
+                        ? {}
+                        : { currencyCode: 'CNY' }),
+                    });
+                  }}
+                  options={[1, 2, 3].map((v) => ({
+                    value: v,
+                    label: PAY_CHANNEL_NAMES[v],
+                  }))}
+                />
+              </Form.Item>
+            )}
             {bu.enabled && (
               <Form.Item
                 name="businessUnitId"
@@ -136,14 +175,17 @@ const AccountModal: React.FC<{
                 options={CURRENCIES.map((c) => ({ value: c, label: c }))}
               />
             </Form.Item>
-            <Form.Item name="swiftCode" label="SWIFT Code">
-              <Input maxLength={11} placeholder="CHASSGSGXXX" />
-            </Form.Item>
+            {!wallet && (
+              <Form.Item name="swiftCode" label="SWIFT Code">
+                <Input maxLength={11} placeholder="CHASSGSGXXX" />
+              </Form.Item>
+            )}
             <Form.Item
               name="bankName"
               label="银行名称"
               rules={[{ required: true, message: '请填写银行名称' }]}
               style={{ gridColumn: 'span 2' }}
+              hidden={wallet}
             >
               <Input
                 maxLength={128}
@@ -159,33 +201,42 @@ const AccountModal: React.FC<{
             </Form.Item>
             <Form.Item
               name="accountNo"
-              label="账号"
+              label={wallet ? `${PAY_CHANNEL_NAMES[channel]}账号` : '账号'}
               rules={[
                 { required: true, message: '请填写账号' },
-                {
-                  pattern: /^[A-Za-z0-9 -]{4,64}$/,
-                  message: '账号只能包含字母、数字、空格与连字符，4–64 位',
-                },
+                wallet
+                  ? {
+                      pattern: /^[A-Za-z0-9 @._-]{4,64}$/,
+                      message: '填手机号或邮箱，4–64 位',
+                    }
+                  : {
+                      pattern: /^[A-Za-z0-9 -]{4,64}$/,
+                      message: '账号只能包含字母、数字、空格与连字符，4–64 位',
+                    },
               ]}
             >
               <Input maxLength={64} />
             </Form.Item>
-            <Form.Item name="country" label="国家 / 地区">
-              <Input maxLength={64} placeholder="Singapore" />
-            </Form.Item>
-            <Form.Item name="bankCode" label="Bank Code">
-              <Input maxLength={32} />
-            </Form.Item>
-            <Form.Item
-              name="bankAddress"
-              label="银行地址"
-              style={{ gridColumn: 'span 2' }}
-            >
-              <Input maxLength={300} />
-            </Form.Item>
-            <Form.Item name="branchCode" label="Branch Code">
-              <Input maxLength={32} />
-            </Form.Item>
+            {!wallet && (
+              <>
+                <Form.Item name="country" label="国家 / 地区">
+                  <Input maxLength={64} placeholder="Singapore" />
+                </Form.Item>
+                <Form.Item name="bankCode" label="Bank Code">
+                  <Input maxLength={32} />
+                </Form.Item>
+                <Form.Item
+                  name="bankAddress"
+                  label="银行地址"
+                  style={{ gridColumn: 'span 2' }}
+                >
+                  <Input maxLength={300} />
+                </Form.Item>
+                <Form.Item name="branchCode" label="Branch Code">
+                  <Input maxLength={32} />
+                </Form.Item>
+              </>
+            )}
             <Form.Item name="remark" label="备注">
               <Input maxLength={200} />
             </Form.Item>
@@ -282,9 +333,14 @@ const BankAccountPage: React.FC = () => {
       title: '类型',
       dataIndex: 'accountType',
       width: 90,
-      render: (v: number) =>
+      render: (v: number, r: BankAccount) =>
         v === ACCOUNT_TYPE.PRIVATE ? (
-          <Pill tone="orange">对私</Pill>
+          <Pill tone="orange">
+            对私
+            {r.payChannel && r.payChannel !== PAY_CHANNEL.BANK
+              ? ` · ${PAY_CHANNEL_NAMES[r.payChannel]}`
+              : ''}
+          </Pill>
         ) : (
           <Pill tone="gray">对公</Pill>
         ),

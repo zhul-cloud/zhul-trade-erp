@@ -26,6 +26,7 @@ import {
   SupplierTypePill,
 } from './components';
 import { INDUSTRY_OPTIONS, labelOf } from './constants';
+import { PayQrCodes } from './payQr';
 import { ScopeLines } from './productScope';
 import { readBizError, type SupplierItem, supplierApi } from './service';
 
@@ -207,6 +208,11 @@ const SupplierDetailPage: React.FC = () => {
               <span style={{ color: palette.mute }}>未设置</span>
             )}
           </div>
+          <PayQrCodes
+            supplierId={record.id}
+            codes={record.payQrCodes}
+            canEdit={canEdit}
+          />
         </SectionCard>
 
         <SectionCard icon={<AppstoreOutlined />} title="主营产品">

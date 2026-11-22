@@ -1240,6 +1240,8 @@ export const priceHistoryApi = {
     channel?: number;
     /** true 只看无货、false 只看有价 */
     noStock?: boolean;
+    /** 一级品类（含细分） */
+    categoryId?: number;
     dateFrom?: string;
     dateTo?: string;
     page: number;

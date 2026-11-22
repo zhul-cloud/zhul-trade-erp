@@ -17,6 +17,8 @@ public class PaymentVO {
     private Integer payeeType;
     private String payeeName;
     private Integer method;
+    /** 付款渠道：1-银行卡、2-支付宝、3-微信 */
+    private Integer payChannel;
     private Long bankAccountId;
     private String accountName;
     /** 私对私时的付款个人账户 */

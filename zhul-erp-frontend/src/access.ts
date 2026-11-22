@@ -160,6 +160,7 @@ export default function access(initialState: {
     'purchase:order:cancel': can('purchase:order:cancel'),
     // 财务管理
     financeMenu: any(
+      '/finance/receivables',
       '/finance/receipts',
       '/finance/refunds',
       '/finance/fx-settlements',
@@ -197,6 +198,7 @@ export default function access(initialState: {
     'finance:reimburse:pay': can('finance:reimburse:pay'),
     'finance:expense:edit': can('finance:expense:edit'),
     financeReceipts: can('/finance/receipts'),
+    financeReceivables: can('/finance/receivables'),
     // 收付退单据详情（change finance-cash-docs）：业务员、采购员从 PI、订单只读打开自己范围内的
     receiptDocDetail: any('/finance/receipts', '/sales/pi', '/sales/orders'),
     refundDetail: any('/finance/refunds', '/sales/orders'),

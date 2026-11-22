@@ -42,6 +42,12 @@ import { formatAmount } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
 import { DueNowHint, dueNowOf } from './dueNow';
 import {
+  ChannelIcon,
+  PAY_CHANNEL,
+  PAY_CHANNEL_NAMES,
+  PayeeQrPanel,
+} from './payQr';
+import {
   type DueState,
   METHOD,
   PAY_STATUS,
@@ -49,6 +55,7 @@ import {
   type Payable,
   type PayeeAccount,
   type PayeeOption,
+  type PayeeQr,
   type PaymentLine,
   payableApi,
   paymentApi,
@@ -294,6 +301,8 @@ export const RegisterPaymentDrawer: React.FC<{
   const [accountId, setAccountId] = useState<number>();
   const [payeeAccounts, setPayeeAccounts] = useState<PayeeAccount[]>([]);
   const [payeeAccountId, setPayeeAccountId] = useState<number>();
+  const [payChannel, setPayChannel] = useState<number>(PAY_CHANNEL.BANK);
+  const [payeeQrs, setPayeeQrs] = useState<PayeeQr[]>([]);
   const [payDate, setPayDate] = useState<Dayjs>(dayjs());
   const [amount, setAmount] = useState<number | null>(null);
   const [amountCny, setAmountCny] = useState<number | null>(null);
@@ -311,6 +320,7 @@ export const RegisterPaymentDrawer: React.FC<{
     setKey(newKey());
     setAnchor(anchorId);
     setMethod(defaultMethod ?? (canCompany ? METHOD.COMPANY : METHOD.ADVANCE));
+    setPayChannel(PAY_CHANNEL.BANK);
     setPayDate(dayjs());
     setAmount(null);
     setAmountCny(null);
@@ -382,6 +392,16 @@ export const RegisterPaymentDrawer: React.FC<{
     return cancel;
   }, [open, anchor]);
 
+  useEffect(() => {
+    setPayeeQrs([]);
+    if (!open || !anchor) return undefined;
+    const { live, cancel } = liveRequests();
+    live(paymentApi.payeeQr(anchor))
+      .then(setPayeeQrs)
+      .catch(() => setPayeeQrs([]));
+    return cancel;
+  }, [open, anchor]);
+
   const currency = rows[0]?.currencyCode ?? 'CNY';
   const foreign = currency !== 'CNY';
   const creditRows = rows.filter((r) => r.creditAmount > 0);
@@ -406,15 +426,18 @@ export const RegisterPaymentDrawer: React.FC<{
       : 0;
   const withDiscount = discountOn && discountAmount > 0;
   const balanced = allocTotal === target && target > 0;
-  // 公司对公选对公账户，私对私选对私账户（收款账户里的账户类型）
+  // 公司对公选对公账户，私对私选对私账户（收款账户里的账户类型）；私对私再按付款渠道选
+  const channel = method === METHOD.PRIVATE ? payChannel : PAY_CHANNEL.BANK;
+  const wallet = channel !== PAY_CHANNEL.BANK;
   const currencyAccounts = useMemo(
     () =>
       accounts.filter(
         (a) =>
           a.currencyCode === currency &&
-          (a.accountType === 2) === (method === METHOD.PRIVATE),
+          (a.accountType === 2) === (method === METHOD.PRIVATE) &&
+          (a.payChannel ?? PAY_CHANNEL.BANK) === channel,
       ),
-    [accounts, currency, method],
+    [accounts, currency, method, channel],
   );
 
   // 对方账户按付款方式过滤：换方式后原选择不在范围内时改选默认账户
@@ -461,8 +484,9 @@ export const RegisterPaymentDrawer: React.FC<{
     try {
       await paymentApi.register({
         method,
+        payChannel: method === METHOD.PRIVATE ? payChannel : undefined,
         bankAccountId: method !== METHOD.ADVANCE ? accountId : undefined,
-        payeeAccountId,
+        payeeAccountId: wallet ? undefined : payeeAccountId,
         payDate: payDate.format('YYYY-MM-DD'),
         amount: amount ?? 0,
         amountCny: foreign ? (amountCny ?? undefined) : undefined,
@@ -645,7 +669,47 @@ export const RegisterPaymentDrawer: React.FC<{
             </div>
           )}
         </Field>
-        {rows.length > 0 &&
+        {method === METHOD.PRIVATE && (
+          <Field label="付款渠道" required>
+            <Segmented<number>
+              value={payChannel}
+              onChange={setPayChannel}
+              options={[1, 2, 3].map((v) => ({
+                value: v,
+                label: (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    {v === PAY_CHANNEL.BANK ? (
+                      <WalletOutlined />
+                    ) : (
+                      <ChannelIcon channel={v} size={14} />
+                    )}
+                    {PAY_CHANNEL_NAMES[v]}
+                  </span>
+                ),
+              }))}
+            />
+          </Field>
+        )}
+        {wallet && rows.length > 0 && (
+          <Field label="对方收款码">
+            <PayeeQrPanel
+              channel={channel}
+              qrs={payeeQrs}
+              payeeName={rows[0].payeeName}
+              supplierId={rows[0].supplierId}
+              amount={amount}
+              currency={currency}
+            />
+          </Field>
+        )}
+        {!wallet &&
+          rows.length > 0 &&
           (rows[0].payeeType === PAYEE.SUPPLIER ||
             rows[0].payeeType === PAYEE.FORWARDER) && (
             <Field label="对方收款账户">
@@ -673,7 +737,7 @@ export const RegisterPaymentDrawer: React.FC<{
             <Field
               label={
                 method === METHOD.PRIVATE
-                  ? '我方付款账户（对私）'
+                  ? `我方付款账户（对私${wallet ? ` · ${PAY_CHANNEL_NAMES[channel]}` : ''}）`
                   : '我方付款账户'
               }
               required
@@ -688,7 +752,7 @@ export const RegisterPaymentDrawer: React.FC<{
                   value: a.id,
                   label: `${a.bankName} · ${a.accountName} ${a.accountNoMasked}`,
                 }))}
-                notFoundContent={`没有${method === METHOD.PRIVATE ? '对私' : '对公'}的 ${currency} 账户，请先在「收款账户」里添加`}
+                notFoundContent={`没有${method === METHOD.PRIVATE ? `对私${wallet ? `的${PAY_CHANNEL_NAMES[channel]}` : ''}` : '对公'}的 ${currency} 账户，请先在「收款账户」里添加`}
               />
             </Field>
           )}

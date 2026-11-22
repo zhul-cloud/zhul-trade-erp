@@ -16,6 +16,7 @@ import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
+import { PAY_CHANNEL_NAMES } from '../payables/payQr';
 import {
   METHOD,
   type Payment,
@@ -183,7 +184,12 @@ const PaymentRecords: React.FC = () => {
         ) : r.method === METHOD.ADVANCE ? (
           <Pill tone="violet">员工垫付</Pill>
         ) : r.method === METHOD.PRIVATE ? (
-          <Pill tone="orange">私对私</Pill>
+          <Pill tone="orange">
+            私对私
+            {r.payChannel && r.payChannel !== 1
+              ? ` · ${PAY_CHANNEL_NAMES[r.payChannel]}`
+              : ''}
+          </Pill>
         ) : (
           <Pill tone="accent">公司对公</Pill>
         ),

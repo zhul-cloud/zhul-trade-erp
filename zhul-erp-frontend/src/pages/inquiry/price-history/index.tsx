@@ -1,7 +1,7 @@
-import { history, useAccess } from '@umijs/max';
+import { history, useAccess, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { DatePicker, Form, Input, Select, Table } from 'antd';
-import type { Dayjs } from 'dayjs';
+import { DatePicker, Form, Input, Select, Table, Tag } from 'antd';
+import dayjs, { type Dayjs } from 'dayjs';
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -38,7 +38,24 @@ interface Filters {
   channel?: number;
   stock?: 'priced' | 'none';
   range?: [Dayjs, Dayjs];
+  /** 一级品类：从无货分析点品类跳过来时带上 */
+  categoryId?: number;
+  categoryName?: string;
 }
+
+/** 从链接带的筛选（无货分析点数字跳过来）：noStock=1、brand、categoryId + categoryName、dateFrom、dateTo */
+const fromSearch = (search: URLSearchParams): Filters => {
+  const from = search.get('dateFrom');
+  const to = search.get('dateTo');
+  const category = Number(search.get('categoryId'));
+  return {
+    brand: search.get('brand') ?? undefined,
+    stock: search.get('noStock') === '1' ? 'none' : undefined,
+    range: from && to ? [dayjs(from), dayjs(to)] : undefined,
+    categoryId: category > 0 ? category : undefined,
+    categoryName: search.get('categoryName') ?? undefined,
+  };
+};
 
 /** 帮助文字：help-texts.md「询价记录」 */
 export const HELP = {
@@ -53,11 +70,18 @@ const PriceHistoryPage: React.FC = () => {
   const canSeeSupplier = !!access['inquiry:supplier:view'];
   const { conditionOptions } = useQuoteDicts();
   const [form] = Form.useForm<Filters>();
+  const [params] = useSearchParams();
+  const searchKey = params.toString();
+  const [filters, setFilters] = useState<Filters>(() => fromSearch(params));
+  // 查询时保留从链接带来的品类（品类不在表单里，用标签显示、可单独去掉）
   const search = () => {
     setPage(1);
-    setFilters(form.getFieldsValue());
+    setFilters({
+      ...form.getFieldsValue(),
+      categoryId: filters.categoryId,
+      categoryName: filters.categoryName,
+    });
   };
-  const [filters, setFilters] = useState<Filters>({});
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<PriceHistoryGroup[]>([]);
@@ -75,6 +99,7 @@ const PriceHistoryPage: React.FC = () => {
         itemCondition: filters.itemCondition,
         channel: filters.channel,
         noStock: filters.stock ? filters.stock === 'none' : undefined,
+        categoryId: filters.categoryId,
         dateFrom: filters.range?.[0]?.format('YYYY-MM-DD'),
         dateTo: filters.range?.[1]?.format('YYYY-MM-DD'),
         page,
@@ -96,6 +121,16 @@ const PriceHistoryPage: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
 
   useOnReactivate(load);
+
+  // 首次打开和标签页已打开时再从别处带筛选跳过来，都按链接填表单并重新筛（不用 initialValues，重置才回到空）
+  useEffect(() => {
+    if (!searchKey) return;
+    const f = fromSearch(new URLSearchParams(searchKey));
+    form.resetFields();
+    form.setFieldsValue(f);
+    setPage(1);
+    setFilters(f);
+  }, [searchKey]);
 
   const columns: TableColumnsType<PriceHistoryGroup> = [
     {
@@ -203,6 +238,23 @@ const PriceHistoryPage: React.FC = () => {
             setFilters({});
           }}
           minColumn={130}
+          quick={
+            filters.categoryId ? (
+              <Tag
+                closable
+                onClose={() => {
+                  setPage(1);
+                  setFilters((f) => ({
+                    ...f,
+                    categoryId: undefined,
+                    categoryName: undefined,
+                  }));
+                }}
+              >
+                品类：{filters.categoryName ?? filters.categoryId}
+              </Tag>
+            ) : undefined
+          }
           moreCount={
             [
               canSeeSupplier ? filters.channel : undefined,
