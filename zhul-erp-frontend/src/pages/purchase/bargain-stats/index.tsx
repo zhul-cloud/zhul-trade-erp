@@ -3,9 +3,16 @@ import type { TableColumnsType } from 'antd';
 import { App, Input, Segmented, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import {
+  FilterCard,
+  FilterField,
+  HelpTip,
+  MainCard,
+  PageHeader,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import StatsRangeFilter, { presetRange } from '@/components/StatsRangeFilter';
-import { Card, PageTitle } from '@/pages/inquiry/shared/components';
 import { SupplierPicker } from '@/pages/purchase/components';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
 import { readBizError } from '@/pages/sales/service';
@@ -32,6 +39,12 @@ const GROUP_TITLES: Record<BargainGroupBy, string> = {
   CATEGORY: '品类',
   MONTH: '月份',
 };
+
+/** 帮助文字：help-texts.md「砍价统计」 */
+export const HELP = {
+  page: '已下单、未取消的采购订单行；砍价 = (目标价 − 人民币单价) × 数量，砍价率按目标金额加权；质量索赔与开票成本单独列，不计入砍价',
+  bargain: '砍价 = (目标价 − 人民币单价) × 数量；砍价率按目标金额加权',
+} as const;
 
 /** 采购管理 → 砍价统计：已下单采购订单行的砍价汇总（只读） */
 const BargainStatsPage: React.FC = () => {
@@ -80,41 +93,6 @@ const BargainStatsPage: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
 
   useOnReactivate(load);
-
-  const stat = (
-    label: string,
-    value: React.ReactNode,
-    sub?: React.ReactNode,
-    color?: string,
-  ) => (
-    <div
-      style={{
-        flex: '1 1 200px',
-        padding: '16px 18px',
-        borderRadius: 14,
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
-      }}
-    >
-      <div style={{ fontSize: 13, color: palette.sub }}>{label}</div>
-      <div
-        style={{
-          ...num,
-          fontSize: 22,
-          fontWeight: 800,
-          color: color ?? palette.ink,
-          marginTop: 4,
-        }}
-      >
-        {value}
-      </div>
-      {sub && (
-        <div style={{ fontSize: 12, color: palette.mute, marginTop: 2 }}>
-          {sub}
-        </div>
-      )}
-    </div>
-  );
 
   const bargainCell = (v?: number | null) =>
     v == null ? (
@@ -280,88 +258,104 @@ const BargainStatsPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle description="已下单、未取消的采购订单行；砍价 = (目标价 − 人民币单价) × 数量，砍价率按目标金额加权；质量索赔与开票成本单独列，不计入砍价。" />
-      <div
-        style={{
-          display: 'flex',
-          gap: 10,
-          flexWrap: 'wrap',
-          marginBottom: 16,
-          alignItems: 'center',
-        }}
-      >
-        <StatsRangeFilter value={range} onChange={setRange} />
-        <Select
-          allowClear
-          placeholder="采购员"
-          style={{ width: 140 }}
-          value={purchaserId}
-          onChange={setPurchaserId}
-          options={users}
-          showSearch={{ optionFilterProp: 'label' }}
-        />
-        <SupplierPicker
-          value={supplierId}
-          placeholder="供应商"
-          style={{ width: 200 }}
-          onChange={(id) => setSupplierId(id)}
-        />
-        <Input
-          allowClear
-          placeholder="品牌"
-          style={{ width: 140 }}
-          value={brand}
-          onChange={(e) => setBrand(e.target.value)}
-          onPressEnter={() => setQuery({ brand, category })}
-          onBlur={() => setQuery({ brand, category })}
-        />
-        <Input
-          allowClear
-          placeholder="品类"
-          style={{ width: 140 }}
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          onPressEnter={() => setQuery({ brand, category })}
-          onBlur={() => setQuery({ brand, category })}
-        />
-      </div>
+      <PageHeader help={HELP.page} />
+      {/* 统计条件选了就生效；品牌、品类输入后回车或离开输入框生效 */}
+      <FilterCard>
+        <FilterField label="统计期间" span={2}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <StatsRangeFilter value={range} onChange={setRange} />
+          </div>
+        </FilterField>
+        <FilterField label="采购员">
+          <Select
+            allowClear
+            placeholder="全部"
+            aria-label="采购员"
+            value={purchaserId}
+            onChange={setPurchaserId}
+            options={users}
+            showSearch={{ optionFilterProp: 'label' }}
+          />
+        </FilterField>
+        <FilterField label="供应商">
+          <SupplierPicker
+            value={supplierId}
+            placeholder="全部"
+            style={{ width: '100%' }}
+            onChange={(id) => setSupplierId(id)}
+          />
+        </FilterField>
+        <FilterField label="品牌">
+          <Input
+            allowClear
+            placeholder="全部"
+            aria-label="品牌"
+            value={brand}
+            onChange={(e) => setBrand(e.target.value)}
+            onPressEnter={() => setQuery({ brand, category })}
+            onBlur={() => setQuery({ brand, category })}
+          />
+        </FilterField>
+        <FilterField label="品类">
+          <Input
+            allowClear
+            placeholder="全部"
+            aria-label="品类"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            onPressEnter={() => setQuery({ brand, category })}
+            onBlur={() => setQuery({ brand, category })}
+          />
+        </FilterField>
+      </FilterCard>
       {summary && (
-        <div
-          style={{
-            display: 'flex',
-            gap: 14,
-            flexWrap: 'wrap',
-            marginBottom: 16,
-          }}
-        >
-          {stat(
-            '采购金额',
-            cny(summary.purchaseAmount),
-            summary.noTargetAmount
-              ? `其中没有目标价 ${cny(summary.noTargetAmount)}`
-              : `${summary.lineCount} 行`,
-          )}
-          {stat(
-            '砍价金额',
-            cny(summary.bargainAmount),
-            `砍价率 ${rateText(summary.bargainRate)}`,
-            deltaOf(summary.bargainAmount),
-          )}
-          {stat('质量索赔', cny(summary.claimAmount), '不良折价，不计入砍价')}
-          {stat('开票成本', cny(summary.invoiceCost), '开票税点，不计入砍价')}
-        </div>
+        <SummaryBar
+          items={[
+            {
+              key: 'purchase',
+              label: '采购金额',
+              value: summary.purchaseAmount,
+              currency: 'CNY',
+              sub: summary.noTargetAmount
+                ? `其中没有目标价 ${cny(summary.noTargetAmount)}`
+                : `${summary.lineCount} 行`,
+            },
+            {
+              key: 'bargain',
+              label: '砍价金额',
+              help: HELP.bargain,
+              value: (
+                <span style={{ color: deltaOf(summary.bargainAmount) }}>
+                  {cny(summary.bargainAmount)}
+                </span>
+              ),
+              sub: `砍价率 ${rateText(summary.bargainRate)}`,
+            },
+            {
+              key: 'claim',
+              label: '质量索赔',
+              help: '不良折价，不计入砍价',
+              value: summary.claimAmount,
+              currency: 'CNY',
+            },
+            {
+              key: 'invoice',
+              label: '开票成本',
+              help: '开票税点，不计入砍价',
+              value: summary.invoiceCost,
+              currency: 'CNY',
+            },
+          ]}
+        />
       )}
-      <Card>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            marginBottom: 14,
-            flexWrap: 'wrap',
-          }}
-        >
-          <b style={{ color: palette.ink }}>分组</b>
+      <MainCard
+        left={
+          <>
+            <span>分组</span>
+            <HelpTip title="点一行展开采购订单行" />
+          </>
+        }
+        right={
           <Segmented<string>
             value={groupBy}
             onChange={(v) => setGroupBy(v as BargainGroupBy)}
@@ -369,11 +363,8 @@ const BargainStatsPage: React.FC = () => {
               (k) => ({ label: GROUP_TITLES[k], value: k }),
             )}
           />
-          <span style={{ flex: 1 }} />
-          <span style={{ fontSize: 12, color: palette.mute }}>
-            点一行展开采购订单行
-          </span>
-        </div>
+        }
+      >
         <Table<BargainGroup>
           rowKey="key"
           loading={loading}
@@ -401,7 +392,7 @@ const BargainStatsPage: React.FC = () => {
             ),
           }}
         />
-      </Card>
+      </MainCard>
     </div>
   );
 };

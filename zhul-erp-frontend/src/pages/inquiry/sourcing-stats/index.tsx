@@ -1,11 +1,20 @@
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Segmented, Table } from 'antd';
+import { App, Table, Tabs } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import {
+  CardTitle,
+  FilterCard,
+  FilterField,
+  HelpTip,
+  MainCard,
+  PageHeader,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import StatsRangeFilter, { presetRange } from '@/components/StatsRangeFilter';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -20,6 +29,15 @@ import {
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 const rateText = (v?: number | null) => (v == null ? '—' : `${v}%`);
+
+/** 帮助文字：help-texts.md「询价统计」 */
+export const HELP = {
+  page: '按月份按询盘单统计：没有待回价型号且至少一个有价为询价完成，全部无货为无法报价，还有待回价的为询价中。按人员按分配给他的型号统计',
+  workload:
+    '月份按询盘日期归属。型号转交后，业务员和采购各算一次，所以合计可能大于实际型号数',
+  person:
+    '选一个月就是这个月每人的工作量。转出是这个人交给别人继续找的型号，不计入他的有价、无货、待回价；有价率 = 有价 ÷（型号数 − 转出）',
+} as const;
 
 /** 采购管理 → 询价统计：按月份（询盘单、询价工作量）与按人员（型号）的询价情况（只读） */
 const SourcingStatsPage: React.FC = () => {
@@ -234,93 +252,68 @@ const SourcingStatsPage: React.FC = () => {
   ];
 
   const total = data?.total;
-  const stat = (
-    label: string,
-    value: string,
-    color?: string,
-    note?: string,
-  ) => (
-    <div
-      style={{
-        flex: '1 1 180px',
-        padding: '16px 18px',
-        borderRadius: 14,
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
-      }}
-    >
-      <div style={{ fontSize: 13, color: palette.sub }}>{label}</div>
-      <div
-        style={{
-          ...num,
-          fontSize: 22,
-          fontWeight: 800,
-          color: color ?? palette.ink,
-          marginTop: 4,
-        }}
-      >
-        {value}
-      </div>
-      {note && (
-        <div style={{ fontSize: 12, color: palette.mute, marginTop: 2 }}>
-          {note}
-        </div>
-      )}
-    </div>
-  );
 
   return (
     <div>
-      <PageTitle
-        description={
-          view === 'nostock'
-            ? undefined
-            : '按月份按询盘单统计：没有待回价型号且至少一个有价为询价完成，全部无货为无法报价，还有待回价的为询价中。按人员按分配给他的型号统计。'
-        }
-      />
-      {view !== 'nostock' && (
-        <div style={{ marginBottom: 16 }}>
-          <StatsRangeFilter value={range} onChange={setRange} />
-        </div>
-      )}
-      {view !== 'nostock' && total && (
-        <div
-          style={{
-            display: 'flex',
-            gap: 14,
-            flexWrap: 'wrap',
-            marginBottom: 16,
-          }}
-        >
-          {stat('询价总数', String(total.total), undefined, '询盘单')}
-          {stat('询价完成率', rateText(total.completedRate), palette.green)}
-          {stat('无法报价率', rateText(total.unquotableRate), palette.orange)}
-          {stat(
-            '询价中',
-            String(total.inProgress),
-            undefined,
-            '还有待回价的型号',
-          )}
-        </div>
-      )}
-      <Segmented
-        style={{ marginBottom: 16 }}
-        value={view}
-        onChange={setView}
-        options={[
-          { value: 'month', label: '按月份' },
-          { value: 'person', label: '按人员' },
-          { value: 'nostock', label: '无货分析' },
+      <PageHeader help={view === 'nostock' ? undefined : HELP.page} />
+      {/* 按月份、按人员、无货分析是三类内容，用页签（原来的分段按钮） */}
+      <Tabs
+        activeKey={view}
+        onChange={(k) => setView(k as typeof view)}
+        items={[
+          { key: 'month', label: '按月份' },
+          { key: 'person', label: '按人员' },
+          { key: 'nostock', label: '无货分析' },
         ]}
       />
+      {view !== 'nostock' && (
+        // 统计条件选了就生效
+        <FilterCard>
+          <FilterField label="统计期间" span={2}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <StatsRangeFilter value={range} onChange={setRange} />
+            </div>
+          </FilterField>
+        </FilterCard>
+      )}
+      {view !== 'nostock' && total && (
+        <SummaryBar
+          items={[
+            {
+              key: 'total',
+              label: '询价总数',
+              value: total.total,
+              sub: '询盘单',
+            },
+            {
+              key: 'completed',
+              label: '询价完成率',
+              value: rateText(total.completedRate),
+            },
+            {
+              key: 'unquotable',
+              label: '无法报价率',
+              value: rateText(total.unquotableRate),
+            },
+            {
+              key: 'inProgress',
+              label: '询价中',
+              help: '还有待回价的型号',
+              value: total.inProgress,
+            },
+          ]}
+        />
+      )}
       {view === 'nostock' && <NoStockPanel />}
       {view === 'month' && (
-        <Card style={{ marginBottom: 16 }}>
-          <div
-            style={{ fontWeight: 700, color: palette.ink, marginBottom: 12 }}
-          >
-            询价工作量（型号）
-          </div>
+        <MainCard
+          left={
+            <>
+              <CardTitle>询价工作量（型号）</CardTitle>
+              <HelpTip title={HELP.workload} />
+            </>
+          }
+        >
           <Table<WorkloadRow>
             rowKey="key"
             size="small"
@@ -349,89 +342,85 @@ const SourcingStatsPage: React.FC = () => {
               ) : null;
             }}
           />
-          <div style={{ color: palette.mute, fontSize: 12, marginTop: 8 }}>
-            月份按询盘日期归属。型号转交后，业务员和采购各算一次，所以合计可能大于实际型号数。
-          </div>
-        </Card>
+        </MainCard>
       )}
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+      <div
+        style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 16 }}
+      >
         {view === 'month' && (
-          <Card style={{ flex: '1 1 560px', minWidth: 0 }}>
-            <div
-              style={{ fontWeight: 700, color: palette.ink, marginBottom: 12 }}
-            >
-              按月份（询盘单）
-            </div>
-            <Table<MonthRow>
-              rowKey="key"
-              size="small"
-              loading={loading}
-              columns={monthColumns}
-              dataSource={data?.months ?? []}
-              pagination={false}
-              scroll={{ x: tableScrollX(monthColumns) }}
-              locale={{ emptyText: '期间内没有进入询价的询盘单' }}
-              summary={() =>
-                total && total.total > 0 ? (
-                  <Table.Summary.Row>
-                    <Table.Summary.Cell index={0}>
-                      <b>合计</b>
-                    </Table.Summary.Cell>
-                    <Table.Summary.Cell index={1} align="right">
-                      <button
-                        type="button"
-                        className="zhul-link"
-                        style={num}
-                        onClick={() => open(total)}
-                      >
-                        {total.total}
-                      </button>
-                    </Table.Summary.Cell>
-                    <Table.Summary.Cell index={2} align="right">
-                      {n(total.completed)}
-                    </Table.Summary.Cell>
-                    <Table.Summary.Cell index={3} align="right">
-                      {n(total.unquotable)}
-                    </Table.Summary.Cell>
-                    <Table.Summary.Cell index={4} align="right">
-                      {n(total.inProgress, palette.orange)}
-                    </Table.Summary.Cell>
-                    <Table.Summary.Cell index={5} align="right">
-                      <span style={{ ...num, color: palette.green }}>
-                        {rateText(total.completedRate)}
-                      </span>
-                    </Table.Summary.Cell>
-                    <Table.Summary.Cell index={6} align="right">
-                      {rateText(total.unquotableRate)}
-                    </Table.Summary.Cell>
-                  </Table.Summary.Row>
-                ) : null
-              }
-            />
-          </Card>
+          <div style={{ flex: '1 1 560px', minWidth: 0 }}>
+            <MainCard left={<CardTitle>按月份（询盘单）</CardTitle>}>
+              <Table<MonthRow>
+                rowKey="key"
+                size="small"
+                loading={loading}
+                columns={monthColumns}
+                dataSource={data?.months ?? []}
+                pagination={false}
+                scroll={{ x: tableScrollX(monthColumns) }}
+                locale={{ emptyText: '期间内没有进入询价的询盘单' }}
+                summary={() =>
+                  total && total.total > 0 ? (
+                    <Table.Summary.Row>
+                      <Table.Summary.Cell index={0}>
+                        <b>合计</b>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={1} align="right">
+                        <button
+                          type="button"
+                          className="zhul-link"
+                          style={num}
+                          onClick={() => open(total)}
+                        >
+                          {total.total}
+                        </button>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={2} align="right">
+                        {n(total.completed)}
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={3} align="right">
+                        {n(total.unquotable)}
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={4} align="right">
+                        {n(total.inProgress, palette.orange)}
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={5} align="right">
+                        <span style={{ ...num, color: palette.green }}>
+                          {rateText(total.completedRate)}
+                        </span>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={6} align="right">
+                        {rateText(total.unquotableRate)}
+                      </Table.Summary.Cell>
+                    </Table.Summary.Row>
+                  ) : null
+                }
+              />
+            </MainCard>
+          </div>
         )}
         {view === 'person' && (
-          <Card style={{ flex: '1 1 480px', minWidth: 0 }}>
-            <div
-              style={{ fontWeight: 700, color: palette.ink, marginBottom: 12 }}
+          <div style={{ flex: '1 1 480px', minWidth: 0 }}>
+            <MainCard
+              left={
+                <>
+                  <CardTitle>按人员（型号）</CardTitle>
+                  <HelpTip title={HELP.person} />
+                </>
+              }
             >
-              按人员（型号）
-            </div>
-            <Table<PurchaserRow>
-              rowKey="purchaserId"
-              size="small"
-              loading={loading}
-              columns={purchaserColumns}
-              dataSource={data?.purchasers ?? []}
-              pagination={false}
-              scroll={{ x: tableScrollX(purchaserColumns) }}
-              locale={{ emptyText: '期间内没有分配出去的型号' }}
-            />
-            <div style={{ color: palette.mute, fontSize: 12, marginTop: 8 }}>
-              选一个月就是这个月每人的工作量。转出是这个人交给别人继续找的型号，不计入他的有价、无货、待回价；有价率
-              = 有价 ÷（型号数 − 转出）。
-            </div>
-          </Card>
+              <Table<PurchaserRow>
+                rowKey="purchaserId"
+                size="small"
+                loading={loading}
+                columns={purchaserColumns}
+                dataSource={data?.purchasers ?? []}
+                pagination={false}
+                scroll={{ x: tableScrollX(purchaserColumns) }}
+                locale={{ emptyText: '期间内没有分配出去的型号' }}
+              />
+            </MainCard>
+          </div>
         )}
       </div>
     </div>

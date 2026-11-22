@@ -347,3 +347,17 @@ it('更多菜单：危险操作前有普通操作时，用分隔线隔开', asyn
   );
   expect(kinds).toEqual(['取消认领', '—', '作废']);
 });
+
+it('统计页的搜索条件区不传查询、重置时不显示这两个按钮', () => {
+  render(
+    h(FilterCard, {
+      children: h(FilterField, {
+        label: '统计期间',
+        children: h('input', { 'aria-label': '统计期间' }),
+      }),
+    }),
+  );
+  expect(screen.getByRole('region', { name: '搜索条件' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /查\s*询/ })).toBeNull();
+  expect(screen.queryByRole('button', { name: /重\s*置/ })).toBeNull();
+});

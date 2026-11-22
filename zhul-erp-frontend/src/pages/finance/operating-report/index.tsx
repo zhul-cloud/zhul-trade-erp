@@ -3,8 +3,16 @@ import type { TableColumnsType } from 'antd';
 import { App, Select, Table } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import {
+  FilterCard,
+  FilterField,
+  HelpTip,
+  MainCard,
+  PageHeader,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useDeltaColor } from '@/theme/delta';
@@ -247,113 +255,88 @@ const OperatingReportPage: React.FC = () => {
   ];
 
   const total = data?.total;
-  const stat = (
-    label: string,
-    value: React.ReactNode,
-    sub?: React.ReactNode,
-    color?: string,
-  ) => (
-    <div
-      style={{
-        flex: '1 1 200px',
-        padding: '16px 18px',
-        borderRadius: 14,
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
-      }}
-    >
-      <div style={{ fontSize: 13, color: palette.sub }}>{label}</div>
-      <div
-        style={{
-          ...num,
-          fontSize: 22,
-          fontWeight: 800,
-          color: color ?? palette.ink,
-          marginTop: 4,
-        }}
-      >
-        {value}
-      </div>
-      {sub && (
-        <div style={{ fontSize: 12, color: palette.mute, marginTop: 2 }}>
-          {sub}
-        </div>
-      )}
-    </div>
-  );
 
   return (
     <div>
-      <PageTitle
-        description={
+      <PageHeader
+        help={
           bu.enabled
-            ? '预计盈亏 = 销售毛利 − 退款 + 其他收入 − 直接费用 − 分摊的公共成本。直接费用是归属本事业部的费用单；公共费用每月按销售额比例分给各事业部（每个事业部至少 ' +
-              bu.minSharePercent +
-              '%），各事业部之和等于全公司。'
-            : '预计盈亏 = 销售毛利 − 退款 + 其他收入 − 运营成本。这里的毛利不扣退款（按销售日期归月），退款按退款月份单列；运营成本为不关联订单的费用单，年费等按分摊后的月份计。'
+            ? `预计盈亏 = 销售毛利 − 退款 + 其他收入 − 直接费用 − 分摊的公共成本。直接费用是归属本事业部的费用单；公共费用每月按销售额比例分给各事业部（每个事业部至少 ${bu.minSharePercent}%），各事业部之和等于全公司`
+            : '预计盈亏 = 销售毛利 − 退款 + 其他收入 − 运营成本。这里的毛利不扣退款（按销售日期归月），退款按退款月份单列；运营成本为不关联订单的费用单，年费等按分摊后的月份计'
         }
       />
-      <div
-        style={{
-          display: 'flex',
-          gap: 10,
-          alignItems: 'center',
-          marginBottom: 16,
-        }}
-      >
-        <Select
-          value={year}
-          onChange={setYear}
-          style={{ width: 120 }}
-          options={[0, 1, 2, 3].map((d) => ({
-            value: thisYear - d,
-            label: `${thisYear - d} 年`,
-          }))}
-        />
-        <StatsUnitSwitch info={bu} value={unit} onChange={setUnit} />
-        <span style={{ fontSize: 12, color: palette.mute }}>
-          点数字打开来源：收入与毛利 → 利润统计；退款、其他收入、运营成本 →
-          对应列表
-        </span>
-      </div>
+      {/* 统计条件选了就生效 */}
+      <FilterCard>
+        <FilterField label="年份">
+          <Select
+            value={year}
+            onChange={setYear}
+            aria-label="年份"
+            options={[0, 1, 2, 3].map((d) => ({
+              value: thisYear - d,
+              label: `${thisYear - d} 年`,
+            }))}
+          />
+        </FilterField>
+        {bu.enabled && (
+          <FilterField label="事业部">
+            <StatsUnitSwitch info={bu} value={unit} onChange={setUnit} />
+          </FilterField>
+        )}
+      </FilterCard>
       {total && (
-        <div
-          style={{
-            display: 'flex',
-            gap: 14,
-            flexWrap: 'wrap',
-            marginBottom: 16,
-          }}
-        >
-          {stat('销售收入', cny(total.revenue), `${total.orderCount} 单`)}
-          {stat(
-            '销售毛利',
-            cny(total.profit),
-            `毛利率 ${rateText(total.profitRate)}`,
-            palette.green,
-          )}
-          {stat(
-            '退款与其他收入',
-            total.refund ? `−${cny(total.refund)}` : cny(0),
-            `其他收入 ${cny(total.otherIncome)}`,
-            palette.orange,
-          )}
-          {stat(
-            '运营成本',
-            cny(total.opexTotal),
-            bu.enabled
-              ? `直接 ${cny(total.opexDirectTotal)} · ${viewUnit == null ? '公共' : '分摊'} ${cny(total.opexSharedTotal)}`
-              : undefined,
-          )}
-          {stat(
-            '预计盈亏',
-            cny(total.net),
-            `净利率 ${rateText(total.netRate)}`,
-            deltaOf(total.net),
-          )}
-        </div>
+        <SummaryBar
+          items={[
+            {
+              key: 'revenue',
+              label: '销售收入',
+              value: total.revenue,
+              currency: 'CNY',
+              sub: `${total.orderCount} 单`,
+            },
+            {
+              key: 'profit',
+              label: '销售毛利',
+              value: total.profit,
+              currency: 'CNY',
+              sub: `毛利率 ${rateText(total.profitRate)}`,
+            },
+            {
+              key: 'refund',
+              label: '退款与其他收入',
+              value: total.refund ? `−${cny(total.refund)}` : cny(0),
+              sub: `其他收入 ${cny(total.otherIncome)}`,
+            },
+            {
+              key: 'opex',
+              label: '运营成本',
+              value: total.opexTotal,
+              currency: 'CNY',
+              sub: bu.enabled
+                ? `直接 ${cny(total.opexDirectTotal)} · ${viewUnit == null ? '公共' : '分摊'} ${cny(total.opexSharedTotal)}`
+                : undefined,
+            },
+            {
+              key: 'net',
+              label: '预计盈亏',
+              value: (
+                <span style={{ color: deltaOf(total.net) }}>
+                  {cny(total.net)}
+                </span>
+              ),
+              sub: `净利率 ${rateText(total.netRate)}`,
+            },
+          ]}
+        />
       )}
-      <Card>
+      <MainCard
+        left={
+          <>
+            <span>按月份</span>
+            <HelpTip title="点数字打开来源：收入与毛利 → 利润统计；退款、其他收入、运营成本 → 对应列表" />
+          </>
+        }
+      >
         <Table<OperatingRow>
           rowKey="month"
           loading={loading}
@@ -444,7 +427,7 @@ const OperatingReportPage: React.FC = () => {
             ) : null
           }
         />
-      </Card>
+      </MainCard>
     </div>
   );
 };

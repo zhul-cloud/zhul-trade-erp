@@ -3,9 +3,18 @@ import type { TableColumnsType } from 'antd';
 import { App, Segmented, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import {
+  CardTitle,
+  FilterCard,
+  FilterField,
+  HelpTip,
+  MainCard,
+  PageHeader,
+  Panel,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import StatsRangeFilter, { presetRange } from '@/components/StatsRangeFilter';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -40,6 +49,13 @@ export const drillQuery = (
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 const cny = (v?: number | null) => formatAmount(v ?? 0, 'CNY');
 const rateText = (v?: Rate) => (v == null ? '—' : `${v}%`);
+
+/** 帮助文字：help-texts.md「销售统计」 */
+export const HELP = {
+  page: '各项按各自单据的日期统计：商机按创建日期、询盘按询盘日期、报价与 PI 按发送日期、订单按销售日期，所以转化率是同期数量相除。收入与毛利与利润统计一致（收入扣退款）',
+  table:
+    '新/老 = 新客户 / 老客户。报价与 PI 的新老客户按发送前该客户有没有订单判断。点收入或毛利打开利润统计，点订单数打开订单列表',
+} as const;
 
 /** 销售管理 → 销售统计：漏斗、转化率、复购率与收入毛利，新老客户拆分（只读） */
 const SalesStatsPage: React.FC = () => {
@@ -372,8 +388,8 @@ const SalesStatsPage: React.FC = () => {
           alignItems: 'center',
           padding: '0 14px',
           borderRadius: 8,
-          background: '#2563EB',
-          color: '#fff',
+          background: palette.primarySoft,
+          color: palette.link,
           fontSize: 18,
           fontWeight: 800,
         }}
@@ -388,43 +404,35 @@ const SalesStatsPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle description="各项按各自单据的日期统计：商机按创建日期、询盘按询盘日期、报价与 PI 按发送日期、订单按销售日期，所以转化率是同期数量相除。收入与毛利与利润统计一致（收入扣退款）。" />
-      <div
-        style={{
-          display: 'flex',
-          gap: 10,
-          flexWrap: 'wrap',
-          marginBottom: 16,
-          alignItems: 'center',
-        }}
-      >
-        <StatsRangeFilter value={range} onChange={setRange} />
-        <StatsUnitSwitch info={bu} value={unit} onChange={setUnit} />
-        <Select
-          allowClear
-          placeholder="业务员"
-          style={{ width: 140 }}
-          value={ownerId}
-          onChange={setOwnerId}
-          options={users}
-          showSearch={{ optionFilterProp: 'label' }}
-        />
-        <Segmented<StatsView>
-          value={view}
-          onChange={setView}
-          options={[
-            { label: '按月份', value: 'MONTH' },
-            { label: '按业务员', value: 'OWNER' },
-            { label: '按客户', value: 'CUSTOMER' },
-          ]}
-        />
-      </div>
+      <PageHeader help={HELP.page} />
+      {/* 统计条件选了就生效 */}
+      <FilterCard>
+        <FilterField label="统计期间" span={2}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <StatsRangeFilter value={range} onChange={setRange} />
+          </div>
+        </FilterField>
+        {bu.enabled && (
+          <FilterField label="事业部">
+            <StatsUnitSwitch info={bu} value={unit} onChange={setUnit} />
+          </FilterField>
+        )}
+        <FilterField label="业务员">
+          <Select
+            allowClear
+            placeholder="全部"
+            aria-label="业务员"
+            value={ownerId}
+            onChange={setOwnerId}
+            options={users}
+            showSearch={{ optionFilterProp: 'label' }}
+          />
+        </FilterField>
+      </FilterCard>
       {total && (
-        <Card style={{ marginBottom: 16 }}>
-          <div
-            style={{ fontWeight: 700, color: palette.ink, marginBottom: 12 }}
-          >
-            漏斗（所选期间）
+        <Panel style={{ marginBottom: 16, padding: 16 }}>
+          <div style={{ marginBottom: 12 }}>
+            <CardTitle>漏斗（所选期间）</CardTitle>
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             {step('商机', total.opportunities)}
@@ -442,9 +450,27 @@ const SalesStatsPage: React.FC = () => {
               `订单转化 ${rateText(total.orderRate)}`,
             )}
           </div>
-        </Card>
+        </Panel>
       )}
-      <Card>
+      <MainCard
+        left={
+          <>
+            <span>分组</span>
+            <HelpTip title={HELP.table} />
+          </>
+        }
+        right={
+          <Segmented<StatsView>
+            value={view}
+            onChange={setView}
+            options={[
+              { label: '按月份', value: 'MONTH' },
+              { label: '按业务员', value: 'OWNER' },
+              { label: '按客户', value: 'CUSTOMER' },
+            ]}
+          />
+        }
+      >
         {view === 'CUSTOMER' ? (
           <Table<CustomerRow>
             rowKey="customerId"
@@ -499,11 +525,7 @@ const SalesStatsPage: React.FC = () => {
             }
           />
         )}
-        <div style={{ fontSize: 12, color: palette.mute, marginTop: 10 }}>
-          新/老 = 新客户 / 老客户。报价与 PI
-          的新老客户按发送前该客户有没有订单判断。点收入或毛利打开利润统计，点订单数打开订单列表。
-        </div>
-      </Card>
+      </MainCard>
     </div>
   );
 };

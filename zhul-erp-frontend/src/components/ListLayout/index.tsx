@@ -452,11 +452,12 @@ export const QuickFilters: React.FC<{
 /**
  * 搜索条件区：常用筛选项网格，右侧「更多筛选」「重置」「查询」；
  * more 为收起来的其余条件，按钮显示生效数量 moreCount；quick 为下方的快捷筛选行。
+ * 统计页的条件选了就生效，不传 onSearch、onReset，不显示「重置」「查询」。
  */
 export const FilterCard: React.FC<{
   children: React.ReactNode;
-  onSearch: () => void;
-  onReset: () => void;
+  onSearch?: () => void;
+  onReset?: () => void;
   more?: React.ReactNode;
   moreCount?: number;
   quick?: React.ReactNode;
@@ -516,12 +517,16 @@ export const FilterCard: React.FC<{
               {moreCount > 0 && <span className="num"> · {moreCount}</span>}
             </Button>
           )}
-          <Button danger onClick={onReset}>
-            重置
-          </Button>
-          <Button type="primary" onClick={onSearch}>
-            查询
-          </Button>
+          {onReset && (
+            <Button danger onClick={onReset}>
+              重置
+            </Button>
+          )}
+          {onSearch && (
+            <Button type="primary" onClick={onSearch}>
+              查询
+            </Button>
+          )}
         </div>
       </div>
       {quick && (
