@@ -444,7 +444,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
             }
             w.in(CustomerInquiryDO::getId, ids);
         }
-        // 排序字段只认白名单，避免拼接任意列；同值再按创建时间倒序
+        // 排序字段只认白名单，避免拼接任意列；不排序或同值时按更新时间倒序（列表页统一规范）
         boolean asc = "asc".equalsIgnoreCase(q.getSortOrder());
         if ("level".equals(q.getSortField())) {
             // 码值越小等级越高：「从高到低」对应码值升序
@@ -454,7 +454,7 @@ public class CustomerInquiryServiceImpl implements CustomerInquiryService {
         } else if ("totalQuantity".equals(q.getSortField())) {
             w.orderBy(true, asc, CustomerInquiryDO::getTotalQuantity);
         }
-        w.orderByDesc(CustomerInquiryDO::getCreateTime).orderByDesc(CustomerInquiryDO::getId);
+        w.orderByDesc(CustomerInquiryDO::getUpdateTime).orderByDesc(CustomerInquiryDO::getId);
         int size = Math.min(Math.max(q.getPageSize() == null ? 10 : q.getPageSize(), 1), 100);
         Page<CustomerInquiryDO> page = inquiryMapper.selectPage(new Page<>(q.getPage() == null ? 1 : q.getPage(), size), w);
         return PageResult.of(page.getTotal(), toVos(page.getRecords()));
