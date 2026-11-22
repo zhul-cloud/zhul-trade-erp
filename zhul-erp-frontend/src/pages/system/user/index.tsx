@@ -1,10 +1,6 @@
 import {
   ApartmentOutlined,
-  CheckCircleOutlined,
   KeyOutlined,
-  StopOutlined,
-  TeamOutlined,
-  UserAddOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
@@ -22,17 +18,27 @@ import {
   App,
   Avatar,
   Button,
-  Card,
   Form,
   Input,
   Modal,
   Popconfirm,
+  Select,
   Space,
   Tag,
+  TreeSelect,
 } from 'antd';
+import { Search } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useAppTheme } from '@/theme/AppTheme';
+import { CHART_SERIES } from '@/theme/palette';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import type { UserItem, UserStats } from './service';
@@ -49,14 +55,14 @@ import {
   updateUserStatus,
 } from './service';
 
-const AVATAR_COLORS = [
-  '#1677FF',
-  '#16A34A',
-  '#F59E0B',
-  '#7C3AED',
-  '#DC2626',
-  '#0EA5E9',
-];
+/** 头像底色轮流取图表系列色（不表达状态） */
+const AVATAR_COLORS = CHART_SERIES;
+
+/** 帮助文字：help-texts.md「用户管理」 */
+export const HELP = {
+  total: '没有删除的用户',
+  newThisMonth: '本月 1 日起新建的用户',
+} as const;
 
 const DEPT_TREE_PROPS = {
   treeDefaultExpandAll: true,
@@ -77,6 +83,23 @@ const UserPage: React.FC = () => {
   const [resetPwdUserId, setResetPwdUserId] = useState<number | null>(null);
   const [pwdForm] = Form.useForm();
   const [stats, setStats] = useState<UserStats | null>(null);
+  /** 搜索条件：状态切换后立即查询，姓名、部门点「查询」才生效 */
+  const [filters, setFilters] = useState<{
+    name?: string;
+    deptId?: number;
+    status?: number;
+  }>({});
+  const [keyword, setKeyword] = useState('');
+  const [draftDept, setDraftDept] = useState<number>();
+  const [deptTree, setDeptTree] = useState<
+    Awaited<ReturnType<typeof getDeptTreeOptions>>
+  >([]);
+  const [total, setTotal] = useState(0);
+  useEffect(() => {
+    getDeptTreeOptions()
+      .then(setDeptTree)
+      .catch(() => setDeptTree([]));
+  }, []);
 
   const loadStats = async () => {
     const res = await getUserStats();
@@ -277,6 +300,7 @@ const UserPage: React.FC = () => {
       title: '用户',
       dataIndex: 'name',
       width: 220,
+      search: false,
       render: (_, record, index) => (
         <Space style={{ maxWidth: '100%' }} styles={{ item: { minWidth: 0 } }}>
           <Avatar
@@ -308,9 +332,7 @@ const UserPage: React.FC = () => {
       title: '部门',
       dataIndex: 'deptId',
       width: 140,
-      valueType: 'treeSelect',
-      request: getDeptTreeOptions,
-      fieldProps: DEPT_TREE_PROPS,
+      search: false,
       render: (_, record) => record.deptName,
     },
     { title: '岗位', dataIndex: 'positionName', width: 120, search: false },
@@ -336,10 +358,7 @@ const UserPage: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 90,
-      valueEnum: {
-        0: { text: '禁用', status: 'Error' },
-        1: { text: '启用', status: 'Success' },
-      },
+      search: false,
       render: (_, record) => (
         <Tag
           color={record.status === 1 ? 'success' : 'default'}
@@ -433,102 +452,110 @@ const UserPage: React.FC = () => {
     },
   ];
 
-  const statCards = [
-    {
-      icon: <TeamOutlined />,
-      color: p.link,
-      bg: p.primarySoft,
-      label: '总用户数',
-      value: stats?.total,
-    },
-    {
-      icon: <CheckCircleOutlined />,
-      color: p.green,
-      bg: p.greenSoft,
-      label: '启用用户',
-      value: stats?.enabled,
-    },
-    {
-      icon: <StopOutlined />,
-      color: p.mute,
-      bg: p.inset,
-      label: '禁用用户',
-      value: stats?.disabled,
-    },
-    {
-      icon: <UserAddOutlined />,
-      color: p.info,
-      bg: p.infoSoft,
-      label: '本月新增',
-      value: stats?.newThisMonth,
-    },
-  ];
+  /** 状态数量并入状态下拉（stat-cards.md：用户管理） */
+  const withCount = (label: string, n?: number) =>
+    n ? `${label} · ${n}` : label;
+  const search = () => {
+    setFilters({
+      ...filters,
+      name: keyword.trim() || undefined,
+      deptId: draftDept,
+    });
+  };
 
   return (
     <>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 16,
-          marginBottom: 16,
-        }}
-      >
-        {statCards.map((s) => (
-          <Card key={s.label} styles={{ body: { padding: 20 } }}>
-            <Space align="center">
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: s.bg,
-                  color: s.color,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 18,
-                }}
-              >
-                {s.icon}
-              </div>
-              <span style={{ color: p.mute }}>{s.label}</span>
-            </Space>
-            <div style={{ fontSize: 28, fontWeight: 700, marginTop: 12 }}>
-              {s.value ?? '-'}
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      <ProTable<UserItem>
-        scroll={{ x: tableScrollX(columns) }}
-        headerTitle="用户列表"
-        actionRef={actionRef}
-        rowKey="id"
-        columns={columns}
-        request={async (params) => {
-          const res = await getUserList(params);
-          return {
-            data: res.data.records,
-            total: res.data.total,
-            success: true,
-          };
-        }}
-        pagination={pager}
-        search={{ labelWidth: 'auto' }}
-        toolBarRender={() => [
+      <PageHeader
+        extra={
           !!(access as Record<string, unknown>)['system:user:add'] && (
-            <Button
-              key="add"
-              type="primary"
-              onClick={() => setCreateOpen(true)}
-            >
+            <Button type="primary" onClick={() => setCreateOpen(true)}>
               新增用户
             </Button>
-          ),
+          )
+        }
+      />
+      <SummaryBar
+        items={[
+          {
+            key: 'total',
+            label: '总用户数',
+            help: HELP.total,
+            value: stats?.total ?? '—',
+          },
+          {
+            key: 'new',
+            label: '本月新增',
+            help: HELP.newThisMonth,
+            value: stats?.newThisMonth ?? '—',
+          },
         ]}
       />
+      <FilterCard
+        onSearch={search}
+        onReset={() => {
+          setKeyword('');
+          setDraftDept(undefined);
+          setFilters({});
+        }}
+      >
+        <FilterField label="用户" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="姓名"
+            aria-label="用户"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={search}
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select<number>
+            allowClear
+            placeholder="全部"
+            aria-label="状态"
+            value={filters.status}
+            // 状态下拉切换后立即查询
+            onChange={(v) => setFilters({ ...filters, status: v })}
+            options={[
+              { value: 1, label: withCount('启用', stats?.enabled) },
+              { value: 0, label: withCount('禁用', stats?.disabled) },
+            ]}
+          />
+        </FilterField>
+        <FilterField label="部门">
+          <TreeSelect
+            {...DEPT_TREE_PROPS}
+            placeholder="全部"
+            aria-label="部门"
+            value={draftDept}
+            onChange={setDraftDept}
+            treeData={deptTree}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard left={`共 ${total} 条`}>
+        <ProTable<UserItem>
+          scroll={{ x: tableScrollX(columns) }}
+          actionRef={actionRef}
+          rowKey="id"
+          columns={columns}
+          params={filters}
+          request={async (params) => {
+            const res = await getUserList(params);
+            setTotal(res.data.total);
+            return {
+              data: res.data.records,
+              total: res.data.total,
+              success: true,
+            };
+          }}
+          pagination={pager}
+          search={false}
+          options={false}
+          toolBarRender={false}
+        />
+      </MainCard>
 
       {/* 新增用户 */}
       <ModalForm

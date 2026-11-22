@@ -8,9 +8,16 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import { App, Badge, Button, Input, Popconfirm } from 'antd';
+import { App, Badge, Button, Input, Popconfirm, Select } from 'antd';
+import { Search } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -35,6 +42,14 @@ const PositionPage: React.FC = () => {
   const access = useAccess();
   const [modalOpen, setModalOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<PositionItem | undefined>();
+  /** 搜索条件：状态切换后立即查询，岗位名称点「查询」才生效 */
+  const [filters, setFilters] = useState<{ name?: string; status?: number }>(
+    {},
+  );
+  const [keyword, setKeyword] = useState('');
+  const [total, setTotal] = useState(0);
+  const search = () =>
+    setFilters({ ...filters, name: keyword.trim() || undefined });
   const [disableConfirmText, setDisableConfirmText] = useState<
     Record<number, string>
   >({});
@@ -124,12 +139,13 @@ const PositionPage: React.FC = () => {
   const columns: ProColumns<PositionItem>[] = [
     { title: '序号', valueType: 'index', width: 60, search: false },
     { title: '岗位编码', dataIndex: 'code', width: 140, search: false },
-    { title: '岗位名称', dataIndex: 'name', width: 180 },
+    { title: '岗位名称', dataIndex: 'name', width: 180, search: false },
     { title: '排序', dataIndex: 'sort', width: 80, search: false },
     {
       title: '状态',
       dataIndex: 'status',
       width: 100,
+      search: false,
       render: (_, record) =>
         record.status === 1 ? (
           <Badge status="success" text="启用" />
@@ -227,19 +243,10 @@ const PositionPage: React.FC = () => {
 
   return (
     <>
-      <ProTable<PositionItem>
-        scroll={{ x: tableScrollX(columns) }}
-        headerTitle="岗位列表"
-        actionRef={actionRef}
-        rowKey="id"
-        columns={columns}
-        request={getPositionList}
-        pagination={pager}
-        search={{ labelWidth: 'auto' }}
-        toolBarRender={() => [
+      <PageHeader
+        extra={
           !!(access as Record<string, unknown>)['system:position:add'] && (
             <Button
-              key="add"
               type="primary"
               onClick={() => {
                 setEditRecord(undefined);
@@ -248,9 +255,60 @@ const PositionPage: React.FC = () => {
             >
               新增岗位
             </Button>
-          ),
-        ]}
+          )
+        }
       />
+      <FilterCard
+        onSearch={search}
+        onReset={() => {
+          setKeyword('');
+          setFilters({});
+        }}
+      >
+        <FilterField label="岗位名称" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="岗位名称"
+            aria-label="岗位名称"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={search}
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select<number>
+            allowClear
+            placeholder="全部"
+            aria-label="状态"
+            value={filters.status}
+            // 状态下拉切换后立即查询
+            onChange={(v) => setFilters({ ...filters, status: v })}
+            options={[
+              { value: 1, label: '启用' },
+              { value: 0, label: '禁用' },
+            ]}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard left={`共 ${total} 条`}>
+        <ProTable<PositionItem>
+          scroll={{ x: tableScrollX(columns) }}
+          actionRef={actionRef}
+          rowKey="id"
+          columns={columns}
+          params={filters}
+          request={async (params) => {
+            const res = await getPositionList(params);
+            setTotal(res.total);
+            return res;
+          }}
+          pagination={pager}
+          search={false}
+          options={false}
+          toolBarRender={false}
+        />
+      </MainCard>
       <ModalForm
         name="positionEdit"
         title={editRecord ? '编辑岗位' : '新增岗位'}
