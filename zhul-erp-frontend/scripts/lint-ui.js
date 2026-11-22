@@ -50,6 +50,9 @@ const ENFORCED = [
   'src/pages/purchase/shipments',
   'src/pages/supplier',
   'src/pages/supply-chain',
+  // 7.3 仓库管理与物流管理
+  'src/pages/warehouse',
+  'src/pages/logistics',
 ];
 
 /** 不扫描：多语言文案、生成目录 */
