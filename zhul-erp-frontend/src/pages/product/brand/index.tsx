@@ -1,8 +1,4 @@
-import {
-  EllipsisOutlined,
-  PlusOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
+import { EllipsisOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   ModalForm,
@@ -19,14 +15,20 @@ import {
   Button,
   Dropdown,
   Input,
-  Segmented,
   Select,
   Space,
   Tabs,
   Tooltip,
 } from 'antd';
+import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useIndustryOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
@@ -46,8 +48,13 @@ import {
   pendingBrandApi,
   readBizError,
 } from '../service';
-import { PageHeader, ProductThemeProvider } from '../theme';
+import { ProductThemeProvider } from '../theme';
 import PendingTab from './PendingTab';
+
+/** 帮助文字：help-texts.md「品牌管理」，关键词范围以 search-scope.md 为准 */
+export const HELP = {
+  page: '商品归属的品牌，所有租户共用同一份；核心品牌覆盖 PLC、HMI、驱动、伺服四个主营方向，在各处品牌下拉里排在最前',
+} as const;
 
 const LEVEL_TABS: { value: number | 'all'; label: string; key: string }[] = [
   { value: 'all', label: '全部', key: 'all' },
@@ -108,6 +115,15 @@ const BrandPage: React.FC = () => {
   const { options: industryOptions, labelOf: industryLabel } =
     useIndustryOptions();
   const [status, setStatus] = useState<number>();
+  /** 原产地、行业点「查询」才生效；等级、状态切换后立即查询 */
+  const [draft, setDraft] = useState<{ country?: string; industry?: string }>(
+    {},
+  );
+  const apply = () => {
+    setKeyword(keywordInput.trim() || undefined);
+    setCountry(draft.country);
+    setIndustry(draft.industry);
+  };
   const [total, setTotal] = useState(0);
 
   const loadPending = useCallback(async () => {
@@ -375,9 +391,8 @@ const BrandPage: React.FC = () => {
   return (
     <ProductThemeProvider>
       <PageHeader
-        eyebrow="PRODUCT MASTER"
-        description="商品归属的品牌，所有租户共用同一份；核心品牌覆盖 PLC、HMI、驱动、伺服四个主营方向，在各处品牌下拉里排在最前。"
-        actions={
+        help={HELP.page}
+        extra={
           access['product:brand:add'] && (
             <Button
               type="primary"
@@ -415,106 +430,117 @@ const BrandPage: React.FC = () => {
         />
       ) : (
         <>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              flexWrap: 'wrap',
-              marginBottom: 16,
+          <FilterCard
+            onSearch={apply}
+            onReset={() => {
+              setKeywordInput('');
+              setKeyword(undefined);
+              setDraft({});
+              setCountry(undefined);
+              setIndustry(undefined);
+              setLevel('all');
+              setStatus(undefined);
             }}
+            moreCount={[country, industry].filter((v) => v != null).length}
+            more={
+              <>
+                <FilterField label="原产地">
+                  <Select
+                    allowClear
+                    showSearch={{ optionFilterProp: 'label' }}
+                    placeholder="全部"
+                    value={draft.country}
+                    onChange={(v) => setDraft({ ...draft, country: v })}
+                    options={countryOptions}
+                    aria-label="原产地"
+                  />
+                </FilterField>
+                <FilterField label="行业">
+                  <Select
+                    allowClear
+                    placeholder="全部"
+                    value={draft.industry}
+                    onChange={(v) => setDraft({ ...draft, industry: v })}
+                    options={industryOptions}
+                    aria-label="行业"
+                  />
+                </FilterField>
+              </>
+            }
           >
-            <Segmented<number | 'all'>
-              value={level}
-              onChange={setLevel}
-              options={LEVEL_TABS.map((t) => ({
-                value: t.value,
-                label:
-                  levelCounts[t.key] !== undefined
-                    ? `${t.label} · ${levelCounts[t.key]}`
-                    : t.label,
-              }))}
-            />
-            <Input
-              allowClear
-              prefix={<SearchOutlined />}
-              placeholder="品牌名称或别名"
-              value={keywordInput}
-              onChange={(e) => {
-                setKeywordInput(e.target.value);
-                if (!e.target.value) setKeyword(undefined);
+            <FilterField label="关键词" span={2}>
+              <Input
+                allowClear
+                prefix={<Search size={16} />}
+                placeholder="品牌名称或别名"
+                value={keywordInput}
+                onChange={(e) => setKeywordInput(e.target.value)}
+                onPressEnter={apply}
+                aria-label="关键词"
+              />
+            </FilterField>
+            <FilterField label="等级">
+              {/* 等级带数量，和状态一样切换后立即查询（原来的分段按钮） */}
+              <Select<number | 'all'>
+                value={level}
+                onChange={setLevel}
+                aria-label="等级"
+                options={LEVEL_TABS.map((t) => ({
+                  value: t.value,
+                  label:
+                    levelCounts[t.key] !== undefined
+                      ? `${t.label} · ${levelCounts[t.key]}`
+                      : t.label,
+                }))}
+              />
+            </FilterField>
+            <FilterField label="状态">
+              <Select
+                allowClear
+                placeholder="全部"
+                value={status}
+                onChange={setStatus}
+                options={[
+                  { value: 1, label: '启用' },
+                  { value: 0, label: '已停用' },
+                ]}
+                aria-label="状态"
+              />
+            </FilterField>
+          </FilterCard>
+          <MainCard left={`共 ${total} 个品牌`}>
+            <ProTable<Brand>
+              rowKey="id"
+              actionRef={actionRef}
+              columns={columns}
+              params={{ level, keyword, country, status, industry }}
+              search={false}
+              options={false}
+              toolBarRender={false}
+              scroll={{ x: tableScrollX(columns) }}
+              request={async (params) => {
+                const [res, counts] = await Promise.all([
+                  brandApi.page({
+                    page: params.current,
+                    pageSize: params.pageSize,
+                    keyword,
+                    country,
+                    status,
+                    industryCode: industry,
+                    brandLevel: level === 'all' ? undefined : level,
+                  }),
+                  brandApi.levelCounts({ status }),
+                ]);
+                setLevelCounts(counts);
+                setTotal(res.total);
+                return { data: res.records, total: res.total, success: true };
               }}
-              onPressEnter={() => setKeyword(keywordInput.trim() || undefined)}
-              style={{ width: 240 }}
-              aria-label="关键词"
+              pagination={{ ...pager, showTotal: (t) => `共 ${t} 条记录` }}
+              locale={{
+                emptyText: '没有符合条件的品牌',
+              }}
             />
-            <Select
-              allowClear
-              showSearch={{ optionFilterProp: 'label' }}
-              placeholder="原产地：全部"
-              value={country}
-              onChange={setCountry}
-              options={countryOptions}
-              style={{ width: 170 }}
-              aria-label="原产地"
-            />
-            <Select
-              allowClear
-              placeholder="行业：全部"
-              value={industry}
-              onChange={setIndustry}
-              options={industryOptions}
-              style={{ width: 150 }}
-              aria-label="行业"
-            />
-            <Select
-              allowClear
-              placeholder="状态：全部"
-              value={status}
-              onChange={setStatus}
-              options={[
-                { value: 1, label: '启用' },
-                { value: 0, label: '已停用' },
-              ]}
-              style={{ width: 130 }}
-              aria-label="状态"
-            />
-            <span style={{ flex: 1 }} />
-            <span style={{ fontSize: 12, opacity: 0.65 }}>
-              共 {total} 个品牌
-            </span>
-          </div>
-          <ProTable<Brand>
-            rowKey="id"
-            actionRef={actionRef}
-            columns={columns}
-            params={{ level, keyword, country, status, industry }}
-            search={false}
-            options={false}
-            toolBarRender={false}
-            scroll={{ x: tableScrollX(columns) }}
-            request={async (params) => {
-              const [res, counts] = await Promise.all([
-                brandApi.page({
-                  page: params.current,
-                  pageSize: params.pageSize,
-                  keyword,
-                  country,
-                  status,
-                  industryCode: industry,
-                  brandLevel: level === 'all' ? undefined : level,
-                }),
-                brandApi.levelCounts({ status }),
-              ]);
-              setLevelCounts(counts);
-              setTotal(res.total);
-              return { data: res.records, total: res.total, success: true };
-            }}
-            pagination={{ ...pager, showTotal: (t) => `共 ${t} 条记录` }}
-            locale={{
-              emptyText: '没有符合条件的品牌',
-            }}
-          />
+          </MainCard>
         </>
       )}
       <ModalForm<{

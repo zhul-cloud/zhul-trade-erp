@@ -10,9 +10,16 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import { App, Button, Tooltip } from 'antd';
+import { App, Button, Input, Select, Tooltip } from 'antd';
+import { Search } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { MONO_FONT } from '@/theme/fonts';
 import { useIndustryOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
@@ -21,7 +28,7 @@ import { tableScrollX } from '@/utils/tableScroll';
 import { Pill } from '../components/Pills';
 import { DESCRIPTION_MAX } from '../constants';
 import { type Category, categoryApi, readBizError } from '../service';
-import { PageHeader, ProductThemeProvider } from '../theme';
+import { ProductThemeProvider } from '../theme';
 import TariffModal from './TariffModal';
 
 const TWO_LINES: React.CSSProperties = {
@@ -93,28 +100,17 @@ const CategoryPage: React.FC = () => {
 
   const { options: industryOptions, labelOf: industryLabel } =
     useIndustryOptions();
+  /** 搜索条件：状态切换后立即查询，关键词、行业点「查询」才生效 */
+  const [filters, setFilters] = useState<{
+    keyword?: string;
+    industry?: string;
+    status?: number;
+  }>({});
+  const [keyword, setKeyword] = useState('');
+  const [draftIndustry, setDraftIndustry] = useState<string>();
+  const [total, setTotal] = useState(0);
 
   const columns: ProColumns<Category>[] = [
-    {
-      title: '行业',
-      dataIndex: 'industryFilter',
-      hideInTable: true,
-      valueType: 'select',
-      fieldProps: { options: industryOptions, placeholder: '全部行业' },
-    },
-    {
-      title: '编码或名称',
-      dataIndex: 'keyword',
-      hideInTable: true,
-      fieldProps: { placeholder: '输入品类编码或名称' },
-    },
-    {
-      title: '状态',
-      dataIndex: 'statusFilter',
-      hideInTable: true,
-      valueType: 'select',
-      valueEnum: { 1: { text: '启用' }, 0: { text: '停用' } },
-    },
     {
       title: '品类编码',
       dataIndex: 'categoryCode',
@@ -379,9 +375,8 @@ const CategoryPage: React.FC = () => {
   return (
     <ProductThemeProvider>
       <PageHeader
-        eyebrow="PRODUCT MASTER"
-        description="一级品类用于商品和独立站，编码有商品后不能再改；细分品类用于供应商主营产品和询盘单匹配。"
-        actions={
+        help="一级品类用于商品和独立站，编码有商品后不能再改；细分品类用于供应商主营产品和询盘单匹配"
+        extra={
           access['product:category:add'] && (
             <Button
               type="primary"
@@ -393,46 +388,102 @@ const CategoryPage: React.FC = () => {
           )
         }
       />
-      <ProTable<Category>
-        rowKey="id"
-        actionRef={actionRef}
-        columns={columns}
-        search={{ labelWidth: 'auto', defaultCollapsed: false }}
-        options={false}
-        request={async (params) => {
-          const tree = await categoryApi.tree(
-            (params.industryFilter as string) || undefined,
-          );
-          setTopLevels(tree);
-          // 两级品类数量不大，一次取回整棵树在前端筛选：命中细分品类时保留它的一级品类
-          const keyword = (params.keyword ?? '').trim().toLowerCase();
-          const status =
-            params.statusFilter === undefined
-              ? undefined
-              : Number(params.statusFilter);
-          const hit = (c: Category) =>
-            (!keyword ||
-              [c.categoryCode, c.categoryName, c.categoryNameZh].some((v) =>
-                (v ?? '').toLowerCase().includes(keyword),
-              )) &&
-            (status === undefined || c.status === status);
-          const data: Category[] = [];
-          for (const top of tree) {
-            const children = (top.children ?? []).filter(hit);
-            if (!hit(top) && !children.length) continue;
-            // children 为空时去掉该键，避免一级品类出现空的展开按钮
-            const { children: _, ...rest } = top;
-            data.push(children.length ? { ...rest, children } : rest);
-          }
-          return { data, total: data.length, success: true };
+      <FilterCard
+        onSearch={() =>
+          setFilters({
+            ...filters,
+            keyword: keyword.trim(),
+            industry: draftIndustry,
+          })
+        }
+        onReset={() => {
+          setKeyword('');
+          setDraftIndustry(undefined);
+          setFilters({});
         }}
-        expandable={{ defaultExpandAllRows: false }}
-        scroll={{ x: tableScrollX(columns) }}
-        pagination={{ ...pager, showTotal: (t) => `共 ${t} 条记录` }}
-        locale={{
-          emptyText: '还没有品类。先新增一个，新建商品时才能选择品类。',
-        }}
-      />
+      >
+        <FilterField label="关键词" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="品类编码或名称"
+            aria-label="关键词"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={() =>
+              setFilters({
+                ...filters,
+                keyword: keyword.trim(),
+                industry: draftIndustry,
+              })
+            }
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select
+            allowClear
+            placeholder="全部"
+            aria-label="状态"
+            value={filters.status}
+            // 状态下拉切换后立即查询
+            onChange={(v) => setFilters({ ...filters, status: v })}
+            options={[
+              { value: 1, label: '启用' },
+              { value: 0, label: '停用' },
+            ]}
+          />
+        </FilterField>
+        <FilterField label="行业">
+          <Select
+            allowClear
+            placeholder="全部"
+            aria-label="行业"
+            value={draftIndustry}
+            onChange={setDraftIndustry}
+            options={industryOptions}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard left={`共 ${total} 个一级品类`}>
+        <ProTable<Category>
+          rowKey="id"
+          actionRef={actionRef}
+          columns={columns}
+          search={false}
+          options={false}
+          toolBarRender={false}
+          params={filters}
+          request={async () => {
+            const tree = await categoryApi.tree(filters.industry || undefined);
+            setTopLevels(tree);
+            // 两级品类数量不大，一次取回整棵树在前端筛选：命中细分品类时保留它的一级品类
+            const keyword = (filters.keyword ?? '').toLowerCase();
+            const status = filters.status;
+            const hit = (c: Category) =>
+              (!keyword ||
+                [c.categoryCode, c.categoryName, c.categoryNameZh].some((v) =>
+                  (v ?? '').toLowerCase().includes(keyword),
+                )) &&
+              (status === undefined || c.status === status);
+            const data: Category[] = [];
+            for (const top of tree) {
+              const children = (top.children ?? []).filter(hit);
+              if (!hit(top) && !children.length) continue;
+              // children 为空时去掉该键，避免一级品类出现空的展开按钮
+              const { children: _, ...rest } = top;
+              data.push(children.length ? { ...rest, children } : rest);
+            }
+            setTotal(data.length);
+            return { data, total: data.length, success: true };
+          }}
+          expandable={{ defaultExpandAllRows: false }}
+          scroll={{ x: tableScrollX(columns) }}
+          pagination={{ ...pager, showTotal: (t) => `共 ${t} 条记录` }}
+          locale={{
+            emptyText: '还没有品类。先新增一个，新建商品时才能选择品类。',
+          }}
+        />
+      </MainCard>
       <ModalForm<{
         categoryCode: string;
         categoryName: string;

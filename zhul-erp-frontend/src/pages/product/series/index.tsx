@@ -8,15 +8,22 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import { App, Button, Tooltip } from 'antd';
-import React, { useRef, useState } from 'react';
+import { App, Button, Input, Select, Tooltip } from 'antd';
+import { Search } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { Pill } from '../components/Pills';
 import { brandApi, type Series, seriesApi } from '../service';
-import { PageHeader, ProductThemeProvider } from '../theme';
+import { ProductThemeProvider } from '../theme';
 
 const SeriesPage: React.FC = () => {
   const pager = usePagination(20);
@@ -69,28 +76,23 @@ const SeriesPage: React.FC = () => {
     const list = await brandApi.options();
     return list.map((b) => ({ label: b.brandName, value: b.id }));
   };
+  /** 搜索条件：状态切换后立即查询，关键词、品牌点「查询」才生效 */
+  const [filters, setFilters] = useState<{
+    keyword?: string;
+    brandId?: number;
+    status?: number;
+  }>({});
+  const [keyword, setKeyword] = useState('');
+  const [draftBrand, setDraftBrand] = useState<number>();
+  const [brands, setBrands] = useState<{ label: string; value: number }[]>([]);
+  const [total, setTotal] = useState(0);
+  useEffect(() => {
+    brandOptions()
+      .then(setBrands)
+      .catch(() => setBrands([]));
+  }, []);
 
   const columns: ProColumns<Series>[] = [
-    {
-      title: '系列名称',
-      dataIndex: 'keyword',
-      hideInTable: true,
-      fieldProps: { placeholder: '输入系列名称' },
-    },
-    {
-      title: '品牌',
-      dataIndex: 'brandFilter',
-      hideInTable: true,
-      valueType: 'select',
-      request: brandOptions,
-    },
-    {
-      title: '状态',
-      dataIndex: 'statusFilter',
-      hideInTable: true,
-      valueType: 'select',
-      valueEnum: { 1: { text: '启用' }, 0: { text: '停用' } },
-    },
     {
       title: '系列名称',
       dataIndex: 'seriesName',
@@ -224,9 +226,8 @@ const SeriesPage: React.FC = () => {
   return (
     <ProductThemeProvider>
       <PageHeader
-        eyebrow="PRODUCT MASTER"
-        description="品牌下可选的分组（如 Siemens 的 S7-1200），同一个品牌下系列名称不重复，不同品牌可以同名。"
-        actions={
+        help="品牌下可选的分组（如 Siemens 的 S7-1200），同一个品牌下系列名称不重复，不同品牌可以同名"
+        extra={
           access['product:series:add'] && (
             <Button
               type="primary"
@@ -238,34 +239,90 @@ const SeriesPage: React.FC = () => {
           )
         }
       />
-      <ProTable<Series>
-        scroll={{ x: tableScrollX(columns) }}
-        rowKey="id"
-        actionRef={actionRef}
-        columns={columns}
-        search={{ labelWidth: 'auto', defaultCollapsed: false }}
-        options={false}
-        request={async (params) => {
-          const res = await seriesApi.page({
-            page: params.current,
-            pageSize: params.pageSize,
-            keyword: params.keyword,
-            brandId:
-              params.brandFilter === undefined
-                ? undefined
-                : Number(params.brandFilter),
-            status:
-              params.statusFilter === undefined
-                ? undefined
-                : Number(params.statusFilter),
-          });
-          return { data: res.records, total: res.total, success: true };
+      <FilterCard
+        onSearch={() =>
+          setFilters({
+            ...filters,
+            keyword: keyword.trim(),
+            brandId: draftBrand,
+          })
+        }
+        onReset={() => {
+          setKeyword('');
+          setDraftBrand(undefined);
+          setFilters({});
         }}
-        pagination={{ ...pager, showTotal: (t) => `共 ${t} 条记录` }}
-        locale={{
-          emptyText: '还没有系列。系列是可选的，商品可以不属于任何系列。',
-        }}
-      />
+      >
+        <FilterField label="系列名称" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="系列名称"
+            aria-label="系列名称"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={() =>
+              setFilters({
+                ...filters,
+                keyword: keyword.trim(),
+                brandId: draftBrand,
+              })
+            }
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select
+            allowClear
+            placeholder="全部"
+            aria-label="状态"
+            value={filters.status}
+            // 状态下拉切换后立即查询
+            onChange={(v) => setFilters({ ...filters, status: v })}
+            options={[
+              { value: 1, label: '启用' },
+              { value: 0, label: '停用' },
+            ]}
+          />
+        </FilterField>
+        <FilterField label="品牌">
+          <Select
+            allowClear
+            showSearch={{ optionFilterProp: 'label' }}
+            placeholder="全部"
+            aria-label="品牌"
+            value={draftBrand}
+            onChange={setDraftBrand}
+            options={brands}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard left={`共 ${total} 条`}>
+        <ProTable<Series>
+          scroll={{ x: tableScrollX(columns) }}
+          rowKey="id"
+          actionRef={actionRef}
+          columns={columns}
+          search={false}
+          options={false}
+          toolBarRender={false}
+          params={filters}
+          request={async (params) => {
+            const res = await seriesApi.page({
+              page: params.current,
+              pageSize: params.pageSize,
+              keyword: filters.keyword || undefined,
+              brandId: filters.brandId,
+              status: filters.status,
+            });
+            setTotal(res.total);
+            return { data: res.records, total: res.total, success: true };
+          }}
+          pagination={{ ...pager, showTotal: (t) => `共 ${t} 条记录` }}
+          locale={{
+            emptyText: '还没有系列。系列是可选的，商品可以不属于任何系列。',
+          }}
+        />
+      </MainCard>
       <ModalForm<{ brandId: number; seriesName: string; description?: string }>
         name="seriesEdit"
         title={editing ? '编辑系列' : '新增系列'}

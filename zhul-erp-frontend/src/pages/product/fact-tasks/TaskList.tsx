@@ -1,19 +1,24 @@
 import {
-  ArrowRightOutlined,
   CheckOutlined,
   CheckSquareOutlined,
   DownloadOutlined,
-  SearchOutlined,
   SettingOutlined,
   ThunderboltOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
 import { Link, useAccess, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Input, Segmented, Select, Table } from 'antd';
+import { App, Button, Input, Select, Table } from 'antd';
+import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import {
+  FilterCard,
+  FilterField,
+  HelpTip,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { Pill } from '@/pages/product/components/Pills';
 import { auditColumns } from '@/pages/purchase/components';
@@ -120,6 +125,7 @@ const rowStatus = (entry: PackageType, status: number) => {
       : TABS.marketing[3];
 };
 
+/** 帮助文字：help-texts.md「资料任务、营销任务」；关键词范围以 search-scope.md 为准 */
 const COPY: Record<PackageType, { description: string; footer: string }> = {
   facts: {
     description:
@@ -497,74 +503,27 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
 
   return (
     <div>
-      <PageTitle
-        description={copy.description}
-        actions={
+      <PageHeader
+        help={
+          facts
+            ? copy.description
+            : `${copy.description}流程：${TABS.marketing
+                .slice(1)
+                .map((t) => t.label)
+                .join(
+                  ' → ',
+                )}。资料在「商品管理 → 资料任务」补和核对，所有公司共用；这里只管本公司的营销内容。资料未核对时也能先做营销，资料核对后才算完成。`
+        }
+        extra={
           <>
             {!facts && (
               <Button
+                type="text"
                 icon={<SettingOutlined />}
+                style={{ color: palette.link }}
                 onClick={() => setSettingsOpen(true)}
               >
                 平台设置
-              </Button>
-            )}
-            {canAi && (
-              <Button
-                icon={<ThunderboltOutlined />}
-                disabled={
-                  selected.length === 0 || selected.length > AI_MAX_BATCH
-                }
-                title={
-                  selected.length > AI_MAX_BATCH
-                    ? `一次最多 AI 生成 ${AI_MAX_BATCH} 个商品`
-                    : undefined
-                }
-                onClick={() => setAiStart(selectedRows)}
-              >
-                AI 生成{selected.length ? ` · ${selected.length}` : ''}
-              </Button>
-            )}
-            {facts ? (
-              <Button
-                icon={<DownloadOutlined />}
-                disabled={selected.length === 0}
-                loading={downloading === 'facts'}
-                onClick={() => download(selected)}
-              >
-                下载资料包{selected.length ? ` · ${selected.length}` : ''}
-              </Button>
-            ) : (
-              <MarketingDownload
-                platforms={platforms}
-                disabled={selected.length === 0}
-                downloading={downloading}
-                label={`下载营销包${selected.length ? ` · ${selected.length}` : ''}`}
-                onPick={(p) => download(selected, p)}
-              />
-            )}
-            {facts && access['product:content:edit'] && (
-              <Button
-                icon={<CheckOutlined />}
-                disabled={selectedRows.length === 0}
-                onClick={() => setBatchVerify(selectedRows)}
-              >
-                资料已核
-                {selectedRows.length ? ` · ${selectedRows.length}` : ''}
-              </Button>
-            )}
-            {canAi && (
-              <Button
-                icon={<CheckSquareOutlined />}
-                disabled={selectedPending === 0}
-                title={
-                  selected.length && !selectedPending
-                    ? '勾选的商品没有待确认的 AI 结果'
-                    : undefined
-                }
-                onClick={() => setBatchConfirm(selectedRows)}
-              >
-                确认 AI 结果{selectedPending ? ` · ${selectedPending}` : ''}
               </Button>
             )}
             <Button
@@ -577,69 +536,84 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
           </>
         }
       />
-      {!facts && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            flexWrap: 'wrap',
-            padding: '10px 14px',
-            borderRadius: 10,
-            background: palette.inset,
-            marginBottom: 16,
-            fontSize: 12,
-            color: palette.mute,
-          }}
-        >
-          <span style={{ fontWeight: 600 }}>流程</span>
-          {TABS.marketing.slice(1).map((s, i) => (
-            <React.Fragment key={s.key}>
-              {i > 0 && <ArrowRightOutlined style={{ fontSize: 10 }} />}
-              <Pill tone={s.tone}>{s.label}</Pill>
-            </React.Fragment>
-          ))}
-          <span style={{ marginLeft: 8 }}>
-            资料在「商品管理 →
-            资料任务」补和核对，所有公司共用；这里只管本公司的营销内容。资料未核对时也能先做营销，资料核对后才算完成。
-          </span>
-        </div>
-      )}
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          marginBottom: 16,
+      <FilterCard
+        onSearch={apply}
+        onReset={() => {
+          setKeyword('');
+          setBrandId(undefined);
+          setCategoryId(undefined);
+          setQuery({});
+          setTab(tabs[1].key);
+          setPage(1);
+          setSelected([]);
         }}
+        moreCount={
+          [query.brandId, query.categoryId].filter((v) => v != null).length
+        }
+        more={
+          <>
+            <FilterField label="品牌">
+              <Select
+                allowClear
+                showSearch={{ optionFilterProp: 'label' }}
+                value={brandId}
+                onChange={setBrandId}
+                placeholder="全部"
+                options={brands.map((b) => ({
+                  value: b.id,
+                  label: b.brandName,
+                }))}
+                aria-label="品牌"
+              />
+            </FilterField>
+            <FilterField label="品类">
+              <Select
+                allowClear
+                showSearch={{ optionFilterProp: 'label' }}
+                value={categoryId}
+                onChange={setCategoryId}
+                placeholder="全部"
+                options={categories.map((c) => ({
+                  value: c.id,
+                  label: c.categoryNameZh || c.categoryName,
+                }))}
+                aria-label="品类"
+              />
+            </FilterField>
+          </>
+        }
       >
-        <Segmented<string>
-          value={tab}
-          onChange={(t) => {
-            setTab(t);
-            setPage(1);
-            setSelected([]);
-          }}
-          options={tabs.map((t) => ({
-            value: t.key,
-            label:
-              counts[t.key] !== undefined
-                ? `${t.label} · ${counts[t.key]}`
-                : t.label,
-          }))}
-        />
-        <span style={{ display: 'flex', gap: 12, flex: 1, minWidth: 0 }}>
+        <FilterField label="关键词" span={2}>
           <Input
             allowClear
-            prefix={<SearchOutlined />}
+            prefix={<Search size={16} />}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             onPressEnter={apply}
             placeholder="型号、名称"
-            style={{ width: 220 }}
             aria-label="关键词"
           />
+        </FilterField>
+        <FilterField label="状态">
+          {/* 原来的状态页签，选项带数量，切换后立即查询 */}
+          <Select<string>
+            value={tab}
+            onChange={(t) => {
+              setTab(t);
+              setPage(1);
+              setSelected([]);
+            }}
+            options={tabs.map((t) => ({
+              value: t.key,
+              label:
+                counts[t.key] !== undefined && t.key !== 'all'
+                  ? `${t.label} · ${counts[t.key]}`
+                  : t.label,
+            }))}
+            aria-label="状态"
+          />
+        </FilterField>
+        <FilterField label="AI 生成">
           <Select
             allowClear
             value={query.ai}
@@ -648,50 +622,92 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
               setPage(1);
               setSelected([]);
             }}
-            prefix="AI 生成"
             placeholder="全部"
             options={[
               { value: 'pending', label: '待确认' },
               { value: 'running', label: '排队或生成中' },
               { value: 'failed', label: '失败' },
             ]}
-            popupMatchSelectWidth={false}
-            style={{ width: 190 }}
             aria-label="AI 生成"
           />
-          <Select
-            allowClear
-            showSearch={{ optionFilterProp: 'label' }}
-            value={brandId}
-            onChange={setBrandId}
-            placeholder="全部品牌"
-            options={brands.map((b) => ({ value: b.id, label: b.brandName }))}
-            style={{ width: 160 }}
-            aria-label="品牌"
-          />
-          <Select
-            allowClear
-            showSearch={{ optionFilterProp: 'label' }}
-            value={categoryId}
-            onChange={setCategoryId}
-            placeholder="全部品类"
-            options={categories.map((c) => ({
-              value: c.id,
-              label: c.categoryNameZh || c.categoryName,
-            }))}
-            style={{ width: 160 }}
-            aria-label="品类"
-          />
-          <span style={{ flex: 1 }} />
-          <Button type="primary" onClick={apply}>
-            查询
-          </Button>
-        </span>
-      </div>
+        </FilterField>
+      </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={() => load()} />
       ) : (
-        <Card style={{ padding: 0 }}>
+        <MainCard
+          left={
+            selected.length > 0 ? (
+              <b style={{ color: palette.link }}>已选 {selected.length} 个</b>
+            ) : (
+              <>
+                {`共 ${total} 条`}
+                <HelpTip title={copy.footer} />
+              </>
+            )
+          }
+          right={
+            <>
+              {canAi && (
+                <Button
+                  icon={<ThunderboltOutlined />}
+                  disabled={
+                    selected.length === 0 || selected.length > AI_MAX_BATCH
+                  }
+                  title={
+                    selected.length > AI_MAX_BATCH
+                      ? `一次最多 AI 生成 ${AI_MAX_BATCH} 个商品`
+                      : undefined
+                  }
+                  onClick={() => setAiStart(selectedRows)}
+                >
+                  AI 生成
+                </Button>
+              )}
+              {facts ? (
+                <Button
+                  icon={<DownloadOutlined />}
+                  disabled={selected.length === 0}
+                  loading={downloading === 'facts'}
+                  onClick={() => download(selected)}
+                >
+                  下载资料包
+                </Button>
+              ) : (
+                <MarketingDownload
+                  platforms={platforms}
+                  disabled={selected.length === 0}
+                  downloading={downloading}
+                  label="下载营销包"
+                  onPick={(p) => download(selected, p)}
+                />
+              )}
+              {facts && access['product:content:edit'] && (
+                <Button
+                  icon={<CheckOutlined />}
+                  disabled={selectedRows.length === 0}
+                  onClick={() => setBatchVerify(selectedRows)}
+                >
+                  资料已核
+                </Button>
+              )}
+              {canAi && (
+                <Button
+                  icon={<CheckSquareOutlined />}
+                  disabled={selectedPending === 0}
+                  title={
+                    selected.length && !selectedPending
+                      ? '勾选的商品没有待确认的 AI 结果'
+                      : undefined
+                  }
+                  onClick={() => setBatchConfirm(selectedRows)}
+                >
+                  确认 AI 结果{selectedPending ? ` · ${selectedPending}` : ''}
+                </Button>
+              )}
+            </>
+          }
+        >
           <Table<ContentTask>
             rowKey="productId"
             columns={columns}
@@ -718,11 +734,8 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
               },
             }}
           />
-        </Card>
+        </MainCard>
       )}
-      <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-        {copy.footer}
-      </div>
       {!facts && (
         <PlatformSettings
           open={settingsOpen}

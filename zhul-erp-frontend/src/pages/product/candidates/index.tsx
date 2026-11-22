@@ -5,7 +5,6 @@ import {
   MergeCellsOutlined,
   PlusOutlined,
   RobotOutlined,
-  SearchOutlined,
 } from '@ant-design/icons';
 import { Link, useAccess, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
@@ -16,16 +15,24 @@ import {
   Input,
   Modal,
   Radio,
-  Segmented,
   Select,
   Skeleton,
   Spin,
   Table,
+  Tabs,
 } from 'antd';
+import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
+import {
+  FilterCard,
+  FilterField,
+  HelpTip,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { groupedCategoryOptions } from '@/pages/product/components/categoryOptions';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
@@ -106,6 +113,15 @@ const aiSummary = (j: AiFill) => {
 /** 1-4 为候选状态；5 为「待关联单据」 */
 type Tab = 1 | 2 | 3 | 4 | 5;
 type TabCounts = Awaited<ReturnType<typeof candidateApi.counts>>;
+
+/** 帮助文字：help-texts.md「商品候选」，关键词范围以 search-scope.md 为准 */
+export const HELP = {
+  page: '询盘、成交带进来的新型号，以及上传商品文件添加的型号，先在这里审核，通过后才进入商品库；被问得多、成交过的优先审核',
+  keyword: '可搜：型号（忽略空格、连字符和大小写）、品牌文字、商品名称、订货号',
+  pending:
+    '按可信度从高到低、再按更新时间倒序；批量通过只处理品牌与品类都已确定的候选（生命周期按采购核实自动填写），其余跳过并提示',
+  done: '按可信度从高到低、再按更新时间倒序',
+} as const;
 
 /** 页签上的数字按当前筛选条件统计，和筛选后的列表一致 */
 const TABS: { value: Tab; label: string; key: keyof TabCounts }[] = [
@@ -1514,156 +1530,121 @@ const Candidates: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        description="询盘、成交带进来的新型号，以及上传商品文件添加的型号，先在这里审核，通过后才进入商品库；被问得多、成交过的优先审核。"
-        actions={
-          <>
-            <Button icon={<PlusOutlined />} onClick={() => setImportOpen(true)}>
-              添加候选
-            </Button>
-            {tab === 1 &&
-              canReview &&
-              (['category', 'brand'] as AiFillMode[]).map((mode) => (
-                <Button
-                  key={mode}
-                  icon={<RobotOutlined />}
-                  disabled={!aiJob && selected.length === 0}
-                  loading={aiJob?.mode === mode}
-                  onClick={() => (aiJob ? undefined : aiFill(mode))}
-                  title={
-                    aiJob
-                      ? '上一次 AI 解析跑完后才能再提交'
-                      : `勾选候选后由 AI 补全${AI_MODE_NAME[mode]}，每次最多 ${AI_FILL_MAX} 条`
-                  }
-                >
-                  {aiJob?.mode === mode
-                    ? `AI 解析${AI_MODE_NAME[mode]}中…`
-                    : `AI 解析${AI_MODE_NAME[mode]}${selected.length ? ` · ${selected.length}` : ''}`}
-                </Button>
-              ))}
-            {tab === 1 && canReview && (
-              <Button
-                icon={<EditOutlined />}
-                disabled={selected.length === 0}
-                onClick={() =>
-                  selected.length > BATCH_EDIT_MAX
-                    ? message.warning(
-                        `每次最多 ${BATCH_EDIT_MAX} 条，已选 ${selected.length} 条`,
-                      )
-                    : setEditing(true)
-                }
-              >
-                批量修改{selected.length ? ` · ${selected.length}` : ''}
-              </Button>
-            )}
-            {tab === 1 && canReview && (
-              <Button
-                type="primary"
-                icon={<CheckOutlined />}
-                disabled={selected.length === 0}
-                loading={busy}
-                onClick={batch}
-              >
-                批量通过{selected.length ? ` · ${selected.length}` : ''}
-              </Button>
-            )}
-          </>
+      <PageHeader
+        help={HELP.page}
+        extra={
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setImportOpen(true)}
+          >
+            添加候选
+          </Button>
         }
       />
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          marginBottom: 16,
+      {/* 状态页签保留（spec product/product-candidate「分页签」）：待审核与其他页签的列和操作不同，待关联单据是另一类内容 */}
+      <Tabs
+        activeKey={String(tab)}
+        onChange={(k) => {
+          setTab(Number(k) as Tab);
+          setPage(1);
+          setSelected([]);
         }}
-      >
-        <Segmented<Tab>
-          value={tab}
-          onChange={(t) => {
-            setTab(t);
+        items={[
+          ...TABS.map((t) => {
+            const n = counts?.[t.key];
+            return {
+              key: String(t.value),
+              label: n === undefined ? t.label : `${t.label} · ${n}`,
+            };
+          }),
+          ...(canReview
+            ? [
+                {
+                  key: '5',
+                  label:
+                    unlinkedCount === undefined
+                      ? '待关联单据'
+                      : `待关联单据 · ${unlinkedCount}`,
+                },
+              ]
+            : []),
+        ]}
+      />
+      {tab !== 5 && (
+        <FilterCard
+          onSearch={apply}
+          onReset={() => {
+            setKeyword('');
+            setLevel(undefined);
+            setBrandState(undefined);
+            setCategoryState(undefined);
+            setQuery({});
             setPage(1);
-            setSelected([]);
           }}
-          options={[
-            ...TABS.map((t) => {
-              const n = counts?.[t.key];
-              return {
-                value: t.value,
-                label: n === undefined ? t.label : `${t.label} · ${n}`,
-              };
-            }),
-            ...(canReview
-              ? [
-                  {
-                    value: 5 as Tab,
-                    label:
-                      unlinkedCount === undefined
-                        ? '待关联单据'
-                        : `待关联单据 · ${unlinkedCount}`,
-                  },
-                ]
-              : []),
-          ]}
-        />
-        {tab !== 5 && (
-          <>
+          moreCount={
+            [query.brandState, query.categoryState].filter((v) => v != null)
+              .length
+          }
+          more={
+            <>
+              <FilterField label="品牌">
+                <Select
+                  allowClear
+                  value={brandState}
+                  onChange={setBrandState}
+                  placeholder="全部"
+                  options={[
+                    { value: 1, label: '品牌已确认' },
+                    { value: 2, label: '待确认品牌' },
+                    { value: 3, label: 'AI 未识别（Others）' },
+                  ]}
+                  aria-label="品牌"
+                />
+              </FilterField>
+              <FilterField label="品类">
+                <Select
+                  allowClear
+                  value={categoryState}
+                  onChange={setCategoryState}
+                  placeholder="全部"
+                  options={[
+                    { value: 1, label: '已选品类' },
+                    { value: 2, label: '未选品类' },
+                  ]}
+                  aria-label="品类"
+                />
+              </FilterField>
+            </>
+          }
+        >
+          <FilterField label="关键词" span={2} help={HELP.keyword}>
             <Input
               allowClear
-              prefix={<SearchOutlined />}
+              prefix={<Search size={16} />}
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               onPressEnter={apply}
-              placeholder="品牌、型号、名称"
-              style={{ width: 260 }}
+              placeholder="型号、品牌、商品名称"
               aria-label="关键词"
             />
+          </FilterField>
+          <FilterField label="可信度">
             <Select
               allowClear
               value={level}
               onChange={setLevel}
-              placeholder="全部可信度"
+              placeholder="全部"
               options={[
                 { value: 3, label: '已成交' },
                 { value: 2, label: '采购问到有货' },
                 { value: 1, label: '询盘出现' },
               ]}
-              style={{ width: 150 }}
               aria-label="可信度"
             />
-            <Select
-              allowClear
-              value={brandState}
-              onChange={setBrandState}
-              placeholder="全部品牌"
-              options={[
-                { value: 1, label: '品牌已确认' },
-                { value: 2, label: '待确认品牌' },
-                { value: 3, label: 'AI 未识别（Others）' },
-              ]}
-              style={{ width: 170 }}
-              aria-label="品牌"
-            />
-            <Select
-              allowClear
-              value={categoryState}
-              onChange={setCategoryState}
-              placeholder="全部品类"
-              options={[
-                { value: 1, label: '已选品类' },
-                { value: 2, label: '未选品类' },
-              ]}
-              style={{ width: 150 }}
-              aria-label="品类"
-            />
-            <span style={{ flex: 1 }} />
-            <Button type="primary" onClick={apply}>
-              查询
-            </Button>
-          </>
-        )}
-      </div>
+          </FilterField>
+        </FilterCard>
+      )}
       {tab === 5 && <UnlinkedPanel onChanged={refreshCount} />}
       {tab !== 5 && aiJob?.taskId && (
         <Card style={{ marginBottom: 16 }}>
@@ -1719,7 +1700,65 @@ const Candidates: React.FC = () => {
       {tab === 5 ? null : error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 0 }}>
+        <MainCard
+          left={
+            tab === 1 && canReview && selected.length > 0 ? (
+              <b style={{ color: palette.link }}>已选 {selected.length} 条</b>
+            ) : (
+              <>
+                {`共 ${total} 条`}
+                <HelpTip title={tab === 1 ? HELP.pending : HELP.done} />
+              </>
+            )
+          }
+          right={
+            tab === 1 &&
+            canReview && (
+              <>
+                {(['category', 'brand'] as AiFillMode[]).map((mode) => (
+                  <Button
+                    key={mode}
+                    icon={<RobotOutlined />}
+                    disabled={!aiJob && selected.length === 0}
+                    loading={aiJob?.mode === mode}
+                    onClick={() => (aiJob ? undefined : aiFill(mode))}
+                    title={
+                      aiJob
+                        ? '上一次 AI 解析跑完后才能再提交'
+                        : `勾选候选后由 AI 补全${AI_MODE_NAME[mode]}，每次最多 ${AI_FILL_MAX} 条`
+                    }
+                  >
+                    {aiJob?.mode === mode
+                      ? `AI 解析${AI_MODE_NAME[mode]}中…`
+                      : `AI 解析${AI_MODE_NAME[mode]}`}
+                  </Button>
+                ))}
+                <Button
+                  icon={<EditOutlined />}
+                  disabled={selected.length === 0}
+                  onClick={() =>
+                    selected.length > BATCH_EDIT_MAX
+                      ? message.warning(
+                          `每次最多 ${BATCH_EDIT_MAX} 条，已选 ${selected.length} 条`,
+                        )
+                      : setEditing(true)
+                  }
+                >
+                  批量修改
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<CheckOutlined />}
+                  disabled={selected.length === 0}
+                  loading={busy}
+                  onClick={batch}
+                >
+                  批量通过
+                </Button>
+              </>
+            )
+          }
+        >
           <Table<Candidate>
             rowKey="id"
             columns={columns}
@@ -1752,20 +1791,8 @@ const Candidates: React.FC = () => {
               },
             }}
           />
-        </Card>
+        </MainCard>
       )}
-      <div
-        style={{
-          fontSize: 12,
-          color: palette.mute,
-          marginTop: 8,
-          display: tab === 5 ? 'none' : undefined,
-        }}
-      >
-        {tab === 1
-          ? '按可信度从高到低、再按更新时间倒序；批量通过只处理品牌与品类都已确定的候选（生命周期按采购核实自动填写），其余跳过并提示'
-          : '按可信度从高到低、再按更新时间倒序'}
-      </div>
       <ReviewDrawer
         id={viewing}
         canReview={canReview}
