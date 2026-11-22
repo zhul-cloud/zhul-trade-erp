@@ -59,10 +59,17 @@ it('点「逾期未发」只按发货进度查，再点一次回到默认条件'
   await waitFor(() => expect(lastQuery()?.shipProgress).toBe('OVERDUE'));
   expect(lastQuery()?.orderFrom).toBeUndefined();
   expect(quick.getAttribute('aria-pressed')).toBe('true');
+  // 搜索条件卡片的显示也清空：日期框为空
+  const dates = () =>
+    [
+      ...document.querySelectorAll<HTMLInputElement>('.ant-picker-range input'),
+    ].map((i) => i.value);
+  expect(dates()).toEqual(['', '']);
 
   await act(async () => {
     fireEvent.click(quick);
   });
   await waitFor(() => expect(lastQuery()?.shipProgress).toBeUndefined());
   expect(lastQuery()?.orderFrom).toBeTruthy();
+  expect(dates().every(Boolean)).toBe(true);
 });
