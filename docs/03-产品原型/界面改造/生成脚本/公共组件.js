@@ -301,7 +301,8 @@ function dash(T, name, H, rows, greet) {
   const head = box(root, { width: 'fill_container', height: 32, layout: 'horizontal', alignItems: 'center' });
   tx(head, greet, { fontSize: 20, fontWeight: 600, fill: solid(T.ink) });
   box(root, { width: 1, height: 16 });
-  const grid = box(root, { width: 'fill_container', layout: 'vertical', gap: 16 });
+  // 行与行间距 24、同行组件间距 16（9.1 设计评审：标题离上一张卡 24、离自己的卡 12，归属清楚）
+  const grid = box(root, { width: 'fill_container', layout: 'vertical', gap: 24 });
   for (const r of rows) {
     const row = box(grid, { width: 'fill_container', height: r.h, layout: 'horizontal', gap: 16 });
     for (const [w, span] of r.items) w(row, r.h, span === 12 ? 'fill_container' : spanW(span));

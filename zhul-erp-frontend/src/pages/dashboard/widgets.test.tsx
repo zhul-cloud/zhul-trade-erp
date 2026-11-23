@@ -302,3 +302,33 @@ it('经营概览：看板上有主角卡时去掉成交额', async () => {
   expect(screen.queryByText('成交额')).toBeNull();
   expect(screen.getByText('毛利')).toBeTruthy();
 });
+
+/** 设计评审（9.1 第 3 批）：近 12 个月没有成交时不画「1 / 1 / 0」的刻度，写一句说明 */
+it('主角卡：近 12 个月都没有成交时只留 0 基线并说明', async () => {
+  await renderWidget('revenue-trend', {
+    blocks: [
+      {
+        type: 'metrics',
+        metrics: [{ label: '成交额', value: 0, format: 'money' }],
+      },
+      {
+        type: 'bars',
+        bars: { labels: ['10月', '11月'], values: [0, 0], format: 'money' },
+        text: '近 12 个月合计 CNY 0.00',
+      },
+    ],
+  });
+  expect(screen.getByText('近 12 个月还没有成交')).toBeTruthy();
+  expect(screen.queryByText('1')).toBeNull();
+});
+
+/** 档位固定：出错时用一行的空状态加「重试」，不撑高卡片 */
+it('组件加载失败时一行提示加重试，只影响自己', async () => {
+  (workbenchApi.widget as jest.Mock).mockRejectedValue(new Error('服务不可用'));
+  const W = WIDGETS.cash;
+  await act(async () => {
+    render(React.createElement(App, null, React.createElement(W)));
+  });
+  expect(screen.getByRole('alert').textContent).toContain('加载失败');
+  expect(screen.getByRole('button', { name: /重\s*试/ })).toBeTruthy();
+});

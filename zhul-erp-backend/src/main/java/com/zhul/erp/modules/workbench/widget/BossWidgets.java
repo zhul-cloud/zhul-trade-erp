@@ -79,7 +79,7 @@ public class BossWidgets {
             List<WidgetData.Metric> items = new ArrayList<>();
             if (perm.canAccessMenu(RECEIVABLES)) {
                 // 与应收管理同口径、同数（ui-redesign D32）：有效销售订单还没收齐的剩余，按订单汇率折人民币
-                ReceivableVO.Stats s = receivables.overview().getStats();
+                ReceivableVO.Stats s = receivables.totals();
                 String hint;
                 String tone = null;
                 if (s.getOverdueCny().signum() > 0) {

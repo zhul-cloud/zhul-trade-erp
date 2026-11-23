@@ -15,7 +15,7 @@ export interface DangerConfirm {
 
 /**
  * 危险操作确认（公共组件，规范「组件标准 · 危险操作」，ui-redesign C6）：
- * 左侧 40 圆错误浅底图标（删除用垃圾桶，作废、禁用等用警告三角，同原型 G2），错误色按钮写动作，
+ * 左侧 40 圆错误浅底图标（按钮文字含「删除」用垃圾桶，作废、禁用等用警告三角，同原型 G2），错误色按钮写动作，
  * 默认焦点在「取消」，防止回车误删。确认框的文字原样保留。
  */
 export const useConfirmDanger = () => {
@@ -41,7 +41,7 @@ export const useConfirmDanger = () => {
               color: palette.red,
             }}
           >
-            {okText === '删除' ? (
+            {okText.includes('删除') ? (
               <Trash2 size={20} />
             ) : (
               <TriangleAlert size={20} />

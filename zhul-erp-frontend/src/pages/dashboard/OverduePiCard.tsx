@@ -45,7 +45,7 @@ const OverduePiCard: React.FC = () => {
       title="过期未收款的 PI"
       extra={
         data &&
-        data.count > 0 && (
+        data.count > SHOWN && (
           <MoreLink onClick={() => history.push('/sales/pi?expired=1')}>
             查看全部 {data.count}
           </MoreLink>
@@ -103,13 +103,15 @@ const OverduePiCard: React.FC = () => {
                 <button
                   type="button"
                   key={p.id}
+                  className="zhul-row-hover"
                   onClick={() => history.push(`/sales/pi/${p.id}`)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: 12,
                     minHeight: 56,
-                    padding: 0,
+                    padding: '0 8px',
+                    margin: '0 -8px',
                     border: 'none',
                     borderTop: `1px solid ${palette.hairline}`,
                     background: 'transparent',

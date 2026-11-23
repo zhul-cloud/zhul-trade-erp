@@ -126,6 +126,9 @@ const globalCss = (
   }
   .zhul-link:hover { color: ${link.hover}; }
   .zhul-link:active { color: ${link.active}; }
+  /* 卡片里可点的明细行：悬停浅底（同待办行） */
+  .zhul-row-hover { transition: background .2s; border-radius: 8px; }
+  .zhul-row-hover:hover { background: ${p.hover} !important; }
   /* 卡片标题行右侧的链接：平时次要色，悬停才用链接色 */
   .zhul-link.zhul-link-quiet { color: ${p.mute}; }
   .zhul-link.zhul-link-quiet:hover { color: ${link.hover}; }

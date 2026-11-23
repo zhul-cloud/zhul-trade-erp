@@ -50,7 +50,11 @@ export default defineConfig({
    * 国旗 SVG（flag-icons，ui-redesign C2）原样复制到产物的 flags/ 目录，按需用 <img> 加载。
    * 不能经 CSS 或 import 引用：打包器会把 SVG 转成 React 组件，背景图失效。
    */
-  copy: [{ from: 'node_modules/flag-icons/flags/4x3', to: 'flags' }],
+  copy: [
+    { from: 'node_modules/flag-icons/flags/4x3', to: 'flags' },
+    // 圆形国旗（排行头像）用方形版，裁圆时不切掉图案
+    { from: 'node_modules/flag-icons/flags/1x1', to: 'flags/1x1' },
+  ],
 
   /**
    * @name 兼容性设置

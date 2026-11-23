@@ -9,8 +9,31 @@ import { useAppTheme } from '@/theme/AppTheme';
  * 按 ISO 两位代码取 `flag-icons` 的 SVG（Windows 不显示国旗 emoji），16×12、圆角 2、内描边；没有代码时显示 globe。
  * 只认清单里的代码（见 CountryText），不把任意文字拼进地址。
  */
-export const CountryFlag: React.FC<{ code?: string }> = ({ code }) => {
+export const CountryFlag: React.FC<{
+  code?: string;
+  /** 圆形国旗的直径（如排行头像 28），用方形版国旗裁圆 */
+  round?: number;
+}> = ({ code, round }) => {
   const { palette } = useAppTheme();
+  if (code && round) {
+    return (
+      <img
+        alt=""
+        aria-hidden
+        src={`/flags/1x1/${code.toLowerCase()}.svg`}
+        width={round}
+        height={round}
+        loading="lazy"
+        style={{
+          flex: 'none',
+          display: 'block',
+          borderRadius: '50%',
+          outline: `1px solid ${palette.hairline}`,
+          outlineOffset: -1,
+        }}
+      />
+    );
+  }
   if (!code) {
     // 放进和国旗同样大的 16×12 格子里，同一列的国名对齐
     return (

@@ -4,7 +4,7 @@ import {
   ChevronRight,
   TriangleAlert,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import FitText from '@/components/FitText';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useDeltaColor } from '@/theme/delta';
@@ -135,6 +135,17 @@ export const MetricCard: React.FC<{
   const { palette, mode } = useAppTheme();
   const [hover, setHover] = useState(false);
   const light = mode === 'light';
+  // 卡宽不到 180（窄屏、栏少）时用紧凑版：内边距 16、图标块 32、名称 13，卡高不变
+  const ref = useRef<HTMLElement | null>(null);
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => setCompact(el.clientWidth < 180));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const block = compact ? 32 : 38;
   const [iconColor, iconSoft] = alert
     ? alert.tone === 'error'
       ? [palette.red, palette.redSoft]
@@ -146,8 +157,8 @@ export const MetricCard: React.FC<{
         <span
           aria-hidden
           style={{
-            width: 38,
-            height: 38,
+            width: block,
+            height: block,
             flex: 'none',
             borderRadius: 8,
             display: 'grid',
@@ -164,12 +175,13 @@ export const MetricCard: React.FC<{
             alignItems: 'center',
             gap: hover ? 4 : 2,
             minWidth: 0,
-            fontSize: 14,
+            fontSize: compact ? 13 : 14,
             color: palette.mute,
             transition: 'gap .2s',
           }}
         >
           <span
+            title={label}
             style={{
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -273,17 +285,23 @@ export const MetricCard: React.FC<{
     minWidth: 0,
     display: 'flex',
     flexDirection: 'column',
-    padding: 20,
+    padding: compact ? 16 : 20,
     borderRadius: 10,
-    background: palette.card,
-    border: light ? 'none' : `1px solid ${palette.hairline}`,
+    // 深色没有阴影：悬停时底色、边框提亮一档（原型 G1）
+    background: !light && hover ? palette.hover : palette.card,
+    border: light
+      ? 'none'
+      : `1px solid ${hover ? palette.elevatedLine : palette.hairline}`,
     boxShadow: light ? (hover ? CARD_SHADOW_HOVER : CARD_SHADOW) : 'none',
-    transition: 'box-shadow .2s',
+    transition: 'box-shadow .2s, background .2s, border-color .2s',
     textAlign: 'left',
     font: 'inherit',
   };
   return onClick ? (
     <button
+      ref={(el) => {
+        ref.current = el;
+      }}
       type="button"
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
@@ -293,24 +311,51 @@ export const MetricCard: React.FC<{
       {body}
     </button>
   ) : (
-    <div style={style}>{body}</div>
+    <div
+      ref={(el) => {
+        ref.current = el;
+      }}
+      style={style}
+    >
+      {body}
+    </div>
   );
 };
 
 /**
- * 一组数字卡：透明分组（不再外包白卡），每排 cols 张，卡间距 16；放不下时（窄屏）自动换行。
+ * 一组数字卡：透明分组（不再外包白卡），每排固定 cols 张、卡间距 16，同一行的组件高度不因换行而变；
+ * 只有放不下（每张不到 150）时才减少每排张数（窄屏单列模式下高度随内容）。
  */
 export const MetricGrid: React.FC<{
   cols: number;
   children: React.ReactNode;
-}> = ({ cols, children }) => (
-  <div
-    style={{
-      display: 'grid',
-      gridTemplateColumns: `repeat(auto-fit, minmax(max(200px, calc((100% - ${(cols - 1) * 16}px) / ${cols})), 1fr))`,
-      gap: 16,
-    }}
-  >
-    {children}
-  </div>
-);
+}> = ({ cols, children }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState(cols);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() =>
+      setFit(
+        Math.max(
+          1,
+          Math.min(cols, Math.floor((el.clientWidth + 16) / (150 + 16))),
+        ),
+      ),
+    );
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [cols]);
+  return (
+    <div
+      ref={ref}
+      style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${Math.min(fit, cols)}, minmax(0, 1fr))`,
+        gap: 16,
+      }}
+    >
+      {children}
+    </div>
+  );
+};

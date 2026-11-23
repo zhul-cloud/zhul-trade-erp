@@ -20,11 +20,9 @@ import {
   Hourglass,
   Image,
   Inbox,
-  Landmark,
   LayoutGrid,
   Package,
   Percent,
-  PiggyBank,
   ReceiptText,
   Rocket,
   Send,
@@ -47,7 +45,6 @@ import { formatAmount } from '@/utils/format';
 import { MenuName } from '@/utils/menuName';
 import { useBoardKeys } from '../layout';
 import {
-  alertTone,
   Metric,
   MoreLink,
   TodoItem,
@@ -158,22 +155,6 @@ const todoTone = (tone: Tone, alert?: boolean): Tone =>
         ? 'primary'
         : tone;
 
-/**
- * 数字小块名称前的图标（原型 D1）：后端只给名称，按名称配图标。同一块里只有全部配齐时才显示，
- * 否则整块都不带图标，标签行高低一致。错误色在数值为 0 时改中性。
- */
-const METRIC_ICONS: Record<string, [React.ReactNode, Tone]> = {
-  成交额: [<CircleDollarSign key="i" size={14} />, 'primary'],
-  毛利: [<PiggyBank key="i" size={14} />, 'green'],
-  实收回款: [<Landmark key="i" size={14} />, 'violet'],
-  成交订单: [<ShoppingBag key="i" size={14} />, 'blue'],
-  等采购回价的型号: [<Hourglass key="i" size={14} />, 'violet'],
-  已过报价截止: [<CalendarX key="i" size={14} />, 'red'],
-  本月新增商机: [<UserPlus key="i" size={14} />, 'primary'],
-  有效商机: [<CircleCheck key="i" size={14} />, 'green'],
-  赢单: [<Trophy key="i" size={14} />, 'blue'],
-};
-
 export const fmt = (v: number | string | null | undefined, format?: Format) => {
   if (v === null || v === undefined || v === '') return '—';
   if (typeof v === 'string') return v;
@@ -215,7 +196,6 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
   switch (b.type) {
     case 'metrics': {
       const metrics = b.metrics ?? [];
-      const withIcons = metrics.every((m) => METRIC_ICONS[m.label]);
       return (
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           {metrics.map((m) => (
@@ -223,12 +203,7 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
               key={m.label}
               label={m.label}
               value={fmt(m.value, m.format)}
-              icon={withIcons ? METRIC_ICONS[m.label][0] : undefined}
-              tone={
-                withIcons
-                  ? alertTone(METRIC_ICONS[m.label][1], m.value)
-                  : undefined
-              }
+              {...metricLook(m)}
               hint={
                 m.delta !== null && m.delta !== undefined ? (
                   <Delta m={m} />
@@ -268,19 +243,13 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
       return (
         <div>
           {title}
-          <div
-            style={{
-              border: `1px solid ${palette.hairline}`,
-              borderRadius: 12,
-              overflow: 'hidden',
-            }}
-          >
+          {/* 卡里的表格不再套描边框：表头一行次要色小字，行间分隔线，行高 46 */}
+          <div>
             <div
               style={{
                 display: 'flex',
                 gap: 12,
-                padding: '10px 14px',
-                background: palette.inset,
+                padding: '0 4px 8px',
               }}
             >
               {t.columns.map((c, i) => (
@@ -319,14 +288,17 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
                     onClick={() => go(link)}
                     style={{
                       display: 'flex',
+                      alignItems: 'center',
                       gap: 12,
                       width: '100%',
-                      padding: '11px 14px',
+                      minHeight: 46,
+                      padding: '0 4px',
                       border: 'none',
                       borderTop: `1px solid ${palette.hairline}`,
                       background: 'transparent',
                       cursor: link ? 'pointer' : 'default',
                       textAlign: 'left',
+                      font: 'inherit',
                     }}
                   >
                     {r.map((v, i) => {
@@ -373,6 +345,13 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
     case 'bars': {
       const bars = b.bars as BarsData;
       const max = Math.max(1, ...bars.values.map(Number));
+      // 图表只亮一处（ui-redesign D31）：按时间的亮本期（最后一根），其余亮最大的一根
+      const lit =
+        (bars.highlightLast ?? true)
+          ? bars.values.length - 1
+          : bars.values
+              .map(Number)
+              .indexOf(Math.max(...bars.values.map(Number)));
       return (
         // 卡片保持自身高度（工作台瀑布流），柱状图区固定 160 高，柱子按百分比
         <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -386,8 +365,7 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
             }}
           >
             {bars.values.map((v, i) => {
-              const last =
-                i === bars.values.length - 1 && (bars.highlightLast ?? true);
+              const last = i === lit;
               return (
                 <Tooltip
                   key={bars.labels[i]}
@@ -402,7 +380,7 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
                       // 图表只亮一处（ui-redesign D31）：本期用图表色，往期浅灰；数值靠悬停提示和读屏文字
                       background: !Number(v)
                         ? palette.hairline
-                        : last || !(bars.highlightLast ?? true)
+                        : last
                           ? palette.chart
                           : palette.chartMuted,
                     }}
@@ -419,7 +397,7 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
                   flex: 1,
                   minWidth: 0,
                   textAlign: 'center',
-                  fontSize: 11,
+                  fontSize: 12,
                   color: palette.mute,
                 }}
               >
@@ -520,10 +498,9 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
                   style={{
                     padding: '3px 10px',
                     borderRadius: 11,
-                    background: palette.primarySoft,
-                    color: palette.link,
+                    background: palette.neutralSoft,
+                    color: palette.sub,
                     fontSize: 12,
-                    fontWeight: 600,
                   }}
                 >
                   {t}
@@ -550,53 +527,58 @@ const Funnel: React.FC<{ steps: NonNullable<Block['steps']> }> = ({
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'grid', gap: 10 }}>
-        {steps.map((x, i) => (
-          <button
-            type="button"
-            key={x.label}
-            onClick={() => go(x.link)}
-            style={{
-              display: 'grid',
-              gap: 8,
-              padding: 0,
-              border: 'none',
-              background: 'transparent',
-              cursor: x.link ? 'pointer' : 'default',
-              textAlign: 'left',
-              font: 'inherit',
-            }}
-          >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ flex: 1, fontSize: 13, color: palette.sub }}>
-                {x.label}
-              </span>
-              <span
-                className="num"
-                style={{ fontWeight: 600, color: palette.ink }}
-              >
-                {fmt(x.value, 'count')}
-              </span>
-              {x.rate !== null && x.rate !== undefined && x.rate <= 100 && (
+        {steps.map((x, i) => {
+          // 有链接的级才做成按钮，没有链接的不能聚焦
+          const Row = x.link ? 'button' : 'div';
+          return (
+            <Row
+              {...(x.link
+                ? { type: 'button' as const, onClick: () => go(x.link) }
+                : {})}
+              key={x.label}
+              style={{
+                display: 'grid',
+                gap: 8,
+                padding: 0,
+                border: 'none',
+                background: 'transparent',
+                cursor: x.link ? 'pointer' : 'default',
+                textAlign: 'left',
+                font: 'inherit',
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ flex: 1, fontSize: 13, color: palette.sub }}>
+                  {x.label}
+                </span>
                 <span
                   className="num"
-                  style={{ fontSize: 12, color: palette.mute }}
+                  style={{ fontWeight: 600, color: palette.ink }}
                 >
-                  → {x.rate}%
+                  {fmt(x.value, 'count')}
                 </span>
-              )}
-            </span>
-            <span
-              style={{
-                display: 'block',
-                height: 8,
-                borderRadius: 4,
-                width: `${Math.max(2, (Number(x.value) / max) * 100)}%`,
-                background:
-                  i === steps.length - 1 ? palette.chart : palette.barMuted,
-              }}
-            />
-          </button>
-        ))}
+                {x.rate !== null && x.rate !== undefined && x.rate <= 100 && (
+                  <span
+                    className="num"
+                    style={{ fontSize: 12, color: palette.mute }}
+                  >
+                    → {x.rate}%
+                  </span>
+                )}
+              </span>
+              <span
+                style={{
+                  display: 'block',
+                  height: 8,
+                  borderRadius: 4,
+                  width: `${Math.max(2, (Number(x.value) / max) * 100)}%`,
+                  background:
+                    i === steps.length - 1 ? palette.chart : palette.barMuted,
+                }}
+              />
+            </Row>
+          );
+        })}
       </div>
       {first && last && first !== last && (
         <div
@@ -648,6 +630,12 @@ const metricMeta = (m: MetricData): [React.ElementType, MetricFamily] => {
       ? (m.family as MetricFamily)
       : byFormat[1],
   ];
+};
+
+/** 卡内数字小块的图标与家族色（同数字卡，后端下发） */
+const metricLook = (m: MetricData) => {
+  const [Icon, family] = metricMeta(m);
+  return { icon: <Icon size={14} />, family };
 };
 
 /** 后端指标 → 数字卡：金额拆出币种；较上月为涨跌胶囊；说明带红、橙色时为告警标签 */
@@ -734,7 +722,12 @@ export const blockWidget = (opts: {
         <MenuName path={opts.more.link} />
       </MoreLink>
     );
-    if (opts.group) {
+    // 后端只给了数字（可带一句说明）时，自动按数字卡组显示，不在白卡里再套小卡
+    const metricsOnly =
+      blocks.length > 0 &&
+      blocks.some((b) => b.type === 'metrics') &&
+      blocks.every((b) => b.type === 'metrics' || b.type === 'note');
+    if (opts.group || metricsOnly) {
       const omit =
         opts.omit && keys.has(opts.omit.whenBoardHas)
           ? opts.omit.label
@@ -743,7 +736,7 @@ export const blockWidget = (opts: {
         .flatMap((b) => (b.type === 'metrics' ? (b.metrics ?? []) : []))
         .filter((m) => m.label !== omit);
       const note = blocks.find((b) => b.type === 'note');
-      const cols = opts.group.cols?.(metrics.length) ?? metrics.length;
+      const cols = opts.group?.cols?.(metrics.length) ?? metrics.length;
       return (
         <WidgetCard
           title={opts.title}
@@ -761,11 +754,13 @@ export const blockWidget = (opts: {
           onRetry={reload}
           bare
         >
-          <MetricGrid cols={Math.max(1, cols)}>
-            {metrics.map((m) => (
-              <MetricItem key={m.label} m={m} bar={barOf(m, metrics)} />
-            ))}
-          </MetricGrid>
+          {metrics.length > 0 && (
+            <MetricGrid cols={Math.max(1, cols)}>
+              {metrics.map((m) => (
+                <MetricItem key={m.label} m={m} bar={barOf(m, metrics)} />
+              ))}
+            </MetricGrid>
+          )}
         </WidgetCard>
       );
     }

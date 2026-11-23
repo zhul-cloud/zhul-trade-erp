@@ -10,6 +10,7 @@ import {
   Truck,
 } from 'lucide-react';
 import React, { useMemo } from 'react';
+import { CountryFlag } from '@/components/CountryText';
 import { DeltaPill } from '@/components/MetricCard';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -53,6 +54,8 @@ export const RevenueHeroWidget: React.FC = () => {
   const values = (barsBlock?.bars?.values ?? []).map(Number);
   const current = Number(metric?.value ?? values[values.length - 1] ?? 0);
   const top = niceMax(Math.max(0, ...values));
+  // 近 12 个月都没有成交：只留 0 基线，柱区写一句说明（新公司第一眼看到的就是这里）
+  const empty = values.length > 0 && values.every((v) => v <= 0);
   const [cnyPrefix, cnyValue] = [
     'CNY',
     formatAmount(current, 'CNY').replace(/^CNY\s*/, ''),
@@ -104,14 +107,17 @@ export const RevenueHeroWidget: React.FC = () => {
           aria-hidden
           style={{ width: 40, flex: 'none', position: 'relative' }}
         >
-          {[
-            [short(top), `${PLOT_TOP}px`],
-            [
-              short(top / 2),
-              `calc(${PLOT_TOP}px + (100% - ${PLOT_TOP + 24}px) / 2)`,
-            ],
-            ['0', `calc(100% - 24px)`],
-          ].map(([t, y]) => (
+          {(empty
+            ? [['0', 'calc(100% - 24px)']]
+            : [
+                [short(top), `${PLOT_TOP}px`],
+                [
+                  short(top / 2),
+                  `calc(${PLOT_TOP}px + (100% - ${PLOT_TOP + 24}px) / 2)`,
+                ],
+                ['0', 'calc(100% - 24px)'],
+              ]
+          ).map(([t, y]) => (
             <span
               key={y}
               className="num"
@@ -138,10 +144,27 @@ export const RevenueHeroWidget: React.FC = () => {
           }}
         >
           <div style={{ flex: 1, position: 'relative' }}>
-            {[
-              `${PLOT_TOP}px`,
-              `calc(${PLOT_TOP}px + (100% - ${PLOT_TOP}px) / 2)`,
-            ].map((y) => (
+            {empty && (
+              <span
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontSize: 13,
+                  color: palette.mute,
+                }}
+              >
+                近 12 个月还没有成交
+              </span>
+            )}
+            {(empty
+              ? []
+              : [
+                  `${PLOT_TOP}px`,
+                  `calc(${PLOT_TOP}px + (100% - ${PLOT_TOP}px) / 2)`,
+                ]
+            ).map((y) => (
               <span
                 key={y}
                 style={{
@@ -263,7 +286,7 @@ const RISK_ICONS: Record<string, React.ElementType> = {
  * 标题旁绿点「全部正常」；有风险的格子为状态浅底、左侧 3px 色条、彩色数量与箭头。
  */
 export const RiskAlertsWidget: React.FC = () => {
-  const { palette } = useAppTheme();
+  const { palette, mode } = useAppTheme();
   const { data, error, reload } = useWidgetData<{ blocks: Block[] }>(
     'risk-alerts',
   );
@@ -313,7 +336,7 @@ export const RiskAlertsWidget: React.FC = () => {
                 border: 'none',
                 borderLeft: `3px solid ${on ? color : 'transparent'}`,
                 borderRadius: 8,
-                background: on ? soft : palette.neutralSoft,
+                background: on && mode === 'light' ? soft : palette.neutralSoft,
                 cursor: t.link ? 'pointer' : 'default',
                 textAlign: 'left',
                 font: 'inherit',
@@ -366,29 +389,16 @@ export const RiskAlertsWidget: React.FC = () => {
 /** 排行的头像：客户为圆形国旗，业务员为名字首字 */
 const Avatar: React.FC<{ name: string; code?: string }> = ({ name, code }) => {
   const { palette } = useAppTheme();
-  const box: React.CSSProperties = {
-    width: 28,
-    height: 28,
-    flex: 'none',
-    borderRadius: '50%',
-  };
   return code ? (
-    <img
-      alt=""
-      aria-hidden
-      src={`/flags/${code.toLowerCase()}.svg`}
-      style={{
-        ...box,
-        objectFit: 'cover',
-        outline: `1px solid ${palette.hairline}`,
-        outlineOffset: -1,
-      }}
-    />
+    <CountryFlag code={code} round={28} />
   ) : (
     <span
       aria-hidden
       style={{
-        ...box,
+        width: 28,
+        height: 28,
+        flex: 'none',
+        borderRadius: '50%',
         display: 'grid',
         placeItems: 'center',
         background: palette.neutralSoft,
@@ -543,7 +553,7 @@ export const RankingsWidget: React.FC = () => {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
           columnGap: 32,
           rowGap: 16,
         }}

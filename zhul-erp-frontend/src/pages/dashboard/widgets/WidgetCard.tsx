@@ -7,7 +7,11 @@ import { CardTitle, HelpTip, Panel } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { readBizError } from '@/pages/crm/opportunity/service';
 import { useAppTheme } from '@/theme/AppTheme';
-import { CHART_SERIES } from '@/theme/palette';
+import {
+  CHART_SERIES,
+  METRIC_FAMILY,
+  type MetricFamily,
+} from '@/theme/palette';
 import { workbenchApi } from '../service';
 
 /**
@@ -134,13 +138,15 @@ export const WidgetCard: React.FC<{
 }) => {
   const { palette } = useAppTheme();
   const head = (
+    // 标题行固定 24 高、不折行：右侧说明太长时单行省略，同一行组件的卡片仍从同一条线开始
     <div
       style={{
         display: 'flex',
         alignItems: 'center',
         gap: 8,
-        minHeight: 24,
-        flexWrap: 'wrap',
+        height: 24,
+        minWidth: 0,
+        whiteSpace: 'nowrap',
       }}
     >
       <CardTitle>{title}</CardTitle>
@@ -152,10 +158,14 @@ export const WidgetCard: React.FC<{
       {note && (
         <span
           className="num"
+          title={typeof note === 'string' ? note : undefined}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
             fontSize: 12,
             color: palette.mute,
           }}
@@ -166,29 +176,43 @@ export const WidgetCard: React.FC<{
               style={{
                 width: 6,
                 height: 6,
+                flex: 'none',
                 borderRadius: 3,
                 background: dot,
               }}
             />
           )}
-          {note}
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {note}
+          </span>
         </span>
       )}
       {extra}
     </div>
   );
+  // 加载、出错时外框和正常时同高（规范「档位固定」）：骨架只画两行，出错用一行的空状态
   const status = error ? (
-    <EmptyState
-      kind="error"
-      description={`${error}；其他卡片不受影响`}
-      action={
-        <Button size="small" icon={<RotateCw size={14} />} onClick={onRetry}>
-          重试
-        </Button>
-      }
-    />
+    <div
+      style={{
+        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <EmptyState
+        compact
+        kind="error"
+        title={`加载失败：${error}`}
+        action={
+          <Button size="small" icon={<RotateCw size={14} />} onClick={onRetry}>
+            重试
+          </Button>
+        }
+      />
+    </div>
   ) : loading ? (
-    <Skeleton active paragraph={{ rows: 3 }} />
+    <Skeleton active title={false} paragraph={{ rows: 2 }} />
   ) : null;
   return (
     <section
@@ -243,18 +267,22 @@ export const MoreLink: React.FC<{
   </button>
 );
 
-/** 数字小块（原型 D1）：带边框的小卡，名称（可带图标；能点时后面带箭头）、数值、一行说明 */
+/**
+ * 卡内的数字小块（白卡里混排数字与列表、图表时用；整组只有数字时用浮起的 MetricCard，规范「工作台」）：
+ * 卡内凹格——中性浅底、无边框无阴影、圆角 8、内边距 16，数值 20/600；图标按指标家族着色（ui-redesign D2）。
+ */
 export const Metric: React.FC<{
   label: string;
   value: React.ReactNode;
   hint?: React.ReactNode;
   hintColor?: string;
   icon?: React.ReactNode;
-  tone?: Tone;
+  family?: MetricFamily;
   onClick?: () => void;
-}> = ({ label, value, hint, hintColor, icon, tone = 'primary', onClick }) => {
-  const { palette } = useAppTheme();
+}> = ({ label, value, hint, hintColor, icon, family = 'blue', onClick }) => {
+  const { palette, mode } = useAppTheme();
   const [hover, setHover] = useState(false);
+  const [color, soft] = METRIC_FAMILY[mode][family];
   const body = (
     <>
       <div
@@ -263,21 +291,41 @@ export const Metric: React.FC<{
           alignItems: 'center',
           gap: 8,
           fontSize: 13,
-          color: palette.sub,
+          color: palette.mute,
         }}
       >
-        {icon && <IconChip icon={icon} tone={tone} size={24} round />}
+        {icon && (
+          <span
+            aria-hidden
+            style={{
+              width: 24,
+              height: 24,
+              flex: 'none',
+              borderRadius: 6,
+              display: 'grid',
+              placeItems: 'center',
+              background: soft,
+              color,
+            }}
+          >
+            {icon}
+          </span>
+        )}
         {label}
         {onClick && (
-          <ChevronRight size={14} aria-hidden style={{ color: palette.mute }} />
+          <ChevronRight
+            size={14}
+            aria-hidden
+            style={{ color: hover ? palette.ink : palette.mute }}
+          />
         )}
       </div>
       {/* 卡片变窄时自动缩小字号，金额不溢出、不截断 */}
       <FitText
-        size={22}
+        size={20}
         min={16}
         style={{
-          fontWeight: 700,
+          fontWeight: 600,
           color: palette.ink,
           fontVariantNumeric: 'tabular-nums',
           margin: '8px 0 4px',
@@ -297,11 +345,12 @@ export const Metric: React.FC<{
     flex: '1 1 190px',
     minWidth: 0,
     padding: 16,
-    borderRadius: 10,
-    background: onClick && hover ? palette.hover : palette.card,
-    border: `1px solid ${palette.hairline}`,
+    border: 'none',
+    borderRadius: 8,
+    background: onClick && hover ? palette.hover : palette.inset,
     transition: 'background .2s',
     textAlign: 'left',
+    font: 'inherit',
   };
   return onClick ? (
     <button

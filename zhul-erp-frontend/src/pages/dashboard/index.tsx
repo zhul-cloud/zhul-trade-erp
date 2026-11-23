@@ -1,5 +1,4 @@
 import {
-  AppstoreOutlined,
   FileTextOutlined,
   MailOutlined,
   ShoppingCartOutlined,
@@ -7,7 +6,8 @@ import {
 import { history, useAccess, useModel } from '@umijs/max';
 import { Button, Segmented, Skeleton } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
-import { PageHeader } from '@/components/ListLayout';
+import { EmptyState } from '@/components/EmptyState';
+import { PageHeader, Panel } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { readBizError } from '@/pages/crm/opportunity/service';
 import { Card, useWide } from '@/pages/inquiry/shared/components';
@@ -181,57 +181,31 @@ const Dashboard: React.FC = () => {
           </BoardContext.Provider>
         </>
       ) : (
-        <Card style={{ padding: '48px 24px', textAlign: 'center' }}>
-          <span
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 14,
-              background: palette.primarySoft,
-              color: palette.link,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 22,
-            }}
-          >
-            <AppstoreOutlined />
-          </span>
-          <div
-            style={{
-              marginTop: 12,
-              fontSize: 16,
-              fontWeight: 700,
-              color: palette.ink,
-            }}
-          >
-            工作台暂时没有你的卡片
-          </div>
-          <div style={{ marginTop: 8, color: palette.mute, fontSize: 13 }}>
-            工作台按权限显示业务数据，你目前的权限还没有对应的卡片
-            {shortcuts.length > 0 ? '；可以从下面的常用入口开始。' : '。'}
-          </div>
-          {shortcuts.length > 0 && (
-            <div
-              style={{
-                display: 'flex',
-                gap: 10,
-                justifyContent: 'center',
-                marginTop: 20,
-              }}
-            >
-              {shortcuts.map((s) => (
-                <Button
-                  key={s.path}
-                  icon={s.icon}
-                  onClick={() => history.push(s.path)}
+        <Panel>
+          <EmptyState
+            title="工作台暂时没有你的卡片"
+            description={`工作台按权限显示业务数据，你目前的权限还没有对应的卡片${
+              shortcuts.length > 0 ? '；可以从下面的常用入口开始' : ''
+            }`}
+            action={
+              shortcuts.length > 0 && (
+                <div
+                  style={{ display: 'flex', gap: 10, justifyContent: 'center' }}
                 >
-                  <MenuName path={s.path} />
-                </Button>
-              ))}
-            </div>
-          )}
-        </Card>
+                  {shortcuts.map((s) => (
+                    <Button
+                      key={s.path}
+                      icon={s.icon}
+                      onClick={() => history.push(s.path)}
+                    >
+                      <MenuName path={s.path} />
+                    </Button>
+                  ))}
+                </div>
+              )
+            }
+          />
+        </Panel>
       )}
     </div>
   );

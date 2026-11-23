@@ -43,8 +43,38 @@ public class ReceivableService {
         return overview(LocalDate.now());
     }
 
+    /** 只要合计（工作台资金卡，ui-redesign D32）：与应收管理同口径，不查客户名、业务员名 */
+    public ReceivableVO.Stats totals() {
+        return collect(LocalDate.now()).getStats();
+    }
+
     ReceivableVO overview(LocalDate today) {
+        ReceivableVO vo = collect(today);
+        Set<Long> customerIds = new HashSet<>();
+        List<Long> ownerIds = new ArrayList<>();
+        vo.getRows().forEach(r -> {
+            customerIds.add(r.getCustomerId());
+            ownerIds.add(r.getOwnerId());
+        });
+        Map<Long, CustomerDO> customers = lookups.customers(customerIds);
+        Map<Long, String> users = lookups.userNames(ownerIds);
+        for (ReceivableVO.Row r : vo.getRows()) {
+            CustomerDO c = customers.get(r.getCustomerId());
+            r.setCustomerName(InquiryLookups.customerName(c));
+            r.setCustomerContact(InquiryLookups.contactName(c));
+            r.setCustomerCountry(c == null ? null : c.getCountry());
+            r.setOwnerName(users.get(r.getOwnerId()));
+        }
+        return vo;
+    }
+
+    /** 未收齐的有效订单与合计（只取计算要用的列） */
+    private ReceivableVO collect(LocalDate today) {
         LambdaQueryWrapper<SalesOrderDO> w = new LambdaQueryWrapper<SalesOrderDO>()
+                .select(SalesOrderDO::getId, SalesOrderDO::getSoNo, SalesOrderDO::getPiId, SalesOrderDO::getSalesDate,
+                        SalesOrderDO::getCustomerId, SalesOrderDO::getOwnerId, SalesOrderDO::getCurrencyCode,
+                        SalesOrderDO::getExchangeRate, SalesOrderDO::getTotalAmount, SalesOrderDO::getReceivedAmount,
+                        SalesOrderDO::getFeeDiffAmount, SalesOrderDO::getReceiptStatus, SalesOrderDO::getPaymentDueDate)
                 .eq(SalesOrderDO::getTenantId, PiStore.tenantId())
                 .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
                 .ne(SalesOrderDO::getSource, SalesConstants.SO_REPLACEMENT)
@@ -53,7 +83,11 @@ public class ReceivableService {
         List<SalesOrderDO> orders = orderMapper.selectList(w);
         // 从形式发票转来的订单收款记在 PI 上（与订单详情、收款单同口径）
         List<Long> piIds = orders.stream().map(SalesOrderDO::getPiId).filter(id -> id != null && id > 0).distinct().toList();
-        Map<Long, ProformaInvoiceDO> pis = piIds.isEmpty() ? Map.of() : piMapper.selectBatchIds(piIds).stream()
+        Map<Long, ProformaInvoiceDO> pis = piIds.isEmpty() ? Map.of() : piMapper.selectList(
+                        new LambdaQueryWrapper<ProformaInvoiceDO>()
+                                .select(ProformaInvoiceDO::getId, ProformaInvoiceDO::getPiNo, ProformaInvoiceDO::getReceiptStatus,
+                                        ProformaInvoiceDO::getReceivedAmount, ProformaInvoiceDO::getFeeDiffAmount)
+                                .in(ProformaInvoiceDO::getId, piIds)).stream()
                 .collect(Collectors.toMap(ProformaInvoiceDO::getId, Function.identity()));
 
         ReceivableVO vo = new ReceivableVO();
@@ -111,23 +145,8 @@ public class ReceivableService {
         }
         vo.getRows().sort(Comparator.comparing(ReceivableVO.Row::getDueDate, Comparator.nullsLast(Comparator.naturalOrder()))
                 .thenComparing(ReceivableVO.Row::getSoNo, Comparator.nullsLast(Comparator.naturalOrder())));
-        Set<Long> customerIds = new HashSet<>();
-        List<Long> ownerIds = new ArrayList<>();
-        vo.getRows().forEach(r -> {
-            customerIds.add(r.getCustomerId());
-            ownerIds.add(r.getOwnerId());
-        });
         vo.getStats().setOrders(vo.getRows().size());
-        vo.getStats().setCustomers(customerIds.size());
-        Map<Long, CustomerDO> customers = lookups.customers(customerIds);
-        Map<Long, String> users = lookups.userNames(ownerIds);
-        for (ReceivableVO.Row r : vo.getRows()) {
-            CustomerDO c = customers.get(r.getCustomerId());
-            r.setCustomerName(InquiryLookups.customerName(c));
-            r.setCustomerContact(InquiryLookups.contactName(c));
-            r.setCustomerCountry(c == null ? null : c.getCountry());
-            r.setOwnerName(users.get(r.getOwnerId()));
-        }
+        vo.getStats().setCustomers((int) vo.getRows().stream().map(ReceivableVO.Row::getCustomerId).distinct().count());
         return vo;
     }
 
