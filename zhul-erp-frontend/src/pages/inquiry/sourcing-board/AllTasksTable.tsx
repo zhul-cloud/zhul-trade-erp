@@ -180,7 +180,6 @@ const AllTasksTable: React.FC<{
       ) : (
         <Table<BoardHistoryRow>
           rowKey="id"
-          size="middle"
           loading={loading}
           columns={columns}
           dataSource={rows}

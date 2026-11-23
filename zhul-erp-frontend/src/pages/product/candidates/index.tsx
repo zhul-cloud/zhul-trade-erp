@@ -14,6 +14,7 @@ import {
   Drawer,
   Input,
   Modal,
+  Popover,
   Radio,
   Select,
   Skeleton,
@@ -191,48 +192,160 @@ const SOURCE_TONE: Record<number, 'green' | 'accent' | 'violet' | 'gray'> = {
   4: 'green',
 };
 
-/** 列表里的来源：类型 + 询盘号 / 订单号，最近 3 条 */
+type Source = NonNullable<Candidate['sources']>[number];
+
+/** 一条来源：类型（文字，按类型着色）+ 询盘号 / 订单号 */
+const SourceLine: React.FC<{ s: Source }> = ({ s }) => {
+  const { palette } = useAppTheme();
+  const color = {
+    green: palette.green,
+    violet: palette.info,
+    accent: palette.link,
+    gray: palette.sub,
+  }[SOURCE_TONE[s.sourceType] ?? 'gray'];
+  return (
+    <span style={{ whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: 12, fontWeight: 600, color }}>
+        {s.sourceTypeName}
+      </span>{' '}
+      {s.soId ? (
+        <Link
+          to={`/sales/orders/${s.soId}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {s.soNo}
+        </Link>
+      ) : s.customerInquiryId ? (
+        <Link
+          to={`/inquiry/customer-inquiries/${s.customerInquiryId}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {s.inquiryCode}
+        </Link>
+      ) : null}
+    </span>
+  );
+};
+
+/**
+ * 列表里的来源（两行，2026-11-24 用户选定方案 B，D21 行高）：第一行最新一条，
+ * 第二行「等 N 条来源」悬停列出最近几条与其余条数、其他公司次数；只有其他公司的来源时第二行写次数
+ */
 const SourceCell: React.FC<{ c: Candidate }> = ({ c }) => {
   const { palette } = useAppTheme();
   const list = c.sources ?? [];
   if (!list.length && !c.otherSourceCount) {
     return <span style={{ color: palette.mute }}>—</span>;
   }
-  const more = (c.mineSourceCount ?? list.length) - list.length;
+  const mine = c.mineSourceCount ?? list.length;
+  const more = mine - list.length;
+  const total = mine + (c.otherSourceCount ?? 0);
+  const tail = [
+    more > 0 ? `还有 ${more} 条` : '',
+    c.otherSourceCount ? `其他公司 ${c.otherSourceCount} 次` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
   return (
-    <div style={{ display: 'grid', gap: 3, fontSize: 12 }}>
-      {list.map((s, i) => (
-        <span
-          // biome-ignore lint/suspicious/noArrayIndexKey: 来源没有对外的 id
-          key={i}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+    <div style={{ minWidth: 0 }}>
+      <div
+        style={{
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {list[0] ? (
+          <SourceLine s={list[0]} />
+        ) : (
+          <span style={{ color: palette.mute }}>本公司无</span>
+        )}
+      </div>
+      {total > 1 && (
+        <Popover
+          title={`来源（${total}）`}
+          content={
+            <div style={{ display: 'grid', gap: 6 }}>
+              {list.map((s, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: 来源没有对外的 id
+                <SourceLine key={i} s={s} />
+              ))}
+              {tail && (
+                <span style={{ fontSize: 12, color: palette.mute }}>
+                  {tail}
+                </span>
+              )}
+            </div>
+          }
         >
-          <Pill tone={SOURCE_TONE[s.sourceType] ?? 'gray'}>
-            {s.sourceTypeName}
-          </Pill>
-          {s.soId ? (
-            <Link
-              to={`/sales/orders/${s.soId}`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {s.soNo}
-            </Link>
-          ) : s.customerInquiryId ? (
-            <Link
-              to={`/inquiry/customer-inquiries/${s.customerInquiryId}`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {s.inquiryCode}
-            </Link>
-          ) : null}
-        </span>
-      ))}
-      {(more > 0 || !!c.otherSourceCount) && (
-        <span style={{ color: palette.mute }}>
-          {more > 0 ? `还有 ${more} 条` : ''}
-          {more > 0 && c.otherSourceCount ? ' · ' : ''}
-          {c.otherSourceCount ? `其他公司 ${c.otherSourceCount} 次` : ''}
-        </span>
+          <div
+            style={{
+              fontSize: 12,
+              lineHeight: '18px',
+              color: palette.mute,
+              cursor: 'default',
+              width: 'fit-content',
+            }}
+          >
+            等 {total} 条来源
+          </div>
+        </Popover>
+      )}
+    </div>
+  );
+};
+
+/** 被单据引用：显示最要紧的一类（越往后的单据越要紧），其余「等 N 类」悬停看全部 */
+const REF_PRIORITY = ['销售订单', 'PI', '报价', '采购订单', '询盘型号'];
+const RefCell: React.FC<{ c: Candidate }> = ({ c }) => {
+  const { palette } = useAppTheme();
+  const entries = Object.entries(c.references ?? {});
+  if (!entries.length) return <span style={{ color: palette.mute }}>—</span>;
+  const lead =
+    REF_PRIORITY.map((k) => entries.find(([t]) => t === k)).find(Boolean) ??
+    entries[0];
+  const head = (
+    <span style={{ color: palette.ink, whiteSpace: 'nowrap' }}>
+      {lead[0]} {lead[1]}
+      {entries.length > 1 && (
+        <span style={{ color: palette.sub }}> 等 {entries.length} 类</span>
+      )}
+    </span>
+  );
+  return (
+    <div style={{ minWidth: 0 }}>
+      {entries.length > 1 ? (
+        <Popover
+          title={`被单据引用（${entries.length} 类）`}
+          content={
+            <div style={{ display: 'grid', gap: 4, fontSize: 12 }}>
+              {entries.map(([t, n]) => (
+                <div
+                  key={t}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    gap: 24,
+                  }}
+                >
+                  <span style={{ color: palette.sub }}>{t}</span>
+                  <span style={{ color: palette.ink }}>{n}</span>
+                </div>
+              ))}
+            </div>
+          }
+        >
+          {head}
+        </Popover>
+      ) : (
+        head
+      )}
+      {c.usedByOrders && (
+        <div
+          style={{ fontSize: 12, lineHeight: '18px', color: palette.orange }}
+        >
+          已成交，不能驳回
+        </div>
       )}
     </div>
   );
@@ -1367,11 +1480,22 @@ const Candidates: React.FC = () => {
 
   const brandCell = (c: Candidate) =>
     c.brandId ? (
-      <div>
-        <b style={{ color: palette.ink }}>
-          {c.brandName} · {c.mpnRaw}
-        </b>
-        <div style={{ fontSize: 12, color: palette.mute }}>
+      // 两行都单行省略、悬停看全文，长型号不折行撑高（D21）
+      <div style={{ minWidth: 0 }}>
+        <EllipsisText
+          text={`${c.brandName} · ${c.mpnRaw}`}
+          style={{ color: palette.ink, fontWeight: 600 }}
+        />
+        <div
+          style={{
+            fontSize: 12,
+            lineHeight: '18px',
+            color: palette.mute,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
           {c.aiBrand === 1 && (
             <>
               <AiTag /> {c.brandText ? `原文「${c.brandText}」 ` : ''}
@@ -1396,11 +1520,21 @@ const Candidates: React.FC = () => {
         </div>
       </div>
     ) : (
-      <div>
-        <b style={{ color: palette.orange }}>
-          待确认品牌：{c.brandText || '（空）'} · {c.mpnRaw}
-        </b>
-        <div style={{ fontSize: 12, color: palette.mute }}>
+      <div style={{ minWidth: 0 }}>
+        <EllipsisText
+          text={`待确认品牌：${c.brandText || '（空）'} · ${c.mpnRaw}`}
+          style={{ color: palette.orange, fontWeight: 600 }}
+        />
+        <div
+          style={{
+            fontSize: 12,
+            lineHeight: '18px',
+            color: palette.mute,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
           {c.aiBrand === 2 && c.aiBrandName ? (
             <AiTag text={`AI 未识别：${c.aiBrandName}`} />
           ) : (
@@ -1466,21 +1600,7 @@ const Candidates: React.FC = () => {
             title: '被单据引用',
             key: 'refs',
             width: 190,
-            render: (_: unknown, c: Candidate) =>
-              refText(c.references) ? (
-                <div style={{ fontSize: 12 }}>
-                  <div style={{ color: palette.ink }}>
-                    {refText(c.references)}
-                  </div>
-                  {c.usedByOrders && (
-                    <div style={{ color: palette.orange }}>
-                      已成交，不能驳回
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <span style={{ color: palette.mute }}>—</span>
-              ),
+            render: (_: unknown, c: Candidate) => <RefCell c={c} />,
           },
         ]
       : [

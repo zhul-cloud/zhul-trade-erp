@@ -284,7 +284,6 @@ const CoverageModelsPage: React.FC = () => {
       <Card style={{ overflow: 'hidden' }}>
         <Table<Demand>
           rowKey="id"
-          size="middle"
           loading={loading}
           columns={columns}
           dataSource={rows}

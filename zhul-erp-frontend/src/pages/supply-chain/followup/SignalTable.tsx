@@ -143,7 +143,6 @@ export const SignalTable: React.FC<{
   return (
     <Table<Signal>
       rowKey="id"
-      size="middle"
       loading={loading}
       columns={columns}
       dataSource={rows}

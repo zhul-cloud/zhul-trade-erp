@@ -341,7 +341,6 @@ const WarehousesPage: React.FC = () => {
         <MainCard left={list ? `共 ${rows.length} 条` : undefined}>
           <Table<InvWarehouse>
             rowKey="id"
-            size="middle"
             loading={!list}
             columns={columns}
             dataSource={rows}

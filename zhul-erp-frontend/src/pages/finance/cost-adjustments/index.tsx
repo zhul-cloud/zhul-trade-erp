@@ -325,7 +325,6 @@ const CostAdjustmentsPage: React.FC = () => {
         >
           <Table<CostAdjust>
             rowKey="id"
-            size="middle"
             loading={loading}
             columns={columns}
             dataSource={rows}

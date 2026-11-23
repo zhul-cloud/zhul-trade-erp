@@ -126,7 +126,6 @@ export const CategoryLedgerTable: React.FC<{
   return (
     <Table<CategoryLedgerRow>
       rowKey={(r) => String(r.categoryId)}
-      size="middle"
       loading={loading}
       columns={columns}
       dataSource={data?.rows ?? []}

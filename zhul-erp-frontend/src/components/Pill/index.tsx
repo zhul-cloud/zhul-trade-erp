@@ -42,6 +42,8 @@ export const Pill: React.FC<{
       title={title}
       style={{
         display: 'inline-flex',
+        // 顶对齐：按基线对齐时行盒会比 24 再高出几像素，「标签 + 一行小字」的单元格就超出两行行高（D21）
+        verticalAlign: 'top',
         alignItems: 'center',
         gap: 4,
         height: 24,

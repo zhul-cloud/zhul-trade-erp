@@ -310,7 +310,6 @@ const MovesPage: React.FC = () => {
         >
           <Table<InvMove>
             rowKey="id"
-            size="middle"
             loading={loading}
             columns={columns}
             dataSource={rows}

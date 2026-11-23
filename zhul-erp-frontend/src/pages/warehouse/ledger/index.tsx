@@ -396,7 +396,6 @@ const LedgerPage: React.FC = () => {
           ) : (
             <Table<LedgerRow>
               rowKey={(r) => r.productId}
-              size="middle"
               loading={loading}
               columns={columns}
               dataSource={rows}

@@ -177,7 +177,6 @@ const PeriodsPage: React.FC = () => {
         <MainCard count={rows.length} loading={loading}>
           <Table<Period>
             rowKey="month"
-            size="middle"
             loading={loading}
             columns={columns}
             dataSource={rows}

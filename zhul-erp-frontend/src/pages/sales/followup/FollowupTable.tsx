@@ -1415,7 +1415,6 @@ export const FollowupTable: React.FC<{
       )}
       <Table<Row>
         rowKey="_key"
-        size="middle"
         columns={cols}
         dataSource={rows}
         loading={loading && rows.length === 0}

@@ -334,7 +334,6 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
       <MainCard count={total} loading={loading}>
         <Table<RefundRequest>
           rowKey="id"
-          size="middle"
           loading={loading}
           columns={columns}
           dataSource={rows}

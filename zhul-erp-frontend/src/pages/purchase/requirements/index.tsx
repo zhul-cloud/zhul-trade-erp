@@ -14,13 +14,21 @@ import {
   Input,
   InputNumber,
   Modal,
+  Popover,
   Radio,
   Segmented,
   Select,
   Skeleton,
   Table,
 } from 'antd';
-import { Search, Split, Store, Trash2, UserRoundPlus } from 'lucide-react';
+import {
+  Clock,
+  Search,
+  Split,
+  Store,
+  Trash2,
+  UserRoundPlus,
+} from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -29,8 +37,8 @@ import React, {
   useState,
 } from 'react';
 import { CustomerCell } from '@/components/DocFields';
-import { DocDescription } from '@/components/DocFields/DocModelCell';
-import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
+import { DescRemarkCell } from '@/components/DocFields/ItemRemark';
+import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import {
   FilterCard,
   FilterField,
@@ -215,31 +223,77 @@ const RequirementList: React.FC = () => {
       return next;
     });
 
-  const statusCell = (r: Requirement) => (
-    <div>
-      <ReqStatusPill status={r.status} name={r.statusName} />
-      {!!r.removedQty && (
-        <div style={{ fontSize: 12, color: palette.mute }}>
-          删除 {r.removedQty}
-          {r.removeReason ? ` · ${r.removeReason}` : ''}
-        </div>
+  /** 一张采购订单：单号，或草稿的「去下单 → 供应商」 */
+  const poLink = (p: Requirement['purchaseOrders'][number]) => (
+    <React.Fragment key={p.id}>
+      <button
+        type="button"
+        className={p.poNo ? 'zhul-link' : 'zhul-link zhul-link-action'}
+        style={{ verticalAlign: 'top' }}
+        onClick={() => history.push(PATHS.order(p.id))}
+      >
+        {p.poNo ?? '去下单 →'}
+      </button>
+      {!p.poNo && (
+        <span style={{ color: palette.mute }} title={p.supplierName}>
+          {' '}
+          {p.supplierName}
+        </span>
       )}
-      {r.purchaseOrders.map((p) => (
-        <div key={p.id} style={{ fontSize: 12 }}>
-          <button
-            type="button"
-            className={p.poNo ? 'zhul-link' : 'zhul-link zhul-link-action'}
-            onClick={() => history.push(PATHS.order(p.id))}
-          >
-            {p.poNo ?? '去下单 →'}
-          </button>
-          {!p.poNo && (
-            <span style={{ color: palette.mute }}> {p.supplierName}</span>
-          )}
-        </div>
-      ))}
-    </div>
+    </React.Fragment>
   );
+
+  // 两行（D21）：状态标签，下面一行第一张采购订单，多张时「等 N 张」悬停看全部；删除数量接在后面；
+  // 第二行单行省略，供应商名再长也不折行
+  const statusCell = (r: Requirement) => {
+    const [first, ...rest] = r.purchaseOrders;
+    const removed = r.removedQty
+      ? `删除 ${r.removedQty}${r.removeReason ? ` · ${r.removeReason}` : ''}`
+      : undefined;
+    return (
+      <div style={{ minWidth: 0 }}>
+        <div style={{ display: 'flex' }}>
+          <ReqStatusPill status={r.status} name={r.statusName} />
+        </div>
+        {(first || removed) && (
+          <div
+            style={{
+              fontSize: 12,
+              lineHeight: '18px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {first && poLink(first)}
+            {rest.length > 0 && (
+              <Popover
+                title={`采购订单（${r.purchaseOrders.length}）`}
+                content={
+                  <div style={{ display: 'grid', gap: 4, fontSize: 12 }}>
+                    {r.purchaseOrders.map((p) => (
+                      <div key={p.id}>{poLink(p)}</div>
+                    ))}
+                  </div>
+                }
+              >
+                <span style={{ color: palette.sub, cursor: 'default' }}>
+                  {' '}
+                  等 {r.purchaseOrders.length} 张
+                </span>
+              </Popover>
+            )}
+            {removed && (
+              <span style={{ color: palette.mute }} title={removed}>
+                {first ? ' · ' : ''}
+                {removed}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // 超时的行：首格左侧红色色条，原因看单号旁的「已超时」标签，不再整行铺粉底（ui-redesign D7、S5）
   const overdueRow = (r: Requirement) =>
@@ -250,21 +304,34 @@ const RequirementList: React.FC = () => {
       title: '型号 · 品牌 · 品类',
       dataIndex: 'model',
       width: 230,
+      // 两行（2026-11-24 用户选定方案 C）：型号＋超时（红色文字，不用标签），品牌 · 品类；备注挪到描述列
       render: (v: string, r) => (
-        <div>
-          <b>{v}</b>
-          {r.overdueHours != null && (
-            <span style={{ marginLeft: 6 }}>
-              <Pill tone="red">
-                <ClockCircleOutlined /> {overdueText(r.overdueHours)}
-              </Pill>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ minWidth: 0, fontWeight: 600 }}>
+              <EllipsisText text={v} />
             </span>
-          )}
-          {sub(
-            palette.mute,
-            [r.brand, r.category].filter(Boolean).join(' · ') || '—',
-          )}
-          <ItemRemarkText text={r.itemRemark} />
+            {r.overdueHours != null && (
+              <span
+                style={{
+                  flex: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: palette.red,
+                }}
+              >
+                <Clock size={12} aria-hidden />
+                {overdueText(r.overdueHours)}
+              </span>
+            )}
+          </div>
+          <EllipsisText
+            text={[r.brand, r.category].filter(Boolean).join(' · ') || '—'}
+            style={{ fontSize: 12, lineHeight: '18px', color: palette.mute }}
+          />
         </div>
       ),
     },
@@ -272,7 +339,9 @@ const RequirementList: React.FC = () => {
       title: '描述',
       key: 'description',
       width: 240,
-      render: (_, r) => <DocDescription text={r.description} />,
+      render: (_, r) => (
+        <DescRemarkCell description={r.description} remark={r.itemRemark} />
+      ),
     },
     {
       title: '数量',
@@ -323,7 +392,11 @@ const RequirementList: React.FC = () => {
       dataIndex: 'purchaserName',
       width: 90,
       render: (v?: string) =>
-        v ?? <span style={{ color: palette.orange }}>未指定</span>,
+        v ? (
+          ellipsisRender(v)
+        ) : (
+          <span style={{ color: palette.orange }}>未指定</span>
+        ),
     },
     {
       title: '状态',
@@ -767,7 +840,6 @@ const RequirementList: React.FC = () => {
                     <div style={{ padding: '0 12px 12px' }}>
                       <Table<Requirement>
                         rowKey="id"
-                        size="middle"
                         columns={lineColumns}
                         dataSource={o.lines}
                         pagination={false}

@@ -10,6 +10,7 @@ import {
 import { Skeleton } from 'antd';
 import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
+import EllipsisText from '@/components/EllipsisText';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
@@ -155,38 +156,44 @@ export const DueText: React.FC<{ date?: string; prefix?: boolean }> = ({
   return <span style={{ color: palette.mute }}>{md}</span>;
 };
 
-/** 下一步行动 + 日期（两行） */
+/**
+ * 下一步行动 + 日期（两行，2026-11-24 用户选定方案 B）：行动单行省略、悬停看全文，再长也不折行撑高（D21）；
+ * 系统生成的行动在第二行日期前写「系统 ·」，不挤正文
+ */
 export const NextCell: React.FC<{ d: Demand }> = ({ d }) => {
   const { palette } = useAppTheme();
+  const second: React.CSSProperties = {
+    fontSize: 12,
+    lineHeight: '18px',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  };
   if (d.sourcingTask && !d.nextAction)
     return (
-      <div style={{ display: 'grid', gap: 2 }}>
-        <span>等询价任务 {d.sourcingTask} 回价</span>
-        <span style={{ fontSize: 12, color: palette.mute }}>
-          回价后自动登记
-        </span>
+      <div style={{ minWidth: 0 }}>
+        <EllipsisText text={`等询价任务 ${d.sourcingTask} 回价`} />
+        <div style={{ ...second, color: palette.mute }}>回价后自动登记</div>
       </div>
     );
   if (!d.nextAction)
     return (
-      <div style={{ display: 'grid', gap: 2 }}>
+      <div style={{ minWidth: 0 }}>
         <span style={{ color: palette.mute }}>—</span>
-        <span style={{ fontSize: 12 }}>
+        <div style={second}>
           <DueText />
-        </span>
+        </div>
       </div>
     );
   return (
-    <div style={{ display: 'grid', gap: 2 }}>
-      <span>
-        {d.nextAction}
+    <div style={{ minWidth: 0 }}>
+      <EllipsisText text={d.nextAction} />
+      <div style={second}>
         {d.nextActionSource === 2 && (
-          <span style={{ color: palette.mute }}>（系统）</span>
+          <span style={{ color: palette.mute }}>系统 · </span>
         )}
-      </span>
-      <span style={{ fontSize: 12 }}>
         <DueText date={d.nextActionDate} prefix />
-      </span>
+      </div>
     </div>
   );
 };

@@ -286,7 +286,6 @@ const OtherOutboundsPage: React.FC = () => {
         <MainCard count={total} loading={loading}>
           <Table<OtherOutbound>
             rowKey="id"
-            size="middle"
             loading={loading}
             columns={columns}
             dataSource={rows}

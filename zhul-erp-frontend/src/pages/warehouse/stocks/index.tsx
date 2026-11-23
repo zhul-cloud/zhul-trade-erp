@@ -450,7 +450,6 @@ const StocksPage: React.FC = () => {
         >
           <Table<StockRow>
             rowKey={rowKey}
-            size="middle"
             loading={loading}
             columns={columns}
             dataSource={rows}
