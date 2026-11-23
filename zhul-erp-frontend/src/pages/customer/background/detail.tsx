@@ -9,6 +9,7 @@ import '@ant-design/x-markdown/es/XMarkdown/index.css';
 import { App, Button, Dropdown, Skeleton } from 'antd';
 import { Download, Ellipsis, Paperclip, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { PageHeader } from '@/components/ListLayout';
 import {
   useOnReactivate,
@@ -75,7 +76,8 @@ const BackgroundReportPage: React.FC = () => {
   const { id, reportId } = useParams<{ id: string; reportId: string }>();
   const customerId = Number(id);
   const access = useAccess() as Record<string, boolean>;
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { palette } = useAppTheme();
   const [report, setReport] = useState<BackgroundReportDetail | null>();
   usePageTitle(
@@ -142,12 +144,10 @@ const BackgroundReportPage: React.FC = () => {
       .catch((e) => message.error(readBizError(e).message));
 
   const remove = (r: BackgroundReportDetail) =>
-    modal.confirm({
+    confirmDanger({
       title: `删除报告 ${r.reportNo}？`,
       content:
         '删除后报告不再显示；已经采纳进档案的字段保留，来源显示「背调 编号（已删除）」。',
-      okText: '删除',
-      okButtonProps: { danger: true },
       onOk: () =>
         backgroundApi
           .remove(customerId, r.id)

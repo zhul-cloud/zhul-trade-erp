@@ -11,6 +11,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { formatAmount } from '@/utils/format';
 import { EmptyHint } from '../../components/EmptyHint';
 import { CURRENCY_OPTIONS } from '../../constants';
@@ -37,7 +38,8 @@ export const PriceCard: React.FC<{
   done?: boolean;
   onChanged: () => void;
 }> = ({ productId, readOnly, done, onChanged }) => {
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { palette } = useProductTheme();
   const [form] = Form.useForm<ReferencePrice & { date?: dayjs.Dayjs | null }>();
   const [price, setPrice] = useState<ReferencePrice>();
@@ -116,12 +118,10 @@ export const PriceCard: React.FC<{
   );
 
   const clear = () =>
-    modal.confirm({
+    confirmDanger({
       title: '清除参考价？',
       content: '清除后商品回到"未维护参考价"，之后可以重新填写。',
       okText: '清除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
       onOk: async () => {
         await priceApi.clear(productId);
         message.success('已清除');

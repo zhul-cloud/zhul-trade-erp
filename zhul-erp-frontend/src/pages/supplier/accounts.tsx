@@ -1,6 +1,7 @@
 import { BankOutlined, PlusOutlined, UserOutlined } from '@ant-design/icons';
-import { App, Button, Checkbox, Form, Input, Modal, Segmented } from 'antd';
+import { Button, Checkbox, Form, Input, Modal, Segmented } from 'antd';
 import React, { useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
   ACCOUNT_CORPORATE,
@@ -363,7 +364,7 @@ export const AccountListEditor: React.FC<{
   supplierName: string;
 }> = ({ value = [], onChange, supplierName }) => {
   const { palette } = useAppTheme();
-  const { modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const [editing, setEditing] = useState<AccountRow | null>(null);
   const [adding, setAdding] = useState(false);
 
@@ -403,14 +404,11 @@ export const AccountListEditor: React.FC<{
   };
 
   const remove = (row: AccountRow) =>
-    modal.confirm({
+    confirmDanger({
       title: `删除账户「${row.accountName}」？`,
       content: row.defaultAccount
         ? '这是默认收款账户，删除后第一个账户会成为默认。保存供应商后生效。'
         : '保存供应商后生效。',
-      okText: '删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
       onOk: () => commit(value.filter((r) => r.key !== row.key)),
     });
 

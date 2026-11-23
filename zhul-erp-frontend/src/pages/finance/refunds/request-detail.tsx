@@ -4,6 +4,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Skeleton, Table, Tooltip } from 'antd';
 import { Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import DocModelCell, {
   docBrandColumns,
 } from '@/components/DocFields/DocModelCell';
@@ -45,6 +46,7 @@ import {
 const RefundRequestDetail: React.FC = () => {
   const id = Number(useParams<{ id: string }>().id);
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { palette } = useAppTheme();
   const access = useAccess() as Record<string, boolean>;
   const wide = useWide();
@@ -319,11 +321,10 @@ const RefundRequestDetail: React.FC = () => {
                   },
               ]}
               onClick={() =>
-                modal.confirm({
+                confirmDanger({
                   title: `撤回 ${q.requestNo}？`,
                   content: '撤回后申请结束，需要时可以重新提出。',
                   okText: '撤回',
-                  okButtonProps: { danger: true },
                   onOk: async () => {
                     try {
                       await refundRequestApi.withdraw(q.id);

@@ -11,6 +11,7 @@ import { useAccess } from '@umijs/max';
 import { App, Button, Input, Select } from 'antd';
 import { Ban, CircleCheck, Pencil, Search, Trash2 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -30,6 +31,7 @@ import { ProductThemeProvider } from '../theme';
 const SeriesPage: React.FC = () => {
   const pager = usePagination(20);
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess();
   const actionRef = useRef<ActionType>(undefined);
   const [editing, setEditing] = useState<Series | null>(null);
@@ -60,12 +62,9 @@ const SeriesPage: React.FC = () => {
   };
 
   const remove = (row: Series) => {
-    modal.confirm({
+    confirmDanger({
       title: `删除「${row.seriesName}」？`,
       content: '删除后系列不再出现在列表中，该品牌下同名系列也不能重新创建。',
-      okText: '删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
       onOk: async () => {
         await seriesApi.remove(row.id);
         message.success('已删除');

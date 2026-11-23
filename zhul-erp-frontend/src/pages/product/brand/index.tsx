@@ -13,6 +13,7 @@ import { useAccess } from '@umijs/max';
 import { App, Button, Input, Select, Space, Tabs, Tooltip } from 'antd';
 import { Ban, CircleCheck, Pencil, Search, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
@@ -85,6 +86,7 @@ const LevelPill: React.FC<{ level?: number }> = ({ level }) =>
 const BrandPage: React.FC = () => {
   const pager = usePagination(20);
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess();
   const actionRef = useRef<ActionType>(undefined);
   const [editing, setEditing] = useState<Brand | null>(null);
@@ -159,13 +161,10 @@ const BrandPage: React.FC = () => {
   };
 
   const remove = (row: Brand) => {
-    modal.confirm({
+    confirmDanger({
       title: `删除「${row.brandName}」？`,
       content:
         '删除后品牌不再出现在列表中，同名品牌也不能重新创建。这个操作不能在页面上撤销。',
-      okText: '删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
       onOk: async () => {
         try {
           await brandApi.remove(row.id);

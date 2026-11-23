@@ -382,10 +382,8 @@ const RolePage: React.FC = () => {
       });
       return;
     }
-    modal.confirm({
-      title: '确认删除',
-      content: `确认删除角色「${record.name}」？`,
-      okButtonProps: { danger: true },
+    confirmDanger({
+      title: `删除角色「${record.name}」？`,
       onOk: () => doDelete(record.id),
     });
   };

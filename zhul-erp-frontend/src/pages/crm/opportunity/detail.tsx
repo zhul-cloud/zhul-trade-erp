@@ -13,6 +13,7 @@ import { history, useAccess, useParams } from '@umijs/max';
 import { Alert, App, Button, Dropdown, Skeleton } from 'antd';
 import { Ellipsis, FilePlus, Pencil, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle } from '@/components/PageTabs/hooks';
 import { StatusPill } from '@/pages/inquiry/shared/components';
@@ -50,6 +51,7 @@ const OpportunityDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess() as Record<string, boolean>;
   const canEdit = !!access['crm:opportunity:edit'];
   const canRecord = !!access['crm:followup:record'];
@@ -181,7 +183,7 @@ const OpportunityDetailPage: React.FC = () => {
       });
       return;
     }
-    modal.confirm({
+    confirmDanger({
       title: '删除这条商机？',
       content: (
         <>
@@ -191,8 +193,6 @@ const OpportunityDetailPage: React.FC = () => {
           删除后商机从列表和统计里消失，客户档案保留；可以联系管理员恢复。只是不再跟进的话，建议用「结束商机」标为流失或无效，记录会保留在统计里。
         </>
       ),
-      okText: '删除',
-      okButtonProps: { danger: true },
       cancelText: '再想想',
       onOk: async () => {
         try {

@@ -20,6 +20,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
@@ -136,6 +137,7 @@ const StatementDrawer: React.FC<{
 }> = ({ id, canEdit, onClose, onChanged }) => {
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const [st, setSt] = useState<Statement>();
   const [error, setError] = useState<string>();
   const [edits, setEdits] = useState<
@@ -468,11 +470,9 @@ const StatementDrawer: React.FC<{
                 danger
                 type="text"
                 onClick={() =>
-                  modal.confirm({
+                  confirmDanger({
                     title: '删除这张草稿？',
                     content: '出运单回到「未对账」，可以重新建运费账单。',
-                    okText: '删除',
-                    okButtonProps: { danger: true },
                     onOk: async () => {
                       try {
                         await statementApi.remove(st.id);

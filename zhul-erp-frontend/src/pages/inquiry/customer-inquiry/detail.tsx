@@ -20,6 +20,7 @@ import {
 } from 'antd';
 import { CircleX, Ellipsis, Pencil, Plus, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { ActualModelLine } from '@/components/DocFields/ActualModel';
 import DocModelCell, { productHref } from '@/components/DocFields/DocModelCell';
 import { ItemRemarkLine } from '@/components/DocFields/ItemRemark';
@@ -108,6 +109,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
   const inquiryId = Number(id);
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const [detail, setDetail] = useState<InquiryDetail | null>(null);
   usePageTitle(
     detail ? `询盘单 ${detail.inquiry.inquiryCode}` : undefined,
@@ -237,7 +239,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
       });
       return;
     }
-    modal.confirm({
+    confirmDanger({
       title: '删除这条询盘？',
       content: (
         <>
@@ -247,8 +249,6 @@ const CustomerInquiryDetailPage: React.FC = () => {
           删除后询盘从列表里消失，询价任务一并删除；可以联系管理员恢复。只是不打算跟进了，建议用「取消询盘」，记录会保留在统计里。
         </>
       ),
-      okText: '删除',
-      okButtonProps: { danger: true },
       cancelText: '再想想',
       onOk: () =>
         run(
@@ -632,12 +632,11 @@ const CustomerInquiryDetailPage: React.FC = () => {
                   onClick: ({ key }) =>
                     key === 'delete'
                       ? askDelete()
-                      : modal.confirm({
+                      : confirmDanger({
                           title: '取消这条询盘？',
                           content:
                             '还没回价的询价任务会一并取消，从采购的待办里消失；已问到的价格仍保留在询价记录里。',
                           okText: '取消询盘',
-                          okButtonProps: { danger: true },
                           cancelText: '再想想',
                           onOk: () =>
                             run(

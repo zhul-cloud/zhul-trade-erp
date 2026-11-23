@@ -13,6 +13,7 @@ import {
   Table,
 } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { EmptyHint } from '../../components/EmptyHint';
 import { Pill } from '../../components/Pills';
@@ -156,7 +157,8 @@ export const RelationCard: React.FC<{
   done?: boolean;
   onChanged: () => void;
 }> = ({ productId, readOnly, done, onChanged }) => {
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { palette } = useProductTheme();
   const [items, setItems] = useState<Relationship[]>([]);
   const [error, setError] = useState<string>();
@@ -185,12 +187,9 @@ export const RelationCard: React.FC<{
   };
 
   const remove = (r: Relationship) =>
-    modal.confirm({
+    confirmDanger({
       title: `删除与 ${r.relatedMpn} 的关系？`,
       content: '只删除这一条；如果之前同时创建了反向关系，它会保留。',
-      okText: '删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
       onOk: async () => {
         await relationshipApi.remove(productId, r.id);
         message.success('已删除');

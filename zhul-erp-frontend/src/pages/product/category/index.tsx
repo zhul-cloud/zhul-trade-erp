@@ -20,6 +20,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import React, { useRef, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import EllipsisText from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -51,6 +52,7 @@ const TWO_LINES: React.CSSProperties = {
 const CategoryPage: React.FC = () => {
   const pager = usePagination(20);
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess();
   const actionRef = useRef<ActionType>(undefined);
   const [editing, setEditing] = useState<Category | null>(null);
@@ -87,14 +89,11 @@ const CategoryPage: React.FC = () => {
   };
 
   const remove = (row: Category) => {
-    modal.confirm({
+    confirmDanger({
       title: `删除「${row.categoryName}」？`,
       content: row.parentId
         ? '删除后细分品类不再出现，同编码的品类也不能重新创建。被供应商主营产品使用的细分品类不能删除，可改为停用。'
         : '删除后品类不再出现在列表中，同编码的品类也不能重新创建。',
-      okText: '删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
       onOk: async () => {
         try {
           await categoryApi.remove(row.id);

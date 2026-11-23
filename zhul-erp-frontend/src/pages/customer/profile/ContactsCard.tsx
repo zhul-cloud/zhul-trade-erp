@@ -1,6 +1,7 @@
 import { PlusOutlined, TeamOutlined } from '@ant-design/icons';
 import { App, Button, Checkbox, Form, Input, Modal, Radio } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useDictOptions } from '@/utils/dict';
 import { Pill } from '../components';
@@ -61,7 +62,8 @@ export const ContactModal: React.FC<{
   onClose: () => void;
   onDone: () => void;
 }> = ({ open, customerId, customerName, contact, first, onClose, onDone }) => {
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { palette } = useAppTheme();
   const d = useContactDicts();
   const [form] = Form.useForm<ContactPayload>();
@@ -96,12 +98,9 @@ export const ContactModal: React.FC<{
 
   const remove = () => {
     if (!contact) return;
-    modal.confirm({
+    confirmDanger({
       title: `删除联系人 ${contact.name}？`,
       content: '删除后不再显示，已有单据上的联系人信息不受影响。',
-      okText: '删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
       onOk: async () => {
         try {
           await profileApi.removeContact(customerId, contact.id);

@@ -14,6 +14,7 @@ import {
   Table,
 } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
@@ -286,7 +287,8 @@ type Tab = 'all' | 'company' | 'customer';
 
 const ForwarderPage: React.FC = () => {
   const { palette } = useAppTheme();
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess() as Record<string, boolean>;
   const canAdd = !!access['logistics:forwarder:add'];
   const canEdit = !!access['logistics:forwarder:edit'];
@@ -354,7 +356,7 @@ const ForwarderPage: React.FC = () => {
       apply();
       return;
     }
-    modal.confirm({
+    confirmDanger({
       title: `停用「${r.name}」？`,
       content: '停用后发货通知、出运单里不能再选它，已有单据不受影响。',
       okText: '停用',

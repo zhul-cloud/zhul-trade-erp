@@ -42,6 +42,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { CustomerCell } from '@/components/DocFields';
 import {
   CandidateTag,
@@ -200,6 +201,7 @@ const PurchaseOrderDetail: React.FC = () => {
   const { palette } = useAppTheme();
   const { of: deltaOf } = useDeltaColor();
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess();
   const [po, setPo] = useState<PurchaseOrder>();
   usePageTitle(po?.poNo ? `采购订单 ${po.poNo}` : undefined, po?.poNo);
@@ -376,11 +378,9 @@ const PurchaseOrderDetail: React.FC = () => {
     });
 
   const deleteDraft = () =>
-    modal.confirm({
+    confirmDanger({
       title: '删除这张草稿？',
       content: '各型号数量回到需求池。',
-      okText: '删除',
-      okButtonProps: { danger: true },
       onOk: async () => {
         try {
           await poApi.remove(poId);
@@ -1542,7 +1542,8 @@ const InvoicePanel: React.FC<{
   onChanged: (po: PurchaseOrder) => void;
 }> = ({ po, canEdit, onChanged }) => {
   const { palette } = useAppTheme();
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const [date, setDate] = useState<Dayjs>(dayjs());
   const [amount, setAmount] = useState<number | null>(
     po.invoiceAmountEffective ?? null,
@@ -1578,7 +1579,7 @@ const InvoicePanel: React.FC<{
 
   const revoke = () => {
     let reason = '';
-    modal.confirm({
+    confirmDanger({
       title: '撤销已开票',
       content: (
         <Input.TextArea
@@ -1591,7 +1592,6 @@ const InvoicePanel: React.FC<{
         />
       ),
       okText: '撤销',
-      okButtonProps: { danger: true },
       onOk: async () => {
         if (!reason.trim()) {
           message.error('请填写撤销原因');

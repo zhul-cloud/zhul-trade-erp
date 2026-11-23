@@ -10,7 +10,6 @@ import {
   SafetyCertificateOutlined,
   SettingOutlined,
   ThunderboltOutlined,
-  WarningOutlined,
 } from '@ant-design/icons';
 import type { ProColumns } from '@ant-design/pro-components';
 import {
@@ -361,10 +360,9 @@ const MenuPage: React.FC = () => {
       return;
     }
     if (check.referencedRoles.length > 0) {
-      modal.confirm({
-        title: '删除确认',
+      confirmDanger({
+        title: `删除节点「${record.name}」？`,
         width: 480,
-        icon: <WarningOutlined style={{ color: p.orange }} />,
         content: (
           <div>
             <div style={{ marginBottom: 12 }}>
@@ -386,17 +384,12 @@ const MenuPage: React.FC = () => {
             </div>
           </div>
         ),
-        okText: '确认删除',
-        okButtonProps: { danger: true },
-        cancelText: '取消',
         onOk: () => doDelete(record.id),
       });
       return;
     }
-    modal.confirm({
-      title: '确认删除',
-      content: `确认删除节点「${record.name}」？`,
-      okButtonProps: { danger: true },
+    confirmDanger({
+      title: `删除节点「${record.name}」？`,
       onOk: () => doDelete(record.id),
     });
   };
@@ -539,7 +532,7 @@ const MenuPage: React.FC = () => {
               if (key === 'status') {
                 if (enabled) {
                   confirmDanger({
-                    title: '确认禁用该节点？',
+                    title: `禁用节点「${record.name}」？`,
                     content:
                       children > 0
                         ? `下级 ${children} 个子节点将同步禁用`

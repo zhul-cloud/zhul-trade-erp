@@ -61,6 +61,7 @@ import {
   needsEnglish,
   useDescriptionTranslation,
 } from '@/components/BilingualDescription';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import {
   DictTextInput,
   IncotermInput,
@@ -383,6 +384,7 @@ const PiDetail: React.FC = () => {
     ? Number(search.get('version'))
     : undefined;
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { palette } = useAppTheme();
   const { of: deltaOf } = useDeltaColor();
   const access = useAccess();
@@ -714,20 +716,17 @@ const PiDetail: React.FC = () => {
   const convert = () => setConvertOpen(true);
 
   const voidPi = () =>
-    modal.confirm({
+    confirmDanger({
       title: '作废这张 PI？',
       content: '作废后不能恢复，水单记录保留；已有到账记录的 PI 不能作废。',
       okText: '作废',
-      okButtonProps: { danger: true },
       onOk: () => act(() => piApi.voidPi(pi.id), 'PI 已作废'),
     });
 
   const removeDraft = () =>
-    modal.confirm({
+    confirmDanger({
       title: '删除这张草稿 PI？',
       content: '删除后不能恢复，报价单里的型号可以重新开 PI。',
-      okText: '删除',
-      okButtonProps: { danger: true },
       onOk: async () => {
         try {
           await piApi.remove(pi.id);
@@ -833,11 +832,10 @@ const PiDetail: React.FC = () => {
                 icon: <Undo2 size={16} />,
                 danger: true,
                 onClick: () =>
-                  modal.confirm({
+                  confirmDanger({
                     title: `放弃 Rev.${pi.editingVersionNo}？`,
                     content: `放弃后回到 Rev.${pi.currentVersionNo}，这次的修改不保留。`,
                     okText: '放弃',
-                    okButtonProps: { danger: true },
                     onOk: () =>
                       act(() => piApi.abandon(pi.id), '已放弃这个版本'),
                   }),
@@ -2382,10 +2380,8 @@ const PiDetail: React.FC = () => {
                           className="zhul-link"
                           style={{ fontSize: 12, color: palette.red }}
                           onClick={() =>
-                            modal.confirm({
+                            confirmDanger({
                               title: '删除这张水单？',
-                              okText: '删除',
-                              okButtonProps: { danger: true },
                               onOk: () =>
                                 act(
                                   () => piApi.deleteSlip(pi.id, r.id),

@@ -28,6 +28,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { PageHeader } from '@/components/ListLayout';
 import { readBizError } from '@/pages/crm/opportunity/service';
 import { getUserOptions } from '@/services/zhul/users';
@@ -158,6 +159,7 @@ const toTreeSelectData = (list: DeptItem[], excludeIds: number[]): any[] =>
 const DeptPage: React.FC = () => {
   const { palette: p } = useAppTheme();
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess();
 
   const [treeData, setTreeData] = useState<DeptItem[]>([]);
@@ -373,11 +375,9 @@ const DeptPage: React.FC = () => {
       );
       return;
     }
-    modal.confirm({
-      title: '确认删除',
-      content: `确认删除部门「${selectedDept.name}」？此操作不可撤销。`,
-      okButtonProps: { danger: true },
-      okText: '确认删除',
+    confirmDanger({
+      title: `删除部门「${selectedDept.name}」？`,
+      content: '此操作不可撤销。',
       onOk: doDelete,
     });
   };

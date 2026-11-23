@@ -21,6 +21,7 @@ import {
   Upload,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
@@ -80,6 +81,7 @@ const compact = (q: SupplierQuery): SupplierQuery =>
 
 const SupplierListPage: React.FC = () => {
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess() as Record<string, boolean>;
   const { palette } = useAppTheme();
   const [form] = Form.useForm<SupplierQuery>();
@@ -159,31 +161,18 @@ const SupplierListPage: React.FC = () => {
       apply();
       return;
     }
-    modal.confirm({
-      title: '确认要禁用该供应商吗？',
+    confirmDanger({
+      title: `禁用供应商「${record.name}」？`,
       content: DISABLE_CONFIRM_TEXT,
-      okText: '确认禁用',
-      cancelText: '取消',
+      okText: '禁用',
       onOk: apply,
     });
   };
 
   const confirmDelete = (record: SupplierItem) => {
-    modal.confirm({
-      title: '确认删除',
-      content: (
-        <>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>
-            确认删除供应商「{record.name}（{record.supplierCode}）」吗？
-          </div>
-          <div style={{ color: palette.sub, fontSize: 13 }}>
-            删除后不可恢复。已有询盘单、报价中的引用不受影响；如只是暂停合作，建议改为禁用。
-          </div>
-        </>
-      ),
-      okText: '确认删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
+    confirmDanger({
+      title: `删除供应商「${record.name}（${record.supplierCode}）」？`,
+      content: '',
       onOk: async () => {
         await supplierApi.remove(record.id);
         message.success('删除成功');
@@ -194,12 +183,9 @@ const SupplierListPage: React.FC = () => {
   };
 
   const confirmBatchDelete = () => {
-    modal.confirm({
-      title: '确认删除',
-      content: `确认删除已选的 ${selected.length} 条供应商数据吗？删除后不可恢复，已有询盘单、报价中的引用不受影响。`,
-      okText: '确认删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
+    confirmDanger({
+      title: `删除已选的 ${selected.length} 条供应商数据？`,
+      content: '删除后不可恢复，已有询盘单、报价中的引用不受影响。',
       onOk: async () => {
         const result = await supplierApi.batchRemove(selected as number[]);
         if (result.skipped > 0) {

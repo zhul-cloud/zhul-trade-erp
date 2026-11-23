@@ -10,6 +10,7 @@ import { useAccess } from '@umijs/max';
 import { Alert, App, Badge, Button, Input, Select, Space, Tree } from 'antd';
 import { Ban, CircleCheck, Pencil, Search, Trash2 } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import {
   FilterCard,
   FilterField,
@@ -72,6 +73,7 @@ const toAntdTree = (list: MenuItem[]): any[] =>
 const TenantPackagePage: React.FC = () => {
   const pager = usePagination(20);
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess();
   const { palette } = useAppTheme();
   const actionRef = useRef<ActionType>(undefined);
@@ -182,12 +184,9 @@ const TenantPackagePage: React.FC = () => {
       });
       return;
     }
-    modal.confirm({
-      title: '确认删除套餐？',
-      content: `确认删除套餐「${row.name}」吗？此操作不可恢复。`,
-      okText: '确认删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
+    confirmDanger({
+      title: `删除套餐「${row.name}」？`,
+      content: '此操作不可恢复。',
       onOk: async () => {
         await deletePackage(row.id);
         message.success('套餐已删除');

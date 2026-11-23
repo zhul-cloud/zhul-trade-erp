@@ -41,6 +41,7 @@ const RULE_NAMES = new Set([
   'pager',
   'plain-empty',
   'row-tint',
+  'danger-confirm',
 ]);
 
 /** 按行检查的文字类规则（在去掉注释后的代码上匹配）；text: 确认弹窗等豁免范围里不查 */
@@ -98,6 +99,13 @@ const LINE_RULES = [
     message:
       '需要关注的行用 rowAlert()（行首 3px 色条加状态标签），不整行铺底色（ui-redesign D7）',
     re: /background:\s*palette\.(redSoft|orangeSoft)\s*\}/,
+  },
+  {
+    id: 'danger-confirm',
+    level: 'error',
+    message:
+      '危险操作的确认框用 useConfirmDanger()（问句标题写明对象、按钮写动作、默认焦点在取消），不自己给 confirm 配红色按钮',
+    re: /okButtonProps:\s*\{\s*danger:\s*true\s*\}|okType:\s*'danger'/,
   },
   {
     id: 'filler-maybe',

@@ -54,6 +54,7 @@ import {
   needsEnglish,
   useDescriptionTranslation,
 } from '@/components/BilingualDescription';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import {
   DictTextInput,
   IncotermInput,
@@ -365,6 +366,7 @@ const QuotationDetail: React.FC = () => {
     ? Number(search.get('version'))
     : undefined;
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { palette } = useAppTheme();
   const { of: deltaOf } = useDeltaColor();
   const wide = useWide();
@@ -1534,11 +1536,10 @@ const QuotationDetail: React.FC = () => {
             icon: <Undo2 size={16} />,
             danger: true,
             onClick: () =>
-              modal.confirm({
+              confirmDanger({
                 title: `放弃 Rev.${q.editingVersionNo}？`,
                 content: `放弃后回到 Rev.${q.currentVersionNo}，这次的修改不保留。`,
                 okText: '放弃',
-                okButtonProps: { danger: true },
                 onOk: () =>
                   act(() => quotationApi.abandon(q.id), '已放弃这个版本'),
               }),
@@ -1576,12 +1577,11 @@ const QuotationDetail: React.FC = () => {
             icon: <Ban size={16} />,
             danger: true,
             onClick: () =>
-              modal.confirm({
+              confirmDanger({
                 title: '作废这张报价单？',
                 content:
                   '作废后不能恢复；如果只是价格要调整，用「复制为新报价单」更合适。',
                 okText: '作废',
-                okButtonProps: { danger: true },
                 onOk: () =>
                   act(() => quotationApi.voidQuotation(q.id), '报价单已作废'),
               }),

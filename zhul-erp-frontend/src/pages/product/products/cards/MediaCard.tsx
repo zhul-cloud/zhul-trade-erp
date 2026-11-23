@@ -22,6 +22,7 @@ import {
   Upload,
 } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { EmptyHint } from '../../components/EmptyHint';
 import { Pill } from '../../components/Pills';
@@ -525,7 +526,8 @@ export const MediaCard: React.FC<{
   done?: boolean;
   onChanged: () => void;
 }> = ({ productId, readOnly, done, onChanged }) => {
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { palette } = useProductTheme();
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -565,12 +567,9 @@ export const MediaCard: React.FC<{
   };
 
   const remove = (m: MediaItem) =>
-    modal.confirm({
+    confirmDanger({
       title: '删除这个文件？',
       content: '文件记录会被移除，之后可以重新上传。',
-      okText: '删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
       onOk: async () => {
         await mediaApi.remove(productId, m.id);
         message.success('已删除');

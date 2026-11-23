@@ -41,7 +41,7 @@ export const UserMenu: React.FC = () => {
       title: '退出登录',
       content: '确定要退出登录吗？退出后需重新输入账号密码。',
       okText: '确定退出',
-      okType: 'danger',
+      okType: 'danger', // lint-ui-ignore danger-confirm: 退出登录不是删除类操作，不用危险图标，只保留红色按钮
       cancelText: '取消',
       width: 400,
       onOk: () => {

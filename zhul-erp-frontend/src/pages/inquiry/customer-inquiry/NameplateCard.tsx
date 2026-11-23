@@ -1,6 +1,7 @@
 import { MoreOutlined } from '@ant-design/icons';
 import { App, Button, Dropdown, type MenuProps } from 'antd';
 import React from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { useAppTheme } from '@/theme/AppTheme';
 import { Card, Pill } from '../shared/components';
 import { FileTile, useFilePreview } from '../shared/FilePreview';
@@ -25,7 +26,8 @@ const NameplateCard: React.FC<{
   onChanged: () => void;
 }> = ({ detail, editable, onChanged }) => {
   const { palette } = useAppTheme();
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const preview = useFilePreview();
   const inq = detail.inquiry;
   const plates = detail.nameplates ?? [];
@@ -55,12 +57,9 @@ const NameplateCard: React.FC<{
   };
 
   const remove = (f: InquiryAttachment) =>
-    modal.confirm({
+    confirmDanger({
       title: `删除铭牌图片「${f.fileName}」？`,
       content: '删除后采购也看不到这张图，并记一条修改询盘的操作日志。',
-      okText: '删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
       onOk: async () => {
         try {
           await inquiryApi.update(inq.id, {

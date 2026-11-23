@@ -18,6 +18,7 @@ import { useAccess } from '@umijs/max';
 import { App, Badge, Button, Form, Input, Tabs, Tag, Upload } from 'antd';
 import { Pencil, Search, Trash2 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import {
   FilterCard,
@@ -148,7 +149,8 @@ const ConfigPage: React.FC = () => {
   const pager = usePagination(20);
   const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>(undefined);
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess();
 
   const [keyword, setKeyword] = useState('');
@@ -245,12 +247,10 @@ const ConfigPage: React.FC = () => {
   };
 
   const handleDelete = (record: ConfigItem) => {
-    modal.confirm({
-      title: '确认删除',
+    confirmDanger({
+      title: `删除配置项「${record.configName}」？`,
       width: 480,
-      content: `确认删除配置项「${record.configName}」（键：${record.configKey}）？删除后不可恢复，请确认没有业务代码依赖此配置键。`,
-      okText: '确认删除',
-      okButtonProps: { danger: true },
+      content: `键：${record.configKey}。删除后不可恢复，请确认没有业务代码依赖这个配置键。`,
       onOk: async () => {
         try {
           await deleteConfig(record.id);

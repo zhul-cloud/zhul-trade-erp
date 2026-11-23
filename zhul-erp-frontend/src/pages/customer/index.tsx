@@ -24,6 +24,7 @@ import {
   Waves,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import EllipsisText from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -94,6 +95,7 @@ const CustomerListPage: React.FC = () => {
   const { options: sourceOptions, labelOf: sourceLabel } =
     useDictOptions(DICT_SOURCE_CHANNEL);
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess() as Record<string, boolean>;
   const { palette } = useAppTheme();
   const [form] = Form.useForm<FilterForm>();
@@ -220,31 +222,18 @@ const CustomerListPage: React.FC = () => {
       apply();
       return;
     }
-    modal.confirm({
-      title: '确认要禁用该客户吗？',
+    confirmDanger({
+      title: `禁用客户「${record.displayName}」？`,
       content: DISABLE_CONFIRM_TEXT,
-      okText: '确认禁用',
-      cancelText: '取消',
+      okText: '禁用',
       onOk: apply,
     });
   };
 
   const confirmDelete = (record: CustomerListItem) => {
-    modal.confirm({
-      title: '确认删除',
-      content: (
-        <>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>
-            确认删除客户「{record.displayName}（{record.customerCode}）」吗？
-          </div>
-          <div style={{ color: palette.sub, fontSize: 13 }}>
-            删除后不可恢复。如只是暂停合作，建议改为禁用。已有询盘或单据记录的客户不能删除。
-          </div>
-        </>
-      ),
-      okText: '确认删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
+    confirmDanger({
+      title: `删除客户「${record.displayName}（${record.customerCode}）」？`,
+      content: '',
       onOk: async () => {
         try {
           await customerApi.remove(record.id);
@@ -259,12 +248,9 @@ const CustomerListPage: React.FC = () => {
   };
 
   const confirmBatchDelete = () => {
-    modal.confirm({
-      title: '确认删除',
-      content: `确认删除已选的 ${selected.length} 个客户吗？删除后不可恢复，已有询盘或单据记录的客户会被跳过。`,
-      okText: '确认删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
+    confirmDanger({
+      title: `删除已选的 ${selected.length} 个客户？`,
+      content: '删除后不可恢复，已有询盘或单据记录的客户会被跳过。',
       onOk: async () => {
         const r = await customerApi.batchRemove(selected as number[]);
         const parts = [`已删除 ${r.deleted} 个`];

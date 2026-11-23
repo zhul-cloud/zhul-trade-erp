@@ -1,6 +1,6 @@
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useLocation, useModel, useOutlet } from '@umijs/max';
-import { App, Dropdown } from 'antd';
+import { Dropdown } from 'antd';
 import { ChevronDown, House, X } from 'lucide-react';
 import React, {
   useCallback,
@@ -11,6 +11,7 @@ import React, {
   useState,
 } from 'react';
 import { UNSAFE_LocationContext, useNavigationType } from 'react-router';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { useAppTheme } from '@/theme/AppTheme';
 import { findMenu } from '@/utils/menuName';
 import { PaneContext } from './hooks';
@@ -102,7 +103,7 @@ const DirtyDot: React.FC<{ color: string }> = ({ color }) => (
 export const TabBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
   const s = useTabsState();
   const { palette } = useAppTheme();
-  const { modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const refs = useRef(new Map<string, HTMLDivElement>());
   const strip = useRef<HTMLDivElement>(null);
   const [hidden, setHidden] = useState(0);
@@ -141,12 +142,10 @@ export const TabBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
       run();
       return;
     }
-    modal.confirm({
+    confirmDanger({
       title: '关闭这个标签？',
       content: `${dirty.map((t) => tabLabel(tree, t)).join('、')} 有未保存的修改，关闭后这些修改会丢失。`,
       okText: '不保存，关闭',
-      cancelText: '取消',
-      okButtonProps: { danger: true },
       onOk: run,
     });
   };
@@ -161,12 +160,10 @@ export const TabBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
       run();
       return;
     }
-    modal.confirm({
+    confirmDanger({
       title: '刷新这个页面？',
       content: `${tabLabel(tree, t)} 有未保存的修改，刷新后这些修改会丢失。`,
       okText: '不保存，刷新',
-      cancelText: '取消',
-      okButtonProps: { danger: true },
       onOk: run,
     });
   };
@@ -402,7 +399,7 @@ export const TabBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
 const BackBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
   const s = useTabsState();
   const { palette } = useAppTheme();
-  const { modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const cur = activeTab(s);
   if (!cur || cur.stack.length < 2) return null;
   const prev = cur.stack[cur.stack.length - 2];
@@ -415,12 +412,11 @@ const BackBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
             tabsActions.back();
             return;
           }
-          modal.confirm({
+          confirmDanger({
             title: '有未保存的修改',
             content: '现在离开，这些修改会丢失。',
             okText: '离开',
             cancelText: '留下',
-            okButtonProps: { danger: true },
             onOk: () => tabsActions.back(),
           });
         }}
@@ -474,20 +470,19 @@ const PageTabs: React.FC<{
   }, [userKey]);
 
   // 浏览器后退离开未保存的页面时，与返回条一样先确认（audit UI-004#1）
-  const { modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   useEffect(() => {
     setLeaveConfirm((leave) =>
-      modal.confirm({
+      confirmDanger({
         title: '有未保存的修改',
         content: '现在离开，这些修改会丢失。',
         okText: '离开',
         cancelText: '留下',
-        okButtonProps: { danger: true },
         onOk: leave,
       }),
     );
     return () => setLeaveConfirm(undefined);
-  }, [modal]);
+  }, [confirmDanger]);
 
   const s = useTabsState();
   const liveLoc = useMemo<LocationCtx>(

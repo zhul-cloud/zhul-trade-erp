@@ -428,7 +428,7 @@ const UserPage: React.FC = () => {
               if (key === 'status') {
                 if (enabled) {
                   confirmDanger({
-                    title: '确认禁用该用户？',
+                    title: `禁用用户「${record.name || record.username}」？`,
                     okText: '禁用',
                     onOk: () => handleStatusChange(record),
                   });
@@ -438,7 +438,7 @@ const UserPage: React.FC = () => {
               }
               if (key === 'delete') {
                 confirmDanger({
-                  title: '确认删除该用户？',
+                  title: `删除用户「${record.name || record.username}」？`,
                   onOk: () => handleDelete(record.id),
                 });
               }

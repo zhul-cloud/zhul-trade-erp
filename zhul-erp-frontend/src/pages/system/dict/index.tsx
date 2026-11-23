@@ -27,6 +27,7 @@ import {
 } from 'antd';
 import { Pencil, Trash2 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { PageHeader } from '@/components/ListLayout';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -66,7 +67,8 @@ type ItemDrawerMode = 'create' | 'edit';
 const DictPage: React.FC = () => {
   const pager = usePagination(20);
   const { palette: p } = useAppTheme();
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess();
 
   const [typeList, setTypeList] = useState<DictTypeItem[]>([]);
@@ -179,11 +181,8 @@ const DictPage: React.FC = () => {
       message.error('请先删除该字典类型下的所有字典项');
       return;
     }
-    modal.confirm({
-      title: '确认删除',
-      content: `确认删除字典类型「${record.dictName}」？`,
-      okText: '确认删除',
-      okButtonProps: { danger: true },
+    confirmDanger({
+      title: `删除字典类型「${record.dictName}」？`,
       onOk: async () => {
         try {
           await deleteDictType(record.id);
@@ -246,11 +245,8 @@ const DictPage: React.FC = () => {
   };
 
   const handleDeleteItem = (record: DictItemRow) => {
-    modal.confirm({
-      title: '确认删除',
-      content: `确认删除字典项「${record.itemName}」？`,
-      okText: '确认删除',
-      okButtonProps: { danger: true },
+    confirmDanger({
+      title: `删除字典项「${record.itemName}」？`,
       onOk: async () => {
         try {
           await deleteDictItem(record.id);

@@ -13,6 +13,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { PageHeader } from '@/components/ListLayout';
 import {
   useOnReactivate,
@@ -81,6 +82,7 @@ const duration = (b: MigrationBatch) => {
 
 const HistoryMigrationPage: React.FC = () => {
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { palette } = useAppTheme();
   const [search] = useSearchParams();
   const tenantId = Number(search.get('tenantId'));
@@ -145,12 +147,11 @@ const HistoryMigrationPage: React.FC = () => {
   };
 
   const rollback = (b: MigrationBatch) =>
-    modal.confirm({
+    confirmDanger({
       title: `回滚批次 ${b.batchNo}？`,
       content:
         '这个批次写入的数据都会作废（软删除），图片移出素材库。迁移建的员工账号保留。回滚后可以重新执行。',
       okText: '回滚',
-      okButtonProps: { danger: true },
       onOk: async () => {
         await rollbackBatch(b.id);
         message.success('已开始回滚');

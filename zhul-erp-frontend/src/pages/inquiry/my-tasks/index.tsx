@@ -30,6 +30,7 @@ import {
 import dayjs from 'dayjs';
 import { Download, Upload } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { actualModelStamp } from '@/components/DocFields/ActualModel';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import { HelpTip, PageHeader } from '@/components/ListLayout';
@@ -186,6 +187,7 @@ const MyTasksPage: React.FC = () => {
   const wide = useWide();
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { token } = theme.useToken();
   const { conditionOptions, leadTimeOptions } = useQuoteDicts();
   const noStockReasons = useDictOptions(DICT_NO_STOCK_REASON, '');
@@ -762,7 +764,7 @@ const MyTasksPage: React.FC = () => {
       );
       return;
     }
-    modal.confirm({
+    confirmDanger({
       title: '撤回这个任务的回价？',
       width: 520,
       content: (
@@ -794,7 +796,6 @@ const MyTasksPage: React.FC = () => {
         </div>
       ),
       okText: '撤回回价',
-      okButtonProps: { danger: true },
       cancelText: '再想想',
       onOk: async () => {
         try {

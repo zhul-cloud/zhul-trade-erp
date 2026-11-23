@@ -21,6 +21,7 @@ import {
   Upload,
 } from 'antd';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -475,7 +476,8 @@ export const MediaDrawer: React.FC<{
   onChanged?: () => void;
 }> = ({ brand, model, open, onClose, onChanged }) => {
   const { palette } = useAppTheme();
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { hasPerm } = usePermission();
   const canEdit = hasPerm(PERM_EDIT);
   const canUpload = hasPerm(PERM_UPLOAD);
@@ -538,10 +540,8 @@ export const MediaDrawer: React.FC<{
   };
 
   const remove = (i: MediaItem) =>
-    modal.confirm({
+    confirmDanger({
       title: '删除这张网络图片？',
-      okText: '删除',
-      okButtonProps: { danger: true },
       onOk: async () => {
         try {
           await mediaApi.deleteNetwork(i.itemId as number);

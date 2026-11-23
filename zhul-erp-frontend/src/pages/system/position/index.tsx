@@ -38,7 +38,7 @@ const CODE_PATTERN = /^[A-Za-z0-9_]{2,32}$/;
 const PositionPage: React.FC = () => {
   const pager = usePagination(20);
   const actionRef = useRef<ActionType>(undefined);
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
   const access = useAccess();
   const [modalOpen, setModalOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<PositionItem | undefined>();
@@ -64,11 +64,9 @@ const PositionPage: React.FC = () => {
       );
       return;
     }
-    modal.confirm({
-      title: '确认删除',
-      content: `确认删除岗位「${record.name}」（编码：${record.code}）？此操作不可撤销。`,
-      okText: '确认删除',
-      okButtonProps: { danger: true },
+    confirmDanger({
+      title: `删除岗位「${record.name}」（编码：${record.code}）？`,
+      content: '此操作不可撤销。',
       onOk: async () => {
         try {
           await deletePosition(record.id);
