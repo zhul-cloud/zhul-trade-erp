@@ -13,7 +13,7 @@ import {
   Tag,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Search } from 'lucide-react';
+import { Eye, Search } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -23,6 +23,7 @@ import {
   MainCard,
   PageHeader,
 } from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -194,16 +195,18 @@ const OperateLogPage: React.FC = () => {
       title: '操作',
       fixed: 'right',
       valueType: 'option',
-      width: 80,
-      align: 'center',
+      width: rowActionsWidth(1),
       render: (_, record) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => openDetail(record)}
-        >
-          详情
-        </button>
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '详情',
+              icon: <Eye size={18} />,
+              onClick: () => openDetail(record),
+            },
+          ]}
+        />
       ),
     },
   ];

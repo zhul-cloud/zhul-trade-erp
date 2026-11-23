@@ -33,9 +33,11 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import {
+  Ban,
   Check,
   CircleX,
   Ellipsis,
+  Eye,
   Pencil,
   Trash2,
   Truck,
@@ -53,6 +55,7 @@ import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import { tableEmpty } from '@/components/EmptyState';
 import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { rowAlert } from '@/components/RowAlert';
 import {
   ACCEPT_PROOF,
@@ -1803,34 +1806,43 @@ const ShipmentsCard: React.FC<{
     {
       title: '操作',
       key: 'actions',
-      width: 150,
-      render: (_, r) =>
-        r.kind === 'ship' ? (
-          <Space size={12}>
-            <Link to={DOC_PATHS.shipment(r.ref.id)}>查看</Link>
-            {r.ref.status === 1 && canShip && (
-              <>
-                <button
-                  type="button"
-                  className="zhul-link"
-                  onClick={() => onEdit(r.ref.id)}
-                >
-                  修改
-                </button>
-                <button
-                  type="button"
-                  className="zhul-link"
-                  style={{ color: palette.red }}
-                  onClick={() => onVoid(r.ref)}
-                >
-                  作废
-                </button>
-              </>
-            )}
-          </Space>
-        ) : (
-          <Link to={DOC_PATHS.receipt(r.ref.id)}>查看</Link>
-        ),
+      // 查看、修改放行内，作废收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(3),
+      render: (_, r) => {
+        const editable = r.kind === 'ship' && r.ref.status === 1 && canShip;
+        return (
+          <RowActions
+            inline={[
+              {
+                key: 'view',
+                label: '查看',
+                icon: <Eye size={18} />,
+                onClick: () =>
+                  history.push(
+                    r.kind === 'ship'
+                      ? DOC_PATHS.shipment(r.ref.id)
+                      : DOC_PATHS.receipt(r.ref.id),
+                  ),
+              },
+              editable && {
+                key: 'edit',
+                label: '修改',
+                icon: <Pencil size={18} />,
+                onClick: () => onEdit(r.ref.id),
+              },
+            ]}
+            more={[
+              editable && {
+                key: 'void',
+                label: '作废',
+                icon: <Ban size={16} />,
+                danger: true,
+              },
+            ]}
+            onMore={() => r.kind === 'ship' && onVoid(r.ref)}
+          />
+        );
+      },
     },
   ];
   return (

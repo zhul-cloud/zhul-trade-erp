@@ -12,7 +12,7 @@ import {
   Select,
   Table,
 } from 'antd';
-import { Search } from 'lucide-react';
+import { FilePlus2, Pencil, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -22,6 +22,7 @@ import {
   PageHeader,
   QuickFilters,
 } from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { Pill } from '@/pages/customer/components';
 import { labelOf } from '@/pages/customer/constants';
 import { useProfileDicts } from '@/pages/customer/profile/ProfileModules';
@@ -312,16 +313,19 @@ const CountryProfilesPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 90,
+      width: rowActionsWidth(1),
       fixed: 'right',
       render: (_, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => setEditing(r)}
-        >
-          {r.id ? '编辑' : '去维护'}
-        </button>
+        <RowActions
+          inline={[
+            {
+              key: 'edit',
+              label: r.id ? '编辑' : '去维护',
+              icon: r.id ? <Pencil size={18} /> : <FilePlus2 size={18} />,
+              onClick: () => setEditing(r),
+            },
+          ]}
+        />
       ),
     },
   ];

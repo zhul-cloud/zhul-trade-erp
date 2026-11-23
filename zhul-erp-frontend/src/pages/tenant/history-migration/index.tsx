@@ -12,6 +12,7 @@ import {
   Upload,
 } from 'antd';
 import dayjs from 'dayjs';
+import { Eye, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { tableEmpty } from '@/components/EmptyState';
@@ -21,6 +22,7 @@ import {
   usePageTitle,
   useTabActive,
 } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -327,29 +329,29 @@ const HistoryMigrationPage: React.FC = () => {
             {
               title: '操作',
               key: 'op',
-              width: 130,
+              width: rowActionsWidth(2),
               render: (_, b) => (
-                <Space>
-                  <button
-                    type="button"
-                    className="zhul-link"
-                    onClick={() => openDetail(b)}
-                  >
-                    详情
-                  </button>
-                  {b.runMode === 2 &&
-                    (b.status === 2 || b.status === 3) &&
-                    !b.rollingBack && (
-                      <button
-                        type="button"
-                        className="zhul-link"
-                        style={{ color: palette.red }}
-                        onClick={() => rollback(b)}
-                      >
-                        回滚
-                      </button>
-                    )}
-                </Space>
+                <RowActions
+                  inline={[
+                    {
+                      key: 'view',
+                      label: '详情',
+                      icon: <Eye size={18} />,
+                      onClick: () => openDetail(b),
+                    },
+                  ]}
+                  more={[
+                    b.runMode === 2 &&
+                      (b.status === 2 || b.status === 3) &&
+                      !b.rollingBack && {
+                        key: 'rollback',
+                        label: '回滚',
+                        icon: <Undo2 size={16} />,
+                        danger: true,
+                      },
+                  ]}
+                  onMore={() => rollback(b)}
+                />
               ),
             },
           ]}

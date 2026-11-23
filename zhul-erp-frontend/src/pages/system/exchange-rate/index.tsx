@@ -6,9 +6,11 @@ import {
 import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, InputNumber, Modal, Skeleton, Table } from 'antd';
+import { History, Pencil } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
 import { PageHeader } from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { readBizError } from '@/pages/crm/opportunity/service';
 import { Card, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -156,28 +158,24 @@ const ExchangeRatePage: React.FC = () => {
       title: '操作',
       fixed: 'right',
       key: 'actions',
-      width: 130,
+      width: rowActionsWidth(2),
       render: (_, r) => (
-        <span style={{ display: 'inline-flex', gap: 12 }}>
-          {canEdit && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => openEdit(r)}
-            >
-              {r.rate == null ? '设置' : '修改'}
-            </button>
-          )}
-          {r.rate != null && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setLogCurrency(r.currencyCode)}
-            >
-              变更记录
-            </button>
-          )}
-        </span>
+        <RowActions
+          inline={[
+            canEdit && {
+              key: 'edit',
+              label: r.rate == null ? '设置' : '修改',
+              icon: <Pencil size={18} />,
+              onClick: () => openEdit(r),
+            },
+            r.rate != null && {
+              key: 'log',
+              label: '变更记录',
+              icon: <History size={18} />,
+              onClick: () => setLogCurrency(r.currencyCode),
+            },
+          ]}
+        />
       ),
     },
   ];
