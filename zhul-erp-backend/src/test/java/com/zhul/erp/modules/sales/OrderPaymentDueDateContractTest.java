@@ -25,10 +25,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
-/** spec sales/sales-order「订单约定付款日」「订单逾期未收款标记」、system/workbench「老板看板」的过期未收款 */
+/** spec sales/sales-order「订单约定付款日」「订单逾期未收款标记」、system/workbench「老板看板」资金的已逾期 */
 class OrderPaymentDueDateContractTest extends SalesContractSupport {
 
-    private static final Pattern USD = Pattern.compile("USD ([0-9,]+\\.[0-9]{2})");
+    private static final Pattern OVERDUE = Pattern.compile("其中已逾期 CNY ([0-9,]+\\.[0-9]{2})");
 
     @Autowired @Qualifier("cashWidget") private WorkbenchWidget cashWidget;
 
@@ -156,16 +156,19 @@ class OrderPaymentDueDateContractTest extends SalesContractSupport {
     @Test
     void bossOverdue_countsRemainingOfOverdueOrders() throws Exception {
         bankAccount("USD");
-        BigDecimal before = overdueUsd();
+        BigDecimal before = overdueCny();
 
         long overdue = ok(manualOrder(today.minusDays(5), today.minusDays(1))).path("id").asLong();
         receive(overdue, "50");
         ok(manualOrder(today.minusDays(5), null));
         ok(manualOrder(today.minusDays(5), today));
 
-        // 只有过了约定付款日的那张，按剩余未收 USD 150.00 计入
-        assertEquals(0, new BigDecimal("150.00").compareTo(overdueUsd().subtract(before)),
-                "过期未收款应只增加逾期订单的剩余未收");
+        // 只有过了约定付款日的那张，按剩余未收 USD 150.00 折人民币计入（与应收管理同口径，ui-redesign D32）
+        BigDecimal rate = jdbc.queryForObject("select exchange_rate from sales_order where id = ?", BigDecimal.class, overdue);
+        BigDecimal expected = new BigDecimal("150").multiply(rate);
+        BigDecimal rise = overdueCny().subtract(before);
+        assertTrue(rise.subtract(expected).abs().compareTo(new BigDecimal("0.01")) <= 0,
+                "已逾期应只增加逾期订单的剩余未收 " + expected + "，实际 " + rise);
     }
 
     /** 接口不返回值为空的字段 */
@@ -173,8 +176,8 @@ class OrderPaymentDueDateContractTest extends SalesContractSupport {
         return n.isMissingNode() || n.isNull();
     }
 
-    /** 老板看板资金卡「其中过期未收款」里的 USD 金额（没有时为 0） */
-    private BigDecimal overdueUsd() {
+    /** 老板看板资金卡「其中已逾期」的人民币金额（没有时为 0） */
+    private BigDecimal overdueCny() {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken("it_sales_admin", null, List.of()));
         TenantContext.setTenantId(0);
@@ -182,7 +185,7 @@ class OrderPaymentDueDateContractTest extends SalesContractSupport {
             WidgetData d = (WidgetData) cashWidget.load();
             String hint = d.getBlocks().get(0).getMetrics().stream().filter(m -> "应收未收".equals(m.getLabel()))
                     .findFirst().orElseThrow().getHint();
-            Matcher m = USD.matcher(hint);
+            Matcher m = OVERDUE.matcher(hint);
             return m.find() ? new BigDecimal(m.group(1).replace(",", "")) : BigDecimal.ZERO;
         } finally {
             TenantContext.clear();

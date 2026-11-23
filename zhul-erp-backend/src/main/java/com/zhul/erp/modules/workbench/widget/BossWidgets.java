@@ -7,10 +7,12 @@ import com.zhul.erp.modules.finance.dto.FxPendingVO;
 import com.zhul.erp.modules.finance.dto.OrderCostVO;
 import com.zhul.erp.modules.finance.dto.OperatingReportVO;
 import com.zhul.erp.modules.finance.dto.PayableStatsVO;
+import com.zhul.erp.modules.finance.dto.ReceivableVO;
 import com.zhul.erp.modules.finance.service.FxSettlementService;
 import com.zhul.erp.modules.finance.service.OrderCostService;
 import com.zhul.erp.modules.finance.service.OperatingReportService;
 import com.zhul.erp.modules.finance.service.PayableQueryService;
+import com.zhul.erp.modules.finance.service.ReceivableService;
 import com.zhul.erp.modules.sales.constants.SalesConstants;
 import com.zhul.erp.modules.sales.dto.OverduePiVO;
 import com.zhul.erp.modules.sales.dto.SalesStatsVO;
@@ -21,7 +23,6 @@ import com.zhul.erp.modules.sales.repository.SalesOrderMapper;
 import com.zhul.erp.modules.sales.service.PiService;
 import com.zhul.erp.modules.sales.service.SalesOrderService;
 import com.zhul.erp.modules.sales.service.SalesStatsService;
-import com.zhul.erp.modules.sales.support.OrderOverdue;
 import com.zhul.erp.modules.sales.support.PiStore;
 import com.zhul.erp.modules.warehouse.service.DiscrepancyService;
 import com.zhul.erp.modules.warehouse.service.ShipmentService;
@@ -34,7 +35,6 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
 
 /**
  * 老板看板（spec「老板看板」）：经营概览、资金、销售漏斗、近 12 个月趋势、排行、风险提醒。
- * 口径同经营统计、销售统计、PI、应付单、结汇单页；数据范围按当前用户的角色（老板通常为全部）。
+ * 口径同经营统计、销售统计、应收管理、应付单、结汇单页；数据范围按当前用户的角色（老板通常为全部）。
  */
 @Configuration
 public class BossWidgets {
@@ -50,6 +50,7 @@ public class BossWidgets {
     static final String OPERATING = "/finance/operating-report";
     static final String PROFIT = "/finance/profit-stats";
     static final String FX = "/finance/fx-settlements";
+    static final String RECEIVABLES = "/finance/receivables";
 
     @Bean
     public WorkbenchWidget bizOverviewWidget(OperatingReportService report, SalesOrderService orders) {
@@ -72,62 +73,65 @@ public class BossWidgets {
 
     @Bean
     public WorkbenchWidget cashWidget(PermissionChecker perm, DataScopeResolver scope, ProformaInvoiceMapper pis,
-                                      SalesOrderMapper orders, PiService piService, PayableQueryService payables,
+                                      SalesOrderMapper orders, ReceivableService receivables, PayableQueryService payables,
                                       FxSettlementService fx) {
-        return W.widget("cash", List.of(SalesWidgets.PIS, PurchaseLeadWidgets.PAYABLES, FX), () -> {
+        return W.widget("cash", List.of(RECEIVABLES, PurchaseLeadWidgets.PAYABLES, FX), () -> {
             List<WidgetData.Metric> items = new ArrayList<>();
-            if (perm.canAccessMenu(SalesWidgets.PIS)) {
-                BigDecimal outstanding = BigDecimal.ZERO;
-                List<ProformaInvoiceDO> unpaid = pis.selectList(SalesWidgets.unpaidPis(scope));
-                Map<Long, BigDecimal> orderTotals = activeOrderTotals(orders, unpaid);
-                for (ProformaInvoiceDO p : unpaid) {
-                    // 与收款工作台同口径（audit BUS-049、BUS-080）：有有效订单时按订单合计，再减已到账与差额
-                    BigDecimal receivable = orderTotals.getOrDefault(p.getId(), W.num(p.getTotalAmount()));
-                    BigDecimal left = receivable.subtract(W.num(p.getReceivedAmount())).subtract(W.num(p.getFeeDiffAmount()));
-                    if (left.signum() > 0) {
-                        outstanding = outstanding.add(left.multiply(W.num(p.getExchangeRate())));
-                    }
+            if (perm.canAccessMenu(RECEIVABLES)) {
+                // 与应收管理同口径、同数（ui-redesign D32）：有效销售订单还没收齐的剩余，按订单汇率折人民币
+                ReceivableVO.Stats s = receivables.overview().getStats();
+                String hint;
+                String tone = null;
+                if (s.getOverdueCny().signum() > 0) {
+                    hint = "其中已逾期 CNY " + money(s.getOverdueCny());
+                    tone = "red";
+                } else {
+                    // 已发出、还没转成订单的 PI 不在应收管理里，单独说一句
+                    int[] count = {0};
+                    BigDecimal piLeft = perm.canAccessMenu(SalesWidgets.PIS) ? unconvertedPiLeft(pis, orders, scope, count)
+                            : BigDecimal.ZERO;
+                    hint = count[0] > 0 ? "另有 " + count[0] + " 张 PI 待收 CNY " + money(piLeft) : "没有逾期";
                 }
-                // 过期未收款按原币分币种：过期 PI 按合计，逾期的手动订单、费用订单按剩余未收（spec system/workbench「老板看板」）
-                Map<String, BigDecimal> overdue = new LinkedHashMap<>();
-                OverduePiVO overduePis = piService.overdue();
-                if (overduePis.getTotals() != null) {
-                    overduePis.getTotals().forEach(t -> overdue.merge(t.getCurrencyCode(), W.num(t.getAmount()), BigDecimal::add));
-                }
-                LocalDate today = LocalDate.now();
-                // 手动订单、费用订单的收款记在订单上，同样计入（与收款工作台一致，audit BUS-081）
-                for (SalesOrderDO o : orders.selectList(unpaidReceiptOrders(scope))) {
-                    BigDecimal left = W.num(o.getTotalAmount()).subtract(W.num(o.getReceivedAmount())).subtract(W.num(o.getFeeDiffAmount()));
-                    if (left.signum() > 0) {
-                        outstanding = outstanding.add(left.multiply(W.num(o.getExchangeRate())));
-                    }
-                    if (OrderOverdue.days(o, o.getReceiptStatus(), left, today) != null) {
-                        overdue.merge(o.getCurrencyCode(), left, BigDecimal::add);
-                    }
-                }
-                String overdueText = overdue.isEmpty() ? "没有过期未收款"
-                        : "其中过期未收款 " + overdue.entrySet().stream()
-                        .map(e -> e.getKey() + " " + money(e.getValue()))
-                        .collect(Collectors.joining("、"));
-                items.add(W.link(W.tone(W.metric("应收未收", outstanding.setScale(2, RoundingMode.HALF_UP), "money", overdueText),
-                        overdue.isEmpty() ? null : "red"), SalesWidgets.PIS));
+                items.add(W.link(W.tone(W.metric("应收未收", s.getTotalCny().setScale(2, RoundingMode.HALF_UP), "money", hint),
+                        tone), RECEIVABLES));
             }
             if (perm.canAccessMenu(PurchaseLeadWidgets.PAYABLES)) {
                 PayableStatsVO s = payables.stats();
+                boolean overdue = s.getOverdueCount() > 0;
+                // 已逾期统一用错误色（ui-redesign S5）
                 items.add(W.link(W.tone(W.metric("本月到期应付", s.getMonthDue(), "money",
-                        "已逾期 CNY " + money(s.getOverdue())),
-                        s.getOverdueCount() > 0 ? "orange" : null), PurchaseLeadWidgets.PAYABLES));
+                        overdue ? "其中已逾期 CNY " + money(s.getOverdue()) : "没有逾期"),
+                        overdue ? "red" : null), PurchaseLeadWidgets.PAYABLES));
             }
             WidgetData.Block tags = null;
             if (perm.canAccessMenu(FX)) {
                 List<FxPendingVO> pending = fx.pending();
-                tags = W.note(pending.isEmpty() ? "未结汇外币：没有待结汇的外币" : "未结汇外币");
+                tags = W.note(pending.isEmpty() ? "未结汇外币：没有" : "未结汇外币");
                 tags.setTags(pending.stream()
                         .map(p -> p.getCurrencyCode() + " " + p.getBalance().setScale(2, RoundingMode.HALF_UP).toPlainString())
                         .toList());
             }
             return W.of(items.isEmpty() ? null : W.metrics(items), tags);
         });
+    }
+
+    /** 已发出、未付清、还没有有效订单的 PI 剩余未收（按 PI 汇率折人民币）；count[0] 返回张数 */
+    private static BigDecimal unconvertedPiLeft(ProformaInvoiceMapper pis, SalesOrderMapper orders, DataScopeResolver scope,
+                                                int[] count) {
+        List<ProformaInvoiceDO> unpaid = pis.selectList(SalesWidgets.unpaidPis(scope));
+        Map<Long, BigDecimal> converted = activeOrderTotals(orders, unpaid);
+        BigDecimal sum = BigDecimal.ZERO;
+        for (ProformaInvoiceDO p : unpaid) {
+            if (converted.containsKey(p.getId())) {
+                continue;
+            }
+            BigDecimal left = W.num(p.getTotalAmount()).subtract(W.num(p.getReceivedAmount())).subtract(W.num(p.getFeeDiffAmount()));
+            if (left.signum() > 0) {
+                count[0]++;
+                sum = sum.add(left.multiply(W.num(p.getExchangeRate())));
+            }
+        }
+        return sum;
     }
 
     @Bean
@@ -176,10 +180,15 @@ public class BossWidgets {
                 bars.getLabels().add(m.getMonthValue() + "月");
                 bars.getValues().add(revenue(r));
             }
-            OperatingReportVO.Row first = rows.get(0);
+            // 主角卡（ui-redesign D28）：本月成交额与较上月，柱图下一句结论
             OperatingReportVO.Row last = rows.get(11);
-            String text = "毛利率 " + rateText(first) + " → " + rateText(last) + "（12 个月前 → 本月）";
-            return W.of(W.bars(bars, text));
+            BigDecimal cur = revenue(last);
+            BigDecimal sum = bars.getValues().stream().map(W::num).reduce(BigDecimal.ZERO, BigDecimal::add);
+            boolean highest = cur.signum() > 0
+                    && bars.getValues().stream().map(W::num).allMatch(v -> v.compareTo(cur) <= 0);
+            String text = (highest ? "本月是近 12 个月最高 · " : "") + "近 12 个月合计 CNY " + money(sum);
+            return W.of(W.metrics(W.link(W.compare("成交额", cur, revenue(rows.get(10)), "money", true), OPERATING)),
+                    W.bars(bars, text));
         });
     }
 
@@ -261,20 +270,6 @@ public class BossWidgets {
                 .findFirst().orElse(null);
     }
 
-    /** 收款记在订单上（手动、费用订单）、有效且还没付清的订单 */
-    private static LambdaQueryWrapper<SalesOrderDO> unpaidReceiptOrders(DataScopeResolver scope) {
-        LambdaQueryWrapper<SalesOrderDO> w = new LambdaQueryWrapper<SalesOrderDO>()
-                .select(SalesOrderDO::getId, SalesOrderDO::getSource, SalesOrderDO::getStatus, SalesOrderDO::getReceiptStatus,
-                        SalesOrderDO::getCurrencyCode, SalesOrderDO::getTotalAmount, SalesOrderDO::getReceivedAmount,
-                        SalesOrderDO::getFeeDiffAmount, SalesOrderDO::getExchangeRate, SalesOrderDO::getPaymentDueDate)
-                .eq(SalesOrderDO::getTenantId, PiStore.tenantId())
-                .in(SalesOrderDO::getSource, SalesConstants.ORDER_RECEIPT_SOURCES)
-                .eq(SalesOrderDO::getStatus, SalesConstants.SO_ACTIVE)
-                .ne(SalesOrderDO::getReceiptStatus, SalesConstants.RECEIPT_PAID)
-                .isNull(SalesOrderDO::getDeletedAt);
-        return scope.current().apply(w, SalesOrderDO::getOwnerId);
-    }
-
     /** PI 转成的有效订单合计（部分取消、改费用后与 PI 合计不同） */
     private static Map<Long, BigDecimal> activeOrderTotals(SalesOrderMapper orders, List<ProformaInvoiceDO> pis) {
         if (pis.isEmpty()) {
@@ -294,10 +289,6 @@ public class BossWidgets {
 
     private static BigDecimal profit(OperatingReportVO.Row r) {
         return r == null ? BigDecimal.ZERO : W.num(r.getProfit());
-    }
-
-    private static String rateText(OperatingReportVO.Row r) {
-        return r == null || r.getProfitRate() == null ? "—" : r.getProfitRate().toPlainString() + "%";
     }
 
     /** 卡片副标题里的金额：两位小数（HALF_UP）并加千分位，与前端 formatAmount 一致 */
