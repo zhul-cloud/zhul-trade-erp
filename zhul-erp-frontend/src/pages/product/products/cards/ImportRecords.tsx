@@ -1,5 +1,6 @@
 import { DownloadOutlined, FileTextOutlined } from '@ant-design/icons';
 import XMarkdown from '@ant-design/x-markdown';
+import { Eye } from 'lucide-react';
 import { tableScrollX } from '@/utils/tableScroll';
 import '@ant-design/x-markdown/es/XMarkdown/index.css';
 import type { TableColumnsType } from 'antd';
@@ -8,6 +9,7 @@ import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { EmptyHint } from '../../components/EmptyHint';
 import { Pill } from '../../components/Pills';
 import {
@@ -259,15 +261,18 @@ export const ImportRecordList: React.FC<{
     {
       title: '操作',
       key: 'actions',
-      width: 70,
+      width: rowActionsWidth(1),
       render: (_, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => setViewing(r.id)}
-        >
-          预览
-        </button>
+        <RowActions
+          inline={[
+            {
+              key: 'preview',
+              label: '预览',
+              icon: <Eye size={18} />,
+              onClick: () => setViewing(r.id),
+            },
+          ]}
+        />
       ),
     },
   ];

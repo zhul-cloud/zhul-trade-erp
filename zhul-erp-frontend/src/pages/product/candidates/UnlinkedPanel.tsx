@@ -1,9 +1,11 @@
 import { SearchOutlined } from '@ant-design/icons';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Input, Modal, Radio, Table, Tag } from 'antd';
+import { Link2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { Card } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { ProductSelect } from '@/pages/product/components/ProductSelect';
@@ -112,16 +114,19 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
     {
       title: '操作',
       key: 'actions',
-      width: 90,
+      width: rowActionsWidth(1),
       fixed: 'right',
       render: (_, g) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => setLinking(g)}
-        >
-          关联
-        </button>
+        <RowActions
+          inline={[
+            {
+              key: 'link',
+              label: '关联',
+              icon: <Link2 size={18} />,
+              onClick: () => setLinking(g),
+            },
+          ]}
+        />
       ),
     },
   ];

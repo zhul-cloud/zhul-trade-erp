@@ -2,7 +2,7 @@ import { history } from '@umijs/max';
 import type { TableColumnsType, TableProps } from 'antd';
 import { DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Search } from 'lucide-react';
+import { Eye, Pencil, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import SourceNos from '@/components/DocFields/SourceNos';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
@@ -16,6 +16,7 @@ import {
   SummaryBar,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { PayStatusPill } from '@/pages/finance/payables/components';
 import { PAY_STATUS } from '@/pages/finance/payables/service';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
@@ -389,17 +390,23 @@ const PurchaseOrderList: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 70,
+      width: rowActionsWidth(1),
       fixed: 'right',
-      render: (_, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => history.push(PATHS.order(r.id))}
-        >
-          {r.status === PO_STATUS.DRAFT ? '编辑' : '查看'}
-        </button>
-      ),
+      render: (_, r) => {
+        const draft = r.status === PO_STATUS.DRAFT;
+        return (
+          <RowActions
+            inline={[
+              {
+                key: 'view',
+                label: draft ? '编辑' : '查看',
+                icon: draft ? <Pencil size={18} /> : <Eye size={18} />,
+                onClick: () => history.push(PATHS.order(r.id)),
+              },
+            ]}
+          />
+        );
+      },
     },
   ];
 

@@ -21,7 +21,7 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { Search } from 'lucide-react';
+import { ArchiveRestore, Search } from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -39,6 +39,7 @@ import {
   QuickFilters,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { auditColumns } from '@/pages/purchase/components';
 import { formatDateTime } from '@/utils/format';
 import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
@@ -866,19 +867,19 @@ const ProductListInner: React.FC = () => {
             title: '操作',
             fixed: 'right',
             key: 'op',
-            width: 80,
+            width: rowActionsWidth(1),
             render: (_: unknown, r: Product) =>
               r.deleted ? (
-                <button
-                  type="button"
-                  className="zhul-link"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    restore(r);
-                  }}
-                >
-                  恢复
-                </button>
+                <RowActions
+                  inline={[
+                    {
+                      key: 'restore',
+                      label: '恢复',
+                      icon: <ArchiveRestore size={18} />,
+                      onClick: () => restore(r),
+                    },
+                  ]}
+                />
               ) : null,
           },
         ] as ColumnsType<Product>)
