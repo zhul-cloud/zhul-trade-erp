@@ -23,6 +23,7 @@ import { CategoryLedgerTable } from '@/pages/warehouse/ledger/CategoryLedgerTabl
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { PAGER_STYLE } from '@/utils/pageSize';
 import { ReasonPill, SignedMoney } from '../costingParts';
 import {
   type CostAdjust,
@@ -75,10 +76,10 @@ const usePaged = <T,>(
     load,
     reset: () => setPage(1),
     pagination: {
+      ...PAGER_STYLE,
       current: page,
       pageSize,
       total,
-      showSizeChanger: true,
       showTotal: (t: number) => `共 ${t} 条`,
       onChange: (p: number, s: number) => {
         setPage(p);

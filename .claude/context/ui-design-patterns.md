@@ -306,7 +306,7 @@ import {
 | 国家 | `CountryText`、`CountryFlag`（`src/components/CountryText`） | `<CountryText value={r.country} />`：国旗 + 中文名，悬停英文名；`value` 为保存的英文名，也认两位代码和中文名。国旗图片由 `config/config.ts` 的 `copy` 复制到 `/flags/` 再用 `<img>` 加载：SVG 不能经 CSS 或 `import` 引用，打包器会把它转成 React 组件 |
 | 客户名下一行 | `CustomerCell`、`CustomerSubLine`（`src/components/DocFields`） | 列表的客户列和详情客户卡共用「新 / 老客户 · 国旗 国家 · 主联系人」；客户名单行省略、悬停看全名 |
 | 空状态 | `EmptyState`（`kind`：`empty`、`noResult`、`error`、`forbidden`；`compact`）、`listEmpty()` | 表格、下拉没写空状态时全站自动用它（`AppTheme` 的 `renderEmpty`）。列表页至少用 `locale={{ emptyText: tableEmpty('没有符合条件的订单，换个筛选条件试试', loading) }}`（加载中不显示；一句话按「，」「；」拆成标题与说明，提到筛选、条件的为无结果）；能区分出错、有没有筛选的页面用 `listEmpty({ loading, error, filtered, onRetry, onClear, noun, empty })`：加载中不显示、出错给「重试」、有筛选给「清空筛选」、否则写首次为空的原因和下一步。只有出错时读屏播报 |
-| 操作列 | `RowActions`、`rowActionsWidth(n)`（`src/components/RowActions`） | `inline` 最多 2 个常用图标（32，间距 8），本行不适用的写假值留出空位；其余放 `more`、点击走 `onMore(key)`，危险项自动排到末尾。列宽用 `rowActionsWidth(图标位数)`（「更多」算一位，3 位为 136），计入 `tableScrollX`；操作列里的点击不会触发行点击 |
+| 操作列 | `RowActions`、`rowActionsWidth(n)`（`src/components/RowActions`） | `inline` 最多 2 个常用图标（32，间距 8），本行不适用的写假值留出空位；其余放 `more`、点击走 `onMore(key)`，危险项自动排到末尾，不能做的项写 `disabledReason`（菜单里置灰并写原因）。列宽用 `rowActionsWidth(图标位数)`（「更多」算一位，3 位为 136），计入 `tableScrollX`；操作列里的点击不会触发行点击。例外：审批、审核、工作队列（退款审批的通过/驳回、商品资料采纳/改选/忽略、待审品牌、客户跟进）每行一个主要动作，保留文字按钮；要显示进度的长操作（生成凭证）保留按钮 |
 | 危险确认 | `useConfirmDanger()`（`src/components/ConfirmDanger`） | `confirm({ title, content, okText, onOk })`：标题写明对象，内容写后果，按钮写动作（默认「删除」），默认焦点在「取消」；左侧 40 圆错误浅底图标，删除为垃圾桶、其余为警告三角。危险实底按钮深色下用深色字（亮红底上白字只有 2.7:1） |
 | 人名 | `UserName`、`useUserName`（`src/components/UserName`） | 创建人、更新人存的是登录账号，显示姓名（同一轮渲染的账号合并成一次 `/api/v1/system/users/names` 查询；登录、退出时清空缓存，查询失败先显示账号、下次再查）；系统写入显示「系统」 |
 | 创建、更新两列 | `auditColumns()`、`AuditCell`（同上） | 列表固定的「创建」「更新」两列（各 120）：人名 13 号正文色（「系统」次要色）在上、短时间 12 号在下，悬停看「姓名 · 完整时间」。`pages/purchase/components` 里旧的四列 `auditColumns` 第 4 批删掉 |
@@ -329,6 +329,10 @@ import {
 | `filler` | 错误 | 常识性套话，如「点击进入」「点击可跳转」 |
 | `filler-maybe` | 提示 | 「保存后生效」，有时带有用信息，人工判断 |
 | `long-placeholder` | 错误 / 提示 | 搜索框（`Input.Search`、带搜索图标、放在 `FilterField` 里）提示超过三项为错误；其他输入框超过三项、或超过 20 个字为提示；多行文本框不查，网址不按 `/` 拆分 |
+| `audit-columns` | 错误 | 手写的「创建时间、创建人、更新时间、更新人」列：用公共的 `auditColumns()` / `proAuditColumns()` |
+| `pager` | 错误 | 自己写 `showSizeChanger: true` 的分页：用 `usePagination()` 或 `{ ...PAGER_STYLE }` |
+| `plain-empty` | 提示 | 表格空状态直接写一句话：用 `tableEmpty(文字, loading)` 或 `listEmpty()` |
+| `row-tint` | 提示 | 整行铺红、橙浅底：用 `rowAlert()` |
 
 - 确认弹窗（`confirm`）、警告条（`Alert`）、`Popconfirm` 里的文字不检查，按「说明文字」一节原样保留。
 - `npm run lint:ui -- src/pages/sales` 只查指定目录（按当前所在目录解析，找不到时报错），有错误就失败；不带参数时扫全仓库，只有已迁移目录（脚本里的 `ENFORCED`）有错误才失败。每迁完一个业务域，把目录加进 `ENFORCED`。全部迁完后（任务 7.8）并入 `npm run lint`。

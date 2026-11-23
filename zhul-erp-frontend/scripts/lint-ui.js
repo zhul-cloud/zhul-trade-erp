@@ -37,6 +37,10 @@ const RULE_NAMES = new Set([
   'filler',
   'filler-maybe',
   'long-placeholder',
+  'audit-columns',
+  'pager',
+  'plain-empty',
+  'row-tint',
 ]);
 
 /** 按行检查的文字类规则（在去掉注释后的代码上匹配）；text: 确认弹窗等豁免范围里不查 */
@@ -66,6 +70,34 @@ const LINE_RULES = [
     message: '常识性套话：可点的内容已带箭头或主题色，不写「点击进入」一类说明',
     text: true,
     re: /点击[^，。；、\s'"`]{0,6}(进入|跳转|查看)|点击可跳转/,
+  },
+  {
+    id: 'audit-columns',
+    level: 'error',
+    message:
+      '列表的创建人、更新人与时间用公共的 auditColumns()（「创建」「更新」两列，ui-redesign D25）',
+    re: /title:\s*'(创建时间|创建人|更新时间|更新人)'/,
+  },
+  {
+    id: 'pager',
+    level: 'error',
+    message:
+      '分页用 usePagination() 或 { ...PAGER_STYLE }（每页 20 条、跳页、不重复总数），不自己写 showSizeChanger',
+    re: /showSizeChanger:\s*true/,
+  },
+  {
+    id: 'plain-empty',
+    level: 'warn',
+    message:
+      '表格空状态用 tableEmpty(文字, loading) 或 listEmpty()：加载中不显示、配图标，不直接写一句话',
+    re: /emptyText:\s*['`]/,
+  },
+  {
+    id: 'row-tint',
+    level: 'warn',
+    message:
+      '需要关注的行用 rowAlert()（行首 3px 色条加状态标签），不整行铺底色（ui-redesign D7）',
+    re: /background:\s*palette\.(redSoft|orangeSoft)\s*\}/,
   },
   {
     id: 'filler-maybe',
