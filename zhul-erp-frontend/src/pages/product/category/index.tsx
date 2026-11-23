@@ -10,8 +10,15 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import { App, Button, Input, Select, Tooltip } from 'antd';
-import { Search } from 'lucide-react';
+import { App, Button, Input, Select } from 'antd';
+import {
+  Ban,
+  CircleCheck,
+  FolderPlus,
+  Pencil,
+  Search,
+  Trash2,
+} from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -21,6 +28,7 @@ import {
   MainCard,
   PageHeader,
 } from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { proAuditColumns } from '@/components/UserName';
 import { MONO_FONT } from '@/theme/fonts';
 import { useIndustryOptions } from '@/utils/dict';
@@ -272,71 +280,59 @@ const CategoryPage: React.FC = () => {
         !access['product:category:delete'],
       fixed: 'right',
       valueType: 'option',
-      width: 210,
-      render: (_, row) => [
-        access['product:category:add'] && !row.parentId && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="sub"
-            onClick={() => openForm(null, row.id)}
-          >
-            + 细分品类
-          </button>
-        ),
-        access['product:category:edit'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="edit"
-            onClick={() => openForm(row)}
-          >
-            编辑
-          </button>
-        ),
-        access['product:category:edit'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="status"
-            onClick={() => toggleStatus(row)}
-          >
-            {row.status === 1 ? '停用' : '启用'}
-          </button>
-        ),
-        access['product:category:delete'] &&
-          ((row.children?.length ?? 0) > 0 ? (
-            <Tooltip key="delete" title="下面还有细分品类，请先删除或移走">
-              <span
-                aria-disabled="true"
-                style={{ opacity: 0.6, cursor: 'not-allowed' }}
-              >
-                删除
-              </span>
-            </Tooltip>
-          ) : row.productCount > 0 ? (
-            <Tooltip
-              key="delete"
-              title={`已有 ${row.productCount} 个商品使用，请先停用`}
-            >
-              <span
-                aria-disabled="true"
-                style={{ opacity: 0.6, cursor: 'not-allowed' }}
-              >
-                删除
-              </span>
-            </Tooltip>
-          ) : (
-            <button
-              type="button"
-              className="zhul-link"
-              key="delete"
-              onClick={() => remove(row)}
-            >
-              删除
-            </button>
-          )),
-      ],
+      // 编辑、加细分品类放行内；停用/启用、删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(3),
+      render: (_, row) => {
+        const canEdit = !!access['product:category:edit'];
+        const canDelete = !!access['product:category:delete'];
+        return (
+          <RowActions
+            inline={[
+              canEdit && {
+                key: 'edit',
+                label: '编辑',
+                icon: <Pencil size={18} />,
+                onClick: () => openForm(row),
+              },
+              access['product:category:add'] &&
+                !row.parentId && {
+                  key: 'sub',
+                  label: '添加细分品类',
+                  icon: <FolderPlus size={18} />,
+                  onClick: () => openForm(null, row.id),
+                },
+            ]}
+            more={[
+              canEdit && {
+                key: 'status',
+                label: row.status === 1 ? '停用' : '启用',
+                icon:
+                  row.status === 1 ? (
+                    <Ban size={16} />
+                  ) : (
+                    <CircleCheck size={16} />
+                  ),
+              },
+              canDelete && {
+                key: 'delete',
+                label: '删除',
+                icon: <Trash2 size={16} />,
+                danger: true,
+                disabledReason:
+                  (row.children?.length ?? 0) > 0
+                    ? '下面还有细分品类，请先删除或移走'
+                    : row.productCount > 0
+                      ? `已有 ${row.productCount} 个商品使用，请先停用`
+                      : undefined,
+              },
+            ]}
+            onMore={(key) => {
+              if (key === 'status') toggleStatus(row);
+              if (key === 'delete') remove(row);
+            }}
+          />
+        );
+      },
     },
   ];
 

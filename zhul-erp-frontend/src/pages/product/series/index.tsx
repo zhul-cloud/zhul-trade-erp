@@ -8,8 +8,8 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import { App, Button, Input, Select, Tooltip } from 'antd';
-import { Search } from 'lucide-react';
+import { App, Button, Input, Select } from 'antd';
+import { Ban, CircleCheck, Pencil, Search, Trash2 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -19,6 +19,7 @@ import {
   MainCard,
   PageHeader,
 } from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { proAuditColumns } from '@/components/UserName';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -144,52 +145,50 @@ const SeriesPage: React.FC = () => {
         !access['product:series:edit'] && !access['product:series:delete'],
       fixed: 'right',
       valueType: 'option',
-      width: 140,
-      render: (_, row) => [
-        access['product:series:edit'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="edit"
-            onClick={() => openForm(row)}
-          >
-            编辑
-          </button>
-        ),
-        access['product:series:edit'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="status"
-            onClick={() => toggleStatus(row)}
-          >
-            {row.status === 1 ? '停用' : '启用'}
-          </button>
-        ),
-        access['product:series:delete'] &&
-          (row.productCount > 0 ? (
-            <Tooltip
-              key="delete"
-              title={`已有 ${row.productCount} 个商品使用，请先停用`}
-            >
-              <span
-                aria-disabled="true"
-                style={{ opacity: 0.6, cursor: 'not-allowed' }}
-              >
-                删除
-              </span>
-            </Tooltip>
-          ) : (
-            <button
-              type="button"
-              className="zhul-link"
-              key="delete"
-              onClick={() => remove(row)}
-            >
-              删除
-            </button>
-          )),
-      ],
+      // 编辑放行内；停用/启用、删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(2),
+      render: (_, row) => {
+        const canEdit = !!access['product:series:edit'];
+        const canDelete = !!access['product:series:delete'];
+        return (
+          <RowActions
+            inline={[
+              canEdit && {
+                key: 'edit',
+                label: '编辑',
+                icon: <Pencil size={18} />,
+                onClick: () => openForm(row),
+              },
+            ]}
+            more={[
+              canEdit && {
+                key: 'status',
+                label: row.status === 1 ? '停用' : '启用',
+                icon:
+                  row.status === 1 ? (
+                    <Ban size={16} />
+                  ) : (
+                    <CircleCheck size={16} />
+                  ),
+              },
+              canDelete && {
+                key: 'delete',
+                label: '删除',
+                icon: <Trash2 size={16} />,
+                danger: true,
+                disabledReason:
+                  row.productCount > 0
+                    ? `已有 ${row.productCount} 个商品使用，请先停用`
+                    : undefined,
+              },
+            ]}
+            onMore={(key) => {
+              if (key === 'status') toggleStatus(row);
+              if (key === 'delete') remove(row);
+            }}
+          />
+        );
+      },
     },
   ];
 

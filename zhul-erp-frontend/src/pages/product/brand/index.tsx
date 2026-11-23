@@ -1,4 +1,4 @@
-import { EllipsisOutlined, PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   ModalForm,
@@ -10,17 +10,8 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import {
-  App,
-  Button,
-  Dropdown,
-  Input,
-  Select,
-  Space,
-  Tabs,
-  Tooltip,
-} from 'antd';
-import { Search } from 'lucide-react';
+import { App, Button, Input, Select, Space, Tabs, Tooltip } from 'antd';
+import { Ban, CircleCheck, Pencil, Search, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -29,6 +20,7 @@ import {
   MainCard,
   PageHeader,
 } from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { proAuditColumns } from '@/components/UserName';
 import { useIndustryOptions } from '@/utils/dict';
 import { usePagination } from '@/utils/pageSize';
@@ -299,63 +291,48 @@ const BrandPage: React.FC = () => {
         !access['product:brand:edit'] && !access['product:brand:delete'],
       valueType: 'option',
       fixed: 'right',
-      width: 140,
+      // 编辑放行内；停用/启用、删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(2),
       render: (_, row) => {
         const canEdit = !!access['product:brand:edit'];
         const canDelete = !!access['product:brand:delete'];
         return (
-          <Space size={12} style={{ whiteSpace: 'nowrap' }}>
-            {canEdit && (
-              <button
-                type="button"
-                className="zhul-link"
-                onClick={() => openForm(row)}
-              >
-                编辑
-              </button>
-            )}
-            {canEdit && (
-              <button
-                type="button"
-                className="zhul-link"
-                onClick={() => toggleStatus(row)}
-              >
-                {row.status === 1 ? '停用' : '启用'}
-              </button>
-            )}
-            {canDelete && (
-              <Dropdown
-                trigger={['click']}
-                menu={{
-                  items: [
-                    {
-                      key: 'delete',
-                      danger: true,
-                      disabled: row.productCount > 0,
-                      label:
-                        row.productCount > 0 ? (
-                          <Tooltip
-                            title={`已有 ${row.productCount} 个商品使用，请先停用`}
-                          >
-                            删除
-                          </Tooltip>
-                        ) : (
-                          '删除'
-                        ),
-                      onClick: () => remove(row),
-                    },
-                  ],
-                }}
-              >
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<EllipsisOutlined />}
-                  aria-label={`${row.brandName} 更多操作`}
-                />
-              </Dropdown>
-            )}
-          </Space>
+          <RowActions
+            inline={[
+              canEdit && {
+                key: 'edit',
+                label: '编辑',
+                icon: <Pencil size={18} />,
+                onClick: () => openForm(row),
+              },
+            ]}
+            more={[
+              canEdit && {
+                key: 'status',
+                label: row.status === 1 ? '停用' : '启用',
+                icon:
+                  row.status === 1 ? (
+                    <Ban size={16} />
+                  ) : (
+                    <CircleCheck size={16} />
+                  ),
+              },
+              canDelete && {
+                key: 'delete',
+                label: '删除',
+                icon: <Trash2 size={16} />,
+                danger: true,
+                disabledReason:
+                  row.productCount > 0
+                    ? `已有 ${row.productCount} 个商品使用，请先停用`
+                    : undefined,
+              },
+            ]}
+            onMore={(key) => {
+              if (key === 'status') toggleStatus(row);
+              if (key === 'delete') remove(row);
+            }}
+          />
         );
       },
     },
