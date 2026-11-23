@@ -422,7 +422,12 @@ const withPrefix = (
       ? undefined
       : React.cloneElement(node, {}, inner);
   }
-  if (!PREFIXABLE.has(node.type)) return undefined;
+  // 自定义选择器（如供应商搜索）把 prefix 转给内部的 Select 时，加 filterPrefix 标记即可同样放名称
+  if (
+    !PREFIXABLE.has(node.type) &&
+    !(node.type as { filterPrefix?: boolean }).filterPrefix
+  )
+    return undefined;
   const text = node.type === Input || node.type === Input.Search;
   return React.cloneElement(
     node as React.ReactElement<{

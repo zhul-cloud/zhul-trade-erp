@@ -270,6 +270,7 @@ const BargainStatsPage: React.FC = () => {
           <>
             <FilterField label="供应商">
               <SupplierPicker
+                aria-label="供应商"
                 value={supplierId}
                 placeholder="全部"
                 style={{ width: '100%' }}

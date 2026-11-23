@@ -111,6 +111,8 @@ export const SupplierPicker: React.FC<{
   onChange: (supplierId: number | undefined, name: string) => void;
   'aria-label'?: string;
   forwarder?: boolean;
+  /** 搜索条件区放在框内的名称（FilterField 自动传入） */
+  prefix?: React.ReactNode;
 }> = ({
   value,
   label,
@@ -119,6 +121,7 @@ export const SupplierPicker: React.FC<{
   onChange,
   'aria-label': ariaLabel,
   forwarder,
+  prefix,
 }) => {
   const [options, setOptions] = useState<{ value: number; label: string }[]>(
     [],
@@ -173,6 +176,7 @@ export const SupplierPicker: React.FC<{
     <Select
       allowClear
       aria-label={ariaLabel}
+      prefix={prefix}
       style={style}
       placeholder={placeholder}
       value={value}
@@ -192,6 +196,8 @@ export const SupplierPicker: React.FC<{
     />
   );
 };
+/** 放进搜索条件区时，名称和其他下拉一样放在框内（ListLayout 的 FilterField 识别） */
+Object.assign(SupplierPicker, { filterPrefix: true });
 
 type Preset = 'prepay' | 'cod' | 'credit' | 'custom';
 

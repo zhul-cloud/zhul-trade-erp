@@ -531,6 +531,7 @@ const PurchaseOrderList: React.FC = () => {
               <FilterField label="供应商">
                 <Form.Item name="supplierId" noStyle>
                   <SupplierPicker
+                    aria-label="供应商"
                     placeholder="全部"
                     onChange={(v) => form.setFieldValue('supplierId', v)}
                   />
