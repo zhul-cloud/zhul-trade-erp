@@ -23,7 +23,7 @@ import { auditColumns } from '@/pages/purchase/components';
 import { DOC_PATHS } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   groupIds,
@@ -602,10 +602,10 @@ const Shipments: React.FC = () => {
                 '还没有出运单；货交到货代后，在上面「待出运的货」里新建',
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               onChange: (p: number, s: number) => {
                 setPage(p);
                 setPageSize(s);

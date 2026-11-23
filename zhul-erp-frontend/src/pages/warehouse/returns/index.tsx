@@ -26,7 +26,7 @@ import {
 import { PATHS } from '@/pages/sales/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 
 /** 帮助文字：help-texts.md「退货入库列表」，关键词范围以 search-scope.md 为准 */
@@ -266,10 +266,10 @@ const ReturnsPage: React.FC = () => {
                 : '没有符合条件的退货入库单',
           }}
           pagination={{
+            ...PAGER_STYLE,
             current: page,
             pageSize,
             total,
-            showSizeChanger: true,
             onChange: (p, s) => {
               setPage(p);
               setPageSize(s);

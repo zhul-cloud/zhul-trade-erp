@@ -4,6 +4,7 @@ import React from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { auditColumns } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
+import { PAGER_STYLE } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { Pill } from '../components';
 import { type Signal, SRC, SRC_NAMES } from '../service';
@@ -153,10 +154,10 @@ export const SignalTable: React.FC<{
           : undefined
       }
       pagination={{
+        ...PAGER_STYLE,
         current: page,
         pageSize,
         total,
-        showSizeChanger: true,
         showTotal: (t) => `共 ${t} 条`,
         onChange: (p, s) => onPage(s === pageSize ? p : 1, s),
       }}

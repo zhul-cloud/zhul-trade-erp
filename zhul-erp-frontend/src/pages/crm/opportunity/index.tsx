@@ -22,7 +22,7 @@ import { auditColumns } from '@/pages/purchase/components';
 import { getUserOptions } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { MigratedPill, Pill, StagePill } from './components';
 import { CATEGORY_ACTIVE, LIST_PATH } from './constants';
@@ -348,23 +348,6 @@ const OpportunityPage: React.FC = () => {
                 })}
             </>
           }
-          quick={
-            <QuickFilters
-              options={[
-                {
-                  value: QUICK_TODAY,
-                  label: summary?.todayNew
-                    ? `今日新增 · ${summary.todayNew}`
-                    : '今日新增',
-                },
-              ]}
-              value={todayOnly ? [QUICK_TODAY] : []}
-              onChange={(v) => {
-                setTodayOnly(v.includes(QUICK_TODAY));
-                setPage(1);
-              }}
-            />
-          }
         >
           <FilterField label="关键词" span={2} help={HELP.keyword}>
             <Form.Item name="keyword" noStyle>
@@ -410,7 +393,26 @@ const OpportunityPage: React.FC = () => {
           />
         </MainCard>
       ) : (
-        <MainCard left={`共 ${total} 条`}>
+        <MainCard
+          left={`共 ${total} 条`}
+          quick={
+            <QuickFilters
+              options={[
+                {
+                  value: QUICK_TODAY,
+                  label: summary?.todayNew
+                    ? `今日新增 · ${summary.todayNew}`
+                    : '今日新增',
+                },
+              ]}
+              value={todayOnly ? [QUICK_TODAY] : []}
+              onChange={(v) => {
+                setTodayOnly(v.includes(QUICK_TODAY));
+                setPage(1);
+              }}
+            />
+          }
+        >
           <Table<OpportunityItem>
             rowKey="id"
             loading={loading}
@@ -423,10 +425,10 @@ const OpportunityPage: React.FC = () => {
               onDoubleClick: () => history.push(`${LIST_PATH}/${r.id}`),
             })}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);

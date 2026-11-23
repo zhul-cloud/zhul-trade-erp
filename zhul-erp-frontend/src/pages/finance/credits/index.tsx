@@ -38,7 +38,7 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { AdjustModal, WithdrawModal } from './CreditModals';
 import EntriesDrawer from './EntriesDrawer';
@@ -357,16 +357,6 @@ const CreditPage: React.FC = () => {
                 setShowAll(false);
                 setPage(1);
               }}
-              quick={
-                <QuickFilters
-                  options={[{ value: 'hasBalance', label: '只看有余额的' }]}
-                  value={showAll ? [] : ['hasBalance']}
-                  onChange={(v) => {
-                    setShowAll(v.length === 0);
-                    setPage(1);
-                  }}
-                />
-              }
             >
               <FilterField label="客户" span={2} help={HELP.keyword}>
                 <Form.Item name="keyword" noStyle>
@@ -415,6 +405,16 @@ const CreditPage: React.FC = () => {
                 />
               </>
             }
+            quick={
+              <QuickFilters
+                options={[{ value: 'hasBalance', label: '只看有余额的' }]}
+                value={showAll ? [] : ['hasBalance']}
+                onChange={(v) => {
+                  setShowAll(v.length === 0);
+                  setPage(1);
+                }}
+              />
+            }
           >
             {empty ? (
               <EmptyHint
@@ -434,10 +434,10 @@ const CreditPage: React.FC = () => {
                 scroll={{ x: tableScrollX(columns) }}
                 onRow={(a) => ({ onDoubleClick: () => setViewing(a) })}
                 pagination={{
+                  ...PAGER_STYLE,
                   current: page,
                   pageSize,
                   total,
-                  showSizeChanger: true,
                   onChange: (p, size) => {
                     setPage(p);
                     setPageSize(size);

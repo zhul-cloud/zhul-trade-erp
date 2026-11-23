@@ -37,7 +37,7 @@ import {
 } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import HandleDiscrepancyModal from './HandleDiscrepancyModal';
 
@@ -316,10 +316,10 @@ const ShipmentsTab: React.FC = () => {
               emptyText: '还没有发货记录；在采购订单详情点「登记发货」',
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);
@@ -612,10 +612,10 @@ const DiffsTab: React.FC<{ pending?: number; onChanged: () => void }> = ({
                   : '没有符合条件的到货差异',
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);

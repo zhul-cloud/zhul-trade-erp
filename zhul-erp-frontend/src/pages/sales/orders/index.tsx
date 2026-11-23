@@ -33,7 +33,7 @@ import { MONO_FONT } from '@/theme/fonts';
 import { useBusinessUnits } from '@/utils/businessUnit';
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   MigratedPill,
@@ -681,19 +681,6 @@ const OrderList: React.FC = () => {
               })}
             </>
           }
-          quick={
-            <QuickFilters
-              options={[{ value: QUICK_LOSS, label: '毛利为负' }]}
-              value={filters.lossOnly ? [QUICK_LOSS] : []}
-              onChange={(v) => {
-                setFilters((f) => ({
-                  ...f,
-                  lossOnly: v.includes(QUICK_LOSS) || undefined,
-                }));
-                setPage(1);
-              }}
-            />
-          }
         >
           <FilterField label="关键词" span={2} help={HELP.keyword}>
             <Form.Item name="keyword" noStyle>
@@ -755,7 +742,22 @@ const OrderList: React.FC = () => {
           />
         </MainCard>
       ) : (
-        <MainCard left={`共 ${total} 条`}>
+        <MainCard
+          left={`共 ${total} 条`}
+          quick={
+            <QuickFilters
+              options={[{ value: QUICK_LOSS, label: '毛利为负' }]}
+              value={filters.lossOnly ? [QUICK_LOSS] : []}
+              onChange={(v) => {
+                setFilters((f) => ({
+                  ...f,
+                  lossOnly: v.includes(QUICK_LOSS) || undefined,
+                }));
+                setPage(1);
+              }}
+            />
+          }
+        >
           <Table<OrderListItem>
             rowKey="id"
             columns={columns}
@@ -774,10 +776,10 @@ const OrderList: React.FC = () => {
               setPage(1);
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);

@@ -32,7 +32,7 @@ import { IconButton } from '@/components/Shell';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { LIST_PATH, SupplierTypePill } from './components';
 import {
@@ -546,10 +546,10 @@ const SupplierListPage: React.FC = () => {
                 }) as unknown as Partial<CheckboxProps>,
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               pageSizeOptions: [10, 20, 50],
               onChange: (p, s) => {
                 setPage(p);

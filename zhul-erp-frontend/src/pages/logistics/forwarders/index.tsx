@@ -31,7 +31,7 @@ import {
 } from '@/pages/supplier/accounts';
 import { searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   type ForwarderQuery,
@@ -565,10 +565,10 @@ const ForwarderPage: React.FC = () => {
           scroll={{ x: tableScrollX(columns) }}
           locale={{ emptyText: '还没有货代' }}
           pagination={{
+            ...PAGER_STYLE,
             current: page,
             pageSize,
             total,
-            showSizeChanger: true,
             onChange: (p: number, s: number) => {
               setPage(p);
               setPageSize(s);

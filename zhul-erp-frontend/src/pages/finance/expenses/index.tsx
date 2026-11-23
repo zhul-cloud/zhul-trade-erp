@@ -55,7 +55,7 @@ import { recentRange } from '@/utils/dateRange';
 import { useDictTexts } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   ACCEPT_PROOF,
@@ -1163,10 +1163,10 @@ const ExpensePage: React.FC = () => {
           dataSource={rows}
           scroll={{ x: tableScrollX(columns) }}
           pagination={{
+            ...PAGER_STYLE,
             current: page,
             pageSize,
             total,
-            showSizeChanger: true,
             onChange: (p, s) => {
               setPage(p);
               setPageSize(s);

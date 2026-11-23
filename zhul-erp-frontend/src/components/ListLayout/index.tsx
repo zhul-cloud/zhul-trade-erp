@@ -10,7 +10,7 @@ import {
   Tooltip,
   TreeSelect,
 } from 'antd';
-import { Check, Ellipsis, Info, SlidersHorizontal } from 'lucide-react';
+import { Check, Ellipsis, Info, SlidersHorizontal, X } from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -521,7 +521,11 @@ export const QuickFilters: React.FC<{
       }}
     >
       <legend className="zhul-sr-only">{label}</legend>
-      <span aria-hidden style={{ fontSize: 13, color: palette.mute }}>
+      <span
+        aria-hidden
+        className="zhul-quick-label"
+        style={{ fontSize: 13, color: palette.mute }}
+      >
         {label}
       </span>
       {options.map((o) => {
@@ -537,7 +541,7 @@ export const QuickFilters: React.FC<{
               )
             }
             style={{
-              height: 30,
+              height: 28,
               display: 'inline-flex',
               alignItems: 'center',
               gap: 4,
@@ -545,13 +549,15 @@ export const QuickFilters: React.FC<{
               border: 0,
               borderRadius: 999,
               background: on ? palette.primarySoft : palette.neutralSoft,
-              color: on ? palette.link : palette.sub,
+              color: palette.sub,
               fontSize: 13,
               fontWeight: on ? 600 : 400,
               cursor: 'pointer',
             }}
           >
-            {on && <Check size={16} aria-hidden />}
+            {on && (
+              <Check size={14} aria-hidden style={{ color: palette.ink }} />
+            )}
             {o.label}
           </button>
         );
@@ -689,22 +695,79 @@ export const FilterCard: React.FC<{
   );
 };
 
-/** 主内容区：操作行（左：结果数或已选；右：批量操作）+ 表格 */
+export interface FilterChipItem {
+  key: string;
+  /** 「品牌：西门子」 */
+  label: React.ReactNode;
+  onRemove: () => void;
+}
+
+/** 已生效的条件胶囊（「更多筛选」收起时显示在操作行，S16）：主题色浅底，点 × 去掉这个条件 */
+export const FilterChip: React.FC<{ item: FilterChipItem }> = ({ item }) => {
+  const { palette } = useAppTheme();
+  return (
+    <span
+      style={{
+        height: 28,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        padding: '0 4px 0 10px',
+        borderRadius: 14,
+        background: palette.primarySoft,
+        color: palette.sub,
+        fontSize: 13,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {item.label}
+      <button
+        type="button"
+        aria-label={`去掉条件 ${typeof item.label === 'string' ? item.label : ''}`}
+        onClick={item.onRemove}
+        style={{
+          width: 20,
+          height: 20,
+          display: 'grid',
+          placeItems: 'center',
+          padding: 0,
+          border: 0,
+          borderRadius: '50%',
+          background: 'transparent',
+          color: palette.mute,
+          cursor: 'pointer',
+        }}
+      >
+        <X size={14} aria-hidden />
+      </button>
+    </span>
+  );
+};
+
+/**
+ * 主内容区：操作行（左：结果数或已选，后面是快捷筛选 quick 与已生效条件 chips；右：批量操作）+ 表格。
+ * 快捷筛选放在这里，不放搜索条件区（ui-redesign D22）。
+ */
 export const MainCard: React.FC<{
   left?: React.ReactNode;
   right?: React.ReactNode;
+  quick?: React.ReactNode;
+  chips?: FilterChipItem[];
   children: React.ReactNode;
-}> = ({ left, right, children }) => {
+}> = ({ left, right, quick, chips, children }) => {
   const { palette } = useAppTheme();
+  const hasChips = (chips ?? []).length > 0;
   return (
     <Panel style={{ padding: 16, minWidth: 0 }}>
-      {(left || right) && (
+      {(left || right || quick || hasChips) && (
         <div
+          className="zhul-toolbar"
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 10,
+            gap: 12,
             flexWrap: 'wrap',
+            minHeight: 32,
             marginBottom: 12,
             color: palette.sub,
             fontSize: 13,
@@ -714,12 +777,17 @@ export const MainCard: React.FC<{
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 10,
+              gap: 12,
+              flexWrap: 'wrap',
               flex: 1,
               minWidth: 0,
             }}
           >
             {left}
+            {quick}
+            {chips?.map((c) => (
+              <FilterChip key={c.key} item={c} />
+            ))}
           </div>
           {right}
         </div>

@@ -8,7 +8,7 @@ import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
-import { usePageSize } from '@/utils/pageSize';
+import { usePageSize, PAGER_STYLE } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { Card, CoverPill, NextCell, PriorityPill, useUsers } from '../components';
 import {
@@ -278,10 +278,10 @@ const CoverageModelsPage: React.FC = () => {
           scroll={{ x: tableScrollX(columns) }}
           locale={{ emptyText: error || '没有符合条件的型号' }}
           pagination={{
+...PAGER_STYLE,
             current: f.page,
             pageSize,
             total,
-            showSizeChanger: true,
             showTotal: (t) => `共 ${t} 条`,
             onChange: (p, s) => {
               setF((o) => ({ ...o, page: s === pageSize ? p : 1 }));

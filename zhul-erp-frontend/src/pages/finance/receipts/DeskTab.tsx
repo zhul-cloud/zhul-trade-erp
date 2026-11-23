@@ -36,7 +36,7 @@ import {
 } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 
 interface Filters {
@@ -288,21 +288,6 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
             setAll(false);
             setPage(1);
           }}
-          quick={
-            <span
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-            >
-              <QuickFilters
-                options={[{ value: 'todo', label: '只看待处理' }]}
-                value={all ? [] : ['todo']}
-                onChange={(v) => {
-                  setAll(v.length === 0);
-                  setPage(1);
-                }}
-              />
-              <HelpTip title={DESK_HELP.todo} />
-            </span>
-          }
         >
           <FilterField label="关键词" span={2} help={DESK_HELP.keyword}>
             <Form.Item name="keyword" noStyle>
@@ -338,7 +323,24 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <MainCard left={`共 ${total} 条`}>
+        <MainCard
+          left={`共 ${total} 条`}
+          quick={
+            <span
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <QuickFilters
+                options={[{ value: 'todo', label: '只看待处理' }]}
+                value={all ? [] : ['todo']}
+                onChange={(v) => {
+                  setAll(v.length === 0);
+                  setPage(1);
+                }}
+              />
+              <HelpTip title={DESK_HELP.todo} />
+            </span>
+          }
+        >
           <Table<ReceiptDeskRow>
             rowKey={rowKey}
             columns={columns}
@@ -351,10 +353,10 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
                 : '没有待处理的到账：业务员上传水单后会出现在这里',
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);

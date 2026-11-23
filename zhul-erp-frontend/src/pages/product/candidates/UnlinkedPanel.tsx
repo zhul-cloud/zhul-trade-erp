@@ -8,7 +8,7 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { ProductSelect } from '@/pages/product/components/ProductSelect';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import type { ProductOption } from '../service';
 import { candidateApi, readBizError, type UnlinkedGroup } from './service';
@@ -171,10 +171,10 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
             scroll={{ x: tableScrollX(columns) }}
             locale={{ emptyText: '所有单据明细都已关联商品' }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               showTotal: (t: number) => `共 ${t} 组`,
               onChange: (p: number, s: number) => {
                 setPage(p);

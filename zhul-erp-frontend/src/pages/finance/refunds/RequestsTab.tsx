@@ -15,7 +15,7 @@ import { readBizError } from '@/pages/sales/service';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import RefundModal from './RefundModal';
 import { type RefundRequest, RQ_STATUS, refundRequestApi } from './service';
@@ -352,10 +352,10 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
                   : '没有符合条件的退款申请',
           }}
           pagination={{
+            ...PAGER_STYLE,
             current: page,
             pageSize,
             total,
-            showSizeChanger: true,
             onChange: (p, s) => {
               setPage(p);
               setPageSize(s);

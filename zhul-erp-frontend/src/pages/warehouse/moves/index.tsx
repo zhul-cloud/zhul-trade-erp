@@ -10,7 +10,7 @@ import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   bizText,
@@ -315,10 +315,10 @@ const MovesPage: React.FC = () => {
             scroll={{ x: tableScrollX(columns) }}
             locale={{ emptyText: '没有符合条件的流水' }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);

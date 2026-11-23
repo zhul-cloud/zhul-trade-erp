@@ -23,7 +23,7 @@ import { StockPill, useUserOptions } from '@/pages/sales/orders/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   auditColumns,
@@ -537,38 +537,6 @@ const PurchaseOrderList: React.FC = () => {
               ])}
             </>
           }
-          quick={
-            <QuickFilters
-              options={[
-                {
-                  value: QUICK_OVERDUE,
-                  label: withCount('逾期未发', stats?.overdueShip),
-                },
-              ]}
-              value={filters.shipProgress === 'OVERDUE' ? [QUICK_OVERDUE] : []}
-              onChange={(v) => {
-                if (v.includes(QUICK_OVERDUE)) {
-                  // 同原统计卡：筛逾期未发时只按这一个条件（统计不分日期），方便催货；
-                  // 其他条件在搜索条件卡片里一并清空，显示的和实际查询一致
-                  applyFilters({
-                    keyword: undefined,
-                    status: undefined,
-                    payStatus: undefined,
-                    invoiceStatus: undefined,
-                    supplierId: undefined,
-                    purchaserId: undefined,
-                    stockType: undefined,
-                    range: null,
-                    shipProgress: 'OVERDUE',
-                  });
-                } else {
-                  // 取消后回到默认视图（最近 3 个月）
-                  form.resetFields();
-                  applyFilters(defaults);
-                }
-              }}
-            />
-          }
         >
           <FilterField label="关键词" span={2} help={HELP.keyword}>
             <Form.Item name="keyword" noStyle>
@@ -624,7 +592,41 @@ const PurchaseOrderList: React.FC = () => {
           />
         </MainCard>
       ) : (
-        <MainCard left={`共 ${total} 条`}>
+        <MainCard
+          left={`共 ${total} 条`}
+          quick={
+            <QuickFilters
+              options={[
+                {
+                  value: QUICK_OVERDUE,
+                  label: withCount('逾期未发', stats?.overdueShip),
+                },
+              ]}
+              value={filters.shipProgress === 'OVERDUE' ? [QUICK_OVERDUE] : []}
+              onChange={(v) => {
+                if (v.includes(QUICK_OVERDUE)) {
+                  // 同原统计卡：筛逾期未发时只按这一个条件（统计不分日期），方便催货；
+                  // 其他条件在搜索条件卡片里一并清空，显示的和实际查询一致
+                  applyFilters({
+                    keyword: undefined,
+                    status: undefined,
+                    payStatus: undefined,
+                    invoiceStatus: undefined,
+                    supplierId: undefined,
+                    purchaserId: undefined,
+                    stockType: undefined,
+                    range: null,
+                    shipProgress: 'OVERDUE',
+                  });
+                } else {
+                  // 取消后回到默认视图（最近 3 个月）
+                  form.resetFields();
+                  applyFilters(defaults);
+                }
+              }}
+            />
+          }
+        >
           <Table<PoListItem>
             rowKey="id"
             columns={columns}
@@ -634,10 +636,10 @@ const PurchaseOrderList: React.FC = () => {
             onChange={onTableChange}
             locale={{ emptyText: '没有符合条件的采购订单，换个筛选条件试试' }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);

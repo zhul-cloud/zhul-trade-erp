@@ -24,7 +24,7 @@ import { Pill } from '@/pages/product/components/Pills';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { ImportRecordsDrawer } from '../products/cards/ImportRecords';
 import {
@@ -724,10 +724,10 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
               emptyText: tabs.find((t) => t.key === tab)?.empty ?? '没有记录',
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               onChange: (p: number, s: number) => {
                 setPage(p);
                 setPageSize(s);

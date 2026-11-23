@@ -26,7 +26,7 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { categoryApi } from '@/pages/product/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { FilterCard, ModelCell, useWarehouses } from '../inventoryParts';
 import {
@@ -440,10 +440,10 @@ const LedgerPage: React.FC = () => {
                 ) : null
               }
               pagination={{
+                ...PAGER_STYLE,
                 current: page,
                 pageSize,
                 total,
-                showSizeChanger: true,
                 showTotal: (t) => `共 ${t} 条`,
                 onChange: (p, s) => {
                   setPage(p);

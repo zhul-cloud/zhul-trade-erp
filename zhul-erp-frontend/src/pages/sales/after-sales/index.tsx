@@ -22,7 +22,7 @@ import { auditColumns } from '@/pages/purchase/components';
 import { searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useDictTexts } from '@/utils/dict';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { readBizError } from '../service';
 import { CreateAfterSalesModal, useOwnerOptions } from './dialogs';
@@ -383,35 +383,6 @@ const AfterSalesPage: React.FC = () => {
               })}
             </>
           }
-          quick={
-            <QuickFilters
-              options={[
-                {
-                  value: QUICK_OVERDUE,
-                  label: withCount('需要更新客户', counts?.overdue),
-                },
-                {
-                  value: QUICK_SOON,
-                  label: withCount(
-                    '已逾期或快到期',
-                    counts && counts.overdue + counts.dueSoon,
-                  ),
-                },
-              ]}
-              value={due ? [due] : []}
-              onChange={(v) => {
-                // 两个条件互斥，取刚点的那个；逾期单可能在处理中或待客户确认，状态放开看全部
-                const next = v.find((x) => x !== due) as typeof due;
-                setDue(next);
-                if (next) {
-                  // 只放开状态，其他条件仍按上次查询的（没点查询的输入不生效，同 PI 列表）
-                  form.setFieldValue('status', undefined);
-                  setFilters((f) => ({ ...f, status: undefined }));
-                }
-                setPage(1);
-              }}
-            />
-          }
         >
           <FilterField label="关键词" span={2} help={HELP.keyword}>
             <Form.Item name="keyword" noStyle>
@@ -456,7 +427,38 @@ const AfterSalesPage: React.FC = () => {
           </FilterField>
         </FilterCard>
       </Form>
-      <MainCard left={`共 ${total} 条`}>
+      <MainCard
+        left={`共 ${total} 条`}
+        quick={
+          <QuickFilters
+            options={[
+              {
+                value: QUICK_OVERDUE,
+                label: withCount('需要更新客户', counts?.overdue),
+              },
+              {
+                value: QUICK_SOON,
+                label: withCount(
+                  '已逾期或快到期',
+                  counts && counts.overdue + counts.dueSoon,
+                ),
+              },
+            ]}
+            value={due ? [due] : []}
+            onChange={(v) => {
+              // 两个条件互斥，取刚点的那个；逾期单可能在处理中或待客户确认，状态放开看全部
+              const next = v.find((x) => x !== due) as typeof due;
+              setDue(next);
+              if (next) {
+                // 只放开状态，其他条件仍按上次查询的（没点查询的输入不生效，同 PI 列表）
+                form.setFieldValue('status', undefined);
+                setFilters((f) => ({ ...f, status: undefined }));
+              }
+              setPage(1);
+            }}
+          />
+        }
+      >
         <Table<AfterSales>
           rowKey="id"
           loading={loading}
@@ -470,10 +472,10 @@ const AfterSalesPage: React.FC = () => {
                 : '没有符合条件的售后单',
           }}
           pagination={{
+            ...PAGER_STYLE,
             current: page,
             pageSize,
             total,
-            showSizeChanger: true,
             onChange: (p, s) => {
               setPage(p);
               setPageSize(s);

@@ -19,7 +19,7 @@ import { CURRENCIES } from '@/pages/quotation/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { BatchPayModal } from './BatchPayModal';
 import { currencyTotals, groupPayables, MAX_BATCH_PAYABLES } from './batch';
@@ -407,48 +407,6 @@ const PayableManagement: React.FC = () => {
             </FilterField>
           </>
         }
-        quick={
-          <QuickFilters
-            options={[
-              {
-                value: 'MONTH',
-                label: quickLabel(
-                  '本月到期未付',
-                  stats?.monthDue,
-                  `${stats?.monthDueCount ?? 0} 张`,
-                ),
-              },
-              {
-                value: 'OVERDUE',
-                label: quickLabel(
-                  '已逾期未付',
-                  stats?.overdue,
-                  `${stats?.overdueCount ?? 0} 张`,
-                ),
-              },
-              {
-                value: 'SOON',
-                label: quickLabel(
-                  '7 天内到期',
-                  stats?.soon,
-                  `${stats?.soonCount ?? 0} 张`,
-                ),
-              },
-              {
-                value: 'CREDIT',
-                label: quickLabel(
-                  '供应商欠款',
-                  stats?.credit,
-                  stats?.refundExpectedCount
-                    ? `${stats.refundExpectedCount} 笔待退款`
-                    : undefined,
-                ),
-              },
-            ]}
-            value={quickValue}
-            onChange={onQuick}
-          />
-        }
       >
         <FilterField label="关键词" span={2}>
           <Input
@@ -528,6 +486,48 @@ const PayableManagement: React.FC = () => {
             </>
           )
         }
+        quick={
+          <QuickFilters
+            options={[
+              {
+                value: 'MONTH',
+                label: quickLabel(
+                  '本月到期未付',
+                  stats?.monthDue,
+                  `${stats?.monthDueCount ?? 0} 张`,
+                ),
+              },
+              {
+                value: 'OVERDUE',
+                label: quickLabel(
+                  '已逾期未付',
+                  stats?.overdue,
+                  `${stats?.overdueCount ?? 0} 张`,
+                ),
+              },
+              {
+                value: 'SOON',
+                label: quickLabel(
+                  '7 天内到期',
+                  stats?.soon,
+                  `${stats?.soonCount ?? 0} 张`,
+                ),
+              },
+              {
+                value: 'CREDIT',
+                label: quickLabel(
+                  '供应商欠款',
+                  stats?.credit,
+                  stats?.refundExpectedCount
+                    ? `${stats.refundExpectedCount} 笔待退款`
+                    : undefined,
+                ),
+              },
+            ]}
+            value={quickValue}
+            onChange={onQuick}
+          />
+        }
       >
         <Table<Payable>
           rowKey="id"
@@ -546,10 +546,10 @@ const PayableManagement: React.FC = () => {
           }
           scroll={{ x: tableScrollX(columns) }}
           pagination={{
+            ...PAGER_STYLE,
             current: page,
             pageSize,
             total,
-            showSizeChanger: true,
             onChange: (p, s) => {
               setPage(p);
               setPageSize(s);

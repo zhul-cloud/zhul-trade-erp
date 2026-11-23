@@ -6,7 +6,7 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { Card, Pill } from '../shared/components';
 import {
   type BoardHistoryRow,
@@ -190,10 +190,10 @@ const AllTasksTable: React.FC<{
             style: { cursor: 'pointer' },
           })}
           pagination={{
+            ...PAGER_STYLE,
             current: page,
             pageSize,
             total,
-            showSizeChanger: true,
             showTotal: (t) => `共 ${t} 条`,
             onChange: (p, s) => {
               if (s !== pageSize) {

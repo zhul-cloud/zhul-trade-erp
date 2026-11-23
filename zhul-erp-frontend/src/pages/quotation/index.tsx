@@ -47,7 +47,7 @@ import { getUserOptions } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { formatMargin } from './calc';
 import {
@@ -554,10 +554,10 @@ const QuotationList: React.FC = () => {
             scroll={{ x: tableScrollX(columns) }}
             locale={{ emptyText: '没有符合条件的报价单，换个筛选条件试试' }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);

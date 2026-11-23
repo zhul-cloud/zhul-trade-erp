@@ -20,7 +20,7 @@ import {
 } from '@/pages/product/service';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { PlatformTaskChip, TABS } from './components';
 import {
@@ -258,10 +258,10 @@ const ListingTasksPage: React.FC = () => {
               emptyText: TABS.find((t) => t.key === tab)?.empty ?? '没有记录',
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               onChange: (p: number, s: number) => {
                 setPage(p);
                 setPageSize(s);

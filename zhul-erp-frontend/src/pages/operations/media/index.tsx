@@ -15,7 +15,7 @@ import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import MediaDrawer from './MediaDrawer';
 import { type MediaModel, mediaApi, readBizError } from './service';
@@ -257,10 +257,10 @@ const MediaLibraryPage: React.FC = () => {
                 : '还没有素材；询盘、回价、到货、实拍、打包时上传的图片和视频会自动汇总到这里',
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);

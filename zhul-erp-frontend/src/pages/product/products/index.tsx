@@ -40,7 +40,7 @@ import {
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { auditColumns } from '@/pages/purchase/components';
 import { formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { CompletenessBar } from '../components/CompletenessBar';
 import { EmptyHint, ErrorHint } from '../components/EmptyHint';
@@ -1023,75 +1023,6 @@ const ProductListInner: React.FC = () => {
             )}
           </>
         }
-        quick={
-          summary && (
-            <div style={{ display: 'grid', gap: 12 }}>
-              {/* 缺项是条件类，原来的「档案还有可以补充的地方」改为快捷筛选（互斥，再点取消） */}
-              <QuickFilters
-                label="待补充"
-                options={MISSING_CHIPS.map((c) => ({
-                  value: c.key,
-                  label: `${c.label} · ${summary[c.field] ?? 0}`,
-                }))}
-                value={filters.missing ? [filters.missing] : []}
-                onChange={(v) => {
-                  const next = v.find((x) => x !== filters.missing);
-                  updateFilters({
-                    missing: next,
-                    refineState: next === 'refine' ? 'todo' : undefined,
-                  });
-                  setRechoose(undefined);
-                }}
-              />
-              {refine && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 12,
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <RefineTabs
-                    summary={summary}
-                    value={refineState}
-                    onChange={(v) => {
-                      updateFilters({ refineState: v });
-                      setRechoose(undefined);
-                    }}
-                  />
-                  {canEdit &&
-                    refineState === 'todo' &&
-                    (aiJob?.taskId ? (
-                      <span
-                        role="status"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 10,
-                          height: 32,
-                          color: palette.sub,
-                        }}
-                      >
-                        <Spin size="small" />
-                        <b style={{ color: palette.ink }}>AI 细分中</b>
-                        <span className="num">共 {aiJob.total} 个</span>
-                      </span>
-                    ) : (
-                      <Button
-                        icon={<RobotOutlined />}
-                        disabled={!total && !selected.length}
-                        onClick={startRefine}
-                      >
-                        AI 细分品类
-                      </Button>
-                    ))}
-                </div>
-              )}
-            </div>
-          )
-        }
       >
         <FilterField label="关键词" span={2} help={HELP.keyword}>
           <Input
@@ -1199,6 +1130,75 @@ const ProductListInner: React.FC = () => {
             </>
           )
         }
+        quick={
+          summary && (
+            <div style={{ display: 'grid', gap: 12 }}>
+              {/* 缺项是条件类，原来的「档案还有可以补充的地方」改为快捷筛选（互斥，再点取消） */}
+              <QuickFilters
+                label="待补充"
+                options={MISSING_CHIPS.map((c) => ({
+                  value: c.key,
+                  label: `${c.label} · ${summary[c.field] ?? 0}`,
+                }))}
+                value={filters.missing ? [filters.missing] : []}
+                onChange={(v) => {
+                  const next = v.find((x) => x !== filters.missing);
+                  updateFilters({
+                    missing: next,
+                    refineState: next === 'refine' ? 'todo' : undefined,
+                  });
+                  setRechoose(undefined);
+                }}
+              />
+              {refine && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <RefineTabs
+                    summary={summary}
+                    value={refineState}
+                    onChange={(v) => {
+                      updateFilters({ refineState: v });
+                      setRechoose(undefined);
+                    }}
+                  />
+                  {canEdit &&
+                    refineState === 'todo' &&
+                    (aiJob?.taskId ? (
+                      <span
+                        role="status"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          height: 32,
+                          color: palette.sub,
+                        }}
+                      >
+                        <Spin size="small" />
+                        <b style={{ color: palette.ink }}>AI 细分中</b>
+                        <span className="num">共 {aiJob.total} 个</span>
+                      </span>
+                    ) : (
+                      <Button
+                        icon={<RobotOutlined />}
+                        disabled={!total && !selected.length}
+                        onClick={startRefine}
+                      >
+                        AI 细分品类
+                      </Button>
+                    ))}
+                </div>
+              )}
+            </div>
+          )
+        }
       >
         {error ? (
           <ErrorHint message={error} onRetry={load} />
@@ -1246,10 +1246,10 @@ const ProductListInner: React.FC = () => {
               style: { cursor: 'pointer' },
             })}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);

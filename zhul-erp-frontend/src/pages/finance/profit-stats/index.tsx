@@ -324,13 +324,6 @@ const ProfitStatsPage: React.FC = () => {
             />
           </FilterField>
         }
-        quick={
-          <QuickFilters
-            options={[{ value: 'settled', label: '只看已结算' }]}
-            value={settledOnly ? ['settled'] : []}
-            onChange={(v) => setSettledOnly(v.length > 0)}
-          />
-        }
       >
         <FilterField label="统计期间" span={2}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -417,6 +410,13 @@ const ProfitStatsPage: React.FC = () => {
               { label: '按业务员', value: 'OWNER' },
               { label: '按客户', value: 'CUSTOMER' },
             ]}
+          />
+        }
+        quick={
+          <QuickFilters
+            options={[{ value: 'settled', label: '只看已结算' }]}
+            value={settledOnly ? ['settled'] : []}
+            onChange={(v) => setSettledOnly(v.length > 0)}
           />
         }
       >

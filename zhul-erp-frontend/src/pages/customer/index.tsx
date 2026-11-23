@@ -39,7 +39,7 @@ import { useCountries } from '@/pages/product/components/useCountries';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { LIST_PATH, Pill, RolePill, TransferModal } from './components';
 import { DISABLE_CONFIRM_TEXT, ROLE_OPTIONS } from './constants';
 import { PoolTab, PutIntoPoolModal } from './pool';
@@ -841,10 +841,10 @@ const CustomerListPage: React.FC = () => {
                     }) as unknown as Partial<CheckboxProps>,
                 }}
                 pagination={{
+                  ...PAGER_STYLE,
                   current: page,
                   pageSize,
                   total,
-                  showSizeChanger: true,
                   pageSizeOptions: [10, 20, 50],
                   onChange: (p, s) => {
                     setPage(p);

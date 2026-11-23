@@ -20,7 +20,7 @@ import { FilterCard } from '@/pages/warehouse/inventoryParts';
 import { docHref } from '@/pages/warehouse/inventoryService';
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { ReasonPill, SignedMoney } from '../costingParts';
 import {
@@ -322,10 +322,10 @@ const CostAdjustmentsPage: React.FC = () => {
                 : '没有符合条件的成本调整',
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);

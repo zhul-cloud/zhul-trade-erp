@@ -346,6 +346,21 @@ const CountryProfilesPage: React.FC = () => {
           setQuery('');
           setFilter('all');
         }}
+      >
+        <FilterField label="国家" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="国家名称"
+            aria-label="国家"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={() => setQuery(keyword.trim())}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard
+        left={`共 ${shown.length} 个国家`}
         quick={
           // 未维护、外汇管制严格是条件，改为快捷筛选（互斥，再点取消）
           <QuickFilters
@@ -365,19 +380,6 @@ const CountryProfilesPage: React.FC = () => {
           />
         }
       >
-        <FilterField label="国家" span={2}>
-          <Input
-            allowClear
-            prefix={<Search size={16} />}
-            placeholder="国家名称"
-            aria-label="国家"
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            onPressEnter={() => setQuery(keyword.trim())}
-          />
-        </FilterField>
-      </FilterCard>
-      <MainCard left={`共 ${shown.length} 个国家`}>
         {error ? (
           <ErrorHint message={error} onRetry={load} />
         ) : (

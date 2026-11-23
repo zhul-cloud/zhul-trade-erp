@@ -6,6 +6,7 @@ import EllipsisText from '@/components/EllipsisText';
 import { useAppTheme } from '@/theme/AppTheme';
 import { MONO_FONT } from '@/theme/fonts';
 import { formatAmount } from '@/utils/format';
+import { PAGER_STYLE } from '@/utils/pageSize';
 import { PATHS } from '../shared/constants';
 import {
   type CustomerInquiry,
@@ -281,11 +282,11 @@ export const PagedModelsModal: React.FC<{
         dataSource={rows}
         scroll={{ y: 420 }}
         pagination={{
+          ...PAGER_STYLE,
           current: page,
           pageSize,
           total,
           size: 'small',
-          showSizeChanger: true,
           pageSizeOptions: [20, 50, 100],
           hideOnSinglePage: total <= PAGE_SIZE,
           showTotal: (t, [from, to]) => `第 ${from}–${to} 个，共 ${t} 个`,

@@ -18,7 +18,7 @@ import { PATHS } from '@/pages/sales/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   type CustomerGroup,
@@ -336,33 +336,6 @@ const ReceivablesPage: React.FC = () => {
             />
           </FilterField>
         }
-        quick={
-          <QuickFilters
-            options={[
-              {
-                value: 'OVERDUE',
-                label: `已逾期 · ${cny(s?.overdueCny)} · ${s?.overdueOrders ?? 0} 张`,
-              },
-              {
-                value: 'WEEK',
-                label: `7 天内到期 · ${cny(s?.weekCny)} · ${s?.weekOrders ?? 0} 张`,
-              },
-              {
-                value: 'MONTH',
-                label: `本月到期 · ${cny(s?.monthCny)} · ${s?.monthOrders ?? 0} 张`,
-              },
-            ]}
-            value={quickValue}
-            onChange={(v) => {
-              const next = v.find((x) => !quickValue.includes(x)) as
-                | DueFilter
-                | undefined;
-              // 快捷筛选立即生效，同步到搜索区的「到期」
-              setFilters((f) => ({ ...f, due: next }));
-              setDraft((d) => ({ ...d, due: next }));
-            }}
-          />
-        }
       >
         <FilterField label="关键词" span={2}>
           <Input
@@ -408,6 +381,33 @@ const ReceivablesPage: React.FC = () => {
             ]}
           />
         }
+        quick={
+          <QuickFilters
+            options={[
+              {
+                value: 'OVERDUE',
+                label: `已逾期 · ${cny(s?.overdueCny)} · ${s?.overdueOrders ?? 0} 张`,
+              },
+              {
+                value: 'WEEK',
+                label: `7 天内到期 · ${cny(s?.weekCny)} · ${s?.weekOrders ?? 0} 张`,
+              },
+              {
+                value: 'MONTH',
+                label: `本月到期 · ${cny(s?.monthCny)} · ${s?.monthOrders ?? 0} 张`,
+              },
+            ]}
+            value={quickValue}
+            onChange={(v) => {
+              const next = v.find((x) => !quickValue.includes(x)) as
+                | DueFilter
+                | undefined;
+              // 快捷筛选立即生效，同步到搜索区的「到期」
+              setFilters((f) => ({ ...f, due: next }));
+              setDraft((d) => ({ ...d, due: next }));
+            }}
+          />
+        }
       >
         {view === 'customer' ? (
           <Table<CustomerGroup>
@@ -430,8 +430,8 @@ const ReceivablesPage: React.FC = () => {
             }}
             locale={{ emptyText: '没有未收的款' }}
             pagination={{
+              ...PAGER_STYLE,
               pageSize,
-              showSizeChanger: true,
               showTotal: () => footer,
               onShowSizeChange: (_, n) => setPageSize(n),
             }}
@@ -445,8 +445,8 @@ const ReceivablesPage: React.FC = () => {
             scroll={{ x: tableScrollX(orderColumns) }}
             locale={{ emptyText: '没有未收的款' }}
             pagination={{
+              ...PAGER_STYLE,
               pageSize,
-              showSizeChanger: true,
               showTotal: () => footer,
               onShowSizeChange: (_, n) => setPageSize(n),
             }}

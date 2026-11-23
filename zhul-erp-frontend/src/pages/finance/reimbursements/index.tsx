@@ -39,7 +39,7 @@ import {
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { ACCEPT_PROOF, ProofLinks } from '../payables/components';
 import {
@@ -792,10 +792,10 @@ const _ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
           }
           scroll={{ x: tableScrollX(columns) }}
           pagination={{
+            ...PAGER_STYLE,
             current: page,
             pageSize,
             total,
-            showSizeChanger: true,
             onChange: (p, s) => {
               setPage(p);
               setPageSize(s);

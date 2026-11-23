@@ -41,7 +41,7 @@ import { getUserOptions } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   PATHS,
@@ -519,32 +519,6 @@ const PiList: React.FC = () => {
           more={select('ownerId', '业务员', owners, {
             showSearch: { optionFilterProp: 'label' },
           })}
-          quick={
-            <QuickFilters
-              options={[
-                {
-                  value: QUICK_UNPAID,
-                  label: withCount('待收款', stats?.unpaidCount),
-                },
-                {
-                  value: QUICK_EXPIRED,
-                  label: withCount('已过期未收款', overdueCount),
-                },
-              ]}
-              value={[
-                ...(filters.unpaid ? [QUICK_UNPAID] : []),
-                ...(filters.expiredUnpaid ? [QUICK_EXPIRED] : []),
-              ]}
-              onChange={(v) => {
-                setFilters((f) => ({
-                  ...f,
-                  unpaid: v.includes(QUICK_UNPAID) || undefined,
-                  expiredUnpaid: v.includes(QUICK_EXPIRED) || undefined,
-                }));
-                setPage(1);
-              }}
-            />
-          }
         >
           <FilterField label="关键词" span={2} help={HELP.keyword}>
             <Form.Item name="keyword" noStyle>
@@ -610,7 +584,35 @@ const PiList: React.FC = () => {
           />
         </MainCard>
       ) : (
-        <MainCard left={`共 ${total} 条`}>
+        <MainCard
+          left={`共 ${total} 条`}
+          quick={
+            <QuickFilters
+              options={[
+                {
+                  value: QUICK_UNPAID,
+                  label: withCount('待收款', stats?.unpaidCount),
+                },
+                {
+                  value: QUICK_EXPIRED,
+                  label: withCount('已过期未收款', overdueCount),
+                },
+              ]}
+              value={[
+                ...(filters.unpaid ? [QUICK_UNPAID] : []),
+                ...(filters.expiredUnpaid ? [QUICK_EXPIRED] : []),
+              ]}
+              onChange={(v) => {
+                setFilters((f) => ({
+                  ...f,
+                  unpaid: v.includes(QUICK_UNPAID) || undefined,
+                  expiredUnpaid: v.includes(QUICK_EXPIRED) || undefined,
+                }));
+                setPage(1);
+              }}
+            />
+          }
+        >
           <Table<PiListItem>
             rowKey="id"
             onChange={(_p, _f, sorter, extra) => {
@@ -628,10 +630,10 @@ const PiList: React.FC = () => {
             scroll={{ x: tableScrollX(columns) }}
             locale={{ emptyText: '没有符合条件的 PI，换个筛选条件试试' }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);

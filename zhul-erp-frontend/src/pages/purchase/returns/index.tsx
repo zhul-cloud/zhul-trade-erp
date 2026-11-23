@@ -22,7 +22,7 @@ import { readBizError } from '@/pages/sales/service';
 import { searchSuppliers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { auditColumns, PATHS } from '../components';
 import {
@@ -343,10 +343,10 @@ const PurchaseReturnsPage: React.FC = () => {
                 : '没有符合条件的采购退货单',
           }}
           pagination={{
+            ...PAGER_STYLE,
             current: page,
             pageSize,
             total,
-            showSizeChanger: true,
             onChange: (p, s) => {
               setPage(p);
               setPageSize(s);

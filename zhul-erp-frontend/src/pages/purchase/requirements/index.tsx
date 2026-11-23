@@ -45,7 +45,7 @@ import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { StockPill, useUserOptions } from '@/pages/sales/orders/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   auditColumns,
@@ -578,20 +578,6 @@ const RequirementList: React.FC = () => {
             </FilterField>
           </>
         }
-        quick={
-          <QuickFilters
-            options={[
-              {
-                value: QUICK_OVERDUE,
-                label: withCount('超时未下单', stats?.overdue),
-              },
-            ]}
-            value={filters.overdue ? [QUICK_OVERDUE] : []}
-            onChange={(v) =>
-              applyNow({ overdue: v.includes(QUICK_OVERDUE) || undefined })
-            }
-          />
-        }
       >
         <FilterField label="关键词" span={2} help={HELP.keyword}>
           <Input
@@ -701,6 +687,20 @@ const RequirementList: React.FC = () => {
               />
             </div>
           )
+        }
+        quick={
+          <QuickFilters
+            options={[
+              {
+                value: QUICK_OVERDUE,
+                label: withCount('超时未下单', stats?.overdue),
+              },
+            ]}
+            value={filters.overdue ? [QUICK_OVERDUE] : []}
+            onChange={(v) =>
+              applyNow({ overdue: v.includes(QUICK_OVERDUE) || undefined })
+            }
+          />
         }
       >
         {error ? (
@@ -838,10 +838,10 @@ const RequirementList: React.FC = () => {
             rowSelection={rowSelection(rows)}
             onRow={overdueRow}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);

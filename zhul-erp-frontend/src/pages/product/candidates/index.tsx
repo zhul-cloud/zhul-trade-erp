@@ -39,7 +39,7 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { LIFECYCLE_OPTIONS } from '../constants';
 import {
@@ -1786,10 +1786,10 @@ const Candidates: React.FC = () => {
                   : '没有记录',
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               onChange: (p: number, s: number) => {
                 setPage(p);
                 setPageSize(s);

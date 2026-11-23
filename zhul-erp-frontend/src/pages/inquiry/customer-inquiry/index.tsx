@@ -40,7 +40,7 @@ import { getUserOptions } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
 import { recentRange } from '@/utils/dateRange';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   DeadlineText,
@@ -675,29 +675,6 @@ const CustomerInquiryPage: React.FC = () => {
               </FilterField>
             </>
           }
-          quick={
-            <QuickFilters
-              options={[
-                {
-                  value: QUICK_TODAY,
-                  label: withCount('今日新增', stats?.today),
-                },
-                { value: QUICK_URGENT, label: '紧急' },
-                { value: QUICK_TIMEOUT, label: '有超时任务' },
-              ]}
-              value={[
-                ...(todayOnly ? [QUICK_TODAY] : []),
-                ...(urgentOnly ? [QUICK_URGENT] : []),
-                ...(timeoutOnly ? [QUICK_TIMEOUT] : []),
-              ]}
-              onChange={(v) => {
-                setTodayOnly(v.includes(QUICK_TODAY));
-                setUrgentOnly(v.includes(QUICK_URGENT));
-                setTimeoutOnly(v.includes(QUICK_TIMEOUT));
-                setPage(1);
-              }}
-            />
-          }
         >
           <FilterField label="关键词" span={2} help={HELP.keyword}>
             <Form.Item name="keyword" noStyle>
@@ -750,7 +727,32 @@ const CustomerInquiryPage: React.FC = () => {
           />
         </MainCard>
       ) : (
-        <MainCard left={`共 ${total} 条`}>
+        <MainCard
+          left={`共 ${total} 条`}
+          quick={
+            <QuickFilters
+              options={[
+                {
+                  value: QUICK_TODAY,
+                  label: withCount('今日新增', stats?.today),
+                },
+                { value: QUICK_URGENT, label: '紧急' },
+                { value: QUICK_TIMEOUT, label: '有超时任务' },
+              ]}
+              value={[
+                ...(todayOnly ? [QUICK_TODAY] : []),
+                ...(urgentOnly ? [QUICK_URGENT] : []),
+                ...(timeoutOnly ? [QUICK_TIMEOUT] : []),
+              ]}
+              onChange={(v) => {
+                setTodayOnly(v.includes(QUICK_TODAY));
+                setUrgentOnly(v.includes(QUICK_URGENT));
+                setTimeoutOnly(v.includes(QUICK_TIMEOUT));
+                setPage(1);
+              }}
+            />
+          }
+        >
           <Table<CustomerInquiry>
             rowKey="id"
             columns={columns}
@@ -771,10 +773,10 @@ const CustomerInquiryPage: React.FC = () => {
             }}
             locale={{ emptyText: '没有符合条件的询盘，换个筛选条件试试' }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);

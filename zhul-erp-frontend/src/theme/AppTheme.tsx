@@ -82,6 +82,7 @@ const globalCss = (
   /* 分页（ui-redesign D12）：左侧每页条数，右侧圆形页码；当前页主题色实底、主按钮同色字（浅底与白底只差 1.07:1，看不出在哪页） */
   .ant-pagination { display: flex; flex-wrap: wrap; align-items: center; row-gap: 8px; }
   .ant-pagination .ant-pagination-options { order: -1; margin-inline: 0 auto; }
+  .ant-pagination .ant-pagination-total-text:empty { display: none; }
   .ant-pagination .ant-pagination-item, .ant-pagination .ant-pagination-prev, .ant-pagination .ant-pagination-next,
   .ant-pagination .ant-pagination-jump-prev, .ant-pagination .ant-pagination-jump-next {
     min-width: 32px; height: 32px; line-height: 30px; border-radius: 16px; border-color: transparent;
@@ -126,6 +127,17 @@ const globalCss = (
   }
   .zhul-link:hover { color: ${link.hover}; }
   .zhul-link:active { color: ${link.active}; }
+  /* 表格里的单号、来源单号与「查看」等文字链接（ui-redesign D23）：平时墨色，悬停主题色加下划线；单号列（首列或勾选列后一列）600。
+     表格不再满屏主题色，也不和警告标签撞色；按钮（删除等）不受影响 */
+  .ant-table-tbody .zhul-link, .ant-table-tbody a:not(.ant-btn) { color: ${p.ink}; }
+  .ant-table-tbody .zhul-link:hover, .ant-table-tbody a:not(.ant-btn):hover {
+    color: ${link.hover}; text-decoration: underline; text-underline-offset: 3px;
+  }
+  .ant-table-tbody > tr > td:first-child .zhul-link, .ant-table-tbody > tr > td:first-child a:not(.ant-btn),
+  .ant-table-tbody > tr > td.ant-table-selection-column + td .zhul-link,
+  .ant-table-tbody > tr > td.ant-table-selection-column + td a:not(.ant-btn) { font-weight: 600; }
+  /* 主卡操作行里的快捷筛选：结果数后面直接是胶囊，不写「快捷筛选」 */
+  .zhul-toolbar .zhul-quick-label { display: none; }
   /* 卡片里可点的明细行：悬停浅底（同待办行） */
   .zhul-row-hover { transition: background .2s; border-radius: 8px; }
   .zhul-row-hover:hover { background: ${p.hover} !important; }

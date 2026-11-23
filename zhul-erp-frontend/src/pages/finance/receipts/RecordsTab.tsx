@@ -27,7 +27,7 @@ import {
 import { recentRange } from '@/utils/dateRange';
 import { usePaymentMethods } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { ledgerApi, type ReceiptMoney, type ReceiptSummary } from './service';
 import { MethodCell, NetCnyCell } from './UnclaimedTab';
@@ -459,10 +459,10 @@ const RecordsTab: React.FC = () => {
             setPage(1);
           }}
           pagination={{
+            ...PAGER_STYLE,
             current: page,
             pageSize,
             total,
-            showSizeChanger: true,
             onChange: (p, s) => {
               setPage(p);
               setPageSize(s);

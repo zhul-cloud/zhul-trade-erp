@@ -46,7 +46,7 @@ import {
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { settleCny, settleRate } from './calc';
 import { ReceiptWho, SettlePill } from './components';
@@ -767,10 +767,10 @@ const FxSettlementPage: React.FC = () => {
                     dataSource={rows}
                     scroll={{ x: tableScrollX(columns) }}
                     pagination={{
+                      ...PAGER_STYLE,
                       current: page,
                       pageSize,
                       total,
-                      showSizeChanger: true,
                       onChange: (p, s) => {
                         setPage(p);
                         setPageSize(s);

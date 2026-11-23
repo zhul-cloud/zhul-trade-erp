@@ -14,7 +14,7 @@ import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import {
   AgeText,
   ConditionPill,
@@ -238,23 +238,6 @@ const PriceHistoryPage: React.FC = () => {
             setFilters({});
           }}
           minColumn={130}
-          quick={
-            filters.categoryId ? (
-              <Tag
-                closable
-                onClose={() => {
-                  setPage(1);
-                  setFilters((f) => ({
-                    ...f,
-                    categoryId: undefined,
-                    categoryName: undefined,
-                  }));
-                }}
-              >
-                品类：{filters.categoryName ?? filters.categoryId}
-              </Tag>
-            ) : undefined
-          }
           moreCount={
             [
               canSeeSupplier ? filters.channel : undefined,
@@ -335,7 +318,26 @@ const PriceHistoryPage: React.FC = () => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <MainCard left={`共 ${total} 个型号`}>
+        <MainCard
+          left={`共 ${total} 个型号`}
+          quick={
+            filters.categoryId ? (
+              <Tag
+                closable
+                onClose={() => {
+                  setPage(1);
+                  setFilters((f) => ({
+                    ...f,
+                    categoryId: undefined,
+                    categoryName: undefined,
+                  }));
+                }}
+              >
+                品类：{filters.categoryName ?? filters.categoryId}
+              </Tag>
+            ) : undefined
+          }
+        >
           <Table<PriceHistoryGroup>
             rowKey={(r) => `${r.brandKey}|${r.modelKey}`}
             columns={columns}
@@ -349,10 +351,10 @@ const PriceHistoryPage: React.FC = () => {
                   : '还没有询价记录，采购提交回价后会出现在这里',
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);
