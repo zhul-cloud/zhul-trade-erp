@@ -275,7 +275,7 @@ const CostAdjustmentsPage: React.FC = () => {
         <ErrorHint message={error} onRetry={load} />
       ) : (
         <MainCard
-          left={`共 ${total} 条`}
+          left={loading && !total ? undefined : `共 ${total} 条`}
           quick={
             // 原「销售成本调整」卡片是条件类，改为快捷筛选，数字仍按所选月份统计
             <QuickFilters

@@ -320,7 +320,7 @@ const PriceHistoryPage: React.FC = () => {
         <ErrorHint message={error} onRetry={load} />
       ) : (
         <MainCard
-          left={`共 ${total} 个型号`}
+          left={loading && !total ? undefined : `共 ${total} 个型号`}
           quick={
             filters.categoryId ? (
               <Tag

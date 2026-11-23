@@ -537,7 +537,7 @@ const QuotationList: React.FC = () => {
           />
         </MainCard>
       ) : (
-        <MainCard left={`共 ${total} 条`}>
+        <MainCard left={loading && !total ? undefined : `共 ${total} 条`}>
           <Table<QuotationListItem>
             rowKey="id"
             onChange={(_p, _f, sorter, extra) => {

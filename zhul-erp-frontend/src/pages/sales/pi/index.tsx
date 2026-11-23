@@ -590,7 +590,7 @@ const PiList: React.FC = () => {
         </MainCard>
       ) : (
         <MainCard
-          left={`共 ${total} 条`}
+          left={loading && !total ? undefined : `共 ${total} 条`}
           quick={
             <QuickFilters
               options={[

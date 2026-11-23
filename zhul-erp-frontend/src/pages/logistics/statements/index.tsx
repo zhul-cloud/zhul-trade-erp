@@ -692,7 +692,7 @@ const Statements: React.FC = () => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <MainCard left={`共 ${total} 条`}>
+        <MainCard left={loading && !total ? undefined : `共 ${total} 条`}>
           <Table<Statement>
             rowKey="id"
             columns={columns}

@@ -672,7 +672,13 @@ const UnclaimedTab: React.FC<{
           )}
         </FilterCard>
       </Form>
-      <MainCard left={`共 ${data?.unclaimed?.length ?? 0} 条`}>
+      <MainCard
+        left={
+          loading && !(data?.unclaimed?.length ?? 0)
+            ? undefined
+            : `共 ${data?.unclaimed?.length ?? 0} 条`
+        }
+      >
         <Table<ReceiptRow>
           rowKey="id"
           columns={columns}

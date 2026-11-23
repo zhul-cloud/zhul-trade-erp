@@ -361,7 +361,9 @@ const CountryProfilesPage: React.FC = () => {
         </FilterField>
       </FilterCard>
       <MainCard
-        left={`共 ${shown.length} 个国家`}
+        left={
+          loading && !shown.length ? undefined : `共 ${shown.length} 个国家`
+        }
         quick={
           // 未维护、外汇管制严格是条件，改为快捷筛选（互斥，再点取消）
           <QuickFilters

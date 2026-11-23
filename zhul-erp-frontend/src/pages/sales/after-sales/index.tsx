@@ -429,7 +429,7 @@ const AfterSalesPage: React.FC = () => {
         </FilterCard>
       </Form>
       <MainCard
-        left={`共 ${total} 条`}
+        left={loading && !total ? undefined : `共 ${total} 条`}
         quick={
           <QuickFilters
             options={[

@@ -245,7 +245,7 @@ const MediaLibraryPage: React.FC = () => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <MainCard left={`共 ${total} 个型号`}>
+        <MainCard left={loading && !total ? undefined : `共 ${total} 个型号`}>
           <Table<MediaModel>
             rowKey={(r) => `${r.brand}|${r.model}`}
             columns={columns}

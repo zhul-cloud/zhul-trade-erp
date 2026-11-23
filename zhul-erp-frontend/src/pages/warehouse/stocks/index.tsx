@@ -416,7 +416,7 @@ const StocksPage: React.FC = () => {
         <ErrorHint message={error} onRetry={load} />
       ) : (
         <MainCard
-          left={`共 ${total} 条`}
+          left={loading && !total ? undefined : `共 ${total} 条`}
           quick={
             <QuickFilters
               options={[

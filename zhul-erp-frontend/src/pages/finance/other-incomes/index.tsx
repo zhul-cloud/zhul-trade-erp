@@ -458,7 +458,7 @@ const OtherIncomePage: React.FC = () => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard left={`共 ${total} 条`}>
+      <MainCard left={loading && !total ? undefined : `共 ${total} 条`}>
         <Table<OtherIncome>
           rowKey="id"
           loading={loading}
