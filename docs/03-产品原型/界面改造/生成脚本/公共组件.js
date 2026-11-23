@@ -291,8 +291,9 @@ board(DARK, 'G2 公共组件 · 深色');
 
 // ———————— H 工作台（按行的 12 栏栅格、同行等高、组件按高度档出内容）
 // 1440 下内容区 1148：栏宽 81、间距 16，span 栏宽 = 81 × span + 16 × (span − 1)
-// 高度档含标题：S 200、M 360；白卡与透明数字卡组同一盒模型（上 20 + 标题 24 + 12 + 内容 + 下 20）
-const TIER = { S: 200, M: 360 };
+// 同一行组件的标题统一放在卡外的页面底上（用户 2026-11-23 选 A），卡片从同一条线开始、到同一条线结束
+// 高度档含标题：标题 24 + 12 + 卡片；S 180（卡 144，等于一排数字卡）、M 340（卡 304，等于两排数字卡）
+const TIER = { S: 180, M: 340 };
 const spanW = (n) => 81 * n + 16 * (n - 1);
 function dash(T, name, H, rows, greet) {
   const K = kit(T); const { tx, box } = K;
@@ -322,16 +323,16 @@ function wHead(T, p, title, o) {
 }
 const wCard = (T, title, o, fill) => (row, h, w) => {
   const { card, box } = kit(T);
-  const inset = o && o.inset;
-  const c = card(row, { width: w, height: h, layout: 'vertical', gap: 12, padding: inset ? [20, 12] : [20, 20] });
-  wHead(T, inset ? box(c, { width: 'fill_container', layout: 'vertical', padding: [0, 8] }) : c, title, o);
+  const g = box(row, { width: w, height: h, layout: 'vertical', gap: 12 });
+  wHead(T, g, title, o);
+  const c = card(g, { width: 'fill_container', height: 'fill_container', layout: 'vertical', padding: o && o.inset ? [20, 12] : [20, 20] });
   const body = box(c, { width: 'fill_container', height: 'fill_container', layout: 'vertical' });
   fill(body, w);
 };
 // 透明数字卡组；cols 为每排张数
 const wGroup = (T, title, o, ms, cols) => (row, h, w) => {
   const { box } = kit(T);
-  const g = box(row, { width: w, layout: 'vertical', gap: 12, padding: [20, 0, 0, 0] });
+  const g = box(row, { width: w, layout: 'vertical', gap: 12 });
   wHead(T, g, title, o);
   const per = cols || ms.length;
   const rows = box(g, { width: 'fill_container', layout: 'vertical', gap: 16 });
@@ -366,9 +367,9 @@ function bossBoard(T, name) {
   const K = kit(T); const { tx, box, icon, sp, deltaPill } = K;
   // 主角卡：本月成交额 28/600 + 涨跌胶囊 + 12 个月柱图（往期浅灰、只亮本月，虚线网格与刻度，本月柱顶数值）+ 一句结论
   const hero = (row, h, w) => {
-    const c = K.card(row, { width: w, height: h, layout: 'vertical', padding: [20, 20] });
-    wHead(T, c, '本月成交额', { sub: '人民币', help: 1, more: '经营统计' });
-    sp(c, 12);
+    const g = box(row, { width: w, height: h, layout: 'vertical', gap: 12 });
+    wHead(T, g, '本月成交额', { sub: '人民币', help: 1, more: '经营统计' });
+    const c = K.card(g, { width: 'fill_container', height: 'fill_container', layout: 'vertical', padding: [20, 20] });
     const vr = box(c, { layout: 'horizontal', gap: 4, alignItems: 'end' });
     const cw = box(vr, { layout: 'vertical', padding: [0, 0, 4, 0] }); tx(cw, 'CNY', { fontSize: 16, fontWeight: 600, fontFamily: NUM, fill: solid(T.sub) });
     tx(vr, '412,860.00', { fontSize: 28, fontWeight: 600, fontFamily: NUM, lineHeight: 1.25, fill: solid(T.ink) });
@@ -376,7 +377,7 @@ function bossBoard(T, name) {
     sp(c, 16);
     const vals = [0, 0, 0, 0, 0, 0, 18.6, 22.4, 31.2, 26.8, 35.1, 41.3];
     const mon = ['12月', '1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月'];
-    const PH = 136; const PW = w - 40 - 40;
+    const PH = 124; const PW = w - 40 - 40;
     const ch = box(c, { width: 'fill_container', layout: 'horizontal' });
     // Y 轴刻度：文字竖直中心对准对应网格线
     const ya = box(ch, { width: 40, height: PH + 18, layout: 'none' });
@@ -412,7 +413,7 @@ function bossBoard(T, name) {
     const data = [['新增商机', 12, null], ['询盘', 9, '75%'], ['报价', 14, null], ['PI', 6, '43%'], ['成交订单', 4, '67%']];
     const BW = w - 40;
     data.forEach(([l, v, rate], i) => {
-      if (i) sp(b, 16);
+      if (i) sp(b, 14);
       const r1 = box(b, { width: 'fill_container', layout: 'horizontal', alignItems: 'center', gap: 8 });
       tx(r1, l, { fontSize: 13, fill: solid(T.body), width: 'fill_container' });
       tx(r1, String(v), { fontSize: 14, fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) });
@@ -434,7 +435,7 @@ function bossBoard(T, name) {
       sp(t, 8);
       const max = data[0][1];
       data.forEach(([nm, amt, second, cc]) => {
-        const r = box(t, { width: 'fill_container', height: 51, layout: 'horizontal', gap: 12, alignItems: 'center' });
+        const r = box(t, { width: 'fill_container', height: 46, layout: 'horizontal', gap: 12, alignItems: 'center' });
         avatar(r, nm, cc);
         const m = box(r, { width: 'fill_container', layout: 'vertical', gap: 4 });
         tx(m, nm, { fontFamily: NUM, fill: solid(T.ink) });
@@ -448,7 +449,7 @@ function bossBoard(T, name) {
     list('业务员', [['林熙', 186420, '毛利率 24.10%'], ['Kevin', 132800, '毛利率 21.65%'], ['Lily', 61240, '毛利率 19.80%'], ['周宁', 22600, '毛利率 27.30%'], ['陈默', 9800, '毛利率 18.20%']], person);
     list('客户', [['Müller Automation GmbH', 98400, '3 单', 'DE'], ['Kansai Robotics Co., Ltd.', 76250, '2 单', 'JP'], ['Électro Industrie SARL', 54900, '2 单', 'FR'], ['Automazione Rossi S.r.l.', 31600, '1 单', 'IT'], ['Müller Automation GmbH', 12300, '1 单', 'DE']], (p, nm, cc) => flag(T, p, cc, 28));
   });
-  dash(T, name, 1140, [
+  dash(T, name, 1080, [
     { h: TIER.M, items: [[hero, 6], [overview, 6]] },
     { h: TIER.S, items: [[fund, 6], [riskCard(T), 6]] },
     { h: TIER.M, items: [[funnel, 4], [rank, 8]] },
@@ -462,7 +463,7 @@ function salesBoard(T, name) {
     const tone = { info: T.st.info, ok: T.st.ok, blue: T.fam.blue, err: T.st.err };
     const todos = [['inbox', 'info', '待确认的询盘', 'AI 解析完成，等你核对型号', 3], ['file-text', 'ok', '可以报价', '采购已回价，还没做报价单', 5], ['wallet', 'blue', 'PI 待收款', '已发给客户，还没付清', 4], ['rocket', 'blue', '订单待出运', '货已到齐，等安排交货代', 3], ['alarm-clock', 'err', '售后要更新客户', '已逾期或 1 小时内到期的售后单', 1, 1]];
     todos.forEach(([ic, tn, t, d, n, alert], i) => {
-      const r = box(b, { width: 'fill_container', height: 56, layout: 'horizontal', gap: 12, alignItems: 'center', padding: [0, 8], cornerRadius: 8, fill: solid(i === 1 ? T.rowHover : T.card) });
+      const r = box(b, { width: 'fill_container', height: 52, layout: 'horizontal', gap: 12, alignItems: 'center', padding: [0, 8], cornerRadius: 8, fill: solid(i === 1 ? T.rowHover : T.card) });
       K.iconBlock(r, ic, tone[tn]);
       const tc = box(r, { width: 'fill_container', layout: 'vertical', gap: 2 }); tx(tc, t, { fontWeight: 600, fill: solid(T.ink) }); tx(tc, d, { fontSize: 12, fill: solid(T.sub) });
       tx(r, String(n), { fontSize: 20, fontWeight: 600, fontFamily: NUM, fill: solid(alert ? T.st.err[0] : T.ink) });
@@ -484,7 +485,7 @@ function salesBoard(T, name) {
       label(r, '已过期 ' + d + ' 天', T.st.err);
     });
   });
-  dash(T, name, 970, [
+  dash(T, name, 910, [
     { h: TIER.M, items: [[todo, 6], [pis, 6]] },
     { h: TIER.S, items: [[wGroup(T, '我的业绩', { sub: '本月', help: 1 }, [
       ['成交额', 'CNY 412,860.00', 'handshake', 'blue', { link: 1, delta: '+9.6%' }],
@@ -505,7 +506,7 @@ function salesBoard(T, name) {
 // 风险提醒两种状态并排（同一张卡在全为 0 与有风险时）
 function riskStates(T, name) {
   const K = kit(T); const { box, cap } = K;
-  const root = I(null, { type: 'frame', name, width: 1220, height: 300, layout: 'vertical', gap: 16, padding: [24, 24], fill: solid(T.page) });
+  const root = I(null, { type: 'frame', name, width: 1220, height: 280, layout: 'vertical', gap: 16, padding: [24, 24], fill: solid(T.page) });
   cap(root, '风险提醒：全为 0（左）与有风险（右），格子位置不变');
   const row = box(root, { width: 'fill_container', height: TIER.S, layout: 'horizontal', gap: 16 });
   riskCard(T)(row, TIER.S, 'fill_container');
