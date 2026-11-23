@@ -149,11 +149,17 @@ function draw(T, W, name, scrolled) {
     tx(pb, Math.round(r.payPct * 100) + '%', { fontSize: 12, fontFamily: NUM, fill: solid(T.sub) });
     label(c, r.pay[0], T.st[r.pay[1]]);
     c = cell(100); label(c, r.st[0], T.st[r.st[1]]);
-    c = cell(190, { gap: 4 });
-    const gb = box(c, { width: 160, height: 6, cornerRadius: 3, fill: solid(T.line), layout: 'horizontal', clipContent: true });
-    const gTot = r.gParts.reduce((a, [n]) => a + n, 0); for (const [n, col] of r.gParts) I(gb, { type: 'frame', width: Math.round(160 * n / gTot), height: 6, fill: solid(col) });
-    tx(c, r.gText, { fontSize: 12, fill: solid(T.sub) });
-    if (r.gHint[1] === 'warnLabel') label(c, r.gHint[0], T.st.warn, 'triangle-alert'); else tx(c, r.gHint[0], { fontSize: 12, fill: solid(r.gHint[1]) });
+    // 货物（2026-11-24 用户选定方案 B）：第一行进度条 + 「已出运 / 总件数」，第二行一句提醒；各段件数悬停看（gText）；
+    // 「还有型号没下采购订单」用警告色文字加图标，不用标签（标签 24 高会撑高行）
+    c = cell(190, { gap: 2 });
+    const gl = box(c, { layout: 'horizontal', gap: 8, alignItems: 'center' });
+    const gb = box(gl, { width: 120, height: 6, cornerRadius: 3, fill: solid(T.line), layout: 'horizontal', clipContent: true });
+    const gTot = r.gParts.reduce((a, [n]) => a + n, 0); for (const [n, col] of r.gParts) I(gb, { type: 'frame', width: Math.round(120 * n / gTot), height: 6, fill: solid(col) });
+    const gDone = r.gParts.filter(([, col]) => col === G.shipped).reduce((a, [n]) => a + n, 0);
+    tx(gl, `${gDone}/${gTot} 件`, { fontSize: 12, fontFamily: NUM, fill: solid(T.sub) });
+    const gh = box(c, { layout: 'horizontal', gap: 6, alignItems: 'center' });
+    if (r.gHint[1] === 'warnLabel') { icon(gh, 'triangle-alert', 12, T.st.warn[0]); tx(gh, r.gHint[0], { fontSize: 12, fontWeight: 600, fill: solid(T.st.warn[0]) }); }
+    else { I(gh, { type: 'ellipse', width: 6, height: 6, fill: solid(r.gHint[1]) }); tx(gh, r.gHint[0], { fontSize: 12, fill: solid(T.sub) }); }
     c = cell(PUW, { gap: 4 }); if (r.pu) tx(c, r.pu, { fill: solid(T.body) }); if (r.un) label(c, r.un, T.st.warn, 'triangle-alert');
     c = cell(140); tx(c, r.src, { fontFamily: r.src.startsWith('PI') ? NUM : CN, fontWeight: r.src.startsWith('PI') ? 600 : 400, fill: solid(r.src.startsWith('PI') ? P : T.sub) });
     c = cell(80); tx(c, r.sa, { fill: solid(T.body) });
