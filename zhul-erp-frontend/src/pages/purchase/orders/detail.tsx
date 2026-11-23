@@ -1580,7 +1580,7 @@ const InvoicePanel: React.FC<{
   const revoke = () => {
     let reason = '';
     confirmDanger({
-      title: '撤销已开票',
+      title: '撤销已开票？',
       content: (
         <Input.TextArea
           autoFocus

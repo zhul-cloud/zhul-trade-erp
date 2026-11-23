@@ -187,7 +187,7 @@ const PositionPage: React.FC = () => {
                 // 禁用前查有多少用户持有此岗位，写进确认框
                 const check = await getPositionDeleteCheck(record.id);
                 confirmDanger({
-                  title: `确认禁用岗位「${record.name}」？`,
+                  title: `禁用岗位「${record.name}」？`,
                   content:
                     check.userCount > 0
                       ? `当前有 ${check.userCount} 名用户持有此岗位，禁用后新建用户将无法选择此岗位，已分配用户不受影响。`

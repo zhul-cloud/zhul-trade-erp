@@ -481,7 +481,7 @@ const RolePage: React.FC = () => {
               if (key === 'status') {
                 if (enabled) {
                   confirmDanger({
-                    title: `确认禁用角色「${record.name}」？`,
+                    title: `禁用角色「${record.name}」？`,
                     okText: '禁用',
                     onOk: () => handleToggleStatus(record),
                   });
