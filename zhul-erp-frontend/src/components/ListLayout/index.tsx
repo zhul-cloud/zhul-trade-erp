@@ -863,7 +863,7 @@ export const FilterCard: React.FC<{
         </Tooltip>
       )}
       {reset && (
-        <Button danger onClick={reset}>
+        <Button onClick={reset}>
           重置
         </Button>
       )}
