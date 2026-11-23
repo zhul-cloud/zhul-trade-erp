@@ -99,6 +99,7 @@ import {
   DISCOUNT,
   KIND,
   PATHS,
+  PartyAddress,
   PI_STATUS,
   Pill,
   PiStatusPill,
@@ -995,9 +996,10 @@ const PiDetail: React.FC = () => {
         {p ? (
           <>
             <div style={{ fontWeight: 600, color: palette.ink }}>{p.name}</div>
-            <div style={{ fontSize: 12, color: palette.sub }}>
-              {partyAddress(p)}
-            </div>
+            <PartyAddress
+              party={p}
+              style={{ fontSize: 12, color: palette.sub }}
+            />
             <div style={{ fontSize: 12, color: palette.mute }}>
               {[
                 p.taxId && `TAX ID ${p.taxId}`,

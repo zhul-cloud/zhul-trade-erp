@@ -73,8 +73,8 @@ import {
   MigratedPill,
   orderSourceRefs,
   PATHS,
+  PartyAddress,
   Pill,
-  partyAddress,
   RECEIPT_STATUS,
   ReceiptStatusPill,
 } from '../components';
@@ -356,9 +356,10 @@ const OrderDetail: React.FC = () => {
       p ? (
         <>
           <div style={{ fontWeight: 600, color: palette.ink }}>{p.name}</div>
-          <div style={{ fontSize: 13, color: palette.sub, marginTop: 4 }}>
-            {partyAddress(p)}
-          </div>
+          <PartyAddress
+            party={p}
+            style={{ fontSize: 13, color: palette.sub, marginTop: 4 }}
+          />
         </>
       ) : (
         <div style={{ color: palette.mute, fontSize: 13 }}>—</div>

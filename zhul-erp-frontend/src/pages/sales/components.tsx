@@ -1,10 +1,12 @@
 import { history } from '@umijs/max';
 import { Skeleton } from 'antd';
 import React, { useEffect, useState } from 'react';
+import { CountryFlag } from '@/components/CountryText';
 import type { SourceRef } from '@/components/DocFields/SourceNos';
 import { CardTitle, HelpTip } from '@/components/ListLayout';
 import { Card, MigratedPill, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
+import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
 import { type Chain, type ChainNode, chainApi } from './service';
 
@@ -150,6 +152,27 @@ export const partyAddress = (p?: {
     }
   }
   return parts.filter(Boolean).join(', ');
+};
+
+/** 买方、收货人地址：前面加国家的国旗（对齐第一行，规范「组件标准 · 国家」），地址照单据原文显示 */
+export const PartyAddress: React.FC<{
+  party?: Parameters<typeof partyAddress>[0];
+  style?: React.CSSProperties;
+}> = ({ party, style }) => {
+  const { find } = useCountries();
+  const code = party?.country ? find(party.country)?.code : undefined;
+  return (
+    <div
+      style={{ display: 'flex', gap: 6, alignItems: 'flex-start', ...style }}
+    >
+      {code && (
+        <span style={{ height: '1lh', display: 'flex', alignItems: 'center' }}>
+          <CountryFlag code={code} />
+        </span>
+      )}
+      <span style={{ minWidth: 0 }}>{partyAddress(party)}</span>
+    </div>
+  );
 };
 
 // ---------------------------------------------------------------- 来源 / 去向链路

@@ -34,7 +34,7 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
-import { CHANNEL, KIND, Pill, partyAddress } from '../components';
+import { CHANNEL, KIND, PartyAddress, Pill } from '../components';
 import {
   type BankOption,
   bankOptionsApi,
@@ -490,9 +490,10 @@ export const PartyModal: React.FC<{
                   {o.isDefault && <Pill tone="accent">默认</Pill>}
                   {o.registration && <Pill tone="gray">客户注册信息</Pill>}
                 </div>
-                <div style={{ fontSize: 12, color: palette.sub, marginTop: 2 }}>
-                  {partyAddress(o)}
-                </div>
+                <PartyAddress
+                  party={o}
+                  style={{ fontSize: 12, color: palette.sub, marginTop: 2 }}
+                />
                 <div style={{ fontSize: 12, color: palette.mute }}>
                   {[
                     o.taxId && `TAX ID ${o.taxId}`,
