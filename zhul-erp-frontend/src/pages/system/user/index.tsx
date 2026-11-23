@@ -21,14 +21,21 @@ import {
   Form,
   Input,
   Modal,
-  Popconfirm,
   Select,
   Space,
   Tag,
   TreeSelect,
 } from 'antd';
-import { Search } from 'lucide-react';
+import {
+  Ban,
+  CircleCheck,
+  KeyRound,
+  Pencil,
+  Search,
+  Trash2,
+} from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import EllipsisText from '@/components/EllipsisText';
 import {
   FilterCard,
@@ -37,6 +44,7 @@ import {
   PageHeader,
   SummaryBar,
 } from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { proAuditColumns } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
 import { CHART_SERIES } from '@/theme/palette';
@@ -296,6 +304,7 @@ const UserPage: React.FC = () => {
     </>
   );
 
+  const confirmDanger = useConfirmDanger();
   const columns: ProColumns<UserItem>[] = [
     {
       title: '用户',
@@ -374,55 +383,69 @@ const UserPage: React.FC = () => {
       title: '操作',
       fixed: 'right',
       valueType: 'option',
-      width: 220,
-      render: (_, record) => (
-        <Space>
-          {!!(access as Record<string, unknown>)['system:user:edit'] && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => {
-                setEditingUser(record);
-                setEditOpen(true);
-              }}
-            >
-              编辑
-            </button>
-          )}
-          {!!(access as Record<string, unknown>)['system:user:resetPwd'] && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => {
+      // 编辑放行内；重置密码、启用/禁用、删除收进「更多」，危险项在末尾（ui-redesign S6）
+      width: rowActionsWidth(2),
+      render: (_, record) => {
+        const can = (k: string) => !!(access as Record<string, unknown>)[k];
+        const enabled = record.status === 1;
+        return (
+          <RowActions
+            inline={[
+              can('system:user:edit') && {
+                key: 'edit',
+                label: '编辑',
+                icon: <Pencil size={18} />,
+                onClick: () => {
+                  setEditingUser(record);
+                  setEditOpen(true);
+                },
+              },
+            ]}
+            more={[
+              can('system:user:resetPwd') && {
+                key: 'resetPwd',
+                label: '重置密码',
+                icon: <KeyRound size={16} />,
+              },
+              can('system:user:status') && {
+                key: 'status',
+                label: enabled ? '禁用' : '启用',
+                icon: enabled ? <Ban size={16} /> : <CircleCheck size={16} />,
+                danger: enabled,
+              },
+              can('system:user:delete') && {
+                key: 'delete',
+                label: '删除',
+                icon: <Trash2 size={16} />,
+                danger: true,
+              },
+            ]}
+            onMore={(key) => {
+              if (key === 'resetPwd') {
                 setResetPwdUserId(record.id);
                 setResetPwdOpen(true);
-              }}
-            >
-              重置密码
-            </button>
-          )}
-          {!!(access as Record<string, unknown>)['system:user:status'] && (
-            <Popconfirm
-              title={
-                record.status === 1 ? '确认禁用该用户？' : '确认启用该用户？'
               }
-              onConfirm={() => handleStatusChange(record)}
-            >
-              <a style={{ color: record.status === 1 ? p.red : p.green }}>
-                {record.status === 1 ? '禁用' : '启用'}
-              </a>
-            </Popconfirm>
-          )}
-          {!!(access as Record<string, unknown>)['system:user:delete'] && (
-            <Popconfirm
-              title="确认删除该用户？"
-              onConfirm={() => handleDelete(record.id)}
-            >
-              <a style={{ color: p.red }}>删除</a>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
+              if (key === 'status') {
+                if (enabled) {
+                  confirmDanger({
+                    title: '确认禁用该用户？',
+                    okText: '禁用',
+                    onOk: () => handleStatusChange(record),
+                  });
+                } else {
+                  handleStatusChange(record);
+                }
+              }
+              if (key === 'delete') {
+                confirmDanger({
+                  title: '确认删除该用户？',
+                  onOk: () => handleDelete(record.id),
+                });
+              }
+            }}
+          />
+        );
+      },
     },
   ];
 

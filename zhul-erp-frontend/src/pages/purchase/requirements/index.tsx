@@ -20,7 +20,7 @@ import {
   Skeleton,
   Table,
 } from 'antd';
-import { Search } from 'lucide-react';
+import { Search, Split, Store, Trash2, UserRoundPlus } from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -40,6 +40,8 @@ import {
   SummaryBar,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { rowAlert } from '@/components/RowAlert';
 import { CustomerTypePill } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { StockPill, useUserOptions } from '@/pages/sales/orders/dialogs';
@@ -239,8 +241,9 @@ const RequirementList: React.FC = () => {
     </div>
   );
 
+  // 超时的行：首格左侧红色色条，原因看单号旁的「已超时」标签，不再整行铺粉底（ui-redesign D7、S5）
   const overdueRow = (r: Requirement) =>
-    r.overdueHours != null ? { style: { background: palette.redSoft } } : {};
+    rowAlert(r.overdueHours != null ? 'error' : undefined);
 
   const lineColumns: TableColumnsType<Requirement> = [
     {
@@ -332,52 +335,50 @@ const RequirementList: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 150,
+      // 选渠道、指派放行内，拆分、删除收进「更多」（ui-redesign S6：原来四个文字链接会折行）
+      width: rowActionsWidth(canSplit || canRemove ? 3 : 2),
       fixed: 'right',
       render: (_, r) => {
         const open = isOpen(r);
         const planned = !!(r.suggestedSupplierName || r.suggestedShopName);
         return (
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            {canCreate && open && (
-              <button
-                type="button"
-                className="zhul-link"
-                style={planned ? undefined : { color: palette.orange }}
-                onClick={() => setSourcing([r])}
-              >
-                {planned ? '换渠道' : '选渠道'}
-              </button>
-            )}
-            {canAssign && open && (
-              <button
-                type="button"
-                className="zhul-link"
-                onClick={() => setAssigning([r])}
-              >
-                指派
-              </button>
-            )}
-            {canSplit && open && (
-              <button
-                type="button"
-                className="zhul-link"
-                onClick={() => setSplitting(r)}
-              >
-                拆分
-              </button>
-            )}
-            {canRemove && open && (
-              <button
-                type="button"
-                className="zhul-link"
-                style={{ color: palette.red }}
-                onClick={() => setRemoving(r)}
-              >
-                删除
-              </button>
-            )}
-          </div>
+          <RowActions
+            inline={[
+              canCreate &&
+                open && {
+                  key: 'source',
+                  label: planned ? '换渠道' : '选渠道',
+                  icon: <Store size={18} />,
+                  onClick: () => setSourcing([r]),
+                },
+              canAssign &&
+                open && {
+                  key: 'assign',
+                  label: '指派',
+                  icon: <UserRoundPlus size={18} />,
+                  onClick: () => setAssigning([r]),
+                },
+            ]}
+            more={[
+              canSplit &&
+                open && {
+                  key: 'split',
+                  label: '拆分',
+                  icon: <Split size={16} />,
+                },
+              canRemove &&
+                open && {
+                  key: 'remove',
+                  label: '删除',
+                  icon: <Trash2 size={16} />,
+                  danger: true,
+                },
+            ]}
+            onMore={(key) => {
+              if (key === 'split') setSplitting(r);
+              if (key === 'remove') setRemoving(r);
+            }}
+          />
         );
       },
     },

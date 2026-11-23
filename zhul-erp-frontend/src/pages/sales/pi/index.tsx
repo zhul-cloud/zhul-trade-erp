@@ -6,7 +6,6 @@ import {
   DatePicker,
   Form,
   Input,
-  Popconfirm,
   Select,
   Space,
   Table,
@@ -15,6 +14,7 @@ import {
 import type { Dayjs } from 'dayjs';
 import { Eye, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
@@ -27,7 +27,7 @@ import {
   SummaryBar,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { IconButton } from '@/components/Shell';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import {
   FirstModelCell,
   fetchAllModels,
@@ -210,6 +210,7 @@ const PiList: React.FC = () => {
     <div style={{ fontSize: 12, color: palette.mute }}>{text}</div>
   );
 
+  const confirmDanger = useConfirmDanger();
   const columns: TableColumnsType<PiListItem> = [
     {
       title: 'PI 编号 · 创建日期',
@@ -394,43 +395,46 @@ const PiList: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      // 单元格左右各留 16：两个 32 的图标加间距 4
-      width: 104,
+      // 草稿：编辑在行内、删除收进「更多」；其余只有查看，图标在同一位置（ui-redesign S6）
+      width: rowActionsWidth(2),
       fixed: 'right',
-      render: (_, r) =>
-        r.status === PI_STATUS.DRAFT ? (
-          <span style={{ display: 'inline-flex', gap: 4 }}>
-            <IconButton
-              label="编辑"
-              size={32}
-              icon={<Pencil size={18} />}
-              onClick={() => history.push(PATHS.pi(r.id))}
-            />
-            <Popconfirm
-              title="删除这张草稿？"
-              description="删除后不能恢复，报价单里的型号可以重新开 PI"
-              okText="删除"
-              okButtonProps={{ danger: true }}
-              onConfirm={() => remove(r.id)}
-            >
-              <span>
-                <IconButton
-                  label="删除"
-                  size={32}
-                  icon={<Trash2 size={18} />}
-                  style={{ color: palette.red }}
-                />
-              </span>
-            </Popconfirm>
-          </span>
-        ) : (
-          <IconButton
-            label="查看"
-            size={32}
-            icon={<Eye size={18} />}
-            onClick={() => history.push(PATHS.pi(r.id))}
+      render: (_, r) => {
+        const draft = r.status === PI_STATUS.DRAFT;
+        return (
+          <RowActions
+            inline={[
+              draft
+                ? {
+                    key: 'edit',
+                    label: '编辑',
+                    icon: <Pencil size={18} />,
+                    onClick: () => history.push(PATHS.pi(r.id)),
+                  }
+                : {
+                    key: 'view',
+                    label: '查看',
+                    icon: <Eye size={18} />,
+                    onClick: () => history.push(PATHS.pi(r.id)),
+                  },
+            ]}
+            more={[
+              draft && {
+                key: 'delete',
+                label: '删除',
+                icon: <Trash2 size={16} />,
+                danger: true,
+              },
+            ]}
+            onMore={() =>
+              confirmDanger({
+                title: '删除这张草稿？',
+                content: '删除后不能恢复，报价单里的型号可以重新开 PI',
+                onOk: () => remove(r.id),
+              })
+            }
           />
-        ),
+        );
+      },
     },
   ];
 

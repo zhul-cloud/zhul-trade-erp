@@ -6,10 +6,19 @@ import {
   ThunderboltOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
-import { Link, useAccess, useSearchParams } from '@umijs/max';
+import { history, Link, useAccess, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Input, Select, Table } from 'antd';
-import { Search } from 'lucide-react';
+import {
+  BadgeCheck,
+  Download,
+  Eye,
+  History,
+  Layers,
+  Search,
+  Sparkles,
+  Upload,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   FilterCard,
@@ -19,6 +28,7 @@ import {
   PageHeader,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { Pill } from '@/pages/product/components/Pills';
 import { auditColumns } from '@/pages/purchase/components';
@@ -31,10 +41,11 @@ import {
   factsVerified,
   MarketingDownload,
   type MarketingPick,
+  marketingPicks,
   PlatformChips,
   useDownloadPackage,
   usePlatforms,
-  VerifyFactsButton,
+  useVerifyFacts,
 } from '../products/cards/SeoCard';
 import {
   type BrandOption,
@@ -289,6 +300,8 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
     setPage(1);
   };
 
+  const verifyFacts = useVerifyFacts();
+
   const download = async (ids: number[], platform?: MarketingPick) => {
     const stages = rows
       .filter((r) => ids.includes(r.productId))
@@ -426,78 +439,77 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
     {
       title: '操作',
       key: 'actions',
-      width: facts ? 420 : 380,
+      // 行内两个常用操作，其余收进「更多」（ui-redesign S6：原来一行 6 个文字链接）
+      width: rowActionsWidth(3),
       fixed: 'right',
-      render: (_, t) => (
-        <span
-          style={{
-            display: 'inline-flex',
-            gap: 12,
-            alignItems: 'center',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {canAi && !aiBusy(t.ai) && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => startOne(t)}
-            >
-              AI 生成
-            </button>
-          )}
-          {facts ? (
-            <>
-              <button
-                type="button"
-                className="zhul-link"
-                onClick={() => download([t.productId])}
-              >
-                下载资料包
-              </button>
-              {!factsVerified(t.status) && access['product:content:edit'] && (
-                <VerifyFactsButton
-                  productId={t.productId}
-                  label={label(t)}
-                  link
-                  onDone={load}
-                />
-              )}
-            </>
-          ) : (
-            <>
-              <Link to={`/operations/products/${t.productId}`}>详情</Link>
-              <MarketingDownload
-                link
-                label="下载"
-                platforms={platforms}
-                onPick={(p) => download([t.productId], p)}
-              />
-            </>
-          )}
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => setRowUpload({ id: t.productId, label: label(t) })}
-          >
-            上传
-          </button>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => setRowCombined({ id: t.productId, label: label(t) })}
-          >
-            资料+营销
-          </button>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => setRowRecords({ id: t.productId, label: label(t) })}
-          >
-            上传记录
-          </button>
-        </span>
-      ),
+      render: (_, t) => {
+        const name = label(t);
+        return (
+          <RowActions
+            inline={[
+              canAi &&
+                !aiBusy(t.ai) && {
+                  key: 'ai',
+                  label: 'AI 生成',
+                  icon: <Sparkles size={18} />,
+                  onClick: () => startOne(t),
+                },
+              facts
+                ? {
+                    key: 'download',
+                    label: '下载资料包',
+                    icon: <Download size={18} />,
+                    onClick: () => download([t.productId]),
+                  }
+                : {
+                    key: 'detail',
+                    label: '详情',
+                    icon: <Eye size={18} />,
+                    onClick: () =>
+                      history.push(`/operations/products/${t.productId}`),
+                  },
+            ]}
+            more={[
+              facts &&
+                !factsVerified(t.status) &&
+                access['product:content:edit'] && {
+                  key: 'verify',
+                  label: '资料已核',
+                  icon: <BadgeCheck size={16} />,
+                },
+              ...(facts
+                ? []
+                : marketingPicks(platforms).map((p) => ({
+                    key: `dl:${p.key}`,
+                    label: `下载 · ${p.name}`,
+                    icon: <Download size={16} />,
+                  }))),
+              { key: 'upload', label: '上传', icon: <Upload size={16} /> },
+              {
+                key: 'combined',
+                label: '资料+营销',
+                icon: <Layers size={16} />,
+              },
+              {
+                key: 'records',
+                label: '上传记录',
+                icon: <History size={16} />,
+              },
+            ]}
+            onMore={(key) => {
+              if (key === 'verify') verifyFacts(t.productId, name, load);
+              if (key.startsWith('dl:'))
+                download([t.productId], key.slice(3) as MarketingPick);
+              if (key === 'upload')
+                setRowUpload({ id: t.productId, label: name });
+              if (key === 'combined')
+                setRowCombined({ id: t.productId, label: name });
+              if (key === 'records')
+                setRowRecords({ id: t.productId, label: name });
+            }}
+          />
+        );
+      },
     },
   ];
 

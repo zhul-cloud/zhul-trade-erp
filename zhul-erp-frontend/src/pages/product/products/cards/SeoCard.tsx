@@ -321,6 +321,28 @@ export const useProductContent = (productId: number) => {
   return { data, error, load };
 };
 
+/** 「资料已核」的二次确认与提交：按钮和表格行的「更多」菜单共用 */
+export const useVerifyFacts = () => {
+  const { message, modal } = App.useApp();
+  return (productId: number, label: string, onDone: () => void) =>
+    modal.confirm({
+      title: `确认「${label}」的资料已核对？`,
+      content:
+        '未核实的中文规格和应用场景会标为已核实，以后导入资料包不再覆盖它们。核对人和时间所有公司都看得到。',
+      okText: '资料已核',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await contentApi.verifyFacts(productId);
+          message.success('已标记资料已核');
+          onDone();
+        } catch (e) {
+          message.error(readBizError(e).message);
+        }
+      },
+    });
+};
+
 /** 「资料已核」：二次确认后调用，成功后刷新；表格行里用链接样式 */
 export const VerifyFactsButton: React.FC<{
   productId: number;
@@ -329,31 +351,14 @@ export const VerifyFactsButton: React.FC<{
   link?: boolean;
   onDone: () => void;
 }> = ({ productId, label, size, link, onDone }) => {
-  const { message, modal } = App.useApp();
+  const verify = useVerifyFacts();
   return (
     <Button
       size={size}
       type={link ? 'link' : 'primary'}
       icon={link ? undefined : <CheckOutlined />}
       style={link ? { padding: 0, height: 'auto' } : undefined}
-      onClick={() =>
-        modal.confirm({
-          title: `确认「${label}」的资料已核对？`,
-          content:
-            '未核实的中文规格和应用场景会标为已核实，以后导入资料包不再覆盖它们。核对人和时间所有公司都看得到。',
-          okText: '资料已核',
-          cancelText: '取消',
-          onOk: async () => {
-            try {
-              await contentApi.verifyFacts(productId);
-              message.success('已标记资料已核');
-              onDone();
-            } catch (e) {
-              message.error(readBizError(e).message);
-            }
-          },
-        })
-      }
+      onClick={() => verify(productId, label, onDone)}
     >
       资料已核
     </Button>
@@ -493,6 +498,33 @@ const FactNotes: React.FC<{ notes: FactNote[] }> = ({ notes }) => {
 };
 
 /** 下载营销包：第一项为全部启用平台（一个文件），其次是单个平台和独立站俄文 */
+/** 营销包能下载哪几份：全部启用平台、各平台、独立站俄文（下载菜单与表格行的「更多」共用） */
+export const marketingPicks = (
+  platforms: MarketingPlatform[],
+): { key: MarketingPick; name: string; file: string }[] => [
+  {
+    key: 'all',
+    name: '全部启用平台（推荐）',
+    file: platforms.includes('site')
+      ? '型号.marketing.md · 含独立站俄文'
+      : '型号.marketing.md · 一个文件',
+  },
+  ...platforms.map((p) => ({
+    key: p as MarketingPick,
+    name: PLATFORM_META[p].label,
+    file: PLATFORM_META[p].file,
+  })),
+  ...(platforms.includes('site')
+    ? [
+        {
+          key: 'site-ru' as MarketingPick,
+          name: '独立站俄文（单独重做）',
+          file: '型号.site.ru.md · 俄文',
+        },
+      ]
+    : []),
+];
+
 export const MarketingDownload: React.FC<{
   platforms: MarketingPlatform[];
   downloading?: string;

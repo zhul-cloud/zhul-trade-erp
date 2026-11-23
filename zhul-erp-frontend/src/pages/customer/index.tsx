@@ -33,7 +33,7 @@ import {
   PageHeader,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { IconButton } from '@/components/Shell';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { auditColumns } from '@/pages/purchase/components';
@@ -506,51 +506,49 @@ const CustomerListPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      // 16×2 内边距 + 5 个 32 的图标按钮 + 4 个 4 的间距
-      width: 208,
+      // 常用的查看、编辑放行内，转移、放入公海、删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(canTransfer || canPool || canDelete ? 3 : 2),
       fixed: 'right',
       render: (_, r) => (
-        <span style={{ display: 'inline-flex', gap: 4 }}>
-          <IconButton
-            label="查看"
-            size={32}
-            icon={<Eye size={18} />}
-            onClick={() => history.push(`${LIST_PATH}/${r.id}`)}
-          />
-          {canEdit && (
-            <IconButton
-              label="编辑"
-              size={32}
-              icon={<Pencil size={18} />}
-              onClick={() => history.push(`${LIST_PATH}/${r.id}/edit`)}
-            />
-          )}
-          {canTransfer && (
-            <IconButton
-              label="转移"
-              size={32}
-              icon={<ArrowLeftRight size={18} />}
-              onClick={() => setTransferTargets([r])}
-            />
-          )}
-          {canPool && (
-            <IconButton
-              label="放入公海"
-              size={32}
-              icon={<Waves size={18} />}
-              onClick={() => setPoolTargets([r])}
-            />
-          )}
-          {canDelete && (
-            <IconButton
-              label="删除"
-              size={32}
-              icon={<Trash2 size={18} />}
-              style={{ color: palette.red }}
-              onClick={() => confirmDelete(r)}
-            />
-          )}
-        </span>
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(`${LIST_PATH}/${r.id}`),
+            },
+            canEdit && {
+              key: 'edit',
+              label: '编辑',
+              icon: <Pencil size={18} />,
+              onClick: () => history.push(`${LIST_PATH}/${r.id}/edit`),
+            },
+          ]}
+          more={[
+            canTransfer && {
+              key: 'transfer',
+              label: '转移',
+              icon: <ArrowLeftRight size={16} />,
+            },
+            canPool && {
+              key: 'pool',
+              label: '放入公海',
+              icon: <Waves size={16} />,
+            },
+            canDelete && {
+              key: 'delete',
+              label: '删除',
+              icon: <Trash2 size={16} />,
+              danger: true,
+            },
+          ]}
+          onMore={(key) => {
+            if (key === 'transfer') setTransferTargets([r]);
+            if (key === 'pool') setPoolTargets([r]);
+            if (key === 'delete') confirmDelete(r);
+          }}
+        />
       ),
     },
   ];
