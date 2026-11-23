@@ -160,6 +160,8 @@ export default defineConfig({
     appConfig: {},
     configProvider: {
       variant: 'outlined',
+      // 两个字的按钮不自动插空格（「重置」不是「重 置」），和其他按钮一致
+      button: { autoInsertSpace: false },
     },
   },
   /**
