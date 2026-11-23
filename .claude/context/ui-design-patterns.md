@@ -312,6 +312,7 @@ import {
 | 创建、更新两列 | `auditColumns()`、`AuditCell`（同上） | 列表固定的「创建」「更新」两列（各 120）：人名 13 号正文色（「系统」次要色）在上、短时间 12 号在下，悬停看「姓名 · 完整时间」。`pages/purchase/components` 里旧的四列 `auditColumns` 第 4 批删掉 |
 | 行内提醒 | `rowAlert(tone, props)`（`src/components/RowAlert`） | `onRow={(r) => rowAlert(r.overdue ? 'error' : undefined, { onClick })}`：首格左侧 3px 色条，原有的行属性一起传入；原因写成状态标签，不整行铺底色 |
 | 数字卡 | `MetricCard`、`MetricGroup` | 随工作台（第 3 批）实现，见「组件标准 · 数字卡」 |
+| 数字块网格 | `MetricGrid`（`src/components/MetricCard`） | `cols` 每排最多张数、`min` 每张最小宽（默认 150）、`gap`。放不下时按行均分（6 张排成 3+3、7 张排成 4+3），不剩单张一行。固定数量的数字块、阶段块、凹格都用它；数量不定的列表（图片、附件、地址卡）才用 `repeat(auto-fill, …)` |
 
 ---
 

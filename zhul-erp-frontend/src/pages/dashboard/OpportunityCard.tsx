@@ -9,6 +9,7 @@ import type { TableColumnsType } from 'antd';
 import { Segmented, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { MetricGrid } from '@/components/MetricCard';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { rate } from '@/pages/crm/opportunity/StatsPanel';
 import {
@@ -149,14 +150,7 @@ const OpportunityCard: React.FC = () => {
     >
       {data && sum && (
         <>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-              gap: 12,
-              marginBottom: 16,
-            }}
-          >
+          <MetricGrid cols={4} min={180} gap={12} style={{ marginBottom: 16 }}>
             <Stat
               icon={<UserAddOutlined />}
               color={palette.link}
@@ -201,7 +195,7 @@ const OpportunityCard: React.FC = () => {
                   : '—'
               }
             />
-          </div>
+          </MetricGrid>
           <Table<StatRow>
             rowKey="label"
             size="middle"

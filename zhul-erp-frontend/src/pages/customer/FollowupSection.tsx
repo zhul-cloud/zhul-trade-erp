@@ -16,6 +16,7 @@ import { history } from '@umijs/max';
 import { App, Button, Checkbox, Segmented, Skeleton, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { MetricGrid } from '@/components/MetricCard';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import {
   DueText,
@@ -595,14 +596,7 @@ export const FollowupSection: React.FC<{
               )}
             </div>
           )}
-          <div
-            style={{
-              marginTop: 14,
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-              gap: 12,
-            }}
-          >
+          <MetricGrid cols={4} min={120} gap={12} style={{ marginTop: 14 }}>
             {stat(
               '最近联系',
               data.lastContactAt
@@ -619,7 +613,7 @@ export const FollowupSection: React.FC<{
                   : ''
               }`,
             )}
-          </div>
+          </MetricGrid>
           <FollowupTimeline
             customerId={customerId}
             first={data}

@@ -2,6 +2,7 @@ import type { TableColumnsType } from 'antd';
 import { Button, Segmented, Skeleton, Table, TreeSelect } from 'antd';
 import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
+import { MetricGrid } from '@/components/MetricCard';
 import { useWide } from '@/pages/inquiry/shared/components';
 import {
   type DeptTreeOption,
@@ -465,14 +466,12 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
       {/* 三行：商机到售后、客户经营、主动开发（K16） */}
       {[tiles.slice(0, 7), tiles.slice(7, 10), tiles.slice(10)].map(
         (row, ri) => (
-          <div
+          <MetricGrid
             key={row[0]?.label ?? ri}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-              gap: 10,
-              marginBottom: ri === 2 ? 16 : 10,
-            }}
+            cols={row.length}
+            min={140}
+            gap={10}
+            style={{ marginBottom: ri === 2 ? 16 : 10 }}
           >
             {row.map((t) => (
               <Card key={t.label} style={{ padding: 16 }}>
@@ -493,7 +492,7 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
                 <div style={{ fontSize: 12, color: palette.sub }}>{t.sub}</div>
               </Card>
             ))}
-          </div>
+          </MetricGrid>
         ),
       )}
       <div
