@@ -118,7 +118,8 @@ const BrandPage: React.FC = () => {
     setCountry(draft.country);
     setIndustry(draft.industry);
   };
-  const [total, setTotal] = useState(0);
+  // 首次查询返回前没有总数，主卡不显示「共 0 条」
+  const [total, setTotal] = useState<number>();
 
   const loadPending = useCallback(async () => {
     setPendingLoading(true);
@@ -458,7 +459,7 @@ const BrandPage: React.FC = () => {
               />
             </FilterField>
           </FilterCard>
-          <MainCard left={`共 ${total} 个品牌`}>
+          <MainCard count={total} unit="个品牌">
             <ProTable<Brand>
               rowKey="id"
               actionRef={actionRef}

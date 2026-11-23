@@ -337,7 +337,7 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard left={loading && !total ? undefined : `共 ${total} 条`}>
+      <MainCard count={total} loading={loading}>
         <Table<RefundRequest>
           rowKey="id"
           size="middle"

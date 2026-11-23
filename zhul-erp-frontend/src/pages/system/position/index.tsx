@@ -47,7 +47,8 @@ const PositionPage: React.FC = () => {
     {},
   );
   const [keyword, setKeyword] = useState('');
-  const [total, setTotal] = useState(0);
+  // 首次查询返回前没有总数，主卡不显示「共 0 条」
+  const [total, setTotal] = useState<number>();
   const search = () =>
     setFilters({ ...filters, name: keyword.trim() || undefined });
 
@@ -264,7 +265,7 @@ const PositionPage: React.FC = () => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard left={`共 ${total} 条`}>
+      <MainCard count={total}>
         <ProTable<PositionItem>
           scroll={{ x: tableScrollX(columns) }}
           actionRef={actionRef}

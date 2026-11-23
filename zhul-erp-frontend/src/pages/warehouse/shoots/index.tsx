@@ -243,7 +243,7 @@ const Shoots: React.FC = () => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <MainCard left={loading && !total ? undefined : `共 ${total} 条`}>
+        <MainCard count={total} loading={loading}>
           <Table<ShootTask>
             rowKey="id"
             columns={columns}

@@ -116,7 +116,8 @@ const CategoryPage: React.FC = () => {
   }>({});
   const [keyword, setKeyword] = useState('');
   const [draftIndustry, setDraftIndustry] = useState<string>();
-  const [total, setTotal] = useState(0);
+  // 首次查询返回前没有总数，主卡不显示「共 0 条」
+  const [total, setTotal] = useState<number>();
 
   const columns: ProColumns<Category>[] = [
     {
@@ -409,7 +410,7 @@ const CategoryPage: React.FC = () => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard left={`共 ${total} 个一级品类`}>
+      <MainCard count={total} unit="个一级品类">
         <ProTable<Category>
           rowKey="id"
           actionRef={actionRef}

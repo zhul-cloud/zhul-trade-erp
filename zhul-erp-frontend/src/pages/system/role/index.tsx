@@ -167,7 +167,8 @@ const RolePage: React.FC = () => {
     status?: number;
   }>({});
   const [draft, setDraft] = useState<{ name?: string; code?: string }>({});
-  const [total, setTotal] = useState(0);
+  // 首次查询返回前没有总数，主卡不显示「共 0 条」
+  const [total, setTotal] = useState<number>();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('create');
@@ -597,7 +598,7 @@ const RolePage: React.FC = () => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard left={`共 ${total} 条`}>
+      <MainCard count={total}>
         <ProTable<RoleItem>
           scroll={{ x: tableScrollX(columns) }}
           actionRef={actionRef}

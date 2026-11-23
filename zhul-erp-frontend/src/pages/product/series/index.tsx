@@ -86,7 +86,8 @@ const SeriesPage: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [draftBrand, setDraftBrand] = useState<number>();
   const [brands, setBrands] = useState<{ label: string; value: number }[]>([]);
-  const [total, setTotal] = useState(0);
+  // 首次查询返回前没有总数，主卡不显示「共 0 条」
+  const [total, setTotal] = useState<number>();
   useEffect(() => {
     brandOptions()
       .then(setBrands)
@@ -264,7 +265,7 @@ const SeriesPage: React.FC = () => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard left={`共 ${total} 条`}>
+      <MainCard count={total}>
         <ProTable<Series>
           scroll={{ x: tableScrollX(columns) }}
           rowKey="id"

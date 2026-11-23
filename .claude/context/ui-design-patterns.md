@@ -302,7 +302,7 @@ import {
 
 | 用途 | 组件 | 用法 |
 |---|---|---|
-| 分页 | `usePagination(20, scope, total)`（`src/utils/pageSize.ts`） | `pagination={pager}`。下拉显示「每页 20 条」，与页码同高 32；默认 20 条、记住个人选择；页码有省略号时才显示跳页；传 `total` 时不超过 10 条不显示分页。总数写在 `MainCard` 的 `left`（加载中不写），不传 `showTotal`；ProTable 默认会显示「第 1-20 条/总共 N 条」，要关掉。没有主卡的子表、主卡左上角另有用途的页面才自己写总数 |
+| 分页 | `usePagination(20, scope, total)`（`src/utils/pageSize.ts`） | `pagination={pager}`。下拉显示「每页 20 条」，与页码同高 32；默认 20 条、记住个人选择；页码有省略号时才显示跳页；传 `total` 时不超过 10 条不显示分页。总数传 `MainCard` 的 `count`（单位 `unit`，默认「条」；`loading`），加载中为 0 或还没有总数时组件自己不显示，页面不拼「共 N 条」；不传 `showTotal`；ProTable 默认会显示「第 1-20 条/总共 N 条」，要关掉。没有主卡的子表、主卡左上角另有用途的页面才自己写总数 |
 | 国家 | `CountryText`、`CountryFlag`（`src/components/CountryText`） | `<CountryText value={r.country} />`：国旗 + 中文名，悬停英文名；`value` 为保存的英文名，也认两位代码和中文名。国旗图片由 `config/config.ts` 的 `copy` 复制到 `/flags/` 再用 `<img>` 加载：SVG 不能经 CSS 或 `import` 引用，打包器会把它转成 React 组件 |
 | 客户名下一行 | `CustomerCell`、`CustomerSubLine`（`src/components/DocFields`） | 列表的客户列和详情客户卡共用「新 / 老客户 · 国旗 国家 · 主联系人」；客户名单行省略、悬停看全名 |
 | 空状态 | `EmptyState`（`kind`：`empty`、`noResult`、`error`、`forbidden`；`compact`）、`listEmpty()` | 表格、下拉没写空状态时全站自动用它（`AppTheme` 的 `renderEmpty`）。列表页至少用 `locale={{ emptyText: tableEmpty('没有符合条件的订单，换个筛选条件试试', loading) }}`（加载中不显示；一句话按「，」「；」拆成标题与说明，提到筛选、条件的为无结果）；能区分出错、有没有筛选的页面用 `listEmpty({ loading, error, filtered, onRetry, onClear, noun, empty })`：加载中不显示、出错给「重试」、有筛选给「清空筛选」、否则写首次为空的原因和下一步。只有出错时读屏播报 |

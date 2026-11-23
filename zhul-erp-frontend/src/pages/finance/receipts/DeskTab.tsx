@@ -326,7 +326,8 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
         <ErrorHint message={error} onRetry={load} />
       ) : (
         <MainCard
-          left={loading && !total ? undefined : `共 ${total} 条`}
+          count={total}
+          loading={loading}
           quick={
             <span
               style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}

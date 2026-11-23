@@ -273,7 +273,8 @@ const TenantListPage: React.FC = () => {
   /** 搜索条件：状态切换后立即查询，其余点「查询」才生效 */
   const [filters, setFilters] = useState<TenantFilters>({});
   const [draft, setDraft] = useState<TenantFilters>({});
-  const [total, setTotal] = useState(0);
+  // 首次查询返回前没有总数，主卡不显示「共 0 条」
+  const [total, setTotal] = useState<number>();
   const search = () =>
     setFilters({
       ...draft,
@@ -506,7 +507,7 @@ const TenantListPage: React.FC = () => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard left={`共 ${total} 条`}>
+      <MainCard count={total}>
         <ProTable<TenantItem>
           pagination={pager}
           rowKey="id"

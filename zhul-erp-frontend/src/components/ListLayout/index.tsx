@@ -862,11 +862,7 @@ export const FilterCard: React.FC<{
           </Button>
         </Tooltip>
       )}
-      {reset && (
-        <Button onClick={reset}>
-          重置
-        </Button>
-      )}
+      {reset && <Button onClick={reset}>重置</Button>}
       {search && (
         <Button type="primary" onClick={search}>
           查询
@@ -996,14 +992,40 @@ export const FilterChip: React.FC<{ item: FilterChipItem }> = ({ item }) => {
 /**
  * 主内容区：操作行（左：结果数或已选，后面是快捷筛选 quick 与已生效条件 chips；右：批量操作）+ 表格。
  * 快捷筛选放在这里，不放搜索条件区（ui-redesign D22）。
+ * 结果数传 count（和 unit，默认「条」）：count 没有值、或加载中且为 0 时不显示，不在转圈时闪「共 0 条」（S17）。
  */
 export const MainCard: React.FC<{
+  count?: number;
+  unit?: string;
+  loading?: boolean;
   left?: React.ReactNode;
   right?: React.ReactNode;
   quick?: React.ReactNode;
   chips?: FilterChipItem[];
   children: React.ReactNode;
-}> = ({ left, right, quick, chips: own, children }) => {
+}> = ({
+  count,
+  unit = '条',
+  loading,
+  left: leftNode,
+  right,
+  quick,
+  chips: own,
+  children,
+}) => {
+  const counted =
+    count === undefined || (loading && !count)
+      ? undefined
+      : `共 ${count} ${unit}`;
+  const left =
+    counted && leftNode ? (
+      <>
+        {counted}
+        {leftNode}
+      </>
+    ) : (
+      (counted ?? leftNode)
+    );
   const { palette } = useAppTheme();
   const probe = useRef<HTMLSpanElement>(null);
   const [filterId, setFilterId] = useState<string>();

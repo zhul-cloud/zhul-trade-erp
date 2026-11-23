@@ -103,7 +103,8 @@ const UserPage: React.FC = () => {
   const [deptTree, setDeptTree] = useState<
     Awaited<ReturnType<typeof getDeptTreeOptions>>
   >([]);
-  const [total, setTotal] = useState(0);
+  // 首次查询返回前没有总数，主卡不显示「共 0 条」
+  const [total, setTotal] = useState<number>();
   useEffect(() => {
     getDeptTreeOptions()
       .then(setDeptTree)
@@ -533,7 +534,7 @@ const UserPage: React.FC = () => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard left={`共 ${total} 条`}>
+      <MainCard count={total}>
         <ProTable<UserItem>
           scroll={{ x: tableScrollX(columns) }}
           actionRef={actionRef}

@@ -181,7 +181,7 @@ const VouchersPage: React.FC = () => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <MainCard left={loading ? undefined : `共 ${rows.length} 条`}>
+        <MainCard count={rows.length} loading={loading}>
           <Table<VoucherMonth>
             rowKey="month"
             size="middle"

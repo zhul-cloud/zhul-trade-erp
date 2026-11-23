@@ -156,7 +156,8 @@ const ConfigPage: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   /** 关键词点「查询」或回车才生效 */
   const [draftKeyword, setDraftKeyword] = useState('');
-  const [total, setTotal] = useState(0);
+  // 首次查询返回前没有总数，主卡不显示「共 0 条」
+  const [total, setTotal] = useState<number>();
   const [activeGroup, setActiveGroup] = useState<string>('ALL');
   const [groupCounts, setGroupCounts] = useState<ConfigGroupCount[]>([]);
 
@@ -476,7 +477,7 @@ const ConfigPage: React.FC = () => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard left={`共 ${total} 条`}>
+      <MainCard count={total}>
         <ProTable<ConfigItem>
           scroll={{ x: tableScrollX(columns) }}
           actionRef={actionRef}

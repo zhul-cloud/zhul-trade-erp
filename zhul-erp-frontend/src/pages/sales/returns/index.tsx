@@ -339,7 +339,7 @@ const SalesReturnsPage: React.FC = () => {
           </FilterField>
         </FilterCard>
       </Form>
-      <MainCard left={loading && !total ? undefined : `共 ${total} 条`}>
+      <MainCard count={total} loading={loading}>
         <Table<SalesReturn>
           rowKey="id"
           loading={loading}

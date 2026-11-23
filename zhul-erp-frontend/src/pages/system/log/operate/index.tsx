@@ -95,7 +95,8 @@ const OperateLogPage: React.FC = () => {
     range: defaultRange(),
   }));
   const [draft, setDraft] = useState<Filters>(filters);
-  const [total, setTotal] = useState(0);
+  // 首次查询返回前没有总数，主卡不显示「共 0 条」
+  const [total, setTotal] = useState<number>();
   const [modules, setModules] = useState<string[]>([]);
   const search = () =>
     setFilters({
@@ -308,7 +309,7 @@ const OperateLogPage: React.FC = () => {
         </FilterField>
       </FilterCard>
       <MainCard
-        left={`共 ${total} 条`}
+        count={total}
         right={
           <Button
             type="text"
