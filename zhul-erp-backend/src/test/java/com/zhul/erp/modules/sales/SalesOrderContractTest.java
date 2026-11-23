@@ -272,7 +272,9 @@ class SalesOrderContractTest extends SalesContractSupport {
         long pi = sentPi(lines.subList(0, 3), null);
         ok(confirmReceipt(pi, "500", null, false, admin));
         long so1 = ok(convert(pi)).path("id").asLong();
-        assertEquals(1, ok(call(get(SO + "/" + so1), admin)).path("receipts").size(), "在订单上看收款");
+        JsonNode detail1 = ok(call(get(SO + "/" + so1), admin));
+        assertEquals(1, detail1.path("receipts").size(), "在订单上看收款");
+        assertEquals("India", detail1.path("customerCountry").asText(), "详情客户卡显示国家（ui-redesign D14）");
 
         ok(cancel(so1, "客户追加型号"));
         ok(call(post(PI + "/" + pi + "/revise"), admin));
