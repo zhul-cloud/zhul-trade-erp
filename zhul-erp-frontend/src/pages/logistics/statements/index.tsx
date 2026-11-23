@@ -19,6 +19,7 @@ import {
   Table,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { ClipboardCheck, Eye } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { tableEmpty } from '@/components/EmptyState';
@@ -29,6 +30,7 @@ import {
   PageHeader,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import {
   PayablePanel,
   PayStatusPill,
@@ -636,17 +638,23 @@ const Statements: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 80,
+      width: rowActionsWidth(1),
       fixed: 'right',
-      render: (_, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => setViewing(r.id)}
-        >
-          {r.status === 1 && canEdit ? '核对' : '查看'}
-        </button>
-      ),
+      render: (_, r) => {
+        const check = r.status === 1 && canEdit;
+        return (
+          <RowActions
+            inline={[
+              {
+                key: 'view',
+                label: check ? '核对' : '查看',
+                icon: check ? <ClipboardCheck size={18} /> : <Eye size={18} />,
+                onClick: () => setViewing(r.id),
+              },
+            ]}
+          />
+        );
+      },
     },
   ];
 

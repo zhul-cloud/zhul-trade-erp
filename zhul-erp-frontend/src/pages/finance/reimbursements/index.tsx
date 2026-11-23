@@ -17,7 +17,7 @@ import {
   Tabs,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Eye, Search } from 'lucide-react';
+import { Eye, Search, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -436,14 +436,16 @@ const PendingTab: React.FC<{
       width: 120,
       render: (_, i) =>
         i.withdrawable ? (
-          <Button
-            type="link"
-            size="small"
-            style={{ padding: 0 }}
-            onClick={() => setWithdrawing(i)}
-          >
-            撤回
-          </Button>
+          <RowActions
+            inline={[
+              {
+                key: 'withdraw',
+                label: '撤回',
+                icon: <Undo2 size={18} />,
+                onClick: () => setWithdrawing(i),
+              },
+            ]}
+          />
         ) : (
           <span style={{ color: palette.mute, fontSize: 12 }}>
             {i.sourceType === 2

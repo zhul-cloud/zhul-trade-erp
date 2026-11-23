@@ -1,7 +1,7 @@
-import { Link } from '@umijs/max';
+import { history, Link } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Input, Select, Table } from 'antd';
-import { Search } from 'lucide-react';
+import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -11,6 +11,7 @@ import {
   PageHeader,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
@@ -157,10 +158,20 @@ const ListingTasksPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 80,
+      width: rowActionsWidth(1),
       fixed: 'right',
       render: (_, r) => (
-        <Link to={`/operations/listings/${r.productId}`}>详情</Link>
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '详情',
+              icon: <Eye size={18} />,
+              onClick: () =>
+                history.push(`/operations/listings/${r.productId}`),
+            },
+          ]}
+        />
       ),
     },
   ];

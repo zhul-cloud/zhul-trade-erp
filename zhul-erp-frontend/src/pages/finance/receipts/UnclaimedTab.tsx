@@ -18,7 +18,7 @@ import {
   Upload,
 } from 'antd';
 import dayjs from 'dayjs';
-import { Search } from 'lucide-react';
+import { Ban, Search, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -28,6 +28,7 @@ import {
   MainCard,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { PATHS, Pill } from '@/pages/sales/components';
 import {
@@ -526,16 +527,19 @@ const UnclaimedTab: React.FC<{
     {
       title: '操作',
       key: 'op',
-      width: 70,
+      width: rowActionsWidth(1),
       render: (_, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          style={{ color: palette.red }}
-          onClick={() => setReason({ id: r.id, kind: 'void' })}
-        >
-          作废
-        </button>
+        <RowActions
+          more={[
+            {
+              key: 'void',
+              label: '作废',
+              icon: <Ban size={16} />,
+              danger: true,
+            },
+          ]}
+          onMore={() => setReason({ id: r.id, kind: 'void' })}
+        />
       ),
     },
   ];
@@ -611,16 +615,19 @@ const UnclaimedTab: React.FC<{
     {
       title: '操作',
       key: 'op',
-      width: 90,
+      width: rowActionsWidth(1),
       render: (_, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          style={{ color: palette.orange }}
-          onClick={() => setReason({ id: r.id, kind: 'unclaim' })}
-        >
-          取消认领
-        </button>
+        <RowActions
+          more={[
+            {
+              key: 'unclaim',
+              label: '取消认领',
+              icon: <Undo2 size={16} />,
+              danger: true,
+            },
+          ]}
+          onMore={() => setReason({ id: r.id, kind: 'unclaim' })}
+        />
       ),
     },
   ];

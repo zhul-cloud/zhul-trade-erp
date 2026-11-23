@@ -13,6 +13,7 @@ import {
   Skeleton,
   Table,
 } from 'antd';
+import { Ban, CircleCheck, Pencil } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { tableEmpty } from '@/components/EmptyState';
@@ -23,6 +24,7 @@ import {
   PageHeader,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import {
@@ -448,29 +450,36 @@ const ForwarderPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 120,
+      // 编辑放行内，停用、启用收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(2),
       fixed: 'right',
       render: (_, r) => (
-        <div style={{ display: 'flex', gap: 12 }}>
-          {canEdit && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setDrawer({ open: true, id: r.id })}
-            >
-              编辑
-            </button>
-          )}
-          {canStatus && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => toggle(r)}
-            >
-              {r.status === 1 ? '停用' : '启用'}
-            </button>
-          )}
-        </div>
+        <RowActions
+          inline={[
+            canEdit && {
+              key: 'edit',
+              label: '编辑',
+              icon: <Pencil size={18} />,
+              onClick: () => setDrawer({ open: true, id: r.id }),
+            },
+          ]}
+          more={[
+            canStatus &&
+              (r.status === 1
+                ? {
+                    key: 'status',
+                    label: '停用',
+                    icon: <Ban size={16} />,
+                    danger: true,
+                  }
+                : {
+                    key: 'status',
+                    label: '启用',
+                    icon: <CircleCheck size={16} />,
+                  }),
+          ]}
+          onMore={() => toggle(r)}
+        />
       ),
     },
   ];

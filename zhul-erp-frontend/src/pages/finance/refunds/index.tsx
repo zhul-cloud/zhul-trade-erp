@@ -14,7 +14,7 @@ import {
   Tabs,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Search } from 'lucide-react';
+import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
@@ -26,6 +26,7 @@ import {
   SummaryBar,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { MigratedPill, Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import { orderApi, readBizError } from '@/pages/sales/service';
@@ -364,17 +365,21 @@ const RefundPage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 90,
+      // 迁移来的单据在图标后标「迁移」
+      width: rowActionsWidth(1) + 48,
       fixed: 'right',
       render: (_, r) => (
-        <span style={{ display: 'inline-flex', gap: 8 }}>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(DOC_PATHS.refund(r.id))}
-          >
-            查看
-          </button>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <RowActions
+            inline={[
+              {
+                key: 'view',
+                label: '查看',
+                icon: <Eye size={18} />,
+                onClick: () => history.push(DOC_PATHS.refund(r.id)),
+              },
+            ]}
+          />
           {r.migrated && <MigratedPill migrated />}
         </span>
       ),

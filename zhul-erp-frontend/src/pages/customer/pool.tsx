@@ -1,9 +1,11 @@
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Form, Input, Modal, Select, Table, Tag } from 'antd';
+import { Eye, UserRoundPlus } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { auditColumns } from '@/components/UserName';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
@@ -280,26 +282,25 @@ export const PoolTab: React.FC<{ onCount?: (n: number) => void }> = ({
     {
       title: '操作',
       key: 'actions',
-      width: 110,
+      width: rowActionsWidth(2),
       fixed: 'right',
       render: (_, r) => (
-        <div style={{ display: 'flex', gap: 12 }}>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(`${LIST_PATH}/${r.id}`)}
-          >
-            查看
-          </button>
-          <button
-            type="button"
-            className="zhul-link"
-            style={{ fontWeight: 600 }}
-            onClick={() => claim(r, load)}
-          >
-            认领
-          </button>
-        </div>
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(`${LIST_PATH}/${r.id}`),
+            },
+            {
+              key: 'claim',
+              label: '认领',
+              icon: <UserRoundPlus size={18} />,
+              onClick: () => claim(r, load),
+            },
+          ]}
+        />
       ),
     },
   ];

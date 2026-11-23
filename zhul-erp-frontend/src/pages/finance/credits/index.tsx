@@ -17,7 +17,7 @@ import {
   Tabs,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Search } from 'lucide-react';
+import { HandCoins, ScrollText, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerSub } from '@/components/DocFields';
 import { tableEmpty } from '@/components/EmptyState';
@@ -32,6 +32,7 @@ import {
   type SummaryItem,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { EmptyHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/sales/service';
@@ -278,35 +279,31 @@ const CreditPage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 150,
+      width: rowActionsWidth(2),
       fixed: 'right',
       render: (_, a) => (
-        <span style={{ display: 'inline-flex', gap: 12 }}>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => setViewing(a)}
-          >
-            流水
-          </button>
-          {canWithdraw &&
-            (a.available > 0 ? (
-              <button
-                type="button"
-                className="zhul-link"
-                onClick={() => setWithdrawing(a)}
-              >
-                转给客户
-              </button>
-            ) : (
-              <span
-                style={{ color: palette.mute }}
-                title={a.occupied > 0 ? '余额都被 PI 占用' : '没有可用余额'}
-              >
-                转给客户
-              </span>
-            ))}
-        </span>
+        <RowActions
+          inline={[
+            {
+              key: 'ledger',
+              label: '流水',
+              icon: <ScrollText size={18} />,
+              onClick: () => setViewing(a),
+            },
+            canWithdraw && {
+              key: 'withdraw',
+              label: '转给客户',
+              icon: <HandCoins size={18} />,
+              disabledReason:
+                a.available > 0
+                  ? undefined
+                  : a.occupied > 0
+                    ? '余额都被 PI 占用'
+                    : '没有可用余额',
+              onClick: () => setWithdrawing(a),
+            },
+          ]}
+        />
       ),
     },
   ];

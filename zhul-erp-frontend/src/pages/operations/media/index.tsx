@@ -2,7 +2,7 @@ import { useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Input, Select, Space, Table } from 'antd';
 import dayjs from 'dayjs';
-import { Search } from 'lucide-react';
+import { Images, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -13,6 +13,7 @@ import {
   PageHeader,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -182,12 +183,19 @@ const MediaLibraryPage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 90,
+      width: rowActionsWidth(1),
       fixed: 'right',
       render: (_, r) => (
-        <button type="button" className="zhul-link" onClick={() => setOpen(r)}>
-          查看素材
-        </button>
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看素材',
+              icon: <Images size={18} />,
+              onClick: () => setOpen(r),
+            },
+          ]}
+        />
       ),
     },
   ];
