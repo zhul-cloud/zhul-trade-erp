@@ -123,7 +123,7 @@ const CustomerListPage: React.FC = () => {
 
   const [query, setQuery] = useState<CustomerQuery>({});
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = usePageSize(10);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<CustomerListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -846,7 +846,6 @@ const CustomerListPage: React.FC = () => {
                   total,
                   showSizeChanger: true,
                   pageSizeOptions: [10, 20, 50],
-                  showTotal: (t, [from, to]) => `${from}-${to} 共 ${t} 条`,
                   onChange: (p, s) => {
                     setPage(p);
                     setPageSize(s);

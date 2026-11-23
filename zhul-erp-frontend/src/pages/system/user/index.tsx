@@ -71,7 +71,7 @@ const DEPT_TREE_PROPS = {
 };
 
 const UserPage: React.FC = () => {
-  const pager = usePagination(10);
+  const pager = usePagination(20);
   const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>(undefined);
   const { message } = App.useApp();

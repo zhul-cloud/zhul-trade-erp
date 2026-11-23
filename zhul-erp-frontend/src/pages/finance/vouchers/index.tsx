@@ -190,11 +190,7 @@ const VouchersPage: React.FC = () => {
             locale={{
               emptyText: '还没有已结账的月份，库存月结结账后自动生成凭证',
             }}
-            pagination={
-              rows.length > 20
-                ? { pageSize: 20, showTotal: (t) => `共 ${t} 条` }
-                : false
-            }
+            pagination={rows.length > 20 ? { pageSize: 20 } : false}
           />
         </MainCard>
       )}

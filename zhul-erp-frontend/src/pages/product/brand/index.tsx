@@ -536,7 +536,7 @@ const BrandPage: React.FC = () => {
                 setTotal(res.total);
                 return { data: res.records, total: res.total, success: true };
               }}
-              pagination={{ ...pager, showTotal: (t) => `共 ${t} 条记录` }}
+              pagination={pager}
               locale={{
                 emptyText: '没有符合条件的品牌',
               }}

@@ -317,7 +317,7 @@ const SeriesPage: React.FC = () => {
             setTotal(res.total);
             return { data: res.records, total: res.total, success: true };
           }}
-          pagination={{ ...pager, showTotal: (t) => `共 ${t} 条记录` }}
+          pagination={pager}
           locale={{
             emptyText: '还没有系列。系列是可选的，商品可以不属于任何系列。',
           }}

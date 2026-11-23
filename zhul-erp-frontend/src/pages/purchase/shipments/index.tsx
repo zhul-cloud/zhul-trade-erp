@@ -320,7 +320,6 @@ const ShipmentsTab: React.FC = () => {
               pageSize,
               total,
               showSizeChanger: true,
-              showTotal: (t, [from, to]) => `${from}-${to} 共 ${t} 条`,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);
@@ -617,7 +616,6 @@ const DiffsTab: React.FC<{ pending?: number; onChanged: () => void }> = ({
               pageSize,
               total,
               showSizeChanger: true,
-              showTotal: (t, [from, to]) => `${from}-${to} 共 ${t} 条`,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);

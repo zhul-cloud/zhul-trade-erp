@@ -733,7 +733,11 @@ export const FollowupChainCard: React.FC<{ data?: CustomerFollowup }> = ({
                 justifyContent: 'center',
                 fontSize: 11,
                 fontWeight: 700,
-                color: active ? palette.onPrimary : done ? palette.green : palette.mute,
+                color: active
+                  ? palette.onPrimary
+                  : done
+                    ? palette.green
+                    : palette.mute,
                 background: active
                   ? palette.link
                   : done

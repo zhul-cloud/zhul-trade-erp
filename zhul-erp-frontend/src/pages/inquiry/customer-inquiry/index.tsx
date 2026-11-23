@@ -191,7 +191,7 @@ const CustomerInquiryPage: React.FC = () => {
   const [timeoutOnly, setTimeoutOnly] = useState(false);
   const [todayOnly, setTodayOnly] = useState(false);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = usePageSize(10);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [sort, setSort] = useState<Sort>({});
   const { levelOptions } = useLevels();
   const [rows, setRows] = useState<CustomerInquiry[]>([]);
@@ -775,7 +775,6 @@ const CustomerInquiryPage: React.FC = () => {
               pageSize,
               total,
               showSizeChanger: true,
-              showTotal: (t, [from, to]) => `${from}-${to} 共 ${t} 条`,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);

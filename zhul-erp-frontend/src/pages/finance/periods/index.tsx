@@ -176,11 +176,7 @@ const PeriodsPage: React.FC = () => {
             dataSource={rows}
             scroll={{ x: tableScrollX(columns) }}
             locale={{ emptyText: '还没有库存流水，没有可结账的月份' }}
-            pagination={
-              rows.length > 20
-                ? { pageSize: 20, showTotal: (t) => `共 ${t} 条` }
-                : false
-            }
+            pagination={rows.length > 20 ? { pageSize: 20 } : false}
           />
         </MainCard>
       )}

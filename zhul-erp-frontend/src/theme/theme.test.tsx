@@ -115,7 +115,9 @@ describe('设计令牌', () => {
   it('主题色实底上的文字：每种主题色在浅色下都不低于 4.5:1（琥珀用深色字）', () => {
     for (const k of PRESET_ORDER) {
       const p = buildPalette('light', k);
-      expect(contrast(p.onPrimary, p.primary)).toBeGreaterThanOrEqual(k === 'amber' ? 4.5 : 3);
+      expect(contrast(p.onPrimary, p.primary)).toBeGreaterThanOrEqual(
+        k === 'amber' ? 4.5 : 3,
+      );
     }
     expect(buildPalette('light', 'amber').onPrimary).toBe('#212B36');
     expect(buildPalette('light', 'royal').onPrimary).toBe('#FFFFFF');

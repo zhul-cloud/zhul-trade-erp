@@ -346,7 +346,6 @@ const WarehousesPage: React.FC = () => {
               current: page,
               pageSize,
               showSizeChanger: true,
-              showTotal: (t) => `共 ${t} 条`,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);

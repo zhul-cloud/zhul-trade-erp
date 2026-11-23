@@ -779,7 +779,8 @@ interface Filters {
 /** 帮助文字：help-texts.md「费用管理」 */
 export const HELP = {
   page: '补发运费这类偶发成本，以及房租、工资、平台费等运营成本；公司对公生成应付，员工垫付进入垫付人的待报销，私对私保存即已付。关联订单型号的计入订单成本，不关联的按类别与分摊月数计入经营统计',
-  total: '按当前筛选条件统计的有效费用单（不含已作废），折人民币；没选日期时统计本月',
+  total:
+    '按当前筛选条件统计的有效费用单（不含已作废），折人民币；没选日期时统计本月',
 } as const;
 
 /** 初始筛选：日期默认最近 3 个月（清空看全部）；经营统计跳转时带 dateFrom、dateTo、category、linked */
@@ -1166,7 +1167,6 @@ const ExpensePage: React.FC = () => {
             pageSize,
             total,
             showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
             onChange: (p, s) => {
               setPage(p);
               setPageSize(s);

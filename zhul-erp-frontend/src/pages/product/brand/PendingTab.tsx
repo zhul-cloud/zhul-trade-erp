@@ -319,7 +319,7 @@ const PendingTab: React.FC<{
         rowKey="pendingKey"
         loading={loading}
         dataSource={rows}
-        pagination={{ defaultPageSize: 50, hideOnSinglePage: true }}
+        pagination={{ defaultPageSize: 20, hideOnSinglePage: true }}
         rowSelection={{
           selectedRowKeys: selected,
           onChange: (keys) => setSelected(keys as string[]),

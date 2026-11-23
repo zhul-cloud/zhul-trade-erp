@@ -186,7 +186,7 @@ export const PoolTab: React.FC<{ onCount?: (n: number) => void }> = ({
   const [query, setQuery] = useState<CustomerPoolQuery>({});
   const [draft, setDraft] = useState<CustomerPoolQuery>({});
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = usePageSize(10);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<CustomerListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);

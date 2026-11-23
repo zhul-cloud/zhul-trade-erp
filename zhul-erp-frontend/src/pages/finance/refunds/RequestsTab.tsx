@@ -356,7 +356,6 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
             pageSize,
             total,
             showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
             onChange: (p, s) => {
               setPage(p);
               setPageSize(s);

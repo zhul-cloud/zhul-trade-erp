@@ -353,7 +353,6 @@ const PriceHistoryPage: React.FC = () => {
               pageSize,
               total,
               showSizeChanger: true,
-              showTotal: (t, [from, to]) => `${from}-${to} 共 ${t} 个型号`,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);

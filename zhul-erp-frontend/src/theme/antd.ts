@@ -1,8 +1,8 @@
 import { theme as antdTheme, type ThemeConfig } from 'antd';
 import { SANS_FONT } from './fonts';
 import {
-  buildPalette,
   BUTTON_SHADOW,
+  buildPalette,
   CARD_SHADOW,
   POPUP_SHADOW,
   type PresetKey,

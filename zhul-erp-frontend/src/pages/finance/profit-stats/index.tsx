@@ -440,7 +440,6 @@ const ProfitStatsPage: React.FC = () => {
                   pageSize: 10,
                   hideOnSinglePage: true,
                   showSizeChanger: false,
-                  showTotal: (t) => `共 ${t} 条`,
                 }}
                 scroll={{ x: tableScrollX(orderColumns) }}
               />

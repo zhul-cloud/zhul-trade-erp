@@ -87,6 +87,8 @@ const globalCss = (
   }
   .ant-pagination .ant-pagination-item-active { background: ${p.primarySoft}; border-color: transparent; font-weight: 600; }
   .ant-pagination .ant-pagination-item-active a { color: ${light ? p.ink : p.link}; }
+  /* 页数不多（页码没有省略号）时不显示跳页 */
+  .ant-pagination:not(:has(.ant-pagination-jump-next, .ant-pagination-jump-prev)) .ant-pagination-options-quick-jumper { display: none; }
   /* 卡片：浅色为阴影、不加边框，深色为边框、不用阴影；卡片里再套的卡片不重复加阴影 */
   ${
     light

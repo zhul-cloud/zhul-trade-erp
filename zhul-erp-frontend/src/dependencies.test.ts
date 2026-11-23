@@ -26,7 +26,8 @@ describe('axios 依赖（DEP-003）', () => {
 
   it('锁文件里只有一份 axios，版本不低于 1.20.0，且不是开发依赖', () => {
     const copies = Object.entries(lock.packages as Record<string, any>).filter(
-      ([path]) => path === 'node_modules/axios' || path.endsWith('/node_modules/axios'),
+      ([path]) =>
+        path === 'node_modules/axios' || path.endsWith('/node_modules/axios'),
     );
     expect(copies.map(([path]) => path)).toEqual(['node_modules/axios']);
     const [, axios] = copies[0];

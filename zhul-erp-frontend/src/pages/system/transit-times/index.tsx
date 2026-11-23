@@ -35,7 +35,7 @@ import { tableScrollX } from '@/utils/tableScroll';
 type Editing = Partial<TransitTime> & { open: true };
 
 const TransitTimes: React.FC = () => {
-  const pager = usePagination(50);
+  const pager = usePagination(20);
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
   const access = useAccess();

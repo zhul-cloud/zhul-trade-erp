@@ -78,7 +78,7 @@ const OpportunityPage: React.FC = () => {
   const [form] = Form.useForm<FilterState>();
   const [query, setQuery] = useState<OpportunityQuery>({});
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = usePageSize(10);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<OpportunityItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -427,7 +427,6 @@ const OpportunityPage: React.FC = () => {
               pageSize,
               total,
               showSizeChanger: true,
-              showTotal: (t, [from, to]) => `${from}-${to} 共 ${t} 条`,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);

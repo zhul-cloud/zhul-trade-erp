@@ -478,7 +478,7 @@ const CategoryPage: React.FC = () => {
           }}
           expandable={{ defaultExpandAllRows: false }}
           scroll={{ x: tableScrollX(columns) }}
-          pagination={{ ...pager, showTotal: (t) => `共 ${t} 条记录` }}
+          pagination={pager}
           locale={{
             emptyText: '还没有品类。先新增一个，新建商品时才能选择品类。',
           }}

@@ -262,7 +262,6 @@ const ListingTasksPage: React.FC = () => {
               pageSize,
               total,
               showSizeChanger: true,
-              showTotal: (t: number) => `共 ${t} 条`,
               onChange: (p: number, s: number) => {
                 setPage(p);
                 setPageSize(s);

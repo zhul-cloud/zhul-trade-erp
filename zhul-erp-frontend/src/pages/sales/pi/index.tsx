@@ -632,7 +632,6 @@ const PiList: React.FC = () => {
               pageSize,
               total,
               showSizeChanger: true,
-              showTotal: (t, [from, to]) => `${from}-${to} 共 ${t} 条`,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);

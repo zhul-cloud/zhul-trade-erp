@@ -38,12 +38,17 @@ export const usePageSize = (
   return [size, update];
 };
 
-/** 给 Table / ProTable 的 pagination 用：受控的每页条数，切换后记住 */
-export const usePagination = (fallback: number, scope = '') => {
+/**
+ * 列表分页（公共组件，规范「组件标准 · 分页」，ui-redesign D11、D12）：给 Table / ProTable 的 pagination 用。
+ * 默认每页 20 条，可选 10/20/50/100，切换后按页面记住；页码出现省略号（页数多）时才显示「跳至 __ 页」（全局样式控制）。
+ * 总数写在主卡左上角，这里不再重复；没有主卡的子表才自己传 showTotal。
+ */
+export const usePagination = (fallback = 20, scope = '') => {
   const [pageSize, setPageSize] = usePageSize(fallback, scope);
   return {
     pageSize,
     showSizeChanger: true,
+    showQuickJumper: true,
     onChange: (_: number, size: number) => setPageSize(size),
   };
 };

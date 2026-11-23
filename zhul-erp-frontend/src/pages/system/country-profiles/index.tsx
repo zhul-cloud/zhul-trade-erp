@@ -191,7 +191,7 @@ const EditModal: React.FC<{
 /** 业务设置 → 国家资料（spec master-data/country-profile）：未维护的国家按客户数排在前面 */
 const CountryProfilesPage: React.FC = () => {
   const { palette } = useAppTheme();
-  const pager = usePagination(50, 'country-profiles');
+  const pager = usePagination(20, 'country-profiles');
   const { zhOf } = useCountries();
   const d = useProfileDicts();
   const [search, setSearch] = useSearchParams();

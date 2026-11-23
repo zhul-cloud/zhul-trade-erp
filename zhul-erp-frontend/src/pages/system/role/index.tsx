@@ -144,7 +144,7 @@ const toAntdTree = (list: MenuItem[]): any[] =>
   }));
 
 const RolePage: React.FC = () => {
-  const pager = usePagination(10);
+  const pager = usePagination(20);
   const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>(undefined);
   const { message, modal } = App.useApp();
