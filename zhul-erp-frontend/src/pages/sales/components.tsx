@@ -259,7 +259,11 @@ export const ChainCard: React.FC<{
           }}
         >
           {STAGES.map((s, i) => (
-            <React.Fragment key={s.key}>
+            // 箭头和后一个单据一起换行，不留在行尾
+            <div
+              key={s.key}
+              style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}
+            >
               {i > 0 && (
                 <span style={{ color: palette.mute, paddingTop: 22 }}>→</span>
               )}
@@ -281,7 +285,7 @@ export const ChainCard: React.FC<{
                   chain[s.key].map((n) => node(n, s.path))
                 )}
               </div>
-            </React.Fragment>
+            </div>
           ))}
         </div>
       )}

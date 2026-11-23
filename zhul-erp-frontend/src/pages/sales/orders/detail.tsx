@@ -46,6 +46,7 @@ import {
   Panel,
   Section,
 } from '@/components/ListLayout';
+import { MetricGrid } from '@/components/MetricCard';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
 import RefundModal from '@/pages/finance/refunds/RefundModal';
@@ -583,14 +584,7 @@ const OrderDetail: React.FC = () => {
         })}
       </ol>
       {goods.total > 0 && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
-            gap: 12,
-            marginTop: 20,
-          }}
-        >
+        <MetricGrid cols={6} min={100} gap={12} style={{ marginTop: 20 }}>
           {(
             [
               [
@@ -666,7 +660,7 @@ const OrderDetail: React.FC = () => {
               </div>
             </div>
           ))}
-        </div>
+        </MetricGrid>
       )}
     </Section>
   );

@@ -324,14 +324,21 @@ export const MetricCard: React.FC<{
 
 /**
  * 一组数字卡：透明分组（不再外包白卡），每排固定 cols 张、卡间距 16，同一行的组件高度不因换行而变；
- * 只有放不下（每张不到 150）时才减少每排张数（窄屏单列模式下高度随内容）。
+ * 只有放不下（每张不到 min，默认 150）时才减少每排张数，并按行均分：6 张放不下一排时排成 3+3，不剩单张一行
+ * （窄屏单列模式下高度随内容）。
  */
 export const MetricGrid: React.FC<{
   cols: number;
+  /** 每张的最小宽度，默认 150 */
+  min?: number;
+  /** 卡间距，默认 16 */
+  gap?: number;
+  style?: React.CSSProperties;
   children: React.ReactNode;
-}> = ({ cols, children }) => {
+}> = ({ cols, min = 150, gap = 16, style, children }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState(cols);
+  const count = React.Children.toArray(children).length;
   useEffect(() => {
     const el = ref.current;
     if (!el || typeof ResizeObserver === 'undefined') return undefined;
@@ -339,20 +346,25 @@ export const MetricGrid: React.FC<{
       setFit(
         Math.max(
           1,
-          Math.min(cols, Math.floor((el.clientWidth + 16) / (150 + 16))),
+          Math.min(cols, Math.floor((el.clientWidth + gap) / (min + gap))),
         ),
       ),
     );
     ro.observe(el);
     return () => ro.disconnect();
-  }, [cols]);
+  }, [cols, min, gap]);
+  const perRow = Math.min(fit, cols);
+  // 按行均分：先算要几行，再平均每行张数
+  const balanced =
+    count > perRow ? Math.ceil(count / Math.ceil(count / perRow)) : perRow;
   return (
     <div
       ref={ref}
       style={{
         display: 'grid',
-        gridTemplateColumns: `repeat(${Math.min(fit, cols)}, minmax(0, 1fr))`,
-        gap: 16,
+        gridTemplateColumns: `repeat(${balanced}, minmax(0, 1fr))`,
+        gap,
+        ...style,
       }}
     >
       {children}
