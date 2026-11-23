@@ -283,8 +283,8 @@ import {
 |---|---|---|
 | `PageHeader` | `title`、`tags`、`sub`、`extra` | 页头：左侧标题（20/600，`h1`），右侧操作；每个页头最多一个主按钮，其余用文字按钮或收进「更多」菜单。列表页不传 `title`，取当前页面的菜单名称；详情页 `title` 为单号，`tags` 放状态标签，`sub` 为下一行副信息（客户 · 来源单号 · 负责人 · 创建时间） |
 | `SummaryBar` | `items: SummaryItem[]` | 汇总行。每项 `label`、`value`；金额传 `currency`，按 `formatAmount` 显示；口径写 `help`；副文字写 `sub`，只有页面别处也能看到的副文字才设 `subHideable`（宽度不够时整段隐藏） |
-| `FilterCard` | `onSearch`、`onReset`、`more`、`moreCount`、`quick` | 搜索条件区。常用项写在 children；其余放 `more`（「更多筛选」展开），`moreCount` 为其中生效的条件数；`quick` 放快捷筛选行（上方自动加分隔线） |
-| `FilterField` | `label`、`span`、`help` | 搜索条件的一项，标签在上；关键词 `span={2}`；完整搜索范围写在 `help`（以 `search-scope.md` 为准） |
+| `FilterCard` | `onSearch`、`onReset`、`more`、`moreCount`、`quick`、`layout` | 搜索条件区，默认一行（`layout="line"`）：常用项写在 children，按钮固定在第一行右侧，窄屏时只有条件换行；其余放 `more`（「更多筛选」展开），`moreCount` 为其中生效的条件数；`quick` 只为还没迁的页面保留，新页面把快捷筛选放主卡操作行。条件多、需要名称在上逐项说明的统计页用 `layout="grid"` |
+| `FilterField` | `label`、`span`、`help` | 搜索条件的一项。一行模式下名称自动放进输入框作前缀（穿过 `Form.Item` 找到 antd 的 Select、Input、InputNumber、DatePicker、RangePicker、Cascader、TreeSelect；其他控件名称放在框左侧）；控件自带前缀（关键词的搜索图标）时不放名称，帮助图标放框右侧。关键词、日期范围 `span={2}`（260–360），其余 140–220；一行放不下 4 个条件加按钮时，次要条件收进 `more`。完整搜索范围写在 `help`（以 `search-scope.md` 为准） |
 | `QuickFilters` | `options`、`value`、`onChange`、`label` | 快捷筛选，多选，点一下选中、再点取消；前提是接口已有对应筛选 |
 | `MainCard` | `left`、`right` | 主内容区：操作行（左侧结果数或「已选 N 张」，右侧批量操作）+ 表格 |
 | `Section` | `title`、`help`、`meta`、`extra`、`id` | 详情页分区：卡片标题 18/500，`meta` 为标题旁的计数（如「4 个型号 · 23 件」），`id` 加在标题上用于页内定位 |

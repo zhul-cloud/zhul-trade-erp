@@ -1,4 +1,15 @@
-import { Button, Dropdown, Tooltip } from 'antd';
+import {
+  Button,
+  Cascader,
+  DatePicker,
+  Dropdown,
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  Tooltip,
+  TreeSelect,
+} from 'antd';
 import { Check, Ellipsis, Info, SlidersHorizontal } from 'lucide-react';
 import React, {
   useCallback,
@@ -346,7 +357,60 @@ export const SummaryBar: React.FC<{ items: SummaryItem[] }> = ({ items }) => {
   );
 };
 
-/** 搜索条件区的一项：标签在上（13/500）、输入在下；关键词占两格，标签旁可放帮助图标 */
+/** 搜索条件区排成一行（line，默认）还是网格（grid，标签在上） */
+const FilterLayoutContext = React.createContext<'line' | 'grid'>('grid');
+
+/** 支持 prefix 的 antd 输入控件：名称放进框内作前缀 */
+const PREFIXABLE = new Set<unknown>([
+  Select,
+  Input,
+  InputNumber,
+  DatePicker,
+  DatePicker.RangePicker,
+  Cascader,
+  TreeSelect,
+]);
+
+/** 穿过 Form.Item 找到真正的输入控件 */
+const controlOf = (node: React.ReactNode): React.ReactElement | undefined => {
+  if (!React.isValidElement(node)) return undefined;
+  if (node.type === Form.Item) {
+    return controlOf((node.props as { children?: React.ReactNode }).children);
+  }
+  return node;
+};
+
+/**
+ * 把名称作为前缀放进输入框（ui-redesign D22「订单状态 全部 ▾」）：穿过 Form.Item 找到控件；
+ * 控件不支持前缀时返回 undefined，由调用方把名称放在框外。
+ */
+const withPrefix = (
+  node: React.ReactNode,
+  prefix: React.ReactNode,
+): React.ReactNode | undefined => {
+  if (!React.isValidElement(node)) return undefined;
+  if (node.type === Form.Item) {
+    const inner = withPrefix(
+      (node.props as { children?: React.ReactNode }).children,
+      prefix,
+    );
+    return inner === undefined
+      ? undefined
+      : React.cloneElement(node, {}, inner);
+  }
+  if (!PREFIXABLE.has(node.type)) return undefined;
+  return React.cloneElement(
+    node as React.ReactElement<{ prefix?: React.ReactNode }>,
+    {
+      prefix,
+    },
+  );
+};
+
+/**
+ * 搜索条件区的一项。一行模式（默认）：名称放进输入框作前缀，关键词占两格；控件不支持前缀时名称在框左侧。
+ * 网格模式：名称在上、输入在下。名称旁可放帮助图标。
+ */
 export const FilterField: React.FC<{
   label: string;
   span?: 1 | 2;
@@ -356,6 +420,61 @@ export const FilterField: React.FC<{
   children: React.ReactNode;
 }> = ({ label, span = 1, help, htmlFor, children }) => {
   const { palette } = useAppTheme();
+  const layout = React.useContext(FilterLayoutContext);
+  const name = (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        fontSize: layout === 'line' ? 14 : 13,
+        fontWeight: 400,
+        color: layout === 'line' ? palette.mute : palette.sub,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {htmlFor ? <label htmlFor={htmlFor}>{label}</label> : label}
+      {help && <HelpTip title={help} />}
+    </span>
+  );
+  if (layout === 'line') {
+    // 控件自带前缀（关键词的搜索图标）：不放名称（提示文字已说明），帮助图标放在框右侧
+    const own =
+      (controlOf(children)?.props as { prefix?: React.ReactNode } | undefined)
+        ?.prefix !== undefined;
+    const prefixed = own
+      ? undefined
+      : withPrefix(
+          React.Children.only(children),
+          <span style={{ marginInlineEnd: 4 }}>{name}</span>,
+        );
+    return (
+      <div
+        style={{
+          // 先收窄再换行：关键词、日期范围占两格（260–360，放得下两个日期），其余 150–240
+          flex: span === 2 ? '1 1 280px' : '1 1 170px',
+          minWidth: span === 2 ? 260 : 140,
+          maxWidth: span === 2 ? 360 : 220,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        {prefixed === undefined && !own && name}
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {prefixed ?? children}
+        </div>
+        {own && help && <HelpTip title={help} />}
+      </div>
+    );
+  }
   return (
     <div
       style={{
@@ -366,19 +485,7 @@ export const FilterField: React.FC<{
         minWidth: 0,
       }}
     >
-      <span
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 4,
-          fontSize: 13,
-          fontWeight: 400,
-          color: palette.sub,
-        }}
-      >
-        {htmlFor ? <label htmlFor={htmlFor}>{label}</label> : label}
-        {help && <HelpTip title={help} />}
-      </span>
+      {name}
       {children}
     </div>
   );
@@ -454,9 +561,10 @@ export const QuickFilters: React.FC<{
 };
 
 /**
- * 搜索条件区：常用筛选项网格，右侧「更多筛选」「重置」「查询」；
- * more 为收起来的其余条件，按钮显示生效数量 moreCount；quick 为下方的快捷筛选行。
- * 统计页的条件选了就生效，不传 onSearch、onReset，不显示「重置」「查询」。
+ * 搜索条件区（ui-redesign D22）：默认排成一行——常用条件的名称在输入框内作前缀，右侧「更多筛选」「重置」「查询」；
+ * 放不下时自动换行。more 为收起来的其余条件，按钮显示生效数量 moreCount；
+ * quick 为快捷筛选：应放到主卡操作行（MainCard 的 quick），这里只为还没迁的页面保留。
+ * 统计页的条件选了就生效，不传 onSearch、onReset，不显示「重置」「查询」。layout="grid" 为名称在上的网格（条件多、需要逐项说明的统计页）。
  */
 export const FilterCard: React.FC<{
   children: React.ReactNode;
@@ -465,7 +573,8 @@ export const FilterCard: React.FC<{
   more?: React.ReactNode;
   moreCount?: number;
   quick?: React.ReactNode;
-  /** 网格最小列宽，默认 170；条件都短的页面可以调小，让常用条件排一行（销售订单用 110） */
+  layout?: 'line' | 'grid';
+  /** 网格模式的最小列宽，默认 170 */
   minColumn?: number;
 }> = ({
   children,
@@ -474,77 +583,109 @@ export const FilterCard: React.FC<{
   more,
   moreCount = 0,
   quick,
+  layout = 'line',
   minColumn = 170,
 }) => {
   const { palette } = useAppTheme();
   const [open, setOpen] = useState(false);
   const moreId = useId();
-  return (
-    <Panel style={{ marginBottom: 16, padding: 20 }} aria-label="搜索条件">
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
-        <div
-          style={{
-            flex: 1,
-            minWidth: 0,
-            display: 'grid',
-            gridTemplateColumns: `repeat(auto-fill, minmax(${minColumn}px, 1fr))`,
-            gap: 12,
-            alignItems: 'end',
-          }}
+  const line = layout === 'line';
+  const buttons = (
+    <div
+      style={{
+        flex: 'none',
+        display: 'flex',
+        gap: 8,
+        alignItems: 'center',
+        minHeight: 40,
+      }}
+    >
+      {more && (
+        <Button
+          type="text"
+          aria-expanded={open}
+          aria-controls={moreId}
+          icon={<SlidersHorizontal size={16} />}
+          onClick={() => setOpen((v) => !v)}
+          style={{ color: palette.link, paddingInline: 6 }}
         >
-          {children}
-          {/* 收起时只是隐藏，不卸载：条件里没受控的输入值不会丢 */}
-          {more && (
-            <div id={moreId} style={{ display: open ? 'contents' : 'none' }}>
-              {more}
-            </div>
-          )}
-        </div>
-        <div
-          style={{
-            flex: 'none',
-            display: 'flex',
-            gap: 8,
-            alignItems: 'center',
-          }}
-        >
-          {more && (
-            <Button
-              type="text"
-              aria-expanded={open}
-              aria-controls={moreId}
-              icon={<SlidersHorizontal size={16} />}
-              onClick={() => setOpen((v) => !v)}
-              style={{ color: palette.link, paddingInline: 6 }}
-            >
-              更多筛选
-              {moreCount > 0 && <span className="num"> · {moreCount}</span>}
-            </Button>
-          )}
-          {onReset && (
-            <Button danger onClick={onReset}>
-              重置
-            </Button>
-          )}
-          {onSearch && (
-            <Button type="primary" onClick={onSearch}>
-              查询
-            </Button>
-          )}
-        </div>
-      </div>
-      {quick && (
-        <div
-          style={{
-            marginTop: 16,
-            paddingTop: 16,
-            borderTop: `1px solid ${palette.hairline}`,
-          }}
-        >
-          {quick}
-        </div>
+          更多筛选
+          {moreCount > 0 && <span className="num"> · {moreCount}</span>}
+        </Button>
       )}
-    </Panel>
+      {onReset && (
+        <Button danger onClick={onReset}>
+          重置
+        </Button>
+      )}
+      {onSearch && (
+        <Button type="primary" onClick={onSearch}>
+          查询
+        </Button>
+      )}
+    </div>
+  );
+  // 收起时只是隐藏，不卸载：条件里没受控的输入值不会丢
+  const moreFields = more && (
+    <div id={moreId} style={{ display: open ? 'contents' : 'none' }}>
+      {more}
+    </div>
+  );
+  return (
+    <FilterLayoutContext.Provider value={layout}>
+      <Panel
+        style={{ marginBottom: 16, padding: line ? 16 : 20 }}
+        aria-label="搜索条件"
+      >
+        {line ? (
+          // 按钮固定在第一行右侧；窄屏时只有条件换行
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <div
+              style={{
+                flex: 1,
+                minWidth: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                flexWrap: 'wrap',
+              }}
+            >
+              {children}
+              {moreFields}
+            </div>
+            {buttons}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
+            <div
+              style={{
+                flex: 1,
+                minWidth: 0,
+                display: 'grid',
+                gridTemplateColumns: `repeat(auto-fill, minmax(${minColumn}px, 1fr))`,
+                gap: 12,
+                alignItems: 'end',
+              }}
+            >
+              {children}
+              {moreFields}
+            </div>
+            {buttons}
+          </div>
+        )}
+        {quick && (
+          <div
+            style={{
+              marginTop: 16,
+              paddingTop: 16,
+              borderTop: `1px solid ${palette.hairline}`,
+            }}
+          >
+            {quick}
+          </div>
+        )}
+      </Panel>
+    </FilterLayoutContext.Provider>
   );
 };
 
