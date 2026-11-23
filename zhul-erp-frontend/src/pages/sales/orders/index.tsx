@@ -1,6 +1,15 @@
 import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, DatePicker, Form, Input, Select, Table } from 'antd';
+import {
+  App,
+  Button,
+  DatePicker,
+  Form,
+  Input,
+  Popover,
+  Select,
+  Table,
+} from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { CopyPlus, Eye, Plus, Search, TriangleAlert } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -62,7 +71,7 @@ import {
 } from './dialogs';
 import {
   GoodsBar,
-  goodsText,
+  GoodsLegend,
   ProgressPill,
   ReceiptProgress,
   useGoodsColors,
@@ -427,7 +436,8 @@ const OrderList: React.FC = () => {
               {r.status === 2 ? '—' : '系统外采购'}
             </span>
           );
-        // 提示文字前的小圆点用所指那一段的颜色；「还有型号没下采购订单」是提醒，用警告标签（status-colors.md）
+        // 两行（2026-11-24 用户选定对比图方案 B，D21 行高）：第一行进度条 +「已出运 / 总件数」，悬停看各段件数；
+        // 第二行一句提醒。提示文字前的小圆点用所指那一段的颜色；「还有型号没下采购订单」用警告色文字加图标，不用标签（标签 24 高会撑高行）
         const hint =
           g.shipped >= g.total
             ? { text: '全部出运', color: goodsColors.shipped }
@@ -445,11 +455,24 @@ const OrderList: React.FC = () => {
                     }
                   : undefined;
         return (
-          <div style={{ display: 'grid', gap: 4, justifyItems: 'start' }}>
-            <GoodsBar parts={g} total={g.total} />
-            <span style={{ fontSize: 12, color: palette.sub }}>
-              {goodsText(g)} / {g.total} 件
-            </span>
+          <div style={{ display: 'grid', justifyItems: 'start' }}>
+            <Popover content={<GoodsLegend parts={g} total={g.total} />}>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  height: 22,
+                  fontSize: 12,
+                  color: palette.mute,
+                  fontVariantNumeric: 'tabular-nums',
+                  cursor: 'default',
+                }}
+              >
+                <GoodsBar parts={g} total={g.total} width={130} />
+                {g.shipped}/{g.total} 件
+              </span>
+            </Popover>
             {hint ? (
               // 文字用次要灰，前面的小圆点用所指那一段的颜色（图表系列色当文字对比度不足 4.5:1）
               <span
@@ -475,10 +498,19 @@ const OrderList: React.FC = () => {
               </span>
             ) : (
               g.pendingPurchase > 0 && (
-                <Pill tone="orange">
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: palette.orange,
+                  }}
+                >
                   <TriangleAlert size={12} aria-hidden />
                   还有型号没下采购订单
-                </Pill>
+                </span>
               )
             )}
           </div>

@@ -5,6 +5,7 @@ import { App, Button, Checkbox, Input, Select, Space, Table } from 'antd';
 import dayjs from 'dayjs';
 import { Banknote, Eye, Search, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import EllipsisText from '@/components/EllipsisText';
 import {
   FilterCard,
   FilterField,
@@ -26,8 +27,8 @@ import { BatchPayModal } from './BatchPayModal';
 import { currencyTotals, groupPayables, MAX_BATCH_PAYABLES } from './batch';
 import {
   DueTag,
-  PayeeTypePill,
   PayStatusPill,
+  payeeTypeLabel,
   RefundModal,
   RegisterPaymentDrawer,
 } from './components';
@@ -195,9 +196,14 @@ const PayableManagement: React.FC = () => {
       key: 'payee',
       width: 200,
       render: (_, r) => (
-        <div>
-          <div style={{ fontWeight: 600 }}>{r.payeeName || '—'}</div>
-          <PayeeTypePill type={r.payeeType} />
+        // 名称单行省略，下面一行类型用次要色文字（同客户列；标签 24 高会撑高行，D21）
+        <div style={{ minWidth: 0 }}>
+          <EllipsisText text={r.payeeName} style={{ fontWeight: 600 }} />
+          <div
+            style={{ fontSize: 12, lineHeight: '18px', color: palette.mute }}
+          >
+            {payeeTypeLabel(r.payeeType)}
+          </div>
         </div>
       ),
     },

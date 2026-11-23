@@ -84,6 +84,9 @@ const PAYEE_META: Record<number, { label: string; tone: Tone }> = {
   [PAYEE.EMPLOYEE]: { label: '员工', tone: 'cyan' },
 };
 
+/** 收款方类型的名称（列表第二行用文字：类型是属性，不用标签） */
+export const payeeTypeLabel = (type: number) => PAYEE_META[type]?.label;
+
 export const PayeeTypePill: React.FC<{ type: number }> = ({ type }) => {
   const m = PAYEE_META[type];
   return m ? <Pill tone={m.tone}>{m.label}</Pill> : null;

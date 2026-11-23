@@ -25,9 +25,19 @@ export const TagList: React.FC<{ values?: string[]; label: string }> = ({
   const { palette } = useAppTheme();
   if (!values?.length) return <span style={{ color: palette.mute }}>—</span>;
   const rest = values.length - 2;
+  // 单行：前两个放不下时省略、悬停看全文，「+N」始终露出；不折行撑高（D21 行高）
   return (
-    <span style={{ color: palette.ink }}>
-      {values.slice(0, 2).join('、')}
+    <span
+      style={{
+        display: 'flex',
+        alignItems: 'baseline',
+        minWidth: 0,
+        color: palette.ink,
+      }}
+    >
+      <span style={{ minWidth: 0 }}>
+        <EllipsisText text={values.slice(0, 2).join('、')} />
+      </span>
       {rest > 0 && (
         <Tooltip
           title={
@@ -40,7 +50,12 @@ export const TagList: React.FC<{ values?: string[]; label: string }> = ({
           }
         >
           <span
-            style={{ marginLeft: 6, color: palette.link, cursor: 'default' }}
+            style={{
+              flex: 'none',
+              marginLeft: 6,
+              color: palette.link,
+              cursor: 'default',
+            }}
           >
             +{rest}
           </span>

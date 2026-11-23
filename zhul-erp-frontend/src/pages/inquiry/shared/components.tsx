@@ -276,10 +276,19 @@ export const DeadlineText: React.FC<{ date: string; status: number }> = ({
         ? palette.orange
         : palette.sub;
   return (
-    <span style={{ display: 'inline-flex', flexDirection: 'column' }}>
-      <span style={{ color, fontVariantNumeric: 'tabular-nums' }}>{date}</span>
+    // 块级两行（日期 22 + 提醒 18）：行内 flex 会多出基线空隙把行撑高（D21 行高）
+    <span style={{ display: 'flex', flexDirection: 'column' }}>
+      <span
+        style={{
+          color,
+          fontVariantNumeric: 'tabular-nums',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {date}
+      </span>
       {active && diff <= 0 && (
-        <span style={{ fontSize: 11, color }}>
+        <span style={{ fontSize: 12, lineHeight: '18px', color }}>
           {diff === 0 ? '今天截止' : `已过期 ${-diff} 天`}
         </span>
       )}

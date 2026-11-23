@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
+import { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
@@ -488,7 +489,7 @@ const CustomerInquiryPage: React.FC = () => {
       title: '负责人',
       dataIndex: 'ownerName',
       width: 90,
-      render: (v) => v || '—',
+      render: (v) => ellipsisRender(v || '—'),
     },
     ...auditColumns<CustomerInquiry>(),
     {

@@ -328,9 +328,16 @@ const PurchaseOrderList: React.FC = () => {
             <span style={{ color: r.overdueDays ? palette.orange : undefined }}>
               {v}
             </span>
+            {/* 逾期是提醒：警告色小字，不用标签（标签 24 高会撑高行，D21） */}
             {r.overdueDays ? (
-              <div>
-                <Pill tone="orange">已过 {r.overdueDays} 天</Pill>
+              <div
+                style={{
+                  fontSize: 12,
+                  lineHeight: '18px',
+                  color: palette.orange,
+                }}
+              >
+                已过 {r.overdueDays} 天
               </div>
             ) : null}
           </div>
