@@ -15,6 +15,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import { Search } from 'lucide-react';
 import React, { useRef, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -60,7 +61,8 @@ const LoginLogPage: React.FC = () => {
     });
   const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>(undefined);
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess();
 
   const canForceLogout = !!(access as Record<string, unknown>)[
@@ -73,7 +75,6 @@ const LoginLogPage: React.FC = () => {
 
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [selectedRows, setSelectedRows] = useState<LoginLogItem[]>([]);
-  const [forceLogoutLoading, setForceLogoutLoading] = useState(false);
 
   const handleExport = async () => {
     setExporting(true);
@@ -89,13 +90,12 @@ const LoginLogPage: React.FC = () => {
 
   const handleForceLogout = () => {
     const count = selectedRows.length;
-    modal.confirm({
-      title: '确认强制下线',
-      content: `确定将选中的 ${count} 名用户强制下线？其当前登录 Token 将立即失效，操作不可撤销。`,
-      okText: '确认',
-      okButtonProps: { danger: true, loading: forceLogoutLoading },
+    confirmDanger({
+      title: `强制下线选中的 ${count} 名用户？`,
+      content: '他们会立即退出登录，需要重新登录才能继续使用。',
+      okText: '强制下线',
+      // 按钮转圈由确认框按 onOk 的 Promise 自动处理
       onOk: async () => {
-        setForceLogoutLoading(true);
         try {
           const sessionIds = selectedRows
             .map((r) => r.sessionId)
@@ -115,8 +115,6 @@ const LoginLogPage: React.FC = () => {
           actionRef.current?.reload();
         } catch (e: any) {
           message.error(e?.message || '强制下线操作失败，请稍后重试');
-        } finally {
-          setForceLogoutLoading(false);
         }
       },
     });

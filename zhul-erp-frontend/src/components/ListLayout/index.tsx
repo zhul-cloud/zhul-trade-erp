@@ -1,4 +1,3 @@
-import { useLocation } from '@umijs/max';
 import {
   Button,
   Cascader,
@@ -39,6 +38,8 @@ export const Panel: React.FC<{
   style?: React.CSSProperties;
   as?: 'section' | 'div';
   'aria-label'?: string;
+  'data-zhul-filter'?: string;
+  onKeyDownCapture?: React.KeyboardEventHandler<HTMLElement>;
 }> = ({ children, style, as = 'section', ...rest }) => {
   const { palette, mode } = useAppTheme();
   const Tag = as;
@@ -580,19 +581,22 @@ export const QuickFilters: React.FC<{
   );
 };
 
-/** 「更多筛选」收起时生效条件的胶囊：搜索条件区算出来，交给同一页的主卡显示（按页面路径） */
+/**
+ * 「更多筛选」里已生效条件的胶囊：搜索条件区算出来，交给紧挨着它下面的主卡显示。
+ * 按搜索条件区的实例区分（不按页面路径），同一页多个页签、同一路径开了两个标签时互不串。
+ */
 const chipStore = new Map<string, FilterChipItem[]>();
 const chipListeners = new Set<() => void>();
-const publishChips = (path: string, chips: FilterChipItem[]) => {
-  const prev = chipStore.get(path) ?? [];
+const publishChips = (id: string, chips: FilterChipItem[]) => {
+  const prev = chipStore.get(id) ?? [];
   const key = (list: FilterChipItem[]) =>
     list.map((c) => `${c.key}=${String(c.label)}`).join('|');
   if (key(prev) === key(chips)) return;
-  if (chips.length) chipStore.set(path, chips);
-  else chipStore.delete(path);
+  if (chips.length) chipStore.set(id, chips);
+  else chipStore.delete(id);
   for (const l of chipListeners) l();
 };
-const useAutoChips = (path: string) =>
+const useAutoChips = (id?: string) =>
   useSyncExternalStore(
     (l) => {
       chipListeners.add(l);
@@ -600,9 +604,33 @@ const useAutoChips = (path: string) =>
         chipListeners.delete(l);
       };
     },
-    () => chipStore.get(path),
+    () => (id ? chipStore.get(id) : undefined),
     () => undefined,
   );
+
+/**
+ * 主卡找它上面的搜索条件区：同级的前面几个元素（或其中包含的），最多往上找 3 层；
+ * 到页签面板就停，别的页签里的搜索条件区不算。
+ */
+const findFilterId = (from: Element | null): string | undefined => {
+  let cur: Element | null = from;
+  for (let level = 0; cur && level < 3; level += 1) {
+    for (
+      let sib = cur.previousElementSibling;
+      sib;
+      sib = sib.previousElementSibling
+    ) {
+      if (sib.classList.contains('ant-tabs')) continue;
+      const hit = sib.matches('[data-zhul-filter]')
+        ? sib
+        : sib.querySelector('[data-zhul-filter]');
+      if (hit) return hit.getAttribute('data-zhul-filter') ?? undefined;
+    }
+    if (cur.classList.contains('ant-tabs-tabpane')) return undefined;
+    cur = cur.parentElement;
+  }
+  return undefined;
+};
 
 interface MoreField {
   label: string;
@@ -610,6 +638,19 @@ interface MoreField {
   name?: unknown;
   control: React.ReactElement;
 }
+
+/** 能显示成胶囊的控件；自定义控件（供应商选择、数量区间等）拿不到显示名称，不出胶囊 */
+const CHIP_CONTROLS = new Set<unknown>([
+  Select,
+  DatePicker,
+  DatePicker.RangePicker,
+  Input,
+  Input.Search,
+  InputNumber,
+  Cascader,
+  TreeSelect,
+]);
+const TEXT_INPUTS = new Set<unknown>([Input, Input.Search]);
 
 /** 找出「更多筛选」里的每一项：名称、表单字段名、控件 */
 const collectFields = (node: React.ReactNode, out: MoreField[] = []) => {
@@ -636,8 +677,9 @@ const collectFields = (node: React.ReactNode, out: MoreField[] = []) => {
   return out;
 };
 
-/** 条件值的显示文字：下拉取选项名称，日期按天，其余转文字；对象（自定义控件）不显示胶囊 */
+/** 条件值的显示文字：下拉取选项名称，日期按天，其余转文字；自定义控件、选项里找不到的值不显示胶囊 */
 const displayOf = (control: React.ReactElement, value: unknown): string => {
+  if (!CHIP_CONTROLS.has(control.type)) return '';
   if (value === undefined || value === null || value === '') return '';
   if (Array.isArray(value) && value.length === 0) return '';
   const props = control.props as {
@@ -645,9 +687,13 @@ const displayOf = (control: React.ReactElement, value: unknown): string => {
   };
   const one = (v: unknown): string => {
     if (dayjs.isDayjs(v)) return v.format('YYYY-MM-DD');
-    const opt = props.options?.find((o) => o.value === v);
+    // 地址栏带来的值是字符串、选项是数字时也认
+    const opt =
+      props.options?.find((o) => o.value === v) ??
+      props.options?.find((o) => String(o.value) === String(v));
     if (opt && typeof opt.label === 'string')
       return opt.label.replace(/ · \d+$/, '');
+    if (props.options) return '';
     if (typeof v === 'string' || typeof v === 'number') return String(v);
     return '';
   };
@@ -661,60 +707,88 @@ const displayOf = (control: React.ReactElement, value: unknown): string => {
   return one(value);
 };
 
+type FormInstance = ReturnType<typeof Form.useFormInstance>;
+
+const fieldValue = (f: MoreField, form?: FormInstance) =>
+  f.name !== undefined && form
+    ? form.getFieldValue(f.name as string)
+    : (f.control.props as { value?: unknown }).value;
+
 /**
- * 算出「更多筛选」里已生效条件的胶囊（S16）：表单页读表单值，去掉后立即查询；
- * 受控页读控件的 value，去掉后等页面用新值重渲染再查询（不用旧的条件）。
+ * 算出「更多筛选」里已生效条件的胶囊（S16）。只显示最近一次查询用的条件：
+ * 点「查询」、在条件里回车、打开页面时记下当时的值；在更多筛选里改了没查询，不出胶囊。
+ * 表单页去掉后清空字段并立即查询；受控页调控件的 onChange（文本框传空的输入事件），等页面用新值重渲染后再查询。
+ * 去掉时一律读最新一次渲染的控件和查询函数，不用旧闭包里的条件。
  */
-const MoreChips: React.FC<{
-  more: React.ReactNode;
-  open: boolean;
-  onSearch?: () => void;
-}> = ({ more, open, onSearch }) => {
-  const { pathname } = useLocation();
-  const form = Form.useFormInstance();
-  const fields = collectFields(more);
-  // 订阅表单值：值变了胶囊跟着变（没有表单时传空，不会报警告）
+const useMoreChips = (
+  id: string,
+  more: React.ReactNode,
+  open: boolean,
+  onSearch?: () => void,
+) => {
+  const form = Form.useFormInstance() as FormInstance | undefined;
+  const fields = more ? collectFields(more) : [];
+  // 订阅表单值：没有表单时传空，不会报警告
   Form.useWatch([], form);
+  const latest = useRef({ fields, form, onSearch });
+  latest.current = { fields, form, onSearch };
+  const [applied, setApplied] = useState<Record<string, unknown>>({});
+  const snap = useCallback(
+    () =>
+      setApplied(
+        Object.fromEntries(
+          latest.current.fields.map((f) => [
+            f.label,
+            fieldValue(f, latest.current.form),
+          ]),
+        ),
+      ),
+    [],
+  );
+  const clear = useCallback(() => setApplied({}), []);
+  // 打开页面时地址栏、默认值带进来的条件算已生效
+  useEffect(snap, []);
   const [pending, setPending] = useState(false);
   useEffect(() => {
     if (!pending) return;
     setPending(false);
-    onSearch?.();
-  }, [pending, onSearch]);
+    latest.current.onSearch?.();
+  }, [pending]);
+  const remove = useCallback((label: string) => {
+    const { fields: fs, form: fm, onSearch: search } = latest.current;
+    const f = fs.find((x) => x.label === label);
+    setApplied((a) => ({ ...a, [label]: undefined }));
+    if (!f) return;
+    if (f.name !== undefined && fm) {
+      fm.setFieldValue(f.name as string, undefined);
+      search?.();
+      return;
+    }
+    const change = (f.control.props as { onChange?: (v: unknown) => void })
+      .onChange;
+    change?.(
+      TEXT_INPUTS.has(f.control.type) ? { target: { value: '' } } : undefined,
+    );
+    setPending(true);
+  }, []);
   const chips: FilterChipItem[] = open
     ? []
     : fields.flatMap((f) => {
-        const cp = f.control.props as {
-          value?: unknown;
-          onChange?: (v: unknown) => void;
-        };
-        const fromForm = f.name !== undefined && !!form;
-        const value = fromForm
-          ? form.getFieldValue(f.name as string)
-          : cp.value;
-        const text = displayOf(f.control, value);
+        const text = displayOf(f.control, applied[f.label]);
         if (!text) return [];
         return [
           {
             key: f.label,
             label: `${f.label}：${text}`,
-            onRemove: () => {
-              if (fromForm) {
-                form.setFieldValue(f.name as string, undefined);
-                onSearch?.();
-              } else {
-                cp.onChange?.(undefined);
-                setPending(true);
-              }
-            },
+            onRemove: () => remove(f.label),
           },
         ];
       });
   useEffect(() => {
-    publishChips(pathname, chips);
+    publishChips(id, chips);
   });
-  useEffect(() => () => publishChips(pathname, []), [pathname]);
-  return null;
+  useEffect(() => () => publishChips(id, []), [id]);
+  return { snap, clear };
 };
 
 /**
@@ -746,7 +820,21 @@ export const FilterCard: React.FC<{
   const { palette } = useAppTheme();
   const [open, setOpen] = useState(false);
   const moreId = useId();
+  const filterId = useId();
   const line = layout === 'line';
+  const { snap, clear } = useMoreChips(filterId, more, open, onSearch);
+  const search =
+    onSearch &&
+    (() => {
+      snap();
+      onSearch();
+    });
+  const reset =
+    onReset &&
+    (() => {
+      clear();
+      onReset();
+    });
   const buttons = (
     <div
       style={{
@@ -774,13 +862,13 @@ export const FilterCard: React.FC<{
           </Button>
         </Tooltip>
       )}
-      {onReset && (
-        <Button danger onClick={onReset}>
+      {reset && (
+        <Button danger onClick={reset}>
           重置
         </Button>
       )}
-      {onSearch && (
-        <Button type="primary" onClick={onSearch}>
+      {search && (
+        <Button type="primary" onClick={search}>
           查询
         </Button>
       )}
@@ -794,10 +882,15 @@ export const FilterCard: React.FC<{
   );
   return (
     <FilterLayoutContext.Provider value={layout}>
-      {more && <MoreChips more={more} open={open} onSearch={onSearch} />}
       <Panel
         style={{ marginBottom: 16, padding: line ? 16 : 20 }}
         aria-label="搜索条件"
+        data-zhul-filter={filterId}
+        // 在条件里回车查询时，记下这次查询用的「更多筛选」条件
+        onKeyDownCapture={(e) => {
+          if (e.key === 'Enter' && e.target instanceof HTMLInputElement)
+            setTimeout(snap);
+        }}
       >
         {line ? (
           // 按钮固定在第一行右侧；窄屏时只有条件换行
@@ -912,12 +1005,18 @@ export const MainCard: React.FC<{
   children: React.ReactNode;
 }> = ({ left, right, quick, chips: own, children }) => {
   const { palette } = useAppTheme();
-  const { pathname } = useLocation();
-  const auto = useAutoChips(pathname);
+  const probe = useRef<HTMLSpanElement>(null);
+  const [filterId, setFilterId] = useState<string>();
+  useLayoutEffect(() => {
+    const id = findFilterId(probe.current?.parentElement ?? null);
+    if (id !== filterId) setFilterId(id);
+  });
+  const auto = useAutoChips(filterId);
   const chips = [...(own ?? []), ...(auto ?? [])];
   const hasChips = chips.length > 0;
   return (
     <Panel style={{ padding: 16, minWidth: 0 }}>
+      <span ref={probe} hidden />
       {(left || right || quick || hasChips) && (
         <div
           className="zhul-toolbar"

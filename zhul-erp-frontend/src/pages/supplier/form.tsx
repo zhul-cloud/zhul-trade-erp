@@ -23,6 +23,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
@@ -162,7 +163,8 @@ const toPayload = (v: FormState): SupplierFormValues => ({
 const SupplierFormPage: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
   const editing = !!id;
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess() as Record<string, boolean>;
   const { palette } = useAppTheme();
   const [form] = Form.useForm<FormState>();
@@ -225,9 +227,9 @@ const SupplierFormPage: React.FC = () => {
       leave();
       return;
     }
-    modal.confirm({
-      title: '确认离开？',
-      content: '当前填写内容将不会保存。',
+    confirmDanger({
+      title: '有未保存的修改',
+      content: '现在离开，填写的内容不会保存。',
       okText: '离开',
       cancelText: '继续编辑',
       onOk: leave,

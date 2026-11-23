@@ -348,7 +348,13 @@ const RequirementList: React.FC = () => {
                 open && {
                   key: 'source',
                   label: planned ? '换渠道' : '选渠道',
-                  icon: <Store size={18} />,
+                  // 还没定渠道的行图标用警告色，一眼看出要先选
+                  icon: (
+                    <Store
+                      size={18}
+                      color={planned ? undefined : palette.orange}
+                    />
+                  ),
                   onClick: () => setSourcing([r]),
                 },
               canAssign &&

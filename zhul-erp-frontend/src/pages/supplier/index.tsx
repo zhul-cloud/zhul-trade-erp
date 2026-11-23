@@ -172,7 +172,8 @@ const SupplierListPage: React.FC = () => {
   const confirmDelete = (record: SupplierItem) => {
     confirmDanger({
       title: `删除供应商「${record.name}（${record.supplierCode}）」？`,
-      content: '',
+      content:
+        '删除后不可恢复。已有询盘单、报价中的引用不受影响；如只是暂停合作，建议改为禁用。',
       onOk: async () => {
         await supplierApi.remove(record.id);
         message.success('删除成功');

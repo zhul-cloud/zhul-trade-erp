@@ -1,10 +1,11 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { App } from 'antd';
+import { App, Input } from 'antd';
 import React, { useState } from 'react';
 import {
   FilterCard,
   FilterField,
   HelpTip,
+  MainCard,
   MoreActions,
   PageHeader,
   QuickFilters,
@@ -360,4 +361,87 @@ it('统计页的搜索条件区不传查询、重置时不显示这两个按钮'
   expect(screen.getByRole('region', { name: '搜索条件' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: /查\s*询/ })).toBeNull();
   expect(screen.queryByRole('button', { name: /重\s*置/ })).toBeNull();
+});
+
+describe('更多筛选的条件胶囊', () => {
+  const Page = (props: {
+    onSearch: (kw: string, code: string) => void;
+    name: string;
+  }) => {
+    const [kw, setKw] = useState('');
+    const [code, setCode] = useState('');
+    return h(
+      'div',
+      null,
+      h(FilterCard, {
+        onSearch: () => props.onSearch(kw, code),
+        more: h(FilterField, {
+          label: '编码',
+          children: h(Input, {
+            'aria-label': `${props.name}编码`,
+            value: code,
+            onChange: (e: { target: { value: string } }) =>
+              setCode(e.target.value),
+          }),
+        }),
+        children: h(FilterField, {
+          label: '关键词',
+          children: h(Input, {
+            'aria-label': `${props.name}关键词`,
+            value: kw,
+            onChange: (e: { target: { value: string } }) =>
+              setKw(e.target.value),
+          }),
+        }),
+      }),
+      h(MainCard, { children: h('div', null, '表格') }),
+    );
+  };
+  const toggleMore = (i = 0) =>
+    fireEvent.click(screen.getAllByRole('button', { name: /更多筛选/ })[i]);
+  const query = (i = 0) =>
+    fireEvent.click(screen.getAllByRole('button', { name: /查\s*询/ })[i]);
+
+  it('改了没查询不出胶囊；查询后收起显示，点 × 清空文本框并用新值查询', async () => {
+    const onSearch = jest.fn();
+    render(h(App, null, h(Page, { onSearch, name: '' })));
+    toggleMore();
+    fireEvent.change(screen.getByLabelText('编码'), {
+      target: { value: 'A1' },
+    });
+    toggleMore();
+    expect(screen.queryByText('编码：A1')).toBeNull();
+    query();
+    expect(await screen.findByText('编码：A1')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('关键词'), {
+      target: { value: 'kw' },
+    });
+    onSearch.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: '去掉条件 编码：A1' }));
+    await act(async () => {});
+    expect(screen.queryByText('编码：A1')).toBeNull();
+    // 用最新的关键词，不回到加胶囊时的旧值
+    expect(onSearch).toHaveBeenLastCalledWith('kw', '');
+  });
+
+  it('同一页两组搜索条件区和主卡互不串', async () => {
+    render(
+      h(
+        App,
+        null,
+        h('div', null, h(Page, { onSearch: () => {}, name: '甲' })),
+        h('div', null, h(Page, { onSearch: () => {}, name: '乙' })),
+      ),
+    );
+    toggleMore(1);
+    fireEvent.change(screen.getByLabelText('乙编码'), {
+      target: { value: 'B2' },
+    });
+    query(1);
+    toggleMore(1);
+    expect(await screen.findAllByText('编码：B2')).toHaveLength(1);
+    const cards = document.querySelectorAll('[data-zhul-filter]');
+    expect(cards[1].parentElement?.textContent).toContain('编码：B2');
+    expect(cards[0].parentElement?.textContent).not.toContain('编码：B2');
+  });
 });

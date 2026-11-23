@@ -98,14 +98,14 @@ const LINE_RULES = [
     level: 'error',
     message:
       '需要关注的行用 rowAlert()（行首 3px 色条加状态标签），不整行铺底色（ui-redesign D7）',
-    re: /background:\s*palette\.(redSoft|orangeSoft)\s*\}/,
+    re: /\{\s*style:\s*\{[^}]*background:\s*\w+\.(redSoft|orangeSoft)\b/,
   },
   {
     id: 'danger-confirm',
     level: 'error',
     message:
       '危险操作的确认框用 useConfirmDanger()（问句标题写明对象、按钮写动作、默认焦点在取消），不自己给 confirm 配红色按钮',
-    re: /okButtonProps:\s*\{\s*danger:\s*true\s*\}|okType:\s*'danger'/,
+    re: /okButtonProps:\s*\{[^}]*\bdanger:\s*true|okType:\s*'danger'/,
   },
   {
     id: 'filler-maybe',

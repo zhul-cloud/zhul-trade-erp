@@ -497,7 +497,6 @@ const FactNotes: React.FC<{ notes: FactNote[] }> = ({ notes }) => {
   );
 };
 
-/** 下载营销包：第一项为全部启用平台（一个文件），其次是单个平台和独立站俄文 */
 /** 营销包能下载哪几份：全部启用平台、各平台、独立站俄文（下载菜单与表格行的「更多」共用） */
 export const marketingPicks = (
   platforms: MarketingPlatform[],
@@ -525,6 +524,7 @@ export const marketingPicks = (
     : []),
 ];
 
+/** 下载营销包：第一项为全部启用平台（一个文件），其次是单个平台和独立站俄文 */
 export const MarketingDownload: React.FC<{
   platforms: MarketingPlatform[];
   downloading?: string;
@@ -550,28 +550,12 @@ export const MarketingDownload: React.FC<{
       </span>
     ),
   });
+  const [all, ...rest] = marketingPicks(platforms);
   const menu = {
     items: [
-      option(
-        'all',
-        '全部启用平台（推荐）',
-        platforms.includes('site')
-          ? '型号.marketing.md · 含独立站俄文'
-          : '型号.marketing.md · 一个文件',
-      ),
+      option(all.key, all.name, all.file),
       { type: 'divider' as const },
-      ...platforms.map((p) =>
-        option(p, PLATFORM_META[p].label, PLATFORM_META[p].file),
-      ),
-      ...(platforms.includes('site')
-        ? [
-            option(
-              'site-ru',
-              '独立站俄文（单独重做）',
-              '型号.site.ru.md · 俄文',
-            ),
-          ]
-        : []),
+      ...rest.map((x) => option(x.key, x.name, x.file)),
     ],
     onClick: ({ key }: { key: string }) => onPick(key as MarketingPick),
   };

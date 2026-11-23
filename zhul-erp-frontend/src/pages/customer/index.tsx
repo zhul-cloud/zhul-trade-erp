@@ -233,7 +233,8 @@ const CustomerListPage: React.FC = () => {
   const confirmDelete = (record: CustomerListItem) => {
     confirmDanger({
       title: `删除客户「${record.displayName}（${record.customerCode}）」？`,
-      content: '',
+      content:
+        '删除后不可恢复。如只是暂停合作，建议改为禁用。已有询盘或单据记录的客户不能删除。',
       onOk: async () => {
         try {
           await customerApi.remove(record.id);

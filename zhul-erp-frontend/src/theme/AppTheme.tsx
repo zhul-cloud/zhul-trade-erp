@@ -83,6 +83,8 @@ const globalCss = (
   .ant-pagination { display: flex; flex-wrap: wrap; align-items: center; row-gap: 8px; }
   .ant-pagination .ant-pagination-options { order: -1; margin-inline: 0 auto; }
   .ant-pagination .ant-pagination-total-text:empty { display: none; }
+  /* 只有一页且不超过 10 条时不显示分页（规范「组件标准 · 分页」）：页码只有 1、表格不到第 11 行，页面不用传总数 */
+  .ant-table-wrapper:not(:has(.ant-table-tbody > tr:nth-child(11 of .ant-table-row))) .ant-table-pagination:not(:has(.ant-pagination-item-2)) { display: none; }
   .ant-pagination .ant-pagination-item, .ant-pagination .ant-pagination-prev, .ant-pagination .ant-pagination-next,
   .ant-pagination .ant-pagination-jump-prev, .ant-pagination .ant-pagination-jump-next {
     min-width: 32px; height: 32px; line-height: 30px; border-radius: 16px; border-color: transparent;

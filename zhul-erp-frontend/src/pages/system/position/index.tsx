@@ -121,6 +121,7 @@ const PositionPage: React.FC = () => {
   };
 
   const confirmDanger = useConfirmDanger();
+  const checking = useRef(false);
   const columns: ProColumns<PositionItem>[] = [
     { title: '序号', valueType: 'index', width: 60, search: false },
     { title: '岗位编码', dataIndex: 'code', width: 140, search: false },
@@ -184,13 +185,20 @@ const PositionPage: React.FC = () => {
                   handleToggleStatus(record);
                   return;
                 }
-                // 禁用前查有多少用户持有此岗位，写进确认框
-                const check = await getPositionDeleteCheck(record.id);
+                // 禁用前查有多少用户持有此岗位，写进确认框；查询失败时按没有用户的说明继续
+                if (checking.current) return;
+                checking.current = true;
+                const userCount = await getPositionDeleteCheck(record.id)
+                  .then((c) => c.userCount)
+                  .catch(() => 0)
+                  .finally(() => {
+                    checking.current = false;
+                  });
                 confirmDanger({
                   title: `禁用岗位「${record.name}」？`,
                   content:
-                    check.userCount > 0
-                      ? `当前有 ${check.userCount} 名用户持有此岗位，禁用后新建用户将无法选择此岗位，已分配用户不受影响。`
+                    userCount > 0
+                      ? `当前有 ${userCount} 名用户持有此岗位，禁用后新建用户将无法选择此岗位，已分配用户不受影响。`
                       : '禁用后该岗位不可被分配给新用户。',
                   okText: '禁用',
                   onOk: () => handleToggleStatus(record),
