@@ -149,6 +149,10 @@ const globalCss = (
   /* 表格外的单号（分组头、卡片标题）同样墨色 600，悬停主题色加下划线 */
   .zhul-link.zhul-link-doc { color: ${p.ink}; font-weight: 600; }
   .zhul-link.zhul-link-doc:hover { color: ${link.hover}; text-decoration: underline; text-underline-offset: 3px; }
+  /* 表格行高（D21）：内边距 11 让两行内容落在 63；单行和表头用最小高度补到 48（单元格的 height 即最小高度）。
+     small、middle 尺寸的表格用于弹窗和卡片内，不受影响 */
+  .ant-table:not(.ant-table-small):not(.ant-table-middle) > .ant-table-container .ant-table-thead > tr > th,
+  .ant-table:not(.ant-table-small):not(.ant-table-middle) > .ant-table-container .ant-table-tbody > tr.ant-table-row > td { height: 48px; }
   @media (max-width: 1399px) { .zhul-more-text { display: none; } }
   /* 主卡操作行里的快捷筛选：结果数后面直接是胶囊，不写「快捷筛选」 */
   .zhul-toolbar .zhul-quick-label { display: none; }

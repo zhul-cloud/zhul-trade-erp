@@ -93,12 +93,13 @@ export function buildAntdTheme(
         footerBg: p.card,
         boxShadow: light ? DIALOG_SHADOW : 'none',
       },
-      // 表格：表头 48、13 号次要色；单行 48（ui-redesign D21）
+      // 表格：表头 48、13 号次要色；单行 48、两行 60–64（ui-redesign D21）。
+      // 上下内边距 11：两行内容（22 + 19）为 63；单行和表头靠全局样式里的最小高度 48 补齐
       Table: {
         headerBg: p.head,
         headerColor: p.mute,
         cellFontSize: 14,
-        cellPaddingBlock: 13,
+        cellPaddingBlock: 11,
         cellPaddingInline: 12,
         headerSplitColor: 'transparent',
         rowHoverBg: p.hover,
