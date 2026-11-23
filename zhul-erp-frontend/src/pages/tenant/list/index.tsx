@@ -32,7 +32,16 @@ import {
   Tooltip,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Search } from 'lucide-react';
+import {
+  Ban,
+  CalendarPlus,
+  CircleCheck,
+  DatabaseZap,
+  History,
+  KeyRound,
+  Pencil,
+  Search,
+} from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   FilterCard,
@@ -40,6 +49,7 @@ import {
   MainCard,
   PageHeader,
 } from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { proAuditColumns } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useIndustryOptions } from '@/utils/dict';
@@ -354,74 +364,61 @@ const TenantListPage: React.FC = () => {
       title: '操作',
       valueType: 'option',
       fixed: 'right',
-      width: 340,
-      render: (_, row) => [
-        access['tenant:list:edit'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="edit"
-            onClick={() => openEdit(row)}
-          >
-            编辑
-          </button>
-        ),
-        access['tenant:list:edit'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="renew"
-            onClick={() => openRenew(row)}
-          >
-            续期
-          </button>
-        ),
-        access['tenant:list:init'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="init"
-            onClick={() => openInit(row)}
-          >
-            数据初始化
-          </button>
-        ),
-        access['tenant:list:init'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="migrate"
-            onClick={() =>
-              history.push(
-                `/tenant/history-migration?tenantId=${row.id}&name=${encodeURIComponent(row.name)}`,
-              )
-            }
-          >
-            历史迁移
-          </button>
-        ),
-        access['tenant:list:resetPwd'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="reset"
-            onClick={() => openReset(row)}
-          >
-            重置密码
-          </button>
-        ),
-        access['tenant:list:status'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="status"
-            style={{ color: row.status === 1 ? palette.red : palette.green }}
-            onClick={() => toggleStatus(row)}
-          >
-            {row.status === 1 ? '禁用' : '启用'}
-          </button>
-        ),
-      ],
+      // 编辑、续期放行内；初始化、迁移、重置密码、禁用收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(3),
+      render: (_, row) => {
+        const enabled = row.status === 1;
+        return (
+          <RowActions
+            inline={[
+              access['tenant:list:edit'] && {
+                key: 'edit',
+                label: '编辑',
+                icon: <Pencil size={18} />,
+                onClick: () => openEdit(row),
+              },
+              access['tenant:list:edit'] && {
+                key: 'renew',
+                label: '续期',
+                icon: <CalendarPlus size={18} />,
+                onClick: () => openRenew(row),
+              },
+            ]}
+            more={[
+              access['tenant:list:init'] && {
+                key: 'init',
+                label: '数据初始化',
+                icon: <DatabaseZap size={16} />,
+              },
+              access['tenant:list:init'] && {
+                key: 'migrate',
+                label: '历史迁移',
+                icon: <History size={16} />,
+              },
+              access['tenant:list:resetPwd'] && {
+                key: 'reset',
+                label: '重置密码',
+                icon: <KeyRound size={16} />,
+              },
+              access['tenant:list:status'] && {
+                key: 'status',
+                label: enabled ? '禁用' : '启用',
+                icon: enabled ? <Ban size={16} /> : <CircleCheck size={16} />,
+                danger: enabled,
+              },
+            ]}
+            onMore={(key) => {
+              if (key === 'init') openInit(row);
+              if (key === 'migrate')
+                history.push(
+                  `/tenant/history-migration?tenantId=${row.id}&name=${encodeURIComponent(row.name)}`,
+                );
+              if (key === 'reset') openReset(row);
+              if (key === 'status') toggleStatus(row);
+            }}
+          />
+        );
+      },
     },
   ];
 

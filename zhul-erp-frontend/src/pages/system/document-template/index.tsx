@@ -1,4 +1,5 @@
 // biome-ignore-all lint/suspicious/noTemplateCurlyInString: 占位符说明里的 ${…} 是给管理员看的模版占位符，不是模板字符串
+
 import {
   BookOutlined,
   CloseCircleOutlined,
@@ -18,13 +19,20 @@ import {
   Input,
   Modal,
   Skeleton,
-  Space,
   Table,
-  Tooltip,
 } from 'antd';
+import {
+  Ban,
+  CircleCheck,
+  Download,
+  Eye,
+  FileOutput,
+  Star,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
 import { PageHeader } from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { readBizError } from '@/pages/crm/opportunity/service';
 import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -375,57 +383,52 @@ const DocumentTemplatePage: React.FC = () => {
       title: '操作',
       fixed: 'right',
       key: 'a',
-      width: 240,
+      // 预览导出、下载（文本模板为查看）放行内；设为默认、停用收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(canEdit ? 3 : 2),
       render: (_, v) => (
-        <Space size={12}>
-          {current?.generatable ? (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => preview(v)}
-            >
-              预览导出
-            </button>
-          ) : (
-            <Tooltip title="生成功能随发货模块上线，暂时只能下载模版查看">
-              <span style={{ color: palette.mute }}>预览导出</span>
-            </Tooltip>
-          )}
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() =>
-              isText
-                ? setTextPreview(v.content ?? '')
-                : templateApi
-                    .download(v.id)
-                    .catch((e) => message.error(e.message))
-            }
-          >
-            {isText ? '查看' : '下载'}
-          </button>
-          {canEdit && !v.isDefault && v.enabled && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setDefault(v)}
-            >
-              设为默认
-            </button>
-          )}
-          {canEdit && !v.isDefault && (
-            <button
-              type="button"
-              className="zhul-link"
-              style={{
-                color: v.enabled ? palette.sub : palette.link,
-              }}
-              onClick={() => toggle(v)}
-            >
-              {v.enabled ? '停用' : '启用'}
-            </button>
-          )}
-        </Space>
+        <RowActions
+          inline={[
+            {
+              key: 'preview',
+              label: '预览导出',
+              icon: <FileOutput size={18} />,
+              onClick: () => preview(v),
+              disabledReason: current?.generatable
+                ? undefined
+                : '生成功能随发货模块上线，暂时只能下载模版查看',
+            },
+            {
+              key: 'download',
+              label: isText ? '查看' : '下载',
+              icon: isText ? <Eye size={18} /> : <Download size={18} />,
+              onClick: () =>
+                isText
+                  ? setTextPreview(v.content ?? '')
+                  : templateApi
+                      .download(v.id)
+                      .catch((e) => message.error(e.message)),
+            },
+          ]}
+          more={[
+            canEdit &&
+              !v.isDefault &&
+              v.enabled && {
+                key: 'default',
+                label: '设为默认',
+                icon: <Star size={16} />,
+              },
+            canEdit &&
+              !v.isDefault && {
+                key: 'toggle',
+                label: v.enabled ? '停用' : '启用',
+                icon: v.enabled ? <Ban size={16} /> : <CircleCheck size={16} />,
+              },
+          ]}
+          onMore={(key) => {
+            if (key === 'default') setDefault(v);
+            if (key === 'toggle') toggle(v);
+          }}
+        />
       ),
     },
   ];

@@ -8,7 +8,7 @@ import {
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
 import { Alert, App, Badge, Button, Input, Select, Space, Tree } from 'antd';
-import { Search } from 'lucide-react';
+import { Ban, CircleCheck, Pencil, Search, Trash2 } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FilterCard,
@@ -16,6 +16,7 @@ import {
   MainCard,
   PageHeader,
 } from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { proAuditColumns } from '@/components/UserName';
 import {
   indexMenuTree,
@@ -252,41 +253,41 @@ const TenantPackagePage: React.FC = () => {
       title: '操作',
       valueType: 'option',
       fixed: 'right',
-      width: 160,
-      render: (_, row) => [
-        access['tenant:package:edit'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="edit"
-            onClick={() => openEdit(row)}
-          >
-            编辑
-          </button>
-        ),
-        access['tenant:package:status'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="status"
-            style={{ color: row.status === 1 ? palette.red : palette.green }}
-            onClick={() => toggleStatus(row)}
-          >
-            {row.status === 1 ? '禁用' : '启用'}
-          </button>
-        ),
-        access['tenant:package:delete'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="delete"
-            style={{ color: palette.red }}
-            onClick={() => handleDelete(row)}
-          >
-            删除
-          </button>
-        ),
-      ],
+      // 编辑放行内；禁用、删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(2),
+      render: (_, row) => {
+        const enabled = row.status === 1;
+        return (
+          <RowActions
+            inline={[
+              access['tenant:package:edit'] && {
+                key: 'edit',
+                label: '编辑',
+                icon: <Pencil size={18} />,
+                onClick: () => openEdit(row),
+              },
+            ]}
+            more={[
+              access['tenant:package:status'] && {
+                key: 'status',
+                label: enabled ? '禁用' : '启用',
+                icon: enabled ? <Ban size={16} /> : <CircleCheck size={16} />,
+                danger: enabled,
+              },
+              access['tenant:package:delete'] && {
+                key: 'delete',
+                label: '删除',
+                icon: <Trash2 size={16} />,
+                danger: true,
+              },
+            ]}
+            onMore={(key) => {
+              if (key === 'status') toggleStatus(row);
+              if (key === 'delete') handleDelete(row);
+            }}
+          />
+        );
+      },
     },
   ];
 

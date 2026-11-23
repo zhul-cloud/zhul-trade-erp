@@ -10,12 +10,14 @@ import {
   Radio,
   Select,
   Skeleton,
-  Space,
   Table,
 } from 'antd';
+import { Ban, CircleCheck, Pencil } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { CURRENCIES } from '@/pages/quotation/components';
@@ -251,7 +253,7 @@ const AccountModal: React.FC<{
 // ---------------------------------------------------------------- 页面
 
 const BankAccountPage: React.FC = () => {
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
   const { palette } = useAppTheme();
   const access = useAccess();
   const canEdit = !!access['system:bank-account:edit'];
@@ -317,6 +319,7 @@ const BankAccountPage: React.FC = () => {
       )
     : (rows ?? []);
 
+  const confirmDanger = useConfirmDanger();
   const columns: TableColumnsType<BankAccount> = [
     ...(bu.enabled
       ? [
@@ -420,51 +423,46 @@ const BankAccountPage: React.FC = () => {
       title: '操作',
       fixed: 'right',
       key: 'actions',
-      width: 120,
+      // 编辑放行内，停用、启用收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(2),
       hidden: !canEdit,
       render: (_, r) => (
-        <Space size={12}>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => {
-              setEditing(r);
-              setModalOpen(true);
-            }}
-          >
-            编辑
-          </button>
-          {r.enabled ? (
-            <button
-              type="button"
-              className="zhul-link"
-              style={{ color: palette.red }}
-              onClick={() =>
-                modal.confirm({
-                  title: `停用 ${r.bankName}？`,
-                  content:
-                    '停用后开 PI 时不能再选这个账户，已发送的 PI 不受影响。',
-                  okText: '停用',
-                  okButtonProps: { danger: true },
-                  onOk: () =>
-                    run(() => bankAccountApi.setEnabled(r.id, false), '已停用'),
-                })
-              }
-            >
-              停用
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() =>
-                run(() => bankAccountApi.setEnabled(r.id, true), '已启用')
-              }
-            >
-              启用
-            </button>
-          )}
-        </Space>
+        <RowActions
+          inline={[
+            {
+              key: 'edit',
+              label: '编辑',
+              icon: <Pencil size={18} />,
+              onClick: () => {
+                setEditing(r);
+                setModalOpen(true);
+              },
+            },
+          ]}
+          more={[
+            r.enabled
+              ? {
+                  key: 'off',
+                  label: '停用',
+                  icon: <Ban size={16} />,
+                  danger: true,
+                }
+              : { key: 'on', label: '启用', icon: <CircleCheck size={16} /> },
+          ]}
+          onMore={(key) => {
+            if (key === 'off')
+              confirmDanger({
+                title: `停用 ${r.bankName}？`,
+                content:
+                  '停用后开 PI 时不能再选这个账户，已发送的 PI 不受影响。',
+                okText: '停用',
+                onOk: () =>
+                  run(() => bankAccountApi.setEnabled(r.id, false), '已停用'),
+              });
+            if (key === 'on')
+              run(() => bankAccountApi.setEnabled(r.id, true), '已启用');
+          }}
+        />
       ),
     },
   ];
