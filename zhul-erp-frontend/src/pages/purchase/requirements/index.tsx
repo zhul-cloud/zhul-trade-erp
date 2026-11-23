@@ -228,7 +228,7 @@ const RequirementList: React.FC = () => {
         <div key={p.id} style={{ fontSize: 12 }}>
           <button
             type="button"
-            className="zhul-link"
+            className={p.poNo ? 'zhul-link' : 'zhul-link zhul-link-action'}
             onClick={() => history.push(PATHS.order(p.id))}
           >
             {p.poNo ?? '去下单 →'}
@@ -432,8 +432,7 @@ const RequirementList: React.FC = () => {
         <div style={{ minWidth: 170 }}>
           <button
             type="button"
-            className="zhul-link"
-            style={{ fontWeight: 700 }}
+            className="zhul-link zhul-link-doc"
             onClick={() => history.push(PATHS.salesOrder(o.soId))}
           >
             {o.soNo}

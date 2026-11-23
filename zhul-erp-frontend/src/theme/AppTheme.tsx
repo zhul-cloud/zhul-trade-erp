@@ -138,6 +138,11 @@ const globalCss = (
   .ant-table-tbody > tr > td:first-child .zhul-link, .ant-table-tbody > tr > td:first-child a:not(.ant-btn),
   .ant-table-tbody > tr > td.ant-table-selection-column + td .zhul-link,
   .ant-table-tbody > tr > td.ant-table-selection-column + td a:not(.ant-btn) { font-weight: 600; }
+  /* D23 只管导航类链接（单号、查看）：表格里的动作文字（如「去下单 →」）加 zhul-link-action 保持链接色，一眼看出能点 */
+  .ant-table-tbody .zhul-link.zhul-link-action { color: ${p.link}; }
+  /* 表格外的单号（分组头、卡片标题）同样墨色 600，悬停主题色加下划线 */
+  .zhul-link.zhul-link-doc { color: ${p.ink}; font-weight: 600; }
+  .zhul-link.zhul-link-doc:hover { color: ${link.hover}; text-decoration: underline; text-underline-offset: 3px; }
   @media (max-width: 1399px) { .zhul-more-text { display: none; } }
   /* 主卡操作行里的快捷筛选：结果数后面直接是胶囊，不写「快捷筛选」 */
   .zhul-toolbar .zhul-quick-label { display: none; }
