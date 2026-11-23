@@ -2,6 +2,7 @@ import { SearchOutlined } from '@ant-design/icons';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Input, Modal, Radio, Table, Tag } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -169,7 +170,9 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
             dataSource={rows}
             loading={loading}
             scroll={{ x: tableScrollX(columns) }}
-            locale={{ emptyText: '所有单据明细都已关联商品' }}
+            locale={{
+              emptyText: tableEmpty('所有单据明细都已关联商品', loading),
+            }}
             pagination={{
               ...PAGER_STYLE,
               current: page,

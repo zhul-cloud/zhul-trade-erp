@@ -10,6 +10,7 @@ import { Pencil, Plus, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import BrandCategoryPicker from '@/components/BrandCategoryPicker';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { tableEmpty } from '@/components/EmptyState';
 import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -308,7 +309,9 @@ const AssignRulesPage: React.FC = () => {
         dataSource={rules ?? []}
         loading={!rules}
         pagination={false}
-        locale={{ emptyText: '还没有规则，没有规则时全部按推荐分配' }}
+        locale={{
+          emptyText: tableEmpty('还没有规则，没有规则时全部按推荐分配', !rules),
+        }}
         footer={() => (
           <span style={{ display: 'flex', gap: 12, color: palette.sub }}>
             <b style={{ color: palette.ink }}>兜底</b>以上都没命中时，按推荐（近

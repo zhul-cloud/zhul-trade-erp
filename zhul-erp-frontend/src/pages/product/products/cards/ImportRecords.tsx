@@ -6,6 +6,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Drawer, Segmented, Space, Table } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { EmptyHint } from '../../components/EmptyHint';
 import { Pill } from '../../components/Pills';
@@ -295,7 +296,7 @@ export const ImportRecordList: React.FC<{
             : false
         }
         scroll={{ x: tableScrollX(columns) }}
-        locale={{ emptyText: '还没有上传记录' }}
+        locale={{ emptyText: tableEmpty('还没有上传记录', !rows) }}
       />
       <div style={{ marginTop: 8, fontSize: 12, color: palette.sub }}>
         {type === 'facts'

@@ -2,6 +2,7 @@ import type { TableColumnsType } from 'antd';
 import { Button, Segmented, Skeleton, Table, TreeSelect } from 'antd';
 import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { MetricGrid } from '@/components/MetricCard';
 import { useWide } from '@/pages/inquiry/shared/components';
 import {
@@ -514,7 +515,7 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
               dataSource={data.owners}
               pagination={false}
               scroll={{ x: 'max-content' }}
-              locale={{ emptyText: '这个范围里没有业务员' }}
+              locale={{ emptyText: tableEmpty('这个范围里没有业务员') }}
               onRow={(o) => ({
                 onClick: () => owner(o),
                 style: {

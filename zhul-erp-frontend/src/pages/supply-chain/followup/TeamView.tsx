@@ -9,6 +9,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { liveRequests } from '@/utils/liveRequests';
@@ -392,7 +393,9 @@ const TeamView: React.FC<{
               pagination={false}
               dataSource={t.owners}
               locale={{
-                emptyText: '还没有指定负责人的型号，可在型号详情里指定',
+                emptyText: tableEmpty(
+                  '还没有指定负责人的型号，可在型号详情里指定',
+                ),
               }}
               scroll={{ x: tableScrollX(ownerColumns) }}
               columns={ownerColumns}

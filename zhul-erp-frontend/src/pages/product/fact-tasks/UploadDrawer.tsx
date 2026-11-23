@@ -25,6 +25,7 @@ import {
 } from 'antd';
 import '@ant-design/x-markdown/es/XMarkdown/index.css';
 import React, { useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { PLATFORM_META } from '../products/cards/SeoCard';
@@ -772,7 +773,9 @@ export const UploadDrawer: React.FC<{
                 dataSource={p.blocks}
                 pagination={false}
                 loading={loading}
-                locale={{ emptyText: '没有解析到内容' }}
+                locale={{
+                  emptyText: tableEmpty('没有解析到内容', loading, true),
+                }}
                 expandable={{
                   rowExpandable: (b) => b.rows.length > 0,
                   expandedRowRender: (b) =>

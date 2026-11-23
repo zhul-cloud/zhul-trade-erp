@@ -11,6 +11,7 @@ import {
   Table,
 } from 'antd';
 import React, { useMemo, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { formatDateTime } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import { Pill } from '../components/Pills';
@@ -324,7 +325,7 @@ const PendingTab: React.FC<{
           selectedRowKeys: selected,
           onChange: (keys) => setSelected(keys as string[]),
         }}
-        locale={{ emptyText: '没有待确认的品牌' }}
+        locale={{ emptyText: tableEmpty('没有待确认的品牌', loading) }}
         footer={() =>
           '设为别名或新建品牌后，询盘、订单、采购单里这个写法自动换成正式品牌名'
         }

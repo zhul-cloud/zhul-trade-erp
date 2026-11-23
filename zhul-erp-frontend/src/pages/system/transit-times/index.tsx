@@ -19,6 +19,7 @@ import {
 import { Pencil, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { tableEmpty } from '@/components/EmptyState';
 import { PageHeader } from '@/components/ListLayout';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { Card } from '@/pages/inquiry/shared/components';
@@ -275,7 +276,9 @@ const TransitTimes: React.FC = () => {
           loading={loading}
           scroll={{ x: tableScrollX(columns) }}
           pagination={{ ...pager, showTotal: (t) => `共 ${t} 条` }}
-          locale={{ emptyText: '没有规则；估算时按默认运输天数' }}
+          locale={{
+            emptyText: tableEmpty('没有规则；估算时按默认运输天数', loading),
+          }}
         />
       )}
       <RuleModal

@@ -15,6 +15,7 @@ import {
 import { Ban, CircleCheck, Pencil } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { tableEmpty } from '@/components/EmptyState';
 import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -501,7 +502,10 @@ const BankAccountPage: React.FC = () => {
           pagination={false}
           scroll={{ x: tableScrollX(columns) }}
           locale={{
-            emptyText: '还没有收款账户：添加后开 PI 时会按币种自动带出',
+            emptyText: tableEmpty(
+              '还没有收款账户：添加后开 PI 时会按币种自动带出',
+              !rows,
+            ),
           }}
         />
       )}

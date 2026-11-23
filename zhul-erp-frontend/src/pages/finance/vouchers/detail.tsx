@@ -9,6 +9,7 @@ import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Alert, App, Button, Segmented, Skeleton, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
@@ -393,7 +394,7 @@ const VoucherMonthPage: React.FC = () => {
               expandRowByClick: true,
               expandedRowRender: (v) => <Entries v={v} />,
             }}
-            locale={{ emptyText: '这个类别没有凭证' }}
+            locale={{ emptyText: tableEmpty('这个类别没有凭证') }}
           />
         </Card>
       )}

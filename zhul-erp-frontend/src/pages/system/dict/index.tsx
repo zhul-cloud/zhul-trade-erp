@@ -28,6 +28,7 @@ import {
 import { Pencil, Trash2 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { tableEmpty } from '@/components/EmptyState';
 import { PageHeader } from '@/components/ListLayout';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -507,7 +508,10 @@ const DictPage: React.FC = () => {
                 loading={itemLoading}
                 pagination={pager}
                 locale={{
-                  emptyText: '该字典类型下暂无字典项，点击「新增字典项」添加',
+                  emptyText: tableEmpty(
+                    '这个字典类型还没有字典项，用「新增字典项」添加',
+                    itemLoading,
+                  ),
                 }}
               />
             </>

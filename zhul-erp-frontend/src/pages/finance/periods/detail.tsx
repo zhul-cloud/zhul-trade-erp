@@ -9,6 +9,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Input, Select, Skeleton, Table, Tabs } from 'antd';
 import { LockOpen } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
@@ -177,7 +178,7 @@ const LedgerTab: React.FC<{ month: string }> = ({ month }) => {
         columns={columns}
         dataSource={t.rows}
         scroll={{ x: 'max-content' }}
-        locale={{ emptyText: `${month} 没有库存往来` }}
+        locale={{ emptyText: tableEmpty(`${month} 没有库存往来`, t.loading) }}
         pagination={t.pagination}
       />
     </>
@@ -285,7 +286,7 @@ const CogsTab: React.FC<{ month: string }> = ({ month }) => {
         columns={columns}
         dataSource={t.rows}
         scroll={{ x: 'max-content' }}
-        locale={{ emptyText: `${month} 没有出运` }}
+        locale={{ emptyText: tableEmpty(`${month} 没有出运`, t.loading) }}
         pagination={t.pagination}
         summary={() =>
           t.rows.length > 0 ? (
@@ -393,7 +394,7 @@ const AdjustTab: React.FC<{ month: string }> = ({ month }) => {
       columns={columns}
       dataSource={t.rows}
       scroll={{ x: 'max-content' }}
-      locale={{ emptyText: `${month} 没有成本调整` }}
+      locale={{ emptyText: tableEmpty(`${month} 没有成本调整`, t.loading) }}
       pagination={t.pagination}
     />
   );

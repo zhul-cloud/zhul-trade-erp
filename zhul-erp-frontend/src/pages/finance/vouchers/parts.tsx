@@ -1,6 +1,7 @@
 import { SearchOutlined } from '@ant-design/icons';
 import { App, Button, Drawer, Input, Skeleton, Table, Tabs } from 'antd';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -326,7 +327,13 @@ export const AccountDrawer: React.FC<{
                     size="small"
                     pagination={false}
                     dataSource={shownSuppliers}
-                    locale={{ emptyText: '凭证里还没有供应商' }}
+                    locale={{
+                      emptyText: tableEmpty(
+                        '凭证里还没有供应商',
+                        undefined,
+                        true,
+                      ),
+                    }}
                     columns={[
                       {
                         title: '供应商',

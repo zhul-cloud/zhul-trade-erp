@@ -2,6 +2,7 @@ import { RightOutlined } from '@ant-design/icons';
 import type { TableColumnsType } from 'antd';
 import { Table } from 'antd';
 import React from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { SignedMoney } from '@/pages/finance/costingParts';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
@@ -131,7 +132,7 @@ export const CategoryLedgerTable: React.FC<{
       dataSource={data?.rows ?? []}
       pagination={false}
       scroll={{ x: tableScrollX(columns) }}
-      locale={{ emptyText: '这个月没有库存' }}
+      locale={{ emptyText: tableEmpty('这个月没有库存', loading) }}
       onRow={(r) => ({
         onClick: () => onPick(r.categoryId ?? 0),
         style: { cursor: 'pointer' },

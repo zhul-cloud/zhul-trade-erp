@@ -14,6 +14,7 @@ import {
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { tableEmpty } from '@/components/EmptyState';
 import { PageHeader } from '@/components/ListLayout';
 import {
   useOnReactivate,
@@ -287,7 +288,7 @@ const HistoryMigrationPage: React.FC = () => {
           loading={loading}
           dataSource={batches}
           pagination={false}
-          locale={{ emptyText: '还没有执行过' }}
+          locale={{ emptyText: tableEmpty('还没有执行过', loading) }}
           columns={[
             {
               title: '批次',
@@ -403,7 +404,7 @@ const HistoryMigrationPage: React.FC = () => {
                   rowKey={(r) => `${r.report}|${r.scope}|${r.metric}`}
                   dataSource={verifyRows}
                   pagination={{ pageSize: 20, showSizeChanger: false }}
-                  locale={{ emptyText: '没有' }}
+                  locale={{ emptyText: tableEmpty('没有', undefined, true) }}
                   columns={[
                     { title: '报表', dataIndex: 'report', width: 110 },
                     { title: '范围', dataIndex: 'scope' },

@@ -12,6 +12,7 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { tableEmpty } from '@/components/EmptyState';
 import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
@@ -230,7 +231,7 @@ const ReceiptDocDetail: React.FC = () => {
               columns={settleColumns}
               dataSource={d.settlements}
               scroll={{ x: 'max-content' }}
-              locale={{ emptyText: '还没有结汇' }}
+              locale={{ emptyText: tableEmpty('还没有结汇', undefined, true) }}
             />
           </div>
         )}

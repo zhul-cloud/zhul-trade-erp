@@ -11,6 +11,7 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { tableEmpty } from '@/components/EmptyState';
 import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { UserName } from '@/components/UserName';
@@ -204,7 +205,7 @@ const PaymentDetail: React.FC = () => {
           columns={columns}
           dataSource={p.allocations}
           scroll={{ x: 'max-content' }}
-          locale={{ emptyText: '没有核销应付单' }}
+          locale={{ emptyText: tableEmpty('没有核销应付单', undefined, true) }}
         />
       </Card>
       <DocFilesCard

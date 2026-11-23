@@ -9,6 +9,7 @@ import type { TableColumnsType } from 'antd';
 import { Segmented, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { MetricGrid } from '@/components/MetricCard';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { rate } from '@/pages/crm/opportunity/StatsPanel';
@@ -202,7 +203,9 @@ const OpportunityCard: React.FC = () => {
             columns={columns}
             dataSource={data.rows}
             pagination={false}
-            locale={{ emptyText: '这段时间还没有登记商机' }}
+            locale={{
+              emptyText: tableEmpty('这段时间还没有登记商机', undefined, true),
+            }}
           />
         </>
       )}

@@ -10,6 +10,7 @@ import {
   SectionTitle,
 } from '@/components/DocFields/DocPage';
 import { DocFilesCard } from '@/components/DocFiles';
+import { tableEmpty } from '@/components/EmptyState';
 import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { UserName } from '@/components/UserName';
@@ -182,7 +183,7 @@ const FxSettlementDetail: React.FC = () => {
           columns={columns}
           dataSource={allocations}
           scroll={{ x: 'max-content' }}
-          locale={{ emptyText: '没有分摊' }}
+          locale={{ emptyText: tableEmpty('没有分摊', undefined, true) }}
         />
       </Card>
       <DocFilesCard

@@ -1,6 +1,7 @@
 import { history } from '@umijs/max';
 import { App, Button, Form, Input, Modal, Radio, Skeleton, Table } from 'antd';
 import React, { useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
@@ -388,7 +389,9 @@ export const RfmModal: React.FC<{
           rowKey="id"
           pagination={false}
           dataSource={data.orders}
-          locale={{ emptyText: '近 12 个月没有订单' }}
+          locale={{
+            emptyText: tableEmpty('近 12 个月没有订单', undefined, true),
+          }}
           columns={[
             {
               title: '订单号',

@@ -50,6 +50,7 @@ import {
 } from '@/components/DocFields/DocModelCell';
 import { RelatedDocsCard } from '@/components/DocFields/DocPage';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
+import { tableEmpty } from '@/components/EmptyState';
 import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
 import { rowAlert } from '@/components/RowAlert';
@@ -1858,7 +1859,13 @@ const ShipmentsCard: React.FC<{
         dataSource={rows}
         pagination={false}
         scroll={{ x: tableScrollX(columns) }}
-        locale={{ emptyText: '供应商还没发货；发货后点右上角「登记发货」' }}
+        locale={{
+          emptyText: tableEmpty(
+            '供应商还没发货；发货后点右上角「登记发货」',
+            undefined,
+            true,
+          ),
+        }}
       />
     </Card>
   );

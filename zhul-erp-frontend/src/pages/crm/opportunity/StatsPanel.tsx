@@ -2,6 +2,7 @@ import { useSearchParams } from '@umijs/max';
 import { Segmented, Skeleton, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import React, { useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import StatsRangeFilter, {
   presetRange,
   type RangePreset,
@@ -276,7 +277,9 @@ const StatsPanel: React.FC = () => {
             loading={loading}
             pagination={false}
             dataSource={data?.rows ?? []}
-            locale={{ emptyText: '这段时间没有新增商机' }}
+            locale={{
+              emptyText: tableEmpty('这段时间没有新增商机', loading, true),
+            }}
             columns={[
               { title: firstCol, dataIndex: 'label' },
               { title: '新增', dataIndex: 'total', align: 'right' },

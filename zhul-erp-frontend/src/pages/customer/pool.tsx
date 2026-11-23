@@ -2,6 +2,7 @@ import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Form, Input, Modal, Select, Table, Tag } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { auditColumns } from '@/components/UserName';
 import { useCountries } from '@/pages/product/components/useCountries';
@@ -368,7 +369,7 @@ export const PoolTab: React.FC<{ onCount?: (n: number) => void }> = ({
             dataSource={rows}
             loading={loading}
             scroll={{ x: tableScrollX(columns) }}
-            locale={{ emptyText: '公海里还没有客户' }}
+            locale={{ emptyText: tableEmpty('公海里还没有客户', loading) }}
             pagination={{
               ...PAGER_STYLE,
               current: page,
