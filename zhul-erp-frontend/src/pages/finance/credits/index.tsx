@@ -19,7 +19,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import { HandCoins, ScrollText, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
-import { CustomerSub } from '@/components/DocFields';
+import { CustomerSubLine } from '@/components/DocFields';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
@@ -197,14 +197,12 @@ const CreditPage: React.FC = () => {
               <Pill tone="violet">代收</Pill>
             </span>
           )}
-          <div style={{ fontSize: 12, color: palette.mute }}>
-            {[a.customerCountry, a.currencyCode].filter(Boolean).join(' · ')}
-          </div>
-          {a.customerContact && (
-            <div style={{ fontSize: 12, color: palette.mute }}>
-              <CustomerSub contact={a.customerContact} />
-            </div>
-          )}
+          <CustomerSubLine
+            country={a.customerCountry}
+            contact={a.customerContact}
+            extra={a.currencyCode}
+            style={{ color: palette.mute, fontSize: 12, lineHeight: '18px' }}
+          />
         </div>
       ),
     },

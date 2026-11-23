@@ -8,7 +8,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Form, Input, Select, Table } from 'antd';
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
-import { CustomerSub } from '@/components/DocFields';
+import { CustomerCell } from '@/components/DocFields';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
@@ -155,19 +155,12 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
       key: 'customer',
       width: 220,
       render: (_, r) => (
-        <div>
-          <div style={{ color: palette.ink, fontWeight: 600 }}>
-            {r.customerName}
-          </div>
-          <div style={{ fontSize: 12, color: palette.mute }}>
-            <CustomerSub
-              country={r.customerCountry}
-              contact={r.customerContact}
-              empty={null}
-            />
-            {r.ownerName && <div>业务员 {r.ownerName}</div>}
-          </div>
-        </div>
+        <CustomerCell
+          name={r.customerName}
+          country={r.customerCountry}
+          contact={r.customerContact}
+          extra={r.ownerName && `业务员 ${r.ownerName}`}
+        />
       ),
     },
     {

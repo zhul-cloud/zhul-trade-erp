@@ -146,8 +146,9 @@ const ShipmentsTab: React.FC = () => {
       dataIndex: 'supplierName',
       width: 150,
       render: (v: string, r) => (
-        <div>
-          <b style={{ color: palette.ink }}>{v || '—'}</b>
+        <div style={{ minWidth: 0 }}>
+          {/* 长公司名单行省略，悬停看全名（同客户列，D21 行高） */}
+          {ellipsisRender(v)}
           {sub(palette.mute, r.shop ? '平台店铺' : '供应商')}
         </div>
       ),

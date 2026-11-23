@@ -394,7 +394,7 @@ const Shipments: React.FC = () => {
         <div>
           {ellipsisRender(v)}
           {r.customerForwarder && (
-            <div style={{ marginTop: 4 }}>
+            <div>
               <Pill tone="orange">客户指定</Pill>
             </div>
           )}

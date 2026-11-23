@@ -3,7 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Input, Select, Space, Table } from 'antd';
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
-import { CustomerSub } from '@/components/DocFields';
+import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { tableEmpty } from '@/components/EmptyState';
 import { FilterCard, FilterField, MainCard } from '@/components/ListLayout';
@@ -175,17 +175,11 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
       dataIndex: 'customerName',
       width: 180,
       render: (v: string, r) => (
-        <div>
-          {v}
-          {(r.customerCountry || r.customerContact) && (
-            <div style={{ fontSize: 12, color: palette.mute }}>
-              <CustomerSub
-                country={r.customerCountry}
-                contact={r.customerContact}
-              />
-            </div>
-          )}
-        </div>
+        <CustomerCell
+          name={v}
+          country={r.customerCountry}
+          contact={r.customerContact}
+        />
       ),
     },
     {

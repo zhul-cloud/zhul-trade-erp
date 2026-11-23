@@ -2,7 +2,7 @@ import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, InputNumber, Modal, Segmented, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
-import { CustomerSub } from '@/components/DocFields';
+import { CustomerCell } from '@/components/DocFields';
 import { tableEmpty } from '@/components/EmptyState';
 import { HelpTip, MainCard } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
@@ -96,17 +96,11 @@ const OverpaidTab: React.FC<{ onCount?: (n: number) => void }> = ({
       dataIndex: 'customerName',
       width: 200,
       render: (v: string, r) => (
-        <div>
-          <b style={{ color: palette.ink }}>{v}</b>
-          {(r.customerCountry || r.customerContact) && (
-            <div style={{ fontSize: 12, color: palette.mute }}>
-              <CustomerSub
-                country={r.customerCountry}
-                contact={r.customerContact}
-              />
-            </div>
-          )}
-        </div>
+        <CustomerCell
+          name={v}
+          country={r.customerCountry}
+          contact={r.customerContact}
+        />
       ),
     },
     {

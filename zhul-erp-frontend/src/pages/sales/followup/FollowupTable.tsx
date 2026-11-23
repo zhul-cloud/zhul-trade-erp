@@ -4,7 +4,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, Progress, Select, Space, Table } from 'antd';
 import dayjs from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
-import { CustomerSub } from '@/components/DocFields';
+import { CustomerSubLine } from '@/components/DocFields';
 import { Stars } from '@/pages/customer/profile/ui';
 import { RECEIPT_META } from '@/pages/sales/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -425,7 +425,7 @@ const BlockerCell: React.FC<{ item: FollowupItem }> = ({ item }) =>
 const followsAfterSales = (r: FollowupItem) =>
   r.nextActionSource === NEXT_AFTER_SALES && !!r.afterSalesId;
 
-/** 客户列名称下面的两行：国家 / 地区、主联系人（统一客户列，audit UI-097）；团队视图再加一行业务员 */
+/** 客户列名称下面一行：国家 / 地区 · 主联系人（统一客户列，audit UI-097）；团队视图接上业务员 */
 const CustomerLines: React.FC<{
   country?: string;
   contact?: string;
@@ -433,10 +433,12 @@ const CustomerLines: React.FC<{
 }> = ({ country, contact, owner }) => {
   const { palette } = useAppTheme();
   return (
-    <div style={{ color: palette.mute, fontSize: 12, lineHeight: '18px' }}>
-      <CustomerSub country={country} contact={contact} />
-      {owner && <div>业务员 {owner}</div>}
-    </div>
+    <CustomerSubLine
+      country={country}
+      contact={contact}
+      extra={owner && `业务员 ${owner}`}
+      style={{ color: palette.mute, fontSize: 12, lineHeight: '18px' }}
+    />
   );
 };
 

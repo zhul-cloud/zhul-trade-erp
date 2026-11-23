@@ -4,8 +4,7 @@ import { App, Checkbox, DatePicker, Input, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
-import { CustomerSub } from '@/components/DocFields';
-import { ellipsisRender } from '@/components/EllipsisText';
+import { CustomerCell } from '@/components/DocFields';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
@@ -194,19 +193,12 @@ const RecordsTab: React.FC = () => {
       title: '客户',
       width: 180,
       dataIndex: 'customerName',
-      ellipsis: true,
       render: (v: string, r: ReceiptRow) => (
-        <div style={{ minWidth: 0 }}>
-          {ellipsisRender(v)}
-          {(r.customerCountry || r.customerContact) && (
-            <div style={{ fontSize: 12, color: palette.mute }}>
-              <CustomerSub
-                country={r.customerCountry}
-                contact={r.customerContact}
-              />
-            </div>
-          )}
-        </div>
+        <CustomerCell
+          name={v}
+          country={r.customerCountry}
+          contact={r.customerContact}
+        />
       ),
     },
     ...(bu.enabled

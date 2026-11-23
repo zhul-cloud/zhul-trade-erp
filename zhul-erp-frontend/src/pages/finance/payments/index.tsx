@@ -1,6 +1,6 @@
 import { history, Link } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Checkbox, DatePicker, Input, Select, Table } from 'antd';
+import { App, Checkbox, DatePicker, Input, Popover, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -230,23 +230,50 @@ const PaymentRecords: React.FC = () => {
     {
       title: '核销的应付单',
       key: 'alloc',
-      width: 220,
-      render: (_, r) => (
-        <div style={{ fontSize: 12 }}>
-          {r.allocations.map((a) => (
-            <div
-              key={`${a.payableId}-${a.fromCredit}-${a.creditPayableNo ?? ''}`}
-            >
-              <Link to={DOC_PATHS.payable(a.payableId)}>{a.payableNo}</Link>{' '}
-              <span style={{ color: palette.mute }}>{a.sourceNo}</span>{' '}
-              {formatAmount(a.amount, r.currencyCode)}
-              {a.fromCredit === 1 && (
-                <span style={{ color: palette.orange }}> 抵扣</span>
-              )}
-            </div>
-          ))}
-        </div>
-      ),
+      width: 300,
+      // 多张时只显示第一张，第二行「等 N 张」悬停列出全部（与来源单号同一写法），行高不随张数增长（D21）
+      render: (_, r) => {
+        const line = (a: (typeof r.allocations)[number]) => (
+          <div
+            key={`${a.payableId}-${a.fromCredit}-${a.creditPayableNo ?? ''}`}
+            style={{
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            <Link to={DOC_PATHS.payable(a.payableId)}>{a.payableNo}</Link>{' '}
+            <span style={{ color: palette.mute }}>{a.sourceNo}</span>{' '}
+            {formatAmount(a.amount, r.currencyCode)}
+            {a.fromCredit === 1 && (
+              <span style={{ color: palette.orange }}> 抵扣</span>
+            )}
+          </div>
+        );
+        const [first, ...rest] = r.allocations;
+        if (!first) return <span style={{ color: palette.mute }}>—</span>;
+        return (
+          <div style={{ fontSize: 12 }}>
+            {line(first)}
+            {rest.length > 0 && (
+              <Popover
+                title={`核销的应付单（${r.allocations.length}）`}
+                content={
+                  <div
+                    style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+                  >
+                    {r.allocations.map(line)}
+                  </div>
+                }
+              >
+                <span style={{ color: palette.sub, cursor: 'default' }}>
+                  等 {r.allocations.length} 张
+                </span>
+              </Popover>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: '状态',
