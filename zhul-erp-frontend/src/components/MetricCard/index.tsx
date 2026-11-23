@@ -1,0 +1,316 @@
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  ChevronRight,
+  TriangleAlert,
+} from 'lucide-react';
+import React, { useState } from 'react';
+import FitText from '@/components/FitText';
+import { useAppTheme } from '@/theme/AppTheme';
+import { useDeltaColor } from '@/theme/delta';
+import {
+  CARD_SHADOW,
+  CARD_SHADOW_HOVER,
+  METRIC_FAMILY,
+  type MetricFamily,
+} from '@/theme/palette';
+
+/** 数字卡高 144 = 内边距 40 + 名称行 38 + 8 + 数值 30 + 4 + 第三行 24（公共组件原型 G1） */
+export const METRIC_CARD_HEIGHT = 144;
+
+/** 较上期：value 为变化量（正为涨），text 为不带正负号的数（如「9.6%」「0.8 个百分点」），符号按 value 加 */
+export interface MetricDelta {
+  value: number;
+  text: string;
+  /** 默认「较上月」 */
+  suffix?: string;
+}
+
+/** 涨跌胶囊：方向箭头 + 数字在胶囊里，「较上月」在外面；颜色按个人设置的涨跌色，零为中性 */
+export const DeltaPill: React.FC<MetricDelta> = ({
+  value,
+  text,
+  suffix = '较上月',
+}) => {
+  const { palette } = useAppTheme();
+  const { of } = useDeltaColor();
+  const color = of(value);
+  const soft =
+    color === palette.red
+      ? palette.redSoft
+      : color === palette.green
+        ? palette.greenSoft
+        : palette.neutralSoft;
+  const Icon = value > 0 ? ArrowUpRight : value < 0 ? ArrowDownRight : null;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      <span
+        className="num"
+        style={{
+          height: 20,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 2,
+          padding: '0 8px',
+          borderRadius: 10,
+          background: soft,
+          color,
+          fontSize: 12,
+          fontWeight: 600,
+        }}
+      >
+        {Icon && <Icon size={12} aria-hidden />}
+        {value > 0 ? '+' : value < 0 ? '−' : ''}
+        {text}
+      </span>
+      <span style={{ fontSize: 12, color: palette.mute }}>{suffix}</span>
+    </span>
+  );
+};
+
+/** 告警标签：状态浅底 + 警告三角 + 文字（数字卡第三行、字段级提醒） */
+export const AlertLabel: React.FC<{
+  tone: 'error' | 'warning';
+  children: React.ReactNode;
+}> = ({ tone, children }) => {
+  const { palette } = useAppTheme();
+  const [color, soft] =
+    tone === 'error'
+      ? [palette.red, palette.redSoft]
+      : [palette.orange, palette.orangeSoft];
+  return (
+    <span
+      className="num"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        maxWidth: '100%',
+        padding: '2px 8px',
+        borderRadius: 4,
+        background: soft,
+        color,
+        fontSize: 12,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+      }}
+    >
+      <TriangleAlert size={12} aria-hidden style={{ flex: 'none' }} />
+      {children}
+    </span>
+  );
+};
+
+/**
+ * 数字卡（公共组件，规范「组件标准 · 数字卡」，ui-redesign C3、D1–D3）：浮起白卡（浅色阴影、深色边框），高 144；
+ * 左上 38 图标块按指标家族着色、告警时改状态色，名称 14 次要色（可点时带右箭头）；数值 24/600，币种代码弱化；
+ * 第三行三选一：告警标签、涨跌胶囊、说明。可点的卡悬停加深阴影，不位移。
+ */
+export const MetricCard: React.FC<{
+  label: string;
+  /** 数值；金额传数字串（已按两位小数格式化）并传 currency */
+  value: React.ReactNode;
+  currency?: string;
+  icon: React.ReactNode;
+  family: MetricFamily;
+  delta?: MetricDelta;
+  alert?: { tone: 'error' | 'warning'; text: React.ReactNode };
+  hint?: React.ReactNode;
+  /** 0–1 的比例：第三行右侧画一条细进度 */
+  bar?: number;
+  onClick?: () => void;
+}> = ({
+  label,
+  value,
+  currency,
+  icon,
+  family,
+  delta,
+  alert,
+  hint,
+  bar,
+  onClick,
+}) => {
+  const { palette, mode } = useAppTheme();
+  const [hover, setHover] = useState(false);
+  const light = mode === 'light';
+  const [iconColor, iconSoft] = alert
+    ? alert.tone === 'error'
+      ? [palette.red, palette.redSoft]
+      : [palette.orange, palette.orangeSoft]
+    : METRIC_FAMILY[mode][family];
+  const body = (
+    <>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span
+          aria-hidden
+          style={{
+            width: 38,
+            height: 38,
+            flex: 'none',
+            borderRadius: 8,
+            display: 'grid',
+            placeItems: 'center',
+            background: iconSoft,
+            color: iconColor,
+          }}
+        >
+          {icon}
+        </span>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: hover ? 4 : 2,
+            minWidth: 0,
+            fontSize: 14,
+            color: palette.mute,
+            transition: 'gap .2s',
+          }}
+        >
+          <span
+            style={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {label}
+          </span>
+          {onClick && (
+            <ChevronRight
+              size={14}
+              aria-hidden
+              style={{
+                flex: 'none',
+                color: hover ? palette.ink : palette.mute,
+              }}
+            />
+          )}
+        </span>
+      </span>
+      {/* 卡片变窄时数值自动缩小字号，不折行、不截断 */}
+      <FitText
+        size={24}
+        min={16}
+        style={{
+          marginTop: 8,
+          fontWeight: 600,
+          lineHeight: '30px',
+          color: palette.ink,
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {currency && (
+          <span
+            style={{
+              fontSize: '0.58em',
+              color: palette.mute,
+              marginInlineEnd: 4,
+            }}
+          >
+            {currency}
+          </span>
+        )}
+        {value}
+      </FitText>
+      <span
+        style={{
+          marginTop: 4,
+          height: 24,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          minWidth: 0,
+        }}
+      >
+        {alert ? (
+          <AlertLabel tone={alert.tone}>{alert.text}</AlertLabel>
+        ) : delta ? (
+          <DeltaPill {...delta} />
+        ) : hint ? (
+          <span
+            className="num"
+            style={{
+              fontSize: 12,
+              color: palette.mute,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {hint}
+          </span>
+        ) : null}
+        {bar !== undefined && (
+          <span
+            aria-hidden
+            style={{
+              flex: 1,
+              height: 4,
+              borderRadius: 2,
+              background: palette.neutralSoft,
+              overflow: 'hidden',
+            }}
+          >
+            <span
+              style={{
+                display: 'block',
+                height: '100%',
+                width: `${Math.max(0, Math.min(1, bar)) * 100}%`,
+                borderRadius: 2,
+                background: METRIC_FAMILY[mode].blue[0],
+              }}
+            />
+          </span>
+        )}
+      </span>
+    </>
+  );
+  const style: React.CSSProperties = {
+    height: METRIC_CARD_HEIGHT,
+    minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    padding: 20,
+    borderRadius: 10,
+    background: palette.card,
+    border: light ? 'none' : `1px solid ${palette.hairline}`,
+    boxShadow: light ? (hover ? CARD_SHADOW_HOVER : CARD_SHADOW) : 'none',
+    transition: 'box-shadow .2s',
+    textAlign: 'left',
+    font: 'inherit',
+  };
+  return onClick ? (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{ ...style, cursor: 'pointer' }}
+    >
+      {body}
+    </button>
+  ) : (
+    <div style={style}>{body}</div>
+  );
+};
+
+/**
+ * 一组数字卡：透明分组（不再外包白卡），每排 cols 张，卡间距 16；放不下时（窄屏）自动换行。
+ */
+export const MetricGrid: React.FC<{
+  cols: number;
+  children: React.ReactNode;
+}> = ({ cols, children }) => (
+  <div
+    style={{
+      display: 'grid',
+      gridTemplateColumns: `repeat(auto-fit, minmax(max(200px, calc((100% - ${(cols - 1) * 16}px) / ${cols})), 1fr))`,
+      gap: 16,
+    }}
+  >
+    {children}
+  </div>
+);

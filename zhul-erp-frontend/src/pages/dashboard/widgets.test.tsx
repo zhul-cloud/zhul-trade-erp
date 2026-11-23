@@ -3,7 +3,7 @@ import { history } from '@umijs/max';
 import { App } from 'antd';
 import React from 'react';
 import { buildPalette } from '@/theme/palette';
-import { assignColumns } from './index';
+import { BoardContext, layoutRows } from './layout';
 import { workbenchApi } from './service';
 import { WIDGETS } from './widgets';
 
@@ -95,10 +95,12 @@ it('我的业绩：金额、较上月与口径帮助', async () => {
   expect(
     screen.getByRole('img', { name: '按你的数据范围统计，口径同销售统计' }),
   ).toBeTruthy();
-  expect(screen.getByText('CNY 412,860.00')).toBeTruthy();
-  expect(screen.getByText(/较上月 \+9\.6%/)).toBeTruthy();
+  // 数字卡：币种代码与数值分开显示，较上月为涨跌胶囊（ui-redesign C3）
+  expect(screen.getByText('412,860.00')).toBeTruthy();
+  expect(screen.getByText('+9.6%')).toBeTruthy();
   expect(screen.getByText('26')).toBeTruthy();
-  expect(screen.getByText(/较上月 -4\.3%/)).toBeTruthy();
+  expect(screen.getByText('−4.3%')).toBeTruthy();
+  expect(screen.getAllByText('较上月')).toHaveLength(2);
   // 没有数据的指标显示「—」和后端给的说明
   expect(screen.getByText('—')).toBeTruthy();
   expect(screen.getByText('没有成交')).toBeTruthy();
@@ -126,32 +128,56 @@ it('表格没有数据时显示后端给的空状态文字', async () => {
   expect(screen.getByText('本月还没有成交')).toBeTruthy();
 });
 
-/** 规范「工作台两列按内容高度排列」：业务员看板（模板顺序照 V1.3.5）左列待办、过期 PI，右列业绩、询价进度、商机 */
-it('业务员看板分两列：左列待办、过期 PI，右列业绩、询价进度、商机', () => {
+/** 规范「工作台按行排列、同一行等高」（ui-redesign D18、D19）：按模板顺序装进 12 栏的行 */
+it('业务员看板按行：待办与过期 PI 一行，业绩整行，询价进度与商机一行', () => {
+  const rows = layoutRows([
+    { key: 'my-todo', size: 'half' },
+    { key: 'overdue-pi', size: 'half' },
+    { key: 'my-performance', size: 'full' },
+    { key: 'quote-progress', size: 'half' },
+    { key: 'my-opportunities', size: 'half' },
+  ]);
+  expect(rows.map((r) => r.map((w) => `${w.key}:${w.span}`))).toEqual([
+    ['my-todo:6', 'overdue-pi:6'],
+    ['my-performance:12'],
+    ['quote-progress:5', 'my-opportunities:7'],
+  ]);
+});
+
+it('老板看板：有主角卡时经营概览半宽，没有趋势权限时经营概览整行', () => {
   const half = (key: string) => ({ key, size: 'half' });
-  const cols = assignColumns(
-    [
-      'my-todo',
-      'my-performance',
-      'quote-progress',
-      'overdue-pi',
-      'my-opportunities',
-    ].map(half),
-    2,
-  );
-  const left = cols.filter((c) => c.column === 0).map((c) => c.key);
-  const right = cols.filter((c) => c.column === 1).map((c) => c.key);
-  expect(left).toEqual(['my-todo', 'overdue-pi']);
-  expect(right).toEqual([
-    'my-performance',
-    'quote-progress',
-    'my-opportunities',
+  expect(
+    layoutRows(
+      [
+        'revenue-trend',
+        'biz-overview',
+        'cash',
+        'risk-alerts',
+        'sales-funnel',
+        'rankings',
+      ].map(half),
+    ).map((r) => r.map((w) => w.span)),
+  ).toEqual([
+    [6, 6],
+    [6, 6],
+    [4, 8],
   ]);
-  // 窄屏只有一列
-  expect(assignColumns(['my-todo', 'overdue-pi'].map(half), 1)).toEqual([
-    { key: 'my-todo', column: 0 },
-    { key: 'overdue-pi', column: 0 },
-  ]);
+  expect(
+    layoutRows(['biz-overview', 'cash', 'risk-alerts'].map(half)).map((r) =>
+      r.map((w) => `${w.key}:${w.span}`),
+    ),
+  ).toEqual([['biz-overview:12'], ['cash:6', 'risk-alerts:6']]);
+});
+
+it('落单的组件补满整行，不留空洞', () => {
+  // 没有风险提醒权限时，资金单独一行占满
+  expect(
+    layoutRows([
+      { key: 'cash' },
+      { key: 'sales-funnel' },
+      { key: 'rankings' },
+    ]).map((r) => r.map((w) => `${w.key}:${w.span}`)),
+  ).toEqual([['cash:12'], ['sales-funnel:4', 'rankings:8']]);
 });
 
 const rgb = (hex: string) => {
@@ -195,4 +221,84 @@ it('数量为 0 的告警待办图标为中性色', async () => {
 it('数量大于 0 的告警待办图标为错误色', async () => {
   await renderWidget('my-todo', alarmTodo(2));
   expect(chipColor()).toBe(rgb(LIGHT.red));
+});
+
+/** ui-redesign D16：漏斗比例超过 100% 不显示 */
+it('销售漏斗：比例超过 100% 不显示，底部一句结论', async () => {
+  await renderWidget('sales-funnel', {
+    blocks: [
+      {
+        type: 'funnel',
+        steps: [
+          { label: '询盘', value: 6, rate: null },
+          { label: '报价', value: 12, rate: 200 },
+          { label: '成交订单', value: 3, rate: 25 },
+        ],
+      },
+    ],
+  });
+  expect(screen.queryByText('→ 200%')).toBeNull();
+  expect(screen.getByText('→ 25%')).toBeTruthy();
+  expect(screen.getByText(/本月询盘 6，成交订单 3/)).toBeTruthy();
+});
+
+const risk = (counts: number[]) => ({
+  blocks: [
+    {
+      type: 'todos',
+      todos: [
+        '过期未收款 PI',
+        '超期未到货',
+        '未处理的到货差异',
+        '毛利为负的订单',
+      ].map((title, i) => ({
+        icon: 'warning',
+        tone: 'red',
+        title,
+        desc: '',
+        count: counts[i],
+        alert: true,
+        link: '/x',
+      })),
+    },
+  ],
+});
+
+/** ui-redesign D20：全为 0 时四格保留，标题旁「全部正常」；有风险时写需要处理的项数 */
+it('风险提醒：全为 0 显示全部正常，有风险时写项数，四格都在', async () => {
+  await renderWidget('risk-alerts', risk([0, 0, 0, 0]));
+  expect(screen.getByText(/全部正常 · 截至/)).toBeTruthy();
+  expect(screen.getAllByRole('button')).toHaveLength(4);
+});
+
+it('风险提醒：有 2 项时写「2 项需要处理」', async () => {
+  await renderWidget('risk-alerts', risk([2, 1, 0, 0]));
+  expect(screen.getByText(/2 项需要处理 · 截至/)).toBeTruthy();
+});
+
+/** ui-redesign D28：同一看板有主角卡时，经营概览不重复显示成交额 */
+it('经营概览：看板上有主角卡时去掉成交额', async () => {
+  (workbenchApi.widget as jest.Mock).mockResolvedValue({
+    blocks: [
+      {
+        type: 'metrics',
+        metrics: [
+          { label: '成交额', value: 100, format: 'money' },
+          { label: '毛利', value: 20, format: 'money' },
+        ],
+      },
+    ],
+  });
+  const W = WIDGETS['biz-overview'];
+  await act(async () => {
+    render(
+      React.createElement(
+        BoardContext.Provider,
+        { value: new Set(['revenue-trend', 'biz-overview']) },
+        React.createElement(W),
+      ),
+    );
+  });
+  expect(screen.queryByText('成交额')).toBeNull();
+  expect(screen.getByText('毛利')).toBeTruthy();
 });

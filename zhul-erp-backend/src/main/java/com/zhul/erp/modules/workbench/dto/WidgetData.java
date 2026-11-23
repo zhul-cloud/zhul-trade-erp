@@ -54,6 +54,9 @@ public class WidgetData {
         /** 变大是好事（收入）还是坏事（费用） */
         private Boolean higherIsBetter = true;
         private String link;
+        /** 数字卡图标（lucide 名称，如 handshake）与指标家族色：blue 成交、purple 利润、cyan 收款、gray 支出（ui-redesign D2）；为空时前端按格式给默认 */
+        private String icon;
+        private String family;
     }
 
     /** 待办：图标、色调、名称、说明、数量，点击进入列表 */

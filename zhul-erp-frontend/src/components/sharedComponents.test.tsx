@@ -187,17 +187,11 @@ describe('人名与时间', () => {
     mockRequest.mockReset();
     mockRequest.mockRejectedValueOnce(new Error('503'));
     const first = render(h('span', null, h(UserName, { value: 'zhaolei' })));
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, 0));
-    });
-    expect(screen.getByText('zhaolei')).toBeTruthy();
+    expect(await screen.findByText('zhaolei')).toBeTruthy();
     first.unmount();
     mockRequest.mockResolvedValue({ data: { zhaolei: '赵磊' } });
     render(h('span', null, h(UserName, { value: 'zhaolei' })));
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, 0));
-    });
-    expect(screen.getByText('赵磊')).toBeTruthy();
+    expect(await screen.findByText('赵磊')).toBeTruthy();
     expect(mockRequest).toHaveBeenCalledTimes(2);
     mockRequest.mockResolvedValue({ data: { zhaolei: '赵磊（新租户）' } });
     act(() => {

@@ -61,13 +61,13 @@ public class BossWidgets {
             BigDecimal received = orders.receivedNetCny(W.monthStart(), today);
             BigDecimal receivedPrev = orders.receivedNetCny(W.lastMonthStart(), W.lastMonthEnd());
             return W.of(W.metrics(
-                    W.link(W.compare("成交额", revenue(cur), revenue(prev), "money", true), OPERATING),
-                    W.link(W.compare("毛利", profit(cur), profit(prev), "money", true), PROFIT),
-                    W.compare("毛利率", cur == null ? null : cur.getProfitRate(), prev == null ? null : prev.getProfitRate(),
-                            "percent", true),
-                    W.compare("实收回款", received, receivedPrev, "money", true),
-                    W.compare("费用", cur == null ? BigDecimal.ZERO : W.num(cur.getOpexTotal()),
-                            prev == null ? BigDecimal.ZERO : W.num(prev.getOpexTotal()), "money", false)));
+                    W.look(W.link(W.compare("成交额", revenue(cur), revenue(prev), "money", true), OPERATING), "handshake", "blue"),
+                    W.look(W.link(W.compare("毛利", profit(cur), profit(prev), "money", true), PROFIT), "coins", "purple"),
+                    W.look(W.compare("毛利率", cur == null ? null : cur.getProfitRate(), prev == null ? null : prev.getProfitRate(),
+                            "percent", true), "percent", "purple"),
+                    W.look(W.compare("实收回款", received, receivedPrev, "money", true), "hand-coins", "cyan"),
+                    W.look(W.compare("费用", cur == null ? BigDecimal.ZERO : W.num(cur.getOpexTotal()),
+                            prev == null ? BigDecimal.ZERO : W.num(prev.getOpexTotal()), "money", false), "receipt-text", "gray")));
         });
     }
 
@@ -92,16 +92,16 @@ public class BossWidgets {
                             : BigDecimal.ZERO;
                     hint = count[0] > 0 ? "另有 " + count[0] + " 张 PI 待收 CNY " + money(piLeft) : "没有逾期";
                 }
-                items.add(W.link(W.tone(W.metric("应收未收", s.getTotalCny().setScale(2, RoundingMode.HALF_UP), "money", hint),
-                        tone), RECEIVABLES));
+                items.add(W.look(W.link(W.tone(W.metric("应收未收", s.getTotalCny().setScale(2, RoundingMode.HALF_UP), "money", hint),
+                        tone), RECEIVABLES), "file-clock", "cyan"));
             }
             if (perm.canAccessMenu(PurchaseLeadWidgets.PAYABLES)) {
                 PayableStatsVO s = payables.stats();
                 boolean overdue = s.getOverdueCount() > 0;
                 // 已逾期统一用错误色（ui-redesign S5）
-                items.add(W.link(W.tone(W.metric("本月到期应付", s.getMonthDue(), "money",
+                items.add(W.look(W.link(W.tone(W.metric("本月到期应付", s.getMonthDue(), "money",
                         overdue ? "其中已逾期 CNY " + money(s.getOverdue()) : "没有逾期"),
-                        overdue ? "red" : null), PurchaseLeadWidgets.PAYABLES));
+                        overdue ? "red" : null), PurchaseLeadWidgets.PAYABLES), "calendar-clock", "gray"));
             }
             WidgetData.Block tags = null;
             if (perm.canAccessMenu(FX)) {
@@ -187,7 +187,8 @@ public class BossWidgets {
             boolean highest = cur.signum() > 0
                     && bars.getValues().stream().map(W::num).allMatch(v -> v.compareTo(cur) <= 0);
             String text = (highest ? "本月是近 12 个月最高 · " : "") + "近 12 个月合计 CNY " + money(sum);
-            return W.of(W.metrics(W.link(W.compare("成交额", cur, revenue(rows.get(10)), "money", true), OPERATING)),
+            return W.of(W.metrics(W.look(W.link(W.compare("成交额", cur, revenue(rows.get(10)), "money", true), OPERATING),
+                            "handshake", "blue")),
                     W.bars(bars, text));
         });
     }

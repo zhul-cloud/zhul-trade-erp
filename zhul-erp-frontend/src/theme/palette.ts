@@ -252,6 +252,29 @@ export const chartSeries = (
   ];
 };
 
+/**
+ * 指标家族色（数字卡左上图标块，ui-redesign D2）：按指标的含义着色，不跟主题色——
+ * 蓝成交、紫利润、青收款、灰支出；红橙只在告警时出现（用状态色）。[图标色, 浅底]
+ */
+export type MetricFamily = 'blue' | 'purple' | 'cyan' | 'gray';
+export const METRIC_FAMILY: Record<
+  ThemeMode,
+  Record<MetricFamily, [string, string]>
+> = {
+  light: {
+    blue: ['#3B82F6', '#E7F0FE'],
+    purple: ['#8B5CF6', '#F1EBFE'],
+    cyan: ['#1F7A76', '#E6F3F3'],
+    gray: ['#637381', '#ECEEF0'],
+  },
+  dark: {
+    blue: ['#3B82F6', '#172741'],
+    purple: ['#8B5CF6', '#2C253D'],
+    cyan: ['#2F9E99', '#1D2F2E'],
+    gray: ['#A0A0A0', '#2F2F2F'],
+  },
+};
+
 /** 浅色卡片、侧栏、顶栏的柔和扩散阴影（ui-redesign D30）；深色不用阴影 */
 export const CARD_SHADOW =
   '0 0 2px rgba(145,158,171,.2), 0 12px 24px -4px rgba(145,158,171,.12)';

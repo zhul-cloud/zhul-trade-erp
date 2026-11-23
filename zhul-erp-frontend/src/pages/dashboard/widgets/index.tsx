@@ -2,6 +2,7 @@ import type React from 'react';
 import OpportunityCard from '../OpportunityCard';
 import OverduePiCard from '../OverduePiCard';
 import { blockWidget } from './BlockWidget';
+import { RankingsWidget, RevenueHeroWidget, RiskAlertsWidget } from './boss';
 import {
   MyInquiryWidget,
   MyPurchaseWidget,
@@ -24,22 +25,25 @@ export const WIDGETS: Record<string, React.FC> = {
   'quote-trend': QuoteTrendWidget,
   'my-purchase': MyPurchaseWidget,
   // 业务员
-  'my-todo': blockWidget({ key: 'my-todo', title: '我的待办' }),
+  'my-todo': blockWidget({ key: 'my-todo', title: '我的待办', todos: true }),
   'my-performance': blockWidget({
     key: 'my-performance',
     title: '我的业绩',
     period: '本月',
     help: '按你的数据范围统计，口径同销售统计',
+    group: {},
   }),
   'quote-progress': blockWidget({
     key: 'quote-progress',
     title: '询价进度',
     help: '我的询盘里还在询价的',
+    group: {},
   }),
   'my-opportunities': blockWidget({
     key: 'my-opportunities',
     title: '我的商机',
     period: '本月',
+    group: {},
   }),
   // 业务负责人
   'team-performance': blockWidget({
@@ -109,60 +113,29 @@ export const WIDGETS: Record<string, React.FC> = {
   }),
   'monthly-output': blockWidget({ key: 'monthly-output', title: '本月产出' }),
   // 老板
+  // 经营概览：有主角卡时去掉成交额排成 2×2，没有时一行 5 张（D28）
   'biz-overview': blockWidget({
     key: 'biz-overview',
     title: '经营概览',
     period: '本月 · 人民币',
-    help: '口径同经营统计',
-    more: { link: '/finance/operating-report' },
+    help: '口径同经营统计、利润统计',
+    group: { cols: (n) => (n <= 4 ? 2 : n) },
+    omit: { label: '成交额', whenBoardHas: 'revenue-trend' },
   }),
-  cash: blockWidget({ key: 'cash', title: '资金', period: '截至今天' }),
+  cash: blockWidget({
+    key: 'cash',
+    title: '资金',
+    period: '截至今天',
+    help: '应收未收与应收管理同口径',
+    group: {},
+  }),
   'sales-funnel': blockWidget({
     key: 'sales-funnel',
     title: '销售漏斗',
     period: '本月',
-    help: '各级之间的转化率',
+    help: '各级是本月各自新增的数量，比例 = 本级 ÷ 上一级；一张询盘可多次报价，比例超过 100% 时不显示',
   }),
-  'revenue-trend': blockWidget({
-    key: 'revenue-trend',
-    title: '近 12 个月成交额',
-  }),
-  'risk-alerts': blockWidget({ key: 'risk-alerts', title: '风险提醒' }),
-  rankings: blockWidget({ key: 'rankings', title: '排行', period: '本月' }),
-};
-
-/**
- * 各组件的预估高度（px），只用来在首次显示时把半宽组件分到左右两列（规范「工作台」）：
- * 按模板顺序放进预估较矮的一列，分好就固定，加载完成、刷新数据都不换列。没写的按 300 算。
- */
-export const WIDGET_HEIGHT: Record<string, number> = {
-  'opportunity-stats': 420,
-  'overdue-pi': 300,
-  'my-inquiry': 420,
-  'quote-stats': 240,
-  'quote-trend': 320,
-  'my-purchase': 360,
-  'my-todo': 440,
-  'my-performance': 340,
-  'quote-progress': 230,
-  'my-opportunities': 230,
-  'team-performance': 340,
-  'follow-ups': 360,
-  'sales-compare': 360,
-  'quote-conversion': 320,
-  'sourcing-overview': 300,
-  'buyer-efficiency': 360,
-  'purchase-execution': 400,
-  'bargain-result': 240,
-  payables: 300,
-  'content-pipeline': 300,
-  'platform-progress': 300,
-  'media-overview': 240,
-  'monthly-output': 240,
-  'biz-overview': 220,
-  cash: 260,
-  'sales-funnel': 300,
-  'revenue-trend': 320,
-  'risk-alerts': 360,
-  rankings: 360,
+  'revenue-trend': RevenueHeroWidget,
+  'risk-alerts': RiskAlertsWidget,
+  rankings: RankingsWidget,
 };

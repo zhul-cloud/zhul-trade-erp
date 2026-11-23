@@ -1,12 +1,11 @@
-import { ReloadOutlined } from '@ant-design/icons';
 import { Button, Skeleton } from 'antd';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, RotateCw } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { EmptyState } from '@/components/EmptyState';
 import FitText from '@/components/FitText';
-import { CardTitle, HelpTip } from '@/components/ListLayout';
+import { CardTitle, HelpTip, Panel } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { readBizError } from '@/pages/crm/opportunity/service';
-import { Card } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { CHART_SERIES } from '@/theme/palette';
 import { workbenchApi } from '../service';
@@ -97,8 +96,9 @@ export function useWidgetData<T>(key: string) {
 }
 
 /**
- * 看板组件的外框（工作台原型 D1）：标题 18/500，旁边是统计期间（如「本月」）和口径帮助图标，右侧操作；
- * 加载中骨架、出错可重试
+ * 看板组件的外框（工作台原型 H1、ui-redesign D33）：标题行在卡外的页面底上（16/600，旁边是统计期间和口径帮助图标，
+ * 右侧为说明或链接），下面是白卡；同一行的组件从同一条线开始、到同一条线结束（外框撑满行高）。
+ * bare 为一组数字卡：不套白卡，每张数字卡自己浮起。加载中骨架、出错可重试，只影响本组件。
  */
 export const WidgetCard: React.FC<{
   title: string;
@@ -106,71 +106,130 @@ export const WidgetCard: React.FC<{
   period?: string;
   /** 口径说明，放进帮助图标 */
   help?: string;
+  /** 标题行右侧的说明（如「共 16 件」「全部正常 · 截至 16:40」），dot 为前面的状态圆点颜色 */
+  note?: React.ReactNode;
+  dot?: string;
   extra?: React.ReactNode;
   loading?: boolean;
   error?: string;
   onRetry?: () => void;
+  /** 不套白卡（数字卡组） */
+  bare?: boolean;
+  /** 白卡左右内边距收窄到 12（列表行自带内边距时） */
+  inset?: boolean;
   children?: React.ReactNode;
-}> = ({ title, period, help, extra, loading, error, onRetry, children }) => {
+}> = ({
+  title,
+  period,
+  help,
+  note,
+  dot,
+  extra,
+  loading,
+  error,
+  onRetry,
+  bare,
+  inset,
+  children,
+}) => {
   const { palette } = useAppTheme();
+  const head = (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        minHeight: 24,
+        flexWrap: 'wrap',
+      }}
+    >
+      <CardTitle>{title}</CardTitle>
+      {period && (
+        <span style={{ fontSize: 13, color: palette.mute }}>{period}</span>
+      )}
+      {help && <HelpTip title={help} />}
+      <span style={{ flex: 1 }} />
+      {note && (
+        <span
+          className="num"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 12,
+            color: palette.mute,
+          }}
+        >
+          {dot && (
+            <span
+              aria-hidden
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 3,
+                background: dot,
+              }}
+            />
+          )}
+          {note}
+        </span>
+      )}
+      {extra}
+    </div>
+  );
+  const status = error ? (
+    <EmptyState
+      kind="error"
+      description={`${error}；其他卡片不受影响`}
+      action={
+        <Button size="small" icon={<RotateCw size={14} />} onClick={onRetry}>
+          重试
+        </Button>
+      }
+    />
+  ) : loading ? (
+    <Skeleton active paragraph={{ rows: 3 }} />
+  ) : null;
   return (
-    // 卡片保持自身内容的高度：工作台按两列瀑布流排，不为对齐拉伸（规范「工作台」，取代 UI-041 的同行等高）
-    <Card style={{ display: 'flex', flexDirection: 'column' }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          marginBottom: 16,
-          flexWrap: 'wrap',
-        }}
-      >
-        <CardTitle>{title}</CardTitle>
-        {period && (
-          <span style={{ fontSize: 13, color: palette.mute }}>{period}</span>
-        )}
-        {help && <HelpTip title={help} />}
-        <span style={{ flex: 1 }} />
-        {extra}
-      </div>
-      {error ? (
-        <div style={{ textAlign: 'center', padding: '24px 0' }}>
-          <div style={{ color: palette.ink, fontWeight: 600 }}>加载失败</div>
-          <div
-            style={{ color: palette.mute, fontSize: 12, margin: '6px 0 12px' }}
-          >
-            {error}；其他卡片不受影响
-          </div>
-          <Button size="small" icon={<ReloadOutlined />} onClick={onRetry}>
-            重试
-          </Button>
-        </div>
-      ) : loading ? (
-        <Skeleton active paragraph={{ rows: 3 }} />
+    <section
+      aria-label={title}
+      style={{
+        height: '100%',
+        minWidth: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+      }}
+    >
+      {head}
+      {bare && !status ? (
+        <div style={{ flex: 1, minHeight: 0 }}>{children}</div>
       ) : (
-        <div
+        <Panel
+          as="div"
           style={{
             flex: 1,
             minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
+            padding: inset && !status ? '20px 12px' : 20,
           }}
         >
-          {children}
-        </div>
+          {status ?? children}
+        </Panel>
       )}
-    </Card>
+    </section>
   );
 };
 
-/** 卡片右上角的「查看全部 >」一类链接 */
+/** 卡片右上角的「查看全部 >」一类链接：次要色，悬停才着色（工作台原型 H1，同 D23 的单号） */
 export const MoreLink: React.FC<{
   onClick: () => void;
   children: React.ReactNode;
 }> = ({ onClick, children }) => (
   <button
     type="button"
-    className="zhul-link"
+    className="zhul-link zhul-link-quiet"
     onClick={onClick}
     style={{
       display: 'inline-flex',
@@ -259,8 +318,15 @@ export const Metric: React.FC<{
   );
 };
 
+const ONE_LINE: React.CSSProperties = {
+  display: 'block',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+};
+
 /**
- * 待办行（原型 D1）：图标、名称、说明、数量与右箭头，行间细分隔线（last 为最后一行，不画下边线）；
+ * 待办行（原型 H3）：图标、名称、说明、数量与右箭头，行高 52；
  * 点击进入对应列表。悬停浅底；错误、警告色的图标在数量为 0 时为中性色。
  */
 export const TodoItem: React.FC<{
@@ -270,63 +336,55 @@ export const TodoItem: React.FC<{
   desc: string;
   count: number;
   alert?: boolean;
-  last?: boolean;
   onClick: () => void;
-}> = ({ icon, tone, title, desc, count, alert, last, onClick }) => {
+}> = ({ icon, tone, title, desc, count, alert, onClick }) => {
   const { palette } = useAppTheme();
   const [hover, setHover] = useState(false);
   const shown = alertTone(tone, count);
   const [color] = useTone()(shown);
   return (
-    // 分隔线画在外层，按钮本身不裁剪，键盘焦点框完整可见
-    <div
+    // 行高 52、不画分隔线，悬停浅底（工作台原型 H3：5 行正好放进 M 档的卡）
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
       style={{
-        padding: '4px 0',
-        borderBottom: last ? undefined : `1px solid ${palette.hairline}`,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        width: '100%',
+        minHeight: 52,
+        padding: '0 8px',
+        border: 'none',
+        borderRadius: 8,
+        background: hover ? palette.hover : 'transparent',
+        transition: 'background .2s',
+        cursor: 'pointer',
+        textAlign: 'left',
+        font: 'inherit',
       }}
     >
-      <button
-        type="button"
-        onClick={onClick}
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
+      <IconChip icon={icon} tone={shown} size={38} />
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ ...ONE_LINE, fontWeight: 600, color: palette.ink }}>
+          {title}
+        </span>
+        <span style={{ ...ONE_LINE, fontSize: 12, color: palette.mute }}>
+          {desc}
+        </span>
+      </span>
+      <span
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          width: '100%',
-          padding: '10px 8px',
-          border: 'none',
-          borderRadius: 8,
-          background: hover ? palette.hover : 'transparent',
-          transition: 'background .2s',
-          cursor: 'pointer',
-          textAlign: 'left',
+          fontSize: 20,
+          fontWeight: 600,
+          color: count > 0 && alert ? color : palette.ink,
+          fontVariantNumeric: 'tabular-nums',
         }}
       >
-        <IconChip icon={icon} tone={shown} size={38} />
-        <span style={{ flex: 1, minWidth: 0 }}>
-          <span
-            style={{ display: 'block', fontWeight: 600, color: palette.ink }}
-          >
-            {title}
-          </span>
-          <span style={{ display: 'block', fontSize: 12, color: palette.mute }}>
-            {desc}
-          </span>
-        </span>
-        <span
-          style={{
-            fontSize: 20,
-            fontWeight: 700,
-            color: count > 0 && alert ? color : palette.ink,
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {count}
-        </span>
-        <ChevronRight size={16} aria-hidden style={{ color: palette.mute }} />
-      </button>
-    </div>
+        {count}
+      </span>
+      <ChevronRight size={16} aria-hidden style={{ color: palette.mute }} />
+    </button>
   );
 };

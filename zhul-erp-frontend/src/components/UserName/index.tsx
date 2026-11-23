@@ -67,8 +67,10 @@ const flush = async () => {
   notify();
 };
 
-const want = (u: string) => {
+/** retryFailed：上次没查成的也再查（只在组件挂载、账号变化时；缓存变化引起的重新登记不重试，避免出错时反复请求） */
+const want = (u: string, retryFailed: boolean) => {
   if (names.has(u) || pending.has(u) || inflight.has(u)) return;
+  if (failed.has(u) && !retryFailed) return;
   pending.add(u);
   if (!scheduled) {
     scheduled = true;
@@ -95,9 +97,12 @@ export const useUserName = (username?: string | null): string => {
   );
   const u = (username ?? '').trim();
   const system = SYSTEM.has(u);
-  // 缓存变了（换登录后清空）也要再登记一次；已查到、正在查的会直接跳过
   useEffect(() => {
-    if (!system) want(u);
+    if (!system) want(u, true);
+  }, [u, system]);
+  // 缓存变了（换登录后清空）要再登记一次；已查到、正在查、刚查失败的会直接跳过
+  useEffect(() => {
+    if (v && !system) want(u, false);
   }, [u, system, v]);
   if (system) return '系统';
   const name = names.get(u);

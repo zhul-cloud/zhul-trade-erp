@@ -84,6 +84,13 @@ final class W {
         return m;
     }
 
+    /** 数字卡的图标与家族色（ui-redesign D2）：随指标下发，前端不按名称查表 */
+    static WidgetData.Metric look(WidgetData.Metric m, String icon, String family) {
+        m.setIcon(icon);
+        m.setFamily(family);
+        return m;
+    }
+
     static WidgetData.Metric tone(WidgetData.Metric m, String hintTone) {
         m.setHintTone(hintTone);
         return m;

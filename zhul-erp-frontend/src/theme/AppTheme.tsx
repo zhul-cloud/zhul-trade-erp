@@ -79,15 +79,15 @@ const globalCss = (
   .ant-table-wrapper .ant-table-thead > tr > th { font-size: 13px; font-weight: 400; }
   /* 主题色实底上的勾：琥珀底上白勾看不清，与主按钮字同色 */
   .ant-checkbox-checked .ant-checkbox-inner::after { border-color: ${p.onPrimary}; }
-  /* 分页（ui-redesign D12）：左侧每页条数，右侧圆形页码；当前页主题色浅底、正文色字（琥珀字在浅底上看不清） */
+  /* 分页（ui-redesign D12）：左侧每页条数，右侧圆形页码；当前页主题色实底、主按钮同色字（浅底与白底只差 1.07:1，看不出在哪页） */
   .ant-pagination { display: flex; flex-wrap: wrap; align-items: center; row-gap: 8px; }
   .ant-pagination .ant-pagination-options { order: -1; margin-inline: 0 auto; }
   .ant-pagination .ant-pagination-item, .ant-pagination .ant-pagination-prev, .ant-pagination .ant-pagination-next,
   .ant-pagination .ant-pagination-jump-prev, .ant-pagination .ant-pagination-jump-next {
     min-width: 32px; height: 32px; line-height: 30px; border-radius: 16px; border-color: transparent;
   }
-  .ant-pagination .ant-pagination-item-active { background: ${p.primarySoft}; border-color: transparent; font-weight: 600; }
-  .ant-pagination .ant-pagination-item-active a { color: ${light ? p.ink : p.link}; }
+  .ant-pagination .ant-pagination-item-active, .ant-pagination .ant-pagination-item-active:hover { background: ${p.primary}; border-color: transparent; font-weight: 600; }
+  .ant-pagination .ant-pagination-item-active a, .ant-pagination .ant-pagination-item-active:hover a { color: ${p.onPrimary}; }
   /* 每页条数下拉、跳页输入框与页码同高 32 */
   .ant-pagination .ant-pagination-options .ant-select { height: 32px; }
   .ant-pagination .ant-pagination-options-quick-jumper input { height: 32px; }
@@ -126,6 +126,9 @@ const globalCss = (
   }
   .zhul-link:hover { color: ${link.hover}; }
   .zhul-link:active { color: ${link.active}; }
+  /* 卡片标题行右侧的链接：平时次要色，悬停才用链接色 */
+  .zhul-link.zhul-link-quiet { color: ${p.mute}; }
+  .zhul-link.zhul-link-quiet:hover { color: ${link.hover}; }
   .zhul-skip {
     position: absolute; left: 16px; top: 12px; z-index: 1100; padding: 8px 16px; border-radius: 8px;
     display: inline-flex; align-items: center; gap: 6px; font-weight: 600;

@@ -6,10 +6,9 @@ import {
 } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Alert, Button, Segmented, Skeleton, Table } from 'antd';
+import { Segmented, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
-import { CardTitle, HelpTip } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { rate } from '@/pages/crm/opportunity/StatsPanel';
 import {
@@ -18,10 +17,10 @@ import {
   readBizError,
   type StatRow,
 } from '@/pages/crm/opportunity/service';
-import { Card, Stat } from '@/pages/inquiry/shared/components';
+import { Stat } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DeltaText } from '@/theme/delta';
-import { MoreLink } from './widgets/WidgetCard';
+import { MoreLink, WidgetCard } from './widgets/WidgetCard';
 
 export type CardPreset = 'today' | 'week' | 'month';
 
@@ -125,46 +124,30 @@ const OpportunityCard: React.FC = () => {
   ];
 
   return (
-    <Card>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          flexWrap: 'wrap',
-          marginBottom: 16,
-        }}
-      >
-        <CardTitle>商机统计</CardTitle>
-        <HelpTip title="按首次接触日期，口径同每日渠道统计" />
-        <span style={{ marginLeft: 'auto' }} />
-        <Segmented
-          value={preset}
-          onChange={(v) => setPreset(v as CardPreset)}
-          options={PRESETS}
-        />
-        <MoreLink
-          onClick={() =>
-            history.push(`/crm/opportunity-stats?preset=${preset}`)
-          }
-        >
-          查看完整统计
-        </MoreLink>
-      </div>
-      {error ? (
-        <Alert
-          type="error"
-          showIcon
-          title={`商机统计加载失败：${error}`}
-          action={
-            <Button size="small" onClick={load}>
-              重试
-            </Button>
-          }
-        />
-      ) : !data || !sum ? (
-        <Skeleton active paragraph={{ rows: 5 }} />
-      ) : (
+    <WidgetCard
+      title="商机统计"
+      help="按首次接触日期，口径同每日渠道统计"
+      extra={
+        <>
+          <Segmented
+            value={preset}
+            onChange={(v) => setPreset(v as CardPreset)}
+            options={PRESETS}
+          />
+          <MoreLink
+            onClick={() =>
+              history.push(`/crm/opportunity-stats?preset=${preset}`)
+            }
+          >
+            查看完整统计
+          </MoreLink>
+        </>
+      }
+      loading={!error && (!data || !sum)}
+      error={error}
+      onRetry={load}
+    >
+      {data && sum && (
         <>
           <div
             style={{
@@ -229,7 +212,7 @@ const OpportunityCard: React.FC = () => {
           />
         </>
       )}
-    </Card>
+    </WidgetCard>
   );
 };
 

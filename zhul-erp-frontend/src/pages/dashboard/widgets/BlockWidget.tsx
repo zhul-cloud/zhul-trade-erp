@@ -2,22 +2,30 @@ import { history } from '@umijs/max';
 import { Tooltip } from 'antd';
 import {
   AlarmClock,
+  BadgeCheck,
+  CalendarClock,
   CalendarX,
   Camera,
   CircleCheck,
   CircleDollarSign,
   Clock,
+  Coins,
   FileCheck,
   FileClock,
   FileSearch,
   FileText,
+  HandCoins,
+  Handshake,
+  Hash,
   Hourglass,
   Image,
   Inbox,
   Landmark,
   LayoutGrid,
   Package,
+  Percent,
   PiggyBank,
+  ReceiptText,
   Rocket,
   Send,
   ShoppingBag,
@@ -31,10 +39,13 @@ import {
 } from 'lucide-react';
 import React from 'react';
 import { CustomerCell } from '@/components/DocFields';
+import { MetricCard, MetricGrid } from '@/components/MetricCard';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DeltaText } from '@/theme/delta';
+import type { MetricFamily } from '@/theme/palette';
 import { formatAmount } from '@/utils/format';
 import { MenuName } from '@/utils/menuName';
+import { useBoardKeys } from '../layout';
 import {
   alertTone,
   Metric,
@@ -58,6 +69,9 @@ interface MetricData {
   /** 越高越好；只用于说明，不参与涨跌着色 */
   higherIsBetter?: boolean;
   link?: string;
+  /** 数字卡图标（lucide 名称）与家族色（blue、purple、cyan、gray），后端随指标下发 */
+  icon?: string;
+  family?: string;
 }
 interface TodoData {
   icon: string;
@@ -234,7 +248,7 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
       return (
         <div style={{ display: 'grid' }}>
           {title}
-          {todos.map((t, i) => (
+          {todos.map((t) => (
             <TodoItem
               key={t.title}
               icon={ICONS[t.icon] ?? <LayoutGrid size={ICON_SIZE} />}
@@ -243,7 +257,6 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
               desc={t.desc}
               count={t.count}
               alert={t.alert}
-              last={i === todos.length - 1}
               onClick={() => go(t.link)}
             />
           ))}
@@ -386,12 +399,12 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
                       minWidth: 0,
                       height: Number(v) ? `${(Number(v) / max) * 100}%` : 3,
                       borderRadius: '4px 4px 0 0',
-                      // 本期用图表色，往期用次要文字色；不用半透明（叠在白底上会低于 3:1）
+                      // 图表只亮一处（ui-redesign D31）：本期用图表色，往期浅灰；数值靠悬停提示和读屏文字
                       background: !Number(v)
                         ? palette.hairline
                         : last || !(bars.highlightLast ?? true)
                           ? palette.chart
-                          : palette.mute,
+                          : palette.chartMuted,
                     }}
                   />
                 </Tooltip>
@@ -422,84 +435,8 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
         </div>
       );
     }
-    case 'funnel': {
-      const steps = b.steps ?? [];
-      const max = Math.max(1, ...steps.map((x) => Number(x.value)));
-      return (
-        <div style={{ display: 'grid', gap: 8 }}>
-          {steps.map((x) => (
-            <button
-              type="button"
-              key={x.label}
-              onClick={() => go(x.link)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: 0,
-                border: 'none',
-                background: 'transparent',
-                cursor: x.link ? 'pointer' : 'default',
-                textAlign: 'left',
-              }}
-            >
-              <span
-                style={{
-                  width: 72,
-                  flex: 'none',
-                  fontSize: 13,
-                  color: palette.sub,
-                }}
-              >
-                {x.label}
-              </span>
-              <span
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  height: 26,
-                  borderRadius: 6,
-                  background: palette.inset,
-                }}
-              >
-                <span
-                  style={{
-                    display: 'block',
-                    height: '100%',
-                    width: `${Math.max(2, (Number(x.value) / max) * 100)}%`,
-                    borderRadius: 6,
-                    background: palette.chart,
-                  }}
-                />
-              </span>
-              <span
-                style={{
-                  width: 48,
-                  flex: 'none',
-                  textAlign: 'right',
-                  fontWeight: 700,
-                  color: palette.ink,
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                {fmt(x.value, 'count')}
-              </span>
-              <span
-                style={{
-                  width: 56,
-                  flex: 'none',
-                  textAlign: 'right',
-                  fontSize: 12,
-                  color: palette.green,
-                }}
-              >
-                {x.rate !== null && x.rate !== undefined ? `${x.rate}%` : ''}
-              </span>
-            </button>
-          ))}
-        </div>
-      );
-    }
+    case 'funnel':
+      return <Funnel steps={b.steps ?? []} />;
     case 'progress':
       return (
         <div style={{ display: 'grid', gap: 14 }}>
@@ -601,6 +538,171 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
   }
 };
 
+/** 漏斗（工作台原型 H1）：每级两行——名称、数量与「→ 比例」，下面 8 高细条；只有最后一级用图表色，其余中性；
+ * 比例是本级 ÷ 上一级，各级是本月各自新增的数量，超过 100% 时不显示（ui-redesign D16）；底部一句结论 */
+const Funnel: React.FC<{ steps: NonNullable<Block['steps']> }> = ({
+  steps,
+}) => {
+  const { palette } = useAppTheme();
+  const max = Math.max(1, ...steps.map((x) => Number(x.value)));
+  const first = steps[0];
+  const last = steps[steps.length - 1];
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'grid', gap: 10 }}>
+        {steps.map((x, i) => (
+          <button
+            type="button"
+            key={x.label}
+            onClick={() => go(x.link)}
+            style={{
+              display: 'grid',
+              gap: 8,
+              padding: 0,
+              border: 'none',
+              background: 'transparent',
+              cursor: x.link ? 'pointer' : 'default',
+              textAlign: 'left',
+              font: 'inherit',
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ flex: 1, fontSize: 13, color: palette.sub }}>
+                {x.label}
+              </span>
+              <span
+                className="num"
+                style={{ fontWeight: 600, color: palette.ink }}
+              >
+                {fmt(x.value, 'count')}
+              </span>
+              {x.rate !== null && x.rate !== undefined && x.rate <= 100 && (
+                <span
+                  className="num"
+                  style={{ fontSize: 12, color: palette.mute }}
+                >
+                  → {x.rate}%
+                </span>
+              )}
+            </span>
+            <span
+              style={{
+                display: 'block',
+                height: 8,
+                borderRadius: 4,
+                width: `${Math.max(2, (Number(x.value) / max) * 100)}%`,
+                background:
+                  i === steps.length - 1 ? palette.chart : palette.barMuted,
+              }}
+            />
+          </button>
+        ))}
+      </div>
+      {first && last && first !== last && (
+        <div
+          className="num"
+          style={{
+            marginTop: 'auto',
+            paddingTop: 12,
+            fontSize: 13,
+            color: palette.mute,
+          }}
+        >
+          本月{first.label} {fmt(first.value, 'count')}，{last.label}{' '}
+          {fmt(last.value, 'count')}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/** 数字卡图标（后端随指标下发 lucide 名称，同待办的 icon）；没有时按格式给默认 */
+const CARD_ICONS: Record<string, React.ElementType> = {
+  handshake: Handshake,
+  'shopping-bag': ShoppingBag,
+  coins: Coins,
+  percent: Percent,
+  'hand-coins': HandCoins,
+  'file-clock': FileClock,
+  'receipt-text': ReceiptText,
+  'calendar-clock': CalendarClock,
+  hourglass: Hourglass,
+  'calendar-x': CalendarX,
+  'user-plus': UserPlus,
+  'badge-check': BadgeCheck,
+  trophy: Trophy,
+  inbox: Inbox,
+  'file-text': FileText,
+};
+const FAMILIES: MetricFamily[] = ['blue', 'purple', 'cyan', 'gray'];
+const metricMeta = (m: MetricData): [React.ElementType, MetricFamily] => {
+  const byFormat: [React.ElementType, MetricFamily] =
+    m.format === 'money'
+      ? [CircleDollarSign, 'blue']
+      : m.format === 'percent'
+        ? [Percent, 'purple']
+        : [Hash, 'blue'];
+  return [
+    (m.icon && CARD_ICONS[m.icon]) || byFormat[0],
+    FAMILIES.includes(m.family as MetricFamily)
+      ? (m.family as MetricFamily)
+      : byFormat[1],
+  ];
+};
+
+/** 后端指标 → 数字卡：金额拆出币种；较上月为涨跌胶囊；说明带红、橙色时为告警标签 */
+export const MetricItem: React.FC<{ m: MetricData; bar?: number }> = ({
+  m,
+  bar,
+}) => {
+  const [Icon, family] = metricMeta(m);
+  const money =
+    m.format === 'money' && m.value !== null && m.value !== undefined;
+  const alert =
+    m.hint && (m.hintTone === 'red' || m.hintTone === 'orange')
+      ? {
+          tone:
+            m.hintTone === 'red' ? ('error' as const) : ('warning' as const),
+          text: m.hint,
+        }
+      : undefined;
+  return (
+    <MetricCard
+      label={m.label}
+      icon={<Icon size={20} />}
+      family={family}
+      currency={money ? 'CNY' : undefined}
+      value={
+        money
+          ? formatAmount(Number(m.value), 'CNY').replace(/^CNY\s*/, '')
+          : fmt(m.value, m.format)
+      }
+      delta={
+        m.delta === null || m.delta === undefined
+          ? undefined
+          : {
+              value: m.delta,
+              text:
+                m.deltaFormat === 'points'
+                  ? `${Math.abs(m.delta)} 个百分点`
+                  : `${Math.abs(m.delta)}%`,
+            }
+      }
+      alert={alert}
+      hint={alert ? undefined : m.hint}
+      bar={bar}
+      onClick={m.link ? () => go(m.link) : undefined}
+    />
+  );
+};
+
+/** 有效商机下面画有效率（有效 ÷ 新增），其余不画 */
+const barOf = (m: MetricData, all: MetricData[]) => {
+  if (m.label !== '有效商机') return undefined;
+  const total = all.find((x) => x.label === '本月新增商机')?.value;
+  return total ? Number(m.value ?? 0) / Number(total) : undefined;
+};
+
 /** 通用看板组件：外框（标题、统计期间、口径）由注册表给，数据块由后端给 */
 export const blockWidget = (opts: {
   key: string;
@@ -611,31 +713,83 @@ export const blockWidget = (opts: {
   help?: string;
   /** 「查看更多」跳转的页面，文字取该页的菜单名称 */
   more?: { link: string };
+  /**
+   * 数字卡组（ui-redesign D1）：不套白卡，每张卡自己浮起；cols 为每排张数（默认一排放下）。
+   * 文字块（如「未结汇外币」）放到标题行右侧。
+   */
+  group?: { cols?: (count: number) => number };
+  /** 看板上有这个组件时不显示的指标（经营概览：有主角卡时不重复显示成交额，D28） */
+  omit?: { label: string; whenBoardHas: string };
+  /** 待办列表：标题行右侧写「共 N 件」，卡片左右内边距收窄（行自带内边距） */
+  todos?: boolean;
 }): React.FC => {
   const BlockWidget: React.FC = () => {
+    const keys = useBoardKeys();
     const { data, error, reload } = useWidgetData<{ blocks: Block[] }>(
       opts.key,
     );
+    const blocks = data?.blocks ?? [];
+    const more = opts.more && (
+      <MoreLink onClick={() => go(opts.more?.link)}>
+        <MenuName path={opts.more.link} />
+      </MoreLink>
+    );
+    if (opts.group) {
+      const omit =
+        opts.omit && keys.has(opts.omit.whenBoardHas)
+          ? opts.omit.label
+          : undefined;
+      const metrics = blocks
+        .flatMap((b) => (b.type === 'metrics' ? (b.metrics ?? []) : []))
+        .filter((m) => m.label !== omit);
+      const note = blocks.find((b) => b.type === 'note');
+      const cols = opts.group.cols?.(metrics.length) ?? metrics.length;
+      return (
+        <WidgetCard
+          title={opts.title}
+          period={opts.period}
+          help={opts.help}
+          note={
+            note &&
+            ((note.tags ?? []).length > 0
+              ? `${note.text}：${note.tags?.join('、')}`
+              : note.text)
+          }
+          extra={more}
+          loading={!data}
+          error={error}
+          onRetry={reload}
+          bare
+        >
+          <MetricGrid cols={Math.max(1, cols)}>
+            {metrics.map((m) => (
+              <MetricItem key={m.label} m={m} bar={barOf(m, metrics)} />
+            ))}
+          </MetricGrid>
+        </WidgetCard>
+      );
+    }
+    const todoTotal = opts.todos
+      ? blocks
+          .flatMap((b) => b.todos ?? [])
+          .reduce((a, t) => a + Number(t.count || 0), 0)
+      : 0;
     return (
       <WidgetCard
         title={opts.title}
         period={opts.period}
         help={opts.help}
-        extra={
-          opts.more && (
-            <MoreLink onClick={() => go(opts.more?.link)}>
-              <MenuName path={opts.more.link} />
-            </MoreLink>
-          )
-        }
+        note={opts.todos && data ? `共 ${todoTotal} 件` : undefined}
+        extra={more}
         loading={!data}
         error={error}
         onRetry={reload}
+        inset={opts.todos}
       >
         <div
           style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}
         >
-          {data?.blocks.map((b, i) => (
+          {blocks.map((b, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: 块按顺序固定
             <BlockView key={i} block={b} />
           ))}

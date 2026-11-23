@@ -14,8 +14,9 @@ import { Card, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { MenuName } from '@/utils/menuName';
+import { BoardContext, layoutRows, rowMinHeight } from './layout';
 import { type Workbench, workbenchApi } from './service';
-import { WIDGET_HEIGHT, WIDGETS } from './widgets';
+import { WIDGETS } from './widgets';
 
 /** 没有卡片时的常用入口，同样按权限过滤；按钮文字取菜单名称 */
 const SHORTCUTS: {
@@ -65,36 +66,6 @@ const saveBoard = (user: string | undefined, code: string) => {
   }
 };
 
-type BoardWidget = { key: string; size?: string };
-
-/** 按模板顺序切段：整行宽的组件独占一段，相邻的半宽组件合成一段分两列 */
-const segments = (widgets: BoardWidget[]) => {
-  const out: (
-    | { full: BoardWidget }
-    | { full?: undefined; half: BoardWidget[] }
-  )[] = [];
-  for (const w of widgets) {
-    const last = out[out.length - 1];
-    if (w.size === 'full') out.push({ full: w });
-    else if (last && !last.full) last.half.push(w);
-    else out.push({ half: [w] });
-  }
-  return out;
-};
-
-/**
- * 分列：按模板顺序放进预估高度较矮的一列（一样高时放左列）。只看预估高度，
- * 所以同一看板、同一屏宽下分法固定，加载完成、刷新都不换列。
- */
-export const assignColumns = (widgets: BoardWidget[], columns: number) => {
-  const heights = new Array(columns).fill(0);
-  return widgets.map((w) => {
-    const column = heights.indexOf(Math.min(...heights));
-    heights[column] += (WIDGET_HEIGHT[w.key] ?? 300) + 16;
-    return { key: w.key, column };
-  });
-};
-
 /**
  * 工作台：按角色的工作台模板显示岗位看板（spec system/workbench），一人对应多个看板时顶部切换，
  * 默认职级最高的；看板里的组件按编码从注册表取，各自加载数据、失败只影响自己。
@@ -133,6 +104,7 @@ const Dashboard: React.FC = () => {
 
   const board = bench?.boards.find((b) => b.code === code) ?? bench?.boards[0];
   const widgets = (board?.widgets ?? []).filter((w) => WIDGETS[w.key]);
+  const keys = new Set(widgets.map((w) => w.key));
 
   return (
     <div>
@@ -176,44 +148,37 @@ const Dashboard: React.FC = () => {
               {board.name}看板正在建设中，先显示通用卡片。
             </div>
           )}
-          <div style={{ display: 'grid', gap: 16 }}>
-            {segments(widgets).map((seg) =>
-              seg.full ? (
-                <div key={seg.full.key} style={{ minWidth: 0 }}>
-                  {React.createElement(WIDGETS[seg.full.key])}
-                </div>
-              ) : (
+          {/* 按行排列、同一行等高（规范「工作台」，ui-redesign D18）；行与行之间 24，同行组件之间 16 */}
+          <BoardContext.Provider value={keys}>
+            <div style={{ display: 'grid', gap: 24 }}>
+              {layoutRows(widgets).map((row) => (
                 <div
-                  key={seg.half.map((w) => w.key).join(',')}
+                  key={row.map((w) => w.key).join(',')}
                   style={{
                     display: 'grid',
                     gridTemplateColumns: wide
-                      ? 'repeat(2, minmax(0, 1fr))'
+                      ? 'repeat(12, minmax(0, 1fr))'
                       : 'minmax(0, 1fr)',
-                    gap: 16,
-                    alignItems: 'start',
+                    gap: wide ? 16 : 24,
+                    alignItems: 'stretch',
+                    minHeight: wide ? rowMinHeight(row) : undefined,
                   }}
                 >
-                  {Array.from({ length: wide ? 2 : 1 }, (_, c) => (
-                    // 每列自上而下叠放，卡片保持自身高度
+                  {row.map((w) => (
                     <div
-                      // biome-ignore lint/suspicious/noArrayIndexKey: 列号固定
-                      key={c}
-                      style={{ display: 'grid', gap: 16, minWidth: 0 }}
+                      key={w.key}
+                      style={{
+                        minWidth: 0,
+                        gridColumn: wide ? `span ${w.span}` : undefined,
+                      }}
                     >
-                      {assignColumns(seg.half, wide ? 2 : 1)
-                        .filter((x) => x.column === c)
-                        .map(({ key }) => (
-                          <div key={key} style={{ minWidth: 0 }}>
-                            {React.createElement(WIDGETS[key])}
-                          </div>
-                        ))}
+                      {React.createElement(WIDGETS[w.key])}
                     </div>
                   ))}
                 </div>
-              ),
-            )}
-          </div>
+              ))}
+            </div>
+          </BoardContext.Provider>
         </>
       ) : (
         <Card style={{ padding: '48px 24px', textAlign: 'center' }}>
