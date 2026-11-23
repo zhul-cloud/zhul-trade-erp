@@ -3,7 +3,7 @@ import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, Input, Select, Space, Table } from 'antd';
 import dayjs from 'dayjs';
-import { Search } from 'lucide-react';
+import { Banknote, Eye, Search, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   FilterCard,
@@ -14,6 +14,7 @@ import {
   QuickFilters,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { readBizError } from '@/pages/sales/service';
@@ -288,38 +289,37 @@ const PayableManagement: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 140,
+      // 查看、付款放行内，退款收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(3),
       fixed: 'right',
       render: (_, r) => (
-        <Space size={10}>
-          {canRegister &&
-            (r.status === PAY_STATUS.UNPAID ||
-              r.status === PAY_STATUS.PARTIAL) && (
-              <button
-                type="button"
-                className="zhul-link"
-                onClick={() => setPayAnchor(r.id)}
-              >
-                付款
-              </button>
-            )}
-          {canRegister && r.creditAmount > 0 && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setRefund(r)}
-            >
-              退款
-            </button>
-          )}
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => openDetail(r.id)}
-          >
-            查看
-          </button>
-        </Space>
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => openDetail(r.id),
+            },
+            canRegister &&
+              (r.status === PAY_STATUS.UNPAID ||
+                r.status === PAY_STATUS.PARTIAL) && {
+                key: 'pay',
+                label: '付款',
+                icon: <Banknote size={18} />,
+                onClick: () => setPayAnchor(r.id),
+              },
+          ]}
+          more={[
+            canRegister &&
+              r.creditAmount > 0 && {
+                key: 'refund',
+                label: '退款',
+                icon: <Undo2 size={16} />,
+              },
+          ]}
+          onMore={() => setRefund(r)}
+        />
       ),
     },
   ];

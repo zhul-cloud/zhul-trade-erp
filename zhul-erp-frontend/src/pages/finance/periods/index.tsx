@@ -1,10 +1,12 @@
-import { Link, useAccess } from '@umijs/max';
+import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Button, Space, Table, Tooltip } from 'antd';
+import { Table } from 'antd';
+import { Eye, Lock, LockOpen } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/warehouse/service';
@@ -130,34 +132,38 @@ const PeriodsPage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 150,
+      // 查看、结账放行内（不能结账时悬停看原因），反结账收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(3),
       fixed: 'right',
       render: (_, r) => (
-        <Space size={4}>
-          {r.status !== PERIOD_CLOSED && canClose && (
-            <Tooltip title={r.closable ? undefined : r.closeBlock}>
-              <Button
-                type="link"
-                size="small"
-                disabled={!r.closable}
-                onClick={() => setClosing(r.month)}
-              >
-                结账
-              </Button>
-            </Tooltip>
-          )}
-          <Link to={periodPath(r.month)}>查看</Link>
-          {r.reopenable && canReopen && (
-            <Button
-              type="link"
-              size="small"
-              danger
-              onClick={() => setReopening(r.month)}
-            >
-              反结账
-            </Button>
-          )}
-        </Space>
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(periodPath(r.month)),
+            },
+            r.status !== PERIOD_CLOSED &&
+              canClose && {
+                key: 'close',
+                label: '结账',
+                icon: <Lock size={18} />,
+                disabledReason: r.closable ? undefined : r.closeBlock,
+                onClick: () => setClosing(r.month),
+              },
+          ]}
+          more={[
+            r.reopenable &&
+              canReopen && {
+                key: 'reopen',
+                label: '反结账',
+                icon: <LockOpen size={16} />,
+                danger: true,
+              },
+          ]}
+          onMore={() => setReopening(r.month)}
+        />
       ),
     },
   ];
