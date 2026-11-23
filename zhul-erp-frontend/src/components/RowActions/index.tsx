@@ -1,6 +1,6 @@
 import { Dropdown } from 'antd';
 import { Ellipsis } from 'lucide-react';
-import React from 'react';
+import React, { useState } from 'react';
 import { type MoreAction, moreMenuItems } from '@/components/ListLayout';
 import { IconButton } from '@/components/Shell/IconButton';
 
@@ -16,12 +16,13 @@ export interface RowAction {
 }
 
 const SIZE = 32;
-const GAP = 4;
+/** 相邻点击目标至少隔 8（操作列 3 位时宽 136，同原型） */
+const GAP = 8;
 /** 单元格左右内边距（Table cellPaddingInline 12） */
 const PADDING = 24;
 
 /**
- * 操作列宽：按图标位数计算（每个 32、间距 4，加单元格内边距），「更多」也算一位。
+ * 操作列宽：按图标位数计算（每个 32、间距 8，加单元格内边距），「更多」也算一位。
  * 和 tableScrollX 一起用，操作列不被截断、不遮住金额（ui-redesign S2）。
  */
 export const rowActionsWidth = (slots: number) =>
@@ -35,8 +36,7 @@ const Slot: React.FC<{ action: RowAction | Falsy }> = ({ action: a }) =>
       label={a.disabledReason ? `${a.label}：${a.disabledReason}` : a.label}
       icon={a.icon}
       aria-disabled={!!a.disabledReason}
-      onClick={(e) => {
-        e.stopPropagation();
+      onClick={() => {
         if (!a.disabledReason) a.onClick();
       }}
       style={
@@ -58,32 +58,35 @@ export const RowActions: React.FC<{
   more?: (MoreAction | Falsy)[];
   onMore?: (key: string) => void;
 }> = ({ inline = [], more = [], onMore }) => {
+  const [open, setOpen] = useState(false);
   const list = more.filter(Boolean) as MoreAction[];
   const menu = [
     ...list.filter((a) => !a.danger),
     ...list.filter((a) => a.danger),
   ];
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: GAP }}>
+    // 菜单弹层经 portal 渲染，点置灰项、分隔线时事件仍按 React 树冒泡：在这里统一拦住，不触发行点击
+    <div
+      style={{ display: 'flex', alignItems: 'center', gap: GAP }}
+      onClick={(e) => e.stopPropagation()}
+    >
       {inline.length > 0 && <Slot action={inline[0]} />}
       {inline.length > 1 && <Slot action={inline[1]} />}
       {menu.length > 0 && (
         <Dropdown
           trigger={['click']}
           placement="bottomRight"
+          onOpenChange={setOpen}
           menu={{
             items: moreMenuItems(menu),
-            onClick: ({ key, domEvent }) => {
-              domEvent.stopPropagation();
-              onMore?.(key);
-            },
+            onClick: ({ key }) => onMore?.(key),
           }}
         >
           <IconButton
             size={SIZE}
             label="更多"
+            pressed={open}
             icon={<Ellipsis size={18} />}
-            onClick={(e) => e.stopPropagation()}
           />
         </Dropdown>
       )}

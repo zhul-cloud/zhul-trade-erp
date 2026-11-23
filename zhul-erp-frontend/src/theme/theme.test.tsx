@@ -169,6 +169,18 @@ describe('Ant Design 主题', () => {
     expect(t.components?.Input?.controlHeight).toBe(40);
     expect(t.token?.controlHeight).toBe(36);
   });
+
+  it('危险实底按钮的字与底色不低于 4.5:1（深色下底色亮，用深色字）', () => {
+    for (const mode of ['light', 'dark'] as const) {
+      const p = buildPalette(mode, 'amber');
+      const b = buildAntdTheme(mode, 'amber').components?.Button;
+      const fg = String(b?.dangerColor);
+      expect(contrast(fg, p.red)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(fg, String(b?.colorErrorHover))).toBeGreaterThanOrEqual(
+        4.5,
+      );
+    }
+  });
 });
 
 describe('主题色保存在本机', () => {

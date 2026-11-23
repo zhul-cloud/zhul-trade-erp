@@ -12,12 +12,21 @@ import { useAppTheme } from '@/theme/AppTheme';
 export const CountryFlag: React.FC<{ code?: string }> = ({ code }) => {
   const { palette } = useAppTheme();
   if (!code) {
+    // 放进和国旗同样大的 16×12 格子里，同一列的国名对齐
     return (
-      <Globe
-        size={14}
+      <span
         aria-hidden
-        style={{ color: palette.mute, flex: 'none' }}
-      />
+        style={{
+          width: 16,
+          height: 12,
+          flex: 'none',
+          display: 'grid',
+          placeItems: 'center',
+          color: palette.mute,
+        }}
+      >
+        <Globe size={14} />
+      </span>
     );
   }
   // 产物里的 flags/ 由 config.ts 的 copy 从 flag-icons 复制；浏览器只下载用到的那几面

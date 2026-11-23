@@ -167,7 +167,7 @@ const PeriodsPage: React.FC = () => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <MainCard>
+        <MainCard left={loading ? undefined : `共 ${rows.length} 条`}>
           <Table<Period>
             rowKey="month"
             size="middle"

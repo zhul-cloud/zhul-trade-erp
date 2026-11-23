@@ -64,7 +64,10 @@ export function buildAntdTheme(
     components: {
       Button: {
         colorError: p.red,
-        colorErrorHover: p.redMain,
+        // 悬停：浅色下用原色 #FF5630 时白字只有 3.2:1，取介于文字色和原色之间的 #D0301F（5.1:1）
+        colorErrorHover: light ? '#D0301F' : p.redMain,
+        // 危险实底按钮的字：深色下底色是亮红（#FF6A47），白字只有 2.7:1，改深色字（6:1），同琥珀主按钮的做法
+        dangerColor: light ? '#FFFFFF' : '#1A1A1A',
         // 中文只用 400/600（Windows 微软雅黑没有 500）；琥珀主题主按钮用深色字
         fontWeight: 400,
         primaryColor: p.onPrimary,

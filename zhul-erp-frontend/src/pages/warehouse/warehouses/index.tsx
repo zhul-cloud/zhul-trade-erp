@@ -333,7 +333,7 @@ const WarehousesPage: React.FC = () => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <MainCard>
+        <MainCard left={list ? `共 ${rows.length} 条` : undefined}>
           <Table<InvWarehouse>
             rowKey="id"
             size="middle"

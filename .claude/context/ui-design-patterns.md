@@ -302,15 +302,15 @@ import {
 
 | 用途 | 组件 | 用法 |
 |---|---|---|
-| 分页 | `usePagination(20, scope)`（`src/utils/pageSize.ts`） | `pagination={pager}`。默认 20 条、记住个人选择；页码有省略号时才显示跳页；总数写在 `MainCard` 的 `left`，不传 `showTotal`。没有主卡的子表才自己写总数 |
+| 分页 | `usePagination(20, scope, total)`（`src/utils/pageSize.ts`） | `pagination={pager}`。下拉显示「每页 20 条」，与页码同高 32；默认 20 条、记住个人选择；页码有省略号时才显示跳页；传 `total` 时不超过 10 条不显示分页。总数写在 `MainCard` 的 `left`（加载中不写），不传 `showTotal`；ProTable 默认会显示「第 1-20 条/总共 N 条」，要关掉。没有主卡的子表、主卡左上角另有用途的页面才自己写总数 |
 | 国家 | `CountryText`、`CountryFlag`（`src/components/CountryText`） | `<CountryText value={r.country} />`：国旗 + 中文名，悬停英文名；`value` 为保存的英文名，也认两位代码和中文名。国旗图片由 `config/config.ts` 的 `copy` 复制到 `/flags/` 再用 `<img>` 加载：SVG 不能经 CSS 或 `import` 引用，打包器会把它转成 React 组件 |
-| 客户名下一行 | `CustomerCell`、`CustomerSubLine`（`src/components/DocFields`） | 列表的客户列和详情客户卡共用「新 / 老客户 · 国旗 国家 · 主联系人」 |
-| 空状态 | `EmptyState`（`kind`：`empty`、`noResult`、`error`、`forbidden`；`compact`） | 表格、下拉没写空状态时全站自动用它（`AppTheme` 的 `renderEmpty`）。筛选后无结果用 `noResult` 加「清空筛选」，出错用 `error` 加「重试」，无权限用 `forbidden` 写明需要的权限 |
-| 操作列 | `RowActions`、`rowActionsWidth(n)`（`src/components/RowActions`） | `inline` 最多 2 个常用图标，本行不适用的写假值留出空位；其余放 `more`、点击走 `onMore(key)`，危险项自动排到末尾。列宽用 `rowActionsWidth(图标位数)`（「更多」算一位），计入 `tableScrollX` |
-| 危险确认 | `useConfirmDanger()`（`src/components/ConfirmDanger`） | `confirm({ title, content, okText, onOk })`：标题写明对象，内容写后果，按钮写动作（默认「删除」），默认焦点在「取消」 |
-| 人名 | `UserName`、`useUserName`（`src/components/UserName`） | 创建人、更新人存的是登录账号，显示姓名（同一轮渲染的账号合并成一次 `/api/v1/system/users/names` 查询）；系统写入显示「系统」 |
-| 创建、更新两列 | `auditColumns()`、`AuditCell`（同上） | 列表固定的「创建」「更新」两列：人名在上、短时间在下，悬停看完整时间 |
-| 行内提醒 | `rowAlert(tone)`（`src/components/RowAlert`） | `onRow={(r) => rowAlert(r.overdue ? 'error' : undefined)}`：首格左侧 3px 色条，原因写成状态标签，不整行铺底色 |
+| 客户名下一行 | `CustomerCell`、`CustomerSubLine`（`src/components/DocFields`） | 列表的客户列和详情客户卡共用「新 / 老客户 · 国旗 国家 · 主联系人」；客户名单行省略、悬停看全名 |
+| 空状态 | `EmptyState`（`kind`：`empty`、`noResult`、`error`、`forbidden`；`compact`）、`listEmpty()` | 表格、下拉没写空状态时全站自动用它（`AppTheme` 的 `renderEmpty`）。列表页用 `locale={{ emptyText: listEmpty({ loading, error, filtered, onRetry, onClear, noun, empty }) }}`：加载中不显示、出错给「重试」、有筛选给「清空筛选」、否则写首次为空的原因和下一步。只有出错时读屏播报 |
+| 操作列 | `RowActions`、`rowActionsWidth(n)`（`src/components/RowActions`） | `inline` 最多 2 个常用图标（32，间距 8），本行不适用的写假值留出空位；其余放 `more`、点击走 `onMore(key)`，危险项自动排到末尾。列宽用 `rowActionsWidth(图标位数)`（「更多」算一位，3 位为 136），计入 `tableScrollX`；操作列里的点击不会触发行点击 |
+| 危险确认 | `useConfirmDanger()`（`src/components/ConfirmDanger`） | `confirm({ title, content, okText, onOk })`：标题写明对象，内容写后果，按钮写动作（默认「删除」），默认焦点在「取消」；左侧 40 圆错误浅底图标，删除为垃圾桶、其余为警告三角。危险实底按钮深色下用深色字（亮红底上白字只有 2.7:1） |
+| 人名 | `UserName`、`useUserName`（`src/components/UserName`） | 创建人、更新人存的是登录账号，显示姓名（同一轮渲染的账号合并成一次 `/api/v1/system/users/names` 查询；登录、退出时清空缓存，查询失败先显示账号、下次再查）；系统写入显示「系统」 |
+| 创建、更新两列 | `auditColumns()`、`AuditCell`（同上） | 列表固定的「创建」「更新」两列（各 120）：人名 13 号正文色（「系统」次要色）在上、短时间 12 号在下，悬停看「姓名 · 完整时间」。`pages/purchase/components` 里旧的四列 `auditColumns` 第 4 批删掉 |
+| 行内提醒 | `rowAlert(tone, props)`（`src/components/RowAlert`） | `onRow={(r) => rowAlert(r.overdue ? 'error' : undefined, { onClick })}`：首格左侧 3px 色条，原有的行属性一起传入；原因写成状态标签，不整行铺底色 |
 | 数字卡 | `MetricCard`、`MetricGroup` | 随工作台（第 3 批）实现，见「组件标准 · 数字卡」 |
 
 ---

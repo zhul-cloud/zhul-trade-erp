@@ -2,8 +2,9 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { App } from 'antd';
 import dayjs from 'dayjs';
 import React from 'react';
+import { setToken } from '@/utils/tokenStore';
 import { CountryText } from './CountryText';
-import { EmptyState, renderEmpty } from './EmptyState';
+import { EmptyState, listEmpty, renderEmpty } from './EmptyState';
 import { RowActions, rowActionsWidth } from './RowActions';
 import { rowAlert } from './RowAlert';
 import { formatShortTime, UserName } from './UserName';
@@ -151,7 +152,8 @@ describe('操作列', () => {
   });
 
   it('列宽按图标位数算', () => {
-    expect(rowActionsWidth(3)).toBe(24 + 96 + 8);
+    // 原型：3 位时操作列宽 136
+    expect(rowActionsWidth(3)).toBe(136);
     expect(rowActionsWidth(1)).toBe(56);
   });
 });
@@ -181,6 +183,29 @@ describe('人名与时间', () => {
     );
   });
 
+  it('请求失败先显示账号、下次挂载再查；换登录后清空缓存重新查', async () => {
+    mockRequest.mockReset();
+    mockRequest.mockRejectedValueOnce(new Error('503'));
+    const first = render(h('span', null, h(UserName, { value: 'zhaolei' })));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(screen.getByText('zhaolei')).toBeTruthy();
+    first.unmount();
+    mockRequest.mockResolvedValue({ data: { zhaolei: '赵磊' } });
+    render(h('span', null, h(UserName, { value: 'zhaolei' })));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(screen.getByText('赵磊')).toBeTruthy();
+    expect(mockRequest).toHaveBeenCalledTimes(2);
+    mockRequest.mockResolvedValue({ data: { zhaolei: '赵磊（新租户）' } });
+    act(() => {
+      setToken('t', false);
+    });
+    expect(await screen.findByText('赵磊（新租户）')).toBeTruthy();
+  });
+
   it('短时间：当年写月日时分，跨年写日期', () => {
     const y = dayjs().year();
     expect(formatShortTime(`${y}-11-21 10:20:30`)).toBe('11-21 10:20');
@@ -190,8 +215,37 @@ describe('人名与时间', () => {
 });
 
 describe('行内提醒', () => {
-  it('有提醒才加色条样式', () => {
+  it('有提醒才加色条样式，原有的行属性一起返回', () => {
     expect(rowAlert('error')).toEqual({ className: 'zhul-row-alert-error' });
     expect(rowAlert(false)).toEqual({});
+    const onClick = jest.fn();
+    expect(rowAlert('warning', { onClick, className: 'x' })).toEqual({
+      onClick,
+      className: 'x zhul-row-alert-warning',
+    });
+    expect(rowAlert(null, { onClick })).toEqual({ onClick });
+  });
+});
+
+describe('列表空状态', () => {
+  it('加载中不显示文字；出错给重试；有筛选给清空筛选；否则用首次为空的说明', () => {
+    const onRetry = jest.fn();
+    const onClear = jest.fn();
+    const { container, rerender } = render(
+      h('div', null, listEmpty({ loading: true })),
+    );
+    expect(container.textContent).toBe('');
+    rerender(h('div', null, listEmpty({ error: true, onRetry })));
+    fireEvent.click(screen.getByRole('button', { name: /重\s*试/ }));
+    expect(onRetry).toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toBeTruthy();
+    rerender(
+      h('div', null, listEmpty({ filtered: true, noun: '订单', onClear })),
+    );
+    expect(screen.getByText('没有符合条件的订单')).toBeTruthy();
+    fireEvent.click(screen.getByText('清空筛选'));
+    expect(onClear).toHaveBeenCalled();
+    rerender(h('div', null, listEmpty({ empty: { title: '还没有订单' } })));
+    expect(screen.getByText('还没有订单')).toBeTruthy();
   });
 });

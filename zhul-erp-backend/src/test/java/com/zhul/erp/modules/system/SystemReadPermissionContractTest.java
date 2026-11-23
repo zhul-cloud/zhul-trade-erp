@@ -18,6 +18,8 @@ class SystemReadPermissionContractTest extends TenantContractSupport {
 
     /** IntegrationTestBase.loginWithResources 建的测试用户 ID */
     private static final long ME = 99000002L;
+    /** 别的租户的测试用户 */
+    private static final long OTHER_TENANT_USER = 99000917L;
     private static final int MENU_USER = 100011;
     private static final int MENU_ROLE = 100012;
     private static final int MENU_MENU = 100013;
@@ -96,9 +98,18 @@ class SystemReadPermissionContractTest extends TenantContractSupport {
     void userNames_loginOnly_mapsUsernameToName() throws Exception {
         String sales = as("it_sys_names", MENU_SALES_ORDERS);
         jdbc.update("update user_basic set name = '测试员', email = 'it@example.com' where id = ?", ME);
-        JsonNode names = ok(call(get(USERS + "/names").param("usernames", "it_sys_names", "sys", "nobody"), sales));
-        assertEquals("测试员", names.path("it_sys_names").asText());
-        assertEquals(1, names.size(), "查不到的账号不返回");
-        assertFalse(names.toString().contains("it@example.com"), "不含邮箱");
+        // 别的租户的账号（同一账号名可以出现在不同租户）不能查到
+        jdbc.update("delete from user_basic where id = ?", OTHER_TENANT_USER);
+        jdbc.update("insert into user_basic (id, tenant_id, name, username, status) values (?, 9917, '别家员工', 'it_sys_other', 1)",
+                OTHER_TENANT_USER);
+        try {
+            JsonNode names = ok(call(get(USERS + "/names")
+                    .param("usernames", "it_sys_names,sys,nobody,it_sys_other"), sales));
+            assertEquals("测试员", names.path("it_sys_names").asText());
+            assertEquals(1, names.size(), "查不到的账号、别的租户的账号都不返回");
+            assertFalse(names.toString().contains("it@example.com"), "不含邮箱");
+        } finally {
+            jdbc.update("delete from user_basic where id = ?", OTHER_TENANT_USER);
+        }
     }
 }

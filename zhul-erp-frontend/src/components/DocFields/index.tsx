@@ -2,6 +2,7 @@ import { ExpandOutlined, UserOutlined } from '@ant-design/icons';
 import { AutoComplete, Button, Drawer, Select, Space } from 'antd';
 import React, { useState } from 'react';
 import { CountryText } from '@/components/CountryText';
+import EllipsisText from '@/components/EllipsisText';
 import { INCOTERMS } from '@/pages/customer/constants';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_TRADE_TERM_PLACE, useDictTexts } from '@/utils/dict';
@@ -158,7 +159,8 @@ export const CustomerCell: React.FC<{
   const { palette } = useAppTheme();
   return (
     <div style={{ minWidth: 0 }}>
-      <div style={{ color: palette.ink, minWidth: 0 }}>{name || '—'}</div>
+      {/* 长公司名单行省略，悬停看全名；不折行，行高一致 */}
+      <EllipsisText text={name} style={{ color: palette.ink }} />
       <CustomerSubLine
         type={type}
         country={country}

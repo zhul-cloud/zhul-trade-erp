@@ -1,5 +1,5 @@
-import { ExclamationCircleFilled } from '@ant-design/icons';
 import { App } from 'antd';
+import { Trash2, TriangleAlert } from 'lucide-react';
 import React, { useCallback } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 
@@ -15,7 +15,8 @@ export interface DangerConfirm {
 
 /**
  * 危险操作确认（公共组件，规范「组件标准 · 危险操作」，ui-redesign C6）：
- * 错误色图标与按钮，按钮写动作，默认焦点在「取消」，防止回车误删。确认框的文字原样保留。
+ * 左侧 40 圆错误浅底图标（删除用垃圾桶，作废、禁用等用警告三角，同原型 G2），错误色按钮写动作，
+ * 默认焦点在「取消」，防止回车误删。确认框的文字原样保留。
  */
 export const useConfirmDanger = () => {
   const { modal } = App.useApp();
@@ -25,13 +26,34 @@ export const useConfirmDanger = () => {
       modal.confirm({
         title,
         content,
-        icon: <ExclamationCircleFilled style={{ color: palette.red }} />,
+        icon: (
+          <span
+            aria-hidden
+            style={{
+              width: 40,
+              height: 40,
+              flex: 'none',
+              marginInlineEnd: 12,
+              borderRadius: '50%',
+              display: 'grid',
+              placeItems: 'center',
+              background: palette.redSoft,
+              color: palette.red,
+            }}
+          >
+            {okText === '删除' ? (
+              <Trash2 size={20} />
+            ) : (
+              <TriangleAlert size={20} />
+            )}
+          </span>
+        ),
         okText,
         cancelText: '取消',
         okButtonProps: { danger: true },
         autoFocusButton: 'cancel',
         onOk,
       }),
-    [modal, palette.red],
+    [modal, palette.red, palette.redSoft],
   );
 };
