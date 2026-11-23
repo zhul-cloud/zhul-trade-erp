@@ -942,9 +942,13 @@ export const FilterCard: React.FC<{
         style={{ marginBottom: 16, padding: line ? 16 : 20 }}
         aria-label="搜索条件"
         data-zhul-filter={filterId}
-        // 在条件里回车查询时，记下这次查询用的「更多筛选」条件
+        // 在文本框里回车查询时，记下这次查询用的「更多筛选」条件；下拉、日期里的回车只是选中选项，不算查询
         onKeyDownCapture={(e) => {
-          if (e.key === 'Enter' && e.target instanceof HTMLInputElement)
+          if (
+            e.key === 'Enter' &&
+            e.target instanceof HTMLInputElement &&
+            !e.target.closest('.ant-select, .ant-picker, .ant-cascader')
+          )
             setTimeout(snap);
         }}
       >

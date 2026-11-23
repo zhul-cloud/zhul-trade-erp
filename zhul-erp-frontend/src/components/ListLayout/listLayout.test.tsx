@@ -367,6 +367,7 @@ describe('更多筛选的条件胶囊', () => {
   const Page = (props: {
     onSearch: (kw: string, code: string) => void;
     name: string;
+    extra?: ReturnType<typeof h>;
   }) => {
     const [kw, setKw] = useState('');
     const [code, setCode] = useState('');
@@ -384,15 +385,20 @@ describe('更多筛选的条件胶囊', () => {
               setCode(e.target.value),
           }),
         }),
-        children: h(FilterField, {
-          label: '关键词',
-          children: h(Input, {
-            'aria-label': `${props.name}关键词`,
-            value: kw,
-            onChange: (e: { target: { value: string } }) =>
-              setKw(e.target.value),
+        children: h(
+          React.Fragment,
+          null,
+          h(FilterField, {
+            label: '关键词',
+            children: h(Input, {
+              'aria-label': `${props.name}关键词`,
+              value: kw,
+              onChange: (e: { target: { value: string } }) =>
+                setKw(e.target.value),
+            }),
           }),
-        }),
+          props.extra,
+        ),
       }),
       h(MainCard, { children: h('div', null, '表格') }),
     );
@@ -422,6 +428,33 @@ describe('更多筛选的条件胶囊', () => {
     expect(screen.queryByText('编码：A1')).toBeNull();
     // 用最新的关键词，不回到加胶囊时的旧值
     expect(onSearch).toHaveBeenLastCalledWith('kw', '');
+  });
+
+  it('文本框里回车算查询、记下胶囊；下拉里回车只是选中选项，不出胶囊', async () => {
+    // 模拟下拉里的输入框（antd Select 的搜索框在 .ant-select 里）
+    const extra = h(
+      'div',
+      { className: 'ant-select' },
+      h('input', { 'aria-label': '下拉' }),
+    );
+    render(h(App, null, h(Page, { onSearch: () => {}, name: '', extra })));
+    toggleMore();
+    fireEvent.change(screen.getByLabelText('编码'), {
+      target: { value: 'A1' },
+    });
+    fireEvent.keyDown(screen.getByLabelText('下拉'), { key: 'Enter' });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    toggleMore();
+    expect(screen.queryByText('编码：A1')).toBeNull();
+    toggleMore();
+    fireEvent.keyDown(screen.getByLabelText('编码'), { key: 'Enter' });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    toggleMore();
+    expect(await screen.findByText('编码：A1')).toBeTruthy();
   });
 
   it('同一页两组搜索条件区和主卡互不串', async () => {
