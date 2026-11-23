@@ -14,11 +14,11 @@ const SH_HOVER = [{ type: 'shadow', offsetX: 0, offsetY: 0, blur: 2, spread: 0, 
 // 对话框：Material elevation-24
 const SH_DIALOG = [{ type: 'shadow', offsetX: 0, offsetY: 11, blur: 15, spread: -7, color: 'rgba(145,158,171,0.2)' }, { type: 'shadow', offsetX: 0, offsetY: 24, blur: 38, spread: 3, color: 'rgba(145,158,171,0.14)' }, { type: 'shadow', offsetX: 0, offsetY: 9, blur: 46, spread: 8, color: 'rgba(145,158,171,0.12)' }];
 const LIGHT = { key: 'light', page: '#F9FAFB', card: '#FFFFFF', head: '#F4F6F8', line: '#E5E8EB', field: '#D4D6D9', ink: '#212B36', body: '#3E4750', sub: '#637381', faint: '#919EAB', soft: '#FEF5E6', tonal: '#F1F3F5', navOn: '#EDEEEF', hover: '#FFFFFF', hoverLine: null, rowHover: '#F6F7F8', control: '#D3D5D8', danger: '#B71D18', mask: 'rgba(33,43,54,0.5)', menu: '#FFFFFF', menuHover: '#F6F7F8',
-  chartMuted: '#DFE3E8', chartMutedHover: '#C4CDD5', grid: '#E5E8EB', shadow: SH, stroke: null,
+  chartMuted: '#DFE3E8', chartMutedHover: '#C4CDD5', barMuted: '#C4CDD5', grid: '#E5E8EB', shadow: SH, stroke: null,
   st: { ok: ['#0D7A4A', '#E5F8EC'], warn: ['#9A5B00', '#FFF5E0'], info: ['#006C9C', '#E0F6FA'], err: ['#B71D18', '#FFEBE6'], neu: ['#56636F', '#ECEEF0'] },
   fam: { blue: ['#3B82F6', '#E7F0FE'], purple: ['#8B5CF6', '#F1EBFE'], cyan: ['#1F7A76', '#E6F3F3'], gray: ['#637381', '#ECEEF0'] } };
 const DARK = { key: 'dark', page: '#0A0A0A', card: '#1A1A1A', head: '#222222', line: '#2A2A2A', field: '#4A4A4A', ink: '#F5F5F5', body: '#E0E0E0', sub: '#A0A0A0', faint: '#6E6E6E', soft: '#3E311D', tonal: '#232323', navOn: '#2C2C2C', hover: '#222222', hoverLine: '#3A3A3A', rowHover: '#222222', control: '#4A4A4A', danger: '#D63B1F', mask: 'rgba(0,0,0,0.7)', menu: '#222222', menuHover: '#2C2C2C',
-  chartMuted: '#363636', chartMutedHover: '#4A4A4A', grid: '#2A2A2A', shadow: [], stroke: { thickness: 1, fill: solid('#2A2A2A') },
+  chartMuted: '#363636', chartMutedHover: '#4A4A4A', barMuted: '#4A4A4A', grid: '#2A2A2A', shadow: [], stroke: { thickness: 1, fill: solid('#2A2A2A') },
   st: { ok: ['#22C55E', '#1B3525'], warn: ['#FFAB00', '#3F3116'], info: ['#00B8D9', '#163339'], err: ['#FF6A47', '#3F241E'], neu: ['#A0A0A0', '#2F2F2F'] },
   fam: { blue: ['#3B82F6', '#172741'], purple: ['#8B5CF6', '#2C253D'], cyan: ['#2F9E99', '#1D2F2E'], gray: ['#A0A0A0', '#2F2F2F'] } };
 
@@ -83,12 +83,12 @@ function mkMetric(T, p, l, v, ic, fam, o) {
   const lr = box(top, { width: 'fill_container', layout: 'horizontal', gap: hov ? 4 : 2, alignItems: 'center' });
   tx(lr, l, { fontSize: 14, fill: solid(T.sub) });
   if (o.link) icon(lr, 'chevron-right', 14, hov ? T.ink : T.faint);
-  sp(m, 10);
+  sp(m, 8);
   const vr = box(m, { layout: 'horizontal', gap: 4, alignItems: 'end' });
   if (v.startsWith('CNY ')) {
     const cw = box(vr, { layout: 'vertical', padding: [0, 0, 3, 0] }); tx(cw, 'CNY', { fontSize: 14, fontWeight: 600, fontFamily: NUM, lineHeight: 1.2, fill: solid(T.sub) });
-    tx(vr, v.slice(4), { fontSize: 24, fontWeight: 600, fontFamily: NUM, lineHeight: 1.17, fill: solid(T.ink) });
-  } else tx(vr, v, { fontSize: 24, fontWeight: 600, fontFamily: NUM, lineHeight: 1.17, fill: solid(T.ink) });
+    tx(vr, v.slice(4), { fontSize: 24, fontWeight: 600, fontFamily: NUM, lineHeight: 1.25, fill: solid(T.ink) });
+  } else tx(vr, v, { fontSize: 24, fontWeight: 600, fontFamily: NUM, lineHeight: 1.25, fill: solid(T.ink) });
   sp(m, 4);
   const hl = box(m, { width: 'fill_container', height: 24, layout: 'horizontal', gap: 8, alignItems: 'center' });
   if (o.alertText) label(hl, o.alertText, T.st[o.alert], 'triangle-alert');
@@ -123,7 +123,12 @@ function shell(T, name, H, gap) {
   const tr = box(tab, { height: 62, layout: 'horizontal', gap: 6, alignItems: 'center', padding: [0, 16] }); icon(tr, 'house', 16, T.ink); tx(tr, '工作台', { fontWeight: 600, fill: solid(T.ink) });
   I(tab, { type: 'frame', width: 'fill_container', height: 2, fill: solid(P) });
   box(top, { width: 'fill_container', height: 1 });
-  for (const ic of ['swatch-book', 'languages', 'bell-dot']) { const b = box(top, { width: 36, height: 36, cornerRadius: 18, layout: 'horizontal', justifyContent: 'center', alignItems: 'center' }); icon(b, ic, 20, T.body, false); box(top, { width: 4, height: 1 }); }
+  for (const ic of ['swatch-book', 'languages']) { const b = box(top, { width: 36, height: 36, cornerRadius: 18, layout: 'horizontal', justifyContent: 'center', alignItems: 'center' }); icon(b, ic, 20, T.body, false); box(top, { width: 4, height: 1 }); }
+  const bell = box(top, { width: 36, height: 36, layout: 'none' });
+  I(bell, { type: 'icon_font', name: 'fill=' + T.body, iconFontName: 'bell', x: 8, y: 8, width: 20, height: 20, fill: solid(T.body) });
+  const badge = I(bell, { type: 'frame', x: 18, y: 2, width: 16, height: 16, cornerRadius: 8, layout: 'horizontal', justifyContent: 'center', alignItems: 'center', fill: solid('#FF5630') });
+  tx(badge, '3', { fontSize: 11, fontWeight: 600, fontFamily: NUM, fill: solid('#FFFFFF') });
+  box(top, { width: 4, height: 1 });
   const dv = box(top, { layout: 'horizontal', padding: [0, 8] }); I(dv, { type: 'frame', width: 1, height: 24, fill: solid(T.line) });
   const user = box(top, { layout: 'horizontal', gap: 8, alignItems: 'center', padding: [2, 8, 2, 2], cornerRadius: 20 });
   const av = box(user, { width: 32, height: 32, cornerRadius: 16, layout: 'horizontal', justifyContent: 'center', alignItems: 'center', fill: solid(T.soft) }); tx(av, '王', { fontSize: 14, fontWeight: 600, fill: solid(T.key === 'light' ? T.ink : P) });
@@ -134,7 +139,7 @@ function shell(T, name, H, gap) {
 // ———————— G 公共组件
 function board(T, name) {
   const K = kit(T); const { tx, box, icon, hr, card, label, iconBlock, link, cap, sp } = K;
-  const root = shell(T, name, 1820);
+  const root = shell(T, name, 1600);
   const metric = (...args) => mkMetric(T, ...args);
 
   // 1 数字卡组：标题落在页面底上，卡片独立浮起；第一张为悬停态
@@ -155,10 +160,17 @@ function board(T, name) {
   // 2 列表主卡：审计合并为「创建」「更新」两列后放得下，不横向滚动、不出现固定列阴影；表头 48；单号墨色；悬停行出现复制
   cap(root, '列表主卡 · CountryText / UserName / RowActions / RowAlert / TablePager（第 3 行为悬停态）');
   const mc = card(root, { width: 'fill_container', layout: 'vertical', clipContent: true });
-  const act = box(mc, { width: 'fill_container', layout: 'horizontal', alignItems: 'center', gap: 12, height: 52, padding: [0, 20] });
+  // 未勾选时的操作行：结果数 + 快捷筛选 + 收起的「更多筛选」里已生效的条件胶囊
+  const pre = card(root, { width: 'fill_container', layout: 'horizontal', alignItems: 'center', gap: 12, height: 52, padding: [0, 20] });
+  const act = pre;
   tx(act, '共 236 条', { fontSize: 14, fill: solid(T.sub) });
   const chip = (t, on, x) => { const c = box(act, { height: 28, layout: 'horizontal', gap: 4, alignItems: 'center', padding: [0, 10], cornerRadius: 14, fill: solid(on ? T.soft : T.tonal) }); if (on) icon(c, 'check', 14, T.ink); tx(c, t, { fontSize: 13, fill: solid(T.body) }); if (x) icon(c, 'x', 14, T.sub); };
   chip('今日新增'); chip('品牌：西门子', true, true);
+  const bat = box(mc, { width: 'fill_container', layout: 'horizontal', alignItems: 'center', gap: 12, height: 52, padding: [0, 20] });
+  tx(bat, '已选 1 张', { fontSize: 14, fontWeight: 600, fill: solid(T.ink) });
+  tx(bat, '取消选择', { fontSize: 14, fill: solid(T.sub) });
+  box(bat, { width: 'fill_container', height: 1 });
+  const bb = box(bat, { layout: 'horizontal', gap: 6, alignItems: 'center', height: 32, padding: [0, 12], cornerRadius: 8, stroke: { thickness: 1, fill: solid(T.control) } }); tx(bb, '批量操作', { fontSize: 13, fill: solid(T.ink) }); icon(bb, 'chevron-down', 14, T.sub);
   const ROWH = 60; const HH = 48;
   // 询盘状态与颜色取自 inquiry/shared/constants.ts STATUS_META，按 status-colors 归类；「已过报价截止」取自工作台询价进度
   const rows = [
@@ -168,31 +180,37 @@ function board(T, name) {
     { no: 'INQ20261118001', d: '2026-11-18', cu: 'Automazione Rossi S.r.l.', cs: '老客户', cc: 'IT', cn: '意大利', ct: 'Marco Rossi', st: ['已成交', 'ok'], src: '', cb: ['Lily', '11-18 10:23'], ub: ['Lily', '11-21 16:43'] },
   ];
   const tbl = box(mc, { width: 'fill_container', layout: 'horizontal' });
+  const ck = box(tbl, { width: 48, layout: 'vertical', fill: solid(T.card) });
   const fl = box(tbl, { width: 186, layout: 'vertical', fill: solid(T.card) });
   const sc = box(tbl, { width: 'fill_container', layout: 'vertical' });
   const fr = box(tbl, { width: 136, layout: 'vertical', fill: solid(T.card) });
   const th = (p, t, o) => { const h = box(p, Object.assign({ width: 'fill_container', height: HH, layout: 'horizontal', alignItems: 'center', fill: solid(T.head) }, o || {})); return h; };
-  tx(th(fl, '', { padding: [0, 0, 0, 20] }), '询盘编号 · 日期', { fontSize: 13, fill: solid(T.sub) });
+  // 勾选列（最左）：行内提醒的 3px 色条画在它的左边缘
+  const cbx = (p, on, bg, alert) => { const head = bg === undefined; const w0 = box(p, { width: 'fill_container', height: head ? HH : ROWH, layout: 'horizontal', fill: solid(head ? T.head : bg) }); if (!head) I(w0, { type: 'frame', width: 3, height: ROWH, fill: solid(alert || bg) }); const w = box(w0, { width: 'fill_container', height: 'fill_container', layout: 'horizontal', justifyContent: 'center', alignItems: 'center', padding: head ? [0, 0] : [0, 3, 0, 0] }); const b = box(w, Object.assign({ width: 16, height: 16, cornerRadius: 4, layout: 'horizontal', justifyContent: 'center', alignItems: 'center', fill: solid(on ? P : T.card) }, on ? {} : { stroke: { thickness: 1, fill: solid(T.field) } })); if (on) icon(b, 'check', 12, '#212B36', false); };
+  cbx(ck, false);
+  tx(th(fl, '', { padding: [0, 0, 0, 4] }), '询盘编号 · 日期', { fontSize: 13, fill: solid(T.sub) });
   const mid = [['客户', 280], ['状态', 140], ['来源单号', 170], ['创建', 120], ['更新', 'fill_container']];
   const hdr = th(sc, '', { padding: [0, 0, 0, 16] });
   mid.forEach(([c, w]) => { const hc = box(hdr, { width: w }); tx(hc, c, { fontSize: 13, fill: solid(T.sub) }); });
   tx(th(fr, '', { padding: [0, 12] }), '操作', { fontSize: 13, fill: solid(T.sub) });
   rows.forEach((r, ri) => {
-    const hov = ri === 2; const bg = hov ? T.rowHover : T.card;
-    for (const col of [fl, sc, fr]) I(col, { type: 'frame', width: 'fill_container', height: 1, fill: solid(T.line) });
+    const hov = ri === 2; const bg = hov ? T.rowHover : (ri === 1 ? T.soft : T.card);
+    for (const col of [ck, fl, sc, fr]) I(col, { type: 'frame', width: 'fill_container', height: 1, fill: solid(T.line) });
+    cbx(ck, ri === 1, bg, r.alert ? T.st[r.alert[1]][0] : null);
     // 首列：左侧 3px 色条（行内提醒）；单号墨色 14/600，悬停主题色下划线并出现复制
     const a = box(fl, { width: 'fill_container', height: ROWH, layout: 'horizontal', alignItems: 'center', fill: solid(bg) });
-    I(a, { type: 'frame', width: 3, height: ROWH, fill: solid(r.alert ? T.st[r.alert[1]][0] : bg) });
-    const ac = box(a, { layout: 'vertical', gap: 2, padding: [0, 0, 0, 17] });
+    const ac = box(a, { layout: 'vertical', gap: 2, padding: [0, 0, 0, 1] });
     const nr = box(ac, { layout: 'horizontal', gap: 4, alignItems: 'center' });
-    tx(nr, r.no, { fontWeight: 600, fontFamily: NUM, fill: solid(hov ? P : T.ink), textDecoration: hov ? 'underline' : 'none' });
+    const nw = box(nr, { layout: 'vertical', gap: 0 });
+    tx(nw, r.no, { fontWeight: 600, fontFamily: NUM, fill: solid(hov ? P : T.ink) });
+    if (hov) I(nw, { type: 'frame', width: 'fill_container', height: 1, fill: solid(P) });
     if (hov) icon(nr, 'copy', 14, T.sub, false);
     tx(ac, r.d, { fontSize: 12, fontFamily: NUM, fill: solid(T.sub) });
     const row = box(sc, { width: 'fill_container', layout: 'horizontal', height: ROWH, alignItems: 'center', padding: [0, 0, 0, 16], fill: solid(bg) });
     let c = box(row, { width: 280, layout: 'vertical', gap: 2 }); tx(c, r.cu, { fontFamily: NUM, fill: solid(T.ink) });
     const cl = box(c, { layout: 'horizontal', gap: 4, alignItems: 'center' }); tx(cl, r.cs + ' ·', { fontSize: 12, fill: solid(T.sub) }); country(T, cl, r.cc, r.cn); tx(cl, '· ' + r.ct, { fontSize: 12, fontFamily: NUM, fill: solid(T.sub) });
     c = box(row, { width: 140, layout: 'vertical', gap: 2 }); label(c, r.st[0], T.st[r.st[1]]); if (r.alert) label(c, r.alert[0], T.st[r.alert[1]], 'triangle-alert');
-    c = box(row, { width: 170 }); tx(c, r.src || '—', { fontFamily: NUM, fill: solid(r.src ? T.ink : T.faint) });
+    c = box(row, { width: 170 }); tx(c, r.src || '—', { fontFamily: NUM, fontWeight: r.src ? 600 : 400, fill: solid(r.src ? T.ink : T.faint) });
     for (const [who, when, w] of [[r.cb[0], r.cb[1], 120], [r.ub[0], r.ub[1], 'fill_container']]) {
       c = box(row, { width: w, layout: 'vertical', gap: 2 }); tx(c, who, { fontSize: 13, fill: solid(who === '系统' ? T.sub : T.body) }); tx(c, when, { fontSize: 12, fontFamily: NUM, fill: solid(T.sub) });
     }
@@ -216,7 +234,7 @@ function board(T, name) {
   cap(root, '空状态 · EmptyState（四种语气）');
   const er = box(root, { width: 'fill_container', layout: 'horizontal', gap: 16 });
   const empties = [
-    ['file-text', T.fam.blue, '还没有业务凭证', '库存月结结账后自动生成', '去库存月结'],
+    ['file-text', [T.sub, T.tonal], '还没有业务凭证', '库存月结结账后自动生成', '去库存月结'],
     ['search-x', [T.sub, T.tonal], '没有符合条件的询盘', '换个关键词，或清空筛选再看', '清空筛选'],
     ['triangle-alert', T.st.err, '加载失败', '网络或服务出错，筛选条件已保留', '重试'],
     ['lock', [T.sub, T.tonal], '没有查看权限', '需要「业务凭证」查看权限，请联系管理员', null],
@@ -281,6 +299,7 @@ function dash(T, name, H, rows, greet) {
   const root = shell(T, name, H, 0);
   const head = box(root, { width: 'fill_container', height: 32, layout: 'horizontal', alignItems: 'center' });
   tx(head, greet, { fontSize: 20, fontWeight: 600, fill: solid(T.ink) });
+  box(root, { width: 1, height: 16 });
   const grid = box(root, { width: 'fill_container', layout: 'vertical', gap: 16 });
   for (const r of rows) {
     const row = box(grid, { width: 'fill_container', height: r.h, layout: 'horizontal', gap: 16 });
@@ -303,8 +322,9 @@ function wHead(T, p, title, o) {
 }
 const wCard = (T, title, o, fill) => (row, h, w) => {
   const { card, box } = kit(T);
-  const c = card(row, { width: w, height: h, layout: 'vertical', gap: 12, padding: [20, 20] });
-  wHead(T, c, title, o);
+  const inset = o && o.inset;
+  const c = card(row, { width: w, height: h, layout: 'vertical', gap: 12, padding: inset ? [20, 12] : [20, 20] });
+  wHead(T, inset ? box(c, { width: 'fill_container', layout: 'vertical', padding: [0, 8] }) : c, title, o);
   const body = box(c, { width: 'fill_container', height: 'fill_container', layout: 'vertical' });
   fill(body, w);
 };
@@ -314,8 +334,9 @@ const wGroup = (T, title, o, ms, cols) => (row, h, w) => {
   const g = box(row, { width: w, layout: 'vertical', gap: 12, padding: [20, 0, 0, 0] });
   wHead(T, g, title, o);
   const per = cols || ms.length;
+  const rows = box(g, { width: 'fill_container', layout: 'vertical', gap: 16 });
   for (let i = 0; i < ms.length; i += per) {
-    const mr = box(g, { width: 'fill_container', layout: 'horizontal', gap: 16 });
+    const mr = box(rows, { width: 'fill_container', layout: 'horizontal', gap: 16 });
     for (const m of ms.slice(i, i + per)) mkMetric(T, mr, ...m);
   }
 };
@@ -348,7 +369,7 @@ function bossBoard(T, name) {
     const c = K.card(row, { width: w, height: h, layout: 'vertical', padding: [20, 20] });
     wHead(T, c, '本月成交额', { sub: '人民币', help: 1, more: '经营统计' });
     sp(c, 12);
-    const vr = box(c, { layout: 'horizontal', gap: 6, alignItems: 'end' });
+    const vr = box(c, { layout: 'horizontal', gap: 4, alignItems: 'end' });
     const cw = box(vr, { layout: 'vertical', padding: [0, 0, 4, 0] }); tx(cw, 'CNY', { fontSize: 16, fontWeight: 600, fontFamily: NUM, fill: solid(T.sub) });
     tx(vr, '412,860.00', { fontSize: 28, fontWeight: 600, fontFamily: NUM, lineHeight: 1.25, fill: solid(T.ink) });
     sp(c, 4); deltaPill(c, '+9.6%');
@@ -357,8 +378,9 @@ function bossBoard(T, name) {
     const mon = ['12月', '1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月'];
     const PH = 136; const PW = w - 40 - 40;
     const ch = box(c, { width: 'fill_container', layout: 'horizontal' });
-    const ya = box(ch, { width: 40, height: PH + 18, layout: 'vertical', justifyContent: 'space_between', padding: [12, 0, 0, 0] });
-    for (const t of ['50万', '25万', '0']) tx(ya, t, { fontSize: 12, fontFamily: NUM, fill: solid(T.sub) });
+    // Y 轴刻度：文字竖直中心对准对应网格线
+    const ya = box(ch, { width: 40, height: PH + 18, layout: 'none' });
+    [['50万', 18], ['25万', 18 + PH / 2], ['0', 18 + PH]].forEach(([t, y]) => I(ya, { type: 'text', name: 'fill=' + T.sub, x: 0, y: y - 8, width: 34, content: t, fontSize: 12, fontFamily: NUM, fill: solid(T.sub) }));
     const pc = box(ch, { width: PW, layout: 'vertical' });
     const plot = box(pc, { width: PW, height: PH + 18, layout: 'none' });
     // 网格线：OpenPencil 的 line 节点坐标会走样，原型用 1px 细线示意（实现时为 4 4 虚线）
@@ -366,7 +388,8 @@ function bossBoard(T, name) {
     I(plot, { type: 'frame', x: 0, y: 18 + PH, width: PW, height: 1, fill: solid(T.grid) });
     const slot = PW / 12; const bw = Math.round(slot * 0.5);
     vals.forEach((v, i) => {
-      if (!v) return;
+      // 空月份画 2px 中性短柱，表示 0 而不是缺数据
+      if (!v) { I(plot, { type: 'frame', x: Math.round(i * slot + (slot - bw) / 2), y: 18 + PH - 2, width: bw, height: 2, fill: solid(T.chartMuted) }); return; }
       const bh = Math.round(v / 50 * PH); const last = i === 11;
       I(plot, { type: 'frame', x: Math.round(i * slot + (slot - bw) / 2), y: 18 + PH - bh, width: bw, height: bh, cornerRadius: [4, 4, 0, 0], fill: solid(last ? P : T.chartMuted) });
       if (last) I(plot, { type: 'text', name: 'fill=' + T.ink, x: Math.round(i * slot) - 2, y: 18 + PH - bh - 18, width: Math.round(slot) + 4, content: '41.3万', fontSize: 12, fontWeight: 600, fontFamily: NUM, textAlign: 'center', fill: solid(T.ink) });
@@ -395,7 +418,7 @@ function bossBoard(T, name) {
       tx(r1, String(v), { fontSize: 14, fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) });
       if (rate) tx(r1, '→ ' + rate, { fontSize: 12, fontFamily: NUM, fill: solid(T.sub) });
       sp(b, 8);
-      I(b, { type: 'frame', width: Math.round(BW * v / 14), height: 8, cornerRadius: 4, fill: solid(P) });
+      I(b, { type: 'frame', width: Math.round(BW * v / 14), height: 8, cornerRadius: 4, fill: solid(i === data.length - 1 ? P : T.barMuted) });
     });
     box(b, { width: 1, height: 'fill_container' });
     tx(b, '本月新增商机 12 个，成交订单 4 张', { fontSize: 13, fill: solid(T.sub) });
@@ -415,7 +438,7 @@ function bossBoard(T, name) {
         avatar(r, nm, cc);
         const m = box(r, { width: 'fill_container', layout: 'vertical', gap: 4 });
         tx(m, nm, { fontFamily: NUM, fill: solid(T.ink) });
-        I(m, { type: 'frame', width: Math.max(4, Math.round((colW - 28 - 12 - 120 - 12) * amt / max)), height: 4, cornerRadius: 2, fill: solid(P) });
+        I(m, { type: 'frame', width: Math.max(4, Math.round((colW - 28 - 12 - 120 - 12) * amt / max)), height: 4, cornerRadius: 2, fill: solid(T.barMuted) });
         const rc = box(r, { width: 120, layout: 'vertical', gap: 2, alignItems: 'end' });
         tx(rc, 'CNY ' + String(amt).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.00', { fontSize: 13, fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) });
         tx(rc, second, { fontSize: 12, fontFamily: NUM, fill: solid(T.sub) });
@@ -435,7 +458,7 @@ function bossBoard(T, name) {
 function salesBoard(T, name) {
   const K = kit(T); const { tx, box, icon, hr, label, sp } = K;
   // 我的待办（主角）：5 行每行 56，数量 20/600，第 2 行为悬停态
-  const todo = wCard(T, '我的待办', { note: '共 16 件' }, (b) => {
+  const todo = wCard(T, '我的待办', { note: '共 16 件', inset: 1 }, (b) => {
     const tone = { info: T.st.info, ok: T.st.ok, blue: T.fam.blue, err: T.st.err };
     const todos = [['inbox', 'info', '待确认的询盘', 'AI 解析完成，等你核对型号', 3], ['file-text', 'ok', '可以报价', '采购已回价，还没做报价单', 5], ['wallet', 'blue', 'PI 待收款', '已发给客户，还没付清', 4], ['rocket', 'blue', '订单待出运', '货已到齐，等安排交货代', 3], ['alarm-clock', 'err', '售后要更新客户', '已逾期或 1 小时内到期的售后单', 1, 1]];
     todos.forEach(([ic, tn, t, d, n, alert], i) => {
