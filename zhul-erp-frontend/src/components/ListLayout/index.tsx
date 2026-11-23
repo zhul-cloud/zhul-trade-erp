@@ -1,3 +1,4 @@
+import { useLocation } from '@umijs/max';
 import {
   Button,
   Cascader,
@@ -10,6 +11,7 @@ import {
   Tooltip,
   TreeSelect,
 } from 'antd';
+import dayjs from 'dayjs';
 import { Check, Ellipsis, Info, SlidersHorizontal, X } from 'lucide-react';
 import React, {
   useCallback,
@@ -18,6 +20,7 @@ import React, {
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { CARD_SHADOW } from '@/theme/palette';
@@ -577,6 +580,143 @@ export const QuickFilters: React.FC<{
   );
 };
 
+/** 「更多筛选」收起时生效条件的胶囊：搜索条件区算出来，交给同一页的主卡显示（按页面路径） */
+const chipStore = new Map<string, FilterChipItem[]>();
+const chipListeners = new Set<() => void>();
+const publishChips = (path: string, chips: FilterChipItem[]) => {
+  const prev = chipStore.get(path) ?? [];
+  const key = (list: FilterChipItem[]) =>
+    list.map((c) => `${c.key}=${String(c.label)}`).join('|');
+  if (key(prev) === key(chips)) return;
+  if (chips.length) chipStore.set(path, chips);
+  else chipStore.delete(path);
+  for (const l of chipListeners) l();
+};
+const useAutoChips = (path: string) =>
+  useSyncExternalStore(
+    (l) => {
+      chipListeners.add(l);
+      return () => {
+        chipListeners.delete(l);
+      };
+    },
+    () => chipStore.get(path),
+    () => undefined,
+  );
+
+interface MoreField {
+  label: string;
+  /** Form.Item 的字段名（受控于表单）；没有时值和 onChange 在控件自己身上 */
+  name?: unknown;
+  control: React.ReactElement;
+}
+
+/** 找出「更多筛选」里的每一项：名称、表单字段名、控件 */
+const collectFields = (node: React.ReactNode, out: MoreField[] = []) => {
+  React.Children.forEach(node, (child) => {
+    if (!React.isValidElement(child)) return;
+    const props = child.props as {
+      label?: string;
+      children?: React.ReactNode;
+      name?: unknown;
+    };
+    if (child.type === FilterField) {
+      const inner = React.Children.toArray(props.children)[0];
+      const control = controlOf(inner);
+      if (!control) return;
+      const name =
+        React.isValidElement(inner) && inner.type === Form.Item
+          ? (inner.props as { name?: unknown }).name
+          : undefined;
+      out.push({ label: props.label ?? '', name, control });
+      return;
+    }
+    collectFields(props.children, out);
+  });
+  return out;
+};
+
+/** 条件值的显示文字：下拉取选项名称，日期按天，其余转文字；对象（自定义控件）不显示胶囊 */
+const displayOf = (control: React.ReactElement, value: unknown): string => {
+  if (value === undefined || value === null || value === '') return '';
+  if (Array.isArray(value) && value.length === 0) return '';
+  const props = control.props as {
+    options?: { value?: unknown; label?: React.ReactNode }[];
+  };
+  const one = (v: unknown): string => {
+    if (dayjs.isDayjs(v)) return v.format('YYYY-MM-DD');
+    const opt = props.options?.find((o) => o.value === v);
+    if (opt && typeof opt.label === 'string')
+      return opt.label.replace(/ · \d+$/, '');
+    if (typeof v === 'string' || typeof v === 'number') return String(v);
+    return '';
+  };
+  if (Array.isArray(value)) {
+    const parts = value.map(one);
+    if (parts.some((x) => !x)) return '';
+    return control.type === DatePicker.RangePicker
+      ? parts.join(' ~ ')
+      : parts.join('、');
+  }
+  return one(value);
+};
+
+/**
+ * 算出「更多筛选」里已生效条件的胶囊（S16）：表单页读表单值，去掉后立即查询；
+ * 受控页读控件的 value，去掉后等页面用新值重渲染再查询（不用旧的条件）。
+ */
+const MoreChips: React.FC<{
+  more: React.ReactNode;
+  open: boolean;
+  onSearch?: () => void;
+}> = ({ more, open, onSearch }) => {
+  const { pathname } = useLocation();
+  const form = Form.useFormInstance();
+  const fields = collectFields(more);
+  // 订阅表单值：值变了胶囊跟着变（没有表单时传空，不会报警告）
+  Form.useWatch([], form);
+  const [pending, setPending] = useState(false);
+  useEffect(() => {
+    if (!pending) return;
+    setPending(false);
+    onSearch?.();
+  }, [pending, onSearch]);
+  const chips: FilterChipItem[] = open
+    ? []
+    : fields.flatMap((f) => {
+        const cp = f.control.props as {
+          value?: unknown;
+          onChange?: (v: unknown) => void;
+        };
+        const fromForm = f.name !== undefined && !!form;
+        const value = fromForm
+          ? form.getFieldValue(f.name as string)
+          : cp.value;
+        const text = displayOf(f.control, value);
+        if (!text) return [];
+        return [
+          {
+            key: f.label,
+            label: `${f.label}：${text}`,
+            onRemove: () => {
+              if (fromForm) {
+                form.setFieldValue(f.name as string, undefined);
+                onSearch?.();
+              } else {
+                cp.onChange?.(undefined);
+                setPending(true);
+              }
+            },
+          },
+        ];
+      });
+  useEffect(() => {
+    publishChips(pathname, chips);
+  });
+  useEffect(() => () => publishChips(pathname, []), [pathname]);
+  return null;
+};
+
 /**
  * 搜索条件区（ui-redesign D22）：默认排成一行——常用条件的名称在输入框内作前缀，右侧「更多筛选」「重置」「查询」；
  * 放不下时自动换行。more 为收起来的其余条件，按钮显示生效数量 moreCount；
@@ -654,6 +794,7 @@ export const FilterCard: React.FC<{
   );
   return (
     <FilterLayoutContext.Provider value={layout}>
+      {more && <MoreChips more={more} open={open} onSearch={onSearch} />}
       <Panel
         style={{ marginBottom: 16, padding: line ? 16 : 20 }}
         aria-label="搜索条件"
@@ -769,9 +910,12 @@ export const MainCard: React.FC<{
   quick?: React.ReactNode;
   chips?: FilterChipItem[];
   children: React.ReactNode;
-}> = ({ left, right, quick, chips, children }) => {
+}> = ({ left, right, quick, chips: own, children }) => {
   const { palette } = useAppTheme();
-  const hasChips = (chips ?? []).length > 0;
+  const { pathname } = useLocation();
+  const auto = useAutoChips(pathname);
+  const chips = [...(own ?? []), ...(auto ?? [])];
+  const hasChips = chips.length > 0;
   return (
     <Panel style={{ padding: 16, minWidth: 0 }}>
       {(left || right || quick || hasChips) && (
@@ -800,7 +944,7 @@ export const MainCard: React.FC<{
           >
             {left}
             {quick}
-            {chips?.map((c) => (
+            {chips.map((c) => (
               <FilterChip key={c.key} item={c} />
             ))}
           </div>
