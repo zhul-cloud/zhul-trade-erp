@@ -1,8 +1,8 @@
 import { InboxOutlined, SearchOutlined } from '@ant-design/icons';
 import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Button, Input, Select, Space, Table } from 'antd';
-import { Eye } from 'lucide-react';
+import { Button, Input, Select, Table } from 'antd';
+import { Eye, PackageCheck } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
@@ -15,7 +15,7 @@ import {
   PageHeader,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { IconButton } from '@/components/Shell';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
@@ -206,21 +206,25 @@ const Receipts: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 130,
+      width: rowActionsWidth(2),
       fixed: 'right',
       render: (_, r) => (
-        <Space size={12}>
-          {canEdit && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setAccepting(r.id)}
-            >
-              验收入库
-            </button>
-          )}
-          <Link to={DOC_PATHS.shipment(r.id)}>查看</Link>
-        </Space>
+        <RowActions
+          inline={[
+            canEdit && {
+              key: 'accept',
+              label: '验收入库',
+              icon: <PackageCheck size={18} />,
+              onClick: () => setAccepting(r.id),
+            },
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(DOC_PATHS.shipment(r.id)),
+            },
+          ]}
+        />
       ),
     },
   ];
@@ -331,14 +335,18 @@ const Receipts: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 64,
+      width: rowActionsWidth(1),
       fixed: 'right',
       render: (_, r) => (
-        <IconButton
-          label="查看"
-          size={32}
-          icon={<Eye size={18} />}
-          onClick={() => history.push(DOC_PATHS.receipt(r.id))}
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(DOC_PATHS.receipt(r.id)),
+            },
+          ]}
         />
       ),
     },

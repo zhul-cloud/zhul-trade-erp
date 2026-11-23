@@ -1,7 +1,8 @@
 import { SearchOutlined } from '@ant-design/icons';
-import { history, Link, useAccess, useLocation } from '@umijs/max';
+import { history, useAccess, useLocation } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Form, Input, Select, Table } from 'antd';
+import { PackageMinus, ScrollText, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -13,6 +14,7 @@ import {
   SummaryBar,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
@@ -153,29 +155,25 @@ const BatchRows: React.FC<{
     {
       title: '操作',
       key: 'op',
-      width: 170,
+      width: rowActionsWidth(2),
       render: (_, b) =>
         b.free > 0 ? (
-          <span style={{ display: 'inline-flex', gap: 12 }}>
-            {canOut && (
-              <button
-                type="button"
-                className="zhul-link"
-                onClick={() => onOutbound(targetOf(row))}
-              >
-                其他出库
-              </button>
-            )}
-            {canReturn && (
-              <button
-                type="button"
-                className="zhul-link"
-                onClick={() => onReturn(targetOf(row))}
-              >
-                退回供应商
-              </button>
-            )}
-          </span>
+          <RowActions
+            inline={[
+              canOut && {
+                key: 'out',
+                label: '其他出库',
+                icon: <PackageMinus size={18} />,
+                onClick: () => onOutbound(targetOf(row)),
+              },
+              canReturn && {
+                key: 'return',
+                label: '退回供应商',
+                icon: <Undo2 size={18} />,
+                onClick: () => onReturn(targetOf(row)),
+              },
+            ]}
+          />
         ) : null,
     },
   ];
@@ -335,14 +333,22 @@ const StocksPage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 70,
+      width: rowActionsWidth(1),
       fixed: 'right',
       render: (_, r) => (
-        <Link
-          to={`/warehouse/moves?productId=${r.productId}&warehouseId=${r.warehouseId}&model=${encodeURIComponent(r.model)}`}
-        >
-          流水
-        </Link>
+        <RowActions
+          inline={[
+            {
+              key: 'moves',
+              label: '流水',
+              icon: <ScrollText size={18} />,
+              onClick: () =>
+                history.push(
+                  `/warehouse/moves?productId=${r.productId}&warehouseId=${r.warehouseId}&model=${encodeURIComponent(r.model)}`,
+                ),
+            },
+          ]}
+        />
       ),
     },
   ];

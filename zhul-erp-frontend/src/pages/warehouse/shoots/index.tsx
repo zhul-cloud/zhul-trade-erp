@@ -1,17 +1,8 @@
 import { InfoCircleOutlined } from '@ant-design/icons';
 import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import {
-  App,
-  Button,
-  Drawer,
-  Input,
-  Select,
-  Skeleton,
-  Space,
-  Table,
-} from 'antd';
-import { Search } from 'lucide-react';
+import { App, Button, Drawer, Input, Select, Skeleton, Table } from 'antd';
+import { Camera, Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -21,6 +12,7 @@ import {
   PageHeader,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import MediaDrawer from '@/pages/operations/media/MediaDrawer';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
@@ -179,19 +171,23 @@ const Shoots: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 110,
+      width: rowActionsWidth(1),
       fixed: 'right',
-      render: (_, r) => (
-        <Space size={12}>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => setOpen(r.id)}
-          >
-            {r.status === 1 && canEdit ? '拍摄' : '查看'}
-          </button>
-        </Space>
-      ),
+      render: (_, r) => {
+        const shoot = r.status === 1 && canEdit;
+        return (
+          <RowActions
+            inline={[
+              {
+                key: 'open',
+                label: shoot ? '拍摄' : '查看',
+                icon: shoot ? <Camera size={18} /> : <Eye size={18} />,
+                onClick: () => setOpen(r.id),
+              },
+            ]}
+          />
+        );
+      },
     },
   ];
 

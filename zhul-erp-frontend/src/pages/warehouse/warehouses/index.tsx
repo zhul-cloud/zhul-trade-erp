@@ -3,13 +3,15 @@ import {
   HomeOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
-import { Link, useAccess } from '@umijs/max';
+import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Form, Input, Modal, Select, Skeleton, Table } from 'antd';
+import { Boxes, Pencil } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { FilterField, MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
@@ -247,32 +249,34 @@ const WarehousesPage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 140,
+      width: rowActionsWidth(2),
       fixed: 'right',
       render: (_, r) => (
-        <span style={{ display: 'inline-flex', gap: 12 }}>
-          {r.type === WH_OWN && editable && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => {
-                setRenaming(r);
-                setName(r.name);
-              }}
-            >
-              改名
-            </button>
-          )}
-          <Link
-            to={
-              r.type === WH_OWN
-                ? '/warehouse/stocks?warehouse=own'
-                : `/warehouse/stocks?warehouseId=${r.id}`
-            }
-          >
-            查看库存
-          </Link>
-        </span>
+        <RowActions
+          inline={[
+            r.type === WH_OWN &&
+              editable && {
+                key: 'rename',
+                label: '改名',
+                icon: <Pencil size={18} />,
+                onClick: () => {
+                  setRenaming(r);
+                  setName(r.name);
+                },
+              },
+            {
+              key: 'stock',
+              label: '查看库存',
+              icon: <Boxes size={18} />,
+              onClick: () =>
+                history.push(
+                  r.type === WH_OWN
+                    ? '/warehouse/stocks?warehouse=own'
+                    : `/warehouse/stocks?warehouseId=${r.id}`,
+                ),
+            },
+          ]}
+        />
       ),
     },
   ];

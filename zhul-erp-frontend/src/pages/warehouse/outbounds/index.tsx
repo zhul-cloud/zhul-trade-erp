@@ -7,7 +7,8 @@ import {
 } from '@ant-design/icons';
 import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Input, Select, Space, Table } from 'antd';
+import { App, Button, Input, Select, Table } from 'antd';
+import { Eye, PackageOpen } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
@@ -21,6 +22,7 @@ import {
   PageHeader,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import {
   kg,
@@ -165,29 +167,15 @@ const Outbounds: React.FC = () => {
     );
   };
 
-  const action = (r: Outbound) => {
-    if (tab === 'pending' && canPack)
-      return (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => setPacking(r.id)}
-        >
-          打包
-        </button>
-      );
-    if (tab === 'packed' && canPack)
-      return (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => setPacking(r.id)}
-        >
-          修改装箱
-        </button>
-      );
-    return null;
-  };
+  /** 待打包、已打包页签的行内主操作：打包、修改装箱 */
+  const action = (r: Outbound) =>
+    canPack &&
+    (tab === 'pending' || tab === 'packed') && {
+      key: 'pack',
+      label: tab === 'pending' ? '打包' : '修改装箱',
+      icon: <PackageOpen size={18} />,
+      onClick: () => setPacking(r.id),
+    };
 
   const columns: TableColumnsType<Outbound> = [
     {
@@ -310,13 +298,20 @@ const Outbounds: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 120,
+      width: rowActionsWidth(2),
       fixed: 'right',
       render: (_, r) => (
-        <Space size={12}>
-          {action(r)}
-          <Link to={DOC_PATHS.outbound(r.id)}>查看</Link>
-        </Space>
+        <RowActions
+          inline={[
+            action(r),
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(DOC_PATHS.outbound(r.id)),
+            },
+          ]}
+        />
       ),
     },
   ];
