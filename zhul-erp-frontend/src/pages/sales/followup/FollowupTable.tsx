@@ -701,6 +701,7 @@ export const FollowupTable: React.FC<{
     ),
   };
   const actionCol: TableColumnsType<Row>[number] = {
+    // lint-ui-ignore row-actions: 客户跟进工作队列，保留按钮
     title: '操作',
     key: 'action',
     width: 190,

@@ -122,6 +122,7 @@ export const SignalTable: React.FC<{
     // 列表固定的四列（audit UI-093）
     ...auditColumns<Signal>(),
     {
+      // lint-ui-ignore row-actions: 供应链跟进工作队列，保留按钮
       title: '操作',
       key: 'op',
       width: 120,

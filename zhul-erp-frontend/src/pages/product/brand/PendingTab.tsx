@@ -240,6 +240,7 @@ const PendingTab: React.FC<{
       render: (v: string) => <span className="num">{formatDateTime(v)}</span>,
     },
     {
+      // lint-ui-ignore row-actions: 待审品牌的审核队列，保留文字按钮
       title: '操作',
       key: 'op',
       width: 240,

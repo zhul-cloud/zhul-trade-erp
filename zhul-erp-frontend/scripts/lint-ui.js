@@ -42,6 +42,7 @@ const RULE_NAMES = new Set([
   'plain-empty',
   'row-tint',
   'danger-confirm',
+  'row-actions',
 ]);
 
 /** 按行检查的文字类规则（在去掉注释后的代码上匹配）；text: 确认弹窗等豁免范围里不查 */
@@ -117,6 +118,8 @@ const LINE_RULES = [
 ];
 
 const MSG = {
+  rowActions:
+    '操作列用 RowActions（行内最多 2 个图标，其余收进「更多」，列宽 rowActionsWidth）；审批、工作队列等例外用 lint-ui-ignore row-actions 写明原因',
   color: '页面里不写死颜色，用 useAppTheme().palette 的令牌',
   header: '旧页头与面包屑：改用 ListLayout 的 PageHeader（不带说明文字），不显示面包屑',
 };
@@ -262,6 +265,19 @@ function checkSource(src, rel) {
     }
     if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && /^([A-Z]\w*)?PageTitle$/.test(n.name.text)) {
       push('old-header', 'error', MSG.header, lineOf(n.getStart(sf)));
+    }
+  });
+
+  // 表格操作列：title 为「操作」的列用 RowActions（审批、工作队列等例外写 lint-ui-ignore 并说明）
+  walk(sf, (n) => {
+    if (!ts.isObjectLiteralExpression(n)) return;
+    const prop = (k) =>
+      n.properties.find((x) => ts.isPropertyAssignment(x) && x.name.getText() === k);
+    const title = prop('title');
+    if (!title || stringOf(title.initializer) !== '操作') return;
+    const render = prop('render');
+    if (render && !render.initializer.getText(sf).includes('RowActions')) {
+      push('row-actions', 'error', MSG.rowActions, lineOf(title.getStart(sf)));
     }
   });
 

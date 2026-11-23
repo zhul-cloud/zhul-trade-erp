@@ -1509,6 +1509,7 @@ const Candidates: React.FC = () => {
         ]),
     ...auditColumns<Candidate>(),
     {
+      // lint-ui-ignore row-actions: 候选商品审核队列，保留文字按钮
       title: '操作',
       key: 'actions',
       width: 90,

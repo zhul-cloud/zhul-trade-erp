@@ -129,6 +129,7 @@ const VouchersPage: React.FC = () => {
       render: (v?: string) => (v ? formatDateTime(v).slice(0, 16) : dash),
     },
     {
+      // lint-ui-ignore row-actions: 生成凭证要显示进度，保留按钮
       title: '操作',
       key: 'op',
       width: 140,

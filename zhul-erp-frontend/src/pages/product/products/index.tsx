@@ -815,6 +815,7 @@ const ProductListInner: React.FC = () => {
     ...(refine && refineState !== 'todo' && canEdit
       ? ([
           {
+            // lint-ui-ignore row-actions: AI 细分结果的采纳、改选、忽略队列，保留文字按钮
             title: '操作',
             fixed: 'right',
             key: 'refineOp',

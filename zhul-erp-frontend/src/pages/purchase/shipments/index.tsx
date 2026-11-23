@@ -500,6 +500,7 @@ const DiffsTab: React.FC<{ pending?: number; onChanged: () => void }> = ({
     },
     ...auditColumns<Discrepancy>(),
     {
+      // lint-ui-ignore row-actions: 到货差异的处理队列，保留文字按钮
       title: '操作',
       key: 'actions',
       width: 100,

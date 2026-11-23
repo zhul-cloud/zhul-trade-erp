@@ -234,6 +234,7 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
     },
     ...auditColumns<RefundRequest>(),
     {
+      // lint-ui-ignore row-actions: 审批列表，通过、驳回保留文字按钮
       title: '操作',
       key: 'op',
       width: 170,

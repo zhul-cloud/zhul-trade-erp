@@ -152,6 +152,7 @@ const OverpaidTab: React.FC<{ onCount?: (n: number) => void }> = ({
     },
     { title: '业务员', dataIndex: 'salesName', width: 100 },
     {
+      // lint-ui-ignore row-actions: 工作队列，多收款逐笔处理（转余额或退回），保留按钮
       title: '操作',
       key: 'op',
       width: 220,

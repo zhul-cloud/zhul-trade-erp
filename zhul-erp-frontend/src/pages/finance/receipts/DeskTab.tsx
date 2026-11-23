@@ -260,6 +260,7 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
       render: (v?: string) => v ?? '—',
     },
     {
+      // lint-ui-ignore row-actions: 工作队列，每行一个主要动作「登记到账」，保留按钮
       title: '操作',
       key: 'actions',
       width: 130,

@@ -335,6 +335,7 @@ import {
 | `plain-empty` | 提示 | 表格空状态直接写一句话：用 `tableEmpty(文字, loading)` 或 `listEmpty()` |
 | `row-tint` | 错误 | 整行铺红、橙浅底：用 `rowAlert()` |
 | `danger-confirm` | 错误 | 自己给确认框配红色按钮（`okButtonProps: { danger: true }`、`okType: 'danger'`）：用 `useConfirmDanger()` |
+| `row-actions` | 错误 | 表格「操作」列没用 `RowActions`：审批、审核、工作队列、要显示进度的长操作等例外，在列上写 `lint-ui-ignore row-actions: 原因` |
 
 - 确认弹窗（`confirm`）、警告条（`Alert`）、`Popconfirm` 里的文字不检查，按「说明文字」一节原样保留。
 - `npm run lint:ui -- src/pages/sales` 只查指定目录（按当前所在目录解析，找不到时报错），有错误就失败；不带参数时扫全仓库，只有已迁移目录（脚本里的 `ENFORCED`）有错误才失败。每迁完一个业务域，把目录加进 `ENFORCED`。全部迁完后（任务 7.8）并入 `npm run lint`。

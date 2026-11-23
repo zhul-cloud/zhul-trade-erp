@@ -281,6 +281,7 @@ const ProjectDetailPage: React.FC = () => {
         ),
     },
     {
+      // lint-ui-ignore row-actions: 开发候选的处理队列（记处理、关联供应商库），保留文字按钮
       title: '操作',
       key: 'op',
       width: 150,
