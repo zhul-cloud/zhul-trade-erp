@@ -1,13 +1,15 @@
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
-import { Link, useAccess } from '@umijs/max';
+import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Button, Form, Input, Select, Table } from 'antd';
+import { Eye } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import EllipsisText from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
 import { FilterField, MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -183,9 +185,20 @@ const OtherOutboundsPage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 70,
+      width: rowActionsWidth(1),
       fixed: 'right',
-      render: (_, r) => <Link to={ooPath(r.id)}>查看</Link>,
+      render: (_, r) => (
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(ooPath(r.id)),
+            },
+          ]}
+        />
+      ),
     },
   ];
 

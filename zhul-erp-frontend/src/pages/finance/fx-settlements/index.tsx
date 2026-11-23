@@ -17,6 +17,7 @@ import {
   Tabs,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Eye } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CardTitle,
@@ -28,6 +29,7 @@ import {
   SummaryBar,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import {
@@ -589,12 +591,19 @@ const FxSettlementPage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 70,
+      width: rowActionsWidth(1),
       fixed: 'right',
       render: (_, r) => (
-        <button type="button" className="zhul-link" onClick={() => open(r.id)}>
-          查看
-        </button>
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => open(r.id),
+            },
+          ]}
+        />
       ),
     },
   ];

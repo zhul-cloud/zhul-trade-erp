@@ -1,9 +1,9 @@
 import { DownloadOutlined } from '@ant-design/icons';
-import { Link } from '@umijs/max';
+import { history, Link } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Search } from 'lucide-react';
+import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { tableEmpty } from '@/components/EmptyState';
@@ -15,6 +15,7 @@ import {
   SummaryBar,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { FilterCard } from '@/pages/warehouse/inventoryParts';
@@ -175,9 +176,20 @@ const CostAdjustmentsPage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 70,
+      width: rowActionsWidth(1),
       fixed: 'right',
-      render: (_, r) => <Link to={caPath(r.id)}>查看</Link>,
+      render: (_, r) => (
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(caPath(r.id)),
+            },
+          ]}
+        />
+      ),
     },
   ];
 

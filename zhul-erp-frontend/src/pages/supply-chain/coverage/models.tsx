@@ -1,5 +1,6 @@
+import { Eye } from 'lucide-react';
 import { BranchesOutlined, SearchOutlined } from '@ant-design/icons';
-import { Link, useLocation } from '@umijs/max';
+import { history, Link, useLocation } from '@umijs/max';
 import { Input, Select, Table, type TableColumnsType } from 'antd';
 import dayjs from 'dayjs';
 import { PageHeader } from '@/components/ListLayout';
@@ -22,6 +23,7 @@ import {
   supplyApi,
 } from '../service';
 import { auditColumns } from '@/components/UserName';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 
 /** 列表筛选与页码放在一起：改筛选和回到第 1 页一次完成，不会先按旧页码多发一次请求（audit UI-090） */
 interface Filters {
@@ -190,9 +192,20 @@ const CoverageModelsPage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 70,
+      width: rowActionsWidth(1),
       fixed: 'right',
-      render: (_, d) => <Link to={PATHS.demand(d.id)}>查看</Link>,
+      render: (_, d) => (
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(PATHS.demand(d.id)),
+            },
+          ]}
+        />
+      ),
     },
   ];
 

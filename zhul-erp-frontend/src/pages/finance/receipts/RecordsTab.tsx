@@ -2,7 +2,7 @@ import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Checkbox, DatePicker, Input, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
-import { Search } from 'lucide-react';
+import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerSub } from '@/components/DocFields';
 import { ellipsisRender } from '@/components/EllipsisText';
@@ -14,6 +14,7 @@ import {
   SummaryBar,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { PATHS, Pill } from '@/pages/sales/components';
@@ -319,12 +320,19 @@ const RecordsTab: React.FC = () => {
     {
       title: '操作',
       key: 'view',
-      width: 70,
+      width: rowActionsWidth(1),
       fixed: 'right',
       render: (_, r) => (
-        <button type="button" className="zhul-link" onClick={() => open(r)}>
-          查看
-        </button>
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => open(r),
+            },
+          ]}
+        />
       ),
     },
   ];

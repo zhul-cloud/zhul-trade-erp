@@ -1,5 +1,5 @@
 import { WarningOutlined } from '@ant-design/icons';
-import { Link, useAccess } from '@umijs/max';
+import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   Alert,
@@ -17,7 +17,7 @@ import {
   Tabs,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Search } from 'lucide-react';
+import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -30,6 +30,7 @@ import {
   SummaryBar,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { auditColumns } from '@/pages/purchase/components';
 import { readBizError } from '@/pages/sales/service';
 import {
@@ -679,9 +680,20 @@ const _ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
     {
       title: '操作',
       key: 'op',
-      width: 90,
+      width: rowActionsWidth(1),
       fixed: 'right',
-      render: (_, r) => <Link to={DOC_PATHS.reimbursement(r.id)}>查看</Link>,
+      render: (_, r) => (
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(DOC_PATHS.reimbursement(r.id)),
+            },
+          ]}
+        />
+      ),
     },
   ];
 
