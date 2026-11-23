@@ -61,11 +61,16 @@ const globalCss = (
   /* 页签撑满顶栏、处在横向滚动容器里：焦点框向内画，不被裁掉 */
   html body [role='tab']:focus-visible { ${focusInset} }
   html { scroll-padding-top: 96px; }
-  /* 输入类控件获得焦点：antd 自带的主题色淡阴影对白底不够 3:1，提高优先级换成同一套焦点框。
-     带图标、清除按钮的输入框，框画在外层 affix-wrapper 上，里面的 input 不再画，否则出现框中框 */
+  /* 输入类控件获得焦点：鼠标点进去也会出现，不用按钮那套粗焦点框（外加灰圈显得重），
+     改为边框换主题色 + 3px 主题色淡光晕。带图标、清除按钮的输入框画在外层 affix-wrapper 上，
+     里面的 input 不再画，否则出现框中框 */
   html body .ant-select-focused, html body .ant-picker-focused, html body .ant-input-affix-wrapper-focused,
-  html body .ant-input:not(.ant-input-affix-wrapper *):focus, html body .ant-input-number-focused, html body .ant-cascader-focused,
-  html body .ant-mentions-focused, .ant-table-thead th[tabindex]:focus-visible { ${focusImportant} }
+  html body .ant-input:not(.ant-input-affix-wrapper *):focus, html body .ant-input-number-focused,
+  html body .ant-cascader-focused, html body .ant-mentions-focused {
+    outline: none !important; border-color: ${light ? p.primary : p.link} !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, ${light ? p.primary : p.link} 28%, transparent) !important;
+  }
+  .ant-table-thead th[tabindex]:focus-visible { ${focusImportant} }
   .ant-input-clear-icon, .ant-select-clear { padding: 6px; margin: -6px; box-sizing: content-box; }
   /* 深色下主题原色当文字对比度不够，这几处文字改用链接色 */
   .ant-pro-query-filter-collapse-button,
