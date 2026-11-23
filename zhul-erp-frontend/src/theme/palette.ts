@@ -20,6 +20,8 @@ interface Preset {
   darkSoft: string;
   /** 主题色作为图表第一个系列时，去掉色相最接近的这个系列色 */
   chartDrop: string;
+  /** 原色实底上的文字：白字对比度不足 3:1 时用深色（琥珀 1.93:1，深色字 7.4:1；ui-redesign D24） */
+  onPrimary?: string;
 }
 
 export const PRESETS: Record<PresetKey, Preset> = {
@@ -30,6 +32,7 @@ export const PRESETS: Record<PresetKey, Preset> = {
     darkLink: '#FDA92D',
     darkSoft: '#3E311D',
     chartDrop: '#B87A14',
+    onPrimary: '#212B36',
   },
   teal: {
     name: '青绿',
@@ -127,15 +130,20 @@ const BASE = {
     mute: '#637381',
     /** 只用于禁用和占位，不作正文 */
     faint: '#919EAB',
-    green: '#118D57',
+    green: '#0D7A4A',
     greenSoft: '#E5F8EC',
-    orange: '#B76E00',
+    orange: '#9A5B00',
     orangeSoft: '#FFF5E0',
     red: '#B71D18',
     redSoft: '#FFEBE6',
     info: '#006C9C',
     infoSoft: '#E0F6FA',
     neutralSoft: '#ECEEF0',
+    /** 中性标签文字：在中性浅底上不低于 4.5:1 */
+    neutral: '#56636F',
+    /** 图表：往期宽柱、非重点细条（图表只亮一处） */
+    chartMuted: '#DFE3E8',
+    barMuted: '#C4CDD5',
   },
   dark: {
     canvas: '#0A0A0A',
@@ -157,11 +165,14 @@ const BASE = {
     greenSoft: '#1B3525',
     orange: '#FFAB00',
     orangeSoft: '#3F3116',
-    red: '#FF5630',
+    red: '#FF6A47',
     redSoft: '#3F241E',
     info: '#00B8D9',
     infoSoft: '#163339',
     neutralSoft: '#2F2F2F',
+    neutral: '#A0A0A0',
+    chartMuted: '#363636',
+    barMuted: '#4A4A4A',
   },
 } as const;
 
@@ -199,8 +210,10 @@ export function buildPalette(
     orangeMain: STATUS_MAIN.orange,
     redMain: STATUS_MAIN.red,
     infoMain: STATUS_MAIN.info,
-    /** 主按钮底色（白字） */
+    /** 主按钮底色 */
     primary: pr.primary,
+    /** 主题色实底上的文字（主按钮、Logo 首字、实底标记） */
+    onPrimary: pr.onPrimary ?? '#FFFFFF',
     /** 链接、单号、选中文字 */
     link,
     /** 选中浅底：选中的菜单子项、快捷筛选、当前标签 */
@@ -239,8 +252,16 @@ export const chartSeries = (
   ];
 };
 
-/** 浅色卡片、侧栏、顶栏、主按钮的三层柔和阴影；深色不用阴影 */
+/** 浅色卡片、侧栏、顶栏的柔和扩散阴影（ui-redesign D30）；深色不用阴影 */
 export const CARD_SHADOW =
+  '0 0 2px rgba(145,158,171,.2), 0 12px 24px -4px rgba(145,158,171,.12)';
+
+/** 可点击卡片悬停时加深阴影，不位移（ui-redesign D3） */
+export const CARD_SHADOW_HOVER =
+  '0 0 2px rgba(145,158,171,.2), 0 16px 32px -4px rgba(145,158,171,.2)';
+
+/** 主按钮的浮起阴影（贴边的薄阴影，按钮小，用扩散阴影会糊） */
+export const BUTTON_SHADOW =
   '0 3px 1px -2px rgba(145,158,171,.2), 0 2px 2px rgba(145,158,171,.14), 0 1px 5px rgba(145,158,171,.12)';
 
 /** 浅色下拉菜单、气泡卡片的阴影 */

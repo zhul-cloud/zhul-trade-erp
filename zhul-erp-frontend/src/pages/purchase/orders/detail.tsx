@@ -407,7 +407,7 @@ const PurchaseOrderDetail: React.FC = () => {
             [r.brand, r.category].filter(Boolean).join(' · ') || '—',
           )}
           {r.modelUpdatedTo && (
-            <div style={{ color: palette.red, fontSize: 12, fontWeight: 500 }}>
+            <div style={{ color: palette.red, fontSize: 12, fontWeight: 400 }}>
               <WarningOutlined style={{ marginRight: 4 }} />
               真实型号已更新为 <b>{r.modelUpdatedTo}</b>，请与供应商核对
             </div>

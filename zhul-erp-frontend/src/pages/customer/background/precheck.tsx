@@ -149,7 +149,7 @@ export const PrecheckList: React.FC<{
             style={{
               flex: `0 0 ${dense ? 72 : 88}px`,
               color: palette.sub,
-              fontWeight: 500,
+              fontWeight: 600,
             }}
           >
             {i.label}

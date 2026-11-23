@@ -604,7 +604,7 @@ const DeptPage: React.FC = () => {
                 <div style={{ fontSize: 12, color: p.mute, marginBottom: 5 }}>
                   独立核算
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 500, color: p.ink }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: p.ink }}>
                   {selectedDept.isBusinessUnit === 1 ? (
                     <Space size={8}>
                       <Tag color="purple" style={{ marginInlineEnd: 0 }}>
@@ -726,7 +726,7 @@ const DeptPage: React.FC = () => {
         okButtonProps={{ disabled: !markMonth }}
         destroyOnHidden
       >
-        <div style={{ marginBottom: 8, fontWeight: 500 }}>
+        <div style={{ marginBottom: 8, fontWeight: 600 }}>
           {selectedDept?.name}
         </div>
         <div style={{ fontSize: 12, color: p.mute, marginBottom: 6 }}>
@@ -889,7 +889,7 @@ const Field: React.FC<{ label: string; value: string; dot?: string }> = ({
       <div
         style={{
           fontSize: 14,
-          fontWeight: 500,
+          fontWeight: 600,
           color: p.ink,
           display: 'flex',
           alignItems: 'center',

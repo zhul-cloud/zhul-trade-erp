@@ -96,18 +96,29 @@ describe('设计令牌', () => {
     }
   });
 
-  it('浅色下状态文字色深一档，在浅底上对比度不低于 3.5；深色下用原色', () => {
-    const l = buildPalette('light');
-    const d = buildPalette('dark');
-    for (const [fg, bg] of [
-      ['green', 'greenSoft'],
-      ['orange', 'orangeSoft'],
-      ['red', 'redSoft'],
-      ['info', 'infoSoft'],
-    ] as const) {
-      expect(contrast(l[fg], l[bg])).toBeGreaterThanOrEqual(3.5);
-      expect(d[fg]).toBe(d[`${fg}Main`]);
+  it('状态文字色（12px 标签字）在卡片底和自身浅底上都不低于 4.5:1，浅色深色都是（ui-redesign D17）', () => {
+    for (const m of ['light', 'dark'] as const) {
+      const p = buildPalette(m);
+      for (const [fg, bg] of [
+        ['green', 'greenSoft'],
+        ['orange', 'orangeSoft'],
+        ['red', 'redSoft'],
+        ['info', 'infoSoft'],
+        ['neutral', 'neutralSoft'],
+      ] as const) {
+        expect(contrast(p[fg], p[bg])).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(p[fg], p.card)).toBeGreaterThanOrEqual(4.5);
+      }
     }
+  });
+
+  it('主题色实底上的文字：每种主题色在浅色下都不低于 4.5:1（琥珀用深色字）', () => {
+    for (const k of PRESET_ORDER) {
+      const p = buildPalette('light', k);
+      expect(contrast(p.onPrimary, p.primary)).toBeGreaterThanOrEqual(k === 'amber' ? 4.5 : 3);
+    }
+    expect(buildPalette('light', 'amber').onPrimary).toBe('#212B36');
+    expect(buildPalette('light', 'royal').onPrimary).toBe('#FFFFFF');
   });
 
   it('不认识的主题色回到默认琥珀，原型链上的键也不认', () => {

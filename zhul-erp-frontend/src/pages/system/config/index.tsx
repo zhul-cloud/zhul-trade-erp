@@ -722,7 +722,7 @@ const InfoRow: React.FC<{ label: string; value: string; mono?: boolean }> = ({
       <span
         style={{
           fontSize: 13,
-          fontWeight: 500,
+          fontWeight: 600,
           color: p.ink,
           fontFamily: mono ? 'monospace' : undefined,
         }}

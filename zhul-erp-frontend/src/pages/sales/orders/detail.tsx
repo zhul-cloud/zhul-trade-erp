@@ -283,7 +283,7 @@ const OrderDetail: React.FC = () => {
           style={{
             margin: 0,
             fontSize: 16,
-            fontWeight: 500,
+            fontWeight: 600,
             color: palette.ink,
           }}
         >
@@ -551,7 +551,7 @@ const OrderDetail: React.FC = () => {
                   fontSize: 13,
                   fontWeight: 600,
                   background: on ? palette.primary : palette.neutralSoft,
-                  color: on ? '#fff' : palette.mute,
+                  color: on ? palette.onPrimary : palette.mute,
                 }}
               >
                 {n + 1}

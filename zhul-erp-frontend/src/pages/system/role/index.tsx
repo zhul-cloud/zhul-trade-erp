@@ -686,7 +686,7 @@ const RolePage: React.FC = () => {
             <Space orientation="vertical" style={{ width: '100%' }}>
               {SCOPE_OPTIONS.map((opt) => (
                 <Radio key={opt.value} value={opt.value}>
-                  <div style={{ fontWeight: 500 }}>{opt.title}</div>
+                  <div style={{ fontWeight: 400 }}>{opt.title}</div>
                   <div style={{ fontSize: 12, color: p.mute }}>{opt.desc}</div>
                 </Radio>
               ))}

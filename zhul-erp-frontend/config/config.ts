@@ -138,8 +138,8 @@ export default defineConfig({
     // default zh-CN
     default: 'zh-CN',
     antd: true,
-    // default true, when it is true, will use `navigator.language` overwrite default
-    baseNavigator: true,
+    // 不跟随浏览器语言：界面文案是中文，英文浏览器下 antd 组件也要中文（ui-redesign S8）；用户在顶栏切换的语言照常生效
+    baseNavigator: false,
   },
   /**
    * @name antd 插件

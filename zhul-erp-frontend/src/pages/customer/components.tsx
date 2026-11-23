@@ -124,8 +124,8 @@ export const SectionCard: React.FC<{
             id={id}
             style={{
               margin: 0,
-              fontSize: 18,
-              fontWeight: 500,
+              fontSize: 16,
+              fontWeight: 600,
               color: palette.ink,
             }}
           >

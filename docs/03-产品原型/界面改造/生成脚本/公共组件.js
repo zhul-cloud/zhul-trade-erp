@@ -413,7 +413,7 @@ function bossBoard(T, name) {
     const data = [['新增商机', 12, null], ['询盘', 9, '75%'], ['报价', 14, null], ['PI', 6, '43%'], ['成交订单', 4, '67%']];
     const BW = w - 40;
     data.forEach(([l, v, rate], i) => {
-      if (i) sp(b, 14);
+      if (i) sp(b, 12);
       const r1 = box(b, { width: 'fill_container', layout: 'horizontal', alignItems: 'center', gap: 8 });
       tx(r1, l, { fontSize: 13, fill: solid(T.body), width: 'fill_container' });
       tx(r1, String(v), { fontSize: 14, fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) });
@@ -422,6 +422,7 @@ function bossBoard(T, name) {
       I(b, { type: 'frame', width: Math.round(BW * v / 14), height: 8, cornerRadius: 4, fill: solid(i === data.length - 1 ? P : T.barMuted) });
     });
     box(b, { width: 1, height: 'fill_container' });
+    sp(b, 12);
     tx(b, '本月新增商机 12 个，成交订单 4 张', { fontSize: 13, fill: solid(T.sub) });
   });
   // 排行：列表而非表格；头像（业务员首字 / 客户圆形国旗）+ 名称 + 4 高占比条（对第一名）+ 右列两行

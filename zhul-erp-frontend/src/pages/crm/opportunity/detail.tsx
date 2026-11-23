@@ -294,7 +294,7 @@ const OpportunityDetailPage: React.FC = () => {
       <div
         style={{
           color: mute || !value ? palette.mute : palette.ink,
-          fontWeight: 500,
+          fontWeight: 600,
           wordBreak: 'break-all',
         }}
       >

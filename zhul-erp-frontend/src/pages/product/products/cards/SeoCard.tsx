@@ -623,7 +623,7 @@ const KeywordLibrary: React.FC<{ keywords: PlatformContent['keywords'] }> = ({
                     padding: '2px 8px',
                     borderRadius: 6,
                     fontSize: 12,
-                    fontWeight: 500,
+                    fontWeight: 400,
                     color: fg,
                     background: bg,
                   }}

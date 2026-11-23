@@ -24,7 +24,7 @@ export const DefaultLogo: React.FC<{ siteName?: string; size: number }> = ({
         height: size,
         borderRadius: Math.round(size * LOGO_RADIUS_RATIO),
         background: palette.link,
-        color: '#FFFFFF',
+        color: palette.onPrimary,
         fontWeight: 800,
         fontSize: Math.round(size * LOGO_FONT_RATIO),
         display: 'inline-flex',
@@ -64,7 +64,8 @@ const drawDefaultIcon = (siteName?: string): string | undefined => {
   ctx.closePath();
   ctx.fillStyle = FAVICON_COLOR;
   ctx.fill();
-  ctx.fillStyle = '#FFFFFF';
+  // 默认 Logo 是琥珀底：白字只有 1.93:1，用深色字（与主按钮一致）
+  ctx.fillStyle = '#212B36';
   ctx.font = `800 ${size * LOGO_FONT_RATIO}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

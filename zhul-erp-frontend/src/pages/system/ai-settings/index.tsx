@@ -329,7 +329,7 @@ const ConnectionCard: React.FC<{
               style={{
                 display: 'block',
                 fontSize: 14,
-                fontWeight: 500,
+                fontWeight: 600,
                 color: off ? palette.mute : palette.ink,
               }}
             >
@@ -1138,7 +1138,7 @@ const AiSettingsPage: React.FC = () => {
           >
             <div>
               <div
-                style={{ fontSize: 13, fontWeight: 500, color: palette.ink }}
+                style={{ fontSize: 13, fontWeight: 600, color: palette.ink }}
               >
                 {k}
               </div>
@@ -1150,7 +1150,7 @@ const AiSettingsPage: React.FC = () => {
                 </div>
               )}
             </div>
-            <span style={{ fontSize: 14, fontWeight: 500, color: palette.ink }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: palette.ink }}>
               {v}
             </span>
           </div>
@@ -1191,7 +1191,7 @@ const AiSettingsPage: React.FC = () => {
         }}
       >
         <div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: palette.ink }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: palette.ink }}>
             每次解析最多搜索
           </div>
           <div style={{ fontSize: 12, color: palette.mute, marginTop: 4 }}>

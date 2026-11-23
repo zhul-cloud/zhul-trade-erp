@@ -41,7 +41,7 @@ describe('涨跌颜色', () => {
   it('深色下用深色的文字色', () => {
     const d = buildPalette('dark');
     expect(deltaColors(d, 'redUp').up).toBe(d.red);
-    expect(d.red).toBe('#FF5630');
+    expect(d.red).toBe('#FF6A47');
   });
 
   it('变化配上下箭头，跟着设置换色', () => {

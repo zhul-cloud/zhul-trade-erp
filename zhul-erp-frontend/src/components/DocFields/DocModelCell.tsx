@@ -88,7 +88,7 @@ const DocModelCell: React.FC<{
         </span>
       )}
       {updatedTo && (
-        <span style={{ color: tone, fontSize: 12, fontWeight: 500 }}>
+        <span style={{ color: tone, fontSize: 12, fontWeight: 400 }}>
           <WarningOutlined style={{ marginRight: 4 }} />
           真实型号已更新为 <b>{updatedTo}</b>
           {updatedTail}

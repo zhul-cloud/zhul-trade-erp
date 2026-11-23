@@ -2,6 +2,7 @@ import { theme as antdTheme, type ThemeConfig } from 'antd';
 import { SANS_FONT } from './fonts';
 import {
   buildPalette,
+  BUTTON_SHADOW,
   CARD_SHADOW,
   POPUP_SHADOW,
   type PresetKey,
@@ -64,8 +65,10 @@ export function buildAntdTheme(
       Button: {
         colorError: p.red,
         colorErrorHover: p.redMain,
-        fontWeight: 500,
-        primaryShadow: light ? CARD_SHADOW : 'none',
+        // 中文只用 400/600（Windows 微软雅黑没有 500）；琥珀主题主按钮用深色字
+        fontWeight: 400,
+        primaryColor: p.onPrimary,
+        primaryShadow: light ? BUTTON_SHADOW : 'none',
         dangerShadow: 'none',
         defaultShadow: 'none',
       },
@@ -76,25 +79,30 @@ export function buildAntdTheme(
       Cascader: { controlHeight: 40 },
       TreeSelect: { controlHeight: 40 },
       Mentions: { controlHeight: 40 },
-      Card: { headerFontSize: 18 },
+      // 字阶：卡片、弹窗标题 16/600（ui-redesign D26）
+      Card: { headerFontSize: 16 },
       // 表单校验提示、危险按钮直接拿 colorError / colorWarning 当文字色：换成文字色（浅色下深一档）
       Form: { colorError: p.red, colorWarning: p.orange },
       Modal: {
-        titleFontSize: 18,
+        titleFontSize: 16,
         contentBg: p.card,
         headerBg: p.card,
         footerBg: p.card,
         boxShadow: light ? DIALOG_SHADOW : 'none',
       },
+      // 表格：表头 48、13 号次要色；单行 48（ui-redesign D21）
       Table: {
         headerBg: p.head,
-        headerColor: p.ink,
+        headerColor: p.mute,
+        cellFontSize: 14,
+        cellPaddingBlock: 13,
+        cellPaddingInline: 12,
         headerSplitColor: 'transparent',
         rowHoverBg: p.hover,
         borderColor: p.hairline,
       },
       // 状态标签：12px，圆角 4，中性为中性浅底配次要文字色；语义色见全局样式
-      Tag: { defaultBg: p.neutralSoft, defaultColor: p.mute },
+      Tag: { defaultBg: p.neutralSoft, defaultColor: p.neutral },
       Tooltip: { colorTextLightSolid: '#FFFFFF' },
       Menu: {
         darkItemBg: p.sidebar,

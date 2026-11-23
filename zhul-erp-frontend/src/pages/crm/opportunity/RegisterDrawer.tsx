@@ -492,7 +492,7 @@ const RegisterDrawer: React.FC<{
                 border: `1px dashed ${palette.control}`,
                 background: 'none',
                 color: palette.link,
-                fontWeight: 500,
+                fontWeight: 600,
                 cursor: 'pointer',
               }}
             >

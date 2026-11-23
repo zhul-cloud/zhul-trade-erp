@@ -368,7 +368,7 @@ export const FilterField: React.FC<{
           alignItems: 'center',
           gap: 4,
           fontSize: 13,
-          fontWeight: 500,
+          fontWeight: 400,
           color: palette.sub,
         }}
       >
@@ -591,7 +591,7 @@ export const CardTitle: React.FC<{ children: React.ReactNode }> = ({
   const { palette } = useAppTheme();
   return (
     <h2
-      style={{ margin: 0, fontSize: 18, fontWeight: 500, color: palette.ink }}
+      style={{ margin: 0, fontSize: 16, fontWeight: 600, color: palette.ink }}
     >
       {children}
     </h2>
@@ -624,8 +624,8 @@ export const Section: React.FC<{
           id={id}
           style={{
             margin: 0,
-            fontSize: 18,
-            fontWeight: 500,
+            fontSize: 16,
+            fontWeight: 600,
             color: palette.ink,
           }}
         >

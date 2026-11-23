@@ -41,7 +41,7 @@ export const ItemRemarkText: React.FC<{ text?: string; alert?: boolean }> = ({
       style={{
         color,
         fontSize: 12,
-        fontWeight: 500,
+        fontWeight: 400,
         lineHeight: 1.5,
         display: 'flex',
         gap: 6,
@@ -156,7 +156,7 @@ export const ItemRemarkLine: React.FC<{
         style={{
           color: palette.orange,
           fontSize: 12,
-          fontWeight: 500,
+          fontWeight: 400,
           lineHeight: 1.5,
           display: 'flex',
           gap: 6,

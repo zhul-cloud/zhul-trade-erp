@@ -90,7 +90,7 @@ export const StageBar: React.FC<{
         fontSize: 13,
         whiteSpace: 'nowrap',
         fontWeight: active ? 600 : 400,
-        color: active ? '#fff' : palette.ink,
+        color: active ? palette.onPrimary : palette.ink,
         background: active ? palette.link : palette.card,
         border: `1px solid ${active ? palette.link : palette.hairline}`,
         transition: 'background .15s',
@@ -104,7 +104,7 @@ export const StageBar: React.FC<{
       style={{
         marginLeft: 6,
         fontWeight: 600,
-        color: active ? '#fff' : palette.link,
+        color: active ? palette.onPrimary : palette.link,
       }}
     >
       {n}

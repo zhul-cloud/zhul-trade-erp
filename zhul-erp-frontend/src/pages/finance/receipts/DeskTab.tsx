@@ -155,7 +155,7 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
       width: 220,
       render: (_, r) => (
         <div>
-          <div style={{ color: palette.ink, fontWeight: 500 }}>
+          <div style={{ color: palette.ink, fontWeight: 600 }}>
             {r.customerName}
           </div>
           <div style={{ fontSize: 12, color: palette.mute }}>

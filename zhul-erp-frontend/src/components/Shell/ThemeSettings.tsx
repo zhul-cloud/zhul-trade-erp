@@ -100,7 +100,7 @@ export const ThemeSettingsPanel: React.FC<{ onClose?: () => void }> = ({
   }, []);
   const section = (title: string, body: React.ReactNode) => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ fontSize: 13, fontWeight: 500, color: p.mute }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: p.mute }}>
         {title}
       </div>
       {body}
@@ -117,7 +117,7 @@ export const ThemeSettingsPanel: React.FC<{ onClose?: () => void }> = ({
       }}
       style={{ width: 308, display: 'flex', flexDirection: 'column', gap: 16 }}
     >
-      <div style={{ fontSize: 16, fontWeight: 500, color: p.ink }}>
+      <div style={{ fontSize: 16, fontWeight: 600, color: p.ink }}>
         主题设置
       </div>
       {section(
@@ -192,7 +192,7 @@ export const ThemeSettingsPanel: React.FC<{ onClose?: () => void }> = ({
                     placeItems: 'center',
                     borderRadius: '50%',
                     background: PRESETS[k].primary,
-                    color: '#FFFFFF',
+                    color: PRESETS[k].onPrimary ?? '#FFFFFF',
                   }}
                 >
                   {on && <Check size={16} />}
@@ -253,7 +253,7 @@ export const ThemeSettingsPanel: React.FC<{ onClose?: () => void }> = ({
                       />
                     )}
                   </span>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: p.ink }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: p.ink }}>
                     {d === 'redUp' ? '涨红跌绿' : '涨绿跌红'}
                   </span>
                 </span>

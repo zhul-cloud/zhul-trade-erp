@@ -74,6 +74,19 @@ const globalCss = (
   html body .ant-tag.ant-tag-warning, html body .ant-tag.ant-tag-orange, html body .ant-tag.ant-tag-gold, html body .ant-tag.ant-tag-volcano { ${tag(p.orange, p.orangeSoft)} }
   html body .ant-tag.ant-tag-error, html body .ant-tag.ant-tag-red, html body .ant-tag.ant-tag-magenta { ${tag(p.red, p.redSoft)} }
   html body .ant-tag.ant-tag-processing, html body .ant-tag.ant-tag-blue, html body .ant-tag.ant-tag-cyan, html body .ant-tag.ant-tag-geekblue, html body .ant-tag.ant-tag-purple { ${tag(p.info, p.infoSoft)} }
+  /* 表头 13 号次要色、不加粗（中文只用 400/600，层次靠字号和颜色；ui-redesign D21、S11） */
+  .ant-table-wrapper .ant-table-thead > tr > th { font-size: 13px; font-weight: 400; }
+  /* 主题色实底上的勾：琥珀底上白勾看不清，与主按钮字同色 */
+  .ant-checkbox-checked .ant-checkbox-inner::after { border-color: ${p.onPrimary}; }
+  /* 分页（ui-redesign D12）：左侧每页条数，右侧圆形页码；当前页主题色浅底、正文色字（琥珀字在浅底上看不清） */
+  .ant-pagination { display: flex; flex-wrap: wrap; align-items: center; row-gap: 8px; }
+  .ant-pagination .ant-pagination-options { order: -1; margin-inline: 0 auto; }
+  .ant-pagination .ant-pagination-item, .ant-pagination .ant-pagination-prev, .ant-pagination .ant-pagination-next,
+  .ant-pagination .ant-pagination-jump-prev, .ant-pagination .ant-pagination-jump-next {
+    min-width: 32px; height: 32px; line-height: 30px; border-radius: 16px; border-color: transparent;
+  }
+  .ant-pagination .ant-pagination-item-active { background: ${p.primarySoft}; border-color: transparent; font-weight: 600; }
+  .ant-pagination .ant-pagination-item-active a { color: ${light ? p.ink : p.link}; }
   /* 卡片：浅色为阴影、不加边框，深色为边框、不用阴影；卡片里再套的卡片不重复加阴影 */
   ${
     light
@@ -106,7 +119,7 @@ const globalCss = (
   .zhul-link:active { color: ${link.active}; }
   .zhul-skip {
     position: absolute; left: 16px; top: 12px; z-index: 1100; padding: 8px 16px; border-radius: 8px;
-    display: inline-flex; align-items: center; gap: 6px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 6px; font-weight: 600;
     background: ${p.card}; color: ${p.ink}; ${focus}
     clip-path: inset(50%); width: 1px; height: 1px; overflow: hidden; white-space: nowrap;
   }

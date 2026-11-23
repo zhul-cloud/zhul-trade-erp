@@ -127,8 +127,8 @@ export const Card: React.FC<{
           <h2
             style={{
               margin: 0,
-              fontSize: 18,
-              fontWeight: 500,
+              fontSize: 16,
+              fontWeight: 600,
               color: palette.ink,
             }}
           >
@@ -194,7 +194,7 @@ export const FileChip: React.FC<{
           title={fileName}
           style={{
             fontSize: 12,
-            fontWeight: 500,
+            fontWeight: 400,
             color: palette.ink,
             overflow: 'hidden',
             textOverflow: 'ellipsis',

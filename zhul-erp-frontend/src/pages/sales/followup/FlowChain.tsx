@@ -279,7 +279,7 @@ export const FlowChain: React.FC<{
             padding: '14px 18px',
             borderRadius: 14,
             cursor: 'pointer',
-            color: today ? '#fff' : palette.ink,
+            color: today ? palette.onPrimary : palette.ink,
             background: today ? palette.primary : palette.card,
             border: `1px solid ${today ? palette.primary : palette.hairline}`,
             transition: 'background .15s',
@@ -288,7 +288,7 @@ export const FlowChain: React.FC<{
           <b
             style={{
               fontSize: 14,
-              color: today ? '#fff' : palette.link,
+              color: today ? palette.onPrimary : palette.link,
               display: 'inline-flex',
               gap: 6,
             }}
@@ -302,7 +302,7 @@ export const FlowChain: React.FC<{
           <span
             style={{
               fontSize: 12,
-              color: today ? '#fff' : palette.sub,
+              color: today ? palette.onPrimary : palette.sub,
               opacity: today ? 0.85 : 1,
             }}
           >

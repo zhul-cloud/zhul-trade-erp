@@ -141,7 +141,7 @@ const FileChip: React.FC<{
           title={row.fileName}
           style={{
             fontSize: 12,
-            fontWeight: 500,
+            fontWeight: 400,
             color: palette.ink,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -291,7 +291,7 @@ export const AttachmentEditor: React.FC<{
                 flex: 'none',
                 lineHeight: '52px',
                 color: palette.ink,
-                fontWeight: 500,
+                fontWeight: 600,
               }}
             >
               {cat.label}
@@ -349,7 +349,7 @@ export const AttachmentEditor: React.FC<{
                       border: `1px dashed ${palette.control}`,
                       background: 'none',
                       color: palette.link,
-                      fontWeight: 500,
+                      fontWeight: 600,
                       cursor: 'pointer',
                     }}
                   >
@@ -430,7 +430,7 @@ export const AttachmentGroups: React.FC<{
                 flex: 'none',
                 lineHeight: '52px',
                 color: palette.ink,
-                fontWeight: 500,
+                fontWeight: 600,
               }}
             >
               {cat.label}

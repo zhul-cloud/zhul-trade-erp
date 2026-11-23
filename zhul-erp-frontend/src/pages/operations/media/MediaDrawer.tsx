@@ -162,7 +162,8 @@ export const MediaGrid: React.FC<{
                       borderRadius: 4,
                       fontSize: 10,
                       lineHeight: '16px',
-                      color: '#fff',
+                      color:
+                        i.processingStatus === 1 ? palette.onPrimary : '#fff',
                       background:
                         i.processingStatus === 1
                           ? palette.link
