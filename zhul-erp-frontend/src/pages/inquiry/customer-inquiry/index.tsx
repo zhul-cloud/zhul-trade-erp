@@ -34,7 +34,7 @@ import {
   QuickFilters,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { IconButton } from '@/components/Shell';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { getUserOptions } from '@/services/zhul/users';
@@ -494,73 +494,68 @@ const CustomerInquiryPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      // 单元格左右各留 16：两个 32 的图标加间距 4
-      width: 104,
+      width: rowActionsWidth(2),
       fixed: 'right',
       render: (_, r) => {
+        const busy = busyId === r.id;
         if (
           r.status === STATUS.PENDING_PARSE ||
           r.status === STATUS.PARSE_FAILED
         ) {
+          const pending = r.status === STATUS.PENDING_PARSE;
           return (
-            <span style={{ display: 'inline-flex', gap: 4 }}>
-              <IconButton
-                label={
-                  r.status === STATUS.PENDING_PARSE ? 'AI 解析' : '重新解析'
-                }
-                size={32}
-                icon={
-                  r.status === STATUS.PENDING_PARSE ? (
+            <RowActions
+              inline={[
+                {
+                  key: 'parse',
+                  label: pending ? 'AI 解析' : '重新解析',
+                  icon: pending ? (
                     <Sparkles size={18} />
                   ) : (
                     <RotateCcw size={18} />
-                  )
-                }
-                disabled={busyId === r.id}
-                onClick={() =>
-                  run(
-                    r.id,
-                    () =>
-                      r.status === STATUS.PENDING_PARSE
-                        ? inquiryApi.startParse(r.id)
-                        : inquiryApi.retryParse(r.id),
-                    '已开始 AI 解析，完成后状态会变为待确认',
-                  )
-                }
-              />
-              {/* 手动录入只打开确认页，不改状态；确认时才离开待解析 / 解析失败 */}
-              <IconButton
-                label="手动录入"
-                size={32}
-                icon={<PencilLine size={18} />}
-                disabled={busyId === r.id}
-                onClick={() =>
-                  history.push(`${PATHS.inquiries}/${r.id}/confirm`)
-                }
-              />
-            </span>
+                  ),
+                  disabledReason: busy ? '正在处理' : undefined,
+                  onClick: () =>
+                    run(
+                      r.id,
+                      () =>
+                        pending
+                          ? inquiryApi.startParse(r.id)
+                          : inquiryApi.retryParse(r.id),
+                      '已开始 AI 解析，完成后状态会变为待确认',
+                    ),
+                },
+                // 手动录入只打开确认页，不改状态；确认时才离开待解析 / 解析失败
+                {
+                  key: 'manual',
+                  label: '手动录入',
+                  icon: <PencilLine size={18} />,
+                  disabledReason: busy ? '正在处理' : undefined,
+                  onClick: () =>
+                    history.push(`${PATHS.inquiries}/${r.id}/confirm`),
+                },
+              ]}
+            />
           );
         }
         return (
-          <span style={{ display: 'inline-flex', gap: 4 }}>
-            <IconButton
-              label="查看"
-              size={32}
-              icon={<Eye size={18} />}
-              onClick={() => history.push(`${PATHS.inquiries}/${r.id}`)}
-            />
-            {r.status === STATUS.PENDING_CONFIRM && (
-              <IconButton
-                label="去确认"
-                size={32}
-                icon={<ClipboardCheck size={18} />}
-                style={{ color: palette.link }}
-                onClick={() =>
-                  history.push(`${PATHS.inquiries}/${r.id}/confirm`)
-                }
-              />
-            )}
-          </span>
+          <RowActions
+            inline={[
+              {
+                key: 'view',
+                label: '查看',
+                icon: <Eye size={18} />,
+                onClick: () => history.push(`${PATHS.inquiries}/${r.id}`),
+              },
+              r.status === STATUS.PENDING_CONFIRM && {
+                key: 'confirm',
+                label: '去确认',
+                icon: <ClipboardCheck size={18} color={palette.link} />,
+                onClick: () =>
+                  history.push(`${PATHS.inquiries}/${r.id}/confirm`),
+              },
+            ]}
+          />
         );
       },
     },

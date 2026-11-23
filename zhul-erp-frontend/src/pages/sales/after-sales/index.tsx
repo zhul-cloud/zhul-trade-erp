@@ -17,7 +17,7 @@ import {
   SummaryBar,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { IconButton } from '@/components/Shell';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import { searchCustomers } from '@/services/zhul/masterdata';
@@ -286,14 +286,18 @@ const AfterSalesPage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 64,
+      width: rowActionsWidth(1),
       fixed: 'right',
       render: (_, r) => (
-        <IconButton
-          label="查看"
-          size={32}
-          icon={<Eye size={18} />}
-          onClick={() => history.push(`/sales/after-sales/${r.id}`)}
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(`/sales/after-sales/${r.id}`),
+            },
+          ]}
         />
       ),
     },

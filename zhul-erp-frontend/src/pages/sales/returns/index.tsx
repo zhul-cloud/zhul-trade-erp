@@ -14,7 +14,7 @@ import {
   PageHeader,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { IconButton } from '@/components/Shell';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
@@ -240,14 +240,18 @@ const SalesReturnsPage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 64,
+      width: rowActionsWidth(1),
       fixed: 'right',
       render: (_, r) => (
-        <IconButton
-          label="查看"
-          size={32}
-          icon={<Eye size={18} />}
-          onClick={() => history.push(PATHS.salesReturn(r.id))}
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(PATHS.salesReturn(r.id)),
+            },
+          ]}
         />
       ),
     },

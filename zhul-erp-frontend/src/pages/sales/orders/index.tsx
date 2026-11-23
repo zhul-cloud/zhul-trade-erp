@@ -18,7 +18,7 @@ import {
   SummaryBar,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { IconButton } from '@/components/Shell';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import {
   ModalTitle,
   PagedModelsModal,
@@ -523,27 +523,27 @@ const OrderList: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      // 单元格左右各留 16：两个 32 的图标加间距 4
-      width: canManual ? 104 : 64,
+      width: rowActionsWidth(canManual ? 2 : 1),
       fixed: 'right',
       render: (_, r) => (
-        <span style={{ display: 'inline-flex', gap: 4 }}>
-          <IconButton
-            label="查看"
-            size={32}
-            icon={<Eye size={18} />}
-            onClick={() => history.push(PATHS.order(r.id))}
-          />
-          {/* 再下一单：复制这张订单的内容新建手动订单；费用订单没有型号，不提供 */}
-          {canManual && r.source !== 4 && (
-            <IconButton
-              label="再下一单"
-              size={32}
-              icon={<CopyPlus size={18} />}
-              onClick={() => setReorderPick(r.id)}
-            />
-          )}
-        </span>
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(PATHS.order(r.id)),
+            },
+            // 再下一单：复制这张订单的内容新建手动订单；费用订单没有型号，不提供
+            canManual &&
+              r.source !== 4 && {
+                key: 'reorder',
+                label: '再下一单',
+                icon: <CopyPlus size={18} />,
+                onClick: () => setReorderPick(r.id),
+              },
+          ]}
+        />
       ),
     },
   ];
