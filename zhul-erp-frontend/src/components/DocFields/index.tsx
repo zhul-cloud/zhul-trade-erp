@@ -1,4 +1,4 @@
-import { ExpandOutlined, UserOutlined } from '@ant-design/icons';
+import { ExpandOutlined } from '@ant-design/icons';
 import { AutoComplete, Button, Drawer, Select, Space } from 'antd';
 import React, { useState } from 'react';
 import { CountryText } from '@/components/CountryText';
@@ -126,36 +126,18 @@ export const DictTextInput: React.FC<{
   );
 };
 
-/** 客户列名称下面的行：国家 / 地区一行、主联系人一行，缺哪个不显示哪行；都没有时为 empty */
-export const CustomerSub: React.FC<{
-  country?: string;
-  contact?: string;
-  empty?: React.ReactNode;
-}> = ({ country, contact, empty = '—' }) => {
-  if (!country && !contact) return <>{empty}</>;
-  return (
-    <>
-      {country && <div>{country}</div>}
-      {contact && (
-        <div>
-          <UserOutlined style={{ fontSize: 11, marginRight: 3 }} />
-          {contact}
-        </div>
-      )}
-    </>
-  );
-};
-
 /**
  * 列表的客户列：名称一行，下面一行「新 / 老客户 · 国家 / 地区 · 主联系人」（销售订单原型 A1），缺哪项不显示哪项。
- * 新 / 老客户是客户的属性，不是状态，写成文字不用标签。
+ * 新 / 老客户是客户的属性，不是状态，写成文字不用标签。全站列表的客户列都用它，最多两行（D21 行高）。
  */
 export const CustomerCell: React.FC<{
   name?: string;
   country?: string;
   type?: number;
   contact?: string;
-}> = ({ name, country, type, contact }) => {
+  /** 接在第二行最后的补充，如「业务员 王五」 */
+  extra?: React.ReactNode;
+}> = ({ name, country, type, contact, extra }) => {
   const { palette } = useAppTheme();
   return (
     <div style={{ minWidth: 0 }}>
@@ -165,6 +147,7 @@ export const CustomerCell: React.FC<{
         type={type}
         country={country}
         contact={contact}
+        extra={extra}
         style={{ color: palette.mute, fontSize: 12, lineHeight: '18px' }}
       />
     </div>
@@ -176,12 +159,14 @@ export const CustomerSubLine: React.FC<{
   country?: string;
   type?: number;
   contact?: string;
+  extra?: React.ReactNode;
   style?: React.CSSProperties;
-}> = ({ country, type, contact, style }) => {
+}> = ({ country, type, contact, extra, style }) => {
   const parts = [
     type ? (type === 2 ? '老客户' : '新客户') : undefined,
     country ? <CountryText key="c" value={country} /> : undefined,
     contact,
+    extra,
   ].filter(Boolean);
   if (parts.length === 0) return null;
   return (

@@ -18,6 +18,7 @@ import {
 } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { HelpTip } from '@/components/ListLayout';
+import { Pill } from '@/components/Pill';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useBusinessUnits } from '@/utils/businessUnit';
@@ -29,7 +30,6 @@ import {
   PHONE_PATTERN,
   ROLE_OPTIONS,
   ROLE_TONE,
-  type Tone,
 } from './constants';
 import {
   type AssignableOwners,
@@ -40,39 +40,8 @@ import {
 
 export const LIST_PATH = '/customer/list';
 
-export const Pill: React.FC<{ tone: Tone; children: React.ReactNode }> = ({
-  tone,
-  children,
-}) => {
-  const { palette } = useAppTheme();
-  const colors: Record<Tone, { fg: string; bg: string }> = {
-    accent: { fg: palette.link, bg: palette.primarySoft },
-    cyan: { fg: palette.info, bg: palette.inset },
-    orange: { fg: palette.orange, bg: palette.orangeSoft },
-    green: { fg: palette.green, bg: palette.greenSoft },
-    violet: { fg: palette.info, bg: palette.infoSoft },
-    gray: { fg: palette.sub, bg: palette.inset },
-  };
-  const c = colors[tone];
-  return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        height: 24,
-        padding: '0 10px',
-        borderRadius: 12,
-        fontSize: 12,
-        fontWeight: 600,
-        color: c.fg,
-        background: c.bg,
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {children}
-    </span>
-  );
-};
+/** 状态标签统一用公共组件（规范「状态标签」） */
+export { Pill };
 
 /** 客户角色；0 为询盘快速创建尚未补全的客户 */
 export const RolePill: React.FC<{ value?: number }> = ({ value }) => (
