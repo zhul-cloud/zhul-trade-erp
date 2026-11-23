@@ -2,6 +2,7 @@ import { PictureOutlined } from '@ant-design/icons';
 import { App, Button, Image, Popconfirm, Spin, Upload } from 'antd';
 import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
+import { UserName } from '@/components/UserName';
 import { ChannelIcon, PAY_CHANNEL_NAMES } from '@/pages/finance/payables/payQr';
 import { useAppTheme } from '@/theme/AppTheme';
 import { readBizError, type SupplierAttachment, supplierApi } from './service';
@@ -141,7 +142,12 @@ const QrCard: React.FC<{
           </div>
           <div style={{ fontSize: 12, color: palette.mute }}>
             {dayjs(qr.createTime).format('YYYY-MM-DD')} 上传
-            {qr.createBy ? ` · ${qr.createBy}` : ''}
+            {qr.createBy && (
+              <>
+                {' · '}
+                <UserName value={qr.createBy} />
+              </>
+            )}
           </div>
         </div>
       ) : canEdit ? (

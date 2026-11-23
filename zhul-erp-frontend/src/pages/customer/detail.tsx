@@ -19,6 +19,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
+import { UserName } from '@/components/UserName';
 import EntriesDrawer from '@/pages/finance/credits/EntriesDrawer';
 import { type CreditAccount, creditApi } from '@/pages/finance/credits/service';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -794,11 +795,15 @@ const CustomerDetailPage: React.FC = () => {
             </SideCard>
             <LocalTimeCard timezone={r.timezone} />
             <SideCard title="系统信息">
-              <SideRow label="创建人">{r.createBy}</SideRow>
+              <SideRow label="创建人">
+                <UserName value={r.createBy} />
+              </SideRow>
               <SideRow label="创建时间">
                 <span className="num">{formatDateTime(r.createTime)}</span>
               </SideRow>
-              <SideRow label="最后修改人">{r.updateBy}</SideRow>
+              <SideRow label="最后修改人">
+                <UserName value={r.updateBy} />
+              </SideRow>
               <SideRow label="最后修改时间">
                 <span className="num">{formatDateTime(r.updateTime)}</span>
               </SideRow>

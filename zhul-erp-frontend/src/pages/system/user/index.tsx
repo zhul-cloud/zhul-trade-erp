@@ -29,7 +29,7 @@ import {
 } from 'antd';
 import { Search } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
-import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import EllipsisText from '@/components/EllipsisText';
 import {
   FilterCard,
   FilterField,
@@ -37,6 +37,7 @@ import {
   PageHeader,
   SummaryBar,
 } from '@/components/ListLayout';
+import { proAuditColumns } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
 import { CHART_SERIES } from '@/theme/palette';
 import { usePagination } from '@/utils/pageSize';
@@ -368,34 +369,7 @@ const UserPage: React.FC = () => {
         </Tag>
       ),
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      width: 160,
-      search: false,
-      valueType: 'dateTime',
-    },
-    {
-      title: '创建人',
-      dataIndex: 'createBy',
-      width: 150,
-      render: ellipsisRender,
-      search: false,
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      width: 160,
-      search: false,
-      valueType: 'dateTime',
-    },
-    {
-      title: '更新人',
-      dataIndex: 'updateBy',
-      width: 150,
-      render: ellipsisRender,
-      search: false,
-    },
+    ...proAuditColumns<UserItem>(),
     {
       title: '操作',
       fixed: 'right',

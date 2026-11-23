@@ -35,9 +35,9 @@ import {
   MainCard,
   PageHeader,
 } from '@/components/ListLayout';
+import { proAuditColumns } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
 import { APPEARANCE_IMAGE_KEYS } from '@/utils/appearance';
-import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { CONFIG_KEY_MESSAGE, CONFIG_KEY_PATTERN } from './configKey';
@@ -331,30 +331,7 @@ const ConfigPage: React.FC = () => {
           <Badge color="default" text="自定义" />
         ),
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      width: 160,
-      render: (_, r) => formatDateTime(r.createTime),
-    },
-    {
-      title: '创建人',
-      dataIndex: 'createBy',
-      width: 150,
-      render: ellipsisRender,
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      width: 160,
-      render: (_, r) => formatDateTime(r.updateTime),
-    },
-    {
-      title: '更新人',
-      dataIndex: 'updateBy',
-      width: 150,
-      render: ellipsisRender,
-    },
+    ...proAuditColumns<ConfigItem>(),
     {
       title: '操作',
       fixed: 'right',

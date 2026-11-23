@@ -5,17 +5,16 @@ import {
   ShopOutlined,
   ShoppingOutlined,
 } from '@ant-design/icons';
-import type { TableColumnsType } from 'antd';
 import { Button, Input, InputNumber, Segmented, Select, Space } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
-import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import EllipsisText from '@/components/EllipsisText';
 import { Card, MigratedPill, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 import { forwarderApi } from '@/pages/logistics/service';
 import { searchSuppliers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useDeltaColor } from '@/theme/delta';
-import { formatAmount, formatDateTime } from '@/utils/format';
+import { formatAmount } from '@/utils/format';
 import { TRIGGERS, termsText, termsTotal } from './calc';
 import type {
   CounterpartyValue,
@@ -566,37 +565,5 @@ export const SourceCell: React.FC<{
   );
 };
 
-/** 列表页统一规范：创建时间 → 创建人 → 更新时间 → 更新人；人名多为邮箱，单行省略、悬停看全（audit UI-041） */
-export const auditColumns = <
-  T extends {
-    createTime?: string;
-    createBy?: string;
-    updateTime?: string;
-    updateBy?: string;
-  },
->(): TableColumnsType<T> => [
-  {
-    title: '创建时间',
-    dataIndex: 'createTime',
-    width: 170,
-    render: (v?: string) => formatDateTime(v),
-  },
-  {
-    title: '创建人',
-    dataIndex: 'createBy',
-    width: 150,
-    render: ellipsisRender,
-  },
-  {
-    title: '更新时间',
-    dataIndex: 'updateTime',
-    width: 170,
-    render: (v?: string) => formatDateTime(v),
-  },
-  {
-    title: '更新人',
-    dataIndex: 'updateBy',
-    width: 150,
-    render: ellipsisRender,
-  },
-];
+/** 列表固定的「创建」「更新」两列（ui-redesign D25）：统一用公共组件，这里只转出，原有引用不用改 */
+export { auditColumns } from '@/components/UserName';

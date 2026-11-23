@@ -21,7 +21,7 @@ const signal = {
 };
 
 /** UI-093：待归类信号是分页业务列表，固定显示四个审计列，每页条数可改 */
-it('UI-093：待归类信号显示创建时间、创建人、更新时间、更新人，可改每页条数', () => {
+it('UI-093：待归类信号显示「创建」「更新」两列，可改每页条数', async () => {
   render(
     React.createElement(SignalTable, {
       rows: [signal],
@@ -41,13 +41,12 @@ it('UI-093：待归类信号显示创建时间、创建人、更新时间、更�
     .getAllByRole('columnheader')
     .map((h) => h.textContent ?? '');
   const at = (t: string) => heads.indexOf(t);
-  expect(at('创建时间')).toBeGreaterThan(at('来源单号'));
-  expect(at('创建人')).toBe(at('创建时间') + 1);
-  expect(at('更新时间')).toBe(at('创建人') + 1);
-  expect(at('更新人')).toBe(at('更新时间') + 1);
-  expect(at('操作')).toBe(at('更新人') + 1);
-  expect(screen.getByText('张三')).toBeTruthy();
-  expect(screen.getByText('2026-11-11 09:30:00')).toBeTruthy();
+  // ui-redesign D25：「创建」「更新」两列（人名 + 短时间，悬停看完整时间）
+  expect(at('创建')).toBeGreaterThan(at('来源单号'));
+  expect(at('更新')).toBe(at('创建') + 1);
+  expect(at('操作')).toBe(at('更新') + 1);
+  expect((await screen.findAllByText('张三')).length).toBeGreaterThan(0);
+  expect(screen.getByText('11-11 09:30')).toBeTruthy();
   expect(
     document.querySelector('.ant-pagination-options-size-changer'),
   ).not.toBeNull();

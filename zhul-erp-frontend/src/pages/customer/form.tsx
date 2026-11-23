@@ -26,6 +26,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
+import { UserName } from '@/components/UserName';
 import {
   ALI_LEVEL_OPTIONS,
   CHANNEL_ALIBABA,
@@ -1084,7 +1085,7 @@ const CustomerFormPage: React.FC = () => {
               <span>
                 创建人{' '}
                 <span style={{ color: palette.ink }}>
-                  {record.createBy || '—'}
+                  <UserName value={record.createBy} />
                 </span>
               </span>
               <span>
@@ -1096,7 +1097,7 @@ const CustomerFormPage: React.FC = () => {
               <span>
                 最后修改人{' '}
                 <span style={{ color: palette.ink }}>
-                  {record.updateBy || '—'}
+                  <UserName value={record.updateBy} />
                 </span>
               </span>
               <span>

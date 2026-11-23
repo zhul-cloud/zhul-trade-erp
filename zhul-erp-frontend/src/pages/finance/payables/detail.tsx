@@ -10,6 +10,7 @@ import {
 import { DocFilesCard } from '@/components/DocFiles';
 import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
+import { UserName } from '@/components/UserName';
 import { Card, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/sales/service';
@@ -180,7 +181,7 @@ const PayableDetail: React.FC = () => {
         tags={<PayStatusPill status={p.status} />}
         sub={
           <>
-            {p.payeeName || '—'} · {source} · {p.createBy ?? '—'} ·{' '}
+            {p.payeeName || '—'} · {source} · <UserName value={p.createBy} /> ·{' '}
             {formatDateTime(p.createTime).slice(0, 16)} 创建
           </>
         }

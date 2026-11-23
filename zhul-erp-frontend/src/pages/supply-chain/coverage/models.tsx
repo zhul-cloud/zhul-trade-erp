@@ -21,6 +21,7 @@ import {
   scopeName,
   supplyApi,
 } from '../service';
+import { auditColumns } from '@/components/UserName';
 
 /** 列表筛选与页码放在一起：改筛选和回到第 1 页一次完成，不会先按旧页码多发一次请求（audit UI-090） */
 interface Filters {
@@ -185,10 +186,7 @@ const CoverageModelsPage: React.FC = () => {
     },
     { title: '负责人', dataIndex: 'ownerName', width: 90, render: (v?: string) => v || '—' },
     { title: '下一步行动 · 日期', key: 'next', width: 220, render: (_, d) => <NextCell d={d} /> },
-    { title: '创建时间', dataIndex: 'createTime', width: 170, render: (v: string) => formatDateTime(v) },
-    { title: '创建人', dataIndex: 'createBy', width: 90, render: (v?: string) => v || '—' },
-    { title: '更新时间', dataIndex: 'updateTime', width: 170, render: (v: string) => formatDateTime(v) },
-    { title: '更新人', dataIndex: 'updateBy', width: 90, render: (v?: string) => v || '—' },
+    ...auditColumns<Demand>(),
     {
       title: '操作',
       key: 'op',

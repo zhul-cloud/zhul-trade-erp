@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Form, Input, Modal, Select, Table, Tag } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { auditColumns } from '@/components/UserName';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -274,20 +275,7 @@ export const PoolTab: React.FC<{ onCount?: (n: number) => void }> = ({
         </div>
       ),
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      width: 160,
-      render: (v: string) => <span className="num">{formatDateTime(v)}</span>,
-    },
-    { title: '创建人', dataIndex: 'createBy', width: 90 },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      width: 160,
-      render: (v: string) => <span className="num">{formatDateTime(v)}</span>,
-    },
-    { title: '更新人', dataIndex: 'updateBy', width: 90 },
+    ...auditColumns<CustomerListItem>(),
     {
       title: '操作',
       key: 'actions',

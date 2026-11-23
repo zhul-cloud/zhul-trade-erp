@@ -18,7 +18,7 @@ import {
   MainCard,
   PageHeader,
 } from '@/components/ListLayout';
-import { formatDateTime } from '@/utils/format';
+import { proAuditColumns } from '@/components/UserName';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { Pill } from '../components/Pills';
@@ -136,38 +136,7 @@ const SeriesPage: React.FC = () => {
           <Pill tone="gray">已停用</Pill>
         ),
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      search: false,
-      width: 160,
-      render: (_, r) => (
-        <span className="num">{formatDateTime(r.createTime)}</span>
-      ),
-    },
-    {
-      title: '创建人',
-      dataIndex: 'createBy',
-      search: false,
-      width: 150,
-      render: ellipsisRender,
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      search: false,
-      width: 160,
-      render: (_, r) => (
-        <span className="num">{formatDateTime(r.updateTime)}</span>
-      ),
-    },
-    {
-      title: '更新人',
-      dataIndex: 'updateBy',
-      search: false,
-      width: 150,
-      render: ellipsisRender,
-    },
+    ...proAuditColumns<Series>(),
     {
       title: '操作',
       hideInTable:

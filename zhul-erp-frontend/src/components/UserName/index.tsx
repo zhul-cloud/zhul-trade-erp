@@ -1,3 +1,4 @@
+import type { ProColumns } from '@ant-design/pro-components';
 import { request } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Tooltip } from 'antd';
@@ -187,3 +188,14 @@ export const auditColumns = <
     ),
   },
 ];
+
+/** ProTable 用的「创建」「更新」两列：不进搜索表单 */
+export const proAuditColumns = <
+  T extends {
+    createTime?: string | null;
+    createBy?: string | null;
+    updateTime?: string | null;
+    updateBy?: string | null;
+  },
+>(): ProColumns<T>[] =>
+  auditColumns<T>().map((c) => ({ ...c, search: false }) as ProColumns<T>);

@@ -26,6 +26,7 @@ import React, { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
+import { UserName } from '@/components/UserName';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { termsTotal } from '@/pages/purchase/calc';
 import { PaymentTermsEditor } from '@/pages/purchase/components';
@@ -615,7 +616,7 @@ const SupplierFormPage: React.FC = () => {
               <span>
                 创建人{' '}
                 <span style={{ color: palette.ink }}>
-                  {record.createBy || '—'}
+                  <UserName value={record.createBy} />
                 </span>
               </span>
               <span>
@@ -627,7 +628,7 @@ const SupplierFormPage: React.FC = () => {
               <span>
                 最后修改人{' '}
                 <span style={{ color: palette.ink }}>
-                  {record.updateBy || '—'}
+                  <UserName value={record.updateBy} />
                 </span>
               </span>
               <span>

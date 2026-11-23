@@ -32,6 +32,7 @@ import {
   PageHeader,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { UserName } from '@/components/UserName';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { groupedCategoryOptions } from '@/pages/product/components/categoryOptions';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -883,7 +884,12 @@ export const ReviewDrawer: React.FC<{
                   {s.fileName && (
                     <span style={{ color: palette.sub }}>
                       {s.fileName}
-                      {s.createBy ? ` · ${s.createBy}` : ''}
+                      {s.createBy && (
+                        <>
+                          {' · '}
+                          <UserName value={s.createBy} />
+                        </>
+                      )}
                     </span>
                   )}
                   <span style={{ flex: 1 }} />

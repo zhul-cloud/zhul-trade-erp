@@ -29,10 +29,9 @@ import { useAccess } from '@umijs/max';
 import { App, Button, Input, Popconfirm, Space, Tag } from 'antd';
 import { Search } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ellipsisRender } from '@/components/EllipsisText';
 import { MainCard, PageHeader, SummaryBar } from '@/components/ListLayout';
+import { proAuditColumns } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatDateTime } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import type { MenuItem } from './service';
 import {
@@ -492,30 +491,7 @@ const MenuPage: React.FC = () => {
       width: 70,
       render: (_, r) => (r.type === 3 ? '--' : r.isHidden === 1 ? '是' : '否'),
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      width: 160,
-      render: (_, r) => formatDateTime(r.createTime),
-    },
-    {
-      title: '创建人',
-      dataIndex: 'createBy',
-      width: 150,
-      render: ellipsisRender,
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      width: 160,
-      render: (_, r) => formatDateTime(r.updateTime),
-    },
-    {
-      title: '更新人',
-      dataIndex: 'updateBy',
-      width: 150,
-      render: ellipsisRender,
-    },
+    ...proAuditColumns<MenuItem>(),
     {
       title: '操作',
       fixed: 'right',

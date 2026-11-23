@@ -14,6 +14,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
+import { UserName } from '@/components/UserName';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -232,11 +233,15 @@ const SupplierDetailPage: React.FC = () => {
             <Field label="备注" full>
               {record.remark}
             </Field>
-            <Field label="创建人">{record.createBy}</Field>
+            <Field label="创建人">
+              <UserName value={record.createBy} />
+            </Field>
             <Field label="创建时间" mono>
               {formatDateTime(record.createTime)}
             </Field>
-            <Field label="最后修改人">{record.updateBy}</Field>
+            <Field label="最后修改人">
+              <UserName value={record.updateBy} />
+            </Field>
             <Field label="最后修改时间" mono>
               {formatDateTime(record.updateTime)}
             </Field>

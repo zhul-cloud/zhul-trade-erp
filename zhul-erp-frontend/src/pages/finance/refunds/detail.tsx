@@ -16,6 +16,7 @@ import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
 import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
+import { UserName } from '@/components/UserName';
 import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { PATHS } from '@/pages/sales/components';
@@ -171,8 +172,8 @@ const RefundDetail: React.FC = () => {
           <>
             {f.customerName ?? '—'} ·{' '}
             {source ? <SourceNos mode="inline" refs={[source]} /> : '—'} ·{' '}
-            {f.createBy ?? '—'} · {formatDateTime(f.createTime).slice(0, 16)}{' '}
-            创建
+            <UserName value={f.createBy} /> ·{' '}
+            {formatDateTime(f.createTime).slice(0, 16)} 创建
           </>
         }
         // 作废收进「更多」；迁移数据不能作废，原因写在菜单项里

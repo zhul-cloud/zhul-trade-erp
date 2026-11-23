@@ -22,15 +22,14 @@ import {
 } from 'antd';
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ellipsisRender } from '@/components/EllipsisText';
 import {
   FilterCard,
   FilterField,
   MainCard,
   PageHeader,
 } from '@/components/ListLayout';
+import { proAuditColumns } from '@/components/UserName';
 import { useIndustryOptions } from '@/utils/dict';
-import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import BrandColorInput from '../components/BrandColorInput';
@@ -292,34 +291,7 @@ const BrandPage: React.FC = () => {
         </Space>
       ),
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      width: 160,
-      render: (_, r) => (
-        <span className="num">{formatDateTime(r.createTime)}</span>
-      ),
-    },
-    {
-      title: '创建人',
-      dataIndex: 'createBy',
-      width: 150,
-      render: ellipsisRender,
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      width: 160,
-      render: (_, r) => (
-        <span className="num">{formatDateTime(r.updateTime)}</span>
-      ),
-    },
-    {
-      title: '更新人',
-      dataIndex: 'updateBy',
-      width: 150,
-      render: ellipsisRender,
-    },
+    ...proAuditColumns<Brand>(),
     {
       title: '操作',
       hideInTable:

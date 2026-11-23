@@ -11,13 +11,13 @@ import { useAccess } from '@umijs/max';
 import { App, Badge, Button, Input, Popconfirm, Select } from 'antd';
 import { Search } from 'lucide-react';
 import React, { useRef, useState } from 'react';
-import { ellipsisRender } from '@/components/EllipsisText';
 import {
   FilterCard,
   FilterField,
   MainCard,
   PageHeader,
 } from '@/components/ListLayout';
+import { proAuditColumns } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -157,34 +157,7 @@ const PositionPage: React.FC = () => {
         1: { text: '启用', status: 'Success' },
       },
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      width: 160,
-      search: false,
-      valueType: 'dateTime',
-    },
-    {
-      title: '创建人',
-      dataIndex: 'createBy',
-      width: 150,
-      render: ellipsisRender,
-      search: false,
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      width: 160,
-      search: false,
-      valueType: 'dateTime',
-    },
-    {
-      title: '更新人',
-      dataIndex: 'updateBy',
-      width: 150,
-      render: ellipsisRender,
-      search: false,
-    },
+    ...proAuditColumns<PositionItem>(),
     {
       title: '操作',
       fixed: 'right',

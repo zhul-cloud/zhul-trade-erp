@@ -10,6 +10,7 @@ import {
 import { DocFilesCard } from '@/components/DocFiles';
 import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
+import { UserName } from '@/components/UserName';
 import { MigratedPill, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/sales/service';
@@ -72,7 +73,7 @@ const OtherIncomeDetail: React.FC = () => {
         }
         sub={
           <>
-            {x.categoryName ?? x.category} · {x.createBy ?? '—'} ·{' '}
+            {x.categoryName ?? x.category} · <UserName value={x.createBy} /> ·{' '}
             {formatDateTime(x.createTime).slice(0, 16)} 创建
           </>
         }

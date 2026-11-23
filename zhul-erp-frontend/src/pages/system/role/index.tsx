@@ -26,7 +26,7 @@ import {
 } from 'antd';
 import { Search } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import EllipsisText from '@/components/EllipsisText';
 import {
   FilterCard,
   FilterField,
@@ -34,6 +34,7 @@ import {
   PageHeader,
   SummaryBar,
 } from '@/components/ListLayout';
+import { proAuditColumns } from '@/components/UserName';
 import {
   type WorkbenchTemplate,
   workbenchApi,
@@ -52,7 +53,6 @@ import {
 import type { DeptTreeOption } from '@/pages/system/user/service';
 import { getDeptTreeOptions } from '@/pages/system/user/service';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import type { RoleItem, RoleStats } from './service';
@@ -429,34 +429,7 @@ const RolePage: React.FC = () => {
         <span style={{ color: p.link }}>{record.userCount} 人</span>
       ),
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      search: false,
-      width: 160,
-      render: (_, r) => formatDateTime(r.createTime),
-    },
-    {
-      title: '创建人',
-      dataIndex: 'createBy',
-      search: false,
-      width: 150,
-      render: ellipsisRender,
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      search: false,
-      width: 160,
-      render: (_, r) => formatDateTime(r.updateTime),
-    },
-    {
-      title: '更新人',
-      dataIndex: 'updateBy',
-      search: false,
-      width: 150,
-      render: ellipsisRender,
-    },
+    ...proAuditColumns<RoleItem>(),
     {
       title: '操作',
       fixed: 'right',

@@ -2,8 +2,8 @@ import { Button, Table, type TableColumnsType } from 'antd';
 import dayjs from 'dayjs';
 import React from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { auditColumns } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatDateTime } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import { Pill } from '../components';
 import { type Signal, SRC, SRC_NAMES } from '../service';
@@ -119,30 +119,7 @@ export const SignalTable: React.FC<{
       render: (v?: string) => v || '—',
     },
     // 列表固定的四列（audit UI-093）
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      width: 170,
-      render: (v?: string) => formatDateTime(v),
-    },
-    {
-      title: '创建人',
-      dataIndex: 'createBy',
-      width: 90,
-      render: (v?: string) => v || '—',
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      width: 170,
-      render: (v?: string) => formatDateTime(v),
-    },
-    {
-      title: '更新人',
-      dataIndex: 'updateBy',
-      width: 90,
-      render: (v?: string) => v || '—',
-    },
+    ...auditColumns<Signal>(),
     {
       title: '操作',
       key: 'op',

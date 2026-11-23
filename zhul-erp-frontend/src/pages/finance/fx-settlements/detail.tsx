@@ -12,6 +12,7 @@ import {
 import { DocFilesCard } from '@/components/DocFiles';
 import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
+import { UserName } from '@/components/UserName';
 import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/sales/service';
@@ -213,7 +214,7 @@ const FxSettlementDetail: React.FC = () => {
                 <UnitPill info={bu} id={s.businessUnitId} /> ·{' '}
               </>
             )}
-            {s.bankAccountName ?? '—'} · {s.createBy ?? '—'} ·{' '}
+            {s.bankAccountName ?? '—'} · <UserName value={s.createBy} /> ·{' '}
             {formatDateTime(s.createTime).slice(0, 16)} 创建
           </>
         }

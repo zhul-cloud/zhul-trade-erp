@@ -9,6 +9,7 @@ import { history } from '@umijs/max';
 import { Button, Modal } from 'antd';
 import dayjs from 'dayjs';
 import React, { useState } from 'react';
+import { UserName } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import type { PayeeQr } from './service';
@@ -115,7 +116,13 @@ export const PayeeQrPanel: React.FC<{
           </div>
           <div style={{ fontSize: 12, color: palette.mute, marginTop: 4 }}>
             {qr.createTime ? dayjs(qr.createTime).format('YYYY-MM-DD') : ''}{' '}
-            上传{qr.createBy ? ` · ${qr.createBy}` : ''}
+            上传
+            {qr.createBy && (
+              <>
+                {' · '}
+                <UserName value={qr.createBy} />
+              </>
+            )}
           </div>
           <Button
             type="primary"

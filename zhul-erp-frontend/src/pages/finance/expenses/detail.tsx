@@ -12,6 +12,7 @@ import {
 import { DocFilesCard } from '@/components/DocFiles';
 import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
+import { UserName } from '@/components/UserName';
 import {
   Card,
   MigratedPill,
@@ -267,8 +268,8 @@ const ExpenseDetail: React.FC = () => {
                 <Link to={`/sales/orders/${firstSo.soId}`}>{firstSo.soNo}</Link>
               </>
             )}{' '}
-            · {e.createBy ?? '—'} · {formatDateTime(e.createTime).slice(0, 16)}{' '}
-            创建
+            · <UserName value={e.createBy} /> ·{' '}
+            {formatDateTime(e.createTime).slice(0, 16)} 创建
           </>
         }
         extra={

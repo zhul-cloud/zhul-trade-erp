@@ -15,6 +15,7 @@ import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
 import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
+import { UserName } from '@/components/UserName';
 import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { formatAmount, formatDateTime } from '@/utils/format';
@@ -217,7 +218,8 @@ const OtherOutboundDetail: React.FC = () => {
         }
         sub={
           <>
-            {r.warehouseName} · {r.outboundDate} 出库 · {r.createBy ?? '—'} 创建
+            {r.warehouseName} · {r.outboundDate} 出库 ·{' '}
+            <UserName value={r.createBy} /> 创建
             {r.sourceDocNo && (
               <>
                 {' · '}

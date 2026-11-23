@@ -10,13 +10,13 @@ import { useAccess } from '@umijs/max';
 import { Alert, App, Badge, Button, Input, Select, Space, Tree } from 'antd';
 import { Search } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import EllipsisText from '@/components/EllipsisText';
 import {
   FilterCard,
   FilterField,
   MainCard,
   PageHeader,
 } from '@/components/ListLayout';
+import { proAuditColumns } from '@/components/UserName';
 import {
   indexMenuTree,
   splitChecked,
@@ -25,7 +25,6 @@ import {
 import type { MenuItem } from '@/pages/system/menu/service';
 import { getMenuTree } from '@/pages/system/menu/service';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import type { SaveTenantPackagePayload, TenantPackageItem } from './service';
@@ -248,38 +247,7 @@ const TenantPackagePage: React.FC = () => {
           <Badge status="error" text="禁用" />
         ),
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      search: false,
-      width: 170,
-      render: (_, r) => (
-        <span className="num">{formatDateTime(r.createTime)}</span>
-      ),
-    },
-    {
-      title: '创建人',
-      dataIndex: 'createBy',
-      search: false,
-      width: 150,
-      render: (_, r) => <EllipsisText text={r.createBy} />,
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      search: false,
-      width: 170,
-      render: (_, r) => (
-        <span className="num">{formatDateTime(r.updateTime)}</span>
-      ),
-    },
-    {
-      title: '更新人',
-      dataIndex: 'updateBy',
-      search: false,
-      width: 150,
-      render: (_, r) => <EllipsisText text={r.updateBy} />,
-    },
+    ...proAuditColumns<TenantPackageItem>(),
     {
       title: '操作',
       valueType: 'option',

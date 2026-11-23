@@ -2,6 +2,7 @@ import { EditOutlined, SendOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { App, Button, Drawer, Empty, Skeleton } from 'antd';
 import React, { useEffect, useState } from 'react';
+import { UserName } from '@/components/UserName';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -164,7 +165,9 @@ const EntriesDrawer: React.FC<{
                   >
                     <div style={{ fontSize: 12, color: palette.sub }}>
                       {e.createTime?.slice(5, 16).replace('T', ' ')}
-                      <div style={{ color: palette.mute }}>{e.createBy}</div>
+                      <div style={{ color: palette.mute }}>
+                        <UserName value={e.createBy} />
+                      </div>
                     </div>
                     <div style={{ minWidth: 0 }}>
                       <div
