@@ -819,6 +819,8 @@ class InventoryFlowContractTest extends SalesContractSupport {
         Integer toStatus = jdbc.queryForObject("select archive_status from product where id = ?", Integer.class, to);
         try {
             jdbc.update("update product set archive_status = 2 where id = ?", to);
+            // 生产缺陷：品牌 + 型号较长时，流水说明超过字段宽度导致合并（商品候选批量通过）报系统错误
+            jdbc.update("update product set brand_key = ? where id = ?", "schneider-electric-industries-sas", from);
             assertStock(new int[]{2, 1, 2}, stock(from, 1), "合并前 A-1");
             assertStock(new int[]{1, 0, 1}, stock(to, 1), "合并前 A-2");
             com.zhul.erp.framework.tenant.TenantContext.runAs(0, () -> tx.executeWithoutResult(st -> productMerge.merge(from, to, "同一型号")));
@@ -839,6 +841,9 @@ class InventoryFlowContractTest extends SalesContractSupport {
                 Long.class, soItemA));
         assertEquals(4, jdbc.queryForObject("select count(*) from inv_move where tenant_id = 0 and biz_type = 'MERGE'", Integer.class),
                 "合格（预占 2）、不良 1 各转出、转入一笔");
+        assertEquals("商品合并 · schneider-electric-industries-sas / A-1 并入",
+                jdbc.queryForObject("select max(biz_label) from inv_move where tenant_id = 0 and biz_type = 'MERGE'", String.class),
+                "流水说明完整保留原商品的品牌与型号");
 
         ok(call(json(post(GR + "/" + gr + "/reverse"), "{\"reason\":\"录错\"}"), keeper));
         assertStock(new int[]{0, 0, 0}, stock(to, 1), "冲销入库：反向记在主商品上");
