@@ -6,11 +6,13 @@ import {
 import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Form, Modal, Radio, Select, Switch, Table } from 'antd';
-import { Plus } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import BrandCategoryPicker from '@/components/BrandCategoryPicker';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -119,6 +121,7 @@ const AssignRulesPage: React.FC = () => {
     }
   };
 
+  const confirmDanger = useConfirmDanger();
   const columns: TableColumnsType<AssignRule> = [
     {
       title: '优先级',
@@ -197,38 +200,36 @@ const AssignRulesPage: React.FC = () => {
     {
       title: '操作',
       fixed: 'right',
-      width: 120,
-      render: (_, r) =>
-        canEdit ? (
-          <span style={{ display: 'inline-flex', gap: 12 }}>
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setEditing(r)}
-            >
-              编辑
-            </button>
-            <button
-              type="button"
-              className="zhul-link"
-              style={{ color: palette.red }}
-              onClick={() =>
-                modal.confirm({
-                  title: '删除这条规则？',
-                  content:
-                    '删除后命中这条规则的任务改为按后面的规则或推荐分配，已分配的任务不受影响。',
-                  okText: '删除',
-                  okButtonProps: { danger: true },
-                  cancelText: '取消',
-                  onOk: () =>
-                    act(() => boardApi.deleteRule(r.id), '规则已删除'),
-                })
-              }
-            >
-              删除
-            </button>
-          </span>
-        ) : null,
+      // 编辑放行内，删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(2),
+      render: (_, r) => (
+        <RowActions
+          inline={[
+            canEdit && {
+              key: 'edit',
+              label: '编辑',
+              icon: <Pencil size={18} />,
+              onClick: () => setEditing(r),
+            },
+          ]}
+          more={[
+            canEdit && {
+              key: 'delete',
+              label: '删除',
+              icon: <Trash2 size={16} />,
+              danger: true,
+            },
+          ]}
+          onMore={() =>
+            confirmDanger({
+              title: '删除这条规则？',
+              content:
+                '删除后命中这条规则的任务改为按后面的规则或推荐分配，已分配的任务不受影响。',
+              onOk: () => act(() => boardApi.deleteRule(r.id), '规则已删除'),
+            })
+          }
+        />
+      ),
     },
   ];
 

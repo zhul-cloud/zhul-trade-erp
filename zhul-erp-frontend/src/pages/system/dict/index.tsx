@@ -25,8 +25,10 @@ import {
   Tag,
   Tooltip,
 } from 'antd';
+import { Pencil, Trash2 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePagination } from '@/utils/pageSize';
 import type { DictItemRow, DictTypeItem } from './service';
@@ -361,29 +363,28 @@ const DictPage: React.FC = () => {
     },
     {
       title: '操作',
-      width: 120,
-      render: (_: unknown, record: DictItemRow) => (
-        <Space size={14}>
-          {canEdit && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => openEditItem(record)}
-            >
-              编辑
-            </button>
-          )}
-          {canDelete && (
-            <button
-              type="button"
-              className="zhul-link"
-              style={{ color: p.red }}
-              onClick={() => handleDeleteItem(record)}
-            >
-              删除
-            </button>
-          )}
-        </Space>
+      // 编辑放行内，删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(2),
+      render: (_: unknown, r: DictItemRow) => (
+        <RowActions
+          inline={[
+            canEdit && {
+              key: 'edit',
+              label: '编辑',
+              icon: <Pencil size={18} />,
+              onClick: () => openEditItem(r),
+            },
+          ]}
+          more={[
+            canDelete && {
+              key: 'delete',
+              label: '删除',
+              icon: <Trash2 size={16} />,
+              danger: true,
+            },
+          ]}
+          onMore={() => handleDeleteItem(r)}
+        />
       ),
     },
   ];

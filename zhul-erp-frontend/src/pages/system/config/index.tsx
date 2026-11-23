@@ -15,18 +15,8 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import {
-  App,
-  Badge,
-  Button,
-  Form,
-  Input,
-  Space,
-  Tabs,
-  Tag,
-  Upload,
-} from 'antd';
-import { Search } from 'lucide-react';
+import { App, Badge, Button, Form, Input, Tabs, Tag, Upload } from 'antd';
+import { Pencil, Search, Trash2 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import {
@@ -35,6 +25,7 @@ import {
   MainCard,
   PageHeader,
 } from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { proAuditColumns } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
 import { APPEARANCE_IMAGE_KEYS } from '@/utils/appearance';
@@ -336,29 +327,29 @@ const ConfigPage: React.FC = () => {
       title: '操作',
       fixed: 'right',
       valueType: 'option',
-      width: 120,
-      render: (_, record) => (
-        <Space size={14}>
-          {canEdit && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => openEdit(record)}
-            >
-              编辑
-            </button>
-          )}
-          {canDelete && record.isBuiltin !== 1 && (
-            <button
-              type="button"
-              className="zhul-link"
-              style={{ color: p.red }}
-              onClick={() => handleDelete(record)}
-            >
-              删除
-            </button>
-          )}
-        </Space>
+      // 编辑放行内，删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(2),
+      render: (_, r) => (
+        <RowActions
+          inline={[
+            canEdit && {
+              key: 'edit',
+              label: '编辑',
+              icon: <Pencil size={18} />,
+              onClick: () => openEdit(r),
+            },
+          ]}
+          more={[
+            canDelete &&
+              r.isBuiltin !== 1 && {
+                key: 'delete',
+                label: '删除',
+                icon: <Trash2 size={16} />,
+                danger: true,
+              },
+          ]}
+          onMore={() => handleDelete(r)}
+        />
       ),
     },
   ];
