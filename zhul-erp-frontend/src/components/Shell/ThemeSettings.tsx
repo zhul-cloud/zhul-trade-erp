@@ -145,7 +145,7 @@ export const ThemeSettingsPanel: React.FC<{ onClose?: () => void }> = ({
                 gap: 6,
                 borderRadius: 6,
                 fontSize: 13,
-                fontWeight: on ? 500 : 400,
+                fontWeight: on ? 600 : 400,
                 color: on ? p.link : p.mute,
                 background: on ? p.primarySoft : 'transparent',
               }}

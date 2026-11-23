@@ -27,5 +27,8 @@ it('表格第一列是客户时按客户列显示', () => {
   );
   expect(screen.getByText('Pacific Controls')).toBeTruthy();
   // 本分支的客户列（销售订单原型 A1）：国家 / 地区与主联系人在名称下面一行
-  expect(screen.getByText('Australia · Tom')).toBeTruthy();
+  // 国家用公共组件 CountryText（国旗 + 国名），和联系人在同一行
+  expect(screen.getByText('Australia').closest('div')?.textContent).toBe(
+    'Australia · Tom',
+  );
 });

@@ -1,6 +1,7 @@
 import { useAntdConfigSetter } from '@umijs/max';
 import { theme as antdTheme } from 'antd';
 import React, { useEffect, useMemo, useRef } from 'react';
+import { renderEmpty } from '@/components/EmptyState';
 import { buildAntdTheme } from './antd';
 import { SANS_FONT } from './fonts';
 import {
@@ -89,6 +90,9 @@ const globalCss = (
   .ant-pagination .ant-pagination-item-active a { color: ${light ? p.ink : p.link}; }
   /* 页数不多（页码没有省略号）时不显示跳页 */
   .ant-pagination:not(:has(.ant-pagination-jump-next, .ant-pagination-jump-prev)) .ant-pagination-options-quick-jumper { display: none; }
+  /* 行内提醒（RowAlert）：首个单元格左侧 3px 色条，不整行铺底色 */
+  .ant-table-tbody > tr.zhul-row-alert-error > td:first-child { box-shadow: inset 3px 0 0 ${p.red}; }
+  .ant-table-tbody > tr.zhul-row-alert-warning > td:first-child { box-shadow: inset 3px 0 0 ${p.orange}; }
   /* 卡片：浅色为阴影、不加边框，深色为边框、不用阴影；卡片里再套的卡片不重复加阴影 */
   ${
     light
@@ -160,7 +164,8 @@ export const AppThemeSync: React.FC<{ children: React.ReactNode }> = ({
   setterRef.current = setAntdConfig;
 
   useEffect(() => {
-    setterRef.current({ theme: buildAntdTheme(mode, preset) });
+    // 没写 emptyText 的表格、下拉也用统一的空状态（ui-redesign C4）
+    setterRef.current({ theme: buildAntdTheme(mode, preset), renderEmpty });
     document.documentElement.dataset.theme = mode;
   }, [mode, preset]);
 

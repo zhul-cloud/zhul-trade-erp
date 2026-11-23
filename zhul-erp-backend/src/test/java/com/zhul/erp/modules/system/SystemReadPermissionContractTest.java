@@ -91,4 +91,14 @@ class SystemReadPermissionContractTest extends TenantContractSupport {
         assertFalse(first.has("phone") || first.has("email") || first.has("username"));
         assertEquals(1, ok(call(get(USERS + "/options").param("limit", "1"), sales)).size(), "按 limit 截断");
     }
+
+    @Test
+    void userNames_loginOnly_mapsUsernameToName() throws Exception {
+        String sales = as("it_sys_names", MENU_SALES_ORDERS);
+        jdbc.update("update user_basic set name = '测试员', email = 'it@example.com' where id = ?", ME);
+        JsonNode names = ok(call(get(USERS + "/names").param("usernames", "it_sys_names", "sys", "nobody"), sales));
+        assertEquals("测试员", names.path("it_sys_names").asText());
+        assertEquals(1, names.size(), "查不到的账号不返回");
+        assertFalse(names.toString().contains("it@example.com"), "不含邮箱");
+    }
 }

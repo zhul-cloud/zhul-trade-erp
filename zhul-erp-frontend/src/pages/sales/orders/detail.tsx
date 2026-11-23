@@ -31,6 +31,7 @@ import {
   UserRound,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { CustomerSubLine } from '@/components/DocFields';
 import DocModelCell, {
   DocDescription,
   docBrandColumns,
@@ -382,11 +383,12 @@ const OrderDetail: React.FC = () => {
           <div style={{ fontWeight: 600, color: palette.ink }}>
             {o.customerName}
           </div>
-          {o.customerType ? (
-            <div style={{ fontSize: 13, color: palette.sub, marginTop: 4 }}>
-              {o.customerType === 2 ? '老客户' : '新客户'}
-            </div>
-          ) : null}
+          <CustomerSubLine
+            type={o.customerType}
+            country={o.customerCountry}
+            contact={o.customerContact}
+            style={{ fontSize: 13, color: palette.sub, marginTop: 4 }}
+          />
         </>,
         true,
       )}

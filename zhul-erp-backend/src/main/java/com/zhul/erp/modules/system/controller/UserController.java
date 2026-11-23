@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @Tag(name = "用户管理")
 @RestController
@@ -51,6 +52,12 @@ public class UserController {
                                               @RequestParam(required = false) Integer status,
                                               @RequestParam(required = false) Integer limit) {
         return Result.ok(userService.listUserOptions(name, status, limit));
+    }
+
+    @Operation(summary = "登录账号换姓名（列表的创建人、更新人显示姓名用，登录即可用，只返回账号与姓名）")
+    @GetMapping("/names")
+    public Result<Map<String, String>> names(@RequestParam List<String> usernames) {
+        return Result.ok(userService.namesByUsername(usernames));
     }
 
     @Operation(summary = "用户统计")

@@ -1,6 +1,7 @@
 import { ExpandOutlined, UserOutlined } from '@ant-design/icons';
 import { AutoComplete, Button, Drawer, Select, Space } from 'antd';
 import React, { useState } from 'react';
+import { CountryText } from '@/components/CountryText';
 import { INCOTERMS } from '@/pages/customer/constants';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_TRADE_TERM_PLACE, useDictTexts } from '@/utils/dict';
@@ -155,19 +156,43 @@ export const CustomerCell: React.FC<{
   contact?: string;
 }> = ({ name, country, type, contact }) => {
   const { palette } = useAppTheme();
-  const sub = [
-    type ? (type === 2 ? '老客户' : '新客户') : undefined,
-    country,
-    contact,
-  ].filter(Boolean);
   return (
     <div style={{ minWidth: 0 }}>
       <div style={{ color: palette.ink, minWidth: 0 }}>{name || '—'}</div>
-      {sub.length > 0 && (
-        <div style={{ color: palette.mute, fontSize: 12, lineHeight: '18px' }}>
-          {sub.join(' · ')}
-        </div>
-      )}
+      <CustomerSubLine
+        type={type}
+        country={country}
+        contact={contact}
+        style={{ color: palette.mute, fontSize: 12, lineHeight: '18px' }}
+      />
+    </div>
+  );
+};
+
+/** 客户名下面一行：「新 / 老客户 · 国旗 国家 · 主联系人」，缺哪项不显示哪项（列表客户列、单据详情客户卡共用） */
+export const CustomerSubLine: React.FC<{
+  country?: string;
+  type?: number;
+  contact?: string;
+  style?: React.CSSProperties;
+}> = ({ country, type, contact, style }) => {
+  const parts = [
+    type ? (type === 2 ? '老客户' : '新客户') : undefined,
+    country ? <CountryText key="c" value={country} /> : undefined,
+    contact,
+  ].filter(Boolean);
+  if (parts.length === 0) return null;
+  return (
+    <div
+      style={{
+        minWidth: 0,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        ...style,
+      }}
+    >
+      {parts.flatMap((p, i) => (i > 0 ? [` · `, p] : [p]))}
     </div>
   );
 };

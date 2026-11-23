@@ -166,20 +166,10 @@ export interface MoreAction {
   disabledReason?: React.ReactNode;
 }
 
-/**
- * 详情页头的「更多」菜单：撤回、冲销、作废等危险或少用的操作收在这里（每个页头最多一个主按钮）。
- * 没有可显示的操作时不渲染。
- */
-export const MoreActions: React.FC<{
-  /** 可直接写 `条件 && { ... }`，假值会被略过 */
-  items: (MoreAction | false | null | undefined | '' | 0)[];
-  onClick: (key: string) => void;
-}> = ({ items, onClick }) => {
-  const list = items.filter(Boolean) as MoreAction[];
-  if (list.length === 0) return null;
-  // 危险操作排在后面，前面还有普通操作时用分隔线隔开（ui-design-patterns「详情页头」）
+/** 「更多」菜单项：危险操作排在后面，前面还有普通操作时用分隔线隔开（ui-design-patterns「详情页头」）；详情页头与表格操作列共用 */
+export const moreMenuItems = (list: MoreAction[]) => {
   const firstDanger = list.findIndex((a) => a.danger);
-  const menuItems = list.flatMap((a, i) => [
+  return list.flatMap((a, i) => [
     ...(i > 0 && i === firstDanger ? [{ type: 'divider' as const }] : []),
     {
       key: a.key,
@@ -198,6 +188,20 @@ export const MoreActions: React.FC<{
       ),
     },
   ]);
+};
+
+/**
+ * 详情页头的「更多」菜单：撤回、冲销、作废等危险或少用的操作收在这里（每个页头最多一个主按钮）。
+ * 没有可显示的操作时不渲染。
+ */
+export const MoreActions: React.FC<{
+  /** 可直接写 `条件 && { ... }`，假值会被略过 */
+  items: (MoreAction | false | null | undefined | '' | 0)[];
+  onClick: (key: string) => void;
+}> = ({ items, onClick }) => {
+  const list = items.filter(Boolean) as MoreAction[];
+  if (list.length === 0) return null;
+  const menuItems = moreMenuItems(list);
   return (
     <Dropdown
       trigger={['click']}
@@ -436,7 +440,7 @@ export const QuickFilters: React.FC<{
               background: on ? palette.primarySoft : palette.neutralSoft,
               color: on ? palette.link : palette.sub,
               fontSize: 13,
-              fontWeight: on ? 500 : 400,
+              fontWeight: on ? 600 : 400,
               cursor: 'pointer',
             }}
           >

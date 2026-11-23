@@ -35,7 +35,9 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -143,6 +145,30 @@ public class UserServiceImpl implements UserService {
             o.setId(u.getId());
             o.setName(u.getName());
             out.add(o);
+        }
+        return out;
+    }
+
+    @Override
+    public Map<String, String> namesByUsername(List<String> usernames) {
+        List<String> wanted = usernames == null ? List.of()
+                : usernames.stream().filter(StringUtils::hasText).map(String::trim).distinct().limit(200).toList();
+        if (wanted.isEmpty()) {
+            return Map.of();
+        }
+        // 已删除的用户也要显示姓名：历史单据的创建人可能已离职
+        LambdaQueryWrapper<UserBasicDO> wrapper = new LambdaQueryWrapper<UserBasicDO>()
+                .select(UserBasicDO::getUsername, UserBasicDO::getName)
+                .in(UserBasicDO::getUsername, wanted);
+        Integer tenantId = TenantContext.getTenantId();
+        if (tenantId != null) {
+            wrapper.eq(UserBasicDO::getTenantId, tenantId);
+        }
+        Map<String, String> out = new HashMap<>(wanted.size() * 2);
+        for (UserBasicDO u : userBasicMapper.selectList(wrapper)) {
+            if (StringUtils.hasText(u.getName())) {
+                out.put(u.getUsername(), u.getName());
+            }
         }
         return out;
     }

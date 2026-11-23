@@ -170,7 +170,7 @@
 | 步骤条 | 圆点 30；已完成与当前步为主题色实底白字，未到的为浅灰底灰字；步骤名 14 |
 | 信息卡 | 详情页顶部的白卡：标题 16/600，右上角 32 圆形中性图标；客户卡的客户名用主题色链接，第二行「新 / 老客户 · 国旗 国家 · 主联系人」都是文字 |
 | 数字卡 | 公共组件。浮起白卡（浅色阴影无边框，深色边框），同一行等高；左上 38×38 图标块（按「图标底块」取家族色）+ 名称 14/400 次要色，可点时名称后带右箭头；下一行数值 24/600 整行宽、与图标左缘对齐，币种代码 13–14 次要色；第三行较上月或说明，告警时为带图标的浅底标签；可点的卡悬停加深阴影，不位移 |
-| 国家 | 公共组件。国旗（`flag-icons`，按 ISO 两位代码，16×12、圆角 2、内描边）+ 中文国名，悬停显示英文名；缺代码时显示 `globe` |
+| 国家 | 公共组件 `CountryText`。国旗（`flag-icons`，按 ISO 两位代码，16×12、圆角 2、内描边）+ 中文国名，悬停显示英文名；缺代码时显示 `globe` |
 | 「标签：数值」行 | 14px，行高 44–52，行间分隔线；合计在右侧、加大加粗 |
 | 帮助图标 | `info` 14px 次要灰，只在鼠标悬停时显示气泡；气泡最多两句 |
 | 进度条 | 高 6、圆角 3，底色为分隔线色；收款进度：已到账成功色、待到账警告色、其余主题色；货物进度 6 段用图表系列色 |
@@ -296,6 +296,23 @@ import {
 
 状态下拉沿用 `doc-list-unify` 的写法：放在 `FilterCard` 里，选项带数量（如「待打包 · 2」），切换立即查询。
 
+### 通用组件
+
+各页都会用到的写法统一用下面的公共组件，不在页面里各写一份（ui-redesign C1–C8）：
+
+| 用途 | 组件 | 用法 |
+|---|---|---|
+| 分页 | `usePagination(20, scope)`（`src/utils/pageSize.ts`） | `pagination={pager}`。默认 20 条、记住个人选择；页码有省略号时才显示跳页；总数写在 `MainCard` 的 `left`，不传 `showTotal`。没有主卡的子表才自己写总数 |
+| 国家 | `CountryText`、`CountryFlag`（`src/components/CountryText`） | `<CountryText value={r.country} />`：国旗 + 中文名，悬停英文名；`value` 为保存的英文名，也认两位代码和中文名。国旗图片由 `config/config.ts` 的 `copy` 复制到 `/flags/` 再用 `<img>` 加载：SVG 不能经 CSS 或 `import` 引用，打包器会把它转成 React 组件 |
+| 客户名下一行 | `CustomerCell`、`CustomerSubLine`（`src/components/DocFields`） | 列表的客户列和详情客户卡共用「新 / 老客户 · 国旗 国家 · 主联系人」 |
+| 空状态 | `EmptyState`（`kind`：`empty`、`noResult`、`error`、`forbidden`；`compact`） | 表格、下拉没写空状态时全站自动用它（`AppTheme` 的 `renderEmpty`）。筛选后无结果用 `noResult` 加「清空筛选」，出错用 `error` 加「重试」，无权限用 `forbidden` 写明需要的权限 |
+| 操作列 | `RowActions`、`rowActionsWidth(n)`（`src/components/RowActions`） | `inline` 最多 2 个常用图标，本行不适用的写假值留出空位；其余放 `more`、点击走 `onMore(key)`，危险项自动排到末尾。列宽用 `rowActionsWidth(图标位数)`（「更多」算一位），计入 `tableScrollX` |
+| 危险确认 | `useConfirmDanger()`（`src/components/ConfirmDanger`） | `confirm({ title, content, okText, onOk })`：标题写明对象，内容写后果，按钮写动作（默认「删除」），默认焦点在「取消」 |
+| 人名 | `UserName`、`useUserName`（`src/components/UserName`） | 创建人、更新人存的是登录账号，显示姓名（同一轮渲染的账号合并成一次 `/api/v1/system/users/names` 查询）；系统写入显示「系统」 |
+| 创建、更新两列 | `auditColumns()`、`AuditCell`（同上） | 列表固定的「创建」「更新」两列：人名在上、短时间在下，悬停看完整时间 |
+| 行内提醒 | `rowAlert(tone)`（`src/components/RowAlert`） | `onRow={(r) => rowAlert(r.overdue ? 'error' : undefined)}`：首格左侧 3px 色条，原因写成状态标签，不整行铺底色 |
+| 数字卡 | `MetricCard`、`MetricGroup` | 随工作台（第 3 批）实现，见「组件标准 · 数字卡」 |
+
 ---
 
 ## 界面检查（lint:ui）
@@ -339,7 +356,7 @@ JSX 里写成 `{/* lint-ui-ignore gradient: 两端同色，只是背景图上的
 4. 品牌、品类：各一列，`TagList`（纯文字，前两个用「、」连接，其余收成「+N」，悬停看全部）。
 5. 金额、状态等单据自己的列。金额按「金额显示规范」；毛利等盈亏按涨跌颜色。
 6. 来源单号：单独一列（`SourceNos mode="cell"`）。
-7. 负责人，然后是创建时间、创建人、更新时间、更新人，最后是操作列。操作列固定在右，只放图标按钮（`IconButton`，size 32、图标 18），悬停显示名称。
+7. 负责人，然后是「创建」「更新」两列（`auditColumns()`），最后是操作列。操作列固定在右，用 `RowActions`（图标 size 32、图标 18，悬停显示名称）。
 
 **详情页**：
 - **页头**：标题行为单号加状态标签（20–22/600），操作按钮在右。

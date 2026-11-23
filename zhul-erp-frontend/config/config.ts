@@ -47,6 +47,12 @@ export default defineConfig({
   publicPath: PUBLIC_PATH,
 
   /**
+   * 国旗 SVG（flag-icons，ui-redesign C2）原样复制到产物的 flags/ 目录，按需用 <img> 加载。
+   * 不能经 CSS 或 import 引用：打包器会把 SVG 转成 React 组件，背景图失效。
+   */
+  copy: [{ from: 'node_modules/flag-icons/flags/4x3', to: 'flags' }],
+
+  /**
    * @name 兼容性设置
    * @description 设置 ie11 不一定完美兼容，需要检查自己使用的所有依赖
    * @doc https://umijs.org/docs/api/config#targets
