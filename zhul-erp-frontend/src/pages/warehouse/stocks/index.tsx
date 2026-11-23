@@ -3,6 +3,7 @@ import { history, Link, useAccess, useLocation } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Form, Input, Select, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterField,
   HeadHelp,
@@ -460,10 +461,12 @@ const StocksPage: React.FC = () => {
               ),
             }}
             locale={{
-              emptyText:
+              emptyText: tableEmpty(
                 filters.keyword || filters.quick || filters.warehouse !== 'all'
                   ? '没有符合条件的库存'
                   : '还没有库存；采购入库、退货入库后会出现在这里',
+                loading,
+              ),
             }}
             pagination={{
               ...PAGER_STYLE,

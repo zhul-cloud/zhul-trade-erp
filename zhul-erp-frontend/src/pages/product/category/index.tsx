@@ -14,6 +14,7 @@ import { App, Button, Input, Select, Tooltip } from 'antd';
 import { Search } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -449,7 +450,9 @@ const CategoryPage: React.FC = () => {
           scroll={{ x: tableScrollX(columns) }}
           pagination={pager}
           locale={{
-            emptyText: '还没有品类。先新增一个，新建商品时才能选择品类。',
+            emptyText: tableEmpty(
+              '还没有品类。先新增一个，新建商品时才能选择品类。',
+            ),
           }}
         />
       </MainCard>

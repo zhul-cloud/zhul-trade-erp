@@ -7,6 +7,7 @@ import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Form, Input, Modal, Select, Skeleton, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { FilterField, MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
@@ -341,7 +342,7 @@ const WarehousesPage: React.FC = () => {
             columns={columns}
             dataSource={rows}
             scroll={{ x: tableScrollX(columns) }}
-            locale={{ emptyText: '没有符合条件的仓库' }}
+            locale={{ emptyText: tableEmpty('没有符合条件的仓库', !list) }}
             pagination={{
               ...PAGER_STYLE,
               current: page,

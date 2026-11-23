@@ -18,6 +18,7 @@ import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -632,7 +633,12 @@ const PiList: React.FC = () => {
             dataSource={rows}
             loading={loading}
             scroll={{ x: tableScrollX(columns) }}
-            locale={{ emptyText: '没有符合条件的 PI，换个筛选条件试试' }}
+            locale={{
+              emptyText: tableEmpty(
+                '没有符合条件的 PI，换个筛选条件试试',
+                loading,
+              ),
+            }}
             pagination={{
               ...PAGER_STYLE,
               current: page,

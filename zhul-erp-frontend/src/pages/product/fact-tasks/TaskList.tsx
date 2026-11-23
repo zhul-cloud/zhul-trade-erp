@@ -20,6 +20,7 @@ import {
   Upload,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -733,7 +734,10 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
               preserveSelectedRowKeys: true,
             }}
             locale={{
-              emptyText: tabs.find((t) => t.key === tab)?.empty ?? '没有记录',
+              emptyText: tableEmpty(
+                tabs.find((t) => t.key === tab)?.empty ?? '没有记录',
+                loading,
+              ),
             }}
             pagination={{
               ...PAGER_STYLE,

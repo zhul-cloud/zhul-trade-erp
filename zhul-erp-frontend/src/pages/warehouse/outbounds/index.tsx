@@ -13,6 +13,7 @@ import { CustomerCell } from '@/components/DocFields';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -477,7 +478,7 @@ const Outbounds: React.FC = () => {
                 : undefined
             }
             locale={{
-              emptyText:
+              emptyText: tableEmpty(
                 tab === 'pending'
                   ? '没有待打包的销售出库单'
                   : tab === 'packed'
@@ -485,6 +486,8 @@ const Outbounds: React.FC = () => {
                     : tab === 'handed'
                       ? '还没有交货代的销售出库单'
                       : '还没有销售出库单',
+                loading,
+              ),
             }}
             pagination={{
               ...PAGER_STYLE,

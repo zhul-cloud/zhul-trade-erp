@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Input, Segmented, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -381,7 +382,9 @@ const BargainStatsPage: React.FC = () => {
           dataSource={groups}
           pagination={false}
           scroll={{ x: tableScrollX(columns) }}
-          locale={{ emptyText: '这段时间没有已下单的采购订单' }}
+          locale={{
+            emptyText: tableEmpty('这段时间没有已下单的采购订单', loading),
+          }}
           expandable={{
             expandRowByClick: true,
             expandedRowRender: (g) => (

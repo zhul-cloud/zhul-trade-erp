@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -771,7 +772,12 @@ const CustomerInquiryPage: React.FC = () => {
               );
               setPage(1);
             }}
-            locale={{ emptyText: '没有符合条件的询盘，换个筛选条件试试' }}
+            locale={{
+              emptyText: tableEmpty(
+                '没有符合条件的询盘，换个筛选条件试试',
+                loading,
+              ),
+            }}
             pagination={{
               ...PAGER_STYLE,
               current: page,

@@ -20,6 +20,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -529,7 +530,7 @@ const PendingTab: React.FC<{
             selectedRowKeys: selected,
             onChange: (keys) => setSelected(keys as string[]),
           }}
-          locale={{ emptyText: '没有待报销的垫付' }}
+          locale={{ emptyText: tableEmpty('没有待报销的垫付', loading) }}
           scroll={{ x: tableScrollX(columns) }}
         />
         <div

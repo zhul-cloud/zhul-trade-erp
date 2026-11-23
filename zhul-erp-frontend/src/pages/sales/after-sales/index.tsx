@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -466,10 +467,12 @@ const AfterSalesPage: React.FC = () => {
           dataSource={rows}
           scroll={{ x: tableScrollX(columns) }}
           locale={{
-            emptyText:
+            emptyText: tableEmpty(
               filters.status === AS_STATUS.OPEN
                 ? '没有处理中的售后单；客户反馈问题时点右上角「新建售后单」，或在订单详情点「售后」'
                 : '没有符合条件的售后单',
+              loading,
+            ),
           }}
           pagination={{
             ...PAGER_STYLE,

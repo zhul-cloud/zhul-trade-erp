@@ -12,6 +12,7 @@ import { App, Button, Input, Select, Tooltip } from 'antd';
 import { Search } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -288,7 +289,9 @@ const SeriesPage: React.FC = () => {
           }}
           pagination={pager}
           locale={{
-            emptyText: '还没有系列。系列是可选的，商品可以不属于任何系列。',
+            emptyText: tableEmpty(
+              '还没有系列。系列是可选的，商品可以不属于任何系列。',
+            ),
           }}
         />
       </MainCard>

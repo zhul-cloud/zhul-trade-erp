@@ -5,6 +5,7 @@ import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -337,10 +338,12 @@ const PurchaseReturnsPage: React.FC = () => {
           dataSource={rows}
           scroll={{ x: tableScrollX(columns) }}
           locale={{
-            emptyText:
+            emptyText: tableEmpty(
               filters.status === PR_STATUS.PENDING
                 ? '没有待寄出的采购退货；退货入库去向选「退回供应商」或到货差异选择退货后会出现在这里'
                 : '没有符合条件的采购退货单',
+              loading,
+            ),
           }}
           pagination={{
             ...PAGER_STYLE,

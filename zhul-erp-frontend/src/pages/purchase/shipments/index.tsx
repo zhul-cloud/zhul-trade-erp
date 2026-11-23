@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -313,7 +314,10 @@ const ShipmentsTab: React.FC = () => {
             loading={loading}
             scroll={{ x: tableScrollX(columns) }}
             locale={{
-              emptyText: '还没有发货记录；在采购订单详情点「登记发货」',
+              emptyText: tableEmpty(
+                '还没有发货记录；在采购订单详情点「登记发货」',
+                loading,
+              ),
             }}
             pagination={{
               ...PAGER_STYLE,
@@ -606,10 +610,12 @@ const DiffsTab: React.FC<{ pending?: number; onChanged: () => void }> = ({
             loading={loading}
             scroll={{ x: tableScrollX(columns) }}
             locale={{
-              emptyText:
+              emptyText: tableEmpty(
                 query.status === 1
                   ? '没有待处理的到货差异'
                   : '没有符合条件的到货差异',
+                loading,
+              ),
             }}
             pagination={{
               ...PAGER_STYLE,

@@ -20,6 +20,7 @@ import {
 import dayjs from 'dayjs';
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   CardTitle,
   FilterCard,
@@ -679,7 +680,7 @@ const UnclaimedTab: React.FC<{
           loading={loading}
           pagination={false}
           scroll={{ x: tableScrollX(columns) }}
-          locale={{ emptyText: '没有未认领的到账' }}
+          locale={{ emptyText: tableEmpty('没有未认领的到账', loading) }}
         />
       </MainCard>
       <div style={{ height: 16 }} />
@@ -691,7 +692,7 @@ const UnclaimedTab: React.FC<{
           loading={loading}
           pagination={false}
           scroll={{ x: tableScrollX(claimedColumns) }}
-          locale={{ emptyText: '还没有认领记录' }}
+          locale={{ emptyText: tableEmpty('还没有认领记录', loading) }}
         />
       </MainCard>
       <FilesModal row={viewing} onClose={() => setViewing(undefined)} />

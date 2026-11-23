@@ -22,6 +22,7 @@ import {
 } from 'antd';
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -510,7 +511,7 @@ const BrandPage: React.FC = () => {
               }}
               pagination={pager}
               locale={{
-                emptyText: '没有符合条件的品牌',
+                emptyText: tableEmpty('没有符合条件的品牌'),
               }}
             />
           </MainCard>

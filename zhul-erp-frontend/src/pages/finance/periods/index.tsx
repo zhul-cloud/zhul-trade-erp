@@ -2,6 +2,7 @@ import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Button, Space, Table, Tooltip } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Pill } from '@/pages/inquiry/shared/components';
@@ -175,7 +176,12 @@ const PeriodsPage: React.FC = () => {
             columns={columns}
             dataSource={rows}
             scroll={{ x: tableScrollX(columns) }}
-            locale={{ emptyText: '还没有库存流水，没有可结账的月份' }}
+            locale={{
+              emptyText: tableEmpty(
+                '还没有库存流水，没有可结账的月份',
+                loading,
+              ),
+            }}
             pagination={rows.length > 20 ? { pageSize: 20 } : false}
           />
         </MainCard>

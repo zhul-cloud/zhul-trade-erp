@@ -14,6 +14,7 @@ import {
 } from 'antd';
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -391,10 +392,12 @@ const CountryProfilesPage: React.FC = () => {
             scroll={{ x: tableScrollX(columns) }}
             pagination={pager}
             locale={{
-              emptyText:
+              emptyText: tableEmpty(
                 filter === 'all'
                   ? '还没有客户，也没有维护过国家资料'
                   : '没有符合条件的国家',
+                loading,
+              ),
             }}
           />
         )}

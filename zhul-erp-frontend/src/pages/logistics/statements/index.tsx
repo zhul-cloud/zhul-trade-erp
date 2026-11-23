@@ -20,6 +20,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -699,7 +700,10 @@ const Statements: React.FC = () => {
             loading={loading}
             scroll={{ x: tableScrollX(columns) }}
             locale={{
-              emptyText: '还没有运费账单；月底收到货代账单后点「新建运费账单」',
+              emptyText: tableEmpty(
+                '还没有运费账单；月底收到货代账单后点「新建运费账单」',
+                loading,
+              ),
             }}
             pagination={{
               ...PAGER_STYLE,

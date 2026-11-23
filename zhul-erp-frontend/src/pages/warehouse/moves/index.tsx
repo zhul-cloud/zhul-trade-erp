@@ -4,6 +4,7 @@ import type { TableColumnsType } from 'antd';
 import { Checkbox, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { FilterField, MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Pill } from '@/pages/inquiry/shared/components';
@@ -313,7 +314,7 @@ const MovesPage: React.FC = () => {
             columns={columns}
             dataSource={rows}
             scroll={{ x: tableScrollX(columns) }}
-            locale={{ emptyText: '没有符合条件的流水' }}
+            locale={{ emptyText: tableEmpty('没有符合条件的流水', loading) }}
             pagination={{
               ...PAGER_STYLE,
               current: page,

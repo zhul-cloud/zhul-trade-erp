@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import React from 'react';
 import { setToken } from '@/utils/tokenStore';
 import { CountryText } from './CountryText';
-import { EmptyState, listEmpty, renderEmpty } from './EmptyState';
+import { EmptyState, listEmpty, renderEmpty, tableEmpty } from './EmptyState';
 import { RowActions, rowActionsWidth } from './RowActions';
 import { rowAlert } from './RowAlert';
 import { formatShortTime, UserName } from './UserName';
@@ -241,5 +241,22 @@ describe('列表空状态', () => {
     expect(onClear).toHaveBeenCalled();
     rerender(h('div', null, listEmpty({ empty: { title: '还没有订单' } })));
     expect(screen.getByText('还没有订单')).toBeTruthy();
+  });
+});
+
+describe('表格空状态 tableEmpty', () => {
+  it('加载中不显示；一句话按「，」「；」拆成标题与说明；提到筛选的为无结果', () => {
+    const { container, rerender } = render(
+      h('div', null, tableEmpty('没有符合条件的订单，换个筛选条件试试', true)),
+    );
+    expect(container.textContent).toBe('');
+    rerender(
+      h('div', null, tableEmpty('没有符合条件的订单，换个筛选条件试试', false)),
+    );
+    expect(screen.getByText('没有符合条件的订单')).toBeTruthy();
+    expect(screen.getByText('换个筛选条件试试')).toBeTruthy();
+    const custom = h('span', null, '自定义空状态');
+    rerender(h('div', null, tableEmpty(custom, { spinning: false })));
+    expect(screen.getByText('自定义空状态')).toBeTruthy();
   });
 });

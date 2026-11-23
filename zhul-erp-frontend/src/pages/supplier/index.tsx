@@ -21,6 +21,7 @@ import {
   Upload,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -558,20 +559,23 @@ const SupplierListPage: React.FC = () => {
               },
             }}
             locale={{
-              emptyText: hasCondition ? (
-                <EmptyHint
-                  title="没有找到匹配的供应商"
-                  description="编码、名称支持模糊搜索；统一社会信用代码需要输入完整的 18 位。"
-                  secondaryText="清空筛选"
-                  onSecondary={reset}
-                />
-              ) : (
-                <EmptyHint
-                  title="暂无供应商数据，点击新增开始创建"
-                  description="新增时填写编码、名称和类型即可保存，工商、联系、结算信息可以以后再补。"
-                  actionText={canAdd ? '新增供应商' : undefined}
-                  onAction={() => history.push(`${LIST_PATH}/new`)}
-                />
+              emptyText: tableEmpty(
+                hasCondition ? (
+                  <EmptyHint
+                    title="没有找到匹配的供应商"
+                    description="编码、名称支持模糊搜索；统一社会信用代码需要输入完整的 18 位。"
+                    secondaryText="清空筛选"
+                    onSecondary={reset}
+                  />
+                ) : (
+                  <EmptyHint
+                    title="暂无供应商数据，点击新增开始创建"
+                    description="新增时填写编码、名称和类型即可保存，工商、联系、结算信息可以以后再补。"
+                    actionText={canAdd ? '新增供应商' : undefined}
+                    onAction={() => history.push(`${LIST_PATH}/new`)}
+                  />
+                ),
+                loading,
               ),
             }}
           />

@@ -6,6 +6,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import SourceNos from '@/components/DocFields/SourceNos';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterField,
   MainCard,
@@ -317,9 +318,12 @@ const CostAdjustmentsPage: React.FC = () => {
             dataSource={rows}
             scroll={{ x: tableScrollX(columns) }}
             locale={{
-              emptyText: noFilter
-                ? `${parsed.month ?? ''} 没有成本调整`
-                : '没有符合条件的成本调整',
+              emptyText: tableEmpty(
+                noFilter
+                  ? `${parsed.month ?? ''} 没有成本调整`
+                  : '没有符合条件的成本调整',
+                loading,
+              ),
             }}
             pagination={{
               ...PAGER_STYLE,

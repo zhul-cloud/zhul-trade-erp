@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -260,10 +261,12 @@ const ReturnsPage: React.FC = () => {
           dataSource={rows}
           scroll={{ x: tableScrollX(columns) }}
           locale={{
-            emptyText:
+            emptyText: tableEmpty(
               status === RT_STATUS.PENDING
                 ? '没有待入库的退货；业务员确认销售退货单后会出现在这里'
                 : '没有符合条件的退货入库单',
+              loading,
+            ),
           }}
           pagination={{
             ...PAGER_STYLE,

@@ -16,6 +16,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Search } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -317,7 +318,7 @@ const LoginLogPage: React.FC = () => {
           search={false}
           toolBarRender={false}
           pagination={{ ...pager, pageSizeOptions: [20, 50, 100] }}
-          locale={{ emptyText: '暂无登录日志数据' }}
+          locale={{ emptyText: tableEmpty('暂无登录日志数据') }}
           options={false}
           rowSelection={
             canForceLogout

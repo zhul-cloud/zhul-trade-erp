@@ -6,6 +6,7 @@ import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import SourceNos from '@/components/DocFields/SourceNos';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -634,7 +635,12 @@ const PurchaseOrderList: React.FC = () => {
             loading={loading}
             scroll={{ x: tableScrollX(columns) }}
             onChange={onTableChange}
-            locale={{ emptyText: '没有符合条件的采购订单，换个筛选条件试试' }}
+            locale={{
+              emptyText: tableEmpty(
+                '没有符合条件的采购订单，换个筛选条件试试',
+                loading,
+              ),
+            }}
             pagination={{
               ...PAGER_STYLE,
               current: page,

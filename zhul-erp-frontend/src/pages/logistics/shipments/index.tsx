@@ -8,6 +8,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -598,8 +599,10 @@ const Shipments: React.FC = () => {
             loading={loading}
             scroll={{ x: tableScrollX(columns) }}
             locale={{
-              emptyText:
+              emptyText: tableEmpty(
                 '还没有出运单；货交到货代后，在上面「待出运的货」里新建',
+                loading,
+              ),
             }}
             pagination={{
               ...PAGER_STYLE,

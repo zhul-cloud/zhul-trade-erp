@@ -14,6 +14,7 @@ import {
   Table,
 } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -563,7 +564,7 @@ const ForwarderPage: React.FC = () => {
           dataSource={rows}
           loading={loading}
           scroll={{ x: tableScrollX(columns) }}
-          locale={{ emptyText: '还没有货代' }}
+          locale={{ emptyText: tableEmpty('还没有货代', loading) }}
           pagination={{
             ...PAGER_STYLE,
             current: page,

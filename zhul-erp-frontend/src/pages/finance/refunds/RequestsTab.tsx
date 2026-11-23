@@ -5,6 +5,7 @@ import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerSub } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
+import { tableEmpty } from '@/components/EmptyState';
 import { FilterCard, FilterField, MainCard } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Pill } from '@/pages/inquiry/shared/components';
@@ -344,12 +345,14 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
           dataSource={rows}
           scroll={{ x: tableScrollX(columns) }}
           locale={{
-            emptyText:
+            emptyText: tableEmpty(
               status === RQ_STATUS.PENDING_RECEIPT
                 ? '没有待验收的退款申请；退货退款没勾选「先退款」时，仓库验收前在这里'
                 : status === RQ_STATUS.PENDING_FINANCE
                   ? '没有待处理的退款申请；业务员在售后单或订单详情提出'
                   : '没有符合条件的退款申请',
+              loading,
+            ),
           }}
           pagination={{
             ...PAGER_STYLE,

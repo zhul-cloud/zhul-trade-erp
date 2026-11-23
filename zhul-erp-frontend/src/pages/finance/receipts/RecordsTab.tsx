@@ -6,6 +6,7 @@ import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerSub } from '@/components/DocFields';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -450,7 +451,7 @@ const RecordsTab: React.FC = () => {
           dataSource={rows}
           loading={loading}
           scroll={{ x: tableScrollX(columns) }}
-          locale={{ emptyText: '没有符合条件的收款单' }}
+          locale={{ emptyText: tableEmpty('没有符合条件的收款单', loading) }}
           onChange={(_, __, sorter, extra) => {
             // 翻页也会触发 onChange，只在排序时回到第 1 页（audit UI-061）
             if (extra.action !== 'sort') return;

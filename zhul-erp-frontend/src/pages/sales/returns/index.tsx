@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -342,10 +343,12 @@ const SalesReturnsPage: React.FC = () => {
           dataSource={rows}
           scroll={{ x: tableScrollX(columns) }}
           locale={{
-            emptyText:
+            emptyText: tableEmpty(
               filters.status === TH_STATUS.CONFIRMING
                 ? '没有待确认的退货；在售后单选择「仅退货」或「退货退款」后会出现在这里'
                 : '没有符合条件的销售退货单',
+              loading,
+            ),
           }}
           pagination={{
             ...PAGER_STYLE,

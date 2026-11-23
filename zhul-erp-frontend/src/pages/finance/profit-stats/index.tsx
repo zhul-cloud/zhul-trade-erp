@@ -5,6 +5,7 @@ import { App, Segmented, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -427,7 +428,7 @@ const ProfitStatsPage: React.FC = () => {
           dataSource={groups}
           pagination={false}
           scroll={{ x: tableScrollX(columns) }}
-          locale={{ emptyText: '这段时间没有订单' }}
+          locale={{ emptyText: tableEmpty('这段时间没有订单', loading) }}
           expandable={{
             expandRowByClick: true,
             expandedRowRender: (g) => (

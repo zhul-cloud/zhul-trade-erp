@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { Input, Select, Table } from 'antd';
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -255,7 +256,10 @@ const ListingTasksPage: React.FC = () => {
             loading={loading}
             scroll={{ x: tableScrollX(columns) }}
             locale={{
-              emptyText: TABS.find((t) => t.key === tab)?.empty ?? '没有记录',
+              emptyText: tableEmpty(
+                TABS.find((t) => t.key === tab)?.empty ?? '没有记录',
+                loading,
+              ),
             }}
             pagination={{
               ...PAGER_STYLE,

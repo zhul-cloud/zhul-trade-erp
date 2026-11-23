@@ -7,6 +7,7 @@ import { Eye, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import EllipsisText from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -419,7 +420,12 @@ const OpportunityPage: React.FC = () => {
             columns={columns}
             dataSource={rows}
             scroll={{ x: tableScrollX(columns) }}
-            locale={{ emptyText: '没有符合条件的商机，换个筛选条件试试' }}
+            locale={{
+              emptyText: tableEmpty(
+                '没有符合条件的商机，换个筛选条件试试',
+                loading,
+              ),
+            }}
             onRow={(r) => ({
               style: { cursor: 'pointer' },
               onDoubleClick: () => history.push(`${LIST_PATH}/${r.id}`),

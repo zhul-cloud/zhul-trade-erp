@@ -5,6 +5,7 @@ import { Button, Form, Input, Select, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import EllipsisText from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import { FilterField, MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
@@ -278,9 +279,10 @@ const OtherOutboundsPage: React.FC = () => {
             dataSource={rows}
             scroll={{ x: tableScrollX(columns) }}
             locale={{
-              emptyText: noFilter
-                ? '还没有其他出库单'
-                : '没有符合条件的其他出库单',
+              emptyText: tableEmpty(
+                noFilter ? '还没有其他出库单' : '没有符合条件的其他出库单',
+                loading,
+              ),
             }}
             pagination={{
               ...PAGER_STYLE,

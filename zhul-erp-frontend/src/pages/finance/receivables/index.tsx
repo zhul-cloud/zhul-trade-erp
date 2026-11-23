@@ -4,6 +4,7 @@ import { App, Input, Segmented, Select, Table } from 'antd';
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -428,7 +429,7 @@ const ReceivablesPage: React.FC = () => {
                 />
               ),
             }}
-            locale={{ emptyText: '没有未收的款' }}
+            locale={{ emptyText: tableEmpty('没有未收的款', loading) }}
             pagination={{
               ...PAGER_STYLE,
               pageSize,
@@ -443,7 +444,7 @@ const ReceivablesPage: React.FC = () => {
             columns={orderColumns}
             dataSource={rows}
             scroll={{ x: tableScrollX(orderColumns) }}
-            locale={{ emptyText: '没有未收的款' }}
+            locale={{ emptyText: tableEmpty('没有未收的款', loading) }}
             pagination={{
               ...PAGER_STYLE,
               pageSize,

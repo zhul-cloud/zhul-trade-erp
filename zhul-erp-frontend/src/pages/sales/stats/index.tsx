@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Segmented, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   CardTitle,
   FilterCard,
@@ -479,7 +480,7 @@ const SalesStatsPage: React.FC = () => {
             dataSource={data?.customers ?? []}
             scroll={{ x: tableScrollX(customerColumns) }}
             pagination={{ pageSize: 50, showTotal: (t) => `共 ${t} 个客户` }}
-            locale={{ emptyText: '期间内没有成交客户' }}
+            locale={{ emptyText: tableEmpty('期间内没有成交客户', loading) }}
           />
         ) : (
           <Table<StatsRow>
@@ -489,7 +490,7 @@ const SalesStatsPage: React.FC = () => {
             dataSource={data?.rows ?? []}
             pagination={false}
             scroll={{ x: tableScrollX(columns) }}
-            locale={{ emptyText: '期间内没有数据' }}
+            locale={{ emptyText: tableEmpty('期间内没有数据', loading) }}
             summary={() =>
               total ? (
                 <Table.Summary fixed>

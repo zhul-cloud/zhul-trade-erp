@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -851,19 +852,22 @@ const CustomerListPage: React.FC = () => {
                   },
                 }}
                 locale={{
-                  emptyText: hasCondition ? (
-                    <EmptyHint
-                      title="没有找到匹配的客户"
-                      secondaryText="清空筛选"
-                      onSecondary={reset}
-                    />
-                  ) : (
-                    <EmptyHint
-                      title="还没有客户档案"
-                      description="成交或需要做单的客户建档后，报价单和 PI 会自动带出客户信息。"
-                      actionText={canAdd ? '新增客户' : undefined}
-                      onAction={() => history.push(`${LIST_PATH}/new`)}
-                    />
+                  emptyText: tableEmpty(
+                    hasCondition ? (
+                      <EmptyHint
+                        title="没有找到匹配的客户"
+                        secondaryText="清空筛选"
+                        onSecondary={reset}
+                      />
+                    ) : (
+                      <EmptyHint
+                        title="还没有客户档案"
+                        description="成交或需要做单的客户建档后，报价单和 PI 会自动带出客户信息。"
+                        actionText={canAdd ? '新增客户' : undefined}
+                        onAction={() => history.push(`${LIST_PATH}/new`)}
+                      />
+                    ),
+                    loading,
                   ),
                 }}
               />

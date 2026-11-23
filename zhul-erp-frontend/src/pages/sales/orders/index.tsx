@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -764,7 +765,12 @@ const OrderList: React.FC = () => {
             dataSource={rows}
             loading={loading}
             scroll={{ x: tableScrollX(columns) }}
-            locale={{ emptyText: '没有符合条件的订单，换个筛选条件试试' }}
+            locale={{
+              emptyText: tableEmpty(
+                '没有符合条件的订单，换个筛选条件试试',
+                loading,
+              ),
+            }}
             onChange={(_, __, sorter, extra) => {
               // 翻页也会触发 onChange：只处理排序，否则会把页码重置回 1
               if (extra.action !== 'sort') return;

@@ -4,6 +4,7 @@ import { DatePicker, Form, Input, Select, Table, Tag } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -345,10 +346,12 @@ const PriceHistoryPage: React.FC = () => {
             loading={loading}
             expandable={{ expandedRowRender: expanded }}
             locale={{
-              emptyText:
+              emptyText: tableEmpty(
                 filters.model || filters.brand
                   ? '没有找到这个型号的历史价格，需要询价'
                   : '还没有询价记录，采购提交回价后会出现在这里',
+                loading,
+              ),
             }}
             pagination={{
               ...PAGER_STYLE,

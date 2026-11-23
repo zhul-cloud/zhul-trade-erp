@@ -13,6 +13,7 @@ import {
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterField,
   HelpTip,
@@ -401,9 +402,12 @@ const LedgerPage: React.FC = () => {
               dataSource={rows}
               scroll={{ x: tableScrollX(columns) }}
               locale={{
-                emptyText: filters.warehouseId
-                  ? `${warehouses.find((w) => w.id === filters.warehouseId)?.name ?? '该仓库'} 在 ${query.month} 没有库存往来`
-                  : '这个月没有库存',
+                emptyText: tableEmpty(
+                  filters.warehouseId
+                    ? `${warehouses.find((w) => w.id === filters.warehouseId)?.name ?? '该仓库'} 在 ${query.month} 没有库存往来`
+                    : '这个月没有库存',
+                  loading,
+                ),
               }}
               summary={() =>
                 rows.length > 0 ? (

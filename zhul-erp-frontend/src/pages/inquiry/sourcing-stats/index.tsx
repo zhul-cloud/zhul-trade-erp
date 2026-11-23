@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Table, Tabs } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   CardTitle,
   FilterCard,
@@ -317,7 +318,9 @@ const SourcingStatsPage: React.FC = () => {
             columns={workloadColumns}
             dataSource={data?.workload ?? []}
             pagination={false}
-            locale={{ emptyText: '期间内没有分配或认领的型号' }}
+            locale={{
+              emptyText: tableEmpty('期间内没有分配或认领的型号', loading),
+            }}
             summary={() => {
               const w = data?.workloadTotal;
               return w && w.selfItems + w.purchaseItems > 0 ? (
@@ -354,7 +357,9 @@ const SourcingStatsPage: React.FC = () => {
                 dataSource={data?.months ?? []}
                 pagination={false}
                 scroll={{ x: tableScrollX(monthColumns) }}
-                locale={{ emptyText: '期间内没有进入询价的询盘单' }}
+                locale={{
+                  emptyText: tableEmpty('期间内没有进入询价的询盘单', loading),
+                }}
                 summary={() =>
                   total && total.total > 0 ? (
                     <Table.Summary.Row>
@@ -411,7 +416,9 @@ const SourcingStatsPage: React.FC = () => {
                 dataSource={data?.purchasers ?? []}
                 pagination={false}
                 scroll={{ x: tableScrollX(purchaserColumns) }}
-                locale={{ emptyText: '期间内没有分配出去的型号' }}
+                locale={{
+                  emptyText: tableEmpty('期间内没有分配出去的型号', loading),
+                }}
               />
             </MainCard>
           </div>

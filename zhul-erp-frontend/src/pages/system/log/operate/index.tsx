@@ -16,6 +16,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Search } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -326,7 +327,7 @@ const OperateLogPage: React.FC = () => {
           search={false}
           toolBarRender={false}
           pagination={{ ...pager, pageSizeOptions: [20, 50, 100] }}
-          locale={{ emptyText: '暂无操作日志数据' }}
+          locale={{ emptyText: tableEmpty('暂无操作日志数据') }}
           options={false}
           request={async (params) => {
             const [start, end] = filters.range ?? [];

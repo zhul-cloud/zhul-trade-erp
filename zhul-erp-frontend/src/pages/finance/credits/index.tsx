@@ -20,6 +20,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerSub } from '@/components/DocFields';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -672,7 +673,10 @@ export const ReconTab: React.FC<{
           pagination={false}
           scroll={{ x: tableScrollX(columns) }}
           locale={{
-            emptyText: `${month.format('YYYY 年 M 月')}没有 ${currency} 余额变动`,
+            emptyText: tableEmpty(
+              `${month.format('YYYY 年 M 月')}没有 ${currency} 余额变动`,
+              !data,
+            ),
           }}
           summary={() =>
             data && data.rows.length > 0 ? (

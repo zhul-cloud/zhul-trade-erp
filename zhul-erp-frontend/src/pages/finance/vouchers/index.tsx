@@ -3,6 +3,7 @@ import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Space, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Pill } from '@/pages/inquiry/shared/components';
@@ -188,7 +189,10 @@ const VouchersPage: React.FC = () => {
             dataSource={rows}
             scroll={{ x: tableScrollX(columns) }}
             locale={{
-              emptyText: '还没有已结账的月份，库存月结结账后自动生成凭证',
+              emptyText: tableEmpty(
+                '还没有已结账的月份，库存月结结账后自动生成凭证',
+                loading,
+              ),
             }}
             pagination={rows.length > 20 ? { pageSize: 20 } : false}
           />

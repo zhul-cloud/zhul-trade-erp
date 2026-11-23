@@ -13,6 +13,7 @@ import {
 } from 'antd';
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -254,10 +255,12 @@ const Shoots: React.FC = () => {
             loading={loading}
             scroll={{ x: tableScrollX(columns) }}
             locale={{
-              emptyText:
+              emptyText: tableEmpty(
                 status === 1
                   ? '没有待拍摄的任务；验收入库后合格的型号会出现在这里'
                   : '没有符合条件的实拍任务',
+                loading,
+              ),
             }}
             pagination={{
               ...PAGER_STYLE,

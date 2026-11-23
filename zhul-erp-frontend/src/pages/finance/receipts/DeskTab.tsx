@@ -9,6 +9,7 @@ import { App, Button, Form, Input, Select, Table } from 'antd';
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerSub } from '@/components/DocFields';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -348,9 +349,12 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
             loading={loading}
             scroll={{ x: tableScrollX(columns) }}
             locale={{
-              emptyText: all
-                ? '没有符合条件的 PI'
-                : '没有待处理的到账：业务员上传水单后会出现在这里',
+              emptyText: tableEmpty(
+                all
+                  ? '没有符合条件的 PI'
+                  : '没有待处理的到账：业务员上传水单后会出现在这里',
+                loading,
+              ),
             }}
             pagination={{
               ...PAGER_STYLE,

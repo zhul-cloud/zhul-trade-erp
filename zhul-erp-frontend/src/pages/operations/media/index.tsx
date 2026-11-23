@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -252,9 +253,12 @@ const MediaLibraryPage: React.FC = () => {
             loading={loading}
             scroll={{ x: tableScrollX(columns) }}
             locale={{
-              emptyText: query
-                ? '没有找到这个型号的素材'
-                : '还没有素材；询盘、回价、到货、实拍、打包时上传的图片和视频会自动汇总到这里',
+              emptyText: tableEmpty(
+                query
+                  ? '没有找到这个型号的素材'
+                  : '还没有素材；询盘、回价、到货、实拍、打包时上传的图片和视频会自动汇总到这里',
+                loading,
+              ),
             }}
             pagination={{
               ...PAGER_STYLE,

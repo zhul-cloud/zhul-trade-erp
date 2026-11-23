@@ -148,3 +148,33 @@ export const renderEmpty = (componentName?: string) =>
   ) : (
     <EmptyState compact />
   );
+
+/**
+ * 列表表格的空状态（Table 的 locale.emptyText）：加载中不显示（不在转圈下面闪「暂无数据」）；
+ * 页面写的一句话按内容配图标——提到筛选、条件的为「无结果」，其余为「还没有数据」；页面自己画的空状态原样显示。
+ */
+export const tableEmpty = (
+  content: React.ReactNode,
+  loading?: boolean | { spinning?: boolean },
+): React.ReactNode => {
+  const busy = typeof loading === 'object' ? loading?.spinning : loading;
+  if (busy) return <div style={{ height: 160 }} />;
+  if (typeof content === 'string') {
+    // 一句话里有「；」「，」时，前半句作标题、后半句作说明（如「没有符合条件的订单」+「换个筛选条件试试」）
+    const cut = content.search(/[；，]/);
+    const title = cut > 0 ? content.slice(0, cut) : content;
+    const description = cut > 0 ? content.slice(cut + 1) : undefined;
+    return (
+      <EmptyState
+        kind={
+          /符合|筛选|条件|搜不到|没找到|没有找到/.test(content)
+            ? 'noResult'
+            : 'empty'
+        }
+        title={title}
+        description={description}
+      />
+    );
+  }
+  return content;
+};

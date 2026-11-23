@@ -30,6 +30,7 @@ import React, {
   useState,
 } from 'react';
 import EllipsisText from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -1257,32 +1258,35 @@ const ProductListInner: React.FC = () => {
               },
             }}
             locale={{
-              emptyText: hasCondition ? (
-                <EmptyHint
-                  title="没有找到匹配的商品"
-                  description="搜索会忽略空格、连字符和大小写，试试只输入型号前几位。"
-                  secondaryText="清除搜索"
-                  onSecondary={clearAll}
-                  actionText={
-                    access['product:product:add'] && debounced
-                      ? `新建 ${debounced}`
-                      : undefined
-                  }
-                  onAction={() =>
-                    history.push(
-                      `/product/products/new?mpn=${encodeURIComponent(debounced)}`,
-                    )
-                  }
-                />
-              ) : (
-                <EmptyHint
-                  title="还没有商品"
-                  description="新建第一个商品：只需要品牌、型号和品类，其余信息可以以后慢慢补。"
-                  actionText={
-                    access['product:product:add'] ? '新建商品' : undefined
-                  }
-                  onAction={() => history.push('/product/products/new')}
-                />
+              emptyText: tableEmpty(
+                hasCondition ? (
+                  <EmptyHint
+                    title="没有找到匹配的商品"
+                    description="搜索会忽略空格、连字符和大小写，试试只输入型号前几位。"
+                    secondaryText="清除搜索"
+                    onSecondary={clearAll}
+                    actionText={
+                      access['product:product:add'] && debounced
+                        ? `新建 ${debounced}`
+                        : undefined
+                    }
+                    onAction={() =>
+                      history.push(
+                        `/product/products/new?mpn=${encodeURIComponent(debounced)}`,
+                      )
+                    }
+                  />
+                ) : (
+                  <EmptyHint
+                    title="还没有商品"
+                    description="新建第一个商品：只需要品牌、型号和品类，其余信息可以以后慢慢补。"
+                    actionText={
+                      access['product:product:add'] ? '新建商品' : undefined
+                    }
+                    onAction={() => history.push('/product/products/new')}
+                  />
+                ),
+                loading,
               ),
             }}
           />

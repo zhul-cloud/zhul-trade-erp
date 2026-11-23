@@ -19,6 +19,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -666,7 +667,7 @@ export const ExpenseDrawer: React.FC<{
             size="small"
             pagination={false}
             dataSource={allocs}
-            locale={{ emptyText: '没有关联订单型号' }}
+            locale={{ emptyText: tableEmpty('没有关联订单型号') }}
             columns={[
               { title: '销售订单', width: 160, dataIndex: 'soNo' },
               { title: '型号', width: 160, dataIndex: 'model' },

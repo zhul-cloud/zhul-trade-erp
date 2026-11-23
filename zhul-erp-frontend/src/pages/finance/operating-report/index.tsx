@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Select, Table } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -389,7 +390,7 @@ const OperatingReportPage: React.FC = () => {
           scroll={{
             x: bu.enabled ? 1700 : 1500 + (data?.categories.length ?? 0) * 105,
           }}
-          locale={{ emptyText: '这一年还没有数据' }}
+          locale={{ emptyText: tableEmpty('这一年还没有数据') }}
           summary={() =>
             total ? (
               <Table.Summary fixed>

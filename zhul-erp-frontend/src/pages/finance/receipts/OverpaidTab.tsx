@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, InputNumber, Modal, Segmented, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerSub } from '@/components/DocFields';
+import { tableEmpty } from '@/components/EmptyState';
 import { HelpTip, MainCard } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { readBizError } from '@/pages/sales/service';
@@ -194,7 +195,7 @@ const OverpaidTab: React.FC<{ onCount?: (n: number) => void }> = ({
         dataSource={rows ?? []}
         pagination={false}
         scroll={{ x: tableScrollX(columns) }}
-        locale={{ emptyText: '没有待处理的多收' }}
+        locale={{ emptyText: tableEmpty('没有待处理的多收', rows === null) }}
       />
       <ProcessModal
         target={processing}

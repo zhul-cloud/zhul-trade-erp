@@ -24,6 +24,7 @@ import {
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -1780,10 +1781,12 @@ const Candidates: React.FC = () => {
                 : undefined
             }
             locale={{
-              emptyText:
+              emptyText: tableEmpty(
                 tab === 1
                   ? '没有待审核的候选；确认询盘后，商品库里没有的型号会出现在这里'
                   : '没有记录',
+                loading,
+              ),
             }}
             pagination={{
               ...PAGER_STYLE,

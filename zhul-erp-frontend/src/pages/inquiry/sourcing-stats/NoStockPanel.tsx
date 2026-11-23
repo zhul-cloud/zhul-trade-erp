@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, DatePicker, Segmented, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   CardTitle,
   FilterCard,
@@ -187,7 +188,9 @@ const NoStockPanel: React.FC = () => {
             dataSource={rows}
             pagination={false}
             scroll={{ x: tableScrollX(cols), y: 400 }}
-            locale={{ emptyText: `这${unit}没有无货的型号` }}
+            locale={{
+              emptyText: tableEmpty(`这${unit}没有无货的型号`, loading),
+            }}
           />
         </MainCard>
       </div>

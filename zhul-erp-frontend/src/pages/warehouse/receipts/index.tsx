@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -438,9 +439,12 @@ const Receipts: React.FC = () => {
               loading={loading}
               scroll={{ x: tableScrollX(shipColumns) }}
               locale={{
-                emptyText: query
-                  ? '没有匹配的在途发货单；货到了但没有发货单，点「直接收货」'
-                  : '没有待收货的发货单',
+                emptyText: tableEmpty(
+                  query
+                    ? '没有匹配的在途发货单；货到了但没有发货单，点「直接收货」'
+                    : '没有待收货的发货单',
+                  loading,
+                ),
               }}
               pagination={pagination}
             />
@@ -451,7 +455,7 @@ const Receipts: React.FC = () => {
               dataSource={receipts}
               loading={loading}
               scroll={{ x: tableScrollX(receiptColumns) }}
-              locale={{ emptyText: '还没有采购入库单' }}
+              locale={{ emptyText: tableEmpty('还没有采购入库单', loading) }}
               pagination={pagination}
             />
           )}
