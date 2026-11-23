@@ -19,6 +19,7 @@ import {
   type TableColumnsType,
 } from 'antd';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { rowAlert } from '@/components/RowAlert';
 import { useAppTheme } from '@/theme/AppTheme';
 import { Pill, useQuoteDicts } from '../shared/components';
 import {
@@ -644,7 +645,7 @@ const PasteQuoteModal: React.FC<{
             }}
             onRow={(r) =>
               aiMode && r.confidence === 'CHECK' && !r.locked
-                ? { style: { background: palette.orangeSoft } }
+                ? rowAlert('warning')
                 : {}
             }
             columns={

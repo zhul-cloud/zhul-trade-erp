@@ -95,7 +95,7 @@ const LINE_RULES = [
   },
   {
     id: 'row-tint',
-    level: 'warn',
+    level: 'error',
     message:
       '需要关注的行用 rowAlert()（行首 3px 色条加状态标签），不整行铺底色（ui-redesign D7）',
     re: /background:\s*palette\.(redSoft|orangeSoft)\s*\}/,

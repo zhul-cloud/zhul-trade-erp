@@ -15,6 +15,7 @@ import {
   Table,
 } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
+import { rowAlert } from '@/components/RowAlert';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
@@ -488,7 +489,7 @@ const BargainDrawer: React.FC<{
                 a.margin != null &&
                 i.floorMargin != null &&
                 a.margin < i.floorMargin;
-              return red ? { style: { background: palette.redSoft } } : {};
+              return red ? rowAlert('error') : {};
             }}
           />
 

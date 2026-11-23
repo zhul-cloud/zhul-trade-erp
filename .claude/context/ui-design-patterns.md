@@ -332,7 +332,7 @@ import {
 | `audit-columns` | 错误 | 手写的「创建时间、创建人、更新时间、更新人」列：用公共的 `auditColumns()` / `proAuditColumns()` |
 | `pager` | 错误 | 自己写 `showSizeChanger: true` 的分页：用 `usePagination()` 或 `{ ...PAGER_STYLE }` |
 | `plain-empty` | 提示 | 表格空状态直接写一句话：用 `tableEmpty(文字, loading)` 或 `listEmpty()` |
-| `row-tint` | 提示 | 整行铺红、橙浅底：用 `rowAlert()` |
+| `row-tint` | 错误 | 整行铺红、橙浅底：用 `rowAlert()` |
 | `danger-confirm` | 错误 | 自己给确认框配红色按钮（`okButtonProps: { danger: true }`、`okType: 'danger'`）：用 `useConfirmDanger()` |
 
 - 确认弹窗（`confirm`）、警告条（`Alert`）、`Popconfirm` 里的文字不检查，按「说明文字」一节原样保留。

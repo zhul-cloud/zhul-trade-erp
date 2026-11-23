@@ -74,6 +74,7 @@ import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { CardTitle, HelpTip, PageHeader, Panel } from '@/components/ListLayout';
 import { usePageTitle, useTabDirty } from '@/components/PageTabs/hooks';
+import { rowAlert } from '@/components/RowAlert';
 import { type DiffRow, VersionPanel } from '@/components/VersionPanel';
 import { useQuoteDicts, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -1613,7 +1614,7 @@ const PiDetail: React.FC = () => {
           scroll={{ x: tableScrollX(editColumns) }}
           onRow={(d) =>
             belowFloor(itemById.get(d.id), results.get(d.id))
-              ? { style: { background: palette.redSoft } }
+              ? rowAlert('error')
               : {}
           }
           expandable={{
@@ -1708,9 +1709,7 @@ const PiDetail: React.FC = () => {
           dataSource={v.items}
           pagination={false}
           scroll={{ x: tableScrollX(viewColumns) }}
-          onRow={(r) =>
-            r.belowFloor ? { style: { background: palette.redSoft } } : {}
-          }
+          onRow={(r) => (r.belowFloor ? rowAlert('error') : {})}
         />
       )}
     </Panel>

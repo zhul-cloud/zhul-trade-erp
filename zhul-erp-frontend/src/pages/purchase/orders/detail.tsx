@@ -52,6 +52,7 @@ import { RelatedDocsCard } from '@/components/DocFields/DocPage';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
+import { rowAlert } from '@/components/RowAlert';
 import {
   ACCEPT_PROOF,
   PayablePanel,
@@ -1129,9 +1130,7 @@ const PurchaseOrderDetail: React.FC = () => {
           dataSource={po.items}
           pagination={false}
           onRow={(r) =>
-            r.modelUpdatedTo || r.remarkAlert
-              ? { style: { background: palette.redSoft } }
-              : {}
+            r.modelUpdatedTo || r.remarkAlert ? rowAlert('error') : {}
           }
           scroll={{ x: tableScrollX(columns) }}
           rowSelection={

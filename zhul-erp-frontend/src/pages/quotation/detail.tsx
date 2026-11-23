@@ -72,6 +72,7 @@ import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { CardTitle, HelpTip, PageHeader, Panel } from '@/components/ListLayout';
 import { usePageTitle, useTabDirty } from '@/components/PageTabs/hooks';
+import { rowAlert } from '@/components/RowAlert';
 import { type DiffRow, VersionPanel } from '@/components/VersionPanel';
 import {
   ConditionPill,
@@ -1965,7 +1966,7 @@ const QuotationDetail: React.FC = () => {
               src?.floorMargin != null &&
               r?.marginRate != null &&
               r.marginRate < src.floorMargin;
-            return below ? { style: { background: palette.redSoft } } : {};
+            return below ? rowAlert('error') : {};
           }}
           expandable={{
             expandedRowRender: (d) => (
