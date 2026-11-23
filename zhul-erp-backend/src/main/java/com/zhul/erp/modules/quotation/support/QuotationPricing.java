@@ -72,6 +72,17 @@ public final class QuotationPricing {
                          BigDecimal amount, BigDecimal amountCny, BigDecimal netProfit, BigDecimal netProfitCny) {
     }
 
+    /** 毛利率字段 decimal(5,2) 能存的下限 */
+    private static final BigDecimal MARGIN_MIN = new BigDecimal("-999.99");
+
+    /**
+     * 存储用毛利率：售价远低于成本时毛利率可以低到几千、几万个百分点，超出字段范围会让保存失败；
+     * 低于 −999.99% 时按 −999.99% 存（已经是「严重亏本」，具体亏多少看净利润）。毛利率不会超过 100%，不用管上限。
+     */
+    public static BigDecimal storableMargin(BigDecimal margin) {
+        return margin != null && margin.compareTo(MARGIN_MIN) < 0 ? MARGIN_MIN : margin;
+    }
+
     public static Result calculate(Input in) {
         BigDecimal rate = in.exchangeRate();
         if (rate == null || rate.signum() <= 0) {
@@ -132,7 +143,7 @@ public final class QuotationPricing {
                         .setScale(MONEY, RoundingMode.HALF_UP);
             }
         }
-        return new Result(costForeign, priceCny.setScale(MONEY, RoundingMode.HALF_UP), unitPrice, margin,
+        return new Result(costForeign, priceCny.setScale(MONEY, RoundingMode.HALF_UP), unitPrice, storableMargin(margin),
                 amount.setScale(MONEY, RoundingMode.HALF_UP), amountCnyExact.setScale(MONEY, RoundingMode.HALF_UP),
                 netProfit, netProfitCny);
     }
