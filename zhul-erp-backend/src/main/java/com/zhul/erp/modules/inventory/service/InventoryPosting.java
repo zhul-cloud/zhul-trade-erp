@@ -87,6 +87,9 @@ public class InventoryPosting {
             .thenComparingLong(Loc::productId).thenComparingLong(Loc::batchId).thenComparingInt(Loc::status);
 
     /** 来源单据与业务类型；bizDate 为单据日期（为空时取当天） */
+    /** inv_move.biz_label 的字段宽度 */
+    static final int LABEL_MAX = 128;
+
     public record Doc(String bizType, String bizLabel, String docType, Long docId, String docNo, Long docItemId,
                       java.time.LocalDate bizDate) {
         public static Doc of(String bizType, String docType, Long docId, String docNo) {
@@ -97,8 +100,10 @@ public class InventoryPosting {
             return new Doc(bizType, bizLabel, docType, docId, docNo, itemId, bizDate);
         }
 
+        /** 业务说明，超过字段宽度（inv_move.biz_label 128 字）时截断，说明过长不能让过账失败 */
         public Doc label(String l) {
-            return new Doc(bizType, l == null ? "" : l, docType, docId, docNo, docItemId, bizDate);
+            String v = l == null ? "" : l;
+            return new Doc(bizType, v.length() > LABEL_MAX ? v.substring(0, LABEL_MAX) : v, docType, docId, docNo, docItemId, bizDate);
         }
 
         public Doc biz(String b) {
