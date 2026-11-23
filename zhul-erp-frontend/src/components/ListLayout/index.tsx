@@ -384,6 +384,24 @@ const controlOf = (node: React.ReactNode): React.ReactElement | undefined => {
   return node;
 };
 
+/** 两段文字有没有相同的两个字以上（「主要联系人」和「联系人姓名」） */
+const overlaps = (a: string, b: string) => {
+  for (let i = 0; i + 2 <= a.length; i += 1) {
+    if (b.includes(a.slice(i, i + 2))) return true;
+  }
+  return false;
+};
+
+/**
+ * 文本框的提示在名称作前缀后：和名称重复（「客户编码 客户编码」）或写「全部」（看着像下拉）时去掉，
+ * 只留不重复的说明（如关键词的搜索范围、格式示例）。
+ */
+const textPlaceholder = (placeholder: unknown, label: string) =>
+  typeof placeholder === 'string' &&
+  (placeholder === '全部' || overlaps(placeholder, label))
+    ? undefined
+    : placeholder;
+
 /**
  * 把名称作为前缀放进输入框（ui-redesign D22「订单状态 全部 ▾」）：穿过 Form.Item 找到控件；
  * 控件不支持前缀时返回 undefined，由调用方把名称放在框外。
@@ -391,27 +409,65 @@ const controlOf = (node: React.ReactNode): React.ReactElement | undefined => {
 const withPrefix = (
   node: React.ReactNode,
   prefix: React.ReactNode,
+  label = '',
 ): React.ReactNode | undefined => {
   if (!React.isValidElement(node)) return undefined;
   if (node.type === Form.Item) {
     const inner = withPrefix(
       (node.props as { children?: React.ReactNode }).children,
       prefix,
+      label,
     );
     return inner === undefined
       ? undefined
       : React.cloneElement(node, {}, inner);
   }
   if (!PREFIXABLE.has(node.type)) return undefined;
+  const text = node.type === Input || node.type === Input.Search;
   return React.cloneElement(
     node as React.ReactElement<{
       prefix?: React.ReactNode;
       suffixIcon?: React.ReactNode;
+      placeholder?: unknown;
     }>,
     // 日期范围去掉日历图标：两个日期加箭头已看得出是日期，省出位置不截断日期
     node.type === DatePicker.RangePicker
       ? { prefix, suffixIcon: null }
-      : { prefix },
+      : text
+        ? {
+            prefix,
+            placeholder: textPlaceholder(
+              (node.props as { placeholder?: unknown }).placeholder,
+              label,
+            ),
+          }
+        : { prefix },
+  );
+};
+
+/** 文本框内右侧放帮助图标（穿过 Form.Item）；不是文本框时返回 undefined */
+const withSuffix = (
+  node: React.ReactNode,
+  help: React.ReactNode,
+): React.ReactNode | undefined => {
+  if (!React.isValidElement(node)) return undefined;
+  if (node.type === Form.Item) {
+    const inner = withSuffix(
+      (node.props as { children?: React.ReactNode }).children,
+      help,
+    );
+    return inner === undefined
+      ? undefined
+      : React.cloneElement(node, {}, inner);
+  }
+  if (
+    node.type !== Input ||
+    (node.props as { suffix?: React.ReactNode }).suffix !== undefined
+  )
+    return undefined;
+  return React.cloneElement(
+    node as React.ReactElement<{ suffix?: React.ReactNode }>,
+    { suffix: <HelpTip title={help} /> },
   );
 };
 
@@ -460,7 +516,11 @@ export const FilterField: React.FC<{
       : withPrefix(
           React.Children.only(children),
           <span style={{ marginInlineEnd: 4 }}>{name}</span>,
+          label,
         );
+    // 自带前缀的文本框（关键词）：帮助图标放进框内右侧，不夹在两个输入框之间
+    const withHelp =
+      own && help ? withSuffix(React.Children.only(children), help) : undefined;
     return (
       <div
         style={{
@@ -484,9 +544,9 @@ export const FilterField: React.FC<{
             flexDirection: 'column',
           }}
         >
-          {prefixed ?? children}
+          {prefixed ?? withHelp ?? children}
         </div>
-        {own && help && <HelpTip title={help} />}
+        {own && help && withHelp === undefined && <HelpTip title={help} />}
       </div>
     );
   }

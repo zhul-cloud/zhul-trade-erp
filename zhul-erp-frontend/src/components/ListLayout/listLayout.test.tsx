@@ -445,3 +445,47 @@ describe('更多筛选的条件胶囊', () => {
     expect(cards[0].parentElement?.textContent).not.toContain('编码：B2');
   });
 });
+
+it('名称作前缀后，文本框不再重复名称、不写「全部」；关键词的搜索范围保留', () => {
+  render(
+    h(App, null, [
+      h(FilterCard, {
+        key: 'f',
+        onSearch: () => {},
+        children: [
+          h(FilterField, {
+            key: 'a',
+            label: '客户编码',
+            children: h(Input, { 'aria-label': 'a', placeholder: '客户编码' }),
+          }),
+          h(FilterField, {
+            key: 'b',
+            label: '主要联系人',
+            children: h(Input, {
+              'aria-label': 'b',
+              placeholder: '联系人姓名',
+            }),
+          }),
+          h(FilterField, {
+            key: 'c',
+            label: '角色编码',
+            children: h(Input, { 'aria-label': 'c', placeholder: '全部' }),
+          }),
+          h(FilterField, {
+            key: 'd',
+            label: '关键词',
+            children: h(Input, {
+              'aria-label': 'd',
+              placeholder: '客户、订单编号',
+            }),
+          }),
+        ],
+      }),
+    ]),
+  );
+  for (const k of ['a', 'b', 'c'])
+    expect(screen.getByLabelText(k).getAttribute('placeholder')).toBeNull();
+  expect(screen.getByLabelText('d').getAttribute('placeholder')).toBe(
+    '客户、订单编号',
+  );
+});
