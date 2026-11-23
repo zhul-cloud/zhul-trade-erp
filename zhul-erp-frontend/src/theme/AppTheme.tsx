@@ -136,6 +136,7 @@ const globalCss = (
   .ant-table-tbody > tr > td:first-child .zhul-link, .ant-table-tbody > tr > td:first-child a:not(.ant-btn),
   .ant-table-tbody > tr > td.ant-table-selection-column + td .zhul-link,
   .ant-table-tbody > tr > td.ant-table-selection-column + td a:not(.ant-btn) { font-weight: 600; }
+  @media (max-width: 1399px) { .zhul-more-text { display: none; } }
   /* 主卡操作行里的快捷筛选：结果数后面直接是胶囊，不写「快捷筛选」 */
   .zhul-toolbar .zhul-quick-label { display: none; }
   /* 卡片里可点的明细行：悬停浅底（同待办行） */

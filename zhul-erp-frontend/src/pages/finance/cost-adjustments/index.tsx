@@ -234,27 +234,6 @@ const CostAdjustmentsPage: React.FC = () => {
           setFilters({ month: thisMonth() });
           setPage(1);
         }}
-        extra={
-          // 原「销售成本调整」卡片是条件类，改为快捷筛选，数字仍按所选月份统计
-          <QuickFilters
-            options={[
-              {
-                value: 'cogs',
-                label: (
-                  <>
-                    {`只看有销售成本调整 · ${monthLabel} `}
-                    <SignedMoney value={summary?.cogsAmount} yuan />
-                  </>
-                ),
-              },
-            ]}
-            value={filters.cogsOnly ? ['cogs'] : []}
-            onChange={(v) => {
-              setFilters((f) => ({ ...f, cogsOnly: v.length > 0 }));
-              setPage(1);
-            }}
-          />
-        }
       >
         <FilterField label="关键词" span={2} help={HELP.keyword}>
           <Form.Item name="keyword" noStyle>
@@ -296,6 +275,27 @@ const CostAdjustmentsPage: React.FC = () => {
       ) : (
         <MainCard
           left={`共 ${total} 条`}
+          quick={
+            // 原「销售成本调整」卡片是条件类，改为快捷筛选，数字仍按所选月份统计
+            <QuickFilters
+              options={[
+                {
+                  value: 'cogs',
+                  label: (
+                    <>
+                      {`只看有销售成本调整 · ${monthLabel} `}
+                      <SignedMoney value={summary?.cogsAmount} yuan />
+                    </>
+                  ),
+                },
+              ]}
+              value={filters.cogsOnly ? ['cogs'] : []}
+              onChange={(v) => {
+                setFilters((f) => ({ ...f, cogsOnly: v.length > 0 }));
+                setPage(1);
+              }}
+            />
+          }
           right={
             <Button
               type="text"

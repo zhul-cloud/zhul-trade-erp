@@ -325,7 +325,7 @@ const ProfitStatsPage: React.FC = () => {
           </FilterField>
         }
       >
-        <FilterField label="统计期间" span={2}>
+        <FilterField label="统计期间" span="auto">
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <StatsRangeFilter value={range} onChange={setRange} />
           </div>

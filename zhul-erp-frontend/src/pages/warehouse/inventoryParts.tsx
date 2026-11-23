@@ -139,8 +139,20 @@ export const FilterCard: React.FC<{
   onSearch: (v: Record<string, unknown>) => void;
   onReset: () => void;
   children: React.ReactNode;
+  /** 还没挪到主卡操作行的快捷筛选（新页面用 MainCard 的 quick、chips） */
   extra?: React.ReactNode;
-}> = ({ form, initialValues, onSearch, onReset, children, extra }) => (
+  more?: React.ReactNode;
+  moreCount?: number;
+}> = ({
+  form,
+  initialValues,
+  onSearch,
+  onReset,
+  children,
+  extra,
+  more,
+  moreCount,
+}) => (
   <Form form={form} initialValues={initialValues} onFinish={onSearch}>
     <ListFilterCard
       onSearch={() => form.submit()}
@@ -149,6 +161,8 @@ export const FilterCard: React.FC<{
         onReset();
       }}
       quick={extra}
+      more={more}
+      moreCount={moreCount}
     >
       {children}
     </ListFilterCard>

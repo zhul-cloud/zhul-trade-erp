@@ -400,10 +400,14 @@ const withPrefix = (
   }
   if (!PREFIXABLE.has(node.type)) return undefined;
   return React.cloneElement(
-    node as React.ReactElement<{ prefix?: React.ReactNode }>,
-    {
-      prefix,
-    },
+    node as React.ReactElement<{
+      prefix?: React.ReactNode;
+      suffixIcon?: React.ReactNode;
+    }>,
+    // 日期范围去掉日历图标：两个日期加箭头已看得出是日期，省出位置不截断日期
+    node.type === DatePicker.RangePicker
+      ? { prefix, suffixIcon: null }
+      : { prefix },
   );
 };
 
@@ -413,7 +417,8 @@ const withPrefix = (
  */
 export const FilterField: React.FC<{
   label: string;
-  span?: 1 | 2;
+  /** auto：按内容宽度（如统计期间的快捷期间加日期范围） */
+  span?: 1 | 2 | 'auto';
   help?: React.ReactNode;
   /** 输入框的 id：标签与它关联（没有 aria-label 的输入，如日期范围，靠它读出名称） */
   htmlFor?: string;
@@ -438,6 +443,10 @@ export const FilterField: React.FC<{
     </span>
   );
   if (layout === 'line') {
+    // 日期范围放进名称后至少 300 宽，两个日期不截断
+    const range = controlOf(children)?.type === DatePicker.RangePicker;
+    const min =
+      span === 'auto' ? undefined : range ? 300 : span === 2 ? 220 : 140;
     // 控件自带前缀（关键词的搜索图标）：不放名称（提示文字已说明），帮助图标放在框右侧
     const own =
       (controlOf(children)?.props as { prefix?: React.ReactNode } | undefined)
@@ -451,10 +460,12 @@ export const FilterField: React.FC<{
     return (
       <div
         style={{
-          // 先收窄再换行：关键词、日期范围占两格（260–360，放得下两个日期），其余 150–240
-          flex: span === 2 ? '1 1 280px' : '1 1 170px',
-          minWidth: span === 2 ? 260 : 140,
-          maxWidth: span === 2 ? 360 : 220,
+          // 关键词占两格（220–360），日期范围 300–360，其余 140–220；auto 按内容
+          // 能换行的弹性布局里，项目按基准宽度先换行、不会先收窄：基准取最小宽度，放得下就排一行再均分余量
+          flex: span === 'auto' ? '0 0 auto' : `1 1 ${min}px`,
+          minWidth: min,
+          maxWidth:
+            span === 'auto' ? undefined : span === 2 || range ? 360 : 220,
           display: 'flex',
           alignItems: 'center',
           gap: 8,
@@ -607,17 +618,21 @@ export const FilterCard: React.FC<{
       }}
     >
       {more && (
-        <Button
-          type="text"
-          aria-expanded={open}
-          aria-controls={moreId}
-          icon={<SlidersHorizontal size={16} />}
-          onClick={() => setOpen((v) => !v)}
-          style={{ color: palette.link, paddingInline: 6 }}
-        >
-          更多筛选
-          {moreCount > 0 && <span className="num"> · {moreCount}</span>}
-        </Button>
+        // 视口不到 1400 时只显示图标和生效数量（1366 下四个常用条件也排一行），悬停和读屏仍是「更多筛选」
+        <Tooltip title="更多筛选" placement="bottom">
+          <Button
+            type="text"
+            aria-label={moreCount > 0 ? `更多筛选 · ${moreCount}` : '更多筛选'}
+            aria-expanded={open}
+            aria-controls={moreId}
+            icon={<SlidersHorizontal size={16} />}
+            onClick={() => setOpen((v) => !v)}
+            style={{ color: palette.link, paddingInline: 6 }}
+          >
+            <span className="zhul-more-text">更多筛选</span>
+            {moreCount > 0 && <span className="num"> · {moreCount}</span>}
+          </Button>
+        </Tooltip>
       )}
       {onReset && (
         <Button danger onClick={onReset}>

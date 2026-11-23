@@ -1,7 +1,7 @@
-import { CloseOutlined, SearchOutlined } from '@ant-design/icons';
+import { SearchOutlined } from '@ant-design/icons';
 import { history, Link, useLocation } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Button, Checkbox, DatePicker, Form, Input, Select, Table } from 'antd';
+import { Checkbox, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { FilterField, MainCard, PageHeader } from '@/components/ListLayout';
@@ -221,22 +221,18 @@ const MovesPage: React.FC = () => {
           apply({ range: [dayjs().startOf('month'), dayjs()] });
           form.setFieldsValue({ range: [dayjs().startOf('month'), dayjs()] });
         }}
-        extra={
-          productId ? (
-            <div style={{ marginTop: 12 }}>
-              <Button
-                size="small"
-                icon={<CloseOutlined />}
-                iconPlacement="end"
-                onClick={() => {
-                  setProductId(undefined);
-                  setPage(1);
-                }}
-              >
-                只看 {urlModel || '这个商品'}
-              </Button>
-            </div>
-          ) : null
+        moreCount={filters.bizType ? 1 : 0}
+        more={
+          <FilterField label="业务类型">
+            <Form.Item name="bizType" noStyle>
+              <Select
+                aria-label="业务类型"
+                allowClear
+                placeholder="全部"
+                options={BIZ_OPTIONS}
+              />
+            </Form.Item>
+          </FilterField>
         }
       >
         <FilterField label="时间" span={2} htmlFor="wh-move-range">
@@ -278,22 +274,26 @@ const MovesPage: React.FC = () => {
             />
           </Form.Item>
         </FilterField>
-        <FilterField label="业务类型">
-          <Form.Item name="bizType" noStyle>
-            <Select
-              aria-label="业务类型"
-              allowClear
-              placeholder="全部"
-              options={BIZ_OPTIONS}
-            />
-          </Form.Item>
-        </FilterField>
       </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
         <MainCard
           left={`共 ${total} 条`}
+          chips={
+            productId
+              ? [
+                  {
+                    key: 'product',
+                    label: `只看 ${urlModel || '这个商品'}`,
+                    onRemove: () => {
+                      setProductId(undefined);
+                      setPage(1);
+                    },
+                  },
+                ]
+              : undefined
+          }
           right={
             <Checkbox
               checked={withReservation}

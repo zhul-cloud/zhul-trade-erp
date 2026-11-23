@@ -390,29 +390,6 @@ const StocksPage: React.FC = () => {
           history.replace('/warehouse/stocks');
           apply({ warehouse: 'all' });
         }}
-        extra={
-          <QuickFilters
-            options={[
-              {
-                value: 'available',
-                label: `只看可用${summary ? ` · ${summary.available ?? 0} 件` : ''}`,
-              },
-              {
-                value: 'defective',
-                label: `只看有不良${summary ? ` · ${summary.defective ?? 0} 件` : ''}`,
-              },
-            ]}
-            value={filters.quick ? [filters.quick] : []}
-            onChange={(v) => {
-              // 两个条件互斥，取刚点的那个
-              const next = v.find((x) => x !== filters.quick) as
-                | 'available'
-                | 'defective'
-                | undefined;
-              quick(next ?? (filters.quick as 'available' | 'defective'));
-            }}
-          />
-        }
       >
         <FilterField label="关键词" span={2}>
           <Form.Item name="keyword" noStyle>
@@ -437,7 +414,32 @@ const StocksPage: React.FC = () => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <MainCard left={`共 ${total} 条`}>
+        <MainCard
+          left={`共 ${total} 条`}
+          quick={
+            <QuickFilters
+              options={[
+                {
+                  value: 'available',
+                  label: `只看可用${summary ? ` · ${summary.available ?? 0} 件` : ''}`,
+                },
+                {
+                  value: 'defective',
+                  label: `只看有不良${summary ? ` · ${summary.defective ?? 0} 件` : ''}`,
+                },
+              ]}
+              value={filters.quick ? [filters.quick] : []}
+              onChange={(v) => {
+                // 两个条件互斥，取刚点的那个
+                const next = v.find((x) => x !== filters.quick) as
+                  | 'available'
+                  | 'defective'
+                  | undefined;
+                quick(next ?? (filters.quick as 'available' | 'defective'));
+              }}
+            />
+          }
+        >
           <Table<StockRow>
             rowKey={rowKey}
             size="middle"
