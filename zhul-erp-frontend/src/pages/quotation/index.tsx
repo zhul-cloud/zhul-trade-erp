@@ -6,7 +6,6 @@ import {
   DatePicker,
   Form,
   Input,
-  Popconfirm,
   Select,
   Space,
   Table,
@@ -22,6 +21,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
@@ -34,7 +34,7 @@ import {
   SummaryBar,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { IconButton } from '@/components/Shell';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import {
   FirstModelCell,
   fetchAllModels,
@@ -189,6 +189,7 @@ const QuotationList: React.FC = () => {
     <div style={{ fontSize: 12, color: palette.mute }}>{text}</div>
   );
 
+  const confirmDanger = useConfirmDanger();
   const columns: TableColumnsType<QuotationListItem> = [
     {
       title: '报价单编号 · 创建日期',
@@ -334,52 +335,45 @@ const QuotationList: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      // 单元格左右各留 16：三个 32 的图标加间距 4
-      width: 140,
+      // 编辑（草稿）或查看、文字报价放行内，删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(3),
       fixed: 'right',
-      render: (_, r) => (
-        <span style={{ display: 'inline-flex', gap: 4 }}>
-          {r.status === STATUS.DRAFT ? (
-            <IconButton
-              label="编辑"
-              size={32}
-              icon={<Pencil size={18} />}
-              onClick={() => history.push(PATHS.detail(r.id))}
-            />
-          ) : (
-            <IconButton
-              label="查看"
-              size={32}
-              icon={<Eye size={18} />}
-              onClick={() => history.push(PATHS.detail(r.id))}
-            />
-          )}
-          <IconButton
-            label="文字报价"
-            size={32}
-            icon={<MessageSquareText size={18} />}
-            onClick={() => setTextId(r.id)}
+      render: (_, r) => {
+        const draft = r.status === STATUS.DRAFT;
+        return (
+          <RowActions
+            inline={[
+              {
+                key: 'open',
+                label: draft ? '编辑' : '查看',
+                icon: draft ? <Pencil size={18} /> : <Eye size={18} />,
+                onClick: () => history.push(PATHS.detail(r.id)),
+              },
+              {
+                key: 'text',
+                label: '文字报价',
+                icon: <MessageSquareText size={18} />,
+                onClick: () => setTextId(r.id),
+              },
+            ]}
+            more={[
+              draft && {
+                key: 'delete',
+                label: '删除',
+                icon: <Trash2 size={16} />,
+                danger: true,
+              },
+            ]}
+            onMore={() =>
+              confirmDanger({
+                title: '删除这张草稿？',
+                content: '删除后不能恢复，询盘里的型号可以重新报价',
+                onOk: () => remove(r.id),
+              })
+            }
           />
-          {r.status === STATUS.DRAFT && (
-            <Popconfirm
-              title="删除这张草稿？"
-              description="删除后不能恢复，询盘里的型号可以重新报价"
-              okText="删除"
-              okButtonProps={{ danger: true }}
-              onConfirm={() => remove(r.id)}
-            >
-              <span>
-                <IconButton
-                  label="删除"
-                  size={32}
-                  icon={<Trash2 size={18} />}
-                  style={{ color: palette.red }}
-                />
-              </span>
-            </Popconfirm>
-          )}
-        </span>
-      ),
+        );
+      },
     },
   ];
 

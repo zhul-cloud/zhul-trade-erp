@@ -29,7 +29,7 @@ import {
   PageHeader,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { IconButton } from '@/components/Shell';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -320,35 +320,35 @@ const SupplierListPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      // 16×2 内边距 + 3 个 32 的图标按钮 + 2 个 4 的间距
-      width: 136,
+      // 查看、编辑放行内，删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(canDelete ? 3 : 2),
       fixed: 'right',
       render: (_, record) => (
-        <span style={{ display: 'inline-flex', gap: 4 }}>
-          <IconButton
-            label="查看"
-            size={32}
-            icon={<Eye size={18} />}
-            onClick={() => history.push(`${LIST_PATH}/${record.id}`)}
-          />
-          {canEdit && (
-            <IconButton
-              label="编辑"
-              size={32}
-              icon={<Pencil size={18} />}
-              onClick={() => history.push(`${LIST_PATH}/${record.id}/edit`)}
-            />
-          )}
-          {canDelete && (
-            <IconButton
-              label="删除"
-              size={32}
-              icon={<Trash2 size={18} />}
-              style={{ color: palette.red }}
-              onClick={() => confirmDelete(record)}
-            />
-          )}
-        </span>
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(`${LIST_PATH}/${record.id}`),
+            },
+            canEdit && {
+              key: 'edit',
+              label: '编辑',
+              icon: <Pencil size={18} />,
+              onClick: () => history.push(`${LIST_PATH}/${record.id}/edit`),
+            },
+          ]}
+          more={[
+            canDelete && {
+              key: 'delete',
+              label: '删除',
+              icon: <Trash2 size={16} />,
+              danger: true,
+            },
+          ]}
+          onMore={() => confirmDelete(record)}
+        />
       ),
     },
   ];

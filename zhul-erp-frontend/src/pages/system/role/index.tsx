@@ -24,8 +24,16 @@ import {
   Tag,
   Tree,
 } from 'antd';
-import { Search } from 'lucide-react';
+import {
+  Ban,
+  CircleCheck,
+  Pencil,
+  Search,
+  ShieldCheck,
+  Trash2,
+} from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import EllipsisText from '@/components/EllipsisText';
 import {
   FilterCard,
@@ -34,6 +42,7 @@ import {
   PageHeader,
   SummaryBar,
 } from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { proAuditColumns } from '@/components/UserName';
 import {
   type WorkbenchTemplate,
@@ -381,6 +390,7 @@ const RolePage: React.FC = () => {
     });
   };
 
+  const confirmDanger = useConfirmDanger();
   const columns: ProColumns<RoleItem>[] = [
     { title: '序号', valueType: 'index', width: 60, search: false },
     {
@@ -434,49 +444,58 @@ const RolePage: React.FC = () => {
       title: '操作',
       fixed: 'right',
       valueType: 'option',
-      width: 220,
-      render: (_, record) => (
-        <Space size={12}>
-          {canAssign && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => openAssign(record)}
-            >
-              分配权限
-            </button>
-          )}
-          {canEdit && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => openEdit(record)}
-            >
-              编辑
-            </button>
-          )}
-          {canEdit && (
-            <button
-              type="button"
-              className="zhul-link"
-              style={{ color: record.status === 1 ? p.red : p.green }}
-              onClick={() => handleToggleStatus(record)}
-            >
-              {record.status === 1 ? '禁用' : '启用'}
-            </button>
-          )}
-          {canDelete && record.isBuiltIn !== 1 && (
-            <button
-              type="button"
-              className="zhul-link"
-              style={{ color: p.red }}
-              onClick={() => handleDeleteClick(record)}
-            >
-              删除
-            </button>
-          )}
-        </Space>
-      ),
+      // 编辑、分配权限放行内；启用/禁用、删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(3),
+      render: (_, record) => {
+        const enabled = record.status === 1;
+        return (
+          <RowActions
+            inline={[
+              canEdit && {
+                key: 'edit',
+                label: '编辑',
+                icon: <Pencil size={18} />,
+                onClick: () => openEdit(record),
+              },
+              canAssign && {
+                key: 'assign',
+                label: '分配权限',
+                icon: <ShieldCheck size={18} />,
+                onClick: () => openAssign(record),
+              },
+            ]}
+            more={[
+              canEdit && {
+                key: 'status',
+                label: enabled ? '禁用' : '启用',
+                icon: enabled ? <Ban size={16} /> : <CircleCheck size={16} />,
+                danger: enabled,
+              },
+              canDelete &&
+                record.isBuiltIn !== 1 && {
+                  key: 'delete',
+                  label: '删除',
+                  icon: <Trash2 size={16} />,
+                  danger: true,
+                },
+            ]}
+            onMore={(key) => {
+              if (key === 'status') {
+                if (enabled) {
+                  confirmDanger({
+                    title: `确认禁用角色「${record.name}」？`,
+                    okText: '禁用',
+                    onOk: () => handleToggleStatus(record),
+                  });
+                } else {
+                  handleToggleStatus(record);
+                }
+              }
+              if (key === 'delete') handleDeleteClick(record);
+            }}
+          />
+        );
+      },
     },
   ];
 

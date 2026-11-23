@@ -8,17 +8,18 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import { App, Badge, Button, Input, Popconfirm, Select } from 'antd';
-import { Search } from 'lucide-react';
+import { App, Badge, Button, Input, Select } from 'antd';
+import { Ban, CircleCheck, Pencil, Search, Trash2 } from 'lucide-react';
 import React, { useRef, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import {
   FilterCard,
   FilterField,
   MainCard,
   PageHeader,
 } from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { proAuditColumns } from '@/components/UserName';
-import { useAppTheme } from '@/theme/AppTheme';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import type { PositionItem } from './service';
@@ -36,7 +37,6 @@ const CODE_PATTERN = /^[A-Za-z0-9_]{2,32}$/;
 
 const PositionPage: React.FC = () => {
   const pager = usePagination(20);
-  const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>(undefined);
   const { message, modal } = App.useApp();
   const access = useAccess();
@@ -50,9 +50,6 @@ const PositionPage: React.FC = () => {
   const [total, setTotal] = useState(0);
   const search = () =>
     setFilters({ ...filters, name: keyword.trim() || undefined });
-  const [disableConfirmText, setDisableConfirmText] = useState<
-    Record<number, string>
-  >({});
 
   const canEdit = !!(access as Record<string, unknown>)['system:position:edit'];
   const canDelete = !!(access as Record<string, unknown>)[
@@ -82,17 +79,6 @@ const PositionPage: React.FC = () => {
         }
       },
     });
-  };
-
-  const loadDisableWarning = async (record: PositionItem) => {
-    if (record.status !== 1) return;
-    const check = await getPositionDeleteCheck(record.id);
-    if (check.userCount > 0) {
-      setDisableConfirmText((prev) => ({
-        ...prev,
-        [record.id]: `当前有 ${check.userCount} 名用户持有此岗位，禁用后新建用户将无法选择此岗位，已分配用户不受影响。`,
-      }));
-    }
   };
 
   const handleToggleStatus = async (record: PositionItem) => {
@@ -136,6 +122,7 @@ const PositionPage: React.FC = () => {
     }
   };
 
+  const confirmDanger = useConfirmDanger();
   const columns: ProColumns<PositionItem>[] = [
     { title: '序号', valueType: 'index', width: 60, search: false },
     { title: '岗位编码', dataIndex: 'code', width: 140, search: false },
@@ -162,55 +149,60 @@ const PositionPage: React.FC = () => {
       title: '操作',
       fixed: 'right',
       valueType: 'option',
-      width: 160,
-      render: (_, record) => [
-        canEdit && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="edit"
-            onClick={() => {
-              setEditRecord(record);
-              setModalOpen(true);
+      // 编辑放行内；启用/禁用、删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(2),
+      render: (_, record) => {
+        const enabled = record.status === 1;
+        return (
+          <RowActions
+            inline={[
+              canEdit && {
+                key: 'edit',
+                label: '编辑',
+                icon: <Pencil size={18} />,
+                onClick: () => {
+                  setEditRecord(record);
+                  setModalOpen(true);
+                },
+              },
+            ]}
+            more={[
+              canEdit && {
+                key: 'status',
+                label: enabled ? '禁用' : '启用',
+                icon: enabled ? <Ban size={16} /> : <CircleCheck size={16} />,
+                danger: enabled,
+              },
+              canDelete && {
+                key: 'delete',
+                label: '删除',
+                icon: <Trash2 size={16} />,
+                danger: true,
+              },
+            ]}
+            onMore={async (key) => {
+              if (key === 'status') {
+                if (!enabled) {
+                  handleToggleStatus(record);
+                  return;
+                }
+                // 禁用前查有多少用户持有此岗位，写进确认框
+                const check = await getPositionDeleteCheck(record.id);
+                confirmDanger({
+                  title: `确认禁用岗位「${record.name}」？`,
+                  content:
+                    check.userCount > 0
+                      ? `当前有 ${check.userCount} 名用户持有此岗位，禁用后新建用户将无法选择此岗位，已分配用户不受影响。`
+                      : '禁用后该岗位不可被分配给新用户。',
+                  okText: '禁用',
+                  onOk: () => handleToggleStatus(record),
+                });
+              }
+              if (key === 'delete') handleDeleteClick(record);
             }}
-          >
-            编辑
-          </button>
-        ),
-        canEdit && (
-          <Popconfirm
-            key="toggle"
-            title={
-              record.status === 1
-                ? `确认禁用岗位「${record.name}」？`
-                : `确认启用岗位「${record.name}」？`
-            }
-            description={
-              record.status === 1
-                ? (disableConfirmText[record.id] ??
-                  '禁用后该岗位不可被分配给新用户。')
-                : undefined
-            }
-            onOpenChange={(open) => open && loadDisableWarning(record)}
-            onConfirm={() => handleToggleStatus(record)}
-          >
-            <a style={{ color: record.status === 1 ? p.orange : p.green }}>
-              {record.status === 1 ? '禁用' : '启用'}
-            </a>
-          </Popconfirm>
-        ),
-        canDelete && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="delete"
-            style={{ color: p.red }}
-            onClick={() => handleDeleteClick(record)}
-          >
-            删除
-          </button>
-        ),
-      ],
+          />
+        );
+      },
     },
   ];
 

@@ -26,10 +26,12 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import { App, Button, Input, Popconfirm, Space, Tag } from 'antd';
-import { Search } from 'lucide-react';
+import { App, Button, Input, Space, Tag } from 'antd';
+import { Ban, CircleCheck, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { MainCard, PageHeader, SummaryBar } from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { proAuditColumns } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -399,6 +401,7 @@ const MenuPage: React.FC = () => {
     });
   };
 
+  const confirmDanger = useConfirmDanger();
   const columns: ProColumns<MenuItem>[] = [
     {
       title: '菜单名称',
@@ -496,56 +499,63 @@ const MenuPage: React.FC = () => {
       title: '操作',
       fixed: 'right',
       valueType: 'option',
-      width: 220,
-      render: (_, record) => (
-        <Space size={12}>
-          {record.type !== 3 && canAdd && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => openCreateChild(record)}
-            >
-              +子节点
-            </button>
-          )}
-          {canEdit && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => openEdit(record)}
-            >
-              编辑
-            </button>
-          )}
-          {canEdit && (
-            <Popconfirm
-              title={
-                record.status === 1 ? '确认禁用该节点？' : '确认启用该节点？'
+      // 编辑、加子节点放行内；启用/禁用、删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(3),
+      render: (_, record) => {
+        const enabled = record.status === 1;
+        const children = countDescendants(record);
+        return (
+          <RowActions
+            inline={[
+              canEdit && {
+                key: 'edit',
+                label: '编辑',
+                icon: <Pencil size={18} />,
+                onClick: () => openEdit(record),
+              },
+              record.type !== 3 &&
+                canAdd && {
+                  key: 'child',
+                  label: '添加子节点',
+                  icon: <Plus size={18} />,
+                  onClick: () => openCreateChild(record),
+                },
+            ]}
+            more={[
+              canEdit && {
+                key: 'status',
+                label: enabled ? '禁用' : '启用',
+                icon: enabled ? <Ban size={16} /> : <CircleCheck size={16} />,
+                danger: enabled,
+              },
+              canDelete && {
+                key: 'delete',
+                label: '删除',
+                icon: <Trash2 size={16} />,
+                danger: true,
+              },
+            ]}
+            onMore={(key) => {
+              if (key === 'status') {
+                if (enabled) {
+                  confirmDanger({
+                    title: '确认禁用该节点？',
+                    content:
+                      children > 0
+                        ? `下级 ${children} 个子节点将同步禁用`
+                        : undefined,
+                    okText: '禁用',
+                    onOk: () => handleToggleStatus(record),
+                  });
+                } else {
+                  handleToggleStatus(record);
+                }
               }
-              description={
-                record.status === 1 && countDescendants(record) > 0
-                  ? `下级 ${countDescendants(record)} 个子节点将同步禁用`
-                  : undefined
-              }
-              onConfirm={() => handleToggleStatus(record)}
-            >
-              <a style={{ color: record.status === 1 ? p.red : p.green }}>
-                {record.status === 1 ? '禁用' : '启用'}
-              </a>
-            </Popconfirm>
-          )}
-          {canDelete && (
-            <button
-              type="button"
-              className="zhul-link"
-              style={{ color: p.red }}
-              onClick={() => handleDeleteClick(record)}
-            >
-              删除
-            </button>
-          )}
-        </Space>
-      ),
+              if (key === 'delete') handleDeleteClick(record);
+            }}
+          />
+        );
+      },
     },
   ];
 
