@@ -6,7 +6,7 @@ import { useAppTheme } from '@/theme/AppTheme';
 import {
   CARD_SHADOW,
   CARD_SHADOW_HOVER,
-  CHART_SERIES,
+  chartSeries,
   mix,
 } from '@/theme/palette';
 
@@ -28,12 +28,6 @@ export interface FlowStripItem {
 
 const GAP = 20;
 
-/**
- * 第 1–5 步的固定颜色（R11 方案 B）：步骤是不同的工作阶段（类别），按步骤给图标块着色，
- * 和工作台数字卡按指标家族给图标块着色同一写法；颜色只用在图标块，卡片、数字、文字都中性。
- * 取图表系列色前五个（深浅底上都不低于 3:1），不随主题色变
- */
-const STEP_COLORS = CHART_SERIES.slice(0, 5);
 const PAD = 12;
 const TILE = 24;
 /**
@@ -50,11 +44,17 @@ const StripCard: React.FC<{
   arrow: boolean;
   onSelect: () => void;
 }> = ({ it, active, arrow, onSelect }) => {
-  const { palette, mode } = useAppTheme();
+  const { palette, mode, preset } = useAppTheme();
   const [hover, setHover] = useState(false);
   const light = mode === 'light';
   const open = it.value !== undefined;
-  const hue = it.step ? STEP_COLORS[(it.step - 1) % STEP_COLORS.length] : '';
+  /**
+   * 第 1–5 步的颜色（R11 方案 B）：步骤是不同的工作阶段（类别），按步骤给图标块着色，颜色只用在图标块。
+   * 用跟主题走的图表系列（第 1 步是主题色，和主题色太像的那个系列色去掉）：换主题时一起换，
+   * 不会出现「换了蓝色主题、板块还是橙黄」，也不会在琥珀主题下和主题色撞色（2026-11-24 换主题巡查）
+   */
+  const steps = chartSeries(mode, preset);
+  const hue = it.step ? steps[(it.step - 1) % steps.length] : '';
   // 图标块：步骤卡用步骤色（浅底 + 原色图标）；入口卡中性，选中时主题色浅底
   const [tileFg, tileBg] = hue
     ? [hue, mix(hue, palette.card, light ? 0.1 : 0.18)]

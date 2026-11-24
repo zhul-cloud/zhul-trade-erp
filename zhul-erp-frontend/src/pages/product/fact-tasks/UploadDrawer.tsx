@@ -365,6 +365,7 @@ export const UploadDrawer: React.FC<{
       width: 200,
       render: (_: unknown, b: ContentBlock) => (
         <Space size={8}>
+          {/* lint-ui-ignore table-switch: 导入预览里逐块选「写入 / 跳过」，不是启用、停用，读屏文字也不同 */}
           <Switch
             size="small"
             checked={!b.skipped}

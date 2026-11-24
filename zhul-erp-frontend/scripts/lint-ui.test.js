@@ -188,6 +188,30 @@ describe('lint:ui', () => {
     );
   });
 
+  it('表格列里直接写 Switch 报错，StatusSwitch 放行（D48）', () => {
+    const col = (inner) =>
+      `const c = [{ title: '状态', dataIndex: 'status', render: (v) => ${inner} }];`;
+    expect(rules(col('<Switch checked={v === 1} />'))).toContain(
+      'table-switch:error',
+    );
+    expect(
+      rules(col('<StatusSwitch checked={v === 1} name="x" onChange={f} />')),
+    ).not.toContain('table-switch:error');
+    // 表单里的开关不管
+    expect(rules('const a = <Form.Item><Switch /></Form.Item>;')).not.toContain(
+      'table-switch:error',
+    );
+  });
+
+  it('进度条颜色：字符串写法报错，换行写 palette.chart 不误报', () => {
+    expect(rules('<Progress strokeColor="#52c41a" />')).toContain(
+      'progress-color:error',
+    );
+    expect(
+      rules('<Progress\n  strokeColor={\n    palette.chart\n  }\n/>'),
+    ).not.toContain('progress-color:error');
+  });
+
   it('注释里的说法不检查', () => {
     expect(
       rules('// 原来是 linear-gradient(...) 和 #2563EB，已改\nconst a = 1;'),

@@ -48,6 +48,7 @@ const RULE_NAMES = new Set([
   'antd-icon',
   'primary-soft',
   'progress-color',
+  'table-switch',
 ]);
 
 /**
@@ -158,7 +159,7 @@ const LINE_RULES = [
     level: 'error',
     message:
       '进度条只用主题色（palette.chart），程度用深浅表示，完成时也不换成绿色或别的颜色（2026-11-24 用户确认）；多色图表、状态标签不用 Progress',
-    re: /\bstrokeColor=\{(?!\s*palette\.chart\b)/,
+    re: /\bstrokeColor=(?:"|\{(?!\s*(?:palette\.chart\b|$)))/,
   },
   {
     id: 'filler-maybe',
@@ -170,6 +171,8 @@ const LINE_RULES = [
 ];
 
 const MSG = {
+  tableSwitch:
+    '列表行里的启用 / 停用开关用公共 StatusSwitch（小号、跟主题色、读屏文字、不触发整行点击、值没变不回调，D48）',
   rowActions:
     '操作列用 RowActions（行内最多 2 个图标，其余收进「更多」，列宽 rowActionsWidth）；审批、工作队列等例外用 lint-ui-ignore row-actions 写明原因',
   color: '页面里不写死颜色，用 useAppTheme().palette 的令牌',
@@ -331,6 +334,19 @@ function checkSource(src, rel) {
     if (render && !render.initializer.getText(sf).includes('RowActions')) {
       push('row-actions', 'error', MSG.rowActions, lineOf(title.getStart(sf)));
     }
+  });
+
+  // 表格列里直接写 antd Switch：改用 StatusSwitch（列对象 = 有 render，且有 title、dataIndex 或 key）
+  walk(sf, (n) => {
+    if (!ts.isObjectLiteralExpression(n)) return;
+    const prop = (k) =>
+      n.properties.find((x) => ts.isPropertyAssignment(x) && x.name.getText() === k);
+    const render = prop('render');
+    if (!render || !(prop('title') || prop('dataIndex') || prop('key'))) return;
+    walk(render.initializer, (c) => {
+      const el = ts.isJsxElement(c) ? c.openingElement : ts.isJsxSelfClosingElement(c) ? c : null;
+      if (el && tagName(el) === 'Switch') push('table-switch', 'error', MSG.tableSwitch, lineOf(el.getStart(sf)));
+    });
   });
 
   // 写死的颜色：只看字符串里的颜色值，链接地址、id 不算
