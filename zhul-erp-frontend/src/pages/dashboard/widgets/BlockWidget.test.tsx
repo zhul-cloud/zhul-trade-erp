@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import React from 'react';
-import { BlockView } from './BlockWidget';
+import { BlockView, previousHint } from './BlockWidget';
 
 jest.mock('@umijs/max', () => ({ history: { push: jest.fn() } }));
 
@@ -31,4 +31,35 @@ it('表格第一列是客户时按客户列显示', () => {
   expect(screen.getByText('Australia').closest('div')?.textContent).toBe(
     'Australia · Tom',
   );
+});
+
+describe('数字卡第三行：算不出较上月时写上月（D59）', () => {
+  it('有变化时不写上月；上月为 0 写上月的数；上月没有数据时写明；不比较的指标不写', () => {
+    expect(
+      previousHint({
+        label: '毛利',
+        compared: true,
+        delta: 12.4,
+        previous: 100,
+      }),
+    ).toBeUndefined();
+    expect(
+      previousHint({
+        label: '实收回款',
+        format: 'money',
+        compared: true,
+        delta: null,
+        previous: 0,
+      }),
+    ).toBe('上月 CNY 0.00');
+    expect(
+      previousHint({
+        label: '毛利率',
+        format: 'percent',
+        compared: true,
+        previous: null,
+      }),
+    ).toBe('上月没有可比数据');
+    expect(previousHint({ label: '待发货', value: 3 })).toBeUndefined();
+  });
 });

@@ -66,6 +66,8 @@ final class W {
     /** 带较上月的变化：money 与 count 的变化用百分比，percent 的变化用百分点 */
     static WidgetData.Metric compare(String label, Number cur, Number prev, String format, boolean higherIsBetter) {
         WidgetData.Metric m = metric(label, cur, format, null);
+        m.setCompared(true);
+        m.setPrevious(prev == null ? null : num(prev));
         if ("percent".equals(format)) {
             if (cur != null && prev != null) {
                 m.setDelta(num(cur).subtract(num(prev)).setScale(1, RoundingMode.HALF_UP));

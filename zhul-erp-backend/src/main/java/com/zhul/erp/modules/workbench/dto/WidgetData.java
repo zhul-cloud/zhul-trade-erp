@@ -51,6 +51,10 @@ public class WidgetData {
         /** 较上期的变化：percent 为百分比变化，count/money 为差值；为空不显示 */
         private BigDecimal delta;
         private String deltaFormat;
+        /** 和上月比较的指标为 true；算不出变化（上月为 0 或没有数据）时前端改显示上月的数（ui-redesign D59） */
+        private Boolean compared;
+        /** 上月的数，原始精度；没有数据为空 */
+        private BigDecimal previous;
         /** 变大是好事（收入）还是坏事（费用） */
         private Boolean higherIsBetter = true;
         private String link;

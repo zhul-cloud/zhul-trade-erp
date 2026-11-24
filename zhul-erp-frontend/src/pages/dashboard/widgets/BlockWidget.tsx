@@ -63,6 +63,9 @@ interface MetricData {
   hintTone?: 'green' | 'orange' | 'red';
   delta?: number | null;
   deltaFormat?: 'percent' | 'points';
+  /** 和上月比较的指标为 true；previous 为上月的数，没有数据为空（D59） */
+  compared?: boolean;
+  previous?: number | null;
   /** 越高越好；只用于说明，不参与涨跌着色 */
   higherIsBetter?: boolean;
   link?: string;
@@ -165,6 +168,18 @@ export const fmt = (v: number | string | null | undefined, format?: Format) => {
 
 const go = (link?: string | null) => link && history.push(link);
 
+/**
+ * 算不出较上月时第三行写上月的数（上月为 0 算不出百分比），上月也没有数据时写明，
+ * 数字卡始终是名称、数值、对比三行（2026-11-25 用户选对比图 R21 方案 B，D59）
+ */
+export const previousHint = (m: MetricData) => {
+  if (!m.compared || (m.delta !== null && m.delta !== undefined))
+    return undefined;
+  return m.previous === null || m.previous === undefined
+    ? '上月没有可比数据'
+    : `上月 ${fmt(m.previous, m.format)}`;
+};
+
 /** 较上月：百分比变化或百分点，按方向着色并配上下箭头（涨跌颜色见主题设置，higherIsBetter 不参与着色） */
 const Delta: React.FC<{ m: MetricData }> = ({ m }) => {
   if (m.delta === null || m.delta === undefined) return null;
@@ -208,7 +223,7 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
                 m.delta !== null && m.delta !== undefined ? (
                   <Delta m={m} />
                 ) : (
-                  m.hint
+                  (m.hint ?? previousHint(m))
                 )
               }
               hintColor={m.hintTone ? tone(m.hintTone)[0] : undefined}
@@ -677,7 +692,7 @@ export const MetricItem: React.FC<{ m: MetricData; bar?: number }> = ({
             }
       }
       alert={alert}
-      hint={alert ? undefined : m.hint}
+      hint={alert ? undefined : (m.hint ?? previousHint(m))}
       bar={bar}
       onClick={m.link ? () => go(m.link) : undefined}
     />

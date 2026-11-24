@@ -202,12 +202,13 @@ export const MetricCard: React.FC<{
           )}
         </span>
       </span>
+      {/* 卡片被拉高（和旁边的图表卡等高）时，多出的高度留在名称和数值之间，数值和对比贴底（R21 方案 B，D59） */}
+      <span aria-hidden style={{ flex: 1, minHeight: 8 }} />
       {/* 卡片变窄时数值自动缩小字号，不折行、不截断 */}
       <FitText
         size={24}
         min={16}
         style={{
-          marginTop: 8,
           fontWeight: 600,
           lineHeight: '30px',
           color: palette.ink,
