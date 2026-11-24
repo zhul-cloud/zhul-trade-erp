@@ -9,7 +9,6 @@ import {
   Modal,
   Select,
   Skeleton,
-  Space,
   Switch,
 } from 'antd';
 import dayjs from 'dayjs';
@@ -21,6 +20,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { HelpTip, PageHeader } from '@/components/ListLayout';
 import { usePageTitle, useTabDirty } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
 import { MONO_FONT } from '@/theme/fonts';
@@ -269,10 +269,9 @@ const DetailInner: React.FC = () => {
   const [search] = useSearchParams();
   const id = Number(params.id);
   const [product, setProduct] = useState<Product>();
-  usePageTitle(
-    product ? `商品 ${product.mpnDisplay}` : undefined,
-    product?.mpnDisplay,
-  );
+  // 展示型号为空时退回原始型号，标题、标签名都不留空（ui-redesign R8-4）
+  const model = product ? product.mpnDisplay || product.mpnRaw : undefined;
+  usePageTitle(model ? `商品 ${model}` : undefined, model);
   // 维护方：平台账号，或商品属于本租户（后端按归属算出 editable）；修改还需「编辑商品」按钮权限
   const maintainer = !!product?.editable;
   const canEdit = maintainer && !!access['product:product:edit'];
@@ -388,94 +387,78 @@ const DetailInner: React.FC = () => {
 
   return (
     <UnsavedContext.Provider value={registry}>
-      <div
-        style={{
-          ...panel(palette),
-          display: 'flex',
-          gap: 20,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 260 }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              flexWrap: 'wrap',
-            }}
-          >
-            <h1
-              id="product-main"
-              tabIndex={-1}
-              style={{ margin: 0, fontSize: 28, fontWeight: 700 }}
-            >
-              {product.mpnDisplay}
-            </h1>
+      {/* 页头和其他详情页一样直接放在页面上（公共 PageHeader），不包卡；只读是正常状态，用中性胶囊 + 帮助图标，不占整条警告（ui-redesign R8-4） */}
+      <PageHeader
+        title={
+          <span id="product-main" tabIndex={-1} style={{ outline: 'none' }}>
+            {model}
+          </span>
+        }
+        tags={
+          <>
             <LifecyclePill value={product.lifecycleStatus} />
             {maintainer && (
               <Pill tone={product.status === 1 ? 'green' : 'gray'}>
                 {product.status === 1 ? '启用' : '已停用'}
               </Pill>
             )}
-            {!canEdit && (
-              <Pill tone="gray">
-                <Lock size="1em" style={{ marginRight: 4 }} />
-                只读
-              </Pill>
-            )}
-          </div>
-          <div style={{ color: palette.sub, marginTop: 6 }}>
+          </>
+        }
+        sub={
+          <>
             {[product.brandName, product.categoryName, product.seriesName]
               .filter(Boolean)
               .join(' · ')}
             {product.productName ? ` · ${product.productName}` : ''}
-          </div>
-        </div>
-        <Space>
-          {canEdit && (
-            <>
-              <Button onClick={toggleStatus}>
-                {product.status === 1 ? '停用' : '启用'}
-              </Button>
-              <Dropdown
-                menu={{
-                  items: [
-                    {
-                      key: 'delete',
-                      danger: true,
-                      label: '删除商品…',
-                      onClick: () => setDeleteOpen(true),
-                    },
-                  ],
-                }}
-                trigger={['click']}
-              >
-                <Button aria-label="更多操作">更多</Button>
-              </Dropdown>
-            </>
-          )}
-        </Space>
-      </div>
-
-      {!maintainer && (
-        <Alert
-          style={{ marginBottom: 20, borderRadius: 12 }}
-          type="warning"
-          showIcon
-          title={`该商品由${product.ownerTenantId ? '其他公司' : '平台'}维护，只能查看`}
-          description="可以在报价、订单中正常使用它；需要补充规格、资料时，可通过资料包确认写入。"
-        />
-      )}
-      {maintainer && usage > 0 && (
-        <Alert
-          style={{ marginBottom: 20, borderRadius: 12 }}
-          type="info"
-          showIcon
-          title={`已被 ${usage} 处引用：品牌和型号已锁定，其余信息都可以改`}
-        />
-      )}
+          </>
+        }
+        extra={
+          <>
+            {!maintainer ? (
+              <Pill tone="gray">
+                <Lock size="1em" style={{ marginRight: 4 }} />
+                {product.ownerTenantId ? '其他公司' : '平台'}维护 · 只读
+                <HelpTip title="可以在报价、订单中正常使用它；需要补充规格、资料时，可通过资料包确认写入。" />
+              </Pill>
+            ) : (
+              !canEdit && (
+                <Pill tone="gray">
+                  <Lock size="1em" style={{ marginRight: 4 }} />
+                  只读
+                </Pill>
+              )
+            )}
+            {maintainer && usage > 0 && (
+              <Pill tone="gray">
+                已被 {usage} 处引用
+                <HelpTip title="品牌和型号已锁定，其余信息都可以改" />
+              </Pill>
+            )}
+            {canEdit && (
+              <>
+                <Button onClick={toggleStatus}>
+                  {product.status === 1 ? '停用' : '启用'}
+                </Button>
+                <Dropdown
+                  menu={{
+                    items: [
+                      {
+                        key: 'delete',
+                        danger: true,
+                        label: '删除商品…',
+                        onClick: () => setDeleteOpen(true),
+                      },
+                    ],
+                  }}
+                  trigger={['click']}
+                >
+                  <Button aria-label="更多操作">更多</Button>
+                </Dropdown>
+              </>
+            )}
+          </>
+        }
+      />
       {(product.warnings ?? []).map((w) => (
         <Alert
           key={w}

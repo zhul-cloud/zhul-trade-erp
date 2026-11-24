@@ -24,8 +24,10 @@ export const ReceiptProgress: React.FC<{
   received: number;
   total: number;
   status?: number;
-  width?: number;
-}> = ({ received, total, status, width = 110 }) => {
+  width?: number | string;
+  /** 卡头已显示收款状态时不再重复（详情页收款卡，ui-redesign R8-2） */
+  hideStatus?: boolean;
+}> = ({ received, total, status, width = 110, hideStatus }) => {
   const { palette } = useAppTheme();
   const ratio = total > 0 ? received / total : 0;
   const pct = Math.min(100, Math.round(ratio * 100));
@@ -76,7 +78,7 @@ export const ReceiptProgress: React.FC<{
         </span>
       </div>
       <div style={{ display: 'flex', gap: 6 }}>
-        {meta && <Pill tone={meta.tone}>{meta.label}</Pill>}
+        {meta && !hideStatus && <Pill tone={meta.tone}>{meta.label}</Pill>}
         {ratio > 1 && <Pill tone="orange">多收</Pill>}
       </div>
     </div>

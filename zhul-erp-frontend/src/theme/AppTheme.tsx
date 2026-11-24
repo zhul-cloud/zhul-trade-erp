@@ -159,8 +159,9 @@ const globalCss = (
   .ant-table:not(.ant-table-small):not(.ant-table-middle) > .ant-table-container .ant-table-tbody > tr.ant-table-row > td { height: 48px; }
   @media (max-width: 1399px) { .zhul-more-text { display: none; } }
   /* 图标统一用 lucide（规范「图标」）：和文字同行时与 antd 图标原来一样下沉 0.125em 居中；flex 布局里不受影响。
+     Tailwind 基础样式把 svg 设成 display: block，放在普通文字里会独占一行（如水单附件「回形针 + 文件名」），这里改回行内。
      转圈（加载、同步中）加 zhul-spin */
-  svg.lucide { vertical-align: -0.125em; flex: none; }
+  svg.lucide { display: inline-block; vertical-align: -0.125em; flex: none; }
   .zhul-spin { animation: zhul-spin 1s linear infinite; }
   @keyframes zhul-spin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { .zhul-spin { animation: none; } }

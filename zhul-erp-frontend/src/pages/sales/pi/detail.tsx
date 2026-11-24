@@ -2242,30 +2242,44 @@ const PiDetail: React.FC = () => {
         </div>
       )}
       <CreditInfo credit={pi.credit} currency={cur} />
+      {/* 收款记录用小标题 + 分隔线列出，不套描边卡，金额右对齐（同销售订单收款卡，ui-redesign R8-2） */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 6,
+          borderTop: `1px solid ${palette.hairline}`,
+          paddingTop: 12,
+          fontSize: 13,
+        }}
+      >
+        <b style={{ color: palette.ink }}>收款记录</b>
+        <span style={{ color: palette.mute }}>{pi.receipts.length}</span>
+      </div>
       {pi.receipts.length === 0 ? (
-        <div style={{ color: palette.mute, fontSize: 13 }}>
+        <div style={{ color: palette.mute, fontSize: 13, marginTop: 6 }}>
           还没有收款记录。客户付款后让客户发来水单并上传。
         </div>
       ) : (
-        <div style={{ display: 'grid', gap: 8 }}>
-          {[...pi.receipts].reverse().map((r) => {
+        <div style={{ display: 'grid' }}>
+          {[...pi.receipts].reverse().map((r, i) => {
             const slip = r.kind === KIND.SLIP;
             const voided = r.status === 2;
             return (
               <div
                 key={r.id}
                 style={{
-                  padding: '10px 12px',
-                  borderRadius: 12,
-                  border: `1px solid ${palette.hairline}`,
+                  padding: '10px 0',
+                  borderTop:
+                    i > 0 ? `1px solid ${palette.hairline}` : undefined,
                   opacity: voided ? 0.6 : 1,
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {slip ? (
-                    <FileText size="1em" style={{ color: palette.link }} />
+                    <FileText size="1em" style={{ color: palette.mute }} />
                   ) : (
-                    <Landmark size="1em" style={{ color: palette.green }} />
+                    <Landmark size="1em" style={{ color: palette.mute }} />
                   )}
                   <b style={{ color: palette.ink }}>
                     {slip
@@ -2288,16 +2302,6 @@ const PiDetail: React.FC = () => {
                       {r.receiptNo}
                     </button>
                   )}
-
-                  <b
-                    style={{
-                      ...num,
-                      color: palette.ink,
-                      textDecoration: voided ? 'line-through' : undefined,
-                    }}
-                  >
-                    {formatAmount(r.amount, cur)}
-                  </b>
                   {slip ? (
                     <Pill tone={r.matched ? 'green' : 'orange'}>
                       {r.matched ? '已到账' : '待到账'}
@@ -2305,17 +2309,30 @@ const PiDetail: React.FC = () => {
                   ) : voided ? (
                     <Pill tone="mute">已作废</Pill>
                   ) : null}
-                  <span
+                  <b
                     style={{
+                      ...num,
                       marginLeft: 'auto',
-                      fontSize: 12,
-                      color: palette.mute,
+                      color: palette.ink,
+                      textDecoration: voided ? 'line-through' : undefined,
                     }}
                   >
-                    {r.receiptDate?.slice(5)}
-                  </span>
+                    {formatAmount(r.amount, cur)}
+                  </b>
                 </div>
-                <div style={{ fontSize: 12, color: palette.sub, marginTop: 4 }}>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: palette.mute,
+                    marginTop: 4,
+                    paddingLeft: 22,
+                  }}
+                >
+                  {r.receiptDate && (
+                    <span style={{ marginRight: 6 }}>
+                      {r.receiptDate.slice(5)} ·
+                    </span>
+                  )}
                   {r.channel === 2 && (
                     <span style={{ marginRight: 6 }}>
                       <Pill tone="gray">线上</Pill>
@@ -2352,7 +2369,8 @@ const PiDetail: React.FC = () => {
                       display: 'flex',
                       flexWrap: 'wrap',
                       gap: 10,
-                      marginTop: 4,
+                      marginTop: 2,
+                      paddingLeft: 22,
                     }}
                   >
                     {r.files.map((f, i) => (

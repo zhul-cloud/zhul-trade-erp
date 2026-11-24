@@ -1177,35 +1177,36 @@ const OrderDetail: React.FC = () => {
           </span>
         )}
       </div>
-      <div
-        style={{
-          padding: 14,
-          borderRadius: 12,
-          background: palette.inset,
-          marginBottom: 12,
-        }}
-      >
+      {/* 进度直接放在卡里，不包灰底；收款状态只在卡头出现一次（ui-redesign R8-2） */}
+      <div style={{ marginBottom: 14 }}>
         <div
           style={{
             display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: 13,
+            alignItems: 'baseline',
+            gap: 6,
+            flexWrap: 'wrap',
             marginBottom: 8,
           }}
         >
-          <b style={{ color: palette.ink }}>
-            已到账 {formatAmount(o.receivedAmount ?? 0, cur)} /{' '}
-            {formatAmount(o.totalAmount, cur)}
+          <span style={{ fontSize: 13, color: palette.sub }}>已到账</span>
+          <b style={{ ...num, fontSize: 20, color: palette.ink }}>
+            {formatAmount(o.receivedAmount ?? 0, cur)}
           </b>
+          <span style={{ ...num, fontSize: 13, color: palette.mute }}>
+            / {formatAmount(o.totalAmount, cur)}
+          </span>
         </div>
         <ReceiptProgress
           received={o.receivedAmount ?? 0}
           total={o.totalAmount}
           status={o.receiptStatus}
-          width={260}
+          width="100%"
+          hideStatus
         />
         {(o.remainingAmount ?? 0) > 0 && (
-          <div style={{ fontSize: 12, color: palette.orange, marginTop: 6 }}>
+          <div
+            style={{ ...num, fontSize: 12, color: palette.sub, marginTop: 4 }}
+          >
             剩余 {formatAmount(o.remainingAmount ?? 0, cur)}
           </div>
         )}
@@ -1219,13 +1220,19 @@ const OrderDetail: React.FC = () => {
       {o.methodTotals.length > 0 && (
         <div
           style={{
-            padding: 14,
-            borderRadius: 12,
-            background: palette.inset,
+            borderTop: `1px solid ${palette.hairline}`,
+            paddingTop: 12,
             marginBottom: 12,
           }}
         >
-          <div style={{ fontSize: 12, color: palette.mute, marginBottom: 8 }}>
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: palette.ink,
+              marginBottom: 8,
+            }}
+          >
             按付款方式
           </div>
           {o.methodTotals.map((m) => (
@@ -1295,30 +1302,45 @@ const OrderDetail: React.FC = () => {
             : undefined
         }
       />
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 6,
+          borderTop: `1px solid ${palette.hairline}`,
+          paddingTop: 12,
+          fontSize: 13,
+        }}
+      >
+        <b style={{ color: palette.ink }}>收款记录</b>
+        <span style={{ color: palette.mute }}>{o.receipts.length}</span>
+      </div>
       {o.receipts.length === 0 ? (
-        <div style={{ color: palette.mute, fontSize: 13 }}>还没有收款记录</div>
+        <div style={{ color: palette.mute, fontSize: 13, marginTop: 6 }}>
+          还没有收款记录
+        </div>
       ) : (
-        <div style={{ display: 'grid', gap: 8 }}>
-          {[...o.receipts].reverse().map((r) => {
+        <div style={{ display: 'grid' }}>
+          {[...o.receipts].reverse().map((r, i) => {
             const slip = r.kind === KIND.SLIP;
             const voided = r.status === 2;
             return (
               <div
                 key={r.id}
                 style={{
-                  padding: '10px 12px',
-                  borderRadius: 12,
-                  border: `1px solid ${palette.hairline}`,
+                  padding: '10px 0',
+                  borderTop:
+                    i > 0 ? `1px solid ${palette.hairline}` : undefined,
                   opacity: voided ? 0.6 : 1,
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {slip ? (
-                    <FileText size="1em" style={{ color: palette.link }} />
+                    <FileText size="1em" style={{ color: palette.mute }} />
                   ) : r.platformOrderNo ? (
-                    <Store size="1em" style={{ color: palette.info }} />
+                    <Store size="1em" style={{ color: palette.mute }} />
                   ) : (
-                    <Landmark size="1em" style={{ color: palette.green }} />
+                    <Landmark size="1em" style={{ color: palette.mute }} />
                   )}
                   <b style={{ color: palette.ink }}>
                     {slip
@@ -1341,15 +1363,6 @@ const OrderDetail: React.FC = () => {
                       {r.receiptNo}
                     </button>
                   )}
-                  <b
-                    style={{
-                      ...num,
-                      color: palette.ink,
-                      textDecoration: voided ? 'line-through' : undefined,
-                    }}
-                  >
-                    {formatAmount(r.amount, cur)}
-                  </b>
                   {slip ? (
                     <Pill tone={r.matched ? 'green' : 'orange'}>
                       {r.matched ? '已到账' : '待到账'}
@@ -1357,17 +1370,30 @@ const OrderDetail: React.FC = () => {
                   ) : voided ? (
                     <Pill tone="mute">已作废</Pill>
                   ) : null}
-                  <span
+                  <b
                     style={{
+                      ...num,
                       marginLeft: 'auto',
-                      fontSize: 12,
-                      color: palette.mute,
+                      color: palette.ink,
+                      textDecoration: voided ? 'line-through' : undefined,
                     }}
                   >
-                    {r.receiptDate?.slice(5)}
-                  </span>
+                    {formatAmount(r.amount, cur)}
+                  </b>
                 </div>
-                <div style={{ fontSize: 12, color: palette.sub, marginTop: 4 }}>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: palette.mute,
+                    marginTop: 4,
+                    paddingLeft: 22,
+                  }}
+                >
+                  {r.receiptDate && (
+                    <span style={{ marginRight: 6 }}>
+                      {r.receiptDate.slice(5)} ·
+                    </span>
+                  )}
                   {r.channel === 2 && (
                     <span style={{ marginRight: 6 }}>
                       <Pill tone="gray">线上</Pill>
@@ -1390,18 +1416,29 @@ const OrderDetail: React.FC = () => {
                     .filter(Boolean)
                     .join(' · ')}
                 </div>
-                {slip &&
-                  r.files.map((f, i) => (
-                    <button
-                      type="button"
-                      className="zhul-link"
-                      key={f.fileKey}
-                      style={{ fontSize: 12, marginRight: 10 }}
-                      onClick={() => openSlip(r.id, i)}
-                    >
-                      <Paperclip size="1em" /> {f.fileName}
-                    </button>
-                  ))}
+                {slip && r.files.length > 0 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 10,
+                      marginTop: 2,
+                      paddingLeft: 22,
+                    }}
+                  >
+                    {r.files.map((f, i) => (
+                      <button
+                        type="button"
+                        className="zhul-link"
+                        key={f.fileKey}
+                        style={{ fontSize: 12 }}
+                        onClick={() => openSlip(r.id, i)}
+                      >
+                        <Paperclip size="1em" /> {f.fileName}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {manual && r.voidable && (
                   <div>
                     <button
