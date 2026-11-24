@@ -409,9 +409,22 @@ const PurchaseOrderDetail: React.FC = () => {
             [r.brand, r.category].filter(Boolean).join(' · ') || '—',
           )}
           {r.modelUpdatedTo && (
-            <div style={{ color: palette.red, fontSize: 12, fontWeight: 400 }}>
-              <TriangleAlert size="1em" style={{ marginRight: 4 }} />
-              真实型号已更新为 <b>{r.modelUpdatedTo}</b>，请与供应商核对
+            // 图标与文字并排，文字折行时图标不单独占一行（文案见 purchase-order 规范，标红保留）
+            <div
+              style={{
+                display: 'flex',
+                gap: 4,
+                alignItems: 'flex-start',
+                color: palette.red,
+                fontSize: 12,
+                fontWeight: 400,
+                lineHeight: 1.5,
+              }}
+            >
+              <TriangleAlert size="1em" style={{ marginTop: 3 }} />
+              <span>
+                真实型号已更新为 <b>{r.modelUpdatedTo}</b>，请与供应商核对
+              </span>
             </div>
           )}
           <ItemRemarkText text={r.itemRemark} alert={r.remarkAlert} />
@@ -832,11 +845,12 @@ const PurchaseOrderDetail: React.FC = () => {
         {po.shipProgress ? (
           <StatCard
             icon={<Car size="1em" />}
-            color={po.overdueDays ? palette.orange : palette.link}
+            // 逾期归错误色（status-colors.md「逾期 错误」，ui-redesign S5）
+            color={po.overdueDays ? palette.red : palette.link}
             label="发货进度"
             value={`已发 ${po.shippedQty ?? 0} / ${po.totalQty ?? 0}`}
             hint={shipHint(po)}
-            hintColor={po.overdueDays ? palette.orange : undefined}
+            hintColor={po.overdueDays ? palette.red : undefined}
           />
         ) : po.shop ? (
           <StatCard
@@ -1853,7 +1867,8 @@ const ShipmentsCard: React.FC<{
           flexWrap: 'wrap',
         }}
       >
-        <b style={{ color: palette.ink, fontSize: 15 }}>
+        {/* 放在弹性行里会被压到最小宽度，不折行，免得图标单独占一行 */}
+        <b style={{ color: palette.ink, fontSize: 15, whiteSpace: 'nowrap' }}>
           <Car size="1em" /> 发货与入库{' '}
           <HelpTip title="有发货后不能直接取消采购订单，少发、退货在到货差异里处理" />
         </b>
@@ -1932,7 +1947,7 @@ const ContractCard: React.FC<{
   return (
     <Card style={{ padding: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-        <b style={{ color: palette.ink }}>
+        <b style={{ color: palette.ink, whiteSpace: 'nowrap' }}>
           <FileLock size="1em" /> 供应商合同
         </b>
         <span style={{ flex: 1 }} />
