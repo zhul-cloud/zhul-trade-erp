@@ -103,7 +103,7 @@ const SalesReturnDetail: React.FC = () => {
       ? [
           {
             title: '预计退款',
-            align: 'right',
+            align: 'right' as const,
             key: 'refund',
             width: 120,
             render: (_: unknown, x: SalesReturnItem) =>
