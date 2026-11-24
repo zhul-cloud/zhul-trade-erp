@@ -1096,6 +1096,7 @@ export const FollowupTable: React.FC<{
       valueCol,
       {
         title: '近 12 个月成交',
+        align: 'right',
         key: 'recent',
         width: 160,
         render: (_, r) => (
@@ -1195,6 +1196,7 @@ export const FollowupTable: React.FC<{
       },
       {
         title: '已收 / 未收',
+        align: 'right',
         key: 'received',
         width: 200,
         render: (_, r) => {

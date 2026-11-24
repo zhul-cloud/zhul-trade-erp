@@ -502,6 +502,7 @@ export const HandOverModal: React.FC<{
           },
           {
             title: '分到运费',
+            align: 'right',
             key: 'share',
             onCell: span,
             render: (_, r) =>

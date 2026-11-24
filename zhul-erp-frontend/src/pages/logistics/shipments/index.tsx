@@ -429,6 +429,7 @@ const Shipments: React.FC = () => {
     },
     {
       title: '运费',
+      align: 'right',
       dataIndex: 'freight',
       width: 110,
       render: (v: number | null | undefined, r) =>

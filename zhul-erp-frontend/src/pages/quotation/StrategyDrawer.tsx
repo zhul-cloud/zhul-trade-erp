@@ -527,6 +527,7 @@ const StrategyDrawer: React.FC<{
     kind === 'history'
       ? {
           title: '上次价格',
+          align: 'right',
           key: 'history',
           width: 230,
           render: (_, r) => {

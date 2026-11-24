@@ -202,6 +202,7 @@ const SalesReturnsPage: React.FC = () => {
     },
     {
       title: '退款',
+      align: 'right',
       key: 'refund',
       width: 140,
       render: (_, r) => {

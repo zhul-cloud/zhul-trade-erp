@@ -191,6 +191,7 @@ const PurchaseReturnsPage: React.FC = () => {
     },
     {
       title: '运费',
+      align: 'right',
       dataIndex: 'freightCny',
       width: 100,
       render: (v?: number) =>
@@ -198,6 +199,7 @@ const PurchaseReturnsPage: React.FC = () => {
     },
     {
       title: '退款或抵扣',
+      align: 'right',
       dataIndex: 'refundAmount',
       width: 120,
       render: (v: number | undefined, r) =>

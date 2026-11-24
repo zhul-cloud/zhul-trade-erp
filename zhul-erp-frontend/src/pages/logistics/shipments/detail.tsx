@@ -426,6 +426,7 @@ const ShipmentDetail: React.FC = () => {
               { title: '箱内型号', width: 220, dataIndex: 'items' },
               {
                 title: '国际运费分摊',
+                align: 'right',
                 dataIndex: 'freight',
                 width: 130,
                 render: (v?: number) =>

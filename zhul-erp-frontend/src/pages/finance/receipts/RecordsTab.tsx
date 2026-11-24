@@ -251,6 +251,7 @@ const RecordsTab: React.FC = () => {
     },
     {
       title: '手续费',
+      align: 'right',
       key: 'fee',
       width: 130,
       render: (_, r) =>

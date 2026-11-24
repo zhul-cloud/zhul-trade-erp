@@ -250,6 +250,7 @@ export const PagedModelsModal: React.FC<{
       ? [
           {
             title: '单价',
+            align: 'right' as const,
             key: 'price',
             width: 110,
             render: (_: unknown, r: Row) =>

@@ -96,6 +96,7 @@ const OtherOutboundDetail: React.FC = () => {
     },
     {
       title: '金额（¥）',
+      align: 'right',
       dataIndex: 'amountCny',
       width: 110,
       render: (v: number) => formatAmount(v, 'CNY'),
@@ -132,6 +133,7 @@ const OtherOutboundDetail: React.FC = () => {
     },
     {
       title: '金额（¥）',
+      align: 'right',
       dataIndex: 'amountCny',
       width: 120,
       render: (v: number) => formatAmount(v, 'CNY'),

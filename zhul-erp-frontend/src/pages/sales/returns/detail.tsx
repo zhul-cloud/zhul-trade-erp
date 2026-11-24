@@ -94,6 +94,7 @@ const SalesReturnDetail: React.FC = () => {
     { title: '退货数量', dataIndex: 'quantity', width: 90 },
     {
       title: '成交单价',
+      align: 'right',
       dataIndex: 'unitPrice',
       width: 120,
       render: (v?: number) => (v == null ? '—' : formatAmount(v, cur)),
@@ -102,6 +103,7 @@ const SalesReturnDetail: React.FC = () => {
       ? [
           {
             title: '预计退款',
+            align: 'right',
             key: 'refund',
             width: 120,
             render: (_: unknown, x: SalesReturnItem) =>

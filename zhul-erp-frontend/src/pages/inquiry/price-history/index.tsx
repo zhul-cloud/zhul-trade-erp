@@ -148,6 +148,7 @@ const PriceHistoryPage: React.FC = () => {
     },
     {
       title: '最低价',
+      align: 'right',
       width: 130,
       render: (_, r) =>
         r.minPriceCny == null ? (
@@ -158,6 +159,7 @@ const PriceHistoryPage: React.FC = () => {
     },
     {
       title: '最高价',
+      align: 'right',
       width: 130,
       render: (_, r) =>
         r.maxPriceCny == null ? '—' : formatAmount(r.maxPriceCny),

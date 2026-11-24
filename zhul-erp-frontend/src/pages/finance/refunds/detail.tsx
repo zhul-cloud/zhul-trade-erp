@@ -92,12 +92,14 @@ const RefundDetail: React.FC = () => {
     },
     {
       title: '单价',
+      align: 'right',
       dataIndex: 'unitPrice',
       width: 120,
       render: (v?: number) => (v == null ? '—' : formatAmount(v, cur)),
     },
     {
       title: '金额',
+      align: 'right',
       dataIndex: 'amount',
       width: 120,
       render: (v: number) => <b>{formatAmount(v, cur)}</b>,
