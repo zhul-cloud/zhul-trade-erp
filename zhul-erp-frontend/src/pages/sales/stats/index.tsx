@@ -340,7 +340,7 @@ const SalesStatsPage: React.FC = () => {
         v === 2 ? (
           <Pill tone="gray">老客户</Pill>
         ) : (
-          <Pill tone="green">新客户</Pill>
+          <Pill tone="gray">新客户</Pill>
         ),
     },
     {

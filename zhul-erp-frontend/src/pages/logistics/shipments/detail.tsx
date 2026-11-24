@@ -558,7 +558,7 @@ const ShipmentDetail: React.FC = () => {
           <>
             <ShStatusPill value={sh.status}>{sh.statusName}</ShStatusPill>
             {sh.reconciled && <Pill tone="green">已对账</Pill>}
-            {sh.customerForwarder && <Pill tone="orange">客户指定货代</Pill>}
+            {sh.customerForwarder && <Pill tone="gray">客户指定货代</Pill>}
             <MigratedPill migrated={sh.migrated} />
           </>
         }

@@ -43,7 +43,18 @@ const RULE_NAMES = new Set([
   'row-tint',
   'danger-confirm',
   'row-actions',
+  'attr-tone',
 ]);
+
+/**
+ * 类别、属性标签（不是流程状态）：一律中性 gray / mute（ui-redesign S4、S13）。
+ * 名单取自 openspec/changes/ui-redesign/status-colors.md 归「中性」的标签，加现货、期货、新客户
+ */
+const ATTR_LABELS = [
+  'AI 建议', 'AI 生成', '业务员', '业务员自询', '主要', '代收', '兼职', '员工垫付', '售后补发', '售后退货',
+  '客户指定', '客户指定货代', '已转样品', '战略客户', '无货', '未成交', '本公司', '核心', '线上', '线上店铺',
+  '老客户', '新客户', '营销包', '采购入库', '默认', '现货', '期货',
+];
 
 /** 按行检查的文字类规则（在去掉注释后的代码上匹配）；text: 确认弹窗等豁免范围里不查 */
 const LINE_RULES = [
@@ -107,6 +118,15 @@ const LINE_RULES = [
     message:
       '危险操作的确认框用 useConfirmDanger()（问句标题写明对象、按钮写动作、默认焦点在取消），不自己给 confirm 配红色按钮',
     re: /okButtonProps:\s*\{[^}]*\bdanger:\s*true|okType:\s*'danger'/,
+  },
+  {
+    id: 'attr-tone',
+    level: 'error',
+    message:
+      '类别、属性标签（客户指定、老客户、现货、默认等）用中性 tone="gray"，彩色只给流程状态与告警（ui-redesign S13）',
+    re: new RegExp(
+      `<Pill\\s+tone="(?!gray"|mute")\\w+"[^>]*>\\s*(${ATTR_LABELS.join('|')})\\s*</Pill>`,
+    ),
   },
   {
     id: 'filler-maybe',
