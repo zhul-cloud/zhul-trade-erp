@@ -185,63 +185,12 @@ const AfterSalesPage: React.FC = () => {
       ),
     },
     {
-      title: '型号',
-      dataIndex: 'itemSummary',
-      width: 200,
-      ellipsis: true,
-      render: (v?: string, r?: AfterSales) => (
-        <div>
-          <div>{v || '—'}</div>
-          {sub(r?.symptom)}
-        </div>
-      ),
-    },
-    {
-      title: '等级',
-      dataIndex: 'levelCode',
-      width: 80,
+      title: '状态',
+      dataIndex: 'statusName',
+      width: 110,
       render: (v: string, r) => (
-        <Pill tone={LEVEL_TONE[v] ?? 'gray'}>{levelShort(v, r.levelName)}</Pill>
+        <Pill tone={AS_STATUS_TONE[r.status] ?? 'gray'}>{v}</Pill>
       ),
-    },
-    {
-      title: '原因 · 方案',
-      key: 'reason',
-      width: 170,
-      render: (_, r) => (
-        <div>
-          <div
-            style={{
-              color:
-                r.reasonCode === 'INVESTIGATING' ? palette.orange : palette.sub,
-            }}
-          >
-            {r.reasonName}
-          </div>
-          {sub(r.solutionNames.join('、') || '还没定方案')}
-        </div>
-      ),
-    },
-    {
-      title: '来源单号',
-      key: 'source',
-      width: 150,
-      render: (_, r) => (
-        <SourceNos
-          refs={[
-            {
-              no: r.soNo,
-              href: r.soId ? `/sales/orders/${r.soId}` : undefined,
-            },
-          ]}
-        />
-      ),
-    },
-    {
-      title: '负责人',
-      dataIndex: 'ownerName',
-      width: 90,
-      render: ellipsisRender,
     },
     {
       title: '下一步 · 截止',
@@ -275,12 +224,63 @@ const AfterSalesPage: React.FC = () => {
       },
     },
     {
-      title: '状态',
-      dataIndex: 'statusName',
-      width: 110,
+      title: '等级',
+      dataIndex: 'levelCode',
+      width: 80,
       render: (v: string, r) => (
-        <Pill tone={AS_STATUS_TONE[r.status] ?? 'gray'}>{v}</Pill>
+        <Pill tone={LEVEL_TONE[v] ?? 'gray'}>{levelShort(v, r.levelName)}</Pill>
       ),
+    },
+    {
+      title: '原因 · 方案',
+      key: 'reason',
+      width: 170,
+      render: (_, r) => (
+        <div>
+          <div
+            style={{
+              color:
+                r.reasonCode === 'INVESTIGATING' ? palette.orange : palette.sub,
+            }}
+          >
+            {r.reasonName}
+          </div>
+          {sub(r.solutionNames.join('、') || '还没定方案')}
+        </div>
+      ),
+    },
+    {
+      title: '型号',
+      dataIndex: 'itemSummary',
+      width: 200,
+      ellipsis: true,
+      render: (v?: string, r?: AfterSales) => (
+        <div>
+          <div>{v || '—'}</div>
+          {sub(r?.symptom)}
+        </div>
+      ),
+    },
+    {
+      title: '来源单号',
+      key: 'source',
+      width: 150,
+      render: (_, r) => (
+        <SourceNos
+          refs={[
+            {
+              no: r.soNo,
+              href: r.soId ? `/sales/orders/${r.soId}` : undefined,
+            },
+          ]}
+        />
+      ),
+    },
+    {
+      title: '负责人',
+      dataIndex: 'ownerName',
+      width: 90,
+      render: ellipsisRender,
     },
     ...auditColumns<AfterSales>(),
     {

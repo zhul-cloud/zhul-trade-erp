@@ -97,13 +97,22 @@ const OtherOutboundsPage: React.FC = () => {
         </div>
       ),
     },
-    {
-      title: '出库类型',
-      dataIndex: 'outboundTypeName',
-      width: 100,
-      render: (v: string) => <Pill tone="gray">{v}</Pill>,
-    },
     { title: '仓库', dataIndex: 'warehouseName', width: 140 },
+    {
+      title: '状态',
+      dataIndex: 'statusName',
+      width: 90,
+      render: (v: string, r) => (
+        <Pill tone={r.status === OO_DONE ? 'green' : 'mute'}>{v}</Pill>
+      ),
+    },
+    {
+      title: '金额（¥）',
+      align: 'right',
+      dataIndex: 'amountCny',
+      width: 110,
+      render: (v: number) => formatAmount(v, 'CNY'),
+    },
     {
       title: '型号 · 数量',
       dataIndex: 'firstModel',
@@ -146,19 +155,16 @@ const OtherOutboundsPage: React.FC = () => {
       ),
     },
     {
-      title: '金额（¥）',
-      align: 'right',
-      dataIndex: 'amountCny',
-      width: 110,
-      render: (v: number) => formatAmount(v, 'CNY'),
+      title: '出库类型',
+      dataIndex: 'outboundTypeName',
+      width: 100,
+      render: (v: string) => <Pill tone="gray">{v}</Pill>,
     },
     {
-      title: '状态',
-      dataIndex: 'statusName',
-      width: 90,
-      render: (v: string, r) => (
-        <Pill tone={r.status === OO_DONE ? 'green' : 'mute'}>{v}</Pill>
-      ),
+      title: '原因',
+      dataIndex: 'reason',
+      width: 200,
+      render: (v: string) => <EllipsisText text={v} />,
     },
     {
       title: '来源单号',
@@ -171,12 +177,6 @@ const OtherOutboundsPage: React.FC = () => {
           }
         />
       ),
-    },
-    {
-      title: '原因',
-      dataIndex: 'reason',
-      width: 200,
-      render: (v: string) => <EllipsisText text={v} />,
     },
     ...auditColumns<OtherOutbound>(),
     {

@@ -271,24 +271,27 @@ const RefundPage: React.FC = () => {
       ),
     },
     {
-      title: '类型',
-      dataIndex: 'refundType',
-      width: 110,
-      render: (v: number) =>
-        v === REFUND_TYPE_WITHDRAW ? (
-          <Pill tone="cyan">余额提现</Pill>
-        ) : (
-          <Pill tone="red">售后退款</Pill>
-        ),
-    },
-    { title: '退款日期', dataIndex: 'refundDate', width: 110 },
-    {
       title: '客户',
       dataIndex: 'customerName',
       width: 180,
       render: (v?: string) => <CustomerCell name={v} />,
     },
-    { title: '原因', dataIndex: 'reasonName', width: 120 },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 120,
+      render: (v: number, r) =>
+        v === 2 ? (
+          <div>
+            <Pill tone="mute">已作废</Pill>
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              {r.voidReason}
+            </div>
+          </div>
+        ) : (
+          <Pill tone="green">有效</Pill>
+        ),
+    },
     {
       title: '金额',
       key: 'amount',
@@ -305,6 +308,7 @@ const RefundPage: React.FC = () => {
       align: 'right',
       render: (v: number) => <b style={num}>{formatAmount(v, 'CNY')}</b>,
     },
+    { title: '退款日期', dataIndex: 'refundDate', width: 110 },
     {
       title: '去向',
       dataIndex: 'method',
@@ -323,23 +327,18 @@ const RefundPage: React.FC = () => {
           </div>
         ),
     },
-
     {
-      title: '状态',
-      dataIndex: 'status',
-      width: 120,
-      render: (v: number, r) =>
-        v === 2 ? (
-          <div>
-            <Pill tone="mute">已作废</Pill>
-            <div style={{ fontSize: 12, color: palette.mute }}>
-              {r.voidReason}
-            </div>
-          </div>
+      title: '类型',
+      dataIndex: 'refundType',
+      width: 110,
+      render: (v: number) =>
+        v === REFUND_TYPE_WITHDRAW ? (
+          <Pill tone="cyan">余额提现</Pill>
         ) : (
-          <Pill tone="green">有效</Pill>
+          <Pill tone="red">售后退款</Pill>
         ),
     },
+    { title: '原因', dataIndex: 'reasonName', width: 120 },
     {
       title: '来源单号',
       key: 'source',

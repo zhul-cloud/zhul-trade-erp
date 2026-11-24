@@ -143,6 +143,46 @@ const PurchaseReturnsPage: React.FC = () => {
     },
     { title: '供应商', dataIndex: 'supplierName', width: 160 },
     {
+      title: '状态',
+      dataIndex: 'statusName',
+      width: 90,
+      render: (v: string, r) => (
+        <Pill tone={PR_STATUS_TONE[r.status] ?? 'gray'}>{v}</Pill>
+      ),
+    },
+    {
+      title: '退款或抵扣',
+      align: 'right',
+      dataIndex: 'refundAmount',
+      width: 120,
+      render: (v: number | undefined, r) =>
+        r.status === PR_STATUS.DONE
+          ? formatAmount(v ?? 0, r.currencyCode ?? 'CNY')
+          : dash,
+    },
+    {
+      title: '运费',
+      align: 'right',
+      dataIndex: 'freightCny',
+      width: 100,
+      render: (v?: number) =>
+        Number(v) > 0 ? formatAmount(v ?? 0, 'CNY') : dash,
+    },
+    {
+      title: '快递',
+      key: 'express',
+      width: 150,
+      render: (_, r) =>
+        r.carrier ? (
+          <div>
+            {r.carrier}
+            {sub(r.trackingNo)}
+          </div>
+        ) : (
+          dash
+        ),
+    },
+    {
       title: '型号 · 数量',
       key: 'items',
       width: 200,
@@ -174,46 +214,6 @@ const PurchaseReturnsPage: React.FC = () => {
       width: 160,
       render: (v: string | undefined, r) =>
         v && r.poId ? <Link to={PATHS.order(r.poId)}>{v}</Link> : dash,
-    },
-    {
-      title: '快递',
-      key: 'express',
-      width: 150,
-      render: (_, r) =>
-        r.carrier ? (
-          <div>
-            {r.carrier}
-            {sub(r.trackingNo)}
-          </div>
-        ) : (
-          dash
-        ),
-    },
-    {
-      title: '运费',
-      align: 'right',
-      dataIndex: 'freightCny',
-      width: 100,
-      render: (v?: number) =>
-        Number(v) > 0 ? formatAmount(v ?? 0, 'CNY') : dash,
-    },
-    {
-      title: '退款或抵扣',
-      align: 'right',
-      dataIndex: 'refundAmount',
-      width: 120,
-      render: (v: number | undefined, r) =>
-        r.status === PR_STATUS.DONE
-          ? formatAmount(v ?? 0, r.currencyCode ?? 'CNY')
-          : dash,
-    },
-    {
-      title: '状态',
-      dataIndex: 'statusName',
-      width: 90,
-      render: (v: string, r) => (
-        <Pill tone={PR_STATUS_TONE[r.status] ?? 'gray'}>{v}</Pill>
-      ),
     },
     {
       title: '来源单号',

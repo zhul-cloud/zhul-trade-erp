@@ -135,20 +135,6 @@ const PaymentRecords: React.FC = () => {
       ),
     },
     {
-      title: '类型',
-      dataIndex: 'kind',
-      width: 110,
-      render: (v: number) =>
-        v === 2 ? (
-          <Pill tone="orange">退款</Pill>
-        ) : v === 3 ? (
-          <Pill tone="cyan">报销付款</Pill>
-        ) : (
-          <Pill tone="gray">付款</Pill>
-        ),
-    },
-    { title: '付款日期', dataIndex: 'payDate', width: 110 },
-    {
       title: '收款方',
       key: 'payee',
       width: 240,
@@ -164,36 +150,20 @@ const PaymentRecords: React.FC = () => {
       ),
     },
     {
-      title: '付款方式',
-      key: 'method',
-      width: 110,
+      title: '状态',
+      key: 'status',
+      width: 140,
       render: (_, r) =>
-        r.kind === 2 ? (
-          '—'
-        ) : r.method === METHOD.ADVANCE ? (
-          <Pill tone="gray">员工垫付</Pill>
-        ) : r.method === METHOD.PRIVATE ? (
-          <Pill tone="orange">
-            私对私
-            {r.payChannel && r.payChannel !== 1
-              ? ` · ${PAY_CHANNEL_NAMES[r.payChannel]}`
-              : ''}
-          </Pill>
+        r.voided ? (
+          <div>
+            <Pill tone="mute">已作废</Pill>
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              {r.voidReason}
+            </div>
+          </div>
         ) : (
-          <Pill tone="accent">公司对公</Pill>
+          <Pill tone="green">有效</Pill>
         ),
-    },
-    {
-      title: '账户 / 垫付人',
-      key: 'who',
-      width: 220,
-      ellipsis: true,
-      render: (_, r) =>
-        (r.method === METHOD.ADVANCE && r.kind === 1
-          ? r.advanceUser
-          : r.method === METHOD.PRIVATE
-            ? r.payerAccount
-            : r.accountName) || '—',
     },
     {
       title: '金额',
@@ -227,6 +197,7 @@ const PaymentRecords: React.FC = () => {
         </span>
       ),
     },
+    { title: '付款日期', dataIndex: 'payDate', width: 110 },
     {
       title: '核销的应付单',
       key: 'alloc',
@@ -276,20 +247,49 @@ const PaymentRecords: React.FC = () => {
       },
     },
     {
-      title: '状态',
-      key: 'status',
-      width: 140,
-      render: (_, r) =>
-        r.voided ? (
-          <div>
-            <Pill tone="mute">已作废</Pill>
-            <div style={{ fontSize: 12, color: palette.mute }}>
-              {r.voidReason}
-            </div>
-          </div>
+      title: '类型',
+      dataIndex: 'kind',
+      width: 110,
+      render: (v: number) =>
+        v === 2 ? (
+          <Pill tone="orange">退款</Pill>
+        ) : v === 3 ? (
+          <Pill tone="cyan">报销付款</Pill>
         ) : (
-          <Pill tone="green">有效</Pill>
+          <Pill tone="gray">付款</Pill>
         ),
+    },
+    {
+      title: '付款方式',
+      key: 'method',
+      width: 110,
+      render: (_, r) =>
+        r.kind === 2 ? (
+          '—'
+        ) : r.method === METHOD.ADVANCE ? (
+          <Pill tone="gray">员工垫付</Pill>
+        ) : r.method === METHOD.PRIVATE ? (
+          <Pill tone="orange">
+            私对私
+            {r.payChannel && r.payChannel !== 1
+              ? ` · ${PAY_CHANNEL_NAMES[r.payChannel]}`
+              : ''}
+          </Pill>
+        ) : (
+          <Pill tone="accent">公司对公</Pill>
+        ),
+    },
+    {
+      title: '账户 / 垫付人',
+      key: 'who',
+      width: 220,
+      ellipsis: true,
+      render: (_, r) =>
+        (r.method === METHOD.ADVANCE && r.kind === 1
+          ? r.advanceUser
+          : r.method === METHOD.PRIVATE
+            ? r.payerAccount
+            : r.accountName) || '—',
     },
     {
       title: '来源单号',

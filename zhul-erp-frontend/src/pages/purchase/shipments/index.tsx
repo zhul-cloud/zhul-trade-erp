@@ -154,6 +154,33 @@ const ShipmentsTab: React.FC = () => {
       ),
     },
     {
+      title: '状态',
+      dataIndex: 'status',
+      width: 110,
+      render: (v: number, r) => (
+        <ShipStatusPill value={v}>{r.statusName}</ShipStatusPill>
+      ),
+    },
+    {
+      title: '预计到货',
+      dataIndex: 'expectedArrivalDate',
+      width: 110,
+      render: (v: string | undefined, r) => (
+        <ArrivalCell date={v} overdue={r.arrivalOverdue} />
+      ),
+    },
+    {
+      title: '快递 · 单号',
+      key: 'tracking',
+      width: 180,
+      render: (_, r) => (
+        <div>
+          <b style={{ color: palette.ink }}>{r.carrier || '—'}</b>
+          {r.trackingNo && sub(palette.mute, r.trackingNo)}
+        </div>
+      ),
+    },
+    {
       title: '型号 · 数量',
       key: 'items',
       width: 200,
@@ -183,25 +210,6 @@ const ShipmentsTab: React.FC = () => {
       ),
     },
     {
-      title: '快递 · 单号',
-      key: 'tracking',
-      width: 180,
-      render: (_, r) => (
-        <div>
-          <b style={{ color: palette.ink }}>{r.carrier || '—'}</b>
-          {r.trackingNo && sub(palette.mute, r.trackingNo)}
-        </div>
-      ),
-    },
-    {
-      title: '预计到货',
-      dataIndex: 'expectedArrivalDate',
-      width: 110,
-      render: (v: string | undefined, r) => (
-        <ArrivalCell date={v} overdue={r.arrivalOverdue} />
-      ),
-    },
-    {
       title: '登记来源',
       dataIndex: 'sourceName',
       width: 120,
@@ -215,14 +223,6 @@ const ShipmentsTab: React.FC = () => {
           {r.directForwarderName &&
             sub(palette.info, `直发 ${r.directForwarderName}`)}
         </div>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      width: 110,
-      render: (v: number, r) => (
-        <ShipStatusPill value={v}>{r.statusName}</ShipStatusPill>
       ),
     },
     {

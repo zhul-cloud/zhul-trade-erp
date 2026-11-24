@@ -146,6 +146,62 @@ const SalesReturnsPage: React.FC = () => {
       ),
     },
     {
+      title: '状态',
+      dataIndex: 'statusName',
+      width: 90,
+      render: (v: string, r) => (
+        <Pill tone={TH_STATUS_TONE[r.status] ?? 'gray'}>{v}</Pill>
+      ),
+    },
+    {
+      title: '退款',
+      align: 'right',
+      key: 'refund',
+      width: 140,
+      render: (_, r) => {
+        const q = r.refunds?.[0];
+        if (!q) return <span style={{ color: palette.mute }}>—</span>;
+        return (
+          <div style={{ display: 'grid', gap: 2, justifyItems: 'start' }}>
+            <b>{formatAmount(q.amount, q.currencyCode)}</b>
+            <Pill tone={RQ_STATUS_TONE[q.status] ?? 'gray'}>
+              {q.statusName}
+            </Pill>
+          </div>
+        );
+      },
+    },
+    {
+      title: '入库',
+      key: 'receipt',
+      width: 150,
+      render: (_, r) =>
+        r.receipt ? (
+          <div>
+            <div style={{ fontSize: 12, color: palette.sub }}>
+              {r.receipt.statusName}
+              {r.receivedQty != null
+                ? ` · 实收 ${r.receivedQty} / 合格 ${r.qualifiedQty ?? 0}`
+                : ''}
+            </div>
+            <Link to={PATHS.returnReceipt(r.receipt.id)}>{r.receipt.no}</Link>
+          </div>
+        ) : (
+          <span style={{ color: palette.mute }}>—</span>
+        ),
+    },
+    {
+      title: '处理方式',
+      dataIndex: 'handlingName',
+      width: 100,
+      render: (v: string, r) => (
+        <div>
+          {v}
+          {r.refundFirst ? sub('先退款') : null}
+        </div>
+      ),
+    },
+    {
       title: '型号 · 数量',
       key: 'items',
       width: 200,
@@ -169,62 +225,6 @@ const SalesReturnsPage: React.FC = () => {
       dataIndex: 'categories',
       width: 130,
       render: (v?: string[]) => <TagList values={v} label="品类" />,
-    },
-    {
-      title: '处理方式',
-      dataIndex: 'handlingName',
-      width: 100,
-      render: (v: string, r) => (
-        <div>
-          {v}
-          {r.refundFirst ? sub('先退款') : null}
-        </div>
-      ),
-    },
-    {
-      title: '入库',
-      key: 'receipt',
-      width: 150,
-      render: (_, r) =>
-        r.receipt ? (
-          <div>
-            <div style={{ fontSize: 12, color: palette.sub }}>
-              {r.receipt.statusName}
-              {r.receivedQty != null
-                ? ` · 实收 ${r.receivedQty} / 合格 ${r.qualifiedQty ?? 0}`
-                : ''}
-            </div>
-            <Link to={PATHS.returnReceipt(r.receipt.id)}>{r.receipt.no}</Link>
-          </div>
-        ) : (
-          <span style={{ color: palette.mute }}>—</span>
-        ),
-    },
-    {
-      title: '退款',
-      align: 'right',
-      key: 'refund',
-      width: 140,
-      render: (_, r) => {
-        const q = r.refunds?.[0];
-        if (!q) return <span style={{ color: palette.mute }}>—</span>;
-        return (
-          <div style={{ display: 'grid', gap: 2, justifyItems: 'start' }}>
-            <b>{formatAmount(q.amount, q.currencyCode)}</b>
-            <Pill tone={RQ_STATUS_TONE[q.status] ?? 'gray'}>
-              {q.statusName}
-            </Pill>
-          </div>
-        );
-      },
-    },
-    {
-      title: '状态',
-      dataIndex: 'statusName',
-      width: 90,
-      render: (v: string, r) => (
-        <Pill tone={TH_STATUS_TONE[r.status] ?? 'gray'}>{v}</Pill>
-      ),
     },
     {
       title: '来源单号',

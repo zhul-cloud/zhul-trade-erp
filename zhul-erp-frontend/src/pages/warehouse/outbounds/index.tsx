@@ -199,32 +199,14 @@ const Outbounds: React.FC = () => {
       render: (_, r) => <CustomerCell name={r.customerName} />,
     },
     {
-      title: '型号 · 数量',
-      key: 'items',
-      width: 200,
-      render: (_, r) => (
-        <ModelQtyCell
-          items={r.items}
-          totalQty={r.totalQuantity}
-          docLabel={`${r.obNo} · ${r.customerName ?? ''}`}
-          onOpenDetail={() => history.push(DOC_PATHS.outbound(r.id))}
-        />
-      ),
-    },
-    {
-      title: '品牌',
-      key: 'brands',
-      width: 120,
-      render: (_, r) => (
-        <TagList values={distinctOf(r.items, 'brand')} label="品牌" />
-      ),
-    },
-    {
-      title: '品类',
-      key: 'categories',
-      width: 130,
-      render: (_, r) => (
-        <TagList values={distinctOf(r.items, 'category')} label="品类" />
+      title: '状态',
+      dataIndex: 'status',
+      width: 110,
+      render: (v: number, r) => (
+        <div>
+          <ObStatusPill value={v}>{r.statusName}</ObStatusPill>
+          {r.source === 2 && sub(palette.orange, r.sourceName)}
+        </div>
       ),
     },
     {
@@ -269,14 +251,32 @@ const Outbounds: React.FC = () => {
         ),
     },
     {
-      title: '状态',
-      dataIndex: 'status',
-      width: 110,
-      render: (v: number, r) => (
-        <div>
-          <ObStatusPill value={v}>{r.statusName}</ObStatusPill>
-          {r.source === 2 && sub(palette.orange, r.sourceName)}
-        </div>
+      title: '型号 · 数量',
+      key: 'items',
+      width: 200,
+      render: (_, r) => (
+        <ModelQtyCell
+          items={r.items}
+          totalQty={r.totalQuantity}
+          docLabel={`${r.obNo} · ${r.customerName ?? ''}`}
+          onOpenDetail={() => history.push(DOC_PATHS.outbound(r.id))}
+        />
+      ),
+    },
+    {
+      title: '品牌',
+      key: 'brands',
+      width: 120,
+      render: (_, r) => (
+        <TagList values={distinctOf(r.items, 'brand')} label="品牌" />
+      ),
+    },
+    {
+      title: '品类',
+      key: 'categories',
+      width: 130,
+      render: (_, r) => (
+        <TagList values={distinctOf(r.items, 'category')} label="品类" />
       ),
     },
     {

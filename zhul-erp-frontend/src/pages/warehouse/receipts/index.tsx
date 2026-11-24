@@ -130,6 +130,25 @@ const Receipts: React.FC = () => {
       ),
     },
     {
+      title: '预计到货',
+      dataIndex: 'expectedArrivalDate',
+      width: 110,
+      render: (v: string | undefined, r) => (
+        <ArrivalCell date={v} overdue={r.arrivalOverdue} />
+      ),
+    },
+    {
+      title: '快递 · 单号',
+      key: 'tracking',
+      width: 180,
+      render: (_, r) => (
+        <div>
+          <b style={{ color: palette.ink }}>{r.carrier || '—'}</b>
+          {r.trackingNo && sub(palette.mute, r.trackingNo)}
+        </div>
+      ),
+    },
+    {
       title: '型号 · 数量',
       key: 'items',
       width: 200,
@@ -156,25 +175,6 @@ const Receipts: React.FC = () => {
       width: 130,
       render: (_, r) => (
         <TagList values={distinctOf(r.items, 'category')} label="品类" />
-      ),
-    },
-    {
-      title: '快递 · 单号',
-      key: 'tracking',
-      width: 180,
-      render: (_, r) => (
-        <div>
-          <b style={{ color: palette.ink }}>{r.carrier || '—'}</b>
-          {r.trackingNo && sub(palette.mute, r.trackingNo)}
-        </div>
-      ),
-    },
-    {
-      title: '预计到货',
-      dataIndex: 'expectedArrivalDate',
-      width: 110,
-      render: (v: string | undefined, r) => (
-        <ArrivalCell date={v} overdue={r.arrivalOverdue} />
       ),
     },
     {
@@ -248,6 +248,36 @@ const Receipts: React.FC = () => {
       render: (v?: string) => <b style={{ color: palette.ink }}>{v || '—'}</b>,
     },
     {
+      title: '状态',
+      dataIndex: 'status',
+      width: 100,
+      render: (v: number, r) => (
+        <ReceiptStatusPill value={v}>{r.statusName}</ReceiptStatusPill>
+      ),
+    },
+    {
+      title: '合格 · 不良 · 差异',
+      key: 'qty',
+      width: 140,
+      render: (_, r) => (
+        <span>
+          <span style={{ color: palette.green }}>{r.qualifiedQty}</span>
+          {' · '}
+          <span style={{ color: r.defectiveQty ? palette.red : palette.mute }}>
+            {r.defectiveQty}
+          </span>
+          {' · '}
+          <span
+            style={{
+              color: r.discrepancyCount ? palette.orange : palette.mute,
+            }}
+          >
+            {r.discrepancyCount}
+          </span>
+        </span>
+      ),
+    },
+    {
       title: '型号 · 数量',
       key: 'items',
       width: 200,
@@ -279,36 +309,6 @@ const Receipts: React.FC = () => {
       width: 130,
       render: (_, r) => (
         <TagList values={distinctOf(r.items, 'category')} label="品类" />
-      ),
-    },
-    {
-      title: '合格 · 不良 · 差异',
-      key: 'qty',
-      width: 140,
-      render: (_, r) => (
-        <span>
-          <span style={{ color: palette.green }}>{r.qualifiedQty}</span>
-          {' · '}
-          <span style={{ color: r.defectiveQty ? palette.red : palette.mute }}>
-            {r.defectiveQty}
-          </span>
-          {' · '}
-          <span
-            style={{
-              color: r.discrepancyCount ? palette.orange : palette.mute,
-            }}
-          >
-            {r.discrepancyCount}
-          </span>
-        </span>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (v: number, r) => (
-        <ReceiptStatusPill value={v}>{r.statusName}</ReceiptStatusPill>
       ),
     },
     {

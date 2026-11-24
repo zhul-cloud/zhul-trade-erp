@@ -882,39 +882,24 @@ const ExpensePage: React.FC = () => {
         </Link>
       ),
     },
-    { title: '发生日期', dataIndex: 'occurDate', width: 110 },
     { title: '名称', dataIndex: 'name', width: 160, render: ellipsisRender },
-    ...(bu.enabled
-      ? [
-          {
-            title: '所属事业部',
-            key: 'unit',
-            width: 180,
-            render: (_: unknown, r: Expense) =>
-              r.allocations.length ? (
-                <span style={{ color: palette.mute }}>跟随订单</span>
-              ) : (
-                <UnitPill info={bu} id={r.businessUnitId} />
-              ),
-          },
-        ]
-      : []),
-    {
-      title: '类别',
-      key: 'category',
-      width: 120,
-      render: (_, r) => (
-        <div>
-          {r.categoryName ?? r.category}
-          {r.amortizeMonths > 1 && (
-            <div style={{ fontSize: 12, color: palette.mute }}>
-              分摊 {r.amortizeMonths} 个月
-            </div>
-          )}
-        </div>
-      ),
-    },
     { title: '收款方', dataIndex: 'payeeName', width: 160, ellipsis: true },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 120,
+      render: (v: number, r) =>
+        v === 2 ? (
+          <div>
+            <Pill tone="mute">已作废</Pill>
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              {r.voidReason}
+            </div>
+          </div>
+        ) : (
+          <Pill tone="green">有效</Pill>
+        ),
+    },
     {
       title: '金额',
       dataIndex: 'amount',
@@ -954,6 +939,37 @@ const ExpensePage: React.FC = () => {
           </div>
         ),
     },
+    { title: '发生日期', dataIndex: 'occurDate', width: 110 },
+    {
+      title: '类别',
+      key: 'category',
+      width: 120,
+      render: (_, r) => (
+        <div>
+          {r.categoryName ?? r.category}
+          {r.amortizeMonths > 1 && (
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              分摊 {r.amortizeMonths} 个月
+            </div>
+          )}
+        </div>
+      ),
+    },
+    ...(bu.enabled
+      ? [
+          {
+            title: '所属事业部',
+            key: 'unit',
+            width: 180,
+            render: (_: unknown, r: Expense) =>
+              r.allocations.length ? (
+                <span style={{ color: palette.mute }}>跟随订单</span>
+              ) : (
+                <UnitPill info={bu} id={r.businessUnitId} />
+              ),
+          },
+        ]
+      : []),
     {
       title: '关联订单',
       key: 'so',
@@ -976,22 +992,6 @@ const ExpensePage: React.FC = () => {
       key: 'files',
       width: 90,
       render: (_, r) => <ProofLinks files={r.attachments} />,
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      width: 120,
-      render: (v: number, r) =>
-        v === 2 ? (
-          <div>
-            <Pill tone="mute">已作废</Pill>
-            <div style={{ fontSize: 12, color: palette.mute }}>
-              {r.voidReason}
-            </div>
-          </div>
-        ) : (
-          <Pill tone="green">有效</Pill>
-        ),
     },
     ...auditColumns<Expense>(),
     {

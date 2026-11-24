@@ -231,6 +231,40 @@ const QuotationList: React.FC = () => {
         />
       ),
     },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 150,
+      render: (v: number, r) => (
+        <Space orientation="vertical" size={2}>
+          <QuotationStatusPill status={v} />
+          {r.lostReasonName && (
+            <span style={{ fontSize: 12, color: palette.mute }}>
+              {r.lostReasonName.replace(/^【[^】]*】/, '')}
+            </span>
+          )}
+        </Space>
+      ),
+    },
+    {
+      title: '合计',
+      dataIndex: 'totalAmount',
+      sorter: true,
+      sortOrder: sortOf('totalAmount'),
+      width: 150,
+      align: 'right',
+      render: (v: number, r) => (
+        <b style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {formatAmount(v, r.currencyCode)}
+        </b>
+      ),
+    },
+    {
+      title: '发送时间',
+      dataIndex: 'sentAt',
+      width: 170,
+      render: (v?: string) => formatDateTime(v),
+    },
     // 型号与总数量分两列（同询盘列表）：主规范要求两者都能排序，合成一列会丢掉一种排序
     {
       title: '型号',
@@ -268,19 +302,6 @@ const QuotationList: React.FC = () => {
       render: (_, r) => <TagList values={r.categories} label="品类" />,
     },
     {
-      title: '合计',
-      dataIndex: 'totalAmount',
-      sorter: true,
-      sortOrder: sortOf('totalAmount'),
-      width: 150,
-      align: 'right',
-      render: (v: number, r) => (
-        <b style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {formatAmount(v, r.currencyCode)}
-        </b>
-      ),
-    },
-    {
       title: '毛利率',
       dataIndex: 'marginRate',
       width: 90,
@@ -289,21 +310,6 @@ const QuotationList: React.FC = () => {
         <span style={{ fontVariantNumeric: 'tabular-nums' }}>
           {formatMargin(v)}
         </span>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      width: 150,
-      render: (v: number, r) => (
-        <Space orientation="vertical" size={2}>
-          <QuotationStatusPill status={v} />
-          {r.lostReasonName && (
-            <span style={{ fontSize: 12, color: palette.mute }}>
-              {r.lostReasonName.replace(/^【[^】]*】/, '')}
-            </span>
-          )}
-        </Space>
       ),
     },
     {
@@ -324,12 +330,6 @@ const QuotationList: React.FC = () => {
       dataIndex: 'ownerName',
       width: 100,
       render: ellipsisRender,
-    },
-    {
-      title: '发送时间',
-      dataIndex: 'sentAt',
-      width: 170,
-      render: (v?: string) => formatDateTime(v),
     },
     ...auditColumns<QuotationListItem>(),
     {

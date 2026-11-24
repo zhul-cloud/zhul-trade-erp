@@ -115,6 +115,36 @@ const ReturnsPage: React.FC = () => {
       ),
     },
     {
+      title: '状态',
+      dataIndex: 'statusName',
+      width: 100,
+      render: (v: string, r) => (
+        <Pill tone={RT_STATUS_TONE[r.status] ?? 'gray'}>{v}</Pill>
+      ),
+    },
+    {
+      title: '实收 / 合格',
+      key: 'qty',
+      width: 100,
+      render: (_, r) =>
+        r.receivedQty == null ? (
+          <span style={{ color: palette.mute }}>—</span>
+        ) : (
+          `${r.receivedQty} / ${r.qualifiedQty ?? 0}`
+        ),
+    },
+    {
+      title: '客户寄回',
+      key: 'express',
+      width: 150,
+      render: (_, r) => (
+        <div>
+          {r.carrier || '—'}
+          {sub(r.trackingNo)}
+        </div>
+      ),
+    },
+    {
       title: '型号 · 数量',
       key: 'items',
       width: 200,
@@ -138,36 +168,6 @@ const ReturnsPage: React.FC = () => {
       dataIndex: 'categories',
       width: 130,
       render: (v?: string[]) => <TagList values={v} label="品类" />,
-    },
-    {
-      title: '客户寄回',
-      key: 'express',
-      width: 150,
-      render: (_, r) => (
-        <div>
-          {r.carrier || '—'}
-          {sub(r.trackingNo)}
-        </div>
-      ),
-    },
-    {
-      title: '实收 / 合格',
-      key: 'qty',
-      width: 100,
-      render: (_, r) =>
-        r.receivedQty == null ? (
-          <span style={{ color: palette.mute }}>—</span>
-        ) : (
-          `${r.receivedQty} / ${r.qualifiedQty ?? 0}`
-        ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'statusName',
-      width: 100,
-      render: (v: string, r) => (
-        <Pill tone={RT_STATUS_TONE[r.status] ?? 'gray'}>{v}</Pill>
-      ),
     },
     {
       title: '来源单号',

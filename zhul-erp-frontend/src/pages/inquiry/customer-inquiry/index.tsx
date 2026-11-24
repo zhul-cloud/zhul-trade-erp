@@ -357,6 +357,67 @@ const CustomerInquiryPage: React.FC = () => {
       ),
     },
     {
+      title: '状态',
+      dataIndex: 'status',
+      width: 120,
+      render: (v, r) => (
+        <span
+          style={{
+            display: 'inline-flex',
+            flexDirection: 'column',
+            gap: 4,
+            alignItems: 'flex-start',
+          }}
+        >
+          <StatusPill status={v} />
+          {r.needsReview && <Pill tone="orange">型号待核实</Pill>}
+        </span>
+      ),
+    },
+    {
+      title: '回价进度',
+      width: 190,
+      render: (_, r) => {
+        if (r.status === STATUS.PARSE_FAILED)
+          return sub('AI 没有返回结果', palette.red);
+        if (r.status === STATUS.PENDING_PARSE) return sub('等待解析或手动录入');
+        if (r.status === STATUS.PARSING) return sub('解析完成后显示');
+        if (r.status === STATUS.PENDING_CONFIRM)
+          return sub('确认型号后开始询价');
+        if (!r.totalItemCount)
+          return <span style={{ color: palette.mute }}>—</span>;
+        return (
+          <span
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            <Progress
+              done={r.pricedItemCount}
+              total={r.totalItemCount}
+              width={80}
+            />
+            {r.timeoutTaskCount > 0 && (
+              <Pill tone="red">超时 {r.timeoutTaskCount}</Pill>
+            )}
+          </span>
+        );
+      },
+    },
+    {
+      title: '报价截止',
+      dataIndex: 'quoteDeadline',
+      width: 110,
+      render: (v, r) => <DeadlineText date={v} status={r.status} />,
+    },
+    {
+      title: '等级',
+      dataIndex: 'level',
+      width: 90,
+      render: (v) => <LevelPill value={v} />,
+      sorter: true,
+      sortDirections: ['descend', 'ascend'],
+      sortOrder: sortOrderOf('level'),
+    },
+    {
       title: <HeadHelp title="型号" help={HELP.models} />,
       dataIndex: 'totalItemCount',
       width: 200,
@@ -415,67 +476,6 @@ const CustomerInquiryPage: React.FC = () => {
       key: 'categories',
       width: 160,
       render: (_, r) => <TagList values={r.categories} label="品类" />,
-    },
-    {
-      title: '等级',
-      dataIndex: 'level',
-      width: 90,
-      render: (v) => <LevelPill value={v} />,
-      sorter: true,
-      sortDirections: ['descend', 'ascend'],
-      sortOrder: sortOrderOf('level'),
-    },
-    {
-      title: '回价进度',
-      width: 190,
-      render: (_, r) => {
-        if (r.status === STATUS.PARSE_FAILED)
-          return sub('AI 没有返回结果', palette.red);
-        if (r.status === STATUS.PENDING_PARSE) return sub('等待解析或手动录入');
-        if (r.status === STATUS.PARSING) return sub('解析完成后显示');
-        if (r.status === STATUS.PENDING_CONFIRM)
-          return sub('确认型号后开始询价');
-        if (!r.totalItemCount)
-          return <span style={{ color: palette.mute }}>—</span>;
-        return (
-          <span
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
-            <Progress
-              done={r.pricedItemCount}
-              total={r.totalItemCount}
-              width={80}
-            />
-            {r.timeoutTaskCount > 0 && (
-              <Pill tone="red">超时 {r.timeoutTaskCount}</Pill>
-            )}
-          </span>
-        );
-      },
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      width: 120,
-      render: (v, r) => (
-        <span
-          style={{
-            display: 'inline-flex',
-            flexDirection: 'column',
-            gap: 4,
-            alignItems: 'flex-start',
-          }}
-        >
-          <StatusPill status={v} />
-          {r.needsReview && <Pill tone="orange">型号待核实</Pill>}
-        </span>
-      ),
-    },
-    {
-      title: '报价截止',
-      dataIndex: 'quoteDeadline',
-      width: 110,
-      render: (v, r) => <DeadlineText date={v} status={r.status} />,
     },
     {
       title: '来源',
