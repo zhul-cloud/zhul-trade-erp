@@ -150,10 +150,7 @@ export const MetricCard: React.FC<{
     ? alert.tone === 'error'
       ? [palette.red, palette.redSoft]
       : [palette.orange, palette.orangeSoft]
-    : family === 'gray'
-      ? // 灰色图标块像禁用（2026-11-24 巡查），中性家族改用主题色
-        [palette.link, palette.primarySoft]
-      : METRIC_FAMILY[mode][family];
+    : METRIC_FAMILY[mode][family];
   const body = (
     <>
       <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

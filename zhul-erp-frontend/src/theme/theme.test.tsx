@@ -7,6 +7,7 @@ import {
   buildPalette,
   CHART_SERIES,
   chartSeries,
+  METRIC_FAMILY,
   mix,
   PRESET_ORDER,
   PRESETS,
@@ -157,6 +158,11 @@ describe('设计令牌', () => {
     expect(buildPalette('light', 'amber').red).toBe('#FF5630');
     expect(buildPalette('light', 'amber').info).toBe('#00B8D9');
     expect(buildPalette('dark', 'red').red).toBe('#FF6A47');
+  });
+
+  it('支出家族（gray 键）用洋红，任何主题下都不随主题色变（D58）', () => {
+    expect(METRIC_FAMILY.light.gray[0]).toBe('#F0468E');
+    expect(METRIC_FAMILY.dark.gray[0]).toBe('#F0468E');
   });
 
   it('彩色实底上的字：白字不足 3:1 用深色字', () => {

@@ -338,7 +338,9 @@ export const chartSeries = (
 
 /**
  * 指标家族色（数字卡左上图标块，ui-redesign D2）：按指标的含义着色，不跟主题色——
- * 蓝成交、紫利润、青收款、灰支出；红橙只在告警时出现（用状态色）。[图标色, 浅底]
+ * 蓝成交、紫利润、青收款、洋红支出；红橙只在告警时出现（用状态色）。[图标色, 浅底]
+ * 支出家族的键仍叫 gray（后端接口传的值），颜色是洋红 #F0468E：灰色像禁用，跟主题色又会在
+ * 紫、天蓝、宝蓝、青绿主题下和其他家族撞色（对比图 R20，2026-11-24 用户选 B，D58）
  */
 export type MetricFamily = 'blue' | 'purple' | 'cyan' | 'gray';
 export const METRIC_FAMILY: Record<
@@ -350,13 +352,13 @@ export const METRIC_FAMILY: Record<
     blue: ['#1877F2', '#DAE9FD'],
     purple: ['#8E33FF', '#EDDEFF'],
     cyan: ['#00B8D9', '#D6F4F9'],
-    gray: ['#637381', '#ECEEF0'],
+    gray: ['#F0468E', '#FDE1ED'],
   },
   dark: {
     blue: ['#1877F2', '#1A293D'],
     purple: ['#8E33FF', '#2D1E3F'],
     cyan: ['#00B8D9', '#163339'],
-    gray: ['#A0A0A0', '#2F2F2F'],
+    gray: ['#F0468E', '#3C212D'],
   },
 };
 
