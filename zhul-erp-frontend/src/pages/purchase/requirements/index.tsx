@@ -498,6 +498,37 @@ const RequirementList: React.FC = () => {
   const linesSet = useColumnSettings('purchase-requirements', lineColumns, {
     hidden: ['描述', '采购员'],
   });
+  // 平铺视图：型号前多「来源单号」「客户」两列，列设置单独记；默认收起客户、目标价，1366 宽不横向滚动
+  // （客户在按订单分组的视图里看得到，两列都能从「列」里打开）
+  const flatColumns: TableColumnsType<Requirement> = [
+    {
+      title: '来源单号',
+      dataIndex: 'soNo',
+      width: 160,
+      fixed: 'left',
+      render: (v: string, r) => (
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => history.push(PATHS.salesOrder(r.soId))}
+        >
+          {v}
+        </button>
+      ),
+    },
+    {
+      title: '客户',
+      key: 'customer',
+      width: 200,
+      render: (_, r) => (
+        <CustomerCell name={r.customerName} country={r.customerCountry} />
+      ),
+    },
+    ...lineColumns,
+  ];
+  const flatSet = useColumnSettings('purchase-requirements-flat', flatColumns, {
+    hidden: ['客户', '描述', '目标价', '采购员'],
+  });
 
   const rowSelection = (scopeRows: Requirement[]) =>
     canCreate || canAssign
@@ -737,7 +768,7 @@ const RequirementList: React.FC = () => {
       </FilterCard>
 
       <MainCard
-        settings={linesSet.settings}
+        settings={view === 'order' ? linesSet.settings : flatSet.settings}
         left={
           selectedList.length > 0 ? (
             <>
@@ -847,39 +878,10 @@ const RequirementList: React.FC = () => {
         ) : (
           <Table<Requirement>
             rowKey="id"
-            columns={[
-              {
-                title: '来源单号',
-                dataIndex: 'soNo',
-                width: 160,
-                fixed: 'left',
-                render: (v: string, r) => (
-                  <button
-                    type="button"
-                    className="zhul-link"
-                    onClick={() => history.push(PATHS.salesOrder(r.soId))}
-                  >
-                    {v}
-                  </button>
-                ),
-              },
-              {
-                title: '客户',
-                key: 'customer',
-                width: 200,
-                render: (_, r) => (
-                  <CustomerCell
-                    name={r.customerName}
-                    country={r.customerCountry}
-                  />
-                ),
-              },
-              ...linesSet.columns,
-            ]}
+            columns={flatSet.columns}
             dataSource={rows}
             loading={loading}
-            // 平铺视图在型号列前多「来源单号」（160）、「客户」（200）两列
-            scroll={{ x: 360 + tableScrollX(linesSet.columns) }}
+            scroll={{ x: tableScrollX(flatSet.columns) }}
             rowSelection={rowSelection(rows)}
             onRow={overdueRow}
             pagination={{
