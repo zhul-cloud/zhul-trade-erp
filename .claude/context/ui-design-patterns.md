@@ -319,7 +319,7 @@ import {
 | `SummaryBar` | `items: SummaryItem[]` | 汇总行。每项 `label`、`value`；金额传 `currency`，按 `formatAmount` 显示；口径写 `help`；副文字写 `sub`，只有页面别处也能看到的副文字才设 `subHideable`（宽度不够时整段隐藏） |
 | `FilterCard` | `onSearch`、`onReset`、`more`、`moreCount`、`quick`、`layout` | 搜索条件区，默认一行（`layout="line"`）：常用项写在 children，按钮固定在第一行右侧，窄屏时只有条件换行；其余放 `more`（「更多筛选」展开），`moreCount` 为其中生效的条件数；`quick` 只为还没迁的页面保留，新页面把快捷筛选放主卡操作行。条件多、需要名称在上逐项说明的统计页用 `layout="grid"` |
 | `FilterField` | `label`、`span`、`help` | 搜索条件的一项。一行模式下名称自动放进输入框作前缀（穿过 `Form.Item` 找到 antd 的 Select、Input、InputNumber、DatePicker、RangePicker、Cascader、TreeSelect；其他控件名称放在框左侧）；控件自带前缀（关键词的搜索图标）时不放名称，帮助图标放框右侧。关键词 `span={2}`（220–360），日期范围至少 300（去掉日历图标，两个日期不截断），其余 140–220，统计期间这类组合控件 `span="auto"` 按内容宽度；放得下就排一行（弹性布局按最小宽度排，余量均分），1366 宽下常用的 4 个条件也排一行（视口不到 1400 时「更多筛选」只显示图标和生效数量）；仍放不下时次要条件收进 `more`。完整搜索范围写在 `help`（以 `search-scope.md` 为准） |
-| `QuickFilters` | `options`、`value`、`onChange`、`label` | 快捷筛选，多选，点一下选中、再点取消；前提是接口已有对应筛选 |
+| `QuickFilters` | `options`、`value`、`onChange`、`label` | 快捷筛选，多选，点一下选中、再点取消；前提是接口已有对应筛选。数量写在选项的 `count`（名称后等宽加粗，不写「·」），需要处理的数量（逾期、缺货）加 `danger`，不为 0 时用错误色；各页不再自己拼「名称 · 数量」 |
 | `MainCard` | `left`、`right`、`quick`、`chips` | 主内容区：操作行（左侧结果数或「已选 N 张」，后面是快捷筛选 `quick`（不写「快捷筛选」字样）与已生效条件胶囊：「更多筛选」收起时，`FilterCard` 自动把里面已生效的条件（表单字段或受控控件的值，下拉显示选项名称、日期按天）做成「品牌：西门子 ×」交给同一页的主卡，点 × 去掉条件并重新查询，页面不用另写；不在「更多筛选」里的条件（如从别的页面带来的「只看某商品」）用 `chips`（`{ key, label, onRemove }`）自己传；右侧批量操作）+ 表格 |
 | `Section` | `title`、`help`、`meta`、`extra`、`id` | 详情页分区：卡片标题 18/500，`meta` 为标题旁的计数（如「4 个型号 · 23 件」），`id` 加在标题上用于页内定位 |
 | `CardTitle` | `children` | 自己画卡片头部时用的标题（18/500，同 `Section`）；旧的通用 `Card`（`crm/opportunity/components`）外观已与 `Panel` 一致 |

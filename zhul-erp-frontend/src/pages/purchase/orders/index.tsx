@@ -620,7 +620,9 @@ const PurchaseOrderList: React.FC = () => {
               options={[
                 {
                   value: QUICK_OVERDUE,
-                  label: withCount('逾期未发', stats?.overdueShip),
+                  label: '逾期未发',
+                  count: stats?.overdueShip,
+                  danger: (stats?.overdueShip ?? 0) > 0,
                 },
               ]}
               value={filters.shipProgress === 'OVERDUE' ? [QUICK_OVERDUE] : []}

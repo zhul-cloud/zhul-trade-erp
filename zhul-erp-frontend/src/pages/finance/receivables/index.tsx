@@ -387,15 +387,19 @@ const ReceivablesPage: React.FC = () => {
             options={[
               {
                 value: 'OVERDUE',
-                label: `已逾期 · ${cny(s?.overdueCny)} · ${s?.overdueOrders ?? 0} 张`,
+                label: '已逾期',
+                count: `${cny(s?.overdueCny)} · ${s?.overdueOrders ?? 0} 张`,
+                danger: (s?.overdueOrders ?? 0) > 0,
               },
               {
                 value: 'WEEK',
-                label: `7 天内到期 · ${cny(s?.weekCny)} · ${s?.weekOrders ?? 0} 张`,
+                label: '7 天内到期',
+                count: `${cny(s?.weekCny)} · ${s?.weekOrders ?? 0} 张`,
               },
               {
                 value: 'MONTH',
-                label: `本月到期 · ${cny(s?.monthCny)} · ${s?.monthOrders ?? 0} 张`,
+                label: '本月到期',
+                count: `${cny(s?.monthCny)} · ${s?.monthOrders ?? 0} 张`,
               },
             ]}
             value={quickValue}

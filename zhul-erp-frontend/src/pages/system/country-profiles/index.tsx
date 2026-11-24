@@ -373,9 +373,10 @@ const CountryProfilesPage: React.FC = () => {
             options={[
               {
                 value: 'unmaintained',
-                label: `未维护 · ${unmaintained.length}`,
+                label: '未维护',
+                count: unmaintained.length,
               },
-              { value: 'strict', label: `外汇管制严格 · ${strict.length}` },
+              { value: 'strict', label: '外汇管制严格', count: strict.length },
             ]}
             value={filter === 'all' ? [] : [filter]}
             onChange={(v) =>

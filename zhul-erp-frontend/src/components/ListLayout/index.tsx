@@ -574,6 +574,13 @@ export const FilterField: React.FC<{
 export interface QuickFilterOption {
   value: string;
   label: React.ReactNode;
+  /**
+   * 数量：写在名称后，等宽加粗，各页不再自己拼「名称 · 数量」；为 0 或没有时不显示。
+   * 可以是复合值（如应收「CNY 1,200.00 · 3 张」）
+   */
+  count?: React.ReactNode;
+  /** 数量用错误色（逾期、缺货等需要处理的）：由调用方判断，数量为 0 时传 false */
+  danger?: boolean;
 }
 
 /**
@@ -639,6 +646,22 @@ export const QuickFilters: React.FC<{
               <Check size={14} aria-hidden style={{ color: palette.ink }} />
             )}
             {o.label}
+            {o.count != null && o.count !== 0 && o.count !== false && (
+              <>
+                {/* 读屏念「已逾期 3」而不是「已逾期3」 */}
+                <span className="zhul-sr-only"> </span>
+                <span
+                  className="num"
+                  style={{
+                    marginLeft: 2,
+                    fontWeight: 600,
+                    color: o.danger ? palette.red : palette.ink,
+                  }}
+                >
+                  {o.count}
+                </span>
+              </>
+            )}
           </button>
         );
       })}

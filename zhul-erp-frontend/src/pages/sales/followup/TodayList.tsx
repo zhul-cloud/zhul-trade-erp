@@ -411,14 +411,6 @@ export const TodayList: React.FC<{
       onChanged={onChanged}
     />
   );
-  const count = (n: number, red?: boolean) => (
-    <span
-      className="num"
-      style={{ fontWeight: 600, color: red && n > 0 ? palette.red : undefined }}
-    >
-      {n}
-    </span>
-  );
   const handledBlock = handled.length > 0 && (
     <div style={{ marginTop: 16 }}>
       <button
@@ -505,9 +497,11 @@ export const TodayList: React.FC<{
           options={[
             {
               value: 'overdue',
-              label: <>已逾期 {count(today.overdue.length, true)}</>,
+              label: '已逾期',
+              count: today.overdue.length,
+              danger: today.overdue.length > 0,
             },
-            { value: 'today', label: <>今天 {count(today.today.length)}</> },
+            { value: 'today', label: '今天', count: today.today.length },
           ]}
         />
         <span style={{ fontSize: 12, color: palette.mute }}>

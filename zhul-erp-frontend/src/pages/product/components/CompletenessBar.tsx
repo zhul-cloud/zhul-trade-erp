@@ -1,10 +1,15 @@
+import { Tooltip } from 'antd';
 import React from 'react';
-import { COMPLETENESS_GOOD } from '../constants';
+import { CHART_SERIES } from '@/theme/palette';
+import { COMPLETENESS_GOOD, COMPLETENESS_MODULES } from '../constants';
 import type { Completeness } from '../service';
 import { useProductTheme } from '../theme';
 
 /**
- * 档案完整度：一段对应一个模块，从蓝到青逐段过渡；已完成 8 段及以上用绿色。
+ * 档案完整度：一段对应一个模块。完整度是一个量，已补的段用同一种固定颜色（图表系列蓝，不随主题色变：
+ * 琥珀、天蓝主题色在中性底上不到 3:1，红色主题又会被读成报错），达到 COMPLETENESS_GOOD 段改绿色表示「够用了」；
+ * 没补的段中性灰（P14：原来蓝到青逐段渐变，颜色不表达任何含义）。
+ * 列表里的小条悬停显示还缺哪些模块。
  * 只对平台账号渲染——租户账号的接口不返回 completeness，这里没有数据就什么也不画。
  */
 export const CompletenessBar: React.FC<{
@@ -15,24 +20,22 @@ export const CompletenessBar: React.FC<{
   const { palette } = useProductTheme();
   if (!value) return null;
   const good = value.done >= COMPLETENESS_GOOD;
-  const segmentColor = (index: number) => {
-    if (good) return palette.green;
-    // 从 #3B82F6 到 #22D3EE 逐段过渡
-    const t = value.total > 1 ? index / (value.total - 1) : 0;
-    const from = [0x3b, 0x82, 0xf6];
-    const to = [0x22, 0xd3, 0xee];
-    const rgb = from.map((f, i) => Math.round(f + (to[i] - f) * t));
-    return `rgb(${rgb.join(',')})`;
-  };
+  // 图表系列的蓝、绿：浅深两种模式下对中性底都不低于 3:1（亮绿 greenMain 浅色只有 1.96，文字绿深色只有 2.49）
+  const fill = good ? CHART_SERIES[4] : CHART_SERIES[0];
   const h = size === 'mini' ? 6 : 10;
-  return (
+  // 后端给的是模块标识（media、faq…），显示中文名
+  const names = value.missing.map(
+    (k) => COMPLETENESS_MODULES.find((m) => m.key === k)?.label ?? k,
+  );
+  const missing = names.length ? `，还缺：${names.join('、')}` : '';
+  const bar = (
     <div
       role="img"
-      aria-label={`档案完整度 ${value.done} / ${value.total} 项`}
+      aria-label={`档案完整度 ${value.done} / ${value.total} 项${missing}`}
       style={{ display: 'flex', alignItems: 'center', gap: 8 }}
     >
       <div style={{ display: 'flex', gap: size === 'mini' ? 2 : 4, flex: 1 }}>
-        {value.modules.map((m, i) => (
+        {value.modules.map((m) => (
           <span
             key={m.key}
             style={{
@@ -40,7 +43,7 @@ export const CompletenessBar: React.FC<{
               height: h,
               borderRadius: h / 2,
               minWidth: size === 'mini' ? 4 : 12,
-              background: m.done ? segmentColor(i) : palette.hairline,
+              background: m.done ? fill : palette.neutralSoft,
             }}
           />
         ))}
@@ -58,5 +61,11 @@ export const CompletenessBar: React.FC<{
         {value.done}/{value.total}
       </span>
     </div>
+  );
+  // 档案页的大条下面已经逐项列出缺项，不再悬停提示
+  return size === 'mini' && value.missing.length ? (
+    <Tooltip title={`还缺：${names.join('、')}`}>{bar}</Tooltip>
+  ) : (
+    bar
   );
 };

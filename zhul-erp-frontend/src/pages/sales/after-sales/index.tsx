@@ -440,14 +440,14 @@ const AfterSalesPage: React.FC = () => {
             options={[
               {
                 value: QUICK_OVERDUE,
-                label: withCount('需要更新客户', counts?.overdue),
+                label: '需要更新客户',
+                count: counts?.overdue,
+                danger: (counts?.overdue ?? 0) > 0,
               },
               {
                 value: QUICK_SOON,
-                label: withCount(
-                  '已逾期或快到期',
-                  counts && counts.overdue + counts.dueSoon,
-                ),
+                label: '已逾期或快到期',
+                count: counts && counts.overdue + counts.dueSoon,
               },
             ]}
             value={due ? [due] : []}

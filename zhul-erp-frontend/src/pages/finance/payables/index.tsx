@@ -171,8 +171,11 @@ const PayableManagement: React.FC = () => {
     else if (next) apply({ due: next, hasCredit: false });
     else apply({ due: undefined, hasCredit: false });
   };
-  const quickLabel = (name: string, amount?: number, n?: string) =>
-    `${name} · ${formatAmount(amount ?? 0, 'CNY')}${n ? ` · ${n}` : ''}`;
+  /** 快捷筛选的名称与数量（金额 · 张数），数量由 QuickFilters 统一画 */
+  const quickLabel = (name: string, amount?: number, n?: string) => ({
+    label: name,
+    count: `${formatAmount(amount ?? 0, 'CNY')}${n ? ` · ${n}` : ''}`,
+  });
 
   const columns: TableColumnsType<Payable> = [
     {
@@ -496,7 +499,7 @@ const PayableManagement: React.FC = () => {
             options={[
               {
                 value: 'MONTH',
-                label: quickLabel(
+                ...quickLabel(
                   '本月到期未付',
                   stats?.monthDue,
                   `${stats?.monthDueCount ?? 0} 张`,
@@ -504,15 +507,17 @@ const PayableManagement: React.FC = () => {
               },
               {
                 value: 'OVERDUE',
-                label: quickLabel(
+                ...quickLabel(
                   '已逾期未付',
                   stats?.overdue,
                   `${stats?.overdueCount ?? 0} 张`,
                 ),
+                // 与应收「已逾期」一致：有逾期时数量用错误色
+                danger: (stats?.overdueCount ?? 0) > 0,
               },
               {
                 value: 'SOON',
-                label: quickLabel(
+                ...quickLabel(
                   '7 天内到期',
                   stats?.soon,
                   `${stats?.soonCount ?? 0} 张`,
@@ -520,7 +525,7 @@ const PayableManagement: React.FC = () => {
               },
               {
                 value: 'CREDIT',
-                label: quickLabel(
+                ...quickLabel(
                   '供应商欠款',
                   stats?.credit,
                   stats?.refundExpectedCount

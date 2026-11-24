@@ -31,7 +31,7 @@ it('点「已逾期未付」按逾期筛选，再点「供应商欠款」换成�
     React.createElement(App, null, React.createElement(PayableManagement)),
   );
   const overdue = await screen.findByRole('button', {
-    name: /已逾期未付 · CNY 3,200\.00 · 2 张/,
+    name: /已逾期未付 CNY 3,200\.00 · 2 张/,
   });
   await act(async () => {
     fireEvent.click(overdue);

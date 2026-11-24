@@ -597,11 +597,14 @@ const PiList: React.FC = () => {
               options={[
                 {
                   value: QUICK_UNPAID,
-                  label: withCount('待收款', stats?.unpaidCount),
+                  label: '待收款',
+                  count: stats?.unpaidCount,
                 },
                 {
                   value: QUICK_EXPIRED,
-                  label: withCount('已过期未收款', overdueCount),
+                  label: '已过期未收款',
+                  count: overdueCount,
+                  danger: (overdueCount ?? 0) > 0,
                 },
               ]}
               value={[

@@ -406,9 +406,8 @@ const OpportunityPage: React.FC = () => {
               options={[
                 {
                   value: QUICK_TODAY,
-                  label: summary?.todayNew
-                    ? `今日新增 · ${summary.todayNew}`
-                    : '今日新增',
+                  label: '今日新增',
+                  count: summary?.todayNew,
                 },
               ]}
               value={todayOnly ? [QUICK_TODAY] : []}

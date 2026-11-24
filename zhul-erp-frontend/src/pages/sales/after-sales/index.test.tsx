@@ -115,9 +115,9 @@ it('两个快捷筛选互斥，打开时状态放开；数量为逾期加快到�
     expect(lastQuery()).toMatchObject({ status: AS_STATUS.OPEN }),
   );
   const overdue = await screen.findByRole('button', {
-    name: '需要更新客户 · 2',
+    name: '需要更新客户 2',
   });
-  const soon = screen.getByRole('button', { name: '已逾期或快到期 · 3' });
+  const soon = screen.getByRole('button', { name: '已逾期或快到期 3' });
 
   fireEvent.click(overdue);
   await waitFor(() => expect(lastQuery()).toMatchObject({ overdue: true }));

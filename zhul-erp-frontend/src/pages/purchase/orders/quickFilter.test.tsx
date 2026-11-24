@@ -52,7 +52,7 @@ it('点「逾期未发」只按发货进度查，再点一次回到默认条件'
   );
   await waitFor(() => expect(lastQuery()?.orderFrom).toBeTruthy());
 
-  const quick = await screen.findByRole('button', { name: /逾期未发 · 1/ });
+  const quick = await screen.findByRole('button', { name: /逾期未发 1/ });
   await act(async () => {
     fireEvent.click(quick);
   });

@@ -294,9 +294,10 @@ const CostAdjustmentsPage: React.FC = () => {
               options={[
                 {
                   value: 'cogs',
-                  label: (
+                  label: '只看有销售成本调整',
+                  count: (
                     <>
-                      {`只看有销售成本调整 · ${monthLabel} `}
+                      {`${monthLabel} `}
                       <SignedMoney value={summary?.cogsAmount} yuan />
                     </>
                   ),

@@ -358,14 +358,6 @@ export const TodayView: React.FC<{
         </div>
       </Card>
     );
-  const count = (n: number, red?: boolean) => (
-    <span
-      className="num"
-      style={{ fontWeight: 600, color: red && n > 0 ? palette.red : undefined }}
-    >
-      {n}
-    </span>
-  );
   const section = (title: string, cards: TodayCard[], red?: boolean) => {
     const items = dev.filter((i) => i.overdue === !!red);
     // 与快捷筛选同一口径：按型号计数（一张卡可能有多个型号），加上供应商开发的条数
@@ -420,9 +412,11 @@ export const TodayView: React.FC<{
             options={[
               {
                 value: 'overdue',
-                label: <>已逾期 {count(today.overdue, true)}</>,
+                label: '已逾期',
+                count: today.overdue,
+                danger: today.overdue > 0,
               },
-              { value: 'today', label: <>今天 {count(today.dueToday)}</> },
+              { value: 'today', label: '今天', count: today.dueToday },
             ]}
           />
           <span style={{ fontSize: 12, color: palette.mute }}>

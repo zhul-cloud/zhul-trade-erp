@@ -199,7 +199,7 @@ export const COMPLETENESS_MODULES: {
   },
 ];
 
-/** 完整度 ≥ 8 段用绿色，其余用强调色 */
+/** 完整度 ≥ 8 段用绿色（够用了），其余已补的段用图表色 */
 export const COMPLETENESS_GOOD = 8;
 
 /** 上传预检：与后端 ProductMediaStorageServiceImpl 的规则一致，前端先挡一道，服务端仍会再校验 */

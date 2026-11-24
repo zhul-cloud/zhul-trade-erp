@@ -619,42 +619,50 @@ const ProductListInner: React.FC = () => {
     {
       title: '商品',
       key: 'product',
-      width: 320,
+      width: 280,
+      // 两行：型号（主信息，可点）+ 产品名称；长规格摘要只在悬停时看（P14）。
+      // 不再放品类首字母方块：没有图片时它不传达任何信息，还占掉一截宽度
       render: (_, r) => (
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <BrandMark name={r.categoryName} size={40} />
-          <div style={{ minWidth: 0 }}>
-            <a
-              href={`/product/products/${r.id}`}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                history.push(`/product/products/${r.id}`);
+        <div style={{ minWidth: 0 }}>
+          <a
+            href={`/product/products/${r.id}`}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              history.push(`/product/products/${r.id}`);
+            }}
+            style={{ fontWeight: 700, fontSize: 14 }}
+          >
+            {r.mpnDisplay}
+          </a>
+          {r.deleted && (
+            <span style={{ marginLeft: 8 }}>
+              <Pill tone="red">已删除</Pill>
+            </span>
+          )}
+          <Tooltip
+            title={
+              r.productName || r.specSummary ? (
+                <>
+                  {r.productName && <div>{r.productName}</div>}
+                  {r.specSummary && <div>{r.specSummary}</div>}
+                </>
+              ) : undefined
+            }
+          >
+            <div
+              style={{
+                color: palette.mute,
+                fontSize: 12,
+                maxWidth: 250,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
               }}
-              style={{ fontWeight: 700, fontSize: 14 }}
             >
-              {r.mpnDisplay}
-            </a>
-            {r.deleted && (
-              <span style={{ marginLeft: 8 }}>
-                <Pill tone="red">已删除</Pill>
-              </span>
-            )}
-            <Tooltip title={r.specSummary || undefined}>
-              <div
-                style={{
-                  color: palette.sub,
-                  fontSize: 12,
-                  maxWidth: 240,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {r.specSummary || r.productName || '—'}
-              </div>
-            </Tooltip>
-          </div>
+              {r.productName || r.specSummary || '—'}
+            </div>
+          </Tooltip>
         </div>
       ),
     },
@@ -1132,10 +1140,11 @@ const ProductListInner: React.FC = () => {
             <div style={{ display: 'grid', gap: 12 }}>
               {/* 缺项是条件类，原来的「档案还有可以补充的地方」改为快捷筛选（互斥，再点取消） */}
               <QuickFilters
-                label="待补充"
+                label="档案缺项"
                 options={MISSING_CHIPS.map((c) => ({
                   value: c.key,
-                  label: `${c.label} · ${summary[c.field] ?? 0}`,
+                  label: c.label,
+                  count: summary[c.field] ?? 0,
                 }))}
                 value={filters.missing ? [filters.missing] : []}
                 onChange={(v) => {

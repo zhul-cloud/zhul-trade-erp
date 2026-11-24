@@ -732,7 +732,8 @@ const CustomerInquiryPage: React.FC = () => {
               options={[
                 {
                   value: QUICK_TODAY,
-                  label: withCount('今日新增', stats?.today),
+                  label: '今日新增',
+                  count: stats?.today,
                 },
                 { value: QUICK_URGENT, label: '紧急' },
                 { value: QUICK_TIMEOUT, label: '有超时任务' },

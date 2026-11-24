@@ -430,11 +430,13 @@ const StocksPage: React.FC = () => {
               options={[
                 {
                   value: 'available',
-                  label: `只看可用${summary ? ` · ${summary.available ?? 0} 件` : ''}`,
+                  label: '只看可用',
+                  count: summary && `${summary.available ?? 0} 件`,
                 },
                 {
                   value: 'defective',
-                  label: `只看有不良${summary ? ` · ${summary.defective ?? 0} 件` : ''}`,
+                  label: '只看有不良',
+                  count: summary && `${summary.defective ?? 0} 件`,
                 },
               ]}
               value={filters.quick ? [filters.quick] : []}

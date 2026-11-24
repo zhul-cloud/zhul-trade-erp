@@ -806,7 +806,9 @@ const RequirementList: React.FC = () => {
             options={[
               {
                 value: QUICK_OVERDUE,
-                label: withCount('超时未下单', stats?.overdue),
+                label: '超时未下单',
+                count: stats?.overdue,
+                danger: (stats?.overdue ?? 0) > 0,
               },
             ]}
             value={filters.overdue ? [QUICK_OVERDUE] : []}
