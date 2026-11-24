@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 import { useAppTheme } from '@/theme/AppTheme';
-import { CHART_SERIES } from '@/theme/palette';
+import { seriesFor } from '@/theme/palette';
 import { Pill, RECEIPT_META } from '../components';
 
 /**
@@ -84,19 +84,22 @@ export const ReceiptProgress: React.FC<{
 // ---------------------------------------------------------------- 货物状态
 
 /**
- * 已出运 / 已交货代 / 在仓 / 在途 / 待发货 / 待采购 的颜色：6 段相邻，套语义色会撞色，
- * 改用图表系列色（status-colors.md「货物进度条」，2026-11-20 用户确认），不随主题色变化
+ * 已出运 / 已交货代 / 在仓 / 在途 / 待发货 / 待采购 的颜色：6 段相邻，用图表系列色（status-colors.md「货物进度条」，
+ * 2026-11-20 用户确认），不随主题色变化；2026-11-24 换成参考模板原色并按含义重排（R14）
  */
-const GOODS_COLORS = {
-  shipped: CHART_SERIES[4],
-  handed: CHART_SERIES[1],
-  inWarehouse: CHART_SERIES[0],
-  inTransit: CHART_SERIES[2],
-  pendingShip: CHART_SERIES[3],
-  pendingPurchase: CHART_SERIES[5],
-} as const;
-
-export const useGoodsColors = () => GOODS_COLORS;
+export const useGoodsColors = () => {
+  const { mode, palette } = useAppTheme();
+  const s = seriesFor(mode);
+  // 按含义取色（R14）：已出运绿、交货代青、在仓蓝、在途紫、待发货警告橙（还没发）、待采购中性灰
+  return {
+    shipped: s[4],
+    handed: s[2],
+    inWarehouse: s[0],
+    inTransit: s[3],
+    pendingShip: palette.orangeMain,
+    pendingPurchase: s[5],
+  };
+};
 
 export const GOODS_LABELS = {
   shipped: '已出运',

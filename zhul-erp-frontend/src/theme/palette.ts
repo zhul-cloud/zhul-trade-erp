@@ -18,8 +18,8 @@ interface Preset {
   darkLink: string;
   /** 深色选中底：原色 16% 叠在 #1A1A1A 上 */
   darkSoft: string;
-  /** 主题色作为图表第一个系列时，去掉色相最接近的这个系列色 */
-  chartDrop: string;
+  /** 主题色作为图表第一个系列时，去掉色相最接近的那个系列色（CHART_SERIES 的序号） */
+  chartDrop: number;
   /** 原色实底上的文字：白字对比度不足 3:1 时用深色（琥珀 1.93:1，深色字 7.4:1；ui-redesign D24） */
   onPrimary?: string;
 }
@@ -31,7 +31,7 @@ export const PRESETS: Record<PresetKey, Preset> = {
     lightSoft: '#FFF5E6',
     darkLink: '#FDA92D',
     darkSoft: '#3E311D',
-    chartDrop: '#B87A14',
+    chartDrop: 1,
     onPrimary: '#212B36',
   },
   teal: {
@@ -40,7 +40,7 @@ export const PRESETS: Record<PresetKey, Preset> = {
     lightSoft: '#E2F2F2',
     darkLink: '#2FA2A3',
     darkSoft: '#182D2E',
-    chartDrop: '#2F9E99',
+    chartDrop: 2,
   },
   sky: {
     name: '天蓝',
@@ -48,7 +48,7 @@ export const PRESETS: Record<PresetKey, Preset> = {
     lightSoft: '#E1F1FD',
     darkLink: '#2098F0',
     darkSoft: '#172C3C',
-    chartDrop: '#3B82F6',
+    chartDrop: 0,
   },
   purple: {
     name: '紫',
@@ -56,7 +56,7 @@ export const PRESETS: Record<PresetKey, Preset> = {
     lightSoft: '#EFE7FB',
     darkLink: '#A77EE9',
     darkSoft: '#291E39',
-    chartDrop: '#3B82F6',
+    chartDrop: 3,
   },
   royal: {
     name: '宝蓝',
@@ -64,7 +64,7 @@ export const PRESETS: Record<PresetKey, Preset> = {
     lightSoft: '#E4EDF9',
     darkLink: '#5E94E6',
     darkSoft: '#1B2637',
-    chartDrop: '#3B82F6',
+    chartDrop: 0,
   },
   red: {
     name: '红',
@@ -72,7 +72,7 @@ export const PRESETS: Record<PresetKey, Preset> = {
     lightSoft: '#FFE6E6',
     darkLink: '#FF5959',
     darkSoft: '#3F1E1E',
-    chartDrop: '#E8664A',
+    chartDrop: 1,
   },
 };
 
@@ -102,8 +102,9 @@ const STATUS_MAIN = {
 /**
  * 中性灰阶与状态色。
  * - green、orange、red、info 是文字色：浅色下原色当文字对比度只有 1.75–3.17，取同色系深一档（2026-11-21 用户决定）；深色下用原色。
- *   浅色的绿、橙在保持 4.5:1 的前提下改用纯正色相（绿 #078039、橙 #A85D00；原 #0D7A4A 偏青、#9A5B00 偏褐，显得发暗发土，对比图 R13 方案 B，2026-11-24）。
- * - 各自的 Soft 为原色叠在卡片色上：浅色 12%，深色 16%（12% 的中性浅底会和分隔线同色）。
+ *   2026-11-24 用户决定照参考模板（Minimal / PrimeDash）：浅色文字用模板的 dark 档（绿 #118D57、橙 #B76E00、红 #B71D18、信息 #006C9C），
+ *   浅底为原色 16%（对比图 R14 方案 C）。绿、橙标签字对比度约 3.7:1，低于 4.5:1，用户看过后接受（压到 4.5:1 的颜色发暗发土）。
+ * - 各自的 Soft 为原色叠在卡片色上：浅色、深色都是 16%（照参考模板）。
  */
 const BASE = {
   light: {
@@ -137,14 +138,14 @@ const BASE = {
     mute: '#637381',
     /** 只用于禁用和占位，不作正文 */
     faint: '#919EAB',
-    green: '#078039',
-    greenSoft: '#E5F8EC',
-    orange: '#A85D00',
-    orangeSoft: '#FFF5E0',
+    green: '#118D57',
+    greenSoft: '#DCF6E5',
+    orange: '#B76E00',
+    orangeSoft: '#FFF2D6',
     red: '#B71D18',
-    redSoft: '#FFEBE6',
+    redSoft: '#FFE4DE',
     info: '#006C9C',
-    infoSoft: '#E0F6FA',
+    infoSoft: '#D6F4F9',
     neutralSoft: '#ECEEF0',
     /** 中性标签文字：在中性浅底上不低于 4.5:1 */
     neutral: '#56636F',
@@ -239,15 +240,31 @@ export function buildPalette(
 
 export type Palette = ReturnType<typeof buildPalette>;
 
-/** 图表系列色：深浅底上都不低于 3:1 */
+/**
+ * 图表系列色（对比图 R14，2026-11-24）：照参考模板用原色——蓝、橙红、青、紫、绿，第 6 个中性灰。
+ * 顺序经 dataviz 调色板校验（色盲可分、饱和度、正常视力相邻可分全部通过）；原来为了深浅底都 ≥3:1 压成的中间调
+ * （#2F9E99、#B87A14、#2E9A62）饱和度不足、相邻难分，显得发暗。原色对白底不到 3:1 的（青、绿），旁边都有文字或图例。
+ * 深色另配同色相、亮度落在深色校验范围内的一组（CHART_SERIES_DARK）。
+ */
 export const CHART_SERIES = [
-  '#3B82F6',
-  '#2F9E99',
-  '#B87A14',
-  '#E8664A',
-  '#2E9A62',
-  '#7A8794',
+  '#1877F2',
+  '#FF5630',
+  '#00B8D9',
+  '#8E33FF',
+  '#22C55E',
+  '#919EAB',
 ] as const;
+export const CHART_SERIES_DARK = [
+  '#1877F2',
+  '#E5482A',
+  '#00A3C2',
+  '#8E33FF',
+  '#1EAE53',
+  '#919EAB',
+] as const;
+/** 按明暗取系列色 */
+export const seriesFor = (mode: ThemeMode) =>
+  mode === 'light' ? CHART_SERIES : CHART_SERIES_DARK;
 
 /**
  * 主题色作为第一个系列时的系列色：去掉色相最接近的一个，其余顺延。
@@ -260,7 +277,7 @@ export const chartSeries = (
   const pr = isPresetKey(preset) ? PRESETS[preset] : PRESETS[DEFAULT_PRESET];
   return [
     chartPrimary(mode, pr),
-    ...CHART_SERIES.filter((c) => c !== pr.chartDrop),
+    ...seriesFor(mode).filter((_, i) => i !== pr.chartDrop),
   ];
 };
 
@@ -273,16 +290,17 @@ export const METRIC_FAMILY: Record<
   ThemeMode,
   Record<MetricFamily, [string, string]>
 > = {
+  // 参考模板原色，浅底 16%（R14）；原来的「青」#1F7A76 近乎墨绿
   light: {
-    blue: ['#3B82F6', '#E7F0FE'],
-    purple: ['#8B5CF6', '#F1EBFE'],
-    cyan: ['#1F7A76', '#E6F3F3'],
+    blue: ['#1877F2', '#DAE9FD'],
+    purple: ['#8E33FF', '#EDDEFF'],
+    cyan: ['#00B8D9', '#D6F4F9'],
     gray: ['#637381', '#ECEEF0'],
   },
   dark: {
-    blue: ['#3B82F6', '#172741'],
-    purple: ['#8B5CF6', '#2C253D'],
-    cyan: ['#2F9E99', '#1D2F2E'],
+    blue: ['#1877F2', '#1A293D'],
+    purple: ['#8E33FF', '#2D1E3F'],
+    cyan: ['#00B8D9', '#163339'],
     gray: ['#A0A0A0', '#2F2F2F'],
   },
 };

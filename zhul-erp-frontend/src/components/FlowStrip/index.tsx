@@ -57,7 +57,7 @@ const StripCard: React.FC<{
   const hue = it.step ? steps[(it.step - 1) % steps.length] : '';
   // 图标块：步骤卡用步骤色（浅底 + 原色图标）；入口卡中性，选中时主题色浅底
   const [tileFg, tileBg] = hue
-    ? [hue, mix(hue, palette.card, light ? 0.1 : 0.18)]
+    ? [hue, mix(hue, palette.card, 0.16)]
     : active
       ? [palette.link, palette.primarySoft]
       : [palette.sub, palette.neutralSoft];

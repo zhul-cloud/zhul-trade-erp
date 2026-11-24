@@ -81,7 +81,7 @@ describe('设计令牌', () => {
     }
   });
 
-  it('状态原色浅色、深色相同，浅底分别叠在各自的卡片色上', () => {
+  it('状态原色浅色、深色相同，浅底为原色 16% 叠在各自的卡片色上（照参考模板，R14）', () => {
     const l = buildPalette('light');
     const d = buildPalette('dark');
     for (const [fg, bg] of [
@@ -91,23 +91,23 @@ describe('设计令牌', () => {
       ['infoMain', 'infoSoft'],
     ] as const) {
       expect(l[fg]).toBe(d[fg]);
-      expect(near(l[bg], mix(l[fg], l.card, 0.12))).toBe(true);
+      expect(near(l[bg], mix(l[fg], l.card, 0.16))).toBe(true);
       expect(near(d[bg], mix(d[fg], d.card, 0.16))).toBe(true);
     }
   });
 
-  it('状态文字色（12px 标签字）在卡片底和自身浅底上都不低于 4.5:1，浅色深色都是（ui-redesign D17）', () => {
+  it('状态文字色（12px 标签字）：照参考模板的 dark 档，在卡片底和自身浅底上都不低于 3.5:1；红、信息、中性不低于 4.5:1（R14，2026-11-24 用户决定）', () => {
     for (const m of ['light', 'dark'] as const) {
       const p = buildPalette(m);
-      for (const [fg, bg] of [
-        ['green', 'greenSoft'],
-        ['orange', 'orangeSoft'],
-        ['red', 'redSoft'],
-        ['info', 'infoSoft'],
-        ['neutral', 'neutralSoft'],
+      for (const [fg, bg, min] of [
+        ['green', 'greenSoft', 3.5],
+        ['orange', 'orangeSoft', 3.5],
+        ['red', 'redSoft', 4.5],
+        ['info', 'infoSoft', 4.5],
+        ['neutral', 'neutralSoft', 4.5],
       ] as const) {
-        expect(contrast(p[fg], p[bg])).toBeGreaterThanOrEqual(4.5);
-        expect(contrast(p[fg], p.card)).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(p[fg], p[bg])).toBeGreaterThanOrEqual(min);
+        expect(contrast(p[fg], p.card)).toBeGreaterThanOrEqual(min);
       }
     }
   });
