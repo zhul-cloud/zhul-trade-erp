@@ -6,6 +6,7 @@ import {
   Form,
   Input,
   InputNumber,
+  Popover,
   Select,
   Tooltip,
   TreeSelect,
@@ -1029,6 +1030,75 @@ export const FilterCard: React.FC<{
         )}
       </Panel>
     </FilterLayoutContext.Provider>
+  );
+};
+
+/**
+ * 选了就生效的看板（没有「查询」按钮）用的「筛选」按钮：次要条件（品牌、品类、热度等）收进弹层，
+ * 工具栏保持一行（2026-11-25，供应链跟进各板块 1366 宽换两行）。按钮样式同搜索条件区的「更多筛选」，
+ * 显示生效数量；已生效的条件另用 FilterChip 显示在工具栏上，能直接去掉。
+ */
+export const FilterPopover: React.FC<{
+  /** 已生效的条件数 */
+  count: number;
+  /** label 为空时不显示名称行（如一组勾选项） */
+  items: { label: string; node: React.ReactNode }[];
+}> = ({ count, items }) => {
+  const { palette } = useAppTheme();
+  const [open, setOpen] = useState(false);
+  const panel = useRef<HTMLDivElement>(null);
+  // 打开后焦点进到第一个条件（弹层渲染在页面末尾，Tab 走不到）；等弹层渲染完再移
+  useEffect(() => {
+    if (!open) return;
+    let tries = 0;
+    let t = 0;
+    const go = () => {
+      const el = panel.current?.querySelector<HTMLElement>('input');
+      if (el) el.focus();
+      else if (tries++ < 10) t = window.setTimeout(go, 30);
+    };
+    t = window.setTimeout(go, 0);
+    return () => window.clearTimeout(t);
+  }, [open]);
+  return (
+    <Popover
+      trigger="click"
+      placement="bottomRight"
+      arrow={false}
+      open={open}
+      onOpenChange={setOpen}
+      content={
+        <div
+          ref={panel}
+          role="dialog"
+          aria-label="筛选"
+          style={{ width: 240, display: 'grid', gap: 12 }}
+        >
+          {items.map((it) => (
+            <div key={it.label} style={{ display: 'grid', gap: 4 }}>
+              {it.label && (
+                <span style={{ fontSize: 12, color: palette.mute }}>
+                  {it.label}
+                </span>
+              )}
+              {it.node}
+            </div>
+          ))}
+        </div>
+      }
+    >
+      <Button
+        type="text"
+        aria-label={count > 0 ? `筛选 · ${count}` : '筛选'}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        icon={<SlidersHorizontal size={16} />}
+        style={{ color: palette.link, paddingInline: 6 }}
+      >
+        筛选
+        {count > 0 && <span className="num"> · {count}</span>}
+      </Button>
+    </Popover>
   );
 };
 

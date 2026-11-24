@@ -1,5 +1,13 @@
 import { history, useSearchParams } from '@umijs/max';
-import { App, Button, Input, type InputRef, Segmented, Select } from 'antd';
+import {
+  App,
+  Button,
+  Checkbox,
+  Input,
+  type InputRef,
+  Segmented,
+  Select,
+} from 'antd';
 import { Pencil, Plus, Search } from 'lucide-react';
 import React, {
   useCallback,
@@ -8,7 +16,12 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { PageHeader } from '@/components/ListLayout';
+import {
+  FilterChip,
+  type FilterChipItem,
+  FilterPopover,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { useWide } from '@/pages/inquiry/shared/components';
 import { categoryGroups } from '@/pages/supplier/productScope';
@@ -550,6 +563,231 @@ const SupplyFollowupPage: React.FC = () => {
     </>
   );
 
+  // 选项里找名称（分组的品类选项也找得到），给已生效条件的胶囊用
+  const nameOf = (opts: readonly unknown[] | undefined, v: unknown): string => {
+    for (const o of (opts ?? []) as {
+      value?: unknown;
+      label?: unknown;
+      options?: unknown[];
+    }[]) {
+      if (o.options) {
+        const n = nameOf(o.options, v);
+        if (n) return n;
+      } else if (o.value === v) return String(o.label);
+    }
+    return '';
+  };
+  // 次要条件收进「筛选」弹层，工具栏保持一行；已生效的条件显示成胶囊，能直接去掉（UI-087：带进来的品类要看得见、能清掉）
+  const brandSel = (
+    <Select
+      allowClear
+      style={{ width: '100%' }}
+      placeholder="全部品牌"
+      aria-label="品牌"
+      showSearch={{ optionFilterProp: 'label' }}
+      value={brandId}
+      onChange={setBrandId}
+      options={brands}
+    />
+  );
+  const devFilters = [
+    {
+      label: '只看',
+      node: (
+        <Checkbox
+          checked={expansionOnly}
+          onChange={(e) => setExpansionOnly(e.target.checked)}
+        >
+          主动拓展
+        </Checkbox>
+      ),
+    },
+    { label: '品牌', node: brandSel },
+    {
+      label: '一级品类',
+      node: (
+        <Select
+          allowClear
+          style={{ width: '100%' }}
+          placeholder="全部一级品类"
+          aria-label="一级品类"
+          showSearch={{ optionFilterProp: 'label' }}
+          value={parentCategoryId}
+          onChange={(v) => {
+            setParentCategoryId(v);
+            setCategoryId(undefined);
+          }}
+          options={tops}
+        />
+      ),
+    },
+    {
+      label: '二级品类',
+      node: (
+        <Select
+          allowClear
+          style={{ width: '100%' }}
+          placeholder="全部二级品类"
+          aria-label="二级品类"
+          showSearch={{ optionFilterProp: 'label' }}
+          value={categoryId}
+          onChange={setCategoryId}
+          options={
+            parentCategoryId
+              ? categoryGroups(tree.filter((t) => t.id === parentCategoryId))
+              : categories
+          }
+        />
+      ),
+    },
+    {
+      label: '热度',
+      node: (
+        <Select
+          allowClear
+          style={{ width: '100%' }}
+          placeholder="全部热度"
+          aria-label="热度"
+          value={heat}
+          onChange={setHeat}
+          options={[3, 2, 1].map((k) => ({ value: k, label: HEAT_NAMES[k] }))}
+        />
+      ),
+    },
+  ];
+  const devChipsOn: FilterChipItem[] = [
+    expansionOnly && {
+      key: 'expansion',
+      label: '主动拓展',
+      onRemove: () => setExpansionOnly(false),
+    },
+    brandId !== undefined && {
+      key: 'brand',
+      label: `品牌：${nameOf(brands, brandId)}`,
+      onRemove: () => setBrandId(undefined),
+    },
+    parentCategoryId !== undefined && {
+      key: 'parent',
+      label: `一级品类：${nameOf(tops, parentCategoryId)}`,
+      onRemove: () => {
+        setParentCategoryId(undefined);
+        setCategoryId(undefined);
+      },
+    },
+    categoryId !== undefined && {
+      key: 'category',
+      label: `二级品类：${nameOf(categories, categoryId)}`,
+      onRemove: () => setCategoryId(undefined),
+    },
+    heat !== undefined && {
+      key: 'heat',
+      label: `热度：${HEAT_NAMES[heat]}`,
+      onRemove: () => setHeat(undefined),
+    },
+  ].filter(Boolean) as FilterChipItem[];
+  const coverToggles = flow === 'cover' && {
+    label: '只看',
+    node: (
+      <div style={{ display: 'grid', gap: 6 }}>
+        <Checkbox
+          checked={stockout}
+          onChange={(e) => {
+            setStockout(e.target.checked);
+            setStockoutDays(30);
+          }}
+        >
+          近 30 天无货 · {o?.stockoutOpen ?? 0}
+        </Checkbox>
+        <Checkbox
+          checked={pending}
+          onChange={(e) => setPending(e.target.checked)}
+        >
+          待确认 · {o?.pending ?? 0}
+        </Checkbox>
+        <Checkbox
+          checked={single}
+          onChange={(e) => setSingle(e.target.checked)}
+        >
+          单一渠道 · {o?.single ?? 0}
+        </Checkbox>
+      </div>
+    ),
+  };
+  const boardFilters = [
+    ...(coverToggles ? [coverToggles] : []),
+    { label: '品牌', node: brandSel },
+    {
+      label: '品类',
+      node: (
+        <Select
+          allowClear
+          style={{ width: '100%' }}
+          placeholder="全部品类"
+          aria-label="品类"
+          showSearch={{ optionFilterProp: 'label' }}
+          value={categoryId}
+          onChange={setCategoryId}
+          options={categories}
+        />
+      ),
+    },
+    {
+      label: '优先级',
+      node: (
+        <Select
+          allowClear
+          style={{ width: '100%' }}
+          placeholder="全部优先级"
+          aria-label="优先级"
+          value={priority}
+          onChange={setPriority}
+          options={[3, 2, 1].map((k) => ({
+            value: k,
+            label: PRIORITY_NAMES[k],
+          }))}
+        />
+      ),
+    },
+  ];
+  const boardChipsOn: FilterChipItem[] = [
+    flow === 'cover' &&
+      stockout && {
+        key: 'stockout',
+        label: `近 ${stockoutDays} 天无货`,
+        onRemove: () => {
+          setStockout(false);
+          setStockoutDays(30);
+        },
+      },
+    flow === 'cover' &&
+      pending && {
+        key: 'pending',
+        label: '待确认',
+        onRemove: () => setPending(false),
+      },
+    flow === 'cover' &&
+      single && {
+        key: 'single',
+        label: '单一渠道',
+        onRemove: () => setSingle(false),
+      },
+    brandId !== undefined && {
+      key: 'brand',
+      label: `品牌：${nameOf(brands, brandId)}`,
+      onRemove: () => setBrandId(undefined),
+    },
+    categoryId !== undefined && {
+      key: 'category',
+      label: `品类：${nameOf(categories, categoryId)}`,
+      onRemove: () => setCategoryId(undefined),
+    },
+    priority !== undefined && {
+      key: 'priority',
+      label: `优先级：${PRIORITY_NAMES[priority]}`,
+      onRemove: () => setPriority(undefined),
+    },
+  ].filter(Boolean) as FilterChipItem[];
+
   return (
     <div>
       <PageHeader
@@ -626,62 +864,12 @@ const SupplyFollowupPage: React.FC = () => {
                     {label} <span style={{ opacity: 0.7 }}>{n}</span>
                   </Chip>
                 ))}
+                {devChipsOn.map((c) => (
+                  <FilterChip key={c.key} item={c} />
+                ))}
                 <span style={{ flex: 1 }} />
-                <Chip
-                  active={expansionOnly}
-                  onClick={() => setExpansionOnly((v) => !v)}
-                >
-                  主动拓展
-                </Chip>
-                <Select
-                  allowClear
-                  style={{ width: 150 }}
-                  placeholder="品牌"
-                  showSearch={{ optionFilterProp: 'label' }}
-                  value={brandId}
-                  onChange={setBrandId}
-                  options={brands}
-                />
-                <Select
-                  allowClear
-                  style={{ width: 150 }}
-                  placeholder="一级品类"
-                  showSearch={{ optionFilterProp: 'label' }}
-                  value={parentCategoryId}
-                  onChange={(v) => {
-                    setParentCategoryId(v);
-                    setCategoryId(undefined);
-                  }}
-                  options={tops}
-                />
-                {/* 从其他板块、待办或矩阵带进来的二级品类要看得见、能清掉（audit UI-087） */}
-                <Select
-                  allowClear
-                  style={{ width: 150 }}
-                  placeholder="二级品类"
-                  showSearch={{ optionFilterProp: 'label' }}
-                  value={categoryId}
-                  onChange={setCategoryId}
-                  options={
-                    parentCategoryId
-                      ? categoryGroups(
-                          tree.filter((t) => t.id === parentCategoryId),
-                        )
-                      : categories
-                  }
-                />
-                <Select
-                  allowClear
-                  style={{ width: 110 }}
-                  placeholder="热度"
-                  value={heat}
-                  onChange={setHeat}
-                  options={[3, 2, 1].map((k) => ({
-                    value: k,
-                    label: HEAT_NAMES[k],
-                  }))}
-                />
                 {tools}
+                <FilterPopover count={devChipsOn.length} items={devFilters} />
                 {canDev && (
                   <Button
                     icon={<Plus size="1em" />}
@@ -770,30 +958,11 @@ const SupplyFollowupPage: React.FC = () => {
                     </Chip>
                   ),
                 )}
+                {!unclassifiedView &&
+                  boardChipsOn.map((c) => <FilterChip key={c.key} item={c} />)}
                 <span style={{ flex: 1 }} />
-                {flow === 'cover' && (
-                  <>
-                    <Chip
-                      active={stockout}
-                      onClick={() => {
-                        setStockout((v) => !v);
-                        setStockoutDays(30);
-                      }}
-                    >
-                      近 {stockoutDays} 天无货{' '}
-                      {stockoutDays === 30 ? (o?.stockoutOpen ?? 0) : ''}
-                    </Chip>
-                    <Chip
-                      active={pending}
-                      onClick={() => setPending((v) => !v)}
-                    >
-                      待确认 {o?.pending ?? 0}
-                    </Chip>
-                    <Chip active={single} onClick={() => setSingle((v) => !v)}>
-                      单一渠道 {o?.single ?? 0}
-                    </Chip>
-                  </>
-                )}
+                {/* 待归类的信号接口不按关键词、负责人筛选，不放这两个控件 */}
+                {!unclassifiedView && tools}
                 {unclassifiedView ? (
                   <Select
                     allowClear
@@ -807,40 +976,11 @@ const SupplyFollowupPage: React.FC = () => {
                     }))}
                   />
                 ) : (
-                  <>
-                    <Select
-                      allowClear
-                      style={{ width: 150 }}
-                      placeholder="品牌"
-                      showSearch={{ optionFilterProp: 'label' }}
-                      value={brandId}
-                      onChange={setBrandId}
-                      options={brands}
-                    />
-                    <Select
-                      allowClear
-                      style={{ width: 150 }}
-                      placeholder="品类"
-                      showSearch={{ optionFilterProp: 'label' }}
-                      value={categoryId}
-                      onChange={setCategoryId}
-                      options={categories}
-                    />
-                    <Select
-                      allowClear
-                      style={{ width: 110 }}
-                      placeholder="优先级"
-                      value={priority}
-                      onChange={setPriority}
-                      options={[3, 2, 1].map((k) => ({
-                        value: k,
-                        label: PRIORITY_NAMES[k],
-                      }))}
-                    />
-                  </>
+                  <FilterPopover
+                    count={boardChipsOn.length}
+                    items={boardFilters}
+                  />
                 )}
-                {/* 待归类的信号接口不按关键词、负责人筛选，不放这两个控件 */}
-                {!unclassifiedView && tools}
                 {flow === 'intel' && canEdit && (
                   <Button
                     icon={<Plus size="1em" />}

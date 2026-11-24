@@ -352,6 +352,7 @@ import {
 | 操作列 | `RowActions`、`rowActionsWidth(n)`（`src/components/RowActions`） | `inline` 最多 2 个常用图标（32，间距 8），本行不适用的写假值留出空位；其余放 `more`、点击走 `onMore(key)`，危险项自动排到末尾，不能做的项写 `disabledReason`（菜单里置灰并写原因）。列宽用 `rowActionsWidth(图标位数)`（「更多」算一位，3 位为 136），计入 `tableScrollX`；操作列里的点击不会触发行点击。例外：审批、审核、工作队列（退款审批的通过/驳回、商品资料采纳/改选/忽略、待审品牌、客户跟进）每行一个主要动作，保留文字按钮；要显示进度的长操作（生成凭证）保留按钮 |
 | 危险确认 | `useConfirmDanger()`（`src/components/ConfirmDanger`） | `confirm({ title, content, okText, cancelText, width, onOk })`：标题是写明对象的问句（「删除客户「ABC」？」，不写「确认删除」「确认要…吗」），内容只写后果，按钮写动作（默认「删除」，不加「确认」），需要劝阻时取消写「再想想」或「留下」，默认焦点在「取消」；放弃未保存修改也用它；左侧 40 圆错误浅底图标，删除为垃圾桶、其余为警告三角。危险实底按钮深色下用深色字（亮红底上白字只有 2.7:1） |
 | 人名 | `UserName`、`useUserName`（`src/components/UserName`） | 创建人、更新人存的是登录账号，显示姓名（同一轮渲染的账号合并成一次 `/api/v1/system/users/names` 查询；登录、退出时清空缓存，查询失败先显示账号、下次再查）；系统写入显示「系统」 |
+| 看板筛选 | `FilterPopover`（`src/components/ListLayout`） | 选了就生效、没有「查询」的看板（如供应链跟进各板块）：工具栏只留阶段芯片、搜索、负责人和操作按钮，次要条件（品牌、品类、热度、优先级、「只看」类开关）收进「筛选」弹层（按钮显示生效数量，弹层打开时焦点进第一个条件），已生效的条件用 `FilterChip` 显示在工具栏上、能直接去掉；1366 宽下工具栏保持一行（D60） |
 | 列设置 | `useColumnSettings`（`src/components/ColumnSettings`） | 列表工具栏右侧的「列」按钮：勾选显示、拖动排序、恢复默认，按用户按页面记住；「创建」「更新」默认收起，页面用 `hidden` 指定其他默认收起的列（D55） |
 | 创建、更新两列 | `auditColumns()`、`AuditCell`（同上） | 列表的「创建」「更新」两列（各 120，默认收进列设置）：人名 13 号正文色（「系统」次要色）在上、短时间 12 号在下，悬停看「姓名 · 完整时间」。`pages/purchase/components` 里旧的四列 `auditColumns` 第 4 批删掉 |
 | 行内提醒 | `rowAlert(tone, props)`（`src/components/RowAlert`） | `onRow={(r) => rowAlert(r.overdue ? 'error' : undefined, { onClick })}`：首格左侧 3px 色条，原有的行属性一起传入；原因写成状态标签，不整行铺底色 |
