@@ -8,7 +8,8 @@ import { useProductTheme } from '../theme';
 /**
  * 档案完整度：一段对应一个模块。完整度是一个量，只用主题色（图表色 palette.chart）一种颜色：
  * 补得越多颜色越实（浅 → 原色），不换成别的颜色（2026-11-24 用户确认；原来蓝到青渐变、达标变绿，颜色不表达含义）。
- * 没补的段中性灰。琥珀等浅主题色对灰底对比度不到 3:1，靠右侧「done/total」数字补足（与 palette.chartPrimary 的约定一致）。
+ * 没补的段用凹格色 inset。补得少时已补段对灰底只有约 1.5–2:1（各主题、两种模式都如此），靠右侧「done/total」数字
+ * 和读屏文字补足（与 palette.chartPrimary 的约定一致）。
  * 列表里的小条悬停显示还缺哪些模块。
  * 只对平台账号渲染——租户账号的接口不返回 completeness，这里没有数据就什么也不画。
  */
@@ -20,9 +21,9 @@ export const CompletenessBar: React.FC<{
   const { palette } = useProductTheme();
   if (!value) return null;
   const good = value.done >= COMPLETENESS_GOOD;
-  // 完成度越高越实：35% 起，补齐时为原色
+  // 完成度越高越实：60% 起，补齐时为原色（起点太浅时补得少的商品在灰底上看不出来）
   const ratio = value.total ? value.done / value.total : 0;
-  const fill = mix(palette.chart, palette.card, 0.35 + 0.65 * ratio);
+  const fill = mix(palette.chart, palette.card, 0.6 + 0.4 * ratio);
   const h = size === 'mini' ? 6 : 10;
   // 后端给的是模块标识（media、faq…），显示中文名
   const names = value.missing.map(
@@ -44,7 +45,8 @@ export const CompletenessBar: React.FC<{
               height: h,
               borderRadius: h / 2,
               minWidth: size === 'mini' ? 4 : 12,
-              background: m.done ? fill : palette.neutralSoft,
+              // 未补的段用卡内最浅的凹格色，与已补段拉开
+              background: m.done ? fill : palette.inset,
             }}
           />
         ))}

@@ -96,7 +96,7 @@ export const Progress5: React.FC<{ mask: number; width?: number }> = ({
             height: 6,
             borderRadius: 3,
             // 进度只用主题色（全站进度条规则），不换颜色
-            background: mask & (1 << i) ? palette.chart : palette.neutralSoft,
+            background: mask & (1 << i) ? palette.chart : palette.inset,
           }}
         />
       ))}

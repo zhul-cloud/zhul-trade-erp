@@ -126,6 +126,12 @@ export function buildAntdTheme(
       },
       // 交互目标不小于 24×24：开关 44×24
       Switch: { trackHeight: 24, handleSize: 20, trackMinWidth: 44 },
+      // 进度条只用主题色（D48）：没写 strokeColor 的默认色、到 100% 的完成色都用图表色，不变青、不变绿
+      Progress: {
+        defaultColor: p.chart,
+        colorSuccess: p.chart,
+        remainingColor: p.neutralSoft,
+      },
     },
   };
 }

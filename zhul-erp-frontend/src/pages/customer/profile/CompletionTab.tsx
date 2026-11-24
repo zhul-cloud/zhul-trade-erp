@@ -176,15 +176,12 @@ const Choice: React.FC<{
   );
 };
 
-const STEP_TONE = ['green', 'info', 'link', 'orange'] as const;
-
 const StepCard: React.FC<{
   step: CompletionStep;
   subtitle: React.ReactNode;
   children?: React.ReactNode;
 }> = ({ step, subtitle, children }) => {
   const { palette } = useAppTheme();
-  const tone = palette[STEP_TONE[step.step - 1]];
   const done = step.step > 1 && step.items.length === 0;
   return (
     <section
@@ -216,9 +213,10 @@ const StepCard: React.FC<{
             placeItems: 'center',
             fontSize: 12,
             fontWeight: 700,
-            color: done || step.step === 1 ? palette.onPrimary : '#fff',
-            // 已完成的步骤用主题色（步骤条规则），不用成功绿
-            background: done || step.step === 1 ? palette.primary : tone,
+            // 已完成的步骤用主题色（步骤条规则），未完成的中性，不再每步一种颜色
+            color: done || step.step === 1 ? palette.onPrimary : palette.sub,
+            background:
+              done || step.step === 1 ? palette.primary : palette.neutralSoft,
           }}
         >
           {done || step.step === 1 ? <Check size="1em" /> : step.step}

@@ -9,6 +9,7 @@ import { tableEmpty } from '@/components/EmptyState';
 import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { StatusSwitch } from '@/components/StatusSwitch';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -174,9 +175,9 @@ const AssignRulesPage: React.FC = () => {
       dataIndex: 'status',
       width: 100,
       render: (v, r) => (
-        <Switch
-          size="small"
+        <StatusSwitch
           checked={v === 1}
+          name={`${r.matchType === 1 ? '品牌' : '品类'} ${r.matchValues.join('、')} 规则`}
           disabled={!canEdit}
           onChange={(on) =>
             act(

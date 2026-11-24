@@ -663,11 +663,16 @@ const ProductListInner: React.FC = () => {
 
   /** 待确认建议、已忽略两档只留判断品类要看的列（原型 R4、R7），关键的 AI 建议列不被挤出视野 */
   const reviewing = refine && refineState !== 'todo';
+  const selectable = platform || (refine && canEdit);
+  // 审核两档只有「询盘次数」一列：按成交排序进来时看不到也取消不了，清掉
+  useEffect(() => {
+    if (reviewing && heatSort === 'dealCount') setHeatSort(undefined);
+  }, [reviewing, heatSort]);
   const columns: ColumnsType<Product> = [
     {
       title: '商品',
       key: 'product',
-      width: 250,
+      width: 230,
       // 两行：型号（主信息，可点）+ 生命周期标签，下面产品名称；长规格摘要只在悬停时看（P14、R12 方案 B）。
       // 不再放品类首字母方块：没有图片时它不传达任何信息，还占掉一截宽度
       render: (_, r) => (
@@ -687,6 +692,8 @@ const ProductListInner: React.FC = () => {
                 e.stopPropagation();
                 history.push(`/product/products/${r.id}`);
               }}
+              // 列窄时型号会被省略，悬停看全称
+              title={r.mpnDisplay}
               style={{
                 fontWeight: 700,
                 fontSize: 14,
@@ -717,7 +724,7 @@ const ProductListInner: React.FC = () => {
               style={{
                 color: palette.mute,
                 fontSize: 12,
-                maxWidth: 230,
+                maxWidth: 210,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -735,7 +742,7 @@ const ProductListInner: React.FC = () => {
             // 品牌上、品类下（R12 方案 B）：两列合一，1366 宽一屏放下
             title: '品牌 / 品类',
             key: 'brandCategory',
-            width: 160,
+            width: 150,
             render: (_: unknown, r: Product) => (
               <div style={{ minWidth: 0 }}>
                 <EllipsisText text={r.brandName} />
@@ -764,7 +771,7 @@ const ProductListInner: React.FC = () => {
       dataIndex: 'categoryName',
       width: 130,
       hidden: !refine,
-      // 单行省略：长品类名不压到右边的生命周期标签上；品类未细分时「其他」标橙
+      // 单行省略；品类未细分时「其他」标橙
       render: (v, r) =>
         refine && r.categoryCode === 'other' ? (
           <b style={{ color: palette.orange }}>{r.categoryNameZh || v}</b>
@@ -816,7 +823,11 @@ const ProductListInner: React.FC = () => {
             </span>
           ),
           key: 'heat',
-          width: 110,
+          width: 100,
+          onHeaderCell: () =>
+            ({
+              'aria-sort': heatSort ? 'descending' : 'none',
+            }) as React.HTMLAttributes<HTMLElement>,
           render: (_: unknown, r: Product) => (
             <span>
               {heatNum(r.inquiryCount)}
@@ -831,7 +842,7 @@ const ProductListInner: React.FC = () => {
           {
             title: '完整度',
             key: 'completeness',
-            width: 120,
+            width: 110,
             sorter: (a: Product, b: Product) =>
               (a.completeness?.done ?? 0) - (b.completeness?.done ?? 0),
             render: (_: unknown, r: Product) => (
@@ -842,7 +853,7 @@ const ProductListInner: React.FC = () => {
     {
       title: '维护方',
       key: 'owner',
-      width: 80,
+      width: 72,
       render: (_: unknown, r: Product) =>
         !r.ownerTenantId ? (
           <Pill tone="gray">平台</Pill>
@@ -870,7 +881,7 @@ const ProductListInner: React.FC = () => {
           {
             title: '状态',
             dataIndex: 'status',
-            width: 80,
+            width: 72,
             render: (_, r) =>
               canEdit && r.editable && !r.deleted ? (
                 <span onKeyDown={(e) => e.stopPropagation()}>
@@ -1293,9 +1304,10 @@ const ProductListInner: React.FC = () => {
             dataSource={rows}
             loading={loading}
             sticky
-            scroll={{ x: tableScrollX(columns) }}
+            // 有勾选列时把它的 36 也算进总宽
+            scroll={{ x: tableScrollX(columns) + (selectable ? 36 : 0) }}
             rowSelection={
-              platform || (refine && canEdit)
+              selectable
                 ? {
                     selectedRowKeys: selected,
                     onChange: setSelected,

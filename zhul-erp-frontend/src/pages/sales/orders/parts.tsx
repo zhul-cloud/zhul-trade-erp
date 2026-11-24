@@ -32,12 +32,8 @@ export const ReceiptProgress: React.FC<{
   const ratio = total > 0 ? received / total : 0;
   const pct = Math.min(100, Math.round(ratio * 100));
   const meta = status ? RECEIPT_META[status] : undefined;
-  const color =
-    status === 4
-      ? palette.greenMain
-      : status === 2
-        ? palette.orangeMain
-        : palette.primary;
+  // 进度只用主题色（D48），收齐、逾期等状态由下面的状态标签表达，不再换绿、橙
+  const color = palette.chart;
   return (
     // 进度条一行定高 16、与下面的状态标签不留间距：合计 40，列表行高落在两行的 60–64（D21）
     <div>

@@ -27,7 +27,8 @@ export const StatusSwitch: React.FC<{
         : `${name} 已${offText}，点击启用`
     }
     onClick={(_, e) => e.stopPropagation()}
-    onChange={onChange}
+    // rc-switch 按左右方向键时不管值变没变都会回调；值没变就忽略，免得已停用时按左键弹出「启用？」
+    onChange={(c) => c !== checked && onChange(c)}
   />
 );
 
