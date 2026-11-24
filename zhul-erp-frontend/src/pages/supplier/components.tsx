@@ -14,10 +14,10 @@ export const SupplierTypePill: React.FC<{ value?: number }> = ({ value }) => {
   const { palette } = useAppTheme();
   const colors: Record<SupplierTypeTone, { fg: string; bg: string }> = {
     accent: { fg: palette.link, bg: palette.primarySoft },
-    cyan: { fg: palette.info, bg: palette.inset },
+    cyan: { fg: palette.info, bg: palette.neutralSoft },
     orange: { fg: palette.orange, bg: palette.orangeSoft },
     green: { fg: palette.green, bg: palette.greenSoft },
-    gray: { fg: palette.sub, bg: palette.inset },
+    gray: { fg: palette.sub, bg: palette.neutralSoft },
   };
   const c = colors[SUPPLIER_TYPE_TONE[value ?? 0] ?? 'gray'];
   return (

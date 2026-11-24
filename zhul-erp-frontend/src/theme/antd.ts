@@ -93,13 +93,13 @@ export function buildAntdTheme(
         footerBg: p.card,
         boxShadow: light ? DIALOG_SHADOW : 'none',
       },
-      // 表格：表头 48、13 号次要色；单行 48、两行 60–64（ui-redesign D21）。
-      // 上下内边距 11：两行内容（22 + 19）为 63；单行和表头靠全局样式里的最小高度 48 补齐
       // 分段控件：antd 默认轨道用页面底色，放在页面上就看不见；轨道比页面底深一档，选中块用卡片色（深色再亮一档）（D38）
       Segmented: {
         trackBg: p.track,
         itemSelectedBg: light ? p.card : p.elevatedLine,
       },
+      // 表格：表头 48、13 号次要色；单行 48、两行 60–64（ui-redesign D21）。
+      // 上下内边距 11：两行内容（22 + 19）为 63；单行和表头靠全局样式里的最小高度 48 补齐
       Table: {
         headerBg: p.head,
         headerColor: p.mute,

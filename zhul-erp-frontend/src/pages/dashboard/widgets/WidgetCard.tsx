@@ -347,7 +347,8 @@ export const Metric: React.FC<{
     padding: 16,
     border: 'none',
     borderRadius: 8,
-    background: onClick && hover ? palette.hover : palette.inset,
+    // 悬停加深一档：inset 改浅后与 hover 几乎同色，悬停反馈会消失（D38 复审）
+    background: onClick && hover ? palette.neutralSoft : palette.inset,
     transition: 'background .2s',
     textAlign: 'left',
     font: 'inherit',

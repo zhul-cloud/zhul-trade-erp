@@ -261,7 +261,12 @@ const SourceCell: React.FC<{ c: Candidate }> = ({ c }) => {
           <span style={{ color: palette.mute }}>本公司无</span>
         )}
       </div>
-      {total > 1 && (
+      {!list.length && c.otherSourceCount ? (
+        <div style={{ fontSize: 12, lineHeight: '18px', color: palette.mute }}>
+          其他公司 {c.otherSourceCount} 次
+        </div>
+      ) : null}
+      {list.length > 0 && total > 1 && (
         <Popover
           title={`来源（${total}）`}
           content={
@@ -295,8 +300,21 @@ const SourceCell: React.FC<{ c: Candidate }> = ({ c }) => {
   );
 };
 
-/** 被单据引用：显示最要紧的一类（越往后的单据越要紧），其余「等 N 类」悬停看全部 */
-const REF_PRIORITY = ['销售订单', 'PI', '报价', '采购订单', '询盘型号'];
+/**
+ * 被单据引用：显示最要紧的一类（沿业务链越往后越要紧），其余「等 N 类」悬停看全部。
+ * 键名与后端 DocumentProductTables 的标签一致；售后、退货等旁支不作主类，不在表里时取第一类
+ */
+const REF_PRIORITY = [
+  '销售出库',
+  '采购入库',
+  '供应商发货',
+  '采购订单',
+  '采购需求',
+  '销售订单',
+  'PI',
+  '报价',
+  '询盘型号',
+];
 const RefCell: React.FC<{ c: Candidate }> = ({ c }) => {
   const { palette } = useAppTheme();
   const entries = Object.entries(c.references ?? {});
@@ -1486,38 +1504,39 @@ const Candidates: React.FC = () => {
           text={`${c.brandName} · ${c.mpnRaw}`}
           style={{ color: palette.ink, fontWeight: 600 }}
         />
-        <div
-          style={{
-            fontSize: 12,
-            lineHeight: '18px',
-            color: palette.mute,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {c.aiBrand === 1 && (
+        {/* 第二行同样单行省略，截断时悬停看全文（订货号、商品编号不会丢） */}
+        <EllipsisText
+          style={{ fontSize: 12, lineHeight: '18px', color: palette.mute }}
+          text={
             <>
-              <AiTag /> {c.brandText ? `原文「${c.brandText}」 ` : ''}
+              {c.aiBrand === 1 && (
+                <>
+                  <AiTag /> {c.brandText ? `原文「${c.brandText}」 ` : ''}
+                </>
+              )}
+              {c.aiBrand === 2 && (
+                <>
+                  <AiTag
+                    text={
+                      c.aiBrandName
+                        ? `AI 未识别：${c.aiBrandName}`
+                        : 'AI 未识别'
+                    }
+                  />{' '}
+                </>
+              )}
+              {c.originalModel
+                ? `回填自「${c.originalModel}」`
+                : c.aiBrand
+                  ? ''
+                  : '品牌 ✓'}
+              {c.orderCode ? ` · 订货号 ${c.orderCode}` : ''}
+              {c.status === 1 && c.productId
+                ? ` · 商品编号 ${c.productId}`
+                : ''}
             </>
-          )}
-          {c.aiBrand === 2 && (
-            <>
-              <AiTag
-                text={
-                  c.aiBrandName ? `AI 未识别：${c.aiBrandName}` : 'AI 未识别'
-                }
-              />{' '}
-            </>
-          )}
-          {c.originalModel
-            ? `回填自「${c.originalModel}」`
-            : c.aiBrand
-              ? ''
-              : '品牌 ✓'}
-          {c.orderCode ? ` · 订货号 ${c.orderCode}` : ''}
-          {c.status === 1 && c.productId ? ` · 商品编号 ${c.productId}` : ''}
-        </div>
+          }
+        />
       </div>
     ) : (
       <div style={{ minWidth: 0 }}>
@@ -1525,24 +1544,23 @@ const Candidates: React.FC = () => {
           text={`待确认品牌：${c.brandText || '（空）'} · ${c.mpnRaw}`}
           style={{ color: palette.orange, fontWeight: 600 }}
         />
-        <div
-          style={{
-            fontSize: 12,
-            lineHeight: '18px',
-            color: palette.mute,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {c.aiBrand === 2 && c.aiBrandName ? (
-            <AiTag text={`AI 未识别：${c.aiBrandName}`} />
-          ) : (
-            '品牌未识别'
-          )}
-          {c.orderCode ? ` · 订货号 ${c.orderCode}` : ''}
-          {c.status === 1 && c.productId ? ` · 商品编号 ${c.productId}` : ''}
-        </div>
+        {/* 第二行同样单行省略，截断时悬停看全文（订货号、商品编号不会丢） */}
+        <EllipsisText
+          style={{ fontSize: 12, lineHeight: '18px', color: palette.mute }}
+          text={
+            <>
+              {c.aiBrand === 2 && c.aiBrandName ? (
+                <AiTag text={`AI 未识别：${c.aiBrandName}`} />
+              ) : (
+                '品牌未识别'
+              )}
+              {c.orderCode ? ` · 订货号 ${c.orderCode}` : ''}
+              {c.status === 1 && c.productId
+                ? ` · 商品编号 ${c.productId}`
+                : ''}
+            </>
+          }
+        />
       </div>
     );
 

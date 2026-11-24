@@ -251,22 +251,42 @@ const RequirementList: React.FC = () => {
     const removed = r.removedQty
       ? `删除 ${r.removedQty}${r.removeReason ? ` · ${r.removeReason}` : ''}`
       : undefined;
+    const tail = [
+      first && !first.poNo ? first.supplierName : undefined,
+      removed,
+    ]
+      .filter(Boolean)
+      .join(' · ');
     return (
       <div style={{ minWidth: 0 }}>
         <div style={{ display: 'flex' }}>
           <ReqStatusPill status={r.status} name={r.statusName} />
         </div>
         {(first || removed) && (
+          // 单号、「等 N 张」不收缩，始终露出；只有供应商名、删除说明放不下时省略（悬停看全文）
           <div
             style={{
+              display: 'flex',
+              alignItems: 'baseline',
+              gap: 4,
+              minWidth: 0,
               fontSize: 12,
               lineHeight: '18px',
               whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
             }}
           >
-            {first && poLink(first)}
+            {first && (
+              <button
+                type="button"
+                className={
+                  first.poNo ? 'zhul-link' : 'zhul-link zhul-link-action'
+                }
+                style={{ flex: 'none' }}
+                onClick={() => history.push(PATHS.order(first.id))}
+              >
+                {first.poNo ?? '去下单 →'}
+              </button>
+            )}
             {rest.length > 0 && (
               <Popover
                 title={`采购订单（${r.purchaseOrders.length}）`}
@@ -278,16 +298,28 @@ const RequirementList: React.FC = () => {
                   </div>
                 }
               >
-                <span style={{ color: palette.sub, cursor: 'default' }}>
-                  {' '}
+                <span
+                  style={{
+                    flex: 'none',
+                    color: palette.sub,
+                    cursor: 'default',
+                  }}
+                >
                   等 {r.purchaseOrders.length} 张
                 </span>
               </Popover>
             )}
-            {removed && (
-              <span style={{ color: palette.mute }} title={removed}>
-                {first ? ' · ' : ''}
-                {removed}
+            {tail && (
+              <span
+                title={tail}
+                style={{
+                  minWidth: 0,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  color: palette.mute,
+                }}
+              >
+                {tail}
               </span>
             )}
           </div>

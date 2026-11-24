@@ -28,7 +28,7 @@ export const Pill: React.FC<{
   const colors: Record<PillTone, { fg: string; bg: string }> = {
     gray: { fg: palette.sub, bg: palette.neutralSoft },
     mute: { fg: palette.mute, bg: palette.neutralSoft },
-    cyan: { fg: palette.info, bg: palette.inset },
+    cyan: { fg: palette.info, bg: palette.neutralSoft },
     accent: { fg: palette.link, bg: palette.primarySoft },
     violet: { fg: palette.info, bg: palette.infoSoft },
     orange: { fg: palette.orange, bg: palette.orangeSoft },
