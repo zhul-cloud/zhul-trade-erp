@@ -346,44 +346,42 @@ const Shipments: React.FC = () => {
       ),
     },
     {
-      title: '型号 · 数量',
-      key: 'items',
-      width: 200,
-      render: (_, r) =>
-        r.firstModel ? (
-          <div style={{ minWidth: 0 }}>
-            <div
-              style={{
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                fontWeight: 600,
-                color: palette.ink,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {r.firstModel} × {r.firstQty}
-            </div>
-            {sub(
-              palette.mute,
-              `${r.outboundCount} 张出库单 · ${r.totalQuantity ?? 0} 件`,
-            )}
-          </div>
+      title: '状态',
+      dataIndex: 'status',
+      width: 90,
+      render: (v: number, r) => (
+        <ShStatusPill value={v}>{r.statusName}</ShStatusPill>
+      ),
+    },
+    {
+      title: '运费',
+      align: 'right',
+      dataIndex: 'freight',
+      width: 110,
+      render: (v: number | null | undefined, r) =>
+        v === null || v === undefined ? (
+          '—'
         ) : (
-          <span style={{ color: palette.mute }}>—</span>
+          <div>
+            {formatAmount(v, 'CNY')}
+            {r.customerForwarder && sub(palette.mute, '送货运费')}
+          </div>
         ),
     },
     {
-      title: '品牌',
-      dataIndex: 'brands',
-      width: 120,
-      render: (v?: string[]) => <TagList values={v} label="品牌" />,
-    },
-    {
-      title: '品类',
-      dataIndex: 'categories',
-      width: 130,
-      render: (v?: string[]) => <TagList values={v} label="品类" />,
+      title: '对账',
+      dataIndex: 'reconciled',
+      width: 80,
+      render: (v: boolean, r) =>
+        r.status !== 2 ? (
+          '—'
+        ) : r.customerForwarder ? (
+          <span style={{ color: palette.mute }}>不对账</span>
+        ) : v ? (
+          <Pill tone="green">已对账</Pill>
+        ) : (
+          <Pill tone="gray">未对账</Pill>
+        ),
     },
     {
       title: '货代',
@@ -428,42 +426,44 @@ const Shipments: React.FC = () => {
         ),
     },
     {
-      title: '运费',
-      align: 'right',
-      dataIndex: 'freight',
-      width: 110,
-      render: (v: number | null | undefined, r) =>
-        v === null || v === undefined ? (
-          '—'
-        ) : (
-          <div>
-            {formatAmount(v, 'CNY')}
-            {r.customerForwarder && sub(palette.mute, '送货运费')}
+      title: '型号 · 数量',
+      key: 'items',
+      width: 200,
+      render: (_, r) =>
+        r.firstModel ? (
+          <div style={{ minWidth: 0 }}>
+            <div
+              style={{
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                fontWeight: 600,
+                color: palette.ink,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {r.firstModel} × {r.firstQty}
+            </div>
+            {sub(
+              palette.mute,
+              `${r.outboundCount} 张出库单 · ${r.totalQuantity ?? 0} 件`,
+            )}
           </div>
-        ),
-    },
-    {
-      title: '对账',
-      dataIndex: 'reconciled',
-      width: 80,
-      render: (v: boolean, r) =>
-        r.status !== 2 ? (
-          '—'
-        ) : r.customerForwarder ? (
-          <span style={{ color: palette.mute }}>不对账</span>
-        ) : v ? (
-          <Pill tone="green">已对账</Pill>
         ) : (
-          <Pill tone="gray">未对账</Pill>
+          <span style={{ color: palette.mute }}>—</span>
         ),
     },
     {
-      title: '状态',
-      dataIndex: 'status',
-      width: 90,
-      render: (v: number, r) => (
-        <ShStatusPill value={v}>{r.statusName}</ShStatusPill>
-      ),
+      title: '品牌',
+      dataIndex: 'brands',
+      width: 120,
+      render: (v?: string[]) => <TagList values={v} label="品牌" />,
+    },
+    {
+      title: '品类',
+      dataIndex: 'categories',
+      width: 130,
+      render: (v?: string[]) => <TagList values={v} label="品类" />,
     },
     {
       title: '来源单号',

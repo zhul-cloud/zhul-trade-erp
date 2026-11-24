@@ -21,7 +21,7 @@ import { PayStatusPill } from '@/pages/finance/payables/components';
 import { PAY_STATUS } from '@/pages/finance/payables/service';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
-import { StockPill, useUserOptions } from '@/pages/sales/orders/dialogs';
+import { STOCK, useUserOptions } from '@/pages/sales/orders/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
@@ -180,15 +180,19 @@ const PurchaseOrderList: React.FC = () => {
                 r.staleDays ? palette.orange : palette.mute,
                 `${dayjs(r.createTime).format('MM-DD')} 创建${r.staleDays ? ` · 已放 ${r.staleDays} 天` : ''}`,
               )
-            : sub(palette.mute, r.orderDate ?? '—')}
+            : sub(
+                palette.mute,
+                // 现货 / 期货并进日期这一行（D40，列顺序方案 B）
+                [
+                  r.orderDate ?? '—',
+                  r.stockType != null &&
+                    (r.stockType === STOCK.FUTURES ? '期货' : '现货'),
+                ]
+                  .filter(Boolean)
+                  .join(' · '),
+              )}
         </div>
       ),
-    },
-    {
-      title: '现货 / 期货',
-      dataIndex: 'stockType',
-      width: 100,
-      render: (v?: number) => <StockPill type={v} />,
     },
     {
       title: '采购对象',
@@ -199,6 +203,101 @@ const PurchaseOrderList: React.FC = () => {
           <SourceCell shopName={r.shopName} channelName={v?.split(' · ')[0]} />
         ) : (
           <SourceCell supplierName={v} />
+        ),
+    },
+    {
+      title: '状态 · 发货进度',
+      dataIndex: 'status',
+      width: 190,
+      render: (v: number, r) => (
+        <div>
+          <span style={{ display: 'inline-flex', gap: 6 }}>
+            <PoStatusPill status={v} />
+            <ShipProgressPill code={r.shipProgress} name={r.shipProgressName} />
+          </span>
+          {r.cancelReason && sub(palette.mute, r.cancelReason)}
+          {r.shipProgress === 'SHIPPED' &&
+            sub(
+              palette.mute,
+              r.earliestArrival
+                ? `在途，预计 ${dayjs(r.earliestArrival).format('MM-DD')} 到`
+                : '在途',
+            )}
+          {(r.shipProgress === 'UNSHIPPED' || r.shipProgress === 'PARTIAL') &&
+            sub(
+              palette.mute,
+              `已发 ${r.shippedQty ?? 0} / ${r.totalQty ?? 0} 件`,
+            )}
+        </div>
+      ),
+    },
+    {
+      title: '合计',
+      dataIndex: 'totalAmount',
+      width: 150,
+      align: 'right',
+      sorter: true,
+      sortOrder: sortOf('totalAmount'),
+      render: (v: number, r) =>
+        r.missingPriceCount > 0 ? (
+          <span style={{ color: palette.orange, fontSize: 12 }}>
+            {r.missingPriceCount} 行未填单价
+          </span>
+        ) : (
+          <b style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {formatAmount(v, r.currencyCode)}
+          </b>
+        ),
+    },
+    {
+      title: '付款',
+      key: 'pay',
+      width: 170,
+      render: (_, r) =>
+        r.payStatus === undefined ? (
+          <span style={{ color: palette.mute }}>—</span>
+        ) : (
+          <div>
+            <PayStatusPill status={r.payStatus} />
+            {r.payStatus === PAY_STATUS.PARTIAL && (
+              <div style={{ fontSize: 12, color: palette.sub }}>
+                {formatAmount(r.paidAmount, r.currencyCode)} /{' '}
+                {formatAmount(r.payableAmount, r.currencyCode)}
+              </div>
+            )}
+            {!!r.creditAmount && r.creditAmount > 0 && (
+              <div style={{ fontSize: 12, color: palette.orange }}>
+                欠款 {formatAmount(r.creditAmount, r.currencyCode)}
+              </div>
+            )}
+          </div>
+        ),
+    },
+    {
+      title: '预计发货日期',
+      dataIndex: 'expectedShipDate',
+      width: 130,
+      render: (v: string | null | undefined, r) =>
+        v ? (
+          <div>
+            <span style={{ color: r.overdueDays ? palette.red : undefined }}>
+              {v}
+            </span>
+            {/* 逾期用错误色小字（status-colors.md「逾期 错误」），不用标签（标签 24 高会撑高行，D21） */}
+            {r.overdueDays ? (
+              <div
+                style={{
+                  fontSize: 12,
+                  lineHeight: '18px',
+                  color: palette.red,
+                }}
+              >
+                已过 {r.overdueDays} 天
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <span style={{ color: palette.mute }}>—</span>
         ),
     },
     {
@@ -234,24 +333,6 @@ const PurchaseOrderList: React.FC = () => {
       render: (_, r) => <TagList values={r.categories ?? []} label="品类" />,
     },
     {
-      title: '合计',
-      dataIndex: 'totalAmount',
-      width: 150,
-      align: 'right',
-      sorter: true,
-      sortOrder: sortOf('totalAmount'),
-      render: (v: number, r) =>
-        r.missingPriceCount > 0 ? (
-          <span style={{ color: palette.orange, fontSize: 12 }}>
-            {r.missingPriceCount} 行未填单价
-          </span>
-        ) : (
-          <b style={{ fontVariantNumeric: 'tabular-nums' }}>
-            {formatAmount(v, r.currencyCode)}
-          </b>
-        ),
-    },
-    {
       title: '砍价',
       dataIndex: 'bargainAmount',
       width: 130,
@@ -262,37 +343,6 @@ const PurchaseOrderList: React.FC = () => {
           <span style={{ color: palette.mute }}>—</span>
         ) : (
           <BargainText amount={v} rate={r.bargainRate} />
-        ),
-    },
-    {
-      title: '付款条件',
-      dataIndex: 'paymentTermsText',
-      width: 170,
-      render: (v?: string) =>
-        v || <span style={{ color: palette.mute }}>未填</span>,
-    },
-    {
-      title: '付款',
-      key: 'pay',
-      width: 170,
-      render: (_, r) =>
-        r.payStatus === undefined ? (
-          <span style={{ color: palette.mute }}>—</span>
-        ) : (
-          <div>
-            <PayStatusPill status={r.payStatus} />
-            {r.payStatus === PAY_STATUS.PARTIAL && (
-              <div style={{ fontSize: 12, color: palette.sub }}>
-                {formatAmount(r.paidAmount, r.currencyCode)} /{' '}
-                {formatAmount(r.payableAmount, r.currencyCode)}
-              </div>
-            )}
-            {!!r.creditAmount && r.creditAmount > 0 && (
-              <div style={{ fontSize: 12, color: palette.orange }}>
-                欠款 {formatAmount(r.creditAmount, r.currencyCode)}
-              </div>
-            )}
-          </div>
         ),
     },
     {
@@ -319,31 +369,11 @@ const PurchaseOrderList: React.FC = () => {
         ),
     },
     {
-      title: '预计发货日期',
-      dataIndex: 'expectedShipDate',
-      width: 130,
-      render: (v: string | null | undefined, r) =>
-        v ? (
-          <div>
-            <span style={{ color: r.overdueDays ? palette.red : undefined }}>
-              {v}
-            </span>
-            {/* 逾期用错误色小字（status-colors.md「逾期 错误」），不用标签（标签 24 高会撑高行，D21） */}
-            {r.overdueDays ? (
-              <div
-                style={{
-                  fontSize: 12,
-                  lineHeight: '18px',
-                  color: palette.red,
-                }}
-              >
-                已过 {r.overdueDays} 天
-              </div>
-            ) : null}
-          </div>
-        ) : (
-          <span style={{ color: palette.mute }}>—</span>
-        ),
+      title: '付款条件',
+      dataIndex: 'paymentTermsText',
+      width: 170,
+      render: (v?: string) =>
+        v || <span style={{ color: palette.mute }}>未填</span>,
     },
     {
       title: '来源单号',
@@ -366,32 +396,6 @@ const PurchaseOrderList: React.FC = () => {
       dataIndex: 'purchaserName',
       width: 90,
       render: ellipsisRender,
-    },
-    {
-      title: '状态 · 发货进度',
-      dataIndex: 'status',
-      width: 190,
-      render: (v: number, r) => (
-        <div>
-          <span style={{ display: 'inline-flex', gap: 6 }}>
-            <PoStatusPill status={v} />
-            <ShipProgressPill code={r.shipProgress} name={r.shipProgressName} />
-          </span>
-          {r.cancelReason && sub(palette.mute, r.cancelReason)}
-          {r.shipProgress === 'SHIPPED' &&
-            sub(
-              palette.mute,
-              r.earliestArrival
-                ? `在途，预计 ${dayjs(r.earliestArrival).format('MM-DD')} 到`
-                : '在途',
-            )}
-          {(r.shipProgress === 'UNSHIPPED' || r.shipProgress === 'PARTIAL') &&
-            sub(
-              palette.mute,
-              `已发 ${r.shippedQty ?? 0} / ${r.totalQty ?? 0} 件`,
-            )}
-        </div>
-      ),
     },
     ...auditColumns<PoListItem>(),
     {

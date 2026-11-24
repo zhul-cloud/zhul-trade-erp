@@ -66,7 +66,6 @@ import {
   NewOrderDrawer,
   ReorderPickModal,
   STOCK,
-  StockPill,
   useUserOptions,
 } from './dialogs';
 import {
@@ -288,7 +287,16 @@ const OrderList: React.FC = () => {
               <Pill tone="orange">费用订单</Pill>
             </div>
           )}
-          {sub(r.salesDate ?? '—')}
+          {/* 现货 / 期货是属性，并进日期这一行，不再单占一列（D40，列顺序方案 B） */}
+          {sub(
+            [
+              r.salesDate ?? '—',
+              r.stockType != null &&
+                (r.stockType === STOCK.FUTURES ? '期货' : '现货'),
+            ]
+              .filter(Boolean)
+              .join(' · '),
+          )}
           {r.originalSoNo && sub(`原订单 ${r.originalSoNo}`)}
           {(r.feeOrderCount ?? 0) > 0 && (
             <div style={{ fontSize: 12, color: palette.orange }}>
@@ -312,48 +320,15 @@ const OrderList: React.FC = () => {
       ),
     },
     {
-      title: '现货/期货',
-      dataIndex: 'stockType',
-      width: 100,
-      render: (v: number) => <StockPill type={v} />,
-    },
-    {
-      title: '型号 · 数量',
-      key: 'qty',
-      width: 190,
-      render: (_, r) => (
+      title: <HeadHelp title="订单状态" help={HELP.progress} />,
+      dataIndex: 'progressCode',
+      width: 130,
+      render: (v: string, r) => (
         <div>
-          <EllipsisText text={r.firstModel} style={{ fontFamily: MONO_FONT }} />
-          {sub(
-            r.itemCount > 1 ? (
-              <>
-                共 {r.itemCount} 个型号 · {r.totalQuantity ?? 0} 件 ·{' '}
-                <button
-                  type="button"
-                  className="zhul-link"
-                  onClick={() => setViewing(r)}
-                >
-                  查看
-                </button>
-              </>
-            ) : (
-              `${r.totalQuantity ?? 0} 件`
-            ),
-          )}
+          <ProgressPill code={v} name={r.progressName} />
+          {r.cancelReason && sub(r.cancelReason)}
         </div>
       ),
-    },
-    {
-      title: '品牌',
-      key: 'brands',
-      width: 170,
-      render: (_, r) => <TagList values={r.brands} label="品牌" />,
-    },
-    {
-      title: '品类',
-      key: 'categories',
-      width: 170,
-      render: (_, r) => <TagList values={r.categories} label="品类" />,
     },
     {
       title: '合计',
@@ -365,34 +340,6 @@ const OrderList: React.FC = () => {
           {formatAmount(v, r.currencyCode)}
         </b>
       ),
-    },
-    {
-      title: <HeadHelp title="毛利" help={HELP.profit} />,
-      key: 'profit',
-      width: 150,
-      align: 'right',
-      sorter: true,
-      // 排序提示只挂在排序图标上，不和表头的帮助提示同时弹出
-      showSorterTooltip: { target: 'sorter-icon' },
-      sortOrder: sort.field === 'profit' ? sort.order : null,
-      render: (_, r) =>
-        r.profit == null ? (
-          <span style={{ color: palette.mute }}>—</span>
-        ) : (
-          <div>
-            <b
-              style={{
-                fontVariantNumeric: 'tabular-nums',
-                color: deltaOf(r.profit),
-              }}
-            >
-              {formatAmount(r.profit, 'CNY')}
-            </b>
-            {sub(
-              `${r.profitRate != null ? `${r.profitRate}% · ` : ''}${r.profitSettled ? '已结算' : '未结算'}`,
-            )}
-          </div>
-        ),
     },
     {
       title: <HeadHelp title="收款进度" help={HELP.receipt} />,
@@ -410,17 +357,6 @@ const OrderList: React.FC = () => {
               <Pill tone="orange">先采购后收款</Pill>
             </span>
           )}
-        </div>
-      ),
-    },
-    {
-      title: <HeadHelp title="订单状态" help={HELP.progress} />,
-      dataIndex: 'progressCode',
-      width: 130,
-      render: (v: string, r) => (
-        <div>
-          <ProgressPill code={v} name={r.progressName} />
-          {r.cancelReason && sub(r.cancelReason)}
         </div>
       ),
     },
@@ -516,6 +452,72 @@ const OrderList: React.FC = () => {
           </div>
         );
       },
+    },
+    {
+      title: '型号 · 数量',
+      key: 'qty',
+      width: 190,
+      render: (_, r) => (
+        <div>
+          <EllipsisText text={r.firstModel} style={{ fontFamily: MONO_FONT }} />
+          {sub(
+            r.itemCount > 1 ? (
+              <>
+                共 {r.itemCount} 个型号 · {r.totalQuantity ?? 0} 件 ·{' '}
+                <button
+                  type="button"
+                  className="zhul-link"
+                  onClick={() => setViewing(r)}
+                >
+                  查看
+                </button>
+              </>
+            ) : (
+              `${r.totalQuantity ?? 0} 件`
+            ),
+          )}
+        </div>
+      ),
+    },
+    {
+      title: '品牌',
+      key: 'brands',
+      width: 170,
+      render: (_, r) => <TagList values={r.brands} label="品牌" />,
+    },
+    {
+      title: '品类',
+      key: 'categories',
+      width: 170,
+      render: (_, r) => <TagList values={r.categories} label="品类" />,
+    },
+    {
+      title: <HeadHelp title="毛利" help={HELP.profit} />,
+      key: 'profit',
+      width: 150,
+      align: 'right',
+      sorter: true,
+      // 排序提示只挂在排序图标上，不和表头的帮助提示同时弹出
+      showSorterTooltip: { target: 'sorter-icon' },
+      sortOrder: sort.field === 'profit' ? sort.order : null,
+      render: (_, r) =>
+        r.profit == null ? (
+          <span style={{ color: palette.mute }}>—</span>
+        ) : (
+          <div>
+            <b
+              style={{
+                fontVariantNumeric: 'tabular-nums',
+                color: deltaOf(r.profit),
+              }}
+            >
+              {formatAmount(r.profit, 'CNY')}
+            </b>
+            {sub(
+              `${r.profitRate != null ? `${r.profitRate}% · ` : ''}${r.profitSettled ? '已结算' : '未结算'}`,
+            )}
+          </div>
+        ),
     },
     {
       title: '采购员',

@@ -244,6 +244,76 @@ const PiList: React.FC = () => {
         />
       ),
     },
+    {
+      title: 'PI 状态',
+      dataIndex: 'status',
+      width: 190,
+      render: (v: number, r) => (
+        <Space size={6} wrap>
+          <PiStatusPill status={v} />
+          {r.expired && (
+            <Tooltip
+              title={`已过期 ${r.expiredDays} 天 · 有效期至 ${r.validUntil} · 未收到水单或到账`}
+            >
+              <span>
+                <Pill tone="red">已过期</Pill>
+              </span>
+            </Tooltip>
+          )}
+          {r.closeReasonName && (
+            <span style={{ fontSize: 12, color: palette.mute }}>
+              {r.closeReasonName.replace(/^【[^】]+】/, '')}
+            </span>
+          )}
+          {r.currentVersionNo > 1 && (
+            <span style={{ fontSize: 12, color: palette.sub }}>
+              Rev.{r.currentVersionNo}
+            </span>
+          )}
+          {r.revising && <Pill tone="orange">修改中</Pill>}
+        </Space>
+      ),
+    },
+    {
+      title: '合计',
+      dataIndex: 'totalAmount',
+      sorter: true,
+      sortOrder: sortOf('totalAmount'),
+      width: 150,
+      align: 'right',
+      render: (v: number, r) => (
+        <b style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {formatAmount(v, r.currencyCode)}
+        </b>
+      ),
+    },
+    {
+      title: '收款状态',
+      dataIndex: 'receiptStatus',
+      width: 110,
+      render: (v: number, r) =>
+        r.status === PI_STATUS.DRAFT ? '—' : <ReceiptStatusPill status={v} />,
+    },
+    {
+      title: '有效期至',
+      dataIndex: 'validUntil',
+      width: 116,
+      render: (v: string | undefined, r) => (
+        <span
+          style={{
+            fontVariantNumeric: 'tabular-nums',
+            whiteSpace: 'nowrap',
+            color: r.expired
+              ? palette.red
+              : r.status === PI_STATUS.SENT
+                ? palette.sub
+                : palette.mute,
+          }}
+        >
+          {v ?? '—'}
+        </span>
+      ),
+    },
     // 型号与总数量分两列（同询盘列表）：主规范要求两者都能排序，合成一列会丢掉一种排序
     {
       title: '型号',
@@ -279,76 +349,6 @@ const PiList: React.FC = () => {
       key: 'categories',
       width: 160,
       render: (_, r) => <TagList values={r.categories} label="品类" />,
-    },
-    {
-      title: '合计',
-      dataIndex: 'totalAmount',
-      sorter: true,
-      sortOrder: sortOf('totalAmount'),
-      width: 150,
-      align: 'right',
-      render: (v: number, r) => (
-        <b style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {formatAmount(v, r.currencyCode)}
-        </b>
-      ),
-    },
-    {
-      title: '收款状态',
-      dataIndex: 'receiptStatus',
-      width: 110,
-      render: (v: number, r) =>
-        r.status === PI_STATUS.DRAFT ? '—' : <ReceiptStatusPill status={v} />,
-    },
-    {
-      title: 'PI 状态',
-      dataIndex: 'status',
-      width: 190,
-      render: (v: number, r) => (
-        <Space size={6} wrap>
-          <PiStatusPill status={v} />
-          {r.expired && (
-            <Tooltip
-              title={`已过期 ${r.expiredDays} 天 · 有效期至 ${r.validUntil} · 未收到水单或到账`}
-            >
-              <span>
-                <Pill tone="red">已过期</Pill>
-              </span>
-            </Tooltip>
-          )}
-          {r.closeReasonName && (
-            <span style={{ fontSize: 12, color: palette.mute }}>
-              {r.closeReasonName.replace(/^【[^】]+】/, '')}
-            </span>
-          )}
-          {r.currentVersionNo > 1 && (
-            <span style={{ fontSize: 12, color: palette.sub }}>
-              Rev.{r.currentVersionNo}
-            </span>
-          )}
-          {r.revising && <Pill tone="orange">修改中</Pill>}
-        </Space>
-      ),
-    },
-    {
-      title: '有效期至',
-      dataIndex: 'validUntil',
-      width: 116,
-      render: (v: string | undefined, r) => (
-        <span
-          style={{
-            fontVariantNumeric: 'tabular-nums',
-            whiteSpace: 'nowrap',
-            color: r.expired
-              ? palette.red
-              : r.status === PI_STATUS.SENT
-                ? palette.sub
-                : palette.mute,
-          }}
-        >
-          {v ?? '—'}
-        </span>
-      ),
     },
     {
       title: '来源单号',

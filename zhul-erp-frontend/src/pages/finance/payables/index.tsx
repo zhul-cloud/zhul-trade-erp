@@ -207,20 +207,35 @@ const PayableManagement: React.FC = () => {
       ),
     },
     {
-      title: '来源单号',
-      key: 'source',
-      width: 170,
-      render: (_, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => history.push(sourcePath(r))}
-        >
-          {r.sourceNo}
-        </button>
+      title: '状态',
+      dataIndex: 'status',
+      width: 150,
+      render: (v: number, r) => (
+        <Space size={6}>
+          <PayStatusPill status={v} />
+          {r.settledByMigration && (
+            <span style={{ fontSize: 12, color: palette.mute }}>历史迁移</span>
+          )}
+        </Space>
       ),
     },
-    { title: '币种', dataIndex: 'currencyCode', width: 64 },
+    {
+      title: '未付',
+      dataIndex: 'unpaidAmount',
+      width: 120,
+      align: 'right',
+      render: (v: number, r) => (
+        <b style={num}>{formatAmount(v, r.currencyCode)}</b>
+      ),
+    },
+    {
+      title: '下一期到期',
+      key: 'due',
+      width: 160,
+      render: (_, r) => (
+        <DueTag date={r.nextDueDate} state={r.dueState} days={r.dueDays} />
+      ),
+    },
     {
       title: '应付',
       dataIndex: 'amount',
@@ -237,15 +252,6 @@ const PayableManagement: React.FC = () => {
       align: 'right',
       render: (v: number, r) => (
         <span style={num}>{formatAmount(v, r.currencyCode)}</span>
-      ),
-    },
-    {
-      title: '未付',
-      dataIndex: 'unpaidAmount',
-      width: 120,
-      align: 'right',
-      render: (v: number, r) => (
-        <b style={num}>{formatAmount(v, r.currencyCode)}</b>
       ),
     },
     {
@@ -269,25 +275,19 @@ const PayableManagement: React.FC = () => {
           <span style={{ color: palette.mute }}>—</span>
         ),
     },
+    { title: '币种', dataIndex: 'currencyCode', width: 64 },
     {
-      title: '下一期到期',
-      key: 'due',
-      width: 160,
+      title: '来源单号',
+      key: 'source',
+      width: 170,
       render: (_, r) => (
-        <DueTag date={r.nextDueDate} state={r.dueState} days={r.dueDays} />
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      width: 150,
-      render: (v: number, r) => (
-        <Space size={6}>
-          <PayStatusPill status={v} />
-          {r.settledByMigration && (
-            <span style={{ fontSize: 12, color: palette.mute }}>历史迁移</span>
-          )}
-        </Space>
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => history.push(sourcePath(r))}
+        >
+          {r.sourceNo}
+        </button>
       ),
     },
     ...auditColumns<Payable>(),
