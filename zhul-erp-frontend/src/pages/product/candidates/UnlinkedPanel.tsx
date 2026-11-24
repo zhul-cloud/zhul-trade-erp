@@ -1,7 +1,6 @@
-import { SearchOutlined } from '@ant-design/icons';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Input, Modal, Radio, Table, Tag } from 'antd';
-import { Link2 } from 'lucide-react';
+import { Link2, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
@@ -143,7 +142,7 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
       >
         <Input
           allowClear
-          prefix={<SearchOutlined />}
+          prefix={<Search size="1em" />}
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           onPressEnter={() => {

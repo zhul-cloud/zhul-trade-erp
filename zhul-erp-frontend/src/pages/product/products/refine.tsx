@@ -1,5 +1,5 @@
-import { RobotOutlined, SwapOutlined } from '@ant-design/icons';
 import { Select } from 'antd';
+import { ArrowLeftRight, Bot } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { Pill } from '../components/Pills';
 import type {
@@ -125,12 +125,12 @@ export const AiSuggestion: React.FC<{ row: Product }> = ({ row }) => {
   return (
     <div style={{ display: 'grid', gap: 4, justifyItems: 'start' }}>
       <span style={{ fontWeight: 600, color: palette.ink }}>
-        <RobotOutlined style={{ color: palette.link, marginRight: 6 }} />
+        <Bot size="1em" style={{ color: palette.link, marginRight: 6 }} />
         {row.aiCategoryName}
       </span>
       {row.aiCategoryCross && (
         <Pill tone="orange">
-          <SwapOutlined /> 改一级品类
+          <ArrowLeftRight size="1em" /> 改一级品类
         </Pill>
       )}
     </div>

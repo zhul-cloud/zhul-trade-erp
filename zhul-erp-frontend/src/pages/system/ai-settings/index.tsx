@@ -1,19 +1,4 @@
 import {
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  EnterOutlined,
-  ExclamationCircleOutlined,
-  ExportOutlined,
-  HolderOutlined,
-  InfoCircleOutlined,
-  KeyOutlined,
-  LockOutlined,
-  ReloadOutlined,
-  RightOutlined,
-  RobotOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
-import {
   DndContext,
   type DragEndEvent,
   KeyboardSensor,
@@ -46,6 +31,21 @@ import {
   Switch,
   Typography,
 } from 'antd';
+import {
+  Bot,
+  ChevronRight,
+  CircleAlert,
+  CircleCheck,
+  Clock,
+  CornerDownLeft,
+  ExternalLink,
+  GripVertical,
+  Info,
+  KeyRound,
+  Lock,
+  RotateCw,
+  TriangleAlert,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { PageHeader } from '@/components/ListLayout';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
@@ -300,7 +300,7 @@ const ConnectionCard: React.FC<{
               touchAction: 'none',
             }}
           >
-            <HolderOutlined />
+            <GripVertical size="1em" />
           </button>
           <span
             style={{
@@ -589,7 +589,7 @@ const AiSettingsPage: React.FC = () => {
             title="AI 设置加载失败"
             subTitle="请检查网络后重试"
             extra={
-              <Button icon={<ReloadOutlined />} onClick={() => load()}>
+              <Button icon={<RotateCw size="1em" />} onClick={() => load()}>
                 重试
               </Button>
             }
@@ -640,21 +640,21 @@ const AiSettingsPage: React.FC = () => {
     { icon: React.ReactNode; fg: string; bg: string }
   > = {
     ok: {
-      icon: <CheckCircleOutlined />,
+      icon: <CircleCheck size="1em" />,
       fg: palette.green,
       bg: palette.greenSoft,
     },
     warn: {
-      icon: <WarningOutlined />,
+      icon: <TriangleAlert size="1em" />,
       fg: palette.orange,
       bg: palette.orangeSoft,
     },
     bad: {
-      icon: <ExclamationCircleOutlined />,
+      icon: <CircleAlert size="1em" />,
       fg: palette.red,
       bg: palette.redSoft,
     },
-    idle: { icon: <RobotOutlined />, fg: palette.mute, bg: palette.inset },
+    idle: { icon: <Bot size="1em" />, fg: palette.mute, bg: palette.inset },
   };
   const toneIcon = TONE_ICON[summary.tone];
   const chainColor = (c: AiConnection) => {
@@ -706,7 +706,8 @@ const AiSettingsPage: React.FC = () => {
                 return (
                   <React.Fragment key={connKey(c)}>
                     {i > 0 && (
-                      <RightOutlined
+                      <ChevronRight
+                        size="1em"
                         style={{ fontSize: 10, color: palette.faint }}
                       />
                     )}
@@ -769,7 +770,7 @@ const AiSettingsPage: React.FC = () => {
             rel="noreferrer"
           >
             去 {PROVIDER_META[c.provider].consoleName} 控制台创建{' '}
-            <ExportOutlined />
+            <ExternalLink size="1em" />
           </a>
         </span>
       }
@@ -779,7 +780,7 @@ const AiSettingsPage: React.FC = () => {
         autoComplete="off"
         spellCheck={false}
         autoFocus={editingKey === connKey(c)}
-        prefix={<KeyOutlined style={{ color: palette.faint }} />}
+        prefix={<KeyRound size="1em" style={{ color: palette.faint }} />}
         placeholder={`粘贴 ${PROVIDER_META[c.provider].name} 的 API Key`}
         suffix={
           c.hasKey && (
@@ -855,7 +856,7 @@ const AiSettingsPage: React.FC = () => {
             color: palette.orange,
           }}
         >
-          <ClockCircleOutlined style={{ marginTop: 3 }} />
+          <Clock size="1em" style={{ marginTop: 3 }} />
           {`${reasonLabel(c.pausedReason)}，${hm(c.pausedUntil)} 自动恢复；${
             c.mode === 'api'
               ? c.pausedReason === 'auth'
@@ -1040,7 +1041,7 @@ const AiSettingsPage: React.FC = () => {
                   borderTop: `1px solid ${palette.hairline}`,
                 }}
               >
-                <EnterOutlined /> 列表里没有的模型可直接输入名称
+                <CornerDownLeft size="1em" /> 列表里没有的模型可直接输入名称
               </div>
             </>
           )}
@@ -1067,7 +1068,7 @@ const AiSettingsPage: React.FC = () => {
           color: palette.sub,
         }}
       >
-        <ClockCircleOutlined style={{ color: palette.orange, marginTop: 3 }} />
+        <Clock size="1em" style={{ color: palette.orange, marginTop: 3 }} />
         <div>
           <div style={{ fontWeight: 600, color: palette.orange }}>
             暂停中 · {reasonLabel(sel.pausedReason)}
@@ -1097,7 +1098,7 @@ const AiSettingsPage: React.FC = () => {
       {sel?.settingsReadonly && (
         <span style={{ marginLeft: 'auto' }}>
           <Pill tone="gray">
-            <LockOutlined /> 由平台设置
+            <Lock size="1em" /> 由平台设置
           </Pill>
         </span>
       )}
@@ -1253,7 +1254,7 @@ const AiSettingsPage: React.FC = () => {
           color: palette.ink,
         }}
       >
-        <InfoCircleOutlined style={{ color: palette.link }} />
+        <Info size="1em" style={{ color: palette.link }} />
         {saveHint}
       </span>
       <span style={{ display: 'inline-flex', gap: 8 }}>

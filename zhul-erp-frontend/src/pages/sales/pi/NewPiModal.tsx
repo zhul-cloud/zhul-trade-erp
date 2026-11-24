@@ -1,10 +1,4 @@
 import {
-  CheckCircleFilled,
-  InfoCircleOutlined,
-  SearchOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
-import {
   Alert,
   App,
   Button,
@@ -14,6 +8,7 @@ import {
   Modal,
   Skeleton,
 } from 'antd';
+import { CircleCheck, Info, Search, TriangleAlert } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { EmptyState } from '@/components/EmptyState';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -274,7 +269,7 @@ const NewPiModal: React.FC<{
       <QuotationLines q={q} picked={picked} onChange={setPicked} />
       {quotationId && q.fees.length > 0 && (
         <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-          <InfoCircleOutlined /> 一并带入费用：
+          <Info size="1em" /> 一并带入费用：
           {q.fees
             .map(
               (f) => `${f.feeName} ${formatAmount(f.amount, q.currencyCode)}`,
@@ -347,7 +342,7 @@ const NewPiModal: React.FC<{
           <div style={{ display: 'grid', gap: 8, alignContent: 'start' }}>
             <Input
               allowClear
-              prefix={<SearchOutlined />}
+              prefix={<Search size="1em" />}
               placeholder="搜索客户"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
@@ -396,7 +391,10 @@ const NewPiModal: React.FC<{
                       >
                         {c.customerName}
                         {active && (
-                          <CheckCircleFilled style={{ color: palette.link }} />
+                          <CircleCheck
+                            size="1em"
+                            style={{ color: palette.link }}
+                          />
                         )}
                       </div>
                       <div style={{ fontSize: 12, color: palette.mute }}>
@@ -423,7 +421,7 @@ const NewPiModal: React.FC<{
               <Alert
                 type="warning"
                 showIcon
-                icon={<WarningOutlined />}
+                icon={<TriangleAlert size="1em" />}
                 title={`所选报价单币种不同（${currencies.join('、')}），请分开开 PI`}
               />
             )}

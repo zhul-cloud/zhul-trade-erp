@@ -1,12 +1,7 @@
-import {
-  BankOutlined,
-  FileTextOutlined,
-  PaperClipOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Form, Input, Select, Table } from 'antd';
-import { Search } from 'lucide-react';
+import { FileText, Landmark, Paperclip, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import { tableEmpty } from '@/components/EmptyState';
@@ -213,7 +208,7 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
             {r.pendingSlips.map((s) => (
               <div key={s.id}>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <FileTextOutlined style={{ color: palette.link }} />
+                  <FileText size="1em" style={{ color: palette.link }} />
                   <b style={num}>{formatAmount(s.amount, r.currencyCode)}</b>
                   <span style={{ fontSize: 12, color: palette.mute }}>
                     {s.receiptDate?.slice(5)}
@@ -232,7 +227,7 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
                       ).catch((e) => message.error((e as Error).message))
                     }
                   >
-                    <PaperClipOutlined /> {f.fileName}
+                    <Paperclip size="1em" /> {f.fileName}
                   </button>
                 ))}
               </div>
@@ -262,7 +257,7 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
         <Button
           size="small"
           type={r.pendingSlips.length > 0 ? 'primary' : 'default'}
-          icon={<BankOutlined />}
+          icon={<Landmark size="1em" />}
           loading={opening === rowKey(r)}
           onClick={() => openConfirm(r)}
         >

@@ -1,13 +1,13 @@
-import {
-  BellOutlined,
-  BulbOutlined,
-  CheckCircleOutlined,
-  CopyOutlined,
-  DownOutlined,
-  UpOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
 import { Button, Checkbox, Skeleton } from 'antd';
+import {
+  Bell,
+  ChevronDown,
+  ChevronUp,
+  CircleCheck,
+  Copy,
+  Lightbulb,
+  User,
+} from 'lucide-react';
 import React, { useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import type { Picked, SelectAll } from './Batch';
@@ -43,7 +43,7 @@ const Reminder: React.FC<{ item: FollowupItem }> = ({ item }) => {
   return (
     <div style={{ color: palette.ink, fontSize: 13 }}>
       <span style={{ color: palette.orange, marginRight: 6 }}>
-        {mine ? <UserOutlined /> : <BellOutlined />}
+        {mine ? <User size="1em" /> : <Bell size="1em" />}
       </span>
       <span style={{ color: palette.sub }}>
         {mine ? '我定的下一步：' : '系统提醒：'}
@@ -57,7 +57,7 @@ const Sop: React.FC<{ item: FollowupItem }> = ({ item }) => {
   const { palette } = useAppTheme();
   return item.sopHint ? (
     <div style={{ fontSize: 12, color: palette.link }}>
-      <BulbOutlined style={{ marginRight: 6 }} />
+      <Lightbulb size="1em" style={{ marginRight: 6 }} />
       SOP 建议：{item.sopHint}
     </div>
   ) : null;
@@ -139,9 +139,10 @@ const DocToggle: React.FC<{
         color: palette.sub,
       }}
     >
-      <CopyOutlined /> {count} 张单据到期{' '}
+      <Copy size="1em" /> {count} 张单据到期{' '}
       <span style={{ color: palette.link }}>
-        {open ? '收起' : '展开'} {open ? <UpOutlined /> : <DownOutlined />}
+        {open ? '收起' : '展开'}{' '}
+        {open ? <ChevronUp size="1em" /> : <ChevronDown size="1em" />}
       </span>
     </button>
   );
@@ -475,11 +476,11 @@ export const TodayList: React.FC<{
           fontSize: 13,
         }}
       >
-        <CheckCircleOutlined style={{ color: palette.green }} />
+        <CircleCheck size="1em" style={{ color: palette.green }} />
         <span style={{ flex: 1 }}>今天已跟进 {handled.length}</span>
         <span style={{ color: palette.link }}>
           {showHandled ? '收起' : '展开'}{' '}
-          {showHandled ? <UpOutlined /> : <DownOutlined />}
+          {showHandled ? <ChevronUp size="1em" /> : <ChevronDown size="1em" />}
         </span>
       </button>
       {showHandled && (
@@ -492,7 +493,8 @@ export const TodayList: React.FC<{
   if (empty)
     return (
       <Card style={{ padding: '32px 20px', textAlign: 'center' }}>
-        <CheckCircleOutlined
+        <CircleCheck
+          size="1em"
           style={{ fontSize: 28, color: palette.green, marginBottom: 8 }}
         />
         <div style={{ fontWeight: 600, color: palette.ink }}>
@@ -559,7 +561,7 @@ export const TodayList: React.FC<{
             再加载 {Math.min(TODAY_PAGE, totalRows - shownRows)} 个
             <span style={{ color: palette.mute }}>
               {' '}
-              · 还有 {totalRows - shownRows} 个 <DownOutlined />
+              · 还有 {totalRows - shownRows} 个 <ChevronDown size="1em" />
             </span>
           </Button>
         </div>

@@ -1,9 +1,4 @@
 import {
-  InfoCircleOutlined,
-  PaperClipOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
-import {
   Alert,
   App,
   Button,
@@ -16,6 +11,7 @@ import {
   Skeleton,
 } from 'antd';
 import dayjs from 'dayjs';
+import { Info, Paperclip, TriangleAlert } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { EmptyState } from '@/components/EmptyState';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -252,7 +248,8 @@ export const PlatformReceiptModal = <T extends ReceiptResult>({
       <FxEstimateHint currency={cur} />
       {after < 0 && amount != null && (
         <div style={{ marginTop: 12, fontSize: 13, color: palette.orange }}>
-          <WarningOutlined /> 多收 {formatAmount(-after, cur)}，将记为预收
+          <TriangleAlert size="1em" /> 多收 {formatAmount(-after, cur)}
+          ，将记为预收
         </div>
       )}
       <div style={{ marginTop: 12 }}>
@@ -424,7 +421,7 @@ export const ClaimReceiptModal = <T extends ReceiptResult>({
                         );
                       }}
                     >
-                      <PaperClipOutlined /> {name}
+                      <Paperclip size="1em" /> {name}
                     </button>
                   ))}
                 </div>
@@ -459,7 +456,7 @@ export const ClaimReceiptModal = <T extends ReceiptResult>({
         />
       )}
       <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
-        <InfoCircleOutlined /> 认领后按正常到账计入
+        <Info size="1em" /> 认领后按正常到账计入
         PI；认领错了请总经理在「收款管理」取消认领。
       </div>
     </Modal>

@@ -1,8 +1,7 @@
-import { SearchOutlined } from '@ant-design/icons';
 import { history, useAccess, useLocation } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Form, Input, Select, Table } from 'antd';
-import { PackageMinus, ScrollText, Undo2 } from 'lucide-react';
+import { PackageMinus, ScrollText, Search, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -403,7 +402,7 @@ const StocksPage: React.FC = () => {
             <Input
               aria-label="关键词"
               allowClear
-              prefix={<SearchOutlined />}
+              prefix={<Search size="1em" />}
               onPressEnter={() => form.submit()}
               placeholder="型号、品牌"
             />

@@ -1,6 +1,6 @@
-import { LockOutlined } from '@ant-design/icons';
 import { Helmet, history } from '@umijs/max';
 import { Alert, Button, Form, Input, Progress } from 'antd';
+import { Lock } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { AuthLayout } from '@/components';
 import { usePageTitle } from '@/components/Shell/BrandLogo';
@@ -155,7 +155,7 @@ const Step3: React.FC = () => {
         >
           <Input.Password
             size="large"
-            prefix={<LockOutlined />}
+            prefix={<Lock size="1em" />}
             placeholder="请输入新密码（8-32位，含字母和数字）"
             maxLength={32}
             autoFocus
@@ -207,7 +207,7 @@ const Step3: React.FC = () => {
         >
           <Input.Password
             size="large"
-            prefix={<LockOutlined />}
+            prefix={<Lock size="1em" />}
             placeholder="请再次输入新密码"
             maxLength={32}
           />

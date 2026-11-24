@@ -1,5 +1,5 @@
-import { LinkOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { App, Button, Input, Modal, Space, Spin } from 'antd';
+import { Link, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { Pill } from '../components/Pills';
 import {
@@ -155,7 +155,7 @@ const TariffModal: React.FC<{
         <Space>
           {canEdit && missing.length > 0 && (
             <Button
-              icon={<ThunderboltOutlined />}
+              icon={<Zap size="1em" />}
               loading={!!aiTask}
               onClick={startAi}
             >
@@ -231,7 +231,7 @@ const TariffModal: React.FC<{
                       rel="noreferrer"
                       title={r.source}
                     >
-                      <LinkOutlined />
+                      <Link size="1em" />
                     </a>
                   ) : undefined
                 }

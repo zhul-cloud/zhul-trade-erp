@@ -1,4 +1,3 @@
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import {
   App,
   Button,
@@ -12,6 +11,7 @@ import {
   Space,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Plus, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import {
   DICT_REFUND_REASON,
@@ -451,7 +451,7 @@ export const CreateAfterSalesModal: React.FC<{
                 {mode === 'none' && lines.length > 1 && (
                   <Button
                     type="text"
-                    icon={<DeleteOutlined />}
+                    icon={<Trash2 size="1em" />}
                     aria-label="删除这一行"
                     onClick={() =>
                       setLines((s) => s.filter((x) => x.key !== l.key))
@@ -464,7 +464,7 @@ export const CreateAfterSalesModal: React.FC<{
           {mode === 'none' && (
             <Button
               type="dashed"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               style={{ marginTop: 8 }}
               onClick={() =>
                 setLines((s) => [...s, { key: Date.now(), quantity: 1 }])
@@ -1252,7 +1252,7 @@ export const ReplacementModal: React.FC<{
               <Button
                 type="text"
                 size="small"
-                icon={<DeleteOutlined />}
+                icon={<Trash2 size="1em" />}
                 aria-label="删除配件"
                 onClick={() =>
                   setRows((rs) => rs.filter((x) => x.key !== r.key))
@@ -1263,7 +1263,7 @@ export const ReplacementModal: React.FC<{
         ))}
         <Button
           type="link"
-          icon={<PlusOutlined />}
+          icon={<Plus size="1em" />}
           style={{ padding: 0 }}
           onClick={() =>
             setRows((rs) => [

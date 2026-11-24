@@ -1,11 +1,6 @@
-import {
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  SendOutlined,
-  WalletOutlined,
-} from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import { App, Button, InputNumber, Modal } from 'antd';
+import { CircleCheck, Clock, Send, Wallet } from 'lucide-react';
 import React, { useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
@@ -84,7 +79,7 @@ const CreditInfo: React.FC<{
       {showCredit &&
         banner(
           'accent',
-          <WalletOutlined />,
+          <Wallet size="1em" />,
           <>已到账中余额抵扣 {formatAmount(credit.creditReceived, currency)}</>,
           '用客户余额付的部分，不需要财务确认，不参与结汇',
         )}
@@ -92,7 +87,7 @@ const CreditInfo: React.FC<{
         (credit.collectionTransferred
           ? banner(
               'violet',
-              <CheckCircleOutlined />,
+              <CircleCheck size="1em" />,
               <>
                 代收 {formatAmount(credit.collectionNet, currency)}{' '}
                 已转入客户余额
@@ -106,7 +101,7 @@ const CreditInfo: React.FC<{
               access['finance:refund:edit'] && access.financeCredits ? (
                 <Button
                   size="small"
-                  icon={<SendOutlined />}
+                  icon={<Send size="1em" />}
                   onClick={() => history.push('/finance/credits')}
                 >
                   转给客户
@@ -115,14 +110,14 @@ const CreditInfo: React.FC<{
             )
           : banner(
               'violet',
-              <ClockCircleOutlined />,
+              <Clock size="1em" />,
               <>代收 {formatAmount(credit.collection, currency)} 待收齐</>,
               '收款到齐后，扣除客户承担的平台手续费，自动转入客户余额',
             ))}
       {showOverpaid &&
         banner(
           'orange',
-          <ClockCircleOutlined />,
+          <Clock size="1em" />,
           <>客户多付 {formatAmount(credit.overpaidPending, currency)} 待处理</>,
           '多收的部分不算收入，由财务在「收款管理 → 待处理多收」转客户余额或退回客户',
           access.financeReceipts ? (
@@ -137,7 +132,7 @@ const CreditInfo: React.FC<{
       {canUse &&
         banner(
           'accent',
-          <WalletOutlined />,
+          <Wallet size="1em" />,
           <>客户有可用余额 {formatAmount(credit.available, currency)}</>,
           '可以用余额抵扣这张订单的待付金额',
           <Button

@@ -1,12 +1,3 @@
-import {
-  AppstoreOutlined,
-  BankOutlined,
-  InfoCircleOutlined,
-  LockOutlined,
-  PaperClipOutlined,
-  PhoneOutlined,
-  WalletOutlined,
-} from '@ant-design/icons';
 import { useAccess, useParams } from '@umijs/max';
 import {
   Alert,
@@ -22,6 +13,15 @@ import {
   Skeleton,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import {
+  Info,
+  Landmark,
+  LayoutGrid,
+  Lock,
+  Paperclip,
+  Phone,
+  Wallet,
+} from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { PageHeader } from '@/components/ListLayout';
@@ -376,7 +376,7 @@ const SupplierFormPage: React.FC = () => {
             />
           )}
 
-          <SectionCard icon={<InfoCircleOutlined />} title="基本信息">
+          <SectionCard icon={<Info size="1em" />} title="基本信息">
             <div style={grid}>
               <Form.Item
                 label="供应商编码"
@@ -392,7 +392,8 @@ const SupplierFormPage: React.FC = () => {
                   readOnly
                   className="num"
                   suffix={
-                    <LockOutlined
+                    <Lock
+                      size="1em"
                       aria-label="只读"
                       style={{ color: palette.mute }}
                     />
@@ -452,7 +453,7 @@ const SupplierFormPage: React.FC = () => {
             </div>
           </SectionCard>
 
-          <SectionCard icon={<BankOutlined />} title="工商信息">
+          <SectionCard icon={<Landmark size="1em" />} title="工商信息">
             <div style={grid}>
               <Form.Item
                 name="creditCode"
@@ -499,7 +500,7 @@ const SupplierFormPage: React.FC = () => {
             </div>
           </SectionCard>
 
-          <SectionCard icon={<PhoneOutlined />} title="联系信息">
+          <SectionCard icon={<Phone size="1em" />} title="联系信息">
             <div style={grid}>
               <Form.Item
                 name="contactName"
@@ -557,7 +558,7 @@ const SupplierFormPage: React.FC = () => {
             </div>
           </SectionCard>
 
-          <SectionCard icon={<WalletOutlined />} title="结算信息">
+          <SectionCard icon={<Wallet size="1em" />} title="结算信息">
             <Form.Item name="accounts" noStyle>
               <AccountListEditor supplierName={supplierName ?? ''} />
             </Form.Item>
@@ -594,11 +595,11 @@ const SupplierFormPage: React.FC = () => {
             </div>
           </SectionCard>
 
-          <SectionCard icon={<AppstoreOutlined />} title="主营产品">
+          <SectionCard icon={<LayoutGrid size="1em" />} title="主营产品">
             <ProductScopeEditor />
           </SectionCard>
 
-          <SectionCard icon={<PaperClipOutlined />} title="附件">
+          <SectionCard icon={<Paperclip size="1em" />} title="附件">
             <Form.Item name="attachments" noStyle>
               <AttachmentEditor supplierId={editing ? Number(id) : undefined} />
             </Form.Item>

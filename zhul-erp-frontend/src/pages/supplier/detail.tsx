@@ -1,15 +1,15 @@
-import {
-  AppstoreOutlined,
-  BankOutlined,
-  HistoryOutlined,
-  InfoCircleOutlined,
-  PaperClipOutlined,
-  PhoneOutlined,
-  WalletOutlined,
-} from '@ant-design/icons';
 import { history, useAccess, useParams } from '@umijs/max';
 import { Button, Skeleton } from 'antd';
-import { Pencil } from 'lucide-react';
+import {
+  History,
+  Info,
+  Landmark,
+  LayoutGrid,
+  Paperclip,
+  Pencil,
+  Phone,
+  Wallet,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
@@ -142,7 +142,7 @@ const SupplierDetailPage: React.FC = () => {
         : Number(record.registeredCapital).toFixed(2);
     body = (
       <>
-        <SectionCard icon={<InfoCircleOutlined />} title="基本信息">
+        <SectionCard icon={<Info size="1em" />} title="基本信息">
           <Grid>
             <Field label="供应商编码" mono>
               {record.supplierCode}
@@ -161,7 +161,7 @@ const SupplierDetailPage: React.FC = () => {
           </Grid>
         </SectionCard>
 
-        <SectionCard icon={<BankOutlined />} title="工商信息">
+        <SectionCard icon={<Landmark size="1em" />} title="工商信息">
           <Grid>
             <Field label="统一社会信用代码" mono>
               {record.creditCode}
@@ -176,7 +176,7 @@ const SupplierDetailPage: React.FC = () => {
           </Grid>
         </SectionCard>
 
-        <SectionCard icon={<PhoneOutlined />} title="联系信息">
+        <SectionCard icon={<Phone size="1em" />} title="联系信息">
           <Grid>
             <Field label="联系人">{record.contactName}</Field>
             <Field label="联系电话" mono>
@@ -193,7 +193,7 @@ const SupplierDetailPage: React.FC = () => {
           </Grid>
         </SectionCard>
 
-        <SectionCard icon={<WalletOutlined />} title="结算信息">
+        <SectionCard icon={<Wallet size="1em" />} title="结算信息">
           {record.accounts.length ? (
             <div style={{ display: 'grid', gap: 10 }}>
               {record.accounts.map((a) => (
@@ -216,11 +216,11 @@ const SupplierDetailPage: React.FC = () => {
           />
         </SectionCard>
 
-        <SectionCard icon={<AppstoreOutlined />} title="主营产品">
+        <SectionCard icon={<LayoutGrid size="1em" />} title="主营产品">
           <ScopeLines scopes={record.productScopes} />
         </SectionCard>
 
-        <SectionCard icon={<PaperClipOutlined />} title="附件">
+        <SectionCard icon={<Paperclip size="1em" />} title="附件">
           <AttachmentGroups
             supplierId={record.id}
             attachments={record.attachments}
@@ -228,7 +228,7 @@ const SupplierDetailPage: React.FC = () => {
           />
         </SectionCard>
 
-        <SectionCard icon={<HistoryOutlined />} title="系统信息">
+        <SectionCard icon={<History size="1em" />} title="系统信息">
           <Grid>
             <Field label="备注" full>
               {record.remark}

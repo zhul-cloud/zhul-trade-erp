@@ -1,8 +1,8 @@
-import { WarningOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Segmented, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { TriangleAlert } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import { tableEmpty } from '@/components/EmptyState';
@@ -386,7 +386,7 @@ const ProfitStatsPage: React.FC = () => {
               help: HELP.unsettled,
               value: summary.unsettledCount ? (
                 <Pill tone="orange">
-                  <WarningOutlined /> {summary.unsettledCount} 单
+                  <TriangleAlert size="1em" /> {summary.unsettledCount} 单
                 </Pill>
               ) : (
                 '0 单'

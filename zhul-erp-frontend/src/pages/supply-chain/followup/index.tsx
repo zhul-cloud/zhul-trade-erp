@@ -1,6 +1,6 @@
-import { EditOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { history, useSearchParams } from '@umijs/max';
 import { App, Button, Input, Segmented, Select } from 'antd';
+import { Pencil, Plus, Search } from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -515,7 +515,7 @@ const SupplyFollowupPage: React.FC = () => {
             {view === 'mine' && (
               <Input
                 allowClear
-                prefix={<SearchOutlined />}
+                prefix={<Search size="1em" />}
                 placeholder={flow === 'dev' ? '搜索品牌、品类' : '搜索型号'}
                 style={{ width: 220 }}
                 value={keywordInput}
@@ -545,7 +545,7 @@ const SupplyFollowupPage: React.FC = () => {
             )}
             {view === 'mine' && flow === 'intel' && canEdit && (
               <Button
-                icon={<PlusOutlined />}
+                icon={<Plus size="1em" />}
                 onClick={() => setSignalOpen(true)}
               >
                 录入信号
@@ -553,7 +553,7 @@ const SupplyFollowupPage: React.FC = () => {
             )}
             {view === 'mine' && flow === 'dev' && canDev && (
               <Button
-                icon={<PlusOutlined />}
+                icon={<Plus size="1em" />}
                 onClick={() => setExpansion(null)}
               >
                 加入主动拓展
@@ -562,7 +562,7 @@ const SupplyFollowupPage: React.FC = () => {
             {view === 'mine' && canEdit && flow !== 'dev' && (
               <Button
                 type="primary"
-                icon={<EditOutlined />}
+                icon={<Pencil size="1em" />}
                 onClick={() => setRecord({ demands: pickedDemands })}
               >
                 记一次处理

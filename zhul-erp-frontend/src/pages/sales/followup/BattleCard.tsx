@@ -1,7 +1,7 @@
-import { CopyOutlined, RobotOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { Alert, App, Button, Checkbox, Input, Skeleton } from 'antd';
 import dayjs from 'dayjs';
+import { Bot, Copy } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
@@ -361,7 +361,7 @@ const BattleCard: React.FC<{
         />
         <Button
           style={{ marginTop: 8 }}
-          icon={<RobotOutlined />}
+          icon={<Bot size="1em" />}
           loading={replying}
           onClick={writeReply}
           block
@@ -394,7 +394,7 @@ const BattleCard: React.FC<{
             <Button
               size="small"
               type="link"
-              icon={<CopyOutlined />}
+              icon={<Copy size="1em" />}
               onClick={copy}
               style={{ paddingLeft: 0 }}
             >

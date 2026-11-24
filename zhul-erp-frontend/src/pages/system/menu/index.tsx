@@ -1,16 +1,3 @@
-import {
-  AppstoreOutlined,
-  CopyOutlined,
-  EditOutlined,
-  EyeOutlined,
-  FolderOutlined,
-  LinkOutlined,
-  MenuOutlined,
-  PlusOutlined,
-  SafetyCertificateOutlined,
-  SettingOutlined,
-  ThunderboltOutlined,
-} from '@ant-design/icons';
 import type { ProColumns } from '@ant-design/pro-components';
 import {
   DrawerForm,
@@ -26,7 +13,23 @@ import {
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
 import { App, Button, Input, Space, Tag } from 'antd';
-import { Ban, CircleCheck, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import {
+  Ban,
+  CircleCheck,
+  Copy,
+  Eye,
+  Folder,
+  LayoutGrid,
+  Link,
+  Menu,
+  Pencil,
+  Plus,
+  Search,
+  Settings,
+  ShieldCheck,
+  Trash2,
+  Zap,
+} from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { MainCard, PageHeader, SummaryBar } from '@/components/ListLayout';
@@ -49,9 +52,9 @@ const typeMap: Record<
   number,
   { text: string; color: string; icon: React.ReactNode }
 > = {
-  1: { text: '目录', color: 'blue', icon: <FolderOutlined /> },
-  2: { text: '菜单', color: 'green', icon: <MenuOutlined /> },
-  3: { text: '按钮', color: 'orange', icon: <ThunderboltOutlined /> },
+  1: { text: '目录', color: 'blue', icon: <Folder size="1em" /> },
+  2: { text: '菜单', color: 'green', icon: <Menu size="1em" /> },
+  3: { text: '按钮', color: 'orange', icon: <Zap size="1em" /> },
 };
 
 const MICRO_APP_OPTIONS = [
@@ -423,7 +426,7 @@ const MenuPage: React.FC = () => {
             message.success('已复制');
           }}
         >
-          {record.code} <CopyOutlined style={{ fontSize: 12 }} />
+          {record.code} <Copy size="1em" style={{ fontSize: 12 }} />
         </span>
       ),
     },
@@ -466,7 +469,7 @@ const MenuPage: React.FC = () => {
           >
             {record.sort}
             {canEdit && (
-              <EditOutlined style={{ fontSize: 12, color: p.mute }} />
+              <Pencil size="1em" style={{ fontSize: 12, color: p.mute }} />
             )}
           </Space>
         ),
@@ -555,7 +558,7 @@ const MenuPage: React.FC = () => {
   const renderSections = (t: number) => (
     <>
       {t === 2 && (
-        <ProForm.Group title={groupTitle(<LinkOutlined />, '路由配置')}>
+        <ProForm.Group title={groupTitle(<Link size="1em" />, '路由配置')}>
           <ProFormText
             name="path"
             label="路由路径"
@@ -582,7 +585,7 @@ const MenuPage: React.FC = () => {
         </ProForm.Group>
       )}
       {(t === 1 || t === 2) && (
-        <ProForm.Group title={groupTitle(<EyeOutlined />, '显示配置')}>
+        <ProForm.Group title={groupTitle(<Eye size="1em" />, '显示配置')}>
           <ProFormText
             name="lightIcon"
             label="图标（浅色）"
@@ -623,7 +626,7 @@ const MenuPage: React.FC = () => {
       )}
       {t === 3 && (
         <ProForm.Group
-          title={groupTitle(<SafetyCertificateOutlined />, '权限标识')}
+          title={groupTitle(<ShieldCheck size="1em" />, '权限标识')}
         >
           <ProFormText
             name="permission"
@@ -635,7 +638,7 @@ const MenuPage: React.FC = () => {
           />
         </ProForm.Group>
       )}
-      <ProForm.Group title={groupTitle(<SettingOutlined />, '基础配置')}>
+      <ProForm.Group title={groupTitle(<Settings size="1em" />, '基础配置')}>
         <ProFormDigit
           name="sort"
           label="排序号"
@@ -660,7 +663,7 @@ const MenuPage: React.FC = () => {
           canAdd && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={openCreateTop}
             >
               新增顶级目录
@@ -769,7 +772,9 @@ const MenuPage: React.FC = () => {
         }
         drawerProps={{ destroyOnHidden: true }}
       >
-        <ProForm.Group title={groupTitle(<AppstoreOutlined />, '节点信息')}>
+        <ProForm.Group
+          title={groupTitle(<LayoutGrid size="1em" />, '节点信息')}
+        >
           {isEdit || lockType ? (
             <div style={{ marginBottom: 24, width: '100%' }}>
               <div style={{ fontSize: 13, marginBottom: 8 }}>资源类型</div>

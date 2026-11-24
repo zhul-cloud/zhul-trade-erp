@@ -1,5 +1,5 @@
-import { PlusOutlined, TeamOutlined } from '@ant-design/icons';
 import { App, Button, Checkbox, Form, Input, Modal, Radio } from 'antd';
+import { Plus, Users } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -298,7 +298,7 @@ const ContactsCard: React.FC<{
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <TeamOutlined style={{ color: palette.link }} />
+        <Users size="1em" style={{ color: palette.link }} />
         <h2
           style={{
             margin: 0,
@@ -314,7 +314,7 @@ const ContactsCard: React.FC<{
         {canEdit && (
           <Button
             size="small"
-            icon={<PlusOutlined />}
+            icon={<Plus size="1em" />}
             style={{ marginLeft: 'auto' }}
             onClick={() => setEditing('new')}
           >

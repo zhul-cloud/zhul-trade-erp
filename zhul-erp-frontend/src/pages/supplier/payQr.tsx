@@ -1,6 +1,6 @@
-import { PictureOutlined } from '@ant-design/icons';
 import { App, Button, Image, Popconfirm, Spin, Upload } from 'antd';
 import dayjs from 'dayjs';
+import { ImageIcon } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { UserName } from '@/components/UserName';
 import { ChannelIcon, PAY_CHANNEL_NAMES } from '@/pages/finance/payables/payQr';
@@ -169,7 +169,7 @@ const QrCard: React.FC<{
             {busy ? (
               <Spin size="small" />
             ) : (
-              <PictureOutlined style={{ fontSize: 20 }} />
+              <ImageIcon size="1em" style={{ fontSize: 20 }} />
             )}
             <div style={{ marginTop: 6, color: palette.ink }}>
               上传收款码图片

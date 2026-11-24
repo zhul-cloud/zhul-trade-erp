@@ -1,9 +1,8 @@
-import { DownloadOutlined } from '@ant-design/icons';
 import { history, Link } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Eye, Search } from 'lucide-react';
+import { Download, Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { tableEmpty } from '@/components/EmptyState';
@@ -313,7 +312,7 @@ const CostAdjustmentsPage: React.FC = () => {
           right={
             <Button
               type="text"
-              icon={<DownloadOutlined />}
+              icon={<Download size="1em" />}
               style={{ color: palette.link }}
               loading={exporting}
               disabled={total === 0}

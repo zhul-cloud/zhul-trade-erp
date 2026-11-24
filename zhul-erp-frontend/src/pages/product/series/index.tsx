@@ -1,4 +1,3 @@
-import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   ModalForm,
@@ -9,7 +8,7 @@ import {
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
 import { App, Button, Input, Select } from 'antd';
-import { Ban, CircleCheck, Pencil, Search, Trash2 } from 'lucide-react';
+import { Ban, CircleCheck, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
@@ -200,7 +199,7 @@ const SeriesPage: React.FC = () => {
           access['product:series:add'] && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => openForm(null)}
             >
               新增系列

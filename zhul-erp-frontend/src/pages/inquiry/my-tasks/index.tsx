@@ -1,18 +1,4 @@
 import {
-  CheckOutlined,
-  CopyOutlined,
-  DeleteOutlined,
-  DownOutlined,
-  ExportOutlined,
-  FireOutlined,
-  PlusOutlined,
-  RollbackOutlined,
-  SendOutlined,
-  SnippetsOutlined,
-  StarOutlined,
-  UndoOutlined,
-} from '@ant-design/icons';
-import {
   Alert,
   App,
   Button,
@@ -28,7 +14,21 @@ import {
   theme,
 } from 'antd';
 import dayjs from 'dayjs';
-import { Download, Upload } from 'lucide-react';
+import {
+  Check,
+  ChevronDown,
+  ClipboardList,
+  Copy,
+  Download,
+  ExternalLink,
+  Flame,
+  Plus,
+  Send,
+  Star,
+  Trash2,
+  Undo2,
+  Upload,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { actualModelStamp } from '@/components/DocFields/ActualModel';
@@ -1063,7 +1063,7 @@ const MyTasksPage: React.FC = () => {
                 <LevelPill value={detail.task.level} />
                 {detail.task.urgent && (
                   <Pill tone="red">
-                    <FireOutlined /> 紧急
+                    <Flame size="1em" /> 紧急
                   </Pill>
                 )}
                 {reviewingView && <Pill tone="cyan">审核中</Pill>}
@@ -1075,7 +1075,7 @@ const MyTasksPage: React.FC = () => {
                   {editable && (
                     <Button
                       size="small"
-                      icon={<SnippetsOutlined />}
+                      icon={<ClipboardList size="1em" />}
                       onClick={() => setPasteOpen(true)}
                     >
                       粘贴报价
@@ -1084,7 +1084,7 @@ const MyTasksPage: React.FC = () => {
                   {detail.items.length > 0 && (
                     <Space.Compact size="small">
                       <Button
-                        icon={<CopyOutlined />}
+                        icon={<Copy size="1em" />}
                         onClick={() => copyTaskScript(false)}
                       >
                         复制全部话术
@@ -1109,7 +1109,7 @@ const MyTasksPage: React.FC = () => {
                         }}
                       >
                         <Button
-                          icon={<DownOutlined />}
+                          icon={<ChevronDown size="1em" />}
                           aria-label="复制话术的更多选项"
                         />
                       </Dropdown>
@@ -1118,7 +1118,7 @@ const MyTasksPage: React.FC = () => {
                   {(!done || editable) && !reviewingView && (
                     <Button
                       size="small"
-                      icon={<RollbackOutlined />}
+                      icon={<Undo2 size="1em" />}
                       onClick={() => {
                         openReturn(detail.task);
                       }}
@@ -1138,7 +1138,7 @@ const MyTasksPage: React.FC = () => {
                   {editable && done && (
                     <Button
                       size="small"
-                      icon={<UndoOutlined />}
+                      icon={<Undo2 size="1em" />}
                       loading={busy}
                       onClick={withdraw}
                     >
@@ -1149,7 +1149,7 @@ const MyTasksPage: React.FC = () => {
                     <Button
                       size="small"
                       type="primary"
-                      icon={<SendOutlined />}
+                      icon={<Send size="1em" />}
                       loading={busy}
                       onClick={() => save(true)}
                     >
@@ -1401,7 +1401,7 @@ const MyTasksPage: React.FC = () => {
                         fontSize: 13,
                       }}
                     >
-                      <RollbackOutlined />
+                      <Undo2 size="1em" />
                       <span style={{ flex: 1 }}>被退回：{it.reviewNote}</span>
                       <span style={{ color: palette.mute, fontSize: 12 }}>
                         {it.reviewedByName}
@@ -1517,7 +1517,7 @@ const MyTasksPage: React.FC = () => {
                     </span>
                     <Button
                       size="small"
-                      icon={<CopyOutlined />}
+                      icon={<Copy size="1em" />}
                       onClick={() => copy(it.inquiryScript)}
                     >
                       复制话术
@@ -1552,7 +1552,7 @@ const MyTasksPage: React.FC = () => {
                             fontSize: 12,
                           }}
                         >
-                          <ExportOutlined /> {l.platform} ·{' '}
+                          <ExternalLink size="1em" /> {l.platform} ·{' '}
                           {i === 0 ? '精确型号' : kw}
                         </a>
                       )),
@@ -1768,9 +1768,9 @@ const MyTasksPage: React.FC = () => {
                                       }
                                       icon={
                                         d.recommended ? (
-                                          <CheckOutlined />
+                                          <Check size="1em" />
                                         ) : (
-                                          <StarOutlined />
+                                          <Star size="1em" />
                                         )
                                       }
                                       aria-pressed={!!d.recommended}
@@ -1808,7 +1808,7 @@ const MyTasksPage: React.FC = () => {
                                 type="text"
                                 danger={hoverDel === d.key}
                                 aria-label="删除这条报价"
-                                icon={<DeleteOutlined />}
+                                icon={<Trash2 size="1em" />}
                                 onMouseEnter={() => setHoverDel(d.key)}
                                 onMouseLeave={() => setHoverDel(undefined)}
                                 onClick={() => removeEntry(it.id, d.key, idx)}
@@ -2094,7 +2094,7 @@ const MyTasksPage: React.FC = () => {
                       <Button
                         block
                         type="dashed"
-                        icon={<PlusOutlined />}
+                        icon={<Plus size="1em" />}
                         onClick={() =>
                           patchItem(it.id, {
                             drafts: [...s.drafts, newEntry()],

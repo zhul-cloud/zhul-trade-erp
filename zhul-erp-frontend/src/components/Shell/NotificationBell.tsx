@@ -1,15 +1,15 @@
-import {
-  CodeSandboxOutlined,
-  FileTextOutlined,
-  SearchOutlined,
-  ShoppingCartOutlined,
-  WalletOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { App, Badge, Button, Drawer, Segmented, Spin } from 'antd';
 import dayjs from 'dayjs';
-import { Bell } from 'lucide-react';
+import {
+  Bell,
+  Box,
+  FileText,
+  Search,
+  ShoppingCart,
+  TriangleAlert,
+  Wallet,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { EmptyState } from '@/components/EmptyState';
 import {
@@ -29,23 +29,27 @@ type Tab = 'todo' | 'all';
 /** 节点图标与配色：询价主题色、采购信息色、收货成功色、差异与收款警告色、销售中性 */
 const nodeStyle = (node: string, p: Palette) => {
   if (node.startsWith('SOURCING') || node === 'INQUIRY_QUOTABLE') {
-    return { icon: <SearchOutlined />, color: p.link, bg: p.primarySoft };
+    return { icon: <Search size="1em" />, color: p.link, bg: p.primarySoft };
   }
   if (node === 'MODEL_DOUBT') {
-    return { icon: <SearchOutlined />, color: p.orange, bg: p.orangeSoft };
+    return { icon: <Search size="1em" />, color: p.orange, bg: p.orangeSoft };
   }
   if (node.startsWith('SO_') || node === 'PURCHASER_CHANGED') {
     return {
-      icon: <ShoppingCartOutlined />,
+      icon: <ShoppingCart size="1em" />,
       color: p.info,
       bg: p.infoSoft,
     };
   }
   if (node.startsWith('RECEIPT')) {
-    return { icon: <WalletOutlined />, color: p.orange, bg: p.orangeSoft };
+    return { icon: <Wallet size="1em" />, color: p.orange, bg: p.orangeSoft };
   }
   if (node === 'DISCREPANCY') {
-    return { icon: <WarningOutlined />, color: p.orange, bg: p.orangeSoft };
+    return {
+      icon: <TriangleAlert size="1em" />,
+      color: p.orange,
+      bg: p.orangeSoft,
+    };
   }
   if (
     node === 'SUPPLIER_SHIPPED' ||
@@ -53,9 +57,9 @@ const nodeStyle = (node: string, p: Palette) => {
     node === 'GOODS_RECEIVED' ||
     node === 'ORDER_READY'
   ) {
-    return { icon: <CodeSandboxOutlined />, color: p.green, bg: p.greenSoft };
+    return { icon: <Box size="1em" />, color: p.green, bg: p.greenSoft };
   }
-  return { icon: <FileTextOutlined />, color: p.mute, bg: p.inset };
+  return { icon: <FileText size="1em" />, color: p.mute, bg: p.inset };
 };
 
 const timeText = (t: string) => {

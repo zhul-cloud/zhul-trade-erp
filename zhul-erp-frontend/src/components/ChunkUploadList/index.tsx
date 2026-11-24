@@ -2,15 +2,16 @@
  * 分片直传的文件列表：选中即上传，显示进度；失败可「继续上传」，上传中可取消；
  * 选文件时超过单个上限、类型不支持、合计超限的直接拦下，不开始上传（spec system/file-attachment）。
  */
-import {
-  CloudOutlined,
-  ExclamationCircleOutlined,
-  FileExcelOutlined,
-  FileImageOutlined,
-  FilePdfOutlined,
-  StopOutlined,
-} from '@ant-design/icons';
+
 import { Button, Progress } from 'antd';
+import {
+  Ban,
+  CircleAlert,
+  Cloud,
+  FileImage,
+  FileSpreadsheet,
+  FileText,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
@@ -206,11 +207,11 @@ export const useChunkUploads = (
 
 const icon = (name: string) =>
   /\.(xlsx?|csv)$/i.test(name) ? (
-    <FileExcelOutlined />
+    <FileSpreadsheet size="1em" />
   ) : /\.pdf$/i.test(name) ? (
-    <FilePdfOutlined />
+    <FileText size="1em" />
   ) : (
-    <FileImageOutlined />
+    <FileImage size="1em" />
   );
 
 /** 文件行：上传中显示进度与「取消」，失败显示原因与「继续上传 / 移除」，拦下的只能「知道了」 */
@@ -280,10 +281,9 @@ export const ChunkUploadList: React.FC<{
           );
         }
         let lead = icon(i.name);
-        if (i.errorKind === 'cors') lead = <CloudOutlined />;
-        else if (i.status === 'blocked') lead = <StopOutlined />;
-        else if (i.errorKind === 'rejected')
-          lead = <ExclamationCircleOutlined />;
+        if (i.errorKind === 'cors') lead = <Cloud size="1em" />;
+        else if (i.status === 'blocked') lead = <Ban size="1em" />;
+        else if (i.errorKind === 'rejected') lead = <CircleAlert size="1em" />;
         return (
           <div
             key={i.key}

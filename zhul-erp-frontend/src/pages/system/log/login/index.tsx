@@ -1,4 +1,3 @@
-import { DownloadOutlined, LogoutOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
@@ -13,7 +12,7 @@ import {
   Tooltip,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Search } from 'lucide-react';
+import { Download, LogOut, Search } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { ellipsisRender } from '@/components/EllipsisText';
@@ -288,7 +287,7 @@ const LoginLogPage: React.FC = () => {
                 <Button
                   danger={selectedRowKeys.length > 0}
                   disabled={selectedRowKeys.length === 0}
-                  icon={<LogoutOutlined />}
+                  icon={<LogOut size="1em" />}
                   onClick={handleForceLogout}
                 >
                   强制下线
@@ -297,7 +296,7 @@ const LoginLogPage: React.FC = () => {
             )}
             <Button
               type="text"
-              icon={<DownloadOutlined />}
+              icon={<Download size="1em" />}
               style={{ color: p.link }}
               loading={exporting}
               onClick={handleExport}

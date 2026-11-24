@@ -1,8 +1,3 @@
-import {
-  PlusOutlined,
-  UploadOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   ModalForm,
@@ -16,7 +11,14 @@ import {
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
 import { App, Badge, Button, Form, Input, Tabs, Tag, Upload } from 'antd';
-import { Pencil, Search, Trash2 } from 'lucide-react';
+import {
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  TriangleAlert,
+  UploadIcon,
+} from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
@@ -105,7 +107,10 @@ const ImageUrlField: React.FC<{ name: string; allowEmpty?: boolean }> = ({
                   gap: 4,
                 }}
               >
-                <UploadOutlined spin={uploading} />
+                <UploadIcon
+                  size="1em"
+                  className={uploading ? 'zhul-spin' : undefined}
+                />
                 上传图片
               </span>
             </Upload>
@@ -433,7 +438,7 @@ const ConfigPage: React.FC = () => {
           canAdd && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => setCreateOpen(true)}
             >
               新增自定义配置
@@ -574,7 +579,7 @@ const ConfigPage: React.FC = () => {
               marginTop: 8,
             }}
           >
-            <WarningOutlined style={{ color: p.orange }} />
+            <TriangleAlert size="1em" style={{ color: p.orange }} />
             <span style={{ color: p.orange, fontSize: 12 }}>
               该配置修改后需重启服务生效
             </span>

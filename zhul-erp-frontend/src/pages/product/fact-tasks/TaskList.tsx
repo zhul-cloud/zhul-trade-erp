@@ -1,23 +1,19 @@
-import {
-  CheckOutlined,
-  CheckSquareOutlined,
-  DownloadOutlined,
-  SettingOutlined,
-  ThunderboltOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
 import { history, Link, useAccess, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Input, Select, Table } from 'antd';
 import {
   BadgeCheck,
+  Check,
   Download,
   Eye,
   History,
   Layers,
   Search,
+  Settings,
   Sparkles,
+  SquareCheck,
   Upload,
+  Zap,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
@@ -532,7 +528,7 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
             {!facts && (
               <Button
                 type="text"
-                icon={<SettingOutlined />}
+                icon={<Settings size="1em" />}
                 style={{ color: palette.link }}
                 onClick={() => setSettingsOpen(true)}
               >
@@ -541,7 +537,7 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
             )}
             <Button
               type="primary"
-              icon={<UploadOutlined />}
+              icon={<Upload size="1em" />}
               onClick={() => setUploadOpen(true)}
             >
               {facts ? '上传资料包' : '上传营销包'}
@@ -664,7 +660,7 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
             <>
               {canAi && (
                 <Button
-                  icon={<ThunderboltOutlined />}
+                  icon={<Zap size="1em" />}
                   disabled={
                     selected.length === 0 || selected.length > AI_MAX_BATCH
                   }
@@ -680,7 +676,7 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
               )}
               {facts ? (
                 <Button
-                  icon={<DownloadOutlined />}
+                  icon={<Download size="1em" />}
                   disabled={selected.length === 0}
                   loading={downloading === 'facts'}
                   onClick={() => download(selected)}
@@ -698,7 +694,7 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
               )}
               {facts && access['product:content:edit'] && (
                 <Button
-                  icon={<CheckOutlined />}
+                  icon={<Check size="1em" />}
                   disabled={selectedRows.length === 0}
                   onClick={() => setBatchVerify(selectedRows)}
                 >
@@ -707,7 +703,7 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
               )}
               {canAi && (
                 <Button
-                  icon={<CheckSquareOutlined />}
+                  icon={<SquareCheck size="1em" />}
                   disabled={selectedPending === 0}
                   title={
                     selected.length && !selectedPending

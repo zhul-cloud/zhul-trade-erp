@@ -1,10 +1,3 @@
-import {
-  CopyOutlined,
-  ExclamationCircleOutlined,
-  FileTextOutlined,
-  RightOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
 import { history, Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -18,7 +11,18 @@ import {
   Table,
   Tooltip,
 } from 'antd';
-import { CircleX, Ellipsis, Pencil, Plus, Trash2 } from 'lucide-react';
+import {
+  ChevronRight,
+  CircleAlert,
+  CircleX,
+  Copy,
+  Ellipsis,
+  FileText,
+  Pencil,
+  Plus,
+  Trash2,
+  User,
+} from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { ActualModelLine } from '@/components/DocFields/ActualModel';
@@ -529,7 +533,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
                     <Button
                       type="link"
                       size="small"
-                      icon={<CopyOutlined />}
+                      icon={<Copy size="1em" />}
                       style={{ padding: 0, height: 'auto' }}
                       onClick={() => copyShop(q.shopName as string)}
                     >
@@ -723,7 +727,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
                 >
                   <Button
                     type="primary"
-                    icon={<FileTextOutlined />}
+                    icon={<FileText size="1em" />}
                     disabled={busy || detail.items.length === 0}
                     onClick={() => goQuote()}
                   >
@@ -808,7 +812,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
         <Alert
           type="warning"
           showIcon
-          icon={<ExclamationCircleOutlined />}
+          icon={<CircleAlert size="1em" />}
           style={{ marginBottom: 16 }}
           title="采购以「型号存疑」退回了询价任务，请核实型号后告知采购负责人重新分配"
           description={detail.tasks
@@ -849,7 +853,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
           )}
           action={
             <Link to="/system/ai-settings">
-              查看 AI 设置 <RightOutlined />
+              查看 AI 设置 <ChevronRight size="1em" />
             </Link>
           }
         />
@@ -1123,7 +1127,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
                   fontSize: 12,
                 }}
               >
-                <UserOutlined />
+                <User size="1em" />
                 {t.assigneeNames.length
                   ? t.assigneeNames.join(' + ')
                   : '待分配'}

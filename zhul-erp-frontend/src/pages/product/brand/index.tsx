@@ -1,4 +1,3 @@
-import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   ModalForm,
@@ -11,7 +10,7 @@ import {
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
 import { App, Button, Input, Select, Space, Tabs, Tooltip } from 'antd';
-import { Ban, CircleCheck, Pencil, Search, Trash2 } from 'lucide-react';
+import { Ban, CircleCheck, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { tableEmpty } from '@/components/EmptyState';
@@ -346,7 +345,7 @@ const BrandPage: React.FC = () => {
           access['product:brand:add'] && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => openForm(null)}
             >
               新增品牌

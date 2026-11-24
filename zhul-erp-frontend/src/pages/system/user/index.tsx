@@ -1,8 +1,3 @@
-import {
-  ApartmentOutlined,
-  KeyOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   ModalForm,
@@ -30,9 +25,11 @@ import {
   Ban,
   CircleCheck,
   KeyRound,
+  Network,
   Pencil,
   Search,
   Trash2,
+  User,
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
@@ -214,7 +211,7 @@ const UserPage: React.FC = () => {
   // username 记入各表的创建人 / 更新人（varchar(32)），最长 32
   const renderFormItems = (isCreate: boolean) => (
     <>
-      <ProForm.Group title={groupTitle(<UserOutlined />, '基础信息')}>
+      <ProForm.Group title={groupTitle(<User size="1em" />, '基础信息')}>
         {isCreate && (
           <ProFormText
             name="username"
@@ -256,7 +253,7 @@ const UserPage: React.FC = () => {
           fieldProps={{ maxLength: 64 }}
         />
       </ProForm.Group>
-      <ProForm.Group title={groupTitle(<ApartmentOutlined />, '组织信息')}>
+      <ProForm.Group title={groupTitle(<Network size="1em" />, '组织信息')}>
         <ProFormTreeSelect
           name="deptId"
           label="所属部门"
@@ -281,7 +278,7 @@ const UserPage: React.FC = () => {
           rules={[{ required: true, message: '请选择角色' }]}
         />
       </ProForm.Group>
-      <ProForm.Group title={groupTitle(<KeyOutlined />, '账号设置')}>
+      <ProForm.Group title={groupTitle(<KeyRound size="1em" />, '账号设置')}>
         {isCreate && (
           <ProFormText.Password
             name="password"

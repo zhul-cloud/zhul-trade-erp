@@ -1,12 +1,7 @@
-import {
-  ArrowDownOutlined,
-  ArrowUpOutlined,
-  ThunderboltOutlined,
-} from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Form, Modal, Radio, Select, Switch, Table } from 'antd';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Pencil, Plus, Trash2, Zap } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import BrandCategoryPicker from '@/components/BrandCategoryPicker';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
@@ -136,7 +131,7 @@ const AssignRulesPage: React.FC = () => {
                 size="small"
                 type="text"
                 aria-label="上移"
-                icon={<ArrowUpOutlined />}
+                icon={<ArrowUp size="1em" />}
                 disabled={i === 0}
                 onClick={() => move(i, -1)}
               />
@@ -144,7 +139,7 @@ const AssignRulesPage: React.FC = () => {
                 size="small"
                 type="text"
                 aria-label="下移"
-                icon={<ArrowDownOutlined />}
+                icon={<ArrowDown size="1em" />}
                 disabled={i === (rules?.length ?? 0) - 1}
                 onClick={() => move(i, 1)}
               />
@@ -268,7 +263,7 @@ const AssignRulesPage: React.FC = () => {
               fontSize: 18,
             }}
           >
-            <ThunderboltOutlined />
+            <Zap size="1em" />
           </span>
           <span style={{ display: 'grid' }}>
             <span style={{ color: palette.ink, fontWeight: 600 }}>

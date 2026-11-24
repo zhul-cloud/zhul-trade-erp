@@ -1,11 +1,3 @@
-import {
-  CheckCircleFilled,
-  CloseCircleFilled,
-  EditOutlined,
-  FileTextOutlined,
-  InboxOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
 import XMarkdown from '@ant-design/x-markdown';
 import { useAccess } from '@umijs/max';
 import {
@@ -23,6 +15,14 @@ import {
   Tooltip,
   Upload,
 } from 'antd';
+import {
+  CircleCheck,
+  CircleX,
+  FileText,
+  Inbox,
+  Pencil,
+  UploadIcon,
+} from 'lucide-react';
 import '@ant-design/x-markdown/es/XMarkdown/index.css';
 import React, { useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
@@ -383,7 +383,7 @@ export const UploadDrawer: React.FC<{
             <Button
               type="text"
               size="small"
-              icon={<EditOutlined />}
+              icon={<Pencil size="1em" />}
               onClick={() => {
                 setDraft(b.raw);
                 setEditing(b);
@@ -448,7 +448,7 @@ export const UploadDrawer: React.FC<{
                 <Button danger>放弃结果</Button>
               </Popconfirm>
             ) : (
-              <Button icon={<UploadOutlined />} onClick={reset}>
+              <Button icon={<UploadIcon size="1em" />} onClick={reset}>
                 重新选择文件
               </Button>
             )}
@@ -510,9 +510,9 @@ export const UploadDrawer: React.FC<{
                 }}
               >
                 {it.success ? (
-                  <CheckCircleFilled style={{ color: palette.green }} />
+                  <CircleCheck size="1em" style={{ color: palette.green }} />
                 ) : (
-                  <CloseCircleFilled style={{ color: palette.red }} />
+                  <CircleX size="1em" style={{ color: palette.red }} />
                 )}
                 <div>
                   <b style={{ color: palette.ink }}>{it.fileName}</b>
@@ -570,7 +570,7 @@ export const UploadDrawer: React.FC<{
                     fontSize: 13,
                   }}
                 >
-                  <FileTextOutlined /> {f.fileName}
+                  <FileText size="1em" /> {f.fileName}
                   <button
                     type="button"
                     className="zhul-link"
@@ -608,7 +608,7 @@ export const UploadDrawer: React.FC<{
             }}
           >
             <p className="ant-upload-drag-icon">
-              <InboxOutlined />
+              <Inbox size="1em" />
             </p>
             <p className="ant-upload-text">
               {loading ? '正在解析…' : '点击或拖入 Markdown 文件'}
@@ -672,7 +672,8 @@ export const UploadDrawer: React.FC<{
                       color: palette.ink,
                     }}
                   >
-                    <FileTextOutlined
+                    <FileText
+                      size="1em"
                       style={{ color: on ? palette.link : palette.mute }}
                     />
                     <span style={{ flex: 1, minWidth: 0 }}>

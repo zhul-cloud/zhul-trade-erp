@@ -1,4 +1,3 @@
-import { BulbOutlined, CrownOutlined, FlagOutlined } from '@ant-design/icons';
 import {
   App,
   Button,
@@ -9,6 +8,7 @@ import {
   Progress,
   Skeleton,
 } from 'antd';
+import { Crown, Flag, Lightbulb } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import NewInquiryModal from '@/pages/inquiry/customer-inquiry/NewInquiryModal';
 import { inquiryApi } from '@/pages/inquiry/shared/service';
@@ -304,7 +304,7 @@ export const AccountPanel: React.FC<{
       {/* 触达理由 */}
       <Box tone="green">
         <div style={{ fontWeight: 600, color: palette.green, marginBottom: 4 }}>
-          <BulbOutlined /> 这次的触达理由（系统推测）
+          <Lightbulb size="1em" /> 这次的触达理由（系统推测）
         </div>
         <ul style={{ margin: 0, paddingLeft: 18 }}>
           {card.reason && <li>{card.reason}</li>}
@@ -351,7 +351,7 @@ export const AccountPanel: React.FC<{
             }}
           >
             <span style={{ fontWeight: 600, color: palette.ink }}>
-              <CrownOutlined /> 年度计划 · {plan?.planYear}
+              <Crown size="1em" /> 年度计划 · {plan?.planYear}
             </span>
             <span style={{ flex: 1 }} />
             <Button
@@ -416,7 +416,7 @@ export const AccountPanel: React.FC<{
         <Box tone="inset">
           {card.suggestStrategic && (
             <div style={{ color: palette.info, marginBottom: 4 }}>
-              <CrownOutlined /> S 级客户，建议设为战略客户：每 90
+              <Crown size="1em" /> S 级客户，建议设为战略客户：每 90
               天季度回顾，填写年度计划
             </div>
           )}
@@ -440,7 +440,7 @@ export const AccountPanel: React.FC<{
           margin: '14px 0 6px',
         }}
       >
-        <FlagOutlined /> 发现需求就建询盘
+        <Flag size="1em" /> 发现需求就建询盘
       </div>
       <div style={{ fontSize: 13, color: palette.sub }}>
         客户提到具体型号、数量或项目 → 点「建询盘」，这笔需求进入「商机成交 ·

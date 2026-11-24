@@ -1,9 +1,5 @@
-import {
-  CloseOutlined,
-  FilePdfOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
 import { App, Upload } from 'antd';
+import { FileText, Plus, X } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { Pill } from '@/pages/crm/opportunity/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -49,7 +45,7 @@ const RemoveButton: React.FC<{ name: string; onClick: () => void }> = ({
       placeItems: 'center',
     }}
   >
-    <CloseOutlined />
+    <X size="1em" />
   </button>
 );
 
@@ -190,7 +186,10 @@ const NameplateUploader: React.FC<{
               }}
             >
               {isPdf(p.fileName) && (
-                <FilePdfOutlined style={{ fontSize: 24, color: palette.red }} />
+                <FileText
+                  size="1em"
+                  style={{ fontSize: 24, color: palette.red }}
+                />
               )}
             </div>
             <span
@@ -237,7 +236,7 @@ const NameplateUploader: React.FC<{
                 fontSize: 12,
               }}
             >
-              <PlusOutlined />
+              <Plus size="1em" />
               {uploading > 0 ? `上传中 ${uploading}` : '添加铭牌'}
             </button>
           </Upload>

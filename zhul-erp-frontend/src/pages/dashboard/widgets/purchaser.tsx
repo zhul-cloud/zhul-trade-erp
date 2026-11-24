@@ -1,8 +1,14 @@
-import { RightOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { Button, Tooltip } from 'antd';
 import dayjs from 'dayjs';
-import { FileCheck, Inbox, Send, TriangleAlert, Truck } from 'lucide-react';
+import {
+  ChevronRight,
+  FileCheck,
+  Inbox,
+  Send,
+  TriangleAlert,
+  Truck,
+} from 'lucide-react';
 import React from 'react';
 import { LevelPill, Pill } from '@/pages/inquiry/shared/components';
 import { formatMinutes, PATHS } from '@/pages/inquiry/shared/constants';
@@ -69,7 +75,7 @@ const TaskRow: React.FC<{ task: MyTask }> = ({ task: t }) => {
           ? `已超时 ${formatMinutes(t.remainingMinutes)}`
           : `剩 ${formatMinutes(t.remainingMinutes)}`}
       </span>
-      <RightOutlined style={{ color: palette.faint, fontSize: 12 }} />
+      <ChevronRight size="1em" style={{ color: palette.faint, fontSize: 12 }} />
     </button>
   );
 };

@@ -1,5 +1,5 @@
-import { MoonOutlined, SunOutlined } from '@ant-design/icons';
 import { Button, Tooltip } from 'antd';
+import { Moon, Sun } from 'lucide-react';
 import React from 'react';
 import { SkipLink } from '@/components/Shell/SkipLink';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -44,7 +44,7 @@ export const InlineThemeToggle: React.FC = () => {
     <Tooltip title={label}>
       <Button
         aria-label={label}
-        icon={mode === 'dark' ? <SunOutlined /> : <MoonOutlined />}
+        icon={mode === 'dark' ? <Sun size="1em" /> : <Moon size="1em" />}
         onClick={toggle}
       />
     </Tooltip>

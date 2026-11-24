@@ -1,12 +1,12 @@
-import {
-  CloseOutlined,
-  FilePdfOutlined,
-  LoadingOutlined,
-  PictureOutlined,
-  PlayCircleOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
 import { App, Checkbox, Input, Modal, Spin, Upload } from 'antd';
+import {
+  CirclePlay,
+  FileText,
+  Image,
+  LoaderCircle,
+  Plus,
+  X,
+} from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
@@ -371,11 +371,11 @@ export const MediaTile: React.FC<{
         {!thumb && (
           <span style={{ display: 'grid', placeItems: 'center', gap: 2 }}>
             {video ? (
-              <PlayCircleOutlined style={{ fontSize: 22 }} />
+              <CirclePlay size="1em" style={{ fontSize: 22 }} />
             ) : file ? (
-              <FilePdfOutlined style={{ fontSize: 22 }} />
+              <FileText size="1em" style={{ fontSize: 22 }} />
             ) : (
-              <PictureOutlined style={{ fontSize: 20 }} />
+              <Image size="1em" style={{ fontSize: 20 }} />
             )}
             {label && <span style={{ fontSize: 11 }}>{label}</span>}
           </span>
@@ -430,7 +430,7 @@ export const MediaTile: React.FC<{
             padding: 0,
           }}
         >
-          <CloseOutlined />
+          <X size="1em" />
         </button>
       )}
     </div>
@@ -555,7 +555,11 @@ export const UploadTile: React.FC<{
               : { display: 'grid', placeItems: 'center', gap: 2 }
           }
         >
-          {busy > 0 ? <LoadingOutlined /> : <PlusOutlined />}
+          {busy > 0 ? (
+            <LoaderCircle size="1em" className="zhul-spin" />
+          ) : (
+            <Plus size="1em" />
+          )}
           {label && (busy > 0 ? `上传中 ${busy}` : label)}
         </span>
       </button>
@@ -616,12 +620,12 @@ export const AttachmentCount: React.FC<{
       <span style={{ color: palette.link, whiteSpace: 'nowrap' }}>
         {img > 0 && (
           <>
-            <PictureOutlined /> {img}{' '}
+            <Image size="1em" /> {img}{' '}
           </>
         )}
         {vid > 0 && (
           <>
-            <PlayCircleOutlined /> {vid}
+            <CirclePlay size="1em" /> {vid}
           </>
         )}
       </span>
@@ -629,7 +633,7 @@ export const AttachmentCount: React.FC<{
   }
   return count ? (
     <span style={{ color: palette.link }}>
-      <PictureOutlined /> {count}
+      <Image size="1em" /> {count}
     </span>
   ) : (
     <span style={{ color: palette.mute }}>—</span>

@@ -1,9 +1,8 @@
-import { InboxOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, DatePicker, Input, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
-import { Eye } from 'lucide-react';
+import { Eye, Inbox, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
@@ -121,7 +120,7 @@ const PendingPanel: React.FC<{ canEdit: boolean; version: number }> = ({
           marginBottom: 12,
         }}
       >
-        <InboxOutlined style={{ color: palette.link }} />
+        <Inbox size="1em" style={{ color: palette.link }} />
         <b style={{ color: palette.ink }}>
           待出运的货（已交货代，还没放进出运单）
         </b>
@@ -183,7 +182,7 @@ const PendingPanel: React.FC<{ canEdit: boolean; version: number }> = ({
                   <Button
                     type="primary"
                     size="small"
-                    icon={<PlusOutlined />}
+                    icon={<Plus size="1em" />}
                     disabled={n === 0}
                     loading={busy === key}
                     onClick={() => create(g)}
@@ -554,7 +553,7 @@ const Shipments: React.FC = () => {
         >
           <Input
             allowClear
-            prefix={<SearchOutlined />}
+            prefix={<Search size="1em" />}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             onPressEnter={apply}

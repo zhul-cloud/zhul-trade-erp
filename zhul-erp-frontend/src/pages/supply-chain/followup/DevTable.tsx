@@ -1,7 +1,7 @@
-import { DownOutlined, PlusOutlined, RightOutlined } from '@ant-design/icons';
 import { Link } from '@umijs/max';
 import { Button, Skeleton } from 'antd';
 import dayjs from 'dayjs';
+import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import React, { useState } from 'react';
 import { EmptyState } from '@/components/EmptyState';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -276,9 +276,9 @@ const GroupRow: React.FC<
         }}
       >
         {open ? (
-          <DownOutlined style={{ fontSize: 11 }} />
+          <ChevronDown size="1em" style={{ fontSize: 11 }} />
         ) : (
-          <RightOutlined style={{ fontSize: 11 }} />
+          <ChevronRight size="1em" style={{ fontSize: 11 }} />
         )}
         <span style={{ display: 'grid', gap: 2 }}>
           <b>{scopeName(g)}</b>
@@ -374,7 +374,7 @@ const GroupRow: React.FC<
                   <Button
                     type="link"
                     size="small"
-                    icon={<PlusOutlined />}
+                    icon={<Plus size="1em" />}
                     style={{ padding: 0 }}
                     onClick={() => onCandidate(g)}
                   >

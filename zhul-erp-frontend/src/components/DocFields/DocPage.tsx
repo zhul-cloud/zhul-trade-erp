@@ -1,6 +1,6 @@
-import { RightOutlined } from '@ant-design/icons';
 import { Link } from '@umijs/max';
 import { Button, Modal, Table } from 'antd';
+import { ChevronRight } from 'lucide-react';
 import React, { useState } from 'react';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
@@ -122,7 +122,8 @@ export const RelatedDocsCard: React.FC<{
                   <Pill tone={d.tone ?? 'gray'}>{d.statusName}</Pill>
                 )}
                 {d.href && (
-                  <RightOutlined
+                  <ChevronRight
+                    size="1em"
                     style={{ color: palette.mute, fontSize: 11 }}
                   />
                 )}

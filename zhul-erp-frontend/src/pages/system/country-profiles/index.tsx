@@ -1,4 +1,3 @@
-import { PlusOutlined } from '@ant-design/icons';
 import { useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -12,7 +11,7 @@ import {
   Select,
   Table,
 } from 'antd';
-import { FilePlus2, Pencil, Search } from 'lucide-react';
+import { FilePlus2, Pencil, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -337,7 +336,7 @@ const CountryProfilesPage: React.FC = () => {
         extra={
           <Button
             type="primary"
-            icon={<PlusOutlined />}
+            icon={<Plus size="1em" />}
             onClick={() => setEditing('new')}
           >
             新增国家

@@ -1,9 +1,5 @@
-import {
-  ClockCircleOutlined,
-  SendOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
 import { App, Button, Checkbox, Skeleton } from 'antd';
+import { Clock, Send, User } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -146,7 +142,7 @@ const SalesPending: React.FC<{
             <Button
               type="primary"
               size="small"
-              icon={<UserOutlined />}
+              icon={<User size="1em" />}
               loading={busy}
               onClick={() => claim(selected)}
             >
@@ -154,7 +150,7 @@ const SalesPending: React.FC<{
             </Button>
             <Button
               size="small"
-              icon={<SendOutlined />}
+              icon={<Send size="1em" />}
               loading={busy}
               onClick={() => transfer(selected)}
             >
@@ -265,8 +261,8 @@ const SalesPending: React.FC<{
                           color: soon ? palette.red : palette.sub,
                         }}
                       >
-                        <ClockCircleOutlined />{' '}
-                        {formatMinutes(t.remainingMinutes)}后转给采购
+                        <Clock size="1em" /> {formatMinutes(t.remainingMinutes)}
+                        后转给采购
                       </span>
                     </div>
                     <span style={{ display: 'inline-flex', gap: 6 }}>

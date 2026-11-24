@@ -1,12 +1,7 @@
-import {
-  CodeSandboxOutlined,
-  HomeOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
 import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Form, Input, Modal, Select, Skeleton, Table } from 'antd';
-import { Boxes, Pencil } from 'lucide-react';
+import { Box, Boxes, House, Pencil, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { FilterField, MainCard, PageHeader } from '@/components/ListLayout';
@@ -26,13 +21,13 @@ const MODES = [
   {
     value: 'dropship',
     label: '无货源',
-    icon: <CodeSandboxOutlined />,
+    icon: <Box size="1em" />,
     hint: '货都是为订单采购的。交货代时库存不够，自动补一笔「系统外入库」，不拦业务。',
   },
   {
     value: 'stock',
     label: '库存模式',
-    icon: <HomeOutlined />,
+    icon: <House size="1em" />,
     hint: '有备货。交货代时库存不够，提示库存不足，不能交货代。',
   },
 ];
@@ -302,7 +297,7 @@ const WarehousesPage: React.FC = () => {
             <Input
               aria-label="关键词"
               allowClear
-              prefix={<SearchOutlined />}
+              prefix={<Search size="1em" />}
               onPressEnter={() => form.submit()}
               placeholder="仓库名称、编码"
             />

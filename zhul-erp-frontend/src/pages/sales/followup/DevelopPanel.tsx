@@ -1,4 +1,3 @@
-import { FlagOutlined, RetweetOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import {
   Alert,
@@ -12,6 +11,7 @@ import {
   Select,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Flag, Repeat } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { getUserOptions } from '@/services/zhul/users';
@@ -143,7 +143,7 @@ export const DevelopSequence: React.FC<{ card?: DevelopCard }> = ({ card }) => {
       }}
     >
       <div style={{ fontWeight: 600, fontSize: 13, color: palette.ink }}>
-        <RetweetOutlined style={{ color: palette.info }} /> 跟进序列（第{' '}
+        <Repeat size="1em" style={{ color: palette.info }} /> 跟进序列（第{' '}
         {card.sequence.join(' / ')} 天 · 已发 {card.touchCount ?? 0} 封）
       </div>
       <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 12 }}>
@@ -186,7 +186,7 @@ export const DevelopActions: React.FC<{
   return (
     <div style={{ marginTop: 14 }}>
       <div style={{ fontWeight: 600, fontSize: 13, color: palette.ink }}>
-        <FlagOutlined style={{ color: palette.info }} /> 出现采购信号就建商机
+        <Flag size="1em" style={{ color: palette.info }} /> 出现采购信号就建商机
       </div>
       <div style={{ fontSize: 12, color: palette.sub, margin: '4px 0 8px' }}>
         客户问到具体型号、数量、价格或交期时点「转为商机」：新建 S1

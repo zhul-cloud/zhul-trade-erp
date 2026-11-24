@@ -1,13 +1,7 @@
-import {
-  DownloadOutlined,
-  InfoCircleOutlined,
-  LockOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
 import { history, Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Input, Select, Skeleton, Table, Tabs } from 'antd';
-import { LockOpen } from 'lucide-react';
+import { Download, Info, Lock, LockOpen, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { MoreActions, PageHeader } from '@/components/ListLayout';
@@ -162,7 +156,7 @@ const LedgerTab: React.FC<{ month: string }> = ({ month }) => {
         />
         <Input.Search
           allowClear
-          prefix={<SearchOutlined />}
+          prefix={<Search size="1em" />}
           placeholder="型号、品牌"
           style={{ width: 260 }}
           onSearch={(v) => {
@@ -325,7 +319,7 @@ const CogsTab: React.FC<{ month: string }> = ({ month }) => {
           key={`${r.soItemId}-${r.docId}`}
           style={{ color: palette.sub, fontSize: 13, marginTop: 8 }}
         >
-          <InfoCircleOutlined style={{ color: palette.link, marginRight: 6 }} />
+          <Info size="1em" style={{ color: palette.link, marginRight: 6 }} />
           {r.model} 的 {r.systemQty} 个来自系统外入库，成本为
           0；订单成本按采购订单单价计
         </div>
@@ -490,7 +484,7 @@ const PeriodDetail: React.FC = () => {
           <>
             <Button
               type="text"
-              icon={<DownloadOutlined />}
+              icon={<Download size="1em" />}
               style={{ color: palette.link }}
               loading={exporting}
               onClick={async () => {
@@ -522,7 +516,7 @@ const PeriodDetail: React.FC = () => {
             {!closed && access['inventory:period:close'] && (
               <Button
                 type="primary"
-                icon={<LockOutlined />}
+                icon={<Lock size="1em" />}
                 disabled={!p.closable}
                 title={p.closable ? undefined : p.closeBlock}
                 onClick={() => setClosing(true)}
@@ -542,7 +536,8 @@ const PeriodDetail: React.FC = () => {
                 key={r}
                 style={{ color: palette.sub, fontSize: 13, marginTop: 4 }}
               >
-                <InfoCircleOutlined
+                <Info
+                  size="1em"
                   style={{ color: palette.orange, marginRight: 6 }}
                 />
                 {r}

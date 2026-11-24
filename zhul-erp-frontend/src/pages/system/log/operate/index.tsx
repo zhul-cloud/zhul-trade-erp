@@ -1,4 +1,3 @@
-import { DownloadOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
 import {
@@ -13,7 +12,7 @@ import {
   Tag,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Eye, Search } from 'lucide-react';
+import { Download, Eye, Search } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -313,7 +312,7 @@ const OperateLogPage: React.FC = () => {
         right={
           <Button
             type="text"
-            icon={<DownloadOutlined />}
+            icon={<Download size="1em" />}
             style={{ color: p.link }}
             loading={exporting}
             onClick={handleExport}

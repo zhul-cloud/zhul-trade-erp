@@ -1,12 +1,6 @@
-import {
-  CheckCircleFilled,
-  CloseOutlined,
-  MoonOutlined,
-  SunOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
 import { history, useModel, useSearchParams } from '@umijs/max';
 import { App, Button, Form, Input, Modal, Select } from 'antd';
+import { CircleCheck, Moon, Sun, Upload, X } from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -583,7 +577,7 @@ const WizardInner: React.FC = () => {
         <Button
           type="text"
           aria-label="关闭并退出新建"
-          icon={<CloseOutlined />}
+          icon={<X size="1em" />}
           onClick={close}
           style={{ color: palette.sub }}
         />
@@ -667,7 +661,7 @@ const WizardInner: React.FC = () => {
         </span>
         <Button
           aria-label={mode === 'dark' ? '切换到浅色主题' : '切换到深色主题'}
-          icon={mode === 'dark' ? <SunOutlined /> : <MoonOutlined />}
+          icon={mode === 'dark' ? <Sun size="1em" /> : <Moon size="1em" />}
           onClick={toggle}
         />
       </header>
@@ -1040,7 +1034,7 @@ const WizardInner: React.FC = () => {
                   <Button
                     size="large"
                     type="primary"
-                    icon={<UploadOutlined />}
+                    icon={<Upload size="1em" />}
                     onClick={() => setUploadOpen(true)}
                   >
                     选择图片
@@ -1168,7 +1162,8 @@ const WizardInner: React.FC = () => {
           {step === 5 && product && (
             <div>
               <div style={{ textAlign: 'center', marginBottom: 32 }}>
-                <CheckCircleFilled
+                <CircleCheck
+                  size="1em"
                   style={{ fontSize: 64, color: palette.green }}
                   aria-hidden="true"
                 />

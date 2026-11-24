@@ -1,14 +1,5 @@
 // biome-ignore-all lint/suspicious/noTemplateCurlyInString: 占位符说明里的 ${…} 是给管理员看的模版占位符，不是模板字符串
 
-import {
-  BookOutlined,
-  CloseCircleOutlined,
-  DownloadOutlined,
-  FileExcelOutlined,
-  InfoCircleOutlined,
-  StarOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -23,11 +14,16 @@ import {
 } from 'antd';
 import {
   Ban,
+  Book,
   CircleCheck,
+  CircleX,
   Download,
   Eye,
   FileOutput,
+  FileSpreadsheet,
+  Info,
   Star,
+  Upload,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
@@ -275,7 +271,7 @@ const DocumentTemplatePage: React.FC = () => {
     const old = versions?.find((x) => x.isDefault);
     modal.confirm({
       title: `把 V${v.versionNo} 设为默认版本？`,
-      icon: <StarOutlined style={{ color: palette.orange }} />,
+      icon: <Star size="1em" style={{ color: palette.orange }} />,
       content: `设为默认后，所有业务员导出的${current?.name.split(' ')[0] ?? '单据'}都使用 V${v.versionNo}${old ? `（原默认 V${old.versionNo}）` : ''}。本次切换会记入操作日志。建议先「预览导出」确认效果。`,
       okText: '设为默认',
       onOk: async () => {
@@ -445,7 +441,7 @@ const DocumentTemplatePage: React.FC = () => {
           <>
             <Button
               type="text"
-              icon={<BookOutlined />}
+              icon={<Book size="1em" />}
               style={{ color: palette.link }}
               onClick={() => setHelpOpen(true)}
             >
@@ -454,7 +450,7 @@ const DocumentTemplatePage: React.FC = () => {
             {!isText && builtin && (
               <Button
                 type="text"
-                icon={<DownloadOutlined />}
+                icon={<Download size="1em" />}
                 style={{ color: palette.link }}
                 onClick={() =>
                   templateApi
@@ -468,7 +464,7 @@ const DocumentTemplatePage: React.FC = () => {
             {canEdit && (
               <Button
                 type="primary"
-                icon={<UploadOutlined />}
+                icon={<Upload size="1em" />}
                 onClick={openUpload}
               >
                 {isText ? '编辑新版本' : '上传新版本'}
@@ -558,7 +554,7 @@ const DocumentTemplatePage: React.FC = () => {
               fontSize: 13,
             }}
           >
-            <InfoCircleOutlined />{' '}
+            <Info size="1em" />{' '}
             版本保存后不能修改，要调整就上传新版本；设为默认前可以先「预览导出」用示例数据看效果。默认版本不能停用。
           </div>
         </div>
@@ -628,7 +624,8 @@ const DocumentTemplatePage: React.FC = () => {
                 border: `1px dashed ${palette.control}`,
               }}
             >
-              <FileExcelOutlined
+              <FileSpreadsheet
+                size="1em"
                 style={{ fontSize: 20, color: palette.green }}
               />
               <span style={{ flex: 1 }}>
@@ -658,7 +655,7 @@ const DocumentTemplatePage: React.FC = () => {
             style={{ marginTop: 12 }}
             type="error"
             showIcon
-            icon={<CloseCircleOutlined />}
+            icon={<CircleX size="1em" />}
             title={problems[0]}
             description={
               problems.length > 1

@@ -1,10 +1,5 @@
-import {
-  ArrowDownOutlined,
-  ArrowUpOutlined,
-  DeleteOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
 import { App, Button, Form, Input, Space, Switch, Table, Tooltip } from 'antd';
+import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { EmptyHint } from '../../components/EmptyHint';
 import { Pill } from '../../components/Pills';
@@ -265,27 +260,27 @@ export const SpecCard: React.FC<{
                     >
                       <Button
                         aria-label="上移"
-                        icon={<ArrowUpOutlined />}
+                        icon={<ArrowUp size="1em" />}
                         disabled={index === 0}
                         onClick={() => move(index, index - 1)}
                       />
                       <Button
                         aria-label="下移"
-                        icon={<ArrowDownOutlined />}
+                        icon={<ArrowDown size="1em" />}
                         disabled={index === fields.length - 1}
                         onClick={() => move(index, index + 1)}
                       />
                       <Button
                         aria-label="删除这一行"
                         danger
-                        icon={<DeleteOutlined />}
+                        icon={<Trash2 size="1em" />}
                         onClick={() => remove(f.name)}
                       />
                     </Space>
                   </fieldset>
                 ))}
                 <Button
-                  icon={<PlusOutlined />}
+                  icon={<Plus size="1em" />}
                   onClick={() =>
                     add({ specKey: '', specLabel: '', specValue: '' })
                   }

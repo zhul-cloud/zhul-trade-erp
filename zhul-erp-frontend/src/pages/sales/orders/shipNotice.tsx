@@ -1,9 +1,3 @@
-import {
-  CarOutlined,
-  InboxOutlined,
-  InfoCircleOutlined,
-  SendOutlined,
-} from '@ant-design/icons';
 import { Link, useAccess } from '@umijs/max';
 import type { SelectProps } from 'antd';
 import {
@@ -17,6 +11,7 @@ import {
   Skeleton,
 } from 'antd';
 import dayjs from 'dayjs';
+import { Car, Inbox, Info, Send } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CardTitle } from '@/components/ListLayout';
 import { ObStatusPill } from '@/pages/logistics/components';
@@ -170,7 +165,7 @@ export const ShipNoticeModal: React.FC<{
       destroyOnHidden
       title={
         <span>
-          <SendOutlined />{' '}
+          <Send size="1em" />{' '}
           {outbound ? `修改发货通知 · ${outbound.obNo}` : '发货通知'}
           {form ? ` · ${form.soNo}` : ''}
         </span>
@@ -187,7 +182,7 @@ export const ShipNoticeModal: React.FC<{
           <Button onClick={onClose}>取消</Button>
           <Button
             type="primary"
-            icon={<SendOutlined />}
+            icon={<Send size="1em" />}
             loading={busy}
             disabled={!form || !!blocker}
             onClick={submit}
@@ -206,7 +201,7 @@ export const ShipNoticeModal: React.FC<{
           {form.customerName && (
             <div style={{ color: palette.sub }}>{form.customerName}</div>
           )}
-          {section(<CarOutlined />, '物流信息')}
+          {section(<Car size="1em" />, '物流信息')}
           <div
             style={{
               padding: '12px 14px',
@@ -252,7 +247,7 @@ export const ShipNoticeModal: React.FC<{
             />
           </div>
           {section(
-            <InboxOutlined />,
+            <Inbox size="1em" />,
             '发货明细',
             chosen.length
               ? `已选 ${chosen.length} 个型号 · ${pieces} 件`
@@ -346,7 +341,7 @@ export const ShipNoticeModal: React.FC<{
             />
           </div>
           <div style={{ fontSize: 12, color: palette.mute }}>
-            <InfoCircleOutlined />{' '}
+            <Info size="1em" />{' '}
             确认后生成销售出库单（待打包），仓库在「销售出库」里看到；可以分批发，没到的型号以后再发。
           </div>
         </div>

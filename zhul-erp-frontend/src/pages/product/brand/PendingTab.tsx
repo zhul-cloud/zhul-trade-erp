@@ -1,4 +1,3 @@
-import { BulbOutlined, SearchOutlined } from '@ant-design/icons';
 import type { TableColumnsType } from 'antd';
 import {
   App,
@@ -10,6 +9,7 @@ import {
   Space,
   Table,
 } from 'antd';
+import { Lightbulb, Search } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { formatDateTime } from '@/utils/format';
@@ -206,7 +206,7 @@ const PendingTab: React.FC<{
         }}
         onClick={() => (warn ? ignore([row]) : openLink([row]))}
       >
-        <BulbOutlined style={{ marginRight: 4 }} />
+        <Lightbulb size="1em" style={{ marginRight: 4 }} />
         {row.suggestText}
       </button>
     );
@@ -297,7 +297,7 @@ const PendingTab: React.FC<{
         />
         <Input
           allowClear
-          prefix={<SearchOutlined />}
+          prefix={<Search size="1em" />}
           placeholder="搜索写法"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}

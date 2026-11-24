@@ -1,11 +1,6 @@
-import {
-  BellOutlined,
-  BulbOutlined,
-  CheckCircleOutlined,
-  CopyOutlined,
-} from '@ant-design/icons';
 import { Link } from '@umijs/max';
 import { Button, Skeleton } from 'antd';
+import { Bell, CircleCheck, Copy, Lightbulb } from 'lucide-react';
 import React, { useState } from 'react';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -71,7 +66,7 @@ const TodayCardView: React.FC<{
                 gap: 4,
               }}
             >
-              <CopyOutlined /> {c.items.length} 个型号到期
+              <Copy size="1em" /> {c.items.length} 个型号到期
             </span>
             <span style={{ flex: 1 }} />
             <span style={{ color: c.overdue ? palette.red : palette.sub }}>
@@ -80,7 +75,10 @@ const TodayCardView: React.FC<{
           </div>
           {top?.nextAction && (
             <div style={{ display: 'flex', gap: 8 }}>
-              <BellOutlined style={{ color: palette.orange, marginTop: 4 }} />
+              <Bell
+                size="1em"
+                style={{ color: palette.orange, marginTop: 4 }}
+              />
               <span>
                 {top.nextActionSource === 2 &&
                   top.reminderType === REMIND_FULFILLMENT && (
@@ -101,7 +99,7 @@ const TodayCardView: React.FC<{
               <span
                 style={{ color: palette.link, display: 'inline-flex', gap: 8 }}
               >
-                <BulbOutlined /> SOP 建议：{c.sopHint}
+                <Lightbulb size="1em" /> SOP 建议：{c.sopHint}
               </span>
             )}
             <span style={{ flex: 1 }} />
@@ -207,7 +205,7 @@ const DevItemView: React.FC<{
             </span>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <BellOutlined style={{ color: palette.orange }} />
+            <Bell size="1em" style={{ color: palette.orange }} />
             <span style={{ flex: 1 }}>
               {i.kind === 'candidate' ? '我定的下一步：' : ''}
               {i.text}
@@ -262,7 +260,10 @@ export const TodayView: React.FC<{
   if (!today.overdueCards.length && !today.todayCards.length && !dev.length)
     return (
       <Card style={{ padding: '48px 24px', textAlign: 'center' }}>
-        <CheckCircleOutlined style={{ fontSize: 28, color: palette.green }} />
+        <CircleCheck
+          size="1em"
+          style={{ fontSize: 28, color: palette.green }}
+        />
         <div style={{ fontSize: 18, fontWeight: 700, margin: '12px 0 6px' }}>
           今天的都处理完了
         </div>

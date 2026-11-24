@@ -1,15 +1,3 @@
-import {
-  CheckCircleOutlined,
-  CopyOutlined,
-  DownloadOutlined,
-  FileExcelOutlined,
-  FileImageOutlined,
-  FilePdfOutlined,
-  InfoCircleOutlined,
-  LoadingOutlined,
-  SendOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { request } from '@umijs/max';
 import {
   Alert,
@@ -22,6 +10,18 @@ import {
   Select,
   Skeleton,
 } from 'antd';
+import {
+  CircleCheck,
+  Copy,
+  Download,
+  FileImage,
+  FileSpreadsheet,
+  FileText,
+  Info,
+  LoaderCircle,
+  Send,
+  TriangleAlert,
+} from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuoteDicts } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -134,7 +134,7 @@ export const TextQuoteModal: React.FC<{
         <Button
           key="copy"
           type="primary"
-          icon={<CopyOutlined />}
+          icon={<Copy size="1em" />}
           disabled={!text}
           onClick={copy}
         >
@@ -225,7 +225,7 @@ export const TextQuoteModal: React.FC<{
             color: palette.green,
           }}
         >
-          <CheckCircleOutlined /> 已复制，可以粘贴给客户了
+          <CircleCheck size="1em" /> 已复制，可以粘贴给客户了
           <span style={{ marginLeft: 'auto', color: palette.sub }}>
             {firstSend ? '已经发给客户了？' : '再发了一次？'}
           </span>
@@ -349,21 +349,21 @@ export const ExportModal: React.FC<{
   }[] = [
     {
       key: 'xlsx',
-      icon: <FileExcelOutlined />,
+      icon: <FileSpreadsheet size="1em" />,
       title: 'Excel',
       desc: '保留抬头、Logo 与公式，下载后可以自己修改',
       size: '约 30 KB',
     },
     {
       key: 'pdf',
-      icon: <FilePdfOutlined />,
+      icon: <FileText size="1em" />,
       title: 'PDF',
       desc: 'A4，已压缩，适合邮件或聊天发送',
       size: '不超过 500 KB（30 行以内）',
     },
     {
       key: 'jpg',
-      icon: <FileImageOutlined />,
+      icon: <FileImage size="1em" />,
       title: '图片（JPG）',
       desc: '多页纵向拼成一张，宽 1600 像素，已压缩',
       size: '不超过 800 KB（30 行以内）',
@@ -401,7 +401,7 @@ export const ExportModal: React.FC<{
         <Button
           key="ok"
           type="primary"
-          icon={<DownloadOutlined />}
+          icon={<Download size="1em" />}
           loading={busy}
           onClick={run}
         >
@@ -413,7 +413,7 @@ export const ExportModal: React.FC<{
         <Alert
           type="warning"
           showIcon
-          icon={<WarningOutlined />}
+          icon={<TriangleAlert size="1em" />}
           title="PDF / 图片暂时无法生成，可以先下载 Excel"
           style={{ marginBottom: 12 }}
         />
@@ -476,7 +476,8 @@ export const ExportModal: React.FC<{
       </Radio.Group>
       {busy && format !== 'xlsx' && (
         <div style={{ marginTop: 12, color: palette.link, fontSize: 13 }}>
-          <LoadingOutlined /> 正在生成 {format === 'pdf' ? 'PDF' : '图片'}
+          <LoaderCircle size="1em" className="zhul-spin" /> 正在生成{' '}
+          {format === 'pdf' ? 'PDF' : '图片'}
           …（首次约 3–10 秒）
         </div>
       )}
@@ -524,7 +525,7 @@ export const SupplyConfirmModal: React.FC<{
         <Button
           key="ok"
           type="primary"
-          icon={<SendOutlined />}
+          icon={<Send size="1em" />}
           disabled={!checked}
           loading={sending}
           onClick={async () => {
@@ -611,7 +612,8 @@ export const SentPromptModal: React.FC<{
       width={480}
       title={
         <span>
-          <CheckCircleOutlined
+          <CircleCheck
+            size="1em"
             style={{ color: palette.green, marginRight: 8 }}
           />
           文件已下载
@@ -624,7 +626,7 @@ export const SentPromptModal: React.FC<{
         <Button
           key="ok"
           type="primary"
-          icon={<SendOutlined />}
+          icon={<Send size="1em" />}
           onClick={() => channel != null && onConfirm(channel)}
         >
           {draft ? '标为已发送' : '记一次发送'}
@@ -639,8 +641,7 @@ export const SentPromptModal: React.FC<{
               : `已经把报价单发给客户了吗？标为「已发送」后内容会锁定，询盘单 ${quotation?.inquiryCodes.join('、')} 变为「已报价」。`}
           </p>
           <div style={{ fontSize: 12, color: palette.mute }}>
-            <InfoCircleOutlined />{' '}
-            之后要改价，点「修改（出新版本）」，编号不变。
+            <Info size="1em" /> 之后要改价，点「修改（出新版本）」，编号不变。
           </div>
         </>
       ) : (

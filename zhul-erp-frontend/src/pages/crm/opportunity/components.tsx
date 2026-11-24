@@ -1,9 +1,5 @@
-import {
-  EyeOutlined,
-  FileExcelOutlined,
-  FileImageOutlined,
-} from '@ant-design/icons';
 import { App } from 'antd';
+import { Eye, FileImage, FileSpreadsheet } from 'lucide-react';
 import React from 'react';
 import { Panel } from '@/components/ListLayout';
 import { Pill, type PillTone } from '@/components/Pill';
@@ -140,7 +136,7 @@ export const FileChip: React.FC<{
           background: image ? palette.primarySoft : palette.greenSoft,
         }}
       >
-        {image ? <FileImageOutlined /> : <FileExcelOutlined />}
+        {image ? <FileImage size="1em" /> : <FileSpreadsheet size="1em" />}
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
@@ -228,7 +224,7 @@ export const PreviewButton: React.FC<{
         }
       }}
     >
-      <EyeOutlined />
+      <Eye size="1em" />
     </button>
   );
 };

@@ -1,14 +1,14 @@
-import {
-  AuditOutlined,
-  CalendarOutlined,
-  CompassOutlined,
-  FileTextOutlined,
-  RetweetOutlined,
-  SafetyCertificateOutlined,
-  SyncOutlined,
-} from '@ant-design/icons';
 import { Skeleton } from 'antd';
 import dayjs from 'dayjs';
+import {
+  Calendar,
+  ClipboardCheck,
+  Compass,
+  FileText,
+  RefreshCw,
+  Repeat,
+  ShieldCheck,
+} from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
@@ -222,11 +222,11 @@ export const EvidenceText: React.FC<{ d: Demand }> = ({ d }) => {
 
 /** 五个板块（与作战地图一致），第 4–5 步未上线；颜色按步骤取，与客户跟进同一套 */
 const BOARDS = [
-  { key: 'intel', name: '需求情报', icon: <CompassOutlined /> },
-  { key: 'cover', name: '供应覆盖', icon: <SafetyCertificateOutlined /> },
-  { key: 'dev', name: '供应商开发', icon: <AuditOutlined /> },
-  { key: 'order', name: '报价与订单', icon: <FileTextOutlined /> },
-  { key: 'review', name: '复盘补全', icon: <SyncOutlined /> },
+  { key: 'intel', name: '需求情报', icon: <Compass size="1em" /> },
+  { key: 'cover', name: '供应覆盖', icon: <ShieldCheck size="1em" /> },
+  { key: 'dev', name: '供应商开发', icon: <ClipboardCheck size="1em" /> },
+  { key: 'order', name: '报价与订单', icon: <FileText size="1em" /> },
+  { key: 'review', name: '复盘补全', icon: <RefreshCw size="1em" /> },
 ];
 
 /** 板块的颜色（图形用色、文字色等）：按板块所在的步骤取 */
@@ -427,7 +427,7 @@ const Track: React.FC<{ counts: (number | undefined)[] }> = ({ counts }) => {
                     gap: 4,
                   }}
                 >
-                  <RetweetOutlined /> 复盘回到第 1 步
+                  <Repeat size="1em" /> 复盘回到第 1 步
                 </span>
               )}
             </div>
@@ -503,7 +503,7 @@ export const SupplyFlow: React.FC<{
               gap: 6,
             }}
           >
-            <CalendarOutlined /> 今日待办
+            <Calendar size="1em" /> 今日待办
           </b>
           <span>
             <span style={{ fontSize: 28, fontWeight: 700 }}>{total}</span>

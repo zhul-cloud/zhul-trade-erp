@@ -1,10 +1,4 @@
 import {
-  CameraOutlined,
-  CheckOutlined,
-  InfoCircleOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
-import {
   App,
   Button,
   DatePicker,
@@ -15,6 +9,7 @@ import {
   Skeleton,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Camera, Check, Info, TriangleAlert } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
@@ -172,14 +167,14 @@ const QtyRows: React.FC<{
             </div>
             {bad ? (
               <div style={{ marginTop: 8, fontSize: 12, color: palette.red }}>
-                <WarningOutlined /> 合格数量不能多于实收
+                <TriangleAlert size="1em" /> 合格数量不能多于实收
               </div>
             ) : (
               diff && (
                 <div
                   style={{ marginTop: 8, fontSize: 12, color: palette.orange }}
                 >
-                  <WarningOutlined /> 将生成差异：{diff}
+                  <TriangleAlert size="1em" /> 将生成差异：{diff}
                   {purchaser
                     ? `（交给采购员${purchaser}处理）`
                     : '（交给采购员处理）'}
@@ -228,13 +223,13 @@ const Footer: React.FC<{
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <span style={{ fontSize: 12, color: palette.mute }}>
-        <InfoCircleOutlined /> {hint}
+        <Info size="1em" /> {hint}
       </span>
       <span style={{ flex: 1 }} />
       <Button onClick={onCancel}>取消</Button>
       <Button
         type="primary"
-        icon={<CheckOutlined />}
+        icon={<Check size="1em" />}
         loading={busy}
         disabled={disabled}
         onClick={onOk}
@@ -408,7 +403,7 @@ export const AcceptDrawer: React.FC<{
             aria-label="差异说明"
           />
           <Label extra="选填">
-            <CameraOutlined style={{ color: palette.link }} />
+            <Camera size="1em" style={{ color: palette.link }} />
             <b style={{ color: palette.ink }}>验收照片与视频</b>
           </Label>
           <AttachmentWall
@@ -602,7 +597,7 @@ export const DirectReceiveDrawer: React.FC<{
             aria-label="差异说明"
           />
           <Label extra="选填">
-            <CameraOutlined style={{ color: palette.link }} />
+            <Camera size="1em" style={{ color: palette.link }} />
             <b style={{ color: palette.ink }}>验收照片与视频</b>
           </Label>
           <AttachmentWall

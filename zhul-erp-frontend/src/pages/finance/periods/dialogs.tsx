@@ -1,6 +1,6 @@
-import { InfoCircleOutlined, LockOutlined } from '@ant-design/icons';
 import { App, Modal, Skeleton } from 'antd';
 import dayjs from 'dayjs';
+import { Info, Lock } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { readBizError } from '@/pages/warehouse/service';
@@ -134,12 +134,12 @@ export const CloseModal: React.FC<{
       open={!!month}
       title={
         <>
-          <LockOutlined style={{ color: palette.link, marginRight: 8 }} />
+          <Lock size="1em" style={{ color: palette.link, marginRight: 8 }} />
           结账 {month}
         </>
       }
       okText="确认结账"
-      okButtonProps={{ loading: busy, disabled: !p, icon: <LockOutlined /> }}
+      okButtonProps={{ loading: busy, disabled: !p, icon: <Lock size="1em" /> }}
       onCancel={onClose}
       onOk={async () => {
         if (!month) return;
@@ -186,7 +186,8 @@ export const CloseModal: React.FC<{
                     fontSize: 13,
                   }}
                 >
-                  <InfoCircleOutlined
+                  <Info
+                    size="1em"
                     style={{ color: palette.orange, marginTop: 3 }}
                   />
                   {r}

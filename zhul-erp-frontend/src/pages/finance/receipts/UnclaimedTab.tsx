@@ -1,9 +1,3 @@
-import {
-  FileImageOutlined,
-  FileTextOutlined,
-  PaperClipOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import type { TableColumnsType, UploadFile } from 'antd';
 import {
@@ -18,7 +12,15 @@ import {
   Upload,
 } from 'antd';
 import dayjs from 'dayjs';
-import { Ban, Search, Undo2 } from 'lucide-react';
+import {
+  Ban,
+  FileImage,
+  FileText,
+  Paperclip,
+  Search,
+  Undo2,
+  UploadIcon,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -306,7 +308,7 @@ const RegisterModal: React.FC<{
           style={{ padding: '4px 0' }}
         >
           <span style={{ color: palette.sub }}>
-            <UploadOutlined /> 拖入或点击上传银行回单
+            <UploadIcon size="1em" /> 拖入或点击上传银行回单
           </span>
         </Upload.Dragger>
       </div>
@@ -359,9 +361,15 @@ const FilesModal: React.FC<{ row?: ReceiptRow; onClose: () => void }> = ({
             }}
           >
             {/\.pdf$/i.test(name) ? (
-              <FileTextOutlined style={{ fontSize: 26, color: palette.sub }} />
+              <FileText
+                size="1em"
+                style={{ fontSize: 26, color: palette.sub }}
+              />
             ) : (
-              <FileImageOutlined style={{ fontSize: 26, color: palette.sub }} />
+              <FileImage
+                size="1em"
+                style={{ fontSize: 26, color: palette.sub }}
+              />
             )}
             <span style={{ wordBreak: 'break-all' }}>{name}</span>
           </button>
@@ -511,7 +519,7 @@ const UnclaimedTab: React.FC<{
             className="zhul-link"
             onClick={() => setViewing(r)}
           >
-            <PaperClipOutlined /> {r.fileNames.length} 个
+            <Paperclip size="1em" /> {r.fileNames.length} 个
           </button>
         ) : (
           <span style={{ color: palette.mute }}>—</span>

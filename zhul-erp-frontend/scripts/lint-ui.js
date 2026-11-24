@@ -45,6 +45,7 @@ const RULE_NAMES = new Set([
   'row-actions',
   'attr-tone',
   'antd-empty',
+  'antd-icon',
 ]);
 
 /**
@@ -119,6 +120,13 @@ const LINE_RULES = [
     message:
       '危险操作的确认框用 useConfirmDanger()（问句标题写明对象、按钮写动作、默认焦点在取消），不自己给 confirm 配红色按钮',
     re: /okButtonProps:\s*\{[^}]*\bdanger:\s*true|okType:\s*'danger'/,
+  },
+  {
+    id: 'antd-icon',
+    level: 'error',
+    message:
+      '图标统一用 lucide-react（规范「图标」），不用 @ant-design/icons；品牌标识等 lucide 没有的，用 lint-ui-ignore antd-icon 写明原因',
+    re: /from\s+'@ant-design\/icons'/,
   },
   {
     id: 'antd-empty',

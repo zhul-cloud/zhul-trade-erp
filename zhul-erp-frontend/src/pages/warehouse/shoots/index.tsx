@@ -1,8 +1,7 @@
-import { InfoCircleOutlined } from '@ant-design/icons';
 import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Drawer, Input, Select, Skeleton, Table } from 'antd';
-import { Camera, Eye, Search } from 'lucide-react';
+import { Camera, Eye, Info, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -484,7 +483,7 @@ const ShootDrawer: React.FC<{
               color: palette.mute,
             }}
           >
-            <InfoCircleOutlined /> 拍 6 张带公司 Logo
+            <Info size="1em" /> 拍 6 张带公司 Logo
             摆台的营销图，够了任务自动完成。图片归到「{t.brand} {t.model}
             」名下，进素材库「营销实拍」，以后同型号到货不再需要拍。
           </div>

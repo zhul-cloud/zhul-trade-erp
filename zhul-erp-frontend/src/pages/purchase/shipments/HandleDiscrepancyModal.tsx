@@ -1,9 +1,5 @@
-import {
-  AuditOutlined,
-  FileDoneOutlined,
-  InfoCircleOutlined,
-} from '@ant-design/icons';
 import { App, Checkbox, Input, InputNumber, Modal, Radio } from 'antd';
+import { ClipboardCheck, FileCheck, Info } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { AttachmentWall } from '@/pages/warehouse/components';
 import {
@@ -101,7 +97,10 @@ const HandleDiscrepancyModal: React.FC<{
       width={620}
       title={
         <span>
-          <AuditOutlined style={{ color: palette.link, marginRight: 8 }} />
+          <ClipboardCheck
+            size="1em"
+            style={{ color: palette.link, marginRight: 8 }}
+          />
           处理到货差异 · {target.typeName} {target.quantity}
         </span>
       }
@@ -209,7 +208,7 @@ const HandleDiscrepancyModal: React.FC<{
               fontSize: 13,
             }}
           >
-            <FileDoneOutlined style={{ color: palette.link }} />{' '}
+            <FileCheck size="1em" style={{ color: palette.link }} />{' '}
             {r === 3
               ? `生成采购退货单（待寄出），退回 ${target.quantity} 个`
               : r === 4
@@ -269,7 +268,7 @@ const HandleDiscrepancyModal: React.FC<{
           color: palette.mute,
         }}
       >
-        <InfoCircleOutlined />{' '}
+        <Info size="1em" />{' '}
         处理后采购订单与订单进度随之更新；处理后不能直接改，需要更正时点「重新打开」。
       </div>
     </Modal>

@@ -1,14 +1,14 @@
-import {
-  ArrowRightOutlined,
-  CaretRightOutlined,
-  CheckCircleOutlined,
-  CheckOutlined,
-  CopyOutlined,
-  LoadingOutlined,
-  StarFilled,
-} from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import { App, Button, Checkbox, Select, Skeleton } from 'antd';
+import {
+  ArrowRight,
+  Check,
+  ChevronRight,
+  CircleCheck,
+  Copy,
+  LoaderCircle,
+  Star,
+} from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -140,7 +140,7 @@ const Choice: React.FC<{
               border: `1px solid ${palette.hairline}`,
             }}
           >
-            <StarFilled />
+            <Star size="1em" fill="currentColor" />
           </button>
         ))}
         {suggestedStars ? (
@@ -220,7 +220,7 @@ const StepCard: React.FC<{
             background: done || step.step === 1 ? palette.green : tone,
           }}
         >
-          {done || step.step === 1 ? <CheckOutlined /> : step.step}
+          {done || step.step === 1 ? <Check size="1em" /> : step.step}
         </span>
         <span style={{ fontSize: 14, fontWeight: 700, color: palette.ink }}>
           {step.name}
@@ -317,7 +317,9 @@ const Queue: React.FC<{
             }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {on && <CaretRightOutlined style={{ color: palette.link }} />}
+              {on && (
+                <ChevronRight size="1em" style={{ color: palette.link }} />
+              )}
               <span
                 style={{
                   flex: 1,
@@ -714,7 +716,8 @@ const Wizard: React.FC<{
             </>
           ) : report?.status === STATUS.RUNNING || bg.running ? (
             <div style={{ fontSize: 13, color: palette.link }}>
-              <LoadingOutlined /> 正在背调，完成后这里会列出字段建议
+              <LoaderCircle size="1em" className="zhul-spin" />{' '}
+              正在背调，完成后这里会列出字段建议
             </div>
           ) : (
             access['partner:customer:background'] && (
@@ -804,7 +807,7 @@ const Wizard: React.FC<{
                 {i.question && (
                   <Button
                     size="small"
-                    icon={<CopyOutlined />}
+                    icon={<Copy size="1em" />}
                     style={{ marginLeft: 'auto' }}
                     onClick={() => copy(i.question ?? '')}
                   >
@@ -841,7 +844,7 @@ const Wizard: React.FC<{
             {s4.copyAll && (
               <Button
                 size="small"
-                icon={<CopyOutlined />}
+                icon={<Copy size="1em" />}
                 style={{ marginLeft: 'auto' }}
                 onClick={() => copy(s4.copyAll ?? '')}
               >
@@ -878,7 +881,7 @@ const Wizard: React.FC<{
         )}
         <Button
           type="primary"
-          icon={<ArrowRightOutlined />}
+          icon={<ArrowRight size="1em" />}
           loading={saving === 'next'}
           disabled={!!saving}
           onClick={() => save(true)}
@@ -1050,7 +1053,7 @@ const CompletionTab: React.FC = () => {
             fontWeight: 600,
           }}
         >
-          <CheckCircleOutlined /> 今天已补完 {todayDone} 个客户
+          <CircleCheck size="1em" /> 今天已补完 {todayDone} 个客户
         </div>
       )}
       <div

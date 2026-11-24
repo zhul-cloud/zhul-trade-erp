@@ -1,12 +1,6 @@
-import {
-  CheckOutlined,
-  DownloadOutlined,
-  DownOutlined,
-  StopOutlined,
-  UpOutlined,
-} from '@ant-design/icons';
 import XMarkdown from '@ant-design/x-markdown';
 import { history, useAccess } from '@umijs/max';
+import { Ban, Check, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import '@ant-design/x-markdown/es/XMarkdown/index.css';
 import {
   App,
@@ -127,8 +121,8 @@ const Chip: React.FC<{ label: string; state: ChipState; title: string }> = ({
         ...style,
       }}
     >
-      {state === 'done' && <CheckOutlined style={{ fontSize: 10 }} />}
-      {state === 'skip' && <StopOutlined style={{ fontSize: 10 }} />}
+      {state === 'done' && <Check size="1em" style={{ fontSize: 10 }} />}
+      {state === 'skip' && <Ban size="1em" style={{ fontSize: 10 }} />}
       {label}
     </span>
   );
@@ -237,7 +231,7 @@ export const LangChips: React.FC<{ enAt?: string; ruAt?: string }> = (
               background: done ? palette.greenSoft : palette.inset,
             }}
           >
-            {done && <CheckOutlined style={{ fontSize: 10 }} />}
+            {done && <Check size="1em" style={{ fontSize: 10 }} />}
             {label}
           </span>
         );
@@ -356,7 +350,7 @@ export const VerifyFactsButton: React.FC<{
     <Button
       size={size}
       type={link ? 'link' : 'primary'}
-      icon={link ? undefined : <CheckOutlined />}
+      icon={link ? undefined : <Check size="1em" />}
       style={link ? { padding: 0, height: 'auto' } : undefined}
       onClick={() => verify(productId, label, onDone)}
     >
@@ -409,9 +403,9 @@ export const FactsStatusBar: React.FC<{
             <Pill tone="orange">
               待确认 {notes.length} 项{' '}
               {showNotes ? (
-                <UpOutlined style={{ fontSize: 10 }} />
+                <ChevronUp size="1em" style={{ fontSize: 10 }} />
               ) : (
-                <DownOutlined style={{ fontSize: 10 }} />
+                <ChevronDown size="1em" style={{ fontSize: 10 }} />
               )}
             </Pill>
           </Button>
@@ -429,7 +423,7 @@ export const FactsStatusBar: React.FC<{
             )}
             <Button
               size="small"
-              icon={<DownloadOutlined />}
+              icon={<Download size="1em" />}
               loading={downloading === 'facts'}
               onClick={() => download([productId], 'facts')}
             >
@@ -564,15 +558,17 @@ export const MarketingDownload: React.FC<{
     return (
       <Dropdown menu={menu} trigger={['click']} disabled={disabled}>
         <a>
-          {label ?? '下载营销包'} <DownOutlined style={{ fontSize: 10 }} />
+          {label ?? '下载营销包'}{' '}
+          <ChevronDown size="1em" style={{ fontSize: 10 }} />
         </a>
       </Dropdown>
     );
   }
   return (
     <Dropdown menu={menu} trigger={['click']} disabled={disabled}>
-      <Button size={size} icon={<DownloadOutlined />} loading={loading}>
-        {label ?? '下载营销包'} <DownOutlined style={{ fontSize: 10 }} />
+      <Button size={size} icon={<Download size="1em" />} loading={loading}>
+        {label ?? '下载营销包'}{' '}
+        <ChevronDown size="1em" style={{ fontSize: 10 }} />
       </Button>
     </Dropdown>
   );
@@ -1064,7 +1060,7 @@ export const PlatformPanel: React.FC<{
         <Space size={10}>
           <Button
             size="small"
-            icon={<DownloadOutlined />}
+            icon={<Download size="1em" />}
             loading={downloading === p}
             onClick={() => download([productId], 'marketing', [d.status], p)}
           >

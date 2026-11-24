@@ -1,4 +1,3 @@
-import { BulbOutlined, CheckOutlined, PlusOutlined } from '@ant-design/icons';
 import { Link, useParams } from '@umijs/max';
 import {
   App,
@@ -13,7 +12,7 @@ import {
   type TableColumnsType,
 } from 'antd';
 import dayjs from 'dayjs';
-import { CircleX, Ellipsis } from 'lucide-react';
+import { Check, CircleX, Ellipsis, Lightbulb, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { DocLogCard, SectionTitle } from '@/components/DocFields/DocPage';
 import { PageHeader } from '@/components/ListLayout';
@@ -333,7 +332,7 @@ const ProjectDetailPage: React.FC = () => {
           <CoverPill status={d.coverageStatus || undefined} />
           {solved(d) && (
             <span style={{ color: palette.green, fontSize: 13 }}>
-              <CheckOutlined /> 已解决
+              <Check size="1em" /> 已解决
             </span>
           )}
         </span>
@@ -505,7 +504,7 @@ const ProjectDetailPage: React.FC = () => {
             )}
             {active && dev?.suggestClose && p.canClose && (
               <div style={{ marginTop: 12, color: palette.green }}>
-                <CheckOutlined />{' '}
+                <Check size="1em" />{' '}
                 {dev.qualified >= dev.target
                   ? '合格候选已达到目标'
                   : '这个品牌品类的合格供应商已经够了'}
@@ -564,7 +563,7 @@ const ProjectDetailPage: React.FC = () => {
                     </Button>
                     <Button
                       type="primary"
-                      icon={<PlusOutlined />}
+                      icon={<Plus size="1em" />}
                       onClick={() =>
                         setCandidate({
                           projectId: p.id,
@@ -603,7 +602,7 @@ const ProjectDetailPage: React.FC = () => {
                     color: palette.sub,
                   }}
                 >
-                  <BulbOutlined style={{ color: palette.link }} />
+                  <Lightbulb size="1em" style={{ color: palette.link }} />
                   <span>
                     范围内另有 {dev.others.length} 家合格供应商不是候选
                     {canSee &&

@@ -1,12 +1,3 @@
-import {
-  CalendarOutlined,
-  CheckCircleFilled,
-  CopyOutlined,
-  InfoCircleOutlined,
-  PlusOutlined,
-  UserOutlined,
-  WarningFilled,
-} from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   DrawerForm,
@@ -34,13 +25,19 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import {
   Ban,
+  Calendar,
   CalendarPlus,
   CircleCheck,
+  Copy,
   DatabaseZap,
   History,
+  Info,
   KeyRound,
   Pencil,
+  Plus,
   Search,
+  TriangleAlert,
+  User,
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -347,7 +344,7 @@ const TenantListPage: React.FC = () => {
               <Tooltip
                 title={diffDays < 0 ? '已过期' : `距到期还有 ${diffDays} 天`}
               >
-                <WarningFilled style={{ color: palette.orange }} />
+                <TriangleAlert size="1em" style={{ color: palette.orange }} />
               </Tooltip>
             )}
             <span
@@ -437,7 +434,11 @@ const TenantListPage: React.FC = () => {
       <PageHeader
         extra={
           access['tenant:list:add'] && (
-            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            <Button
+              type="primary"
+              icon={<Plus size="1em" />}
+              onClick={openCreate}
+            >
               新增租户
             </Button>
           )
@@ -560,7 +561,7 @@ const TenantListPage: React.FC = () => {
         submitTimeout={2000}
       >
         {sectionTitle(
-          <InfoCircleOutlined style={{ color: palette.link }} />,
+          <Info size="1em" style={{ color: palette.link }} />,
           '基础信息',
         )}
         {editing && (
@@ -604,7 +605,7 @@ const TenantListPage: React.FC = () => {
         />
 
         {sectionTitle(
-          <UserOutlined style={{ color: palette.link }} />,
+          <User size="1em" style={{ color: palette.link }} />,
           '联系人信息',
         )}
         <div style={{ display: 'flex', gap: 16 }}>
@@ -644,7 +645,7 @@ const TenantListPage: React.FC = () => {
         />
 
         {sectionTitle(
-          <CalendarOutlined style={{ color: palette.link }} />,
+          <Calendar size="1em" style={{ color: palette.link }} />,
           '服务信息',
         )}
         <ProFormDatePicker
@@ -767,7 +768,8 @@ const TenantListPage: React.FC = () => {
         {resetResult ? (
           <Space orientation="vertical" size={16} style={{ width: '100%' }}>
             <div style={{ textAlign: 'center' }}>
-              <CheckCircleFilled
+              <CircleCheck
+                size="1em"
                 style={{ fontSize: 40, color: palette.green }}
               />
             </div>
@@ -794,7 +796,8 @@ const TenantListPage: React.FC = () => {
                   {resetResult.tempPassword}
                 </span>
                 <Tooltip title={copied ? '已复制' : '复制'}>
-                  <CopyOutlined
+                  <Copy
+                    size="1em"
                     style={{ cursor: 'pointer' }}
                     onClick={copyTempPassword}
                   />
@@ -844,7 +847,7 @@ const TenantListPage: React.FC = () => {
         {initResult ? (
           <Space orientation="vertical" size={14} style={{ width: '100%' }}>
             <Space>
-              <CheckCircleFilled style={{ color: palette.green }} />
+              <CircleCheck size="1em" style={{ color: palette.green }} />
               <span style={{ fontWeight: 600 }}>初始化完成</span>
             </Space>
             <div
@@ -948,7 +951,8 @@ const TenantListPage: React.FC = () => {
                   key={title}
                   style={{ display: 'flex', gap: 10, padding: '8px 0' }}
                 >
-                  <CheckCircleFilled
+                  <CircleCheck
+                    size="1em"
                     style={{ color: palette.green, marginTop: 4 }}
                   />
                   <span style={{ width: 90, flex: 'none', fontWeight: 600 }}>
@@ -961,11 +965,11 @@ const TenantListPage: React.FC = () => {
               ))}
             </div>
             <div style={{ fontSize: 12, color: palette.mute }}>
-              <InfoCircleOutlined style={{ marginRight: 6 }} />
+              <Info size="1em" style={{ marginRight: 6 }} />
               可以重复执行，只补缺的：已有的部门、岗位、角色、汇率不改不删，角色的菜单权限不会被覆盖。
             </div>
             <div style={{ fontSize: 12, color: palette.orange }}>
-              <WarningFilled style={{ marginRight: 6 }} />
+              <TriangleAlert size="1em" style={{ marginRight: 6 }} />
               两个事业部的开始核算月份为本月（{dayjs().format('YYYY-MM')}
               ），导入历史数据后可在部门管理里修改。
             </div>

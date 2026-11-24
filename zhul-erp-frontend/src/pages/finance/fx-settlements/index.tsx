@@ -1,4 +1,3 @@
-import { PlusOutlined } from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -16,7 +15,7 @@ import {
   Tabs,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Eye } from 'lucide-react';
+import { Eye, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { EmptyState } from '@/components/EmptyState';
 import {
@@ -666,7 +665,7 @@ const FxSettlementPage: React.FC = () => {
           canSettle && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => setRegistering(true)}
             >
               登记结汇单

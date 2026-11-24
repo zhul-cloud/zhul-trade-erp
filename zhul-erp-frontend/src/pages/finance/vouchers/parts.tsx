@@ -1,5 +1,5 @@
-import { SearchOutlined } from '@ant-design/icons';
 import { App, Button, Drawer, Input, Skeleton, Table, Tabs } from 'antd';
+import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { Pill } from '@/pages/inquiry/shared/components';
@@ -316,7 +316,7 @@ export const AccountDrawer: React.FC<{
                 <div>
                   <Input
                     allowClear
-                    prefix={<SearchOutlined />}
+                    prefix={<Search size="1em" />}
                     placeholder="搜索供应商"
                     value={keyword}
                     onChange={(e) => setKeyword(e.target.value)}

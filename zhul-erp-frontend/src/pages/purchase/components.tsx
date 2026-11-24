@@ -1,11 +1,5 @@
-import {
-  DeleteOutlined,
-  ExclamationCircleOutlined,
-  PlusOutlined,
-  ShopOutlined,
-  ShoppingOutlined,
-} from '@ant-design/icons';
 import { Button, Input, InputNumber, Segmented, Select, Space } from 'antd';
+import { CircleAlert, Plus, ShoppingBag, Store, Trash2 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
 import { Card, MigratedPill, Pill } from '@/pages/inquiry/shared/components';
@@ -316,7 +310,7 @@ export const PaymentTermsEditor: React.FC<{
                 <Button
                   type="text"
                   size="small"
-                  icon={<DeleteOutlined />}
+                  icon={<Trash2 size="1em" />}
                   aria-label="删除这一期"
                   onClick={() => onChange(value.filter((_, n) => n !== i))}
                 />
@@ -327,7 +321,7 @@ export const PaymentTermsEditor: React.FC<{
             <Button
               size="small"
               type="dashed"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               style={{ width: 120 }}
               onClick={() =>
                 onChange([
@@ -529,7 +523,10 @@ export const SourceCell: React.FC<{
           tip={supplierName}
           text={
             <>
-              <ShopOutlined style={{ color: palette.link, marginRight: 6 }} />
+              <Store
+                size="1em"
+                style={{ color: palette.link, marginRight: 6 }}
+              />
               {supplierName}
             </>
           }
@@ -546,7 +543,8 @@ export const SourceCell: React.FC<{
           tip={`${channelName ? `${channelName} · ` : ''}${shopName}`}
           text={
             <>
-              <ShoppingOutlined
+              <ShoppingBag
+                size="1em"
                 style={{ color: palette.orange, marginRight: 6 }}
               />
               {channelName ? `${channelName} · ` : ''}
@@ -561,7 +559,7 @@ export const SourceCell: React.FC<{
   return (
     <div>
       <div style={{ color: palette.orange }}>
-        <ExclamationCircleOutlined style={{ marginRight: 6 }} />
+        <CircleAlert size="1em" style={{ marginRight: 6 }} />
         还没定
       </div>
       <div style={{ fontSize: 12, color: palette.mute }}>

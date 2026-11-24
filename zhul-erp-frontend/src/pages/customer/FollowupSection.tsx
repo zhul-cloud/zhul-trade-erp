@@ -1,20 +1,20 @@
-import {
-  AuditOutlined,
-  CheckOutlined,
-  ClockCircleOutlined,
-  DownOutlined,
-  EditOutlined,
-  FileTextOutlined,
-  MailOutlined,
-  MessageOutlined,
-  PhoneOutlined,
-  RiseOutlined,
-  UpOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { App, Button, Checkbox, Segmented, Skeleton, Tooltip } from 'antd';
 import dayjs from 'dayjs';
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  ClipboardCheck,
+  Clock,
+  FileText,
+  Mail,
+  MessageSquare,
+  Pencil,
+  Phone,
+  TrendingUp,
+  User,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { MetricGrid } from '@/components/MetricCard';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
@@ -85,16 +85,20 @@ export const useCustomerFollowup = (customerId: number, enabled: boolean) => {
 
 const channelIcon = (r: FollowupRecord) => {
   if (r.recordType !== RECORD_USER)
-    return r.targetType === 4 ? <AuditOutlined /> : <FileTextOutlined />;
+    return r.targetType === 4 ? (
+      <ClipboardCheck size="1em" />
+    ) : (
+      <FileText size="1em" />
+    );
   switch (r.channel) {
     case 1:
-      return <MessageOutlined />;
+      return <MessageSquare size="1em" />;
     case 2:
-      return <MailOutlined />;
+      return <Mail size="1em" />;
     case 3:
-      return <PhoneOutlined />;
+      return <Phone size="1em" />;
     default:
-      return <UserOutlined />;
+      return <User size="1em" />;
   }
 };
 
@@ -175,7 +179,7 @@ const RecordRow: React.FC<{ r: FollowupRecord; last: boolean }> = ({
           {adjust && reason && <Pill tone="gray">{reason}</Pill>}
           {moved && (
             <Pill tone="green">
-              <RiseOutlined /> {r.stageBefore || '—'} → {r.stageAfter}
+              <TrendingUp size="1em" /> {r.stageBefore || '—'} → {r.stageAfter}
             </Pill>
           )}
           {(r.docNos?.length ?? 0) > 1 && (
@@ -233,7 +237,7 @@ const RecordRow: React.FC<{ r: FollowupRecord; last: boolean }> = ({
         )}
         {r.profileFields.length > 0 && (
           <div style={{ marginTop: 4, fontSize: 12, color: palette.mute }}>
-            <UserOutlined /> 写入档案：
+            <User size="1em" /> 写入档案：
             {r.profileFields.map((f) => `${f.label} ${f.value}`).join('；')}
           </div>
         )}
@@ -248,7 +252,7 @@ const RecordRow: React.FC<{ r: FollowupRecord; last: boolean }> = ({
               type="link"
               size="small"
               style={{ padding: 0 }}
-              icon={raw ? <UpOutlined /> : <DownOutlined />}
+              icon={raw ? <ChevronUp size="1em" /> : <ChevronDown size="1em" />}
               onClick={() => setRaw((v) => !v)}
             >
               {raw ? '收起原文' : '展开原文'}
@@ -442,7 +446,7 @@ export const FollowupSection: React.FC<{
           gap: 8,
         }}
       >
-        <MessageOutlined style={{ color: palette.link }} />
+        <MessageSquare size="1em" style={{ color: palette.link }} />
         跟进
       </h2>
       {cur && <StageTag item={cur} />}
@@ -459,8 +463,7 @@ export const FollowupSection: React.FC<{
             maxWidth: 360,
           }}
         >
-          <ClockCircleOutlined /> 下一步：{cur.nextAction}{' '}
-          <DueText item={cur} />
+          <Clock size="1em" /> 下一步：{cur.nextAction} <DueText item={cur} />
         </span>
       )}
       <span style={{ flex: 1 }} />
@@ -479,7 +482,7 @@ export const FollowupSection: React.FC<{
       {canRecord && (
         <Button
           type="primary"
-          icon={<EditOutlined />}
+          icon={<Pencil size="1em" />}
           onClick={() => setRecording(true)}
         >
           记一次跟进
@@ -487,7 +490,7 @@ export const FollowupSection: React.FC<{
       )}
       <Button
         onClick={toggle}
-        icon={collapsed ? <DownOutlined /> : <UpOutlined />}
+        icon={collapsed ? <ChevronDown size="1em" /> : <ChevronUp size="1em" />}
         iconPlacement="end"
       >
         {collapsed ? '展开' : '收起'}
@@ -530,7 +533,7 @@ export const FollowupSection: React.FC<{
                 flexWrap: 'wrap',
               }}
             >
-              <ClockCircleOutlined style={{ color: palette.red }} />
+              <Clock size="1em" style={{ color: palette.red }} />
               <b style={{ color: palette.red }}>下一步</b>
               <span style={{ color: palette.ink, flex: 1, minWidth: 0 }}>
                 {cur.nextAction}
@@ -541,7 +544,7 @@ export const FollowupSection: React.FC<{
                   <SnoozeButton item={cur} onDone={onChanged} />
                   <Button
                     size="small"
-                    icon={<CheckOutlined />}
+                    icon={<Check size="1em" />}
                     onClick={() => setRecording(true)}
                   >
                     已完成，记一次
@@ -739,7 +742,7 @@ export const FollowupChainCard: React.FC<{ data?: CustomerFollowup }> = ({
                     : palette.inset,
               }}
             >
-              {done ? <CheckOutlined /> : n}
+              {done ? <Check size="1em" /> : n}
             </span>
             <div>
               <div

@@ -1,4 +1,3 @@
-import { InboxOutlined } from '@ant-design/icons';
 import { useSearchParams } from '@umijs/max';
 import {
   Alert,
@@ -11,7 +10,7 @@ import {
   Upload,
 } from 'antd';
 import dayjs from 'dayjs';
-import { Eye, Undo2 } from 'lucide-react';
+import { Eye, Inbox, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { EmptyState, tableEmpty } from '@/components/EmptyState';
@@ -228,7 +227,7 @@ const HistoryMigrationPage: React.FC = () => {
           }}
         >
           <p className="ant-upload-drag-icon">
-            <InboxOutlined />
+            <Inbox size="1em" />
           </p>
           <p className="ant-upload-text">
             {uploading ? '正在上传…' : '点击或拖入迁移包（pack.js 打出的 zip）'}

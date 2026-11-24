@@ -1,5 +1,5 @@
-import { BankOutlined, PlusOutlined, UserOutlined } from '@ant-design/icons';
 import { Button, Checkbox, Form, Input, Modal, Segmented } from 'antd';
+import { Landmark, Plus, User } from 'lucide-react';
 import React, { useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -134,7 +134,7 @@ export const AccountCard: React.FC<{
           background: corporate ? palette.primarySoft : palette.orangeSoft,
         }}
       >
-        {corporate ? <BankOutlined /> : <UserOutlined />}
+        {corporate ? <Landmark size="1em" /> : <User size="1em" />}
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
@@ -435,7 +435,7 @@ export const AccountListEditor: React.FC<{
         </span>
         {value.length > 0 && (
           <Button
-            icon={<PlusOutlined />}
+            icon={<Plus size="1em" />}
             disabled={full}
             onClick={() => setAdding(true)}
           >
@@ -459,7 +459,7 @@ export const AccountListEditor: React.FC<{
           <div style={{ margin: '6px 0 14px', fontSize: 13 }}>
             付款前需要先添加对公或对私账户。
           </div>
-          <Button icon={<PlusOutlined />} onClick={() => setAdding(true)}>
+          <Button icon={<Plus size="1em" />} onClick={() => setAdding(true)}>
             添加账户
           </Button>
         </div>

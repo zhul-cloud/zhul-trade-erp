@@ -1,4 +1,3 @@
-import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { history, Link, useLocation } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -12,6 +11,7 @@ import {
   Table,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Download, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -328,7 +328,7 @@ const LedgerPage: React.FC = () => {
               <Input
                 aria-label="关键词"
                 allowClear
-                prefix={<SearchOutlined />}
+                prefix={<Search size="1em" />}
                 onPressEnter={() => form.submit()}
                 placeholder="型号、品牌"
               />
@@ -357,7 +357,7 @@ const LedgerPage: React.FC = () => {
           right={
             <Button
               type="text"
-              icon={<DownloadOutlined />}
+              icon={<Download size="1em" />}
               style={{ color: palette.link }}
               loading={exporting}
               disabled={

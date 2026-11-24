@@ -1,8 +1,8 @@
-import { NumberOutlined, OrderedListOutlined } from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Alert, App, Button, Input, Skeleton, Space, Table } from 'antd';
 import dayjs from 'dayjs';
+import { Hash, ListOrdered } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/ListLayout';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
@@ -125,7 +125,7 @@ const DocumentNumberingPage: React.FC = () => {
                 marginBottom: 14,
               }}
             >
-              {sectionTitle(<NumberOutlined />, '单据前缀')}
+              {sectionTitle(<Hash size="1em" />, '单据前缀')}
               {!editable && <Pill tone="gray">只读</Pill>}
             </div>
             {saved === undefined ? (
@@ -219,7 +219,7 @@ const DocumentNumberingPage: React.FC = () => {
           </Card>
           <Card style={{ padding: 20 }}>
             <div style={{ marginBottom: 14 }}>
-              {sectionTitle(<OrderedListOutlined />, '编号规则')}
+              {sectionTitle(<ListOrdered size="1em" />, '编号规则')}
             </div>
             <Table<RuleRow>
               rowKey="name"

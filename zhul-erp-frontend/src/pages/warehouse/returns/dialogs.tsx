@@ -1,9 +1,4 @@
 import {
-  DeleteOutlined,
-  FileTextOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
-import {
   App,
   Button,
   DatePicker,
@@ -14,6 +9,7 @@ import {
   Space,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { FileText, Plus, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { SupplierPicker } from '@/pages/purchase/components';
 import {
@@ -397,7 +393,7 @@ export const DisposeModal: React.FC<{
                     />
                     <Button
                       type="text"
-                      icon={<DeleteOutlined />}
+                      icon={<Trash2 size="1em" />}
                       aria-label="删除这一行"
                       onClick={() =>
                         setRows((s) => s.filter((x) => x.key !== r.key))
@@ -409,7 +405,7 @@ export const DisposeModal: React.FC<{
             <Button
               type="link"
               size="small"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               style={{ paddingLeft: 0, marginTop: 6 }}
               onClick={() =>
                 setRows((s) => [
@@ -437,7 +433,7 @@ export const DisposeModal: React.FC<{
               color: palette.sub,
             }}
           >
-            <FileTextOutlined style={{ color: palette.link }} />{' '}
+            <FileText size="1em" style={{ color: palette.link }} />{' '}
             保存后生成采购退货单（待寄出），快递、运费与供应商退款在采购退货单上登记
           </div>
         )}

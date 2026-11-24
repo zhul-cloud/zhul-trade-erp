@@ -1,13 +1,7 @@
-import {
-  DownloadOutlined,
-  ExclamationCircleOutlined,
-  FileAddOutlined,
-  InfoCircleOutlined,
-  SettingOutlined,
-} from '@ant-design/icons';
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Alert, App, Button, Segmented, Skeleton, Table } from 'antd';
+import { CircleAlert, Download, FilePlus, Info, Settings } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { PageHeader } from '@/components/ListLayout';
@@ -115,7 +109,7 @@ const ReconTiles: React.FC<{ d: VoucherMonthDetail }> = ({ d }) => {
       </div>
       {d.returnInAmount !== 0 && (
         <div style={{ marginTop: 8, fontSize: 12, color: palette.mute }}>
-          <InfoCircleOutlined style={{ marginRight: 6 }} />
+          <Info size="1em" style={{ marginRight: 6 }} />
           库存月结的本月销售成本 {yuan(d.periodCogsAmount)} 不扣退货入库{' '}
           {yuan(d.returnInAmount)}
         </div>
@@ -143,7 +137,7 @@ const Entries: React.FC<{ v: Voucher }> = ({ v }) => {
           </>
         ) : (
           <Pill tone="orange">
-            <ExclamationCircleOutlined /> 未设置科目
+            <CircleAlert size="1em" /> 未设置科目
           </Pill>
         ),
     },
@@ -307,7 +301,7 @@ const VoucherMonthPage: React.FC = () => {
           <>
             <Button
               type="text"
-              icon={<SettingOutlined />}
+              icon={<Settings size="1em" />}
               style={{ color: palette.link }}
               onClick={() => setAccountsOpen(true)}
             >
@@ -316,7 +310,7 @@ const VoucherMonthPage: React.FC = () => {
             {canExport && d.generated && (
               <Button
                 type="primary"
-                icon={<DownloadOutlined />}
+                icon={<Download size="1em" />}
                 loading={exporting === month}
                 onClick={() => exportMonth(month, exported)}
               >
@@ -326,7 +320,7 @@ const VoucherMonthPage: React.FC = () => {
             {canExport && !d.generated && (
               <Button
                 type="primary"
-                icon={<FileAddOutlined />}
+                icon={<FilePlus size="1em" />}
                 loading={generating}
                 onClick={async () => {
                   setGenerating(true);

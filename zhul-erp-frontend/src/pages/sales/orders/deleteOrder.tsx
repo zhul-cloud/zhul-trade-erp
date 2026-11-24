@@ -1,6 +1,6 @@
-import { CheckCircleOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { App, Button, Input, Modal, Skeleton } from 'antd';
+import { CircleCheck } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
@@ -179,7 +179,7 @@ export const DeleteOrderModal: React.FC<{
               color: palette.sub,
             }}
           >
-            <CheckCircleOutlined style={{ color: palette.green }} />
+            <CircleCheck size="1em" style={{ color: palette.green }} />
             没有关联单据，删除后不能恢复
           </div>
         )}

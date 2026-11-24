@@ -1,21 +1,21 @@
 import {
-  CommentOutlined,
-  CompassOutlined,
-  InboxOutlined,
-  RiseOutlined,
-  SolutionOutlined,
-} from '@ant-design/icons';
+  Compass,
+  IdCard,
+  Inbox,
+  MessageSquare,
+  TrendingUp,
+} from 'lucide-react';
 import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { CHART_SERIES, mix } from '@/theme/palette';
 
 /** 五个板块的图标 */
 const BOARD_ICON: Record<number, React.ReactNode> = {
-  1: <CompassOutlined />,
-  2: <SolutionOutlined />,
-  3: <InboxOutlined />,
-  4: <CommentOutlined />,
-  5: <RiseOutlined />,
+  1: <Compass size="1em" />,
+  2: <IdCard size="1em" />,
+  3: <Inbox size="1em" />,
+  4: <MessageSquare size="1em" />,
+  5: <TrendingUp size="1em" />,
 };
 
 /**

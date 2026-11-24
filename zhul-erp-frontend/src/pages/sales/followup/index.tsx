@@ -1,6 +1,6 @@
-import { EditOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import { Button, Input, Segmented, Select } from 'antd';
+import { Pencil, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
@@ -310,7 +310,7 @@ const FollowupPage: React.FC = () => {
             {view === 'mine' && (
               <Input
                 allowClear
-                prefix={<SearchOutlined />}
+                prefix={<Search size="1em" />}
                 placeholder="搜索客户、单号"
                 style={{ width: 220 }}
                 value={keywordInput}
@@ -339,7 +339,7 @@ const FollowupPage: React.FC = () => {
             {view === 'mine' && canRecord && (
               <Button
                 type="primary"
-                icon={<EditOutlined />}
+                icon={<Pencil size="1em" />}
                 onClick={() => openRecord()}
               >
                 记一次跟进
@@ -403,7 +403,7 @@ const FollowupPage: React.FC = () => {
                         {canRecord && (
                           <Button
                             type="primary"
-                            icon={<PlusOutlined />}
+                            icon={<Plus size="1em" />}
                             onClick={() => setProspectOpen(true)}
                           >
                             新建开发对象

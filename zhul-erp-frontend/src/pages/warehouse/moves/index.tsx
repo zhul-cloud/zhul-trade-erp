@@ -1,8 +1,8 @@
-import { SearchOutlined } from '@ant-design/icons';
 import { history, Link, useLocation } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Checkbox, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { FilterField, MainCard, PageHeader } from '@/components/ListLayout';
@@ -249,7 +249,7 @@ const MovesPage: React.FC = () => {
             <Input
               aria-label="关键词"
               allowClear
-              prefix={<SearchOutlined />}
+              prefix={<Search size="1em" />}
               onPressEnter={() => form.submit()}
               placeholder="型号、单号、批次号"
             />

@@ -1,10 +1,5 @@
-import {
-  FileExcelOutlined,
-  FileImageOutlined,
-  FilePdfOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
 import { App, Button, Input, Popconfirm, Upload } from 'antd';
+import { FileImage, FileSpreadsheet, FileText, UploadIcon } from 'lucide-react';
 import React, { useState } from 'react';
 import { useDocPreview } from '@/components/DocFiles';
 import { CardTitle } from '@/components/ListLayout';
@@ -23,11 +18,11 @@ const MAX_BYTES = 10 * 1024 * 1024;
 
 const fileIcon = (name: string) =>
   /\.(xlsx?)$/i.test(name) ? (
-    <FileExcelOutlined />
+    <FileSpreadsheet size="1em" />
   ) : /\.pdf$/i.test(name) ? (
-    <FilePdfOutlined />
+    <FileText size="1em" />
   ) : (
-    <FileImageOutlined />
+    <FileImage size="1em" />
   );
 
 const sizeText = (bytes: number) =>
@@ -166,7 +161,7 @@ export const OrderFileUpload: React.FC<{
       beforeUpload={beforeUpload}
     >
       <span style={{ color: palette.sub }}>
-        <UploadOutlined style={{ color: palette.link }} /> {text}
+        <UploadIcon size="1em" style={{ color: palette.link }} /> {text}
       </span>
     </Upload.Dragger>
   ) : (
@@ -176,7 +171,7 @@ export const OrderFileUpload: React.FC<{
       showUploadList={false}
       beforeUpload={beforeUpload}
     >
-      <Button icon={<UploadOutlined />} loading={uploading > 0}>
+      <Button icon={<UploadIcon size="1em" />} loading={uploading > 0}>
         上传附件
       </Button>
     </Upload>

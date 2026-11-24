@@ -1,11 +1,4 @@
 import {
-  BulbOutlined,
-  HourglassOutlined,
-  LoadingOutlined,
-  RobotOutlined,
-  ThunderboltOutlined,
-} from '@ant-design/icons';
-import {
   Alert,
   App,
   Button,
@@ -19,6 +12,7 @@ import {
   Tag,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Bot, Hourglass, Lightbulb, LoaderCircle, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { customerApi } from '@/pages/customer/service';
 import { CreateAfterSalesModal } from '@/pages/sales/after-sales/dialogs';
@@ -782,7 +776,7 @@ const RecordFollowupModal: React.FC<{
           {raw && (
             <Button
               size="small"
-              icon={<RobotOutlined />}
+              icon={<Bot size="1em" />}
               loading={aiState === 'running'}
               disabled={!customerId}
               onClick={() => runAi(raw)}
@@ -802,7 +796,8 @@ const RecordFollowupModal: React.FC<{
         </div>
         {aiState === 'running' && (
           <div style={{ marginTop: 8, fontSize: 12, color: palette.sub }}>
-            <LoadingOutlined /> AI 正在整理，通常 10–20 秒；也可以先手工填写
+            <LoaderCircle size="1em" className="zhul-spin" /> AI 正在整理，通常
+            10–20 秒；也可以先手工填写
           </div>
         )}
         {aiState === 'failed' && aiHint && (
@@ -823,7 +818,7 @@ const RecordFollowupModal: React.FC<{
             }}
           >
             <div style={{ fontSize: 12, color: palette.info, marginBottom: 4 }}>
-              <RobotOutlined /> AI 摘要（可修改）
+              <Bot size="1em" /> AI 摘要（可修改）
               {truncated && '　· 原文过长，只整理了最后 20,000 字'}
             </div>
             <Input.TextArea
@@ -936,7 +931,7 @@ const RecordFollowupModal: React.FC<{
         )}
         {!nextError && vague && (
           <div style={{ fontSize: 12, color: palette.orange, marginTop: 4 }}>
-            <BulbOutlined />{' '}
+            <Lightbulb size="1em" />{' '}
             写清楚要做什么、要客户给什么，例如：发替代型号对比，问客户能否接受
           </div>
         )}
@@ -962,7 +957,7 @@ const RecordFollowupModal: React.FC<{
           />
           {nextDate?.isSame(suggest.date, 'day') && suggest.reason && (
             <span style={{ fontSize: 12, color: palette.link }}>
-              <ThunderboltOutlined /> 推荐：{suggest.reason}
+              <Zap size="1em" /> 推荐：{suggest.reason}
             </span>
           )}
         </Space>
@@ -980,7 +975,7 @@ const RecordFollowupModal: React.FC<{
               background: palette.primarySoft,
             }}
           >
-            <HourglassOutlined />
+            <Hourglass size="1em" />
             <span style={{ flex: 1 }}>
               隔这么久再跟，可以直接转培育，不占用待办和阶段停留
             </span>

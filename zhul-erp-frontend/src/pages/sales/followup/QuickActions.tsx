@@ -1,16 +1,16 @@
-import {
-  ArrowRightOutlined,
-  CheckCircleOutlined,
-  CheckOutlined,
-  DownOutlined,
-  EditOutlined,
-  ExclamationCircleOutlined,
-  HistoryOutlined,
-  SwapOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { App, Button, DatePicker, Dropdown, Input, Modal, Space } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import {
+  ArrowLeftRight,
+  ArrowRight,
+  Check,
+  ChevronDown,
+  CircleAlert,
+  CircleCheck,
+  History,
+  Pencil,
+} from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { POPUP_SHADOW } from '@/theme/palette';
@@ -205,13 +205,13 @@ export const QuickButton: React.FC<{
               marginTop: 4,
             }}
           >
-            <EditOutlined /> 要写细节，用「记跟进」
+            <Pencil size="1em" /> 要写细节，用「记跟进」
           </button>
         </div>
       )}
     >
-      <Button size="small" icon={<CheckOutlined />} loading={!!saving}>
-        已跟进 <DownOutlined />
+      <Button size="small" icon={<Check size="1em" />} loading={!!saving}>
+        已跟进 <ChevronDown size="1em" />
       </Button>
     </Dropdown>
   );
@@ -405,7 +405,7 @@ export const QuickBatchModal: React.FC<{
                       {r.advanceTo && (
                         <>
                           {' '}
-                          <ArrowRightOutlined /> {r.advanceTo}
+                          <ArrowRight size="1em" /> {r.advanceTo}
                         </>
                       )}
                     </Button>
@@ -416,7 +416,7 @@ export const QuickBatchModal: React.FC<{
           })}
           {none.length > 0 && (
             <div style={{ fontSize: 12, color: palette.orange }}>
-              <ExclamationCircleOutlined />{' '}
+              <CircleAlert size="1em" />{' '}
               {none
                 .slice(0, 3)
                 .map((p) => p.customerName)
@@ -471,7 +471,8 @@ export const QuickBatchModal: React.FC<{
         }}
         title={
           <span>
-            <CheckCircleOutlined
+            <CircleCheck
+              size="1em"
               style={{ color: palette.green, marginRight: 8 }}
             />
             已记 {result?.r.success ?? 0} 个客户
@@ -508,7 +509,7 @@ export const QuickBatchModal: React.FC<{
             }}
           >
             <div style={{ color: palette.orange, fontSize: 12 }}>
-              <ExclamationCircleOutlined /> 没记上 {result.r.failures.length} 个
+              <CircleAlert size="1em" /> 没记上 {result.r.failures.length} 个
             </div>
             {result.r.failures.map((f) => (
               <div key={f.customerId} style={{ color: palette.ink }}>
@@ -580,7 +581,7 @@ export const StageAdjust: React.FC<{
             color: palette.mute,
           }}
         >
-          <SwapOutlined /> 调整
+          <ArrowLeftRight size="1em" /> 调整
         </button>
         <AdjustStageModal
           item={open ? item : undefined}
@@ -743,7 +744,7 @@ export const AdjustStageModal: React.FC<{
               {current && (
                 <span style={{ fontSize: 12, color: palette.mute }}>当前</span>
               )}
-              {active && <CheckOutlined style={{ color: palette.link }} />}
+              {active && <Check size="1em" style={{ color: palette.link }} />}
             </button>
           );
         })}
@@ -784,7 +785,7 @@ export const AdjustStageModal: React.FC<{
             background: palette.inset,
           }}
         >
-          <HistoryOutlined /> 会在客户时间线留一条「调整阶段：{from} → {to}
+          <History size="1em" /> 会在客户时间线留一条「调整阶段：{from} → {to}
           」，下一步不变
         </div>
       )}

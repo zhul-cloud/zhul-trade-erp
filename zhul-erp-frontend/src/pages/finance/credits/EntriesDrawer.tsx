@@ -1,6 +1,6 @@
-import { EditOutlined, SendOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { App, Button, Drawer, Skeleton } from 'antd';
+import { Pencil, Send } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { EmptyState } from '@/components/EmptyState';
 import { UserName } from '@/components/UserName';
@@ -123,7 +123,7 @@ const EntriesDrawer: React.FC<{
               <Button
                 type="primary"
                 size="small"
-                icon={<SendOutlined />}
+                icon={<Send size="1em" />}
                 disabled={account.available <= 0}
                 onClick={() => onWithdraw?.(account)}
               >
@@ -131,7 +131,7 @@ const EntriesDrawer: React.FC<{
               </Button>
               <Button
                 size="small"
-                icon={<EditOutlined />}
+                icon={<Pencil size="1em" />}
                 onClick={() => onAdjust?.(account)}
               >
                 手工调整

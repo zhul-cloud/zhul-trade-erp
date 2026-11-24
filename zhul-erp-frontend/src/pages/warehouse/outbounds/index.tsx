@@ -1,14 +1,15 @@
-import {
-  CarOutlined,
-  CheckCircleOutlined,
-  InboxOutlined,
-  InfoCircleOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
 import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Input, Select, Table } from 'antd';
-import { Eye, PackageOpen } from 'lucide-react';
+import {
+  Car,
+  CircleCheck,
+  Eye,
+  Inbox,
+  Info,
+  PackageOpen,
+  Search,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
@@ -344,7 +345,7 @@ const Outbounds: React.FC = () => {
         >
           <Input
             allowClear
-            prefix={<SearchOutlined />}
+            prefix={<Search size="1em" />}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             onPressEnter={apply}
@@ -395,7 +396,7 @@ const Outbounds: React.FC = () => {
           left={
             selectable && selected.length > 0 ? (
               <>
-                <CheckCircleOutlined style={{ color: palette.link }} />
+                <CircleCheck size="1em" style={{ color: palette.link }} />
                 <b style={{ color: palette.ink }}>已选 {selected.length} 张</b>
                 <span style={{ color: palette.sub }}>
                   {tab === 'pending'
@@ -423,7 +424,7 @@ const Outbounds: React.FC = () => {
               <>
                 {rows.some(conflicts) && (
                   <span style={{ fontSize: 12, color: palette.mute }}>
-                    <InfoCircleOutlined />{' '}
+                    <Info size="1em" />{' '}
                     {tab === 'pending'
                       ? selected.length >= MERGE_MAX
                         ? `一次最多合并 ${MERGE_MAX} 张`
@@ -434,7 +435,7 @@ const Outbounds: React.FC = () => {
                 {tab === 'pending' ? (
                   <Button
                     type="primary"
-                    icon={<InboxOutlined />}
+                    icon={<Inbox size="1em" />}
                     disabled={selected.length < 2}
                     title={
                       selected.length < 2 ? '再选一张才能合并打包' : undefined
@@ -446,7 +447,7 @@ const Outbounds: React.FC = () => {
                 ) : (
                   <Button
                     type="primary"
-                    icon={<CarOutlined />}
+                    icon={<Car size="1em" />}
                     onClick={() => setHanding(true)}
                   >
                     交快递

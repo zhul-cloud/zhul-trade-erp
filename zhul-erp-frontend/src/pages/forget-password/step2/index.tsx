@@ -1,6 +1,6 @@
-import { LeftOutlined } from '@ant-design/icons';
 import { Helmet, history } from '@umijs/max';
 import { Alert, Button, Input } from 'antd';
+import { ChevronLeft } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { AuthLayout } from '@/components';
 import { usePageTitle } from '@/components/Shell/BrandLogo';
@@ -113,7 +113,7 @@ const Step2: React.FC = () => {
           }}
           style={{ position: 'absolute', left: 0, top: 4, fontSize: 13 }}
         >
-          <LeftOutlined /> 上一步
+          <ChevronLeft size="1em" /> 上一步
         </button>
         <div
           style={{

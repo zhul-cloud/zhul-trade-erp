@@ -1,8 +1,4 @@
 import {
-  CheckCircleOutlined,
-  ExclamationCircleOutlined,
-} from '@ant-design/icons';
-import {
   App,
   Button,
   DatePicker,
@@ -12,6 +8,7 @@ import {
   Select,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { CircleAlert, CircleCheck } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import {
@@ -257,11 +254,11 @@ export const BatchPayModal: React.FC<{
                 <span style={{ flex: 1 }} />
                 {problem ? (
                   <span style={{ fontSize: 12, color: palette.orange }}>
-                    <ExclamationCircleOutlined /> {problem}
+                    <CircleAlert size="1em" /> {problem}
                   </span>
                 ) : (
                   <span style={{ fontSize: 12, color: palette.green }}>
-                    <CheckCircleOutlined /> 已填好
+                    <CircleCheck size="1em" /> 已填好
                   </span>
                 )}
               </div>

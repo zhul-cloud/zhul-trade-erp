@@ -1,4 +1,3 @@
-import { DownOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import {
   App,
@@ -11,6 +10,7 @@ import {
   Select,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { ChevronDown } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Card, Pill } from '@/pages/crm/opportunity/components';
 import { GRADE_NAMES } from '@/pages/customer/profile/service';
@@ -191,7 +191,7 @@ export const SnoozeButton: React.FC<{
         }}
       >
         <Button size="small" loading={saving && !picking}>
-          {label} <DownOutlined />
+          {label} <ChevronDown size="1em" />
         </Button>
       </Dropdown>
       <Modal

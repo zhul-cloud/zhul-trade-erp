@@ -1,7 +1,7 @@
-import { StarFilled } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { Tooltip } from 'antd';
 import dayjs from 'dayjs';
+import { Star } from 'lucide-react';
 import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -27,7 +27,12 @@ export const Stars: React.FC<{ value?: number }> = ({ value }) => {
         whiteSpace: 'nowrap',
       }}
     >
-      <StarFilled style={{ color: palette.orangeMain }} /> {value} / 5
+      <Star
+        size="1em"
+        fill="currentColor"
+        style={{ color: palette.orangeMain }}
+      />{' '}
+      {value} / 5
     </span>
   );
 };

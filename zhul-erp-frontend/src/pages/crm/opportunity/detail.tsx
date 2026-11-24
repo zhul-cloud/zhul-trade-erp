@@ -1,17 +1,19 @@
-import {
-  ArrowRightOutlined,
-  CheckCircleFilled,
-  CloseCircleOutlined,
-  DownloadOutlined,
-  DownOutlined,
-  EditOutlined,
-  RollbackOutlined,
-  StopOutlined,
-  TrophyOutlined,
-} from '@ant-design/icons';
 import { history, useAccess, useParams } from '@umijs/max';
 import { Alert, App, Button, Dropdown, Skeleton } from 'antd';
-import { Ellipsis, FilePlus, Pencil, Trash2 } from 'lucide-react';
+import {
+  ArrowRight,
+  Ban,
+  ChevronDown,
+  CircleCheck,
+  CircleX,
+  Download,
+  Ellipsis,
+  FilePlus,
+  Pencil,
+  Trash2,
+  Trophy,
+  Undo2,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { PageHeader } from '@/components/ListLayout';
@@ -221,7 +223,7 @@ const OpportunityDetailPage: React.FC = () => {
           {inValidStage ? (
             <Button
               danger
-              icon={<CloseCircleOutlined />}
+              icon={<CircleX size="1em" />}
               disabled={busy}
               onClick={() => setCloseKind('LOST')}
             >
@@ -229,7 +231,7 @@ const OpportunityDetailPage: React.FC = () => {
             </Button>
           ) : (
             <Button
-              icon={<StopOutlined />}
+              icon={<Ban size="1em" />}
               disabled={busy}
               onClick={() => setCloseKind('INVALID')}
             >
@@ -247,12 +249,12 @@ const OpportunityDetailPage: React.FC = () => {
             }}
           >
             <Button disabled={busy}>
-              调整阶段 <DownOutlined />
+              调整阶段 <ChevronDown size="1em" />
             </Button>
           </Dropdown>
           {next && (
             <Button
-              icon={<ArrowRightOutlined />}
+              icon={<ArrowRight size="1em" />}
               loading={busy}
               onClick={() =>
                 run(
@@ -267,7 +269,7 @@ const OpportunityDetailPage: React.FC = () => {
           {canRecord && (
             <Button
               type="primary"
-              icon={<EditOutlined />}
+              icon={<Pencil size="1em" />}
               onClick={() => setRecording(true)}
             >
               记一次跟进
@@ -276,7 +278,7 @@ const OpportunityDetailPage: React.FC = () => {
         </>
       ) : (
         <Button
-          icon={<RollbackOutlined />}
+          icon={<Undo2 size="1em" />}
           loading={busy}
           onClick={() => run(() => opportunityApi.reopen(d.id), '已重新打开')}
         >
@@ -431,7 +433,9 @@ const OpportunityDetailPage: React.FC = () => {
                         : palette.mute,
                   }}
                 >
-                  {done && <CheckCircleFilled style={{ marginRight: 6 }} />}
+                  {done && (
+                    <CircleCheck size="1em" style={{ marginRight: 6 }} />
+                  )}
                   {s.code}
                 </div>
                 <div
@@ -461,7 +465,7 @@ const OpportunityDetailPage: React.FC = () => {
               background: palette.greenSoft,
             }}
           >
-            <TrophyOutlined style={{ color: palette.green }} />{' '}
+            <Trophy size="1em" style={{ color: palette.green }} />{' '}
             <b style={{ color: palette.green }}>
               收款到账后系统自动赢单，不用手动标记。
             </b>{' '}
@@ -571,7 +575,7 @@ const OpportunityDetailPage: React.FC = () => {
                             }
                           }}
                         >
-                          <DownloadOutlined />
+                          <Download size="1em" />
                         </button>
                       </>
                     }

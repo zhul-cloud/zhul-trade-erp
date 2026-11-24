@@ -1,14 +1,3 @@
-import {
-  ClockCircleOutlined,
-  CloseOutlined,
-  DownloadOutlined,
-  EllipsisOutlined,
-  OrderedListOutlined,
-  SafetyCertificateOutlined,
-  ThunderboltOutlined,
-  UserAddOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import {
   App,
@@ -23,7 +12,19 @@ import {
   Tooltip,
 } from 'antd';
 import dayjs from 'dayjs';
-import { Settings, Upload } from 'lucide-react';
+import {
+  Clock,
+  Download,
+  Ellipsis,
+  ListOrdered,
+  Settings,
+  ShieldCheck,
+  Upload,
+  User,
+  UserPlus,
+  X,
+  Zap,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { HelpTip, PageHeader, SummaryBar } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
@@ -369,7 +370,7 @@ const SourcingBoardPage: React.FC = () => {
                     size="small"
                     type={showDeferred ? 'primary' : 'default'}
                     ghost={showDeferred}
-                    icon={<ClockCircleOutlined />}
+                    icon={<Clock size="1em" />}
                     onClick={() => {
                       setDeferredView(!showDeferred);
                       setPage(1);
@@ -377,7 +378,7 @@ const SourcingBoardPage: React.FC = () => {
                     aria-pressed={showDeferred}
                   >
                     已延后 {board.tabs?.deferred ?? s.deferred ?? 0}
-                    {showDeferred && <CloseOutlined style={{ fontSize: 10 }} />}
+                    {showDeferred && <X size="1em" style={{ fontSize: 10 }} />}
                   </Button>
                 )}
                 {TAB_HINT[tab] && <HelpTip title={TAB_HINT[tab]} />}
@@ -428,7 +429,7 @@ const SourcingBoardPage: React.FC = () => {
                       <Button
                         type="primary"
                         size="small"
-                        icon={<ThunderboltOutlined />}
+                        icon={<Zap size="1em" />}
                         loading={busy}
                         onClick={() =>
                           run(
@@ -448,13 +449,13 @@ const SourcingBoardPage: React.FC = () => {
                         )}
                         trigger={['click']}
                       >
-                        <Button size="small" icon={<UserAddOutlined />}>
+                        <Button size="small" icon={<UserPlus size="1em" />}>
                           分配给…
                         </Button>
                       </Dropdown>
                       <Button
                         size="small"
-                        icon={<OrderedListOutlined />}
+                        icon={<ListOrdered size="1em" />}
                         onClick={openRulePreview}
                         loading={busy}
                       >
@@ -462,7 +463,7 @@ const SourcingBoardPage: React.FC = () => {
                       </Button>
                       <Button
                         size="small"
-                        icon={<ClockCircleOutlined />}
+                        icon={<Clock size="1em" />}
                         onClick={() =>
                           setDeferTarget({ kind: 'tasks', taskIds: selected })
                         }
@@ -472,7 +473,7 @@ const SourcingBoardPage: React.FC = () => {
                       {canProxy && (
                         <Button
                           size="small"
-                          icon={<DownloadOutlined />}
+                          icon={<Download size="1em" />}
                           onClick={() =>
                             boardApi
                               .downloadPackage(selected)
@@ -678,7 +679,10 @@ const SourcingBoardPage: React.FC = () => {
                                 fontSize: 12,
                               }}
                             >
-                              <UserOutlined style={{ color: palette.mute }} />
+                              <User
+                                size="1em"
+                                style={{ color: palette.mute }}
+                              />
                               业务员 {t.salesName || '—'}
                             </span>
                             <CustomerBrief
@@ -742,7 +746,8 @@ const SourcingBoardPage: React.FC = () => {
                                     fontWeight: 600,
                                   }}
                                 >
-                                  <ThunderboltOutlined
+                                  <Zap
+                                    size="1em"
                                     style={{ color: palette.link }}
                                   />{' '}
                                   推荐 {t.recommendedName ?? '—'}
@@ -822,12 +827,12 @@ const SourcingBoardPage: React.FC = () => {
                                         items: [
                                           {
                                             key: 'task',
-                                            icon: <ClockCircleOutlined />,
+                                            icon: <Clock size="1em" />,
                                             label: '延后这个任务',
                                           },
                                           {
                                             key: 'inquiry',
-                                            icon: <ClockCircleOutlined />,
+                                            icon: <Clock size="1em" />,
                                             label: '延后整张询盘',
                                           },
                                         ],
@@ -848,7 +853,7 @@ const SourcingBoardPage: React.FC = () => {
                                     >
                                       <Button
                                         size="small"
-                                        icon={<EllipsisOutlined />}
+                                        icon={<Ellipsis size="1em" />}
                                         aria-label="更多操作"
                                       />
                                     </Dropdown>
@@ -1215,7 +1220,7 @@ const ReviewList: React.FC<{
                 fontSize: 12,
               }}
             >
-              <UserOutlined style={{ color: palette.mute }} />
+              <User size="1em" style={{ color: palette.mute }} />
               {(t.reviewBuyerNames ?? []).join('、') || '—'}
               <Pill tone="gray">兼职</Pill>
             </span>
@@ -1252,7 +1257,7 @@ const ReviewList: React.FC<{
           <Button
             type="primary"
             ghost
-            icon={<SafetyCertificateOutlined />}
+            icon={<ShieldCheck size="1em" />}
             onClick={() => onOpen(t.id)}
           >
             去审核

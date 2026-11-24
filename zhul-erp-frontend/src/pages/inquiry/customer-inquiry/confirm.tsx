@@ -1,13 +1,3 @@
-import {
-  ApartmentOutlined,
-  CheckOutlined,
-  DatabaseOutlined,
-  DeleteOutlined,
-  InfoCircleOutlined,
-  PlusOutlined,
-  SyncOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { history, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -21,7 +11,17 @@ import {
   Skeleton,
   Table,
 } from 'antd';
-import { RefreshCw, Sparkles } from 'lucide-react';
+import {
+  Check,
+  Database,
+  Info,
+  Network,
+  Plus,
+  RefreshCw,
+  Sparkles,
+  Trash2,
+  TriangleAlert,
+} from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import BrandCategoryPicker from '@/components/BrandCategoryPicker';
 import { CardTitle, HelpTip, PageHeader } from '@/components/ListLayout';
@@ -524,7 +524,7 @@ const ConfirmPage: React.FC = () => {
           )}
           {r.confidence >= CONFIDENCE.PENDING_VERIFY && (
             <Pill tone="orange">
-              <WarningOutlined /> 待核实
+              <TriangleAlert size="1em" /> 待核实
               {r.originalModel ? ` · 原文 ${r.originalModel}` : ''}
             </Pill>
           )}
@@ -611,7 +611,7 @@ const ConfirmPage: React.FC = () => {
         if (r.matching)
           return (
             <span style={{ color: palette.mute }}>
-              <SyncOutlined spin /> 正在查询价记录…
+              <RefreshCw size="1em" className="zhul-spin" /> 正在查询价记录…
             </span>
           );
         const same = r.match?.sameBrand ?? [];
@@ -698,7 +698,7 @@ const ConfirmPage: React.FC = () => {
           type="text"
           size="small"
           aria-label="删除这一行"
-          icon={<DeleteOutlined />}
+          icon={<Trash2 size="1em" />}
           onClick={() => setRows((prev) => prev.filter((x) => x.key !== r.key))}
         />
       ),
@@ -711,7 +711,7 @@ const ConfirmPage: React.FC = () => {
     return (
       <div style={{ display: 'grid', gap: 10, padding: '4px 8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <DatabaseOutlined style={{ color: palette.info }} />
+          <Database size="1em" style={{ color: palette.info }} />
           <span style={{ fontWeight: 600, color: palette.ink }}>
             询价记录里 {r.brand} {r.confirmedModel}{' '}
             的价格（同品牌、型号写法不同也会归到一起）
@@ -723,7 +723,7 @@ const ConfirmPage: React.FC = () => {
           </span>
           <Button
             size="small"
-            icon={<SyncOutlined />}
+            icon={<RefreshCw size="1em" />}
             disabled={!r.reuseQuoteId}
             onClick={() => patch(r.key, { reuseQuoteId: null })}
           >
@@ -800,7 +800,7 @@ const ConfirmPage: React.FC = () => {
               fontSize: 12,
             }}
           >
-            <InfoCircleOutlined />
+            <Info size="1em" />
             其他品牌也有同型号记录（仅作参考，不默认复用）：
             {others
               .slice(0, 3)
@@ -904,7 +904,7 @@ const ConfirmPage: React.FC = () => {
             )}
             <Button
               type="primary"
-              icon={<CheckOutlined />}
+              icon={<Check size="1em" />}
               loading={saving}
               onClick={confirm}
             >
@@ -985,12 +985,12 @@ const ConfirmPage: React.FC = () => {
         <Pill tone="gray">共 {rows.length} 个型号</Pill>
         <Pill tone="gray">{brands.size} 个品牌</Pill>
         <Pill tone="cyan">
-          <DatabaseOutlined /> {reused.length} 个复用历史价
+          <Database size="1em" /> {reused.length} 个复用历史价
         </Pill>
         <Pill tone="orange">{pending.length} 个待询价</Pill>
         {verifyCount > 0 && (
           <Pill tone="orange">
-            <WarningOutlined /> {verifyCount} 个待核实
+            <TriangleAlert size="1em" /> {verifyCount} 个待核实
           </Pill>
         )}
         <Button
@@ -1005,7 +1005,7 @@ const ConfirmPage: React.FC = () => {
         </Button>
         <Button
           size="small"
-          icon={<PlusOutlined />}
+          icon={<Plus size="1em" />}
           onClick={() => setRows((prev) => [...prev, emptyRow()])}
         >
           手动加一行
@@ -1078,7 +1078,7 @@ const ConfirmPage: React.FC = () => {
                     </span>
                     {verify > 0 && (
                       <Pill tone="orange">
-                        <WarningOutlined /> {verify} 个待核实
+                        <TriangleAlert size="1em" /> {verify} 个待核实
                       </Pill>
                     )}
                   </span>
@@ -1180,7 +1180,7 @@ const ConfirmPage: React.FC = () => {
                   </div>
                 ))}
                 <div style={{ color: palette.mute, fontSize: 12 }}>
-                  <ApartmentOutlined /> 确认后进入询价分配，由采购负责人分配。
+                  <Network size="1em" /> 确认后进入询价分配，由采购负责人分配。
                 </div>
               </div>
             )}

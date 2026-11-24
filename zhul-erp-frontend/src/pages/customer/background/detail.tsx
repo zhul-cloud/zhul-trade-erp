@@ -1,13 +1,16 @@
-import {
-  DashboardOutlined,
-  FileTextOutlined,
-  LoadingOutlined,
-} from '@ant-design/icons';
 import XMarkdown from '@ant-design/x-markdown';
 import { useAccess, useParams } from '@umijs/max';
 import '@ant-design/x-markdown/es/XMarkdown/index.css';
 import { App, Button, Dropdown, Skeleton } from 'antd';
-import { Download, Ellipsis, Paperclip, Trash2 } from 'lucide-react';
+import {
+  Download,
+  Ellipsis,
+  FileText,
+  Gauge,
+  LoaderCircle,
+  Paperclip,
+  Trash2,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { PageHeader } from '@/components/ListLayout';
@@ -243,7 +246,11 @@ const BackgroundReportPage: React.FC = () => {
         >
           {running ? (
             <>
-              <LoadingOutlined style={{ fontSize: 24, color: palette.link }} />
+              <LoaderCircle
+                size="1em"
+                className="zhul-spin"
+                style={{ fontSize: 24, color: palette.link }}
+              />
               <div style={{ marginTop: 12, fontSize: 15 }}>
                 {r.source === SOURCE_AI
                   ? '正在联网背调，大约需要 3–5 分钟，完成后自动刷新'
@@ -279,7 +286,7 @@ const BackgroundReportPage: React.FC = () => {
               <ConclusionBox report={r} />
             </div>
             <Card
-              icon={<DashboardOutlined />}
+              icon={<Gauge size="1em" />}
               title="本次用量"
               style={{ flex: '0 0 320px', maxWidth: '100%' }}
             >
@@ -315,7 +322,7 @@ const BackgroundReportPage: React.FC = () => {
             }}
           >
             <Card
-              icon={<FileTextOutlined />}
+              icon={<FileText size="1em" />}
               title={
                 <>
                   报告正文

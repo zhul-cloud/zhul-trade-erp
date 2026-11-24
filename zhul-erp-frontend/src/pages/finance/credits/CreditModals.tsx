@@ -1,10 +1,4 @@
 import {
-  CalculatorOutlined,
-  PaperClipOutlined,
-  SendOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
-import {
   App,
   AutoComplete,
   DatePicker,
@@ -14,6 +8,7 @@ import {
   Select,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Calculator, Paperclip, Send, User } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { customerApi } from '@/pages/customer/service';
 import { readBizError } from '@/pages/sales/service';
@@ -350,7 +345,7 @@ export const WithdrawModal: React.FC<{
             {formatAmount(account.availableCny, 'CNY')}
           </div>
         </div>
-        <Section icon={<SendOutlined />} title="转出信息" />
+        <Section icon={<Send size="1em" />} title="转出信息" />
         <div>
           <FieldLabel text={`转出金额（${cur}）`} required />
           <InputNumber<number>
@@ -502,7 +497,7 @@ export const AdjustModal: React.FC<{
       destroyOnHidden
     >
       <div style={{ display: 'grid', gap: 16 }}>
-        <Section icon={<UserOutlined />} title="余额账户" />
+        <Section icon={<User size="1em" />} title="余额账户" />
         <div
           style={{
             display: 'grid',
@@ -536,7 +531,7 @@ export const AdjustModal: React.FC<{
             </div>
           )}
         </div>
-        <Section icon={<CalculatorOutlined />} title="调整金额" />
+        <Section icon={<Calculator size="1em" />} title="调整金额" />
         <div
           style={{
             display: 'grid',
@@ -603,7 +598,7 @@ export const AdjustModal: React.FC<{
           )}
         </div>
         <div>
-          <Section icon={<PaperClipOutlined />} title="凭证（选填）" />
+          <Section icon={<Paperclip size="1em" />} title="凭证（选填）" />
           <div style={{ marginTop: 8 }}>
             <AttachmentWall
               ownerType="CREDIT"

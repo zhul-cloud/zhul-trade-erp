@@ -1,7 +1,7 @@
-import { DownOutlined, RightOutlined } from '@ant-design/icons';
 import { Link } from '@umijs/max';
 import { Button, Checkbox, Skeleton } from 'antd';
 import dayjs from 'dayjs';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import React, { useState } from 'react';
 import { EmptyState } from '@/components/EmptyState';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -236,9 +236,9 @@ const GroupRow: React.FC<{
         </span>
         <b style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
           {open ? (
-            <DownOutlined style={{ fontSize: 11 }} />
+            <ChevronDown size="1em" style={{ fontSize: 11 }} />
           ) : (
-            <RightOutlined style={{ fontSize: 11 }} />
+            <ChevronRight size="1em" style={{ fontSize: 11 }} />
           )}
           {scopeName(g)}
         </b>

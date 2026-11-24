@@ -1,7 +1,7 @@
-import { WarningOutlined } from '@ant-design/icons';
 import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Tag, Tooltip } from 'antd';
+import { TriangleAlert } from 'lucide-react';
 import React from 'react';
 import ViewMediaLink from '@/pages/operations/media/ViewMediaLink';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -89,7 +89,7 @@ const DocModelCell: React.FC<{
       )}
       {updatedTo && (
         <span style={{ color: tone, fontSize: 12, fontWeight: 400 }}>
-          <WarningOutlined style={{ marginRight: 4 }} />
+          <TriangleAlert size="1em" style={{ marginRight: 4 }} />
           真实型号已更新为 <b>{updatedTo}</b>
           {updatedTail}
         </span>

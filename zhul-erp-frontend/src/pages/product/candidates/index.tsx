@@ -1,11 +1,3 @@
-import {
-  CheckOutlined,
-  CloseOutlined,
-  EditOutlined,
-  MergeCellsOutlined,
-  PlusOutlined,
-  RobotOutlined,
-} from '@ant-design/icons';
 import { Link, useAccess, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -22,7 +14,7 @@ import {
   Table,
   Tabs,
 } from 'antd';
-import { Search } from 'lucide-react';
+import { Bot, Check, Merge, Pencil, Plus, Search, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -98,7 +90,7 @@ const writeAiJob = (job: AiFill | null) => {
 /** AI 写入的品类、品牌标记 */
 const AiTag: React.FC<{ text?: string }> = ({ text = 'AI 建议' }) => (
   <Pill tone="violet">
-    <RobotOutlined /> {text}
+    <Bot size="1em" /> {text}
   </Pill>
 );
 
@@ -553,7 +545,7 @@ export const ReviewDrawer: React.FC<{
           editable && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Button
-                icon={<CloseOutlined />}
+                icon={<X size="1em" />}
                 disabled={!!c?.usedByOrders}
                 title={c?.usedByOrders ? '已成交，不能驳回' : undefined}
                 onClick={() => setRejecting(true)}
@@ -561,7 +553,7 @@ export const ReviewDrawer: React.FC<{
                 驳回
               </Button>
               <Button
-                icon={<MergeCellsOutlined />}
+                icon={<Merge size="1em" />}
                 onClick={() => setMerging(true)}
               >
                 并入已有商品
@@ -579,7 +571,7 @@ export const ReviewDrawer: React.FC<{
               <Button onClick={onClose}>取消</Button>
               <Button
                 type="primary"
-                icon={<CheckOutlined />}
+                icon={<Check size="1em" />}
                 loading={busy}
                 disabled={!!finalProblem}
                 onClick={() => c && approve(c)}
@@ -1668,7 +1660,7 @@ const Candidates: React.FC = () => {
         extra={
           <Button
             type="primary"
-            icon={<PlusOutlined />}
+            icon={<Plus size="1em" />}
             onClick={() => setImportOpen(true)}
           >
             添加候选
@@ -1797,7 +1789,7 @@ const Candidates: React.FC = () => {
       {tab !== 5 && aiDone && (
         <Card style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <CheckOutlined style={{ color: palette.green }} />
+            <Check size="1em" style={{ color: palette.green }} />
             <span style={{ display: 'grid', gap: 2 }}>
               <b style={{ color: palette.ink }}>{aiSummary(aiDone)}</b>
               <span style={{ color: palette.mute, fontSize: 12 }}>
@@ -1823,7 +1815,7 @@ const Candidates: React.FC = () => {
             <Button
               type="text"
               size="small"
-              icon={<CloseOutlined />}
+              icon={<X size="1em" />}
               onClick={() => setAiDone(null)}
               aria-label="关闭结果提示"
             />
@@ -1851,7 +1843,7 @@ const Candidates: React.FC = () => {
                 {(['category', 'brand'] as AiFillMode[]).map((mode) => (
                   <Button
                     key={mode}
-                    icon={<RobotOutlined />}
+                    icon={<Bot size="1em" />}
                     disabled={!aiJob && selected.length === 0}
                     loading={aiJob?.mode === mode}
                     onClick={() => (aiJob ? undefined : aiFill(mode))}
@@ -1867,7 +1859,7 @@ const Candidates: React.FC = () => {
                   </Button>
                 ))}
                 <Button
-                  icon={<EditOutlined />}
+                  icon={<Pencil size="1em" />}
                   disabled={selected.length === 0}
                   onClick={() =>
                     selected.length > BATCH_EDIT_MAX
@@ -1881,7 +1873,7 @@ const Candidates: React.FC = () => {
                 </Button>
                 <Button
                   type="primary"
-                  icon={<CheckOutlined />}
+                  icon={<Check size="1em" />}
                   disabled={selected.length === 0}
                   loading={busy}
                   onClick={batch}

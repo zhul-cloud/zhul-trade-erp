@@ -1,17 +1,3 @@
-import {
-  CalendarOutlined,
-  CarOutlined,
-  DeleteOutlined,
-  FallOutlined,
-  FilePdfOutlined,
-  FileProtectOutlined,
-  HistoryOutlined,
-  PlusOutlined,
-  ShoppingOutlined,
-  UploadOutlined,
-  WalletOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { history, Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -34,14 +20,25 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import {
   Ban,
+  Calendar,
+  Car,
   Check,
   CircleX,
   Ellipsis,
   Eye,
+  FileLock,
+  FileText,
+  History,
   Pencil,
+  Plus,
+  ShoppingBag,
   Trash2,
+  TrendingDown,
+  TriangleAlert,
   Truck,
+  UploadIcon,
   UserPlus,
+  Wallet,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
@@ -413,7 +410,7 @@ const PurchaseOrderDetail: React.FC = () => {
           )}
           {r.modelUpdatedTo && (
             <div style={{ color: palette.red, fontSize: 12, fontWeight: 400 }}>
-              <WarningOutlined style={{ marginRight: 4 }} />
+              <TriangleAlert size="1em" style={{ marginRight: 4 }} />
               真实型号已更新为 <b>{r.modelUpdatedTo}</b>，请与供应商核对
             </div>
           )}
@@ -600,7 +597,7 @@ const PurchaseOrderDetail: React.FC = () => {
                 <Button
                   type="text"
                   size="small"
-                  icon={<DeleteOutlined />}
+                  icon={<Trash2 size="1em" />}
                   aria-label={`移除 ${r.model}`}
                   onClick={() => removeItems([r.id])}
                 />
@@ -794,7 +791,7 @@ const PurchaseOrderDetail: React.FC = () => {
         }}
       >
         <StatCard
-          icon={<WalletOutlined />}
+          icon={<Wallet size="1em" />}
           color={palette.link}
           label="合计"
           value={formatAmount(preview.total, draft.currencyCode)}
@@ -806,7 +803,7 @@ const PurchaseOrderDetail: React.FC = () => {
           hintColor={preview.missing > 0 ? palette.orange : undefined}
         />
         <StatCard
-          icon={<FallOutlined />}
+          icon={<TrendingDown size="1em" />}
           color={deltaOf(preview.bargain)}
           label="砍价合计"
           value={formatAmount(preview.bargain, 'CNY')}
@@ -818,7 +815,7 @@ const PurchaseOrderDetail: React.FC = () => {
           hintColor={deltaOf(preview.bargain)}
         />
         <StatCard
-          icon={<CalendarOutlined />}
+          icon={<Calendar size="1em" />}
           color={palette.info}
           label="付款条件"
           value={
@@ -834,7 +831,7 @@ const PurchaseOrderDetail: React.FC = () => {
         />
         {po.shipProgress ? (
           <StatCard
-            icon={<CarOutlined />}
+            icon={<Car size="1em" />}
             color={po.overdueDays ? palette.orange : palette.link}
             label="发货进度"
             value={`已发 ${po.shippedQty ?? 0} / ${po.totalQty ?? 0}`}
@@ -843,7 +840,7 @@ const PurchaseOrderDetail: React.FC = () => {
           />
         ) : po.shop ? (
           <StatCard
-            icon={<ShoppingOutlined />}
+            icon={<ShoppingBag size="1em" />}
             color={palette.orange}
             label="采购对象"
             value="线上店铺"
@@ -851,7 +848,7 @@ const PurchaseOrderDetail: React.FC = () => {
           />
         ) : (
           <StatCard
-            icon={<FileProtectOutlined />}
+            icon={<FileLock size="1em" />}
             color={palette.orange}
             label="供应商合同"
             value={
@@ -1260,7 +1257,7 @@ const PurchaseOrderDetail: React.FC = () => {
                 />
                 <Button
                   type="text"
-                  icon={<DeleteOutlined />}
+                  icon={<Trash2 size="1em" />}
                   aria-label="删除费用"
                   onClick={() =>
                     setDraft((d) =>
@@ -1291,7 +1288,7 @@ const PurchaseOrderDetail: React.FC = () => {
             <Button
               size="small"
               type="dashed"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               style={{ width: 120 }}
               onClick={() =>
                 setDraft((d) =>
@@ -1359,7 +1356,7 @@ const PurchaseOrderDetail: React.FC = () => {
       >
         <Card style={{ padding: 20 }}>
           <b style={{ color: palette.ink, display: 'block', marginBottom: 12 }}>
-            <CalendarOutlined /> 付款条件
+            <Calendar size="1em" /> 付款条件
           </b>
           <PaymentTermsEditor
             value={draft.paymentTerms}
@@ -1389,7 +1386,7 @@ const PurchaseOrderDetail: React.FC = () => {
         )}
         <Card style={{ padding: 20 }}>
           <b style={{ color: palette.ink, display: 'block', marginBottom: 12 }}>
-            <HistoryOutlined /> 操作日志
+            <History size="1em" /> 操作日志
           </b>
           <div
             style={{
@@ -1861,7 +1858,7 @@ const ShipmentsCard: React.FC<{
         }}
       >
         <b style={{ color: palette.ink, fontSize: 15 }}>
-          <CarOutlined /> 发货与入库
+          <Car size="1em" /> 发货与入库
         </b>
         <span style={{ flex: 1 }} />
         <span style={{ fontSize: 12, color: palette.mute }}>
@@ -1942,7 +1939,7 @@ const ContractCard: React.FC<{
     <Card style={{ padding: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
         <b style={{ color: palette.ink }}>
-          <FileProtectOutlined /> 供应商合同
+          <FileLock size="1em" /> 供应商合同
         </b>
         <span style={{ flex: 1 }} />
         <span style={{ fontSize: 12, color: palette.mute }}>选填</span>
@@ -1960,7 +1957,7 @@ const ContractCard: React.FC<{
               background: palette.inset,
             }}
           >
-            <FilePdfOutlined style={{ color: palette.link }} />
+            <FileText size="1em" style={{ color: palette.link }} />
             <span
               style={{
                 color: palette.ink,
@@ -1999,7 +1996,7 @@ const ContractCard: React.FC<{
               <Button
                 type="text"
                 size="small"
-                icon={<DeleteOutlined />}
+                icon={<Trash2 size="1em" />}
                 aria-label={`删除 ${a.fileName}`}
                 onClick={() =>
                   poApi
@@ -2032,7 +2029,7 @@ const ContractCard: React.FC<{
               return false;
             }}
           >
-            <Button icon={<UploadOutlined />} loading={uploading}>
+            <Button icon={<UploadIcon size="1em" />} loading={uploading}>
               上传合同（PDF、JPG、PNG，单个 10MB 内）
             </Button>
           </Upload>

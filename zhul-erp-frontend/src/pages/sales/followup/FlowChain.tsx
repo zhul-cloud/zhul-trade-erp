@@ -1,9 +1,5 @@
-import {
-  CalendarOutlined,
-  RetweetOutlined,
-  RightOutlined,
-} from '@ant-design/icons';
 import { Skeleton } from 'antd';
+import { Calendar, ChevronRight, Repeat } from 'lucide-react';
 import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useBoardStyle, VIEW_TODAY } from './boardStyle';
@@ -29,7 +25,7 @@ export const Arrow: React.FC = () => {
         fontSize: 11,
       }}
     >
-      <RightOutlined />
+      <ChevronRight size="1em" />
     </span>
   );
 };
@@ -225,7 +221,7 @@ const Track: React.FC<{ boards: OverviewBoard[] }> = ({ boards }) => {
                     gap: 4,
                   }}
                 >
-                  <RetweetOutlined /> 复购回到第 2 步
+                  <Repeat size="1em" /> 复购回到第 2 步
                 </span>
               )}
             </div>
@@ -293,7 +289,7 @@ export const FlowChain: React.FC<{
               gap: 6,
             }}
           >
-            <CalendarOutlined /> 今日待办
+            <Calendar size="1em" /> 今日待办
           </b>
           <span>
             <span style={{ fontSize: 28, fontWeight: 700 }}>{total}</span>

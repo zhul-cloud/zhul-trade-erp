@@ -1,8 +1,7 @@
-import { InboxOutlined, SearchOutlined } from '@ant-design/icons';
 import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Button, Input, Select, Table } from 'antd';
-import { Eye, PackageCheck } from 'lucide-react';
+import { Eye, Inbox, PackageCheck, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
@@ -379,7 +378,7 @@ const Receipts: React.FC = () => {
           canEdit && (
             <Button
               type="primary"
-              icon={<InboxOutlined />}
+              icon={<Inbox size="1em" />}
               onClick={() => setDirect(true)}
             >
               直接收货
@@ -406,7 +405,7 @@ const Receipts: React.FC = () => {
         >
           <Input
             allowClear
-            prefix={<SearchOutlined />}
+            prefix={<Search size="1em" />}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             onPressEnter={apply}

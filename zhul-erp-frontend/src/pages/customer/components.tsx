@@ -1,10 +1,4 @@
 import {
-  CopyOutlined,
-  EnvironmentOutlined,
-  FileTextOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
-import {
   App,
   Button,
   Checkbox,
@@ -16,6 +10,7 @@ import {
   Select,
   Switch,
 } from 'antd';
+import { Copy, FileText, MapPin, User } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { HelpTip } from '@/components/ListLayout';
 import { Pill } from '@/components/Pill';
@@ -206,9 +201,9 @@ export const PartyCard: React.FC<{
           )}
         </div>
       </div>
-      {line(<EnvironmentOutlined />, address)}
-      {contact && line(<UserOutlined />, contact)}
-      {extra && line(<FileTextOutlined />, extra)}
+      {line(<MapPin size="1em" />, address)}
+      {contact && line(<User size="1em" />, contact)}
+      {extra && line(<FileText size="1em" />, extra)}
     </div>
   );
 };
@@ -366,7 +361,7 @@ export const PartyDrawer: React.FC<{
         </Form.Item>
         <Button
           type="link"
-          icon={<CopyOutlined />}
+          icon={<Copy size="1em" />}
           style={{ padding: 0, marginBottom: 16 }}
           onClick={() => form.setFieldsValue(registration())}
         >

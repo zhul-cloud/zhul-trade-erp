@@ -1,4 +1,3 @@
-import { PlusOutlined } from '@ant-design/icons';
 import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -14,7 +13,7 @@ import {
   Table,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Eye } from 'lucide-react';
+import { Eye, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   FilterCard,
@@ -380,7 +379,7 @@ const OtherIncomePage: React.FC = () => {
           canEdit && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => setModal({})}
             >
               登记其他收入

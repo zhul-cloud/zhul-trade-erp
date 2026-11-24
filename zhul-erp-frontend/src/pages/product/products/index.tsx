@@ -1,9 +1,3 @@
-import {
-  CheckOutlined,
-  CloseOutlined,
-  PlusOutlined,
-  RobotOutlined,
-} from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import {
   App,
@@ -21,7 +15,7 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { ArchiveRestore, Search } from 'lucide-react';
+import { ArchiveRestore, Bot, Check, Plus, Search, X } from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -404,7 +398,7 @@ const ProductListInner: React.FC = () => {
     const rest = picked ? 0 : Math.max(0, total - REFINE_MAX);
     modal.confirm({
       title: 'AI 细分品类',
-      icon: <RobotOutlined style={{ color: palette.link }} />,
+      icon: <Bot size="1em" style={{ color: palette.link }} />,
       width: 480,
       content: (
         <div style={{ display: 'grid', gap: 8 }}>
@@ -900,7 +894,7 @@ const ProductListInner: React.FC = () => {
           access['product:product:add'] && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => history.push('/product/products/new')}
             >
               新建商品
@@ -922,7 +916,7 @@ const ProductListInner: React.FC = () => {
             border: `1px solid ${palette.hairline}`,
           }}
         >
-          <CheckOutlined style={{ color: palette.green }} />
+          <Check size="1em" style={{ color: palette.green }} />
           <b style={{ color: palette.ink }}>AI 细分完成</b>
           <span style={{ color: palette.sub }}>{refineSummary(aiDone)}</span>
           <span style={{ flex: 1 }} />
@@ -941,7 +935,7 @@ const ProductListInner: React.FC = () => {
           <Button
             type="text"
             size="small"
-            icon={<CloseOutlined />}
+            icon={<X size="1em" />}
             onClick={() => setAiDone(null)}
             aria-label="关闭结果提示"
           />
@@ -1116,7 +1110,7 @@ const ProductListInner: React.FC = () => {
                   </Button>
                   <Button
                     type="primary"
-                    icon={<CheckOutlined />}
+                    icon={<Check size="1em" />}
                     onClick={() =>
                       acceptRows(rows.filter((r) => selected.includes(r.id)))
                     }
@@ -1190,7 +1184,7 @@ const ProductListInner: React.FC = () => {
                       </span>
                     ) : (
                       <Button
-                        icon={<RobotOutlined />}
+                        icon={<Bot size="1em" />}
                         disabled={!total && !selected.length}
                         onClick={startRefine}
                       >

@@ -1,5 +1,5 @@
-import { CompassOutlined } from '@ant-design/icons';
 import { Checkbox, Skeleton } from 'antd';
+import { Compass } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { Card, Pill } from '../components';
@@ -73,7 +73,7 @@ const BattleCard: React.FC<{ stage?: string }> = ({ stage }) => {
   return (
     <Card style={{ padding: 20 }}>
       <b style={{ display: 'inline-flex', gap: 8, fontSize: 15 }}>
-        <CompassOutlined style={{ color: palette.link }} /> 作战卡
+        <Compass size="1em" style={{ color: palette.link }} /> 作战卡
       </b>
       <div
         style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12 }}

@@ -1,14 +1,14 @@
-import {
-  EditOutlined,
-  FileExcelOutlined,
-  FilePdfOutlined,
-  LeftOutlined,
-  PictureOutlined,
-  PlayCircleOutlined,
-  RightOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
 import { App, Button, Input, Modal, Popconfirm, Spin, Upload } from 'antd';
+import {
+  ChevronLeft,
+  ChevronRight,
+  CirclePlay,
+  FileSpreadsheet,
+  FileText,
+  Image,
+  Pencil,
+  UploadIcon,
+} from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useUnsavedGuard } from '@/components/PageTabs/hooks';
 import { Card } from '@/pages/inquiry/shared/components';
@@ -190,7 +190,7 @@ export const useDocPreview = () => {
   const arrow = (d: number) => (
     <Button
       shape="circle"
-      icon={d < 0 ? <LeftOutlined /> : <RightOutlined />}
+      icon={d < 0 ? <ChevronLeft size="1em" /> : <ChevronRight size="1em" />}
       aria-label={d < 0 ? '上一个' : '下一个'}
       onClick={() => go(d)}
     />
@@ -326,13 +326,13 @@ const FileIcon: React.FC<{ file: Attachment; size?: number }> = ({
   size = 16,
 }) =>
   isExcel(file.fileName) ? (
-    <FileExcelOutlined style={{ fontSize: size }} />
+    <FileSpreadsheet size="1em" style={{ fontSize: size }} />
   ) : file.kind === 2 ? (
-    <PlayCircleOutlined style={{ fontSize: size }} />
+    <CirclePlay size="1em" style={{ fontSize: size }} />
   ) : file.kind === 3 ? (
-    <FilePdfOutlined style={{ fontSize: size }} />
+    <FileText size="1em" style={{ fontSize: size }} />
   ) : (
-    <PictureOutlined style={{ fontSize: size }} />
+    <Image size="1em" style={{ fontSize: size }} />
   );
 
 // ---------------------------------------------------------------- 卡片
@@ -508,7 +508,7 @@ export const DocFilesCard: React.FC<{
         beforeUpload={beforeUpload(g)}
       >
         <a>
-          <UploadOutlined />{' '}
+          <UploadIcon size="1em" />{' '}
           {(uploading[g.label] ?? 0) > 0
             ? `正在上传 ${uploading[g.label]} 个…`
             : '上传'}
@@ -553,7 +553,7 @@ export const DocFilesCard: React.FC<{
               type="text"
               size="small"
               aria-label="编辑备注"
-              icon={<EditOutlined />}
+              icon={<Pencil size="1em" />}
               onClick={() => setEditing(remark ?? '')}
             />
           )}

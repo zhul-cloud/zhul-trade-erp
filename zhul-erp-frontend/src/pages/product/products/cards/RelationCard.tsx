@@ -1,4 +1,3 @@
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import {
   App,
@@ -12,6 +11,7 @@ import {
   Space,
   Table,
 } from 'antd';
+import { Plus, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
@@ -205,7 +205,7 @@ export const RelationCard: React.FC<{
       actions={
         <Space size={8}>
           {!readOnly && (
-            <Button icon={<PlusOutlined />} onClick={() => setOpen(true)}>
+            <Button icon={<Plus size="1em" />} onClick={() => setOpen(true)}>
               添加关系
             </Button>
           )}
@@ -298,7 +298,7 @@ export const RelationCard: React.FC<{
                         aria-label={`删除与 ${r.relatedMpn} 的关系`}
                         danger
                         type="text"
-                        icon={<DeleteOutlined />}
+                        icon={<Trash2 size="1em" />}
                         onClick={() => remove(r)}
                       />
                     ),

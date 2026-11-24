@@ -1,14 +1,3 @@
-import {
-  CopyOutlined,
-  EnvironmentOutlined,
-  FileTextOutlined,
-  InfoCircleOutlined,
-  LockOutlined,
-  PlusOutlined,
-  TranslationOutlined,
-  UserOutlined,
-  WalletOutlined,
-} from '@ant-design/icons';
 import { history, useAccess, useParams } from '@umijs/max';
 import {
   Alert,
@@ -22,6 +11,17 @@ import {
   Skeleton,
   Space,
 } from 'antd';
+import {
+  Copy,
+  FileText,
+  Info,
+  Languages,
+  Lock,
+  MapPin,
+  Plus,
+  User,
+  Wallet,
+} from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { PageHeader } from '@/components/ListLayout';
@@ -522,7 +522,7 @@ const CustomerFormPage: React.FC = () => {
     <div style={{ display: 'flex', gap: 8 }}>
       <Button
         size="small"
-        icon={<CopyOutlined />}
+        icon={<Copy size="1em" />}
         disabled={parties.length >= MAX_PARTIES}
         onClick={() => {
           setCopyOnOpen(true);
@@ -533,7 +533,7 @@ const CustomerFormPage: React.FC = () => {
       </Button>
       <Button
         size="small"
-        icon={<PlusOutlined />}
+        icon={<Plus size="1em" />}
         disabled={parties.length >= MAX_PARTIES}
         title={
           parties.length >= MAX_PARTIES
@@ -595,7 +595,7 @@ const CustomerFormPage: React.FC = () => {
             />
           )}
 
-          <SectionCard icon={<InfoCircleOutlined />} title="基本信息">
+          <SectionCard icon={<Info size="1em" />} title="基本信息">
             <div style={grid}>
               <Form.Item
                 name="customerCode"
@@ -622,7 +622,8 @@ const CustomerFormPage: React.FC = () => {
                   readOnly={editing}
                   suffix={
                     editing ? (
-                      <LockOutlined
+                      <Lock
+                        size="1em"
                         aria-label="只读"
                         style={{ color: palette.mute }}
                       />
@@ -659,7 +660,7 @@ const CustomerFormPage: React.FC = () => {
                     <Button
                       type="text"
                       size="small"
-                      icon={<TranslationOutlined />}
+                      icon={<Languages size="1em" />}
                       loading={translating}
                       onClick={onTranslateName}
                       style={{
@@ -734,7 +735,8 @@ const CustomerFormPage: React.FC = () => {
                     value={record?.ownerName || '未分配'}
                     readOnly
                     suffix={
-                      <LockOutlined
+                      <Lock
+                        size="1em"
                         aria-label="只读"
                         style={{ color: palette.mute }}
                       />
@@ -812,7 +814,7 @@ const CustomerFormPage: React.FC = () => {
           </SectionCard>
 
           <SectionCard
-            icon={<EnvironmentOutlined />}
+            icon={<MapPin size="1em" />}
             title="注册地址与税务"
             description="客户公司的注册信息，作为报价单、PI 上买方的默认地址。单据字段请使用英文。"
           >
@@ -864,7 +866,7 @@ const CustomerFormPage: React.FC = () => {
             </div>
           </SectionCard>
 
-          <SectionCard icon={<UserOutlined />} title="主联系人">
+          <SectionCard icon={<User size="1em" />} title="主联系人">
             <div style={grid}>
               <Form.Item
                 name="contactName"
@@ -910,7 +912,7 @@ const CustomerFormPage: React.FC = () => {
             </div>
           </SectionCard>
 
-          <SectionCard icon={<WalletOutlined />} title="默认交易条件">
+          <SectionCard icon={<Wallet size="1em" />} title="默认交易条件">
             <div style={grid}>
               <Form.Item
                 name="currency"
@@ -1047,13 +1049,13 @@ const CustomerFormPage: React.FC = () => {
                 color: palette.sub,
               }}
             >
-              <InfoCircleOutlined style={{ color: palette.link }} />
+              <Info size="1em" style={{ color: palette.link }} />
               以上为默认值，创建报价单、PI、合同时自动带出，可在单据上修改；修改这里不影响已生成的单据。
             </div>
           </SectionCard>
 
           <SectionCard
-            icon={<FileTextOutlined />}
+            icon={<FileText size="1em" />}
             title="收货与单证信息"
             extra={partyActions}
           >

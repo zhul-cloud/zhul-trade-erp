@@ -1,11 +1,3 @@
-import {
-  BankOutlined,
-  FileTextOutlined,
-  InboxOutlined,
-  PaperClipOutlined,
-  ShopOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
 import { history, Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Alert, App, Button, Dropdown, Skeleton, Table, Tooltip } from 'antd';
@@ -20,13 +12,18 @@ import {
   Ellipsis,
   FileText,
   Headset,
+  Inbox,
+  Landmark,
   MapPin,
+  Paperclip,
   Pencil,
   Plus,
   Send,
+  Store,
   Trash2,
   TriangleAlert,
   Undo2,
+  Upload,
   User,
   UserRound,
 } from 'lucide-react';
@@ -1257,18 +1254,24 @@ const OrderDetail: React.FC = () => {
           }}
         >
           {canSlip && (
-            <Button icon={<UploadOutlined />} onClick={() => setDialog('slip')}>
+            <Button
+              icon={<Upload size="1em" />}
+              onClick={() => setDialog('slip')}
+            >
               上传水单
             </Button>
           )}
           {canClaim && (
-            <Button icon={<InboxOutlined />} onClick={() => setDialog('claim')}>
+            <Button
+              icon={<Inbox size="1em" />}
+              onClick={() => setDialog('claim')}
+            >
               认领到账
             </Button>
           )}
           {canPlatform && (
             <Button
-              icon={<ShopOutlined />}
+              icon={<Store size="1em" />}
               onClick={() => setDialog('platform')}
             >
               登记平台收款
@@ -1277,7 +1280,7 @@ const OrderDetail: React.FC = () => {
           {canConfirm && (
             <Button
               type="primary"
-              icon={<BankOutlined />}
+              icon={<Landmark size="1em" />}
               onClick={() => setDialog('confirm')}
             >
               登记到账
@@ -1314,11 +1317,11 @@ const OrderDetail: React.FC = () => {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {slip ? (
-                    <FileTextOutlined style={{ color: palette.link }} />
+                    <FileText size="1em" style={{ color: palette.link }} />
                   ) : r.platformOrderNo ? (
-                    <ShopOutlined style={{ color: palette.info }} />
+                    <Store size="1em" style={{ color: palette.info }} />
                   ) : (
-                    <BankOutlined style={{ color: palette.green }} />
+                    <Landmark size="1em" style={{ color: palette.green }} />
                   )}
                   <b style={{ color: palette.ink }}>
                     {slip
@@ -1399,7 +1402,7 @@ const OrderDetail: React.FC = () => {
                       style={{ fontSize: 12, marginRight: 10 }}
                       onClick={() => openSlip(r.id, i)}
                     >
-                      <PaperClipOutlined /> {f.fileName}
+                      <Paperclip size="1em" /> {f.fileName}
                     </button>
                   ))}
                 {manual && r.voidable && (

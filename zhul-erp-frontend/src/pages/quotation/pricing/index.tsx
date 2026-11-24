@@ -1,9 +1,3 @@
-import {
-  ArrowRightOutlined,
-  DeleteOutlined,
-  LockOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import {
   Alert,
@@ -17,6 +11,7 @@ import {
   Table,
   Tag,
 } from 'antd';
+import { ArrowRight, Lock, Plus, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { HelpTip, PageHeader } from '@/components/ListLayout';
 import { ConditionPill, useWide } from '@/pages/inquiry/shared/components';
@@ -486,7 +481,7 @@ const PricingStrategyPage: React.FC = () => {
                             setBrandsOpen(true);
                           }}
                         >
-                          <PlusOutlined /> 编辑品牌
+                          <Plus size="1em" /> 编辑品牌
                         </button>
                       )}
                     </div>
@@ -526,7 +521,7 @@ const PricingStrategyPage: React.FC = () => {
                   fontWeight: 600,
                 }}
               >
-                <LockOutlined /> 汇率在「业务设置 → 汇率」统一维护
+                <Lock size="1em" /> 汇率在「业务设置 → 汇率」统一维护
               </div>
               <div
                 style={{
@@ -544,7 +539,7 @@ const PricingStrategyPage: React.FC = () => {
                   .join(' · ')}
               </div>
               <Button
-                icon={<ArrowRightOutlined />}
+                icon={<ArrowRight size="1em" />}
                 onClick={() => history.push('/system/exchange-rate')}
               >
                 前往汇率
@@ -662,7 +657,7 @@ const PricingStrategyPage: React.FC = () => {
             />
             <Button
               type="text"
-              icon={<DeleteOutlined />}
+              icon={<Trash2 size="1em" />}
               aria-label="删除这一档"
               onClick={() => setTiers(tiers.filter((_, j) => j !== i))}
             />
@@ -672,7 +667,7 @@ const PricingStrategyPage: React.FC = () => {
           <Button
             type="dashed"
             block
-            icon={<PlusOutlined />}
+            icon={<Plus size="1em" />}
             onClick={() =>
               setTiers([
                 ...tiers,

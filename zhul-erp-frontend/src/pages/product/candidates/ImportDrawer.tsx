@@ -1,13 +1,13 @@
-import {
-  CheckCircleFilled,
-  CloseCircleFilled,
-  InboxOutlined,
-  InfoCircleOutlined,
-  MinusCircleFilled,
-  UploadOutlined,
-} from '@ant-design/icons';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Drawer, Segmented, Table, Tooltip, Upload } from 'antd';
+import {
+  CircleCheck,
+  CircleMinus,
+  CircleX,
+  Inbox,
+  Info,
+  UploadIcon,
+} from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -207,11 +207,11 @@ export const ImportDrawer: React.FC<{
 
   const outcomeIcon = (o: ImportResult['items'][number]['outcome']) =>
     o === 'FAILED' ? (
-      <CloseCircleFilled style={{ color: palette.red }} />
+      <CircleX size="1em" style={{ color: palette.red }} />
     ) : o === 'SKIPPED' ? (
-      <MinusCircleFilled style={{ color: palette.mute }} />
+      <CircleMinus size="1em" style={{ color: palette.mute }} />
     ) : (
-      <CheckCircleFilled style={{ color: palette.green }} />
+      <CircleCheck size="1em" style={{ color: palette.green }} />
     );
 
   return (
@@ -236,7 +236,7 @@ export const ImportDrawer: React.FC<{
           </div>
         ) : previews.length > 0 ? (
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <Button icon={<UploadOutlined />} onClick={reset}>
+            <Button icon={<UploadIcon size="1em" />} onClick={reset}>
               重新选择文件
             </Button>
             <span style={{ flex: 1 }} />
@@ -318,7 +318,7 @@ export const ImportDrawer: React.FC<{
             }}
           >
             <p className="ant-upload-drag-icon">
-              <InboxOutlined />
+              <Inbox size="1em" />
             </p>
             <p className="ant-upload-text">
               {loading ? '正在解析…' : '点击或拖入商品 Markdown 文件，可多选'}
@@ -341,7 +341,7 @@ export const ImportDrawer: React.FC<{
               color: palette.sub,
             }}
           >
-            <InfoCircleOutlined style={{ color: palette.link, marginTop: 3 }} />
+            <Info size="1em" style={{ color: palette.link, marginTop: 3 }} />
             <span>
               只取品牌、型号、品类、中文名称与中英文描述，建成待审核候选；规格、HS
               编码、物流、图片等资料以后在内容任务里补。已在商品库的型号会跳过，已在候选池的计一次来源。

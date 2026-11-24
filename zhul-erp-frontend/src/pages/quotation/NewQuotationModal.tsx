@@ -1,14 +1,3 @@
-import {
-  ArrowRightOutlined,
-  CheckCircleFilled,
-  CheckOutlined,
-  DownOutlined,
-  FormOutlined,
-  InboxOutlined,
-  RightOutlined,
-  SearchOutlined,
-  UnorderedListOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import {
   App,
@@ -22,6 +11,17 @@ import {
   Spin,
   Tag,
 } from 'antd';
+import {
+  ArrowRight,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  CircleCheck,
+  Inbox,
+  List,
+  Search,
+  SquarePen,
+} from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -244,7 +244,7 @@ const ByInquiryPanel: React.FC<{
       >
         <Input
           allowClear
-          prefix={<SearchOutlined />}
+          prefix={<Search size="1em" />}
           placeholder="搜索客户或询盘编号"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
@@ -464,7 +464,8 @@ const ByInquiryPanel: React.FC<{
                     }}
                     aria-label={`打开草稿 ${r.draftQuotationNo}`}
                   >
-                    <FormOutlined
+                    <SquarePen
+                      size="1em"
                       style={{ color: palette.orange, fontSize: 16 }}
                     />
                     {body}
@@ -723,7 +724,7 @@ export const PickItemsPanel: React.FC<{
         >
           <Input
             allowClear
-            prefix={<SearchOutlined />}
+            prefix={<Search size="1em" />}
             placeholder="搜索型号或询盘编号"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
@@ -820,7 +821,11 @@ export const PickItemsPanel: React.FC<{
                         padding: 4,
                       }}
                     >
-                      {open ? <DownOutlined /> : <RightOutlined />}
+                      {open ? (
+                        <ChevronDown size="1em" />
+                      ) : (
+                        <ChevronRight size="1em" />
+                      )}
                     </button>
                     <span style={{ color: palette.link, fontWeight: 600 }}>
                       <Highlight text={inq.inquiryCode} keyword={keyword} />
@@ -887,8 +892,8 @@ export const PickItemsPanel: React.FC<{
                             setShowAll(new Set(showAll).add(inq.inquiryId))
                           }
                         >
-                          <DownOutlined /> 展开其余 {inq.items.length - 5}{' '}
-                          个型号
+                          <ChevronDown size="1em" /> 展开其余{' '}
+                          {inq.items.length - 5} 个型号
                         </button>
                       )}
                     </div>
@@ -992,7 +997,8 @@ const ModeCard: React.FC<{
               lineHeight: '24px',
             }}
           >
-            <CheckOutlined
+            <Check
+              size="1em"
               style={{
                 color: active ? palette.green : palette.mute,
                 marginRight: 8,
@@ -1041,7 +1047,7 @@ const BatchResult: React.FC<{
           fontWeight: 600,
         }}
       >
-        <CheckCircleFilled style={{ color: palette.green }} />
+        <CircleCheck size="1em" style={{ color: palette.green }} />
         已生成 {result.created.length} 张报价单
         {result.skipped.length > 0
           ? `，跳过 ${result.skipped.length} 个询盘`
@@ -1098,7 +1104,8 @@ const BatchResult: React.FC<{
                 还有 {c.pendingCount} 个型号在询价，回价后可以再报
               </Pill>
             ) : null}
-            <RightOutlined
+            <ChevronRight
+              size="1em"
               style={{ marginLeft: 'auto', color: palette.mute }}
             />
           </button>
@@ -1258,12 +1265,12 @@ const NewQuotationModal: React.FC<{
                   {
                     value: 'inquiry',
                     label: '按询盘报价',
-                    icon: <InboxOutlined />,
+                    icon: <Inbox size="1em" />,
                   },
                   {
                     value: 'items',
                     label: '挑选型号报价',
-                    icon: <UnorderedListOutlined />,
+                    icon: <List size="1em" />,
                   },
                 ]}
               />
@@ -1292,7 +1299,7 @@ const NewQuotationModal: React.FC<{
               <Button onClick={onClose}>取消</Button>
               <Button
                 type="primary"
-                icon={<ArrowRightOutlined />}
+                icon={<ArrowRight size="1em" />}
                 onClick={() => setStep('pick')}
               >
                 下一步
@@ -1346,7 +1353,7 @@ const NewQuotationModal: React.FC<{
               <Button onClick={onClose}>取消</Button>
               <Button
                 type="primary"
-                icon={<ArrowRightOutlined />}
+                icon={<ArrowRight size="1em" />}
                 disabled={!summary || overLimit}
                 loading={submitting}
                 onClick={create}
@@ -1370,7 +1377,7 @@ const NewQuotationModal: React.FC<{
         <div style={{ display: 'grid', gap: 16 }}>
           <ModeCard
             active={mode === 'inquiry'}
-            icon={<InboxOutlined />}
+            icon={<Inbox size="1em" />}
             title="按询盘报价"
             description="从还没报价的询盘里选，带入询盘里全部已回价的型号。适合把待报价的询盘一个个报掉。"
             points={[
@@ -1382,7 +1389,7 @@ const NewQuotationModal: React.FC<{
           />
           <ModeCard
             active={mode === 'items'}
-            icon={<UnorderedListOutlined />}
+            icon={<List size="1em" />}
             title="挑选型号报价"
             description="先选客户，再从他的多个询盘里挑型号组合成一张报价单。适合客户只要其中几个型号，或要跨询盘合并。"
             points={[

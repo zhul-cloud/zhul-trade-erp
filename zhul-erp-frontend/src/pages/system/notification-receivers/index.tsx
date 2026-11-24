@@ -1,14 +1,14 @@
-import {
-  BellOutlined,
-  CloseOutlined,
-  CodeSandboxOutlined,
-  PlusOutlined,
-  SearchOutlined,
-  WalletOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import { App, Button, Segmented, Select, Skeleton } from 'antd';
+import {
+  Bell,
+  Box,
+  Plus,
+  Search,
+  TriangleAlert,
+  Wallet,
+  X,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
@@ -23,12 +23,12 @@ type User = { id: number; name: string };
 
 const postStyle = (post: string, p: Palette) => {
   if (post === 'RECEIVER') {
-    return { icon: <CodeSandboxOutlined />, color: p.green, bg: p.greenSoft };
+    return { icon: <Box size="1em" />, color: p.green, bg: p.greenSoft };
   }
   if (post === 'FINANCE') {
-    return { icon: <WalletOutlined />, color: p.orange, bg: p.orangeSoft };
+    return { icon: <Wallet size="1em" />, color: p.orange, bg: p.orangeSoft };
   }
-  return { icon: <SearchOutlined />, color: p.link, bg: p.primarySoft };
+  return { icon: <Search size="1em" />, color: p.link, bg: p.primarySoft };
 };
 
 /** 一个岗位：接收人（收货人可跟采购订单的采购员走）+ 它接收的通知 */
@@ -111,7 +111,7 @@ const PostCard: React.FC<{
                 background: palette.orangeSoft,
               }}
             >
-              <WarningOutlined /> 还没有接收人，这些通知不会发出
+              <TriangleAlert size="1em" /> 还没有接收人，这些通知不会发出
             </div>
           )}
           <div
@@ -153,7 +153,8 @@ const PostCard: React.FC<{
                 </span>
                 {u.name}
                 {canEdit && (
-                  <CloseOutlined
+                  <X
+                    size="1em"
                     aria-label={`移除 ${u.name}`}
                     style={{ fontSize: 10, color: palette.mute }}
                     onClick={() =>
@@ -185,7 +186,7 @@ const PostCard: React.FC<{
                 <Button
                   size="small"
                   shape="round"
-                  icon={<PlusOutlined />}
+                  icon={<Plus size="1em" />}
                   onClick={() => setAdding(true)}
                 >
                   添加
@@ -217,7 +218,7 @@ const PostCard: React.FC<{
               color: palette.sub,
             }}
           >
-            <BellOutlined style={{ color: palette.mute }} />
+            <Bell size="1em" style={{ color: palette.mute }} />
             {n}
           </div>
         ))}

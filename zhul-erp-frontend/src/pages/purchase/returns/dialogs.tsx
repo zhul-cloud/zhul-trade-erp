@@ -1,4 +1,3 @@
-import { WarningOutlined } from '@ant-design/icons';
 import {
   App,
   AutoComplete,
@@ -11,6 +10,7 @@ import {
   Space,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { TriangleAlert } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import {
   type Payable,
@@ -324,7 +324,8 @@ export const CompleteModal: React.FC<{
                       color: palette.orange,
                     }}
                   >
-                    <WarningOutlined /> 已付超出 {formatAmount(over, cur)}
+                    <TriangleAlert size="1em" /> 已付超出{' '}
+                    {formatAmount(over, cur)}
                     ，完成后成为供应商欠款，由财务退款或抵扣
                   </div>
                 )}

@@ -1,10 +1,4 @@
 import {
-  CheckCircleOutlined,
-  ExclamationCircleOutlined,
-  InfoCircleOutlined,
-  ThunderboltOutlined,
-} from '@ant-design/icons';
-import {
   Alert,
   App,
   Button,
@@ -16,6 +10,7 @@ import {
   Space,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { CircleAlert, CircleCheck, Info, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { BOARD_LABEL, Card, fmtDate, iso, SnoozeButton } from './components';
@@ -444,7 +439,7 @@ export const BatchFollowupModal: React.FC<{
           />
           {nextDate?.isSame(suggest.date, 'day') && suggest.reason && (
             <span style={{ fontSize: 12, color: palette.link }}>
-              <ThunderboltOutlined /> 推荐：{suggest.reason}
+              <Zap size="1em" /> 推荐：{suggest.reason}
             </span>
           )}
         </Space>
@@ -470,7 +465,7 @@ export const BatchFollowupModal: React.FC<{
             background: palette.primarySoft,
           }}
         >
-          <InfoCircleOutlined /> 每个客户各写一条跟进记录，作用到名下全部单据
+          <Info size="1em" /> 每个客户各写一条跟进记录，作用到名下全部单据
         </div>
       </Modal>
       <Modal
@@ -494,7 +489,8 @@ export const BatchFollowupModal: React.FC<{
         }
         title={
           <span>
-            <CheckCircleOutlined
+            <CircleCheck
+              size="1em"
               style={{ color: palette.green, marginRight: 8 }}
             />
             已跟进 {result?.success ?? 0} 个客户
@@ -518,7 +514,7 @@ export const BatchFollowupModal: React.FC<{
             }}
           >
             <div style={{ color: palette.orange, fontSize: 12 }}>
-              <ExclamationCircleOutlined /> 跳过 {failures.length} 处
+              <CircleAlert size="1em" /> 跳过 {failures.length} 处
             </div>
             {failures.map((f) => {
               const p = done.find((x) => x.customerId === f.customerId);

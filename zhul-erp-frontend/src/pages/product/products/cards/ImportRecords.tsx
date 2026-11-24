@@ -1,6 +1,5 @@
-import { DownloadOutlined, FileTextOutlined } from '@ant-design/icons';
 import XMarkdown from '@ant-design/x-markdown';
-import { Eye } from 'lucide-react';
+import { Download, Eye, FileText } from 'lucide-react';
 import { tableScrollX } from '@/utils/tableScroll';
 import '@ant-design/x-markdown/es/XMarkdown/index.css';
 import type { TableColumnsType } from 'antd';
@@ -90,7 +89,7 @@ export const ImportPreviewDrawer: React.FC<{
       footer={
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <Button
-            icon={<DownloadOutlined />}
+            icon={<Download size="1em" />}
             disabled={!r}
             onClick={() => r && downloadRaw(r.fileName, raw)}
           >
@@ -215,7 +214,7 @@ export const ImportRecordList: React.FC<{
           className="zhul-link"
           onClick={() => setViewing(r.id)}
         >
-          <FileTextOutlined /> {v}
+          <FileText size="1em" /> {v}
           {r.source === 2 && (
             <span style={{ marginLeft: 6 }}>
               <Pill tone="gray">AI 生成</Pill>

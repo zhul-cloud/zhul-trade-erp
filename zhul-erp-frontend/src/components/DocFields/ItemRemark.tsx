@@ -1,10 +1,5 @@
-import {
-  EditOutlined,
-  MessageOutlined,
-  PlusOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { App, Button, Input } from 'antd';
+import { MessageSquare, Pencil, Plus, TriangleAlert } from 'lucide-react';
 import React, { useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -51,9 +46,9 @@ export const ItemRemarkText: React.FC<{ text?: string; alert?: boolean }> = ({
       }}
     >
       {alert ? (
-        <WarningOutlined style={{ marginTop: 3 }} />
+        <TriangleAlert size="1em" style={{ marginTop: 3 }} />
       ) : (
-        <MessageOutlined style={{ marginTop: 3 }} />
+        <MessageSquare size="1em" style={{ marginTop: 3 }} />
       )}
       <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
         {alert ? '备注已更新：' : ''}
@@ -193,12 +188,13 @@ export const ItemRemarkLine: React.FC<{
           marginTop: 2,
         }}
       >
-        <MessageOutlined style={{ marginTop: 3 }} />
+        <MessageSquare size="1em" style={{ marginTop: 3 }} />
         <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
           {text}
         </span>
         {editable && (
-          <EditOutlined
+          <Pencil
+            size="1em"
             aria-label="修改型号备注"
             style={{ color: palette.faint, cursor: 'pointer', marginTop: 3 }}
             onClick={open}
@@ -215,7 +211,7 @@ export const ItemRemarkLine: React.FC<{
     <Button
       type="link"
       size="small"
-      icon={<PlusOutlined />}
+      icon={<Plus size="1em" />}
       onClick={open}
       style={{ padding: 0, height: 'auto', alignSelf: 'flex-start' }}
     >

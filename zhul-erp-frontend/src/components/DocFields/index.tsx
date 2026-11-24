@@ -1,5 +1,5 @@
-import { ExpandOutlined } from '@ant-design/icons';
 import { AutoComplete, Button, Drawer, Select, Space } from 'antd';
+import { Expand } from 'lucide-react';
 import React, { useState } from 'react';
 import { CountryText } from '@/components/CountryText';
 import EllipsisText from '@/components/EllipsisText';
@@ -228,7 +228,7 @@ export const PreviewPages: React.FC<{ pages: string[]; title: string }> = ({
         <Button
           size="small"
           type="link"
-          icon={<ExpandOutlined />}
+          icon={<Expand size="1em" />}
           style={{ marginLeft: 'auto' }}
           onClick={() => setOpen(true)}
         >

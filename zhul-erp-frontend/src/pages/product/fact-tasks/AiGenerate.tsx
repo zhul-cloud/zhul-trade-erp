@@ -1,6 +1,6 @@
-import { CodeSandboxOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { App, Button, Modal } from 'antd';
 import dayjs from 'dayjs';
+import { Box, Zap } from 'lucide-react';
 import React, { useState } from 'react';
 import { Pill } from '@/pages/product/components/Pills';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -159,7 +159,7 @@ export const AiStartModal: React.FC<{
       destroyOnHidden
       title={
         <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-          <ThunderboltOutlined style={{ color: palette.info }} />
+          <Zap size="1em" style={{ color: palette.info }} />
           AI 生成 {todo.length} 个商品
         </span>
       }
@@ -170,7 +170,7 @@ export const AiStartModal: React.FC<{
         <Button
           key="ok"
           type="primary"
-          icon={<ThunderboltOutlined />}
+          icon={<Zap size="1em" />}
           loading={starting}
           disabled={todo.length === 0}
           onClick={start}
@@ -201,7 +201,7 @@ export const AiStartModal: React.FC<{
               padding: '10px 12px',
             }}
           >
-            <CodeSandboxOutlined style={{ color: palette.mute }} />
+            <Box size="1em" style={{ color: palette.mute }} />
             <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 600, color: palette.ink }}>
                 {label(r)}

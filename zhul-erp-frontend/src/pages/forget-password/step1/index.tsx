@@ -1,6 +1,6 @@
-import { LeftOutlined, MailOutlined, UserOutlined } from '@ant-design/icons';
 import { Helmet, history } from '@umijs/max';
 import { Alert, Button, Form, Input } from 'antd';
+import { ChevronLeft, Mail, User } from 'lucide-react';
 import React, { useState } from 'react';
 import { AuthLayout } from '@/components';
 import { usePageTitle } from '@/components/Shell/BrandLogo';
@@ -47,7 +47,7 @@ const Step1: React.FC = () => {
           onClick={() => history.push('/login')}
           style={{ position: 'absolute', left: 0, top: 4, fontSize: 13 }}
         >
-          <LeftOutlined /> 返回登录
+          <ChevronLeft size="1em" /> 返回登录
         </button>
         <div
           style={{
@@ -85,7 +85,7 @@ const Step1: React.FC = () => {
         >
           <Input
             size="large"
-            prefix={<UserOutlined />}
+            prefix={<User size="1em" />}
             placeholder="请输入用户名"
             maxLength={50}
             autoFocus
@@ -104,7 +104,7 @@ const Step1: React.FC = () => {
         >
           <Input
             size="large"
-            prefix={<MailOutlined />}
+            prefix={<Mail size="1em" />}
             placeholder="请输入注册时绑定的邮箱地址"
             maxLength={100}
           />

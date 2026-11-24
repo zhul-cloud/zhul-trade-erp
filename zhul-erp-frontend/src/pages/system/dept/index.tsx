@@ -1,9 +1,4 @@
 import {
-  MinusCircleOutlined,
-  PlusOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
-import {
   ModalForm,
   ProFormDigit,
   ProFormRadio,
@@ -25,6 +20,7 @@ import {
   Tree,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { CircleMinus, Plus, Search } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { EmptyState } from '@/components/EmptyState';
@@ -466,7 +462,7 @@ const DeptPage: React.FC = () => {
         >
           <Input
             placeholder="搜索部门名称"
-            prefix={<SearchOutlined />}
+            prefix={<Search size="1em" />}
             allowClear
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
@@ -504,14 +500,14 @@ const DeptPage: React.FC = () => {
             </span>
             <Space size={10}>
               {canAdd && (
-                <Button icon={<PlusOutlined />} onClick={openCreateTop}>
+                <Button icon={<Plus size="1em" />} onClick={openCreateTop}>
                   新增顶级部门
                 </Button>
               )}
               {selectedDept && canAdd && (
                 <Button
                   type="primary"
-                  icon={<PlusOutlined />}
+                  icon={<Plus size="1em" />}
                   onClick={openCreateChild}
                 >
                   新增子部门
@@ -522,7 +518,7 @@ const DeptPage: React.FC = () => {
               )}
               {selectedDept && canEdit && (
                 <Button
-                  icon={<MinusCircleOutlined />}
+                  icon={<CircleMinus size="1em" />}
                   onClick={handleToggleStatus}
                 >
                   {selectedDept.status === 1 ? '禁用' : '启用'}

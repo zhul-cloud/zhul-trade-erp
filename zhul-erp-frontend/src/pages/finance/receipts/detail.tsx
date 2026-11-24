@@ -1,8 +1,7 @@
-import { PaperClipOutlined } from '@ant-design/icons';
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Skeleton, Table } from 'antd';
-import { CircleX, Undo2 } from 'lucide-react';
+import { CircleX, Paperclip, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   DocLogCard,
@@ -252,7 +251,7 @@ const ReceiptDocDetail: React.FC = () => {
                     .catch((e) => message.error(readBizError(e).message))
                 }
               >
-                <PaperClipOutlined /> {f.fileName}
+                <Paperclip size="1em" /> {f.fileName}
                 <span style={{ color: palette.mute, marginLeft: 8 }}>
                   {f.source === 'SLIP' ? '水单' : '到账凭证'}
                 </span>

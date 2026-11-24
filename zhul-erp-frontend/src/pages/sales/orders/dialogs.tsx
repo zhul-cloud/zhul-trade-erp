@@ -1,4 +1,3 @@
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { request, useAccess } from '@umijs/max';
 import {
   Alert,
@@ -16,6 +15,7 @@ import {
   Table,
 } from 'antd';
 import dayjs from 'dayjs';
+import { Plus, Trash2 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ProductSelect } from '@/pages/product/components/ProductSelect';
 import type { ProductOption } from '@/pages/product/service';
@@ -769,7 +769,7 @@ export const CreateOrderDrawer: React.FC<{
                         rel="noreferrer"
                         style={{ marginLeft: 4 }}
                       >
-                        <PlusOutlined /> 去商品档案新建
+                        <Plus size="1em" /> 去商品档案新建
                       </a>
                     </>
                   ) : (
@@ -861,7 +861,7 @@ export const CreateOrderDrawer: React.FC<{
             <Button
               type="text"
               size="small"
-              icon={<DeleteOutlined />}
+              icon={<Trash2 size="1em" />}
               disabled={lines.length === 1}
               onClick={() =>
                 setLines((ls) => ls.filter((x) => x.key !== l.key))
@@ -873,7 +873,7 @@ export const CreateOrderDrawer: React.FC<{
       </div>
       <Button
         type="link"
-        icon={<PlusOutlined />}
+        icon={<Plus size="1em" />}
         style={{ paddingLeft: 0, marginTop: 8 }}
         onClick={() => setLines((ls) => [...ls, newLine()])}
       >
@@ -1679,7 +1679,7 @@ const FeeRowsEditor: React.FC<{
           <Button
             type="text"
             size="small"
-            icon={<DeleteOutlined />}
+            icon={<Trash2 size="1em" />}
             onClick={() => onChange(rows.filter((x) => x.key !== r.key))}
             aria-label="删除费用"
           />
@@ -1688,7 +1688,7 @@ const FeeRowsEditor: React.FC<{
       {rows.length < MAX_FEES && (
         <Button
           type="link"
-          icon={<PlusOutlined />}
+          icon={<Plus size="1em" />}
           style={{ paddingLeft: 0, width: 'fit-content' }}
           onClick={() =>
             onChange([...rows, { key: ++feeSeq, feeName: '', amount: null }])

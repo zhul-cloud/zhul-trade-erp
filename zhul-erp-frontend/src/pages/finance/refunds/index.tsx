@@ -1,4 +1,3 @@
-import { PlusOutlined } from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -14,7 +13,7 @@ import {
   Tabs,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Eye, Search } from 'lucide-react';
+import { Eye, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
@@ -394,7 +393,7 @@ const RefundPage: React.FC = () => {
           canEdit && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => setPicking(true)}
             >
               登记退款

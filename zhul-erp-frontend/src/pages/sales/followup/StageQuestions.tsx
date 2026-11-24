@@ -1,6 +1,6 @@
-import { FrownOutlined, MehOutlined, SmileOutlined } from '@ant-design/icons';
 import { Checkbox, DatePicker, Input, Segmented, Tag } from 'antd';
 import dayjs from 'dayjs';
+import { Frown, Meh, Smile } from 'lucide-react';
 import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { fmtDate } from './components';
@@ -244,12 +244,12 @@ const StageQuestions: React.FC<{
 
   if (kind === 'satisfaction') {
     const faces = [
-      { v: SATISFACTION.SATISFIED, label: '满意', icon: <SmileOutlined /> },
-      { v: SATISFACTION.NEUTRAL, label: '一般', icon: <MehOutlined /> },
+      { v: SATISFACTION.SATISFIED, label: '满意', icon: <Smile size="1em" /> },
+      { v: SATISFACTION.NEUTRAL, label: '一般', icon: <Meh size="1em" /> },
       {
         v: SATISFACTION.DISSATISFIED,
         label: '不满意',
-        icon: <FrownOutlined />,
+        icon: <Frown size="1em" />,
       },
     ];
     const satisfied = a.satisfaction === SATISFACTION.SATISFIED;

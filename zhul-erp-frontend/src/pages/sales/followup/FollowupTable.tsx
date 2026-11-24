@@ -1,8 +1,8 @@
-import { DownOutlined, RightOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, Progress, Select, Space, Table } from 'antd';
 import dayjs from 'dayjs';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { CustomerSubLine } from '@/components/DocFields';
 import { Stars } from '@/pages/customer/profile/ui';
@@ -111,7 +111,8 @@ export const StageBar: React.FC<{
     </span>
   );
   const gt = (key: string) => (
-    <RightOutlined
+    <ChevronRight
+      size="1em"
       key={key}
       style={{
         fontSize: 10,
@@ -1282,7 +1283,11 @@ export const FollowupTable: React.FC<{
             width: 14,
           }}
         >
-          {isOpen(g.customerId) ? <DownOutlined /> : <RightOutlined />}
+          {isOpen(g.customerId) ? (
+            <ChevronDown size="1em" />
+          ) : (
+            <ChevronRight size="1em" />
+          )}
         </button>
         <CustomerLink item={g} />
       </span>

@@ -1,12 +1,4 @@
 import {
-  CloseOutlined,
-  CloudUploadOutlined,
-  FileExcelOutlined,
-  FileImageOutlined,
-  FilePdfOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
-import {
   App,
   Button,
   DatePicker,
@@ -19,6 +11,14 @@ import {
   Upload,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import {
+  CloudUpload,
+  FileImage,
+  FileSpreadsheet,
+  FileText,
+  Plus,
+  X,
+} from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import ChunkUploadList, { useChunkUploads } from '@/components/ChunkUploadList';
 import CustomerQuickCreateModal from '@/components/CustomerQuickCreateModal';
@@ -66,11 +66,11 @@ interface Values {
 
 export const fileIcon = (name: string) =>
   /\.(xlsx?|csv)$/i.test(name) ? (
-    <FileExcelOutlined />
+    <FileSpreadsheet size="1em" />
   ) : /\.pdf$/i.test(name) ? (
-    <FilePdfOutlined />
+    <FileText size="1em" />
   ) : (
-    <FileImageOutlined />
+    <FileImage size="1em" />
   );
 
 /** 新建询盘单：粘贴原文或拖入附件，提交后可以马上开始 AI 解析或手动录入 */
@@ -404,7 +404,7 @@ const NewInquiryModal: React.FC<{
                     {menu}
                     <Button
                       type="link"
-                      icon={<PlusOutlined />}
+                      icon={<Plus size="1em" />}
                       onClick={() => {
                         setPickerOpen(false);
                         setQuickOpen(true);
@@ -565,7 +565,7 @@ const NewInquiryModal: React.FC<{
             beforeUpload={beforeUpload}
           >
             <p style={{ fontSize: 24, color: palette.link, margin: 0 }}>
-              <CloudUploadOutlined />
+              <CloudUpload size="1em" />
             </p>
             <p style={{ margin: '4px 0 0', color: palette.sub }}>
               {uploading > 0
@@ -614,7 +614,7 @@ const NewInquiryModal: React.FC<{
                     type="text"
                     size="small"
                     aria-label={`移除 ${f.fileName}`}
-                    icon={<CloseOutlined />}
+                    icon={<X size="1em" />}
                     style={{ marginLeft: 'auto' }}
                     onClick={() =>
                       setFiles((prev) =>

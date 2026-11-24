@@ -1,9 +1,5 @@
-import {
-  CheckCircleFilled,
-  InfoCircleOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
 import { Button, Input, Modal, Skeleton } from 'antd';
+import { CircleCheck, Info, Search } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { HelpTip } from '@/components/ListLayout';
 import { useCountries } from '@/pages/product/components/useCountries';
@@ -160,7 +156,7 @@ const ManualMergeModal: React.FC<{
           <Input
             allowClear
             autoFocus
-            prefix={<SearchOutlined />}
+            prefix={<Search size="1em" />}
             placeholder="客户名称、编号、联系人"
             aria-label="搜索要合并的客户"
             suffix={
@@ -234,7 +230,7 @@ const ManualMergeModal: React.FC<{
                           lineHeight: 1,
                         }}
                       >
-                        {sel && <CheckCircleFilled />}
+                        {sel && <CircleCheck size="1em" />}
                       </span>
                       <span style={{ flex: 1, minWidth: 0 }}>
                         <span
@@ -284,8 +280,8 @@ const ManualMergeModal: React.FC<{
             </div>
           )}
           <div style={{ fontSize: 12, color: palette.mute }}>
-            <InfoCircleOutlined /> 只列出你数据范围内的客户，不含当前客户，最多
-            20 个。下一步先看合并预览，确认后才会合并。
+            <Info size="1em" /> 只列出你数据范围内的客户，不含当前客户，最多 20
+            个。下一步先看合并预览，确认后才会合并。
           </div>
         </div>
       </Modal>

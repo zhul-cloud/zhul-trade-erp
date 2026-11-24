@@ -364,6 +364,7 @@ import {
 | `row-actions` | 错误 | 表格「操作」列没用 `RowActions`：审批、审核、工作队列、要显示进度的长操作等例外，在列上写 `lint-ui-ignore row-actions: 原因` |
 | `attr-tone` | 错误 | 类别、属性标签（客户指定、老客户、现货、默认等）用了彩色：改 `tone="gray"`，彩色只给流程状态与告警（S13） |
 | `antd-empty` | 错误 | 用了 antd 的 `Empty`：改公共 `EmptyState`（小地方 `compact`） |
+| `antd-icon` | 错误 | 用了 `@ant-design/icons`：改 lucide-react（尺寸 `size="1em"` 跟随字号，转圈加 `zhul-spin`）；品牌标识等 lucide 没有的写例外 |
 
 - 确认弹窗（`confirm`）、警告条（`Alert`）、`Popconfirm` 里的文字不检查，按「说明文字」一节原样保留。
 - `npm run lint:ui -- src/pages/sales` 只查指定目录（按当前所在目录解析，找不到时报错），有错误就失败；不带参数时扫全仓库，只有已迁移目录（脚本里的 `ENFORCED`）有错误才失败。每迁完一个业务域，把目录加进 `ENFORCED`。全部迁完后（任务 7.8）并入 `npm run lint`。
@@ -525,6 +526,7 @@ JSX 里写成 `{/* lint-ui-ignore gradient: 两端同色，只是背景图上的
 ## 图标
 
 - 统一用 Lucide（kebab-case），不用 emoji 当图标（用户录入的内容除外）。
+- 不用 `@ant-design/icons`（2026-11-24 全站换完，`lint:ui` 的 `antd-icon` 拦截）；例外只有支付宝、微信等品牌标识和后端菜单存量图标名的兜底。和文字同行的图标用 `size="1em"` 跟随字号，全局样式已让 `svg.lucide` 下沉 0.125em 与文字居中；加载、同步中的转圈加类名 `zhul-spin`。
 - 和中文并排时，图标与文字垂直居中对齐；只有图标的按钮必须有 `aria-label`，悬停显示名称。
 - 常用：用户 `user` / `users` / `user-plus`，部门 `building-2`，设置 `settings`，权限 `shield`，搜索 `search`，通知 `bell`，新增 `plus`，关闭 `x`，下拉 `chevron-down`，帮助 `info`，提醒 `triangle-alert`，查看 `eye`，再下一单 `copy-plus`，更多 `ellipsis`。
 - 避免 `circle-help`（OpenPencil 里渲染成一个点）和实心的 `tag`。

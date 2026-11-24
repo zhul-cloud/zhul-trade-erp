@@ -1,8 +1,7 @@
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Button, Form, Input, Select, Table } from 'antd';
-import { Eye } from 'lucide-react';
+import { Eye, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import EllipsisText from '@/components/EllipsisText';
@@ -209,7 +208,7 @@ const OtherOutboundsPage: React.FC = () => {
           access['inventory:other-outbound:edit'] && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => setCreating(true)}
             >
               新建其他出库
@@ -234,7 +233,7 @@ const OtherOutboundsPage: React.FC = () => {
             <Input
               aria-label="关键词"
               allowClear
-              prefix={<SearchOutlined />}
+              prefix={<Search size="1em" />}
               onPressEnter={() => form.submit()}
               placeholder="出库单号、型号"
             />

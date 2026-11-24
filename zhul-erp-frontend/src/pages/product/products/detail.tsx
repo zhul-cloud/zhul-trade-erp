@@ -1,4 +1,3 @@
-import { LockOutlined } from '@ant-design/icons';
 import { useAccess, useParams, useSearchParams } from '@umijs/max';
 import {
   Alert,
@@ -14,6 +13,7 @@ import {
   Switch,
 } from 'antd';
 import dayjs from 'dayjs';
+import { Lock } from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -421,7 +421,7 @@ const DetailInner: React.FC = () => {
             )}
             {!canEdit && (
               <Pill tone="gray">
-                <LockOutlined style={{ marginRight: 4 }} />
+                <Lock size="1em" style={{ marginRight: 4 }} />
                 只读
               </Pill>
             )}

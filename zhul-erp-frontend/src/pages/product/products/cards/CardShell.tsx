@@ -1,4 +1,4 @@
-import { CheckCircleFilled, ClockCircleFilled } from '@ant-design/icons';
+import { CircleCheck, Clock } from 'lucide-react';
 import React, { createContext, useContext, useEffect, useRef } from 'react';
 import { Pill } from '../../components/Pills';
 import { useProductTheme } from '../../theme';
@@ -109,12 +109,12 @@ export const CardShell: React.FC<{
         {done !== undefined &&
           (done ? (
             <Pill tone="green">
-              <CheckCircleFilled style={{ marginRight: 4 }} />
+              <CircleCheck size="1em" style={{ marginRight: 4 }} />
               已完成
             </Pill>
           ) : (
             <Pill tone="orange">
-              <ClockCircleFilled style={{ marginRight: 4 }} />
+              <Clock size="1em" style={{ marginRight: 4 }} />
               待补充
             </Pill>
           ))}

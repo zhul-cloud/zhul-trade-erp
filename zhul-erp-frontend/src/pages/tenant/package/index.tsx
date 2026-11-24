@@ -1,4 +1,3 @@
-import { PlusOutlined, WarningOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   DrawerForm,
@@ -8,7 +7,15 @@ import {
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
 import { Alert, App, Badge, Button, Input, Select, Space, Tree } from 'antd';
-import { Ban, CircleCheck, Pencil, Search, Trash2 } from 'lucide-react';
+import {
+  Ban,
+  CircleCheck,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  TriangleAlert,
+} from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import {
@@ -299,7 +306,11 @@ const TenantPackagePage: React.FC = () => {
       <PageHeader
         extra={
           access['tenant:package:add'] && (
-            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            <Button
+              type="primary"
+              icon={<Plus size="1em" />}
+              onClick={openCreate}
+            >
               新增套餐
             </Button>
           )
@@ -404,7 +415,7 @@ const TenantPackagePage: React.FC = () => {
           <Alert
             type="warning"
             showIcon
-            icon={<WarningOutlined />}
+            icon={<TriangleAlert size="1em" />}
             style={{ marginBottom: 16 }}
             title={`注意：此套餐已被 ${boundTenantCount} 个租户使用，修改菜单范围后，所有绑定租户的可见菜单将立即变更。`}
           />

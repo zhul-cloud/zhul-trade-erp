@@ -1,6 +1,6 @@
-import { UserOutlined } from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import { App, Drawer, Radio, Skeleton } from 'antd';
+import { User } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -148,7 +148,7 @@ const TaskDetailDrawer: React.FC<{
               <span
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
               >
-                <UserOutlined style={{ color: palette.mute }} />
+                <User size="1em" style={{ color: palette.mute }} />
                 {t.salesName || '—'}
               </span>,
             )}

@@ -1,4 +1,3 @@
-import { InfoCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -12,7 +11,7 @@ import {
   Skeleton,
   Table,
 } from 'antd';
-import { Ban, CircleCheck, Pencil } from 'lucide-react';
+import { Ban, CircleCheck, Info, Pencil, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { tableEmpty } from '@/components/EmptyState';
@@ -480,7 +479,7 @@ const BankAccountPage: React.FC = () => {
           canEdit && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => {
                 setEditing(undefined);
                 setModalOpen(true);
@@ -523,7 +522,7 @@ const BankAccountPage: React.FC = () => {
             color: palette.sub,
           }}
         >
-          <InfoCircleOutlined style={{ color: palette.link }} />
+          <Info size="1em" style={{ color: palette.link }} />
           账号在列表与日志中只显示后 4 位，PI
           上显示完整账号。停用默认账户前要先把同币种的另一个账户设为默认。单据前缀在「业务设置
           → 编号规则」设置。

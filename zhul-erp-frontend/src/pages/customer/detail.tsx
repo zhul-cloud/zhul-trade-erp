@@ -1,18 +1,16 @@
-import {
-  EnvironmentOutlined,
-  FileTextOutlined,
-  InfoCircleOutlined,
-  WalletOutlined,
-} from '@ant-design/icons';
 import { history, useAccess, useParams } from '@umijs/max';
 import { Button, Dropdown, Skeleton } from 'antd';
 import {
   ArrowLeftRight,
   Ellipsis,
+  FileText,
+  Info,
+  MapPin,
   Merge,
   Pencil,
   SquarePen,
   UserPlus,
+  Wallet,
   Waves,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -630,7 +628,7 @@ const CustomerDetailPage: React.FC = () => {
                 onEdit={canEdit ? setEditModule : undefined}
               />
             )}
-            <SectionCard icon={<InfoCircleOutlined />} title="基本信息">
+            <SectionCard icon={<Info size="1em" />} title="基本信息">
               <Grid>
                 <Field label="客户编码" mono>
                   {r.customerCode}
@@ -643,7 +641,7 @@ const CustomerDetailPage: React.FC = () => {
                 </Field>
               </Grid>
             </SectionCard>
-            <SectionCard icon={<EnvironmentOutlined />} title="注册地址与税务">
+            <SectionCard icon={<MapPin size="1em" />} title="注册地址与税务">
               <Grid>
                 <Field label="国家/地区">{countryLabel(r.country)}</Field>
                 <Field label="州/省">{r.state}</Field>
@@ -660,7 +658,7 @@ const CustomerDetailPage: React.FC = () => {
                 </Field>
               </Grid>
             </SectionCard>
-            <SectionCard icon={<WalletOutlined />} title="默认交易条件">
+            <SectionCard icon={<Wallet size="1em" />} title="默认交易条件">
               <div
                 style={{
                   padding: '14px 16px',
@@ -698,7 +696,7 @@ const CustomerDetailPage: React.FC = () => {
                 <Field label="目的港">{r.destinationPort}</Field>
               </Grid>
             </SectionCard>
-            <SectionCard icon={<FileTextOutlined />} title="收货与单证信息">
+            <SectionCard icon={<FileText size="1em" />} title="收货与单证信息">
               <PartyGroups parties={r.parties} countryLabel={countryLabel} />
             </SectionCard>
           </div>

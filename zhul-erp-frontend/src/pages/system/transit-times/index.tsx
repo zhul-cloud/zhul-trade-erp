@@ -1,9 +1,3 @@
-import {
-  ClockCircleOutlined,
-  EnvironmentOutlined,
-  PlusOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -16,7 +10,7 @@ import {
   Select,
   Table,
 } from 'antd';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Clock, MapPin, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { tableEmpty } from '@/components/EmptyState';
@@ -162,7 +156,7 @@ const TransitTimes: React.FC = () => {
           canEdit && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => setEditing({ open: true, days: 3 })}
             >
               新增规则
@@ -180,7 +174,7 @@ const TransitTimes: React.FC = () => {
       >
         <Card style={{ padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <ClockCircleOutlined style={{ color: palette.link }} />
+            <Clock size="1em" style={{ color: palette.link }} />
             <b style={{ color: palette.ink }}>默认运输天数</b>
             <span style={{ flex: 1 }} />
             <InputNumber
@@ -217,7 +211,7 @@ const TransitTimes: React.FC = () => {
         </Card>
         <Card style={{ padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <EnvironmentOutlined style={{ color: palette.link }} />
+            <MapPin size="1em" style={{ color: palette.link }} />
             <b style={{ color: palette.ink }}>估算顺序</b>
           </div>
           <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
@@ -246,7 +240,7 @@ const TransitTimes: React.FC = () => {
         />
         <Input
           allowClear
-          prefix={<SearchOutlined />}
+          prefix={<Search size="1em" />}
           value={province}
           onChange={(e) => setProvince(e.target.value)}
           onPressEnter={() =>

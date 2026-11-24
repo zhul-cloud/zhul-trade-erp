@@ -1,13 +1,8 @@
-import {
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  TrophyOutlined,
-  UserAddOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Segmented, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { CircleCheck, CircleX, Trophy, UserPlus } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { MetricGrid } from '@/components/MetricCard';
@@ -153,7 +148,7 @@ const OpportunityCard: React.FC = () => {
         <>
           <MetricGrid cols={4} min={180} gap={12} style={{ marginBottom: 16 }}>
             <Stat
-              icon={<UserAddOutlined />}
+              icon={<UserPlus size="1em" />}
               color={palette.link}
               soft={palette.primarySoft}
               label="新增"
@@ -169,7 +164,7 @@ const OpportunityCard: React.FC = () => {
               }
             />
             <Stat
-              icon={<CheckCircleOutlined />}
+              icon={<CircleCheck size="1em" />}
               color={palette.green}
               soft={palette.greenSoft}
               label="有效"
@@ -177,7 +172,7 @@ const OpportunityCard: React.FC = () => {
               hint={`有效率 ${rate(sum.valid, sum.total)}`}
             />
             <Stat
-              icon={<TrophyOutlined />}
+              icon={<Trophy size="1em" />}
               color={palette.orange}
               soft={palette.orangeSoft}
               label="赢单"
@@ -185,7 +180,7 @@ const OpportunityCard: React.FC = () => {
               hint={`输单 ${sum.lost}`}
             />
             <Stat
-              icon={<CloseCircleOutlined />}
+              icon={<CircleX size="1em" />}
               color={palette.mute}
               soft={palette.inset}
               label="无效"

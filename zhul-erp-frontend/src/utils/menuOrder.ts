@@ -1,3 +1,4 @@
+// lint-ui-ignore antd-icon: 后端菜单里存量的 antd 图标名，按名字兜底查找
 import * as AntdIcons from '@ant-design/icons';
 import type { LucideIcon } from 'lucide-react';
 import * as L from 'lucide-react';

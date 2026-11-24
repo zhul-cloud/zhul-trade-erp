@@ -1,4 +1,3 @@
-import { CopyOutlined, PlusOutlined, WalletOutlined } from '@ant-design/icons';
 import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -19,6 +18,7 @@ import {
   Table,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Copy, Plus, Wallet } from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -236,7 +236,7 @@ export const PayeeAccountPicker: React.FC<{
                 <Button
                   type="link"
                   size="small"
-                  icon={<CopyOutlined />}
+                  icon={<Copy size="1em" />}
                   onClick={(e) => {
                     // 按钮在 Radio 的 label 里：不触发选中
                     e.preventDefault();
@@ -689,7 +689,7 @@ export const RegisterPaymentDrawer: React.FC<{
                     }}
                   >
                     {v === PAY_CHANNEL.BANK ? (
-                      <WalletOutlined />
+                      <Wallet size="1em" />
                     ) : (
                       <ChannelIcon channel={v} size={14} />
                     )}
@@ -1430,7 +1430,7 @@ export const PayablePanel: React.FC<{
           flexWrap: 'wrap',
         }}
       >
-        <WalletOutlined style={{ color: palette.link }} />
+        <Wallet size="1em" style={{ color: palette.link }} />
         <b style={{ color: palette.ink, fontSize: 15 }}>付款</b>
         <PayStatusPill status={data.status} />
         {access.payableDetail ? (
@@ -1452,7 +1452,7 @@ export const PayablePanel: React.FC<{
           <Button
             size="small"
             type="primary"
-            icon={<PlusOutlined />}
+            icon={<Plus size="1em" />}
             onClick={() => setDrawer(METHOD.COMPANY)}
           >
             登记付款

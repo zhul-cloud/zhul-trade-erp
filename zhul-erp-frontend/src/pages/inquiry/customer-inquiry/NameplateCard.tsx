@@ -1,5 +1,5 @@
-import { MoreOutlined } from '@ant-design/icons';
 import { App, Button, Dropdown, type MenuProps } from 'antd';
+import { EllipsisVertical } from 'lucide-react';
 import React from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -180,7 +180,7 @@ const NameplateCard: React.FC<{
                         <Button
                           size="small"
                           shape="circle"
-                          icon={<MoreOutlined />}
+                          icon={<EllipsisVertical size="1em" />}
                           aria-label={`改 ${f.fileName} 对应的型号`}
                           style={{ position: 'absolute', right: 4, top: 46 }}
                         />

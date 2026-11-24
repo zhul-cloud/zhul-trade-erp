@@ -1,6 +1,6 @@
-import { CalendarOutlined } from '@ant-design/icons';
 import { Button } from 'antd';
 import dayjs from 'dayjs';
+import { Calendar } from 'lucide-react';
 import React from 'react';
 import { EmptyHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -58,7 +58,7 @@ const DeferredList: React.FC<{
                 padding: '14px 20px',
               }}
             >
-              <CalendarOutlined style={{ color: palette.link }} />
+              <Calendar size="1em" style={{ color: palette.link }} />
               <b style={{ color: palette.ink, fontSize: 15 }}>
                 {d.format('MM-DD')} {WEEK[d.day()]}回来
               </b>

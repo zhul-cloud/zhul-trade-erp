@@ -1,4 +1,4 @@
-import { CalendarOutlined } from '@ant-design/icons';
+import { Calendar } from 'lucide-react';
 import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
@@ -52,7 +52,7 @@ export const DueNowHint: React.FC<{
         color: palette.mute,
       }}
     >
-      <CalendarOutlined />
+      <Calendar size="1em" />
       <span style={{ flex: 1, minWidth: 0 }}>{text}</span>
       {partial && (
         <button

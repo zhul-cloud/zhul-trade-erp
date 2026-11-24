@@ -1,7 +1,6 @@
-import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useLocation, useModel, useOutlet } from '@umijs/max';
 import { Dropdown } from 'antd';
-import { ChevronDown, House, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, House, X } from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -435,7 +434,7 @@ const BackBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
           cursor: 'pointer',
         }}
       >
-        <ArrowLeftOutlined style={{ fontSize: 12 }} />
+        <ArrowLeft size="1em" style={{ fontSize: 12 }} />
         返回 {entryTitle(tree, prev)}
       </button>
     </div>

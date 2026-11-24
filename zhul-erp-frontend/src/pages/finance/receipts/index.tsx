@@ -1,5 +1,5 @@
-import { PlusOutlined } from '@ant-design/icons';
 import { Badge, Button, Tabs } from 'antd';
+import { Plus } from 'lucide-react';
 import React, { useCallback, useState } from 'react';
 import { PageHeader } from '@/components/ListLayout';
 import DeskTab from './DeskTab';
@@ -35,7 +35,7 @@ const ReceiptManagement: React.FC = () => {
         extra={
           <Button
             type="primary"
-            icon={<PlusOutlined />}
+            icon={<Plus size="1em" />}
             onClick={() => {
               setTab('unclaimed');
               setRegisterSignal((s) => s + 1);

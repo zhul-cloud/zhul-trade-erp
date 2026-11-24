@@ -1,10 +1,4 @@
 import {
-  DeleteOutlined,
-  EditOutlined,
-  PlusOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
-import {
   ModalForm,
   ProFormDigit,
   ProFormRadio,
@@ -14,17 +8,8 @@ import {
   ProFormTextArea,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import {
-  App,
-  Badge,
-  Button,
-  Input,
-  Space,
-  Table,
-  Tag,
-  Tooltip,
-} from 'antd';
-import { Pencil, Trash2 } from 'lucide-react';
+import { App, Badge, Button, Input, Space, Table, Tag, Tooltip } from 'antd';
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { EmptyState, tableEmpty } from '@/components/EmptyState';
@@ -296,7 +281,8 @@ const DictPage: React.FC = () => {
         {(canEdit || canDelete) && (
           <Space size={8} onClick={(e) => e.stopPropagation()}>
             {canEdit && (
-              <EditOutlined
+              <Pencil
+                size="1em"
                 style={{ color: p.mute, fontSize: 13 }}
                 onClick={() => openEditType(t)}
               />
@@ -304,10 +290,11 @@ const DictPage: React.FC = () => {
             {canDelete &&
               (t.isBuiltin === 1 ? (
                 <Tooltip title="系统内置字典不可删除">
-                  <DeleteOutlined style={{ color: p.faint, fontSize: 13 }} />
+                  <Trash2 size="1em" style={{ color: p.faint, fontSize: 13 }} />
                 </Tooltip>
               ) : (
-                <DeleteOutlined
+                <Trash2
+                  size="1em"
                   style={{ color: p.red, fontSize: 13 }}
                   onClick={() => handleDeleteType(t)}
                 />
@@ -410,7 +397,7 @@ const DictPage: React.FC = () => {
           {canAdd && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               block
               style={{ marginBottom: 12 }}
               onClick={openCreateType}
@@ -420,7 +407,7 @@ const DictPage: React.FC = () => {
           )}
           <Input
             placeholder="搜索字典名称"
-            prefix={<SearchOutlined />}
+            prefix={<Search size="1em" />}
             allowClear
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
@@ -493,7 +480,7 @@ const DictPage: React.FC = () => {
                 {canAdd && (
                   <Button
                     type="primary"
-                    icon={<PlusOutlined />}
+                    icon={<Plus size="1em" />}
                     onClick={openCreateItem}
                   >
                     新增字典项

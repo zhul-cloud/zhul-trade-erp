@@ -1,10 +1,6 @@
-import {
-  FileTextOutlined,
-  MailOutlined,
-  ShoppingCartOutlined,
-} from '@ant-design/icons';
 import { history, useAccess, useModel } from '@umijs/max';
 import { Button, Segmented, Skeleton } from 'antd';
+import { FileText, Mail, ShoppingCart } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { EmptyState } from '@/components/EmptyState';
 import { PageHeader, Panel } from '@/components/ListLayout';
@@ -27,17 +23,17 @@ const SHORTCUTS: {
   {
     access: 'inquiryCustomerInquiry',
     path: '/inquiry/customer-inquiries',
-    icon: <MailOutlined />,
+    icon: <Mail size="1em" />,
   },
   {
     access: 'quotationList',
     path: '/quotation/quotations',
-    icon: <FileTextOutlined />,
+    icon: <FileText size="1em" />,
   },
   {
     access: 'inquiryMyTasks',
     path: '/inquiry/my-tasks',
-    icon: <ShoppingCartOutlined />,
+    icon: <ShoppingCart size="1em" />,
   },
 ];
 

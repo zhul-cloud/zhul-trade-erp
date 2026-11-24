@@ -1,8 +1,15 @@
-import { FileExcelOutlined, WarningOutlined } from '@ant-design/icons';
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Dropdown, Skeleton, Table } from 'antd';
-import { CircleX, Ellipsis, FileText, Pencil, Ship } from 'lucide-react';
+import {
+  CircleX,
+  Ellipsis,
+  FileSpreadsheet,
+  FileText,
+  Pencil,
+  Ship,
+  TriangleAlert,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
   docBrandColumns,
@@ -328,7 +335,7 @@ const ShipmentDetail: React.FC = () => {
                 fontSize: 13,
               }}
             >
-              <WarningOutlined />
+              <TriangleAlert size="1em" />
               <span style={{ flex: 1 }}>
                 直发货 {d.sdNo}
                 {d.supplierName ? `（${d.supplierName}）` : ''}{' '}
@@ -467,7 +474,10 @@ const ShipmentDetail: React.FC = () => {
                       flexWrap: 'wrap',
                     }}
                   >
-                    <FileExcelOutlined style={{ color: palette.green }} />
+                    <FileSpreadsheet
+                      size="1em"
+                      style={{ color: palette.green }}
+                    />
                     <b>
                       {g.ciNo} · {g.plNo}
                     </b>

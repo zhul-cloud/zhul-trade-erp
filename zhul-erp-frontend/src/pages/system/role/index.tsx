@@ -1,4 +1,3 @@
-import { SearchOutlined, WarningOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   DrawerForm,
@@ -31,6 +30,7 @@ import {
   Search,
   ShieldCheck,
   Trash2,
+  TriangleAlert,
 } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
@@ -360,7 +360,10 @@ const RolePage: React.FC = () => {
         content: (
           <div>
             <div style={{ marginBottom: 12 }}>
-              <WarningOutlined style={{ color: p.orange, marginRight: 8 }} />
+              <TriangleAlert
+                size="1em"
+                style={{ color: p.orange, marginRight: 8 }}
+              />
               角色「{record.name}」已分配给 {check.userCount} 名用户：
             </div>
             <div
@@ -804,7 +807,7 @@ const RolePage: React.FC = () => {
         </div>
         <Input
           placeholder="搜索菜单/按钮名称"
-          prefix={<SearchOutlined />}
+          prefix={<Search size="1em" />}
           allowClear
           style={{ marginBottom: 12 }}
           value={menuKeyword}

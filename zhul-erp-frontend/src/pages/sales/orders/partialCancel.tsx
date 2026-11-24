@@ -1,5 +1,5 @@
-import { InfoCircleOutlined, ShoppingCartOutlined } from '@ant-design/icons';
 import { App, Button, Input, InputNumber, Modal, Select } from 'antd';
+import { Info, ShoppingCart } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { CardTitle } from '@/components/ListLayout';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -240,7 +240,7 @@ export const PartialCancelModal: React.FC<{
           fontSize: 13,
         }}
       >
-        <InfoCircleOutlined style={{ color: palette.link, marginTop: 3 }} />
+        <Info size="1em" style={{ color: palette.link, marginTop: 3 }} />
         <span style={{ color: palette.sub }}>
           可取消 = 当前数量 −
           已出库（出库中、已交货代、已出运）；已出运的货请走售后。
@@ -500,7 +500,7 @@ export const PartialCancelModal: React.FC<{
           marginBottom: 10,
         }}
       >
-        <ShoppingCartOutlined style={{ color: palette.link }} />
+        <ShoppingCart size="1em" style={{ color: palette.link }} />
         <b style={{ color: palette.ink }}>采购与库存会这样处理</b>
       </div>
       <div style={{ display: 'grid', gap: 12, marginBottom: 14 }}>

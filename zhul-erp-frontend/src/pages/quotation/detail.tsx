@@ -1,13 +1,3 @@
-import {
-  CheckCircleOutlined,
-  DeleteOutlined,
-  EyeInvisibleOutlined,
-  HistoryOutlined,
-  LockOutlined,
-  PlusOutlined,
-  ThunderboltOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { history, useAccess, useParams, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -28,6 +18,7 @@ import dayjs from 'dayjs';
 import {
   Ban,
   ChevronDown,
+  CircleCheck,
   CircleX,
   Copy,
   Download,
@@ -35,9 +26,14 @@ import {
   Eye,
   EyeOff,
   FileCheck,
+  History,
+  Lock,
   MessageSquareText,
   Pencil,
+  Plus,
   Send,
+  Trash2,
+  TriangleAlert,
   Undo2,
   Zap,
 } from 'lucide-react';
@@ -242,7 +238,7 @@ const PreviewPanel: React.FC<{
         <Button
           size="small"
           type="text"
-          icon={<EyeInvisibleOutlined />}
+          icon={<EyeOff size="1em" />}
           onClick={onCollapse}
         >
           收起预览
@@ -1346,7 +1342,7 @@ const QuotationDetail: React.FC = () => {
           <Button
             size="small"
             type="text"
-            icon={<DeleteOutlined />}
+            icon={<Trash2 size="1em" />}
             aria-label="删除型号行"
             onClick={() => removeItem(d.id)}
           />
@@ -1672,7 +1668,7 @@ const QuotationDetail: React.FC = () => {
           <Input
             value={Number(rate).toFixed(6)}
             readOnly
-            prefix={<LockOutlined />}
+            prefix={<Lock size="1em" />}
             suffix={
               <span style={{ color: palette.mute, fontSize: 12 }}>
                 系统汇率
@@ -1773,7 +1769,7 @@ const QuotationDetail: React.FC = () => {
         <Alert
           type="warning"
           showIcon
-          icon={<WarningOutlined />}
+          icon={<TriangleAlert size="1em" />}
           title={`系统汇率已更新为 ${Number(q.systemRate).toFixed(6)}（原 ${Number(q.exchangeRate).toFixed(6)}），这张草稿仍按 ${Number(q.exchangeRate).toFixed(6)} 计算`}
           action={
             <Button size="small" onClick={recalc}>
@@ -1786,7 +1782,7 @@ const QuotationDetail: React.FC = () => {
         <Alert
           type="info"
           showIcon
-          icon={<HistoryOutlined />}
+          icon={<History size="1em" />}
           title={`老客户：SOP 建议参考历史成交毛利率（${
             q.returningCustomerMargins && q.returningCustomerMargins.length > 0
               ? `近 ${q.returningCustomerMargins.length} 次：${q.returningCustomerMargins.map((m) => formatMargin(m)).join('、')}`
@@ -1823,7 +1819,7 @@ const QuotationDetail: React.FC = () => {
             fontSize: 13,
           }}
         >
-          <LockOutlined />
+          <Lock size="1em" />
           <b style={{ color: palette.ink }}>
             {historical
               ? `Rev.${q.versionNo} · 历史版本`
@@ -1888,7 +1884,7 @@ const QuotationDetail: React.FC = () => {
         {editable && (
           <Button
             style={{ marginLeft: 'auto' }}
-            icon={<PlusOutlined />}
+            icon={<Plus size="1em" />}
             onClick={async () => (await ensureSaved()) && setAddOpen(true)}
           >
             从询盘添加型号
@@ -1937,7 +1933,7 @@ const QuotationDetail: React.FC = () => {
           <span style={{ marginLeft: 'auto' }} />
           <Button
             type="primary"
-            icon={<ThunderboltOutlined />}
+            icon={<Zap size="1em" />}
             onClick={() => setStrategyOpen(true)}
           >
             报价策略
@@ -2073,7 +2069,7 @@ const QuotationDetail: React.FC = () => {
               ])
             }
           >
-            <PlusOutlined /> 加费用行
+            <Plus size="1em" /> 加费用行
           </button>
         )}
       </div>
@@ -2131,7 +2127,7 @@ const QuotationDetail: React.FC = () => {
               />
               <Button
                 type="text"
-                icon={<DeleteOutlined />}
+                icon={<Trash2 size="1em" />}
                 aria-label="删除费用行"
                 onClick={() => setFees(fees.filter((x) => x.key !== f.key))}
               />
@@ -2475,7 +2471,7 @@ const QuotationDetail: React.FC = () => {
       />
       {q.status === STATUS.WON && (
         <div style={{ marginTop: 16, color: palette.green, fontSize: 13 }}>
-          <CheckCircleOutlined /> 已成交 ·{' '}
+          <CircleCheck size="1em" /> 已成交 ·{' '}
           {q.closedAt ? formatDateTime(q.closedAt) : ''}
         </div>
       )}

@@ -154,6 +154,12 @@ const globalCss = (
   .ant-table:not(.ant-table-small):not(.ant-table-middle) > .ant-table-container .ant-table-thead > tr > th,
   .ant-table:not(.ant-table-small):not(.ant-table-middle) > .ant-table-container .ant-table-tbody > tr.ant-table-row > td { height: 48px; }
   @media (max-width: 1399px) { .zhul-more-text { display: none; } }
+  /* 图标统一用 lucide（规范「图标」）：和文字同行时与 antd 图标原来一样下沉 0.125em 居中；flex 布局里不受影响。
+     转圈（加载、同步中）加 zhul-spin */
+  svg.lucide { vertical-align: -0.125em; flex: none; }
+  .zhul-spin { animation: zhul-spin 1s linear infinite; }
+  @keyframes zhul-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .zhul-spin { animation: none; } }
   /* 主卡操作行里的快捷筛选：结果数后面直接是胶囊，不写「快捷筛选」 */
   .zhul-toolbar .zhul-quick-label { display: none; }
   /* 卡片里可点的明细行：悬停浅底（同待办行） */

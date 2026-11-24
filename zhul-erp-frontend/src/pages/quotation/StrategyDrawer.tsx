@@ -1,9 +1,3 @@
-import {
-  ArrowRightOutlined,
-  DeleteOutlined,
-  PlusOutlined,
-  SwapOutlined,
-} from '@ant-design/icons';
 import type { TableColumnsType } from 'antd';
 import {
   Alert,
@@ -17,6 +11,7 @@ import {
   Table,
   Tabs,
 } from 'antd';
+import { ArrowLeftRight, ArrowRight, Plus, Trash2 } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -254,7 +249,7 @@ const StrategyDrawer: React.FC<{
   );
   const reshuffle = spread > 0 && (
     <Button
-      icon={<SwapOutlined />}
+      icon={<ArrowLeftRight size="1em" />}
       onClick={() => setSeed((s) => s + 1)}
       style={{ marginLeft: 'auto' }}
     >
@@ -432,7 +427,7 @@ const StrategyDrawer: React.FC<{
                   {!last && tiers.length > 2 && (
                     <Button
                       type="text"
-                      icon={<DeleteOutlined />}
+                      icon={<Trash2 size="1em" />}
                       aria-label="删除这一档"
                       onClick={() => setTiers(tiers.filter((_, i) => i !== n))}
                     />
@@ -444,7 +439,7 @@ const StrategyDrawer: React.FC<{
               {tiers.length < 6 && (
                 <Button
                   type="link"
-                  icon={<PlusOutlined />}
+                  icon={<Plus size="1em" />}
                   style={{ paddingLeft: 0 }}
                   onClick={() => {
                     const bounded = tiers.slice(0, -1);
@@ -588,7 +583,7 @@ const StrategyDrawer: React.FC<{
       title: '',
       key: 'arrow',
       width: 30,
-      render: () => <ArrowRightOutlined style={{ color: palette.mute }} />,
+      render: () => <ArrowRight size="1em" style={{ color: palette.mute }} />,
     },
     {
       title: '新售价',
@@ -643,7 +638,7 @@ const StrategyDrawer: React.FC<{
       <div style={{ fontSize: 12, color: palette.mute }}>{title}</div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
         <span style={{ ...num, color: palette.mute }}>{a}</span>
-        <ArrowRightOutlined style={{ color: palette.mute, fontSize: 11 }} />
+        <ArrowRight size="1em" style={{ color: palette.mute, fontSize: 11 }} />
         <b style={{ ...num, fontSize: 17, color: color ?? palette.ink }}>{b}</b>
       </div>
       {extra && (

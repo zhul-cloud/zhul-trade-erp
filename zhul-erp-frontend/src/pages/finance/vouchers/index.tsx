@@ -1,7 +1,7 @@
-import { FileAddOutlined, SettingOutlined } from '@ant-design/icons';
 import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Space, Table } from 'antd';
+import { FilePlus, Settings } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { MainCard, PageHeader } from '@/components/ListLayout';
@@ -139,7 +139,7 @@ const VouchersPage: React.FC = () => {
           canExport && (
             <Button
               size="small"
-              icon={<FileAddOutlined />}
+              icon={<FilePlus size="1em" />}
               loading={generating === r.month}
               onClick={() => generate(r.month)}
             >
@@ -170,7 +170,7 @@ const VouchersPage: React.FC = () => {
         extra={
           <Button
             type="text"
-            icon={<SettingOutlined />}
+            icon={<Settings size="1em" />}
             style={{ color: palette.link }}
             onClick={() => setAccountsOpen(true)}
           >

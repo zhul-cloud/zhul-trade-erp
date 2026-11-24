@@ -1,8 +1,7 @@
-import { WarningOutlined } from '@ant-design/icons';
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Skeleton, Table, Tooltip } from 'antd';
-import { Undo2 } from 'lucide-react';
+import { TriangleAlert, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import DocModelCell, {
@@ -186,7 +185,7 @@ const RefundRequestDetail: React.FC = () => {
             color: palette.orange,
           }}
         >
-          <WarningOutlined /> 仓库还没验收
+          <TriangleAlert size="1em" /> 仓库还没验收
           {th?.receipt ? ` ${th.receipt.no}` : '退货'}，验收后才能执行
         </div>
       )}
@@ -201,7 +200,7 @@ const RefundRequestDetail: React.FC = () => {
             color: palette.orange,
           }}
         >
-          <WarningOutlined /> {q.receivedHint}，执行前请核对退款金额
+          <TriangleAlert size="1em" /> {q.receivedHint}，执行前请核对退款金额
         </div>
       )}
       <InfoGrid

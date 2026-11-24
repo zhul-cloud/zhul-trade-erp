@@ -1,9 +1,3 @@
-import {
-  CheckOutlined,
-  DownloadOutlined,
-  InfoCircleOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -19,7 +13,7 @@ import {
   Table,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { ClipboardCheck, Eye } from 'lucide-react';
+import { Check, ClipboardCheck, Download, Eye, Info, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { tableEmpty } from '@/components/EmptyState';
@@ -373,7 +367,7 @@ const StatementDrawer: React.FC<{
         st && (
           <div style={{ display: 'flex', gap: 8 }}>
             <Button
-              icon={<DownloadOutlined />}
+              icon={<Download size="1em" />}
               onClick={() =>
                 statementApi
                   .export(st.id)
@@ -394,7 +388,7 @@ const StatementDrawer: React.FC<{
                 </Button>
                 <Button
                   type="primary"
-                  icon={<CheckOutlined />}
+                  icon={<Check size="1em" />}
                   loading={busy}
                   disabled={
                     !!missingNote ||
@@ -454,7 +448,7 @@ const StatementDrawer: React.FC<{
             columns={columns}
           />
           <div style={{ fontSize: 12, color: palette.mute }}>
-            <InfoCircleOutlined />{' '}
+            <Info size="1em" />{' '}
             {st.status === 2
               ? `${st.confirmedByName ?? ''} 于 ${formatDateTime(st.confirmedAt)} 确认；这些出运单已对账，运费不能再改。`
               : '确认后这些出运单标记「已对账」，有差额的按对账金额更新运费并重新分摊，运费不能再改；有差额的必须写说明。确认时生成货代应付，月结付款在「财务管理 → 应付单」登记。'}
@@ -666,7 +660,7 @@ const Statements: React.FC = () => {
           canEdit && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => setCreating(true)}
             >
               新建运费账单

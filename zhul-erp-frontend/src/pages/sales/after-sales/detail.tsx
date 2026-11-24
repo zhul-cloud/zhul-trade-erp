@@ -1,22 +1,24 @@
-import {
-  AlertOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  DollarOutlined,
-  EditOutlined,
-  HistoryOutlined,
-  MessageOutlined,
-  PauseCircleOutlined,
-  RollbackOutlined,
-  SendOutlined,
-  ShoppingCartOutlined,
-  SwapOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { history, useAccess, useParams } from '@umijs/max';
 import { App, Button, Checkbox, Dropdown, Input, Skeleton } from 'antd';
 import dayjs from 'dayjs';
-import { CircleCheck, CircleX, Ellipsis, Receipt } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  CircleCheck,
+  CircleDollarSign,
+  CirclePause,
+  CircleX,
+  Clock,
+  Ellipsis,
+  History,
+  MessageSquare,
+  Pencil,
+  Receipt,
+  Send,
+  ShoppingCart,
+  Siren,
+  TriangleAlert,
+  Undo2,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { RelatedDocsCard } from '@/components/DocFields/DocPage';
 import { PageHeader } from '@/components/ListLayout';
@@ -236,7 +238,11 @@ const AfterSalesDetail: React.FC = () => {
           <div style={{ fontSize: 12, color: palette.sub }}>{desc}</div>
         </div>
         {action && (
-          <Button type="primary" icon={<MessageOutlined />} onClick={writeNote}>
+          <Button
+            type="primary"
+            icon={<MessageSquare size="1em" />}
+            onClick={writeNote}
+          >
             写跟进并告知客户
           </Button>
         )}
@@ -249,7 +255,7 @@ const AfterSalesDetail: React.FC = () => {
     if (a.status === AS_STATUS.CLOSED) {
       return bar(
         'green',
-        <CheckCircleOutlined />,
+        <CircleCheck size="1em" />,
         '已结案 · 不再提醒',
         a.respondedAt
           ? `首次响应 ${formatDateTime(a.respondedAt).slice(5, 16)}`
@@ -261,7 +267,7 @@ const AfterSalesDetail: React.FC = () => {
       return a.status === AS_STATUS.WAITING
         ? bar(
             'gray',
-            <PauseCircleOutlined />,
+            <CirclePause size="1em" />,
             '待客户确认 · 暂停计时',
             '等客户回复期间不按等级计时；填了下次更新时间时按它提醒。改回「处理中」后从那一刻重新起算。',
           )
@@ -270,7 +276,7 @@ const AfterSalesDetail: React.FC = () => {
     const late = a.dueState === 'OVERDUE';
     const soon = a.dueState === 'SOON';
     const tone = late ? 'red' : soon ? 'orange' : 'accent';
-    const icon = late ? <AlertOutlined /> : <ClockCircleOutlined />;
+    const icon = late ? <Siren size="1em" /> : <Clock size="1em" />;
     const left = dueLeftText(a);
     if (a.dueType === 1) {
       return bar(
@@ -303,7 +309,7 @@ const AfterSalesDetail: React.FC = () => {
 
   const problem = (
     <Card style={{ padding: 20, marginBottom: 16 }}>
-      {section(<WarningOutlined />, '问题')}
+      {section(<TriangleAlert size="1em" />, '问题')}
       {kv(
         '型号',
         (a.items ?? [])
@@ -332,7 +338,7 @@ const AfterSalesDetail: React.FC = () => {
 
   const timeline = (
     <Card style={{ padding: 20 }}>
-      {section(<HistoryOutlined />, '跟进记录')}
+      {section(<History size="1em" />, '跟进记录')}
       {a.status !== AS_STATUS.CANCELLED && (
         <div
           style={{
@@ -413,7 +419,7 @@ const AfterSalesDetail: React.FC = () => {
                     color: palette.green,
                   }}
                 >
-                  <SendOutlined /> 已告知客户
+                  <Send size="1em" /> 已告知客户
                 </div>
               )}
               {(l.attachments ?? []).length > 0 && (
@@ -434,7 +440,7 @@ const AfterSalesDetail: React.FC = () => {
   const replacements = (a.replacements ?? []).length > 0 && (
     <Card style={{ padding: 20, marginBottom: 16 }}>
       {section(
-        <ShoppingCartOutlined />,
+        <ShoppingCart size="1em" />,
         '补发订单',
         <span style={{ fontSize: 12, color: palette.mute }}>
           {
@@ -493,7 +499,7 @@ const AfterSalesDetail: React.FC = () => {
   const plan = (
     <Card style={{ padding: 20, marginBottom: 16 }}>
       {section(
-        <EditOutlined />,
+        <Pencil size="1em" />,
         '处理',
         active && (
           <Button type="link" size="small" onClick={() => setDialog('plan')}>
@@ -610,7 +616,7 @@ const AfterSalesDetail: React.FC = () => {
 
   const cost = (
     <Card style={{ padding: 20 }}>
-      {section(<DollarOutlined />, '售后成本')}
+      {section(<CircleDollarSign size="1em" />, '售后成本')}
       <div
         style={{
           display: 'flex',
@@ -662,34 +668,34 @@ const AfterSalesDetail: React.FC = () => {
   }[] = [
     {
       key: 'returnOnly',
-      icon: <RollbackOutlined />,
+      icon: <Undo2 size="1em" />,
       title: '仅退货',
       desc: '客户寄回，不退钱',
       disabled: noReturnable ? '没有可退的数量（已出运的才能退）' : undefined,
     },
     {
       key: 'returnRefund',
-      icon: <SwapOutlined />,
+      icon: <ArrowLeftRight size="1em" />,
       title: '退货退款',
       desc: '寄回后退钱，可先退款',
       disabled: noReturnable ? '没有可退的数量（已出运的才能退）' : undefined,
     },
     {
       key: 'refund',
-      icon: <DollarOutlined />,
+      icon: <CircleDollarSign size="1em" />,
       title: '仅退款',
       desc: '不寄回，按金额退',
     },
     {
       key: 'replacement',
-      icon: <ShoppingCartOutlined />,
+      icon: <ShoppingCart size="1em" />,
       title: '补发',
       desc: '生成补发订单',
     },
   ];
   const handlingCard = active && (
     <Card style={{ padding: 20, marginBottom: 16 }}>
-      {section(<EditOutlined />, '处理方式')}
+      {section(<Pencil size="1em" />, '处理方式')}
       {!a.soId ? (
         <div style={{ color: palette.mute, fontSize: 13 }}>
           售后单没有关联订单，不能退货、退款或补发

@@ -1,4 +1,3 @@
-import { ThunderboltOutlined } from '@ant-design/icons';
 import {
   App,
   Checkbox,
@@ -11,6 +10,7 @@ import {
   Segmented,
   Select,
 } from 'antd';
+import { Zap } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -409,7 +409,7 @@ const ModuleEditModal: React.FC<{
             extra={
               derived.length > 0 && (
                 <span style={{ color: palette.info }}>
-                  <ThunderboltOutlined /> 询盘里常用：
+                  <Zap size="1em" /> 询盘里常用：
                   {derived.map((b) => `${b.name} ${b.count}`).join(' · ')}{' '}
                   <button
                     type="button"

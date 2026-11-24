@@ -1,12 +1,7 @@
-import {
-  ArrowRightOutlined,
-  InfoCircleOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, InputNumber, Modal, Skeleton, Table } from 'antd';
-import { History, Pencil } from 'lucide-react';
+import { ArrowRight, History, Info, Pencil, TriangleAlert } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
 import { PageHeader } from '@/components/ListLayout';
@@ -225,7 +220,7 @@ const ExchangeRatePage: React.FC = () => {
               fontSize: 13,
             }}
           >
-            <InfoCircleOutlined />{' '}
+            <Info size="1em" />{' '}
             汇率调整后：已发送的报价单不变；打开草稿报价单时会提示「系统汇率已更新」，业务员可一键按新汇率重算。
           </div>
         </div>
@@ -262,7 +257,8 @@ const ExchangeRatePage: React.FC = () => {
                     <span style={{ ...num, color: palette.mute }}>
                       {l.oldRate == null ? '—' : fmt(l.oldRate)}
                     </span>
-                    <ArrowRightOutlined
+                    <ArrowRight
+                      size="1em"
                       style={{ color: palette.mute, fontSize: 11 }}
                     />
                     <b style={{ ...num, color: palette.ink }}>
@@ -345,7 +341,8 @@ const ExchangeRatePage: React.FC = () => {
         open={!!editing && confirming}
         title={
           <span>
-            <WarningOutlined
+            <TriangleAlert
+              size="1em"
               style={{ color: palette.orange, marginRight: 8 }}
             />
             修改 {editing?.currencyCode} 汇率？
@@ -378,7 +375,7 @@ const ExchangeRatePage: React.FC = () => {
               {fmt(editing?.rate)}
             </div>
           </div>
-          <ArrowRightOutlined style={{ color: palette.mute }} />
+          <ArrowRight size="1em" style={{ color: palette.mute }} />
           <div>
             <div style={{ fontSize: 12, color: palette.mute }}>新汇率</div>
             <div

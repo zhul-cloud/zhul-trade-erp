@@ -1,13 +1,4 @@
 import {
-  ArrowLeftOutlined,
-  CheckOutlined,
-  InfoCircleOutlined,
-  LoadingOutlined,
-  RobotOutlined,
-  ScanOutlined,
-  SnippetsOutlined,
-} from '@ant-design/icons';
-import {
   App,
   Button,
   Checkbox,
@@ -18,6 +9,15 @@ import {
   Table,
   type TableColumnsType,
 } from 'antd';
+import {
+  ArrowLeft,
+  Bot,
+  Check,
+  ClipboardList,
+  Info,
+  LoaderCircle,
+  ScanLine,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { rowAlert } from '@/components/RowAlert';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -399,7 +399,7 @@ const PasteQuoteModal: React.FC<{
       destroyOnHidden
       title={
         <span>
-          {rows ? <ScanOutlined /> : <SnippetsOutlined />}{' '}
+          {rows ? <ScanLine size="1em" /> : <ClipboardList size="1em" />}{' '}
           {rows
             ? aiMode
               ? '粘贴报价 · 核对后填入'
@@ -414,7 +414,7 @@ const PasteQuoteModal: React.FC<{
               <Button onClick={onClose}>取消</Button>
             ) : (
               <Button
-                icon={<ArrowLeftOutlined />}
+                icon={<ArrowLeft size="1em" />}
                 onClick={() => setRows(null)}
               >
                 返回修改原文
@@ -422,7 +422,7 @@ const PasteQuoteModal: React.FC<{
             )}
             <Button
               type="primary"
-              icon={<CheckOutlined />}
+              icon={<Check size="1em" />}
               disabled={fillable.length === 0}
               onClick={fill}
             >
@@ -449,7 +449,7 @@ const PasteQuoteModal: React.FC<{
             </Button>
             <Button
               type="primary"
-              icon={<RobotOutlined />}
+              icon={<Bot size="1em" />}
               disabled={!canParse || !!aiRun || busy}
               onClick={parseAi}
             >
@@ -461,7 +461,7 @@ const PasteQuoteModal: React.FC<{
             <Button onClick={onClose}>取消</Button>
             <Button
               type="primary"
-              icon={<ScanOutlined />}
+              icon={<ScanLine size="1em" />}
               loading={busy}
               disabled={!canParse}
               onClick={parse}
@@ -548,7 +548,11 @@ const PasteQuoteModal: React.FC<{
           </div>
           {aiRun && (
             <div style={banner(palette.primarySoft, palette.primaryLine)}>
-              <LoadingOutlined style={{ color: palette.link }} />
+              <LoaderCircle
+                size="1em"
+                className="zhul-spin"
+                style={{ color: palette.link }}
+              />
               <span style={{ color: palette.link, flex: 1 }}>
                 AI 识别中 · 已用 {elapsed} 秒
               </span>
@@ -559,7 +563,7 @@ const PasteQuoteModal: React.FC<{
           )}
           {aiError && !aiRun && (
             <div style={banner(palette.redSoft, palette.red)}>
-              <InfoCircleOutlined style={{ color: palette.red }} />
+              <Info size="1em" style={{ color: palette.red }} />
               <span style={{ color: palette.ink, flex: 1 }}>
                 {aiError}，可以重试或点「按规则识别」
               </span>
@@ -628,7 +632,7 @@ const PasteQuoteModal: React.FC<{
                 fontSize: 12,
               }}
             >
-              <InfoCircleOutlined /> 整段说明「{common}
+              <Info size="1em" /> 整段说明「{common}
               」：已套用到没写明含税、货况、货期的行，原文写进每行备注。
             </div>
           )}
@@ -832,7 +836,7 @@ const PasteQuoteModal: React.FC<{
           )}
           {!aiMode && (
             <div style={{ fontSize: 12, color: palette.mute }}>
-              <InfoCircleOutlined />{' '}
+              <Info size="1em" />{' '}
               同一渠道、同一店铺已有的草稿会被覆盖，其余追加；填入后不会自动保存，核对后点「保存草稿」或「提交回价」。
             </div>
           )}

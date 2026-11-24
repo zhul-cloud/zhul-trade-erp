@@ -1,13 +1,9 @@
-import {
-  AlipayCircleFilled,
-  QrcodeOutlined,
-  ScanOutlined,
-  UploadOutlined,
-  WechatFilled,
-} from '@ant-design/icons';
+// lint-ui-ignore antd-icon: 支付宝、微信是品牌标识，lucide 没有品牌图标
+import { AlipayCircleFilled, WechatFilled } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { Button, Modal } from 'antd';
 import dayjs from 'dayjs';
+import { QrCode, ScanLine, Upload } from 'lucide-react';
 import React, { useState } from 'react';
 import { UserName } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -65,7 +61,7 @@ export const PayeeQrPanel: React.FC<{
   if (!qr) {
     return (
       <div style={box}>
-        <QrcodeOutlined style={{ fontSize: 22, color: palette.mute }} />
+        <QrCode size="1em" style={{ fontSize: 22, color: palette.mute }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600, color: palette.ink }}>
             {payeeName}还没有上传{name}收款码
@@ -76,7 +72,7 @@ export const PayeeQrPanel: React.FC<{
         </div>
         {supplierId && (
           <Button
-            icon={<UploadOutlined />}
+            icon={<Upload size="1em" />}
             onClick={() => history.push(`/supplier/list/${supplierId}`)}
           >
             去上传
@@ -126,7 +122,7 @@ export const PayeeQrPanel: React.FC<{
           </div>
           <Button
             type="primary"
-            icon={<ScanOutlined />}
+            icon={<ScanLine size="1em" />}
             style={{ marginTop: 10 }}
             onClick={() => setOpen(true)}
           >

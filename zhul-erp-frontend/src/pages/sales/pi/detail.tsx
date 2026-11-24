@@ -1,17 +1,3 @@
-import {
-  BankOutlined,
-  BranchesOutlined,
-  DeleteOutlined,
-  EyeInvisibleOutlined,
-  FileTextOutlined,
-  InboxOutlined,
-  LockOutlined,
-  PaperClipOutlined,
-  PlusOutlined,
-  ShopOutlined,
-  UploadOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { history, useAccess, useParams, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -42,11 +28,20 @@ import {
   EyeOff,
   FileCheck,
   FileText,
+  GitBranch,
+  Inbox,
+  Landmark,
+  Lock,
+  Paperclip,
   Pencil,
+  Plus,
   Redo2,
   Send,
+  Store,
   Trash2,
+  TriangleAlert,
   Undo2,
+  Upload,
 } from 'lucide-react';
 import React, {
   useCallback,
@@ -1178,7 +1173,7 @@ const PiDetail: React.FC = () => {
           '币种 · 汇率',
           <Input
             readOnly
-            prefix={<LockOutlined />}
+            prefix={<Lock size="1em" />}
             value={`${cur} · ${Number(rate).toFixed(6)}`}
             suffix={
               <span style={{ fontSize: 12, color: palette.mute }}>
@@ -1490,7 +1485,7 @@ const PiDetail: React.FC = () => {
           <Button
             size="small"
             type="text"
-            icon={<DeleteOutlined />}
+            icon={<Trash2 size="1em" />}
             aria-label="删除型号行"
             onClick={() => {
               if (draft.items.length <= 1) {
@@ -1592,7 +1587,7 @@ const PiDetail: React.FC = () => {
         {editable && (
           <Button
             style={{ marginLeft: 'auto' }}
-            icon={<PlusOutlined />}
+            icon={<Plus size="1em" />}
             onClick={async () => (await ensureSaved()) && setAddOpen(true)}
           >
             从报价单添加型号
@@ -1827,7 +1822,7 @@ const PiDetail: React.FC = () => {
             ])
           }
         >
-          <PlusOutlined /> 加费用行
+          <Plus size="1em" /> 加费用行
         </button>
       </div>
       {fees.map((f) => (
@@ -1883,7 +1878,7 @@ const PiDetail: React.FC = () => {
           />
           <Button
             type="text"
-            icon={<DeleteOutlined />}
+            icon={<Trash2 size="1em" />}
             aria-label="删除费用行"
             onClick={() => setFees(fees.filter((x) => x.key !== f.key))}
           />
@@ -2207,18 +2202,24 @@ const PiDetail: React.FC = () => {
           style={{ display: 'flex', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}
         >
           {canSlip && (
-            <Button icon={<UploadOutlined />} onClick={() => setSlipOpen(true)}>
+            <Button
+              icon={<Upload size="1em" />}
+              onClick={() => setSlipOpen(true)}
+            >
               上传水单
             </Button>
           )}
           {canClaim && (
-            <Button icon={<InboxOutlined />} onClick={() => setClaimOpen(true)}>
+            <Button
+              icon={<Inbox size="1em" />}
+              onClick={() => setClaimOpen(true)}
+            >
               认领到账
             </Button>
           )}
           {canPlatform && (
             <Button
-              icon={<ShopOutlined />}
+              icon={<Store size="1em" />}
               onClick={() => setPlatformOpen(true)}
             >
               登记平台收款
@@ -2227,7 +2228,7 @@ const PiDetail: React.FC = () => {
           {canConfirm && (
             <Button
               type="primary"
-              icon={<BankOutlined />}
+              icon={<Landmark size="1em" />}
               onClick={() => setReceiptOpen(true)}
             >
               登记到账
@@ -2260,9 +2261,9 @@ const PiDetail: React.FC = () => {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {slip ? (
-                    <FileTextOutlined style={{ color: palette.link }} />
+                    <FileText size="1em" style={{ color: palette.link }} />
                   ) : (
-                    <BankOutlined style={{ color: palette.green }} />
+                    <Landmark size="1em" style={{ color: palette.green }} />
                   )}
                   <b style={{ color: palette.ink }}>
                     {slip
@@ -2364,7 +2365,7 @@ const PiDetail: React.FC = () => {
                             .catch((e) => message.error((e as Error).message))
                         }
                       >
-                        <PaperClipOutlined /> {f.fileName}
+                        <Paperclip size="1em" /> {f.fileName}
                       </button>
                     ))}
                   </div>
@@ -2426,7 +2427,7 @@ const PiDetail: React.FC = () => {
     <Alert
       type="warning"
       showIcon
-      icon={<BranchesOutlined />}
+      icon={<GitBranch size="1em" />}
       style={{ marginBottom: 16 }}
       title={`你正在修改已发送的 PI：发送前客户看到的仍是 Rev.${pi.currentVersionNo}；发送后 Rev.${pi.editingVersionNo} 成为当前版本，PI 编号不变，导出的单据上不显示版本号`}
     />
@@ -2446,7 +2447,7 @@ const PiDetail: React.FC = () => {
         flexWrap: 'wrap',
       }}
     >
-      <LockOutlined />
+      <Lock size="1em" />
       <b style={{ color: palette.ink }}>
         {pi.status === PI_STATUS.CLOSED
           ? `已关闭 · ${pi.closeReasonName ?? ''}`
@@ -2487,7 +2488,7 @@ const PiDetail: React.FC = () => {
       <Alert
         type="warning"
         showIcon
-        icon={<WarningOutlined />}
+        icon={<TriangleAlert size="1em" />}
         style={{ marginBottom: 16 }}
         title={`还没有 ${cur} 收款账户，PI 发送前需要选择收款账户（在「系统管理 → 收款账户」中维护）`}
       />
@@ -2521,7 +2522,7 @@ const PiDetail: React.FC = () => {
         <Button
           size="small"
           type="text"
-          icon={<EyeInvisibleOutlined />}
+          icon={<EyeOff size="1em" />}
           onClick={() => {
             setPreviewOpen(false);
             savePref(false);

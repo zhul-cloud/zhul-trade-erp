@@ -1,5 +1,5 @@
-import { CheckOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { Button, InputNumber, Select } from 'antd';
+import { Check, Plus, Trash2 } from 'lucide-react';
 import React from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
@@ -202,7 +202,7 @@ export const BoxEditor: React.FC<{
   const progress = (l: PackLine) => (
     <span style={{ fontSize: 12, color: tone(l) }}>
       {packed.get(l.key) ?? 0} / {l.quantity}{' '}
-      {(packed.get(l.key) ?? 0) === l.quantity && <CheckOutlined />}
+      {(packed.get(l.key) ?? 0) === l.quantity && <Check size="1em" />}
     </span>
   );
   const allDone = lines.every((l) => (packed.get(l.key) ?? 0) === l.quantity);
@@ -282,7 +282,7 @@ export const BoxEditor: React.FC<{
           {lines.map((l) => (
             <span key={l.key} style={{ fontSize: 12, color: tone(l) }}>
               {l.model} {packed.get(l.key) ?? 0} / {l.quantity}{' '}
-              {(packed.get(l.key) ?? 0) === l.quantity && <CheckOutlined />}
+              {(packed.get(l.key) ?? 0) === l.quantity && <Check size="1em" />}
             </span>
           ))}
         </div>
@@ -317,7 +317,7 @@ export const BoxEditor: React.FC<{
                 type="text"
                 danger
                 size="small"
-                icon={<DeleteOutlined />}
+                icon={<Trash2 size="1em" />}
                 disabled={boxes.length === 1}
                 onClick={() => onChange(boxes.filter((_, i) => i !== k))}
                 aria-label={`删除第 ${k + 1} 箱`}
@@ -421,7 +421,7 @@ export const BoxEditor: React.FC<{
                   <Button
                     type="text"
                     size="small"
-                    icon={<DeleteOutlined />}
+                    icon={<Trash2 size="1em" />}
                     onClick={() =>
                       setItems(
                         k,
@@ -438,7 +438,7 @@ export const BoxEditor: React.FC<{
                   value={null}
                   placeholder={
                     <span style={{ color: palette.link }}>
-                      <PlusOutlined /> 添加型号
+                      <Plus size="1em" /> 添加型号
                       {groups.length > 0 && '（选出库单与型号）'}
                     </span>
                   }
@@ -465,7 +465,7 @@ export const BoxEditor: React.FC<{
       })}
       <div>
         <Button
-          icon={<PlusOutlined />}
+          icon={<Plus size="1em" />}
           onClick={() => onChange([...boxes, emptyBox(lines, packed)])}
         >
           添加一箱

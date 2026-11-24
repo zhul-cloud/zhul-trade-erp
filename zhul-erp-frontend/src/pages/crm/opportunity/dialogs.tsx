@@ -1,8 +1,3 @@
-import {
-  CloseOutlined,
-  LoadingOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import {
   App,
@@ -16,6 +11,7 @@ import {
   Upload,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { LoaderCircle, UploadIcon, X } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLevels } from '@/pages/inquiry/shared/components';
 import { LEVEL_DEFAULT } from '@/pages/inquiry/shared/constants';
@@ -377,7 +373,7 @@ export const EditModal: React.FC<{
                 style={iconButton}
                 onClick={() => setFiles(files.filter((x) => x !== f))}
               >
-                <CloseOutlined />
+                <X size="1em" />
               </button>
             }
           />
@@ -406,7 +402,11 @@ export const EditModal: React.FC<{
               cursor: 'pointer',
             }}
           >
-            {uploading > 0 ? <LoadingOutlined /> : <UploadOutlined />}
+            {uploading > 0 ? (
+              <LoaderCircle size="1em" className="zhul-spin" />
+            ) : (
+              <UploadIcon size="1em" />
+            )}
             {uploading > 0 ? '上传中' : '上传'}
           </button>
         </Upload>

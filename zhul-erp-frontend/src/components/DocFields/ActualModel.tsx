@@ -1,6 +1,6 @@
-import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { App, Button, Input } from 'antd';
 import dayjs from 'dayjs';
+import { Pencil, Plus } from 'lucide-react';
 import React, { useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 
@@ -159,7 +159,8 @@ export const ActualModelLine: React.FC<{
       >
         真实型号：{actualModel}
         {editable && (
-          <EditOutlined
+          <Pencil
+            size="1em"
             aria-label="修改真实型号"
             style={{ color: palette.faint, cursor: 'pointer' }}
             onClick={() => setEditing(true)}
@@ -176,7 +177,7 @@ export const ActualModelLine: React.FC<{
     <Button
       type="link"
       size="small"
-      icon={<PlusOutlined />}
+      icon={<Plus size="1em" />}
       onClick={() => setEditing(true)}
       style={{ padding: 0, height: 'auto', alignSelf: 'flex-start' }}
     >
@@ -191,16 +192,24 @@ export const ActualModelPencil: React.FC<{ onClick: () => void }> = ({
 }) => {
   const { palette } = useAppTheme();
   return (
-    <EditOutlined
+    // 原生按钮：键盘能操作，悬停显示名称
+    <button
+      type="button"
       aria-label="填写真实型号"
       title="填写真实型号"
+      onClick={onClick}
       style={{
-        color: palette.faint,
         marginLeft: 6,
+        padding: 0,
+        border: 'none',
+        background: 'none',
+        color: palette.faint,
         fontSize: 12,
         cursor: 'pointer',
+        lineHeight: 1,
       }}
-      onClick={onClick}
-    />
+    >
+      <Pencil size="1em" />
+    </button>
   );
 };

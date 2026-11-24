@@ -1,9 +1,8 @@
-import { PlusOutlined } from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, Input, Select, Space, Table } from 'antd';
 import dayjs from 'dayjs';
-import { Banknote, Eye, Search, Undo2 } from 'lucide-react';
+import { Banknote, Eye, Plus, Search, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
 import {
@@ -338,7 +337,7 @@ const PayableManagement: React.FC = () => {
           canRegister && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => setPayAnchor('pick')}
             >
               登记付款

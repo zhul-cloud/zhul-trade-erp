@@ -1,9 +1,3 @@
-import {
-  CheckCircleOutlined,
-  DownloadOutlined,
-  EditOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -17,7 +11,15 @@ import {
   Tabs,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { HandCoins, ScrollText, Search } from 'lucide-react';
+import {
+  CircleCheck,
+  Download,
+  HandCoins,
+  Pencil,
+  ScrollText,
+  Search,
+  TriangleAlert,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CustomerSubLine } from '@/components/DocFields';
 import { tableEmpty } from '@/components/EmptyState';
@@ -323,7 +325,10 @@ const CreditPage: React.FC = () => {
         help={HELP.page}
         extra={
           canAdjust && (
-            <Button icon={<EditOutlined />} onClick={() => setAdjusting({})}>
+            <Button
+              icon={<Pencil size="1em" />}
+              onClick={() => setAdjusting({})}
+            >
               手工调整
             </Button>
           )
@@ -624,12 +629,12 @@ export const ReconTab: React.FC<{
             {data &&
               (data.balanced ? (
                 <Pill tone="green">
-                  <CheckCircleOutlined /> 期初 + 转入 − 抵扣 − 提现 =
+                  <CircleCheck size="1em" /> 期初 + 转入 − 抵扣 − 提现 =
                   期末，已平衡
                 </Pill>
               ) : (
                 <Pill tone="red">
-                  <WarningOutlined /> 合计不平衡，请联系管理员
+                  <TriangleAlert size="1em" /> 合计不平衡，请联系管理员
                 </Pill>
               ))}
             <HelpTip title={HELP.recon} />
@@ -638,7 +643,7 @@ export const ReconTab: React.FC<{
         right={
           <Button
             type="text"
-            icon={<DownloadOutlined />}
+            icon={<Download size="1em" />}
             style={{ color: palette.link }}
             loading={exporting}
             onClick={async () => {

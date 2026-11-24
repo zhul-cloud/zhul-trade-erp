@@ -1,4 +1,3 @@
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -16,7 +15,7 @@ import {
   Table,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Eye, Search } from 'lucide-react';
+import { Eye, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -635,7 +634,7 @@ export const ExpenseDrawer: React.FC<{
               }}
               placeholder={
                 <span>
-                  <PlusOutlined /> 按订单号搜索并添加型号
+                  <Plus size="1em" /> 按订单号搜索并添加型号
                 </span>
               }
               style={{ width: 300 }}
@@ -702,7 +701,7 @@ export const ExpenseDrawer: React.FC<{
                     type="text"
                     danger
                     aria-label="删除这一行"
-                    icon={<DeleteOutlined />}
+                    icon={<Trash2 size="1em" />}
                     onClick={() =>
                       setAllocs((l) =>
                         l.filter((x) => x.soItemId !== a.soItemId),
@@ -1023,7 +1022,7 @@ const ExpensePage: React.FC = () => {
           canEdit && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => setDrawer({})}
             >
               新建费用单

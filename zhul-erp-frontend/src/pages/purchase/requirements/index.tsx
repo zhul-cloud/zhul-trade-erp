@@ -1,10 +1,3 @@
-import {
-  CaretDownOutlined,
-  CaretRightOutlined,
-  ClockCircleOutlined,
-  FileTextOutlined,
-  ShoppingCartOutlined,
-} from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -23,8 +16,12 @@ import {
   Table,
 } from 'antd';
 import {
+  ChevronDown,
+  ChevronRight,
   Clock,
+  FileText,
   Search,
+  ShoppingCart,
   Split,
   Store,
   Trash2,
@@ -532,7 +529,7 @@ const RequirementList: React.FC = () => {
         <Button
           type="text"
           size="small"
-          icon={open ? <CaretDownOutlined /> : <CaretRightOutlined />}
+          icon={open ? <ChevronDown size="1em" /> : <ChevronRight size="1em" />}
           aria-label={open ? `收起 ${o.soNo}` : `展开 ${o.soNo}`}
           onClick={() => toggleOrder(o.soId)}
         />
@@ -559,7 +556,7 @@ const RequirementList: React.FC = () => {
         </div>
         {o.overdueCount > 0 && (
           <Pill tone="red">
-            <ClockCircleOutlined /> {o.overdueCount} 个超时
+            <Clock size="1em" /> {o.overdueCount} 个超时
           </Pill>
         )}
         <span style={{ flex: 1 }} />
@@ -769,7 +766,7 @@ const RequirementList: React.FC = () => {
               {canCreate && (
                 <Button
                   type="primary"
-                  icon={<ShoppingCartOutlined />}
+                  icon={<ShoppingCart size="1em" />}
                   onClick={() => setGenerating(selectedList)}
                 >
                   生成采购订单
@@ -912,7 +909,7 @@ const RequirementList: React.FC = () => {
                     }}
                   >
                     <b style={{ color: palette.link, whiteSpace: 'nowrap' }}>
-                      <FileTextOutlined /> 销售备注
+                      <FileText size="1em" /> 销售备注
                     </b>
                     <span
                       style={{ color: palette.ink, whiteSpace: 'pre-wrap' }}

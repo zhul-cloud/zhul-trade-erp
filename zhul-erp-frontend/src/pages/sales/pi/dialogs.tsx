@@ -1,14 +1,3 @@
-import {
-  CheckCircleOutlined,
-  DownloadOutlined,
-  FileExcelOutlined,
-  FileImageOutlined,
-  FilePdfOutlined,
-  InboxOutlined,
-  LoadingOutlined,
-  SendOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import type { UploadFile } from 'antd';
 import {
   Alert,
@@ -25,7 +14,19 @@ import {
   Upload,
 } from 'antd';
 import dayjs from 'dayjs';
-import { CircleCheck, Info, Lock, TriangleAlert } from 'lucide-react';
+import {
+  CircleCheck,
+  Download,
+  FileImage,
+  FileSpreadsheet,
+  FileText,
+  Inbox,
+  Info,
+  LoaderCircle,
+  Lock,
+  Send,
+  TriangleAlert,
+} from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { EmptyState } from '@/components/EmptyState';
 import { HelpTip } from '@/components/ListLayout';
@@ -93,19 +94,19 @@ export const ExportModal: React.FC<{
   }[] = [
     {
       key: 'xlsx',
-      icon: <FileExcelOutlined />,
+      icon: <FileSpreadsheet size="1em" />,
       title: 'Excel',
       desc: '保留抬头、Logo、公章与公式，下载后可以自己修改',
     },
     {
       key: 'pdf',
-      icon: <FilePdfOutlined />,
+      icon: <FileText size="1em" />,
       title: 'PDF',
       desc: 'A4，已压缩，适合邮件或聊天发送',
     },
     {
       key: 'jpg',
-      icon: <FileImageOutlined />,
+      icon: <FileImage size="1em" />,
       title: '图片（JPG）',
       desc: '多页纵向拼成一张，宽 1600 像素',
     },
@@ -142,7 +143,7 @@ export const ExportModal: React.FC<{
         <Button
           key="ok"
           type="primary"
-          icon={<DownloadOutlined />}
+          icon={<Download size="1em" />}
           loading={busy}
           onClick={run}
         >
@@ -154,7 +155,7 @@ export const ExportModal: React.FC<{
         <Alert
           type="warning"
           showIcon
-          icon={<WarningOutlined />}
+          icon={<TriangleAlert size="1em" />}
           title="PDF / 图片暂时无法生成，可以先下载 Excel"
           style={{ marginBottom: 12 }}
         />
@@ -217,7 +218,8 @@ export const ExportModal: React.FC<{
       </Radio.Group>
       {busy && format !== 'xlsx' && (
         <div style={{ marginTop: 12, color: palette.link, fontSize: 13 }}>
-          <LoadingOutlined /> 正在生成 {format === 'pdf' ? 'PDF' : '图片'}
+          <LoaderCircle size="1em" className="zhul-spin" /> 正在生成{' '}
+          {format === 'pdf' ? 'PDF' : '图片'}
           …（首次约 3–10 秒）
         </div>
       )}
@@ -246,7 +248,8 @@ export const SentPromptModal: React.FC<{
       width={480}
       title={
         <span>
-          <CheckCircleOutlined
+          <CircleCheck
+            size="1em"
             style={{ color: palette.green, marginRight: 8 }}
           />
           文件已下载
@@ -259,7 +262,7 @@ export const SentPromptModal: React.FC<{
         <Button
           key="ok"
           type="primary"
-          icon={<SendOutlined />}
+          icon={<Send size="1em" />}
           onClick={() => channel != null && onConfirm(channel)}
         >
           {editing
@@ -662,7 +665,7 @@ export const SlipModal = <T extends ReceiptResult>({
         onChange={({ fileList }) => setFiles(fileList.slice(0, 5))}
       >
         <p className="ant-upload-drag-icon">
-          <InboxOutlined />
+          <Inbox size="1em" />
         </p>
         <p className="ant-upload-text">把客户发来的水单截图或 PDF 拖到这里</p>
         <p className="ant-upload-hint">

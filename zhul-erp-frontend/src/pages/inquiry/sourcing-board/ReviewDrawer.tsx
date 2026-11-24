@@ -1,10 +1,3 @@
-import {
-  CheckOutlined,
-  ExclamationCircleOutlined,
-  HistoryOutlined,
-  RollbackOutlined,
-  StopOutlined,
-} from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import {
   App,
@@ -17,6 +10,7 @@ import {
   Skeleton,
 } from 'antd';
 import dayjs from 'dayjs';
+import { Ban, Check, CircleAlert, History, Undo2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -308,7 +302,7 @@ const ReviewDrawer: React.FC<{
                 <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
                   <Button
                     danger
-                    icon={<RollbackOutlined />}
+                    icon={<Undo2 size="1em" />}
                     disabled={chosen.length === 0 || busy}
                     onClick={() => {
                       setReasonError('');
@@ -319,7 +313,7 @@ const ReviewDrawer: React.FC<{
                   </Button>
                   <Button
                     type="primary"
-                    icon={<CheckOutlined />}
+                    icon={<Check size="1em" />}
                     disabled={chosen.length === 0}
                     loading={busy}
                     onClick={approve}
@@ -395,7 +389,7 @@ const ReviewDrawer: React.FC<{
                     fontSize: 12,
                   }}
                 >
-                  <HistoryOutlined />
+                  <History size="1em" />
                   {it.historyLowest
                     ? `询价记录最低：${formatAmount(it.historyLowest.unitPriceCny)}${it.historyLowest.quotedAt ? ` · ${dayjs(it.historyLowest.quotedAt).format('MM-DD')}` : ''}${it.historyLowest.quotedByName ? `（${it.historyLowest.quotedByName}）` : ''}`
                     : '询价记录：没有这个型号的记录'}
@@ -455,7 +449,7 @@ const ReviewDrawer: React.FC<{
                       >
                         {canReview &&
                           (voided ? (
-                            <StopOutlined style={{ color: palette.mute }} />
+                            <Ban size="1em" style={{ color: palette.mute }} />
                           ) : (
                             <Radio checked={rec} aria-label="选为推荐报价" />
                           ))}
@@ -549,7 +543,7 @@ const ReviewDrawer: React.FC<{
                       fontSize: 12,
                     }}
                   >
-                    <ExclamationCircleOutlined />
+                    <CircleAlert size="1em" />
                     请为 {it.model} 选一条推荐报价
                   </span>
                 )}

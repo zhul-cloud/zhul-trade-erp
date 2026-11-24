@@ -1,4 +1,3 @@
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -13,7 +12,7 @@ import {
   Skeleton,
   Table,
 } from 'antd';
-import { Ban, CircleCheck, Pencil } from 'lucide-react';
+import { Ban, CircleCheck, Pencil, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { tableEmpty } from '@/components/EmptyState';
@@ -496,7 +495,7 @@ const ForwarderPage: React.FC = () => {
           canAdd && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => setDrawer({ open: true })}
             >
               新建货代
@@ -544,7 +543,7 @@ const ForwarderPage: React.FC = () => {
         >
           <Input
             allowClear
-            prefix={<SearchOutlined />}
+            prefix={<Search size="1em" />}
             placeholder="名称、简称、联系人"
             aria-label="关键词"
             value={kw}

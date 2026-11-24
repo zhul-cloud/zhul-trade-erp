@@ -1,4 +1,3 @@
-import { InfoCircleOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import {
   App,
@@ -14,6 +13,7 @@ import {
   Typography,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Info } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { liveRequests } from '@/utils/liveRequests';
@@ -868,7 +868,7 @@ export const InfoBox: React.FC<{
         background: `${color}1A`,
       }}
     >
-      <InfoCircleOutlined style={{ marginTop: 3 }} />
+      <Info size="1em" style={{ marginTop: 3 }} />
       <span style={{ flex: 1 }}>{children}</span>
       {extra}
     </div>
@@ -1196,7 +1196,7 @@ export const SignalModal: React.FC<{
           gap: 6,
         }}
       >
-        <InfoCircleOutlined /> 不选品牌或品类时，这条信号会进入「待归类信号」
+        <Info size="1em" /> 不选品牌或品类时，这条信号会进入「待归类信号」
       </div>
     </Modal>
   );

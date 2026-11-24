@@ -1,6 +1,6 @@
-import { RightOutlined } from '@ant-design/icons';
 import type { TableColumnsType } from 'antd';
 import { Table } from 'antd';
+import { ChevronRight } from 'lucide-react';
 import React from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { SignedMoney } from '@/pages/finance/costingParts';
@@ -117,7 +117,10 @@ export const CategoryLedgerTable: React.FC<{
       width: 40,
       align: 'right',
       render: () => (
-        <RightOutlined style={{ color: palette.mute, fontSize: 12 }} />
+        <ChevronRight
+          size="1em"
+          style={{ color: palette.mute, fontSize: 12 }}
+        />
       ),
     },
   ];

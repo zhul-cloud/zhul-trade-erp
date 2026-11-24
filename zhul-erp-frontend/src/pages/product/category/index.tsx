@@ -1,4 +1,3 @@
-import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   ModalForm,
@@ -16,6 +15,7 @@ import {
   CircleCheck,
   FolderPlus,
   Pencil,
+  Plus,
   Search,
   Trash2,
 } from 'lucide-react';
@@ -346,7 +346,7 @@ const CategoryPage: React.FC = () => {
           access['product:category:add'] && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => openForm(null)}
             >
               新增品类

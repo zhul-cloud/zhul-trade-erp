@@ -1,8 +1,3 @@
-import {
-  ExportOutlined,
-  InfoCircleOutlined,
-  RollbackOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import {
   App,
@@ -15,6 +10,7 @@ import {
   Skeleton,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { ExternalLink, Info, Undo2 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import SupplierSelect from '@/pages/inquiry/my-tasks/SupplierSelect';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -256,7 +252,10 @@ export const OtherOutboundModal: React.FC<{
       open={open}
       title={
         <span>
-          <ExportOutlined style={{ color: palette.red, marginRight: 8 }} />
+          <ExternalLink
+            size="1em"
+            style={{ color: palette.red, marginRight: 8 }}
+          />
           其他出库
         </span>
       }
@@ -470,7 +469,7 @@ export const ReturnToSupplierModal: React.FC<{
       open={!!target}
       title={
         <span>
-          <RollbackOutlined style={{ color: palette.link, marginRight: 8 }} />
+          <Undo2 size="1em" style={{ color: palette.link, marginRight: 8 }} />
           退回供应商
         </span>
       }
@@ -533,7 +532,7 @@ export const ReturnToSupplierModal: React.FC<{
               fontSize: 12,
             }}
           >
-            <InfoCircleOutlined style={{ color: palette.link, marginTop: 2 }} />
+            <Info size="1em" style={{ color: palette.link, marginTop: 2 }} />
             <span>
               生成采购退货单（来源「库存退回」，待寄出），这 {total || ''}{' '}
               个显示为「退货待寄出」，不能再被取用；快递、运费和供应商退款在采购退货单上登记。

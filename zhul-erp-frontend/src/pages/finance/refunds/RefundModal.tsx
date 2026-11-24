@@ -1,4 +1,3 @@
-import { InfoCircleOutlined } from '@ant-design/icons';
 import {
   App,
   DatePicker,
@@ -9,6 +8,7 @@ import {
   Space,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Info } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { readBizError } from '@/pages/sales/service';
 import { AttachmentWall } from '@/pages/warehouse/components';
@@ -293,7 +293,7 @@ const RefundModal: React.FC<{
                 fontWeight: 600,
               }}
             >
-              <InfoCircleOutlined />
+              <Info size="1em" />
               这张订单有平台收款，售后退款只能原路退回平台
             </div>
           )}

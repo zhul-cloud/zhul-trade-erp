@@ -1,4 +1,3 @@
-import { WarningOutlined } from '@ant-design/icons';
 import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -17,7 +16,7 @@ import {
   Tabs,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Eye, Search, Undo2 } from 'lucide-react';
+import { Eye, Search, TriangleAlert, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -464,7 +463,7 @@ const PendingTab: React.FC<{
         <Alert
           type="warning"
           showIcon
-          icon={<WarningOutlined />}
+          icon={<TriangleAlert size="1em" />}
           style={{ marginBottom: 16 }}
           title={`有 ${reminders.length} 笔供应商欠款还没退回`}
           description={

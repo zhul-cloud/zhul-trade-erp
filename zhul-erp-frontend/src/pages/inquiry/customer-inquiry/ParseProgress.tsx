@@ -1,9 +1,5 @@
-import {
-  CheckCircleOutlined,
-  LoadingOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { Progress } from 'antd';
+import { CircleCheck, LoaderCircle, TriangleAlert } from 'lucide-react';
 import React from 'react';
 import { MetricGrid } from '@/components/MetricCard';
 import { Pill } from '@/pages/crm/opportunity/components';
@@ -95,12 +91,15 @@ export const ParseProgressCard: React.FC<{
               }}
             >
               {state === 'done' && (
-                <CheckCircleOutlined
+                <CircleCheck
+                  size="1em"
                   style={{ color: palette.green, fontSize: 18 }}
                 />
               )}
               {state === 'active' && (
-                <LoadingOutlined
+                <LoaderCircle
+                  size="1em"
+                  className="zhul-spin"
                   style={{ color: palette.link, fontSize: 18 }}
                 />
               )}
@@ -157,7 +156,10 @@ export const UnparsedAlert: React.FC<{ parts?: UnparsedPart[] }> = ({
       }}
     >
       <div style={{ color: palette.ink, fontWeight: 600 }}>
-        <WarningOutlined style={{ color: palette.orange, marginRight: 8 }} />
+        <TriangleAlert
+          size="1em"
+          style={{ color: palette.orange, marginRight: 8 }}
+        />
         {parts.length} 处内容未能解析，请手动补充
       </div>
       <ul style={{ margin: '8px 0 0', paddingLeft: 22, color: palette.sub }}>

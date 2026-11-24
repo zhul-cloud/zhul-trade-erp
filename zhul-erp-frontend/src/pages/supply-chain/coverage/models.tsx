@@ -1,5 +1,4 @@
-import { Eye } from 'lucide-react';
-import { BranchesOutlined, SearchOutlined } from '@ant-design/icons';
+import { Eye, GitBranch, Search } from 'lucide-react';
 import { history, Link, useLocation } from '@umijs/max';
 import { Input, Select, Table, type TableColumnsType } from 'antd';
 import dayjs from 'dayjs';
@@ -162,7 +161,7 @@ const CoverageModelsPage: React.FC = () => {
           '—'
         ) : d.channelCount === 1 ? (
           <span style={{ color: palette.info }}>
-            <BranchesOutlined /> 单一渠道
+            <GitBranch size="1em" /> 单一渠道
           </span>
         ) : (
           `${d.channelCount - 1} 个`
@@ -268,7 +267,7 @@ const CoverageModelsPage: React.FC = () => {
             />
             <Input
               allowClear
-              prefix={<SearchOutlined />}
+              prefix={<Search size="1em" />}
               placeholder="型号"
               style={{ width: 220 }}
               value={keywordInput}
