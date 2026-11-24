@@ -57,7 +57,7 @@ describe('设计令牌', () => {
     expect(p.primary).toBe('#FDA92D');
     expect(p.link).toBe('#FDA92D');
     expect(p.primarySoft).toBe('#FFF5E6');
-    expect(p.canvas).toBe('#F9FAFB');
+    expect(p.canvas).toBe('#F4F6F8');
     expect(p.sidebar).toBe(p.card);
   });
 

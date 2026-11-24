@@ -336,7 +336,8 @@ export const RiskAlertsWidget: React.FC = () => {
                 border: 'none',
                 borderLeft: `3px solid ${on ? color : 'transparent'}`,
                 borderRadius: 8,
-                background: on && mode === 'light' ? soft : palette.neutralSoft,
+                // 没有风险时是卡内凹格：用 inset（比页面底浅），不用比页面还深的中性标签灰（D38）
+                background: on && mode === 'light' ? soft : palette.inset,
                 cursor: t.link ? 'pointer' : 'default',
                 textAlign: 'left',
                 font: 'inherit',

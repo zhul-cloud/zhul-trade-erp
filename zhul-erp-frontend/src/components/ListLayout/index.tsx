@@ -1071,7 +1071,8 @@ export const MainCard: React.FC<{
   right?: React.ReactNode;
   quick?: React.ReactNode;
   chips?: FilterChipItem[];
-  children: React.ReactNode;
+  /** 表格等内容；分组卡片放在主卡外面时（如采购需求按订单），主卡只剩操作行，可不传 */
+  children?: React.ReactNode;
 }> = ({
   count,
   unit = '条',
@@ -1117,7 +1118,7 @@ export const MainCard: React.FC<{
             gap: 12,
             flexWrap: 'wrap',
             minHeight: 32,
-            marginBottom: 12,
+            marginBottom: children ? 12 : 0,
             color: palette.sub,
             fontSize: 13,
           }}

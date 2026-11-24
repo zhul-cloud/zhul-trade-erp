@@ -106,16 +106,22 @@ const STATUS_MAIN = {
  */
 const BASE = {
   light: {
-    canvas: '#F9FAFB',
+    /**
+     * 表面分层（ui-design-patterns「层级与表面」，D38）：页面底最深 → 卡内浅灰（head、inset、hover）居中 → 白卡最亮。
+     * 卡内浅灰不得等于或深于页面底，否则贴到卡边时像露出页面；参照 Ant Design 页面 #f5f5f5、卡片 #fff、表头 #fafafa
+     */
+    canvas: '#F4F6F8',
     sidebar: '#FFFFFF',
     card: '#FFFFFF',
     /** 下拉菜单、气泡卡片 */
     elevated: '#FFFFFF',
     elevatedLine: '#E5E8EB',
-    /** 中性浅底：指标格、分组块、凹底 */
-    inset: '#F1F3F5',
-    /** 表头底色 */
-    head: '#F4F6F8',
+    /** 中性浅底：指标格、分组块、凹底（比页面底浅） */
+    inset: '#F7F8FA',
+    /** 表头底色（比页面底浅） */
+    head: '#F9FAFB',
+    /** 直接放在页面底上的控件轨道（分段控件）：比页面底深一档 */
+    track: '#E9ECEF',
     /** 展开的父级菜单底 */
     navOn: '#EDEEEF',
     hover: '#F6F7F8',
@@ -153,6 +159,7 @@ const BASE = {
     elevatedLine: '#3A3A3A',
     inset: '#232323',
     head: '#222222',
+    track: '#262626',
     navOn: '#2C2C2C',
     hover: '#222222',
     hairline: '#2A2A2A',

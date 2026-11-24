@@ -44,6 +44,7 @@ import {
   FilterField,
   MainCard,
   PageHeader,
+  Panel,
   QuickFilters,
   SummaryBar,
 } from '@/components/ListLayout';
@@ -490,9 +491,8 @@ const RequirementList: React.FC = () => {
           display: 'flex',
           alignItems: 'center',
           gap: 14,
-          padding: '12px 18px',
+          padding: '12px 16px',
           flexWrap: 'wrap',
-          background: open ? palette.hover : undefined,
         }}
       >
         <Button
@@ -802,82 +802,7 @@ const RequirementList: React.FC = () => {
         ) : view === 'order' ? (
           loading && orders.length === 0 ? (
             <Skeleton active />
-          ) : (
-            <div style={{ display: 'grid', gap: 12 }}>
-              {orders.map((o) => (
-                <div
-                  key={o.soId}
-                  style={{
-                    border: `1px solid ${palette.hairline}`,
-                    borderRadius: 10,
-                    overflow: 'hidden',
-                  }}
-                >
-                  {orderHead(o)}
-                  {o.salesRemark && (
-                    <div
-                      style={{
-                        display: 'flex',
-                        gap: 10,
-                        alignItems: 'baseline',
-                        padding: '10px 18px 10px 56px',
-                        background: palette.primarySoft,
-                        borderTop: `1px solid ${palette.primaryLine}`,
-                        borderBottom: `1px solid ${palette.primaryLine}`,
-                      }}
-                    >
-                      <b style={{ color: palette.link, whiteSpace: 'nowrap' }}>
-                        <FileTextOutlined /> 销售备注
-                      </b>
-                      <span
-                        style={{ color: palette.ink, whiteSpace: 'pre-wrap' }}
-                      >
-                        {o.salesRemark}
-                      </span>
-                    </div>
-                  )}
-                  {!collapsed.has(o.soId) && (
-                    <div style={{ padding: '0 12px 12px' }}>
-                      <Table<Requirement>
-                        rowKey="id"
-                        columns={lineColumns}
-                        dataSource={o.lines}
-                        pagination={false}
-                        scroll={{ x: tableScrollX(lineColumns) }}
-                        rowSelection={rowSelection(o.lines)}
-                        onRow={overdueRow}
-                      />
-                    </div>
-                  )}
-                </div>
-              ))}
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: 12,
-                  alignItems: 'center',
-                }}
-              >
-                <span style={{ color: palette.mute }}>共 {total} 张订单</span>
-                <Button
-                  size="small"
-                  disabled={page <= 1}
-                  onClick={() => setPage(page - 1)}
-                >
-                  上一页
-                </Button>
-                <span style={{ color: palette.sub }}>第 {page} 页</span>
-                <Button
-                  size="small"
-                  disabled={page * pageSize >= total}
-                  onClick={() => setPage(page + 1)}
-                >
-                  下一页
-                </Button>
-              </div>
-            </div>
-          )
+          ) : null
         ) : (
           <Table<Requirement>
             rowKey="id"
@@ -928,6 +853,87 @@ const RequirementList: React.FC = () => {
           />
         )}
       </MainCard>
+
+      {/* 按订单：每张订单一张白卡，与主卡同级、浮在页面底上；卡头白底加分隔线，表格收进卡内留 16（D39，对比图 R5 的 B3） */}
+      {view === 'order' && !error && !empty && orders.length > 0 && (
+        <div style={{ display: 'grid', gap: 16, marginTop: 16 }}>
+          {orders.map((o) => {
+            const open = !collapsed.has(o.soId);
+            return (
+              <Panel key={o.soId} style={{ overflow: 'hidden' }}>
+                {orderHead(o)}
+                {o.salesRemark && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 10,
+                      alignItems: 'baseline',
+                      padding: '10px 16px 10px 56px',
+                      background: palette.primarySoft,
+                      borderTop: `1px solid ${palette.primaryLine}`,
+                      borderBottom: `1px solid ${palette.primaryLine}`,
+                    }}
+                  >
+                    <b style={{ color: palette.link, whiteSpace: 'nowrap' }}>
+                      <FileTextOutlined /> 销售备注
+                    </b>
+                    <span
+                      style={{ color: palette.ink, whiteSpace: 'pre-wrap' }}
+                    >
+                      {o.salesRemark}
+                    </span>
+                  </div>
+                )}
+                {open && (
+                  <div
+                    style={{
+                      padding: 16,
+                      borderTop: o.salesRemark
+                        ? undefined
+                        : `1px solid ${palette.hairline}`,
+                    }}
+                  >
+                    <Table<Requirement>
+                      rowKey="id"
+                      columns={lineColumns}
+                      dataSource={o.lines}
+                      pagination={false}
+                      scroll={{ x: tableScrollX(lineColumns) }}
+                      rowSelection={rowSelection(o.lines)}
+                      onRow={overdueRow}
+                    />
+                  </div>
+                )}
+              </Panel>
+            );
+          })}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 12,
+              alignItems: 'center',
+            }}
+          >
+            <span style={{ color: palette.mute }}>共 {total} 张订单</span>
+            <Button
+              size="small"
+              disabled={page <= 1}
+              onClick={() => setPage(page - 1)}
+            >
+              上一页
+            </Button>
+            <span style={{ color: palette.sub }}>第 {page} 页</span>
+            <Button
+              size="small"
+              disabled={page * pageSize >= total}
+              onClick={() => setPage(page + 1)}
+            >
+              下一页
+            </Button>
+          </div>
+        </div>
+      )}
 
       <SourceModal
         targets={sourcing}
