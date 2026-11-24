@@ -7,10 +7,11 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import { history } from '@umijs/max';
-import { App, Badge, Button, Drawer, Empty, Segmented, Spin } from 'antd';
+import { App, Badge, Button, Drawer, Segmented, Spin } from 'antd';
 import dayjs from 'dayjs';
 import { Bell } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { EmptyState } from '@/components/EmptyState';
 import {
   type NotificationItem,
   notificationApi,
@@ -356,9 +357,9 @@ export const NotificationBell: React.FC = () => {
         />
         <Spin spinning={loading && page === 1}>
           {items.length === 0 && !loading ? (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={tab === 'todo' ? '没有待处理的通知' : '还没有通知'}
+            <EmptyState
+              compact
+              title={tab === 'todo' ? '没有待处理的通知' : '还没有通知'}
             />
           ) : (
             groups.map((g) => (

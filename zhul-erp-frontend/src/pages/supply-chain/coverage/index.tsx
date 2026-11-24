@@ -1,5 +1,6 @@
 import { history, Link, useAccess } from '@umijs/max';
-import { Empty, Segmented, Select, Skeleton, Switch } from 'antd';
+import { Segmented, Select, Skeleton, Switch } from 'antd';
+import { EmptyState } from '@/components/EmptyState';
 import { PageHeader } from '@/components/ListLayout';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
@@ -307,22 +308,19 @@ const CoverageMatrixPage: React.FC = () => {
       </div>
       <Card style={{ overflow: 'hidden' }}>
         {error ? (
-          <Empty style={{ padding: 40 }} description={error} />
+          <EmptyState kind="error" title={error} />
         ) : !data ? (
           <div style={{ padding: 20 }}>
             <Skeleton active paragraph={{ rows: 8 }} />
           </div>
         ) : data.brands.length === 0 ? (
-          <Empty
-            style={{ padding: 40 }}
-            description={
+          <EmptyState title={
               stock
                 ? `近 ${data.days} 天没有无货记录`
                 : sup
                   ? '还没有需要开发供应商的品牌品类'
                   : '没有进入覆盖矩阵的型号'
-            }
-          />
+            } />
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <div

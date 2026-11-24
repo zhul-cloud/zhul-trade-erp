@@ -5,7 +5,6 @@ import {
   App,
   Button,
   Drawer,
-  Empty,
   Segmented,
   Space,
   Table,
@@ -15,7 +14,7 @@ import dayjs from 'dayjs';
 import { Eye, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
-import { tableEmpty } from '@/components/EmptyState';
+import { EmptyState, tableEmpty } from '@/components/EmptyState';
 import { PageHeader } from '@/components/ListLayout';
 import {
   useOnReactivate,
@@ -190,7 +189,7 @@ const HistoryMigrationPage: React.FC = () => {
   usePageTitle(tenantName ? `历史迁移：${tenantName}` : '历史迁移');
 
   if (!tenantId) {
-    return <Empty description="请从租户列表进入" />;
+    return <EmptyState title="请从租户列表进入" />;
   }
 
   const verifyText = (b: MigrationBatch) => {

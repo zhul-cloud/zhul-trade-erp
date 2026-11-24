@@ -16,7 +16,6 @@ import {
   Button,
   Checkbox,
   DatePicker,
-  Empty,
   Input,
   InputNumber,
   Modal,
@@ -28,6 +27,7 @@ import {
 import dayjs from 'dayjs';
 import { CircleCheck, Info, Lock, TriangleAlert } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { EmptyState } from '@/components/EmptyState';
 import { HelpTip } from '@/components/ListLayout';
 import { searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -1267,10 +1267,7 @@ export const AddItemsModal: React.FC<{
       {!quotations ? (
         <Skeleton active paragraph={{ rows: 6 }} />
       ) : quotations.length === 0 ? (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="没有可添加的报价单"
-        />
+        <EmptyState compact title="没有可添加的报价单" />
       ) : (
         <div
           style={{ display: 'grid', gap: 12, maxHeight: 480, overflow: 'auto' }}

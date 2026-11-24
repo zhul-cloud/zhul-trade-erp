@@ -8,7 +8,6 @@ import {
   App,
   Button,
   DatePicker,
-  Empty,
   Input,
   InputNumber,
   Modal,
@@ -18,6 +17,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
+import { EmptyState } from '@/components/EmptyState';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePaymentMethods } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
@@ -371,7 +371,7 @@ export const ClaimReceiptModal = <T extends ReceiptResult>({
       {!rows ? (
         <Skeleton active paragraph={{ rows: 3 }} />
       ) : rows.length === 0 ? (
-        <Empty description={`没有未认领的 ${cur} 到账`} />
+        <EmptyState compact title={`没有未认领的 ${cur} 到账`} />
       ) : (
         <Radio.Group
           value={selected}

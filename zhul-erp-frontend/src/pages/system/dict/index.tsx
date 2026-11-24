@@ -18,7 +18,6 @@ import {
   App,
   Badge,
   Button,
-  Empty,
   Input,
   Space,
   Table,
@@ -28,7 +27,7 @@ import {
 import { Pencil, Trash2 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
-import { tableEmpty } from '@/components/EmptyState';
+import { EmptyState, tableEmpty } from '@/components/EmptyState';
 import { PageHeader } from '@/components/ListLayout';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -428,7 +427,7 @@ const DictPage: React.FC = () => {
             style={{ marginBottom: 12 }}
           />
           {typeList.length === 0 ? (
-            <Empty description="暂无字典数据" style={{ marginTop: 40 }} />
+            <EmptyState title="暂无字典数据" />
           ) : (
             <>
               {builtinTypes.length > 0 && (
@@ -516,10 +515,7 @@ const DictPage: React.FC = () => {
               />
             </>
           ) : (
-            <Empty
-              description="请在左侧选择一个字典类型"
-              style={{ marginTop: 80 }}
-            />
+            <EmptyState title="请在左侧选择一个字典类型" />
           )}
         </div>
       </div>

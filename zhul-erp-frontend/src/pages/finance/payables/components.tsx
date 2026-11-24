@@ -8,7 +8,6 @@ import {
   Checkbox,
   DatePicker,
   Drawer,
-  Empty,
   Input,
   InputNumber,
   Modal,
@@ -27,6 +26,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { EmptyState } from '@/components/EmptyState';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
@@ -1214,7 +1214,7 @@ export const PaymentLineTable: React.FC<{
   const c = p.currencyCode;
   const lines = p.payments.filter((l) => showVoided || !l.voided);
   return lines.length === 0 ? (
-    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="还没有付款" />
+    <EmptyState compact title="还没有付款" />
   ) : (
     <Table<PaymentLine>
       rowKey={(l) => `${l.paymentId}-${l.relation}-${l.otherPayableNo ?? ''}`}

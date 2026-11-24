@@ -1,8 +1,9 @@
 import { DownOutlined, RightOutlined } from '@ant-design/icons';
 import { Link } from '@umijs/max';
-import { Button, Checkbox, Empty, Skeleton } from 'antd';
+import { Button, Checkbox, Skeleton } from 'antd';
 import dayjs from 'dayjs';
 import React, { useState } from 'react';
+import { EmptyState } from '@/components/EmptyState';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
   CoverBar,
@@ -371,7 +372,7 @@ export const GroupTable: React.FC<{
       <div style={{ minWidth: 1040 }}>
         <Head cover={cover} />
         {page.groups.length === 0 && !loading && (
-          <Empty style={{ padding: 40 }} description="没有符合条件的型号" />
+          <EmptyState title="没有符合条件的型号" />
         )}
         {page.groups.map((g, i) => (
           <GroupRow

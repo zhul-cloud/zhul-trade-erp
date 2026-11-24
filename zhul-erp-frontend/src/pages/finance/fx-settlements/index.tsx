@@ -7,7 +7,6 @@ import {
   Button,
   Checkbox,
   DatePicker,
-  Empty,
   Input,
   InputNumber,
   Modal,
@@ -19,6 +18,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import { Eye } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { EmptyState } from '@/components/EmptyState';
 import {
   CardTitle,
   FilterCard,
@@ -194,7 +194,7 @@ const RegisterModal: React.FC<{
       destroyOnHidden
     >
       {pending.length === 0 ? (
-        <Empty description="没有待结汇的外币到账" />
+        <EmptyState title="没有待结汇的外币到账" />
       ) : (
         <Space orientation="vertical" size={14} style={{ width: '100%' }}>
           <div
@@ -805,7 +805,7 @@ const FxSettlementPage: React.FC = () => {
             children:
               pending.length === 0 ? (
                 <MainCard>
-                  <Empty description="外币到账都已结汇" />
+                  <EmptyState title="外币到账都已结汇" />
                 </MainCard>
               ) : (
                 <Space

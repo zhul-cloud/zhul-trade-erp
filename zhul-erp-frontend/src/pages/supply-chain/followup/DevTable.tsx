@@ -1,8 +1,9 @@
 import { DownOutlined, PlusOutlined, RightOutlined } from '@ant-design/icons';
 import { Link } from '@umijs/max';
-import { Button, Empty, Skeleton } from 'antd';
+import { Button, Skeleton } from 'antd';
 import dayjs from 'dayjs';
 import React, { useState } from 'react';
+import { EmptyState } from '@/components/EmptyState';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DueText, HeatPill, Pill } from '../components';
 import { candidateTone, evidenceText, otherQualified } from '../rules';
@@ -469,7 +470,7 @@ export const DevTable: React.FC<
       <div style={{ minWidth: 920 }}>
         <Head />
         {page.groups.length === 0 && !loading && (
-          <Empty style={{ padding: 40 }} description="没有符合条件的品牌品类" />
+          <EmptyState title="没有符合条件的品牌品类" />
         )}
         {page.groups.map((g) => (
           <GroupRow

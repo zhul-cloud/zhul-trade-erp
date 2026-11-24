@@ -1,5 +1,4 @@
 import {
-  BankOutlined,
   MinusCircleOutlined,
   PlusOutlined,
   SearchOutlined,
@@ -18,7 +17,6 @@ import {
   App,
   Button,
   DatePicker,
-  Empty,
   Input,
   InputNumber,
   Modal,
@@ -29,6 +27,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { EmptyState } from '@/components/EmptyState';
 import { PageHeader } from '@/components/ListLayout';
 import { readBizError } from '@/pages/crm/opportunity/service';
 import { getUserOptions } from '@/services/zhul/users';
@@ -474,9 +473,9 @@ const DeptPage: React.FC = () => {
             style={{ marginBottom: 12 }}
           />
           {!loading && treeData.length === 0 ? (
-            <Empty description="暂无部门数据" style={{ marginTop: 40 }} />
+            <EmptyState title="暂无部门数据" />
           ) : !loading && displayTree.length === 0 ? (
-            <Empty description="未找到相关部门" style={{ marginTop: 40 }} />
+            <EmptyState kind="noResult" title="未找到相关部门" />
           ) : (
             <Tree
               treeData={antdTreeData}
@@ -638,11 +637,7 @@ const DeptPage: React.FC = () => {
                 )}
             </div>
           ) : (
-            <Empty
-              image={<BankOutlined style={{ fontSize: 48, color: p.faint }} />}
-              description="请选择左侧部门查看详情"
-              style={{ marginTop: 80 }}
-            />
+            <EmptyState title="请选择左侧部门查看详情" />
           )}
           {bu.enabled && (
             <div

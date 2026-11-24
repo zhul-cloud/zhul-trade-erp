@@ -9,13 +9,13 @@ import {
   App,
   Button,
   Checkbox,
-  Empty,
   Input,
   InputNumber,
   Modal,
   Skeleton,
 } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
+import { EmptyState } from '@/components/EmptyState';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
@@ -366,10 +366,7 @@ const NewPiModal: React.FC<{
               {!customers ? (
                 <Skeleton active paragraph={{ rows: 5 }} />
               ) : shownCustomers.length === 0 ? (
-                <Empty
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description="没有可开 PI 的报价单"
-                />
+                <EmptyState compact title="没有可开 PI 的报价单" />
               ) : (
                 shownCustomers.map((c) => {
                   const active = customer?.customerId === c.customerId;
@@ -431,10 +428,7 @@ const NewPiModal: React.FC<{
               />
             )}
             {!customer ? (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="先在左边选一个客户"
-              />
+              <EmptyState compact title="先在左边选一个客户" />
             ) : !quotations ? (
               <Skeleton active paragraph={{ rows: 8 }} />
             ) : (

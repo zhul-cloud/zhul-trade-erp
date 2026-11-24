@@ -1,7 +1,8 @@
 import { EditOutlined, SendOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
-import { App, Button, Drawer, Empty, Skeleton } from 'antd';
+import { App, Button, Drawer, Skeleton } from 'antd';
 import React, { useEffect, useState } from 'react';
+import { EmptyState } from '@/components/EmptyState';
 import { UserName } from '@/components/UserName';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/sales/service';
@@ -141,7 +142,7 @@ const EntriesDrawer: React.FC<{
           {!rows ? (
             <Skeleton active />
           ) : rows.length === 0 ? (
-            <Empty description="还没有流水" />
+            <EmptyState compact title="还没有流水" />
           ) : (
             <div
               style={{
