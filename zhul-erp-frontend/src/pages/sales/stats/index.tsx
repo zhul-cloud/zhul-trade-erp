@@ -498,7 +498,7 @@ const SalesStatsPage: React.FC = () => {
               minWidth: x.value > 0 ? 6 : 0,
               height: '100%',
               borderRadius: 3,
-              background: last ? palette.chart : palette.barMuted,
+              background: last ? palette.chart : palette.chartSoft,
             }}
           />
         </div>

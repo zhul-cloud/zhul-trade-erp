@@ -377,12 +377,12 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
                       minWidth: 0,
                       height: Number(v) ? `${(Number(v) / max) * 100}%` : 3,
                       borderRadius: '4px 4px 0 0',
-                      // 图表只亮一处（ui-redesign D31）：本期用图表色，往期浅灰；数值靠悬停提示和读屏文字
+                      // 图表只亮一处（ui-redesign D31）：本期用图表色，往期用图表色的浅色（两类只用主题色深浅区分）
                       background: !Number(v)
                         ? palette.hairline
                         : last
                           ? palette.chart
-                          : palette.chartMuted,
+                          : palette.chartSoft,
                     }}
                   />
                 </Tooltip>
@@ -573,7 +573,7 @@ const Funnel: React.FC<{ steps: NonNullable<Block['steps']> }> = ({
                   borderRadius: 4,
                   width: `${Math.max(2, (Number(x.value) / max) * 100)}%`,
                   background:
-                    i === steps.length - 1 ? palette.chart : palette.barMuted,
+                    i === steps.length - 1 ? palette.chart : palette.chartSoft,
                 }}
               />
             </Row>

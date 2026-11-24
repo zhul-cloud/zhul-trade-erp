@@ -282,7 +282,11 @@ export const Metric: React.FC<{
 }> = ({ label, value, hint, hintColor, icon, family = 'blue', onClick }) => {
   const { palette, mode } = useAppTheme();
   const [hover, setHover] = useState(false);
-  const [color, soft] = METRIC_FAMILY[mode][family];
+  // 灰色图标块像禁用（2026-11-24 巡查），中性家族改用主题色
+  const [color, soft] =
+    family === 'gray'
+      ? [palette.link, palette.primarySoft]
+      : METRIC_FAMILY[mode][family];
   const body = (
     <>
       <div

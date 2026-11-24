@@ -219,7 +219,7 @@ export const RevenueHeroWidget: React.FC = () => {
                           height: v > 0 ? `${pct}%` : 2,
                           borderRadius: v > 0 ? '4px 4px 0 0' : 0,
                           background:
-                            last && v > 0 ? palette.chart : palette.chartMuted,
+                            last && v > 0 ? palette.chart : palette.chartSoft,
                         }}
                       />
                       {last && v > 0 && (
@@ -506,7 +506,8 @@ const RankList: React.FC<{ block: Block }> = ({ block }) => {
                     height: 4,
                     borderRadius: 2,
                     width: `${Math.max(4, (Number(r[1] ?? 0) / max) * 100)}%`,
-                    background: palette.barMuted,
+                    // 排行的比例条是单一数量，用主题色（D48）
+                    background: palette.chart,
                   }}
                 />
               </span>

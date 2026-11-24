@@ -147,9 +147,6 @@ const BASE = {
     neutralSoft: '#ECEEF0',
     /** 中性标签文字：在中性浅底上不低于 4.5:1 */
     neutral: '#56636F',
-    /** 图表：往期宽柱、非重点细条（图表只亮一处） */
-    chartMuted: '#DFE3E8',
-    barMuted: '#C4CDD5',
   },
   dark: {
     canvas: '#0A0A0A',
@@ -178,8 +175,6 @@ const BASE = {
     infoSoft: '#163339',
     neutralSoft: '#2F2F2F',
     neutral: '#A0A0A0',
-    chartMuted: '#363636',
-    barMuted: '#4A4A4A',
   },
 } as const;
 
@@ -229,6 +224,15 @@ export function buildPalette(
     primaryLine: mix(link, base.card, 0.4),
     /** 图表第一个系列（柱、条、线），跟主题色走 */
     chart: chartPrimary(mode, pr),
+    /**
+     * 图表色的浅色：同一内容只分两类、两类没有好坏之分时（本期 / 往期、漏斗终点 / 其余步骤），
+     * 另一类用它而不是灰色或另一种色相（2026-11-24 用户确认）。有风险的一类仍用状态色
+     */
+    chartSoft: mix(
+      chartPrimary(mode, pr),
+      base.card,
+      mode === 'light' ? 0.32 : 0.4,
+    ),
   };
 }
 
