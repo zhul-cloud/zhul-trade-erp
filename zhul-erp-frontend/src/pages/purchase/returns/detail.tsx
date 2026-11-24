@@ -272,17 +272,17 @@ const PurchaseReturnDetail: React.FC = () => {
         title={p.returnNo}
         tags={
           <>
+            {/* 页头只放一个流程状态；属性写在说明行（ui-redesign S14） */}
             <Pill tone={PR_STATUS_TONE[p.status] ?? 'gray'}>
               {p.statusName}
             </Pill>
-            <Pill tone="gray">{p.sourceTypeName}</Pill>
           </>
         }
         sub={
           <>
-            {p.supplierName ?? '—'} · <SourceNos mode="inline" refs={[src]} /> ·{' '}
-            {p.ownerName ?? '—'} · {formatDateTime(p.createTime).slice(0, 16)}{' '}
-            创建
+            {p.sourceTypeName} · {p.supplierName ?? '—'} ·{' '}
+            <SourceNos mode="inline" refs={[src]} /> · {p.ownerName ?? '—'} ·{' '}
+            {formatDateTime(p.createTime).slice(0, 16)} 创建
           </>
         }
         // 页头操作（照销售订单详情）：一个主按钮，改数量、重新打开为文字按钮，作废收进「更多」

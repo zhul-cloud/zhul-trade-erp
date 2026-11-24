@@ -238,15 +238,15 @@ const SalesReturnDetail: React.FC = () => {
         title={r.returnNo}
         tags={
           <>
+            {/* 页头只放一个流程状态；属性写在说明行（ui-redesign S14） */}
             <Pill tone={TH_STATUS_TONE[r.status] ?? 'gray'}>
               {r.statusName}
             </Pill>
-            <Pill tone="gray">{r.handlingName}</Pill>
           </>
         }
         sub={
           <>
-            {r.customerName} ·{' '}
+            {r.handlingName} · {r.customerName} ·{' '}
             <SourceNos
               mode="inline"
               refs={[{ no: r.asNo, href: PATHS.afterSales(r.afterSalesId) }]}

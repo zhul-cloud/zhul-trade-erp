@@ -660,19 +660,23 @@ const PurchaseOrderDetail: React.FC = () => {
     <div>
       <PageHeader
         title={title}
+        // 页头只放一个流程状态（ui-redesign S14）：已下单后发货进度就是当前状态，代替「已下单」；线上店铺写说明行
         tags={
           <>
-            {po.shop && <Pill tone="gray">线上店铺</Pill>}
             <MigratedPill migrated={po.migrated} />
-            <PoStatusPill status={po.status} />
-            <ShipProgressPill
-              code={po.shipProgress}
-              name={po.shipProgressName}
-            />
+            {po.status === PO_STATUS.ORDERED && po.shipProgress ? (
+              <ShipProgressPill
+                code={po.shipProgress}
+                name={po.shipProgressName}
+              />
+            ) : (
+              <PoStatusPill status={po.status} />
+            )}
           </>
         }
         sub={
           <>
+            {po.shop && '线上店铺 · '}
             {po.supplierName} · {po.purchaserName}
             {po.orderDate
               ? ` · ${po.orderDate} 下单${po.expectedShipDate ? ` · 预计 ${po.expectedShipDate} 发货` : ''}`

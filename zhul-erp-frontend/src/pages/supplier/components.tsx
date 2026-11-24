@@ -1,44 +1,14 @@
 import React from 'react';
+import { Pill } from '@/components/Pill';
 import { useAppTheme } from '@/theme/AppTheme';
-import {
-  labelOf,
-  SUPPLIER_TYPE_OPTIONS,
-  SUPPLIER_TYPE_TONE,
-  type SupplierTypeTone,
-} from './constants';
+import { labelOf, SUPPLIER_TYPE_OPTIONS } from './constants';
 
 export const LIST_PATH = '/supplier/list';
 
-/** 供应商类型胶囊；0（存量数据、询盘内联创建）显示「未设置」 */
-export const SupplierTypePill: React.FC<{ value?: number }> = ({ value }) => {
-  const { palette } = useAppTheme();
-  const colors: Record<SupplierTypeTone, { fg: string; bg: string }> = {
-    accent: { fg: palette.link, bg: palette.primarySoft },
-    cyan: { fg: palette.info, bg: palette.neutralSoft },
-    orange: { fg: palette.orange, bg: palette.orangeSoft },
-    green: { fg: palette.green, bg: palette.greenSoft },
-    gray: { fg: palette.sub, bg: palette.neutralSoft },
-  };
-  const c = colors[SUPPLIER_TYPE_TONE[value ?? 0] ?? 'gray'];
-  return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        height: 24,
-        padding: '0 10px',
-        borderRadius: 12,
-        fontSize: 12,
-        fontWeight: 600,
-        color: c.fg,
-        background: c.bg,
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {labelOf(SUPPLIER_TYPE_OPTIONS, value) ?? '未设置'}
-    </span>
-  );
-};
+/** 供应商类型；0（存量数据、询盘内联创建）显示「未设置」。类型是属性，用公共中性标签（ui-redesign S13） */
+export const SupplierTypePill: React.FC<{ value?: number }> = ({ value }) => (
+  <Pill tone="gray">{labelOf(SUPPLIER_TYPE_OPTIONS, value) ?? '未设置'}</Pill>
+);
 
 /** 状态胶囊（详情页用；列表里是开关） */
 export const StatusPill: React.FC<{ status?: number }> = ({ status }) => {

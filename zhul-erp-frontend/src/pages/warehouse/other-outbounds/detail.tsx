@@ -30,7 +30,6 @@ import {
   docHref,
   type InvMove,
   OO_DONE,
-  OO_TYPE_TONE,
   type OtherOutbound,
   type OtherOutboundItem,
   otherOutboundApi,
@@ -210,15 +209,13 @@ const OtherOutboundDetail: React.FC = () => {
         title={r.outboundNo}
         tags={
           <>
+            {/* 页头只放一个流程状态；属性写在说明行（ui-redesign S14） */}
             <Pill tone={done ? 'green' : 'mute'}>{r.statusName}</Pill>
-            <Pill tone={OO_TYPE_TONE[r.outboundType] ?? 'gray'}>
-              {r.outboundTypeName}
-            </Pill>
           </>
         }
         sub={
           <>
-            {r.warehouseName} · {r.outboundDate} 出库 ·{' '}
+            {r.outboundTypeName} · {r.warehouseName} · {r.outboundDate} 出库 ·{' '}
             <UserName value={r.createBy} /> 创建
             {r.sourceDocNo && (
               <>

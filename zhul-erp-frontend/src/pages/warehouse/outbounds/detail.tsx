@@ -23,7 +23,7 @@ import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
 import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import { Pill, useWide } from '@/pages/inquiry/shared/components';
+import { useWide } from '@/pages/inquiry/shared/components';
 import {
   kg,
   LOGISTICS_PATHS,
@@ -199,12 +199,13 @@ const OutboundDetailPage: React.FC = () => {
         title={ob.obNo}
         tags={
           <>
+            {/* 页头只放一个流程状态；属性写在说明行（ui-redesign S14） */}
             <ObStatusPill value={ob.status}>{ob.statusName}</ObStatusPill>
-            {merged && <Pill tone="orange">合并打包</Pill>}
           </>
         }
         sub={
           <>
+            {merged && '合并打包 · '}
             {ob.customerName ?? '—'} ·{' '}
             <SourceNos
               mode="inline"

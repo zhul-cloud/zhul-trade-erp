@@ -29,7 +29,6 @@ import {
   PARTY_TYPES,
   PHONE_PATTERN,
   ROLE_OPTIONS,
-  ROLE_TONE,
 } from './constants';
 import {
   type AssignableOwners,
@@ -43,11 +42,9 @@ export const LIST_PATH = '/customer/list';
 /** 状态标签统一用公共组件（规范「状态标签」） */
 export { Pill };
 
-/** 客户角色；0 为询盘快速创建尚未补全的客户 */
+/** 客户角色；0 为询盘快速创建尚未补全的客户。角色是属性，中性标签（ui-redesign S13） */
 export const RolePill: React.FC<{ value?: number }> = ({ value }) => (
-  <Pill tone={ROLE_TONE[value ?? 0] ?? 'gray'}>
-    {labelOf(ROLE_OPTIONS, value) ?? '未设置'}
-  </Pill>
+  <Pill tone="gray">{labelOf(ROLE_OPTIONS, value) ?? '未设置'}</Pill>
 );
 
 export const StatusPill: React.FC<{ status?: number }> = ({ status }) => (

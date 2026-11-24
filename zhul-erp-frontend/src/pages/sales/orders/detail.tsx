@@ -1901,20 +1901,24 @@ const OrderDetail: React.FC = () => {
     <div>
       <PageHeader
         title={o.soNo}
+        // 页头只放一个流程状态（ui-redesign S14）：收款状态在收款卡、现货 / 期货在订单信息卡；
+        // 售后补发、费用订单、先采购后收款是订单属性，写在说明行
         tags={
           <>
             <MigratedPill migrated={o.migrated} />
             <ProgressPill code={o.progressCode} name={o.progressName} />
-            {!fee && <StockPill type={o.stockType} />}
-            <ReceiptStatusPill status={o.receiptStatus} />
-            {replacement && <Pill tone="gray">售后补发</Pill>}
-            {fee && <Pill tone="orange">费用订单</Pill>}
-            {o.payLater && <Pill tone="orange">先采购后收款</Pill>}
           </>
         }
         sub={
           <>
             {o.customerName} ·{' '}
+            {[
+              replacement && '售后补发',
+              fee && '费用订单',
+              o.payLater && '先采购后收款',
+            ]
+              .filter(Boolean)
+              .map((t) => `${t} · `)}
             <SourceNos
               mode="inline"
               refs={orderSourceRefs(o)}

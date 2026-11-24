@@ -2585,10 +2585,8 @@ const PiDetail: React.FC = () => {
         title={pi.piNo}
         tags={
           <>
+            {/* 页头只放一个流程状态，收款状态在收款卡（ui-redesign S14） */}
             <PiStatusPill status={pi.status} />
-            {pi.status !== PI_STATUS.DRAFT && (
-              <ReceiptStatusPill status={pi.receiptStatus} />
-            )}
             {revising && (
               <Pill tone="orange">正在修改 Rev.{pi.editingVersionNo}</Pill>
             )}

@@ -17,12 +17,7 @@ import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
 import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import {
-  Card,
-  MigratedPill,
-  Pill,
-  useWide,
-} from '@/pages/inquiry/shared/components';
+import { Card, MigratedPill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
   DOC_PATHS,
@@ -556,14 +551,15 @@ const ShipmentDetail: React.FC = () => {
         title={sh.shNo}
         tags={
           <>
+            {/* 页头只放一个流程状态；属性写在说明行（ui-redesign S14） */}
             <ShStatusPill value={sh.status}>{sh.statusName}</ShStatusPill>
-            {sh.reconciled && <Pill tone="green">已对账</Pill>}
-            {sh.customerForwarder && <Pill tone="gray">客户指定货代</Pill>}
             <MigratedPill migrated={sh.migrated} />
           </>
         }
         sub={
           <>
+            {sh.reconciled && '已对账 · '}
+            {sh.customerForwarder && '客户指定货代 · '}
             {sh.customerName ?? '—'} ·{' '}
             <SourceNos
               mode="inline"

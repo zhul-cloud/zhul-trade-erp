@@ -185,27 +185,14 @@ const Heat: React.FC<{ c: Candidate }> = ({ c }) => {
   );
 };
 
-const SOURCE_TONE: Record<number, 'green' | 'accent' | 'violet' | 'gray'> = {
-  1: 'gray',
-  2: 'violet',
-  3: 'accent',
-  4: 'green',
-};
-
 type Source = NonNullable<Candidate['sources']>[number];
 
-/** 一条来源：类型（文字，按类型着色）+ 询盘号 / 订单号 */
+/** 一条来源：类型（次要色文字，类型是类别不着色，ui-redesign S13）+ 询盘号 / 订单号 */
 const SourceLine: React.FC<{ s: Source }> = ({ s }) => {
   const { palette } = useAppTheme();
-  const color = {
-    green: palette.green,
-    violet: palette.info,
-    accent: palette.link,
-    gray: palette.sub,
-  }[SOURCE_TONE[s.sourceType] ?? 'gray'];
   return (
     <span style={{ whiteSpace: 'nowrap' }}>
-      <span style={{ fontSize: 12, fontWeight: 600, color }}>
+      <span style={{ fontSize: 12, color: palette.sub }}>
         {s.sourceTypeName}
       </span>{' '}
       {s.soId ? (

@@ -67,12 +67,12 @@ const OtherIncomeDetail: React.FC = () => {
             <Pill tone={valid ? 'green' : 'mute'}>
               {valid ? '有效' : '已作废'}
             </Pill>
-            {!manual && <Pill tone="mute">系统生成</Pill>}
             {x.migrated && <MigratedPill migrated />}
           </>
         }
         sub={
           <>
+            {!manual && '系统生成 · '}
             {x.categoryName ?? x.category} · <UserName value={x.createBy} /> ·{' '}
             {formatDateTime(x.createTime).slice(0, 16)} 创建
           </>

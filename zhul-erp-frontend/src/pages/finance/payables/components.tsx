@@ -76,20 +76,21 @@ export const PayStatusPill: React.FC<{ status?: number }> = ({ status }) => {
   return m ? <Pill tone={m.tone}>{m.label}</Pill> : <span>—</span>;
 };
 
-const PAYEE_META: Record<number, { label: string; tone: Tone }> = {
-  [PAYEE.SUPPLIER]: { label: '供应商', tone: 'accent' },
-  [PAYEE.SHOP]: { label: '线上店铺', tone: 'violet' },
-  [PAYEE.FORWARDER]: { label: '货代', tone: 'orange' },
-  [PAYEE.OTHER]: { label: '其他', tone: 'gray' },
-  [PAYEE.EMPLOYEE]: { label: '员工', tone: 'cyan' },
+const PAYEE_LABELS: Record<number, string> = {
+  [PAYEE.SUPPLIER]: '供应商',
+  [PAYEE.SHOP]: '线上店铺',
+  [PAYEE.FORWARDER]: '货代',
+  [PAYEE.OTHER]: '其他',
+  [PAYEE.EMPLOYEE]: '员工',
 };
 
 /** 收款方类型的名称（列表第二行用文字：类型是属性，不用标签） */
-export const payeeTypeLabel = (type: number) => PAYEE_META[type]?.label;
+export const payeeTypeLabel = (type: number) => PAYEE_LABELS[type];
 
+/** 收款方类型：属性，中性标签（ui-redesign S13） */
 export const PayeeTypePill: React.FC<{ type: number }> = ({ type }) => {
-  const m = PAYEE_META[type];
-  return m ? <Pill tone={m.tone}>{m.label}</Pill> : null;
+  const label = PAYEE_LABELS[type];
+  return label ? <Pill tone="gray">{label}</Pill> : null;
 };
 
 /** 到期标记：已逾期 N 天 / N 天内到期 / 待入库 / 日期 */

@@ -22,7 +22,6 @@ import { FilterCard, useWarehouses } from '../inventoryParts';
 import {
   docHref,
   OO_DONE,
-  OO_TYPE_TONE,
   OO_TYPES,
   type OtherOutbound,
   ooPath,
@@ -103,9 +102,7 @@ const OtherOutboundsPage: React.FC = () => {
       title: '出库类型',
       dataIndex: 'outboundTypeName',
       width: 100,
-      render: (v: string, r) => (
-        <Pill tone={OO_TYPE_TONE[r.outboundType] ?? 'gray'}>{v}</Pill>
-      ),
+      render: (v: string) => <Pill tone="gray">{v}</Pill>,
     },
     { title: '仓库', dataIndex: 'warehouseName', width: 140 },
     {
