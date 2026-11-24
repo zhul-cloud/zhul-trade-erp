@@ -268,7 +268,8 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
     },
   ];
   const columnsSet = useColumnSettings('finance-receipts', columns, {
-    hidden: ['已到账', '待确认水单', '销售订单'],
+    // 「待确认水单」是登记到账前要核对的内容，默认显示
+    hidden: ['合计', '已到账', '销售订单'],
   });
 
   return (

@@ -197,7 +197,7 @@ const PayableManagement: React.FC = () => {
     {
       title: '收款方',
       key: 'payee',
-      width: 200,
+      width: 180,
       render: (_, r) => (
         // 名称单行省略，下面一行类型用次要色文字（同客户列；标签 24 高会撑高行，D21）
         <div style={{ minWidth: 0 }}>
@@ -333,7 +333,8 @@ const PayableManagement: React.FC = () => {
     },
   ];
   const columnsSet = useColumnSettings('finance-payables', columns, {
-    hidden: ['应付', '已付', '欠款', '币种', '来源单号'],
+    // 「欠款」带待退款提醒，属于风险信息，默认显示
+    hidden: ['应付', '已付', '币种', '来源单号'],
   });
 
   return (

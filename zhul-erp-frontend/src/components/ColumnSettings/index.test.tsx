@@ -1,6 +1,7 @@
+import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { HeadHelp } from '@/components/ListLayout';
-import { arrange, colId, colLabel } from './index';
+import { arrange, colId, colLabel, useColumnSettings } from './index';
 
 const cols = [
   { title: '单号', dataIndex: 'no', fixed: 'left' as const },
@@ -59,5 +60,82 @@ describe('列设置 arrange', () => {
       colLabel({ title: <HeadHelp title="毛利" help="说明" />, key: 'profit' }),
     ).toBe('毛利');
     expect(colLabel({ title: <span>x</span>, key: 'k' })).toBe('k');
+  });
+});
+
+describe('列设置 arrange 补充', () => {
+  it('第一列没固定在左也始终显示、不参与排序', () => {
+    const plain = [
+      { title: '客户名称', dataIndex: 'name' },
+      { title: '国家', dataIndex: 'country' },
+      { title: '编码', dataIndex: 'code' },
+    ];
+    const r = arrange(
+      plain,
+      { order: ['code', 'name', 'country'], shown: [], hidden: ['name'] },
+      [],
+    );
+    expect(r.map((c) => colId(c))).toEqual(['name', 'code', 'country']);
+    expect(shown(r)).toContain('name');
+  });
+
+  it('保存的顺序有重复时不丢列', () => {
+    const r = arrange(
+      cols,
+      { order: ['qty', 'qty', 'customer'], shown: [], hidden: [] },
+      [],
+    );
+    expect(r).toHaveLength(cols.length);
+    expect(new Set(r.map((c) => colId(c))).size).toBe(cols.length);
+  });
+});
+
+describe('useColumnSettings', () => {
+  afterEach(() => localStorage.clear());
+
+  const Demo: React.FC = () => {
+    const s = useColumnSettings('demo', cols, { hidden: ['品牌'] });
+    return (
+      <div>
+        {s.settings}
+        <ul>
+          {s.columns
+            .filter((c) => !(c as { hidden?: boolean }).hidden)
+            .map((c) => (
+              <li key={String(colId(c))}>{String(c.title)}</li>
+            ))}
+        </ul>
+      </div>
+    );
+  };
+  const visible = () =>
+    screen.getAllByRole('listitem').map((li) => li.textContent);
+
+  it('勾选后显示并记住，恢复默认后清掉', async () => {
+    const { unmount } = render(<Demo />);
+    expect(visible()).toEqual(['单号', '客户', '型号', '操作']);
+    const btn = screen.getByRole('button', { name: /列设置/ });
+    expect(btn.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(btn);
+    expect(btn.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(await screen.findByRole('checkbox', { name: '品牌' }));
+    expect(visible()).toContain('品牌');
+    unmount();
+    render(<Demo />);
+    expect(visible()).toContain('品牌');
+    fireEvent.click(screen.getByRole('button', { name: /列设置/ }));
+    fireEvent.click(await screen.findByRole('button', { name: '恢复默认' }));
+    expect(visible()).toEqual(['单号', '客户', '型号', '操作']);
+    expect(
+      Object.keys(localStorage).filter((k) => k.startsWith('zhul_cols')),
+    ).toEqual([]);
+  });
+
+  it('只剩一列可设置的列时不能再收起', async () => {
+    render(<Demo />);
+    fireEvent.click(screen.getByRole('button', { name: /列设置/ }));
+    fireEvent.click(await screen.findByRole('checkbox', { name: '客户' }));
+    const qty = screen.getByRole('checkbox', { name: '型号' });
+    expect((qty as HTMLInputElement).disabled).toBe(true);
   });
 });

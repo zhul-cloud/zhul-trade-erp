@@ -569,5 +569,5 @@ export const SourceCell: React.FC<{
   );
 };
 
-/** 列表固定的「创建」「更新」两列（ui-redesign D25）：统一用公共组件，这里只转出，原有引用不用改 */
+/** 列表的「创建」「更新」两列（ui-redesign D25，默认收进列设置 D55）：统一用公共组件，这里只转出，原有引用不用改 */
 export { auditColumns } from '@/components/UserName';

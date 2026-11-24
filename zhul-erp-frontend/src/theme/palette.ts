@@ -104,7 +104,7 @@ const STATUS_MAIN = {
  * - green、orange、red、info 是文字色。浅色下曾用参考模板 dark 档（#118D57 等），一页里几处同时出现显得发沉压抑；
  *   2026-11-24 用户看过对比图 R18 后决定浅色文字直接用原色（与图形同色，深色下同样用原色），接受绿对白底只有 2.3:1：
  *   这些颜色只用于加粗的短标签、金额与提醒，旁边都有文字说明，不靠颜色单独传达。
- *   橙暂保留 dark 档 #B76E00：原色 #FFAB00 与琥珀主题的链接色 #FDA92D 几乎同色，提醒文字会被当成链接（对比图 R19，用户 2026-11-24 选 B：只有橙文字保留 dark 档）。
+ *   橙保留 dark 档 #B76E00：原色 #FFAB00 与琥珀主题的链接色 #FDA92D 几乎同色，提醒文字会被当成链接（对比图 R19，用户 2026-11-24 选 B：只有橙文字保留 dark 档）。
  * - 各自的 Soft 为原色叠在卡片色上：浅色、深色都是 16%（照参考模板）。
  */
 const BASE = {
@@ -201,6 +201,59 @@ export function mix(fg: string, bg: string, alpha: number): string {
 const chartPrimary = (mode: ThemeMode, pr: Preset) =>
   mode === 'light' ? pr.primary : pr.darkLink;
 
+/** 相对亮度（WCAG） */
+const luminance = (hex: string) => {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+
+/** 彩色实底（头像、实底标记）上的字：白字不足 3:1 时用深色字，同 onPrimary 的做法 */
+export const textOn = (bg: string) =>
+  1.05 / (luminance(bg) + 0.05) >= 3 ? '#FFFFFF' : '#1C252E';
+
+/** 色相（0–360） */
+const hueOf = (hex: string) => {
+  const [r, g, b] = [1, 3, 5].map(
+    (i) => parseInt(hex.slice(i, i + 2), 16) / 255,
+  );
+  const max = Math.max(r, g, b);
+  const d = max - Math.min(r, g, b);
+  if (d === 0) return 0;
+  const h =
+    max === r
+      ? ((g - b) / d) % 6
+      : max === g
+        ? (b - r) / d + 2
+        : (r - g) / d + 4;
+  return (h * 60 + 360) % 360;
+};
+
+/** 浅色下状态文字撞主题链接色时改用的参考模板 dark 档（D53 补充，审核发现） */
+const STATUS_DARK = {
+  green: '#118D57',
+  red: '#B71D18',
+  info: '#006C9C',
+} as const;
+
+/**
+ * 浅色状态文字用原色（D53），但和当前主题的链接色色相相差不到 20° 时，提醒会被当成能点的链接，
+ * 这时该文字改用 dark 档（同 R19 橙色的处理）：红主题的错误红、青绿与天蓝主题的信息蓝
+ */
+const statusText = (link: string) => {
+  const near = (c: string) => {
+    const d = Math.abs(hueOf(c) - hueOf(link));
+    return Math.min(d, 360 - d) < 20;
+  };
+  return {
+    green: near(STATUS_MAIN.green) ? STATUS_DARK.green : STATUS_MAIN.green,
+    red: near(STATUS_MAIN.red) ? STATUS_DARK.red : STATUS_MAIN.red,
+    info: near(STATUS_MAIN.info) ? STATUS_DARK.info : STATUS_MAIN.info,
+  };
+};
+
 /** 由主题模式和主题色生成整套令牌 */
 export function buildPalette(
   mode: ThemeMode,
@@ -211,6 +264,7 @@ export function buildPalette(
   const link = mode === 'light' ? pr.primary : pr.darkLink;
   return {
     ...base,
+    ...(mode === 'light' ? statusText(link) : {}),
     greenMain: STATUS_MAIN.green,
     orangeMain: STATUS_MAIN.orange,
     redMain: STATUS_MAIN.red,

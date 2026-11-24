@@ -156,13 +156,6 @@ const LINE_RULES = [
     re: /\bbackground:\s*\w+\.primarySoft\b/,
   },
   {
-    id: 'progress-color',
-    level: 'error',
-    message:
-      '进度条只用主题色（palette.chart），程度用深浅表示，完成时也不换成绿色或别的颜色（2026-11-24 用户确认）；多色图表、状态标签不用 Progress',
-    re: /\bstrokeColor=(?:"|\{(?!\s*(?:palette\.chart\b|$)))/,
-  },
-  {
     id: 'filler-maybe',
     level: 'warn',
     message: '「保存后生效」类说法：没有额外信息就删掉，有就保留（人工判断）',
@@ -172,6 +165,8 @@ const LINE_RULES = [
 ];
 
 const MSG = {
+  progressColor:
+    '进度条只用主题色（palette.chart），程度用深浅表示，完成时也不换成绿色或别的颜色（2026-11-24 用户确认）；多色图表、状态标签不用 Progress',
   columnSettings:
     '用了「创建」「更新」列（auditColumns）的列表要接列设置 useColumnSettings：这两列默认收起，用户可从「列」按钮打开（ui-redesign D55）',
   tableSwitch:
@@ -352,13 +347,28 @@ function checkSource(src, rel) {
     });
   });
 
-  // 列表用了「创建」「更新」两列就要接列设置（默认收起，必须能打开）
+  // 列表用了「创建」「更新」两列就要接列设置（默认收起，必须能打开）；按语法树找调用，注释里写的不算
+  const calls = [];
   walk(sf, (n) => {
-    if (!ts.isCallExpression(n)) return;
-    const name = n.expression.getText(sf);
-    if (isPage && (name === 'auditColumns' || name === 'proAuditColumns') && !src.includes('useColumnSettings(')) {
-      push('column-settings', 'error', MSG.columnSettings, lineOf(n.getStart(sf)));
+    if (ts.isCallExpression(n)) calls.push(n);
+  });
+  const hasSettings = calls.some((n) => n.expression.getText(sf) === 'useColumnSettings');
+  if (isPage && !hasSettings) {
+    for (const n of calls) {
+      const name = n.expression.getText(sf);
+      if (name === 'auditColumns' || name === 'proAuditColumns') {
+        push('column-settings', 'error', MSG.columnSettings, lineOf(n.getStart(sf)));
+      }
     }
+  }
+
+  // 进度条颜色：strokeColor 只能是 palette.chart（按语法树判断，换行写法也查得到）
+  walk(sf, (n) => {
+    if (!ts.isJsxAttribute(n) || n.name.getText(sf) !== 'strokeColor' || !n.initializer) return;
+    const init = n.initializer;
+    const expr = ts.isJsxExpression(init) ? init.expression : init;
+    if (expr && expr.getText(sf).replace(/\s+/g, '') === 'palette.chart') return;
+    push('progress-color', 'error', MSG.progressColor, lineOf(n.getStart(sf)));
   });
 
   // 写死的颜色：只看字符串里的颜色值，链接地址、id 不算

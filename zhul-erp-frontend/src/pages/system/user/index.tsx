@@ -45,7 +45,7 @@ import {
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { proAuditColumns } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
-import { CHART_SERIES } from '@/theme/palette';
+import { seriesFor, textOn } from '@/theme/palette';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import type { UserItem, UserStats } from './service';
@@ -63,7 +63,6 @@ import {
 } from './service';
 
 /** 头像底色轮流取图表系列色（不表达状态） */
-const AVATAR_COLORS = CHART_SERIES;
 
 /** 帮助文字：help-texts.md「用户管理」 */
 export const HELP = {
@@ -79,7 +78,9 @@ const DEPT_TREE_PROPS = {
 
 const UserPage: React.FC = () => {
   const pager = usePagination(20);
-  const { palette: p } = useAppTheme();
+  const { palette: p, mode } = useAppTheme();
+  // 头像底色用图表系列色，深浅模式各一组；字色按底色取白或深色（白字在绿、青上不足 3:1）
+  const avatarColors = seriesFor(mode);
   const actionRef = useRef<ActionType>(undefined);
   const { message } = App.useApp();
   const access = useAccess();
@@ -314,7 +315,8 @@ const UserPage: React.FC = () => {
         <Space style={{ maxWidth: '100%' }} styles={{ item: { minWidth: 0 } }}>
           <Avatar
             style={{
-              backgroundColor: AVATAR_COLORS[index % AVATAR_COLORS.length],
+              backgroundColor: avatarColors[index % avatarColors.length],
+              color: textOn(avatarColors[index % avatarColors.length]),
             }}
           >
             {(record.nickname || record.name || '?').charAt(0)}

@@ -8,6 +8,7 @@ import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { Card, Pill } from '../shared/components';
 import {
   type BoardHistoryRow,
@@ -186,7 +187,7 @@ const AllTasksTable: React.FC<{
           loading={loading}
           columns={columnsSet.columns}
           dataSource={rows}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           onRow={(r) => ({
             onClick: () => onOpen(r.id),
             style: { cursor: 'pointer' },

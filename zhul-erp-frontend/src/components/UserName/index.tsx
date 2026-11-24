@@ -160,8 +160,8 @@ export const AuditCell: React.FC<{
 };
 
 /**
- * 列表固定的「创建」「更新」两列（ui-redesign D25，规范「列表页统一规范」第 2 条）：
- * 紧邻业务字段之后、操作列之前；需要按时间排序的页面自己给列加 sorter。
+ * 列表的「创建」「更新」两列（ui-redesign D25，规范「列表页统一规范」第 2 条）：
+ * 紧邻业务字段之后、操作列之前，默认收进列设置（useColumnSettings，D55）；需要按时间排序的页面自己给列加 sorter。
  */
 export const auditColumns = <
   T extends {

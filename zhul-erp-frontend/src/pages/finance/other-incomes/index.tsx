@@ -371,7 +371,9 @@ const OtherIncomePage: React.FC = () => {
       ),
     },
   ];
-  const columnsSet = useColumnSettings('finance-other-incomes', columns);
+  const columnsSet = useColumnSettings('finance-other-incomes', columns, {
+    hidden: ['所属事业部'],
+  });
 
   return (
     <div>

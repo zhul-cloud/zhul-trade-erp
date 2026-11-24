@@ -330,7 +330,9 @@ const RecordsTab: React.FC = () => {
       ),
     },
   ];
-  const columnsSet = useColumnSettings('finance-receipts-records', columns);
+  const columnsSet = useColumnSettings('finance-receipts-records', columns, {
+    hidden: ['付款方式', '手续费', '实收', '来源单号', '登记人', '所属事业部'],
+  });
 
   return (
     <div>

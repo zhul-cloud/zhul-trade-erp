@@ -878,7 +878,8 @@ const RequirementList: React.FC = () => {
             ]}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: 'max-content' }}
+            // 平铺视图在型号列前多「来源单号」（160）、「客户」（200）两列
+            scroll={{ x: 360 + tableScrollX(linesSet.columns) }}
             rowSelection={rowSelection(rows)}
             onRow={overdueRow}
             pagination={{

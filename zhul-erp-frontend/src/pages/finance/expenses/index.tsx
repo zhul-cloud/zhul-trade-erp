@@ -1015,7 +1015,7 @@ const ExpensePage: React.FC = () => {
     },
   ];
   const columnsSet = useColumnSettings('finance-expenses', columns, {
-    hidden: ['人民币', '类别', '关联订单', '凭证', '收款方'],
+    hidden: ['人民币', '类别', '关联订单', '凭证', '收款方', '所属事业部'],
   });
 
   return (

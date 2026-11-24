@@ -550,7 +550,9 @@ const DiffsTab: React.FC<{ pending?: number; onChanged: () => void }> = ({
         ),
     },
   ];
-  const columnsSet = useColumnSettings('purchase-shipments-diffs', columns);
+  const columnsSet = useColumnSettings('purchase-shipments-diffs', columns, {
+    hidden: ['来源单号', '采购员'],
+  });
 
   return (
     <>

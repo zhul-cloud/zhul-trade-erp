@@ -141,7 +141,9 @@ export const SignalTable: React.FC<{
         ),
     },
   ];
-  const columnsSet = useColumnSettings('supply-chain-signals', columns);
+  const columnsSet = useColumnSettings('supply-chain-signals', columns, {
+    hidden: ['来源单号'],
+  });
   return (
     <>
       <div

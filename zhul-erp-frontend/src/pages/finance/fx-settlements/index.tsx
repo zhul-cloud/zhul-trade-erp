@@ -608,7 +608,7 @@ const FxSettlementPage: React.FC = () => {
     },
   ];
   const columnsSet = useColumnSettings('finance-fx-settlements', columns, {
-    hidden: ['手续费', '分摊笔数'],
+    hidden: ['手续费', '分摊笔数', '所属事业部'],
   });
 
   const pendingColumns: TableColumnsType<ReceiptRow> = [

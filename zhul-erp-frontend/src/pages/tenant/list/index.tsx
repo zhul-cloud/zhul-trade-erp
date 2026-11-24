@@ -420,7 +420,9 @@ const TenantListPage: React.FC = () => {
       },
     },
   ];
-  const columnsSet = useColumnSettings('tenant-list', columns);
+  const columnsSet = useColumnSettings('tenant-list', columns, {
+    hidden: ['联系手机'],
+  });
 
   const sectionTitle = (icon: React.ReactNode, text: string) => (
     <Divider titlePlacement="start" style={{ margin: '8px 0 16px' }}>

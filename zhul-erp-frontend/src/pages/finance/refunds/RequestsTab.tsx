@@ -293,7 +293,9 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
       ),
     },
   ];
-  const columnsSet = useColumnSettings('finance-refunds-RequestsTab', columns);
+  const columnsSet = useColumnSettings('finance-refunds-requests', columns, {
+    hidden: ['来源单号', '销售订单', '申请人'],
+  });
 
   return (
     <>

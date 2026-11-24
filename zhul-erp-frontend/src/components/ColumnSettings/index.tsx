@@ -17,7 +17,13 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { Button, Checkbox, Popover } from 'antd';
 import { Columns3, GripVertical } from 'lucide-react';
-import React, { isValidElement, useMemo, useState } from 'react';
+import React, {
+  isValidElement,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 
 /**
@@ -65,8 +71,12 @@ export const colLabel = (c: Col): string => {
   return colId(c) ?? '';
 };
 
-/** 可设置的列：有标识、没有固定在两侧 */
-const movable = (c: Col) => !c.fixed && colId(c) !== undefined;
+/**
+ * 可设置的列：有标识、没有固定在两侧，且不是第一列。
+ * 第一列是身份列（单号、客户名称、用户等），没固定在左时也始终显示、不能拖走
+ */
+const movable = (c: Col, i: number) =>
+  i > 0 && !c.fixed && colId(c) !== undefined;
 
 /**
  * 按设置排好列：可设置的列按保存的顺序排在原来可设置列占的位置上（固定列位置不变），
@@ -79,14 +89,16 @@ export const arrange = <C extends Col>(
   defaultHidden: readonly string[],
 ): C[] => {
   const ids = columns.filter(movable).map((c) => colId(c) as string);
-  const order = state.order.filter((id) => ids.includes(id));
+  // 存储被改坏时顺序里可能有重复，去重后再用
+  const saved = Array.from(new Set(state.order));
+  const order = saved.filter((id) => ids.includes(id));
   ids.forEach((id, i) => {
     if (!order.includes(id)) order.splice(Math.min(i, order.length), 0, id);
   });
   const byId = new Map(columns.filter(movable).map((c) => [colId(c), c]));
   let next = 0;
-  return columns.map((c) => {
-    if (!movable(c)) return c;
+  return columns.map((c, i) => {
+    if (!movable(c, i)) return c;
     const id = order[next++];
     const col = byId.get(id) as C;
     const hide = state.hidden.includes(id)
@@ -99,16 +111,18 @@ export const arrange = <C extends Col>(
   });
 };
 
+/** 按租户加登录账号区分（不同租户可能有同名账号） */
 const userKey = () => {
   try {
     const u = JSON.parse(localStorage.getItem('zhul_user') ?? '{}');
-    return String(u?.userid ?? 'anon');
+    return `${u?.tenantName ?? ''}/${u?.userid ?? 'anon'}`;
   } catch {
     return 'anon';
   }
 };
 
-const storageKey = (id: string) => `zhul_cols:v1:${userKey()}:${id}`;
+/** 列设置在浏览器存储里的键（测试里预置设置也用它） */
+export const storageKey = (id: string) => `zhul_cols:v1:${userKey()}:${id}`;
 
 const load = (id: string): ColumnState => {
   try {
@@ -207,20 +221,13 @@ export function useColumnSettings<C extends Col>(
 ): { columns: C[]; settings: React.ReactNode } {
   const { palette } = useAppTheme();
   const [state, setState] = useState<ColumnState>(() => load(id));
-  const hiddenKey = (opts.hidden ?? []).join('|');
-  // 页面写的是列标识或列名，这里统一换成列标识
-  const labelKey = columns.map((c) => `${colId(c)}=${colLabel(c)}`).join('|');
-  const defaults = useMemo(() => {
-    const want = new Set([
-      ...AUDIT_KEYS,
-      ...hiddenKey.split('|').filter(Boolean),
-    ]);
-    return labelKey
-      .split('|')
-      .map((x) => x.split('='))
-      .filter(([cid, label]) => want.has(cid) || want.has(label))
-      .map(([cid]) => cid);
-  }, [hiddenKey, labelKey]);
+  // 页面写的是列标识或列名，这里统一换成列标识（每次渲染列定义都是新数组，按内容比较避免重算）
+  const want = new Set([...AUDIT_KEYS, ...(opts.hidden ?? [])]);
+  const found = columns
+    .filter((c) => want.has(colId(c) ?? '') || want.has(colLabel(c)))
+    .map((c) => colId(c) as string);
+  const foundKey = JSON.stringify(found);
+  const defaults = useMemo(() => JSON.parse(foundKey) as string[], [foundKey]);
   const arranged = useMemo(
     () => arrange(columns, state, defaults),
     [columns, state, defaults],
@@ -230,6 +237,26 @@ export function useColumnSettings<C extends Col>(
     save(id, s);
   };
   const items = arranged.filter(movable);
+  const nameOf = (cid: unknown) => {
+    const c = items.find((x) => colId(x) === String(cid));
+    return c ? colLabel(c) : String(cid);
+  };
+  const [open, setOpen] = useState(false);
+  const panel = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  // 打开后焦点进到第一个勾选框，键盘用户能直接操作（弹层渲染在页面末尾，Tab 走不到）；等弹层渲染完再移
+  useEffect(() => {
+    if (!open) return;
+    let tries = 0;
+    let t = 0;
+    const go = () => {
+      const input = panel.current?.querySelector<HTMLInputElement>('input');
+      if (input) input.focus();
+      else if (tries++ < 10) t = window.setTimeout(go, 30);
+    };
+    t = window.setTimeout(go, 0);
+    return () => window.clearTimeout(t);
+  }, [open]);
   const visible = items.filter((c) => !c.hidden).length;
   const isDefault =
     state.hidden.length === 0 &&
@@ -261,7 +288,7 @@ export function useColumnSettings<C extends Col>(
   };
 
   const content = (
-    <div style={{ width: 232 }}>
+    <div ref={panel} role="dialog" aria-label="列设置" style={{ width: 232 }}>
       <div
         style={{
           display: 'flex',
@@ -287,6 +314,25 @@ export function useColumnSettings<C extends Col>(
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={onDragEnd}
+          accessibility={{
+            screenReaderInstructions: {
+              draggable:
+                '按空格键拿起，用上下方向键移动，再按空格键放下；按 Esc 取消',
+            },
+            announcements: {
+              onDragStart: ({ active }) => `已拿起「${nameOf(active.id)}」`,
+              onDragOver: ({ active, over }) =>
+                over
+                  ? `「${nameOf(active.id)}」移到「${nameOf(over.id)}」的位置`
+                  : `「${nameOf(active.id)}」不在列表上`,
+              onDragEnd: ({ active, over }) =>
+                over
+                  ? `已把「${nameOf(active.id)}」放到「${nameOf(over.id)}」的位置`
+                  : `已放下「${nameOf(active.id)}」`,
+              onDragCancel: ({ active }) =>
+                `已取消，「${nameOf(active.id)}」回到原位`,
+            },
+          }}
         >
           <SortableContext items={ids} strategy={verticalListSortingStrategy}>
             {items.map((c) => {
@@ -316,8 +362,20 @@ export function useColumnSettings<C extends Col>(
       trigger="click"
       placement="bottomRight"
       arrow={false}
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        // 关闭（含 Esc）后焦点回到按钮
+        if (!v) trigger.current?.focus();
+      }}
     >
-      <Button icon={<Columns3 size={16} />} aria-label="列设置：选择显示的列">
+      <Button
+        ref={trigger}
+        icon={<Columns3 size={16} />}
+        aria-label="列设置：选择显示的列"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+      >
         列
       </Button>
     </Popover>

@@ -25,7 +25,7 @@ export function buildAntdTheme(
     token: {
       colorPrimary: p.primary,
       colorLink: p.link,
-      // 语义色：填充用原色，文字用文字色（浅色下深一档）
+      // 语义色：填充用原色，文字用文字色令牌（D53：原色，橙与撞链接色的保留深一档）
       colorInfo: p.infoMain,
       colorSuccess: p.greenMain,
       colorWarning: p.orangeMain,

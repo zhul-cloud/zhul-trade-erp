@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import React from 'react';
+import { storageKey } from '@/components/ColumnSettings';
 import { SignalTable } from './SignalTable';
 
 jest.mock('@umijs/max', () => ({
@@ -46,7 +47,7 @@ it('「创建」「更新」默认收起，工具栏有列设置按钮', () => {
 /** UI-093：待归类信号是分页业务列表，打开审计列后显示人名和时间，每页条数可改 */
 it('UI-093：打开「创建」「更新」两列后显示在操作列之前，可改每页条数', async () => {
   localStorage.setItem(
-    'zhul_cols:v1:anon:supply-chain-signals',
+    storageKey('supply-chain-signals'),
     JSON.stringify({ order: [], shown: ['create', 'update'], hidden: [] }),
   );
   render(

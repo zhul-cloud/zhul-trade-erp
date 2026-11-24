@@ -7,6 +7,7 @@ import {
 } from '@testing-library/react';
 import { App } from 'antd';
 import React from 'react';
+import { storageKey } from '@/components/ColumnSettings';
 import { piApi } from '../service';
 import PiListPage from './index';
 
@@ -60,6 +61,15 @@ it('点「总数量」表头按总数量排序，再点「型号」按型号数�
     ],
   });
   (piApi.stats as jest.Mock).mockResolvedValue({});
+  // 型号、总数量默认收进列设置（D55），这里先打开
+  localStorage.setItem(
+    storageKey('sales-pi'),
+    JSON.stringify({
+      order: [],
+      shown: ['itemCount', 'totalQuantity'],
+      hidden: [],
+    }),
+  );
   render(React.createElement(App, null, React.createElement(PiListPage)));
   await waitFor(() => expect(piApi.page).toHaveBeenCalled());
   await screen.findByText('PI20261118001');

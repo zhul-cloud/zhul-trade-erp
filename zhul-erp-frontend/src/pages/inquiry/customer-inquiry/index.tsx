@@ -377,6 +377,7 @@ const CustomerInquiryPage: React.FC = () => {
     },
     {
       title: '回价进度',
+      key: 'quoteProgress',
       width: 190,
       render: (_, r) => {
         if (r.status === STATUS.PARSE_FAILED)

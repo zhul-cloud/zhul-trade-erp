@@ -210,6 +210,10 @@ describe('lint:ui', () => {
     expect(
       rules('<Progress\n  strokeColor={\n    palette.chart\n  }\n/>'),
     ).not.toContain('progress-color:error');
+    // 换行后写字面颜色也要查出来
+    expect(
+      rules(['<Progress', '  strokeColor={', '    "#52c41a"', '  }', '/>'].join('\n')),
+    ).toContain('progress-color:error');
   });
 
   it('用了 auditColumns 的列表要接列设置', () => {
@@ -224,6 +228,14 @@ describe('lint:ui', () => {
         ].join('\n'),
       ),
     ).not.toContain('column-settings:error');
+    // 注释里写到 useColumnSettings( 不算接了列设置
+    expect(
+      rules(
+        ['// useColumnSettings(', 'const c = [...auditColumns<Row>()];'].join(
+          '\n',
+        ),
+      ),
+    ).toContain('column-settings:error');
   });
 
   it('注释里的说法不检查', () => {

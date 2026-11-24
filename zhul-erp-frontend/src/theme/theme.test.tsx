@@ -10,6 +10,7 @@ import {
   mix,
   PRESET_ORDER,
   PRESETS,
+  textOn,
 } from './palette';
 import { setThemeMode, setThemePreset } from './store';
 
@@ -131,12 +132,38 @@ describe('设计令牌', () => {
   it('图表第一个系列为主题色，去掉色相最接近的系列色', () => {
     const s = chartSeries('light', 'amber');
     expect(s[0]).toBe('#FDA92D');
-    expect(s).not.toContain('#B87A14');
     expect(s).toHaveLength(CHART_SERIES.length);
     expect(chartSeries('dark', 'amber')[0]).toBe('#FDA92D');
     expect(chartSeries('light', 'sky')[0]).toBe('#078DEE');
-    expect(chartSeries('light', 'red')).not.toContain('#E8664A');
     expect(chartSeries('dark', 'purple')[0]).toBe('#A77EE9');
+    // 去掉的系列色：琥珀、红去橙红，青绿去青，天蓝、宝蓝去蓝，紫去紫
+    for (const [k, gone] of [
+      ['amber', '#FF5630'],
+      ['red', '#FF5630'],
+      ['teal', '#00B8D9'],
+      ['sky', '#1877F2'],
+      ['royal', '#1877F2'],
+      ['purple', '#8E33FF'],
+    ] as const) {
+      expect(chartSeries('light', k)).not.toContain(gone);
+      expect(chartSeries('light', k)).toContain('#22C55E');
+    }
+  });
+
+  it('浅色状态文字撞主题链接色时改用深一档（红主题的错误、青绿与天蓝主题的信息）', () => {
+    expect(buildPalette('light', 'red').red).toBe('#B71D18');
+    expect(buildPalette('light', 'teal').info).toBe('#006C9C');
+    expect(buildPalette('light', 'sky').info).toBe('#006C9C');
+    expect(buildPalette('light', 'amber').red).toBe('#FF5630');
+    expect(buildPalette('light', 'amber').info).toBe('#00B8D9');
+    expect(buildPalette('dark', 'red').red).toBe('#FF6A47');
+  });
+
+  it('彩色实底上的字：白字不足 3:1 用深色字', () => {
+    expect(textOn('#22C55E')).toBe('#1C252E');
+    expect(textOn('#00B8D9')).toBe('#1C252E');
+    expect(textOn('#1877F2')).toBe('#FFFFFF');
+    expect(textOn('#8E33FF')).toBe('#FFFFFF');
   });
 
   it('图表第一个系列跟主题色走、与 chartSeries 一致；除浅色琥珀（用户选定的例外）外不低于 3:1', () => {
