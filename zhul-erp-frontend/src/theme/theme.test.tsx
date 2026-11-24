@@ -105,7 +105,9 @@ describe('设计令牌', () => {
     }
     expect(buildPalette('light').red).toBe('#FF5630');
     // 橙文字不能和琥珀链接色混在一起（R19）
-    expect(buildPalette('light').orange).not.toBe(buildPalette('light').orangeMain);
+    expect(buildPalette('light').orange).not.toBe(
+      buildPalette('light').orangeMain,
+    );
   });
 
   it('主题色实底上的文字：每种主题色在浅色下都不低于 4.5:1（琥珀用深色字）', () => {
