@@ -1,5 +1,6 @@
 import { useAntdConfigSetter } from '@umijs/max';
 import { theme as antdTheme } from 'antd';
+import { CircleX } from 'lucide-react';
 import React, { useEffect, useMemo, useRef } from 'react';
 import { renderEmpty } from '@/components/EmptyState';
 import { buildAntdTheme } from './antd';
@@ -25,6 +26,9 @@ export function useAppTheme(): {
   const palette = useMemo(() => buildPalette(mode, preset), [mode, preset]);
   return { mode, preset, palette, toggle: toggleThemeMode };
 }
+
+/** 日期、下拉的清除按钮图标：读屏读作「清除」 */
+const CLEAR_ICON = <CircleX size="1em" aria-label="清除" />;
 
 /** 焦点框外圈：浅色下主题色本身对白底不够 3:1（琥珀只有 1.93），外侧再加一圈 #637381 */
 const FOCUS_OUTER = '#637381';
@@ -209,8 +213,15 @@ export const AppThemeSync: React.FC<{ children: React.ReactNode }> = ({
   setterRef.current = setAntdConfig;
 
   useEffect(() => {
-    // 没写 emptyText 的表格、下拉也用统一的空状态（ui-redesign C4）
-    setterRef.current({ theme: buildAntdTheme(mode, preset), renderEmpty });
+    // 没写 emptyText 的表格、下拉也用统一的空状态（ui-redesign C4）；
+    // 日期、下拉的清除按钮用 lucide 图标并读作「清除」（antd 自带的图标读屏会读成英文 close-circle）
+    setterRef.current({
+      theme: buildAntdTheme(mode, preset),
+      renderEmpty,
+      datePicker: { clearIcon: CLEAR_ICON },
+      timePicker: { clearIcon: CLEAR_ICON },
+      select: { clearIcon: CLEAR_ICON },
+    });
     document.documentElement.dataset.theme = mode;
   }, [mode, preset]);
 
