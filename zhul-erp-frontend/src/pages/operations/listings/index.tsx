@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { Input, Select, Table } from 'antd';
 import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
@@ -175,6 +176,7 @@ const ListingTasksPage: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('operations-listings', columns);
 
   return (
     <div>
@@ -259,13 +261,17 @@ const ListingTasksPage: React.FC = () => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <MainCard count={total} loading={loading}>
+        <MainCard
+          settings={columnsSet.settings}
+          count={total}
+          loading={loading}
+        >
           <Table<ListingProduct>
             rowKey="productId"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             locale={{
               emptyText: tableEmpty(
                 TABS.find((t) => t.key === tab)?.empty ?? '没有记录',

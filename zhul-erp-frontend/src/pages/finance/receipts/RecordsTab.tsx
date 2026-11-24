@@ -4,6 +4,7 @@ import { App, Checkbox, DatePicker, Input, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { CustomerCell } from '@/components/DocFields';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -329,6 +330,7 @@ const RecordsTab: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('finance-receipts-records', columns);
 
   return (
     <div>
@@ -445,13 +447,13 @@ const RecordsTab: React.FC = () => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard count={total} loading={loading}>
+      <MainCard settings={columnsSet.settings} count={total} loading={loading}>
         <Table<ReceiptRow>
           rowKey="id"
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           locale={{ emptyText: tableEmpty('没有符合条件的收款单', loading) }}
           onChange={(_, __, sorter, extra) => {
             // 翻页也会触发 onChange，只在排序时回到第 1 页（audit UI-061）

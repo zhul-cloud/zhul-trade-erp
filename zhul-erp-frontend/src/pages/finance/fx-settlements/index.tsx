@@ -17,6 +17,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import { Eye, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { EmptyState } from '@/components/EmptyState';
 import {
   CardTitle,
@@ -606,6 +607,9 @@ const FxSettlementPage: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('finance-fx-settlements', columns, {
+    hidden: ['手续费', '分摊笔数'],
+  });
 
   const pendingColumns: TableColumnsType<ReceiptRow> = [
     { title: '到账日期', dataIndex: 'receiptDate', width: 110 },
@@ -767,13 +771,17 @@ const FxSettlementPage: React.FC = () => {
                     />
                   </FilterField>
                 </FilterCard>
-                <MainCard count={total} loading={loading}>
+                <MainCard
+                  settings={columnsSet.settings}
+                  count={total}
+                  loading={loading}
+                >
                   <Table<FxSettlement>
                     rowKey="id"
                     loading={loading}
-                    columns={columns}
+                    columns={columnsSet.columns}
                     dataSource={rows}
-                    scroll={{ x: tableScrollX(columns) }}
+                    scroll={{ x: tableScrollX(columnsSet.columns) }}
                     pagination={{
                       ...PAGER_STYLE,
                       current: page,

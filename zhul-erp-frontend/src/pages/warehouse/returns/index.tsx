@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Input, Select, Table } from 'antd';
 import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { CustomerCell } from '@/components/DocFields';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
@@ -200,6 +201,9 @@ const ReturnsPage: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('warehouse-returns', columns, {
+    hidden: ['品牌', '品类', '来源单号', '负责人'],
+  });
 
   const search = () => {
     setQuery(keyword.trim());
@@ -257,13 +261,13 @@ const ReturnsPage: React.FC = () => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard count={total} loading={loading}>
+      <MainCard settings={columnsSet.settings} count={total} loading={loading}>
         <Table<ReturnReceipt>
           rowKey="id"
           loading={loading}
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           locale={{
             emptyText: tableEmpty(
               status === RT_STATUS.PENDING

@@ -15,6 +15,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import { Check, ClipboardCheck, Download, Eye, Info, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -651,6 +652,9 @@ const Statements: React.FC = () => {
       },
     },
   ];
+  const columnsSet = useColumnSettings('logistics-statements', columns, {
+    hidden: ['出运单', '我们登记'],
+  });
 
   return (
     <div>
@@ -694,13 +698,17 @@ const Statements: React.FC = () => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <MainCard count={total} loading={loading}>
+        <MainCard
+          settings={columnsSet.settings}
+          count={total}
+          loading={loading}
+        >
           <Table<Statement>
             rowKey="id"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             locale={{
               emptyText: tableEmpty(
                 '还没有运费账单；月底收到货代账单后点「新建运费账单」',

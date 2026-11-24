@@ -13,6 +13,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import { CopyPlus, Eye, Plus, Search, TriangleAlert } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
@@ -309,7 +310,7 @@ const OrderList: React.FC = () => {
     {
       title: '客户',
       dataIndex: 'customerName',
-      width: 240,
+      width: 190,
       render: (v: string, r) => (
         <CustomerCell
           name={v}
@@ -322,7 +323,7 @@ const OrderList: React.FC = () => {
     {
       title: <HeadHelp title="订单状态" help={HELP.progress} />,
       dataIndex: 'progressCode',
-      width: 130,
+      width: 110,
       render: (v: string, r) => (
         <div>
           <ProgressPill code={v} name={r.progressName} />
@@ -333,7 +334,7 @@ const OrderList: React.FC = () => {
     {
       title: '合计',
       dataIndex: 'totalAmount',
-      width: 150,
+      width: 140,
       align: 'right',
       render: (v: number, r) => (
         <b style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -344,7 +345,7 @@ const OrderList: React.FC = () => {
     {
       title: <HeadHelp title="收款进度" help={HELP.receipt} />,
       key: 'receipt',
-      width: 180,
+      width: 150,
       render: (_, r) => (
         <div>
           <ReceiptProgress
@@ -363,7 +364,7 @@ const OrderList: React.FC = () => {
     {
       title: '货物',
       key: 'goods',
-      width: 230,
+      width: 180,
       render: (_, r) => {
         const g = r.goods;
         if (!g || g.total === 0)
@@ -581,6 +582,17 @@ const OrderList: React.FC = () => {
       ),
     },
   ];
+  const cols = useColumnSettings('sales-orders', columns, {
+    hidden: [
+      'qty',
+      'brands',
+      'categories',
+      'profit',
+      'purchasers',
+      'source',
+      'ownerName',
+    ],
+  });
 
   const applyFilters = (f: Filters) => {
     form.setFieldsValue({ ...f });
@@ -780,6 +792,7 @@ const OrderList: React.FC = () => {
         <MainCard
           count={total}
           loading={loading}
+          settings={cols.settings}
           quick={
             <QuickFilters
               options={[{ value: QUICK_LOSS, label: '毛利为负' }]}
@@ -796,10 +809,10 @@ const OrderList: React.FC = () => {
         >
           <Table<OrderListItem>
             rowKey="id"
-            columns={columns}
+            columns={cols.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(cols.columns) }}
             locale={{
               emptyText: tableEmpty(
                 '没有符合条件的订单，换个筛选条件试试',

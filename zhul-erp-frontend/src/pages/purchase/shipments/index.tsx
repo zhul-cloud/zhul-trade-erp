@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Input, Segmented, Select, Table } from 'antd';
 import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
@@ -259,6 +260,9 @@ const ShipmentsTab: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('purchase-shipments', columns, {
+    hidden: ['品牌', '品类', '登记来源', '来源单号', '采购员'],
+  });
 
   const searchShipments = () => {
     setQuery({ keyword: keyword.trim() || undefined, status });
@@ -311,13 +315,17 @@ const ShipmentsTab: React.FC = () => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <MainCard count={total} loading={loading}>
+        <MainCard
+          settings={columnsSet.settings}
+          count={total}
+          loading={loading}
+        >
           <Table<Shipment>
             rowKey="id"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             locale={{
               emptyText: tableEmpty(
                 '还没有发货记录；在采购订单详情点「登记发货」',
@@ -542,6 +550,7 @@ const DiffsTab: React.FC<{ pending?: number; onChanged: () => void }> = ({
         ),
     },
   ];
+  const columnsSet = useColumnSettings('purchase-shipments-diffs', columns);
 
   return (
     <>
@@ -608,13 +617,17 @@ const DiffsTab: React.FC<{ pending?: number; onChanged: () => void }> = ({
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <MainCard count={total} loading={loading}>
+        <MainCard
+          settings={columnsSet.settings}
+          count={total}
+          loading={loading}
+        >
           <Table<Discrepancy>
             rowKey="id"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             locale={{
               emptyText: tableEmpty(
                 query.status === 1

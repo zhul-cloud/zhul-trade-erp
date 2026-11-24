@@ -23,6 +23,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { CustomerCell } from '@/components/DocFields';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -561,6 +562,9 @@ const CustomerInquiryPage: React.FC = () => {
       },
     },
   ];
+  const columnsSet = useColumnSettings('inquiry-customer-inquiry', columns, {
+    hidden: ['报价截止', '等级', '总数量', '品牌', '品类', '来源', '负责人'],
+  });
 
   const noFilter =
     !filters.keyword &&
@@ -725,6 +729,7 @@ const CustomerInquiryPage: React.FC = () => {
         </MainCard>
       ) : (
         <MainCard
+          settings={columnsSet.settings}
           count={total}
           loading={loading}
           quick={
@@ -754,10 +759,10 @@ const CustomerInquiryPage: React.FC = () => {
         >
           <Table<CustomerInquiry>
             rowKey="id"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             onChange={(_, __, sorter, extra) => {
               // 翻页也会触发 onChange：只处理排序，否则会把页码重置回 1
               if (extra.action !== 'sort') return;

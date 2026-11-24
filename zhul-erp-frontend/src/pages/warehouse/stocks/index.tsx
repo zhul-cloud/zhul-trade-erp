@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { Form, Input, Select, Table } from 'antd';
 import { PackageMinus, ScrollText, Search, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterField,
@@ -353,6 +354,9 @@ const StocksPage: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('warehouse-stocks', columns, {
+    hidden: ['退货待寄出', '最近变动'],
+  });
 
   const apply = (f: Filters) => {
     setFilters(f);
@@ -423,6 +427,7 @@ const StocksPage: React.FC = () => {
         <ErrorHint message={error} onRetry={load} />
       ) : (
         <MainCard
+          settings={columnsSet.settings}
           count={total}
           loading={loading}
           quick={
@@ -454,9 +459,9 @@ const StocksPage: React.FC = () => {
           <Table<StockRow>
             rowKey={rowKey}
             loading={loading}
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             expandable={{
               expandedRowKeys: expanded,
               onExpandedRowsChange: (keys) => setExpanded([...keys]),

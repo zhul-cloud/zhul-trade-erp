@@ -1,6 +1,7 @@
 import { DatePicker, Select, Table, type TableColumnsType } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
@@ -142,6 +143,7 @@ const AllTasksTable: React.FC<{
     },
     ...auditColumns<BoardHistoryRow>(),
   ];
+  const columnsSet = useColumnSettings('sourcing-board-all', columns);
 
   return (
     <Card style={{ padding: 16 }}>
@@ -174,6 +176,7 @@ const AllTasksTable: React.FC<{
         <span style={{ fontSize: 12, color: palette.mute }}>
           按任务创建日期查询，默认最近 30 天；点一行查看任务详情
         </span>
+        <div style={{ marginLeft: 'auto' }}>{columnsSet.settings}</div>
       </div>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
@@ -181,7 +184,7 @@ const AllTasksTable: React.FC<{
         <Table<BoardHistoryRow>
           rowKey="id"
           loading={loading}
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
           scroll={{ x: 'max-content' }}
           onRow={(r) => ({

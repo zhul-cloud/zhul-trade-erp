@@ -40,6 +40,7 @@ import {
   User,
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import {
   FilterCard,
   FilterField,
@@ -419,6 +420,7 @@ const TenantListPage: React.FC = () => {
       },
     },
   ];
+  const columnsSet = useColumnSettings('tenant-list', columns);
 
   const sectionTitle = (icon: React.ReactNode, text: string) => (
     <Divider titlePlacement="start" style={{ margin: '8px 0 16px' }}>
@@ -508,13 +510,13 @@ const TenantListPage: React.FC = () => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard count={total}>
+      <MainCard settings={columnsSet.settings} count={total}>
         <ProTable<TenantItem>
           pagination={pager}
           rowKey="id"
           actionRef={actionRef}
-          columns={columns}
-          scroll={{ x: tableScrollX(columns) }}
+          columns={columnsSet.columns}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           params={filters}
           search={false}
           options={false}

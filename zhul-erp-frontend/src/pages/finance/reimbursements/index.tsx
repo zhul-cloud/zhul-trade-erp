@@ -18,6 +18,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import { Eye, Search, TriangleAlert, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -697,6 +698,7 @@ const _ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('finance-reimbursements', columns);
 
   return (
     <div>
@@ -750,6 +752,7 @@ const _ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
         </FilterField>
       </FilterCard>
       <MainCard
+        settings={columnsSet.settings}
         left={
           picked.length > 0 ? (
             <>
@@ -790,7 +793,7 @@ const _ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
         <Table<Reimbursement>
           rowKey="id"
           loading={loading}
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
           rowSelection={
             canPay
@@ -804,7 +807,7 @@ const _ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
                 }
               : undefined
           }
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           pagination={{
             ...PAGER_STYLE,
             current: page,

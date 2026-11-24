@@ -14,6 +14,7 @@ import {
 } from 'antd';
 import { Ban, CircleCheck, Pencil, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -487,6 +488,9 @@ const ForwarderPage: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('logistics-forwarders', columns, {
+    hidden: ['体积系数'],
+  });
 
   return (
     <div>
@@ -572,13 +576,13 @@ const ForwarderPage: React.FC = () => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard count={total} loading={loading}>
+      <MainCard settings={columnsSet.settings} count={total} loading={loading}>
         <Table<ForwarderRow>
           rowKey="id"
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           locale={{ emptyText: tableEmpty('还没有货代', loading) }}
           pagination={{
             ...PAGER_STYLE,

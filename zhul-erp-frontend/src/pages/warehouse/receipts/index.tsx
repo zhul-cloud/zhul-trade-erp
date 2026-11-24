@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { Button, Input, Select, Table } from 'antd';
 import { Eye, Inbox, PackageCheck, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
@@ -227,6 +228,11 @@ const Receipts: React.FC = () => {
       ),
     },
   ];
+  const shipColumnsSet = useColumnSettings(
+    'warehouse-receipts-pending',
+    shipColumns,
+    { hidden: ['品牌', '品类', '登记来源', '来源单号', '采购员'] },
+  );
 
   const receiptColumns: TableColumnsType<Receipt> = [
     {
@@ -350,6 +356,11 @@ const Receipts: React.FC = () => {
       ),
     },
   ];
+  const receiptColumnsSet = useColumnSettings(
+    'warehouse-receipts',
+    receiptColumns,
+    { hidden: ['品牌', '品类', '登记来源', '来源单号', '采购员'] },
+  );
 
   const apply = () => {
     setQuery(keyword.trim() || undefined);
@@ -436,15 +447,20 @@ const Receipts: React.FC = () => {
         <ErrorHint message={error} onRetry={load} />
       ) : (
         <MainCard
+          settings={
+            tab === 'pending'
+              ? shipColumnsSet.settings
+              : receiptColumnsSet.settings
+          }
           left={tab === 'pending' ? `待收货 ${total} 张` : `已入库 ${total} 张`}
         >
           {tab === 'pending' ? (
             <Table<Shipment>
               rowKey="id"
-              columns={shipColumns}
+              columns={shipColumnsSet.columns}
               dataSource={ships}
               loading={loading}
-              scroll={{ x: tableScrollX(shipColumns) }}
+              scroll={{ x: tableScrollX(shipColumnsSet.columns) }}
               locale={{
                 emptyText: tableEmpty(
                   query
@@ -458,10 +474,10 @@ const Receipts: React.FC = () => {
           ) : (
             <Table<Receipt>
               rowKey="id"
-              columns={receiptColumns}
+              columns={receiptColumnsSet.columns}
               dataSource={receipts}
               loading={loading}
-              scroll={{ x: tableScrollX(receiptColumns) }}
+              scroll={{ x: tableScrollX(receiptColumnsSet.columns) }}
               locale={{ emptyText: tableEmpty('还没有采购入库单', loading) }}
               pagination={pagination}
             />

@@ -34,6 +34,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { CountryText } from '@/components/CountryText';
 import { CustomerCell } from '@/components/DocFields';
 import { DescRemarkCell } from '@/components/DocFields/ItemRemark';
@@ -494,6 +495,9 @@ const RequirementList: React.FC = () => {
       },
     },
   ];
+  const linesSet = useColumnSettings('purchase-requirements', lineColumns, {
+    hidden: ['描述', '采购员'],
+  });
 
   const rowSelection = (scopeRows: Requirement[]) =>
     canCreate || canAssign
@@ -733,6 +737,7 @@ const RequirementList: React.FC = () => {
       </FilterCard>
 
       <MainCard
+        settings={linesSet.settings}
         left={
           selectedList.length > 0 ? (
             <>
@@ -869,7 +874,7 @@ const RequirementList: React.FC = () => {
                   />
                 ),
               },
-              ...lineColumns,
+              ...linesSet.columns,
             ]}
             dataSource={rows}
             loading={loading}
@@ -931,10 +936,10 @@ const RequirementList: React.FC = () => {
                   >
                     <Table<Requirement>
                       rowKey="id"
-                      columns={lineColumns}
+                      columns={linesSet.columns}
                       dataSource={o.lines}
                       pagination={false}
-                      scroll={{ x: tableScrollX(lineColumns) }}
+                      scroll={{ x: tableScrollX(linesSet.columns) }}
                       rowSelection={rowSelection(o.lines)}
                       onRow={overdueRow}
                     />

@@ -5,6 +5,7 @@ import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import { Eye, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { CustomerCell } from '@/components/DocFields';
 import EllipsisText from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -263,6 +264,9 @@ const OpportunityPage: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('crm-opportunity', columns, {
+    hidden: ['来源渠道'],
+  });
 
   const firstStage = stages.find((s) => s.category === CATEGORY_ACTIVE)?.code;
   const stageOptions = [
@@ -399,6 +403,7 @@ const OpportunityPage: React.FC = () => {
         </MainCard>
       ) : (
         <MainCard
+          settings={columnsSet.settings}
           count={total}
           loading={loading}
           quick={
@@ -421,9 +426,9 @@ const OpportunityPage: React.FC = () => {
           <Table<OpportunityItem>
             rowKey="id"
             loading={loading}
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             locale={{
               emptyText: tableEmpty(
                 '没有符合条件的商机，换个筛选条件试试',

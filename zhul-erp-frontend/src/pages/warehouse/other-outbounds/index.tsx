@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { Button, Form, Input, Select, Table } from 'antd';
 import { Eye, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import EllipsisText from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -198,6 +199,9 @@ const OtherOutboundsPage: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('warehouse-other-outbounds', columns, {
+    hidden: ['出库类型', '品牌', '品类', '来源单号'],
+  });
 
   const noFilter = Object.values(JSON.parse(queryKey)).every((v) => v == null);
 
@@ -280,13 +284,17 @@ const OtherOutboundsPage: React.FC = () => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <MainCard count={total} loading={loading}>
+        <MainCard
+          settings={columnsSet.settings}
+          count={total}
+          loading={loading}
+        >
           <Table<OtherOutbound>
             rowKey="id"
             loading={loading}
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             locale={{
               emptyText: tableEmpty(
                 noFilter ? '还没有其他出库单' : '没有符合条件的其他出库单',

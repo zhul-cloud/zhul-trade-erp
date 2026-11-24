@@ -1,6 +1,7 @@
 import { Button, Table, type TableColumnsType } from 'antd';
 import dayjs from 'dayjs';
 import React from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { auditColumns } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -140,27 +141,42 @@ export const SignalTable: React.FC<{
         ),
     },
   ];
+  const columnsSet = useColumnSettings('supply-chain-signals', columns);
   return (
-    <Table<Signal>
-      rowKey="id"
-      loading={loading}
-      columns={columns}
-      dataSource={rows}
-      tableLayout="fixed"
-      scroll={{ x: tableScrollX(columns) }}
-      rowSelection={
-        canEdit
-          ? { selectedRowKeys: picked, onChange: (k) => onPick(k as number[]) }
-          : undefined
-      }
-      pagination={{
-        ...PAGER_STYLE,
-        current: page,
-        pageSize,
-        total,
-        showTotal: (t) => `共 ${t} 条`,
-        onChange: (p, s) => onPage(s === pageSize ? p : 1, s),
-      }}
-    />
+    <>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          marginBottom: 12,
+        }}
+      >
+        {columnsSet.settings}
+      </div>
+      <Table<Signal>
+        rowKey="id"
+        loading={loading}
+        columns={columnsSet.columns}
+        dataSource={rows}
+        tableLayout="fixed"
+        scroll={{ x: tableScrollX(columnsSet.columns) }}
+        rowSelection={
+          canEdit
+            ? {
+                selectedRowKeys: picked,
+                onChange: (k) => onPick(k as number[]),
+              }
+            : undefined
+        }
+        pagination={{
+          ...PAGER_STYLE,
+          current: page,
+          pageSize,
+          total,
+          showTotal: (t) => `共 ${t} 条`,
+          onChange: (p, s) => onPage(s === pageSize ? p : 1, s),
+        }}
+      />
+    </>
   );
 };

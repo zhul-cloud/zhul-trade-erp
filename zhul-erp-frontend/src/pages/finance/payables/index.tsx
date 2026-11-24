@@ -4,6 +4,7 @@ import { App, Button, Checkbox, Input, Select, Space, Table } from 'antd';
 import dayjs from 'dayjs';
 import { Banknote, Eye, Plus, Search, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import EllipsisText from '@/components/EllipsisText';
 import {
   FilterCard,
@@ -331,6 +332,9 @@ const PayableManagement: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('finance-payables', columns, {
+    hidden: ['应付', '已付', '欠款', '币种', '来源单号'],
+  });
 
   return (
     <div>
@@ -459,6 +463,7 @@ const PayableManagement: React.FC = () => {
         </FilterField>
       </FilterCard>
       <MainCard
+        settings={columnsSet.settings}
         left={
           picked.length > 0 ? (
             <>
@@ -542,7 +547,7 @@ const PayableManagement: React.FC = () => {
         <Table<Payable>
           rowKey="id"
           loading={loading}
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
           rowSelection={
             canRegister
@@ -554,7 +559,7 @@ const PayableManagement: React.FC = () => {
                 }
               : undefined
           }
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           pagination={{
             ...PAGER_STYLE,
             current: page,

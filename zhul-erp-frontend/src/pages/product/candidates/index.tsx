@@ -16,6 +16,7 @@ import {
 } from 'antd';
 import { Bot, Check, Merge, Pencil, Plus, Search, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import EllipsisText from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -1642,6 +1643,9 @@ const Candidates: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('product-candidates', columns, {
+    hidden: ['被单据引用', '来源'],
+  });
 
   const apply = () => {
     setQuery({
@@ -1826,6 +1830,7 @@ const Candidates: React.FC = () => {
         <ErrorHint message={error} onRetry={load} />
       ) : (
         <MainCard
+          settings={columnsSet.settings}
           left={
             tab === 1 && canReview && selected.length > 0 ? (
               <b style={{ color: palette.link }}>已选 {selected.length} 条</b>
@@ -1886,10 +1891,10 @@ const Candidates: React.FC = () => {
         >
           <Table<Candidate>
             rowKey="id"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             rowSelection={
               tab === 1 && canReview
                 ? {

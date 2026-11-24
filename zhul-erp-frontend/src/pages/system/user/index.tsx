@@ -32,6 +32,7 @@ import {
   User,
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import EllipsisText from '@/components/EllipsisText';
 import {
@@ -446,6 +447,9 @@ const UserPage: React.FC = () => {
       },
     },
   ];
+  const columnsSet = useColumnSettings('system-user', columns, {
+    hidden: ['岗位'],
+  });
 
   /** 状态数量并入状态下拉（stat-cards.md：用户管理） */
   const withCount = (label: string, n?: number) =>
@@ -531,12 +535,12 @@ const UserPage: React.FC = () => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard count={total}>
+      <MainCard settings={columnsSet.settings} count={total}>
         <ProTable<UserItem>
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           actionRef={actionRef}
           rowKey="id"
-          columns={columns}
+          columns={columnsSet.columns}
           params={filters}
           request={async (params) => {
             const res = await getUserList(params);

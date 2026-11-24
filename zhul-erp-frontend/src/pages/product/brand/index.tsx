@@ -12,6 +12,7 @@ import { useAccess } from '@umijs/max';
 import { App, Button, Input, Select, Space, Tabs, Tooltip } from 'antd';
 import { Ban, CircleCheck, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -336,6 +337,9 @@ const BrandPage: React.FC = () => {
       },
     },
   ];
+  const columnsSet = useColumnSettings('product-brand', columns, {
+    hidden: ['别名'],
+  });
 
   return (
     <ProductThemeProvider>
@@ -458,16 +462,16 @@ const BrandPage: React.FC = () => {
               />
             </FilterField>
           </FilterCard>
-          <MainCard count={total} unit="个品牌">
+          <MainCard settings={columnsSet.settings} count={total} unit="个品牌">
             <ProTable<Brand>
               rowKey="id"
               actionRef={actionRef}
-              columns={columns}
+              columns={columnsSet.columns}
               params={{ level, keyword, country, status, industry }}
               search={false}
               options={false}
               toolBarRender={false}
-              scroll={{ x: tableScrollX(columns) }}
+              scroll={{ x: tableScrollX(columnsSet.columns) }}
               request={async (params) => {
                 const [res, counts] = await Promise.all([
                   brandApi.page({

@@ -4,6 +4,7 @@ import { DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Eye, Pencil, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import SourceNos from '@/components/DocFields/SourceNos';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -420,6 +421,19 @@ const PurchaseOrderList: React.FC = () => {
       },
     },
   ];
+  const columnsSet = useColumnSettings('purchase-orders', columns, {
+    hidden: [
+      '预计发货日期',
+      '型号 · 数量',
+      '品牌',
+      '品类',
+      '砍价',
+      '开票',
+      '付款条件',
+      '来源单号',
+      '采购员',
+    ],
+  });
 
   const onTableChange: TableProps<PoListItem>['onChange'] = (
     _p,
@@ -613,6 +627,7 @@ const PurchaseOrderList: React.FC = () => {
         </MainCard>
       ) : (
         <MainCard
+          settings={columnsSet.settings}
           count={total}
           loading={loading}
           quick={
@@ -652,10 +667,10 @@ const PurchaseOrderList: React.FC = () => {
         >
           <Table<PoListItem>
             rowKey="id"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             onChange={onTableChange}
             locale={{
               emptyText: tableEmpty(

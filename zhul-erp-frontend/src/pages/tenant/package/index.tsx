@@ -17,6 +17,7 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import {
   FilterCard,
@@ -295,6 +296,7 @@ const TenantPackagePage: React.FC = () => {
       },
     },
   ];
+  const columnsSet = useColumnSettings('tenant-package', columns);
 
   const checkedCount = checkedKeys.length;
   const boundTenantCount = editing?.tenantCount ?? 0;
@@ -349,13 +351,13 @@ const TenantPackagePage: React.FC = () => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard count={total}>
+      <MainCard settings={columnsSet.settings} count={total}>
         <ProTable<TenantPackageItem>
           pagination={pager}
           rowKey="id"
           actionRef={actionRef}
-          columns={columns}
-          scroll={{ x: tableScrollX(columns) }}
+          columns={columnsSet.columns}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           params={filters}
           search={false}
           options={false}

@@ -21,6 +21,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
@@ -376,6 +377,18 @@ const QuotationList: React.FC = () => {
       },
     },
   ];
+  const columnsSet = useColumnSettings('quotation', columns, {
+    hidden: [
+      '发送时间',
+      '型号',
+      '总数量',
+      '品牌',
+      '品类',
+      '毛利率',
+      '来源单号',
+      '业务员',
+    ],
+  });
 
   /** 搜索条件里的下拉：标签在上，读屏名称与标签相同 */
   const select = (
@@ -531,7 +544,11 @@ const QuotationList: React.FC = () => {
           />
         </MainCard>
       ) : (
-        <MainCard count={total} loading={loading}>
+        <MainCard
+          settings={columnsSet.settings}
+          count={total}
+          loading={loading}
+        >
           <Table<QuotationListItem>
             rowKey="id"
             onChange={(_p, _f, sorter, extra) => {
@@ -543,10 +560,10 @@ const QuotationList: React.FC = () => {
               });
               setPage(1);
             }}
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             locale={{
               emptyText: tableEmpty(
                 '没有符合条件的报价单，换个筛选条件试试',

@@ -33,6 +33,7 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import EllipsisText from '@/components/EllipsisText';
 import {
@@ -499,6 +500,7 @@ const RolePage: React.FC = () => {
       },
     },
   ];
+  const columnsSet = useColumnSettings('system-role', columns);
 
   const search = () =>
     setFilters({
@@ -600,12 +602,12 @@ const RolePage: React.FC = () => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard count={total}>
+      <MainCard settings={columnsSet.settings} count={total}>
         <ProTable<RoleItem>
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           actionRef={actionRef}
           rowKey="id"
-          columns={columns}
+          columns={columnsSet.columns}
           params={filters}
           request={async (params) => {
             const res = await getRoleList(params);

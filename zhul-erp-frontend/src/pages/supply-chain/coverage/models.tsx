@@ -2,6 +2,7 @@ import { Eye, GitBranch, Search } from 'lucide-react';
 import { history, Link, useLocation } from '@umijs/max';
 import { Input, Select, Table, type TableColumnsType } from 'antd';
 import dayjs from 'dayjs';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { PageHeader } from '@/components/ListLayout';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
@@ -207,6 +208,7 @@ const CoverageModelsPage: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('supply-chain-coverage-models', columns, { hidden: ['备选', '最近证据'] });
 
   return (
     <div>
@@ -277,6 +279,7 @@ const CoverageModelsPage: React.FC = () => {
               }}
               onPressEnter={() => change({ keyword: keywordInput })}
             />
+            <div style={{ marginLeft: 'auto' }}>{columnsSet.settings}</div>
           </>
         }
       />
@@ -284,9 +287,9 @@ const CoverageModelsPage: React.FC = () => {
         <Table<Demand>
           rowKey="id"
           loading={loading}
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           locale={{ emptyText: error || '没有符合条件的型号' }}
           pagination={{
 ...PAGER_STYLE,

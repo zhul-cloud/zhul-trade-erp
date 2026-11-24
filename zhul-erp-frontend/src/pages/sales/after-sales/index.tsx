@@ -4,6 +4,7 @@ import { App, Button, Form, Input, Select, Table } from 'antd';
 import dayjs from 'dayjs';
 import { Eye, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
@@ -302,6 +303,9 @@ const AfterSalesPage: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('sales-after-sales', columns, {
+    hidden: ['型号', '来源单号', '负责人'],
+  });
 
   /** 搜索条件里的下拉：标签在上，读屏名称与标签相同 */
   const select = (
@@ -433,6 +437,7 @@ const AfterSalesPage: React.FC = () => {
         </FilterCard>
       </Form>
       <MainCard
+        settings={columnsSet.settings}
         count={total}
         loading={loading}
         quick={
@@ -468,9 +473,9 @@ const AfterSalesPage: React.FC = () => {
         <Table<AfterSales>
           rowKey="id"
           loading={loading}
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           locale={{
             emptyText: tableEmpty(
               filters.status === AS_STATUS.OPEN

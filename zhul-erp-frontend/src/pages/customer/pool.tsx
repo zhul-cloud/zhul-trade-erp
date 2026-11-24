@@ -4,6 +4,7 @@ import { App, Button, Form, Input, Modal, Select, Table, Tag } from 'antd';
 import { Eye, UserRoundPlus } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Callout } from '@/components/Callout';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { tableEmpty } from '@/components/EmptyState';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -297,6 +298,7 @@ export const PoolTab: React.FC<{ onCount?: (n: number) => void }> = ({
       ),
     },
   ];
+  const columnsSet = useColumnSettings('customer-pool', columns);
 
   const search = () => {
     setQuery({ ...draft, keyword: draft.keyword?.trim() || undefined });
@@ -345,6 +347,7 @@ export const PoolTab: React.FC<{ onCount?: (n: number) => void }> = ({
         <Button type="primary" onClick={search}>
           查询
         </Button>
+        <div style={{ marginLeft: 'auto' }}>{columnsSet.settings}</div>
       </div>
       {error ? (
         <div style={{ color: palette.red }}>{error}</div>
@@ -359,10 +362,10 @@ export const PoolTab: React.FC<{ onCount?: (n: number) => void }> = ({
         >
           <Table<CustomerListItem>
             rowKey="id"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             locale={{ emptyText: tableEmpty('公海里还没有客户', loading) }}
             pagination={{
               ...PAGER_STYLE,

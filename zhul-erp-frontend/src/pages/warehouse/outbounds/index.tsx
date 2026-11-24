@@ -11,6 +11,7 @@ import {
   Search,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { CustomerCell } from '@/components/DocFields';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
@@ -316,6 +317,9 @@ const Outbounds: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('warehouse-outbounds', columns, {
+    hidden: ['型号 · 数量', '品牌', '品类', '来源单号', '业务员'],
+  });
 
   const apply = () => {
     setQuery(keyword.trim() || undefined);
@@ -393,6 +397,7 @@ const Outbounds: React.FC = () => {
         <ErrorHint message={error} onRetry={load} />
       ) : (
         <MainCard
+          settings={columnsSet.settings}
           left={
             selectable && selected.length > 0 ? (
               <>
@@ -459,10 +464,10 @@ const Outbounds: React.FC = () => {
         >
           <Table<Outbound>
             rowKey="id"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             rowSelection={
               selectable
                 ? {

@@ -20,6 +20,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import React, { useRef, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import EllipsisText from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -336,6 +337,9 @@ const CategoryPage: React.FC = () => {
       },
     },
   ];
+  const columnsSet = useColumnSettings('product-category', columns, {
+    hidden: ['目的国关税参考', '中文简介', '排序'],
+  });
 
   const locked = !!editing && editing.productCount > 0;
 
@@ -411,11 +415,11 @@ const CategoryPage: React.FC = () => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard count={total} unit="个一级品类">
+      <MainCard settings={columnsSet.settings} count={total} unit="个一级品类">
         <ProTable<Category>
           rowKey="id"
           actionRef={actionRef}
-          columns={columns}
+          columns={columnsSet.columns}
           search={false}
           options={false}
           toolBarRender={false}
@@ -444,7 +448,7 @@ const CategoryPage: React.FC = () => {
             return { data, total: data.length, success: true };
           }}
           expandable={{ defaultExpandAllRows: false }}
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           pagination={pager}
           locale={{
             emptyText: tableEmpty(

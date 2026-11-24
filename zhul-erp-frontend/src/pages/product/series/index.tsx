@@ -10,6 +10,7 @@ import { useAccess } from '@umijs/max';
 import { App, Button, Input, Select } from 'antd';
 import { Ban, CircleCheck, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -190,6 +191,7 @@ const SeriesPage: React.FC = () => {
       },
     },
   ];
+  const columnsSet = useColumnSettings('product-series', columns);
 
   return (
     <ProductThemeProvider>
@@ -264,12 +266,12 @@ const SeriesPage: React.FC = () => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard count={total}>
+      <MainCard settings={columnsSet.settings} count={total}>
         <ProTable<Series>
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           rowKey="id"
           actionRef={actionRef}
-          columns={columns}
+          columns={columnsSet.columns}
           search={false}
           options={false}
           toolBarRender={false}

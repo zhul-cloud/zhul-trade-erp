@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Form, Input, Select, Table } from 'antd';
 import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import { tableEmpty } from '@/components/EmptyState';
@@ -242,6 +243,17 @@ const PurchaseReturnsPage: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('purchase-returns', columns, {
+    hidden: [
+      '运费',
+      '品牌',
+      '品类',
+      '来源类型',
+      '采购订单',
+      '来源单号',
+      '负责人',
+    ],
+  });
 
   return (
     <div>
@@ -336,13 +348,13 @@ const PurchaseReturnsPage: React.FC = () => {
           </FilterField>
         </FilterCard>
       </Form>
-      <MainCard count={total} loading={loading}>
+      <MainCard settings={columnsSet.settings} count={total} loading={loading}>
         <Table<PurchaseReturn>
           rowKey="id"
           loading={loading}
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           locale={{
             emptyText: tableEmpty(
               filters.status === PR_STATUS.PENDING

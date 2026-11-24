@@ -20,6 +20,7 @@ import {
   UploadIcon,
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import {
@@ -354,6 +355,7 @@ const ConfigPage: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('system-config', columns);
 
   const needsRestart = (remark?: string) => !!remark && remark.includes('重启');
 
@@ -477,12 +479,12 @@ const ConfigPage: React.FC = () => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard count={total}>
+      <MainCard settings={columnsSet.settings} count={total}>
         <ProTable<ConfigItem>
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           actionRef={actionRef}
           rowKey="id"
-          columns={columns}
+          columns={columnsSet.columns}
           search={false}
           options={false}
           toolBarRender={false}

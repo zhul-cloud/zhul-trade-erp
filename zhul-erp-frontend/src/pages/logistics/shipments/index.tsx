@@ -4,6 +4,7 @@ import { App, Button, Checkbox, DatePicker, Input, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import { Eye, Inbox, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
@@ -506,6 +507,9 @@ const Shipments: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('logistics-shipments', columns, {
+    hidden: ['箱数 · 计费重', '运单号', '品牌', '品类', '来源单号', '业务员'],
+  });
 
   const apply = () => {
     setQuery({
@@ -595,13 +599,17 @@ const Shipments: React.FC = () => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <MainCard count={total} loading={loading}>
+        <MainCard
+          settings={columnsSet.settings}
+          count={total}
+          loading={loading}
+        >
           <Table<Logistics>
             rowKey="id"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             locale={{
               emptyText: tableEmpty(
                 '还没有出运单；货交到货代后，在上面「待出运的货」里新建',

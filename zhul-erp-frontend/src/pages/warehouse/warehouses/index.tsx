@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Form, Input, Modal, Select, Skeleton, Table } from 'antd';
 import { Box, Boxes, House, Pencil, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { tableEmpty } from '@/components/EmptyState';
 import { FilterField, MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
@@ -273,6 +274,7 @@ const WarehousesPage: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('warehouse-warehouses', columns);
 
   return (
     <div>
@@ -331,13 +333,16 @@ const WarehousesPage: React.FC = () => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <MainCard left={list ? `共 ${rows.length} 条` : undefined}>
+        <MainCard
+          settings={columnsSet.settings}
+          left={list ? `共 ${rows.length} 条` : undefined}
+        >
           <Table<InvWarehouse>
             rowKey="id"
             loading={!list}
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             locale={{ emptyText: tableEmpty('没有符合条件的仓库', !list) }}
             pagination={{
               ...PAGER_STYLE,

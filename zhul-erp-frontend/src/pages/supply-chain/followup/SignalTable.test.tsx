@@ -18,8 +18,37 @@ const signal = {
   updateBy: '李四',
 };
 
-/** UI-093：待归类信号是分页业务列表，固定显示四个审计列，每页条数可改 */
-it('UI-093：待归类信号显示「创建」「更新」两列，可改每页条数', async () => {
+const props = {
+  rows: [signal],
+  total: 30,
+  page: 1,
+  pageSize: 20,
+  loading: false,
+  picked: [],
+  canEdit: true,
+  onPick: jest.fn(),
+  onPage: jest.fn(),
+  onClassify: jest.fn(),
+  onIgnore: jest.fn(),
+};
+const headers = () =>
+  screen.getAllByRole('columnheader').map((h) => h.textContent ?? '');
+
+afterEach(() => localStorage.clear());
+
+/** ui-redesign D55：「创建」「更新」默认收进列设置，有「列」按钮可打开 */
+it('「创建」「更新」默认收起，工具栏有列设置按钮', () => {
+  render(React.createElement(SignalTable, props as never));
+  expect(headers()).not.toContain('创建');
+  expect(screen.getByRole('button', { name: /列设置/ })).toBeTruthy();
+});
+
+/** UI-093：待归类信号是分页业务列表，打开审计列后显示人名和时间，每页条数可改 */
+it('UI-093：打开「创建」「更新」两列后显示在操作列之前，可改每页条数', async () => {
+  localStorage.setItem(
+    'zhul_cols:v1:anon:supply-chain-signals',
+    JSON.stringify({ order: [], shown: ['create', 'update'], hidden: [] }),
+  );
   render(
     React.createElement(SignalTable, {
       rows: [signal],
@@ -35,9 +64,7 @@ it('UI-093：待归类信号显示「创建」「更新」两列，可改每页�
       onIgnore: jest.fn(),
     } as never),
   );
-  const heads = screen
-    .getAllByRole('columnheader')
-    .map((h) => h.textContent ?? '');
+  const heads = headers();
   const at = (t: string) => heads.indexOf(t);
   // ui-redesign D25：「创建」「更新」两列（人名 + 短时间，悬停看完整时间）
   expect(at('创建')).toBeGreaterThan(at('来源单号'));

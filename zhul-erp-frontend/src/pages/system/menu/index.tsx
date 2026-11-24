@@ -31,6 +31,7 @@ import {
   Zap,
 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { MainCard, PageHeader, SummaryBar } from '@/components/ListLayout';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -554,6 +555,7 @@ const MenuPage: React.FC = () => {
       },
     },
   ];
+  const columnsSet = useColumnSettings('system-menu', columns);
 
   const renderSections = (t: number) => (
     <>
@@ -695,6 +697,7 @@ const MenuPage: React.FC = () => {
         ]}
       />
       <MainCard
+        settings={columnsSet.settings}
         left={
           <Input
             placeholder="搜索菜单名称"
@@ -726,9 +729,9 @@ const MenuPage: React.FC = () => {
         }
       >
         <ProTable<MenuItem>
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           rowKey="id"
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={displayTree}
           search={false}
           options={false}

@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Form, Input, Select, Table } from 'antd';
 import { FileText, Landmark, Paperclip, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { CustomerCell } from '@/components/DocFields';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -266,6 +267,9 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('finance-receipts', columns, {
+    hidden: ['已到账', '待确认水单', '销售订单'],
+  });
 
   return (
     <div>
@@ -314,6 +318,7 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
         <ErrorHint message={error} onRetry={load} />
       ) : (
         <MainCard
+          settings={columnsSet.settings}
           count={total}
           loading={loading}
           quick={
@@ -334,10 +339,10 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
         >
           <Table<ReceiptDeskRow>
             rowKey={rowKey}
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             locale={{
               emptyText: tableEmpty(
                 all

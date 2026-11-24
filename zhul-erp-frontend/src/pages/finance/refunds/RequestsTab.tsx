@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Input, Select, Space, Table } from 'antd';
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { tableEmpty } from '@/components/EmptyState';
@@ -292,6 +293,7 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('finance-refunds-RequestsTab', columns);
 
   return (
     <>
@@ -331,13 +333,13 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard count={total} loading={loading}>
+      <MainCard settings={columnsSet.settings} count={total} loading={loading}>
         <Table<RefundRequest>
           rowKey="id"
           loading={loading}
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           locale={{
             emptyText: tableEmpty(
               status === RQ_STATUS.PENDING_RECEIPT

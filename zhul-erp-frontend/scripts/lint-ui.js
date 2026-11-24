@@ -49,6 +49,7 @@ const RULE_NAMES = new Set([
   'primary-soft',
   'progress-color',
   'table-switch',
+  'column-settings',
 ]);
 
 /**
@@ -171,6 +172,8 @@ const LINE_RULES = [
 ];
 
 const MSG = {
+  columnSettings:
+    '用了「创建」「更新」列（auditColumns）的列表要接列设置 useColumnSettings：这两列默认收起，用户可从「列」按钮打开（ui-redesign D55）',
   tableSwitch:
     '列表行里的启用 / 停用开关用公共 StatusSwitch（小号、跟主题色、读屏文字、不触发整行点击、值没变不回调，D48）',
   rowActions:
@@ -347,6 +350,15 @@ function checkSource(src, rel) {
       const el = ts.isJsxElement(c) ? c.openingElement : ts.isJsxSelfClosingElement(c) ? c : null;
       if (el && tagName(el) === 'Switch') push('table-switch', 'error', MSG.tableSwitch, lineOf(el.getStart(sf)));
     });
+  });
+
+  // 列表用了「创建」「更新」两列就要接列设置（默认收起，必须能打开）
+  walk(sf, (n) => {
+    if (!ts.isCallExpression(n)) return;
+    const name = n.expression.getText(sf);
+    if (isPage && (name === 'auditColumns' || name === 'proAuditColumns') && !src.includes('useColumnSettings(')) {
+      push('column-settings', 'error', MSG.columnSettings, lineOf(n.getStart(sf)));
+    }
   });
 
   // 写死的颜色：只看字符串里的颜色值，链接地址、id 不算

@@ -12,6 +12,7 @@ import {
 } from 'antd';
 import { Clock, MapPin, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { tableEmpty } from '@/components/EmptyState';
 import { PageHeader } from '@/components/ListLayout';
@@ -147,6 +148,7 @@ const TransitTimes: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('system-transit-times', columns);
 
   return (
     <div>
@@ -259,16 +261,17 @@ const TransitTimes: React.FC = () => {
         >
           查询
         </Button>
+        <div style={{ marginLeft: 'auto' }}>{columnsSet.settings}</div>
       </div>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
         <Table<TransitTime>
           rowKey="id"
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           pagination={{ ...pager, showTotal: (t) => `共 ${t} 条` }}
           locale={{
             emptyText: tableEmpty('没有规则；估算时按默认运输天数', loading),

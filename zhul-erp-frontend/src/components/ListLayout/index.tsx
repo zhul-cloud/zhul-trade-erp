@@ -1094,6 +1094,8 @@ export const MainCard: React.FC<{
   right?: React.ReactNode;
   quick?: React.ReactNode;
   chips?: FilterChipItem[];
+  /** 列设置按钮（useColumnSettings 返回的 settings），放在工具栏最右 */
+  settings?: React.ReactNode;
   /** 表格等内容；分组卡片放在主卡外面时（如采购需求按订单），主卡只剩操作行，可不传 */
   children?: React.ReactNode;
 }> = ({
@@ -1104,6 +1106,7 @@ export const MainCard: React.FC<{
   right,
   quick,
   chips: own,
+  settings,
   children,
 }) => {
   const counted =
@@ -1132,7 +1135,7 @@ export const MainCard: React.FC<{
   return (
     <Panel style={{ padding: 16, minWidth: 0 }}>
       <span ref={probe} hidden />
-      {(left || right || quick || hasChips) && (
+      {(left || right || quick || hasChips || settings) && (
         <div
           className="zhul-toolbar"
           style={{
@@ -1163,6 +1166,7 @@ export const MainCard: React.FC<{
             ))}
           </div>
           {right}
+          {settings}
         </div>
       )}
       {children}

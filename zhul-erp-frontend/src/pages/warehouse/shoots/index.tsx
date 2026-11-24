@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Drawer, Input, Select, Skeleton, Table } from 'antd';
 import { Camera, Eye, Info, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
@@ -189,6 +190,7 @@ const Shoots: React.FC = () => {
       },
     },
   ];
+  const columnsSet = useColumnSettings('warehouse-shoots', columns);
 
   const apply = () => {
     setQuery(keyword.trim() || undefined);
@@ -242,13 +244,17 @@ const Shoots: React.FC = () => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <MainCard count={total} loading={loading}>
+        <MainCard
+          settings={columnsSet.settings}
+          count={total}
+          loading={loading}
+        >
           <Table<ShootTask>
             rowKey="id"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             locale={{
               emptyText: tableEmpty(
                 status === 1

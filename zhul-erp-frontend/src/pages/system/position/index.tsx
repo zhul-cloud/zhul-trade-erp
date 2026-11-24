@@ -11,6 +11,7 @@ import { useAccess } from '@umijs/max';
 import { App, Badge, Button, Input, Select } from 'antd';
 import { Ban, CircleCheck, Pencil, Search, Trash2 } from 'lucide-react';
 import React, { useRef, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import {
   FilterCard,
@@ -211,6 +212,7 @@ const PositionPage: React.FC = () => {
       },
     },
   ];
+  const columnsSet = useColumnSettings('system-position', columns);
 
   return (
     <>
@@ -264,12 +266,12 @@ const PositionPage: React.FC = () => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard count={total}>
+      <MainCard settings={columnsSet.settings} count={total}>
         <ProTable<PositionItem>
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           actionRef={actionRef}
           rowKey="id"
-          columns={columns}
+          columns={columnsSet.columns}
           params={filters}
           request={async (params) => {
             const res = await getPositionList(params);

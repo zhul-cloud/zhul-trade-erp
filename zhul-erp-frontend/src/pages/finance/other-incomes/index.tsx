@@ -15,6 +15,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import { Eye, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import {
   FilterCard,
   FilterField,
@@ -370,6 +371,7 @@ const OtherIncomePage: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('finance-other-incomes', columns);
 
   return (
     <div>
@@ -470,13 +472,13 @@ const OtherIncomePage: React.FC = () => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard count={total} loading={loading}>
+      <MainCard settings={columnsSet.settings} count={total} loading={loading}>
         <Table<OtherIncome>
           rowKey="id"
           loading={loading}
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           pagination={{
             ...PAGER_STYLE,
             current: page,

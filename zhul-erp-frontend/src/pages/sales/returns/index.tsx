@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Form, Input, Select, Table } from 'antd';
 import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { CustomerCell } from '@/components/DocFields';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
@@ -257,6 +258,9 @@ const SalesReturnsPage: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('sales-returns', columns, {
+    hidden: ['处理方式', '品牌', '品类', '来源单号', '负责人'],
+  });
 
   /** 下拉选项后面带数量（stat-cards.md：状态并入下拉） */
   const withCount = (label: string, n?: number) =>
@@ -340,13 +344,13 @@ const SalesReturnsPage: React.FC = () => {
           </FilterField>
         </FilterCard>
       </Form>
-      <MainCard count={total} loading={loading}>
+      <MainCard settings={columnsSet.settings} count={total} loading={loading}>
         <Table<SalesReturn>
           rowKey="id"
           loading={loading}
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           locale={{
             emptyText: tableEmpty(
               filters.status === TH_STATUS.CONFIRMING

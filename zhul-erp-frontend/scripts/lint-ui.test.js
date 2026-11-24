@@ -212,6 +212,20 @@ describe('lint:ui', () => {
     ).not.toContain('progress-color:error');
   });
 
+  it('用了 auditColumns 的列表要接列设置', () => {
+    expect(rules('const c = [...auditColumns<Row>()];')).toContain(
+      'column-settings:error',
+    );
+    expect(
+      rules(
+        [
+          'const c = [...auditColumns<Row>()];',
+          "const s = useColumnSettings('x', c);",
+        ].join('\n'),
+      ),
+    ).not.toContain('column-settings:error');
+  });
+
   it('注释里的说法不检查', () => {
     expect(
       rules('// 原来是 linear-gradient(...) 和 #2563EB，已改\nconst a = 1;'),

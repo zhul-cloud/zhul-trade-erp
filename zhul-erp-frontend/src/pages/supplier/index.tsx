@@ -20,6 +20,7 @@ import {
   Upload,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -329,6 +330,9 @@ const SupplierListPage: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('supplier', columns, {
+    hidden: ['供应商编码', '供应商简称', '统一社会信用代码', '联系电话'],
+  });
 
   const moreCount = MORE_KEYS.filter(
     (k) => query[k] != null && query[k] !== '',
@@ -467,6 +471,7 @@ const SupplierListPage: React.FC = () => {
       </Form>
 
       <MainCard
+        settings={columnsSet.settings}
         left={
           selected.length > 0 ? (
             <>
@@ -509,11 +514,11 @@ const SupplierListPage: React.FC = () => {
         ) : (
           <Table<SupplierItem>
             rowKey="id"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
             sticky
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             rowSelection={{
               selectedRowKeys: selected,
               onChange: setSelected,

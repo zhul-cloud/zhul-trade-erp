@@ -16,6 +16,7 @@ import {
   Zap,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
@@ -509,6 +510,9 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
       },
     },
   ];
+  const columnsSet = useColumnSettings('product-fact-tasks-TaskList', columns, {
+    hidden: ['品牌', '品类', '最近下载'],
+  });
 
   return (
     <div>
@@ -646,6 +650,7 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
         <ErrorHint message={error} onRetry={() => load()} />
       ) : (
         <MainCard
+          settings={columnsSet.settings}
           left={
             selected.length > 0 ? (
               <b style={{ color: palette.link }}>已选 {selected.length} 个</b>
@@ -720,10 +725,10 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
         >
           <Table<ContentTask>
             rowKey="productId"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             rowSelection={{
               selectedRowKeys: selected,
               onChange: (keys) => setSelected(keys as number[]),

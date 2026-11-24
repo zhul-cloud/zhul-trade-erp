@@ -30,6 +30,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import EllipsisText from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -973,6 +974,7 @@ const ProductListInner: React.FC = () => {
         ] as ColumnsType<Product>)
       : []),
   ];
+  const columnsSet = useColumnSettings('product-products', columns);
 
   const normalized = normalizeMpn(debounced);
   const hasCondition =
@@ -1159,6 +1161,7 @@ const ProductListInner: React.FC = () => {
       </FilterCard>
 
       <MainCard
+        settings={columnsSet.settings}
         left={
           (platform || refine) && selected.length > 0 ? (
             <>
@@ -1300,12 +1303,14 @@ const ProductListInner: React.FC = () => {
         ) : (
           <Table<Product>
             rowKey="id"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
             sticky
             // 有勾选列时把它的 36 也算进总宽
-            scroll={{ x: tableScrollX(columns) + (selectable ? 36 : 0) }}
+            scroll={{
+              x: tableScrollX(columnsSet.columns) + (selectable ? 36 : 0),
+            }}
             rowSelection={
               selectable
                 ? {

@@ -17,6 +17,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import { Eye, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -1013,6 +1014,9 @@ const ExpensePage: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('finance-expenses', columns, {
+    hidden: ['人民币', '类别', '关联订单', '凭证', '收款方'],
+  });
 
   return (
     <div>
@@ -1167,13 +1171,13 @@ const ExpensePage: React.FC = () => {
           />
         </FilterField>
       </FilterCard>
-      <MainCard count={total} loading={loading}>
+      <MainCard settings={columnsSet.settings} count={total} loading={loading}>
         <Table<Expense>
           rowKey="id"
           loading={loading}
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           pagination={{
             ...PAGER_STYLE,
             current: page,

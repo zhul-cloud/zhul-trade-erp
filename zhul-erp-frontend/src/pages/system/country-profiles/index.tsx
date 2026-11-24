@@ -13,6 +13,7 @@ import {
 } from 'antd';
 import { FilePlus2, Pencil, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
@@ -328,6 +329,7 @@ const CountryProfilesPage: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('system-country-profiles', columns);
 
   return (
     <div>
@@ -364,6 +366,7 @@ const CountryProfilesPage: React.FC = () => {
         </FilterField>
       </FilterCard>
       <MainCard
+        settings={columnsSet.settings}
         left={
           loading && !shown.length ? undefined : `共 ${shown.length} 个国家`
         }
@@ -392,10 +395,10 @@ const CountryProfilesPage: React.FC = () => {
         ) : (
           <Table<CountryProfile>
             rowKey="country"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={shown}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             pagination={pager}
             locale={{
               emptyText: tableEmpty(

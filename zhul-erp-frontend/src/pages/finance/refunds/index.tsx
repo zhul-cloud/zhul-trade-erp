@@ -15,6 +15,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import { Eye, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import {
@@ -383,6 +384,9 @@ const RefundPage: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('finance-refunds', columns, {
+    hidden: ['人民币', '类型', '来源单号', '去向'],
+  });
 
   return (
     <div>
@@ -530,13 +534,17 @@ const RefundPage: React.FC = () => {
               />
             </FilterField>
           </FilterCard>
-          <MainCard count={total} loading={loading}>
+          <MainCard
+            settings={columnsSet.settings}
+            count={total}
+            loading={loading}
+          >
             <Table<Refund>
               rowKey="id"
               loading={loading}
-              columns={columns}
+              columns={columnsSet.columns}
               dataSource={rows}
-              scroll={{ x: tableScrollX(columns) }}
+              scroll={{ x: tableScrollX(columnsSet.columns) }}
               pagination={{
                 ...PAGER_STYLE,
                 current: page,

@@ -23,6 +23,7 @@ import {
   Waves,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import EllipsisText from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -42,6 +43,7 @@ import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { LIST_PATH, Pill, RolePill, TransferModal } from './components';
 import { DISABLE_CONFIRM_TEXT, ROLE_OPTIONS } from './constants';
 import { PoolTab, PutIntoPoolModal } from './pool';
@@ -533,6 +535,16 @@ const CustomerListPage: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('customer', columns, {
+    hidden: [
+      '客户编码',
+      '主联系人',
+      '潜力等级',
+      '档案完整度',
+      '客户角色',
+      '客户来源',
+    ],
+  });
 
   // 潜力等级、经营等级、档案完整度可以排序；取消排序回到默认（经营等级 S→C，再按潜力等级）
   const onTableChange: TableProps<CustomerListItem>['onChange'] = (
@@ -743,6 +755,7 @@ const CustomerListPage: React.FC = () => {
           </Form>
 
           <MainCard
+            settings={columnsSet.settings}
             left={
               selected.length > 0 ? (
                 <>
@@ -804,11 +817,11 @@ const CustomerListPage: React.FC = () => {
             ) : (
               <Table<CustomerListItem>
                 rowKey="id"
-                columns={columns}
+                columns={columnsSet.columns}
                 dataSource={rows}
                 loading={loading}
                 sticky
-                scroll={{ x: showOwner ? 2080 : 1980 }}
+                scroll={{ x: tableScrollX(columnsSet.columns) }}
                 onChange={onTableChange}
                 rowSelection={{
                   selectedRowKeys: selected,

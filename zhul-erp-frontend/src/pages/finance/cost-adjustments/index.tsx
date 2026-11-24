@@ -4,6 +4,7 @@ import { App, Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Download, Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -191,6 +192,9 @@ const CostAdjustmentsPage: React.FC = () => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('finance-cost-adjustments', columns, {
+    hidden: ['其他出库调整'],
+  });
 
   const parsed = JSON.parse(queryKey) as Filters;
   const noFilter = !parsed.keyword && !parsed.reason && !parsed.cogsOnly;
@@ -286,6 +290,7 @@ const CostAdjustmentsPage: React.FC = () => {
         <ErrorHint message={error} onRetry={load} />
       ) : (
         <MainCard
+          settings={columnsSet.settings}
           count={total}
           loading={loading}
           quick={
@@ -326,9 +331,9 @@ const CostAdjustmentsPage: React.FC = () => {
           <Table<CostAdjust>
             rowKey="id"
             loading={loading}
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             locale={{
               emptyText: tableEmpty(
                 noFilter
