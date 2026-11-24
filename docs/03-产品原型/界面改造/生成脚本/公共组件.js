@@ -13,7 +13,7 @@ const SH = [{ type: 'shadow', offsetX: 0, offsetY: 0, blur: 2, spread: 0, color:
 const SH_HOVER = [{ type: 'shadow', offsetX: 0, offsetY: 0, blur: 2, spread: 0, color: 'rgba(145,158,171,0.2)' }, { type: 'shadow', offsetX: 0, offsetY: 16, blur: 32, spread: -4, color: 'rgba(145,158,171,0.2)' }];
 // 对话框：Material elevation-24
 const SH_DIALOG = [{ type: 'shadow', offsetX: 0, offsetY: 11, blur: 15, spread: -7, color: 'rgba(145,158,171,0.2)' }, { type: 'shadow', offsetX: 0, offsetY: 24, blur: 38, spread: 3, color: 'rgba(145,158,171,0.14)' }, { type: 'shadow', offsetX: 0, offsetY: 9, blur: 46, spread: 8, color: 'rgba(145,158,171,0.12)' }];
-const LIGHT = { key: 'light', page: '#F9FAFB', card: '#FFFFFF', head: '#F4F6F8', line: '#E5E8EB', field: '#D4D6D9', ink: '#212B36', body: '#3E4750', sub: '#637381', faint: '#919EAB', soft: '#FEF5E6', tonal: '#F1F3F5', navOn: '#EDEEEF', hover: '#FFFFFF', hoverLine: null, rowHover: '#F6F7F8', control: '#D3D5D8', danger: '#B71D18', mask: 'rgba(33,43,54,0.5)', menu: '#FFFFFF', menuHover: '#F6F7F8',
+const LIGHT = { key: 'light', page: '#F4F6F8', card: '#FFFFFF', head: '#F9FAFB', line: '#E5E8EB', field: '#D4D6D9', ink: '#212B36', body: '#3E4750', sub: '#637381', faint: '#919EAB', soft: '#FEF5E6', tonal: '#F7F8FA', navOn: '#EDEEEF', hover: '#FFFFFF', hoverLine: null, rowHover: '#F6F7F8', control: '#D3D5D8', danger: '#B71D18', mask: 'rgba(33,43,54,0.5)', menu: '#FFFFFF', menuHover: '#F6F7F8',
   chartMuted: '#DFE3E8', chartMutedHover: '#C4CDD5', barMuted: '#C4CDD5', grid: '#E5E8EB', shadow: SH, stroke: null,
   st: { ok: ['#0D7A4A', '#E5F8EC'], warn: ['#9A5B00', '#FFF5E0'], info: ['#006C9C', '#E0F6FA'], err: ['#B71D18', '#FFEBE6'], neu: ['#56636F', '#ECEEF0'] },
   fam: { blue: ['#3B82F6', '#E7F0FE'], purple: ['#8B5CF6', '#F1EBFE'], cyan: ['#1F7A76', '#E6F3F3'], gray: ['#637381', '#ECEEF0'] } };
@@ -253,7 +253,7 @@ function board(T, name) {
   cap(root, '更多菜单（第一项悬停）　　危险确认 · confirmDanger（默认焦点在「取消」）　　详情页客户卡');
   const r4 = box(root, { width: 'fill_container', layout: 'horizontal', gap: 16, alignItems: 'start' });
   const STAGE = 260;
-  const stage = (w) => box(r4, { width: w, height: STAGE, layout: 'vertical', padding: [24, 24], cornerRadius: 10, fill: solid(T.key === 'light' ? '#F1F3F5' : '#141414') });
+  const stage = (w) => box(r4, { width: w, height: STAGE, layout: 'vertical', padding: [24, 24], cornerRadius: 10, fill: solid(T.key === 'light' ? '#F4F6F8' : '#141414') });
   const st1 = stage(228);
   const menu = box(st1, Object.assign({ width: 180, layout: 'vertical', padding: [6, 6], cornerRadius: 8, fill: solid(T.menu), effects: T.key === 'light' ? [{ type: 'shadow', offsetX: 0, offsetY: 8, blur: 16, spread: 0, color: 'rgba(145,158,171,0.24)' }] : [] }, T.key === 'light' ? {} : { stroke: { thickness: 1, fill: solid('#3A3A3A') } }));
   for (const [ic, t, danger] of [['copy', '复制为新询盘'], ['file-down', '导出'], ['-'], ['trash-2', '删除', 1]]) {
