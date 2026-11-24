@@ -193,7 +193,7 @@ const StepCard: React.FC<{
         padding: 16,
         borderRadius: 14,
         background: palette.inset,
-        border: `1px solid ${step.step === 1 ? `${palette.green}55` : palette.hairline}`,
+        border: `1px solid ${step.step === 1 ? palette.primaryLine : palette.hairline}`,
         display: 'flex',
         flexDirection: 'column',
         gap: 12,
@@ -216,8 +216,9 @@ const StepCard: React.FC<{
             placeItems: 'center',
             fontSize: 12,
             fontWeight: 700,
-            color: '#fff',
-            background: done || step.step === 1 ? palette.green : tone,
+            color: done || step.step === 1 ? palette.onPrimary : '#fff',
+            // 已完成的步骤用主题色（步骤条规则），不用成功绿
+            background: done || step.step === 1 ? palette.primary : tone,
           }}
         >
           {done || step.step === 1 ? <Check size="1em" /> : step.step}

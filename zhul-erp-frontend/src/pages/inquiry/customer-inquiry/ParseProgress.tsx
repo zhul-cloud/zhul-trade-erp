@@ -53,7 +53,7 @@ export const ParseProgressCard: React.FC<{
       <Progress
         percent={reading || !total ? 0 : Math.floor((done / total) * 100)}
         showInfo={false}
-        strokeColor={palette.primary}
+        strokeColor={palette.chart}
         style={{ margin: '10px 0 4px' }}
       />
       <div style={{ color: palette.sub, fontSize: 13 }}>

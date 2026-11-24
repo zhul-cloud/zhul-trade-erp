@@ -1,14 +1,14 @@
 import { Tooltip } from 'antd';
 import React from 'react';
-import { CHART_SERIES } from '@/theme/palette';
+import { mix } from '@/theme/palette';
 import { COMPLETENESS_GOOD, COMPLETENESS_MODULES } from '../constants';
 import type { Completeness } from '../service';
 import { useProductTheme } from '../theme';
 
 /**
- * 档案完整度：一段对应一个模块。完整度是一个量，已补的段用同一种固定颜色（图表系列蓝，不随主题色变：
- * 琥珀、天蓝主题色在中性底上不到 3:1，红色主题又会被读成报错），达到 COMPLETENESS_GOOD 段改绿色表示「够用了」；
- * 没补的段中性灰（P14：原来蓝到青逐段渐变，颜色不表达任何含义）。
+ * 档案完整度：一段对应一个模块。完整度是一个量，只用主题色（图表色 palette.chart）一种颜色：
+ * 补得越多颜色越实（浅 → 原色），不换成别的颜色（2026-11-24 用户确认；原来蓝到青渐变、达标变绿，颜色不表达含义）。
+ * 没补的段中性灰。琥珀等浅主题色对灰底对比度不到 3:1，靠右侧「done/total」数字补足（与 palette.chartPrimary 的约定一致）。
  * 列表里的小条悬停显示还缺哪些模块。
  * 只对平台账号渲染——租户账号的接口不返回 completeness，这里没有数据就什么也不画。
  */
@@ -20,8 +20,9 @@ export const CompletenessBar: React.FC<{
   const { palette } = useProductTheme();
   if (!value) return null;
   const good = value.done >= COMPLETENESS_GOOD;
-  // 图表系列的蓝、绿：浅深两种模式下对中性底都不低于 3:1（亮绿 greenMain 浅色只有 1.96，文字绿深色只有 2.49）
-  const fill = good ? CHART_SERIES[4] : CHART_SERIES[0];
+  // 完成度越高越实：35% 起，补齐时为原色
+  const ratio = value.total ? value.done / value.total : 0;
+  const fill = mix(palette.chart, palette.card, 0.35 + 0.65 * ratio);
   const h = size === 'mini' ? 6 : 10;
   // 后端给的是模块标识（media、faq…），显示中文名
   const names = value.missing.map(
@@ -52,7 +53,7 @@ export const CompletenessBar: React.FC<{
         className="num"
         style={{
           fontSize: size === 'mini' ? 12 : 14,
-          color: good ? palette.green : palette.sub,
+          color: good ? palette.ink : palette.sub,
           fontWeight: 600,
           minWidth: size === 'mini' ? 34 : 44,
           textAlign: 'right',

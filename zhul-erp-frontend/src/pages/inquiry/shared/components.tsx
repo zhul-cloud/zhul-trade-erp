@@ -174,7 +174,7 @@ export const LeadTimeText: React.FC<{ value?: number; fallback?: string }> = ({
   return <>{leadTimeLabel(value) || fallback}</>;
 };
 
-/** 回价进度条：全部完成时变绿 */
+/** 回价进度条：只用主题色（全站进度条规则），全部完成不换颜色 */
 export const Progress: React.FC<{
   done: number;
   total: number;
@@ -201,7 +201,7 @@ export const Progress: React.FC<{
             width: `${pct * 100}%`,
             height: '100%',
             borderRadius: 3,
-            background: full ? palette.green : palette.link,
+            background: palette.chart,
             transition: 'width 200ms ease-out',
           }}
         />
@@ -210,7 +210,7 @@ export const Progress: React.FC<{
         style={{
           fontSize: 12,
           fontWeight: 600,
-          color: full ? palette.green : palette.sub,
+          color: full ? palette.ink : palette.sub,
           fontVariantNumeric: 'tabular-nums',
         }}
       >

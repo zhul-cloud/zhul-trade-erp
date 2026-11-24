@@ -7,7 +7,6 @@ import {
   Input,
   Select,
   Skeleton,
-  Switch,
   Table,
   Tooltip,
 } from 'antd';
@@ -31,6 +30,7 @@ import {
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { StatusSwitch } from '@/components/StatusSwitch';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -283,15 +283,12 @@ const SupplierListPage: React.FC = () => {
       dataIndex: 'status',
       width: 80,
       render: (v: number, record) => (
-        <Switch
+        <StatusSwitch
           checked={v === 1}
+          name={record.name}
+          offText="禁用"
           disabled={!canStatus}
           loading={togglingId === record.id}
-          aria-label={
-            v === 1
-              ? `${record.name} 已启用，点击禁用`
-              : `${record.name} 已禁用，点击启用`
-          }
           onChange={(checked) => toggleStatus(record, checked)}
         />
       ),

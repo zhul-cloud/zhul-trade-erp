@@ -179,6 +179,7 @@ const Step3: React.FC = () => {
             <Progress
               percent={strength.percent}
               showInfo={false}
+              // lint-ui-ignore progress-color: 密码强度是状态（弱红、中橙、强绿），属于多色语义
               strokeColor={strength.color}
               size="small"
               style={{ flex: 1 }}

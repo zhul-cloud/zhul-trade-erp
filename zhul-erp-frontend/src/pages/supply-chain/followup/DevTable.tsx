@@ -44,8 +44,9 @@ export const QualifiedDots: React.FC<{
                 width: 8,
                 height: 8,
                 borderRadius: 4,
-                background: i < qualified ? palette.green : 'transparent',
-                border: `1px solid ${i < qualified ? palette.green : palette.mute}`,
+                // 已达标的家数：跟主题色（数量，不是状态）
+                background: i < qualified ? palette.chart : 'transparent',
+                border: `1px solid ${i < qualified ? palette.chart : palette.mute}`,
               }}
             />
           ))}

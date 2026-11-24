@@ -272,7 +272,8 @@ export const MetricCard: React.FC<{
                 height: '100%',
                 width: `${Math.max(0, Math.min(1, bar)) * 100}%`,
                 borderRadius: 2,
-                background: METRIC_FAMILY[mode].blue[0],
+                // 进度跟主题色（图表色），不按指标家族固定蓝
+                background: palette.chart,
               }}
             />
           </span>

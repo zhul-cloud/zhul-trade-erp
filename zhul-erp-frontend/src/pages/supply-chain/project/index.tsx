@@ -69,9 +69,8 @@ const DevProgress: React.FC<{
   label: string;
   value: number;
   total: number;
-  color: string;
   hint: string;
-}> = ({ label, value, total, color, hint }) => {
+}> = ({ label, value, total, hint }) => {
   const { palette } = useAppTheme();
   return (
     <div style={{ minWidth: 0 }}>
@@ -84,7 +83,8 @@ const DevProgress: React.FC<{
       <Progress
         percent={total ? Math.min(100, Math.round((value / total) * 100)) : 0}
         showInfo={false}
-        strokeColor={color}
+        // 两段进度都只用主题色（全站进度条规则），不各用一种颜色
+        strokeColor={palette.chart}
       />
       <div style={{ fontSize: 12, color: palette.mute }}>{hint}</div>
     </div>
@@ -473,7 +473,8 @@ const ProjectDetailPage: React.FC = () => {
               <Progress
                 percent={Math.round((p.solved / p.total) * 100)}
                 showInfo={false}
-                strokeColor={palette.green}
+                // 进度只用主题色（全站进度条规则）
+                strokeColor={palette.chart}
                 style={{ marginTop: 12 }}
               />
             )}
@@ -490,14 +491,12 @@ const ProjectDetailPage: React.FC = () => {
                   label="本专项合格候选"
                   value={dev.qualified}
                   total={dev.target}
-                  color={palette.green}
                   hint="候选在范围内有近 90 天的有效报价或采购订单即为合格"
                 />
                 <DevProgress
                   label="范围内合格供应商"
                   value={dev.rangeQualified}
                   total={dev.required}
-                  color={palette.link}
                   hint={`热度要求 ${dev.required} 家；含不是候选的供应商`}
                 />
               </div>

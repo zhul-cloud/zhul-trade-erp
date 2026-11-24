@@ -8,7 +8,6 @@ import {
   Segmented,
   Select,
   Skeleton,
-  Switch,
   Table,
   Tooltip,
 } from 'antd';
@@ -36,6 +35,7 @@ import {
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { StatusSwitch } from '@/components/StatusSwitch';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { auditColumns } from '@/pages/purchase/components';
@@ -472,15 +472,12 @@ const CustomerListPage: React.FC = () => {
       dataIndex: 'status',
       width: 72,
       render: (v: number, r) => (
-        <Switch
+        <StatusSwitch
           checked={v === 1}
+          name={r.displayName}
+          offText="禁用"
           disabled={!canStatus}
           loading={togglingId === r.id}
-          aria-label={
-            v === 1
-              ? `${r.displayName} 已启用，点击禁用`
-              : `${r.displayName} 已禁用，点击启用`
-          }
           onChange={(checked) => toggleStatus(r, checked)}
         />
       ),

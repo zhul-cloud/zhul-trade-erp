@@ -323,7 +323,7 @@ export const ChunkUploadList: React.FC<{
                 percent={percent}
                 showInfo={false}
                 size="small"
-                strokeColor={{ from: '#3B82F6', to: '#22D3EE' }}
+                strokeColor={palette.chart}
                 style={{ margin: '6px 0 0' }}
               />
             )}

@@ -37,8 +37,11 @@ const variant = (title, note, good) => {
 const bar = (p, done, w) => {
   const g = H(p, 6, { width: w });
   const segs = H(g, 2, { width: 'fill_container' });
-  for (let i = 0; i < 10; i++) I(segs, { type: 'rectangle', width: 'fill_container', height: 6, cornerRadius: 3, fill: fill(i < done ? (done >= 8 ? '#2E9A62' : '#3B82F6') : C.neutralSoft) });
-  T(g, `${done}/10`, { size: 12, weight: 600, color: done >= 8 ? C.green : C.sub });
+  // 只用主题色（琥珀），完成度越高越实：35% 起，补齐为原色（D48）
+  const a = 0.35 + 0.65 * done / 10;
+  const mixc = (hex, al) => '#' + [1, 3, 5].map((k) => Math.round(parseInt(hex.slice(k, k + 2), 16) * al + 255 * (1 - al)).toString(16).padStart(2, '0')).join('');
+  for (let i = 0; i < 10; i++) I(segs, { type: 'rectangle', width: 'fill_container', height: 6, cornerRadius: 3, fill: fill(i < done ? mixc(C.primary, a) : C.neutralSoft) });
+  T(g, `${done}/10`, { size: 12, weight: 600, color: done >= 8 ? C.ink : C.sub });
 };
 const table = (pg, cols) => {
   const card = V(pg, 0, { width: VIS + 40, padding: [16, 20], cornerRadius: 10, fill: fill(C.card), effects: SH });
@@ -64,7 +67,8 @@ const tx = (p, s, o = {}) => T(p, s, { size: 13, color: C.ink, ...o });
 const sub = (p, s) => T(p, s, { size: 12, color: C.mute });
 const two = (p, a, b, bold) => { tx(p, a, bold ? { weight: 700 } : {}); sub(p, b); };
 const lc = (p) => pill(p, '在产', C.green, C.greenSoft);
-const sw = (p) => { const s = H(p, 6); I(s, { type: 'rectangle', width: 28, height: 16, cornerRadius: 8, fill: fill(C.green) }); sub(s, '启用'); };
+// 列表行里的状态开关：公共 StatusSwitch，小号 28×16，跟主题色（D48）
+const sw = (p) => { const t = I(p, { type: 'frame', layout: 'horizontal', width: 28, height: 16, cornerRadius: 8, padding: 2, justifyContent: 'end', fill: fill(C.primary) }); I(t, { type: 'ellipse', width: 12, height: 12, fill: fill('#FFFFFF') }); };
 const audit = (k) => ({ h: k === 'cr' ? '创建' : '更新', w: 120, r: (td, r) => two(td, r[k][0], r[k][1]) });
 
 {

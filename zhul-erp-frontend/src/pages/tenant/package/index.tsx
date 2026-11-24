@@ -146,9 +146,7 @@ const TenantPackagePage: React.FC = () => {
           : `确认禁用套餐「${row.name}」吗？禁用后该套餐不可被新租户选择。`
         : `启用后，套餐「${row.name}」可被新租户选择使用。`,
       okText: disabling ? '确认禁用' : '确认启用',
-      okButtonProps: disabling
-        ? { danger: true }
-        : { style: { background: palette.green, borderColor: palette.green } },
+      okButtonProps: disabling ? { danger: true } : undefined,
       cancelText: '取消',
       onOk: async () => {
         await updatePackageStatus(row.id, disabling ? 0 : 1);

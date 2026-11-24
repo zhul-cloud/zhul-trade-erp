@@ -443,7 +443,8 @@ const TeamView: React.FC<{
                 <Progress
                   percent={p.total ? Math.round((p.solved / p.total) * 100) : 0}
                   showInfo={false}
-                  strokeColor={palette.green}
+                  // 进度只用主题色（全站进度条规则）
+                  strokeColor={palette.chart}
                   style={{ maxWidth: 560, margin: '4px 0' }}
                 />
                 <div

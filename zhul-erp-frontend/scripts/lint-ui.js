@@ -47,6 +47,7 @@ const RULE_NAMES = new Set([
   'antd-empty',
   'antd-icon',
   'primary-soft',
+  'progress-color',
 ]);
 
 /**
@@ -151,6 +152,13 @@ const LINE_RULES = [
     message:
       '主题色浅底只表示选中、当前（ui-redesign D42）：说明文字用 Callout，数字或汇总块用中性浅底 palette.inset，属性标签用中性色；批量操作条、搜索命中等选中类用法写 lint-ui-ignore primary-soft 说明',
     re: /\bbackground:\s*\w+\.primarySoft\b/,
+  },
+  {
+    id: 'progress-color',
+    level: 'error',
+    message:
+      '进度条只用主题色（palette.chart），程度用深浅表示，完成时也不换成绿色或别的颜色（2026-11-24 用户确认）；多色图表、状态标签不用 Progress',
+    re: /\bstrokeColor=\{(?!\s*palette\.chart\b)/,
   },
   {
     id: 'filler-maybe',

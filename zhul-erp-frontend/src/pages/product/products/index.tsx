@@ -9,7 +9,6 @@ import {
   Select,
   Skeleton,
   Spin,
-  Switch,
   Table,
   Tooltip,
 } from 'antd';
@@ -34,6 +33,7 @@ import {
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { StatusSwitch } from '@/components/StatusSwitch';
 import { auditColumns } from '@/pages/purchase/components';
 import { formatDateTime } from '@/utils/format';
 import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
@@ -796,14 +796,11 @@ const ProductListInner: React.FC = () => {
             width: 90,
             render: (_, r) =>
               canEdit && r.editable && !r.deleted ? (
-                <span
-                  onClick={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => e.stopPropagation()}
-                >
-                  <Switch
+                <span onKeyDown={(e) => e.stopPropagation()}>
+                  <StatusSwitch
                     checked={r.status === 1}
-                    aria-label={`${r.mpnDisplay} ${r.status === 1 ? '已启用，点击停用' : '已停用，点击启用'}`}
-                    onClick={() => changeStatus(r)}
+                    name={r.mpnDisplay}
+                    onChange={() => changeStatus(r)}
                   />
                 </span>
               ) : r.status === 1 ? (

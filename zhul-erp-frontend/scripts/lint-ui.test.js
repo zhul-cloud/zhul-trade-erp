@@ -176,6 +176,18 @@ describe('lint:ui', () => {
     ).not.toContain('primary-soft:error');
   });
 
+  it('进度条只用主题色：写死颜色、换成功绿的报错', () => {
+    expect(rules('<Progress strokeColor={palette.green} />')).toContain(
+      'progress-color:error',
+    );
+    expect(
+      rules("<Progress strokeColor={{ from: '#3B82F6', to: '#22D3EE' }} />"),
+    ).toContain('progress-color:error');
+    expect(rules('<Progress strokeColor={palette.chart} />')).not.toContain(
+      'progress-color:error',
+    );
+  });
+
   it('注释里的说法不检查', () => {
     expect(
       rules('// 原来是 linear-gradient(...) 和 #2563EB，已改\nconst a = 1;'),
