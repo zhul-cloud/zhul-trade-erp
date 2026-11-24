@@ -35,6 +35,7 @@ import {
   Pill,
   useWide,
 } from '@/pages/inquiry/shared/components';
+import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import {
@@ -584,6 +585,8 @@ export const PickItemsPanel: React.FC<{
   /** 追加型号时客户固定为报价单的客户 */
   lockCustomer?: boolean;
 }> = ({ customer, onCustomer, selected, onChange, lockCustomer }) => {
+  // 国家按中文名显示（同 CountryText）；下拉选项是纯文字，用不了国旗组件
+  const { find: findCountry } = useCountries();
   const { palette } = useAppTheme();
   const [customers, setCustomers] = useState<PickCustomer[]>([]);
   const [customerKw, setCustomerKw] = useState('');
@@ -700,7 +703,7 @@ export const PickItemsPanel: React.FC<{
         options={(lockCustomer && customer ? [customer] : customers).map(
           (c) => ({
             value: c.customerId,
-            label: `${c.customerName}${c.country ? ` · ${c.country}` : ''} · ${c.inquiryCount} 个询盘`,
+            label: `${c.customerName}${c.country ? ` · ${findCountry(c.country)?.nameZh ?? c.country}` : ''} · ${c.inquiryCount} 个询盘`,
           }),
         )}
         notFoundContent="你负责的询盘里没有匹配的客户"

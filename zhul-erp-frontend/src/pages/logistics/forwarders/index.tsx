@@ -26,6 +26,7 @@ import {
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { Pill } from '@/pages/inquiry/shared/components';
+import { useCountries } from '@/pages/product/components/useCountries';
 import { auditColumns } from '@/pages/purchase/components';
 import {
   AccountListEditor,
@@ -65,6 +66,8 @@ const CustomerSelect: React.FC<{
   onChange?: (v?: number) => void;
   initialLabel?: string | null;
 }> = ({ value, onChange, initialLabel }) => {
+  // 国家按中文名显示（同 CountryText）；下拉选项是纯文字，用不了国旗组件
+  const { find: findCountry } = useCountries();
   const [options, setOptions] = useState<{ value: number; label: string }[]>(
     [],
   );
@@ -77,7 +80,9 @@ const CustomerSelect: React.FC<{
           setOptions(
             list.map((c) => ({
               value: c.id,
-              label: c.country ? `${c.name} · ${c.country}` : c.name,
+              label: c.country
+                ? `${c.name} · ${findCountry(c.country)?.nameZh ?? c.country}`
+                : c.name,
             })),
           ),
         )

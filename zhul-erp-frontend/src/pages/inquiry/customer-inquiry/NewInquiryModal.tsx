@@ -23,6 +23,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ChunkUploadList, { useChunkUploads } from '@/components/ChunkUploadList';
 import CustomerQuickCreateModal from '@/components/CustomerQuickCreateModal';
 import { formatSize, Pill } from '@/pages/crm/opportunity/components';
+import { useCountries } from '@/pages/product/components/useCountries';
 import { getCustomer, searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
@@ -80,6 +81,8 @@ const NewInquiryModal: React.FC<{
   onClose: () => void;
   onCreated: (inquiry: CustomerInquiry, startParse: boolean) => void;
 }> = ({ open, presetCustomerId, onClose, onCreated }) => {
+  // 国家按中文名显示（同 CountryText）；下拉选项是纯文字，用不了国旗组件
+  const { find: findCountry } = useCountries();
   const { levelOptions } = useLevels();
   const { options: sourceOptions } = useDictOptions(DICT_SOURCE_CHANNEL);
   const { palette } = useAppTheme();
@@ -176,7 +179,7 @@ const NewInquiryModal: React.FC<{
     const list = await searchCustomers(keyword);
     setCustomers(
       list.map((c) => ({
-        label: `${c.displayName || c.name}${c.country ? ` · ${c.country}` : ''}`,
+        label: `${c.displayName || c.name}${c.country ? ` · ${findCountry(c.country)?.nameZh ?? c.country}` : ''}`,
         value: c.id,
       })),
     );

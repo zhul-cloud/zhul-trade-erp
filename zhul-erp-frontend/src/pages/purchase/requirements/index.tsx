@@ -14,6 +14,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Pagination,
   Popover,
   Radio,
   Segmented,
@@ -36,6 +37,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { CountryText } from '@/components/CountryText';
 import { CustomerCell } from '@/components/DocFields';
 import { DescRemarkCell } from '@/components/DocFields/ItemRemark';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
@@ -550,7 +552,10 @@ const RequirementList: React.FC = () => {
         <div style={{ minWidth: 220 }}>
           <b style={{ color: palette.ink }}>{o.customerName}</b>{' '}
           {o.customerType ? <CustomerTypePill type={o.customerType} /> : null}
-          {sub(palette.mute, o.customerCountry ?? '')}
+          {sub(
+            palette.mute,
+            o.customerCountry ? <CountryText value={o.customerCountry} /> : '',
+          )}
         </div>
         {o.overdueCount > 0 && (
           <Pill tone="red">
@@ -939,30 +944,19 @@ const RequirementList: React.FC = () => {
               </Panel>
             );
           })}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: 12,
-              alignItems: 'center',
-            }}
-          >
-            <span style={{ color: palette.mute }}>共 {total} 张订单</span>
-            <Button
-              size="small"
-              disabled={page <= 1}
-              onClick={() => setPage(page - 1)}
-            >
-              上一页
-            </Button>
-            <span style={{ color: palette.sub }}>第 {page} 页</span>
-            <Button
-              size="small"
-              disabled={page * pageSize >= total}
-              onClick={() => setPage(page + 1)}
-            >
-              下一页
-            </Button>
+          {/* 统一分页（每页条数、页码、跳页），总数已在主卡左上角（ui-redesign P8） */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Pagination
+              {...PAGER_STYLE}
+              current={page}
+              pageSize={pageSize}
+              total={total}
+              hideOnSinglePage={total <= 10}
+              onChange={(p, sz) => {
+                setPage(p);
+                setPageSize(sz);
+              }}
+            />
           </div>
         </div>
       )}
