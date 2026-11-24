@@ -255,6 +255,8 @@
    更正原因：原规则「固定显示」加上单据页的品牌、品类、来源单号等列，34 个列表里有 26 个在 1366 宽下要横向滚动（最宽 2556px），挤出屏幕的反而是状态、金额这些要看的列。现在列表默认只显示做判断和操作需要的列（身份、状态、金额、进度、操作），其余列（含创建、更新）放进工具栏右侧的「列」按钮，用户勾选显示、拖动排序、可恢复默认，按登录用户、按页面记在本机。参照 Linear、Notion、Odoo、NetSuite。
    - 用法：`const cols = useColumnSettings('页面标识', columns, { hidden: ['品牌', '品类', …] })`，表格用 `cols.columns`、`tableScrollX(cols.columns)`，按钮 `cols.settings` 传给 `MainCard` 的 `settings`。`hidden` 写列名或列标识；「创建」「更新」总是默认收起，不用写。固定在左右两侧的列（单号、操作）始终显示，不进设置。
    - 默认显示的列加起来不超过 1043px（1366 宽屏幕上的表格区），每个页面新增或改列后在 1366 宽下量一遍，不横向滚动。
+   - **宽屏自动补列、窄屏允许滚动**（2026-11-24 用户：允许滚动，要保证信息齐全，不要浪费空间，D57）：表格区放得下时，`useColumnSettings` 按列顺序自动补上默认收起的列（「创建」「更新」最后补），直到放不下为止；窄于 1366（如 1920×1080 加 150% 缩放、1366 加 125% 缩放、窗口没最大化）时不自动收起任何列，表格横向滚动。用户在「列」里亲手开关过的列不受自动调整影响。
+   - 允许滚动，所以每个列表的首列（单号、名称等身份列）固定在左、操作列固定在右，滚动时始终看得到。
    - lint:ui `column-settings` 把关：页面用了 `auditColumns` / `proAuditColumns` 就必须接 `useColumnSettings`。
 3. **完整时间格式** `yyyy-MM-dd HH:mm:ss`（悬停、详情页、导出用）：前端用 `src/utils/format.ts` 的 `formatDateTime()`，ProTable 的 `valueType: 'dateTime'` 默认格式已符合；后端 VO 直接暴露 `LocalDateTime`。
 4. **记住每页条数**：用 `src/utils/pageSize.ts` 的 `usePageSize(默认值)` 或 `usePagination(默认值)`，按页面路径存在本地；同页多个分页表格传第二个参数区分。

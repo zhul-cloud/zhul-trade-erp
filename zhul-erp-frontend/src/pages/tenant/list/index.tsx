@@ -282,6 +282,7 @@ const TenantListPage: React.FC = () => {
 
   const columns: ProColumns<TenantItem>[] = [
     {
+      fixed: 'left',
       title: '租户编码',
       dataIndex: 'code',
       search: false,

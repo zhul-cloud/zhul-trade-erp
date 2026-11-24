@@ -125,7 +125,13 @@ const PositionPage: React.FC = () => {
   const confirmDanger = useConfirmDanger();
   const checking = useRef(false);
   const columns: ProColumns<PositionItem>[] = [
-    { title: '岗位编码', dataIndex: 'code', width: 140, search: false },
+    {
+      fixed: 'left',
+      title: '岗位编码',
+      dataIndex: 'code',
+      width: 140,
+      search: false,
+    },
     { title: '岗位名称', dataIndex: 'name', width: 180, search: false },
     { title: '排序', dataIndex: 'sort', width: 80, search: false },
     {

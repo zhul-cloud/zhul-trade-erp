@@ -307,6 +307,7 @@ const UserPage: React.FC = () => {
   const confirmDanger = useConfirmDanger();
   const columns: ProColumns<UserItem>[] = [
     {
+      fixed: 'left',
       title: '用户',
       dataIndex: 'name',
       width: 220,

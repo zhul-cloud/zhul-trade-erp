@@ -401,6 +401,7 @@ const MenuPage: React.FC = () => {
   const confirmDanger = useConfirmDanger();
   const columns: ProColumns<MenuItem>[] = [
     {
+      fixed: 'left',
       title: '菜单名称',
       dataIndex: 'name',
       width: 240,

@@ -316,6 +316,7 @@ const CustomerListPage: React.FC = () => {
 
   const columns: TableColumnsType<CustomerListItem> = [
     {
+      fixed: 'left',
       // 名称在前、编码在后（ui-redesign S9：编码是次要信息）
       title: '客户名称',
       dataIndex: 'name',

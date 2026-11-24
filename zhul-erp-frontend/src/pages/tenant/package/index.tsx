@@ -213,6 +213,7 @@ const TenantPackagePage: React.FC = () => {
 
   const columns: ProColumns<TenantPackageItem>[] = [
     {
+      fixed: 'left',
       title: '套餐名称',
       dataIndex: 'name',
       search: false,

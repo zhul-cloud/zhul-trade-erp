@@ -246,6 +246,7 @@ const CountryProfilesPage: React.FC = () => {
 
   const columns: TableColumnsType<CountryProfile> = [
     {
+      fixed: 'left',
       title: '国家',
       dataIndex: 'country',
       width: 180,

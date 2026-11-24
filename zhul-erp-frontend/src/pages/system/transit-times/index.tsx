@@ -79,6 +79,7 @@ const TransitTimes: React.FC = () => {
   const confirmDanger = useConfirmDanger();
   const columns: TableColumnsType<TransitTime> = [
     {
+      fixed: 'left',
       title: '快递公司',
       dataIndex: 'carrier',
       width: 140,

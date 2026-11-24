@@ -96,6 +96,7 @@ const SeriesPage: React.FC = () => {
 
   const columns: ProColumns<Series>[] = [
     {
+      fixed: 'left',
       title: '系列名称',
       dataIndex: 'seriesName',
       search: false,

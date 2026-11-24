@@ -122,6 +122,7 @@ const CategoryPage: React.FC = () => {
 
   const columns: ProColumns<Category>[] = [
     {
+      fixed: 'left',
       // 名称在前、编码在后（ui-redesign S9：编码是次要信息）
       title: '品类名称',
       dataIndex: 'categoryName',

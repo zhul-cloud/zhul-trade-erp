@@ -65,6 +65,7 @@ export const SignalTable: React.FC<{
   const { palette } = useAppTheme();
   const columns: TableColumnsType<Signal> = [
     {
+      fixed: 'left',
       title: '来源',
       dataIndex: 'sourceType',
       width: 120,

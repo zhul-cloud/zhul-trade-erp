@@ -93,6 +93,7 @@ const AllTasksTable: React.FC<{
 
   const columns: TableColumnsType<BoardHistoryRow> = [
     {
+      fixed: 'left',
       title: '任务编号',
       dataIndex: 'taskCode',
       width: 150,

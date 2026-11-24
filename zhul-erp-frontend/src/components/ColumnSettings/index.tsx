@@ -111,6 +111,57 @@ export const arrange = <C extends Col>(
   });
 };
 
+/** 列宽：没写宽度的按 120 计（同 tableScrollX） */
+const widthOf = (c: Col & { width?: unknown }) =>
+  typeof c.width === 'number' ? c.width : 120;
+
+/**
+ * 宽屏自动补列（2026-11-24 用户：允许滚动、信息齐全、不浪费空间）：
+ * 表格区放得下时，把默认收起、用户没有手动关掉的列按列顺序补上（「创建」「更新」最后补），
+ * 直到放不下为止。只补不减：窄屏不自动收起列，放不下就横向滚动。
+ * room 为表格区宽度减去当前显示列的宽度；返回补上的列标识。
+ */
+export const autoFill = <C extends Col>(
+  columns: readonly C[],
+  state: ColumnState,
+  defaultHidden: readonly string[],
+  room: number,
+): { columns: C[]; auto: Set<string> } => {
+  const auto = new Set<string>();
+  if (room <= 0) return { columns: [...columns], auto };
+  const candidates = columns
+    .filter((c, i) => {
+      const cid = colId(c);
+      return (
+        c.hidden &&
+        movable(c, i) &&
+        cid !== undefined &&
+        defaultHidden.includes(cid) &&
+        !state.hidden.includes(cid)
+      );
+    })
+    .sort(
+      (a, b) =>
+        Number(AUDIT_KEYS.includes(colId(a) as string)) -
+        Number(AUDIT_KEYS.includes(colId(b) as string)),
+    );
+  let left = room;
+  for (const c of candidates) {
+    const w = widthOf(c as C & { width?: unknown });
+    if (w > left) break;
+    left -= w;
+    auto.add(colId(c) as string);
+  }
+  return {
+    columns: columns.map((c) =>
+      auto.has(colId(c) as string)
+        ? { ...c, hidden: false, hideInTable: false }
+        : c,
+    ),
+    auto,
+  };
+};
+
 /** 按租户加登录账号区分（不同租户可能有同名账号） */
 const userKey = () => {
   try {
@@ -228,22 +279,49 @@ export function useColumnSettings<C extends Col>(
     .map((c) => colId(c) as string);
   const foundKey = JSON.stringify(found);
   const defaults = useMemo(() => JSON.parse(foundKey) as string[], [foundKey]);
-  const arranged = useMemo(
-    () => arrange(columns, state, defaults),
-    [columns, state, defaults],
-  );
+  const trigger = useRef<HTMLButtonElement>(null);
+  // 表格区宽度：从「列」按钮往上找到同时装着表格的容器，减去它的左右内边距和勾选列
+  const [avail, setAvail] = useState(0);
+  useEffect(() => {
+    const start = trigger.current;
+    if (!start || typeof ResizeObserver === 'undefined') return;
+    let box: HTMLElement | null = start.parentElement;
+    while (box && !box.querySelector('.ant-table')) box = box.parentElement;
+    if (!box) return;
+    const el = box;
+    const measure = () => {
+      const cs = getComputedStyle(el);
+      const pad =
+        parseFloat(cs.paddingLeft || '0') + parseFloat(cs.paddingRight || '0');
+      const sel = el.querySelector<HTMLElement>(
+        'th.ant-table-selection-column',
+      );
+      const w = Math.floor(el.clientWidth - pad - (sel?.offsetWidth ?? 0));
+      setAvail((old) => (Math.abs(old - w) >= 1 ? w : old));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
+  const arranged = useMemo(() => {
+    const base = arrange(columns, state, defaults);
+    const used = base
+      .filter((c) => !c.hidden)
+      .reduce((sum, c) => sum + widthOf(c as C & { width?: unknown }), 0);
+    return autoFill(base, state, defaults, avail ? avail - used : 0);
+  }, [columns, state, defaults, avail]);
   const update = (s: ColumnState) => {
     setState(s);
     save(id, s);
   };
-  const items = arranged.filter(movable);
+  const items = arranged.columns.filter(movable);
   const nameOf = (cid: unknown) => {
     const c = items.find((x) => colId(x) === String(cid));
     return c ? colLabel(c) : String(cid);
   };
   const [open, setOpen] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
-  const trigger = useRef<HTMLButtonElement>(null);
   // 打开后焦点进到第一个勾选框，键盘用户能直接操作（弹层渲染在页面末尾，Tab 走不到）；等弹层渲染完再移
   useEffect(() => {
     if (!open) return;
@@ -269,7 +347,8 @@ export function useColumnSettings<C extends Col>(
     const isDef = defaults.includes(cid);
     // 和默认一致就不记，以后默认变了能跟上
     if (show && isDef) shown.push(cid);
-    if (!show && !isDef) hidden.push(cid);
+    // 宽屏自动补上的列，手动关掉要记下来，否则下次又被补上
+    if (!show && (!isDef || arranged.auto.has(cid))) hidden.push(cid);
     update({ ...state, hidden, shown });
   };
 
@@ -381,5 +460,5 @@ export function useColumnSettings<C extends Col>(
     </Popover>
   ) : null;
 
-  return { columns: arranged, settings };
+  return { columns: arranged.columns, settings };
 }

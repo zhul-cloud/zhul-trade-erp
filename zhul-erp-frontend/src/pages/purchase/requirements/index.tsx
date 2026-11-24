@@ -334,6 +334,7 @@ const RequirementList: React.FC = () => {
 
   const lineColumns: TableColumnsType<Requirement> = [
     {
+      fixed: 'left',
       title: '型号 · 品牌 · 品类',
       dataIndex: 'model',
       width: 230,
@@ -524,7 +525,10 @@ const RequirementList: React.FC = () => {
         <CustomerCell name={r.customerName} country={r.customerCountry} />
       ),
     },
-    ...lineColumns,
+    // 平铺视图里型号前还有来源单号、客户两列：只固定来源单号，型号列不再固定
+    ...lineColumns.map((c) =>
+      c.fixed === 'left' ? { ...c, fixed: undefined } : c,
+    ),
   ];
   const flatSet = useColumnSettings('purchase-requirements-flat', flatColumns, {
     hidden: ['客户', '描述', '目标价', '采购员'],

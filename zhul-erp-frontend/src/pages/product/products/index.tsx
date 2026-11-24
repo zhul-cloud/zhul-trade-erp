@@ -671,6 +671,7 @@ const ProductListInner: React.FC = () => {
   }, [reviewing, heatSort]);
   const columns: ColumnsType<Product> = [
     {
+      fixed: 'left',
       title: '商品',
       key: 'product',
       width: 230,
@@ -852,6 +853,7 @@ const ProductListInner: React.FC = () => {
           },
         ] as ColumnsType<Product>)),
     {
+      fixed: 'right',
       title: '维护方',
       key: 'owner',
       width: 72,

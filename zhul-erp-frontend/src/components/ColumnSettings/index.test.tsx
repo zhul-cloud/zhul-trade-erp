@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { HeadHelp } from '@/components/ListLayout';
-import { arrange, colId, colLabel, useColumnSettings } from './index';
+import { arrange, autoFill, colId, colLabel, useColumnSettings } from './index';
 
 const cols = [
   { title: '单号', dataIndex: 'no', fixed: 'left' as const },
@@ -137,5 +137,39 @@ describe('useColumnSettings', () => {
     fireEvent.click(await screen.findByRole('checkbox', { name: '客户' }));
     const qty = screen.getByRole('checkbox', { name: '型号' });
     expect((qty as HTMLInputElement).disabled).toBe(true);
+  });
+});
+
+describe('宽屏自动补列 autoFill', () => {
+  const wide = [
+    { title: '单号', dataIndex: 'no', fixed: 'left' as const, width: 170 },
+    { title: '客户', dataIndex: 'customer', width: 200 },
+    { title: '型号', key: 'qty', width: 190 },
+    { title: '品牌', key: 'brands', width: 160 },
+    { title: '创建', key: 'create', width: 120 },
+    { title: '更新', key: 'update', width: 120 },
+    { title: '操作', key: 'actions', fixed: 'right' as const, width: 96 },
+  ];
+  const defaults = ['qty', 'brands', 'create', 'update'];
+  const base = arrange(wide, EMPTY, defaults);
+
+  it('放得下就按列顺序补，「创建」「更新」最后补，放不下的不补', () => {
+    const r = autoFill(base, EMPTY, defaults, 300);
+    expect([...r.auto]).toEqual(['qty']);
+    expect(shown(r.columns)).toEqual(['no', 'customer', 'qty', 'actions']);
+    expect([...autoFill(base, EMPTY, defaults, 700).auto]).toEqual([
+      'qty',
+      'brands',
+      'create',
+      'update',
+    ]);
+  });
+
+  it('只补不减：没有空余时保持默认，用户手动关掉的不补', () => {
+    expect(autoFill(base, EMPTY, defaults, 0).auto.size).toBe(0);
+    const off = { order: [], shown: [], hidden: ['qty'] };
+    expect([
+      ...autoFill(arrange(wide, off, defaults), off, defaults, 200).auto,
+    ]).toEqual(['brands']);
   });
 });

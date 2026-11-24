@@ -290,6 +290,7 @@ const ConfigPage: React.FC = () => {
   const columns: ProColumns<ConfigItem>[] = [
     // 名称在前、配置键在后（ui-redesign S9、P17：技术键是次要信息）
     {
+      fixed: 'left',
       title: '配置名称',
       dataIndex: 'configName',
       width: 150,
