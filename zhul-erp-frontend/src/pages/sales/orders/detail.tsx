@@ -487,13 +487,19 @@ const OrderDetail: React.FC = () => {
   for (const i of o.items.filter((x) => x.quantity > 0)) {
     counts.set(i.progressCode, (counts.get(i.progressCode) ?? 0) + 1);
   }
-  const rank = (code: string) => o.steps.findIndex((s) => s.code === code);
+  // 找不到的进度码（字典已删除）排在所有步骤之后，与后端 OrderProgress.rank 一致
+  const rank = (code: string) => {
+    const i = o.steps.findIndex((s) => s.code === code);
+    return i < 0 ? o.steps.length : i;
+  };
   const slowest = completed ? o.steps.length : rank(o.progressCode);
   const visibleSteps = [
     ...o.steps.filter((s) => s.enabled || counts.has(s.code)),
     { code: 'COMPLETED', name: '已完成', enabled: true },
   ];
-  // 步骤条（界面规范「步骤条」）：圆点 30，已完成与当前步为主题色实底白字，未到的为浅灰底灰字
+  // 步骤条（界面规范「步骤条」）：同一时刻只有一个当前步——订单状态，即进度最慢的型号所在步（P5）。
+  // 之前的步骤主题色实底加对勾；当前步实底加外圈；已有部分型号先走到的后续步骤只描边、写型号数，不算当前；未到的浅灰
+  // 多个型号分散在几步时，原来每一步都实底高亮，看不出订单停在哪一步
   const stepper = active && (
     <Section title="订单进度" help="订单状态取进度最慢的型号">
       <ol
@@ -506,15 +512,26 @@ const OrderDetail: React.FC = () => {
         }}
       >
         {visibleSteps.map((s, n) => {
-          const r = s.code === 'COMPLETED' ? o.steps.length : rank(s.code);
+          const r = s.code === 'COMPLETED' ? o.steps.length + 1 : rank(s.code);
           const count = counts.get(s.code) ?? 0;
           const reached = completed || r < slowest;
-          const current = !completed && count > 0;
+          const current = !completed && r === slowest;
+          // 部分型号已走到这一步（订单整体还没到）
+          const ahead = !completed && r > slowest && count > 0;
           const on = reached || current;
           return (
             <li
               key={s.code}
               aria-current={current ? 'step' : undefined}
+              aria-label={`${s.name}：${
+                reached
+                  ? '已完成'
+                  : current
+                    ? `当前${count ? `，${count} 个型号` : ''}`
+                    : ahead
+                      ? `${count} 个型号已到这一步`
+                      : '未开始'
+              }`}
               style={{
                 flex: 1,
                 minWidth: 0,
@@ -535,12 +552,15 @@ const OrderDetail: React.FC = () => {
                     right: 'calc(50% + 23px)',
                     height: 2,
                     borderRadius: 1,
-                    background: reached ? palette.primary : palette.hairline,
+                    // 连到当前步为止都是主题色
+                    background: on ? palette.primary : palette.hairline,
                   }}
                 />
               )}
               <span
+                aria-hidden
                 style={{
+                  boxSizing: 'border-box',
                   width: 30,
                   height: 30,
                   borderRadius: '50%',
@@ -548,18 +568,31 @@ const OrderDetail: React.FC = () => {
                   placeItems: 'center',
                   fontSize: 13,
                   fontWeight: 600,
-                  background: on ? palette.primary : palette.neutralSoft,
-                  color: on ? palette.onPrimary : palette.mute,
+                  background: on
+                    ? palette.primary
+                    : ahead
+                      ? palette.card
+                      : palette.neutralSoft,
+                  color: on
+                    ? palette.onPrimary
+                    : ahead
+                      ? palette.link
+                      : palette.mute,
+                  border: ahead ? `2px solid ${palette.primary}` : undefined,
+                  // 当前步：外圈主题色浅环，和已完成区分
+                  boxShadow: current
+                    ? `0 0 0 4px ${palette.primarySoft}`
+                    : undefined,
                 }}
               >
-                {n + 1}
+                {reached ? <Check size={16} strokeWidth={3} /> : n + 1}
               </span>
               <span
                 style={{
                   marginTop: 8,
                   fontSize: 14,
                   fontWeight: current ? 600 : 400,
-                  color: on ? palette.ink : palette.mute,
+                  color: on || ahead ? palette.ink : palette.mute,
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -568,10 +601,10 @@ const OrderDetail: React.FC = () => {
               <span
                 style={{
                   fontSize: 12,
-                  color: current ? palette.link : palette.mute,
+                  color: current || ahead ? palette.link : palette.mute,
                 }}
               >
-                {current ? `${count} 个型号` : '—'}
+                {(current || ahead) && count > 0 ? `${count} 个型号` : '—'}
               </span>
             </li>
           );
@@ -1031,6 +1064,76 @@ const OrderDetail: React.FC = () => {
     </div>
   );
 
+  // 另收的费用订单并入「金额」一栏（P5）：和合计放在一起看这笔生意一共收多少，不再单独一张卡
+  const feeOrderList = o.feeOrders ?? [];
+  const feeOrders = !replacement &&
+    (canFeeOrder || feeOrderList.length > 0) && (
+      <div style={{ marginTop: 16 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            paddingBottom: 6,
+            borderBottom: `1px solid ${palette.hairline}`,
+            fontSize: 13,
+          }}
+        >
+          <span style={{ color: palette.mute }}>另收费用订单</span>
+          <HelpTip title="已收齐款或已完成的订单，还要另收运费等费用时新建" />
+          {canFeeOrder && (
+            <Button
+              type="link"
+              size="small"
+              icon={<Plus size={14} />}
+              style={{ marginLeft: 'auto', paddingInline: 0 }}
+              aria-label="新建费用订单"
+              onClick={() => setDialog('feeOrder')}
+            >
+              新建
+            </Button>
+          )}
+        </div>
+        {feeOrderList.map((x) => (
+          <div
+            key={x.id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '8px 0',
+              borderBottom: `1px solid ${palette.hairline}`,
+              fontSize: 13,
+              opacity: x.status === 2 ? 0.6 : 1,
+            }}
+          >
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(`/sales/orders/${x.id}`)}
+            >
+              {x.soNo}
+            </button>
+            {x.status === 2 ? (
+              <Pill tone="gray">已取消</Pill>
+            ) : (
+              <ReceiptStatusPill status={x.receiptStatus} />
+            )}
+            <span
+              style={{
+                ...num,
+                marginLeft: 'auto',
+                color: palette.ink,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {formatAmount(x.totalAmount, x.currencyCode)}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+
   const showTerms = !manual && !replacement;
   const terms = (
     <Section
@@ -1127,6 +1230,7 @@ const OrderDetail: React.FC = () => {
               不改）
             </div>
           )}
+          {feeOrders}
         </div>
       </div>
     </Section>
@@ -1520,71 +1624,6 @@ const OrderDetail: React.FC = () => {
         </Card>
       )}
     </>
-  );
-
-  const feeOrdersCard = (
-    <Card style={{ padding: 20, marginTop: 16 }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          marginBottom: 12,
-        }}
-      >
-        <CardTitle>费用订单</CardTitle>
-        {(o.feeOrders?.length ?? 0) === 0 && (
-          <span style={{ fontSize: 13, color: palette.mute }}>
-            已收齐款或已完成的订单，还要另收运费等费用时新建
-          </span>
-        )}
-        {canFeeOrder && (
-          <Button
-            type="text"
-            icon={<Plus size={16} />}
-            style={{ marginLeft: 'auto', color: palette.link }}
-            onClick={() => setDialog('feeOrder')}
-          >
-            新建费用订单
-          </Button>
-        )}
-      </div>
-      {(o.feeOrders?.length ?? 0) === 0 ? null : (
-        <div style={{ display: 'grid' }}>
-          {o.feeOrders?.map((x, i) => (
-            <div
-              key={x.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '8px 0',
-                borderTop: i > 0 ? `1px solid ${palette.hairline}` : undefined,
-                opacity: x.status === 2 ? 0.6 : 1,
-              }}
-            >
-              <button
-                type="button"
-                className="zhul-link"
-                onClick={() => history.push(`/sales/orders/${x.id}`)}
-              >
-                {x.soNo}
-              </button>
-              <span style={{ ...num, color: palette.ink }}>
-                {formatAmount(x.totalAmount, x.currencyCode)}
-              </span>
-              <span style={{ marginLeft: 'auto' }}>
-                {x.status === 2 ? (
-                  <Pill tone="gray">已取消</Pill>
-                ) : (
-                  <ReceiptStatusPill status={x.receiptStatus} />
-                )}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </Card>
   );
 
   const m = o.margin;
@@ -2024,9 +2063,6 @@ const OrderDetail: React.FC = () => {
         </div>
       )}
       {terms}
-      {!replacement &&
-        (canFeeOrder || (o.feeOrders?.length ?? 0) > 0) &&
-        feeOrdersCard}
       <div style={{ marginTop: 16 }}>
         <OrderFilesCard
           order={o}
