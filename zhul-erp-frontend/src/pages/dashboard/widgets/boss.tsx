@@ -14,6 +14,7 @@ import { CountryFlag } from '@/components/CountryText';
 import { DeltaPill } from '@/components/MetricCard';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
+import { seriesFor, textOn } from '@/theme/palette';
 import { formatAmount } from '@/utils/format';
 import { MenuName } from '@/utils/menuName';
 import type { Block } from './BlockWidget';
@@ -387,9 +388,18 @@ export const RiskAlertsWidget: React.FC = () => {
   );
 };
 
-/** 排行的头像：客户为圆形国旗，业务员为名字首字 */
+/**
+ * 排行的头像：客户为圆形国旗，业务员为名字首字。
+ * 首字头像按名字取图表系列色（同一个人在各处同色），字色按底色取白或深色；灰底像禁用（2026-11-24 巡查）
+ */
 const Avatar: React.FC<{ name: string; code?: string }> = ({ name, code }) => {
-  const { palette } = useAppTheme();
+  const { mode } = useAppTheme();
+  const colors = seriesFor(mode);
+  const bg =
+    colors[
+      Array.from(name).reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) %
+        colors.length
+    ];
   return code ? (
     <CountryFlag code={code} round={28} />
   ) : (
@@ -402,8 +412,8 @@ const Avatar: React.FC<{ name: string; code?: string }> = ({ name, code }) => {
         borderRadius: '50%',
         display: 'grid',
         placeItems: 'center',
-        background: palette.neutralSoft,
-        color: palette.mute,
+        background: bg,
+        color: textOn(bg),
         fontSize: 12,
         fontWeight: 600,
       }}

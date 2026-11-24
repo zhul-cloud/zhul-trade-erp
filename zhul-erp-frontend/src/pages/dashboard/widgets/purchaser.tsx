@@ -281,7 +281,8 @@ export const MyPurchaseWidget: React.FC = () => {
       <TodoItem
         key="draft"
         icon={<FileCheck size={18} />}
-        tone="gray"
+        // 待处理类数量用信息色（规范「图标底块」），不用灰色
+        tone="violet"
         title="草稿采购订单"
         desc="还没确认下单"
         count={data.drafts ?? 0}
