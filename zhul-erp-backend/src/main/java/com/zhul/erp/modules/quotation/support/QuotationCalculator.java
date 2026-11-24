@@ -51,8 +51,12 @@ public final class QuotationCalculator {
             if (i.getCostPrice() != null) {
                 netProfit = (netProfit == null ? BigDecimal.ZERO : netProfit).add(i.getNetProfit());
                 netProfitCny = (netProfitCny == null ? BigDecimal.ZERO : netProfitCny).add(i.getNetProfitCny());
-                costTotal = costTotal.add(i.getCostPrice().multiply(BigDecimal.valueOf(i.getQuantity())));
-                revenueCny = revenueCny.add(i.getAmount().multiply(rate, MC));
+                // 合计毛利率只算已定价（售价大于 0）的型号，与单行「售价为 0 时毛利率为空」一致；
+                // 否则还没定价的型号只计成本不计收入，毛利率会被拉到几千个百分点以下
+                if (i.getAmount().signum() > 0) {
+                    costTotal = costTotal.add(i.getCostPrice().multiply(BigDecimal.valueOf(i.getQuantity())));
+                    revenueCny = revenueCny.add(i.getAmount().multiply(rate, MC));
+                }
             }
         }
         BigDecimal feeAmount = BigDecimal.ZERO;
@@ -69,7 +73,8 @@ public final class QuotationCalculator {
         q.setNetProfit(netProfit);
         q.setNetProfitCny(netProfitCny);
         q.setMarginRate(revenueCny.signum() > 0
-                ? BigDecimal.ONE.subtract(costTotal.divide(revenueCny, MC)).multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP)
+                ? QuotationPricing.storableMargin(BigDecimal.ONE.subtract(costTotal.divide(revenueCny, MC))
+                .multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP))
                 : null);
     }
 }

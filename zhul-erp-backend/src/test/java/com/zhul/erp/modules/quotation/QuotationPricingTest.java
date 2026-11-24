@@ -220,4 +220,44 @@ class QuotationPricingTest {
                 .hasMessageContaining("加价");
         assertThatThrownBy(() -> QuotationPricing.calculate(new Input(d("100"), 1, USD, 9, null, null, null))).hasMessageContaining("定价方式");
     }
+
+    // ---------------------------------------------------------------- BUS-093 毛利率超出字段范围
+
+    private static com.zhul.erp.modules.quotation.entity.QuotationItemDO line(String cost, int mode, String margin, String price) {
+        var i = new com.zhul.erp.modules.quotation.entity.QuotationItemDO();
+        i.setCostPrice(cost == null ? null : new BigDecimal(cost));
+        i.setQuantity(1);
+        i.setPricingMode(mode);
+        i.setMarginRate(margin == null ? null : new BigDecimal(margin));
+        i.setUnitPrice(price == null ? null : new BigDecimal(price));
+        com.zhul.erp.modules.quotation.support.QuotationCalculator.applyLine(i, USD);
+        return i;
+    }
+
+    /** 生产 IQ20261123006：只有低值型号按金额档自动定价，大额型号售价为 0，合计毛利率不能把未定价型号的成本算进去 */
+    @Test
+    void totals_marginIgnoresUnpricedLines() {
+        var q = new com.zhul.erp.modules.quotation.entity.QuotationDO();
+        q.setExchangeRate(USD);
+        var priced = line("80", QuotationPricing.MODE_MARGIN, "50", null);
+        var unpriced1 = line("30000", QuotationPricing.MODE_PRICE, null, "0");
+        var unpriced2 = line("28000", QuotationPricing.MODE_PRICE, null, "0");
+        com.zhul.erp.modules.quotation.support.QuotationCalculator.applyTotals(q, List.of(priced, unpriced1, unpriced2), List.of());
+        assertThat(unpriced1.getMarginRate()).isNull();
+        assertThat(q.getMarginRate()).isBetween(new BigDecimal("49"), new BigDecimal("51"));
+        assertThat(q.getNetProfitCny()).isNegative();
+    }
+
+    /** 手工把售价填得远低于成本：单行与合计毛利率都按 −999.99% 存，不让保存失败 */
+    @Test
+    void margin_farBelowCost_clampedToColumnRange() {
+        var q = new com.zhul.erp.modules.quotation.entity.QuotationDO();
+        q.setExchangeRate(USD);
+        var cheap = line("30000", QuotationPricing.MODE_PRICE, null, "1");
+        assertThat(cheap.getMarginRate()).isEqualByComparingTo("-999.99");
+        com.zhul.erp.modules.quotation.support.QuotationCalculator.applyTotals(q, List.of(cheap), List.of());
+        assertThat(q.getMarginRate()).isEqualByComparingTo("-999.99");
+        assertThat(QuotationPricing.storableMargin(new BigDecimal("-12.34"))).isEqualByComparingTo("-12.34");
+        assertThat(QuotationPricing.storableMargin(null)).isNull();
+    }
 }
