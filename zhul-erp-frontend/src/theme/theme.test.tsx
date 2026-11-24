@@ -96,20 +96,16 @@ describe('设计令牌', () => {
     }
   });
 
-  it('状态文字色（12px 标签字）：照参考模板的 dark 档，在卡片底和自身浅底上都不低于 3.5:1；红、信息、中性不低于 4.5:1（R14，2026-11-24 用户决定）', () => {
+  it('状态文字色：绿、信息在浅色、深色都直接用原色（R18，2026-11-24 用户看过对比图后决定），中性标签字不低于 4.5:1', () => {
     for (const m of ['light', 'dark'] as const) {
       const p = buildPalette(m);
-      for (const [fg, bg, min] of [
-        ['green', 'greenSoft', 3.5],
-        ['orange', 'orangeSoft', 3.5],
-        ['red', 'redSoft', 4.5],
-        ['info', 'infoSoft', 4.5],
-        ['neutral', 'neutralSoft', 4.5],
-      ] as const) {
-        expect(contrast(p[fg], p[bg])).toBeGreaterThanOrEqual(min);
-        expect(contrast(p[fg], p.card)).toBeGreaterThanOrEqual(min);
-      }
+      expect(p.green).toBe(p.greenMain);
+      expect(p.info).toBe(p.infoMain);
+      expect(contrast(p.neutral, p.neutralSoft)).toBeGreaterThanOrEqual(4.5);
     }
+    expect(buildPalette('light').red).toBe('#FF5630');
+    // 橙文字不能和琥珀链接色混在一起（R19）
+    expect(buildPalette('light').orange).not.toBe(buildPalette('light').orangeMain);
   });
 
   it('主题色实底上的文字：每种主题色在浅色下都不低于 4.5:1（琥珀用深色字）', () => {
@@ -119,7 +115,8 @@ describe('设计令牌', () => {
         k === 'amber' ? 4.5 : 3,
       );
     }
-    expect(buildPalette('light', 'amber').onPrimary).toBe('#212B36');
+    // 琥珀用同色相最深一档（D54，对比图 R17），不用偏蓝的近黑
+    expect(buildPalette('light', 'amber').onPrimary).toBe('#4A2E00');
     expect(buildPalette('light', 'royal').onPrimary).toBe('#FFFFFF');
   });
 
@@ -170,14 +167,15 @@ describe('Ant Design 主题', () => {
     expect(t.token?.controlHeight).toBe(36);
   });
 
-  it('危险实底按钮的字与底色不低于 4.5:1（深色下底色亮，用深色字）', () => {
+  it('危险实底按钮的字：浅色照参考模板原色白字不低于 3:1，深色亮红底用深色字不低于 4.5:1', () => {
     for (const mode of ['light', 'dark'] as const) {
       const p = buildPalette(mode, 'amber');
       const b = buildAntdTheme(mode, 'amber').components?.Button;
       const fg = String(b?.dangerColor);
-      expect(contrast(fg, p.red)).toBeGreaterThanOrEqual(4.5);
+      const min = mode === 'light' ? 3 : 4.5;
+      expect(contrast(fg, p.red)).toBeGreaterThanOrEqual(min);
       expect(contrast(fg, String(b?.colorErrorHover))).toBeGreaterThanOrEqual(
-        4.5,
+        min,
       );
     }
   });

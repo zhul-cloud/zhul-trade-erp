@@ -20,7 +20,7 @@ interface Preset {
   darkSoft: string;
   /** 主题色作为图表第一个系列时，去掉色相最接近的那个系列色（CHART_SERIES 的序号） */
   chartDrop: number;
-  /** 原色实底上的文字：白字对比度不足 3:1 时用深色（琥珀 1.93:1，深色字 7.4:1；ui-redesign D24） */
+  /** 原色实底上的文字：白字对比度不足 3:1 时用同色相最深一档（琥珀白字 1.93:1，深琥珀棕 #4A2E00 6.5:1；ui-redesign D24、D54） */
   onPrimary?: string;
 }
 
@@ -32,7 +32,7 @@ export const PRESETS: Record<PresetKey, Preset> = {
     darkLink: '#FDA92D',
     darkSoft: '#3E311D',
     chartDrop: 1,
-    onPrimary: '#212B36',
+    onPrimary: '#4A2E00',
   },
   teal: {
     name: '青绿',
@@ -101,9 +101,10 @@ const STATUS_MAIN = {
 
 /**
  * 中性灰阶与状态色。
- * - green、orange、red、info 是文字色：浅色下原色当文字对比度只有 1.75–3.17，取同色系深一档（2026-11-21 用户决定）；深色下用原色。
- *   2026-11-24 用户决定照参考模板（Minimal / PrimeDash）：浅色文字用模板的 dark 档（绿 #118D57、橙 #B76E00、红 #B71D18、信息 #006C9C），
- *   浅底为原色 16%（对比图 R14 方案 C）。绿、橙标签字对比度约 3.7:1，低于 4.5:1，用户看过后接受（压到 4.5:1 的颜色发暗发土）。
+ * - green、orange、red、info 是文字色。浅色下曾用参考模板 dark 档（#118D57 等），一页里几处同时出现显得发沉压抑；
+ *   2026-11-24 用户看过对比图 R18 后决定浅色文字直接用原色（与图形同色，深色下同样用原色），接受绿对白底只有 2.3:1：
+ *   这些颜色只用于加粗的短标签、金额与提醒，旁边都有文字说明，不靠颜色单独传达。
+ *   橙暂保留 dark 档 #B76E00：原色 #FFAB00 与琥珀主题的链接色 #FDA92D 几乎同色，提醒文字会被当成链接（对比图 R19，待用户定）。
  * - 各自的 Soft 为原色叠在卡片色上：浅色、深色都是 16%（照参考模板）。
  */
 const BASE = {
@@ -138,13 +139,13 @@ const BASE = {
     mute: '#637381',
     /** 只用于禁用和占位，不作正文 */
     faint: '#919EAB',
-    green: '#118D57',
+    green: '#22C55E',
     greenSoft: '#DCF6E5',
     orange: '#B76E00',
     orangeSoft: '#FFF2D6',
-    red: '#B71D18',
+    red: '#FF5630',
     redSoft: '#FFE4DE',
-    info: '#006C9C',
+    info: '#00B8D9',
     infoSoft: '#D6F4F9',
     neutralSoft: '#ECEEF0',
     /** 中性标签文字：在中性浅底上不低于 4.5:1 */

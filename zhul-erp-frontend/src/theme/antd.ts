@@ -64,7 +64,7 @@ export function buildAntdTheme(
     components: {
       Button: {
         colorError: p.red,
-        // 悬停：浅色下用原色 #FF5630 时白字只有 3.2:1，取介于文字色和原色之间的 #D0301F（5.1:1）
+        // 浅色下危险实底按钮照参考模板：原色 #FF5630 白字（3.2:1，按钮字加粗且有图标或明确动作词，D53），悬停加深到 #D0301F
         colorErrorHover: light ? '#D0301F' : p.redMain,
         // 危险实底按钮的字：深色下底色是亮红（#FF6A47），白字只有 2.7:1，改深色字（6:1），同琥珀主按钮的做法
         dangerColor: light ? '#FFFFFF' : '#1A1A1A',
@@ -84,7 +84,7 @@ export function buildAntdTheme(
       Mentions: { controlHeight: 40 },
       // 字阶：卡片、弹窗标题 16/600（ui-redesign D26）
       Card: { headerFontSize: 16 },
-      // 表单校验提示、危险按钮直接拿 colorError / colorWarning 当文字色：换成文字色（浅色下深一档）
+      // 表单校验提示直接拿 colorError / colorWarning 当文字色：统一走状态文字色令牌
       Form: { colorError: p.red, colorWarning: p.orange },
       Modal: {
         titleFontSize: 16,
