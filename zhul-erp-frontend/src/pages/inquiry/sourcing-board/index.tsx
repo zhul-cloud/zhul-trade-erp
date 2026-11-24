@@ -191,7 +191,7 @@ const SourcingBoardPage: React.FC = () => {
             style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}
           >
             {p.name}
-            {p.partTime && <Pill tone="violet">兼职</Pill>}
+            {p.partTime && <Pill tone="gray">兼职</Pill>}
             <span style={{ color: palette.mute, fontSize: 12 }}>
               进行中 {p.activeTasks}
             </span>
@@ -993,7 +993,7 @@ const SourcingBoardPage: React.FC = () => {
                             }}
                           >
                             {p.name}
-                            {p.partTime && <Pill tone="violet">兼职</Pill>}
+                            {p.partTime && <Pill tone="gray">兼职</Pill>}
                           </span>
                           <span
                             style={{
@@ -1217,7 +1217,7 @@ const ReviewList: React.FC<{
             >
               <UserOutlined style={{ color: palette.mute }} />
               {(t.reviewBuyerNames ?? []).join('、') || '—'}
-              <Pill tone="violet">兼职</Pill>
+              <Pill tone="gray">兼职</Pill>
             </span>
           </div>
           <div style={{ display: 'grid', gap: 2 }}>

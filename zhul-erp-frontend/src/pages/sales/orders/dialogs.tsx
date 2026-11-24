@@ -43,12 +43,10 @@ import { ORDER_FILE_MAX, OrderFileList, OrderFileUpload } from './OrderFiles';
 
 export const STOCK = { SPOT: 1, FUTURES: 2 } as const;
 
-export const StockPill: React.FC<{ type?: number }> = ({ type }) =>
-  type === STOCK.FUTURES ? (
-    <Pill tone="orange">期货</Pill>
-  ) : (
-    <Pill tone="green">现货</Pill>
-  );
+/** 现货 / 期货是订单属性，不是流程状态：中性标签（ui-redesign S13，属性一律中性） */
+export const StockPill: React.FC<{ type?: number }> = ({ type }) => (
+  <Pill tone="gray">{type === STOCK.FUTURES ? '期货' : '现货'}</Pill>
+);
 
 /** 本租户用户（采购员候选） */
 /** 采购员候选：本租户启用的用户，有采购或销售订单菜单即可取，不要求「用户」菜单权限 */

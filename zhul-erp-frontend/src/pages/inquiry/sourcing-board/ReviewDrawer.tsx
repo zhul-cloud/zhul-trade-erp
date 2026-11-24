@@ -496,7 +496,7 @@ const ReviewDrawer: React.FC<{
                           }}
                         >
                           {rec && <Pill tone="green">推荐</Pill>}
-                          {voided && <Pill tone="red">已作废</Pill>}
+                          {voided && <Pill tone="mute">已作废</Pill>}
                           {canReview && (
                             <button
                               type="button"

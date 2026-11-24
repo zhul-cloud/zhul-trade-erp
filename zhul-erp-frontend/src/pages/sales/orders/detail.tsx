@@ -1370,7 +1370,7 @@ const OrderDetail: React.FC = () => {
                 <div style={{ fontSize: 12, color: palette.sub, marginTop: 4 }}>
                   {r.channel === 2 && (
                     <span style={{ marginRight: 6 }}>
-                      <Pill tone="violet">线上</Pill>
+                      <Pill tone="gray">线上</Pill>
                     </span>
                   )}
                   {[

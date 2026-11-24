@@ -1638,7 +1638,7 @@ const QuotationDetail: React.FC = () => {
             }}
           >
             {q.customerName}
-            {q.customerType === 2 && <Pill tone="violet">老客户</Pill>}
+            {q.customerType === 2 && <Pill tone="gray">老客户</Pill>}
           </div>
         </div>
         <div>

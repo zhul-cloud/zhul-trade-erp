@@ -184,7 +184,7 @@ export const PartyCard: React.FC<{
           >
             {party.companyName}
           </span>
-          {party.defaultParty && <Pill tone="accent">默认</Pill>}
+          {party.defaultParty && <Pill tone="gray">默认</Pill>}
         </div>
         <div style={{ display: 'flex', gap: 12, fontSize: 12, flexShrink: 0 }}>
           {onSetDefault && !party.defaultParty && (

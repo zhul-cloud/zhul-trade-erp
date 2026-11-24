@@ -338,7 +338,7 @@ const SalesStatsPage: React.FC = () => {
       width: 110,
       render: (v: number) =>
         v === 2 ? (
-          <Pill tone="accent">老客户</Pill>
+          <Pill tone="gray">老客户</Pill>
         ) : (
           <Pill tone="green">新客户</Pill>
         ),

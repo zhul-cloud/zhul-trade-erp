@@ -46,7 +46,7 @@ const TypeCell: React.FC<{ r: ContentImportRecord }> = ({ r }) => (
     {r.packageType === 'facts' ? (
       <Pill tone="accent">资料包</Pill>
     ) : r.packageType === 'marketing' ? (
-      <Pill tone="violet">营销包</Pill>
+      <Pill tone="gray">营销包</Pill>
     ) : (
       <Pill tone="gray">未知</Pill>
     )}
@@ -218,7 +218,7 @@ export const ImportRecordList: React.FC<{
           <FileTextOutlined /> {v}
           {r.source === 2 && (
             <span style={{ marginLeft: 6 }}>
-              <Pill tone="violet">AI 生成</Pill>
+              <Pill tone="gray">AI 生成</Pill>
             </span>
           )}
         </button>

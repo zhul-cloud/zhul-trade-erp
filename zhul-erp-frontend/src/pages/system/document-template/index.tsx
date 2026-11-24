@@ -327,7 +327,7 @@ const DocumentTemplatePage: React.FC = () => {
       width: 84,
       render: (_, v) =>
         v.isDefault ? (
-          <Pill tone="green" dot>
+          <Pill tone="gray" dot>
             默认
           </Pill>
         ) : !v.enabled ? (

@@ -356,7 +356,7 @@ export const UploadDrawer: React.FC<{
         b.target === 'shared' ? (
           <Pill tone="cyan">共享商品库</Pill>
         ) : (
-          <Pill tone="violet">本公司</Pill>
+          <Pill tone="gray">本公司</Pill>
         ),
     },
     {

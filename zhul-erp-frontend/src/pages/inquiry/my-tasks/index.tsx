@@ -1634,7 +1634,7 @@ const MyTasksPage: React.FC = () => {
                           key={q.id}
                           style={{ color: palette.mute, fontSize: 12 }}
                         >
-                          <Pill tone="red">已作废</Pill>{' '}
+                          <Pill tone="mute">已作废</Pill>{' '}
                           {formatAmount(q.unitPrice)} {channelLabel(q.channel)}{' '}
                           · {q.shopName || '—'}
                           {q.reviewNote ? `：${q.reviewNote}` : ''}

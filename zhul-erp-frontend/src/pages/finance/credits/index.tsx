@@ -194,7 +194,7 @@ const CreditPage: React.FC = () => {
           </span>
           {a.collection && (
             <span style={{ marginLeft: 6 }}>
-              <Pill tone="violet">代收</Pill>
+              <Pill tone="gray">代收</Pill>
             </span>
           )}
           <CustomerSubLine

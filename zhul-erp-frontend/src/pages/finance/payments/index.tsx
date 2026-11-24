@@ -171,7 +171,7 @@ const PaymentRecords: React.FC = () => {
         r.kind === 2 ? (
           '—'
         ) : r.method === METHOD.ADVANCE ? (
-          <Pill tone="violet">员工垫付</Pill>
+          <Pill tone="gray">员工垫付</Pill>
         ) : r.method === METHOD.PRIVATE ? (
           <Pill tone="orange">
             私对私

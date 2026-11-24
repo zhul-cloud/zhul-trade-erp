@@ -1257,7 +1257,7 @@ export const PaymentLineTable: React.FC<{
                 (l.accountName ?? '—')
               ) : l.method === METHOD.ADVANCE ? (
                 <span>
-                  <Pill tone="violet">员工垫付</Pill> {l.advanceUser}
+                  <Pill tone="gray">员工垫付</Pill> {l.advanceUser}
                 </span>
               ) : l.method === METHOD.PRIVATE ? (
                 <span>

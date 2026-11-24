@@ -946,7 +946,7 @@ const ExpensePage: React.FC = () => {
           </Space>
         ) : (
           <div>
-            <Pill tone="violet">员工垫付</Pill> {r.advanceUserName}
+            <Pill tone="gray">员工垫付</Pill> {r.advanceUserName}
             <div style={{ fontSize: 12, color: palette.mute }}>
               {r.reimburseNo
                 ? `${r.reimburseNo} · ${r.reimburseStatus === 2 ? '已报销' : '待付款'}`

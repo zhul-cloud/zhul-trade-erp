@@ -662,7 +662,7 @@ const PurchaseOrderDetail: React.FC = () => {
         title={title}
         tags={
           <>
-            {po.shop && <Pill tone="orange">线上店铺</Pill>}
+            {po.shop && <Pill tone="gray">线上店铺</Pill>}
             <MigratedPill migrated={po.migrated} />
             <PoStatusPill status={po.status} />
             <ShipProgressPill
@@ -1741,7 +1741,7 @@ const ShipmentsCard: React.FC<{
         r.kind === 'ship' ? (
           <Pill tone="accent">{r.ref.sourceName}</Pill>
         ) : (
-          <Pill tone="violet">采购入库</Pill>
+          <Pill tone="gray">采购入库</Pill>
         ),
     },
     {

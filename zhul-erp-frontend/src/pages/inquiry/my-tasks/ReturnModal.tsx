@@ -159,7 +159,7 @@ const ReturnModal: React.FC<{
                     ) : r.quoteStatus === ITEM_PENDING ? (
                       <Pill tone="orange">待询价</Pill>
                     ) : r.quoteStatus === ITEM_NO_STOCK ? (
-                      <Pill tone="red">无货</Pill>
+                      <Pill tone="gray">无货</Pill>
                     ) : r.quoteStatus === ITEM_PRICED ? (
                       <Pill tone="green">
                         有价

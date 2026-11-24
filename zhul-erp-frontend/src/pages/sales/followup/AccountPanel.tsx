@@ -287,7 +287,7 @@ export const AccountPanel: React.FC<{
         {card.patternText && (
           <Pill tone="green">{card.patternText}（系统推测）</Pill>
         )}
-        {card.strategic && <Pill tone="violet">战略客户</Pill>}
+        {card.strategic && <Pill tone="gray">战略客户</Pill>}
       </div>
       <div style={{ fontSize: 12, color: palette.sub, marginTop: 6 }}>
         近 12 个月 {formatAmount(card.recentAmount ?? 0, card.currencyCode)} ·{' '}

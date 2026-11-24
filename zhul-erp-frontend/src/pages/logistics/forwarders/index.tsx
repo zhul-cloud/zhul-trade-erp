@@ -402,7 +402,7 @@ const ForwarderPage: React.FC = () => {
           <span
             style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}
           >
-            <Pill tone="violet">客户指定</Pill>
+            <Pill tone="gray">客户指定</Pill>
             <span style={{ color: palette.link }}>{r.customerName ?? '—'}</span>
           </span>
         ) : (

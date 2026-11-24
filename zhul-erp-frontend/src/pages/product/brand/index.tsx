@@ -78,7 +78,7 @@ const chineseName = (aliases?: string[]) =>
 /** 品牌等级标签：核心、常做显示，普通不显示 */
 const LevelPill: React.FC<{ level?: number }> = ({ level }) =>
   level === 2 ? (
-    <Pill tone="violet">核心</Pill>
+    <Pill tone="gray">核心</Pill>
   ) : level === 1 ? (
     <Pill tone="accent">常做</Pill>
   ) : null;

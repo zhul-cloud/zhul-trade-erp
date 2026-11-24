@@ -770,7 +770,7 @@ const ProductListInner: React.FC = () => {
         ) : platform ? (
           <Pill tone="accent">租户</Pill>
         ) : r.editable ? (
-          <Pill tone="green">本公司</Pill>
+          <Pill tone="gray">本公司</Pill>
         ) : (
           <Pill tone="gray">其他公司</Pill>
         ),

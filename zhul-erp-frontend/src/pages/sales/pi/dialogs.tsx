@@ -487,7 +487,7 @@ export const PartyModal: React.FC<{
                   }}
                 >
                   {o.name}
-                  {o.isDefault && <Pill tone="accent">默认</Pill>}
+                  {o.isDefault && <Pill tone="gray">默认</Pill>}
                   {o.registration && <Pill tone="gray">客户注册信息</Pill>}
                 </div>
                 <PartyAddress

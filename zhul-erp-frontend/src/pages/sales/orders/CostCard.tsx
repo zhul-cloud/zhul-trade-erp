@@ -371,7 +371,7 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
                 fontSize: 13,
               }}
             >
-              <Pill tone="violet">售后补发</Pill>
+              <Pill tone="gray">售后补发</Pill>
               <button
                 type="button"
                 className="zhul-link"

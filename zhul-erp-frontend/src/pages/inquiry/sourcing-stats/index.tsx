@@ -165,9 +165,9 @@ const SourcingStatsPage: React.FC = () => {
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           <b style={{ color: palette.ink }}>{v}</b>
           {r.role === 'SALES' ? (
-            <Pill tone="violet">业务员</Pill>
+            <Pill tone="gray">业务员</Pill>
           ) : r.role === 'PART_TIME' ? (
-            <Pill tone="cyan">兼职</Pill>
+            <Pill tone="gray">兼职</Pill>
           ) : (
             <Pill tone="accent">采购</Pill>
           )}

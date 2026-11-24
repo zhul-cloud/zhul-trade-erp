@@ -237,11 +237,7 @@ const TariffModal: React.FC<{
                 }
               />
               <span style={{ width: 96, fontSize: 12, color: palette.mute }}>
-                {r.ai ? (
-                  <Pill tone="violet">AI 建议</Pill>
-                ) : (
-                  (r.checkedAt ?? '—')
-                )}
+                {r.ai ? <Pill tone="gray">AI 建议</Pill> : (r.checkedAt ?? '—')}
               </span>
             </div>
           ))}

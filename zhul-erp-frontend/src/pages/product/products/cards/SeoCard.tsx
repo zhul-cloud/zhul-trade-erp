@@ -997,7 +997,7 @@ export const OperationsSummary: React.FC<{
       }}
     >
       <b style={{ color: palette.ink }}>运营概况</b>
-      <Pill tone="violet">本公司</Pill>
+      <Pill tone="gray">本公司</Pill>
       <PlatformChips progress={data} platforms={data.platforms} />
       <span style={{ fontSize: 12, color: palette.sub }}>
         营销内容在「运营管理 → 营销任务」维护

@@ -1101,7 +1101,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
                   {t.taskCode}
                 </span>
                 <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-                  {t.selfSourcing && <Pill tone="violet">业务员自询</Pill>}
+                  {t.selfSourcing && <Pill tone="gray">业务员自询</Pill>}
                   <TaskStatusPill status={t.status} timeout={t.timeout} />
                   {t.deferUntil && (
                     <Tooltip title={t.deferReason || undefined}>

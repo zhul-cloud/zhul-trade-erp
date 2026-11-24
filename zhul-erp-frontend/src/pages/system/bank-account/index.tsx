@@ -392,7 +392,7 @@ const BankAccountPage: React.FC = () => {
       width: 100,
       render: (_, r) =>
         r.isDefault ? (
-          <Pill tone="accent">默认</Pill>
+          <Pill tone="gray">默认</Pill>
         ) : canEdit && r.enabled && r.accountType !== ACCOUNT_TYPE.PRIVATE ? (
           <button
             type="button"
