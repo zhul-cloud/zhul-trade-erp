@@ -1217,37 +1217,6 @@ const OrderDetail: React.FC = () => {
           </div>
         )}
       </div>
-      {o.methodTotals.length > 0 && (
-        <div
-          style={{
-            borderTop: `1px solid ${palette.hairline}`,
-            paddingTop: 12,
-            marginBottom: 12,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: palette.ink,
-              marginBottom: 8,
-            }}
-          >
-            按付款方式
-          </div>
-          {o.methodTotals.map((m) => (
-            <React.Fragment key={m.paymentMethod}>
-              {line(
-                <span>
-                  {m.paymentMethodName}{' '}
-                  <Pill tone="gray">{m.channel === 2 ? '线上' : '线下'}</Pill>
-                </span>,
-                formatAmount(m.amount, m.currencyCode),
-              )}
-            </React.Fragment>
-          ))}
-        </div>
-      )}
       {receivable && (canSlip || canConfirm || canPlatform || canClaim) && (
         <div
           style={{
@@ -1290,6 +1259,37 @@ const OrderDetail: React.FC = () => {
               登记到账
             </Button>
           )}
+        </div>
+      )}
+      {o.methodTotals.length > 0 && (
+        <div
+          style={{
+            borderTop: `1px solid ${palette.hairline}`,
+            paddingTop: 12,
+            marginBottom: 12,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: palette.ink,
+              marginBottom: 8,
+            }}
+          >
+            按付款方式
+          </div>
+          {o.methodTotals.map((m) => (
+            <React.Fragment key={m.paymentMethod}>
+              {line(
+                <span>
+                  {m.paymentMethodName}{' '}
+                  <Pill tone="gray">{m.channel === 2 ? '线上' : '线下'}</Pill>
+                </span>,
+                formatAmount(m.amount, m.currencyCode),
+              )}
+            </React.Fragment>
+          ))}
         </div>
       )}
       <CreditInfo
@@ -1440,7 +1440,7 @@ const OrderDetail: React.FC = () => {
                   </div>
                 )}
                 {manual && r.voidable && (
-                  <div>
+                  <div style={{ paddingLeft: 22 }}>
                     <button
                       type="button"
                       className="zhul-link"
@@ -1550,17 +1550,16 @@ const OrderDetail: React.FC = () => {
         )}
       </div>
       {(o.feeOrders?.length ?? 0) === 0 ? null : (
-        <div style={{ display: 'grid', gap: 8 }}>
-          {o.feeOrders?.map((x) => (
+        <div style={{ display: 'grid' }}>
+          {o.feeOrders?.map((x, i) => (
             <div
               key={x.id}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
-                padding: '8px 12px',
-                borderRadius: 10,
-                background: palette.inset,
+                padding: '8px 0',
+                borderTop: i > 0 ? `1px solid ${palette.hairline}` : undefined,
                 opacity: x.status === 2 ? 0.6 : 1,
               }}
             >

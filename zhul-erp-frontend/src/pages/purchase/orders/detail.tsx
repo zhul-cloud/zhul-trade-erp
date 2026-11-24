@@ -1160,17 +1160,17 @@ const PurchaseOrderDetail: React.FC = () => {
           }
         />
         {po.salesRemarks?.length > 0 && (
-          <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
-            <b style={{ color: palette.ink }}>销售备注</b>
-            {po.salesRemarks.map((r) => (
+          <div style={{ marginTop: 14, display: 'grid' }}>
+            <b style={{ color: palette.ink, marginBottom: 4 }}>销售备注</b>
+            {po.salesRemarks.map((r, i) => (
               <div
                 key={r.soId}
                 style={{
                   display: 'flex',
                   gap: 14,
-                  padding: '10px 14px',
-                  borderRadius: 10,
-                  background: palette.inset,
+                  padding: '10px 0',
+                  borderTop:
+                    i > 0 ? `1px solid ${palette.hairline}` : undefined,
                 }}
               >
                 <div style={{ width: 170, flexShrink: 0 }}>
@@ -1953,20 +1953,19 @@ const ContractCard: React.FC<{
         <span style={{ flex: 1 }} />
         <span style={{ fontSize: 12, color: palette.mute }}>选填</span>
       </div>
-      <div style={{ display: 'grid', gap: 8 }}>
-        {po.attachments.map((a) => (
+      <div style={{ display: 'grid' }}>
+        {po.attachments.map((a, i) => (
           <div
             key={a.id}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              padding: '8px 12px',
-              borderRadius: 10,
-              background: palette.inset,
+              padding: '8px 0',
+              borderTop: i > 0 ? `1px solid ${palette.hairline}` : undefined,
             }}
           >
-            <FileText size="1em" style={{ color: palette.link }} />
+            <FileText size="1em" style={{ color: palette.mute }} />
             <span
               style={{
                 color: palette.ink,

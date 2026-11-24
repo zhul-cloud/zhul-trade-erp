@@ -57,7 +57,9 @@ export const RowActions: React.FC<{
   inline?: (RowAction | Falsy)[];
   more?: (MoreAction | Falsy)[];
   onMore?: (key: string) => void;
-}> = ({ inline = [], more = [], onMore }) => {
+  /** 「更多」按钮的名称，默认「更多」；一列里有多个时可带上对象，如「更多：订单状态」 */
+  moreLabel?: string;
+}> = ({ inline = [], more = [], onMore, moreLabel = '更多' }) => {
   const [open, setOpen] = useState(false);
   const list = more.filter(Boolean) as MoreAction[];
   const menu = [
@@ -84,7 +86,7 @@ export const RowActions: React.FC<{
         >
           <IconButton
             size={SIZE}
-            label="更多"
+            label={moreLabel}
             pressed={open}
             icon={<Ellipsis size={18} />}
           />

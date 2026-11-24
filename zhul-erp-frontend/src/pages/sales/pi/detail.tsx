@@ -2395,7 +2395,7 @@ const PiDetail: React.FC = () => {
                     (!slip &&
                       r.paymentMethod !== 'CREDIT' &&
                       (r.voidable ?? canConfirm))) && (
-                    <div style={{ marginTop: 6 }}>
+                    <div style={{ marginTop: 6, paddingLeft: 22 }}>
                       {slip ? (
                         <button
                           type="button"

@@ -86,8 +86,10 @@ const DictPage: React.FC = () => {
 
   useEffect(() => {
     loadTypes().then((list) => {
-      // 进入页面默认选中第一个类型，右侧不空着（ui-redesign R8-1）
-      setSelectedType((cur) => cur ?? list[0] ?? null);
+      // 默认选中第一个类型，右侧不空着；当前类型被搜索过滤掉时改选第一项（ui-redesign R8-1）
+      setSelectedType((cur) =>
+        cur && list.some((t) => t.id === cur.id) ? cur : (list[0] ?? null),
+      );
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyword]);
@@ -177,8 +179,8 @@ const DictPage: React.FC = () => {
         try {
           await deleteDictType(record.id);
           message.success('删除成功');
-          if (selectedType?.id === record.id) setSelectedType(null);
-          loadTypes();
+          const list = await loadTypes();
+          if (selectedType?.id === record.id) setSelectedType(list[0] ?? null);
         } catch {
           message.error('删除失败');
         }
@@ -249,20 +251,23 @@ const DictPage: React.FC = () => {
     });
   };
 
-  const [activeRow, setActiveRow] = useState<number>();
+  const [hoverRow, setHoverRow] = useState<number>();
+  const [focusRow, setFocusRow] = useState<number>();
   const renderTypeRow = (t: DictTypeItem) => {
     const selected = selectedType?.id === t.id;
-    const showMore = selected || activeRow === t.id;
+    const showMore = selected || hoverRow === t.id || focusRow === t.id;
     const builtin = t.isBuiltin === 1;
     return (
       <div
         key={t.id}
-        onMouseEnter={() => setActiveRow(t.id)}
-        onMouseLeave={() => setActiveRow(undefined)}
-        onFocus={() => setActiveRow(t.id)}
+        // 整行可点选中；键盘用行内的名称按钮
+        onClick={() => setSelectedType(t)}
+        onMouseEnter={() => setHoverRow(t.id)}
+        onMouseLeave={() => setHoverRow(undefined)}
+        onFocus={() => setFocusRow(t.id)}
         onBlur={(e) => {
           if (!e.currentTarget.contains(e.relatedTarget as Node))
-            setActiveRow(undefined);
+            setFocusRow(undefined);
         }}
         style={{
           display: 'flex',
@@ -271,9 +276,10 @@ const DictPage: React.FC = () => {
           height: 36,
           padding: '0 2px 0 10px',
           borderRadius: 8,
+          cursor: 'pointer',
           background: selected
             ? p.primarySoft
-            : activeRow === t.id
+            : hoverRow === t.id
               ? p.hover
               : 'transparent',
         }}
@@ -281,7 +287,6 @@ const DictPage: React.FC = () => {
         <button
           type="button"
           aria-current={selected || undefined}
-          onClick={() => setSelectedType(t)}
           title={t.dictName}
           style={{
             flex: 1,
@@ -305,6 +310,7 @@ const DictPage: React.FC = () => {
         {(canEdit || canDelete) && (
           <div style={{ opacity: showMore ? 1 : 0 }}>
             <RowActions
+              moreLabel={`更多：${t.dictName}`}
               more={[
                 canEdit && {
                   key: 'edit',

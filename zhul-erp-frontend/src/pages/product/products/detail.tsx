@@ -416,14 +416,14 @@ const DetailInner: React.FC = () => {
           <>
             {!maintainer ? (
               <Pill tone="gray">
-                <Lock size="1em" style={{ marginRight: 4 }} />
+                <Lock size="1em" />
                 {product.ownerTenantId ? '其他公司' : '平台'}维护 · 只读
                 <HelpTip title="可以在报价、订单中正常使用它；需要补充规格、资料时，可通过资料包确认写入。" />
               </Pill>
             ) : (
               !canEdit && (
                 <Pill tone="gray">
-                  <Lock size="1em" style={{ marginRight: 4 }} />
+                  <Lock size="1em" />
                   只读
                 </Pill>
               )
