@@ -14,7 +14,15 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { ArchiveRestore, Bot, Check, Plus, Search, X } from 'lucide-react';
+import {
+  ArchiveRestore,
+  ArrowDown,
+  Bot,
+  Check,
+  Plus,
+  Search,
+  X,
+} from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -40,7 +48,7 @@ import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { CompletenessBar } from '../components/CompletenessBar';
 import { EmptyHint, ErrorHint } from '../components/EmptyHint';
-import { BrandMark, LifecyclePill, Pill } from '../components/Pills';
+import { LifecyclePill, Pill } from '../components/Pills';
 import { LIFECYCLE_OPTIONS, normalizeMpn } from '../constants';
 import {
   AI_TASK_NOT_FOUND,
@@ -613,33 +621,88 @@ const ProductListInner: React.FC = () => {
     load();
   };
 
+  /** 需求热度的数字：0 用弱化色 */
+  const heatNum = (n?: number) => (
+    <span
+      className="num"
+      style={{ fontWeight: 600, color: n ? palette.ink : palette.mute }}
+    >
+      {n ?? 0}
+    </span>
+  );
+  /** 「询盘 / 成交」表头里的一个词：点一下按它倒序，再点取消 */
+  const heatHead = (key: 'inquiryCount' | 'dealCount', label: string) => {
+    const on = heatSort === key;
+    return (
+      <button
+        type="button"
+        aria-pressed={on}
+        aria-label={
+          on ? `按${label}次数倒序中，点击取消` : `按${label}次数倒序`
+        }
+        onClick={(e) => {
+          e.stopPropagation();
+          setHeatSort(on ? undefined : key);
+          setPage(1);
+          setSelected([]);
+        }}
+        style={{
+          all: 'unset',
+          cursor: 'pointer',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 2,
+          color: on ? palette.link : 'inherit',
+        }}
+      >
+        {label}
+        {on && <ArrowDown size={12} aria-hidden />}
+      </button>
+    );
+  };
+
   /** 待确认建议、已忽略两档只留判断品类要看的列（原型 R4、R7），关键的 AI 建议列不被挤出视野 */
   const reviewing = refine && refineState !== 'todo';
   const columns: ColumnsType<Product> = [
     {
       title: '商品',
       key: 'product',
-      width: 280,
-      // 两行：型号（主信息，可点）+ 产品名称；长规格摘要只在悬停时看（P14）。
+      width: 250,
+      // 两行：型号（主信息，可点）+ 生命周期标签，下面产品名称；长规格摘要只在悬停时看（P14、R12 方案 B）。
       // 不再放品类首字母方块：没有图片时它不传达任何信息，还占掉一截宽度
       render: (_, r) => (
         <div style={{ minWidth: 0 }}>
-          <a
-            href={`/product/products/${r.id}`}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              history.push(`/product/products/${r.id}`);
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              minWidth: 0,
             }}
-            style={{ fontWeight: 700, fontSize: 14 }}
           >
-            {r.mpnDisplay}
-          </a>
-          {r.deleted && (
-            <span style={{ marginLeft: 8 }}>
-              <Pill tone="red">已删除</Pill>
+            <a
+              href={`/product/products/${r.id}`}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                history.push(`/product/products/${r.id}`);
+              }}
+              style={{
+                fontWeight: 700,
+                fontSize: 14,
+                minWidth: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {r.mpnDisplay}
+            </a>
+            <span style={{ flex: 'none', display: 'inline-flex', gap: 4 }}>
+              <LifecyclePill value={r.lifecycleStatus} />
+              {r.deleted && <Pill tone="red">已删除</Pill>}
             </span>
-          )}
+          </div>
           <Tooltip
             title={
               r.productName || r.specSummary ? (
@@ -654,7 +717,7 @@ const ProductListInner: React.FC = () => {
               style={{
                 color: palette.mute,
                 fontSize: 12,
-                maxWidth: 250,
+                maxWidth: 230,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -666,23 +729,41 @@ const ProductListInner: React.FC = () => {
         </div>
       ),
     },
+    ...(!refine
+      ? ([
+          {
+            // 品牌上、品类下（R12 方案 B）：两列合一，1366 宽一屏放下
+            title: '品牌 / 品类',
+            key: 'brandCategory',
+            width: 160,
+            render: (_: unknown, r: Product) => (
+              <div style={{ minWidth: 0 }}>
+                <EllipsisText text={r.brandName} />
+                <div style={{ fontSize: 12, color: palette.mute }}>
+                  <EllipsisText text={r.categoryNameZh || r.categoryName} />
+                </div>
+              </div>
+            ),
+          },
+        ] as ColumnsType<Product>)
+      : []),
+    ...(refine
+      ? ([
+          {
+            title: '品牌',
+            dataIndex: 'brandName',
+            width: 150,
+            render: (_: unknown, r: Product) => (
+              <EllipsisText text={r.brandName} />
+            ),
+          },
+        ] as ColumnsType<Product>)
+      : []),
     {
-      title: '品牌',
-      dataIndex: 'brandName',
-      width: 150,
-      render: (_, r) => (
-        <div
-          style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}
-        >
-          <BrandMark name={r.brandName} size={22} />
-          <EllipsisText text={r.brandName} />
-        </div>
-      ),
-    },
-    {
-      title: refine ? '当前品类' : '品类',
+      title: '当前品类',
       dataIndex: 'categoryName',
       width: 130,
+      hidden: !refine,
       // 单行省略：长品类名不压到右边的生命周期标签上；品类未细分时「其他」标橙
       render: (v, r) =>
         refine && r.categoryCode === 'other' ? (
@@ -711,50 +792,46 @@ const ProductListInner: React.FC = () => {
           },
         ] as ColumnsType<Product>)
       : []),
-    {
-      title: '生命周期',
-      dataIndex: 'lifecycleStatus',
-      width: 120,
-      render: (v) => <LifecyclePill value={v} />,
-    },
-    ...(
-      (reviewing ? ['inquiryCount'] : ['inquiryCount', 'dealCount']) as (
-        | 'inquiryCount'
-        | 'dealCount'
-      )[]
-    ).map((key) => ({
-      title: key === 'inquiryCount' ? '询盘次数' : '成交次数',
-      key,
-      width: 120,
-      sorter: true,
-      sortDirections: ['descend' as const],
-      sortOrder: heatSort === key ? ('descend' as const) : null,
-      render: (_: unknown, r: Product) => {
-        const n = r[key] ?? 0;
-        return (
-          <span
-            className="num"
-            style={{
-              fontWeight: 600,
-              color: !n
-                ? palette.mute
-                : key === 'dealCount'
-                  ? palette.green
-                  : palette.ink,
-            }}
-          >
-            {n}
-          </span>
-        );
-      },
-    })),
+    reviewing
+      ? {
+          title: '询盘次数',
+          key: 'inquiryCount',
+          width: 100,
+          sorter: true,
+          sortDirections: ['descend' as const],
+          sortOrder: heatSort === 'inquiryCount' ? ('descend' as const) : null,
+          render: (_: unknown, r: Product) => heatNum(r.inquiryCount),
+        }
+      : {
+          // 询盘、成交合成一列（R12 方案 B）：表头两个词各自可点，按哪个倒序（服务端排序，跨页有效），再点取消
+          title: (
+            <span
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+            >
+              {heatHead('inquiryCount', '询盘')}
+              <span aria-hidden style={{ color: palette.faint }}>
+                /
+              </span>
+              {heatHead('dealCount', '成交')}
+            </span>
+          ),
+          key: 'heat',
+          width: 110,
+          render: (_: unknown, r: Product) => (
+            <span>
+              {heatNum(r.inquiryCount)}
+              <span style={{ color: palette.faint }}> / </span>
+              {heatNum(r.dealCount)}
+            </span>
+          ),
+        },
     ...(reviewing
       ? []
       : ([
           {
-            title: '档案完整度',
+            title: '完整度',
             key: 'completeness',
-            width: 190,
+            width: 120,
             sorter: (a: Product, b: Product) =>
               (a.completeness?.done ?? 0) - (b.completeness?.done ?? 0),
             render: (_: unknown, r: Product) => (
@@ -765,7 +842,7 @@ const ProductListInner: React.FC = () => {
     {
       title: '维护方',
       key: 'owner',
-      width: 90,
+      width: 80,
       render: (_: unknown, r: Product) =>
         !r.ownerTenantId ? (
           <Pill tone="gray">平台</Pill>
@@ -793,7 +870,7 @@ const ProductListInner: React.FC = () => {
           {
             title: '状态',
             dataIndex: 'status',
-            width: 90,
+            width: 80,
             render: (_, r) =>
               canEdit && r.editable && !r.deleted ? (
                 <span onKeyDown={(e) => e.stopPropagation()}>
