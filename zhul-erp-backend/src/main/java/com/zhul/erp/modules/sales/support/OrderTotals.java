@@ -97,7 +97,7 @@ public final class OrderTotals {
         BigDecimal revenueCny = costedRevenue.subtract(allocated).multiply(rate, MC);
         o.setNetProfit(costedRevenue.subtract(allocated).subtract(costTotal.divide(rate, MC)).setScale(2, RoundingMode.HALF_UP));
         o.setNetProfitCny(revenueCny.subtract(costTotal).setScale(2, RoundingMode.HALF_UP));
-        o.setMarginRate(revenueCny.signum() > 0
-                ? BigDecimal.ONE.subtract(costTotal.divide(revenueCny, MC)).multiply(HUNDRED).setScale(2, RoundingMode.HALF_UP) : null);
+        o.setMarginRate(revenueCny.signum() > 0 ? QuotationPricing.storableMargin(
+                BigDecimal.ONE.subtract(costTotal.divide(revenueCny, MC)).multiply(HUNDRED).setScale(2, RoundingMode.HALF_UP)) : null);
     }
 }
