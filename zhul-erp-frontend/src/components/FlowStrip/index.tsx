@@ -3,7 +3,12 @@ import React, { useState } from 'react';
 import { CardTitle } from '@/components/ListLayout';
 import { useBalancedCols } from '@/components/MetricCard';
 import { useAppTheme } from '@/theme/AppTheme';
-import { CARD_SHADOW, CARD_SHADOW_HOVER } from '@/theme/palette';
+import {
+  CARD_SHADOW,
+  CARD_SHADOW_HOVER,
+  CHART_SERIES,
+  mix,
+} from '@/theme/palette';
 
 export interface FlowStripItem {
   key: string;
@@ -22,6 +27,13 @@ export interface FlowStripItem {
 }
 
 const GAP = 20;
+
+/**
+ * 第 1–5 步的固定颜色（R11 方案 B）：步骤是不同的工作阶段（类别），按步骤给图标块着色，
+ * 和工作台数字卡按指标家族给图标块着色同一写法；颜色只用在图标块，卡片、数字、文字都中性。
+ * 取图表系列色前五个（深浅底上都不低于 3:1），不随主题色变
+ */
+const STEP_COLORS = CHART_SERIES.slice(0, 5);
 const PAD = 12;
 const TILE = 24;
 /**
@@ -42,6 +54,13 @@ const StripCard: React.FC<{
   const [hover, setHover] = useState(false);
   const light = mode === 'light';
   const open = it.value !== undefined;
+  const hue = it.step ? STEP_COLORS[(it.step - 1) % STEP_COLORS.length] : '';
+  // 图标块：步骤卡用步骤色（浅底 + 原色图标）；入口卡中性，选中时主题色浅底
+  const [tileFg, tileBg] = hue
+    ? [hue, mix(hue, palette.card, light ? 0.1 : 0.18)]
+    : active
+      ? [palette.link, palette.primarySoft]
+      : [palette.sub, palette.neutralSoft];
   return (
     <button
       type="button"
@@ -103,8 +122,8 @@ const StripCard: React.FC<{
             display: 'grid',
             placeItems: 'center',
             fontSize: 13,
-            background: active ? palette.primarySoft : palette.neutralSoft,
-            color: active ? palette.link : palette.sub,
+            background: tileBg,
+            color: tileFg,
           }}
         >
           {it.icon}
@@ -191,7 +210,7 @@ const StripCard: React.FC<{
 /**
  * 流程卡片条（客户跟进、供应链跟进的顶部链路，对比图 R10 方案 B）：标题行右侧写回环（如「复购回到第 2 步」），
  * 下面一张入口卡（今日待办）加各步骤卡，等宽排一行；放不下时按行均分（与 MetricGrid、销售漏斗同一算法），不横向滚动。
- * 卡片都是白卡，步骤靠「第 n 步」、图标和箭头区分，不靠颜色；当前查看的卡主题色描边、图标块主题色浅底。
+ * 卡片都是白卡；步骤卡的图标块按步骤着色（STEP_COLORS），其余中性；当前查看的卡主题色内描边。
  */
 export const FlowStrip: React.FC<{
   title: string;

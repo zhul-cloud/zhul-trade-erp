@@ -1,5 +1,5 @@
 import { history, useSearchParams } from '@umijs/max';
-import { App, Button, Input, Segmented, Select } from 'antd';
+import { App, Button, Input, type InputRef, Segmented, Select } from 'antd';
 import { Pencil, Plus, Search } from 'lucide-react';
 import React, {
   useCallback,
@@ -111,6 +111,14 @@ const SupplyFollowupPage: React.FC = () => {
   const [owner, setOwner] = useState('me');
   /** 自己名下没有需求时默认看全部，只判断一次 */
   const ownerChecked = useRef(false);
+  /** 今日待办里搜索后切到供应覆盖：切过去后让新位置的搜索框接着获得焦点 */
+  const searchRef = useRef<InputRef>(null);
+  const refocusSearch = useRef(false);
+  useEffect(() => {
+    if (!refocusSearch.current || flow === 'today') return;
+    refocusSearch.current = false;
+    searchRef.current?.focus();
+  }, [flow]);
   const [overview, setOverview] = useState<Overview>();
   const [overviewError, setOverviewError] = useState('');
   const [today, setToday] = useState<Today>();
@@ -497,6 +505,51 @@ const SupplyFollowupPage: React.FC = () => {
     </Card>
   );
 
+  // 搜索、负责人放在列表工具栏（与客户跟进同一写法，R10 方案 B），页头只留视图切换和主按钮
+  const search = (
+    <Input
+      ref={searchRef}
+      allowClear
+      prefix={<Search size="1em" />}
+      placeholder={flow === 'dev' ? '搜索品牌、品类' : '搜索型号'}
+      aria-label={flow === 'dev' ? '搜索品牌、品类' : '搜索型号'}
+      style={{ width: 200 }}
+      value={keywordInput}
+      onChange={(e) => setKeywordInput(e.target.value)}
+      onPressEnter={(e) => {
+        setKeyword(e.currentTarget.value);
+        // 在今日待办里搜索时切到供应覆盖；搜索框换了位置，切过去后接着获得焦点
+        if (flow === 'today') {
+          refocusSearch.current = true;
+          switchFlow('cover');
+        }
+      }}
+      onClear={() => setKeyword('')}
+    />
+  );
+  const tools = (
+    <>
+      {search}
+      {canTeam && (
+        <Select
+          style={{ width: 160 }}
+          aria-label="负责人"
+          value={owner}
+          onChange={setOwner}
+          showSearch={{ optionFilterProp: 'label' }}
+          options={[
+            { value: 'me', label: '负责人：我' },
+            { value: 'all', label: '负责人：全部' },
+            ...users.map((u) => ({
+              value: String(u.value),
+              label: `负责人：${u.label}`,
+            })),
+          ]}
+        />
+      )}
+    </>
+  );
+
   return (
     <div>
       <PageHeader
@@ -511,53 +564,6 @@ const SupplyFollowupPage: React.FC = () => {
                   { value: 'team', label: '团队' },
                 ]}
               />
-            )}
-            {view === 'mine' && (
-              <Input
-                allowClear
-                prefix={<Search size="1em" />}
-                placeholder={flow === 'dev' ? '搜索品牌、品类' : '搜索型号'}
-                style={{ width: 220 }}
-                value={keywordInput}
-                onChange={(e) => setKeywordInput(e.target.value)}
-                onPressEnter={(e) => {
-                  setKeyword(e.currentTarget.value);
-                  if (flow === 'today') switchFlow('cover');
-                }}
-                onClear={() => setKeyword('')}
-              />
-            )}
-            {view === 'mine' && canTeam && (
-              <Select
-                style={{ width: 160 }}
-                value={owner}
-                onChange={setOwner}
-                showSearch={{ optionFilterProp: 'label' }}
-                options={[
-                  { value: 'me', label: '负责人：我' },
-                  { value: 'all', label: '负责人：全部' },
-                  ...users.map((u) => ({
-                    value: String(u.value),
-                    label: `负责人：${u.label}`,
-                  })),
-                ]}
-              />
-            )}
-            {view === 'mine' && flow === 'intel' && canEdit && (
-              <Button
-                icon={<Plus size="1em" />}
-                onClick={() => setSignalOpen(true)}
-              >
-                录入信号
-              </Button>
-            )}
-            {view === 'mine' && flow === 'dev' && canDev && (
-              <Button
-                icon={<Plus size="1em" />}
-                onClick={() => setExpansion(null)}
-              >
-                加入主动拓展
-              </Button>
             )}
             {view === 'mine' && canEdit && flow !== 'dev' && (
               <Button
@@ -598,6 +604,8 @@ const SupplyFollowupPage: React.FC = () => {
               onDefer={(c) => setDefer(c.items.map((d) => d.id))}
               onBrowse={() => switchFlow('cover')}
               onDev={openDev}
+              // 只放搜索：今日待办固定看自己的（后端 /today 按当前用户取数），负责人对它不起作用
+              tools={search}
             />
           ) : flow === 'dev' ? (
             <>
@@ -673,6 +681,15 @@ const SupplyFollowupPage: React.FC = () => {
                     label: HEAT_NAMES[k],
                   }))}
                 />
+                {tools}
+                {canDev && (
+                  <Button
+                    icon={<Plus size="1em" />}
+                    onClick={() => setExpansion(null)}
+                  >
+                    加入主动拓展
+                  </Button>
+                )}
               </div>
               <div
                 style={{
@@ -821,6 +838,16 @@ const SupplyFollowupPage: React.FC = () => {
                       }))}
                     />
                   </>
+                )}
+                {/* 待归类的信号接口不按关键词、负责人筛选，不放这两个控件 */}
+                {!unclassifiedView && tools}
+                {flow === 'intel' && canEdit && (
+                  <Button
+                    icon={<Plus size="1em" />}
+                    onClick={() => setSignalOpen(true)}
+                  >
+                    录入信号
+                  </Button>
                 )}
               </div>
               <div
