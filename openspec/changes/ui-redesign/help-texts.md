@@ -202,6 +202,8 @@
 
 供应链跟进页共用 `FlowChain` 的 `Arrow`，箭头随之变为中性灰；它自己的板块色和渐变轨道（`supply-chain/components.tsx`）留到供应链所在批次（7.2）处理。
 
+2026-11-24 改为对比图 R10 方案 B（D46，用户确认），取代上面 11-22 的板块配色：顶部链路改用公共 `FlowStrip`，卡片不按板块分色、去掉进度轨道，「复购回到第 2 步」移到标题行右侧；当前查看的卡片主题色描边；「板块 · 阶段」标签改中性色。供应链跟进同用 `FlowStrip`。
+
 ## 登记到账弹窗
 
 代码位置：`zhul-erp-frontend/src/pages/sales/pi/dialogs.tsx`（`ConfirmReceiptModal`）、`receiptDialogs.tsx`（`PaymentMethodSelect`、`FxEstimateHint`）。
@@ -355,7 +357,7 @@
 
 ## 供应链跟进
 
-页头只换组件；链路的板块配色与客户跟进共用 `useStepStyle`（用户 2026-11-22 在对比图里选定的方案 B），轨道去掉渐变，今日待办用主题色。
+页头只换组件；顶部链路与客户跟进共用公共 `FlowStrip`（R10 方案 B，D46），标题行右侧标「复盘回到第 1 步」，不再按步骤分色。
 
 ## 采购入库、销售出库
 

@@ -26,16 +26,9 @@ jest.mock('@umijs/max', () => ({
   Link: (p: { children: unknown }) => p.children,
   useAccess: () => ({ salesFollowup: true, 'partner:customer:merge': true }),
 }));
-// boardStyle 的 JSX 依赖全局 React（jest 下没有），这里只需要颜色
+// boardStyle 的 JSX 依赖全局 React（jest 下没有）
 jest.mock('@/pages/sales/followup/boardStyle', () => ({
-  useBoardStyle: () => () => ({
-    color: '#3B82F6',
-    text: '#3368BC',
-    soft: '#EBF3FE',
-    badge: '#3368BC',
-    badgeInk: '#fff',
-    icon: null,
-  }),
+  BOARD_ICON: {},
   VIEW_TODAY: 0,
 }));
 jest.mock('@/pages/sales/followup/service', () => ({

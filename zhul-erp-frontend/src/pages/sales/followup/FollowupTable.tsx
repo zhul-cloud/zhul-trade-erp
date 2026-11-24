@@ -65,7 +65,7 @@ export const StageBar: React.FC<{
   onChange: (v: StageFilter) => void;
   blocker?: string;
   onBlocker: (v?: string) => void;
-  /** 右侧的额外操作（主动开发：国家筛选、新建开发对象） */
+  /** 右侧的工具：搜索、负责人，主动开发另有国家筛选、新建开发对象 */
   extra?: React.ReactNode;
 }> = ({ boardNo, board, value, onChange, blocker, onBlocker, extra }) => {
   const { palette } = useAppTheme();
@@ -81,6 +81,7 @@ export const StageBar: React.FC<{
     <button
       type="button"
       key={key}
+      aria-pressed={active}
       onClick={() => onChange(f)}
       style={{
         all: 'unset',
@@ -90,9 +91,10 @@ export const StageBar: React.FC<{
         fontSize: 13,
         whiteSpace: 'nowrap',
         fontWeight: active ? 600 : 400,
-        color: active ? palette.onPrimary : palette.ink,
-        background: active ? palette.link : palette.card,
-        border: `1px solid ${active ? palette.link : palette.hairline}`,
+        // 选中：主题色浅底加描边，不整块实底（整页只有页头一个实底主按钮，R10 方案 B）
+        color: active ? palette.link : palette.ink,
+        background: active ? palette.primarySoft : palette.card,
+        border: `1px solid ${active ? palette.primaryLine : palette.hairline}`,
         transition: 'background .15s',
       }}
     >
@@ -104,7 +106,7 @@ export const StageBar: React.FC<{
       style={{
         marginLeft: 6,
         fontWeight: 600,
-        color: active ? palette.onPrimary : palette.link,
+        color: active ? palette.link : palette.sub,
       }}
     >
       {n}
@@ -161,6 +163,7 @@ export const StageBar: React.FC<{
         <div key={`grp${g.group}`} style={{ display: 'grid', gap: 4 }}>
           <button
             type="button"
+            aria-pressed={value.group === g.group}
             onClick={() => onChange({ group: g.group })}
             style={{
               all: 'unset',
@@ -230,7 +233,7 @@ export const StageBar: React.FC<{
                 style={{
                   marginLeft: 6,
                   fontWeight: 600,
-                  color: value.dormant ? '#fff' : palette.orange,
+                  color: palette.orange,
                 }}
               >
                 {board?.dormant ?? 0}
@@ -263,7 +266,7 @@ export const StageBar: React.FC<{
                 style={{
                   marginLeft: 6,
                   fontWeight: 600,
-                  color: value.exception ? '#fff' : palette.orange,
+                  color: palette.orange,
                 }}
               >
                 {board?.exceptions ?? 0}
@@ -761,7 +764,6 @@ export const FollowupTable: React.FC<{
                 <>
                   <Button
                     size="small"
-                    type="primary"
                     disabled={!canRecord}
                     onClick={() => onConvert?.(r)}
                   >
@@ -781,7 +783,6 @@ export const FollowupTable: React.FC<{
                 <>
                   <Button
                     size="small"
-                    type="primary"
                     disabled={!canRecord}
                     onClick={() => onNewInquiry?.(r.customerId)}
                   >
@@ -800,7 +801,6 @@ export const FollowupTable: React.FC<{
               ) : (
                 <Button
                   size="small"
-                  type="primary"
                   disabled={!canRecord}
                   onClick={() => onRecord(r)}
                 >
@@ -1332,7 +1332,6 @@ export const FollowupTable: React.FC<{
           />
           <Button
             size="small"
-            type="primary"
             disabled={!canRecord}
             onClick={() =>
               onRecordTarget?.({

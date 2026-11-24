@@ -1,16 +1,16 @@
 import { Skeleton } from 'antd';
 import dayjs from 'dayjs';
 import {
-  Calendar,
+  CalendarCheck,
   ClipboardCheck,
   Compass,
   FileText,
   RefreshCw,
-  Repeat,
   ShieldCheck,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
+import { FlowStrip, type FlowStripItem } from '@/components/FlowStrip';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
@@ -19,11 +19,6 @@ import {
   type Category,
   categoryApi,
 } from '@/pages/product/service';
-import {
-  type StepStyle,
-  useStepStyle,
-} from '@/pages/sales/followup/boardStyle';
-import { Arrow } from '@/pages/sales/followup/FlowChain';
 import { categoryGroups } from '@/pages/supplier/productScope';
 import { getUserOptions } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -220,7 +215,7 @@ export const EvidenceText: React.FC<{ d: Demand }> = ({ d }) => {
 
 // ---------------------------------------------------------------- 顶部链路
 
-/** 五个板块（与作战地图一致），第 4–5 步未上线；颜色按步骤取，与客户跟进同一套 */
+/** 五个板块（与作战地图一致），第 4–5 步未上线 */
 const BOARDS = [
   { key: 'intel', name: '需求情报', icon: <Compass size="1em" /> },
   { key: 'cover', name: '供应覆盖', icon: <ShieldCheck size="1em" /> },
@@ -229,226 +224,9 @@ const BOARDS = [
   { key: 'review', name: '复盘补全', icon: <RefreshCw size="1em" /> },
 ];
 
-/** 板块的颜色（图形用色、文字色等）：按板块所在的步骤取 */
-export const useSupplyBoardStyle = (): ((key: string) => StepStyle) => {
-  const step = useStepStyle();
-  return (key: string) => step(BOARDS.findIndex((b) => b.key === key) + 1 || 1);
-};
-
 export type FlowView = 'today' | 'intel' | 'cover' | 'dev';
 
-const StageCard: React.FC<{
-  b: (typeof BOARDS)[number];
-  step: number;
-  active: boolean;
-  count?: number;
-  unit?: string;
-  badge?: React.ReactNode;
-  sub?: string;
-  onSelect?: () => void;
-}> = ({ b, step, active, count, unit = '个型号', badge, sub, onSelect }) => {
-  const { palette } = useAppTheme();
-  const s = useStepStyle()(step);
-  const open = !!onSelect;
-  return (
-    <button
-      type="button"
-      disabled={!open}
-      title={open ? undefined : '即将上线'}
-      onClick={onSelect}
-      style={{
-        all: 'unset',
-        boxSizing: 'border-box',
-        flex: '1 1 0',
-        minWidth: 150,
-        display: 'grid',
-        alignContent: 'start',
-        gap: 6,
-        padding: '12px 14px',
-        borderRadius: 14,
-        cursor: open ? 'pointer' : 'not-allowed',
-        background: active ? s.soft : palette.card,
-        border: `1px solid ${active ? s.color : palette.hairline}`,
-        transition: 'background .15s, border-color .15s',
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          <span
-            style={{
-              width: 26,
-              height: 26,
-              borderRadius: 8,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: s.text,
-              // 选中时卡片已是浅底，图标底块改白，免得融成一片
-              background: active ? palette.card : s.soft,
-            }}
-          >
-            {b.icon}
-          </span>
-          <b
-            style={{
-              fontSize: 14,
-              whiteSpace: 'nowrap',
-              color: active ? s.text : palette.ink,
-            }}
-          >
-            {b.name}
-          </b>
-        </span>
-        <span
-          style={{
-            padding: '1px 8px',
-            borderRadius: 10,
-            fontSize: 11,
-            fontWeight: 600,
-            whiteSpace: 'nowrap',
-            color: active ? s.badgeInk : s.text,
-            background: active ? s.badge : s.soft,
-          }}
-        >
-          第 {step} 步
-        </span>
-      </div>
-      {open ? (
-        <>
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'flex-end',
-              gap: 4,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 26,
-                fontWeight: 700,
-                lineHeight: 1.1,
-                color: palette.ink,
-              }}
-            >
-              {count}
-            </span>
-            <span
-              style={{ fontSize: 12, color: palette.sub, whiteSpace: 'nowrap' }}
-            >
-              {unit}
-            </span>
-            <span style={{ flex: 1 }} />
-            {badge}
-          </div>
-          <div
-            style={{ fontSize: 12, color: palette.sub, whiteSpace: 'nowrap' }}
-          >
-            {sub}
-          </div>
-        </>
-      ) : (
-        <>
-          <div style={{ fontSize: 26, fontWeight: 700, color: palette.faint }}>
-            —
-          </div>
-          <div style={{ fontSize: 12, color: palette.mute }}>即将上线</div>
-        </>
-      )}
-    </button>
-  );
-};
-
-/** 卡片下方贯穿五步的进度轨道，末尾「复盘回到第 1 步」；与客户跟进同一套画法 */
-const Track: React.FC<{ counts: (number | undefined)[] }> = ({ counts }) => {
-  const style = useStepStyle();
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-      {BOARDS.map((b, i) => {
-        const s = style(i + 1);
-        const next = BOARDS[i + 1] ? style(i + 2) : undefined;
-        return (
-          <React.Fragment key={b.key}>
-            <div
-              style={{
-                flex: '1 1 0',
-                minWidth: next ? 0 : 'auto',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              <span
-                style={{
-                  boxSizing: 'border-box',
-                  width: 22,
-                  height: 22,
-                  borderRadius: 11,
-                  flexShrink: 0,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  // 和卡片上的「第 N 步」同一套：浅底、板块色描边、加深的数字
-                  color: s.text,
-                  background: s.soft,
-                  border: `1.5px solid ${s.color}`,
-                }}
-              >
-                {i + 1}
-              </span>
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: s.text,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {b.name} {counts[i] ?? ''}
-              </span>
-              <span
-                style={{
-                  flex: 1,
-                  minWidth: 12,
-                  height: 6,
-                  borderRadius: 3,
-                  background: s.color,
-                }}
-              />
-              {!next && (
-                <span
-                  style={{
-                    fontSize: 12,
-                    color: s.text,
-                    whiteSpace: 'nowrap',
-                    display: 'inline-flex',
-                    gap: 4,
-                  }}
-                >
-                  <Repeat size="1em" /> 复盘回到第 1 步
-                </span>
-              )}
-            </div>
-            {next && (
-              <span
-                style={{
-                  width: 42,
-                  height: 6,
-                  flexShrink: 0,
-                  background: next.color,
-                }}
-              />
-            )}
-          </React.Fragment>
-        );
-      })}
-    </div>
-  );
-};
-
-/** 顶部链路：今日待办 + 作战地图五个板块，已开放需求情报、供应覆盖、供应商开发 */
+/** 顶部链路：今日待办 + 作战地图五个板块，已开放需求情报、供应覆盖、供应商开发；与客户跟进同一个 FlowStrip */
 export const SupplyFlow: React.FC<{
   overview?: Overview;
   /** 概览取数失败的原因，有值时显示失败与重试（audit UI-091） */
@@ -457,7 +235,6 @@ export const SupplyFlow: React.FC<{
   active: FlowView;
   onSelect: (v: FlowView) => void;
 }> = ({ overview: o, error, onRetry, active, onSelect }) => {
-  const { palette } = useAppTheme();
   if (!o)
     return (
       <Card style={{ padding: 20, marginBottom: 16 }}>
@@ -471,116 +248,50 @@ export const SupplyFlow: React.FC<{
         )}
       </Card>
     );
-  const today = active === 'today';
-  const total = o.overdue + o.dueToday;
+  const stat: Record<
+    string,
+    Pick<FlowStripItem, 'value' | 'unit' | 'badge' | 'sub'>
+  > = {
+    intel: {
+      value: o.intelTotal,
+      unit: '个型号',
+      sub: `待归类 ${o.unclassified} · 观察中 ${o.watching} · 待复核 ${o.review}`,
+    },
+    cover: {
+      value: o.coverTotal,
+      unit: '个型号',
+      badge: o.stockoutOpen > 0 && (
+        <Pill tone="red">无货 {o.stockoutOpen}</Pill>
+      ),
+      sub: `无渠道 ${o.coverage[1] ?? 0} · 未验证 ${o.coverage[2] ?? 0} · 需确认 ${o.coverage[3] ?? 0} · 可报 ${o.coverage[4] ?? 0}`,
+    },
+    ...(o.dev && {
+      dev: {
+        value: o.dev.gapGroups,
+        unit: '个品牌品类',
+        badge: o.dev.gapTotal > 0 && (
+          <Pill tone="red">缺 {o.dev.gapTotal} 家</Pill>
+        ),
+        sub: `待开发 ${o.dev.todo} · 开发中 ${o.dev.doing} · 已达标 ${o.dev.done}`,
+      },
+    }),
+  };
   return (
-    <div style={{ overflowX: 'auto', marginBottom: 16 }}>
-      <div style={{ display: 'flex', gap: 16, minWidth: 1080 }}>
-        <button
-          type="button"
-          onClick={() => onSelect('today')}
-          style={{
-            all: 'unset',
-            boxSizing: 'border-box',
-            width: 180,
-            flexShrink: 0,
-            alignSelf: 'flex-start',
-            display: 'grid',
-            gap: 6,
-            padding: '14px 18px',
-            borderRadius: 14,
-            cursor: 'pointer',
-            color: today ? '#fff' : palette.ink,
-            background: today ? palette.primary : palette.card,
-            border: `1px solid ${today ? palette.primary : palette.hairline}`,
-          }}
-        >
-          <b
-            style={{
-              fontSize: 14,
-              color: today ? '#fff' : palette.link,
-              display: 'inline-flex',
-              gap: 6,
-            }}
-          >
-            <Calendar size="1em" /> 今日待办
-          </b>
-          <span>
-            <span style={{ fontSize: 28, fontWeight: 700 }}>{total}</span>
-            <span style={{ fontSize: 12, marginLeft: 4 }}>项</span>
-          </span>
-          <span
-            style={{
-              fontSize: 12,
-              color: today ? '#fff' : palette.sub,
-              opacity: today ? 0.85 : 1,
-            }}
-          >
-            逾期 {o.overdue} · 今天 {o.dueToday}
-          </span>
-        </button>
-        <span style={{ width: 1, background: palette.hairline }} />
-        <div
-          style={{
-            flex: 1,
-            minWidth: 0,
-            display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1fr)',
-            gap: 10,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'stretch', gap: 4 }}>
-            {BOARDS.map((b, i) => (
-              <React.Fragment key={b.key}>
-                {i > 0 && <Arrow />}
-                {b.key === 'intel' ? (
-                  <StageCard
-                    b={b}
-                    step={1}
-                    active={active === 'intel'}
-                    count={o.intelTotal}
-                    sub={`待归类 ${o.unclassified} · 观察中 ${o.watching} · 待复核 ${o.review}`}
-                    onSelect={() => onSelect('intel')}
-                  />
-                ) : b.key === 'cover' ? (
-                  <StageCard
-                    b={b}
-                    step={2}
-                    active={active === 'cover'}
-                    count={o.coverTotal}
-                    badge={
-                      o.stockoutOpen > 0 && (
-                        <Pill tone="red">无货 {o.stockoutOpen}</Pill>
-                      )
-                    }
-                    sub={`无渠道 ${o.coverage[1] ?? 0} · 未验证 ${o.coverage[2] ?? 0} · 需确认 ${o.coverage[3] ?? 0} · 可报 ${o.coverage[4] ?? 0}`}
-                    onSelect={() => onSelect('cover')}
-                  />
-                ) : b.key === 'dev' && o.dev ? (
-                  <StageCard
-                    b={b}
-                    step={3}
-                    active={active === 'dev'}
-                    count={o.dev.gapGroups}
-                    unit="个品牌品类"
-                    badge={
-                      o.dev.gapTotal > 0 && (
-                        <Pill tone="red">缺 {o.dev.gapTotal} 家</Pill>
-                      )
-                    }
-                    sub={`待开发 ${o.dev.todo} · 开发中 ${o.dev.doing} · 已达标 ${o.dev.done}`}
-                    onSelect={() => onSelect('dev')}
-                  />
-                ) : (
-                  <StageCard b={b} step={i + 1} active={false} />
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-          <Track counts={[o.intelTotal, o.coverTotal, o.dev?.gapGroups]} />
-        </div>
-      </div>
-    </div>
+    <FlowStrip
+      title="跟进板块"
+      loop="复盘回到第 1 步"
+      active={active}
+      onSelect={(k) => onSelect(k as FlowView)}
+      lead={{
+        key: 'today',
+        name: '今日待办',
+        icon: <CalendarCheck size="1em" />,
+        value: o.overdue + o.dueToday,
+        unit: '项',
+        sub: `逾期 ${o.overdue} · 今天 ${o.dueToday}`,
+      }}
+      steps={BOARDS.map((b, i) => ({ ...b, step: i + 1, ...stat[b.key] }))}
+    />
   );
 };
 

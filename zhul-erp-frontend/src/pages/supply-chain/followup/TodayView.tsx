@@ -4,13 +4,7 @@ import { Bell, CircleCheck, Copy, Lightbulb } from 'lucide-react';
 import React, { useState } from 'react';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
-import {
-  Card,
-  CoverPill,
-  DueText,
-  Pill,
-  useSupplyBoardStyle,
-} from '../components';
+import { Card, CoverPill, DueText, Pill } from '../components';
 import {
   type DevTodayItem,
   modelName,
@@ -31,8 +25,8 @@ const TodayCardView: React.FC<{
   onDefer: (c: TodayCard) => void;
 }> = ({ c, canEdit, onRecord, onDefer }) => {
   const { palette } = useAppTheme();
-  const board = useSupplyBoardStyle();
-  const color = c.overdue ? palette.red : board(c.board).color;
+  // 只有逾期画红色竖条（与客户跟进今日待办一致，R10 方案 B）
+  const color = c.overdue ? palette.red : 'transparent';
   const top = c.items[0];
   return (
     <Card style={{ padding: '16px 20px', marginBottom: 12 }}>
@@ -75,10 +69,7 @@ const TodayCardView: React.FC<{
           </div>
           {top?.nextAction && (
             <div style={{ display: 'flex', gap: 8 }}>
-              <Bell
-                size="1em"
-                style={{ color: palette.orange, marginTop: 4 }}
-              />
+              <Bell size="1em" style={{ color: palette.mute, marginTop: 4 }} />
               <span>
                 {top.nextActionSource === 2 &&
                   top.reminderType === REMIND_FULFILLMENT && (
@@ -97,18 +88,22 @@ const TodayCardView: React.FC<{
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {c.sopHint && (
               <span
-                style={{ color: palette.link, display: 'inline-flex', gap: 8 }}
+                style={{
+                  fontSize: 12,
+                  color: palette.mute,
+                  display: 'inline-flex',
+                  gap: 8,
+                }}
               >
-                <Lightbulb size="1em" /> SOP 建议：{c.sopHint}
+                <Lightbulb size="1em" style={{ color: palette.faint }} /> SOP
+                建议：{c.sopHint}
               </span>
             )}
             <span style={{ flex: 1 }} />
             {canEdit && (
               <>
                 <Button onClick={() => onDefer(c)}>延后</Button>
-                <Button type="primary" onClick={() => onRecord(c)}>
-                  记处理
-                </Button>
+                <Button onClick={() => onRecord(c)}>记处理</Button>
               </>
             )}
           </div>
@@ -171,8 +166,7 @@ const DevItemView: React.FC<{
   onOpen: (i: DevTodayItem) => void;
 }> = ({ i, onOpen }) => {
   const { palette } = useAppTheme();
-  const board = useSupplyBoardStyle();
-  const color = i.overdue ? palette.red : board('dev').color;
+  const color = i.overdue ? palette.red : 'transparent';
   return (
     <Card style={{ padding: '14px 20px', marginBottom: 12 }}>
       <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
@@ -205,14 +199,12 @@ const DevItemView: React.FC<{
             </span>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Bell size="1em" style={{ color: palette.orange }} />
+            <Bell size="1em" style={{ color: palette.mute }} />
             <span style={{ flex: 1 }}>
               {i.kind === 'candidate' ? '我定的下一步：' : ''}
               {i.text}
             </span>
-            <Button type="primary" onClick={() => onOpen(i)}>
-              去处理
-            </Button>
+            <Button onClick={() => onOpen(i)}>去处理</Button>
           </div>
         </div>
       </div>
