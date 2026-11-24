@@ -87,7 +87,7 @@ export const MergeModal: React.FC<{
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Pill tone={keep ? 'accent' : 'gray'}>{keep ? '保留' : '被合并'}</Pill>
+        <Pill tone={keep ? 'info' : 'gray'}>{keep ? '保留' : '被合并'}</Pill>
         <span className="num" style={{ fontSize: 12, color: palette.mute }}>
           {m.customerCode}
         </span>

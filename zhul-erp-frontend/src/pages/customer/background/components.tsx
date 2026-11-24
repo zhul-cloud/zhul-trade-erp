@@ -7,12 +7,12 @@ import {
   FileText,
   FileUp,
   Flame,
-  Info,
   LoaderCircle,
   Sparkles,
   X,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Callout } from '@/components/Callout';
 import { useTabActive } from '@/components/PageTabs/hooks';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -772,25 +772,12 @@ const UploadModal: React.FC<{
             {error}
           </div>
         )}
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            padding: '12px 16px',
-            borderRadius: 12,
-            background: palette.primarySoft,
-          }}
-        >
-          <Info size="1em" style={{ color: palette.link, marginTop: 3 }} />
-          <div style={{ fontSize: 13, lineHeight: 1.6 }}>
-            <div style={{ fontWeight: 600, color: palette.link }}>
-              AI 只从报告里提取核心结论和字段建议，不联网
-            </div>
-            <div style={{ color: palette.sub }}>
-              比一键 AI 背调便宜得多；原 PDF 会保存在报告上，可以下载。
-            </div>
+        <Callout>
+          <div style={{ fontWeight: 600, color: palette.ink }}>
+            AI 只从报告里提取核心结论和字段建议，不联网
           </div>
-        </div>
+          比一键 AI 背调便宜得多；原 PDF 会保存在报告上，可以下载。
+        </Callout>
       </div>
     </Modal>
   );

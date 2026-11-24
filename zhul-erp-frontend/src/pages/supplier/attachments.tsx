@@ -130,8 +130,8 @@ const FileChip: React.FC<{
           flex: 'none',
           borderRadius: 8,
           fontSize: 16,
-          color: pdf ? palette.red : palette.link,
-          background: pdf ? palette.redSoft : palette.primarySoft,
+          color: palette.sub,
+          background: palette.neutralSoft,
         }}
       >
         {pdf ? <FileText size="1em" /> : <FileImage size="1em" />}

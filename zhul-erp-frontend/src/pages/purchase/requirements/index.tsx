@@ -565,7 +565,7 @@ const RequirementList: React.FC = () => {
             <Pill tone="green">已下单 {o.orderedCount}</Pill>
           )}
           {o.partialCount > 0 && (
-            <Pill tone="accent">部分下单 {o.partialCount}</Pill>
+            <Pill tone="info">部分下单 {o.partialCount}</Pill>
           )}
           {o.draftCount > 0 && <Pill tone="orange">草稿中 {o.draftCount}</Pill>}
           {o.pendingCount > 0 && (
@@ -903,12 +903,12 @@ const RequirementList: React.FC = () => {
                       gap: 10,
                       alignItems: 'baseline',
                       padding: '10px 16px 10px 56px',
-                      background: palette.primarySoft,
-                      borderTop: `1px solid ${palette.primaryLine}`,
-                      borderBottom: `1px solid ${palette.primaryLine}`,
+                      background: palette.inset,
+                      borderTop: `1px solid ${palette.hairline}`,
+                      borderBottom: `1px solid ${palette.hairline}`,
                     }}
                   >
-                    <b style={{ color: palette.link, whiteSpace: 'nowrap' }}>
+                    <b style={{ color: palette.sub, whiteSpace: 'nowrap' }}>
                       <FileText size="1em" /> 销售备注
                     </b>
                     <span

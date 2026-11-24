@@ -103,7 +103,10 @@
 - 直接放在页面底上的控件（分段控件的轨道、页面级标签条）用比页面底深一档的灰，不用页面底色本身。
 - 小控件不受「比页面浅」限制：状态标签、快捷筛选、图标底圆、细进度条用中性标签灰 `neutralSoft`（比页面深）可以；但卡内成块的格子（风险格、凹格、分组块）一律用 `inset`。
 - 分组卡片（如采购需求按订单）：每组一张与主卡同级的白卡，浮在页面底上；卡头白底加分隔线，表格收进卡内四周留 16，表头与主列表同一种浅灰圆角条（D39）；不在白卡里再套描边小卡。
-- 新加底色先对照这三层，不新造介于其间又贴近页面底的灰；需要强调的分组用浅主题色或语义浅底，不用更深的灰。
+- 新加底色先对照这三层，不新造介于其间又贴近页面底的灰；需要强调的分组用语义浅底，不用更深的灰。
+- **主题色浅底只表示「选中、当前」**（2026-11-24 用户确认，D42）：选中的行、选项、快捷筛选，已选 N 项的批量操作条，当前菜单、当前步骤，搜索命中，头像，返回条；另有两处固定例外：漏斗终点的图标块（D41），工作台数字卡与通知类型的图标块按色族着色（D1–D3）。状态标签 `Pill` 只有 `tone="selected"` 用主题色浅底；旧的 `tone="accent"` 已按 status-colors.md 并入信息色，新写的属性标签用 `gray`。说明文字用公共 `Callout`（中性浅底、左侧图标；需要用户处理的提示 `tone="action"`，图标用主题色），数字、汇总块（合计、应付、摘要）用卡内凹格 `inset`，属性胶囊（步骤号、类别、档位）用中性 `neutralSoft`。奶油色在白卡上对比度只有约 1.05，拿来做内容块既显平，又会被看成「被选中」。lint:ui `primary-soft` 检查写死的 `background: …primarySoft`，选中类用法写例外。
+- **一组数字各自成卡时**（如销售统计漏斗，D41、对比图 R9）：标题落在页面底上，每个数字一张白卡浮在页面上，靠图标、数字大小、比例条区分，不靠每项一个颜色；同一个量在先后环节的递减（漏斗）用同一种中性色，只把终点点亮（条用图表色 `palette.chart`）。放不下一排时按行均分（`useBalancedCols`，与 `MetricGrid` 同一算法），每行等宽、比例条可跨行比较，每行第一张不画箭头。不在一张白卡里铺一排同色色块。
+- `Callout` 只放在白卡、弹窗里；直接落在页面底上的提示（如客户详情「在公海」）改白底，否则中性浅底和页面底几乎同色。
 - 依据：Ant Design 令牌页面 `colorBgLayout #f5f5f5`、卡片 `colorBgContainer #ffffff`、表头 `headerBg #fafafa`（卡内灰比页面浅）；GitHub Primer、Atlassian 是页面白、卡内灰深一档的另一种做法，两种都不会出现「卡内灰比页面深」。
 - 深色按「越高越亮」：页面最暗，卡片、卡内浅灰依次变亮。
 
@@ -337,6 +340,7 @@ import {
 | 人名 | `UserName`、`useUserName`（`src/components/UserName`） | 创建人、更新人存的是登录账号，显示姓名（同一轮渲染的账号合并成一次 `/api/v1/system/users/names` 查询；登录、退出时清空缓存，查询失败先显示账号、下次再查）；系统写入显示「系统」 |
 | 创建、更新两列 | `auditColumns()`、`AuditCell`（同上） | 列表固定的「创建」「更新」两列（各 120）：人名 13 号正文色（「系统」次要色）在上、短时间 12 号在下，悬停看「姓名 · 完整时间」。`pages/purchase/components` 里旧的四列 `auditColumns` 第 4 批删掉 |
 | 行内提醒 | `rowAlert(tone, props)`（`src/components/RowAlert`） | `onRow={(r) => rowAlert(r.overdue ? 'error' : undefined, { onClick })}`：首格左侧 3px 色条，原有的行属性一起传入；原因写成状态标签，不整行铺底色 |
+| 说明框 | `Callout`（`src/components/Callout`） | `<Callout>说明文字</Callout>`：中性浅底、无边框、左侧信息图标（`icon` 可换、传 `null` 不显示），`extra` 放右侧操作；需要用户处理的提示用 `tone="action"`（图标主题色），状态提示传 `role="status"`。警告、报错仍用 antd `Alert`（「提示条」）。不再用主题色浅底写说明（D42） |
 | 数字卡 | `MetricCard`、`MetricGroup` | 随工作台（第 3 批）实现，见「组件标准 · 数字卡」 |
 | 数字块网格 | `MetricGrid`（`src/components/MetricCard`） | `cols` 每排最多张数、`min` 每张最小宽（默认 150）、`gap`。放不下时按行均分（6 张排成 3+3、7 张排成 4+3），不剩单张一行。固定数量的数字块、阶段块、凹格都用它；数量不定的列表（图片、附件、地址卡）才用 `repeat(auto-fill, …)` |
 
@@ -364,6 +368,7 @@ import {
 | `row-actions` | 错误 | 表格「操作」列没用 `RowActions`：审批、审核、工作队列、要显示进度的长操作等例外，在列上写 `lint-ui-ignore row-actions: 原因` |
 | `attr-tone` | 错误 | 类别、属性标签（客户指定、老客户、现货、默认等）用了彩色：改 `tone="gray"`，彩色只给流程状态与告警（S13） |
 | `antd-empty` | 错误 | 用了 antd 的 `Empty`：改公共 `EmptyState`（小地方 `compact`） |
+| `primary-soft` | 错误 | 写死了 `background: …primarySoft`：说明文字改 `Callout`，数字、汇总块改 `inset`，属性改 `neutralSoft`；选中、批量操作条、搜索命中、头像、返回条写例外（D42） |
 | `antd-icon` | 错误 | 用了 `@ant-design/icons`：改 lucide-react（尺寸 `size="1em"` 跟随字号，转圈加 `zhul-spin`）；品牌标识等 lucide 没有的写例外 |
 
 - 确认弹窗（`confirm`）、警告条（`Alert`）、`Popconfirm` 里的文字不检查，按「说明文字」一节原样保留。

@@ -427,7 +427,7 @@ const BackBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
           padding: '4px 12px',
           border: 0,
           borderRadius: 999,
-          background: palette.primarySoft,
+          background: palette.primarySoft, // lint-ui-ignore primary-soft: 返回条，规范「标签页与返回」指定主题色浅底胶囊
           color: palette.link,
           fontSize: 13,
           fontWeight: 600,

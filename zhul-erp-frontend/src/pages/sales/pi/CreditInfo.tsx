@@ -46,13 +46,13 @@ const CreditInfo: React.FC<{
         ? palette.infoSoft
         : tone === 'orange'
           ? palette.orangeSoft
-          : palette.primarySoft;
+          : palette.inset;
     const fg =
       tone === 'violet'
         ? palette.info
         : tone === 'orange'
           ? palette.orange
-          : palette.link;
+          : palette.ink;
     return (
       <div
         style={{

@@ -13,6 +13,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import { LoaderCircle, UploadIcon, X } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { Callout } from '@/components/Callout';
 import { useLevels } from '@/pages/inquiry/shared/components';
 import { LEVEL_DEFAULT } from '@/pages/inquiry/shared/constants';
 import { inquiryApi } from '@/pages/inquiry/shared/service';
@@ -143,16 +144,7 @@ export const CloseModal: React.FC<{
         style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}
       />
       {!invalid && recommend && (
-        <div
-          style={{
-            marginBottom: 16,
-            padding: '8px 12px',
-            borderRadius: 8,
-            fontSize: 12,
-            color: palette.link,
-            background: palette.primarySoft,
-          }}
-        >
+        <Callout tone="action" style={{ marginBottom: 16 }}>
           按最近跟进推荐：
           {recommend.reasons.map((r, i) => (
             <React.Fragment key={r}>
@@ -168,7 +160,7 @@ export const CloseModal: React.FC<{
           ))}
           {recommend.date &&
             `（${dayjs(recommend.date).format('MM-DD')} 卡点）`}
-        </div>
+        </Callout>
       )}
       <div style={{ marginBottom: 8 }}>
         说明 <span style={{ fontSize: 12, color: palette.mute }}>选填</span>

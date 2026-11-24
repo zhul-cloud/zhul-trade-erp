@@ -342,8 +342,7 @@ export const RfmModal: React.FC<{
             marginTop: 16,
             padding: '12px 16px',
             borderRadius: 12,
-            background: palette.primarySoft,
-            border: `1px solid ${palette.primaryLine}`,
+            background: palette.inset,
             fontSize: 13,
           }}
         >

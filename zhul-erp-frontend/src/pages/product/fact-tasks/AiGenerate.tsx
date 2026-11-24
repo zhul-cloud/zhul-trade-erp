@@ -42,11 +42,11 @@ export const elapsed = (from?: string, now = dayjs()) => {
   return `${Math.floor(m / 60)} 小时 ${m % 60} 分`;
 };
 
-type Tone = 'gray' | 'accent' | 'green' | 'red' | 'violet';
+type Tone = 'gray' | 'accent' | 'green' | 'red' | 'violet' | 'orange';
 const META: Record<number, { label: string; tone: Tone }> = {
   [AI_STATUS.QUEUED]: { label: '排队中', tone: 'gray' },
   [AI_STATUS.RUNNING]: { label: '生成中', tone: 'violet' },
-  [AI_STATUS.PENDING]: { label: '待确认', tone: 'accent' },
+  [AI_STATUS.PENDING]: { label: '待确认', tone: 'orange' },
   [AI_STATUS.IMPORTED]: { label: '已导入', tone: 'green' },
   [AI_STATUS.FAILED]: { label: '失败', tone: 'red' },
   [AI_STATUS.CANCELLED]: { label: '已取消', tone: 'gray' },

@@ -663,7 +663,7 @@ const StrategyDrawer: React.FC<{
       title={
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
           报价策略
-          <Pill tone="accent">
+          <Pill tone="selected">
             {selectedOnly
               ? `作用于已选 ${rows.length} 个型号`
               : `作用于全部 ${rows.length} 个有价型号`}

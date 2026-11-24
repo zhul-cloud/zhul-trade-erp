@@ -134,7 +134,7 @@ const ManualMergeModal: React.FC<{
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Pill tone="accent">当前客户</Pill>
+                <Pill tone="selected">当前客户</Pill>
                 <span
                   className="num"
                   style={{ fontSize: 12, color: palette.mute }}

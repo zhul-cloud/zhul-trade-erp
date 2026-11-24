@@ -31,13 +31,10 @@ import { tableScrollX } from '@/utils/tableScroll';
 type Tab = 'keywords' | MarketingPlatform | 'records';
 type LibraryKeyword = NonNullable<ProductContent['keywordLibrary']>[number];
 
-const TIERS: Record<
-  number,
-  { label: string; tone: 'accent' | 'violet' | 'gray' }
-> = {
-  1: { label: '核心', tone: 'accent' },
-  2: { label: '主要', tone: 'violet' },
-  3: { label: '长尾', tone: 'gray' },
+const TIERS: Record<number, { label: string; tone: 'gray' | 'mute' }> = {
+  1: { label: '核心', tone: 'gray' },
+  2: { label: '主要', tone: 'gray' },
+  3: { label: '长尾', tone: 'mute' },
 };
 
 /** 关键词库：本公司这个型号的关键词总库，按档位、库内顺序，标出选用平台与没被选用的词 */
@@ -120,9 +117,9 @@ const KeywordLibrary: React.FC<{ data: ProductContent }> = ({ data }) => {
         }}
       >
         <b style={{ color: palette.ink }}>关键词库 · {rows.length} 个</b>
-        <Pill tone="accent">核心 {count(1)}</Pill>
-        <Pill tone="violet">主要 {count(2)}</Pill>
-        <Pill tone="gray">长尾 {count(3)}</Pill>
+        <Pill tone="gray">核心 {count(1)}</Pill>
+        <Pill tone="gray">主要 {count(2)}</Pill>
+        <Pill tone="mute">长尾 {count(3)}</Pill>
         <span style={{ flex: 1 }} />
         <span style={{ fontSize: 12, color: palette.mute }}>
           已被平台选用 {rows.length - unused} · 未使用 {unused}

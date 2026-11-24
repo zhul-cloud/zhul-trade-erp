@@ -158,7 +158,7 @@ export const DocumentCard: React.FC<Common> = ({
                 borderTop: `1px solid ${palette.hairline}`,
               }}
             >
-              <Pill tone="accent">{DOCUMENT_TYPES[d.documentType]}</Pill>
+              <Pill tone="gray">{DOCUMENT_TYPES[d.documentType]}</Pill>
               <a
                 href={d.fileUrl}
                 target="_blank"

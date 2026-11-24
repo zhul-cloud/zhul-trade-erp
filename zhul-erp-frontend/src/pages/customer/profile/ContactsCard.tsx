@@ -277,7 +277,7 @@ const ContactsCard: React.FC<{
 
   const tag = (
     text: string,
-    tone: 'accent' | 'gray' | 'orange' | 'violet' | 'green' | 'cyan' = 'gray',
+    tone: 'gray' | 'orange' | 'violet' | 'green' | 'cyan' = 'gray',
   ) => (
     <Pill key={text} tone={tone}>
       {text}
@@ -351,7 +351,7 @@ const ContactsCard: React.FC<{
           >
             <b style={{ color: palette.ink }}>{c.name}</b>
             {c.nameCn && <span style={{ color: palette.sub }}>{c.nameCn}</span>}
-            {c.primary && tag('主联系人', 'accent')}
+            {c.primary && tag('主联系人')}
             {!!c.jobRole && tag(d.job.labelOf(c.jobRole))}
             {canEdit && (
               <button

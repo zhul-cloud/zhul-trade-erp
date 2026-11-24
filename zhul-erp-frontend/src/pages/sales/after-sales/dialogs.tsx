@@ -13,6 +13,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import { Plus, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { Callout } from '@/components/Callout';
 import {
   DICT_REFUND_REASON,
   REFUND_METHODS,
@@ -1139,21 +1140,13 @@ export const ReplacementModal: React.FC<{
       destroyOnHidden
     >
       <Space orientation="vertical" size={14} style={{ width: '100%' }}>
-        <div
-          style={{
-            padding: '10px 14px',
-            borderRadius: 12,
-            background: palette.primarySoft,
-            fontSize: 13,
-            color: palette.sub,
-          }}
-        >
-          <b style={{ color: palette.link }}>生成一张 0 元的售后补发订单</b>
+        <Callout>
+          <b style={{ color: palette.ink }}>生成一张 0 元的售后补发订单</b>
           <div>
             客户、币种、事业部、业务员取原订单；不出
             PI、不收款，照常生成采购需求走采购和出运。补发的成本计入原订单。
           </div>
-        </div>
+        </Callout>
         <div
           style={{
             display: 'grid',

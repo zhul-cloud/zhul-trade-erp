@@ -134,7 +134,7 @@ const PostCard: React.FC<{
                   borderRadius: 999,
                   fontSize: 13,
                   color: palette.ink,
-                  background: palette.primarySoft,
+                  background: palette.neutralSoft,
                 }}
               >
                 <span
@@ -146,7 +146,7 @@ const PostCard: React.FC<{
                     placeItems: 'center',
                     fontSize: 11,
                     color: palette.ink,
-                    background: palette.inset,
+                    background: palette.card,
                   }}
                 >
                   {u.name?.slice(0, 1)}

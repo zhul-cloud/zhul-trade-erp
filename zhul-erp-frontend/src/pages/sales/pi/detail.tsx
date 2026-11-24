@@ -1748,7 +1748,7 @@ const PiDetail: React.FC = () => {
       >
         <b style={{ color: palette.ink }}>用客户余额抵扣</b>
         <span style={{ marginLeft: 'auto' }}>
-          <Pill tone="accent">可用 {formatAmount(creditAvailable, cur)}</Pill>
+          <Pill tone="gray">可用 {formatAmount(creditAvailable, cur)}</Pill>
         </span>
       </div>
       <div
@@ -2064,7 +2064,7 @@ const PiDetail: React.FC = () => {
               padding: '10px 12px',
               marginTop: 6,
               borderRadius: 12,
-              background: palette.primarySoft,
+              background: palette.inset,
             }}
           >
             <b style={{ color: palette.ink }}>Amount Due 应付</b>

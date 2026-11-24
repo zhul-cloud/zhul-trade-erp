@@ -113,7 +113,7 @@ const VouchersPage: React.FC = () => {
         ) : v > 0 ? (
           <Pill tone="green">{v > 1 ? `已导出 ${v} 次` : '已导出'}</Pill>
         ) : (
-          <Pill tone="accent">未导出</Pill>
+          <Pill tone="orange">未导出</Pill>
         ),
     },
     {

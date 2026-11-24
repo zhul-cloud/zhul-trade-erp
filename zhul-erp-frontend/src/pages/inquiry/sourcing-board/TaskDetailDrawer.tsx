@@ -338,7 +338,7 @@ const TaskDetailDrawer: React.FC<{
                             </span>
                             {q.recommended && <Pill tone="green">推荐</Pill>}
                             {q.id === it.selectedQuoteId && (
-                              <Pill tone="accent">成本价</Pill>
+                              <Pill tone="gray">成本价</Pill>
                             )}
                           </div>
                         ))}

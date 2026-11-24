@@ -11,6 +11,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import { FileText, Plus, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { Callout } from '@/components/Callout';
 import { SupplierPicker } from '@/pages/purchase/components';
 import {
   DISP,
@@ -424,18 +425,9 @@ export const DisposeModal: React.FC<{
           </div>
         ))}
         {toSupplier && (
-          <div
-            style={{
-              padding: '10px 14px',
-              borderRadius: 10,
-              background: palette.primarySoft,
-              fontSize: 13,
-              color: palette.sub,
-            }}
-          >
-            <FileText size="1em" style={{ color: palette.link }} />{' '}
+          <Callout icon={<FileText size="1em" />}>
             保存后生成采购退货单（待寄出），快递、运费与供应商退款在采购退货单上登记
-          </div>
+          </Callout>
         )}
         {holdCredit > 0 && (
           <div style={{ fontSize: 13, color: palette.sub }}>

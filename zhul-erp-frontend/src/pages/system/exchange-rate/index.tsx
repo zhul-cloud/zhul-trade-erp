@@ -203,7 +203,7 @@ const ExchangeRatePage: React.FC = () => {
                 onRow={(r) => ({
                   style:
                     r.currencyCode === logCurrency
-                      ? { background: palette.primarySoft }
+                      ? { background: palette.primarySoft } // lint-ui-ignore primary-soft: 正在查看记录的币种行，属于选中状态
                       : undefined,
                 })}
                 columns={rateColumns}

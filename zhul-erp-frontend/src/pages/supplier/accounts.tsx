@@ -83,7 +83,7 @@ const TypePill: React.FC<{ type: number }> = ({ type }) => {
         fontSize: 12,
         fontWeight: 600,
         color: corporate ? palette.link : palette.orange,
-        background: corporate ? palette.primarySoft : palette.orangeSoft,
+        background: corporate ? palette.neutralSoft : palette.orangeSoft,
       }}
     >
       {corporate ? '对公' : '对私'}
@@ -131,7 +131,7 @@ export const AccountCard: React.FC<{
           borderRadius: 10,
           fontSize: 18,
           color: corporate ? palette.link : palette.orange,
-          background: corporate ? palette.primarySoft : palette.orangeSoft,
+          background: corporate ? palette.neutralSoft : palette.orangeSoft,
         }}
       >
         {corporate ? <Landmark size="1em" /> : <User size="1em" />}

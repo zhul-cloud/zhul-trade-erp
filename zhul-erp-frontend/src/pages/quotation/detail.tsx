@@ -1922,7 +1922,7 @@ const QuotationDetail: React.FC = () => {
             gap: 10,
             padding: '10px 16px',
             borderRadius: 12,
-            background: palette.primarySoft,
+            background: palette.primarySoft, // lint-ui-ignore primary-soft: 批量操作条（已选 N 个型号），属于选中状态
             marginBottom: 10,
           }}
         >

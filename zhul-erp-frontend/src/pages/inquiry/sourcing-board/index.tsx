@@ -409,7 +409,7 @@ const SourcingBoardPage: React.FC = () => {
                       gap: 10,
                       padding: '12px 16px',
                       borderRadius: 12,
-                      background: palette.primarySoft,
+                      background: palette.primarySoft, // lint-ui-ignore primary-soft: 批量操作条（已选 N 项），属于选中状态
                       border: `1px solid ${palette.primaryLine}`,
                     }}
                   >

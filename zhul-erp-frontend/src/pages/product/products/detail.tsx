@@ -544,24 +544,14 @@ const DetailInner: React.FC = () => {
                     if (!m) return null;
                     return (
                       <li key={key}>
-                        <button
-                          type="button"
+                        {/* 是操作（跳到对应卡片），用描边圆角按钮，不用主题色浅底胶囊（D42） */}
+                        <Button
+                          shape="round"
                           onClick={() => scrollToCard(m.anchor)}
-                          style={{
-                            height: 36,
-                            padding: '0 14px',
-                            borderRadius: 18,
-                            border: `1px solid ${palette.primaryLine}`,
-                            background: palette.primarySoft,
-                            color: palette.link,
-                            cursor: 'pointer',
-                            fontSize: 13,
-                            fontWeight: 600,
-                          }}
                         >
                           补 {m.label} · 约{' '}
                           <span className="num">{m.minutes}</span> 分钟
-                        </button>
+                        </Button>
                       </li>
                     );
                   })}
@@ -572,7 +562,7 @@ const DetailInner: React.FC = () => {
 
           <GroupTitle
             title="商品资料"
-            tag={<Pill tone="accent">共享</Pill>}
+            tag={<Pill tone="gray">共享</Pill>}
             desc="中文 · 所有公司共用一份 · AI 先补，采购、业务、仓库持续回填"
           />
           <FactsStatusBar

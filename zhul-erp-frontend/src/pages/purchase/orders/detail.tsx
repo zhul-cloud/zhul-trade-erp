@@ -1750,7 +1750,7 @@ const ShipmentsCard: React.FC<{
       width: 120,
       render: (_, r) =>
         r.kind === 'ship' ? (
-          <Pill tone="accent">{r.ref.sourceName}</Pill>
+          <Pill tone="gray">{r.ref.sourceName}</Pill>
         ) : (
           <Pill tone="gray">采购入库</Pill>
         ),
@@ -2350,7 +2350,7 @@ export const CancelModal: React.FC<{
                   <div>
                     <Space size={6}>
                       <span style={{ fontWeight: 600 }}>{p.paymentNo}</span>
-                      <Pill tone={p.method === 2 ? 'orange' : 'accent'}>
+                      <Pill tone={p.method === 2 ? 'orange' : 'gray'}>
                         {METHOD_NAMES[p.method]}
                       </Pill>
                     </Space>

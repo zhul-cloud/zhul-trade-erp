@@ -45,7 +45,7 @@ export const ParseProgressCard: React.FC<{
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <Pill tone="accent">解析中</Pill>
+        <Pill tone="info">解析中</Pill>
         <span style={{ color: palette.ink, fontSize: 16, fontWeight: 600 }}>
           {reading ? '正在读取附件' : `已解析 ${done} / ${total} 批`}
         </span>

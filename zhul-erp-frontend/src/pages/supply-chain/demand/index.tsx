@@ -223,7 +223,7 @@ const ChannelCard: React.FC<{ c: Channel }> = ({ c }) => {
       }}
     >
       <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-        <Pill tone={primary ? 'accent' : 'gray'}>
+        <Pill tone={primary ? 'gray' : 'mute'}>
           {primary ? '主渠道' : '备选'}
         </Pill>
         <b>{c.supplierName ?? '—'}</b>

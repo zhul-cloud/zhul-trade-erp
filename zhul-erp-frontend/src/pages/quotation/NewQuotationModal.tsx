@@ -97,7 +97,7 @@ const Highlight: React.FC<{ text: string; keyword?: string }> = ({
       {text.slice(0, i)}
       <mark
         style={{
-          background: palette.primarySoft,
+          background: palette.primarySoft, // lint-ui-ignore primary-soft: 搜索命中高亮
           color: palette.link,
           padding: 0,
           borderRadius: 3,
@@ -273,7 +273,7 @@ const ByInquiryPanel: React.FC<{
             marginTop: 12,
             padding: '10px 14px',
             borderRadius: 12,
-            background: palette.primarySoft,
+            background: palette.primarySoft, // lint-ui-ignore primary-soft: 已选询盘的操作条，属于选中状态
             fontSize: 13,
           }}
         >
@@ -851,7 +851,7 @@ export const PickItemsPanel: React.FC<{
                       }}
                     >
                       {picked > 0 && (
-                        <Pill tone="accent">已选 {picked} 个</Pill>
+                        <Pill tone="selected">已选 {picked} 个</Pill>
                       )}
                       <span style={{ fontSize: 12, color: palette.mute }}>
                         已回价 {inq.pricedCount} / 共 {inq.itemCount} 个型号

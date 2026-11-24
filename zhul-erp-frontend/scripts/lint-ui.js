@@ -46,6 +46,7 @@ const RULE_NAMES = new Set([
   'attr-tone',
   'antd-empty',
   'antd-icon',
+  'primary-soft',
 ]);
 
 /**
@@ -143,6 +144,13 @@ const LINE_RULES = [
     re: new RegExp(
       `<Pill\\s+tone="(?!gray"|mute")\\w+"[^>]*>\\s*(${ATTR_LABELS.join('|')})\\s*</Pill>`,
     ),
+  },
+  {
+    id: 'primary-soft',
+    level: 'error',
+    message:
+      '主题色浅底只表示选中、当前（ui-redesign D42）：说明文字用 Callout，数字或汇总块用中性浅底 palette.inset，属性标签用中性色；批量操作条、搜索命中等选中类用法写 lint-ui-ignore primary-soft 说明',
+    re: /\bbackground:\s*\w+\.primarySoft\b/,
   },
   {
     id: 'filler-maybe',

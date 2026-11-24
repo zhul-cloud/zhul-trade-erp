@@ -88,7 +88,7 @@ export const PriorityPill: React.FC<{ value?: number }> = ({ value }) =>
   ) : null;
 
 export const LevelPill: React.FC<{ value?: number }> = ({ value }) =>
-  value ? <Pill tone="accent">{LEVEL_NAMES[value]}</Pill> : null;
+  value ? <Pill tone="gray">{LEVEL_NAMES[value]}</Pill> : null;
 
 /** 四档分布的彩色条 + 「无渠道 2 · 未验证 0 · 需确认 3 · 可报 7」 */
 export const CoverBar: React.FC<{

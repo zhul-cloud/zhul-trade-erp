@@ -66,7 +66,7 @@ export const ACCEPT_PROOF = 'image/jpeg,image/png,image/webp,application/pdf';
 
 const STATUS_META: Record<number, { label: string; tone: Tone }> = {
   [PAY_STATUS.UNPAID]: { label: '未付', tone: 'gray' },
-  [PAY_STATUS.PARTIAL]: { label: '部分付款', tone: 'accent' },
+  [PAY_STATUS.PARTIAL]: { label: '部分付款', tone: 'info' },
   [PAY_STATUS.PAID]: { label: '已付清', tone: 'green' },
   [PAY_STATUS.CLOSED]: { label: '已关闭', tone: 'mute' },
 };
@@ -213,7 +213,7 @@ export const PayeeAccountPicker: React.FC<{
           >
             <div style={{ display: 'grid', gap: 4 }}>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <Pill tone={a.accountType === 2 ? 'orange' : 'accent'}>
+                <Pill tone={a.accountType === 2 ? 'orange' : 'gray'}>
                   {a.accountType === 2 ? '对私' : '对公'}
                 </Pill>
                 <b>{a.accountName}</b>
@@ -1266,7 +1266,7 @@ export const PaymentLineTable: React.FC<{
                 </span>
               ) : (
                 <span>
-                  <Pill tone="accent">公司对公</Pill> {l.accountName}
+                  <Pill tone="gray">公司对公</Pill> {l.accountName}
                 </span>
               )}
               {l.payeeAccount && (

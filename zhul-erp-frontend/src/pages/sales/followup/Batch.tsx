@@ -10,8 +10,9 @@ import {
   Space,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { CircleAlert, CircleCheck, Info, Zap } from 'lucide-react';
+import { CircleAlert, CircleCheck, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { Callout } from '@/components/Callout';
 import { useAppTheme } from '@/theme/AppTheme';
 import { BOARD_LABEL, Card, fmtDate, iso, SnoozeButton } from './components';
 import { adjustSuggest, dateShortcuts, suggestOf } from './nextDate';
@@ -122,7 +123,7 @@ export const BatchBar: React.FC<{
         alignItems: 'center',
         gap: 12,
         border: `1px solid ${palette.primaryLine}`,
-        background: palette.primarySoft,
+        background: palette.primarySoft, // lint-ui-ignore primary-soft: 批量操作条（已选 N 张），属于选中状态
       }}
     >
       {selectAll ? (
@@ -362,8 +363,8 @@ export const BatchFollowupModal: React.FC<{
                 padding: '1px 10px',
                 borderRadius: 6,
                 fontSize: 12,
-                color: palette.link,
-                background: palette.primarySoft,
+                color: palette.sub,
+                background: palette.neutralSoft,
               }}
             >
               {p.customerName} · {p.items.length} 张
@@ -455,18 +456,9 @@ export const BatchFollowupModal: React.FC<{
           maxLength={NOTE_MAX}
           onChange={(e) => setNote(e.target.value)}
         />
-        <div
-          style={{
-            marginTop: 16,
-            padding: '8px 12px',
-            borderRadius: 10,
-            fontSize: 12,
-            color: palette.link,
-            background: palette.primarySoft,
-          }}
-        >
-          <Info size="1em" /> 每个客户各写一条跟进记录，作用到名下全部单据
-        </div>
+        <Callout style={{ marginTop: 16 }}>
+          每个客户各写一条跟进记录，作用到名下全部单据
+        </Callout>
       </Modal>
       <Modal
         open={!!result}

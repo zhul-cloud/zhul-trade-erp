@@ -133,7 +133,7 @@ const NameplateCard: React.FC<{
               点图片右下角的「···」改对应型号
             </span>
           )}
-          <Pill tone="accent">采购能看到</Pill>
+          <Pill tone="gray">采购能看到</Pill>
         </span>
       }
     >

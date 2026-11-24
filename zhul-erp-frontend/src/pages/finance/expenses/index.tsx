@@ -923,7 +923,7 @@ const ExpensePage: React.FC = () => {
       render: (_, r) =>
         r.method === METHOD.COMPANY || r.method === METHOD.PRIVATE ? (
           <Space size={6}>
-            <Pill tone={r.method === METHOD.PRIVATE ? 'orange' : 'accent'}>
+            <Pill tone={r.method === METHOD.PRIVATE ? 'orange' : 'gray'}>
               {r.method === METHOD.PRIVATE ? '私对私' : '公司对公'}
             </Pill>
             <PayStatusPill status={r.payStatus} />

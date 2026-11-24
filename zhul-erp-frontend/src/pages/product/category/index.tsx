@@ -161,7 +161,7 @@ const CategoryPage: React.FC = () => {
         r.parentId ? (
           <Pill tone="gray">细分品类</Pill>
         ) : (
-          <Pill tone="accent">一级品类</Pill>
+          <Pill tone="gray">一级品类</Pill>
         ),
     },
     {
@@ -227,7 +227,7 @@ const CategoryPage: React.FC = () => {
         r.parentId ? (
           <span style={{ opacity: 0.55 }}>跟随上级</span>
         ) : (
-          <Pill tone="accent">{industryLabel(r.industryCode)}</Pill>
+          <Pill tone="gray">{industryLabel(r.industryCode)}</Pill>
         ),
     },
     {

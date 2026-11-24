@@ -205,14 +205,14 @@ const AfterSalesDetail: React.FC = () => {
     const fg = {
       red: palette.red,
       orange: palette.orange,
-      accent: palette.link,
+      accent: palette.ink,
       gray: palette.sub,
       green: palette.green,
     }[tone];
     const bg = {
       red: palette.redSoft,
       orange: palette.orangeSoft,
-      accent: palette.primarySoft,
+      accent: palette.inset,
       gray: palette.inset,
       green: palette.greenSoft,
     }[tone];
@@ -524,7 +524,7 @@ const AfterSalesDetail: React.FC = () => {
         a.solutionNames.length ? (
           <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
             {a.solutionNames.map((s) => (
-              <Pill key={s} tone="accent">
+              <Pill key={s} tone="gray">
                 {s}
               </Pill>
             ))}
@@ -738,8 +738,8 @@ const AfterSalesDetail: React.FC = () => {
                   display: 'grid',
                   placeItems: 'center',
                   flexShrink: 0,
-                  background: palette.primarySoft,
-                  color: palette.link,
+                  background: palette.neutralSoft,
+                  color: palette.sub,
                   fontSize: 16,
                 }}
               >

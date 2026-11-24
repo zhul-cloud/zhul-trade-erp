@@ -260,13 +260,11 @@ const OrderDetail: React.FC = () => {
     title: string,
     icon: React.ReactNode,
     children: React.ReactNode,
-    tint?: boolean,
   ) => (
     <Panel
       style={{
         padding: 20,
         minWidth: 0,
-        ...(tint ? { background: palette.primarySoft } : {}),
       }}
     >
       <div
@@ -297,8 +295,8 @@ const OrderDetail: React.FC = () => {
             borderRadius: '50%',
             display: 'grid',
             placeItems: 'center',
-            background: tint ? palette.card : palette.neutralSoft,
-            color: tint ? palette.link : palette.sub,
+            background: palette.neutralSoft,
+            color: palette.sub,
           }}
         >
           {icon}
@@ -389,7 +387,6 @@ const OrderDetail: React.FC = () => {
             style={{ fontSize: 13, color: palette.sub, marginTop: 4 }}
           />
         </>,
-        true,
       )}
       {!fee &&
         infoCard(
@@ -925,7 +922,7 @@ const OrderDetail: React.FC = () => {
         flexWrap: 'wrap',
         padding: '8px 12px 8px 16px',
         borderRadius: 8,
-        background: palette.primarySoft,
+        background: palette.primarySoft, // lint-ui-ignore primary-soft: 批量操作条（已选 N 个型号），属于选中状态
         marginBottom: 12,
       }}
     >

@@ -268,7 +268,7 @@ export const ImportDrawer: React.FC<{
             }}
           >
             <Pill tone="green">新建 {result.created}</Pill>
-            <Pill tone="accent">追加来源 {result.appended}</Pill>
+            <Pill tone="info">追加来源 {result.appended}</Pill>
             <Pill tone="gray">跳过 {result.skipped}</Pill>
             {result.failed > 0 && <Pill tone="red">失败 {result.failed}</Pill>}
           </div>
@@ -362,7 +362,7 @@ export const ImportDrawer: React.FC<{
           >
             <b style={{ color: palette.ink }}>{previews.length} 个文件</b>
             <Pill tone="green">新建 {count(['NEW'])}</Pill>
-            <Pill tone="accent">追加来源 {count(['IN_POOL'])}</Pill>
+            <Pill tone="info">追加来源 {count(['IN_POOL'])}</Pill>
             <Pill tone="gray">
               跳过 {count(['IN_PRODUCT', 'REJECTED', 'DUPLICATE', 'INVALID'])}
             </Pill>

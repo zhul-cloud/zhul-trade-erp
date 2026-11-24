@@ -221,7 +221,7 @@ const ReviewDrawer: React.FC<{
               alignItems: 'center',
             }}
           >
-            <Pill tone="accent" dot>
+            <Pill tone="orange" dot>
               待审核 {items.length}
             </Pill>
             <LevelPill value={t.level} />
@@ -273,7 +273,7 @@ const ReviewDrawer: React.FC<{
                   flexWrap: 'wrap',
                   padding: '12px 16px',
                   borderRadius: 12,
-                  background: palette.primarySoft,
+                  background: palette.primarySoft, // lint-ui-ignore primary-soft: 批量操作条（已选 N 项），属于选中状态
                   border: `1px solid ${palette.primaryLine}`,
                 }}
               >
@@ -368,7 +368,7 @@ const ReviewDrawer: React.FC<{
                     {it.quantity} {it.unit}
                   </span>
                   <span style={{ marginLeft: 'auto' }}>
-                    <Pill tone="accent" dot>
+                    <Pill tone="orange" dot>
                       待审核
                     </Pill>
                   </span>

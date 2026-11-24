@@ -160,6 +160,22 @@ describe('lint:ui', () => {
     ).toEqual(['hardcoded-color:error']);
   });
 
+  it('主题色浅底：写死的报错，条件选中的和写了例外的放行（D42）', () => {
+    expect(
+      rules('const a = { background: palette.primarySoft, fontSize: 12 };'),
+    ).toContain('primary-soft:error');
+    expect(
+      rules(
+        'const a = { background: on ? palette.primarySoft : palette.inset };',
+      ),
+    ).not.toContain('primary-soft:error');
+    expect(
+      rules(
+        'const a = { background: palette.primarySoft }; // lint-ui-ignore primary-soft: 批量操作条',
+      ),
+    ).not.toContain('primary-soft:error');
+  });
+
   it('注释里的说法不检查', () => {
     expect(
       rules('// 原来是 linear-gradient(...) 和 #2563EB，已改\nconst a = 1;'),

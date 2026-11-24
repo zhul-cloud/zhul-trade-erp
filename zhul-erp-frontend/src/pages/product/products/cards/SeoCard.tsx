@@ -43,7 +43,7 @@ export const STAGES: Record<
 > = {
   1: { text: '资料待补', tone: 'gray' },
   2: { text: '资料待核', tone: 'orange' },
-  3: { text: '营销待生成', tone: 'accent' },
+  3: { text: '营销待生成', tone: 'orange' },
   4: { text: '已完成', tone: 'green' },
 };
 
@@ -599,9 +599,10 @@ const KeywordLibrary: React.FC<{ keywords: PlatformContent['keywords'] }> = ({
   const { palette } = useProductTheme();
   if (keywords.length === 0) return muted(palette);
   const tiers = [
-    { tier: 1, name: '核心', fg: palette.link, bg: palette.primarySoft },
-    { tier: 2, name: '主要', fg: palette.info, bg: palette.infoSoft },
-    { tier: 3, name: '长尾', fg: palette.sub, bg: palette.inset },
+    // 档位是属性，不用主题色、信息色（ui-redesign S13、D42）：靠字色深浅区分
+    { tier: 1, name: '核心', fg: palette.ink, bg: palette.neutralSoft },
+    { tier: 2, name: '主要', fg: palette.sub, bg: palette.neutralSoft },
+    { tier: 3, name: '长尾', fg: palette.mute, bg: palette.inset },
   ];
   return (
     <div

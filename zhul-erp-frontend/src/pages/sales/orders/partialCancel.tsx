@@ -1,6 +1,7 @@
 import { App, Button, Input, InputNumber, Modal, Select } from 'antd';
-import { Info, ShoppingCart } from 'lucide-react';
+import { ShoppingCart } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { Callout } from '@/components/Callout';
 import { CardTitle } from '@/components/ListLayout';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
@@ -229,23 +230,10 @@ export const PartialCancelModal: React.FC<{
 
   const editStep = (
     <>
-      <div
-        style={{
-          display: 'flex',
-          gap: 10,
-          padding: '10px 14px',
-          borderRadius: 12,
-          background: palette.primarySoft,
-          marginBottom: 14,
-          fontSize: 13,
-        }}
-      >
-        <Info size="1em" style={{ color: palette.link, marginTop: 3 }} />
-        <span style={{ color: palette.sub }}>
-          可取消 = 当前数量 −
-          已出库（出库中、已交货代、已出运）；已出运的货请走售后。
-        </span>
-      </div>
+      <Callout style={{ marginBottom: 14 }}>
+        可取消 = 当前数量 −
+        已出库（出库中、已交货代、已出运）；已出运的货请走售后。
+      </Callout>
       <div
         style={{
           border: `1px solid ${palette.hairline}`,
@@ -419,8 +407,8 @@ export const PartialCancelModal: React.FC<{
           width: 22,
           height: 22,
           borderRadius: 11,
-          background: palette.primarySoft,
-          color: palette.link,
+          background: palette.neutralSoft,
+          color: palette.sub,
           fontSize: 12,
           fontWeight: 700,
           display: 'flex',

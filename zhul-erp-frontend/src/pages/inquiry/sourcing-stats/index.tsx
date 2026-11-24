@@ -169,7 +169,7 @@ const SourcingStatsPage: React.FC = () => {
           ) : r.role === 'PART_TIME' ? (
             <Pill tone="gray">兼职</Pill>
           ) : (
-            <Pill tone="accent">采购</Pill>
+            <Pill tone="gray">采购</Pill>
           )}
         </span>
       ),

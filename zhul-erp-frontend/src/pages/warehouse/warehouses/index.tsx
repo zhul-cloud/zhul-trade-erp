@@ -207,9 +207,7 @@ const WarehousesPage: React.FC = () => {
       title: '类型',
       dataIndex: 'type',
       width: 90,
-      render: (v: number, r) => (
-        <Pill tone={v === WH_OWN ? 'accent' : 'violet'}>{r.typeName}</Pill>
-      ),
+      render: (_: number, r) => <Pill tone="gray">{r.typeName}</Pill>,
     },
     {
       title: '关联货代',

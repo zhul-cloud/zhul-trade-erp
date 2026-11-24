@@ -52,9 +52,7 @@ export const WarehouseCell: React.FC<{ name?: string; type?: number }> = ({
   <div>
     <div>{name || '—'}</div>
     {type != null && (
-      <Pill tone={type === WH_OWN ? 'accent' : 'violet'}>
-        {type === WH_OWN ? '自有仓' : '货代仓'}
-      </Pill>
+      <Pill tone="gray">{type === WH_OWN ? '自有仓' : '货代仓'}</Pill>
     )}
   </div>
 );

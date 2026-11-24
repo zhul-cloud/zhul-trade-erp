@@ -132,8 +132,8 @@ export const FileChip: React.FC<{
           flex: 'none',
           borderRadius: 8,
           fontSize: 16,
-          color: image ? palette.link : palette.green,
-          background: image ? palette.primarySoft : palette.greenSoft,
+          color: palette.sub,
+          background: palette.neutralSoft,
         }}
       >
         {image ? <FileImage size="1em" /> : <FileSpreadsheet size="1em" />}

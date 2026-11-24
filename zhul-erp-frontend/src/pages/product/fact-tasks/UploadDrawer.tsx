@@ -753,9 +753,7 @@ export const UploadDrawer: React.FC<{
                   {p.productLabel ?? `${p.brand ?? '—'} · ${p.model ?? '—'}`}
                 </b>
                 {(p.type || p.lang) && (
-                  <Pill tone={p.type === 'marketing' ? 'violet' : 'accent'}>
-                    {packageLabel(p)}
-                  </Pill>
+                  <Pill tone="gray">{packageLabel(p)}</Pill>
                 )}
               </div>
               {p.errors.length > 0 && (

@@ -1474,7 +1474,7 @@ export const NewOrderDrawer: React.FC<{
           {steps.map((s, n) => (
             <React.Fragment key={s}>
               {n > 0 && <span style={{ color: palette.mute }}>›</span>}
-              <Pill tone={n + 1 === step ? 'accent' : 'gray'}>
+              <Pill tone={n + 1 === step ? 'selected' : 'gray'}>
                 {n + 1} {s}
               </Pill>
             </React.Fragment>
@@ -1969,7 +1969,7 @@ export const CreateFeeOrderModal: React.FC<{
           marginTop: 12,
           padding: '12px 14px',
           borderRadius: 12,
-          background: palette.primarySoft,
+          background: palette.inset,
         }}
       >
         <span style={{ color: palette.sub }}>合计</span>

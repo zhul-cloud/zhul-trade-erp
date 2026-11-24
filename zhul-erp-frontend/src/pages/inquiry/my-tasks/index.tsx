@@ -159,14 +159,12 @@ const ITEM_FILTER_LABEL: Record<ItemFilter, string> = {
   submitted: '已提交',
 };
 
-const REVIEW_PILL: Record<
-  number,
-  { label: string; tone: 'accent' | 'green' | 'orange' }
-> = {
-  1: { label: '待审核', tone: 'accent' },
-  2: { label: '已通过', tone: 'green' },
-  3: { label: '被退回', tone: 'orange' },
-};
+const REVIEW_PILL: Record<number, { label: string; tone: 'green' | 'orange' }> =
+  {
+    1: { label: '待审核', tone: 'orange' },
+    2: { label: '已通过', tone: 'green' },
+    3: { label: '被退回', tone: 'orange' },
+  };
 
 const entryError = (e: DraftEntry) => {
   if (e.unitPrice == null) return '请填写单价';
@@ -1548,7 +1546,7 @@ const MyTasksPage: React.FC = () => {
                             gap: 4,
                             padding: '2px 10px',
                             borderRadius: 12,
-                            background: palette.primarySoft,
+                            background: palette.neutralSoft,
                             fontSize: 12,
                           }}
                         >

@@ -276,7 +276,7 @@ export const AccountPanel: React.FC<{
       </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
         {card.bizGrade && (
-          <Pill tone="accent">
+          <Pill tone="gray">
             {card.bizGrade} 级
             {card.bizGradeScore != null && ` · RFM ${card.bizGradeScore} 分`}
           </Pill>

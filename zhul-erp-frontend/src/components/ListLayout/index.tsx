@@ -1028,7 +1028,7 @@ export const FilterChip: React.FC<{ item: FilterChipItem }> = ({ item }) => {
         gap: 4,
         padding: '0 4px 0 10px',
         borderRadius: 14,
-        background: palette.primarySoft,
+        background: palette.primarySoft, // lint-ui-ignore primary-soft: 已生效的筛选条件胶囊，属于选中状态
         color: palette.sub,
         fontSize: 13,
         whiteSpace: 'nowrap',

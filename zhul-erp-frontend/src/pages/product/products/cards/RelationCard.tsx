@@ -253,7 +253,7 @@ export const RelationCard: React.FC<{
               title: '目录',
               render: (_, r) =>
                 r.relatedProductId ? (
-                  <Pill tone="accent">{r.relatedBrandName ?? '目录内'}</Pill>
+                  <Pill tone="gray">{r.relatedBrandName ?? '目录内'}</Pill>
                 ) : (
                   <Pill tone="gray">目录外</Pill>
                 ),
@@ -261,7 +261,7 @@ export const RelationCard: React.FC<{
             {
               title: '关系类型',
               render: (_, r) => (
-                <Pill tone="accent">
+                <Pill tone="gray">
                   {RELATIONSHIP_TYPES[r.relationshipType]?.text}
                 </Pill>
               ),

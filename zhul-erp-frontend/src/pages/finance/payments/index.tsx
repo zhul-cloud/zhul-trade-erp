@@ -276,7 +276,7 @@ const PaymentRecords: React.FC = () => {
               : ''}
           </Pill>
         ) : (
-          <Pill tone="accent">公司对公</Pill>
+          <Pill tone="gray">公司对公</Pill>
         ),
     },
     {

@@ -4,6 +4,7 @@ import {
   ArrowLeftRight,
   Ellipsis,
   FileText,
+  Inbox,
   Info,
   MapPin,
   Merge,
@@ -14,6 +15,7 @@ import {
   Waves,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { Callout } from '@/components/Callout';
 import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
@@ -546,16 +548,14 @@ const CustomerDetailPage: React.FC = () => {
     body = (
       <>
         {inPool && (
-          <div
+          <Callout
+            tone="action"
             role="status"
+            icon={<Inbox size="1em" />}
             style={{
               marginBottom: 16,
-              padding: '10px 16px',
-              borderRadius: 12,
-              fontSize: 13,
               color: palette.ink,
-              background: palette.primarySoft,
-              border: `1px solid ${palette.primaryLine}`,
+              background: palette.card,
             }}
           >
             <b>在公海</b>
@@ -571,7 +571,7 @@ const CustomerDetailPage: React.FC = () => {
             <span style={{ color: palette.mute }}>
               ；认领后才能修改资料、新建单据
             </span>
-          </div>
+          </Callout>
         )}
         <div
           style={{
@@ -666,8 +666,7 @@ const CustomerDetailPage: React.FC = () => {
                   borderRadius: 12,
                   fontSize: 16,
                   fontWeight: 600,
-                  background: palette.primarySoft,
-                  border: `1px solid ${palette.primaryLine}`,
+                  background: palette.inset,
                 }}
               >
                 {summary}
@@ -762,7 +761,7 @@ const CustomerDetailPage: React.FC = () => {
                     justifyContent: 'center',
                     fontWeight: 700,
                     color: palette.link,
-                    background: palette.primarySoft,
+                    background: palette.primarySoft, // lint-ui-ignore primary-soft: 负责人头像，同全站头像写法
                   }}
                 >
                   {(r.ownerName || '?').slice(0, 1)}

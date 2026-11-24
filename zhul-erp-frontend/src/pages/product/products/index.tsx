@@ -762,7 +762,7 @@ const ProductListInner: React.FC = () => {
         !r.ownerTenantId ? (
           <Pill tone="gray">平台</Pill>
         ) : platform ? (
-          <Pill tone="accent">租户</Pill>
+          <Pill tone="gray">租户</Pill>
         ) : r.editable ? (
           <Pill tone="gray">本公司</Pill>
         ) : (

@@ -54,9 +54,9 @@ import {
 
 const STATUS: Record<
   number,
-  { label: string; tone: 'accent' | 'green' | 'gray' }
+  { label: string; tone: 'info' | 'green' | 'gray' }
 > = {
-  [PROJECT.ACTIVE]: { label: '进行中', tone: 'accent' },
+  [PROJECT.ACTIVE]: { label: '进行中', tone: 'info' },
   [PROJECT.DONE]: { label: '已完成', tone: 'green' },
   [PROJECT.CANCELLED]: { label: '已取消', tone: 'gray' },
 };

@@ -1,6 +1,7 @@
 import { App, Checkbox, Input, InputNumber, Modal, Radio } from 'antd';
 import { ClipboardCheck, FileCheck, Info } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { Callout } from '@/components/Callout';
 import { AttachmentWall } from '@/pages/warehouse/components';
 import {
   type Attachment,
@@ -198,24 +199,17 @@ const HandleDiscrepancyModal: React.FC<{
           </div>
         )}
         {RETURNS.includes(r) && (
-          <div
-            style={{
-              gridColumn: '1 / -1',
-              padding: '10px 12px',
-              borderRadius: 10,
-              background: palette.primarySoft,
-              color: palette.sub,
-              fontSize: 13,
-            }}
+          <Callout
+            icon={<FileCheck size="1em" />}
+            style={{ gridColumn: '1 / -1' }}
           >
-            <FileCheck size="1em" style={{ color: palette.link }} />{' '}
             {r === 3
               ? `生成采购退货单（待寄出），退回 ${target.quantity} 个`
               : r === 4
                 ? `采购订单行减 ${target.quantity} 个，并生成采购退货单（待寄出）`
                 : `生成采购退货单（待寄出），寄回多发的 ${target.quantity} 个`}
             ；快递与运费到采购退货单上登记
-          </div>
+          </Callout>
         )}
         {r === 7 && (
           <>

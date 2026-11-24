@@ -22,7 +22,7 @@ export const PI_STATUS = {
 
 export const PI_STATUS_META: Record<number, { label: string; tone: Tone }> = {
   1: { label: '草稿', tone: 'gray' },
-  2: { label: '已发送', tone: 'accent' },
+  2: { label: '已发送', tone: 'info' },
   3: { label: '已转订单', tone: 'green' },
   4: { label: '已作废', tone: 'mute' },
   5: { label: '已关闭', tone: 'mute' },

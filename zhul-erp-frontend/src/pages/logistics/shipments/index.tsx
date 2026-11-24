@@ -176,7 +176,7 @@ const PendingPanel: React.FC<{ canEdit: boolean; version: number }> = ({
                   type={g.customerType}
                   contact={g.customerContact}
                 />
-                <Pill tone="accent">{g.forwarderName}</Pill>
+                <Pill tone="gray">{g.forwarderName}</Pill>
                 <span style={{ flex: 1 }} />
                 {canEdit && (
                   <Button

@@ -23,6 +23,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { Callout } from '@/components/Callout';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
@@ -665,7 +666,7 @@ const CustomerFormPage: React.FC = () => {
                       onClick={onTranslateName}
                       style={{
                         color: palette.link,
-                        background: palette.primarySoft,
+                        background: palette.neutralSoft,
                       }}
                     >
                       {translating ? '翻译中' : 'AI 翻译'}
@@ -1037,21 +1038,9 @@ const CustomerFormPage: React.FC = () => {
                 <Input placeholder="如 Hamburg" maxLength={100} />
               </Form.Item>
             </div>
-            <div
-              style={{
-                display: 'flex',
-                gap: 8,
-                alignItems: 'center',
-                padding: '10px 12px',
-                borderRadius: 10,
-                background: palette.primarySoft,
-                fontSize: 12,
-                color: palette.sub,
-              }}
-            >
-              <Info size="1em" style={{ color: palette.link }} />
+            <Callout>
               以上为默认值，创建报价单、PI、合同时自动带出，可在单据上修改；修改这里不影响已生成的单据。
-            </div>
+            </Callout>
           </SectionCard>
 
           <SectionCard

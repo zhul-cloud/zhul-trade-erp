@@ -49,14 +49,14 @@ import SupplierSelect from './SupplierSelect';
 
 const POLL_MS = 2000;
 
-const banner = (bg: string, border: string): React.CSSProperties => ({
+const banner = (bg: string, border?: string): React.CSSProperties => ({
   display: 'flex',
   alignItems: 'center',
   gap: 10,
   padding: '10px 14px',
   borderRadius: 10,
   background: bg,
-  border: `1px solid ${border}`,
+  border: border ? `1px solid ${border}` : undefined,
 });
 
 /** 预览行：识别结果 + 采购的修改 */
@@ -547,13 +547,13 @@ const PasteQuoteModal: React.FC<{
             </div>
           </div>
           {aiRun && (
-            <div style={banner(palette.primarySoft, palette.primaryLine)}>
+            <div style={banner(palette.inset)}>
               <LoaderCircle
                 size="1em"
                 className="zhul-spin"
                 style={{ color: palette.link }}
               />
-              <span style={{ color: palette.link, flex: 1 }}>
+              <span style={{ color: palette.ink, flex: 1 }}>
                 AI 识别中 · 已用 {elapsed} 秒
               </span>
               <Button type="link" size="small" onClick={cancelAi}>
@@ -587,7 +587,7 @@ const PasteQuoteModal: React.FC<{
                 flexWrap: 'wrap',
               }}
             >
-              <Pill tone="accent">AI 识别</Pill>
+              <Pill tone="gray">AI 识别</Pill>
               <span style={{ color: palette.sub }}>
                 {source} · 原文 {lineCount(text)} 行
               </span>

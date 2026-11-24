@@ -278,7 +278,7 @@ const VoucherMonthPage: React.FC = () => {
         title={`${month} 业务凭证`}
         tags={
           d.generated && (
-            <Pill tone={exported ? 'green' : 'accent'}>
+            <Pill tone={exported ? 'green' : 'orange'}>
               {exported ? '已导出' : '未导出'}
             </Pill>
           )

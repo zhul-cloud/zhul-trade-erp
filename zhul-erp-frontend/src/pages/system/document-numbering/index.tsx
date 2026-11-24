@@ -86,7 +86,7 @@ const DocumentNumberingPage: React.FC = () => {
       dataIndex: 'external',
       width: 100,
       render: (x: boolean) => (
-        <Pill tone={x ? 'accent' : 'gray'}>{x ? '是' : '否'}</Pill>
+        <Pill tone={x ? 'gray' : 'mute'}>{x ? '是' : '否'}</Pill>
       ),
     },
     {
@@ -192,7 +192,7 @@ const DocumentNumberingPage: React.FC = () => {
                     {(['QT', 'PI', 'CI'] as const).map((t) => (
                       <Pill
                         key={t}
-                        tone="accent"
+                        tone="gray"
                       >{`${shown}${t}${today}001`}</Pill>
                     ))}
                     {(['SO', 'IQ'] as const).map((t) => (

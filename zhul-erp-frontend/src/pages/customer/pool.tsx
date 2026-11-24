@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Form, Input, Modal, Select, Table, Tag } from 'antd';
 import { Eye, UserRoundPlus } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { Callout } from '@/components/Callout';
 import { tableEmpty } from '@/components/EmptyState';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -138,17 +139,9 @@ export const PutIntoPoolModal: React.FC<{
           />
         </Form.Item>
       </Form>
-      <div
-        style={{
-          padding: '10px 12px',
-          borderRadius: 10,
-          background: palette.primarySoft,
-          fontSize: 12,
-          color: palette.sub,
-        }}
-      >
+      <Callout>
         放入后负责人清空，所有业务员都能看到并认领；已有单据归属不变。
-      </div>
+      </Callout>
     </Modal>
   );
 };

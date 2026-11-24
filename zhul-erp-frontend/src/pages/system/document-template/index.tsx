@@ -535,11 +535,6 @@ const DocumentTemplatePage: React.FC = () => {
                 rowKey="id"
                 pagination={false}
                 dataSource={versions}
-                onRow={(v) =>
-                  v.isDefault
-                    ? { style: { background: palette.primarySoft } }
-                    : {}
-                }
                 columns={versionColumns}
               />
             )}

@@ -14,6 +14,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import { Bot, Hourglass, Lightbulb, LoaderCircle, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { Callout } from '@/components/Callout';
 import { customerApi } from '@/pages/customer/service';
 import { CreateAfterSalesModal } from '@/pages/sales/after-sales/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -962,34 +963,25 @@ const RecordFollowupModal: React.FC<{
           )}
         </Space>
         {nurtureItem && nextDate && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              marginTop: 10,
-              padding: '8px 12px',
-              borderRadius: 10,
-              fontSize: 12,
-              color: palette.link,
-              background: palette.primarySoft,
-            }}
+          <Callout
+            tone="action"
+            icon={<Hourglass size="1em" />}
+            style={{ marginTop: 10 }}
+            extra={
+              <Button
+                type="link"
+                size="small"
+                style={{ padding: 0 }}
+                onClick={() =>
+                  onNurture?.(nurtureItem, nextDate.diff(today, 'day'))
+                }
+              >
+                改为转培育
+              </Button>
+            }
           >
-            <Hourglass size="1em" />
-            <span style={{ flex: 1 }}>
-              隔这么久再跟，可以直接转培育，不占用待办和阶段停留
-            </span>
-            <Button
-              type="link"
-              size="small"
-              style={{ padding: 0 }}
-              onClick={() =>
-                onNurture?.(nurtureItem, nextDate.diff(today, 'day'))
-              }
-            >
-              改为转培育
-            </Button>
-          </div>
+            隔这么久再跟，可以直接转培育，不占用待办和阶段停留
+          </Callout>
         )}
 
         <SectionLabel>方式</SectionLabel>

@@ -125,13 +125,12 @@ const NameplateUploader: React.FC<{
         gap: 10,
         padding: '14px 16px',
         borderRadius: 12,
-        background: palette.primarySoft,
-        border: `1px solid ${palette.primaryLine}`,
+        background: palette.inset,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ fontWeight: 600, color: palette.ink }}>铭牌图片</span>
-        <Pill tone="accent">采购能看到</Pill>
+        <Pill tone="gray">采购能看到</Pill>
         <span style={{ marginLeft: 'auto', fontSize: 12, color: palette.mute }}>
           JPG、PNG、PDF ·{' '}
           {existing.length > 0 ? `已有 ${existing.length} 张，补传 ` : ''}

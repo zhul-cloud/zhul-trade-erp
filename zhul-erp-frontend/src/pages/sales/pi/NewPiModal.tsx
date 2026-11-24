@@ -256,7 +256,7 @@ const NewPiModal: React.FC<{
         }}
       >
         <b style={{ color: palette.ink }}>{q.quotationNo}</b>
-        <Pill tone={q.status === 6 ? 'green' : 'accent'} dot>
+        <Pill tone={q.status === 6 ? 'green' : 'info'} dot>
           {q.statusName}
         </Pill>
         <span style={{ fontSize: 12, color: palette.mute }}>

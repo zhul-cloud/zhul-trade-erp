@@ -523,7 +523,7 @@ const Banner: React.FC<{
 export const StatusPills: React.FC<{ task: ListingTask }> = ({ task }) => (
   <>
     <Pill
-      tone={task.status === 1 ? 'accent' : task.status === 2 ? 'green' : 'mute'}
+      tone={task.status === 1 ? 'orange' : task.status === 2 ? 'green' : 'mute'}
       dot
     >
       {task.statusName}

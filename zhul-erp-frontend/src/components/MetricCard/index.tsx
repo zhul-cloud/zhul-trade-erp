@@ -323,24 +323,19 @@ export const MetricCard: React.FC<{
 };
 
 /**
- * 一组数字卡：透明分组（不再外包白卡），每排固定 cols 张、卡间距 16，同一行的组件高度不因换行而变；
- * 只有放不下（每张不到 min，默认 150）时才减少每排张数，并按行均分：6 张放不下一排时排成 3+3，不剩单张一行
- * （窄屏单列模式下高度随内容）。
+ * 一组卡片每排几张：每排最多 cols 张，放不下（每张不到 min）时减少，并按行均分（6 张放不下一排时排成 3+3，
+ * 不剩单张一行）。MetricGrid 和销售统计漏斗共用；返回挂到网格容器上的 ref 和每排张数。
+ * ref 是回调形式：容器晚于组件出现（如数据加载后才渲染）时也能挂上尺寸监听。
  */
-export const MetricGrid: React.FC<{
-  cols: number;
-  /** 每张的最小宽度，默认 150 */
-  min?: number;
-  /** 卡间距，默认 16 */
-  gap?: number;
-  style?: React.CSSProperties;
-  children: React.ReactNode;
-}> = ({ cols, min = 150, gap = 16, style, children }) => {
-  const ref = useRef<HTMLDivElement>(null);
+export const useBalancedCols = (
+  cols: number,
+  count: number,
+  min = 150,
+  gap = 16,
+) => {
+  const [el, ref] = useState<HTMLDivElement | null>(null);
   const [fit, setFit] = useState(cols);
-  const count = React.Children.toArray(children).length;
   useEffect(() => {
-    const el = ref.current;
     if (!el || typeof ResizeObserver === 'undefined') return undefined;
     const ro = new ResizeObserver(() =>
       setFit(
@@ -352,11 +347,30 @@ export const MetricGrid: React.FC<{
     );
     ro.observe(el);
     return () => ro.disconnect();
-  }, [cols, min, gap]);
+  }, [el, cols, min, gap]);
   const perRow = Math.min(fit, cols);
   // 按行均分：先算要几行，再平均每行张数
   const balanced =
     count > perRow ? Math.ceil(count / Math.ceil(count / perRow)) : perRow;
+  return { ref, balanced };
+};
+
+/**
+ * 一组数字卡：透明分组（不再外包白卡），每排固定 cols 张、卡间距 16，同一行的组件高度不因换行而变；
+ * 只有放不下（每张不到 min，默认 150）时才减少每排张数，并按行均分（`useBalancedCols`）
+ * （窄屏单列模式下高度随内容）。
+ */
+export const MetricGrid: React.FC<{
+  cols: number;
+  /** 每张的最小宽度，默认 150 */
+  min?: number;
+  /** 卡间距，默认 16 */
+  gap?: number;
+  style?: React.CSSProperties;
+  children: React.ReactNode;
+}> = ({ cols, min = 150, gap = 16, style, children }) => {
+  const count = React.Children.toArray(children).length;
+  const { ref, balanced } = useBalancedCols(cols, count, min, gap);
   return (
     <div
       ref={ref}

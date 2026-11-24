@@ -79,7 +79,7 @@ const LevelPill: React.FC<{ level?: number }> = ({ level }) =>
   level === 2 ? (
     <Pill tone="gray">核心</Pill>
   ) : level === 1 ? (
-    <Pill tone="accent">常做</Pill>
+    <Pill tone="gray">常做</Pill>
   ) : null;
 
 const BrandPage: React.FC = () => {
@@ -233,7 +233,7 @@ const BrandPage: React.FC = () => {
         r.industryCodes?.length ? (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {r.industryCodes.map((c) => (
-              <Pill key={c} tone="accent">
+              <Pill key={c} tone="gray">
                 {industryLabel(c)}
               </Pill>
             ))}

@@ -23,6 +23,7 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { Callout } from '@/components/Callout';
 import { useQuoteDicts } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { liveRequests } from '@/utils/liveRequests';
@@ -574,21 +575,14 @@ export const SupplyConfirmModal: React.FC<{
           </div>
         ))}
       </div>
-      <div
-        style={{
-          marginTop: 14,
-          padding: '10px 14px',
-          borderRadius: 12,
-          background: palette.primarySoft,
-        }}
-      >
+      <Callout icon={null} style={{ marginTop: 14 }}>
         <Checkbox
           checked={checked}
           onChange={(e) => setChecked(e.target.checked)}
         >
           已向供应商确认这些型号的最新成本和交期
         </Checkbox>
-      </div>
+      </Callout>
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
         确认人和时间会记到这些型号的供应链时间线上。
       </div>

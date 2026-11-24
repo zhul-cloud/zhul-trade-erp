@@ -367,8 +367,8 @@ export const QuickBatchModal: React.FC<{
                     style={{
                       padding: '1px 8px',
                       borderRadius: 6,
-                      color: palette.link,
-                      background: palette.primarySoft,
+                      color: palette.sub,
+                      background: palette.neutralSoft,
                     }}
                   >
                     {g.stage} {g.stageName}

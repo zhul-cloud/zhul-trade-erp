@@ -994,7 +994,7 @@ const AiSettingsPage: React.FC = () => {
                 {o.value}
                 <span style={{ display: 'inline-flex', gap: 4 }}>
                   {o.tags.map((t) => (
-                    <Pill key={t} tone={t === '推荐' ? 'accent' : 'gray'}>
+                    <Pill key={t} tone="gray">
                       {t}
                     </Pill>
                   ))}

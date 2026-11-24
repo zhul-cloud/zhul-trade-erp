@@ -206,8 +206,7 @@ export const ShipNoticeModal: React.FC<{
             style={{
               padding: '12px 14px',
               borderRadius: 12,
-              background: palette.primarySoft,
-              border: `1px solid ${palette.primaryLine}`,
+              background: palette.inset,
             }}
           >
             <div style={{ color: palette.sub, marginBottom: 6 }}>

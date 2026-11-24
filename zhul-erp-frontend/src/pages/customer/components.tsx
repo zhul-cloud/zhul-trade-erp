@@ -12,6 +12,7 @@ import {
 } from 'antd';
 import { Copy, FileText, MapPin, User } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { Callout } from '@/components/Callout';
 import { HelpTip } from '@/components/ListLayout';
 import { Pill } from '@/components/Pill';
 import { useCountries } from '@/pages/product/components/useCountries';
@@ -605,17 +606,9 @@ export const TransferModal: React.FC<{
           />
         </Form.Item>
       </Form>
-      <div
-        style={{
-          padding: '10px 12px',
-          borderRadius: 10,
-          background: palette.primarySoft,
-          fontSize: 12,
-          color: palette.sub,
-        }}
-      >
+      <Callout>
         转移记录（原负责人、新负责人、操作人、时间、原因）会写入操作日志。
-      </div>
+      </Callout>
     </Modal>
   );
 };

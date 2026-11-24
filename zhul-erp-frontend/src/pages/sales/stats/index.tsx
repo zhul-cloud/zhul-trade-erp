@@ -2,6 +2,15 @@ import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Segmented, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import {
+  ChevronRight,
+  CircleCheck,
+  FileText,
+  MessageSquare,
+  Receipt,
+  Target,
+  Wallet,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -13,6 +22,7 @@ import {
   PageHeader,
   Panel,
 } from '@/components/ListLayout';
+import { useBalancedCols } from '@/components/MetricCard';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import StatsRangeFilter, { presetRange } from '@/components/StatsRangeFilter';
 import { Pill } from '@/pages/inquiry/shared/components';
@@ -376,32 +386,128 @@ const SalesStatsPage: React.FC = () => {
   ];
 
   const total = data?.total;
-  const step = (label: string, value: number, note?: string) => (
-    <div style={{ flex: '1 1 120px', minWidth: 120 }}>
-      <div style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}>
-        {label}
-      </div>
-      <div
+  // 漏斗 6 步：每排最多 6 张，放不下时按行均分（与 MetricGrid 同一算法），每行等宽，比例条可跨行比较
+  const funnel = useBalancedCols(6, 6, 150, 24);
+  const steps = total
+    ? [
+        {
+          label: '商机',
+          icon: <Target size="1em" />,
+          value: total.opportunities,
+        },
+        {
+          label: '询盘',
+          icon: <MessageSquare size="1em" />,
+          value: total.inquiries.all,
+          note: `询盘转化 ${rateText(total.inquiryRate)}`,
+        },
+        {
+          label: '报价',
+          icon: <FileText size="1em" />,
+          value: total.quotations.all,
+        },
+        {
+          label: '意向 PI',
+          icon: <Receipt size="1em" />,
+          value: total.intents.all,
+          note: cny(total.intentAmount.all),
+        },
+        {
+          label: '待付款',
+          icon: <Wallet size="1em" />,
+          value: total.pending.all,
+          note: cny(total.pendingAmount.all),
+        },
+        {
+          label: '成交订单',
+          icon: <CircleCheck size="1em" />,
+          value: total.orders.all,
+          note: `订单转化 ${rateText(total.orderRate)}`,
+        },
+      ]
+    : [];
+  const max = Math.max(0, ...steps.map((x) => x.value));
+  /**
+   * 漏斗一步：一张落在页面上的白卡（D41，对比图 R9）。步骤靠图标、数字和比例条区分，不靠颜色；
+   * 只有终点「成交订单」的图标块和条用主题色（条用图表色 palette.chart），其余中性：漏斗是同一个量逐步递减，不是不同类别。
+   * 箭头画在卡片左侧的间距里，每行第一张不画。
+   * 不用公共 MetricCard：步骤之间要放箭头，终点要跟随主题色，而 MetricCard 的图标块按指标家族固定配色。
+   */
+  const step = (x: (typeof steps)[number], i: number) => {
+    const last = i === steps.length - 1;
+    return (
+      <Panel
+        key={x.label}
         style={{
-          ...num,
-          height: 40,
-          display: 'flex',
-          alignItems: 'center',
-          padding: '0 14px',
-          borderRadius: 8,
-          background: palette.primarySoft,
-          color: palette.ink,
-          fontSize: 18,
-          fontWeight: 800,
+          position: 'relative',
+          minWidth: 0,
+          padding: 16,
+          display: 'grid',
+          gap: 10,
         }}
       >
-        {value}
-      </div>
-      <div style={{ fontSize: 12, color: palette.mute, marginTop: 4 }}>
-        {note ?? ' '}
-      </div>
-    </div>
-  );
+        {i % funnel.balanced !== 0 && (
+          <ChevronRight
+            aria-hidden
+            size={16}
+            style={{
+              position: 'absolute',
+              left: -20,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: palette.faint,
+            }}
+          />
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span
+            aria-hidden
+            style={{
+              width: 32,
+              height: 32,
+              flex: 'none',
+              borderRadius: 8,
+              display: 'grid',
+              placeItems: 'center',
+              fontSize: 16,
+              background: last ? palette.primarySoft : palette.neutralSoft,
+              color: last ? palette.link : palette.sub,
+            }}
+          >
+            {x.icon}
+          </span>
+          <span style={{ fontSize: 13, color: palette.sub }}>{x.label}</span>
+        </div>
+        <div
+          style={{ ...num, fontSize: 24, fontWeight: 700, color: palette.ink }}
+        >
+          {x.value}
+        </div>
+        <div
+          aria-hidden
+          style={{
+            height: 6,
+            borderRadius: 3,
+            background: palette.neutralSoft,
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              width: `${max > 0 ? (x.value / max) * 100 : 0}%`,
+              minWidth: x.value > 0 ? 6 : 0,
+              height: '100%',
+              borderRadius: 3,
+              background: last ? palette.chart : palette.barMuted,
+            }}
+          />
+        </div>
+        <div style={{ fontSize: 12, color: palette.mute, minHeight: 18 }}>
+          {x.note ?? ''}
+        </div>
+      </Panel>
+    );
+  };
 
   return (
     <div>
@@ -431,27 +537,22 @@ const SalesStatsPage: React.FC = () => {
         </FilterField>
       </FilterCard>
       {total && (
-        <Panel style={{ marginBottom: 16, padding: 16 }}>
+        // 一组数字不外包卡片，标题直接落在页面底上（规范「层级不超过三层」）
+        <section style={{ marginBottom: 24 }}>
           <div style={{ marginBottom: 12 }}>
-            <CardTitle>漏斗（所选期间）</CardTitle>
+            <CardTitle>销售漏斗</CardTitle>
           </div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            {step('商机', total.opportunities)}
-            {step(
-              '询盘',
-              total.inquiries.all,
-              `询盘转化 ${rateText(total.inquiryRate)}`,
-            )}
-            {step('报价', total.quotations.all)}
-            {step('意向 PI', total.intents.all, cny(total.intentAmount.all))}
-            {step('待付款', total.pending.all, cny(total.pendingAmount.all))}
-            {step(
-              '成交订单',
-              total.orders.all,
-              `订单转化 ${rateText(total.orderRate)}`,
-            )}
+          <div
+            ref={funnel.ref}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${funnel.balanced}, minmax(0, 1fr))`,
+              gap: 24,
+            }}
+          >
+            {steps.map(step)}
           </div>
-        </Panel>
+        </section>
       )}
       <MainCard
         left={

@@ -54,7 +54,7 @@ const TodayCardView: React.FC<{
               flexWrap: 'wrap',
             }}
           >
-            <Pill tone={c.board === 'intel' ? 'violet' : 'accent'}>
+            <Pill tone="gray">
               {BOARD_NAMES[c.board]} · {STAGE_NAMES[c.stage] ?? c.stage}
             </Pill>
             <b style={{ fontSize: 16 }}>{scopeName(c)}</b>
@@ -194,7 +194,7 @@ const DevItemView: React.FC<{
               flexWrap: 'wrap',
             }}
           >
-            <Pill tone="accent">供应商开发 · {DEV_KIND_NAMES[i.kind]}</Pill>
+            <Pill tone="gray">供应商开发 · {DEV_KIND_NAMES[i.kind]}</Pill>
             <b style={{ fontSize: 16 }}>{scopeName(i)}</b>
             {i.candidateName && (
               <span style={{ color: palette.sub }}>{i.candidateName}</span>

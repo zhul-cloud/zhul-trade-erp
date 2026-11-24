@@ -61,7 +61,7 @@ const StatusPill: React.FC<{ b: MigrationBatch }> = ({ b }) => {
   switch (b.status) {
     case 1:
       return (
-        <Pill tone="accent" dot>
+        <Pill tone="info" dot>
           运行中
         </Pill>
       );

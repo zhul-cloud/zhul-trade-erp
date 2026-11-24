@@ -105,7 +105,7 @@ const TABS: Record<
     {
       key: '3',
       label: '营销待生成',
-      tone: 'accent',
+      tone: 'orange',
       empty: '没有待生成营销内容的商品',
     },
     {

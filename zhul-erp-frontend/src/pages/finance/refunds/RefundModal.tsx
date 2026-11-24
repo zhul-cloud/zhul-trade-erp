@@ -10,6 +10,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import { Info } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { Callout } from '@/components/Callout';
 import { readBizError } from '@/pages/sales/service';
 import { AttachmentWall } from '@/pages/warehouse/components';
 import type { Attachment } from '@/pages/warehouse/service';
@@ -181,16 +182,8 @@ const RefundModal: React.FC<{
     >
       <Space orientation="vertical" size={14} style={{ width: '100%' }}>
         {request && (
-          <div
-            style={{
-              padding: '10px 14px',
-              borderRadius: 12,
-              background: palette.primarySoft,
-              fontSize: 13,
-              color: palette.sub,
-            }}
-          >
-            <b style={{ color: palette.link }}>
+          <Callout icon={null}>
+            <b style={{ color: palette.ink }}>
               申请：{formatAmount(request.amount, request.currencyCode)} ·{' '}
               {request.reasonName} · 建议{request.methodName}
             </b>
@@ -200,7 +193,7 @@ const RefundModal: React.FC<{
               {request.payeeInfo ? ` · 收款信息：${request.payeeInfo}` : ''}
               {request.remark ? ` · ${request.remark}` : ''}
             </div>
-          </div>
+          </Callout>
         )}
         {info && (
           <div style={{ fontSize: 12, color: palette.mute }}>
@@ -337,17 +330,7 @@ const RefundModal: React.FC<{
         </div>
         {info &&
           (toCredit ? (
-            <div
-              style={{
-                padding: '12px 14px',
-                borderRadius: 12,
-                background: palette.primarySoft,
-                fontSize: 12,
-                color: palette.sub,
-                display: 'grid',
-                gap: 4,
-              }}
-            >
+            <Callout>
               <div>
                 按订单现金收款的加权到账汇率{' '}
                 {Number(info.creditRate).toFixed(6)} 折算并锁定：
@@ -355,11 +338,13 @@ const RefundModal: React.FC<{
                   {lockedCny != null ? formatAmount(lockedCny, 'CNY') : '—'}
                 </b>
               </div>
-              <div style={{ color: palette.link, fontWeight: 600 }}>
+              <div
+                style={{ color: palette.ink, fontWeight: 600, marginTop: 4 }}
+              >
                 客户 {cur} 余额将增加 {amount ? formatAmount(amount, cur) : '—'}
                 ，可在下一张 PI 抵扣；仍冲减这张订单的毛利
               </div>
-            </div>
+            </Callout>
           ) : (
             <div style={{ fontSize: 12, color: palette.mute }}>
               默认按这张订单的平均到账汇率 {Number(info.averageRate).toFixed(6)}{' '}

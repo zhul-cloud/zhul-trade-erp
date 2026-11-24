@@ -784,14 +784,14 @@ const TenantListPage: React.FC = () => {
                 alignItems: 'center',
                 padding: 12,
                 borderRadius: 8,
-                background: palette.primarySoft,
+                background: palette.inset,
               }}
             >
               <span style={{ color: palette.sub }}>临时密码</span>
               <Space>
                 <span
                   className="num"
-                  style={{ color: palette.link, fontWeight: 600 }}
+                  style={{ color: palette.ink, fontWeight: 600 }}
                 >
                   {resetResult.tempPassword}
                 </span>

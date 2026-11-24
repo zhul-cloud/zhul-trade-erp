@@ -78,7 +78,7 @@ const BattleCard: React.FC<{ stage?: string }> = ({ stage }) => {
       <div
         style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12 }}
       >
-        <Pill tone="accent">{code}</Pill>
+        <Pill tone="gray">{code}</Pill>
         <b>{STAGE_NAMES[stage ?? ''] ?? card.name}</b>
       </div>
       {card.goal && (

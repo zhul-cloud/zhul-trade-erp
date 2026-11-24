@@ -697,7 +697,7 @@ export const MediaCard: React.FC<{
                     )}
                     {m.isMain === 1 && (
                       <span style={{ position: 'absolute', top: 8, left: 8 }}>
-                        <Pill tone="accent">
+                        <Pill tone="gray">
                           <Star
                             size="1em"
                             fill="currentColor"

@@ -315,7 +315,7 @@ const RefundPage: React.FC = () => {
       width: 130,
       render: (v: number, r) =>
         v === REFUND_TO_CREDIT ? (
-          <Pill tone="accent">转客户余额</Pill>
+          <Pill tone="gray">转客户余额</Pill>
         ) : (
           <div>
             {r.methodName}

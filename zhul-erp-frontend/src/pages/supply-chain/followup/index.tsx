@@ -444,7 +444,7 @@ const SupplyFollowupPage: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         gap: 12,
-        background: palette.primarySoft,
+        background: palette.primarySoft, // lint-ui-ignore primary-soft: 批量操作条（已选 N 条），属于选中状态
       }}
     >
       <b style={{ flex: 1 }}>

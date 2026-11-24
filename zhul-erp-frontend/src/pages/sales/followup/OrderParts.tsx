@@ -39,7 +39,7 @@ export const ProgressCell: React.FC<{
         ))}
       </div>
       <span>
-        <Pill tone={warn ? 'orange' : 'accent'}>
+        <Pill tone={warn ? 'orange' : 'gray'}>
           {item.stageCode} {item.stageName}
         </Pill>
       </span>
@@ -149,7 +149,7 @@ export const PartsPanel: React.FC<{ item: FollowupItem }> = ({ item }) => {
                   <div style={sub}>{p.supplier}</div>
                 </td>
                 <td style={td}>
-                  <Pill tone="accent">
+                  <Pill tone="gray">
                     {p.stageCode} {p.stageName}
                   </Pill>
                 </td>

@@ -93,7 +93,7 @@ export const UserMenu: React.FC = () => {
               src={user.avatar || undefined}
               style={{
                 flex: 'none',
-                background: palette.primarySoft,
+                background: palette.primarySoft, // lint-ui-ignore primary-soft: 头像，规范「头像：主题色浅底加首字」
                 color: palette.link,
                 fontWeight: 700,
               }}
@@ -154,7 +154,7 @@ export const UserMenu: React.FC = () => {
             size={36}
             src={user.avatar || undefined}
             style={{
-              background: palette.primarySoft,
+              background: palette.primarySoft, // lint-ui-ignore primary-soft: 头像，规范「头像：主题色浅底加首字」
               color: palette.link,
               fontWeight: 700,
             }}

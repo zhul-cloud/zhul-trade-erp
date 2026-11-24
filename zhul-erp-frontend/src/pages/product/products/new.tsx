@@ -1090,7 +1090,7 @@ const WizardInner: React.FC = () => {
                       )}
                       {m.isMain === 1 && (
                         <span style={{ position: 'absolute', top: 4, left: 4 }}>
-                          <Pill tone="accent">主图</Pill>
+                          <Pill tone="gray">主图</Pill>
                         </span>
                       )}
                     </li>
