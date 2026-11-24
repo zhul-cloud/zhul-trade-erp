@@ -44,6 +44,7 @@ const RULE_NAMES = new Set([
   'danger-confirm',
   'row-actions',
   'attr-tone',
+  'antd-empty',
 ]);
 
 /**
@@ -118,6 +119,13 @@ const LINE_RULES = [
     message:
       '危险操作的确认框用 useConfirmDanger()（问句标题写明对象、按钮写动作、默认焦点在取消），不自己给 confirm 配红色按钮',
     re: /okButtonProps:\s*\{[^}]*\bdanger:\s*true|okType:\s*'danger'/,
+  },
+  {
+    id: 'antd-empty',
+    level: 'error',
+    message:
+      '空状态用公共 EmptyState（小地方加 compact，出错 kind="error"），不用 antd 的 Empty（ui-redesign C4）',
+    re: /<Empty[\s/>]/,
   },
   {
     id: 'attr-tone',
