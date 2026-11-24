@@ -50,7 +50,7 @@ import {
 import { RelatedDocsCard } from '@/components/DocFields/DocPage';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import { tableEmpty } from '@/components/EmptyState';
-import { PageHeader } from '@/components/ListLayout';
+import { HelpTip, PageHeader } from '@/components/ListLayout';
 import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { rowAlert } from '@/components/RowAlert';
@@ -1056,13 +1056,11 @@ const PurchaseOrderDetail: React.FC = () => {
             flexWrap: 'wrap',
           }}
         >
+          {/* 口径放帮助图标，不常显灰字（ui-redesign S10） */}
           <b style={{ color: palette.ink, fontSize: 15 }}>
             型号（{po.items.length}）
           </b>
-          <span style={{ fontSize: 12, color: palette.mute }}>
-            人民币单价 = 单价 × 汇率；砍价 = (目标价 − 人民币单价) ×
-            数量；目标价为转订单时锁定的采购成本价；开票成本不参与砍价
-          </span>
+          <HelpTip title="人民币单价 = 单价 × 汇率；砍价 = (目标价 − 人民币单价) × 数量；目标价为转订单时锁定的采购成本价；开票成本不参与砍价" />
           <span style={{ flex: 1 }} />
           {isDraft && editable && picked.length > 0 && (
             <Space>
@@ -1182,7 +1180,10 @@ const PurchaseOrderDetail: React.FC = () => {
           </div>
         )}
         <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
-          <b style={{ color: palette.ink }}>其他费用与优惠</b>
+          <b style={{ color: palette.ink }}>
+            其他费用与优惠{' '}
+            <HelpTip title="费用计入合计、优惠从合计中减去（填正数），都不参与砍价；优惠不能超过货款加费用" />
+          </b>
           {draft.fees.length === 0 && !editable && (
             <span style={{ color: palette.mute }}>无</span>
           )}
@@ -1312,9 +1313,6 @@ const PurchaseOrderDetail: React.FC = () => {
               添加费用或优惠
             </Button>
           )}
-          <span style={{ fontSize: 12, color: palette.mute }}>
-            费用计入合计、优惠从合计中减去（填正数），都不参与砍价；优惠不能超过货款加费用
-          </span>
         </div>
       </Card>
 
@@ -1356,7 +1354,8 @@ const PurchaseOrderDetail: React.FC = () => {
       >
         <Card style={{ padding: 20 }}>
           <b style={{ color: palette.ink, display: 'block', marginBottom: 12 }}>
-            <Calendar size="1em" /> 付款条件
+            <Calendar size="1em" /> 付款条件{' '}
+            <HelpTip title="默认取供应商的默认付款条件；确认下单后按它生成应付的付款计划，下单后修改会重新分期" />
           </b>
           <PaymentTermsEditor
             value={draft.paymentTerms}
@@ -1365,9 +1364,6 @@ const PurchaseOrderDetail: React.FC = () => {
               setDraft((d) => (d ? { ...d, paymentTerms: terms } : d))
             }
           />
-          <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-            默认取供应商的默认付款条件；确认下单后按它生成应付的付款计划，下单后修改会重新分期。
-          </div>
         </Card>
         {!po.shop && (
           <ContractCard
@@ -1858,12 +1854,10 @@ const ShipmentsCard: React.FC<{
         }}
       >
         <b style={{ color: palette.ink, fontSize: 15 }}>
-          <Car size="1em" /> 发货与入库
+          <Car size="1em" /> 发货与入库{' '}
+          <HelpTip title="有发货后不能直接取消采购订单，少发、退货在到货差异里处理" />
         </b>
         <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 12, color: palette.mute }}>
-          有发货后不能直接取消采购订单，少发、退货在到货差异里处理
-        </span>
       </div>
       <Table<FlowRow>
         rowKey="key"

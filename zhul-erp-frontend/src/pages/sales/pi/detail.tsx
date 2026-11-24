@@ -2140,7 +2140,10 @@ const PiDetail: React.FC = () => {
           marginBottom: 12,
         }}
       >
-        <CardTitle>收款</CardTitle>
+        <CardTitle>
+          收款{' '}
+          <HelpTip title="线下付款上传水单、由财务确认；钱先到账的由财务登记后认领；平台付款直接登记" />
+        </CardTitle>
         <ReceiptStatusPill status={pi.receiptStatus} />
       </div>
       <div
@@ -2188,12 +2191,14 @@ const PiDetail: React.FC = () => {
             }}
           >
             <Row
-              label="实收人民币"
+              label={
+                <>
+                  实收人民币{' '}
+                  <HelpTip title="按每笔到账的汇率折算（已结汇的按结汇汇率，未结汇的按最近一次结汇汇率估算）" />
+                </>
+              }
               value={formatAmount(pi.netAmountCny ?? 0, 'CNY')}
             />
-            <div style={{ fontSize: 12, color: palette.mute }}>
-              按每笔到账的汇率折算（已结汇的按结汇汇率，未结汇的按最近一次结汇汇率估算）
-            </div>
           </div>
         )}
       </div>
@@ -2236,9 +2241,6 @@ const PiDetail: React.FC = () => {
           )}
         </div>
       )}
-      <div style={{ fontSize: 12, color: palette.mute, marginBottom: 12 }}>
-        线下付款上传水单、由财务确认；钱先到账的由财务登记后认领；平台付款直接登记
-      </div>
       <CreditInfo credit={pi.credit} currency={cur} />
       {pi.receipts.length === 0 ? (
         <div style={{ color: palette.mute, fontSize: 13 }}>
@@ -2848,7 +2850,7 @@ const PiDetail: React.FC = () => {
 };
 
 const Row: React.FC<{
-  label: string;
+  label: React.ReactNode;
   value: React.ReactNode;
   color?: string;
 }> = ({ label, value, color }) => {
