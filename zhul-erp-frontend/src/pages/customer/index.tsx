@@ -293,38 +293,28 @@ const CustomerListPage: React.FC = () => {
     bottom: React.ReactNode,
     topStyle?: React.CSSProperties,
   ) => (
+    // 第二行没有内容就不显示，不放「—」占位（ui-redesign P4）
     <div style={{ lineHeight: 1.5, minWidth: 0 }}>
       <div style={topStyle}>{top}</div>
-      <div
-        style={{
-          fontSize: 12,
-          color: palette.mute,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {bottom || '—'}
-      </div>
+      {bottom ? (
+        <div
+          style={{
+            fontSize: 12,
+            color: palette.mute,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {bottom}
+        </div>
+      ) : null}
     </div>
   );
 
   const columns: TableColumnsType<CustomerListItem> = [
     {
-      title: '序号',
-      key: 'index',
-      width: 60,
-      render: (_, __, i) => (
-        <span className="num">{(page - 1) * pageSize + i + 1}</span>
-      ),
-    },
-    {
-      title: '客户编码',
-      dataIndex: 'customerCode',
-      width: 110,
-      render: (v: string) => <span className="num">{v}</span>,
-    },
-    {
+      // 名称在前、编码在后（ui-redesign S9：编码是次要信息）
       title: '客户名称',
       dataIndex: 'name',
       width: 230,
@@ -340,6 +330,12 @@ const CustomerListPage: React.FC = () => {
           })}
         </span>
       ),
+    },
+    {
+      title: '客户编码',
+      dataIndex: 'customerCode',
+      width: 110,
+      render: (v: string) => <span className="num">{v}</span>,
     },
     {
       title: '国家/地区',

@@ -394,7 +394,6 @@ const RolePage: React.FC = () => {
 
   const confirmDanger = useConfirmDanger();
   const columns: ProColumns<RoleItem>[] = [
-    { title: '序号', valueType: 'index', width: 60, search: false },
     {
       title: '角色名称',
       dataIndex: 'name',

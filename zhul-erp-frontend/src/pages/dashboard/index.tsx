@@ -71,7 +71,9 @@ const Dashboard: React.FC = () => {
   const wide = useWide();
   const access = useAccess() as Record<string, boolean>;
   const { initialState } = useModel('@@initialState');
-  const name = initialState?.currentUser?.name;
+  // 没填姓名的账号 name 是登录邮箱：不把邮箱当姓名显示，只问好（ui-redesign S9）
+  const rawName = initialState?.currentUser?.name;
+  const name = rawName && !rawName.includes('@') ? rawName : undefined;
   const user = initialState?.currentUser?.userid ?? name;
   const shortcuts = SHORTCUTS.filter((s) => access[s.access]);
   const [bench, setBench] = useState<Workbench>();
@@ -105,7 +107,7 @@ const Dashboard: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title={name ? `${greeting()}，${name}` : undefined}
+        title={name ? `${greeting()}，${name}` : greeting()}
         extra={
           bench && bench.boards.length > 1 ? (
             <Segmented<string>

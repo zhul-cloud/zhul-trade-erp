@@ -226,25 +226,18 @@ const SupplierListPage: React.FC = () => {
 
   const columns: TableColumnsType<SupplierItem> = [
     {
-      title: '序号',
-      key: 'index',
-      width: 64,
-      render: (_, __, i) => (
-        <span className="num">{(page - 1) * pageSize + i + 1}</span>
-      ),
+      // 名称在前、编码在后（ui-redesign S9：编码是次要信息）
+      title: '供应商名称',
+      dataIndex: 'name',
+      width: 220,
+      ellipsis: { showTitle: true },
+      render: (v: string) => <span style={{ fontWeight: 600 }}>{v}</span>,
     },
     {
       title: '供应商编码',
       dataIndex: 'supplierCode',
       width: 130,
       render: (v: string) => <span className="num">{v}</span>,
-    },
-    {
-      title: '供应商名称',
-      dataIndex: 'name',
-      width: 220,
-      ellipsis: { showTitle: true },
-      render: (v: string) => <span style={{ fontWeight: 600 }}>{v}</span>,
     },
     {
       title: '供应商简称',

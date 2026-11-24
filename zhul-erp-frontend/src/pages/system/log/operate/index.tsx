@@ -149,7 +149,6 @@ const OperateLogPage: React.FC = () => {
   };
 
   const columns: ProColumns<OperateLogItem>[] = [
-    { title: '序号', valueType: 'index', width: 60, search: false },
     {
       title: '操作人',
       dataIndex: 'operatorName',

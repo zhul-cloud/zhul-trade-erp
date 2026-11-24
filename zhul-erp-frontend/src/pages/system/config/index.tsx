@@ -10,7 +10,7 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import { App, Badge, Button, Form, Input, Tabs, Tag, Upload } from 'antd';
+import { App, Button, Form, Input, Tabs, Upload } from 'antd';
 import {
   Pencil,
   Plus,
@@ -142,12 +142,13 @@ const ImageUrlField: React.FC<{ name: string; allowEmpty?: boolean }> = ({
   );
 };
 
-const TYPE_COLOR: Record<ConfigType, string> = {
-  STRING: 'blue',
-  INTEGER: 'green',
-  BOOLEAN: 'orange',
-  JSON: 'purple',
-  URL: 'red',
+/** 配置类型的中文名（ui-redesign S9：不把 STRING 等技术枚举展示给用户；类型是属性，不着色） */
+const TYPE_LABEL: Record<ConfigType, string> = {
+  STRING: '文本',
+  INTEGER: '整数',
+  BOOLEAN: '开关',
+  JSON: 'JSON',
+  URL: '链接',
 };
 
 const ConfigPage: React.FC = () => {
@@ -274,11 +275,8 @@ const ConfigPage: React.FC = () => {
       return <span style={{ fontFamily: 'monospace' }}>****</span>;
     }
     if (record.configType === 'BOOLEAN') {
-      return (
-        <Tag color={record.configValue === 'true' ? 'blue' : 'default'}>
-          {record.configValue}
-        </Tag>
-      );
+      // 开关显示「开启 / 关闭」，不显示 true / false（S9）
+      return record.configValue === 'true' ? '开启' : '关闭';
     }
     return (
       <EllipsisText
@@ -289,14 +287,7 @@ const ConfigPage: React.FC = () => {
   };
 
   const columns: ProColumns<ConfigItem>[] = [
-    {
-      title: '配置键',
-      dataIndex: 'configKey',
-      width: 220,
-      render: (_, r) => (
-        <EllipsisText text={r.configKey} style={{ fontFamily: 'monospace' }} />
-      ),
-    },
+    // 名称在前、配置键在后（ui-redesign S9、P17：技术键是次要信息）
     {
       title: '配置名称',
       dataIndex: 'configName',
@@ -304,12 +295,21 @@ const ConfigPage: React.FC = () => {
       render: ellipsisRender,
     },
     {
+      title: '配置键',
+      dataIndex: 'configKey',
+      width: 220,
+      render: (_, r) => (
+        <EllipsisText
+          text={r.configKey}
+          style={{ fontFamily: 'monospace', color: p.mute }}
+        />
+      ),
+    },
+    {
       title: '类型',
       dataIndex: 'configType',
       width: 90,
-      render: (_, r) => (
-        <Tag color={TYPE_COLOR[r.configType]}>{r.configType}</Tag>
-      ),
+      render: (_, r) => TYPE_LABEL[r.configType] ?? r.configType,
     },
     {
       title: '配置值',
@@ -321,12 +321,7 @@ const ConfigPage: React.FC = () => {
       title: '来源',
       dataIndex: 'isBuiltin',
       width: 90,
-      render: (_, r) =>
-        r.isBuiltin === 1 ? (
-          <Badge color="blue" text="内置" />
-        ) : (
-          <Badge color="default" text="自定义" />
-        ),
+      render: (_, r) => (r.isBuiltin === 1 ? '内置' : '自定义'),
     },
     ...proAuditColumns<ConfigItem>(),
     {

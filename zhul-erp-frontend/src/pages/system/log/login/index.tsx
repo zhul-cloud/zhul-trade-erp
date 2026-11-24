@@ -120,7 +120,6 @@ const LoginLogPage: React.FC = () => {
   };
 
   const columns: ProColumns<LoginLogItem>[] = [
-    { title: '序号', valueType: 'index', width: 60, search: false },
     {
       title: '用户名',
       dataIndex: 'operatorName',

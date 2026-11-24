@@ -121,15 +121,7 @@ const CategoryPage: React.FC = () => {
 
   const columns: ProColumns<Category>[] = [
     {
-      title: '品类编码',
-      dataIndex: 'categoryCode',
-      search: false,
-      width: 200,
-      render: (_, r) => (
-        <code style={{ fontFamily: MONO_FONT }}>{r.categoryCode}</code>
-      ),
-    },
-    {
+      // 名称在前、编码在后（ui-redesign S9：编码是次要信息）
       title: '品类名称',
       dataIndex: 'categoryName',
       search: false,
@@ -150,6 +142,15 @@ const CategoryPage: React.FC = () => {
         ) : (
           <EllipsisText text={r.categoryName} />
         ),
+    },
+    {
+      title: '品类编码',
+      dataIndex: 'categoryCode',
+      search: false,
+      width: 200,
+      render: (_, r) => (
+        <code style={{ fontFamily: MONO_FONT }}>{r.categoryCode}</code>
+      ),
     },
     {
       title: '层级',
