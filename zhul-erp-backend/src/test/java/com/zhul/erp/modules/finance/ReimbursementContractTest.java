@@ -135,7 +135,11 @@ class ReimbursementContractTest extends SalesContractSupport {
         pay.put("attachmentIds", List.of(upload("PAYMENT", admin)));
         pay.put("allocations", List.of(Map.of("payableId", ap, "amount", 300)));
         pay.put("idempotencyKey", UUID.randomUUID().toString());
-        assertEquals("用支付宝付款请选择我方的支付宝账户", fail(call(json(post(PY), write(pay)), admin)).path("message").asText());
+        // 支付宝、微信付款可以用对私银行卡（audit BUS-096）；银行卡付款不能选支付宝余额账户
+        pay.put("payChannel", 1);
+        pay.put("bankAccountId", alipay);
+        assertEquals("银行卡付款请选择我方的对私银行账户", fail(call(json(post(PY), write(pay)), admin)).path("message").asText());
+        pay.put("payChannel", 2);
         pay.put("method", 1);
         pay.put("bankAccountId", account);
         assertEquals("只有私对私能用支付宝、微信付款", fail(call(json(post(PY), write(pay)), admin)).path("message").asText());
