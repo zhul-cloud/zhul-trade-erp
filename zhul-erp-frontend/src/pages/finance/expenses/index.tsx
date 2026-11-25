@@ -55,7 +55,7 @@ import {
 } from '@/utils/businessUnit';
 import { recentRange } from '@/utils/dateRange';
 import { useDictTexts } from '@/utils/dict';
-import { formatAmount } from '@/utils/format';
+import { formatAmount, formatMoney } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
 import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -915,7 +915,7 @@ const ExpensePage: React.FC = () => {
       dataIndex: 'amountCny',
       width: 120,
       align: 'right',
-      render: (v: number) => <span style={num}>{formatAmount(v, 'CNY')}</span>,
+      render: (v: number) => <span style={num}>{formatMoney(v)}</span>,
     },
     {
       title: '付款',

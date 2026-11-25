@@ -23,7 +23,7 @@ import { CURRENCIES } from '@/pages/quotation/components';
 import type { Attachment } from '@/pages/warehouse/service';
 import { searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount } from '@/utils/format';
+import { formatAmount, formatMoney } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
 import { KIND, Pill, RECEIPT_STATUS, ReceiptStatusPill } from '../components';
 import {
@@ -409,11 +409,11 @@ export const ReorderPickModal: React.FC<{
               },
               { title: '数量', dataIndex: 'quantity', width: 80 },
               {
-                title: '单价',
+                title: `单价（${draft.currencyCode}）`,
                 align: 'right',
                 dataIndex: 'unitPrice',
                 width: 120,
-                render: (v: number) => formatAmount(v, draft.currencyCode),
+                render: (v: number) => formatMoney(v),
               },
               {
                 title: '现货 / 期货',

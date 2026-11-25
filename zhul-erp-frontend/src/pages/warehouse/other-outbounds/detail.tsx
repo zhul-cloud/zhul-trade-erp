@@ -18,7 +18,7 @@ import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { UserName } from '@/components/UserName';
 import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
-import { formatAmount, formatDateTime } from '@/utils/format';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import { ReasonModal } from '../components';
 import {
@@ -90,17 +90,17 @@ const OtherOutboundDetail: React.FC = () => {
     },
     { title: '数量', dataIndex: 'quantity', width: 70 },
     {
-      title: '单价（¥）',
+      title: '单价（CNY）',
       dataIndex: 'unitPriceCny',
       width: 110,
       render: (v: number) => Number(v).toFixed(6),
     },
     {
-      title: '金额（¥）',
+      title: '金额（CNY）',
       align: 'right',
       dataIndex: 'amountCny',
       width: 110,
-      render: (v: number) => formatAmount(v, 'CNY'),
+      render: (v: number) => formatMoney(v),
     },
   ];
 
@@ -133,11 +133,11 @@ const OtherOutboundDetail: React.FC = () => {
       render: (v: number) => <SignedQty value={v} />,
     },
     {
-      title: '金额（¥）',
+      title: '金额（CNY）',
       align: 'right',
       dataIndex: 'amountCny',
       width: 120,
-      render: (v: number) => formatAmount(v, 'CNY'),
+      render: (v: number) => formatMoney(v),
     },
   ];
 

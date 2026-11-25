@@ -11,7 +11,7 @@ import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount, formatDateTime } from '@/utils/format';
+import { formatDateTime, formatMoney } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import { SignedMoney } from '../costingParts';
 import {
@@ -78,21 +78,21 @@ const PeriodsPage: React.FC = () => {
       dataIndex: 'openingAmount',
       width: 140,
       align: 'right',
-      render: (v: number) => formatAmount(v, 'CNY'),
+      render: (v: number) => formatMoney(v),
     },
     {
       title: '+ 本月入库',
       dataIndex: 'inAmount',
       width: 140,
       align: 'right',
-      render: (v: number) => formatAmount(v, 'CNY'),
+      render: (v: number) => formatMoney(v),
     },
     {
       title: '− 本月出库',
       dataIndex: 'outAmount',
       width: 140,
       align: 'right',
-      render: (v: number) => formatAmount(v, 'CNY'),
+      render: (v: number) => formatMoney(v),
     },
     {
       title: '+ 在库成本调整',
@@ -106,7 +106,7 @@ const PeriodsPage: React.FC = () => {
       dataIndex: 'closingAmount',
       width: 150,
       align: 'right',
-      render: (v: number) => <b>{formatAmount(v, 'CNY')}</b>,
+      render: (v: number) => <b>{formatMoney(v)}</b>,
     },
     {
       title: '本月销售成本',
@@ -114,7 +114,7 @@ const PeriodsPage: React.FC = () => {
       width: 140,
       align: 'right',
       render: (v: number) => (
-        <span style={{ color: palette.sub }}>{formatAmount(v, 'CNY')}</span>
+        <span style={{ color: palette.sub }}>{formatMoney(v)}</span>
       ),
     },
     {
@@ -174,7 +174,14 @@ const PeriodsPage: React.FC = () => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <MainCard count={rows.length} loading={loading}>
+        <MainCard
+          count={rows.length}
+          loading={loading}
+          left={
+            // 整表都是人民币：币种写在工具栏，单元格只写数字（S12）
+            <span style={{ color: palette.mute }}>金额单位 CNY</span>
+          }
+        >
           <Table<Period>
             rowKey="month"
             loading={loading}

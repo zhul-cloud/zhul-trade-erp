@@ -46,7 +46,7 @@ import {
   useBusinessUnits,
 } from '@/utils/businessUnit';
 import { recentRange } from '@/utils/dateRange';
-import { formatAmount } from '@/utils/format';
+import { formatAmount, formatMoney } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
 import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -553,7 +553,7 @@ const FxSettlementPage: React.FC = () => {
       dataIndex: 'amountCny',
       width: 130,
       align: 'right',
-      render: (v: number) => <b style={num}>{formatAmount(v, 'CNY')}</b>,
+      render: (v: number) => <b style={num}>{formatMoney(v)}</b>,
     },
     {
       title: '汇率',

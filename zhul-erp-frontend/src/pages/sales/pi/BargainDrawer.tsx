@@ -13,7 +13,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { rowAlert } from '@/components/RowAlert';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount } from '@/utils/format';
+import { formatAmount, formatMoney } from '@/utils/format';
 import { DISCOUNT } from '../components';
 import { type Pi, type PiItem, piApi, readBizError } from '../service';
 import {
@@ -135,11 +135,11 @@ const BargainDrawer: React.FC<{
         ),
     },
     {
-      title: '售价小计',
+      title: `售价小计（${cur}）`,
       dataIndex: 'amount',
       width: 120,
       align: 'right',
-      render: (a: number) => <span style={num}>{formatAmount(a, cur)}</span>,
+      render: (a: number) => <span style={num}>{formatMoney(a)}</span>,
     },
     {
       title: trying ? '让利后折合' : '折合',

@@ -86,7 +86,7 @@ import {
   DICT_PORT_OF_SHIPMENT,
   DICT_WARRANTY,
 } from '@/utils/dict';
-import { formatAmount, formatDateTime } from '@/utils/format';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   Card,
@@ -1463,7 +1463,7 @@ const PiDetail: React.FC = () => {
       },
     },
     {
-      title: '净利润',
+      title: `净利润（${cur}）`,
       key: 'profit',
       width: 110,
       align: 'right',
@@ -1472,9 +1472,7 @@ const PiDetail: React.FC = () => {
         return p == null ? (
           <span style={{ color: palette.mute }}>—</span>
         ) : (
-          <span style={{ ...num, color: deltaOf(p) }}>
-            {formatAmount(p, cur)}
-          </span>
+          <span style={{ ...num, color: deltaOf(p) }}>{formatMoney(p)}</span>
         );
       },
     },
@@ -1516,20 +1514,18 @@ const PiDetail: React.FC = () => {
     },
     { title: '数量', dataIndex: 'quantity', width: 70, align: 'right' },
     {
-      title: '单价',
+      title: `单价（${cur}）`,
       key: 'price',
       width: 120,
       align: 'right',
-      render: (_, r) => (
-        <span style={num}>{formatAmount(r.unitPrice, cur)}</span>
-      ),
+      render: (_, r) => <span style={num}>{formatMoney(r.unitPrice)}</span>,
     },
     {
-      title: '小计',
+      title: `小计（${cur}）`,
       key: 'amount',
       width: 130,
       align: 'right',
-      render: (_, r) => <b style={num}>{formatAmount(r.amount, cur)}</b>,
+      render: (_, r) => <b style={num}>{formatMoney(r.amount)}</b>,
     },
     {
       title: 'HS 编码 · 原产国',
@@ -1552,7 +1548,7 @@ const PiDetail: React.FC = () => {
       ),
     },
     {
-      title: '净利润',
+      title: `净利润（${cur}）`,
       key: 'profit',
       width: 120,
       align: 'right',
@@ -1560,7 +1556,7 @@ const PiDetail: React.FC = () => {
         r.netProfit == null ? (
           '—'
         ) : (
-          <span style={num}>{formatAmount(r.netProfit, cur)}</span>
+          <span style={num}>{formatMoney(r.netProfit)}</span>
         ),
     },
   ];

@@ -31,7 +31,7 @@ import { PATHS } from '@/pages/sales/components';
 import { readBizError } from '@/pages/sales/service';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount, formatDateTime } from '@/utils/format';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import RefundModal from './RefundModal';
 import { refundSourceRef } from './RequestsTab';
@@ -118,18 +118,18 @@ const RefundRequestDetail: React.FC = () => {
       render: (v?: number) => v ?? '—',
     },
     {
-      title: '成交单价',
+      title: `成交单价（${cur}）`,
       align: 'right',
       dataIndex: 'unitPrice',
       width: 120,
-      render: (v?: number) => (v == null ? '—' : formatAmount(v, cur)),
+      render: (v?: number) => (v == null ? '—' : formatMoney(v)),
     },
     {
-      title: '金额',
+      title: `金额（${cur}）`,
       align: 'right',
       dataIndex: 'amount',
       width: 120,
-      render: (v: number) => <b>{formatAmount(v, cur)}</b>,
+      render: (v: number) => <b>{formatMoney(v)}</b>,
     },
     {
       title: '说明',

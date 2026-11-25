@@ -17,7 +17,7 @@ import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount, formatDateTime } from '@/utils/format';
+import { formatDateTime, formatMoney } from '@/utils/format';
 import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
@@ -141,17 +141,17 @@ const BatchRows: React.FC<{
       ),
     },
     {
-      title: '单价（¥）',
+      title: '单价（CNY）',
       dataIndex: 'unitPriceCny',
       width: 110,
       render: (v: number) => Number(v).toFixed(6),
     },
     {
-      title: '金额（¥）',
+      title: '金额（CNY）',
       align: 'right',
       dataIndex: 'amountCny',
       width: 110,
-      render: (v: number) => formatAmount(v, 'CNY'),
+      render: (v: number) => formatMoney(v),
     },
     {
       title: '操作',
@@ -320,11 +320,11 @@ const StocksPage: React.FC = () => {
         v == null ? <span style={{ color: palette.mute }}>—</span> : num(v),
     },
     {
-      title: '库存金额',
+      title: '库存金额（CNY）',
       align: 'right',
       dataIndex: 'amountCny',
       width: 120,
-      render: (v: number) => formatAmount(v, 'CNY'),
+      render: (v: number) => formatMoney(v),
     },
     {
       title: '最近变动',

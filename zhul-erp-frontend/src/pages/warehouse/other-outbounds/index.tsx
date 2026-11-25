@@ -15,7 +15,7 @@ import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount } from '@/utils/format';
+import { formatMoney } from '@/utils/format';
 import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { FilterCard, useWarehouses } from '../inventoryParts';
@@ -108,11 +108,11 @@ const OtherOutboundsPage: React.FC = () => {
       ),
     },
     {
-      title: '金额（¥）',
+      title: '金额（CNY）',
       align: 'right',
       dataIndex: 'amountCny',
       width: 110,
-      render: (v: number) => formatAmount(v, 'CNY'),
+      render: (v: number) => formatMoney(v),
     },
     {
       title: '型号 · 数量',

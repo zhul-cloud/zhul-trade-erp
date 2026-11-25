@@ -26,7 +26,7 @@ import {
 } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { UnitPill, useBusinessUnits } from '@/utils/businessUnit';
-import { formatAmount, formatDateTime } from '@/utils/format';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import { ledgerApi, type ReceiptDoc, receiptDocApi } from './service';
 import { MethodCell } from './UnclaimedTab';
@@ -138,11 +138,11 @@ const ReceiptDocDetail: React.FC = () => {
     },
     { title: '结汇日期', dataIndex: 'settleDate', width: 110 },
     {
-      title: '分摊金额',
+      title: `分摊金额（${cur}）`,
       dataIndex: 'amount',
       width: 130,
       align: 'right',
-      render: (v: number) => <span style={num}>{formatAmount(v, cur)}</span>,
+      render: (v: number) => <span style={num}>{formatMoney(v)}</span>,
     },
     {
       title: '结汇汇率',
@@ -156,7 +156,7 @@ const ReceiptDocDetail: React.FC = () => {
       dataIndex: 'amountCny',
       width: 130,
       align: 'right',
-      render: (v: number) => <span style={num}>{formatAmount(v, 'CNY')}</span>,
+      render: (v: number) => <span style={num}>{formatMoney(v)}</span>,
     },
   ];
 

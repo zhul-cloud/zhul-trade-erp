@@ -16,7 +16,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useDeltaColor } from '@/theme/delta';
-import { formatAmount } from '@/utils/format';
+import { formatAmount, formatMoney } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
 import { calcLine, formatMargin, MODE_PRICE, round2 } from './calc';
 import { type PriceHistory, quotationApi, readBizError } from './service';
@@ -570,13 +570,13 @@ const StrategyDrawer: React.FC<{
           ),
         },
     {
-      title: '现售价',
+      title: `现售价（${currency}）`,
       key: 'old',
       width: 120,
       align: 'right',
       render: (_, r) => (
         <span style={{ ...num, color: palette.mute }}>
-          {formatAmount(r.unitPrice, currency)}
+          {formatMoney(r.unitPrice)}
         </span>
       ),
     },
@@ -587,7 +587,7 @@ const StrategyDrawer: React.FC<{
       render: () => <ArrowRight size="1em" style={{ color: palette.mute }} />,
     },
     {
-      title: '新售价',
+      title: `新售价（${currency}）`,
       key: 'new',
       width: 120,
       align: 'right',
@@ -598,7 +598,7 @@ const StrategyDrawer: React.FC<{
             color: prices?.has(r.id) ? palette.ink : palette.mute,
           }}
         >
-          {formatAmount(newPrice(r), currency)}
+          {formatMoney(newPrice(r))}
         </b>
       ),
     },

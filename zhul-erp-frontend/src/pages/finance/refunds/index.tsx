@@ -35,7 +35,7 @@ import { DOC_PATHS } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { recentRange } from '@/utils/dateRange';
 import { useDictTexts } from '@/utils/dict';
-import { formatAmount } from '@/utils/format';
+import { formatAmount, formatMoney } from '@/utils/format';
 import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import RefundModal from './RefundModal';
@@ -308,7 +308,7 @@ const RefundPage: React.FC = () => {
       dataIndex: 'amountCny',
       width: 120,
       align: 'right',
-      render: (v: number) => <b style={num}>{formatAmount(v, 'CNY')}</b>,
+      render: (v: number) => <b style={num}>{formatMoney(v)}</b>,
     },
     { title: '退款日期', dataIndex: 'refundDate', width: 110 },
     {

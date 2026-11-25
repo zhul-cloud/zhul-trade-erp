@@ -42,7 +42,7 @@ import {
 } from '@/utils/businessUnit';
 import { recentRange } from '@/utils/dateRange';
 import { useDictTexts } from '@/utils/dict';
-import { formatAmount } from '@/utils/format';
+import { formatMoney } from '@/utils/format';
 import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { ACCEPT_PROOF, ProofLinks } from '../payables/components';
@@ -323,11 +323,11 @@ const OtherIncomePage: React.FC = () => {
       : []),
     { title: '类别', dataIndex: 'categoryName', width: 110 },
     {
-      title: '金额',
+      title: '金额（CNY）',
       dataIndex: 'amount',
       width: 130,
       align: 'right',
-      render: (v: number) => <b style={num}>{formatAmount(v, 'CNY')}</b>,
+      render: (v: number) => <b style={num}>{formatMoney(v)}</b>,
     },
     { title: '说明', dataIndex: 'remark', width: 240, ellipsis: true },
     {

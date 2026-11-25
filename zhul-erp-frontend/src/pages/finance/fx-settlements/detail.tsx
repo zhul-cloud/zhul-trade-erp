@@ -19,7 +19,7 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/sales/service';
 import { ReasonModal, relatedRows } from '@/pages/warehouse/components';
 import { UnitPill, useBusinessUnits } from '@/utils/businessUnit';
-import { formatAmount, formatDateTime } from '@/utils/format';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import { ReceiptWho, SettlePill } from './components';
 import { type FxSettlement, fxApi } from './service';
@@ -95,18 +95,18 @@ const FxSettlementDetail: React.FC = () => {
       render: (_, a) => (a.receipt ? <ReceiptWho r={a.receipt} /> : '—'),
     },
     {
-      title: '分摊外币',
+      title: `分摊外币（${cur}）`,
       dataIndex: 'amount',
       width: 130,
       align: 'right',
-      render: (v: number) => <span style={num}>{formatAmount(v, cur)}</span>,
+      render: (v: number) => <span style={num}>{formatMoney(v)}</span>,
     },
     {
       title: '分摊人民币',
       dataIndex: 'amountCny',
       width: 130,
       align: 'right',
-      render: (v: number) => <span style={num}>{formatAmount(v, 'CNY')}</span>,
+      render: (v: number) => <span style={num}>{formatMoney(v)}</span>,
     },
     ...(hasFee
       ? [

@@ -52,7 +52,7 @@ import { useFilePreview } from '@/pages/inquiry/shared/FilePreview';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useDeltaColor } from '@/theme/delta';
-import { formatAmount, formatDateTime } from '@/utils/format';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   CreateAfterSalesModal,
@@ -768,33 +768,31 @@ const OrderDetail: React.FC = () => {
       ),
     },
     {
-      title: '单价',
+      title: `单价（${cur}）`,
       key: 'price',
       width: 120,
       align: 'right',
-      render: (_, r) => (
-        <span style={num}>{formatAmount(r.unitPrice, cur)}</span>
-      ),
+      render: (_, r) => <span style={num}>{formatMoney(r.unitPrice)}</span>,
     },
     ...(replacement
       ? [
           {
-            title: '申报单价',
+            title: `申报单价（${cur}）`,
             key: 'declared',
             width: 120,
             align: 'right' as const,
             render: (_: unknown, r: OrderItem) => (
-              <b style={num}>{formatAmount(r.declaredPrice ?? 0, cur)}</b>
+              <b style={num}>{formatMoney(r.declaredPrice ?? 0)}</b>
             ),
           },
         ]
       : []),
     {
-      title: '小计',
+      title: `小计（${cur}）`,
       key: 'amount',
       width: 130,
       align: 'right',
-      render: (_, r) => <b style={num}>{formatAmount(r.amount, cur)}</b>,
+      render: (_, r) => <b style={num}>{formatMoney(r.amount)}</b>,
     },
     {
       title: '现货 / 期货',

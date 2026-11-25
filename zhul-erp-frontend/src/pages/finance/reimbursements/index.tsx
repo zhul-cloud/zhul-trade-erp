@@ -40,7 +40,7 @@ import {
 } from '@/pages/warehouse/components';
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount, formatDateTime } from '@/utils/format';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
 import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { ACCEPT_PROOF, ProofLinks } from '../payables/components';
@@ -660,11 +660,11 @@ const _ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
     },
     { title: '项数', dataIndex: 'lineCount', width: 70 },
     {
-      title: '合计',
+      title: '合计（CNY）',
       dataIndex: 'totalAmount',
       width: 130,
       align: 'right',
-      render: (v: number) => <b style={num}>{formatAmount(v, 'CNY')}</b>,
+      render: (v: number) => <b style={num}>{formatMoney(v)}</b>,
     },
     {
       title: '状态',

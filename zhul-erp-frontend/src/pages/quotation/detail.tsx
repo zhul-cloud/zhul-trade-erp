@@ -82,7 +82,7 @@ import { type PiListItem, piApi } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useDeltaColor } from '@/theme/delta';
 import { DICT_WARRANTY } from '@/utils/dict';
-import { formatAmount, formatDateTime } from '@/utils/format';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   calcLine,
@@ -1311,7 +1311,7 @@ const QuotationDetail: React.FC = () => {
       },
     },
     {
-      title: '净利润',
+      title: `净利润（${currency}）`,
       key: 'profit',
       width: 130,
       align: 'right',
@@ -1323,7 +1323,7 @@ const QuotationDetail: React.FC = () => {
         const color = deltaOf(r.netProfit);
         return (
           <div style={{ ...num, color }}>
-            {formatAmount(r.netProfit, currency)}
+            {formatMoney(r.netProfit)}
             {currency !== 'CNY' && (
               <div style={{ fontSize: 12, color: palette.mute }}>
                 {formatAmount(r.netProfitCny, 'CNY')}

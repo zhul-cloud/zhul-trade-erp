@@ -38,7 +38,7 @@ import {
 import { AttachmentWall, usePreview } from '@/pages/warehouse/components';
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount } from '@/utils/format';
+import { formatAmount, formatMoney } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
 import { tableScrollX } from '@/utils/tableScroll';
 import { DueNowHint, dueNowOf } from './dueNow';
@@ -562,11 +562,11 @@ export const RegisterPaymentDrawer: React.FC<{
       ),
     },
     {
-      title: '未付',
+      title: `未付（${currency}）`,
       dataIndex: 'unpaidAmount',
       width: 120,
       align: 'right',
-      render: (v: number) => formatAmount(v, currency),
+      render: (v: number) => formatMoney(v),
     },
     {
       title: '本次核销',
@@ -1177,11 +1177,11 @@ export const InstallmentTable: React.FC<{ payable: Payable }> = ({
           render: (_, i) => `${i.ratio}% · ${i.triggerName}`,
         },
         {
-          title: '金额',
+          title: `金额（${c}）`,
           width: 130,
           dataIndex: 'amount',
           align: 'right',
-          render: (v: number) => formatAmount(v, c),
+          render: (v: number) => formatMoney(v),
         },
         {
           title: '到期日',
@@ -1192,11 +1192,11 @@ export const InstallmentTable: React.FC<{ payable: Payable }> = ({
           ),
         },
         {
-          title: '已付',
+          title: `已付（${c}）`,
           width: 130,
           dataIndex: 'paidAmount',
           align: 'right',
-          render: (v: number) => formatAmount(v, c),
+          render: (v: number) => formatMoney(v),
         },
         {
           title: '状态',
@@ -1270,7 +1270,7 @@ export const PaymentLineTable: React.FC<{
       ),
     },
     {
-      title: '金额',
+      title: `金额（${c}）`,
       dataIndex: 'amount',
       align: 'right',
       width: 130,
@@ -1280,7 +1280,7 @@ export const PaymentLineTable: React.FC<{
             textDecoration: l.voided ? 'line-through' : undefined,
           }}
         >
-          {formatAmount(v, c)}
+          {formatMoney(v)}
         </span>
       ),
     },

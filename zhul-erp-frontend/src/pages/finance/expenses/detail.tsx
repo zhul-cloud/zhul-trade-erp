@@ -28,7 +28,7 @@ import {
 } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { UnitPill, useBusinessUnits } from '@/utils/businessUnit';
-import { formatAmount, formatDateTime } from '@/utils/format';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import { PayStatusPill } from '../payables/components';
 import { METHOD } from '../payables/service';
@@ -127,11 +127,11 @@ const ExpenseDetail: React.FC = () => {
     },
     { title: '型号', dataIndex: 'model', width: 200 },
     {
-      title: '分摊金额',
+      title: `分摊金额（${c}）`,
       dataIndex: 'amount',
       width: 140,
       align: 'right',
-      render: (v: number) => <span style={num}>{formatAmount(v, c)}</span>,
+      render: (v: number) => <span style={num}>{formatMoney(v)}</span>,
     },
     ...(c === 'CNY'
       ? []

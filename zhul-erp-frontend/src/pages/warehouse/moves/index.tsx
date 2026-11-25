@@ -10,7 +10,7 @@ import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount, formatDateTime } from '@/utils/format';
+import { formatDateTime, formatMoney } from '@/utils/format';
 import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
@@ -185,17 +185,17 @@ const MovesPage: React.FC = () => {
       render: (v: number) => <SignedQty value={v} />,
     },
     {
-      title: '单价（¥）',
+      title: '单价（CNY）',
       dataIndex: 'unitPriceCny',
       width: 110,
       render: (v: number) => Number(v ?? 0).toFixed(6),
     },
     {
-      title: '金额（¥）',
+      title: '金额（CNY）',
       align: 'right',
       dataIndex: 'amountCny',
       width: 120,
-      render: (v: number) => formatAmount(v, 'CNY'),
+      render: (v: number) => formatMoney(v),
     },
     {
       title: '操作人',

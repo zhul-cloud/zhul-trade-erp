@@ -24,7 +24,7 @@ import {
   relatedRows,
 } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount, formatDateTime } from '@/utils/format';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import { PAY_CHANNEL_NAMES } from '../payables/payQr';
 import { METHOD, type Payment, paymentApi } from '../payables/service';
@@ -122,11 +122,11 @@ const PaymentDetail: React.FC = () => {
       ),
     },
     {
-      title: '核销金额',
+      title: `核销金额（${cur}）`,
       dataIndex: 'amount',
       width: 130,
       align: 'right',
-      render: (v: number) => <span style={num}>{formatAmount(v, cur)}</span>,
+      render: (v: number) => <span style={num}>{formatMoney(v)}</span>,
     },
     {
       title: '核销人民币',

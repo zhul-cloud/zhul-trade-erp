@@ -23,7 +23,7 @@ import { PATHS } from '@/pages/sales/components';
 import { readBizError } from '@/pages/sales/service';
 import { ReasonModal, relatedRows } from '@/pages/warehouse/components';
 import { UnitPill, useBusinessUnits } from '@/utils/businessUnit';
-import { formatAmount, formatDateTime } from '@/utils/format';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   REFUND_TYPE_WITHDRAW,
@@ -92,18 +92,18 @@ const RefundDetail: React.FC = () => {
       render: (v?: number) => v ?? '—',
     },
     {
-      title: '单价',
+      title: `单价（${cur}）`,
       align: 'right',
       dataIndex: 'unitPrice',
       width: 120,
-      render: (v?: number) => (v == null ? '—' : formatAmount(v, cur)),
+      render: (v?: number) => (v == null ? '—' : formatMoney(v)),
     },
     {
-      title: '金额',
+      title: `金额（${cur}）`,
       align: 'right',
       dataIndex: 'amount',
       width: 120,
-      render: (v: number) => <b>{formatAmount(v, cur)}</b>,
+      render: (v: number) => <b>{formatMoney(v)}</b>,
     },
   ];
 

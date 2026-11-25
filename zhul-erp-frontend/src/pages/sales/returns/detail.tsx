@@ -30,7 +30,7 @@ import {
 } from '@/pages/sales/after-sales/service';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount, formatDateTime } from '@/utils/format';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import { PATHS } from '../components';
 import { readBizError } from '../service';
@@ -94,21 +94,21 @@ const SalesReturnDetail: React.FC = () => {
     },
     { title: '退货数量', dataIndex: 'quantity', width: 90 },
     {
-      title: '成交单价',
+      title: `成交单价（${cur}）`,
       align: 'right',
       dataIndex: 'unitPrice',
       width: 120,
-      render: (v?: number) => (v == null ? '—' : formatAmount(v, cur)),
+      render: (v?: number) => (v == null ? '—' : formatMoney(v)),
     },
     ...(refund && r.status === TH_STATUS.CONFIRMING
       ? [
           {
-            title: '预计退款',
+            title: `预计退款（${cur}）`,
             align: 'right' as const,
             key: 'refund',
             width: 120,
             render: (_: unknown, x: SalesReturnItem) =>
-              formatAmount(lineRefund(x.quantity, x.unitPrice), cur),
+              formatMoney(lineRefund(x.quantity, x.unitPrice)),
           },
         ]
       : []),
