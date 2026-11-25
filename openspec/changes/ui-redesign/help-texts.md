@@ -146,11 +146,13 @@
 
 ## 商机统计
 
-代码位置：`zhul-erp-frontend/src/pages/crm/opportunity/stats.tsx`（页头 `help`）。
+代码位置：`zhul-erp-frontend/src/pages/crm/opportunity/stats.tsx`（页头 `help`）、`StatsPanel.tsx`（`HELP`）。
 
 | 位置 | 帮助文字 | 来源 |
 |---|---|---|
 | 页面标题 | 按首次接触日期统计每天各渠道、各业务员新增了多少商机，其中多少无效、多少有效 | 原页头说明 |
+| 汇总行「有效」 | 曾进入 S3 及以后的商机，之后输单仍计入有效；有效率 = 有效 ÷ 新增 | 原页脚说明（2026-11-25 复审 P1 移入帮助图标） |
+| 主卡「分组」 | 按首次接触日期归属；数据范围随你的数据权限 | 原页脚说明 |
 
 ## 客户管理列表
 
