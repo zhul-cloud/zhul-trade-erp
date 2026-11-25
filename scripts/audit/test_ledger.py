@@ -239,6 +239,18 @@ class DerivationTest(LedgerTestBase):
         self.claude("link", "UI-102", "--pr", "9")
         self.assertIn("已发布待验收 v1.3.0", self.run_tool("show", "UI-102")[1])
 
+    def test_squash_merge_recognized(self):
+        """压缩合并没有「Merge pull request」提交，标题以「(#N)」结尾；#1 不能误认 #17"""
+        self.claude("start", "UI-101")
+        self.claude("link", "UI-101", "--pr", "1")
+        sh(self.root, "git", "switch", "-q", "develop")
+        (self.root / "squash.txt").write_text("x", encoding="utf-8")
+        self.commit("fix: 压缩合并的修复 (#17)")
+        self.assertIn("状态：待合并（PR #1）", self.run_tool("show", "UI-101")[1])
+        (self.root / "squash2.txt").write_text("y", encoding="utf-8")
+        self.commit("fix: 压缩合并的修复 (#1)")
+        self.assertIn("状态：已合并待发布", self.run_tool("show", "UI-101")[1])
+
 
 class ConcurrencyTest(LedgerTestBase):
     def test_two_developers_edit_adjacent_items_without_conflict(self):
