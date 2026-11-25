@@ -39,6 +39,7 @@ import { CountryText } from '@/components/CountryText';
 import { CustomerCell } from '@/components/DocFields';
 import { DescRemarkCell } from '@/components/DocFields/ItemRemark';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -884,6 +885,9 @@ const RequirementList: React.FC = () => {
             rowKey="id"
             columns={flatSet.columns}
             dataSource={rows}
+            locale={{
+              emptyText: tableEmpty('没有符合条件的采购需求', loading),
+            }}
             loading={loading}
             scroll={{ x: tableScrollX(flatSet.columns) }}
             rowSelection={rowSelection(rows)}

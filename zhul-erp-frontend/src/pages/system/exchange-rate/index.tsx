@@ -4,6 +4,7 @@ import { App, InputNumber, Modal, Skeleton, Table } from 'antd';
 import { ArrowRight, History, Info, Pencil, TriangleAlert } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import { PageHeader } from '@/components/ListLayout';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { readBizError } from '@/pages/crm/opportunity/service';
@@ -200,6 +201,7 @@ const ExchangeRatePage: React.FC = () => {
                 rowKey="currencyCode"
                 pagination={false}
                 dataSource={rows}
+                locale={{ emptyText: tableEmpty('还没有汇率') }}
                 onRow={(r) => ({
                   style:
                     r.currencyCode === logCurrency

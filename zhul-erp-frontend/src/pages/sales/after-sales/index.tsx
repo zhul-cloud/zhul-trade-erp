@@ -159,18 +159,21 @@ const AfterSalesPage: React.FC = () => {
 
   const columns: TableColumnsType<AfterSales> = [
     {
-      title: '售后单',
+      title: '售后单号 · 收到日期',
       dataIndex: 'asNo',
-      width: 150,
+      width: 170,
       fixed: 'left',
       render: (v: string, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => history.push(`/sales/after-sales/${r.id}`)}
-        >
-          {v}
-        </button>
+        <div>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(`/sales/after-sales/${r.id}`)}
+          >
+            {v}
+          </button>
+          {sub(r.receivedAt?.slice(0, 10))}
+        </div>
       ),
     },
     {

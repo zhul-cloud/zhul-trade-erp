@@ -27,6 +27,7 @@ import {
   Ban,
   CircleCheck,
   Pencil,
+  Plus,
   Search,
   ShieldCheck,
   Trash2,
@@ -517,7 +518,11 @@ const RolePage: React.FC = () => {
       <PageHeader
         extra={
           canAdd && (
-            <Button type="primary" onClick={openCreate}>
+            <Button
+              type="primary"
+              icon={<Plus size={18} />}
+              onClick={openCreate}
+            >
               新增角色
             </Button>
           )

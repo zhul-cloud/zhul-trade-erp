@@ -18,7 +18,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Eye, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
-import { EmptyState } from '@/components/EmptyState';
+import { EmptyState, tableEmpty } from '@/components/EmptyState';
 import {
   CardTitle,
   FilterCard,
@@ -781,6 +781,9 @@ const FxSettlementPage: React.FC = () => {
                     loading={loading}
                     columns={columnsSet.columns}
                     dataSource={rows}
+                    locale={{
+                      emptyText: tableEmpty('没有符合条件的结汇单', loading),
+                    }}
                     scroll={{ x: tableScrollX(columnsSet.columns) }}
                     pagination={{
                       ...PAGER_STYLE,

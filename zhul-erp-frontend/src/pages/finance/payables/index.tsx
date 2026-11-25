@@ -6,6 +6,7 @@ import { Banknote, Eye, Plus, Search, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import EllipsisText from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -550,6 +551,7 @@ const PayableManagement: React.FC = () => {
           loading={loading}
           columns={columnsSet.columns}
           dataSource={rows}
+          locale={{ emptyText: tableEmpty('没有符合条件的应付', loading) }}
           rowSelection={
             canRegister
               ? {

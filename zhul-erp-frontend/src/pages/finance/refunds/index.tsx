@@ -18,6 +18,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -544,6 +545,9 @@ const RefundPage: React.FC = () => {
               loading={loading}
               columns={columnsSet.columns}
               dataSource={rows}
+              locale={{
+                emptyText: tableEmpty('没有符合条件的退款单', loading),
+              }}
               scroll={{ x: tableScrollX(columnsSet.columns) }}
               pagination={{
                 ...PAGER_STYLE,

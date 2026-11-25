@@ -6,6 +6,7 @@ import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import SourceNos from '@/components/DocFields/SourceNos';
+import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -478,6 +479,7 @@ const PaymentRecords: React.FC = () => {
           loading={loading}
           columns={columnsSet.columns}
           dataSource={rows}
+          locale={{ emptyText: tableEmpty('没有符合条件的付款单', loading) }}
           scroll={{ x: tableScrollX(columnsSet.columns) }}
           pagination={{
             ...PAGER_STYLE,

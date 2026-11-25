@@ -27,6 +27,7 @@ import {
   KeyRound,
   Network,
   Pencil,
+  Plus,
   Search,
   Trash2,
   User,
@@ -470,7 +471,11 @@ const UserPage: React.FC = () => {
       <PageHeader
         extra={
           !!(access as Record<string, unknown>)['system:user:add'] && (
-            <Button type="primary" onClick={() => setCreateOpen(true)}>
+            <Button
+              type="primary"
+              icon={<Plus size={18} />}
+              onClick={() => setCreateOpen(true)}
+            >
               新增用户
             </Button>
           )

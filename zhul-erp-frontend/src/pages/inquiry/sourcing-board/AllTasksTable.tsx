@@ -2,6 +2,7 @@ import { DatePicker, Select, Table, type TableColumnsType } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { tableEmpty } from '@/components/EmptyState';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
@@ -188,6 +189,7 @@ const AllTasksTable: React.FC<{
           loading={loading}
           columns={columnsSet.columns}
           dataSource={rows}
+          locale={{ emptyText: tableEmpty('没有符合条件的询价任务', loading) }}
           scroll={{ x: tableScrollX(columnsSet.columns) }}
           onRow={(r) => ({
             onClick: () => onOpen(r.id),
