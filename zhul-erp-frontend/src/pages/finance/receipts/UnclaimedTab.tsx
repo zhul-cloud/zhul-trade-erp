@@ -22,6 +22,7 @@ import {
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { useFilePreview } from '@/pages/inquiry/shared/FilePreview';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { Card, PATHS, Pill } from '@/pages/sales/components';
 import {
@@ -302,60 +303,73 @@ const RegisterModal: React.FC<{
   );
 };
 
-/** 未认领到账的附件：点开在新窗口预览 */
+/** 未认领到账的附件：点开在当前页弹窗预览（spec sales/payment-receipt「上传付款水单」） */
 const FilesModal: React.FC<{ row?: ReceiptRow; onClose: () => void }> = ({
   row,
   onClose,
 }) => {
-  const { message } = App.useApp();
   const { palette } = useAppTheme();
+  const preview = useFilePreview();
   return (
-    <Modal
-      open={!!row}
-      onCancel={onClose}
-      footer={null}
-      width={560}
-      title={row ? `附件 · ${formatAmount(row.amount, row.currencyCode)}` : ''}
-    >
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-          gap: 10,
-        }}
+    <>
+      <Modal
+        open={!!row}
+        onCancel={onClose}
+        footer={null}
+        width={560}
+        title={
+          row ? `附件 · ${formatAmount(row.amount, row.currencyCode)}` : ''
+        }
       >
-        {row?.fileNames?.map((name, i) => (
-          <button
-            type="button"
-            key={name}
-            onClick={() =>
-              ledgerApi
-                .openFile(row.id, i)
-                .catch((e) => message.error(readBizError(e).message))
-            }
-            style={{
-              display: 'grid',
-              justifyItems: 'center',
-              gap: 8,
-              padding: '24px 10px',
-              borderRadius: 12,
-              border: `1px solid ${palette.hairline}`,
-              background: palette.inset,
-              color: palette.ink,
-              cursor: 'pointer',
-              fontSize: 12,
-            }}
-          >
-            {/\.pdf$/i.test(name) ? (
-              <FileTextOutlined style={{ fontSize: 26, color: palette.sub }} />
-            ) : (
-              <FileImageOutlined style={{ fontSize: 26, color: palette.sub }} />
-            )}
-            <span style={{ wordBreak: 'break-all' }}>{name}</span>
-          </button>
-        ))}
-      </div>
-    </Modal>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+            gap: 10,
+          }}
+        >
+          {row?.fileNames?.map((name, i) => (
+            <button
+              type="button"
+              key={name}
+              onClick={() =>
+                preview.open(
+                  (row.fileNames ?? []).map((n, k) => ({ id: k, fileName: n })),
+                  i,
+                  (x) => ledgerApi.filePath(row.id, x.id),
+                  () =>
+                    `未认领到账 ${formatAmount(row.amount, row.currencyCode)}`,
+                )
+              }
+              style={{
+                display: 'grid',
+                justifyItems: 'center',
+                gap: 8,
+                padding: '24px 10px',
+                borderRadius: 12,
+                border: `1px solid ${palette.hairline}`,
+                background: palette.inset,
+                color: palette.ink,
+                cursor: 'pointer',
+                fontSize: 12,
+              }}
+            >
+              {/\.pdf$/i.test(name) ? (
+                <FileTextOutlined
+                  style={{ fontSize: 26, color: palette.sub }}
+                />
+              ) : (
+                <FileImageOutlined
+                  style={{ fontSize: 26, color: palette.sub }}
+                />
+              )}
+              <span style={{ wordBreak: 'break-all' }}>{name}</span>
+            </button>
+          ))}
+        </div>
+      </Modal>
+      {preview.node}
+    </>
   );
 };
 

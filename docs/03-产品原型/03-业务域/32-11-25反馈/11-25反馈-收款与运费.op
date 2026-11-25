@@ -1,0 +1,3212 @@
+{
+  "version": "0.8.2",
+  "name": "11-22反馈",
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Page 1",
+      "children": [
+        {
+          "type": "frame",
+          "id": "n1",
+          "name": "X1-收款单-待确认水单-弹窗预览",
+          "width": 1600.0,
+          "height": 760.0,
+          "layout": "vertical",
+          "justifyContent": "center",
+          "alignItems": "center",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "#03060C"
+            }
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "n2",
+              "width": 900.0,
+              "height": "fit_content",
+              "layout": "vertical",
+              "gap": 16.0,
+              "padding": [
+                20.0,
+                24.0
+              ],
+              "cornerRadius": 16.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#111A2C"
+                }
+              ],
+              "effects": [
+                {
+                  "type": "shadow",
+                  "offsetX": 0.0,
+                  "offsetY": 24.0,
+                  "blur": 60.0,
+                  "spread": -24.0,
+                  "color": "#000000"
+                }
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "n3",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 12.0,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "n4",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "vertical",
+                      "gap": 2.0,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n5",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "水单-6800USD.jpg",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 16.0,
+                          "fontWeight": 700,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n6",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "FWPI20261125002 · 水单 USD 6,800.00 · 11-25 · 第 1 / 共 2 张",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 400,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "icon_font",
+                      "id": "n7",
+                      "iconFontName": "x",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#94A3B8"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n8",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 16.0,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "n9",
+                      "width": 36.0,
+                      "height": 36.0,
+                      "layout": "horizontal",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "cornerRadius": 18.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#0D1524"
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "icon_font",
+                          "id": "n10",
+                          "iconFontName": "chevron-left",
+                          "width": 16.0,
+                          "height": 16.0,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#64748B"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n11",
+                      "width": "fill_container",
+                      "height": 520.0,
+                      "layout": "vertical",
+                      "gap": 10.0,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#E8ECF2"
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "icon_font",
+                          "id": "n12",
+                          "iconFontName": "receipt",
+                          "width": 48.0,
+                          "height": 48.0,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#64748B"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n13",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "银行转账回单（图片）",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 14.0,
+                          "fontWeight": 400,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#0F172A"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n14",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "USD 6,800.00 · 2026-11-25 · ACROBOT GMBH",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 400,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#0F172A"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n15",
+                      "width": 36.0,
+                      "height": 36.0,
+                      "layout": "horizontal",
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "cornerRadius": 18.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#0D1524"
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "icon_font",
+                          "id": "n16",
+                          "iconFontName": "chevron-right",
+                          "width": 16.0,
+                          "height": 16.0,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#CBD5E1"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n17",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 8.0,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n18",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "content": "← → 键切换 · Esc 关闭",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.0,
+                      "fontWeight": 400,
+                      "lineHeight": 1.5,
+                      "textGrowth": "fixed-width",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#94A3B8"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n19",
+                      "width": "fit_content",
+                      "height": 32.0,
+                      "layout": "horizontal",
+                      "gap": 6.0,
+                      "padding": [
+                        0.0,
+                        14.0
+                      ],
+                      "alignItems": "center",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#0D1524"
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "icon_font",
+                          "id": "n20",
+                          "iconFontName": "download",
+                          "width": 14.0,
+                          "height": 14.0,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#CBD5E1"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n21",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "下载",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#CBD5E1"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "screen": "/"
+        },
+        {
+          "type": "frame",
+          "id": "n22",
+          "name": "X2-登记到账-收款账户默认只列本单据事业部",
+          "y": 800.0,
+          "width": 1600.0,
+          "height": 620.0,
+          "layout": "vertical",
+          "justifyContent": "center",
+          "alignItems": "center",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "#03060C"
+            }
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "n23",
+              "width": 640.0,
+              "height": "fit_content",
+              "layout": "vertical",
+              "gap": 16.0,
+              "padding": [
+                20.0,
+                24.0
+              ],
+              "cornerRadius": 16.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#111A2C"
+                }
+              ],
+              "effects": [
+                {
+                  "type": "shadow",
+                  "offsetX": 0.0,
+                  "offsetY": 24.0,
+                  "blur": 60.0,
+                  "spread": -24.0,
+                  "color": "#000000"
+                }
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "n24",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 12.0,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "n25",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "vertical",
+                      "gap": 2.0,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n26",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "登记到账",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 16.0,
+                          "fontWeight": 700,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n27",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "FWPI20261125002 · 阿里国际站事业部",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 400,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "icon_font",
+                      "id": "n28",
+                      "iconFontName": "x",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#94A3B8"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n29",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 24.0,
+                  "padding": [
+                    12.0,
+                    16.0
+                  ],
+                  "alignItems": "center",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#0D1524"
+                    }
+                  ],
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "n30",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "vertical",
+                      "gap": 2.0,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n31",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "PI 合计",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 400,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n32",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "USD 6,800.00",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 700,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n33",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "vertical",
+                      "gap": 2.0,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n34",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "已到账",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 400,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n35",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "USD 0.00",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 700,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n36",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "vertical",
+                      "gap": 2.0,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n37",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "剩余",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 400,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n38",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "USD 6,800.00",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 700,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#FB923C"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n39",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 12.0,
+                  "alignItems": "start",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "n40",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "vertical",
+                      "gap": 6.0,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n41",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "到账金额（银行实收）",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 400,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#CBD5E1"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n42",
+                          "width": "fill_container",
+                          "height": 34.0,
+                          "layout": "horizontal",
+                          "gap": 8.0,
+                          "padding": [
+                            0.0,
+                            12.0
+                          ],
+                          "alignItems": "center",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#0D1524"
+                            }
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n43",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "USD 6,700.00",
+                              "fontFamily": "JetBrains Mono",
+                              "fontSize": 13.0,
+                              "fontWeight": 400,
+                              "lineHeight": 1.5,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#F8FAFC"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n44",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "vertical",
+                      "gap": 6.0,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n45",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "到账日期",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 400,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#CBD5E1"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n46",
+                          "width": "fill_container",
+                          "height": 34.0,
+                          "layout": "horizontal",
+                          "gap": 8.0,
+                          "padding": [
+                            0.0,
+                            12.0
+                          ],
+                          "alignItems": "center",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#0D1524"
+                            }
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n47",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "content": "2026-11-25",
+                              "fontFamily": "JetBrains Mono",
+                              "fontSize": 13.0,
+                              "fontWeight": 400,
+                              "lineHeight": 1.5,
+                              "textGrowth": "fixed-width",
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#F8FAFC"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "icon_font",
+                              "id": "n48",
+                              "iconFontName": "calendar",
+                              "width": 14.0,
+                              "height": 14.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#94A3B8"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n49",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "vertical",
+                  "gap": 6.0,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n50",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "收款账户",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.0,
+                      "fontWeight": 400,
+                      "lineHeight": 1.5,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#CBD5E1"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n51",
+                      "width": "fill_container",
+                      "height": 34.0,
+                      "layout": "horizontal",
+                      "gap": 8.0,
+                      "padding": [
+                        0.0,
+                        12.0
+                      ],
+                      "alignItems": "center",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#0D1524"
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n52",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "content": "招商银行 ****6688（默认）",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 400,
+                          "lineHeight": 1.5,
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "icon_font",
+                          "id": "n53",
+                          "iconFontName": "chevron-up",
+                          "width": 14.0,
+                          "height": 14.0,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n54",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "vertical",
+                      "gap": 2.0,
+                      "padding": [
+                        6.0,
+                        6.0
+                      ],
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#111A2C"
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "n55",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "gap": 8.0,
+                          "padding": [
+                            8.0,
+                            10.0
+                          ],
+                          "alignItems": "center",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#182B4C"
+                            }
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n56",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "content": "招商银行 ****6688",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 600,
+                              "lineHeight": 1.5,
+                              "textGrowth": "fixed-width",
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#F8FAFC"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "n57",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "默认",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.0,
+                              "fontWeight": 400,
+                              "lineHeight": 1.5,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#FFFFFF"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "icon_font",
+                              "id": "n58",
+                              "iconFontName": "check",
+                              "width": 14.0,
+                              "height": 14.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#60A5FA"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n59",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "gap": 8.0,
+                          "padding": [
+                            8.0,
+                            10.0
+                          ],
+                          "alignItems": "center",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#16233A"
+                            }
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n60",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "content": "中国银行 ****3021（对私）",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 400,
+                              "lineHeight": 1.5,
+                              "textGrowth": "fixed-width",
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#F8FAFC"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n61",
+                          "width": "fill_container",
+                          "height": 1.0,
+                          "layout": "horizontal",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#1E293B"
+                            }
+                          ],
+                          "children": []
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n62",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "gap": 8.0,
+                          "padding": [
+                            8.0,
+                            10.0
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon_font",
+                              "id": "n63",
+                              "iconFontName": "chevron-down",
+                              "width": 14.0,
+                              "height": 14.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#60A5FA"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "n64",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "显示其他事业部账户（3）",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.0,
+                              "fontWeight": 500,
+                              "lineHeight": 1.5,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#60A5FA"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n65",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 8.0,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "n66",
+                      "width": "fill_container",
+                      "height": 1.0,
+                      "layout": "horizontal",
+                      "children": []
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n67",
+                      "width": "fit_content",
+                      "height": 32.0,
+                      "layout": "horizontal",
+                      "gap": 6.0,
+                      "padding": [
+                        0.0,
+                        14.0
+                      ],
+                      "alignItems": "center",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#0D1524"
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n68",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "取消",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#CBD5E1"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n69",
+                      "width": "fit_content",
+                      "height": 32.0,
+                      "layout": "horizontal",
+                      "gap": 6.0,
+                      "padding": [
+                        0.0,
+                        14.0
+                      ],
+                      "alignItems": "center",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#2563EB"
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n70",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "登记到账",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#FFFFFF"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "screen": "/x2"
+        },
+        {
+          "type": "frame",
+          "id": "n71",
+          "name": "X3-登记到账-展开其他事业部账户-收错提示",
+          "y": 1460.0,
+          "width": 1600.0,
+          "height": 860.0,
+          "layout": "vertical",
+          "justifyContent": "center",
+          "alignItems": "center",
+          "fill": [
+            {
+              "type": "solid",
+              "color": "#03060C"
+            }
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "n72",
+              "width": 640.0,
+              "height": "fit_content",
+              "layout": "vertical",
+              "gap": 16.0,
+              "padding": [
+                20.0,
+                24.0
+              ],
+              "cornerRadius": 16.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#111A2C"
+                }
+              ],
+              "effects": [
+                {
+                  "type": "shadow",
+                  "offsetX": 0.0,
+                  "offsetY": 24.0,
+                  "blur": 60.0,
+                  "spread": -24.0,
+                  "color": "#000000"
+                }
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "n73",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 12.0,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "n74",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "vertical",
+                      "gap": 2.0,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n75",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "登记到账",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 16.0,
+                          "fontWeight": 700,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n76",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "FWPI20261125002 · 阿里国际站事业部",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 400,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "icon_font",
+                      "id": "n77",
+                      "iconFontName": "x",
+                      "width": 16.0,
+                      "height": 16.0,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#94A3B8"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n78",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 24.0,
+                  "padding": [
+                    12.0,
+                    16.0
+                  ],
+                  "alignItems": "center",
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#0D1524"
+                    }
+                  ],
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "n79",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "vertical",
+                      "gap": 2.0,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n80",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "PI 合计",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 400,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n81",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "USD 6,800.00",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 700,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n82",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "vertical",
+                      "gap": 2.0,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n83",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "已到账",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 400,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n84",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "USD 0.00",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 700,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n85",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "vertical",
+                      "gap": 2.0,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n86",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "剩余",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 400,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n87",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "USD 6,800.00",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 700,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#FB923C"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n88",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 12.0,
+                  "alignItems": "start",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "n89",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "vertical",
+                      "gap": 6.0,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n90",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "到账金额（银行实收）",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 400,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#CBD5E1"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n91",
+                          "width": "fill_container",
+                          "height": 34.0,
+                          "layout": "horizontal",
+                          "gap": 8.0,
+                          "padding": [
+                            0.0,
+                            12.0
+                          ],
+                          "alignItems": "center",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#0D1524"
+                            }
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n92",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "USD 6,700.00",
+                              "fontFamily": "JetBrains Mono",
+                              "fontSize": 13.0,
+                              "fontWeight": 400,
+                              "lineHeight": 1.5,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#F8FAFC"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n93",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "vertical",
+                      "gap": 6.0,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n94",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "到账日期",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 400,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#CBD5E1"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n95",
+                          "width": "fill_container",
+                          "height": 34.0,
+                          "layout": "horizontal",
+                          "gap": 8.0,
+                          "padding": [
+                            0.0,
+                            12.0
+                          ],
+                          "alignItems": "center",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#0D1524"
+                            }
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n96",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "content": "2026-11-25",
+                              "fontFamily": "JetBrains Mono",
+                              "fontSize": 13.0,
+                              "fontWeight": 400,
+                              "lineHeight": 1.5,
+                              "textGrowth": "fixed-width",
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#F8FAFC"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "icon_font",
+                              "id": "n97",
+                              "iconFontName": "calendar",
+                              "width": 14.0,
+                              "height": 14.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#94A3B8"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n98",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "vertical",
+                  "gap": 6.0,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n99",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "收款账户",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.0,
+                      "fontWeight": 400,
+                      "lineHeight": 1.5,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#CBD5E1"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n100",
+                      "width": "fill_container",
+                      "height": 34.0,
+                      "layout": "horizontal",
+                      "gap": 8.0,
+                      "padding": [
+                        0.0,
+                        12.0
+                      ],
+                      "alignItems": "center",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#0D1524"
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n101",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "content": "汇丰银行 ****2210 · 中国制造网",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 400,
+                          "lineHeight": 1.5,
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "icon_font",
+                          "id": "n102",
+                          "iconFontName": "chevron-up",
+                          "width": 14.0,
+                          "height": 14.0,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n103",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "vertical",
+                      "gap": 2.0,
+                      "padding": [
+                        6.0,
+                        6.0
+                      ],
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#111A2C"
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n104",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "阿里国际站（本单据）",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 600,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n105",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "gap": 8.0,
+                          "padding": [
+                            8.0,
+                            10.0
+                          ],
+                          "alignItems": "center",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#111A2C"
+                            }
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n106",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "content": "招商银行 ****6688",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 400,
+                              "lineHeight": 1.5,
+                              "textGrowth": "fixed-width",
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#F8FAFC"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "n107",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "默认",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.0,
+                              "fontWeight": 400,
+                              "lineHeight": 1.5,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#94A3B8"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n108",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "gap": 8.0,
+                          "padding": [
+                            8.0,
+                            10.0
+                          ],
+                          "alignItems": "center",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#111A2C"
+                            }
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n109",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "content": "中国银行 ****3021（对私）",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 400,
+                              "lineHeight": 1.5,
+                              "textGrowth": "fixed-width",
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#F8FAFC"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n110",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "其他事业部",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 600,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n111",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "gap": 8.0,
+                          "padding": [
+                            8.0,
+                            10.0
+                          ],
+                          "alignItems": "center",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#182B4C"
+                            }
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n112",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "content": "汇丰银行 ****2210",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 600,
+                              "lineHeight": 1.5,
+                              "textGrowth": "fixed-width",
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#F8FAFC"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "n113",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "中国制造网",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.0,
+                              "fontWeight": 400,
+                              "lineHeight": 1.5,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#FFFFFF"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "icon_font",
+                              "id": "n114",
+                              "iconFontName": "check",
+                              "width": 14.0,
+                              "height": 14.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#60A5FA"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n115",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "gap": 8.0,
+                          "padding": [
+                            8.0,
+                            10.0
+                          ],
+                          "alignItems": "center",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#111A2C"
+                            }
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n116",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "content": "工商银行 ****7715",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 400,
+                              "lineHeight": 1.5,
+                              "textGrowth": "fixed-width",
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#F8FAFC"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "n117",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "中国制造网",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.0,
+                              "fontWeight": 400,
+                              "lineHeight": 1.5,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#94A3B8"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n118",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "gap": 8.0,
+                          "padding": [
+                            8.0,
+                            10.0
+                          ],
+                          "alignItems": "center",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#111A2C"
+                            }
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n119",
+                              "width": "fill_container",
+                              "height": "fit_content",
+                              "content": "建设银行 ****0098",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 400,
+                              "lineHeight": 1.5,
+                              "textGrowth": "fixed-width",
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#F8FAFC"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "n120",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "独立站",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.0,
+                              "fontWeight": 400,
+                              "lineHeight": 1.5,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#94A3B8"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n121",
+                          "width": "fill_container",
+                          "height": 1.0,
+                          "layout": "horizontal",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#1E293B"
+                            }
+                          ],
+                          "children": []
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n122",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "gap": 8.0,
+                          "padding": [
+                            8.0,
+                            10.0
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon_font",
+                              "id": "n123",
+                              "iconFontName": "chevron-up",
+                              "width": 14.0,
+                              "height": 14.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#60A5FA"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "n124",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "收起其他事业部账户",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.0,
+                              "fontWeight": 500,
+                              "lineHeight": 1.5,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#60A5FA"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n125",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "vertical",
+                      "gap": 6.0,
+                      "padding": [
+                        12.0,
+                        14.0
+                      ],
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#2D282E"
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "n126",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "layout": "horizontal",
+                          "gap": 8.0,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon_font",
+                              "id": "n127",
+                              "iconFontName": "triangle-alert",
+                              "width": 14.0,
+                              "height": 14.0,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#FB923C"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "n128",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "可能收错账户",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 700,
+                              "lineHeight": 1.5,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#F8FAFC"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n129",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "这个账户属于「中国制造网」，单据属于「阿里国际站」。",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 400,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#CBD5E1"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n130",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "确认保存后，这笔收款仍计入阿里国际站（以单据为准），收款记录标记「账户与订单不一致」。",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 400,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#FFFFFF"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n131",
+                          "width": "fit_content",
+                          "height": 32.0,
+                          "layout": "horizontal",
+                          "gap": 6.0,
+                          "padding": [
+                            0.0,
+                            14.0
+                          ],
+                          "alignItems": "center",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#0D1524"
+                            }
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "n132",
+                              "width": "fit_content",
+                              "height": "fit_content",
+                              "content": "改选阿里国际站的账户",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13.0,
+                              "fontWeight": 500,
+                              "lineHeight": 1.5,
+                              "fill": [
+                                {
+                                  "type": "solid",
+                                  "color": "#CBD5E1"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n133",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 8.0,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "n134",
+                      "width": "fill_container",
+                      "height": 1.0,
+                      "layout": "horizontal",
+                      "children": []
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n135",
+                      "width": "fit_content",
+                      "height": 32.0,
+                      "layout": "horizontal",
+                      "gap": 6.0,
+                      "padding": [
+                        0.0,
+                        14.0
+                      ],
+                      "alignItems": "center",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#0D1524"
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n136",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "取消",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#CBD5E1"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n137",
+                      "width": "fit_content",
+                      "height": 32.0,
+                      "layout": "horizontal",
+                      "gap": 6.0,
+                      "padding": [
+                        0.0,
+                        14.0
+                      ],
+                      "alignItems": "center",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#2563EB"
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n138",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "登记到账",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#FFFFFF"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "screen": "/x3"
+        },
+        {
+          "type": "frame",
+          "id": "n139",
+          "name": "Y1-订单成本-国际运费按订单运费预估",
+          "y": 2360.0,
+          "width": 1600.0,
+          "height": 430.0,
+          "layout": "vertical",
+          "gap": 16.0,
+          "padding": [
+            28.0,
+            32.0
+          ],
+          "fill": [
+            {
+              "type": "solid",
+              "color": "#060A14"
+            }
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "n140",
+              "width": "fill_container",
+              "height": "fit_content",
+              "layout": "vertical",
+              "gap": 12.0,
+              "padding": [
+                20.0,
+                20.0
+              ],
+              "cornerRadius": 14.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#0B1222"
+                }
+              ],
+              "stroke": {
+                "thickness": 1.0,
+                "fill": [
+                  {
+                    "type": "solid",
+                    "color": "#1E293B"
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "n141",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 10.0,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n142",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "成本明细",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 16.0,
+                      "fontWeight": 700,
+                      "lineHeight": 1.5,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#F8FAFC"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n143",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "gap": 8.0,
+                      "padding": [
+                        2.0,
+                        8.0
+                      ],
+                      "alignItems": "center",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#2D282E"
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n144",
+                          "width": "fit_content",
+                          "height": "fit_content",
+                          "content": "未结算",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 600,
+                          "lineHeight": 1.5,
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#FFFFFF"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n145",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "content": "还差：3 个型号没入库 · 国际运费还没出运，按订单运费估算",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.0,
+                      "fontWeight": 400,
+                      "lineHeight": 1.5,
+                      "textGrowth": "fixed-width",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#FB923C"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n146",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "浅色为还没确定的数字；虚线数字可以悬停查看来源",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.0,
+                      "fontWeight": 400,
+                      "lineHeight": 1.5,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#FAF8F3"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n147",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "vertical",
+                  "gap": 0.0,
+                  "clipContent": true,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "n148",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "gap": 16.0,
+                      "padding": [
+                        12.0,
+                        16.0
+                      ],
+                      "alignItems": "center",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#0F1A2E"
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n149",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "content": "型号",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 600,
+                          "lineHeight": 1.5,
+                          "textAlign": "left",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n150",
+                          "width": 70.0,
+                          "height": "fit_content",
+                          "content": "已出运",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 600,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n151",
+                          "width": 110.0,
+                          "height": "fit_content",
+                          "content": "采购货款",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 600,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n152",
+                          "width": 90.0,
+                          "height": "fit_content",
+                          "content": "国内运费",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 600,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n153",
+                          "width": 90.0,
+                          "height": "fit_content",
+                          "content": "费用单",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 600,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n154",
+                          "width": 120.0,
+                          "height": "fit_content",
+                          "content": "国际运费",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 600,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n155",
+                          "width": 110.0,
+                          "height": "fit_content",
+                          "content": "实际成本",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 600,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n156",
+                          "width": 110.0,
+                          "height": "fit_content",
+                          "content": "行收入",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 600,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n157",
+                          "width": 120.0,
+                          "height": "fit_content",
+                          "content": "行毛利",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.0,
+                          "fontWeight": 600,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#94A3B8"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n158",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "gap": 16.0,
+                      "padding": [
+                        12.0,
+                        16.0
+                      ],
+                      "alignItems": "center",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#0B1222"
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n159",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "content": "6ES7214-1AG40-0XB0 · Siemens",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 600,
+                          "lineHeight": 1.5,
+                          "textAlign": "left",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n160",
+                          "width": 70.0,
+                          "height": "fit_content",
+                          "content": "0 / 6",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n161",
+                          "width": 110.0,
+                          "height": "fit_content",
+                          "content": "¥8,640.00",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#FAF8F3"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n162",
+                          "width": 90.0,
+                          "height": "fit_content",
+                          "content": "—",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#FAF8F3"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n163",
+                          "width": 90.0,
+                          "height": "fit_content",
+                          "content": "—",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#FAF8F3"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n164",
+                          "width": 120.0,
+                          "height": "fit_content",
+                          "content": "¥251.65",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#FAF8F3"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n165",
+                          "width": 110.0,
+                          "height": "fit_content",
+                          "content": "¥8,891.65",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 700,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n166",
+                          "width": 110.0,
+                          "height": "fit_content",
+                          "content": "¥16,320.30",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n167",
+                          "width": 120.0,
+                          "height": "fit_content",
+                          "content": "¥7,428.65",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#4ADE80"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n168",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "gap": 16.0,
+                      "padding": [
+                        12.0,
+                        16.0
+                      ],
+                      "alignItems": "center",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#0B1222"
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n169",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "content": "6AV2123-2GB03-0AX0 · Siemens",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 600,
+                          "lineHeight": 1.5,
+                          "textAlign": "left",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n170",
+                          "width": 70.0,
+                          "height": "fit_content",
+                          "content": "0 / 4",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n171",
+                          "width": 110.0,
+                          "height": "fit_content",
+                          "content": "¥5,120.00",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#FAF8F3"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n172",
+                          "width": 90.0,
+                          "height": "fit_content",
+                          "content": "—",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#FAF8F3"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n173",
+                          "width": 90.0,
+                          "height": "fit_content",
+                          "content": "—",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#FAF8F3"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n174",
+                          "width": 120.0,
+                          "height": "fit_content",
+                          "content": "¥160.85",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#FAF8F3"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n175",
+                          "width": 110.0,
+                          "height": "fit_content",
+                          "content": "¥5,280.85",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 700,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n176",
+                          "width": 110.0,
+                          "height": "fit_content",
+                          "content": "¥10,431.20",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n177",
+                          "width": 120.0,
+                          "height": "fit_content",
+                          "content": "¥5,150.35",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 500,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#4ADE80"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "n178",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "layout": "horizontal",
+                      "gap": 16.0,
+                      "padding": [
+                        12.0,
+                        16.0
+                      ],
+                      "alignItems": "center",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#0F1A2E"
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "n179",
+                          "width": "fill_container",
+                          "height": "fit_content",
+                          "content": "合计",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.0,
+                          "fontWeight": 700,
+                          "lineHeight": 1.5,
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n180",
+                          "width": 670.0,
+                          "height": "fit_content",
+                          "content": "¥14,172.50",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 700,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n181",
+                          "width": 110.0,
+                          "height": "fit_content",
+                          "content": "¥26,751.50",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 400,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#F8FAFC"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "n182",
+                          "width": 180.0,
+                          "height": "fit_content",
+                          "content": "¥12,579.00 · 47.02%",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13.0,
+                          "fontWeight": 700,
+                          "lineHeight": 1.5,
+                          "textAlign": "right",
+                          "textGrowth": "fixed-width",
+                          "fill": [
+                            {
+                              "type": "solid",
+                              "color": "#4ADE80"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n183",
+              "width": 640.0,
+              "height": "fit_content",
+              "layout": "vertical",
+              "gap": 6.0,
+              "padding": [
+                12.0,
+                14.0
+              ],
+              "cornerRadius": 10.0,
+              "fill": [
+                {
+                  "type": "solid",
+                  "color": "#111A2C"
+                }
+              ],
+              "effects": [
+                {
+                  "type": "shadow",
+                  "offsetX": 0.0,
+                  "offsetY": 8.0,
+                  "blur": 24.0,
+                  "spread": -4.0,
+                  "color": "#000000"
+                }
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "n184",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "悬停第一行「国际运费 ¥251.65」：",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 12.0,
+                  "fontWeight": 400,
+                  "lineHeight": 1.5,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#FAF8F3"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "n185",
+                  "width": "fill_container",
+                  "height": "fit_content",
+                  "layout": "horizontal",
+                  "gap": 8.0,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n186",
+                      "width": "fit_content",
+                      "height": "fit_content",
+                      "content": "预计 ¥251.65",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.0,
+                      "fontWeight": 600,
+                      "lineHeight": 1.5,
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#F8FAFC"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "n187",
+                      "width": "fill_container",
+                      "height": "fit_content",
+                      "content": "订单运费 Shipping Cost USD 60.00 ≈ ¥412.50，按行金额分到这一行，6 个都还没出运",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.0,
+                      "fontWeight": 400,
+                      "lineHeight": 1.5,
+                      "textGrowth": "fixed-width",
+                      "fill": [
+                        {
+                          "type": "solid",
+                          "color": "#94A3B8"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "n188",
+                  "width": "fit_content",
+                  "height": "fit_content",
+                  "content": "登记出运后，已出运的数量改用出运单的实际运费。",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 12.0,
+                  "fontWeight": 400,
+                  "lineHeight": 1.5,
+                  "fill": [
+                    {
+                      "type": "solid",
+                      "color": "#94A3B8"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "screen": "/y1"
+        }
+      ]
+    }
+  ],
+  "children": [],
+  "editorMeta": {
+    "activePageIndex": 0,
+    "preserveAuthoredGeometry": false
+  }
+}
