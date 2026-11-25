@@ -110,4 +110,20 @@ class OrderCostSnapshotContractTest extends SalesContractSupport {
             jdbc.update("delete from sales_order where id = ?", so);
         }
     }
+
+    /** 生产 SO20261019002 等：迁移时标为已到账、但没有迁移到账记录，收入仍按订单金额（audit BUS-094），不能累加成 0 */
+    @Test
+    void migratedPaidWithoutReceipts_usesOrderAmount() throws Exception {
+        long customer = customer("Lucia Herrera", "Chile");
+        long so = order(customer, "USD", "8434.80", "1278.00");
+        jdbc.update("update sales_order set receipt_status = 4 where id = ?", so);
+        try {
+            JsonNode c = cost(so);
+            money("8434.80", c.path("revenue"));
+            assertTrue(c.path("settled").asBoolean());
+        } finally {
+            jdbc.update("delete from sales_order_item where so_id = ?", so);
+            jdbc.update("delete from sales_order where id = ?", so);
+        }
+    }
 }
