@@ -103,12 +103,24 @@ public class OrderCostService {
         List<SalesOrderDO> active = orders.stream().filter(o -> o.getStatus() == SalesConstants.SO_ACTIVE).toList();
         List<SalesOrderDO> migrated = active.stream().filter(o -> MigratedGuard.isMigrated(o.getMigrated())).toList();
         List<SalesOrderDO> normal = active.stream().filter(o -> !MigratedGuard.isMigrated(o.getMigrated())).toList();
+        // 迁移时旧系统还没做成本核算的订单没有快照：收入、成本按普通订单口径算，不能按 0 计（audit BUS-094）
+        Set<Long> snapped = snapshotted(migrated);
+        List<SalesOrderDO> unsnapped = migrated.stream().filter(o -> !snapped.contains(o.getId())).toList();
         Map<Long, OrderCostVO> out = new LinkedHashMap<>();
         if (!normal.isEmpty()) {
             out.putAll(computed(normal));
         }
-        if (!migrated.isEmpty()) {
-            out.putAll(fromSnapshots(migrated));
+        if (!unsnapped.isEmpty()) {
+            computed(unsnapped).forEach((id, vo) -> {
+                // 切换日之前的单据一律完结，仍算已结算，不提示还没入库、还没对账
+                vo.setSettled(true);
+                vo.setPending(List.of("没有历史核算快照，按订单金额与系统里的单据计算"));
+                out.put(id, vo);
+            });
+        }
+        List<SalesOrderDO> withSnapshot = migrated.stream().filter(o -> snapped.contains(o.getId())).toList();
+        if (!withSnapshot.isEmpty()) {
+            out.putAll(fromSnapshots(withSnapshot));
         }
         attachReplacements(active, out);
         attachFeeOrigins(active, out);
@@ -463,6 +475,18 @@ public class OrderCostService {
     /** 退款归集键：PI 转成的订单按 PI，手动订单（pi_id 为 0）按订单 */
     private static String refundKey(Long soId, Long piId) {
         return piId != null && piId > 0 ? "PI" + piId : "SO" + soId;
+    }
+
+    /** 有历史核算快照的订单 ID */
+    private Set<Long> snapshotted(List<SalesOrderDO> orders) {
+        if (orders.isEmpty()) {
+            return Set.of();
+        }
+        return snapshotMapper.selectList(new LambdaQueryWrapper<SalesOrderCostSnapshotDO>()
+                        .select(SalesOrderCostSnapshotDO::getSoId)
+                        .in(SalesOrderCostSnapshotDO::getSoId, orders.stream().map(SalesOrderDO::getId).toList())
+                        .isNull(SalesOrderCostSnapshotDO::getDeletedAt))
+                .stream().map(SalesOrderCostSnapshotDO::getSoId).collect(Collectors.toSet());
     }
 
     /**

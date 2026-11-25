@@ -264,6 +264,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
                 throw new BizException("任务已转给采购");
             }
             insertAssignee(task, me, InquiryConstants.ASSIGN_SELF, me);
+            progress.refreshTask(task.getId());
         }
     }
 
@@ -961,6 +962,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         SourcingTaskDO task = sourcingTask(taskId);
         deactivateAssignees(taskId);
         insertAssignee(task, assigneeId, InquiryConstants.ASSIGN_REASSIGN, currentUser.resolve());
+        progress.refreshTask(taskId);
     }
 
     @Override
@@ -976,6 +978,7 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
             throw new BizException("这个任务已经分给该采购了");
         }
         insertAssignee(task, assigneeId, InquiryConstants.ASSIGN_EXTRA, currentUser.resolve());
+        progress.refreshTask(taskId);
     }
 
     private void assignOne(SourcingTaskDO task, Long assigneeId, int mode, Long by) {
@@ -988,6 +991,8 @@ public class SourcingTaskServiceImpl implements SourcingTaskService {
         if (task.getDeferUntil() != null) {
             clearDefer(task.getId(), null);
         }
+        // 型号可能在分配前已经报给了客户（先发报价单、后分配）：分配后重算，全部报出的直接为已回价（audit BUS-095）
+        progress.refreshTask(task.getId());
     }
 
     private void insertAssignee(SourcingTaskDO task, Long assigneeId, int mode, Long by) {
