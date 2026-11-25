@@ -9,6 +9,7 @@ import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { tableScrollX } from '@/utils/tableScroll';
+import BrandCategoryPanel from './BrandCategoryPanel';
 import NoStockPanel from './NoStockPanel';
 import {
   type MonthRow,
@@ -30,7 +31,11 @@ const SourcingStatsPage: React.FC = () => {
   );
   const [data, setData] = useState<SourcingStats>();
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'month' | 'person' | 'nostock'>('month');
+  const [view, setView] = useState<'month' | 'person' | 'nostock' | 'brand'>(
+    'month',
+  );
+  /** 无货分析、品牌品类自带周期选择，不用日期范围与询盘单汇总 */
+  const ownPeriod = view === 'nostock' || view === 'brand';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -273,17 +278,17 @@ const SourcingStatsPage: React.FC = () => {
     <div>
       <PageTitle
         description={
-          view === 'nostock'
+          ownPeriod
             ? undefined
             : '按月份按询盘单统计：没有待回价型号且至少一个有价为询价完成，全部无货为无法报价，还有待回价的为询价中。按人员按分配给他的型号统计。'
         }
       />
-      {view !== 'nostock' && (
+      {!ownPeriod && (
         <div style={{ marginBottom: 16 }}>
           <StatsRangeFilter value={range} onChange={setRange} />
         </div>
       )}
-      {view !== 'nostock' && total && (
+      {!ownPeriod && total && (
         <div
           style={{
             display: 'flex',
@@ -311,9 +316,11 @@ const SourcingStatsPage: React.FC = () => {
           { value: 'month', label: '按月份' },
           { value: 'person', label: '按人员' },
           { value: 'nostock', label: '无货分析' },
+          { value: 'brand', label: '品牌品类' },
         ]}
       />
       {view === 'nostock' && <NoStockPanel />}
+      {view === 'brand' && <BrandCategoryPanel />}
       {view === 'month' && (
         <Card style={{ marginBottom: 16 }}>
           <div

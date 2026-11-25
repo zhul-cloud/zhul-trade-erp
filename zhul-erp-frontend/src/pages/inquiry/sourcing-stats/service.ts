@@ -99,3 +99,36 @@ export const noStockApi = {
       skipErrorHandler: true,
     }).then((r) => r.data),
 };
+
+export type StatsPeriod = 'DAY' | 'WEEK' | 'MONTH' | 'QUARTER' | 'YEAR';
+
+/** 品牌品类统计的一行（品牌、一级品类或合计） */
+export interface BrandCategoryRow {
+  key: string;
+  name: string;
+  categoryId?: number | null;
+  items: number;
+  priced: number;
+  noStock: number;
+  pending: number;
+  pricedRate?: number | null;
+  avgHours?: number | null;
+}
+
+export interface BrandCategoryStats {
+  period: StatsPeriod;
+  dateFrom: string;
+  dateTo: string;
+  totals: BrandCategoryRow;
+  previous: BrandCategoryRow;
+  brands: BrandCategoryRow[];
+  categories: BrandCategoryRow[];
+}
+
+export const brandCategoryApi = {
+  stats: (params: { period: StatsPeriod; date: string }) =>
+    request<{ data: BrandCategoryStats }>(
+      '/api/v1/inquiry/sourcing-stats/brand-category',
+      { method: 'GET', params, skipErrorHandler: true },
+    ).then((r) => r.data),
+};
