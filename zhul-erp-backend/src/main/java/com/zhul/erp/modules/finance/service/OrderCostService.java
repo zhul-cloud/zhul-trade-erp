@@ -19,9 +19,13 @@ import com.zhul.erp.modules.logistics.constants.LogisticsConstants;
 import com.zhul.erp.modules.logistics.entity.CourierWaybillDO;
 import com.zhul.erp.modules.logistics.entity.FreightAllocationDO;
 import com.zhul.erp.modules.logistics.entity.LogisticsShipmentDO;
+import com.zhul.erp.modules.logistics.entity.OutboundOrderDO;
+import com.zhul.erp.modules.logistics.entity.OutboundOrderItemDO;
 import com.zhul.erp.modules.logistics.repository.CourierWaybillMapper;
 import com.zhul.erp.modules.logistics.repository.FreightAllocationMapper;
 import com.zhul.erp.modules.logistics.repository.LogisticsShipmentMapper;
+import com.zhul.erp.modules.logistics.repository.OutboundOrderItemMapper;
+import com.zhul.erp.modules.logistics.repository.OutboundOrderMapper;
 import com.zhul.erp.modules.purchase.constants.PurchaseConstants;
 import com.zhul.erp.modules.purchase.entity.PurchaseOrderDO;
 import com.zhul.erp.modules.purchase.entity.PurchaseOrderItemDO;
@@ -56,6 +60,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -65,6 +70,10 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class OrderCostService {
+
+    /** 订单费用行里算作运费的名称（不分大小写），用于出运前估算国际运费（spec finance/order-cost） */
+    private static final Pattern FREIGHT_FEE = Pattern.compile("shipping|freight|运费|\\bdhl\\b|\\bfedex\\b|\\bups\\b",
+            Pattern.CASE_INSENSITIVE);
 
     private final SalesOrderItemMapper soItemMapper;
     private final ProformaInvoiceMapper piMapper;
@@ -93,6 +102,8 @@ public class OrderCostService {
     private final com.zhul.erp.modules.aftersales.repository.AfterSalesMapper afterSalesMapper;
     private final com.zhul.erp.modules.inventory.service.InventoryCogs inventoryCogs;
     private final com.zhul.erp.modules.finance.repository.FxSettlementAllocationMapper fxAllocationMapper;
+    private final OutboundOrderItemMapper outboundItemMapper;
+    private final OutboundOrderMapper outboundMapper;
 
     public OrderCostVO of(SalesOrderDO order) {
         return of(List.of(order)).get(order.getId());
@@ -366,6 +377,16 @@ public class OrderCostService {
                         .isNull(SalesOrderFeeDO::getDeletedAt))
                 .stream().collect(Collectors.groupingBy(SalesOrderFeeDO::getSoId,
                         Collectors.reducing(BigDecimal.ZERO, SalesOrderFeeDO::getAmountCny, BigDecimal::add)));
+        // 预计国际运费：订单费用行里的运费，还没出运的数量按它估算（已出运按出运单判断，老出运没有库存流水）
+        Map<Long, List<SalesOrderFeeDO>> freightFeesBySo = orderFeeMapper.selectList(new LambdaQueryWrapper<SalesOrderFeeDO>()
+                        .in(SalesOrderFeeDO::getSoId, soIds)
+                        .eq(SalesOrderFeeDO::getFeeType, SalesConstants.FEE_NORMAL)
+                        .isNull(SalesOrderFeeDO::getDeletedAt))
+                .stream().filter(f -> f.getFeeName() != null && FREIGHT_FEE.matcher(f.getFeeName()).find()
+                        && nz(f.getAmountCny()).signum() > 0)
+                .collect(Collectors.groupingBy(SalesOrderFeeDO::getSoId));
+        Map<Long, Integer> shippedOut = shippedQty(items.stream().filter(i -> freightFeesBySo.containsKey(i.getSoId()))
+                .map(SalesOrderItemDO::getId).toList());
         // 退款：与到账一致，PI 转成的订单按 PI 归集，取消重转前旧订单上的退款也算在当前订单上（audit BUS-003）
         Map<Long, Long> piOfSo = new HashMap<>();
         Set<Long> refundSoIds = new HashSet<>(soIds);
@@ -407,6 +428,12 @@ public class OrderCostService {
             List<OrderCostCalc.PoLine> calcLines = new ArrayList<>();
             Map<Long, OrderCostCalc.Po> calcPos = new HashMap<>();
             Map<Long, OrderCostCalc.Shipped> shipped = new HashMap<>();
+            List<SalesOrderFeeDO> freightFees = freightFeesBySo.getOrDefault(o.getId(), List.of());
+            Map<Long, OrderCostCalc.FreightLine> freightLines = new LinkedHashMap<>();
+            mine.forEach(i -> freightLines.put(i.getId(), new OrderCostCalc.FreightLine(i.getAmount(),
+                    Objects.requireNonNullElse(i.getQuantity(), 0), shippedOut.getOrDefault(i.getId(), 0))));
+            Map<Long, BigDecimal> estimates = OrderCostCalc.estimatedFreight(
+                    sum(freightFees.stream().map(SalesOrderFeeDO::getAmountCny)), freightLines);
             for (SalesOrderItemDO i : mine) {
                 com.zhul.erp.modules.inventory.service.InventoryCogs.Cogs c = cogs.get(i.getId());
                 if (c != null) {
@@ -425,7 +452,8 @@ public class OrderCostService {
                 calcItems.add(new OrderCostCalc.Item(i.getId(), Objects.requireNonNullElse(i.getQuantity(), 0), i.getAmount(), i.getCostPrice(),
                         dom, sum(intl.stream().map(FreightAllocationDO::getAmount)), expense, !intl.isEmpty(), reconciled,
                         sum(rets.stream().map(com.zhul.erp.modules.aftersales.entity.SalesReturnDispositionDO::getCostCny)),
-                        sum(rets.stream().map(com.zhul.erp.modules.aftersales.entity.SalesReturnDispositionDO::getFreightCny))));
+                        sum(rets.stream().map(com.zhul.erp.modules.aftersales.entity.SalesReturnDispositionDO::getFreightCny)),
+                        estimates.getOrDefault(i.getId(), BigDecimal.ZERO)));
                 for (PurchaseOrderItemDO l : poLinesByItem.getOrDefault(i.getId(), List.of())) {
                     calcLines.add(new OrderCostCalc.PoLine(l.getId(), l.getPoId(), i.getId(), l.getQuantity(),
                             qualified.getOrDefault(l.getId(), 0), l.getUnitPrice(), discounts.get(l.getId()), returnFreight.get(l.getId())));
@@ -462,12 +490,61 @@ public class OrderCostService {
                     feeDeduction, shipped));
             OrderCostVO vo = toVo(o, mine, res, poLinesByItem, pos, qualified, freightByItem, shipments, waybills, expenseByItem, expenses,
                     returnsByItem, sourceNos, cogs);
+            estimateSources(vo, o, freightFees, freightLines);
             vo.setRefund(res.refund());
             vo.setRefunds(refunds.stream().map(f -> brief(f, reasonNames)).toList());
             vo.setCollectionCny(OrderCostCalc.money(collectionDeducted));
             vo.setOverpaidCny(OrderCostCalc.money(overpaidDeducted));
             vo.setHistorySnapshot(false);
             out.put(o.getId(), vo);
+        }
+        return out;
+    }
+
+    /** 预计国际运费的来源说明：订单运费、按行金额分到这一行、还没出运的数量（原型 32-11-25反馈 Y1） */
+    private static void estimateSources(OrderCostVO vo, SalesOrderDO o, List<SalesOrderFeeDO> fees,
+                                        Map<Long, OrderCostCalc.FreightLine> lines) {
+        String feeText = fees.stream().map(f -> f.getFeeName() + " " + o.getCurrencyCode() + " "
+                + OrderCostCalc.money(nz(f.getAmount())).toPlainString()).collect(Collectors.joining("、"));
+        BigDecimal feeCny = OrderCostCalc.money(sum(fees.stream().map(SalesOrderFeeDO::getAmountCny)));
+        for (OrderCostVO.Line l : vo.getLines()) {
+            if (l.getEstimatedInternational() == null || l.getEstimatedInternational().signum() <= 0) {
+                continue;
+            }
+            OrderCostCalc.FreightLine fl = lines.get(l.getSoItemId());
+            int unshipped = fl == null ? 0 : Math.max(0, fl.quantity() - fl.shippedQty());
+            List<OrderCostVO.Source> list = new ArrayList<>();
+            list.add(source("ESTIMATE", null, "预计", l.getEstimatedInternational(), "订单运费 " + feeText + " ≈ ¥"
+                    + feeCny.toPlainString() + "，按行金额分到这一行，" + unshipped + " 个还没出运"));
+            list.addAll(l.getSources().getOrDefault("international", List.of()));
+            l.getSources().put("international", list);
+        }
+    }
+
+    /** 型号行已出运的数量：在已出运的出运单上的销售出库单数量 */
+    private Map<Long, Integer> shippedQty(List<Long> soItemIds) {
+        if (soItemIds.isEmpty()) {
+            return Map.of();
+        }
+        List<OutboundOrderItemDO> obItems = outboundItemMapper.selectList(new LambdaQueryWrapper<OutboundOrderItemDO>()
+                .in(OutboundOrderItemDO::getSoItemId, soItemIds)
+                .isNull(OutboundOrderItemDO::getDeletedAt));
+        if (obItems.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Long> logisticsOf = outboundMapper.selectBatchIds(obItems.stream().map(OutboundOrderItemDO::getOutboundId)
+                        .distinct().toList()).stream()
+                .filter(ob -> ob.getDeletedAt() == null && ob.getLogisticsId() != null)
+                .collect(Collectors.toMap(OutboundOrderDO::getId, OutboundOrderDO::getLogisticsId));
+        Set<Long> shippedSh = logisticsOf.isEmpty() ? Set.of() : shipmentMapper.selectBatchIds(new HashSet<>(logisticsOf.values()))
+                .stream().filter(sh -> Objects.equals(sh.getStatus(), LogisticsConstants.SH_SHIPPED))
+                .map(LogisticsShipmentDO::getId).collect(Collectors.toSet());
+        Map<Long, Integer> out = new HashMap<>();
+        for (OutboundOrderItemDO i : obItems) {
+            Long sh = logisticsOf.get(i.getOutboundId());
+            if (sh != null && shippedSh.contains(sh)) {
+                out.merge(i.getSoItemId(), Objects.requireNonNullElse(i.getQuantity(), 0), Integer::sum);
+            }
         }
         return out;
     }
@@ -635,6 +712,7 @@ public class OrderCostService {
             x.setSalesReturnCredit(l.salesReturnCredit());
             x.setDomestic(l.domestic());
             x.setInternational(l.international());
+            x.setEstimatedInternational(l.estimatedFreight());
             List<FreightAllocationDO> fs = freightByItem.getOrDefault(l.soItemId(), List.of());
             List<FreightAllocationDO> intl = fs.stream().filter(f -> f.getSourceType() == LogisticsConstants.FREIGHT_INTERNATIONAL).toList();
             x.setInternationalSettled(!intl.isEmpty() && intl.stream()
