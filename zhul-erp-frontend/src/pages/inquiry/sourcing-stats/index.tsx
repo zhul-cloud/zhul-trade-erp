@@ -19,6 +19,7 @@ import { Pill } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { tableScrollX } from '@/utils/tableScroll';
+import BrandCategoryPanel from './BrandCategoryPanel';
 import NoStockPanel from './NoStockPanel';
 import {
   type MonthRow,
@@ -49,7 +50,11 @@ const SourcingStatsPage: React.FC = () => {
   );
   const [data, setData] = useState<SourcingStats>();
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'month' | 'person' | 'nostock'>('month');
+  const [view, setView] = useState<'month' | 'person' | 'nostock' | 'brand'>(
+    'month',
+  );
+  /** 无货分析、品牌品类自带周期选择，不用日期范围与询盘单汇总 */
+  const ownPeriod = view === 'nostock' || view === 'brand';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -252,8 +257,8 @@ const SourcingStatsPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader help={view === 'nostock' ? undefined : HELP.page} />
-      {/* 按月份、按人员、无货分析是三类内容，用页签（原来的分段按钮） */}
+      <PageHeader help={ownPeriod ? undefined : HELP.page} />
+      {/* 按月份、按人员、无货分析、品牌品类是四类内容，用页签（原来的分段按钮） */}
       <Tabs
         activeKey={view}
         onChange={(k) => setView(k as typeof view)}
@@ -261,9 +266,10 @@ const SourcingStatsPage: React.FC = () => {
           { key: 'month', label: '按月份' },
           { key: 'person', label: '按人员' },
           { key: 'nostock', label: '无货分析' },
+          { key: 'brand', label: '品牌品类' },
         ]}
       />
-      {view !== 'nostock' && (
+      {!ownPeriod && (
         // 统计条件选了就生效
         <FilterCard>
           <FilterField label="统计期间" span="auto">
@@ -273,7 +279,7 @@ const SourcingStatsPage: React.FC = () => {
           </FilterField>
         </FilterCard>
       )}
-      {view !== 'nostock' && total && (
+      {!ownPeriod && total && (
         <SummaryBar
           items={[
             {
@@ -302,6 +308,7 @@ const SourcingStatsPage: React.FC = () => {
         />
       )}
       {view === 'nostock' && <NoStockPanel />}
+      {view === 'brand' && <BrandCategoryPanel />}
       {view === 'month' && (
         <MainCard
           left={

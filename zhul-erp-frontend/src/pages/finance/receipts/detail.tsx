@@ -15,6 +15,7 @@ import { tableEmpty } from '@/components/EmptyState';
 import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
+import { useFilePreview } from '@/pages/inquiry/shared/FilePreview';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { PATHS } from '@/pages/sales/components';
 import { orderApi, piApi, readBizError } from '@/pages/sales/service';
@@ -52,6 +53,7 @@ const ReceiptDocDetail: React.FC = () => {
   const [d, setD] = useState<ReceiptDoc>();
   const [error, setError] = useState<string>();
   const [dialog, setDialog] = useState<'void' | 'unclaim'>();
+  const preview = useFilePreview();
   const no = d?.receipt.receiptNo;
   usePageTitle(no ? `收款单 ${no}` : undefined, no);
 
@@ -239,16 +241,22 @@ const ReceiptDocDetail: React.FC = () => {
         <Card style={{ padding: 20, marginBottom: 16 }}>
           <SectionTitle>到账凭证与水单</SectionTitle>
           <div style={{ display: 'grid', gap: 8 }}>
-            {d.files.map((f) => (
+            {d.files.map((f, i) => (
               <button
                 key={f.index}
                 type="button"
                 className="zhul-link"
                 style={{ textAlign: 'left' }}
                 onClick={() =>
-                  receiptDocApi
-                    .openFile(r.id, f.index)
-                    .catch((e) => message.error(readBizError(e).message))
+                  preview.open(
+                    d.files.map((x) => ({ id: x.index, fileName: x.fileName })),
+                    i,
+                    (x) => receiptDocApi.filePath(r.id, x.id),
+                    (x) =>
+                      d.files.find((y) => y.index === x.id)?.source === 'SLIP'
+                        ? '水单'
+                        : '到账凭证',
+                  )
                 }
               >
                 <Paperclip size="1em" /> {f.fileName}
@@ -366,6 +374,7 @@ const ReceiptDocDetail: React.FC = () => {
           }
         }}
       />
+      {preview.node}
     </div>
   );
 };

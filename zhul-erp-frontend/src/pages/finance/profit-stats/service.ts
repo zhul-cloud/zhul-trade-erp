@@ -7,7 +7,7 @@ const get = <T>(url: string, params?: object) =>
   );
 
 export interface CostSource {
-  /** PO 采购订单、COURIER 快递单、SHIPMENT 出运单、EXPENSE 费用单 */
+  /** PO 采购订单、COURIER 快递单、SHIPMENT 出运单、EXPENSE 费用单、ESTIMATE 按订单运费估算（没有单据） */
   type: string;
   id: number;
   no?: string;
@@ -30,6 +30,8 @@ export interface CostLine {
   salesReturnCredit?: number;
   domestic: number;
   international: number;
+  /** 还没出运、按订单运费估算的国际运费（已含在 cost 里；international 只是实际分摊） */
+  estimatedInternational?: number;
   internationalSettled: boolean;
   expense: number;
   receiptFee: number;

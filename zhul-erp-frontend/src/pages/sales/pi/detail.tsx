@@ -72,6 +72,7 @@ import { usePageTitle, useTabDirty } from '@/components/PageTabs/hooks';
 import { rowAlert } from '@/components/RowAlert';
 import { type DiffRow, VersionPanel } from '@/components/VersionPanel';
 import { useQuoteDicts, useWide } from '@/pages/inquiry/shared/components';
+import { useFilePreview } from '@/pages/inquiry/shared/FilePreview';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import type { LineResult } from '@/pages/quotation/calc';
 import { formatMargin } from '@/pages/quotation/calc';
@@ -386,6 +387,7 @@ const PiDetail: React.FC = () => {
   const { of: deltaOf } = useDeltaColor();
   const access = useAccess();
   const wide = useWide();
+  const filePreview = useFilePreview();
   const { leadTimeOptions } = useQuoteDicts();
   const [pi, setPi] = useState<Pi>();
   usePageTitle(pi ? `形式发票 ${pi.piNo}` : undefined, pi?.piNo);
@@ -2380,9 +2382,16 @@ const PiDetail: React.FC = () => {
                         key={f.fileKey}
                         style={{ fontSize: 12 }}
                         onClick={() =>
-                          piApi
-                            .openSlipFile(pi.id, r.id, i)
-                            .catch((e) => message.error((e as Error).message))
+                          filePreview.open(
+                            r.files.map((x, k) => ({
+                              id: k,
+                              fileName: x.fileName,
+                            })),
+                            i,
+                            (x) => piApi.slipFilePath(pi.id, r.id, x.id),
+                            () =>
+                              `水单 ${formatAmount(r.amount, cur)} · ${r.receiptDate ?? ''}`,
+                          )
                         }
                       >
                         <Paperclip size="1em" /> {f.fileName}
@@ -2863,6 +2872,7 @@ const PiDetail: React.FC = () => {
           setAddOpen(false);
         }}
       />
+      {filePreview.node}
     </div>
   );
 };

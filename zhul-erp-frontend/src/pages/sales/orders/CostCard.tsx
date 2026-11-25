@@ -205,11 +205,12 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
       key: 'intl',
       width: 100,
       align: 'right',
+      // 还没出运的数量按订单运费估算，与实际分摊合在一起显示为未确定的数字，悬停看来源（spec finance/order-cost）
       render: (_, l) => (
         <Amount
-          value={l.international}
+          value={l.international + (l.estimatedInternational ?? 0)}
           sources={l.sources.international}
-          dim={!l.internationalSettled}
+          dim={!l.internationalSettled || (l.estimatedInternational ?? 0) > 0}
         />
       ),
     },

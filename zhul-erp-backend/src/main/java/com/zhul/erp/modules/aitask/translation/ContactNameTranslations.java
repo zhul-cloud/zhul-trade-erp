@@ -4,12 +4,17 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhul.erp.common.exception.BizException;
+import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.aitask.constants.AiTaskStatus;
+import com.zhul.erp.modules.aitask.dto.AiTaskVO;
 import com.zhul.erp.modules.aitask.entity.AiTaskDO;
+import com.zhul.erp.modules.aitask.repository.AiTaskMapper;
 import com.zhul.erp.modules.aitask.service.AiConfigService;
 import com.zhul.erp.modules.aitask.service.AiTaskResultHandler;
 import com.zhul.erp.modules.aitask.service.AiTaskService;
 import com.zhul.erp.modules.aitask.support.AiTaskKeys;
+import com.zhul.erp.modules.inquiry.support.CurrentUserResolver;
 import com.zhul.erp.modules.masterdata.customerprofile.entity.CustomerContactDO;
 import com.zhul.erp.modules.masterdata.customerprofile.repository.CustomerContactMapper;
 import com.zhul.erp.modules.masterdata.customerprofile.support.FieldSources;
@@ -22,6 +27,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 联系人名称译中文（skill_id=translate-contact-names，spec crm/opportunity「登记新商机」）：
@@ -29,6 +35,7 @@ import java.util.Map;
  * 发给编排服务的 key 为客户 ID；联系人中文名（spec master-data/customer-profile）的 key 为「contact:联系人 ID」，
  * 回填联系人中文名，主联系人同时回填客户的主联系人中文名，同样只写仍为空的。
  * 两种 key 发出时都带校验码（{@link AiTaskKeys}），回调时校验不通过的丢弃。
+ * 联系人中文名旁的「AI 翻译」按钮提交 key 为「preview」的任务，只返回译名、不写库（change customer-pool-grade-contact-translate）。
  */
 @Slf4j
 @Component
@@ -44,6 +51,80 @@ public class ContactNameTranslations implements AiTaskResultHandler {
     private final CustomerContactMapper contactMapper;
     private final FieldSources fieldSources;
     private final ObjectMapper objectMapper;
+    private final AiTaskMapper aiTaskMapper;
+    private final CurrentUserResolver currentUser;
+
+    private static final String PREVIEW_KEY = "preview";
+
+    /** 「AI 翻译」按钮：英文姓名为空或含中文时提示；租户未配置 AI 时由提交接口提示 */
+    public TranslationVO preview(String contactName) {
+        String name = contactName == null ? "" : contactName.trim();
+        if (name.isEmpty() || hasChinese(name)) {
+            throw new BizException("请先填写英文姓名");
+        }
+        AiTaskVO task = aiTaskService.createAndSubmit(SKILL_ID, input(PREVIEW_KEY, name), currentUser.resolve());
+        TranslationVO vo = new TranslationVO();
+        vo.setTaskId(task.getId());
+        vo.setStatus(task.getStatus());
+        return vo;
+    }
+
+    /** 查询按钮翻译的结果：只能查自己提交的；完成时返回译名 */
+    public TranslationVO status(Long taskId) {
+        AiTaskDO task = taskId == null ? null : aiTaskMapper.selectById(taskId);
+        Long me = currentUser.resolve();
+        if (task == null || task.getDeletedAt() != null || !SKILL_ID.equals(task.getSkillId())
+                || !Objects.equals(task.getTenantId(), TenantContext.getTenantId())
+                || !Objects.equals(task.getRequestedBy(), me == null ? 0L : me)) {
+            throw new BizException("翻译任务不存在");
+        }
+        TranslationVO vo = new TranslationVO();
+        vo.setTaskId(task.getId());
+        vo.setStatus(task.getStatus());
+        vo.setErrorMessage(task.getErrorMessage());
+        vo.setResults(List.of());
+        if (task.getStatus() != null && task.getStatus() == AiTaskStatus.COMPLETED) {
+            String text = previewText(task.getOutput());
+            if (text != null) {
+                TranslationVO.Result r = new TranslationVO.Result();
+                r.setKey(PREVIEW_KEY);
+                r.setText(text);
+                vo.setResults(List.of(r));
+            }
+        }
+        return vo;
+    }
+
+    private String input(String key, String name) {
+        try {
+            return objectMapper.writeValueAsString(
+                    Map.of("items", List.of(Map.of("key", AiTaskKeys.sign(key), "text", name))));
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("联系人名称翻译请求序列化失败", e);
+        }
+    }
+
+    /** 按钮任务的译名：key 校验通过且为 preview 的那一条 */
+    private String previewText(String output) {
+        if (output == null || output.isBlank()) {
+            return null;
+        }
+        try {
+            for (JsonNode n : objectMapper.readTree(output).path("items")) {
+                String text = n.path("text").asText("").trim();
+                if (PREVIEW_KEY.equals(AiTaskKeys.verify(n.path("key").asText(""))) && !text.isEmpty()) {
+                    return text.length() > MAX_NAME ? text.substring(0, MAX_NAME) : text;
+                }
+            }
+        } catch (JsonProcessingException e) {
+            log.warn("联系人名称翻译结果格式不正确", e);
+        }
+        return null;
+    }
+
+    private static boolean hasChinese(String s) {
+        return s.codePoints().anyMatch(c -> c >= 0x4E00 && c <= 0x9FFF);
+    }
 
     /** 提交翻译；联系人名称为空或已含中文时不提交。提交在当前事务提交后异步发出，失败不影响调用方 */
     public void submit(Long customerId, String contactName, Long requestedBy) {
@@ -63,7 +144,7 @@ public class ContactNameTranslations implements AiTaskResultHandler {
 
     private void send(String key, String contactName, Long requestedBy) {
         String name = contactName == null ? "" : contactName.trim();
-        if (name.isEmpty() || name.codePoints().anyMatch(c -> c >= 0x4E00 && c <= 0x9FFF)) {
+        if (name.isEmpty() || hasChinese(name)) {
             return;
         }
         // 保存商机时顺带触发：租户未配置 AI 时跳过，不影响商机保存（不能靠捕获异常，见 isConfiguredForCurrentTenant）

@@ -202,6 +202,13 @@ class ValidationTest(LedgerTestBase):
         ids = [r["id"] for r in self.load()]
         self.assertEqual(ids, sorted(ids, key=ledger.sort_key), "写入后按类别与编号排序")
 
+    def test_new_task_from_repo_root_is_normalized(self):
+        code, out = self.claude("new", "UI", "新问题", "--pri", "P2", "--task", "audit/09-remediation/tasks/t.md")
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("还不存在", out)
+        r = next(x for x in self.load() if x["title"] == "新问题")
+        self.assertEqual(r["task"], "tasks/t.md")
+
     def test_closed_item_cannot_be_closed_again(self):
         code, out = self.claude("close", "UI-100", "--method", "本机", "--evidence", "x")
         self.assertEqual(code, 2)
@@ -231,6 +238,18 @@ class DerivationTest(LedgerTestBase):
         sh(self.root, "git", "tag", "v1.10.0")
         self.claude("link", "UI-102", "--pr", "9")
         self.assertIn("已发布待验收 v1.3.0", self.run_tool("show", "UI-102")[1])
+
+    def test_squash_merge_recognized(self):
+        """压缩合并没有「Merge pull request」提交，标题以「(#N)」结尾；#1 不能误认 #17"""
+        self.claude("start", "UI-101")
+        self.claude("link", "UI-101", "--pr", "1")
+        sh(self.root, "git", "switch", "-q", "develop")
+        (self.root / "squash.txt").write_text("x", encoding="utf-8")
+        self.commit("fix: 压缩合并的修复 (#17)")
+        self.assertIn("状态：待合并（PR #1）", self.run_tool("show", "UI-101")[1])
+        (self.root / "squash2.txt").write_text("y", encoding="utf-8")
+        self.commit("fix: 压缩合并的修复 (#1)")
+        self.assertIn("状态：已合并待发布", self.run_tool("show", "UI-101")[1])
 
 
 class ConcurrencyTest(LedgerTestBase):
@@ -262,6 +281,14 @@ class CheckTest(LedgerTestBase):
         code, out = self.run_tool("check")
         self.assertEqual(code, 1)
         self.assertIn("指向的文件不存在", out)
+
+    def test_task_written_from_repo_root_passes(self):
+        path = self.dir / "ledger.jsonl"
+        rec = self.rec("UI-120")
+        rec["task"] = rec["source"] = "audit/09-remediation/tasks/t.md"
+        path.write_text(path.read_text(encoding="utf-8") + json.dumps(rec, ensure_ascii=False) + "\n", encoding="utf-8")
+        code, out = self.run_tool("check")
+        self.assertNotIn("UI-120：task 指向的文件不存在", out)
 
     def test_duplicate_id_fails(self):
         path = self.dir / "ledger.jsonl"

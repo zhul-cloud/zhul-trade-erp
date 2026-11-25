@@ -15,7 +15,6 @@ import {
   Copy,
   FileText,
   Info,
-  Languages,
   Lock,
   MapPin,
   Plus,
@@ -65,6 +64,7 @@ import {
   loadCountryTimezones,
   readBizError,
 } from './service';
+import { TranslateButton, useContactNameTranslate } from './TranslateButton';
 import { allZones, zoneLabel } from './time';
 
 type FormState = Omit<CustomerPayload, 'parties' | 'creditLimit'> & {
@@ -238,6 +238,11 @@ const CustomerFormPage: React.FC = () => {
   // 「AI 翻译」本次给出的译名：保存时中文名称与它相同则来源记「AI 翻译」
   const [aiName, setAiName] = useState<string>();
   const { running: translating, translate } = useNameTranslation();
+  const contactTranslate = useContactNameTranslate(
+    form,
+    'contactName',
+    'contactNameCn',
+  );
   const nameCn = Form.useWatch('nameCn', form);
 
   const country = Form.useWatch('country', form);
@@ -658,19 +663,10 @@ const CustomerFormPage: React.FC = () => {
                   placeholder="内部称呼或中文译名"
                   maxLength={100}
                   suffix={
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<Languages size="1em" />}
+                    <TranslateButton
                       loading={translating}
                       onClick={onTranslateName}
-                      style={{
-                        color: palette.link,
-                        background: palette.neutralSoft,
-                      }}
-                    >
-                      {translating ? '翻译中' : 'AI 翻译'}
-                    </Button>
+                    />
                   }
                 />
               </Form.Item>
@@ -880,9 +876,18 @@ const CustomerFormPage: React.FC = () => {
                 name="contactNameCn"
                 label="中文名"
                 rules={[{ max: 100 }]}
-                extra="留空保存后由 AI 翻译填入，只在系统内显示"
+                extra="可点「AI 翻译」当场翻译；留空保存后也会自动翻译，只在系统内显示"
               >
-                <Input placeholder="留空自动翻译" maxLength={100} />
+                <Input
+                  placeholder="留空自动翻译"
+                  maxLength={100}
+                  suffix={
+                    <TranslateButton
+                      loading={contactTranslate.running}
+                      onClick={contactTranslate.run}
+                    />
+                  }
+                />
               </Form.Item>
               <Form.Item name="contactTitle" label="职位" rules={[{ max: 50 }]}>
                 <Input placeholder="如 Purchasing Manager" maxLength={50} />

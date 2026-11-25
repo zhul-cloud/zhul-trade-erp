@@ -17,6 +17,7 @@ import { formatDateTime } from '@/utils/format';
 import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { LIST_PATH } from './components';
+import { type GradeSort, gradeColumns } from './gradeColumns';
 import {
   type CustomerListItem,
   type CustomerPoolQuery,
@@ -182,6 +183,7 @@ export const PoolTab: React.FC<{ onCount?: (n: number) => void }> = ({
   const claim = useClaim();
   const users = useUserOptions();
   const [query, setQuery] = useState<CustomerPoolQuery>({});
+  const [sort, setSort] = useState<GradeSort>({});
   const [draft, setDraft] = useState<CustomerPoolQuery>({});
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
@@ -194,7 +196,12 @@ export const PoolTab: React.FC<{ onCount?: (n: number) => void }> = ({
     setLoading(true);
     setError(undefined);
     try {
-      const data = await customerApi.pool({ ...query, page, pageSize });
+      const data = await customerApi.pool({
+        ...query,
+        ...(sort as Pick<CustomerPoolQuery, 'sortField' | 'sortOrder'>),
+        page,
+        pageSize,
+      });
       setRows(data.records);
       setTotal(data.total);
       onCount?.(data.total);
@@ -203,7 +210,7 @@ export const PoolTab: React.FC<{ onCount?: (n: number) => void }> = ({
     } finally {
       setLoading(false);
     }
-  }, [query, page, pageSize, onCount]);
+  }, [query, sort, page, pageSize, onCount]);
 
   useEffect(() => {
     load();
@@ -245,6 +252,7 @@ export const PoolTab: React.FC<{ onCount?: (n: number) => void }> = ({
           ? `${sourceLabel(r.sourceChannel)} · ${r.aliLevel}`
           : sourceLabel(r.sourceChannel) || '—',
     },
+    ...gradeColumns(sort),
     {
       title: '上一任负责人',
       dataIndex: 'lastOwnerName',
@@ -367,6 +375,19 @@ export const PoolTab: React.FC<{ onCount?: (n: number) => void }> = ({
             loading={loading}
             scroll={{ x: tableScrollX(columnsSet.columns) }}
             locale={{ emptyText: tableEmpty('公海里还没有客户', loading) }}
+            // 经营等级、潜力等级可以排序；取消排序回到按放入时间倒序
+            onChange={(_p, _f, sorter, extra) => {
+              if (extra.action !== 'sort' || Array.isArray(sorter)) return;
+              setSort(
+                sorter.order
+                  ? {
+                      sortField: sorter.field as string,
+                      sortOrder: sorter.order === 'ascend' ? 'asc' : 'desc',
+                    }
+                  : {},
+              );
+              setPage(1);
+            }}
             pagination={{
               ...PAGER_STYLE,
               current: page,

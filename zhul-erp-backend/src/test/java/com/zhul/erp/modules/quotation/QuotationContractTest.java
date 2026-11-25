@@ -1123,6 +1123,29 @@ class QuotationContractTest extends InquiryContractSupport {
         assertNull(jdbc.queryForObject("select completed_at from sourcing_task where id = ?", java.time.LocalDateTime.class, task));
     }
 
+    @Test
+    void quotedBeforeAssign_assignCompletesTask() throws Exception {
+        // BUS-095：型号先报给客户、任务后分配，分配后直接为已回价，不留在询价中
+        long c = customer("Andes Automation", "Peru");
+        long inq = ok(call(json(post(INQ), "{\"customerId\":" + c + ",\"source\":1,\"urgent\":false,\"rawContent\":\"rfq\"}"), admin))
+                .path("id").asLong();
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (String model : List.of("RD8200", "TX-5")) {
+            rows.add(Map.of("brand", "Rosemount", "category", "变送器", "confirmedModel", model, "quantity", 1));
+        }
+        ok(call(json(post(INQ + "/" + inq + "/confirm"), write(Map.of("rows", rows))), admin));
+        long task = jdbc.queryForObject("select id from sourcing_task where customer_inquiry_id = ?", Long.class, inq);
+        int before = taskStatus(task);
+
+        JsonNode q = ok(create(write(Map.of("itemIds", itemIds(inq)))));
+        ok(call(json(post(QT + "/" + q.path("id").asLong() + "/send"), "{\"channel\":1}"), admin));
+        assertEquals(before, taskStatus(task), "还没分配的任务发送报价单时不动");
+
+        ok(call(json(post(BOARD + "/assign"), "{\"taskIds\":[" + task + "],\"assigneeId\":" + BUYER_LIN + "}"), admin));
+        assertEquals(3, taskStatus(task), "型号都已报给客户，分配后直接为已回价");
+        assertNotNull(jdbc.queryForObject("select completed_at from sourcing_task where id = ?", java.time.LocalDateTime.class, task));
+    }
+
     private int taskStatus(long task) {
         return jdbc.queryForObject("select status from sourcing_task where id = ?", Integer.class, task);
     }

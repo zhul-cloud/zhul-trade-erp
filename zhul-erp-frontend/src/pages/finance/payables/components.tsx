@@ -430,18 +430,21 @@ export const RegisterPaymentDrawer: React.FC<{
       : 0;
   const withDiscount = discountOn && discountAmount > 0;
   const balanced = allocTotal === target && target > 0;
-  // 公司对公选对公账户，私对私选对私账户（收款账户里的账户类型）；私对私再按付款渠道选
+  // 公司对公选对公账户，私对私选对私账户（收款账户里的账户类型）；私对私再按付款渠道选：
+  // 银行卡付款只能选银行账户，支付宝、微信付款可选同渠道余额账户或对私银行卡（audit BUS-096）
   const channel = method === METHOD.PRIVATE ? payChannel : PAY_CHANNEL.BANK;
   const wallet = channel !== PAY_CHANNEL.BANK;
   const currencyAccounts = useMemo(
     () =>
-      accounts.filter(
-        (a) =>
+      accounts.filter((a) => {
+        const own = a.payChannel ?? PAY_CHANNEL.BANK;
+        return (
           a.currencyCode === currency &&
           (a.accountType === 2) === (method === METHOD.PRIVATE) &&
-          (a.payChannel ?? PAY_CHANNEL.BANK) === channel,
-      ),
-    [accounts, currency, method, channel],
+          (own === channel || (wallet && own === PAY_CHANNEL.BANK))
+        );
+      }),
+    [accounts, currency, method, channel, wallet],
   );
 
   // 对方账户按付款方式过滤：换方式后原选择不在范围内时改选默认账户
@@ -756,7 +759,7 @@ export const RegisterPaymentDrawer: React.FC<{
                   value: a.id,
                   label: `${a.bankName} · ${a.accountName} ${a.accountNoMasked}`,
                 }))}
-                notFoundContent={`没有${method === METHOD.PRIVATE ? `对私${wallet ? `的${PAY_CHANNEL_NAMES[channel]}` : ''}` : '对公'}的 ${currency} 账户，请先在「收款账户」里添加`}
+                notFoundContent={`没有${method === METHOD.PRIVATE ? `对私${wallet ? `银行卡或${PAY_CHANNEL_NAMES[channel]}` : ''}` : '对公'}的 ${currency} 账户，请先在「收款账户」里添加`}
               />
             </Field>
           )}

@@ -1,10 +1,11 @@
-import type { UploadFile } from 'antd';
+import type { SelectProps, UploadFile } from 'antd';
 import {
   Alert,
   App,
   Button,
   Checkbox,
   DatePicker,
+  Divider,
   Input,
   InputNumber,
   Modal,
@@ -15,6 +16,8 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import {
+  ChevronDown,
+  ChevronUp,
   CircleCheck,
   Download,
   FileImage,
@@ -799,6 +802,37 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
     chosenBank.businessUnitId !== pi.businessUnitId;
   const unitName = (id?: number) =>
     bu.units.find((u) => u.id === id)?.name ?? '';
+  // 默认只列本单据事业部的账户，其他事业部的展开后分组列出；已选中其他事业部的账户时一直展开（spec sales/payment-receipt）
+  const [showOther, setShowOther] = useState(false);
+  useEffect(() => {
+    if (open) setShowOther(false);
+  }, [open]);
+  const otherBanks = bu.enabled
+    ? banks.filter((b) => b.businessUnitId !== pi?.businessUnitId)
+    : [];
+  const otherChosen = otherBanks.some((b) => b.id === bankId);
+  const bankOption = (b: BankOption, unit?: boolean) => {
+    const text = `${b.bankName} ${b.accountNoMasked}${b.accountType === 2 ? '（对私）' : ''}`;
+    return {
+      value: b.id,
+      label: unit ? `${text} · ${unitName(b.businessUnitId)}` : text,
+      text,
+      hint: unit ? unitName(b.businessUnitId) : b.isDefault ? '默认' : '',
+    };
+  };
+  const bankOptions: SelectProps['options'] =
+    showOther || otherChosen
+      ? [
+          {
+            label: `${unitName(pi?.businessUnitId)}（本单据）`,
+            options: ownBanks.map((b) => bankOption(b)),
+          },
+          {
+            label: '其他事业部',
+            options: otherBanks.map((b) => bankOption(b, true)),
+          },
+        ]
+      : ownBanks.map((b) => bankOption(b));
 
   const remaining = pi?.remainingAmount ?? 0;
   const after = Math.round((remaining - (amount ?? 0)) * 100) / 100;
@@ -1036,10 +1070,43 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
             style={{ width: '100%' }}
             value={bankId}
             onChange={setBankId}
-            options={banks.map((b) => ({
-              value: b.id,
-              label: `${b.bankName} ${b.accountNoMasked}${b.accountType === 2 ? '（对私）' : ''}${bu.enabled ? ` · ${unitName(b.businessUnitId)}` : ''}`,
-            }))}
+            options={bankOptions}
+            optionRender={(o) => (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <span style={{ flex: 1, minWidth: 0 }}>{o.data.text}</span>
+                {o.data.hint && (
+                  <span style={{ fontSize: 12, color: palette.mute }}>
+                    {o.data.hint}
+                  </span>
+                )}
+              </div>
+            )}
+            popupRender={(menu) => (
+              <>
+                {menu}
+                {otherBanks.length > 0 && !otherChosen && (
+                  <>
+                    <Divider style={{ margin: '4px 0' }} />
+                    <Button
+                      type="link"
+                      size="small"
+                      icon={
+                        showOther ? (
+                          <ChevronUp size="1em" />
+                        ) : (
+                          <ChevronDown size="1em" />
+                        )
+                      }
+                      onClick={() => setShowOther(!showOther)}
+                    >
+                      {showOther
+                        ? '收起其他事业部账户'
+                        : `显示其他事业部账户（${otherBanks.length}）`}
+                    </Button>
+                  </>
+                )}
+              </>
+            )}
             aria-label="收款账户"
             aria-required
           />,

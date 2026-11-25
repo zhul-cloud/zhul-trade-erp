@@ -45,9 +45,16 @@ export const OrderFileList: React.FC<{
       message.error(readBizError(e).message),
     );
   return (
-    <div style={{ display: 'grid', gap: 8 }}>
+    // 列宽限定为容器宽度：文件名再长也只在行内省略，按钮不被挤出弹窗（audit UI-106）
+    <div
+      style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 }}
+    >
       {files.map((a) => {
-        const remove = onRemove && <a style={{ color: palette.red }}>删除</a>;
+        const remove = onRemove && (
+          <a style={{ color: palette.red, flex: 'none', whiteSpace: 'nowrap' }}>
+            删除
+          </a>
+        );
         return (
           <div
             key={a.id}
@@ -77,6 +84,9 @@ export const OrderFileList: React.FC<{
                 color: palette.mute,
                 fontSize: 12,
                 whiteSpace: 'nowrap',
+                minWidth: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
               }}
             >
               {[
@@ -91,6 +101,7 @@ export const OrderFileList: React.FC<{
             <button
               type="button"
               className="zhul-link"
+              style={{ flex: 'none' }}
               onClick={() => preview.open(files, files.indexOf(a))}
             >
               预览
@@ -98,6 +109,7 @@ export const OrderFileList: React.FC<{
             <button
               type="button"
               className="zhul-link"
+              style={{ flex: 'none' }}
               onClick={() => download(a)}
             >
               下载

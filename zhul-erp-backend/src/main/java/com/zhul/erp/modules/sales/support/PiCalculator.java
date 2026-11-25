@@ -81,8 +81,8 @@ public final class PiCalculator {
         BigDecimal revenueCny = costedRevenue.subtract(allocated).multiply(rate, MC);
         v.setNetProfit(costedRevenue.subtract(allocated).subtract(costTotal.divide(rate, MC)).setScale(2, RoundingMode.HALF_UP));
         v.setNetProfitCny(revenueCny.subtract(costTotal).setScale(2, RoundingMode.HALF_UP));
-        v.setMarginRate(revenueCny.signum() > 0
-                ? BigDecimal.ONE.subtract(costTotal.divide(revenueCny, MC)).multiply(HUNDRED).setScale(2, RoundingMode.HALF_UP) : null);
+        v.setMarginRate(revenueCny.signum() > 0 ? QuotationPricing.storableMargin(
+                BigDecimal.ONE.subtract(costTotal.divide(revenueCny, MC)).multiply(HUNDRED).setScale(2, RoundingMode.HALF_UP)) : null);
     }
 
     /** 折扣金额（正数）；按百分比时 0–100，按金额时不能为负；都不能超过型号小计 */

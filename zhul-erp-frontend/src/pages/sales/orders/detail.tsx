@@ -48,6 +48,7 @@ import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
 import RefundModal from '@/pages/finance/refunds/RefundModal';
 import { useWide } from '@/pages/inquiry/shared/components';
+import { useFilePreview } from '@/pages/inquiry/shared/FilePreview';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useDeltaColor } from '@/theme/delta';
@@ -86,6 +87,7 @@ import {
   orderReceiptOwner,
   type Party,
   piApi,
+  type Receipt,
   readBizError,
 } from '../service';
 import OrderCostCard from './CostCard';
@@ -148,6 +150,7 @@ const OrderDetail: React.FC = () => {
   const access = useAccess();
   const wide = useWide();
   const [o, setO] = useState<Order>();
+  const preview = useFilePreview();
   usePageTitle(o ? `销售订单 ${o.soNo}` : undefined, o?.soNo);
   const [error, setError] = useState<string>();
   const [selected, setSelected] = useState<number[]>([]);
@@ -1243,11 +1246,18 @@ const OrderDetail: React.FC = () => {
   const canPlatform = access['sales:pi:platform-receipt'];
   const canClaim = access['sales:pi:claim-receipt'];
   const receivable = manual && editable;
-  const openSlip = (receiptId: number, index: number) =>
-    (manual
-      ? orderApi.openSlipFile(o.id, receiptId, index)
-      : piApi.openSlipFile(o.piId as number, receiptId, index)
-    ).catch((e) => message.error((e as Error).message));
+  /** 水单附件在当前页弹窗预览（spec sales/payment-receipt「上传付款水单」） */
+  const openSlip = (r: Receipt, index: number) =>
+    preview.open(
+      r.files.map((f, k) => ({ id: k, fileName: f.fileName })),
+      index,
+      (f) =>
+        manual
+          ? orderApi.slipFilePath(o.id, r.id, f.id)
+          : piApi.slipFilePath(o.piId as number, r.id, f.id),
+      () =>
+        `水单 ${formatAmount(r.amount, o.currencyCode)} · ${r.receiptDate ?? ''}`,
+    );
 
   const receipts = (
     <Card style={{ padding: 20 }}>
@@ -1536,7 +1546,7 @@ const OrderDetail: React.FC = () => {
                         className="zhul-link"
                         key={f.fileKey}
                         style={{ fontSize: 12 }}
-                        onClick={() => openSlip(r.id, i)}
+                        onClick={() => openSlip(r, i)}
                       >
                         <Paperclip size="1em" /> {f.fileName}
                       </button>
@@ -2262,6 +2272,7 @@ const OrderDetail: React.FC = () => {
           }}
         />
       )}
+      {preview.node}
     </div>
   );
 };

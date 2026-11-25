@@ -14,6 +14,7 @@ import {
   QuickFilters,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { useFilePreview } from '@/pages/inquiry/shared/FilePreview';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
   PATHS,
@@ -69,6 +70,7 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
   const [error, setError] = useState<string>();
   const [opening, setOpening] = useState<string>();
   const [owner, setOwner] = useState<ReceiptOwner<ReceiptResult>>();
+  const preview = useFilePreview();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -222,10 +224,23 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
                     key={f.fileKey}
                     style={{ fontSize: 12, marginRight: 8 }}
                     onClick={() =>
-                      (r.piId
-                        ? piApi.openSlipFile(r.piId, s.id, i)
-                        : orderApi.openSlipFile(r.orderId as number, s.id, i)
-                      ).catch((e) => message.error((e as Error).message))
+                      preview.open(
+                        s.files.map((x, k) => ({
+                          id: k,
+                          fileName: x.fileName,
+                        })),
+                        i,
+                        (x) =>
+                          r.piId
+                            ? piApi.slipFilePath(r.piId, s.id, x.id)
+                            : orderApi.slipFilePath(
+                                r.orderId as number,
+                                s.id,
+                                x.id,
+                              ),
+                        () =>
+                          `${r.piNo ?? r.soNo ?? ''} · 水单 ${formatAmount(s.amount, r.currencyCode)} · ${s.receiptDate ?? ''}`,
+                      )
                     }
                   >
                     <Paperclip size="1em" /> {f.fileName}
@@ -374,6 +389,7 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
           load();
         }}
       />
+      {preview.node}
     </div>
   );
 };

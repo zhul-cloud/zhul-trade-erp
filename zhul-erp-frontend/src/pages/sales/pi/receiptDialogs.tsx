@@ -14,6 +14,7 @@ import dayjs from 'dayjs';
 import { Info, Paperclip, TriangleAlert } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { EmptyState } from '@/components/EmptyState';
+import { useFilePreview } from '@/pages/inquiry/shared/FilePreview';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePaymentMethods } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
@@ -285,6 +286,7 @@ export const ClaimReceiptModal = <T extends ReceiptResult>({
   const [slipId, setSlipId] = useState<number>();
   const [busy, setBusy] = useState(false);
   const cur = pi?.currencyCode ?? 'USD';
+  const preview = useFilePreview();
 
   const slips = useMemo(
     () =>
@@ -416,8 +418,16 @@ export const ClaimReceiptModal = <T extends ReceiptResult>({
                       style={{ fontSize: 12 }}
                       onClick={(e) => {
                         e.preventDefault();
-                        pi?.openClaimableFile(r.id, i).catch((err) =>
-                          message.error(readBizError(err).message),
+                        if (!pi) return;
+                        preview.open(
+                          (r.fileNames ?? []).map((n, k) => ({
+                            id: k,
+                            fileName: n,
+                          })),
+                          i,
+                          (x) => pi.claimableFilePath(r.id, x.id),
+                          () =>
+                            `到账 ${formatAmount(r.amount, r.currencyCode)} · ${r.receiptDate ?? ''}`,
                         );
                       }}
                     >
@@ -459,6 +469,7 @@ export const ClaimReceiptModal = <T extends ReceiptResult>({
         <Info size="1em" /> 认领后按正常到账计入
         PI；认领错了请总经理在「收款管理」取消认领。
       </div>
+      {preview.node}
     </Modal>
   );
 };

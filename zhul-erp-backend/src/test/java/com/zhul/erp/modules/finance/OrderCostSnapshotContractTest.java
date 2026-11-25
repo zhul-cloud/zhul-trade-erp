@@ -91,4 +91,39 @@ class OrderCostSnapshotContractTest extends SalesContractSupport {
         money("44022.18", month.path("revenue"));
         money("36699.75", month.path("cost"));
     }
+
+    /** audit BUS-094：迁移时旧系统还没做成本核算的订单没有快照，收入按订单金额折人民币计，不能按 0 */
+    @Test
+    void migratedOrderWithoutSnapshot_usesOrderAmount() throws Exception {
+        long customer = customer("Lucia Herrera", "Chile");
+        long so = order(customer, "USD", "8434.80", "1278.00");
+        try {
+            JsonNode c = cost(so);
+            assertTrue(!c.path("historySnapshot").asBoolean());
+            money("8434.80", c.path("revenue"));
+            money("8434.80", c.path("salesAmountCny"));
+            // 切换日之前的单据一律完结：仍算已结算，只说明没有快照
+            assertTrue(c.path("settled").asBoolean());
+            assertEquals("没有历史核算快照，按订单金额与系统里的单据计算", c.path("pending").get(0).asText());
+        } finally {
+            jdbc.update("delete from sales_order_item where so_id = ?", so);
+            jdbc.update("delete from sales_order where id = ?", so);
+        }
+    }
+
+    /** 生产 SO20261019002 等：迁移时标为已到账、但没有迁移到账记录，收入仍按订单金额（audit BUS-094），不能累加成 0 */
+    @Test
+    void migratedPaidWithoutReceipts_usesOrderAmount() throws Exception {
+        long customer = customer("Lucia Herrera", "Chile");
+        long so = order(customer, "USD", "8434.80", "1278.00");
+        jdbc.update("update sales_order set receipt_status = 4 where id = ?", so);
+        try {
+            JsonNode c = cost(so);
+            money("8434.80", c.path("revenue"));
+            assertTrue(c.path("settled").asBoolean());
+        } finally {
+            jdbc.update("delete from sales_order_item where so_id = ?", so);
+            jdbc.update("delete from sales_order where id = ?", so);
+        }
+    }
 }

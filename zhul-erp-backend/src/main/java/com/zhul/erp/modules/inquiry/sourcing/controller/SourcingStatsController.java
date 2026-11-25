@@ -1,8 +1,10 @@
 package com.zhul.erp.modules.inquiry.sourcing.controller;
 
 import com.zhul.erp.common.result.Result;
+import com.zhul.erp.modules.inquiry.sourcing.dto.BrandCategoryStatsVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.NoStockStatsVO;
 import com.zhul.erp.modules.inquiry.sourcing.dto.SourcingStatsVO;
+import com.zhul.erp.modules.inquiry.sourcing.service.impl.BrandCategoryStatsService;
 import com.zhul.erp.modules.inquiry.sourcing.service.impl.NoStockStatsService;
 import com.zhul.erp.modules.inquiry.sourcing.service.impl.SourcingStatsService;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,7 @@ public class SourcingStatsController {
 
     private final SourcingStatsService service;
     private final NoStockStatsService noStockService;
+    private final BrandCategoryStatsService brandCategoryService;
 
     @GetMapping("/api/v1/inquiry/sourcing-stats")
     @PreAuthorize("@perm.canAccessMenu('/inquiry/sourcing-stats')")
@@ -37,5 +40,14 @@ public class SourcingStatsController {
             @RequestParam(defaultValue = "WEEK") String period,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return Result.ok(noStockService.stats(period, date));
+    }
+
+    /** 品牌品类统计：period 为 DAY / WEEK / MONTH / QUARTER / YEAR，date 为这一期里的任意一天，不传为今天 */
+    @GetMapping("/api/v1/inquiry/sourcing-stats/brand-category")
+    @PreAuthorize("@perm.canAccessMenu('/inquiry/sourcing-stats')")
+    public Result<BrandCategoryStatsVO> brandCategory(
+            @RequestParam(defaultValue = "MONTH") String period,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return Result.ok(brandCategoryService.stats(period, date));
     }
 }
