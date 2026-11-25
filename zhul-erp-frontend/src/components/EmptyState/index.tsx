@@ -99,9 +99,83 @@ export const EmptyState: React.FC<{
   );
 };
 
+/** 骨架行里各列灰条的宽度（按行交替，避免整齐得像真数据） */
+const SKELETON_BARS = [
+  ['72%', '48%', '56%', '64%'],
+  ['60%', '40%', '44%', '52%'],
+];
+
+/**
+ * 表格首次加载（表里还没有行）的骨架行（ui-redesign S17、对比图 R23 方案 B）：和真实行同高的灰条，
+ * 数据回来时原位替换、页面不跳。300ms 后才显示，快的请求不闪；表格里有骨架时不再叠 antd 的转圈
+ * （两条都在 global.less 的「列表加载」）。compact：详情、卡片里的小表格，两行 44 高
+ */
+export const TableSkeleton: React.FC<{ compact?: boolean }> = ({ compact }) => {
+  const { palette } = useAppTheme();
+  const rows = compact ? 2 : 5;
+  const bar = (width: string, height = 12) => (
+    <span
+      className="zhul-skeleton-bar"
+      style={{
+        display: 'block',
+        width,
+        height,
+        borderRadius: 4,
+        background: palette.neutralSoft,
+      }}
+    />
+  );
+  return (
+    <div
+      className="zhul-table-skeleton"
+      role="status"
+      aria-label="加载中"
+      style={{ textAlign: 'left' }}
+    >
+      {Array.from({ length: rows }, (_, i) => {
+        const w = SKELETON_BARS[i % 2];
+        return (
+          <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: 固定行数的占位，没有数据标识
+            key={i}
+            style={{
+              height: compact ? 44 : 60,
+              display: 'grid',
+              gridTemplateColumns: compact ? '1fr' : '3fr 3fr 2fr 2fr',
+              gap: 24,
+              alignItems: 'center',
+              borderBottom:
+                i < rows - 1 ? `1px solid ${palette.hairline}` : undefined,
+            }}
+          >
+            {compact ? (
+              bar(w[0])
+            ) : (
+              <>
+                <span style={{ display: 'grid', gap: 8 }}>
+                  {bar(w[0])}
+                  {bar(w[1], 10)}
+                </span>
+                <span style={{ display: 'grid', gap: 8 }}>
+                  {bar(w[2])}
+                  {bar(w[3], 10)}
+                </span>
+                {bar(w[1])}
+                <span style={{ display: 'grid', justifyItems: 'end' }}>
+                  {bar(w[0])}
+                </span>
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 /**
  * 列表表格的空状态（给 Table 的 locale.emptyText）：
- * 加载中不显示（避免转圈下面闪「暂无数据」）；出错给「重试」；有筛选条件时为「没有符合条件的…」加「清空筛选」；
+ * 加载中显示骨架行（TableSkeleton，不在转圈下面闪「暂无数据」）；出错给「重试」；有筛选条件时为「没有符合条件的…」加「清空筛选」；
  * 否则为首次为空，empty 里写原因和下一步。
  */
 export const listEmpty = (o: {
@@ -118,7 +192,7 @@ export const listEmpty = (o: {
     action?: React.ReactNode;
   };
 }): React.ReactNode => {
-  if (o.loading) return <div style={{ height: 160 }} />;
+  if (o.loading) return <TableSkeleton />;
   if (o.error) {
     return (
       <EmptyState
@@ -150,7 +224,7 @@ export const renderEmpty = (componentName?: string) =>
   );
 
 /**
- * 列表表格的空状态（Table 的 locale.emptyText）：加载中不显示（不在转圈下面闪「暂无数据」）；
+ * 列表表格的空状态（Table 的 locale.emptyText）：加载中显示骨架行（TableSkeleton，不在转圈下面闪「暂无数据」）；
  * 页面写的一句话按内容配图标——提到筛选、条件的为「无结果」，其余为「还没有数据」；页面自己画的空状态原样显示。
  * compact：详情、卡片、抽屉里的小表格用一行版（图标 + 一句话），不占 160 高。
  */
@@ -160,7 +234,7 @@ export const tableEmpty = (
   compact?: boolean,
 ): React.ReactNode => {
   const busy = typeof loading === 'object' ? loading?.spinning : loading;
-  if (busy) return <div style={{ height: compact ? 44 : 160 }} />;
+  if (busy) return <TableSkeleton compact={compact} />;
   if (typeof content === 'string') {
     // 一句话里有「；」「，」时，前半句作标题、后半句作说明（如「没有符合条件的订单」+「换个筛选条件试试」）
     const cut = content.search(/[；，]/);

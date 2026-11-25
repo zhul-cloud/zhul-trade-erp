@@ -223,13 +223,17 @@ describe('行内提醒', () => {
 });
 
 describe('列表空状态', () => {
-  it('加载中不显示文字；出错给重试；有筛选给清空筛选；否则用首次为空的说明', () => {
+  it('加载中显示骨架行、不显示文字；出错给重试；有筛选给清空筛选；否则用首次为空的说明', () => {
     const onRetry = jest.fn();
     const onClear = jest.fn();
     const { container, rerender } = render(
       h('div', null, listEmpty({ loading: true })),
     );
     expect(container.textContent).toBe('');
+    // 首次加载画 5 行骨架（S17、R23 方案 B）
+    expect(
+      screen.getByRole('status', { name: '加载中' }).childElementCount,
+    ).toBe(5);
     rerender(h('div', null, listEmpty({ error: true, onRetry })));
     fireEvent.click(screen.getByRole('button', { name: /重\s*试/ }));
     expect(onRetry).toHaveBeenCalled();
@@ -246,11 +250,17 @@ describe('列表空状态', () => {
 });
 
 describe('表格空状态 tableEmpty', () => {
-  it('加载中不显示；一句话按「，」「；」拆成标题与说明；提到筛选的为无结果', () => {
+  it('加载中显示骨架行；一句话按「，」「；」拆成标题与说明；提到筛选的为无结果', () => {
     const { container, rerender } = render(
       h('div', null, tableEmpty('没有符合条件的订单，换个筛选条件试试', true)),
     );
     expect(container.textContent).toBe('');
+    expect(screen.getByRole('status', { name: '加载中' })).toBeTruthy();
+    // 小表格（compact）两行
+    rerender(h('div', null, tableEmpty('暂无', { spinning: true }, true)));
+    expect(
+      screen.getByRole('status', { name: '加载中' }).childElementCount,
+    ).toBe(2);
     rerender(
       h('div', null, tableEmpty('没有符合条件的订单，换个筛选条件试试', false)),
     );
