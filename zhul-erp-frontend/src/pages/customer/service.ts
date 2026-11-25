@@ -51,6 +51,9 @@ export interface CustomerPoolQuery {
   keyword?: string;
   country?: string;
   lastOwnerId?: number;
+  /** bizGrade、potentialRating；不传时按放入时间倒序 */
+  sortField?: 'bizGrade' | 'potentialRating';
+  sortOrder?: 'asc' | 'desc';
 }
 
 export interface CustomerParty {
@@ -266,7 +269,7 @@ export const customerApi = {
       ...quiet,
     }),
 
-  /** 公海客户：所有能进客户管理的人都能看，按放入时间倒序 */
+  /** 公海客户：所有能进客户管理的人都能看，默认按放入时间倒序，可按经营等级、潜力评级排序 */
   pool: (params: CustomerPoolQuery & { page: number; pageSize: number }) =>
     request<{ data: { records: CustomerListItem[]; total: number } }>(
       `${BASE}/pool`,

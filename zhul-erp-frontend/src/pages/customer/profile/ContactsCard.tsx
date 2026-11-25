@@ -6,6 +6,7 @@ import { useDictOptions } from '@/utils/dict';
 import { Pill } from '../components';
 import { CJK_PATTERN, ENGLISH_ONLY_MESSAGE, PHONE_PATTERN } from '../constants';
 import { readBizError } from '../service';
+import { TranslateButton, useContactNameTranslate } from '../TranslateButton';
 import {
   type Contact,
   type ContactPayload,
@@ -66,6 +67,7 @@ export const ContactModal: React.FC<{
   const d = useContactDicts();
   const [form] = Form.useForm<ContactPayload>();
   const [saving, setSaving] = useState(false);
+  const contactTranslate = useContactNameTranslate(form, 'name', 'nameCn');
 
   const latest = useRef({ contact, first });
   latest.current = { contact, first };
@@ -172,9 +174,17 @@ export const ContactModal: React.FC<{
             name="nameCn"
             label="中文名"
             rules={[{ max: 100 }]}
-            extra="保存后由 AI 翻译填入，不覆盖你手填的；想重新翻译就清空后保存"
+            extra="可点「AI 翻译」当场翻译；留空保存后也会自动翻译，不覆盖你手填的"
           >
-            <Input placeholder="留空自动翻译" />
+            <Input
+              placeholder="留空自动翻译"
+              suffix={
+                <TranslateButton
+                  loading={contactTranslate.running}
+                  onClick={contactTranslate.run}
+                />
+              }
+            />
           </Form.Item>
           <Form.Item
             name="title"
