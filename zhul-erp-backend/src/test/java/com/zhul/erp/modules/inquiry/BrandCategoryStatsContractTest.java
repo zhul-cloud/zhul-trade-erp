@@ -46,6 +46,11 @@ class BrandCategoryStatsContractTest extends InquiryContractSupport {
         return jdbc.queryForObject("select id from inquiry_item where customer_inquiry_id = ? and line_no = ?", Long.class, inquiryId, line);
     }
 
+    private void itemWithKey(long inquiryId, int line, String brand, String brandKey) {
+        jdbc.update("insert into inquiry_item (tenant_id, customer_inquiry_id, line_no, brand, brand_key, original_model, quantity, quote_status) "
+                + "values (0, ?, ?, ?, ?, ?, 1, 2)", inquiryId, line, brand, brandKey, "K" + inquiryId + "-" + line);
+    }
+
     private void quote(long itemId, long inquiryId, long taskId, String quotedAt, int status) {
         jdbc.update("insert into sourcing_quote (tenant_id, inquiry_item_id, customer_inquiry_id, task_id, brand, brand_key, model, model_key, "
                         + "channel, currency_code, no_stock, quoted_by, quoted_at, status) values (0, ?, ?, ?, 'Siemens', 'siemens', 'M', 'm', 2, 'CNY', 0, ?, ?, ?)",
@@ -114,6 +119,20 @@ class BrandCategoryStatsContractTest extends InquiryContractSupport {
         assertEquals(plc, root.path("categoryId").asLong());
         eq("2.0", root.path("avgHours"));
         assertEquals(3, named(r.path("categories"), "未分类").path("items").asInt());
+    }
+
+    /** 存量品牌键有空值、大小写不一，按品牌名重新识别后归并；不同品牌不会因为空键被并到一起（audit BUS-097） */
+    @Test
+    void brands_groupedByResolvedBrand_notByStoredKey() throws Exception {
+        long a = inquiry("ITB-K", "2026-08-12", 7);
+        itemWithKey(a, 1, "Itbrand Alpha", "");
+        itemWithKey(a, 2, "ITBRAND ALPHA", "itbrand alpha");
+        itemWithKey(a, 3, "Itbrand Beta", "");
+        loginAsAdmin("it_bc_admin3");
+        JsonNode r = ok(call(get(API).param("period", "DAY").param("date", "2026-08-12"), token("it_bc_admin3")));
+        assertEquals(2, r.path("brands").size(), "两个品牌：" + r.path("brands"));
+        assertEquals(2, r.path("brands").get(0).path("items").asInt());
+        assertEquals(1, named(r.path("brands"), "Itbrand Beta").path("items").asInt());
     }
 
     @Test

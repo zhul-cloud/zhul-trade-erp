@@ -13,6 +13,7 @@ import com.zhul.erp.modules.inquiry.sourcing.entity.SourcingTaskDO;
 import com.zhul.erp.modules.inquiry.sourcing.repository.SourcingQuoteMapper;
 import com.zhul.erp.modules.inquiry.sourcing.repository.SourcingTaskMapper;
 import com.zhul.erp.modules.inquiry.support.InquiryCategories;
+import com.zhul.erp.modules.inquiry.support.PriceKeys;
 import com.zhul.erp.modules.product.entity.ProductCategoryDO;
 import com.zhul.erp.modules.sales.support.PiStore;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +54,7 @@ public class BrandCategoryStatsService {
     private final SourcingTaskMapper taskMapper;
     private final SourcingQuoteMapper quoteMapper;
     private final InquiryCategories inquiryCategories;
+    private final PriceKeys priceKeys;
 
     /** 一期的起止日期 */
     record Range(LocalDate from, LocalDate to) {
@@ -98,7 +100,7 @@ public class BrandCategoryStatsService {
         List<InquiryItemDO> items = inquiryIds.isEmpty() ? List.of() : itemMapper.selectList(
                 new LambdaQueryWrapper<InquiryItemDO>()
                         .select(InquiryItemDO::getId, InquiryItemDO::getCustomerInquiryId, InquiryItemDO::getBrand,
-                                InquiryItemDO::getBrandKey, InquiryItemDO::getCategoryId, InquiryItemDO::getCategory,
+                                InquiryItemDO::getBrandId, InquiryItemDO::getCategoryId, InquiryItemDO::getCategory,
                                 InquiryItemDO::getQuoteStatus, InquiryItemDO::getSourcingTaskId)
                         .in(InquiryItemDO::getCustomerInquiryId, inquiryIds)
                         .isNull(InquiryItemDO::getDeletedAt));
@@ -118,9 +120,16 @@ public class BrandCategoryStatsService {
         vo.setDateTo(cur.to());
         vo.setTotals(row("", "合计", current));
         vo.setPrevious(row("", "合计", previous));
+        // 品牌按品牌库识别后归并（存量 brand_key 有空值、也有建档前的名字），名称用正式品牌名（audit BUS-097）
+        Map<String, PriceKeys.BrandRef> refs = new HashMap<>();
+        Function<InquiryItemDO, PriceKeys.BrandRef> brandOf = i -> refs.computeIfAbsent(
+                i.getBrand() == null ? "" : i.getBrand().trim().toLowerCase(), k -> priceKeys.brand(i.getBrand()));
         vo.setBrands(groups(current,
-                x -> x.item().getBrandKey() == null ? "" : x.item().getBrandKey(),
-                x -> x.item().getBrand() == null || x.item().getBrand().isBlank() ? NO_BRAND : x.item().getBrand()));
+                x -> brandKey(x.item(), brandOf),
+                x -> brandKey(x.item(), brandOf).isEmpty() ? NO_BRAND
+                        : priceKeys.brandText(x.item().getBrandId() != null
+                                ? new PriceKeys.BrandRef(x.item().getBrandId(), "#" + x.item().getBrandId())
+                                : brandOf.apply(x.item()), x.item().getBrand())));
         List<ProductCategoryDO> categories = inquiryCategories.categories();
         Map<Long, String> names = new HashMap<>();
         categories.forEach(c -> names.put(c.getId(), InquiryCategories.name(c)));
@@ -136,6 +145,18 @@ public class BrandCategoryStatsService {
                 x -> rootOf.containsKey(x.item().getId()) ? names.get(rootOf.get(x.item().getId())) : UNCATEGORIZED));
         vo.getCategories().forEach(r -> r.setCategoryId(r.getKey().isEmpty() ? null : Long.valueOf(r.getKey())));
         return vo;
+    }
+
+    /** 品牌归并键：型号行已关联品牌时用它，否则按品牌名识别（识别不到为小写品牌名）；没填品牌为空串 */
+    private static String brandKey(InquiryItemDO i, Function<InquiryItemDO, PriceKeys.BrandRef> brandOf) {
+        if (i.getBrandId() != null) {
+            return "#" + i.getBrandId();
+        }
+        if (i.getBrand() == null || i.getBrand().isBlank()) {
+            return "";
+        }
+        String k = brandOf.apply(i).brandKey();
+        return k == null ? "" : k;
     }
 
     /** 每个已回价型号：任务首次分配到第一条已提交回价的分钟数，回价早于分配按 0 */
@@ -178,7 +199,7 @@ public class BrandCategoryStatsService {
         for (Item x : items) {
             String k = key.apply(x);
             byKey.computeIfAbsent(k, n -> new ArrayList<>()).add(x);
-            names.putIfAbsent(k, name.apply(x));
+            names.computeIfAbsent(k, n -> name.apply(x));
         }
         List<BrandCategoryStatsVO.Row> rows = new ArrayList<>(byKey.size());
         byKey.forEach((k, list) -> rows.add(row(k, names.get(k), list)));
