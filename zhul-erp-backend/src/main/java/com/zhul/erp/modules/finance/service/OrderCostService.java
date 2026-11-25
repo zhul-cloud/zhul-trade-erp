@@ -468,7 +468,9 @@ public class OrderCostService {
             // 代收与多收不是收入（spec finance/order-cost）：只对有代收款或多收的已到账订单查余额流水
             BigDecimal collectionCny = collectionCnyBySo.getOrDefault(o.getId(), BigDecimal.ZERO);
             // 售后补发订单不收款：按已收齐处理（没有到账，收入为 0，结算不等货款）
-            boolean paid = receiptStatus == SalesConstants.RECEIPT_PAID || replacement(o);
+            // 迁移订单标为已到账、却没有迁移到账记录时，按到账累加收入会是 0：改按订单金额（audit BUS-094）
+            boolean noMigratedReceipts = MigratedGuard.isMigrated(o.getMigrated()) && myReceipts.isEmpty();
+            boolean paid = (receiptStatus == SalesConstants.RECEIPT_PAID && !noMigratedReceipts) || replacement(o);
             // PI 转成的订单按订单合计比较（部分取消后订单合计少于 PI 合计）
             boolean overpaid = pi != null ? nz(pi.getReceivedAmount()).add(nz(pi.getFeeDiffAmount())).compareTo(nz(o.getTotalAmount())) > 0
                     : nz(o.getReceivedAmount()).add(nz(o.getFeeDiffAmount())).compareTo(nz(o.getTotalAmount())) > 0;
