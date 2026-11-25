@@ -1,16 +1,7 @@
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import {
-  Alert,
-  App,
-  Button,
-  DatePicker,
-  Input,
-  Select,
-  Tag,
-  Tooltip,
-} from 'antd';
+import { Alert, App, Button, DatePicker, Input, Select, Tag } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Download, LogOut, Search } from 'lucide-react';
 import React, { useRef, useState } from 'react';
@@ -22,6 +13,7 @@ import {
   FilterField,
   MainCard,
   PageHeader,
+  SelectionCount,
 } from '@/components/ListLayout';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePagination } from '@/utils/pageSize';
@@ -271,27 +263,26 @@ const LoginLogPage: React.FC = () => {
       </FilterCard>
       <MainCard
         left={
-          selectedRowKeys.length > 0
-            ? `已选 ${selectedRowKeys.length} 条`
-            : `共 ${total} 条`
+          selectedRowKeys.length > 0 ? (
+            <SelectionCount
+              count={selectedRowKeys.length}
+              onClear={() => setSelectedRowKeys([])}
+            />
+          ) : (
+            `共 ${total} 条`
+          )
         }
         right={
           <>
-            {canForceLogout && (
-              <Tooltip
-                title={
-                  selectedRowKeys.length === 0 ? '请先勾选在线用户' : undefined
-                }
+            {/* 批量操作随勾选出现 */}
+            {canForceLogout && selectedRowKeys.length > 0 && (
+              <Button
+                danger
+                icon={<LogOut size="1em" />}
+                onClick={handleForceLogout}
               >
-                <Button
-                  danger={selectedRowKeys.length > 0}
-                  disabled={selectedRowKeys.length === 0}
-                  icon={<LogOut size="1em" />}
-                  onClick={handleForceLogout}
-                >
-                  强制下线
-                </Button>
-              </Tooltip>
+                强制下线
+              </Button>
             )}
             <Button
               type="text"

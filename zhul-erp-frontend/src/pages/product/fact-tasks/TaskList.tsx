@@ -24,6 +24,7 @@ import {
   HelpTip,
   MainCard,
   PageHeader,
+  SelectionCount,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -653,7 +654,11 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
           settings={columnsSet.settings}
           left={
             selected.length > 0 ? (
-              <b style={{ color: palette.link }}>已选 {selected.length} 个</b>
+              <SelectionCount
+                count={selected.length}
+                unit="个"
+                onClear={() => setSelected([])}
+              />
             ) : (
               <>
                 {`共 ${total} 条`}
@@ -661,66 +666,64 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
               </>
             )
           }
+          // 批量操作随勾选出现（ui-design-patterns 原则 10）
           right={
-            <>
-              {canAi && (
-                <Button
-                  icon={<Zap size="1em" />}
-                  disabled={
-                    selected.length === 0 || selected.length > AI_MAX_BATCH
-                  }
-                  title={
-                    selected.length > AI_MAX_BATCH
-                      ? `一次最多 AI 生成 ${AI_MAX_BATCH} 个商品`
-                      : undefined
-                  }
-                  onClick={() => setAiStart(selectedRows)}
-                >
-                  AI 生成
-                </Button>
-              )}
-              {facts ? (
-                <Button
-                  icon={<Download size="1em" />}
-                  disabled={selected.length === 0}
-                  loading={downloading === 'facts'}
-                  onClick={() => download(selected)}
-                >
-                  下载资料包
-                </Button>
-              ) : (
-                <MarketingDownload
-                  platforms={platforms}
-                  disabled={selected.length === 0}
-                  downloading={downloading}
-                  label="下载营销包"
-                  onPick={(p) => download(selected, p)}
-                />
-              )}
-              {facts && access['product:content:edit'] && (
-                <Button
-                  icon={<Check size="1em" />}
-                  disabled={selectedRows.length === 0}
-                  onClick={() => setBatchVerify(selectedRows)}
-                >
-                  资料已核
-                </Button>
-              )}
-              {canAi && (
-                <Button
-                  icon={<SquareCheck size="1em" />}
-                  disabled={selectedPending === 0}
-                  title={
-                    selected.length && !selectedPending
-                      ? '勾选的商品没有待确认的 AI 结果'
-                      : undefined
-                  }
-                  onClick={() => setBatchConfirm(selectedRows)}
-                >
-                  确认 AI 结果{selectedPending ? ` · ${selectedPending}` : ''}
-                </Button>
-              )}
-            </>
+            selected.length > 0 && (
+              <>
+                {canAi && (
+                  <Button
+                    icon={<Zap size="1em" />}
+                    disabled={selected.length > AI_MAX_BATCH}
+                    title={
+                      selected.length > AI_MAX_BATCH
+                        ? `一次最多 AI 生成 ${AI_MAX_BATCH} 个商品`
+                        : undefined
+                    }
+                    onClick={() => setAiStart(selectedRows)}
+                  >
+                    AI 生成
+                  </Button>
+                )}
+                {facts ? (
+                  <Button
+                    icon={<Download size="1em" />}
+                    loading={downloading === 'facts'}
+                    onClick={() => download(selected)}
+                  >
+                    下载资料包
+                  </Button>
+                ) : (
+                  <MarketingDownload
+                    platforms={platforms}
+                    downloading={downloading}
+                    label="下载营销包"
+                    onPick={(p) => download(selected, p)}
+                  />
+                )}
+                {facts && access['product:content:edit'] && (
+                  <Button
+                    icon={<Check size="1em" />}
+                    onClick={() => setBatchVerify(selectedRows)}
+                  >
+                    资料已核
+                  </Button>
+                )}
+                {canAi && (
+                  <Button
+                    icon={<SquareCheck size="1em" />}
+                    disabled={selectedPending === 0}
+                    title={
+                      !selectedPending
+                        ? '勾选的商品没有待确认的 AI 结果'
+                        : undefined
+                    }
+                    onClick={() => setBatchConfirm(selectedRows)}
+                  >
+                    确认 AI 结果{selectedPending ? ` · ${selectedPending}` : ''}
+                  </Button>
+                )}
+              </>
+            )
           }
         >
           <Table<ContentTask>

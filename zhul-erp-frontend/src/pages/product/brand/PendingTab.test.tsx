@@ -115,13 +115,8 @@ it('不是品牌：确认后提交，单据保持原样', async () => {
   expect(reload).toHaveBeenCalled();
 });
 
-it('没有勾选时批量按钮不可用', () => {
+it('没有勾选时不显示批量操作（批量操作随勾选出现）', () => {
   mount();
-  expect(screen.getByRole('button', { name: '批量设为别名' })).toHaveProperty(
-    'disabled',
-    true,
-  );
-  expect(
-    screen.getByRole('button', { name: '批量标为不是品牌' }),
-  ).toHaveProperty('disabled', true);
+  expect(screen.queryByRole('button', { name: '批量设为别名' })).toBeNull();
+  expect(screen.queryByRole('button', { name: '批量标为不是品牌' })).toBeNull();
 });

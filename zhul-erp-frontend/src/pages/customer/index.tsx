@@ -32,6 +32,7 @@ import {
   FilterField,
   MainCard,
   PageHeader,
+  SelectionCount,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -711,18 +712,10 @@ const CustomerListPage: React.FC = () => {
             settings={columnsSet.settings}
             left={
               selected.length > 0 ? (
-                <>
-                  <b style={{ color: palette.ink }}>
-                    已选 <span className="num">{selected.length}</span> 条
-                  </b>
-                  <button
-                    type="button"
-                    className="zhul-link"
-                    onClick={() => setSelected([])}
-                  >
-                    取消选择
-                  </button>
-                </>
+                <SelectionCount
+                  count={selected.length}
+                  onClear={() => setSelected([])}
+                />
               ) : (
                 `共 ${total} 条`
               )

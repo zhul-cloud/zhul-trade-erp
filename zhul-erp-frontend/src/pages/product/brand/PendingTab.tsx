@@ -12,6 +12,7 @@ import {
 import { Lightbulb, Search } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
+import { SelectionCount } from '@/components/ListLayout';
 import { formatDateTime } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import { Pill } from '../components/Pills';
@@ -304,18 +305,20 @@ const PendingTab: React.FC<{
           style={{ width: 240 }}
         />
         <div style={{ flex: 1 }} />
-        <Button
-          disabled={!selected.length}
-          onClick={() => openLink(selectedRows)}
-        >
-          批量设为别名
-        </Button>
-        <Button
-          disabled={!selected.length}
-          onClick={() => ignore(selectedRows)}
-        >
-          批量标为不是品牌
-        </Button>
+        {/* 批量操作随勾选出现 */}
+        {selected.length > 0 && (
+          <>
+            <SelectionCount
+              count={selected.length}
+              unit="个"
+              onClear={() => setSelected([])}
+            />
+            <Button onClick={() => openLink(selectedRows)}>批量设为别名</Button>
+            <Button onClick={() => ignore(selectedRows)}>
+              批量标为不是品牌
+            </Button>
+          </>
+        )}
       </div>
       <Table<PendingBrand>
         rowKey="pendingKey"

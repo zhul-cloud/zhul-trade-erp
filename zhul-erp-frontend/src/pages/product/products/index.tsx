@@ -39,6 +39,7 @@ import {
   MainCard,
   PageHeader,
   QuickFilters,
+  SelectionCount,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -1166,19 +1167,11 @@ const ProductListInner: React.FC = () => {
         settings={columnsSet.settings}
         left={
           (platform || refine) && selected.length > 0 ? (
-            <>
-              <b style={{ color: palette.link }}>
-                已选 <span className="num">{selected.length}</span> 项
-              </b>
-              <Button
-                type="text"
-                size="small"
-                style={{ color: palette.link }}
-                onClick={() => setSelected([])}
-              >
-                取消选择
-              </Button>
-            </>
+            <SelectionCount
+              count={selected.length}
+              unit="项"
+              onClear={() => setSelected([])}
+            />
           ) : (
             <>
               {`共 ${total} 条`}

@@ -25,6 +25,7 @@ import {
   HelpTip,
   MainCard,
   PageHeader,
+  SelectionCount,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { UserName } from '@/components/UserName';
@@ -1833,7 +1834,10 @@ const Candidates: React.FC = () => {
           settings={columnsSet.settings}
           left={
             tab === 1 && canReview && selected.length > 0 ? (
-              <b style={{ color: palette.link }}>已选 {selected.length} 条</b>
+              <SelectionCount
+                count={selected.length}
+                onClear={() => setSelected([])}
+              />
             ) : (
               <>
                 {`共 ${total} 条`}
@@ -1845,46 +1849,49 @@ const Candidates: React.FC = () => {
             tab === 1 &&
             canReview && (
               <>
-                {(['category', 'brand'] as AiFillMode[]).map((mode) => (
-                  <Button
-                    key={mode}
-                    icon={<Bot size="1em" />}
-                    disabled={!aiJob && selected.length === 0}
-                    loading={aiJob?.mode === mode}
-                    onClick={() => (aiJob ? undefined : aiFill(mode))}
-                    title={
-                      aiJob
-                        ? '上一次 AI 解析跑完后才能再提交'
-                        : `勾选候选后由 AI 补全${AI_MODE_NAME[mode]}，每次最多 ${AI_FILL_MAX} 条`
-                    }
-                  >
-                    {aiJob?.mode === mode
-                      ? `AI 解析${AI_MODE_NAME[mode]}中…`
-                      : `AI 解析${AI_MODE_NAME[mode]}`}
-                  </Button>
-                ))}
-                <Button
-                  icon={<Pencil size="1em" />}
-                  disabled={selected.length === 0}
-                  onClick={() =>
-                    selected.length > BATCH_EDIT_MAX
-                      ? message.warning(
-                          `每次最多 ${BATCH_EDIT_MAX} 条，已选 ${selected.length} 条`,
-                        )
-                      : setEditing(true)
-                  }
-                >
-                  批量修改
-                </Button>
-                <Button
-                  type="primary"
-                  icon={<Check size="1em" />}
-                  disabled={selected.length === 0}
-                  loading={busy}
-                  onClick={batch}
-                >
-                  批量通过
-                </Button>
+                {(selected.length > 0 || aiJob) &&
+                  (['category', 'brand'] as AiFillMode[]).map((mode) => (
+                    <Button
+                      key={mode}
+                      icon={<Bot size="1em" />}
+                      disabled={!aiJob && selected.length === 0}
+                      loading={aiJob?.mode === mode}
+                      onClick={() => (aiJob ? undefined : aiFill(mode))}
+                      title={
+                        aiJob
+                          ? '上一次 AI 解析跑完后才能再提交'
+                          : `勾选候选后由 AI 补全${AI_MODE_NAME[mode]}，每次最多 ${AI_FILL_MAX} 条`
+                      }
+                    >
+                      {aiJob?.mode === mode
+                        ? `AI 解析${AI_MODE_NAME[mode]}中…`
+                        : `AI 解析${AI_MODE_NAME[mode]}`}
+                    </Button>
+                  ))}
+                {selected.length > 0 && (
+                  <>
+                    <Button
+                      icon={<Pencil size="1em" />}
+                      onClick={() =>
+                        selected.length > BATCH_EDIT_MAX
+                          ? message.warning(
+                              `每次最多 ${BATCH_EDIT_MAX} 条，已选 ${selected.length} 条`,
+                            )
+                          : setEditing(true)
+                      }
+                    >
+                      批量修改
+                    </Button>
+                    <Button
+                      type="primary"
+                      icon={<Check size="1em" />}
+                      loading={busy}
+                      onClick={batch}
+                    >
+                      批量通过
+                    </Button>
+                  </>
+                )}
               </>
             )
           }

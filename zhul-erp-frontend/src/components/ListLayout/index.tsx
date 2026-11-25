@@ -85,6 +85,31 @@ export const HelpTip: React.FC<{
   );
 };
 
+/**
+ * 操作行左侧勾选后的「已选 N 条 · 取消选择」（ui-design-patterns「操作行」：勾选后结果数变为已选数，批量操作随勾选出现在右侧）。
+ * extra 放在已选数与取消选择之间，写勾选内容的补充说明（如出库单的客户 · 货代）。
+ */
+export const SelectionCount: React.FC<{
+  count: number;
+  /** 量词，默认「条」 */
+  unit?: string;
+  extra?: React.ReactNode;
+  onClear: () => void;
+}> = ({ count, unit = '条', extra, onClear }) => {
+  const { palette } = useAppTheme();
+  return (
+    <>
+      <b style={{ color: palette.ink }}>
+        已选 <span className="num">{count}</span> {unit}
+      </b>
+      {extra}
+      <button type="button" className="zhul-link" onClick={onClear}>
+        取消选择
+      </button>
+    </>
+  );
+};
+
 /** 表头文字 + 帮助图标；点帮助图标不触发表头排序（排序列另设 showSorterTooltip: { target: 'sorter-icon' }） */
 export const HeadHelp: React.FC<{ title: string; help: React.ReactNode }> = ({
   title,

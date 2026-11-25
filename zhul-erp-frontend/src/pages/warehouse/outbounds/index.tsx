@@ -22,6 +22,7 @@ import {
   FilterField,
   MainCard,
   PageHeader,
+  SelectionCount,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -402,22 +403,21 @@ const Outbounds: React.FC = () => {
             selectable && selected.length > 0 ? (
               <>
                 <CircleCheck size="1em" style={{ color: palette.link }} />
-                <b style={{ color: palette.ink }}>已选 {selected.length} 张</b>
-                <span style={{ color: palette.sub }}>
-                  {tab === 'pending'
-                    ? `${selected[0].customerName ?? ''} · ${selected[0].forwarderName ?? ''}`
-                    : selected[0].forwarderName}
-                  {tab === 'packed' &&
-                    selected.some((r) => r.packId) &&
-                    ' · 合并打包的同组单已一起选中'}
-                </span>
-                <button
-                  type="button"
-                  className="zhul-link"
-                  onClick={() => setSelected([])}
-                >
-                  取消选择
-                </button>
+                <SelectionCount
+                  count={selected.length}
+                  unit="张"
+                  extra={
+                    <span style={{ color: palette.sub }}>
+                      {tab === 'pending'
+                        ? `${selected[0].customerName ?? ''} · ${selected[0].forwarderName ?? ''}`
+                        : selected[0].forwarderName}
+                      {tab === 'packed' &&
+                        selected.some((r) => r.packId) &&
+                        ' · 合并打包的同组单已一起选中'}
+                    </span>
+                  }
+                  onClear={() => setSelected([])}
+                />
               </>
             ) : (
               `${TAB_NAMES[tab]} ${total} 张`

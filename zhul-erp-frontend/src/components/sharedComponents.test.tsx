@@ -5,6 +5,7 @@ import React from 'react';
 import { setToken } from '@/utils/tokenStore';
 import { CountryText } from './CountryText';
 import { EmptyState, listEmpty, renderEmpty, tableEmpty } from './EmptyState';
+import { SelectionCount } from './ListLayout';
 import { RowActions, rowActionsWidth } from './RowActions';
 import { rowAlert } from './RowAlert';
 import { formatShortTime, UserName } from './UserName';
@@ -258,5 +259,23 @@ describe('表格空状态 tableEmpty', () => {
     const custom = h('span', null, '自定义空状态');
     rerender(h('div', null, tableEmpty(custom, { spinning: false })));
     expect(screen.getByText('自定义空状态')).toBeTruthy();
+  });
+});
+
+describe('SelectionCount', () => {
+  it('显示已选数量与量词，点「取消选择」清空', () => {
+    const onClear = jest.fn();
+    render(
+      h(SelectionCount, {
+        count: 3,
+        unit: '张',
+        extra: h('span', null, '客户 A'),
+        onClear,
+      }),
+    );
+    expect(screen.getByText('3')).toBeTruthy();
+    expect(screen.getByText('客户 A')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '取消选择' }));
+    expect(onClear).toHaveBeenCalledTimes(1);
   });
 });
