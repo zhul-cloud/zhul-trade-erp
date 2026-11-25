@@ -268,4 +268,45 @@ class OrderCostCalcTest {
         eq("270.00", r.lines().get(0).purchase());
         assertEquals(0, r.lines().get(0).unorderedQty());
     }
+
+    // ---------------------------------------------------------------- 预计国际运费
+
+    private static Map<Long, OrderCostCalc.FreightLine> freightLines(int shippedA, int shippedB) {
+        Map<Long, OrderCostCalc.FreightLine> m = new LinkedHashMap<>();
+        m.put(1L, new OrderCostCalc.FreightLine(d("600"), 6, shippedA));
+        m.put(2L, new OrderCostCalc.FreightLine(d("400"), 4, shippedB));
+        return m;
+    }
+
+    @Test
+    void estimatedFreight_unshippedByAmountShare() {
+        Map<Long, BigDecimal> est = OrderCostCalc.estimatedFreight(d("412.50"), freightLines(0, 0));
+        eq("247.50", est.get(1L));
+        eq("165.00", est.get(2L));
+    }
+
+    @Test
+    void estimatedFreight_partialShipmentOnlyUnshipped_fullyShippedNone() {
+        Map<Long, BigDecimal> est = OrderCostCalc.estimatedFreight(d("412.50"), freightLines(4, 4));
+        eq("82.50", est.get(1L));
+        assertNull(est.get(2L), "全部出运的不再估算");
+    }
+
+    @Test
+    void estimatedFreight_noFreightFee() {
+        assertTrue(OrderCostCalc.estimatedFreight(null, freightLines(0, 0)).isEmpty());
+        assertTrue(OrderCostCalc.estimatedFreight(BigDecimal.ZERO, freightLines(0, 0)).isEmpty());
+    }
+
+    @Test
+    void estimatedFreight_countsInCost_pendingSaysEstimated() {
+        Item a = new Item(1, 6, d("600"), d("100"), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, false, false,
+                BigDecimal.ZERO, BigDecimal.ZERO, d("247.50"));
+        Result r = OrderCostCalc.compute(new Input(false, d("4000"), List.of(a), List.of(), Map.of(), List.of()));
+        eq("247.50", r.lines().get(0).estimatedFreight());
+        eq("0.00", r.lines().get(0).international());
+        eq("847.50", r.lines().get(0).cost());
+        assertTrue(r.pending().contains("国际运费还没出运，按订单运费估算"), r.pending().toString());
+        assertFalse(r.pending().contains("国际运费还没对账"));
+    }
 }

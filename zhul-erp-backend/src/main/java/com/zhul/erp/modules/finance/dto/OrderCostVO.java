@@ -93,6 +93,8 @@ public class OrderCostVO {
         private BigDecimal salesReturnCredit;
         private BigDecimal domestic;
         private BigDecimal international;
+        /** 其中还没出运、按订单运费估算的部分（已含在 cost 里，international 只是实际分摊） */
+        private BigDecimal estimatedInternational;
         private Boolean internationalSettled;
         private BigDecimal expense;
         private BigDecimal receiptFee;
@@ -114,7 +116,7 @@ public class OrderCostVO {
 
     @Data
     public static class Source {
-        /** PO 采购订单、COURIER 快递单、SHIPMENT 出运单、EXPENSE 费用单 */
+        /** PO 采购订单、COURIER 快递单、SHIPMENT 出运单、EXPENSE 费用单、ESTIMATE 按订单运费估算（没有单据） */
         private String type;
         private Long id;
         private String no;

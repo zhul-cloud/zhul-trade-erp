@@ -98,6 +98,42 @@ class OrderCostContractTest extends SalesContractSupport {
         return ok(call(get(SO + "/" + soId), admin));
     }
 
+    /** 出运前国际运费按订单运费估算，计入实际成本；整行出运后改用出运单的实际运费（spec finance/order-cost） */
+    @Test
+    void estimatedFreight_beforeShipment_replacedByActualAfterShipped() throws Exception {
+        long sup = supplier("宁波伺服", null);
+        long pi = pi(sup, "LXM32AD18N4", "100");
+        ok(uploadSlip(pi, "1.00", LocalDate.now().toString(), admin));
+        long so = convert(pi);
+        long soItem = jdbc.queryForObject("select id from sales_order_item where so_id = ?", Long.class, so);
+        BigDecimal before = detail(so).path("cost").path("cost").decimalValue();
+        jdbc.update("update sales_order_fee set deleted_at = now() where so_id = ?", so);
+        jdbc.update("insert into sales_order_fee (tenant_id, so_id, fee_name, fee_type, amount, amount_cny) values (0, ?, 'Shipping Cost', 1, 60, 412.50)", so);
+        jdbc.update("insert into sales_order_fee (tenant_id, so_id, fee_name, fee_type, amount, amount_cny) values (0, ?, 'Bank Charge', 1, 30, 206.25)", so);
+
+        JsonNode cost = detail(so).path("cost");
+        JsonNode line = cost.path("lines").get(0);
+        money("412.50", line.path("estimatedInternational"));
+        assertEquals(0, before.add(new BigDecimal("412.50")).compareTo(cost.path("cost").decimalValue()), "只有运费计入，银行费用不算");
+        JsonNode src = line.path("sources").path("international").get(0);
+        assertEquals("ESTIMATE", src.path("type").asText());
+        assertTrue(src.path("note").asText().contains("Shipping Cost USD 60.00"), src.toString());
+        assertTrue(cost.path("pending").toString().contains("国际运费还没出运，按订单运费估算"), cost.path("pending").toString());
+
+        // 整行装上已出运的出运单：不再估算，用实际运费
+        long sh = intlFreight(soItem, "300", 0);
+        jdbc.update("insert into outbound_order (tenant_id, ob_no, so_id, customer_id, status, logistics_id) values (0, ?, ?, 0, 3, ?)",
+                "OB" + System.nanoTime(), so, sh);
+        long ob = jdbc.queryForObject("select max(id) from outbound_order where tenant_id = 0", Long.class);
+        jdbc.update("insert into outbound_order_item (tenant_id, outbound_id, so_item_id, quantity) values (0, ?, ?, 1)", ob, soItem);
+        cost = detail(so).path("cost");
+        line = cost.path("lines").get(0);
+        assertTrue(line.path("estimatedInternational").decimalValue().signum() == 0, line.toString());
+        money("300.00", line.path("international"));
+        assertEquals(0, before.add(new BigDecimal("300.00")).compareTo(cost.path("cost").decimalValue()));
+        assertTrue(cost.path("pending").toString().contains("国际运费还没对账"));
+    }
+
     @Test
     void actualCost_settled_pending_listProfitSort_profitStats_bargainStats() throws Exception {
         long sup = supplier("智能工业产品服务", null);
