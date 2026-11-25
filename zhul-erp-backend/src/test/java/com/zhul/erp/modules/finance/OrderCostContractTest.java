@@ -114,6 +114,7 @@ class OrderCostContractTest extends SalesContractSupport {
         JsonNode cost = detail(so).path("cost");
         JsonNode line = cost.path("lines").get(0);
         money("412.50", line.path("estimatedInternational"));
+        assertEquals(0, line.path("shippedQty").asInt());
         assertEquals(0, before.add(new BigDecimal("412.50")).compareTo(cost.path("cost").decimalValue()), "只有运费计入，银行费用不算");
         JsonNode src = line.path("sources").path("international").get(0);
         assertEquals("ESTIMATE", src.path("type").asText());
@@ -130,6 +131,7 @@ class OrderCostContractTest extends SalesContractSupport {
         line = cost.path("lines").get(0);
         assertTrue(line.path("estimatedInternational").decimalValue().signum() == 0, line.toString());
         money("300.00", line.path("international"));
+        assertEquals(1, line.path("shippedQty").asInt(), "出运单上没有库存流水也算已出运（audit BUS-099）");
         assertEquals(0, before.add(new BigDecimal("300.00")).compareTo(cost.path("cost").decimalValue()));
         assertTrue(cost.path("pending").toString().contains("国际运费还没对账"));
     }

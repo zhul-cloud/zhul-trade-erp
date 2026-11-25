@@ -385,8 +385,8 @@ public class OrderCostService {
                 .stream().filter(f -> f.getFeeName() != null && FREIGHT_FEE.matcher(f.getFeeName()).find()
                         && nz(f.getAmountCny()).signum() > 0)
                 .collect(Collectors.groupingBy(SalesOrderFeeDO::getSoId));
-        Map<Long, Integer> shippedOut = shippedQty(items.stream().filter(i -> freightFeesBySo.containsKey(i.getSoId()))
-                .map(SalesOrderItemDO::getId).toList());
+        // 已出运数量（出运单口径）：估算运费，也用于成本明细的「已出运」列（老出运没有库存结转，audit BUS-099）
+        Map<Long, Integer> shippedOut = shippedQty(itemIds);
         // 退款：与到账一致，PI 转成的订单按 PI 归集，取消重转前旧订单上的退款也算在当前订单上（audit BUS-003）
         Map<Long, Long> piOfSo = new HashMap<>();
         Set<Long> refundSoIds = new HashSet<>(soIds);
@@ -491,6 +491,9 @@ public class OrderCostService {
             OrderCostVO vo = toVo(o, mine, res, poLinesByItem, pos, qualified, freightByItem, shipments, waybills, expenseByItem, expenses,
                     returnsByItem, sourceNos, cogs);
             estimateSources(vo, o, freightFees, freightLines);
+            // 「已出运」显示实际出运数量；成本仍按库存结转的数量取结转成本（老出运没有结转成本，不能当作已结转）
+            vo.getLines().forEach(l -> l.setShippedQty(Math.max(Objects.requireNonNullElse(l.getShippedQty(), 0),
+                    shippedOut.getOrDefault(l.getSoItemId(), 0))));
             vo.setRefund(res.refund());
             vo.setRefunds(refunds.stream().map(f -> brief(f, reasonNames)).toList());
             vo.setCollectionCny(OrderCostCalc.money(collectionDeducted));
