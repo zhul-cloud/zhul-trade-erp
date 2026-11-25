@@ -124,10 +124,68 @@ export const HeadHelp: React.FC<{ title: string; help: React.ReactNode }> = ({
   </span>
 );
 
+/** 顶栏（吸顶，上边距 16 + 高 64）的下沿 */
+const TOP_BAR_BOTTOM = 80;
+/** 详情页头吸顶后的白卡高度，与顶栏之间留 8 */
+const STUCK_HEADER_HEIGHT = 56;
+/**
+ * 详情页头吸顶后的下沿：页面里另有吸顶元素（右侧汇总卡、长表格表头）时贴在它下面，
+ * 表格用 `sticky={STICKY_TABLE}`（ui-redesign S15、对比图 R24 方案 B）
+ */
+export const STUCK_HEADER_BOTTOM = TOP_BAR_BOTTOM + 8 + STUCK_HEADER_HEIGHT;
+/** 详情页长表格：表头贴在吸顶页头下面，横向滚动条贴在视口底部（不用滚到表格最下面才能左右拖） */
+export const STICKY_TABLE = {
+  offsetHeader: STUCK_HEADER_BOTTOM,
+  offsetScroll: 0,
+};
+
+/**
+ * 详情页头是否吸顶：页面超过两屏、页头滚到顶栏下面时为真。
+ * 只看本页头是否可见（标签页框架把不在前台的页面藏起来，藏起来时不算）
+ */
+const useStuckHeader = (enabled: boolean) => {
+  const box = useRef<HTMLDivElement>(null);
+  const [stuck, setStuck] = useState<number | null>(null);
+  useEffect(() => {
+    if (!enabled) return undefined;
+    // 页头在文档里的原始位置：没吸顶时随时更新；吸顶后它停在顶栏下，按这个位置和滚动距离判断何时放回
+    let natural = 0;
+    let height = 0;
+    let on = false;
+    const check = () => {
+      const b = box.current;
+      if (!b || b.offsetParent === null) return;
+      if (!on) {
+        natural = b.getBoundingClientRect().top + window.scrollY;
+        height = b.offsetHeight;
+      }
+      const long =
+        document.documentElement.scrollHeight > 2 * window.innerHeight;
+      // 原页头整个滚到顶栏下面（看不见）之后才吸顶
+      const next =
+        long && natural + height - window.scrollY < TOP_BAR_BOTTOM;
+      if (next === on) return;
+      on = next;
+      // 吸顶时记下原来的高度，占位不变，下面的内容不跳
+      setStuck(next ? height : null);
+    };
+    check();
+    window.addEventListener('scroll', check, { passive: true });
+    window.addEventListener('resize', check);
+    return () => {
+      window.removeEventListener('scroll', check);
+      window.removeEventListener('resize', check);
+    };
+  }, [enabled]);
+  return { box, stuck };
+};
+
 /**
  * 页头：左侧页面标题，右侧主操作（每个页头最多一个主按钮）。
  * 列表页不用传 title：取当前页面在「菜单管理」里的名称。
  * 详情页 title 为单号，tags 为状态标签（跟在单号后面，不算标题文字），sub 为标题下一行的副信息（客户 · 来源单号 · 负责人 · 创建时间）。
+ * 详情页（有 sub）超过两屏时，页头滚出屏幕后吸在顶栏下面，缩成 56 高的白卡：单号、状态、副信息（一行省略）和同一组操作
+ * （ui-redesign S15、对比图 R24 方案 B）。吸顶的是同一个页头，操作区不重复渲染，弹窗和按钮状态不受影响。
  */
 export const PageHeader: React.FC<{
   title?: React.ReactNode;
@@ -137,63 +195,131 @@ export const PageHeader: React.FC<{
   sub?: React.ReactNode;
   extra?: React.ReactNode;
 }> = ({ title, help, tags, sub, extra }) => {
-  const { palette } = useAppTheme();
+  const { palette, mode } = useAppTheme();
   const menu = useMenu();
+  const { box, stuck } = useStuckHeader(!!sub);
+  const on = stuck !== null;
   return (
     <div
-      style={{
-        display: 'flex',
-        alignItems: sub ? 'flex-start' : 'center',
-        justifyContent: 'space-between',
-        gap: 16,
-        marginBottom: sub ? 16 : 12,
-        minHeight: 36,
-        flexWrap: 'wrap',
-      }}
+      ref={box}
+      style={
+        on
+          ? {
+              // 吸顶：占位保持原高，白卡浮在上面；占位里白卡以外的部分不挡下面的点击
+              position: 'sticky',
+              top: TOP_BAR_BOTTOM,
+              zIndex: 18,
+              height: stuck,
+              marginBottom: 16,
+              pointerEvents: 'none',
+            }
+          : undefined
+      }
     >
-      <div style={{ minWidth: 0 }}>
+      <div
+        style={
+          on
+            ? {
+                // 白卡上方 8 用页面底色挡住滚上来的内容
+                paddingTop: 8,
+                background: palette.canvas,
+                pointerEvents: 'auto',
+              }
+            : undefined
+        }
+      >
         <div
           style={{
             display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            flexWrap: 'wrap',
+            alignItems: sub && !on ? 'flex-start' : 'center',
+            justifyContent: 'space-between',
+            gap: 16,
+            marginBottom: on ? 0 : sub ? 16 : 12,
             minHeight: 36,
+            flexWrap: on ? 'nowrap' : 'wrap',
+            ...(on && {
+              height: STUCK_HEADER_HEIGHT,
+              padding: '0 20px',
+              borderRadius: 10,
+              background: palette.card,
+              boxShadow: mode === 'light' ? CARD_SHADOW : 'none',
+              border:
+                mode === 'light' ? 'none' : `1px solid ${palette.hairline}`,
+            }),
           }}
         >
-          <h1
-            style={{
-              margin: 0,
-              fontSize: 20,
-              fontWeight: 600,
-              color: palette.ink,
-              minWidth: 0,
-            }}
+          <div
+            style={
+              on
+                ? {
+                    minWidth: 0,
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                  }
+                : { minWidth: 0 }
+            }
           >
-            {title ?? menu?.name}
-          </h1>
-          {help && <HelpTip title={help} />}
-          {tags}
-        </div>
-        {sub && (
-          <div style={{ marginTop: 2, fontSize: 13, color: palette.sub }}>
-            {sub}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                flexWrap: on ? 'nowrap' : 'wrap',
+                minHeight: 36,
+                flex: 'none',
+              }}
+            >
+              <h1
+                style={{
+                  margin: 0,
+                  fontSize: on ? 16 : 20,
+                  fontWeight: 600,
+                  color: palette.ink,
+                  minWidth: 0,
+                  whiteSpace: on ? 'nowrap' : undefined,
+                }}
+              >
+                {title ?? menu?.name}
+              </h1>
+              {help && <HelpTip title={help} />}
+              {tags}
+            </div>
+            {sub && (
+              <div
+                style={{
+                  marginTop: on ? 0 : 2,
+                  fontSize: 13,
+                  color: on ? palette.mute : palette.sub,
+                  ...(on && {
+                    minWidth: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }),
+                }}
+              >
+                {sub}
+              </div>
+            )}
           </div>
-        )}
-      </div>
-      {extra && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            minHeight: 36,
-            flexWrap: 'wrap',
-          }}
-        >
-          {extra}
+          {extra && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                minHeight: 36,
+                flexWrap: on ? 'nowrap' : 'wrap',
+                flex: on ? 'none' : undefined,
+              }}
+            >
+              {extra}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };

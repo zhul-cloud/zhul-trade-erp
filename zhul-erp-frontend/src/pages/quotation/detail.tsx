@@ -66,7 +66,14 @@ import DocModelCell, {
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
-import { CardTitle, HelpTip, PageHeader, Panel } from '@/components/ListLayout';
+import {
+  CardTitle,
+  HelpTip,
+  PageHeader,
+  Panel,
+  STICKY_TABLE,
+  STUCK_HEADER_BOTTOM,
+} from '@/components/ListLayout';
 import { usePageTitle, useTabDirty } from '@/components/PageTabs/hooks';
 import { rowAlert } from '@/components/RowAlert';
 import { type DiffRow, VersionPanel } from '@/components/VersionPanel';
@@ -212,7 +219,14 @@ const PreviewPanel: React.FC<{
 }> = ({ state, onCollapse }) => {
   const { palette } = useAppTheme();
   return (
-    <Card style={{ position: 'sticky', top: 80, padding: 20 }}>
+    <Card
+      style={{
+        position: 'sticky',
+        // 详情页头吸顶后贴在它下面（S15）
+        top: STUCK_HEADER_BOTTOM + 16,
+        padding: 20,
+      }}
+    >
       <div
         style={{
           display: 'flex',
@@ -1953,6 +1967,8 @@ const QuotationDetail: React.FC = () => {
           columns={editColumns}
           dataSource={draft.items}
           pagination={false}
+          // 长单据：表头贴在吸顶页头下面，横向滚动条贴视口底部（S15、R24 方案 B）
+          sticky={STICKY_TABLE}
           scroll={{ x: tableScrollX(editColumns) }}
           rowClassName={() => ''}
           onRow={(d) => {
@@ -2039,6 +2055,8 @@ const QuotationDetail: React.FC = () => {
           columns={viewColumns}
           dataSource={q.items}
           pagination={false}
+          // 长单据：表头贴在吸顶页头下面，横向滚动条贴视口底部（S15、R24 方案 B）
+          sticky={STICKY_TABLE}
           scroll={{ x: tableScrollX(viewColumns) }}
         />
       )}

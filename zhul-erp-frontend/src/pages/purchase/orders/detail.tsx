@@ -50,7 +50,7 @@ import {
 import { RelatedDocsCard } from '@/components/DocFields/DocPage';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import { tableEmpty } from '@/components/EmptyState';
-import { HelpTip, PageHeader } from '@/components/ListLayout';
+import { HelpTip, PageHeader, STICKY_TABLE } from '@/components/ListLayout';
 import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { rowAlert } from '@/components/RowAlert';
@@ -1157,6 +1157,8 @@ const PurchaseOrderDetail: React.FC = () => {
           onRow={(r) =>
             r.modelUpdatedTo || r.remarkAlert ? rowAlert('error') : {}
           }
+          // 长单据：表头贴在吸顶页头下面，横向滚动条贴视口底部（S15、R24 方案 B）
+          sticky={STICKY_TABLE}
           scroll={{ x: tableScrollX(columns) }}
           rowSelection={
             isDraft && editable

@@ -67,7 +67,14 @@ import DocModelCell, {
 } from '@/components/DocFields/DocModelCell';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import SourceNos from '@/components/DocFields/SourceNos';
-import { CardTitle, HelpTip, PageHeader, Panel } from '@/components/ListLayout';
+import {
+  CardTitle,
+  HelpTip,
+  PageHeader,
+  Panel,
+  STICKY_TABLE,
+  STUCK_HEADER_BOTTOM,
+} from '@/components/ListLayout';
 import { usePageTitle, useTabDirty } from '@/components/PageTabs/hooks';
 import { rowAlert } from '@/components/RowAlert';
 import { type DiffRow, VersionPanel } from '@/components/VersionPanel';
@@ -1606,6 +1613,8 @@ const PiDetail: React.FC = () => {
           columns={editColumns}
           dataSource={draft.items}
           pagination={false}
+          // 长单据：表头贴在吸顶页头下面，横向滚动条贴视口底部（S15、R24 方案 B）
+          sticky={STICKY_TABLE}
           scroll={{ x: tableScrollX(editColumns) }}
           onRow={(d) =>
             belowFloor(itemById.get(d.id), results.get(d.id))
@@ -1703,6 +1712,8 @@ const PiDetail: React.FC = () => {
           columns={viewColumns}
           dataSource={v.items}
           pagination={false}
+          // 长单据：表头贴在吸顶页头下面，横向滚动条贴视口底部（S15、R24 方案 B）
+          sticky={STICKY_TABLE}
           scroll={{ x: tableScrollX(viewColumns) }}
           onRow={(r) => (r.belowFloor ? rowAlert('error') : {})}
         />
@@ -2521,7 +2532,14 @@ const PiDetail: React.FC = () => {
   );
 
   const previewCard = (
-    <Card style={{ position: 'sticky', top: 80, padding: 20 }}>
+    <Card
+      style={{
+        position: 'sticky',
+        // 详情页头吸顶后贴在它下面（S15）
+        top: STUCK_HEADER_BOTTOM + 16,
+        padding: 20,
+      }}
+    >
       <div
         style={{
           display: 'flex',

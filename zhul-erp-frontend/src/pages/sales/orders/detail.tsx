@@ -42,6 +42,7 @@ import {
   PageHeader,
   Panel,
   Section,
+  STICKY_TABLE,
 } from '@/components/ListLayout';
 import { MetricGrid } from '@/components/MetricCard';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
@@ -1788,6 +1789,8 @@ const OrderDetail: React.FC = () => {
         columns={columns}
         dataSource={o.items}
         pagination={false}
+        // 长单据：表头贴在吸顶页头下面，横向滚动条贴视口底部（S15、R24 方案 B）
+        sticky={STICKY_TABLE}
         scroll={{ x: tableScrollX(columns) }}
         rowSelection={
           o.trackable
