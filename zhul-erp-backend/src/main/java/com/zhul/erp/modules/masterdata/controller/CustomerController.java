@@ -2,12 +2,14 @@ package com.zhul.erp.modules.masterdata.controller;
 
 import com.zhul.erp.common.result.PageResult;
 import com.zhul.erp.common.result.Result;
+import com.zhul.erp.modules.aitask.translation.ContactNameTranslations;
 import com.zhul.erp.modules.aitask.translation.CustomerNameTranslations;
 import com.zhul.erp.modules.aitask.translation.TranslationVO;
 import com.zhul.erp.modules.masterdata.dto.AssignableOwnersVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerBatchDeleteRequest;
 import com.zhul.erp.modules.masterdata.dto.CustomerBatchDeleteResultVO;
 import com.zhul.erp.modules.masterdata.dto.CustomerDetailVO;
+import com.zhul.erp.modules.masterdata.dto.ContactNameTranslateRequest;
 import com.zhul.erp.modules.masterdata.dto.CustomerNameTranslateRequest;
 import com.zhul.erp.modules.masterdata.dto.CustomerPageQuery;
 import com.zhul.erp.modules.masterdata.dto.CustomerPoolQuery;
@@ -55,6 +57,7 @@ public class CustomerController {
 
     private final CustomerService customerService;
     private final CustomerNameTranslations nameTranslations;
+    private final ContactNameTranslations contactNameTranslations;
 
     @PostMapping
     public Result<CustomerVO> create(@Valid @RequestBody SaveCustomerRequest req) {
@@ -141,6 +144,19 @@ public class CustomerController {
     @PreAuthorize("@perm.has('partner:customer:add') or @perm.has('partner:customer:edit')")
     public Result<TranslationVO> translateNameStatus(@PathVariable Long taskId) {
         return Result.ok(nameTranslations.status(taskId));
+    }
+
+    /** 联系人中文名旁「AI 翻译」按钮：提交翻译，前端按任务编号查结果，译名只填进输入框、不写库 */
+    @PostMapping("/contact-name-translation")
+    @PreAuthorize("@perm.has('partner:customer:add') or @perm.has('partner:customer:edit')")
+    public Result<TranslationVO> translateContactName(@Valid @RequestBody ContactNameTranslateRequest req) {
+        return Result.ok(contactNameTranslations.preview(req.getName()));
+    }
+
+    @GetMapping("/contact-name-translation/{taskId}")
+    @PreAuthorize("@perm.has('partner:customer:add') or @perm.has('partner:customer:edit')")
+    public Result<TranslationVO> translateContactNameStatus(@PathVariable Long taskId) {
+        return Result.ok(contactNameTranslations.status(taskId));
     }
 
     /** 引用信息（编码、名称、国家、状态），供询盘等模块回显，不按数据权限过滤 */

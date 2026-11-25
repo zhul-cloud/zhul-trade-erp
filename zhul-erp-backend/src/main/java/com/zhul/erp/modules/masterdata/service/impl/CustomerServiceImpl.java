@@ -951,7 +951,17 @@ public class CustomerServiceImpl implements CustomerService {
             w.and(x -> x.like(CustomerDO::getName, kw).or().like(CustomerDO::getNameCn, kw)
                     .or().like(CustomerDO::getCustomerCode, kw).or().like(CustomerDO::getContactName, kw));
         }
-        w.orderByDesc(CustomerDO::getPoolAt).orderByDesc(CustomerDO::getId);
+        // 经营等级、潜力评级排序口径同客户列表（未成交、未评的排在最后），同级按放入时间倒序
+        boolean asc = "asc".equalsIgnoreCase(q.getSortOrder());
+        if ("bizGrade".equals(q.getSortField())) {
+            w.last(asc ? "ORDER BY (biz_grade = 0), biz_grade ASC, biz_grade_score DESC, pool_at DESC, id DESC"
+                    : "ORDER BY (biz_grade = 0), biz_grade DESC, biz_grade_score ASC, pool_at DESC, id DESC");
+        } else if ("potentialRating".equals(q.getSortField())) {
+            w.last(asc ? "ORDER BY (potential_rating = 0), potential_rating ASC, pool_at DESC, id DESC"
+                    : "ORDER BY (potential_rating = 0), potential_rating DESC, pool_at DESC, id DESC");
+        } else {
+            w.orderByDesc(CustomerDO::getPoolAt).orderByDesc(CustomerDO::getId);
+        }
         Page<CustomerDO> result = customerMapper.selectPage(new Page<>(page, size), w);
         return PageResult.of(result.getTotal(), toVos(result.getRecords()));
     }

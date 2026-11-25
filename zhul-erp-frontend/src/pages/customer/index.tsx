@@ -2,7 +2,6 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   PlusOutlined,
-  QuestionCircleOutlined,
   SwapOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
@@ -37,11 +36,12 @@ import {
   TransferModal,
 } from './components';
 import { DISABLE_CONFIRM_TEXT, ROLE_OPTIONS } from './constants';
+import { gradeColumns } from './gradeColumns';
 import { PoolTab, PutIntoPoolModal } from './pool';
 import CompletionTab from './profile/CompletionTab';
 import DuplicatesTab from './profile/DuplicatesTab';
 import { GRADE_NAMES, MODULE_SHORT, profileApi } from './profile/service';
-import { doneOf, GradeBadge, Progress5, Stars } from './profile/ui';
+import { doneOf, Progress5 } from './profile/ui';
 import {
   type AssignableOwners,
   type CustomerListItem,
@@ -296,18 +296,6 @@ const CustomerListPage: React.FC = () => {
     });
   };
 
-  const headerTip = (text: string, tip: string) => (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      {text}
-      <Tooltip title={tip}>
-        <QuestionCircleOutlined
-          aria-label={`${text}说明`}
-          style={{ color: palette.mute, cursor: 'help' }}
-        />
-      </Tooltip>
-    </span>
-  );
-
   const stacked = (
     top: React.ReactNode,
     bottom: React.ReactNode,
@@ -377,51 +365,7 @@ const CustomerListPage: React.FC = () => {
           r.contactEmail,
         ),
     },
-    {
-      title: headerTip(
-        '经营等级',
-        '按近 12 个月的成交（最近一次下单、下单次数、金额）每天凌晨算出 S / A / B / C，S 最好；没有成交过的显示「未成交」。业务员可以上调或下调一级',
-      ),
-      dataIndex: 'bizGrade',
-      width: 130,
-      sorter: true,
-      showSorterTooltip: false,
-      sortOrder:
-        sort.sortField === 'bizGrade'
-          ? sort.sortOrder === 'asc'
-            ? 'ascend'
-            : 'descend'
-          : null,
-      render: (v: number, r) =>
-        r.bizGradeAdjust ? (
-          <Tooltip
-            title={`计算等级 ${GRADE_NAMES[r.bizGradeCalc]}，${r.bizGradeAdjust > 0 ? '上调' : '下调'}一级：${r.bizGradeAdjustReason || '—'}${r.bizGradeAdjustByName ? ` · ${r.bizGradeAdjustByName}` : ''}`}
-          >
-            <span>
-              <GradeBadge value={v} adjusted />
-            </span>
-          </Tooltip>
-        ) : (
-          <GradeBadge value={v} />
-        ),
-    },
-    {
-      title: headerTip(
-        '潜力等级',
-        '1–5 星，表示这个客户值不值得投入精力跟，所有客户都能评，也可以采纳背调报告的评分；没评的显示「未评」',
-      ),
-      dataIndex: 'potentialRating',
-      width: 130,
-      sorter: true,
-      showSorterTooltip: false,
-      sortOrder:
-        sort.sortField === 'potentialRating'
-          ? sort.sortOrder === 'asc'
-            ? 'ascend'
-            : 'descend'
-          : null,
-      render: (v: number) => <Stars value={v} />,
-    },
+    ...gradeColumns(palette, sort),
     {
       title: '档案完整度',
       dataIndex: 'profileMask',
