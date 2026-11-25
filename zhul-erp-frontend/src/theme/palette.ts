@@ -376,3 +376,14 @@ export const BUTTON_SHADOW =
 
 /** 浅色下拉菜单、气泡卡片的阴影 */
 export const POPUP_SHADOW = '0 8px 16px rgba(145,158,171,.24)';
+
+/**
+ * 横向滚动区边缘的内阴影：哪一侧还有内容，哪一侧显示（页签栏，ui-redesign S7、R22 方案 B；同 Ant Design Tabs）。
+ * 深色下卡片没有阴影，这里用更深的黑才看得出
+ */
+export const edgeShadow = (side: 'left' | 'right', light: boolean) => {
+  const x = (light ? 10 : 14) * (side === 'left' ? 1 : -1);
+  return light
+    ? `inset ${x}px 0 8px -8px rgba(145,158,171,.48)`
+    : `inset ${x}px 0 12px -8px rgba(0,0,0,1)`;
+};
