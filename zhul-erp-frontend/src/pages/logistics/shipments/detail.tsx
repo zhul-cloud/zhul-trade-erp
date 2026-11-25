@@ -33,6 +33,7 @@ import {
 } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import { kg, LOGISTICS_PATHS, ShStatusPill } from '../components';
 import {
   type DirectRef,
@@ -213,7 +214,7 @@ const ShipmentDetail: React.FC = () => {
   ];
   const docCount = (sh.outbounds ?? []).length + waiting.length;
   const itemColumns: TableColumnsType<ItemRow> = [
-    { title: '#', key: 'no', width: 48, render: (_, __, i) => i + 1 },
+    { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
     ...docBrandColumns<ItemRow>((x) => x),
     {
       title: '型号',
@@ -234,13 +235,13 @@ const ShipmentDetail: React.FC = () => {
     {
       title: '销售出库单',
       key: 'src',
-      width: 160,
+      width: 130,
       render: (_, x) => <Link to={x.srcHref}>{x.srcNo}</Link>,
     },
     {
       title: '销售订单',
       key: 'so',
-      width: 160,
+      width: 130,
       render: (_, x) =>
         x.soId ? (
           <Link to={LOGISTICS_PATHS.salesOrder(x.soId)}>{x.soNo}</Link>
@@ -261,6 +262,59 @@ const ShipmentDetail: React.FC = () => {
       {text}
     </span>
   );
+
+  const boxColumns: TableColumnsType<BoxRow> = [
+    {
+      title: '销售出库单',
+      key: 'src',
+      width: 160,
+      render: (_, r) => (
+        <div>
+          {r.obs.map((o, i) => (
+            <React.Fragment key={o.id}>
+              {i > 0 && '、'}
+              <Link to={DOC_PATHS.outbound(o.id)}>{o.obNo}</Link>
+            </React.Fragment>
+          ))}
+          {r.direct && (
+            <span
+              style={{
+                marginLeft: 6,
+                fontSize: 12,
+                color: palette.info,
+              }}
+            >
+              直发
+            </span>
+          )}
+        </div>
+      ),
+    },
+    { title: '箱号', dataIndex: 'boxNo', width: 60 },
+    { title: '尺寸 cm', dataIndex: 'dims', width: 110 },
+    {
+      title: '毛重 · 净重',
+      key: 'w',
+      width: 120,
+      render: (_, r) =>
+        `${Number(r.gross).toFixed(2)}${r.net ? ` · ${Number(r.net).toFixed(2)}` : ''}`,
+    },
+    {
+      title: '计费重',
+      dataIndex: 'chargeable',
+      width: 90,
+      render: (v: number) => <b>{Number(v).toFixed(2)}</b>,
+    },
+    { title: '箱内型号', width: 220, dataIndex: 'items' },
+    {
+      title: '国际运费分摊',
+      align: 'right',
+      dataIndex: 'freight',
+      width: 130,
+      render: (v?: number) =>
+        v === undefined ? '—' : <b>{formatAmount(v, 'CNY')}</b>,
+    },
+  ];
 
   const main = (
     <>
@@ -358,7 +412,7 @@ const ShipmentDetail: React.FC = () => {
           pagination={false}
           columns={itemColumns}
           dataSource={rows}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(itemColumns) }}
         />
       </Card>
       {boxes.length > 0 && (
@@ -380,59 +434,8 @@ const ShipmentDetail: React.FC = () => {
             size="middle"
             pagination={false}
             dataSource={boxes}
-            scroll={{ x: 'max-content' }}
-            columns={[
-              {
-                title: '销售出库单',
-                key: 'src',
-                width: 160,
-                render: (_, r) => (
-                  <div>
-                    {r.obs.map((o, i) => (
-                      <React.Fragment key={o.id}>
-                        {i > 0 && '、'}
-                        <Link to={DOC_PATHS.outbound(o.id)}>{o.obNo}</Link>
-                      </React.Fragment>
-                    ))}
-                    {r.direct && (
-                      <span
-                        style={{
-                          marginLeft: 6,
-                          fontSize: 12,
-                          color: palette.info,
-                        }}
-                      >
-                        直发
-                      </span>
-                    )}
-                  </div>
-                ),
-              },
-              { title: '箱号', dataIndex: 'boxNo', width: 60 },
-              { title: '尺寸 cm', dataIndex: 'dims', width: 110 },
-              {
-                title: '毛重 · 净重',
-                key: 'w',
-                width: 120,
-                render: (_, r) =>
-                  `${Number(r.gross).toFixed(2)}${r.net ? ` · ${Number(r.net).toFixed(2)}` : ''}`,
-              },
-              {
-                title: '计费重',
-                dataIndex: 'chargeable',
-                width: 90,
-                render: (v: number) => <b>{Number(v).toFixed(2)}</b>,
-              },
-              { title: '箱内型号', width: 220, dataIndex: 'items' },
-              {
-                title: '国际运费分摊',
-                align: 'right',
-                dataIndex: 'freight',
-                width: 130,
-                render: (v?: number) =>
-                  v === undefined ? '—' : <b>{formatAmount(v, 'CNY')}</b>,
-              },
-            ]}
+            scroll={{ x: tableScrollX(boxColumns) }}
+            columns={boxColumns}
           />
         </Card>
       )}

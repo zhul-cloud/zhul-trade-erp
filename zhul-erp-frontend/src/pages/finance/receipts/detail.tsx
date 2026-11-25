@@ -27,6 +27,7 @@ import {
 import { useAppTheme } from '@/theme/AppTheme';
 import { UnitPill, useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import { ledgerApi, type ReceiptDoc, receiptDocApi } from './service';
 import { MethodCell } from './UnclaimedTab';
 
@@ -231,7 +232,7 @@ const ReceiptDocDetail: React.FC = () => {
               pagination={false}
               columns={settleColumns}
               dataSource={d.settlements}
-              scroll={{ x: 'max-content' }}
+              scroll={{ x: tableScrollX(settleColumns) }}
               locale={{ emptyText: tableEmpty('还没有结汇', undefined, true) }}
             />
           </div>

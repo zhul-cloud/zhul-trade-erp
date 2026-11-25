@@ -21,6 +21,7 @@ import {
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { rowAlert } from '@/components/RowAlert';
 import { useAppTheme } from '@/theme/AppTheme';
+import { tableScrollX } from '@/utils/tableScroll';
 import { Pill, useQuoteDicts } from '../shared/components';
 import {
   CHANNEL_OPTIONS,
@@ -391,6 +392,121 @@ const PasteQuoteModal: React.FC<{
     .filter((i) => !i.locked)
     .map((i) => ({ value: i.id, label: i.model }));
 
+  const pasteColumns: TableColumnsType<Row> = [
+    {
+      title: '原文',
+      dataIndex: 'raw',
+      width: 240,
+      render: (v: string) => (
+        <span style={{ fontSize: 12, color: palette.sub }}>{v}</span>
+      ),
+    },
+    {
+      title: '对应型号',
+      key: 'model',
+      width: 200,
+      render: (_, r) => (
+        <Select
+          value={r.itemId ?? undefined}
+          allowClear
+          placeholder="选择任务型号"
+          options={modelOptions}
+          status={!r.itemId ? 'warning' : undefined}
+          onChange={(v?: number) => patch(r.key, { itemId: v ?? null })}
+          style={{ width: 180 }}
+          aria-label={`${r.raw} 对应型号`}
+        />
+      ),
+    },
+    {
+      title: '单价（CNY）',
+      key: 'price',
+      width: 120,
+      render: (_, r) => (
+        <InputNumber
+          value={r.unitPrice ?? null}
+          min={0}
+          precision={2}
+          placeholder="填单价"
+          status={r.unitPrice == null ? 'error' : undefined}
+          onChange={(v) =>
+            patch(r.key, {
+              unitPrice: v === null ? null : Number(v),
+            })
+          }
+          style={{ width: 106 }}
+          aria-label={`${r.raw} 单价`}
+        />
+      ),
+    },
+    {
+      title: '含税',
+      key: 'tax',
+      width: 60,
+      render: (_, r) => (
+        <Checkbox
+          checked={r.taxIncluded}
+          onChange={(e) => patch(r.key, { taxIncluded: e.target.checked })}
+          aria-label={`${r.raw} 含税`}
+        />
+      ),
+    },
+    {
+      title: '货况',
+      key: 'cond',
+      width: 130,
+      render: (_, r) => (
+        <Select
+          value={r.itemCondition || undefined}
+          options={conditionOptions}
+          onChange={(v: number) => patch(r.key, { itemCondition: v })}
+          style={{ width: 118 }}
+          aria-label={`${r.raw} 货况`}
+        />
+      ),
+    },
+    {
+      title: '货期',
+      key: 'lead',
+      width: 120,
+      render: (_, r) => (
+        <Select
+          value={r.leadTime || undefined}
+          allowClear
+          placeholder="—"
+          options={leadTimeOptions}
+          onChange={(v?: number) => patch(r.key, { leadTime: v ?? 0 })}
+          style={{ width: 108 }}
+          aria-label={`${r.raw} 货期`}
+        />
+      ),
+    },
+    {
+      title: '状态',
+      key: 'status',
+      width: 130,
+      render: (_, r) =>
+        r.locked ? (
+          <Pill tone="violet">已报给客户，不能改</Pill>
+        ) : ready(r) ? (
+          <span
+            style={{
+              display: 'inline-flex',
+              gap: 4,
+              flexWrap: 'wrap',
+            }}
+          >
+            <Pill tone="green">将填入</Pill>
+            {dupModels.has(r.itemId) && <Pill tone="orange">同型号多行</Pill>}
+          </span>
+        ) : (
+          <Pill tone={!r.itemId ? 'orange' : 'red'}>
+            {!r.itemId ? '未匹配' : '缺单价'}
+          </Pill>
+        ),
+    },
+  ];
+
   return (
     <Modal
       open={open}
@@ -641,7 +757,10 @@ const PasteQuoteModal: React.FC<{
             size="small"
             pagination={false}
             dataSource={rows}
-            scroll={{ x: 'max-content', y: 420 }}
+            scroll={{
+              x: tableScrollX(aiMode ? aiColumns : pasteColumns),
+              y: 420,
+            }}
             locale={{
               emptyText: aiMode
                 ? '原文里没有找到这个任务的型号'
@@ -652,136 +771,7 @@ const PasteQuoteModal: React.FC<{
                 ? rowAlert('warning')
                 : {}
             }
-            columns={
-              aiMode
-                ? aiColumns
-                : [
-                    {
-                      title: '原文',
-                      dataIndex: 'raw',
-                      width: 240,
-                      render: (v: string) => (
-                        <span style={{ fontSize: 12, color: palette.sub }}>
-                          {v}
-                        </span>
-                      ),
-                    },
-                    {
-                      title: '对应型号',
-                      key: 'model',
-                      width: 200,
-                      render: (_, r) => (
-                        <Select
-                          value={r.itemId ?? undefined}
-                          allowClear
-                          placeholder="选择任务型号"
-                          options={modelOptions}
-                          status={!r.itemId ? 'warning' : undefined}
-                          onChange={(v?: number) =>
-                            patch(r.key, { itemId: v ?? null })
-                          }
-                          style={{ width: 180 }}
-                          aria-label={`${r.raw} 对应型号`}
-                        />
-                      ),
-                    },
-                    {
-                      title: '单价（CNY）',
-                      key: 'price',
-                      width: 120,
-                      render: (_, r) => (
-                        <InputNumber
-                          value={r.unitPrice ?? null}
-                          min={0}
-                          precision={2}
-                          placeholder="填单价"
-                          status={r.unitPrice == null ? 'error' : undefined}
-                          onChange={(v) =>
-                            patch(r.key, {
-                              unitPrice: v === null ? null : Number(v),
-                            })
-                          }
-                          style={{ width: 106 }}
-                          aria-label={`${r.raw} 单价`}
-                        />
-                      ),
-                    },
-                    {
-                      title: '含税',
-                      key: 'tax',
-                      width: 60,
-                      render: (_, r) => (
-                        <Checkbox
-                          checked={r.taxIncluded}
-                          onChange={(e) =>
-                            patch(r.key, { taxIncluded: e.target.checked })
-                          }
-                          aria-label={`${r.raw} 含税`}
-                        />
-                      ),
-                    },
-                    {
-                      title: '货况',
-                      key: 'cond',
-                      width: 130,
-                      render: (_, r) => (
-                        <Select
-                          value={r.itemCondition || undefined}
-                          options={conditionOptions}
-                          onChange={(v: number) =>
-                            patch(r.key, { itemCondition: v })
-                          }
-                          style={{ width: 118 }}
-                          aria-label={`${r.raw} 货况`}
-                        />
-                      ),
-                    },
-                    {
-                      title: '货期',
-                      key: 'lead',
-                      width: 120,
-                      render: (_, r) => (
-                        <Select
-                          value={r.leadTime || undefined}
-                          allowClear
-                          placeholder="—"
-                          options={leadTimeOptions}
-                          onChange={(v?: number) =>
-                            patch(r.key, { leadTime: v ?? 0 })
-                          }
-                          style={{ width: 108 }}
-                          aria-label={`${r.raw} 货期`}
-                        />
-                      ),
-                    },
-                    {
-                      title: '状态',
-                      key: 'status',
-                      width: 130,
-                      render: (_, r) =>
-                        r.locked ? (
-                          <Pill tone="violet">已报给客户，不能改</Pill>
-                        ) : ready(r) ? (
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              gap: 4,
-                              flexWrap: 'wrap',
-                            }}
-                          >
-                            <Pill tone="green">将填入</Pill>
-                            {dupModels.has(r.itemId) && (
-                              <Pill tone="orange">同型号多行</Pill>
-                            )}
-                          </span>
-                        ) : (
-                          <Pill tone={!r.itemId ? 'orange' : 'red'}>
-                            {!r.itemId ? '未匹配' : '缺单价'}
-                          </Pill>
-                        ),
-                    },
-                  ]
-            }
+            columns={aiMode ? aiColumns : pasteColumns}
           />
           {aiMode && others.length > 0 && (
             <div style={{ display: 'grid', gap: 8 }}>

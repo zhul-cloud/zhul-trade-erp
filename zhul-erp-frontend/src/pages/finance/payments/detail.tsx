@@ -25,6 +25,7 @@ import {
 } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import { PAY_CHANNEL_NAMES } from '../payables/payQr';
 import { METHOD, type Payment, paymentApi } from '../payables/service';
 
@@ -204,7 +205,7 @@ const PaymentDetail: React.FC = () => {
           pagination={false}
           columns={columns}
           dataSource={p.allocations}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(columns) }}
           locale={{ emptyText: tableEmpty('没有核销应付单', undefined, true) }}
         />
       </Card>

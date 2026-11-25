@@ -280,7 +280,7 @@ export function useColumnSettings<C extends Col>(
   const foundKey = JSON.stringify(found);
   const defaults = useMemo(() => JSON.parse(foundKey) as string[], [foundKey]);
   const trigger = useRef<HTMLButtonElement>(null);
-  // 表格区宽度：从「列」按钮往上找到同时装着表格的容器，减去它的左右内边距和勾选列
+  // 表格区宽度：从「列」按钮往上找到同时装着表格的容器，减去它的左右内边距、勾选列和展开列
   const [avail, setAvail] = useState(0);
   useEffect(() => {
     const start = trigger.current;
@@ -296,7 +296,15 @@ export function useColumnSettings<C extends Col>(
       const sel = el.querySelector<HTMLElement>(
         'th.ant-table-selection-column',
       );
-      const w = Math.floor(el.clientWidth - pad - (sel?.offsetWidth ?? 0));
+      const expand = el.querySelector<HTMLElement>(
+        'th.ant-table-row-expand-icon-cell',
+      );
+      const w = Math.floor(
+        el.clientWidth -
+          pad -
+          (sel?.offsetWidth ?? 0) -
+          (expand?.offsetWidth ?? 0),
+      );
       setAvail((old) => (Math.abs(old - w) >= 1 ? w : old));
     };
     measure();

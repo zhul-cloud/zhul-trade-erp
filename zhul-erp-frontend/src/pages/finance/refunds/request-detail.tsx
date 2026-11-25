@@ -32,6 +32,7 @@ import { readBizError } from '@/pages/sales/service';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import RefundModal from './RefundModal';
 import { refundSourceRef } from './RequestsTab';
 import {
@@ -259,7 +260,7 @@ const RefundRequestDetail: React.FC = () => {
           pagination={false}
           columns={columns}
           dataSource={q.items ?? []}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(columns) }}
         />
       </Card>
       <DocFilesCard

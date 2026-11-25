@@ -34,6 +34,7 @@ import { PATHS } from '@/pages/sales/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import { ReasonModal } from '../components';
 import { DISP_TONE, DisposeModal, ReceiveModal } from './dialogs';
 
@@ -201,7 +202,7 @@ const ReturnReceiptDetail: React.FC = () => {
           pagination={false}
           columns={columns}
           dataSource={r.items}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(columns) }}
         />
       </Card>
       <DocFilesCard

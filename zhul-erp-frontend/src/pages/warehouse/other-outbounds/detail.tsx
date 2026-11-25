@@ -19,6 +19,7 @@ import { UserName } from '@/components/UserName';
 import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import { ReasonModal } from '../components';
 import {
   BatchLink,
@@ -172,7 +173,7 @@ const OtherOutboundDetail: React.FC = () => {
           pagination={false}
           columns={itemColumns}
           dataSource={r.items}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(itemColumns) }}
         />
       </Card>
       <Card style={{ padding: 20, marginBottom: 16 }}>
@@ -183,7 +184,7 @@ const OtherOutboundDetail: React.FC = () => {
           pagination={false}
           columns={moveColumns}
           dataSource={r.moves}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(moveColumns) }}
         />
       </Card>
     </>

@@ -19,6 +19,7 @@ import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { PAGER_STYLE } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { ReasonPill, SignedMoney } from '../costingParts';
 import {
   type CostAdjust,
@@ -171,7 +172,7 @@ const LedgerTab: React.FC<{ month: string }> = ({ month }) => {
         loading={t.loading}
         columns={columns}
         dataSource={t.rows}
-        scroll={{ x: 'max-content' }}
+        scroll={{ x: tableScrollX(columns) }}
         locale={{ emptyText: tableEmpty(`${month} 没有库存往来`, t.loading) }}
         pagination={t.pagination}
       />
@@ -279,7 +280,7 @@ const CogsTab: React.FC<{ month: string }> = ({ month }) => {
         loading={t.loading}
         columns={columns}
         dataSource={t.rows}
-        scroll={{ x: 'max-content' }}
+        scroll={{ x: tableScrollX(columns) }}
         locale={{ emptyText: tableEmpty(`${month} 没有出运`, t.loading) }}
         pagination={t.pagination}
         summary={() =>
@@ -387,7 +388,7 @@ const AdjustTab: React.FC<{ month: string }> = ({ month }) => {
       loading={t.loading}
       columns={columns}
       dataSource={t.rows}
-      scroll={{ x: 'max-content' }}
+      scroll={{ x: tableScrollX(columns) }}
       locale={{ emptyText: tableEmpty(`${month} 没有成本调整`, t.loading) }}
       pagination={t.pagination}
     />

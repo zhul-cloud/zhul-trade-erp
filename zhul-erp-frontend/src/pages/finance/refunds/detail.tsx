@@ -24,6 +24,7 @@ import { readBizError } from '@/pages/sales/service';
 import { ReasonModal, relatedRows } from '@/pages/warehouse/components';
 import { UnitPill, useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   REFUND_TYPE_WITHDRAW,
   type Refund,
@@ -145,7 +146,7 @@ const RefundDetail: React.FC = () => {
           pagination={false}
           columns={columns}
           dataSource={f.items ?? []}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(columns) }}
         />
       </Card>
       <DocFilesCard

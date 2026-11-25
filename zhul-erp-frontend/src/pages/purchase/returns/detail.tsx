@@ -38,6 +38,7 @@ import { readBizError } from '@/pages/sales/service';
 import { AttachmentWall, ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import { PATHS } from '../components';
 import { CompleteModal, QuantityModal, ShipModal } from './dialogs';
 import {
@@ -227,7 +228,7 @@ const PurchaseReturnDetail: React.FC = () => {
           pagination={false}
           columns={columns}
           dataSource={p.items}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(columns) }}
         />
       </Card>
       <DocFilesCard

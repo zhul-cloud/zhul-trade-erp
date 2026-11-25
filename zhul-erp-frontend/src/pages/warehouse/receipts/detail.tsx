@@ -21,6 +21,7 @@ import { useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   Card,
   DOC_PATHS,
@@ -237,7 +238,7 @@ const ReceiptDetailPage: React.FC = () => {
               pagination={false}
               columns={columns}
               dataSource={d.items}
-              scroll={{ x: 'max-content' }}
+              scroll={{ x: tableScrollX(columns) }}
             />
           </Card>
           <DocFilesCard

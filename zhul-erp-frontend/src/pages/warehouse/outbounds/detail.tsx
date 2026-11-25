@@ -40,6 +40,7 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { ShipNoticeModal } from '@/pages/sales/orders/shipNotice';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   AttachmentWall,
   Card,
@@ -372,7 +373,7 @@ const OutboundDetailPage: React.FC = () => {
               pagination={false}
               columns={columns}
               dataSource={ob.items}
-              scroll={{ x: 'max-content' }}
+              scroll={{ x: tableScrollX(columns) }}
             />
           </Card>
           {ob.boxes.length > 0 && (
@@ -405,7 +406,7 @@ const OutboundDetailPage: React.FC = () => {
                 pagination={false}
                 columns={boxColumns}
                 dataSource={ob.boxes}
-                scroll={{ x: 'max-content' }}
+                scroll={{ x: tableScrollX(boxColumns) }}
               />
               {(ob.packingAttachments?.length ?? 0) > 0 && (
                 <div style={{ marginTop: 16 }}>

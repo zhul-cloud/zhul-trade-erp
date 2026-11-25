@@ -40,6 +40,7 @@ import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
+import { tableScrollX } from '@/utils/tableScroll';
 import { DueNowHint, dueNowOf } from './dueNow';
 import {
   ChannelIcon,
@@ -1216,6 +1217,88 @@ export const PaymentLineTable: React.FC<{
   const { palette } = useAppTheme();
   const c = p.currencyCode;
   const lines = p.payments.filter((l) => showVoided || !l.voided);
+  const paymentColumns: TableColumnsType<PaymentLine> = [
+    {
+      title: '付款单号',
+      dataIndex: 'paymentNo',
+      width: 150,
+      render: (v: string, l) => (
+        <Link to={`/finance/payments/${l.paymentId}`}>{v}</Link>
+      ),
+    },
+    { title: '日期', dataIndex: 'payDate', width: 110 },
+    {
+      title: '类型',
+      key: 'r',
+      width: 130,
+      render: (_, l) => (
+        <span>
+          {RELATION[l.relation]}
+          {l.otherPayableNo ? (
+            <span style={{ color: palette.mute }}> · {l.otherPayableNo}</span>
+          ) : null}
+        </span>
+      ),
+    },
+    {
+      title: '付款方式 · 账户 / 垫付人',
+      width: 220,
+      key: 'm',
+      render: (_, l) => (
+        <div>
+          {l.kind === 2 ? (
+            (l.accountName ?? '—')
+          ) : l.method === METHOD.ADVANCE ? (
+            <span>
+              <Pill tone="gray">员工垫付</Pill> {l.advanceUser}
+            </span>
+          ) : l.method === METHOD.PRIVATE ? (
+            <span>
+              <Pill tone="orange">私对私</Pill> {l.payerAccount}
+            </span>
+          ) : (
+            <span>
+              <Pill tone="gray">公司对公</Pill> {l.accountName}
+            </span>
+          )}
+          {l.payeeAccount && (
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              付至 {l.payeeAccount}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: '金额',
+      dataIndex: 'amount',
+      align: 'right',
+      width: 130,
+      render: (v: number, l) => (
+        <span
+          style={{
+            textDecoration: l.voided ? 'line-through' : undefined,
+          }}
+        >
+          {formatAmount(v, c)}
+        </span>
+      ),
+    },
+    {
+      title: '截图',
+      key: 'f',
+      width: 90,
+      render: (_, l) => <ProofLinks files={l.attachments} />,
+    },
+    {
+      title: '登记人',
+      dataIndex: 'createBy',
+      width: 100,
+      render: (v: string, l) =>
+        l.voided ? <Pill tone="mute">已作废</Pill> : v,
+    },
+  ];
+
   return lines.length === 0 ? (
     <EmptyState compact title="还没有付款" />
   ) : (
@@ -1224,91 +1307,8 @@ export const PaymentLineTable: React.FC<{
       size="small"
       pagination={false}
       dataSource={lines}
-      scroll={{ x: 'max-content' }}
-      columns={[
-        {
-          title: '付款单号',
-          dataIndex: 'paymentNo',
-          width: 150,
-          render: (v: string, l) => (
-            <Link to={`/finance/payments/${l.paymentId}`}>{v}</Link>
-          ),
-        },
-        { title: '日期', dataIndex: 'payDate', width: 110 },
-        {
-          title: '类型',
-          key: 'r',
-          width: 130,
-          render: (_, l) => (
-            <span>
-              {RELATION[l.relation]}
-              {l.otherPayableNo ? (
-                <span style={{ color: palette.mute }}>
-                  {' '}
-                  · {l.otherPayableNo}
-                </span>
-              ) : null}
-            </span>
-          ),
-        },
-        {
-          title: '付款方式 · 账户 / 垫付人',
-          width: 220,
-          key: 'm',
-          render: (_, l) => (
-            <div>
-              {l.kind === 2 ? (
-                (l.accountName ?? '—')
-              ) : l.method === METHOD.ADVANCE ? (
-                <span>
-                  <Pill tone="gray">员工垫付</Pill> {l.advanceUser}
-                </span>
-              ) : l.method === METHOD.PRIVATE ? (
-                <span>
-                  <Pill tone="orange">私对私</Pill> {l.payerAccount}
-                </span>
-              ) : (
-                <span>
-                  <Pill tone="gray">公司对公</Pill> {l.accountName}
-                </span>
-              )}
-              {l.payeeAccount && (
-                <div style={{ fontSize: 12, color: palette.mute }}>
-                  付至 {l.payeeAccount}
-                </div>
-              )}
-            </div>
-          ),
-        },
-        {
-          title: '金额',
-          dataIndex: 'amount',
-          align: 'right',
-          width: 130,
-          render: (v: number, l) => (
-            <span
-              style={{
-                textDecoration: l.voided ? 'line-through' : undefined,
-              }}
-            >
-              {formatAmount(v, c)}
-            </span>
-          ),
-        },
-        {
-          title: '截图',
-          key: 'f',
-          width: 90,
-          render: (_, l) => <ProofLinks files={l.attachments} />,
-        },
-        {
-          title: '登记人',
-          dataIndex: 'createBy',
-          width: 100,
-          render: (v: string, l) =>
-            l.voided ? <Pill tone="mute">已作废</Pill> : v,
-        },
-      ]}
+      scroll={{ x: tableScrollX(paymentColumns) }}
+      columns={paymentColumns}
     />
   );
 };

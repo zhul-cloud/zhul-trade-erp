@@ -10,11 +10,13 @@ import {
   Space,
   Switch,
   Table,
+  type TableColumnsType,
   Typography,
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { tableScrollX } from '@/utils/tableScroll';
 import { LangSwitch } from '../../components/LangSwitch';
 import { Pill } from '../../components/Pills';
 import {
@@ -440,6 +442,35 @@ export const FactsStatusBar: React.FC<{
 /** 资料待确认项：来自资料包的「关键未知字段」「冲突与待确认」，所有公司共用，每次导入替换 */
 const FactNotes: React.FC<{ notes: FactNote[] }> = ({ notes }) => {
   const { palette } = useProductTheme();
+  const noteColumns: TableColumnsType<FactNote> = [
+    {
+      title: '类型',
+      dataIndex: 'kind',
+      width: 100,
+      render: (k: number) =>
+        k === 1 ? (
+          <Pill tone="gray">未知字段</Pill>
+        ) : (
+          <Pill tone="orange">冲突</Pill>
+        ),
+    },
+    { title: '项目', dataIndex: 'item', width: 260 },
+    {
+      title: '当前状态',
+      dataIndex: 'statusText',
+      width: 180,
+      render: (v?: string) => v || '—',
+    },
+    {
+      title: '影响 / 说明',
+      width: 240,
+      dataIndex: 'impact',
+      render: (v?: string) => (
+        <span style={{ color: palette.sub }}>{v || '—'}</span>
+      ),
+    },
+  ];
+
   return (
     <div
       style={{
@@ -457,35 +488,8 @@ const FactNotes: React.FC<{ notes: FactNote[] }> = ({ notes }) => {
         pagination={false}
         rowKey={(n) => `${n.kind}-${n.item}`}
         dataSource={notes}
-        scroll={{ x: 'max-content' }}
-        columns={[
-          {
-            title: '类型',
-            dataIndex: 'kind',
-            width: 100,
-            render: (k: number) =>
-              k === 1 ? (
-                <Pill tone="gray">未知字段</Pill>
-              ) : (
-                <Pill tone="orange">冲突</Pill>
-              ),
-          },
-          { title: '项目', dataIndex: 'item', width: 260 },
-          {
-            title: '当前状态',
-            dataIndex: 'statusText',
-            width: 180,
-            render: (v?: string) => v || '—',
-          },
-          {
-            title: '影响 / 说明',
-            width: 240,
-            dataIndex: 'impact',
-            render: (v?: string) => (
-              <span style={{ color: palette.sub }}>{v || '—'}</span>
-            ),
-          },
-        ]}
+        scroll={{ x: tableScrollX(noteColumns) }}
+        columns={noteColumns}
       />
     </div>
   );

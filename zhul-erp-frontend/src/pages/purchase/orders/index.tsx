@@ -169,7 +169,8 @@ const PurchaseOrderList: React.FC = () => {
             className="zhul-link"
             onClick={() => history.push(PATHS.order(r.id))}
           >
-            {v ?? '草稿'}
+            {/* 草稿确认下单后才编号；名称与详情页标题一致 */}
+            {v ?? '草稿采购订单'}
           </button>
           {r.migrated && (
             <div style={{ marginTop: 4 }}>

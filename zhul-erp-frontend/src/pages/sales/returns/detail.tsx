@@ -31,6 +31,7 @@ import {
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import { PATHS } from '../components';
 import { readBizError } from '../service';
 import { ConfirmReturnModal, EditReturnModal, lineRefund } from './dialogs';
@@ -176,7 +177,7 @@ const SalesReturnDetail: React.FC = () => {
           pagination={false}
           columns={columns}
           dataSource={r.items}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(columns) }}
         />
       </Card>
       <DocFilesCard

@@ -206,7 +206,15 @@ const PurchaseOrderDetail: React.FC = () => {
   const confirmDanger = useConfirmDanger();
   const access = useAccess();
   const [po, setPo] = useState<PurchaseOrder>();
-  usePageTitle(po?.poNo ? `采购订单 ${po.poNo}` : undefined, po?.poNo);
+  // 草稿还没编号：页签写「草稿采购订单 · 供应商」，几张草稿同时打开时分得清
+  usePageTitle(
+    po
+      ? po.poNo
+        ? `采购订单 ${po.poNo}`
+        : `草稿采购订单 · ${po.supplierName ?? ''}`
+      : undefined,
+    po ? (po.poNo ?? `草稿 · ${po.supplierName ?? ''}`) : undefined,
+  );
   // 历史迁移的采购单只读
   const canEdit = !!access['purchase:order:create'] && !po?.migrated;
   const canCancel = !!access['purchase:order:cancel'] && !po?.migrated;

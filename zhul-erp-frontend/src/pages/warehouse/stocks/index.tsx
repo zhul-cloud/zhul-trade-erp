@@ -188,7 +188,7 @@ const BatchRows: React.FC<{
       columns={columns}
       dataSource={list}
       pagination={false}
-      scroll={{ x: 'max-content' }}
+      scroll={{ x: tableScrollX(columns) }}
     />
   );
 };

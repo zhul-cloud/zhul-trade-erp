@@ -20,6 +20,7 @@ import { BatchLink } from '@/pages/warehouse/inventoryParts';
 import { docHref } from '@/pages/warehouse/inventoryService';
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { tableScrollX } from '@/utils/tableScroll';
 import { ReasonPill, SignedMoney } from '../costingParts';
 import {
   type CostAdjust,
@@ -227,7 +228,7 @@ const CostAdjustDetail: React.FC = () => {
           pagination={false}
           columns={batchColumns}
           dataSource={r.batches}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(batchColumns) }}
           expandable={{
             defaultExpandAllRows: true,
             rowExpandable: (b) => b.parts.length > 0,

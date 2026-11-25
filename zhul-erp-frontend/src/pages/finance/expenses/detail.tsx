@@ -29,6 +29,7 @@ import {
 import { useAppTheme } from '@/theme/AppTheme';
 import { UnitPill, useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import { PayStatusPill } from '../payables/components';
 import { METHOD } from '../payables/service';
 import {
@@ -229,7 +230,7 @@ const ExpenseDetail: React.FC = () => {
             pagination={false}
             columns={columns}
             dataSource={e.allocations}
-            scroll={{ x: 'max-content' }}
+            scroll={{ x: tableScrollX(columns) }}
           />
         </Card>
       )}

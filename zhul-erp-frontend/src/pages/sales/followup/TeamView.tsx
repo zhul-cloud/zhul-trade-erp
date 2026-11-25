@@ -11,6 +11,7 @@ import {
 } from '@/pages/system/user/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import { Card, Pill } from './components';
 import {
   BOARD_ACCOUNT,
@@ -514,7 +515,7 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
               columns={ownerCols}
               dataSource={data.owners}
               pagination={false}
-              scroll={{ x: 'max-content' }}
+              scroll={{ x: tableScrollX(ownerCols) }}
               locale={{ emptyText: tableEmpty('这个范围里没有业务员') }}
               onRow={(o) => ({
                 onClick: () => owner(o),

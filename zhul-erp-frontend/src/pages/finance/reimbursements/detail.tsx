@@ -23,6 +23,7 @@ import {
 } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import { ProofLinks } from '../payables/components';
 import { keyOf, num, PayModal, StatusPill, sourceCell } from './components';
 import {
@@ -161,7 +162,7 @@ const ReimbursementDetail: React.FC = () => {
           pagination={false}
           columns={columns}
           dataSource={bx.lines}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(columns) }}
         />
       </Card>
       <DocFilesCard

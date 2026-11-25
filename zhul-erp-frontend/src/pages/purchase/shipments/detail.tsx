@@ -37,6 +37,7 @@ import {
 } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import ShipmentDrawer from './ShipmentDrawer';
 
 /** 发货单详情（spec purchase/supplier-shipment）：在途时可改、可作废、可验收入库 */
@@ -225,7 +226,7 @@ const ShipmentDetailPage: React.FC = () => {
               pagination={false}
               columns={columns}
               dataSource={s.items}
-              scroll={{ x: 'max-content' }}
+              scroll={{ x: tableScrollX(columns) }}
             />
           </Card>
           <DocFilesCard

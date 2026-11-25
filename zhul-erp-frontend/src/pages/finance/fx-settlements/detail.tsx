@@ -20,6 +20,7 @@ import { readBizError } from '@/pages/sales/service';
 import { ReasonModal, relatedRows } from '@/pages/warehouse/components';
 import { UnitPill, useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import { ReceiptWho, SettlePill } from './components';
 import { type FxSettlement, fxApi } from './service';
 
@@ -182,7 +183,7 @@ const FxSettlementDetail: React.FC = () => {
           pagination={false}
           columns={columns}
           dataSource={allocations}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(columns) }}
           locale={{ emptyText: tableEmpty('没有分摊', undefined, true) }}
         />
       </Card>

@@ -9,6 +9,7 @@ import { Stars } from '@/pages/customer/profile/ui';
 import { RECEIPT_META } from '@/pages/sales/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import type { Picked } from './Batch';
 import {
   CustomerLink,
@@ -1425,7 +1426,7 @@ export const FollowupTable: React.FC<{
         dataSource={rows}
         loading={loading && rows.length === 0}
         pagination={false}
-        scroll={{ x: 'max-content' }}
+        scroll={{ x: tableScrollX(cols) }}
         expandable={
           boardNo === BOARD_FULFIL
             ? {

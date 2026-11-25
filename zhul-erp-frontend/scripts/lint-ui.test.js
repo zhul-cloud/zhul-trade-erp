@@ -176,6 +176,15 @@ describe('lint:ui', () => {
     ).not.toContain('primary-soft:error');
   });
 
+  it("表格横向滚动用 tableScrollX，'max-content' 报错（P10）", () => {
+    expect(rules("<Table scroll={{ x: 'max-content' }} />")).toContain(
+      'scroll-max-content:error',
+    );
+    expect(rules('<Table scroll={{ x: tableScrollX(columns) }} />')).toEqual(
+      [],
+    );
+  });
+
   it('进度条只用主题色：写死颜色、换成功绿的报错', () => {
     expect(rules('<Progress strokeColor={palette.green} />')).toContain(
       'progress-color:error',
@@ -212,7 +221,11 @@ describe('lint:ui', () => {
     ).not.toContain('progress-color:error');
     // 换行后写字面颜色也要查出来
     expect(
-      rules(['<Progress', '  strokeColor={', '    "#52c41a"', '  }', '/>'].join('\n')),
+      rules(
+        ['<Progress', '  strokeColor={', '    "#52c41a"', '  }', '/>'].join(
+          '\n',
+        ),
+      ),
     ).toContain('progress-color:error');
   });
 
