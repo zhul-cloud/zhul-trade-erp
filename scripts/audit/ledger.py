@@ -166,7 +166,9 @@ class Derivation:
         if pr not in self._pr:
             sha = None
             if self.refs:
-                sha = git("log", "-1", "--format=%H", "-E", f"--grep=^Merge pull request #{pr} from ", *self.refs) or None
+                # 合并提交「Merge pull request #N from」，或压缩合并的标题「… (#N)」
+                sha = git("log", "-1", "--format=%H", "-E", f"--grep=^Merge pull request #{pr} from ",
+                          rf"--grep=\(#{pr}\)$", *self.refs) or None
             self._pr[pr] = sha
         return self._pr[pr]
 
