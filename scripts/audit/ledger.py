@@ -62,6 +62,20 @@ def ledger_path() -> Path:
     return ledger_dir() / "ledger.jsonl"
 
 
+LEDGER_PREFIX = "audit/09-remediation/"
+
+
+def norm_ref(ref: str) -> str:
+    """任务记录路径统一写成相对 audit/09-remediation/ 的形式；从仓库根写起的去掉前缀"""
+    ref = (ref or "").strip().replace("\\", "/")
+    return ref[len(LEDGER_PREFIX):] if ref.startswith(LEDGER_PREFIX) else ref
+
+
+def ref_path(ref: str) -> Path:
+    """task / source 指向的文件；兼容早先从仓库根写起的路径"""
+    return ledger_dir() / norm_ref(ref).split("#")[0]
+
+
 def sort_key(rid: str):
     m = ID_RE.match(rid)
     cat, num = (m.group(1), int(m.group(2))) if m else (rid, 0)
@@ -318,7 +332,7 @@ def task_summary(r: dict) -> str:
     task = r.get("task") or ""
     if not task:
         return "（没有任务记录）"
-    path = ledger_dir() / task.split("#")[0]
+    path = ref_path(task)
     if not path.exists():
         return f"（任务记录不存在：{task}）"
     lines = path.read_text(encoding="utf-8").split("\n")
@@ -408,12 +422,12 @@ def cmd_new(args):
     records = load()
     nums = [int(ID_RE.match(r["id"]).group(2)) for r in records if ID_RE.match(r["id"]) and r["id"].startswith(cat + "-")]
     rid = f"{cat}-{(max(nums) + 1) if nums else 1:03d}"
-    task = args.task or ""
+    task = norm_ref(args.task or "")
     r = {"id": rid, "title": args.title.strip(), "pri": args.pri, "source": task, "task": task,
          "prs": [], "commits": [], "events": []}
     records.append(r)
     save(records, r, [event(who, "start", text="新建并认领")], f"已新建 {rid} 并由 {owner_label((who['dev'], who['via'], who['session']))} 认领")
-    if task and not (ledger_dir() / task.split("#")[0]).exists():
+    if task and not ref_path(task).exists():
         print(f"提醒：任务记录 {task} 还不存在，请按 audit/09-remediation/tasks/README.md 的模板创建，否则 check 会失败")
 
 
@@ -570,7 +584,7 @@ def cmd_check(_args):
             errors.append(f"{where}：prs 应为 PR 编号")
         for k in ("task", "source"):
             ref = r.get(k) or ""
-            if ref and not (ledger_dir() / ref.split("#")[0]).exists():
+            if ref and not ref_path(ref).exists():
                 errors.append(f"{where}：{k} 指向的文件不存在：{ref}")
         for i, e in enumerate(r.get("events", []) or [], 1):
             missing = [f for f in REQUIRED_EVENT_FIELDS if not e.get(f)]
