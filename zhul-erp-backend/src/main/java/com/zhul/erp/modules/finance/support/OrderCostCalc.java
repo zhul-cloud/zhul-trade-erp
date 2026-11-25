@@ -45,11 +45,19 @@ public final class OrderCostCalc {
     /** 订单型号行：数量、行金额（原币，用于分收入）、采购成本价（CNY，可空）；运费与费用单为人民币 */
     /**
      * 订单型号行；salesReturnCredit 为售后退货去向冲减的成本（退回供应商的供应商退款 + 转闲置按原采购成本，正数为冲减），
-     * salesReturnFreight 为售后退货退回供应商的运费（计入「退货运费」）。
+     * salesReturnFreight 为售后退货退回供应商的运费（计入「退货运费」）；estimatedFreight 为还没出运的数量按订单运费估算的
+     * 国际运费（人民币两位，见 {@link #estimatedFreight}）。
      */
     public record Item(long id, int quantity, BigDecimal amount, BigDecimal costPrice, BigDecimal domesticFreight,
                        BigDecimal internationalFreight, BigDecimal expense, boolean shipped, boolean freightReconciled,
-                       BigDecimal salesReturnCredit, BigDecimal salesReturnFreight) {
+                       BigDecimal salesReturnCredit, BigDecimal salesReturnFreight, BigDecimal estimatedFreight) {
+        public Item(long id, int quantity, BigDecimal amount, BigDecimal costPrice, BigDecimal domesticFreight,
+                    BigDecimal internationalFreight, BigDecimal expense, boolean shipped, boolean freightReconciled,
+                    BigDecimal salesReturnCredit, BigDecimal salesReturnFreight) {
+            this(id, quantity, amount, costPrice, domesticFreight, internationalFreight, expense, shipped, freightReconciled,
+                    salesReturnCredit, salesReturnFreight, BigDecimal.ZERO);
+        }
+
         public Item(long id, int quantity, BigDecimal amount, BigDecimal costPrice, BigDecimal domesticFreight,
                     BigDecimal internationalFreight, BigDecimal expense, boolean shipped, boolean freightReconciled) {
             this(id, quantity, amount, costPrice, domesticFreight, internationalFreight, expense, shipped, freightReconciled,
@@ -97,7 +105,8 @@ public final class OrderCostCalc {
                        BigDecimal expense, BigDecimal receiptFee, BigDecimal cost, BigDecimal revenue, BigDecimal refund,
                        BigDecimal profit,
                        BigDecimal profitRate, int unreceivedQty, int unorderedQty, boolean missingCostPrice,
-                       Set<Long> unpaidForeignPos, BigDecimal salesReturnCredit, int shippedQty, int systemQty) {
+                       Set<Long> unpaidForeignPos, BigDecimal salesReturnCredit, int shippedQty, int systemQty,
+                       BigDecimal estimatedFreight) {
     }
 
     public record Result(BigDecimal revenue, BigDecimal refund, BigDecimal cost, BigDecimal receiptFee, BigDecimal profit,
@@ -207,6 +216,8 @@ public final class OrderCostCalc {
         int unorderedItems = 0;
         boolean unpaid = false;
         boolean freightPending = false;
+        boolean shippedUnreconciled = false;
+        boolean estimated = false;
         for (Item item : in.items()) {
             BigDecimal purchase = BigDecimal.ZERO;
             BigDecimal invoice = BigDecimal.ZERO;
@@ -278,6 +289,7 @@ public final class OrderCostCalc {
             }
             unpaid |= !unpaidPos.isEmpty();
             freightPending |= !item.shipped() || !item.freightReconciled();
+            shippedUnreconciled |= item.shipped() && !item.freightReconciled();
 
             BigDecimal rev = revenueByItem.getOrDefault(item.id(), BigDecimal.ZERO.setScale(2));
             BigDecimal rf = feeByItem.getOrDefault(item.id(), BigDecimal.ZERO.setScale(2));
@@ -289,13 +301,15 @@ public final class OrderCostCalc {
             BigDecimal sr = money(nz(item.salesReturnCredit()));
             BigDecimal dom = money(nz(item.domesticFreight()));
             BigDecimal intl = money(nz(item.internationalFreight()));
+            BigDecimal est = money(nz(item.estimatedFreight()));
+            estimated |= est.signum() > 0;
             BigDecimal ex = money(nz(item.expense()));
-            BigDecimal cost = p.add(inv).add(f).subtract(c).add(rt).add(dom).add(intl).add(ex).add(rf).subtract(sr);
+            BigDecimal cost = p.add(inv).add(f).subtract(c).add(rt).add(dom).add(intl).add(est).add(ex).add(rf).subtract(sr);
             BigDecimal rf2 = refundByItem.getOrDefault(item.id(), BigDecimal.ZERO.setScale(2));
             BigDecimal profit = rev.subtract(rf2).subtract(cost);
             out.add(new Line(item.id(), p, unordered == 0 && unreceived == 0 && unpaidPos.isEmpty(), inv, f, c, rt, dom, intl, ex, rf,
                     cost, rev, rf2, profit, rate(profit, rev.subtract(rf2)), unreceived, unordered, missingCost, unpaidPos, sr,
-                    shippedQty, systemQty));
+                    shippedQty, systemQty, est));
         }
         BigDecimal cost = out.stream().map(Line::cost).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal profit = revenue.subtract(refund).subtract(cost);
@@ -316,10 +330,39 @@ public final class OrderCostCalc {
             pending.add("外币货款没付清");
         }
         if (freightPending) {
-            pending.add("国际运费还没对账");
+            pending.add(estimated && !shippedUnreconciled ? "国际运费还没出运，按订单运费估算" : "国际运费还没对账");
         }
         return new Result(revenue, refund, cost, receiptFee, profit, rate(profit, revenue.subtract(refund)), pending.isEmpty(), pending,
                 missing, out);
+    }
+
+    /** 估算运费用的型号行：行金额（原币，作分摊权重）、行数量、已出运数量 */
+    public record FreightLine(BigDecimal amount, int quantity, int shippedQty) {
+    }
+
+    /**
+     * 预计国际运费（spec finance/order-cost「订单型号行实际成本」）：订单运费（人民币）按行金额分到各行（尾差放到金额最大的行），
+     * 再乘这一行还没出运的数量占比（未出运 ÷ 行数量），HALF_UP 保留两位。运费为 0 或没有时返回空。
+     *
+     * @param lines 型号行 ID → 行金额、行数量与已出运数量
+     */
+    public static Map<Long, BigDecimal> estimatedFreight(BigDecimal freightCny, Map<Long, FreightLine> lines) {
+        if (freightCny == null || freightCny.signum() <= 0 || lines.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, BigDecimal> weights = new java.util.LinkedHashMap<>();
+        lines.forEach((id, l) -> weights.put(id, nz(l.amount())));
+        Map<Long, BigDecimal> share = split(freightCny, weights);
+        Map<Long, BigDecimal> out = new HashMap<>();
+        lines.forEach((id, l) -> {
+            int qty = l.quantity();
+            int unshipped = Math.max(0, qty - l.shippedQty());
+            if (qty > 0 && unshipped > 0) {
+                out.put(id, money(share.get(id).multiply(BigDecimal.valueOf(unshipped), MC)
+                        .divide(BigDecimal.valueOf(qty), MC)));
+            }
+        });
+        return out;
     }
 
     /** 毛利率（%，两位）；收入为 0 时为空 */

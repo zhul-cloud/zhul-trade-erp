@@ -174,6 +174,23 @@ class CustomerPoolContractTest extends IntegrationTestBase {
 
     /** audit SEC-024：没有客户管理菜单的人看不到公海客户详情，有菜单的能看 */
     @Test
+    void poolSortsByBizGradeAndPotential_defaultByPoolTime() throws Exception {
+        // change customer-pool-grade-contact-translate：公海按经营等级、潜力评级排序，口径同客户列表；不传时按放入时间倒序
+        loginWithResources("it_pool_li", MENU_CUSTOMER, RES_EDIT);
+        String li = token("it_pool_li");
+        long b = customer("Grade B GmbH", OTHER);
+        long s = customer("Grade S GmbH", OTHER);
+        long none = customer("No Deal GmbH", OTHER);
+        jdbc.update("update customer set in_pool = 1, owner_id = 0, biz_grade = 3, potential_rating = 2, pool_at = NOW() - INTERVAL 3 DAY where id = ?", b);
+        jdbc.update("update customer set in_pool = 1, owner_id = 0, biz_grade = 1, potential_rating = 1, pool_at = NOW() - INTERVAL 2 DAY where id = ?", s);
+        jdbc.update("update customer set in_pool = 1, owner_id = 0, biz_grade = 0, potential_rating = 3, pool_at = NOW() - INTERVAL 1 DAY where id = ?", none);
+
+        assertEquals(List.of(s, b, none), ids(ok(call(get(BASE + "/pool?sortField=bizGrade&sortOrder=asc"), li)).path("records")));
+        assertEquals(List.of(none, b, s), ids(ok(call(get(BASE + "/pool?sortField=potentialRating&sortOrder=desc"), li)).path("records")));
+        assertEquals(List.of(none, s, b), ids(ok(call(get(BASE + "/pool"), li)).path("records")));
+    }
+
+    @Test
     void poolDetailNeedsCustomerMenu() throws Exception {
         long c = customer("Pool Gamma GmbH", 0);
         jdbc.update("update customer set in_pool = 1 where id = ?", c);

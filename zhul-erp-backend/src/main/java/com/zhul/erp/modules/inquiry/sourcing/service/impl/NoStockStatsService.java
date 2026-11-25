@@ -9,6 +9,7 @@ import com.zhul.erp.modules.inquiry.sourcing.dto.NoStockStatsVO;
 import com.zhul.erp.modules.inquiry.sourcing.entity.SourcingQuoteDO;
 import com.zhul.erp.modules.inquiry.sourcing.repository.SourcingQuoteMapper;
 import com.zhul.erp.modules.inquiry.support.InquiryCategories;
+import com.zhul.erp.modules.inquiry.support.PriceKeys;
 import com.zhul.erp.modules.inquiry.support.QuoteDicts;
 import com.zhul.erp.modules.product.entity.ProductCategoryDO;
 import com.zhul.erp.modules.sales.support.PiStore;
@@ -43,6 +44,7 @@ public class NoStockStatsService {
     private final InquiryItemMapper itemMapper;
     private final InquiryCategories inquiryCategories;
     private final QuoteDicts quoteDicts;
+    private final PriceKeys priceKeys;
 
     /** 一期：起止日期与名称 */
     record Range(LocalDate from, LocalDate to, String label) {
@@ -86,6 +88,7 @@ public class NoStockStatsService {
                 .isNull(SourcingQuoteDO::getDeletedAt)
                 .ge(SourcingQuoteDO::getQuotedAt, periods.get(0).from().atStartOfDay())
                 .lt(SourcingQuoteDO::getQuotedAt, cur.to().plusDays(1).atStartOfDay()));
+        unifyBrands(rows);
 
         NoStockStatsVO vo = new NoStockStatsVO();
         vo.setPeriod(p);
@@ -135,6 +138,24 @@ public class NoStockStatsService {
         }, null));
         vo.getCategories().forEach(g -> g.setCategoryId(g.getKey().isEmpty() ? null : Long.valueOf(g.getKey())));
         return vo;
+    }
+
+    /**
+     * 回价记录存的品牌键有空值，也有品牌建档前写下的小写名：统计前按品牌库重新识别，键与名称都用识别结果（audit BUS-098）。
+     * 只改内存里的记录，不写库。
+     */
+    private void unifyBrands(List<SourcingQuoteDO> rows) {
+        Map<String, PriceKeys.BrandRef> refs = new HashMap<>();
+        Map<String, String> names = new HashMap<>();
+        for (SourcingQuoteDO q : rows) {
+            if (q.getBrand() == null || q.getBrand().isBlank()) {
+                continue;
+            }
+            String text = q.getBrand().trim().toLowerCase();
+            PriceKeys.BrandRef ref = refs.computeIfAbsent(text, k -> priceKeys.brand(q.getBrand()));
+            q.setBrandKey(ref.brandKey());
+            q.setBrand(names.computeIfAbsent(text, k -> priceKeys.brandText(ref, q.getBrand())));
+        }
     }
 
     private static Map<Long, String> names(List<ProductCategoryDO> categories) {

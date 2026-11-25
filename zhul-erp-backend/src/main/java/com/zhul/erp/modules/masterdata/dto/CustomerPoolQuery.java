@@ -11,4 +11,8 @@ public class CustomerPoolQuery {
     private String keyword;
     private String country;
     private Long lastOwnerId;
+    /** 排序字段：bizGrade（经营等级）、potentialRating（潜力评级）；不传时按放入时间倒序 */
+    private String sortField;
+    /** asc / desc，默认 desc */
+    private String sortOrder;
 }

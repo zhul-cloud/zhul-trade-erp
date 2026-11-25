@@ -1,7 +1,6 @@
 import { request } from '@umijs/max';
 import type { ItemRemarkResult } from '@/components/DocFields/ItemRemark';
 import type { Attachment } from '@/pages/warehouse/service';
-import { openFile } from '@/utils/fileLink';
 
 export { readBizError } from '@/pages/crm/opportunity/service';
 
@@ -1069,16 +1068,17 @@ export const piApi = {
   },
   deleteSlip: (id: number, slipId: number) =>
     send<Pi>('DELETE', `${PI}/${id}/slips/${slipId}`),
-  openSlipFile: (id: number, slipId: number, index: number) =>
-    openFile(`${PI}/${id}/slips/${slipId}/files/${index}`),
+  /** 水单附件的接口地址（交给附件预览弹窗） */
+  slipFilePath: (id: number, slipId: number, index: number) =>
+    `${PI}/${id}/slips/${slipId}/files/${index}`,
   confirmReceipt: (id: number, body: ConfirmReceiptBody) =>
     send<Pi>('POST', `${PI}/${id}/receipts`, body),
   platformReceipt: (id: number, body: PlatformReceiptBody) =>
     send<Pi>('POST', `${PI}/${id}/platform-receipts`, body),
   claimable: (id: number) =>
     get<ReceiptRow[]>(`${PI}/${id}/claimable-receipts`),
-  openClaimableFile: (id: number, receiptId: number, index: number) =>
-    openFile(`${PI}/${id}/claimable-receipts/${receiptId}/files/${index}`),
+  claimableFilePath: (id: number, receiptId: number, index: number) =>
+    `${PI}/${id}/claimable-receipts/${receiptId}/files/${index}`,
   claim: (id: number, receiptId: number, slipId?: number) =>
     send<Pi>('POST', `${PI}/${id}/claim`, { receiptId, slipId }),
   voidReceipt: (id: number, receiptId: number, reason: string) =>
@@ -1301,8 +1301,9 @@ export const orderApi = {
   },
   deleteSlip: (id: number, slipId: number) =>
     send<Order>('DELETE', `${SO}/${id}/slips/${slipId}`),
-  openSlipFile: (id: number, slipId: number, index: number) =>
-    openFile(`${SO}/${id}/slips/${slipId}/files/${index}`),
+  /** 水单附件的接口地址（交给附件预览弹窗） */
+  slipFilePath: (id: number, slipId: number, index: number) =>
+    `${SO}/${id}/slips/${slipId}/files/${index}`,
   confirmReceipt: (id: number, body: ConfirmReceiptBody) =>
     send<Order>('POST', `${SO}/${id}/receipts`, body),
   platformReceipt: (id: number, body: PlatformReceiptBody) =>
@@ -1312,8 +1313,8 @@ export const orderApi = {
     send<Order>('POST', `${SO}/${id}/credit`, { amount }),
   claimable: (id: number) =>
     get<ReceiptRow[]>(`${SO}/${id}/claimable-receipts`),
-  openClaimableFile: (id: number, receiptId: number, index: number) =>
-    openFile(`${SO}/${id}/claimable-receipts/${receiptId}/files/${index}`),
+  claimableFilePath: (id: number, receiptId: number, index: number) =>
+    `${SO}/${id}/claimable-receipts/${receiptId}/files/${index}`,
   claim: (id: number, receiptId: number, slipId?: number) =>
     send<Order>('POST', `${SO}/${id}/claim`, { receiptId, slipId }),
   voidReceipt: (id: number, receiptId: number, reason: string) =>
@@ -1348,8 +1349,8 @@ export interface ReceiptOwner<T> {
   confirmReceipt: (body: ConfirmReceiptBody) => Promise<T>;
   platformReceipt: (body: PlatformReceiptBody) => Promise<T>;
   claimable: () => Promise<ReceiptRow[]>;
-  /** 预览候选到账的附件 */
-  openClaimableFile: (receiptId: number, index: number) => Promise<void>;
+  /** 候选到账附件的接口地址（交给附件预览弹窗） */
+  claimableFilePath: (receiptId: number, index: number) => string;
   claim: (receiptId: number, slipId?: number) => Promise<T>;
 }
 
@@ -1368,8 +1369,8 @@ export const piReceiptOwner = (pi: Pi): ReceiptOwner<Pi> => ({
   confirmReceipt: (body) => piApi.confirmReceipt(pi.id, body),
   platformReceipt: (body) => piApi.platformReceipt(pi.id, body),
   claimable: () => piApi.claimable(pi.id),
-  openClaimableFile: (receiptId, index) =>
-    piApi.openClaimableFile(pi.id, receiptId, index),
+  claimableFilePath: (receiptId, index) =>
+    piApi.claimableFilePath(pi.id, receiptId, index),
   claim: (receiptId, slipId) => piApi.claim(pi.id, receiptId, slipId),
 });
 
@@ -1389,8 +1390,8 @@ export const orderReceiptOwner = (o: Order): ReceiptOwner<Order> => ({
   confirmReceipt: (body) => orderApi.confirmReceipt(o.id, body),
   platformReceipt: (body) => orderApi.platformReceipt(o.id, body),
   claimable: () => orderApi.claimable(o.id),
-  openClaimableFile: (receiptId, index) =>
-    orderApi.openClaimableFile(o.id, receiptId, index),
+  claimableFilePath: (receiptId, index) =>
+    orderApi.claimableFilePath(o.id, receiptId, index),
   claim: (receiptId, slipId) => orderApi.claim(o.id, receiptId, slipId),
 });
 

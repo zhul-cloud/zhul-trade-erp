@@ -10,7 +10,11 @@ interface TranslationResult {
   results?: { key: string; text: string }[];
 }
 
-const API = '/api/v1/masterdata/customers/name-translation';
+/** customer：客户英文名称（公司名）；contact：联系人英文姓名（人名） */
+const APIS = {
+  customer: '/api/v1/masterdata/customers/name-translation',
+  contact: '/api/v1/masterdata/customers/contact-name-translation',
+} as const;
 const quiet = { skipErrorHandler: true } as const;
 const POLL_MS = 1500;
 /** 最长等 20 秒 */
@@ -23,7 +27,8 @@ export type NameTranslation = { text: string } | { error: string };
  * 客户编辑页「AI 翻译」（spec master-data/customer「客户英文名称自动翻译中文」）：
  * 提交翻译后轮询结果，最长 20 秒；译名只交给调用方填进输入框，不写库。页面离开时停止轮询。
  */
-export const useNameTranslation = () => {
+export const useNameTranslation = (kind: keyof typeof APIS = 'customer') => {
+  const API = APIS[kind];
   const [running, setRunning] = useState(false);
   const timer = useRef<number | undefined>(undefined);
   const alive = useRef(true);
@@ -84,7 +89,7 @@ export const useNameTranslation = () => {
           })
           .catch((e) => finish({ error: readBizError(e).message }));
       }),
-    [],
+    [API],
   );
 
   return { running, translate };

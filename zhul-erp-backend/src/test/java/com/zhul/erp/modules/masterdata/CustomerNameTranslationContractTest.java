@@ -214,6 +214,27 @@ class CustomerNameTranslationContractTest extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"\"}")).andReturn().getResponse().getStatus());
     }
 
+    /** change customer-pool-grade-contact-translate：联系人中文名旁「AI 翻译」按钮只返回译名，不写库；中文姓名不提交 */
+    @Test
+    void contactTranslateButton_previewOnly() throws Exception {
+        JsonNode started = ok(call(post(BASE + "/contact-name-translation").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Thomas Müller\"}")));
+        long taskId = started.path("taskId").asLong();
+        assertEquals(com.zhul.erp.modules.aitask.translation.ContactNameTranslations.SKILL_ID,
+                jdbc.queryForObject("select skill_id from ai_task where id = ?", String.class, taskId));
+        assertEquals(0, ok(call(get(BASE + "/contact-name-translation/" + taskId))).path("results").size(), "还没回调时没有译名");
+        jdbc.update("update ai_task set status = ?, output = ? where id = ?", AiTaskStatus.COMPLETED,
+                "{\"items\":[{\"key\":\"" + AiTaskKeys.sign("preview") + "\",\"text\":\"托马斯·穆勒\"}]}", taskId);
+        assertEquals("托马斯·穆勒",
+                ok(call(get(BASE + "/contact-name-translation/" + taskId))).path("results").get(0).path("text").asText());
+        // 客户名称翻译的任务不能用联系人的接口查
+        long companyTask = ok(call(post(BASE + "/name-translation").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"ABC Automation GmbH\"}"))).path("taskId").asLong();
+        assertEquals("翻译任务不存在", call(get(BASE + "/contact-name-translation/" + companyTask)).path("message").asText());
+        assertEquals("请先填写英文姓名", call(post(BASE + "/contact-name-translation").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"王小明\"}")).path("message").asText());
+    }
+
     /** 登记商机填了客户名称：客户中文名称按公司名翻译，不再用联系人名音译（spec crm/opportunity「登记新商机」） */
     @Test
     void opportunityWithCompanyName_translatesCompanyNotContact() throws Exception {

@@ -32,6 +32,23 @@ class NoStockStatsContractTest extends InquiryContractSupport {
         assertEquals(0, new BigDecimal(expected).compareTo(n.decimalValue()), "期望 " + expected + "，实际 " + n);
     }
 
+    /** 回价记录的品牌键为空或是建档前的写法时，按品牌名重新识别后归并（audit BUS-098） */
+    @Test
+    void brandKeyEmptyOrStale_mergedByResolvedBrand() throws Exception {
+        TenantContext.setTenantId(0);
+        jdbc.update("insert into sourcing_quote (tenant_id, brand, brand_key, model, model_key, channel, currency_code, no_stock, quoted_by, quoted_at, status) "
+                + "values (0, 'Itbrand Gamma', '', 'G-1', ?, 2, 'CNY', 1, ?, '2026-10-13 09:00:00', 2)", PriceKeys.model("G-1"), BUYER_LIN);
+        jdbc.update("insert into sourcing_quote (tenant_id, brand, brand_key, model, model_key, channel, currency_code, no_stock, quoted_by, quoted_at, status) "
+                + "values (0, 'ITBRAND GAMMA', 'itbrand gamma', 'G-2', ?, 2, 'CNY', 1, ?, '2026-10-13 10:00:00', 2)", PriceKeys.model("G-2"), BUYER_LIN);
+        jdbc.update("insert into sourcing_quote (tenant_id, brand, brand_key, model, model_key, channel, currency_code, no_stock, quoted_by, quoted_at, status) "
+                + "values (0, 'Itbrand Delta', '', 'D-1', ?, 2, 'CNY', 1, ?, '2026-10-13 11:00:00', 2)", PriceKeys.model("D-1"), BUYER_LIN);
+        loginAsAdmin("it_ns_admin2");
+        JsonNode r = ok(call(get(API).param("period", "WEEK").param("date", "2026-10-14"), token("it_ns_admin2")));
+        assertEquals(2, r.path("brands").size(), r.path("brands").toString());
+        assertEquals(2, r.path("brands").get(0).path("noStock").asInt());
+        assertEquals(2, r.path("totals").path("brandCount").asInt());
+    }
+
     @Test
     void weekly_latestQuotePerModel_byBrandWithReasons_trendAndPrevious() throws Exception {
         quote("Siemens", "6ES7 214-1AG40", true, 1, "2026-10-13 09:00:00");

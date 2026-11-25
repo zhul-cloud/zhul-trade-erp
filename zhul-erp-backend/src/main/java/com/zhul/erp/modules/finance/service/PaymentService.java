@@ -959,7 +959,10 @@ public class PaymentService {
 
     static final int CHANNEL_BANK = 1;
 
-    /** 付款渠道：只有私对私能用支付宝、微信，且我方付款账户要是同一渠道的账户 */
+    /**
+     * 付款渠道：只有私对私能用支付宝、微信。我方付款账户：银行卡付款要是银行账户；
+     * 支付宝、微信付款可以是同一渠道的余额账户，也可以是对私银行卡（绑在支付宝、微信里扣款，audit BUS-096）
+     */
     private int payChannel(int method, Integer requested, Long bankAccountId) {
         int channel = requested == null ? CHANNEL_BANK : requested;
         if (!SupplierConstants.PAY_QR_LABELS.containsKey(channel) && channel != CHANNEL_BANK) {
@@ -973,9 +976,9 @@ public class PaymentService {
         }
         BankAccountDO b = bankAccountMapper.selectById(bankAccountId);
         int own = b == null || b.getPayChannel() == null ? CHANNEL_BANK : b.getPayChannel();
-        if (own != channel) {
+        if (own != channel && !(channel != CHANNEL_BANK && own == CHANNEL_BANK)) {
             throw new BizException(channel == CHANNEL_BANK ? "银行卡付款请选择我方的对私银行账户"
-                    : "用" + (channel == 2 ? "支付宝" : "微信") + "付款请选择我方的" + (channel == 2 ? "支付宝" : "微信") + "账户");
+                    : "用" + (channel == 2 ? "支付宝" : "微信") + "付款请选择我方的" + (channel == 2 ? "支付宝" : "微信") + "账户或对私银行卡");
         }
         return channel;
     }

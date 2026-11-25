@@ -1,7 +1,6 @@
 import { request } from '@umijs/max';
 import type { ReceiptRow } from '@/pages/sales/service';
 import type { Attachment, DocLog, DocRef } from '@/pages/warehouse/service';
-import { openFile } from '@/utils/fileLink';
 
 const FIN = '/api/v1/finance/receipts';
 const quiet = { skipErrorHandler: true } as const;
@@ -86,8 +85,8 @@ export const ledgerApi = {
       }),
     );
   },
-  openFile: (id: number, index: number) =>
-    openFile(`${FIN}/${id}/files/${index}`),
+  /** 附件的接口地址（交给附件预览弹窗） */
+  filePath: (id: number, index: number) => `${FIN}/${id}/files/${index}`,
   unclaim: (id: number, reason: string) =>
     unwrap(
       request<{ data: null }>(`${FIN}/${id}/unclaim`, {
@@ -165,6 +164,6 @@ export const receiptDocApi = {
         { method: 'DELETE', ...quiet },
       ),
     ),
-  openFile: (id: number, index: number) =>
-    openFile(`${FIN}/${id}/doc-files/${index}`),
+  /** 到账凭证与水单的接口地址（交给附件预览弹窗） */
+  filePath: (id: number, index: number) => `${FIN}/${id}/doc-files/${index}`,
 };
