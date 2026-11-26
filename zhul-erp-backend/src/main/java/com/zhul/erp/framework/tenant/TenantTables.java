@@ -126,6 +126,7 @@ public final class TenantTables {
             Map.entry("sales_return_disposition", Policy.PRIVATE),
             Map.entry("sales_return_item", Policy.PRIVATE),
             Map.entry("return_receipt", Policy.PRIVATE),
+            Map.entry("doc_unlinked_mark", Policy.PRIVATE),
             Map.entry("document_log", Policy.PRIVATE),
             Map.entry("return_receipt_item", Policy.PRIVATE),
             // 采购与收货

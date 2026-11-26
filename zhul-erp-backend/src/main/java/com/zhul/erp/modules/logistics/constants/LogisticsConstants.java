@@ -47,6 +47,9 @@ public final class LogisticsConstants {
     public static final BigDecimal DOMESTIC_DIVISOR = BigDecimal.valueOf(5000);
     /** 服务商（货代、快递公司）的供应商类型 */
     public static final int SUPPLIER_SERVICE = 3;
+    /** 客户指定货代的交接方式：1-送到货代、2-上门取件（客户用自己的快递账号约快递上门，openspec customer-courier-pickup） */
+    public static final int HANDOVER_DELIVER = 1;
+    public static final int HANDOVER_PICKUP = 2;
 
     private LogisticsConstants() {
     }

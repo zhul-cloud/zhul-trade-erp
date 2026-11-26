@@ -4,13 +4,16 @@ import {
   Button,
   Checkbox,
   type CheckboxProps,
+  Image,
   Input,
   type InputRef,
   Select,
   Skeleton,
+  Space,
   Spin,
   Table,
   Tooltip,
+  Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -104,6 +107,9 @@ interface Filters {
   refineState?: RefineState;
   /** 只看本公司维护的（租户） */
   mine?: boolean;
+  /** 有图片（已设主图）、有视频（openspec product-list-media-code） */
+  hasImage?: boolean;
+  hasVideo?: boolean;
 }
 
 /** 记住上次的筛选条件（关键词和缺项筛选不记：那是临时的） */
@@ -229,7 +235,10 @@ const ProductListInner: React.FC = () => {
   }, [refine, subCategories.length]);
 
   /** 需求热度排序在服务端做（跨页有效）：询盘次数或成交次数倒序 */
-  const [heatSort, setHeatSort] = useState<'inquiryCount' | 'dealCount'>();
+  /** 完整度排序同样在服务端做（全部商品范围，openspec product-list-media-code） */
+  const [heatSort, setHeatSort] = useState<
+    'inquiryCount' | 'dealCount' | 'completenessAsc' | 'completenessDesc'
+  >();
 
   const query = useMemo<ProductQuery>(
     () => ({
@@ -239,6 +248,8 @@ const ProductListInner: React.FC = () => {
       ...filters,
       includeDeleted: filters.includeDeleted || undefined,
       mine: filters.mine || undefined,
+      hasImage: filters.hasImage || undefined,
+      hasVideo: filters.hasVideo || undefined,
       sort: heatSort,
     }),
     [page, pageSize, debounced, filters, heatSort],
@@ -672,6 +683,20 @@ const ProductListInner: React.FC = () => {
   }, [reviewing, heatSort]);
   const columns: ColumnsType<Product> = [
     {
+      title: '商品编号',
+      dataIndex: 'id',
+      key: 'id',
+      width: 110,
+      fixed: 'left',
+      render: (v: number) => (
+        <span onClick={(e) => e.stopPropagation()}>
+          <Typography.Text className="num" copyable={{ text: String(v) }}>
+            {v}
+          </Typography.Text>
+        </span>
+      ),
+    },
+    {
       fixed: 'left',
       title: '商品',
       key: 'product',
@@ -679,63 +704,91 @@ const ProductListInner: React.FC = () => {
       // 两行：型号（主信息，可点）+ 生命周期标签，下面产品名称；长规格摘要只在悬停时看（P14、R12 方案 B）。
       // 不再放品类首字母方块：没有图片时它不传达任何信息，还占掉一截宽度
       render: (_, r) => (
-        <div style={{ minWidth: 0 }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              minWidth: 0,
-            }}
-          >
-            <a
-              href={`/product/products/${r.id}`}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                history.push(`/product/products/${r.id}`);
-              }}
-              // 列窄时型号会被省略，悬停看全称
-              title={r.mpnDisplay}
-              style={{
-                fontWeight: 700,
-                fontSize: 14,
-                minWidth: 0,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
+        <div
+          style={{
+            display: 'flex',
+            gap: 10,
+            alignItems: 'center',
+            minWidth: 0,
+          }}
+        >
+          {r.mainImageUrl && (
+            <span
+              onClick={(e) => e.stopPropagation()}
+              style={{ flex: 'none', lineHeight: 0 }}
             >
-              {r.mpnDisplay}
-            </a>
-            <span style={{ flex: 'none', display: 'inline-flex', gap: 4 }}>
-              <LifecyclePill value={r.lifecycleStatus} />
-              {r.deleted && <Pill tone="red">已删除</Pill>}
+              <Image
+                src={r.mainImageUrl}
+                alt={r.mpnDisplay}
+                width={40}
+                height={40}
+                loading="lazy"
+                style={{
+                  objectFit: 'cover',
+                  borderRadius: 8,
+                  border: `1px solid ${palette.hairline}`,
+                }}
+              />
             </span>
-          </div>
-          <Tooltip
-            title={
-              r.productName || r.specSummary ? (
-                <>
-                  {r.productName && <div>{r.productName}</div>}
-                  {r.specSummary && <div>{r.specSummary}</div>}
-                </>
-              ) : undefined
-            }
-          >
+          )}
+          <div style={{ minWidth: 0, flex: 1 }}>
             <div
               style={{
-                color: palette.mute,
-                fontSize: 12,
-                maxWidth: 210,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                minWidth: 0,
               }}
             >
-              {r.productName || r.specSummary || '—'}
+              <a
+                href={`/product/products/${r.id}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  history.push(`/product/products/${r.id}`);
+                }}
+                // 列窄时型号会被省略，悬停看全称
+                title={r.mpnDisplay}
+                style={{
+                  fontWeight: 700,
+                  fontSize: 14,
+                  minWidth: 0,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {r.mpnDisplay}
+              </a>
+              <span style={{ flex: 'none', display: 'inline-flex', gap: 4 }}>
+                <LifecyclePill value={r.lifecycleStatus} />
+                {r.deleted && <Pill tone="red">已删除</Pill>}
+              </span>
             </div>
-          </Tooltip>
+            <Tooltip
+              title={
+                r.productName || r.specSummary ? (
+                  <>
+                    {r.productName && <div>{r.productName}</div>}
+                    {r.specSummary && <div>{r.specSummary}</div>}
+                  </>
+                ) : undefined
+              }
+            >
+              <div
+                style={{
+                  color: palette.mute,
+                  fontSize: 12,
+                  maxWidth: 210,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {r.productName || r.specSummary || '—'}
+              </div>
+            </Tooltip>
+          </div>
         </div>
       ),
     },
@@ -846,8 +899,14 @@ const ProductListInner: React.FC = () => {
             title: '完整度',
             key: 'completeness',
             width: 110,
-            sorter: (a: Product, b: Product) =>
-              (a.completeness?.done ?? 0) - (b.completeness?.done ?? 0),
+            sorter: true,
+            sortDirections: ['ascend' as const, 'descend' as const],
+            sortOrder:
+              heatSort === 'completenessAsc'
+                ? ('ascend' as const)
+                : heatSort === 'completenessDesc'
+                  ? ('descend' as const)
+                  : null,
             render: (_: unknown, r: Product) => (
               <CompletenessBar value={r.completeness} />
             ),
@@ -1095,6 +1154,28 @@ const ProductListInner: React.FC = () => {
                 onChange={(v) => updateFilters({ status: v })}
               />
             </FilterField>
+            <FilterField label="图片视频">
+              <Space size={12}>
+                <Tooltip title="已设主图的商品">
+                  <Checkbox
+                    checked={!!filters.hasImage}
+                    onChange={(e) =>
+                      updateFilters({ hasImage: e.target.checked || undefined })
+                    }
+                  >
+                    有图片
+                  </Checkbox>
+                </Tooltip>
+                <Checkbox
+                  checked={!!filters.hasVideo}
+                  onChange={(e) =>
+                    updateFilters({ hasVideo: e.target.checked || undefined })
+                  }
+                >
+                  有视频
+                </Checkbox>
+              </Space>
+            </FilterField>
             {platform ? (
               <FilterField label="已删除">
                 <Checkbox
@@ -1329,6 +1410,17 @@ const ProductListInner: React.FC = () => {
                   s?.columnKey === 'dealCount')
               ) {
                 setHeatSort(s.order ? s.columnKey : undefined);
+                setPage(1);
+                setSelected([]);
+              }
+              if (extra.action === 'sort' && s?.columnKey === 'completeness') {
+                setHeatSort(
+                  s.order === 'ascend'
+                    ? 'completenessAsc'
+                    : s.order === 'descend'
+                      ? 'completenessDesc'
+                      : undefined,
+                );
                 setPage(1);
                 setSelected([]);
               }

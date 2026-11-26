@@ -98,6 +98,8 @@ export interface Payable {
   shopPlatform?: string;
   shopName?: string;
   payeeName: string;
+  /** 约定的付款方式：0-未定、1-对公、2-对私（openspec payable-payment-method） */
+  payMethod?: number;
   sourceType: number;
   sourceId: number;
   sourceNo: string;
@@ -153,6 +155,8 @@ export interface PayableQuery {
   pageSize: number;
   keyword?: string;
   payeeType?: number;
+  /** 约定的付款方式：0-未定、1-对公、2-对私 */
+  payMethod?: number;
   status?: number;
   /** OVERDUE、SOON、WAITING、MONTH */
   due?: string;

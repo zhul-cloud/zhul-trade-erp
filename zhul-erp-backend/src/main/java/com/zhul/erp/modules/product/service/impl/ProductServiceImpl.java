@@ -82,6 +82,7 @@ public class ProductServiceImpl implements ProductService {
     private final ApplicationEventPublisher events;
     /** 延迟取：候选建档逻辑依赖商品服务，避免构造时循环依赖 */
     private final ObjectProvider<com.zhul.erp.modules.product.candidate.service.ProductArchiver> candidateLinks;
+    private final com.zhul.erp.modules.product.repository.ProductMediaMapper mediaMapper;
 
     public ProductServiceImpl(ProductMapper productMapper, ProductBrandMapper brandMapper,
                               ProductCategoryMapper categoryMapper, ProductSeriesMapper seriesMapper,
@@ -92,7 +93,9 @@ public class ProductServiceImpl implements ProductService {
                               com.zhul.erp.modules.product.candidate.repository.ProductHeatMapper heatMapper,
                               IndustryScope industryScope, ProductWriteGuard productWriteGuard,
                               ProductOrderCodes orderCodes, ApplicationEventPublisher events,
-                              ObjectProvider<com.zhul.erp.modules.product.candidate.service.ProductArchiver> candidateLinks) {
+                              ObjectProvider<com.zhul.erp.modules.product.candidate.service.ProductArchiver> candidateLinks,
+                              com.zhul.erp.modules.product.repository.ProductMediaMapper mediaMapper) {
+        this.mediaMapper = mediaMapper;
         this.events = events;
         this.candidateLinks = candidateLinks;
         this.heatMapper = heatMapper;
@@ -140,12 +143,14 @@ public class ProductServiceImpl implements ProductService {
         ProductNames.Lookup lookup = productNames.load(page.getRecords());
         // 完整度对平台与租户都返回；一页商品的完整度只发固定的一条查询
         Map<Long, CompletenessVO> completeness = completenessService.compute(page.getRecords());
+        Map<Long, String> mainImages = mainImages(page.getRecords().stream().map(ProductDO::getId).toList());
         List<ProductVO> records = new ArrayList<>(page.getRecords().size());
         for (ProductDO product : page.getRecords()) {
             ProductVO vo = toVO(product, lookup);
             vo.setCompleteness(completeness.get(product.getId()));
             vo.setInquiryCount(inquiryCounts.getOrDefault(product.getId(), 0L));
             vo.setDealCount(dealCounts.getOrDefault(product.getId(), 0L));
+            vo.setMainImageUrl(mainImages.get(product.getId()));
             records.add(vo);
         }
         return PageResult.of(page.getTotal(), records);
@@ -175,6 +180,13 @@ public class ProductServiceImpl implements ProductService {
                 return null;
             }
             wrapper.in(ProductDO::getCategoryId, visibleCategories);
+        }
+        // 有图片（已设主图）、有视频，可与缺项筛选组合（openspec product-list-media-code）
+        if (Boolean.TRUE.equals(query.getHasImage())) {
+            wrapper.exists(CompletenessSql.MISSING_MEDIA);
+        }
+        if (Boolean.TRUE.equals(query.getHasVideo())) {
+            wrapper.exists(CompletenessSql.HAS_VIDEO);
         }
         // 缺项筛选对平台与租户都生效（租户的范围已按行业过滤）
         if (StringUtils.hasText(query.getMissing())) {
@@ -213,12 +225,34 @@ public class ProductServiceImpl implements ProductService {
         return productMapper.selectList(wrapper).stream().map(ProductDO::getId).toList();
     }
 
+    /** 一页商品的主图地址（一次查询） */
+    private Map<Long, String> mainImages(List<Long> ids) {
+        Map<Long, String> out = new java.util.HashMap<>();
+        if (ids.isEmpty()) {
+            return out;
+        }
+        mediaMapper.selectList(new LambdaQueryWrapper<com.zhul.erp.modules.product.entity.ProductMediaDO>()
+                        .select(com.zhul.erp.modules.product.entity.ProductMediaDO::getProductId,
+                                com.zhul.erp.modules.product.entity.ProductMediaDO::getFileUrl)
+                        .in(com.zhul.erp.modules.product.entity.ProductMediaDO::getProductId, ids)
+                        .eq(com.zhul.erp.modules.product.entity.ProductMediaDO::getMediaType, 1)
+                        .eq(com.zhul.erp.modules.product.entity.ProductMediaDO::getIsMain, 1)
+                        .isNull(com.zhul.erp.modules.product.entity.ProductMediaDO::getDeletedAt))
+                .forEach(m -> out.putIfAbsent(m.getProductId(), m.getFileUrl()));
+        return out;
+    }
+
     /** 热度排序的 ORDER BY；租户 ID 来自登录上下文（整数），不是用户输入 */
     private static String heatOrder(String sort, Integer tenantId) {
         String tenant = tenantId == null ? "" : " AND x.tenant_id = " + tenantId.intValue();
         if ("inquiryCount".equals(sort)) {
             return "ORDER BY (SELECT COUNT(*) FROM inquiry_item x WHERE x.product_id = product.id AND x.deleted_at IS NULL" + tenant
                     + ") DESC, update_time DESC, id DESC";
+        }
+        // 完整度在全部商品范围排序，表达式只含固定的 SQL 片段（openspec product-list-media-code）
+        if ("completenessAsc".equals(sort) || "completenessDesc".equals(sort)) {
+            return "ORDER BY " + CompletenessSql.SCORE + ("completenessAsc".equals(sort) ? " ASC" : " DESC")
+                    + ", update_time DESC, id DESC";
         }
         if ("dealCount".equals(sort)) {
             return "ORDER BY (SELECT COUNT(DISTINCT soi.so_id) FROM sales_order_item soi JOIN inquiry_item ii ON ii.id = soi.inquiry_item_id "

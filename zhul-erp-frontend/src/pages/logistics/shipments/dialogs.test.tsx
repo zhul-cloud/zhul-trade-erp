@@ -77,3 +77,25 @@ it('修改运单：交给谁不能切换，也不提交选择', async () => {
     'customerForwarder',
   );
 });
+
+it('上门取件：只能交给客户的货代，填取件日期，承运商默认带出，不提交运费', async () => {
+  (logisticsApi.ship as jest.Mock).mockResolvedValue(sh);
+  open({
+    customerForwarder: true,
+    pickup: true,
+    pickupCarrier: 'DHL',
+    pickupLabel: '上门取件 · DHL · 965432100',
+  });
+  expect(
+    (screen.getByRole('radio', { name: /我们的货代/ }) as HTMLInputElement)
+      .disabled,
+  ).toBe(true);
+  expect(screen.getByText('上门取件 · DHL · 965432100')).toBeTruthy();
+  expect(screen.getByLabelText('取件日期')).toBeTruthy();
+  expect(screen.getByText('填写运单号便于跟踪')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: /确认已取件/ }));
+  await waitFor(() => expect(logisticsApi.ship).toHaveBeenCalled());
+  const body = (logisticsApi.ship as jest.Mock).mock.calls[0][1];
+  expect(body).toMatchObject({ carrier: 'DHL', customerForwarder: true });
+  expect(body.freight).toBeUndefined();
+});

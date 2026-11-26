@@ -14,6 +14,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import { Check, FileText, Info, Paperclip, Rocket } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { showStockShortage } from '@/pages/warehouse/inventoryParts';
 import { type Attachment, attachmentApi } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -454,7 +455,9 @@ export const ShipModal: React.FC<{
   const update = sh.status === 2;
   // 交给谁（openspec ship-forwarder-choice）：登记时选择，默认按货代归属；修改运单沿用登记时的选择。
   // 交给客户的货代只要求交货日期，承运商、运单号、送货运费选填（feedback-1119）
-  const [customer, setCustomer] = useState(!!sh.customerForwarder);
+  // 上门取件（openspec customer-courier-pickup）：只能交给客户的货代，填取件日期，没有运费，承运商默认取货代上的
+  const pickup = !!sh.pickup;
+  const [customer, setCustomer] = useState(pickup || !!sh.customerForwarder);
   const [carrier, setCarrier] = useState('');
   const [waybillNo, setWaybillNo] = useState('');
   const [date, setDate] = useState<Dayjs>(dayjs());
@@ -464,13 +467,22 @@ export const ShipModal: React.FC<{
 
   useEffect(() => {
     if (!open) return;
-    setCustomer(!!sh.customerForwarder);
-    setCarrier(sh.carrier || (sh.customerForwarder ? '' : 'DHL'));
+    setCustomer(!!sh.pickup || !!sh.customerForwarder);
+    setCarrier(
+      sh.carrier ||
+        (sh.pickup
+          ? (sh.pickupCarrier ?? '')
+          : sh.customerForwarder
+            ? ''
+            : 'DHL'),
+    );
     setWaybillNo(sh.waybillNo ?? '');
     setDate(sh.shippedDate ? dayjs(sh.shippedDate) : dayjs());
     setFreight(sh.freight ?? null);
     setFiles(sh.faceSheets ?? []);
   }, [open, sh]);
+
+  const dateLabel = pickup ? '取件日期' : customer ? '交货日期' : '出运日期';
 
   const submit = async () => {
     setBusy(true);
@@ -481,14 +493,16 @@ export const ShipModal: React.FC<{
           carrier: carrier.trim(),
           waybillNo: waybillNo.trim(),
           shippedDate: date.format('YYYY-MM-DD'),
-          freight: freight ?? (customer ? undefined : 0),
+          freight: pickup ? undefined : (freight ?? (customer ? undefined : 0)),
           attachmentIds: files.map((f) => f.id),
           ...(update ? {} : { customerForwarder: customer }),
         },
         update,
       );
       message.success(
-        update ? '已保存' : `${sh.shNo} ${customer ? '已交货代' : '已出运'}`,
+        update
+          ? '已保存'
+          : `${sh.shNo} ${pickup ? '已取件' : customer ? '已交货代' : '已出运'}`,
       );
       onDone(next);
     } catch (e) {
@@ -524,7 +538,13 @@ export const ShipModal: React.FC<{
             }
             onClick={submit}
           >
-            {update ? '保存' : customer ? '确认已交货代' : '确认出运'}
+            {update
+              ? '保存'
+              : pickup
+                ? '确认已取件'
+                : customer
+                  ? '确认已交货代'
+                  : '确认出运'}
           </Button>
         </>
       }
@@ -532,7 +552,7 @@ export const ShipModal: React.FC<{
       <Label required>交给谁</Label>
       <Radio.Group
         value={customer}
-        disabled={update}
+        disabled={update || pickup}
         onChange={(e) => setCustomer(e.target.value)}
         aria-label="交给谁"
         style={{
@@ -540,7 +560,7 @@ export const ShipModal: React.FC<{
           gridTemplateColumns: '1fr 1fr',
           gap: 10,
           width: '100%',
-          marginBottom: 16,
+          marginBottom: pickup ? 8 : 16,
         }}
       >
         {[
@@ -573,6 +593,21 @@ export const ShipModal: React.FC<{
           </Radio>
         ))}
       </Radio.Group>
+      {pickup && (
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            alignItems: 'center',
+            fontSize: 12,
+            color: palette.sub,
+            marginBottom: 16,
+          }}
+        >
+          <Pill tone="violet">{sh.pickupLabel ?? '上门取件'}</Pill>
+          上门取件的货代只能交给客户的货代
+        </div>
+      )}
       <div
         style={{
           display: 'grid',
@@ -601,19 +636,24 @@ export const ShipModal: React.FC<{
             maxLength={64}
             aria-label="运单号"
           />
+          {pickup && !waybillNo.trim() && (
+            <div style={{ fontSize: 12, color: palette.mute, marginTop: 4 }}>
+              填写运单号便于跟踪
+            </div>
+          )}
         </div>
         <div>
-          <Label required>{customer ? '交货日期' : '出运日期'}</Label>
+          <Label required>{dateLabel}</Label>
           <DatePicker
             value={date}
             allowClear={false}
             disabledDate={(d) => d.isAfter(dayjs(), 'day')}
             onChange={(d) => d && setDate(d)}
             style={{ width: '100%' }}
-            aria-label={customer ? '交货日期' : '出运日期'}
+            aria-label={dateLabel}
           />
         </div>
-        <div>
+        <div hidden={pickup}>
           <Label required={!customer}>
             {customer ? '送货运费（CNY）' : '实际运费（CNY）'}
           </Label>
@@ -633,11 +673,13 @@ export const ShipModal: React.FC<{
       <FaceSheets value={files} onChange={setFiles} />
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 14 }}>
         <Info size="1em" />{' '}
-        {customer
-          ? '送货运费是送到客户货代的国内运费，按计费重分到箱、再按货值分到型号行；确认后订单型号变「已出运」。'
-          : sh.reconciled
-            ? '已对账，运费不能再改。'
-            : `运费按计费重分到箱（体积系数 ${sh.volumeDivisor}），再按货值分到型号行；确认后订单型号变「已出运」。月底与货代对账时可以按账单调整。`}
+        {pickup
+          ? '客户用自己的快递账号约快递上门取件，没有运费，不进对账；确认后订单型号变「已出运」。'
+          : customer
+            ? '送货运费是送到客户货代的国内运费，按计费重分到箱、再按货值分到型号行；确认后订单型号变「已出运」。'
+            : sh.reconciled
+              ? '已对账，运费不能再改。'
+              : `运费按计费重分到箱（体积系数 ${sh.volumeDivisor}），再按货值分到型号行；确认后订单型号变「已出运」。月底与货代对账时可以按账单调整。`}
       </div>
     </Modal>
   );

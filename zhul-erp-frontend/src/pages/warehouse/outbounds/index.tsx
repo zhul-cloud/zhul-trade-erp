@@ -27,6 +27,7 @@ import {
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
+import { Pill } from '@/pages/inquiry/shared/components';
 import {
   kg,
   LOGISTICS_PATHS,
@@ -215,7 +216,16 @@ const Outbounds: React.FC = () => {
       title: '货代',
       dataIndex: 'forwarderName',
       width: 110,
-      render: ellipsisRender,
+      render: (v: string, r) => (
+        <div>
+          {ellipsisRender(v)}
+          {r.pickupLabel && (
+            <div style={{ marginTop: 4 }} title={r.pickupLabel}>
+              <Pill tone="violet">上门取件</Pill>
+            </div>
+          )}
+        </div>
+      ),
     },
     {
       title: '箱数 · 计费重',

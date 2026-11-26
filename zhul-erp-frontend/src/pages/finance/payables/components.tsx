@@ -43,6 +43,7 @@ import { formatAmount, formatMoney } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
 import { tableScrollX } from '@/utils/tableScroll';
 import { DueNowHint, dueNowOf } from './dueNow';
+import { methodMismatch, PayMethodTag, suggestMethod } from './payMethod';
 import {
   ChannelIcon,
   PAY_CHANNEL,
@@ -302,7 +303,13 @@ export const RegisterPaymentDrawer: React.FC<{
   const [anchor, setAnchor] = useState<number>();
   const [rows, setRows] = useState<Payable[]>([]);
   const [loading, setLoading] = useState(false);
-  const [method, setMethod] = useState<number>(METHOD.COMPANY);
+  const [method, setMethodState] = useState<number>(METHOD.COMPANY);
+  /** 财务手动选过付款方式后，不再按应付单约定预选 */
+  const [methodTouched, setMethodTouched] = useState(false);
+  const setMethod = (m: number) => {
+    setMethodState(m);
+    setMethodTouched(true);
+  };
   const [accounts, setAccounts] = useState<BankOption[]>([]);
   const [accountId, setAccountId] = useState<number>();
   const [payeeAccounts, setPayeeAccounts] = useState<PayeeAccount[]>([]);
@@ -325,7 +332,11 @@ export const RegisterPaymentDrawer: React.FC<{
     if (!open) return;
     setKey(newKey());
     setAnchor(anchorId);
-    setMethod(defaultMethod ?? (canCompany ? METHOD.COMPANY : METHOD.ADVANCE));
+    setMethodState(
+      defaultMethod ?? (canCompany ? METHOD.COMPANY : METHOD.ADVANCE),
+    );
+    // 指定了员工垫付（采购订单「登记垫付」）就不再按约定预选
+    setMethodTouched(defaultMethod === METHOD.ADVANCE);
     setPayChannel(PAY_CHANNEL.BANK);
     setPayDate(dayjs());
     setAmount(null);
@@ -407,6 +418,18 @@ export const RegisterPaymentDrawer: React.FC<{
       .catch(() => setPayeeQrs([]));
     return cancel;
   }, [open, anchor]);
+
+  // 按所选应付单约定的付款方式预选（openspec payable-payment-method）：只预选、不拦截
+  const pickedMethods = rows
+    .filter((r) => (alloc[r.id] ?? 0) > 0)
+    .map((r) => r.payMethod);
+  const suggestion = suggestMethod(pickedMethods);
+  const mismatch = methodMismatch(method, pickedMethods);
+  useEffect(() => {
+    if (!open || methodTouched || suggestion.method === undefined) return;
+    // 公司对公、私对私都要「付款登记」权限；只有垫付权限的采购员保持员工垫付
+    if (canCompany) setMethodState(suggestion.method);
+  }, [open, methodTouched, suggestion.method, canCompany]);
 
   const currency = rows[0]?.currencyCode ?? 'CNY';
   const foreign = currency !== 'CNY';
@@ -667,6 +690,27 @@ export const RegisterPaymentDrawer: React.FC<{
               },
             ]}
           />
+          {mismatch ? (
+            <Alert
+              type="warning"
+              showIcon
+              message={mismatch}
+              style={{ marginTop: 8 }}
+            />
+          ) : suggestion.mixed ? (
+            <div style={{ fontSize: 12, color: palette.orange, marginTop: 6 }}>
+              所选应付单付款方式不一致，请确认付款方式
+            </div>
+          ) : (
+            !methodTouched &&
+            suggestion.method !== undefined && (
+              <div style={{ fontSize: 12, color: palette.mute, marginTop: 6 }}>
+                按应付单约定「
+                {suggestion.method === METHOD.COMPANY ? '对公' : '对私'}
+                」预选，可以改
+              </div>
+            )
+          )}
           {method === METHOD.PRIVATE && (
             <div style={{ fontSize: 12, color: palette.mute, marginTop: 6 }}>
               法人等个人账户付给对方个人账户，不进报销
@@ -1591,6 +1635,7 @@ export const PayablePanel: React.FC<{
         <Wallet size="1em" style={{ color: palette.link }} />
         <b style={{ color: palette.ink, fontSize: 15 }}>付款</b>
         <PayStatusPill status={data.status} />
+        <PayMethodTag value={data.payMethod} />
         {access.payableDetail ? (
           <Link to={`/finance/payables/${data.id}`} style={{ fontSize: 12 }}>
             {data.payableNo}
@@ -1611,7 +1656,7 @@ export const PayablePanel: React.FC<{
             size="small"
             type="primary"
             icon={<Plus size="1em" />}
-            onClick={() => setDrawer(METHOD.COMPANY)}
+            onClick={() => setDrawer(-1)}
           >
             登记付款
           </Button>
@@ -1625,7 +1670,7 @@ export const PayablePanel: React.FC<{
       <RegisterPaymentDrawer
         open={!!drawer}
         anchorId={data.id}
-        defaultMethod={drawer}
+        defaultMethod={drawer === -1 ? undefined : drawer}
         allowDiscount={data.sourceType === SOURCE.PO}
         onClose={() => setDrawer(undefined)}
         onDone={load}

@@ -31,6 +31,8 @@ public abstract class AbstractSupplierRequest {
     @Min(value = 1, message = "供应商类型不正确")
     @Max(value = 5, message = "供应商类型不正确")
     private Integer supplierType;
+    /** 所属采购员（用户 ID）；为空表示未指定 */
+    private Long purchaserId;
 
     /** 体积系数（服务商用，默认 5000） */
     @jakarta.validation.constraints.Min(value = 1000, message = "体积系数为 1000 – 10000")

@@ -179,6 +179,11 @@ const SupplierDetailPage: React.FC = () => {
         <SectionCard icon={<Phone size="1em" />} title="联系信息">
           <Grid>
             <Field label="联系人">{record.contactName}</Field>
+            <Field label="所属采购员">
+              {record.purchaserName
+                ? `${record.purchaserName}${record.purchaserDisabled ? '（已停用）' : ''}`
+                : undefined}
+            </Field>
             <Field label="联系电话" mono>
               {record.contactPhone}
             </Field>

@@ -163,6 +163,21 @@ def candidate_output(payload: dict) -> dict:
     return {"items": [{"key": i.get("key"), "categoryId": pick.get("id") or 0, "brand": ""} for i in items]}
 
 
+def unlinked_output(payload: dict) -> dict:
+    """unlinked-model-parse 的假结果，只用于联调：含「运费」「freight」的判为费用；6ES7 开头的补成 Siemens 规范写法；其余看不出"""
+    out = []
+    for i in (payload.get("input") or {}).get("items") or []:
+        model = str(i.get("model") or "")
+        low = model.lower()
+        if "运费" in model or "freight" in low:
+            out.append({"key": i.get("key"), "kind": "fee", "brand": "", "model": ""})
+        elif low.replace(" ", "").startswith("6es7"):
+            out.append({"key": i.get("key"), "kind": "model", "brand": "Siemens", "model": model.upper().replace(" ", "")})
+        else:
+            out.append({"key": i.get("key"), "kind": "unknown", "brand": "", "model": ""})
+    return {"items": out}
+
+
 def refine_output(payload: dict) -> dict:
     """product-category-refine 的假结果，只用于联调：型号以 6ES7 开头的给清单里第一个细分品类，
     型号含 UNKNOWN 的判断不出（0），其余给清单里第二个（没有则第一个）"""
@@ -264,6 +279,8 @@ class Handler(BaseHTTPRequestHandler):
                 output = candidate_output(payload)
             elif self.path == "/skills/product-category-refine/run":
                 output = refine_output(payload)
+            elif self.path == "/skills/unlinked-model-parse/run":
+                output = unlinked_output(payload)
             threading.Thread(target=send_callback, args=(callback_url, output), daemon=True).start()
 
     def log_message(self, format, *args):

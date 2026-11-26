@@ -33,6 +33,7 @@ import com.zhul.erp.modules.logistics.repository.OutboundOrderMapper;
 import com.zhul.erp.modules.logistics.repository.ShipmentDocGroupMapper;
 import com.zhul.erp.modules.logistics.support.LogisticsSupport;
 import com.zhul.erp.modules.masterdata.entity.CustomerDO;
+import com.zhul.erp.modules.masterdata.entity.SupplierDO;
 import com.zhul.erp.modules.purchase.entity.PurchaseOrderDO;
 import com.zhul.erp.modules.purchase.support.OrderPurchaseProgress;
 import com.zhul.erp.modules.sales.entity.SalesOrderDO;
@@ -430,6 +431,18 @@ public class LogisticsShipmentService {
         // 交给谁由登记人选择（openspec ship-forwarder-choice）；没传时以登记时货代的归属为准
         sh.setCustomerForwarder(req.getCustomerForwarder() != null ? (req.getCustomerForwarder() ? 1 : 0)
                 : support.customerForwarderFlag(sh.getForwarderId()));
+        // 上门取件的客户指定货代只能交给客户的货代：没有送货运费，承运商默认取货代上的（openspec customer-courier-pickup）
+        SupplierDO pickup = support.pickupForwarder(sh.getForwarderId());
+        sh.setPickup(pickup != null ? 1 : 0);
+        if (pickup != null) {
+            if (Boolean.FALSE.equals(req.getCustomerForwarder())) {
+                throw new BizException("上门取件的货代只能交给客户的货代");
+            }
+            sh.setCustomerForwarder(1);
+            if (req.getCarrier() == null || req.getCarrier().isBlank()) {
+                req.setCarrier(pickup.getCourierCarrier());
+            }
+        }
         applyWaybill(sh, req);
         sh.setStatus(LogisticsConstants.SH_SHIPPED);
         shipmentMapper.updateById(sh);
@@ -500,11 +513,12 @@ public class LogisticsShipmentService {
      */
     private void applyWaybill(LogisticsShipmentDO sh, ShipRequest req) {
         boolean customer = Objects.equals(sh.getCustomerForwarder(), 1);
+        String dateName = Objects.equals(sh.getPickup(), 1) ? "取件日期" : customer ? "交货日期" : "出运日期";
         if (req.getShippedDate() == null) {
-            throw new BizException(customer ? "请填写交货日期" : "请填写出运日期");
+            throw new BizException("请填写" + dateName);
         }
         if (req.getShippedDate().isAfter(LocalDate.now())) {
-            throw new BizException(customer ? "交货日期不能晚于今天" : "出运日期不能晚于今天");
+            throw new BizException(dateName + "不能晚于今天");
         }
         String carrier = req.getCarrier() == null ? "" : req.getCarrier().trim();
         String waybillNo = req.getWaybillNo() == null ? "" : req.getWaybillNo().trim();
@@ -525,6 +539,10 @@ public class LogisticsShipmentService {
 
     /** 运费：公司货代必填；交客户指定货代时为送货运费，不填为 0。保留两位小数（HALF_UP） */
     private static BigDecimal freightOf(LogisticsShipmentDO sh, ShipRequest req) {
+        // 上门取件没有国内送货，运费为 0
+        if (Objects.equals(sh.getPickup(), 1)) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
         if (req.getFreight() == null) {
             if (!Objects.equals(sh.getCustomerForwarder(), 1)) {
                 throw new BizException("请填写实际运费");
@@ -536,7 +554,10 @@ public class LogisticsShipmentService {
 
     private static String waybillText(LogisticsShipmentDO sh) {
         String t = (sh.getCarrier() + " " + sh.getWaybillNo()).trim();
-        return t.isEmpty() ? "交客户指定货代（客户安排运输）" : t;
+        if (t.isEmpty()) {
+            return Objects.equals(sh.getPickup(), 1) ? "客户安排取件" : "交客户指定货代（客户安排运输）";
+        }
+        return t;
     }
 
     private static String freightLabel(LogisticsShipmentDO sh) {
@@ -667,6 +688,7 @@ public class LogisticsShipmentService {
         Map<Long, SalesOrderDO> orders = support.orders(obs.values().stream().flatMap(List::stream).map(OutboundOrderDO::getSoId).toList());
         Map<Long, CustomerDO> customers = support.customers(rows.stream().map(LogisticsShipmentDO::getCustomerId).toList());
         Map<Long, String> forwarders = support.supplierNames(rows.stream().map(LogisticsShipmentDO::getForwarderId).toList());
+        Map<Long, SupplierDO> pickups = support.pickupForwarders(rows.stream().map(LogisticsShipmentDO::getForwarderId).toList());
         Map<Long, String> users = support.userNames(rows.stream().map(LogisticsShipmentDO::getOwnerId).toList());
         Map<Long, OutboundVO> obVos = outbounds.toVos(obs.values().stream().flatMap(List::stream).toList()).stream()
                 .collect(Collectors.toMap(OutboundVO::getId, x -> x));
@@ -690,6 +712,10 @@ public class LogisticsShipmentService {
             vo.setForwarderName(forwarders.get(sh.getForwarderId()));
             vo.setCustomerForwarder(sh.getStatus() == LogisticsConstants.SH_PENDING
                     ? support.customerForwarderFlag(sh.getForwarderId()) == 1 : Objects.equals(sh.getCustomerForwarder(), 1));
+            SupplierDO pf = pickups.get(sh.getForwarderId());
+            vo.setPickup(sh.getStatus() == LogisticsConstants.SH_PENDING ? pf != null : Objects.equals(sh.getPickup(), 1));
+            vo.setPickupLabel(pf == null ? null : LogisticsSupport.pickupLabel(pf.getCourierCarrier(), pf.getCourierAccount()));
+            vo.setPickupCarrier(pf == null ? null : pf.getCourierCarrier());
             vo.setVolumeDivisor(divisor.intValue());
             vo.setOwnerId(sh.getOwnerId());
             vo.setOwnerName(users.get(sh.getOwnerId()));

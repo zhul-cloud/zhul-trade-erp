@@ -168,6 +168,40 @@ class ForwarderContractTest extends IntegrationTestBase {
         assertEquals(acme, jdbc.queryForObject("select customer_id from supplier where id = ?", Long.class, siamFw));
     }
 
+    /** openspec customer-courier-pickup：只有客户指定货代能选上门取件，必填承运商；改回公司货代后重置 */
+    @Test
+    void handoverMode_pickupOnlyForCustomerForwarder_carrierRequired() throws Exception {
+        long acme = customer("ITFW Pickup");
+        Map<String, Object> body = new HashMap<>();
+        body.put("name", "ITFW Acme DHL");
+        body.put("handoverMode", 2);
+        body.put("courierCarrier", "DHL");
+        JsonNode rejected = call(json(post(FW), body));
+        assertEquals("只有客户指定货代能选上门取件", rejected.path("message").asText(), rejected.toString());
+        body.put("customerId", acme);
+        body.put("courierCarrier", " ");
+        assertEquals("请选择承运商", call(json(post(FW), body)).path("message").asText());
+        body.put("courierCarrier", "DHL");
+        body.put("courierAccount", "965432100");
+        long id = ok(call(json(post(FW), body))).asLong();
+
+        JsonNode row = ok(call(get(FW + "/by-customer/" + acme))).get(0);
+        assertEquals(2, row.path("handoverMode").asInt());
+        assertEquals("DHL", row.path("courierCarrier").asText());
+        assertEquals("965432100", row.path("courierAccount").asText());
+        JsonNode form = ok(call(get(FW + "/" + id + "/form")));
+        assertEquals(2, form.path("handoverMode").asInt(), "编辑取数带出交接方式");
+        assertEquals("DHL", form.path("courierCarrier").asText());
+        JsonNode option = ok(call(get(FW).param("customerId", String.valueOf(acme)))).get(0);
+        assertEquals(id, option.path("id").asLong());
+        assertEquals(2, option.path("handoverMode").asInt());
+        assertEquals("DHL", option.path("courierCarrier").asText());
+
+        ok(call(json(put(FW + "/" + id), Map.of("name", "ITFW Acme DHL"))));
+        assertEquals(Map.of("handover_mode", 1, "courier_carrier", "", "courier_account", ""), jdbc.queryForMap(
+                "select handover_mode, courier_carrier, courier_account from supplier where id = ?", id), "改为公司货代后回到送到货代");
+    }
+
     /** spec logistics/forwarder「新建货代自动建仓」：名称、状态跟着货代；停用时货代仓有货给出提示 */
     @Test
     void createForwarder_createsWarehouse_followsNameAndStatus() throws Exception {

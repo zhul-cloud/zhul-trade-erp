@@ -20,6 +20,14 @@ public class SupplierVO {
     /** 归属客户（服务商）：空为公司货代 */
     private Long customerId;
     private String customerName;
+    /** 交接方式（客户指定货代：1-送到货代、2-上门取件）、上门取件的承运商与客户快递账号 */
+    private Integer handoverMode;
+    private String courierCarrier;
+    private String courierAccount;
+    /** 所属采购员；用户已停用时 purchaserDisabled 为 true */
+    private Long purchaserId;
+    private String purchaserName;
+    private Boolean purchaserDisabled;
     private Integer industry;
     private String creditCode;
     private String legalRepresentative;

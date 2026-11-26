@@ -79,12 +79,17 @@ class SupplierServiceImplTest {
     private FileStorageService fileStorage;
     @Mock
     private ApplicationEventPublisher events;
+    @Mock
+    private com.zhul.erp.modules.system.repository.UserBasicMapper userBasicMapper;
+    @Mock
+    private com.zhul.erp.modules.system.service.LogService logService;
 
     private SupplierServiceImpl supplierService;
 
     @BeforeEach
     void setUp() {
-        supplierService = new SupplierServiceImpl(supplierMapper, scopeSync, accountSync, attachmentSync, fileStorage, events);
+        supplierService = new SupplierServiceImpl(supplierMapper, scopeSync, accountSync, attachmentSync, fileStorage, events,
+                userBasicMapper, logService);
         TenantContext.setTenantId(1);
     }
 

@@ -45,6 +45,7 @@ public class ProductCandidateController {
     private final CandidateImportService importService;
     private final CandidateAiFill aiFill;
     private final com.zhul.erp.modules.product.candidate.service.DocProductLinkService linkService;
+    private final com.zhul.erp.modules.product.candidate.service.UnlinkedMarkService markService;
 
     /** 上传商品文件导入候选：有商品候选菜单即可，建档仍需审核权限 */
     @PostMapping("/import/preview")
@@ -111,8 +112,9 @@ public class ProductCandidateController {
             @org.springframework.web.bind.annotation.RequestParam(required = false) String keyword,
             @org.springframework.web.bind.annotation.RequestParam(required = false) String table,
             @org.springframework.web.bind.annotation.RequestParam(defaultValue = "1") int page,
-            @org.springframework.web.bind.annotation.RequestParam(name = "page_size", defaultValue = "20") int pageSize) {
-        return Result.ok(linkService.unlinked(keyword, table, page, pageSize));
+            @org.springframework.web.bind.annotation.RequestParam(name = "page_size", defaultValue = "20") int pageSize,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "false") boolean marked) {
+        return Result.ok(linkService.unlinked(keyword, table, page, pageSize, marked));
     }
 
     /** 待关联清单：选择商品或填写真实型号后批量关联，返回关联的条数 */
@@ -121,6 +123,40 @@ public class ProductCandidateController {
     public Result<Integer> linkUnlinked(@Valid @RequestBody com.zhul.erp.modules.product.candidate.dto.LinkUnlinkedRequest req) {
         return Result.ok(req.getProductId() != null ? linkService.link(req.getKey(), req.getProductId())
                 : linkService.fillModel(req.getKey(), req.getBrand(), req.getModel()));
+    }
+
+    /** 待关联清单：标为不是商品（运费等），从清单移出；返回标记的组数（openspec unlinked-docs-enhance） */
+    @PostMapping("/unlinked/ignore")
+    @PreAuthorize(REVIEW)
+    public Result<Integer> ignoreUnlinked(@Valid @RequestBody com.zhul.erp.modules.product.candidate.dto.UnlinkedKeysRequest req) {
+        return Result.ok(markService.ignore(req.getKeys()));
+    }
+
+    /** 待关联清单：恢复已标为不是商品的组 */
+    @PostMapping("/unlinked/restore")
+    @PreAuthorize(REVIEW)
+    public Result<Integer> restoreUnlinked(@Valid @RequestBody com.zhul.erp.modules.product.candidate.dto.UnlinkedKeysRequest req) {
+        return Result.ok(markService.restore(req.getKeys()));
+    }
+
+    /** 待关联清单：批量 AI 识别型号（只给建议） */
+    @PostMapping("/unlinked/ai")
+    @PreAuthorize(REVIEW)
+    public Result<com.zhul.erp.modules.product.candidate.dto.UnlinkedAiVO> aiUnlinked(@Valid @RequestBody com.zhul.erp.modules.product.candidate.dto.UnlinkedKeysRequest req) {
+        return Result.ok(markService.submit(req.getKeys()));
+    }
+
+    @GetMapping("/unlinked/ai/{taskId}")
+    @PreAuthorize(REVIEW)
+    public Result<com.zhul.erp.modules.product.candidate.dto.UnlinkedAiVO> aiUnlinkedStatus(@PathVariable Long taskId) {
+        return Result.ok(markService.status(taskId));
+    }
+
+    /** 待关联清单：批量采纳 AI 建议的型号，逐组关联，失败的组列出原因 */
+    @PostMapping("/unlinked/adopt")
+    @PreAuthorize(REVIEW)
+    public Result<com.zhul.erp.modules.product.candidate.dto.UnlinkedAdoptVO> adoptUnlinked(@Valid @RequestBody com.zhul.erp.modules.product.candidate.dto.UnlinkedKeysRequest req) {
+        return Result.ok(markService.adopt(req.getKeys()));
     }
 
     /** 候选商品被各类单据引用的条数，并入、驳回前展示 */

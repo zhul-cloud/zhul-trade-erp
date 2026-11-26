@@ -335,15 +335,25 @@ const ShipmentDetail: React.FC = () => {
           value: sh.waybillNo
             ? `${sh.carrier ?? ''} ${sh.waybillNo}`
             : sh.customerForwarder && sh.status === 2
-              ? '客户安排'
+              ? sh.pickup
+                ? '客户安排取件'
+                : '客户安排'
               : undefined,
         },
         {
-          label: sh.customerForwarder ? '交货日期' : '出运日期',
+          label: sh.pickup
+            ? '取件日期'
+            : sh.customerForwarder
+              ? '交货日期'
+              : '出运日期',
           value: sh.shippedDate,
         },
         {
-          label: sh.customerForwarder ? '送货运费' : '运费',
+          label: sh.pickup
+            ? '运费'
+            : sh.customerForwarder
+              ? '送货运费'
+              : '运费',
           value:
             sh.freight === null || sh.freight === undefined
               ? undefined
@@ -559,7 +569,9 @@ const ShipmentDetail: React.FC = () => {
         sub={
           <>
             {sh.reconciled && '已对账 · '}
-            {sh.customerForwarder && '客户指定货代 · '}
+            {sh.pickup
+              ? `客户指定货代 · ${sh.pickupLabel ?? '上门取件'} · `
+              : sh.customerForwarder && '客户指定货代 · '}
             {sh.customerName ?? '—'} ·{' '}
             <SourceNos
               mode="inline"

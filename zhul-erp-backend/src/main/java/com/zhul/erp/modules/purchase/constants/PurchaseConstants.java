@@ -49,6 +49,16 @@ public final class PurchaseConstants {
     public static final int INVOICE_NONE = 0;
     public static final int INVOICE_PENDING = 1;
     public static final int INVOICE_DONE = 2;
+    /** 付款方式：1-对公、2-对私（openspec payable-payment-method） */
+    public static final int PAY_PUBLIC = 1;
+    public static final int PAY_PRIVATE = 2;
+    public static final Map<Integer, String> PAY_METHOD_NAMES = Map.of(PAY_PUBLIC, "对公", PAY_PRIVATE, "对私");
+
+    /** 付款方式默认值：供应商且开票为对公，不开票或线上店铺为对私 */
+    public static int defaultPayMethod(Integer channel, boolean invoice) {
+        return channel != null && channel == CHANNEL_SUPPLIER && invoice ? PAY_PUBLIC : PAY_PRIVATE;
+    }
+
     /** 回价渠道：4-供应商，其余为电商店铺 */
     public static final int CHANNEL_SUPPLIER = 4;
     public static final Map<Integer, String> CHANNEL_NAMES = Map.of(1, "淘宝", 2, "1688", 3, "闲鱼", 4, "供应商", 5, "其他");

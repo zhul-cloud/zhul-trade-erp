@@ -335,7 +335,19 @@ const OutboundDetailPage: React.FC = () => {
                   </Link>
                 ),
               },
-              { label: '货代', value: ob.forwarderName },
+              {
+                label: '货代',
+                value: ob.pickupLabel ? (
+                  <div>
+                    {ob.forwarderName}
+                    <div style={{ fontSize: 12, color: palette.mute }}>
+                      {ob.pickupLabel}
+                    </div>
+                  </div>
+                ) : (
+                  ob.forwarderName
+                ),
+              },
               {
                 label: '通知时间',
                 value: formatDateTime(ob.createTime).slice(0, 16),

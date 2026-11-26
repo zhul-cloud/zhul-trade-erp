@@ -276,6 +276,24 @@ const SupplierListPage: React.FC = () => {
       render: (v: string) => v || '—',
     },
     {
+      title: '所属采购员',
+      dataIndex: 'purchaserName',
+      width: 100,
+      render: (v: string | null | undefined, r) =>
+        v ? (
+          <span>
+            {v}
+            {r.purchaserDisabled && (
+              <span style={{ fontSize: 12, color: palette.mute }}>
+                （已停用）
+              </span>
+            )}
+          </span>
+        ) : (
+          '—'
+        ),
+    },
+    {
       title: '联系电话',
       dataIndex: 'contactPhone',
       width: 140,

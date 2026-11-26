@@ -393,7 +393,7 @@ const Shipments: React.FC = () => {
           {ellipsisRender(v)}
           {r.customerForwarder && (
             <div>
-              <Pill tone="gray">客户指定</Pill>
+              <Pill tone="gray">{r.pickup ? '上门取件' : '客户指定'}</Pill>
             </div>
           )}
         </div>
@@ -422,7 +422,11 @@ const Shipments: React.FC = () => {
           </div>
         ) : (
           <span style={{ color: palette.mute }}>
-            {r.customerForwarder && r.status === 2 ? '客户安排' : '—'}
+            {r.customerForwarder && r.status === 2
+              ? r.pickup
+                ? '客户安排取件'
+                : '客户安排'
+              : '—'}
           </span>
         ),
     },

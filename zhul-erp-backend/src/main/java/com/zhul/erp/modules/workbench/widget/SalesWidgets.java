@@ -217,6 +217,8 @@ public class SalesWidgets {
             t.getColumns().add(WidgetData.Column.of("询盘", "r", "count"));
             t.getColumns().add(WidgetData.Column.of("报价", "r", "count"));
             t.getColumns().add(WidgetData.Column.of("成交额", "r", "money"));
+            // 毛利率口径同经营统计、利润统计；没有成交时为「—」（openspec boss-workbench-sales-compare）
+            t.getColumns().add(WidgetData.Column.of("毛利率", "r", "percent"));
             t.getColumns().add(WidgetData.Column.of("询盘→成交", "r", "percent"));
             t.setEmpty("本月还没有业务数据");
             vo.getRows().stream()
@@ -224,6 +226,7 @@ public class SalesWidgets {
                             .reversed())
                     .forEach(r -> t.getRows().add(List.of(r.getLabel(), r.getInquiries().getAll(), r.getQuotations().getAll(),
                             W.num(r.getRevenue() == null ? null : r.getRevenue().getAll()),
+                            r.getProfitRate() == null ? "—" : r.getProfitRate(),
                             r.getOrderRate() == null ? "—" : r.getOrderRate())));
             return W.of(W.table(null, t));
         });

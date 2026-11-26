@@ -75,6 +75,9 @@ public class PayableQueryService {
             String k = q.getKeyword().trim();
             w.and(x -> x.like(PayableDO::getPayableNo, k).or().like(PayableDO::getPayeeName, k).or().like(PayableDO::getSourceNo, k));
         }
+        if (q.getPayMethod() != null) {
+            w.eq(PayableDO::getPayMethod, q.getPayMethod());
+        }
         if (q.getPayeeType() != null) {
             w.eq(PayableDO::getPayeeType, q.getPayeeType());
         }
@@ -327,6 +330,7 @@ public class PayableQueryService {
         vo.setShopPlatform(p.getShopPlatform());
         vo.setShopName(p.getShopName());
         vo.setPayeeName(p.getPayeeName());
+        vo.setPayMethod(p.getPayMethod() == null ? FinanceConstants.PAY_UNDECIDED : p.getPayMethod());
         vo.setSourceType(p.getSourceType());
         vo.setSourceId(p.getSourceId());
         vo.setSourceNo(p.getSourceNo());

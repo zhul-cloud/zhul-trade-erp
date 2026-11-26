@@ -51,6 +51,10 @@ export interface SupplierItem {
   name: string;
   shortName: string;
   supplierType: number;
+  /** 所属采购员（openspec supplier-purchaser）；用户已停用时 purchaserDisabled 为 true */
+  purchaserId?: number | null;
+  purchaserName?: string | null;
+  purchaserDisabled?: boolean;
   industry: number;
   creditCode: string;
   legalRepresentative: string;
@@ -102,6 +106,8 @@ export interface SupplierFormValues {
   name: string;
   shortName?: string;
   supplierType: number;
+  /** 所属采购员；不选为未指定 */
+  purchaserId?: number | null;
   industry?: number;
   status: number;
   creditCode?: string;

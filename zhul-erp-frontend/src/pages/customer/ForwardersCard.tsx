@@ -98,6 +98,11 @@ const ForwardersCard: React.FC<{
               >
                 {f.name}
               </b>
+              {f.handoverMode === 2 && (
+                <Pill tone="violet">
+                  {['上门取件', f.courierCarrier].filter(Boolean).join(' · ')}
+                </Pill>
+              )}
               {f.status === 1 ? (
                 <Pill tone="green">启用</Pill>
               ) : (
