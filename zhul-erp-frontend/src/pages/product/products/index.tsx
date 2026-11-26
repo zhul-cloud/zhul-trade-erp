@@ -11,6 +11,7 @@ import {
   Button,
   Checkbox,
   type CheckboxProps,
+  Image,
   Input,
   type InputRef,
   Select,
@@ -19,6 +20,7 @@ import {
   Switch,
   Table,
   Tooltip,
+  Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -84,6 +86,9 @@ interface Filters {
   refineState?: RefineState;
   /** 只看本公司维护的（租户） */
   mine?: boolean;
+  /** 有图片（已设主图）、有视频（openspec product-list-media-code） */
+  hasImage?: boolean;
+  hasVideo?: boolean;
 }
 
 /** 记住上次的筛选条件（关键词和缺项筛选不记：那是临时的） */
@@ -209,7 +214,10 @@ const ProductListInner: React.FC = () => {
   }, [refine, subCategories.length]);
 
   /** 需求热度排序在服务端做（跨页有效）：询盘次数或成交次数倒序 */
-  const [heatSort, setHeatSort] = useState<'inquiryCount' | 'dealCount'>();
+  /** 完整度排序同样在服务端做（全部商品范围，openspec product-list-media-code） */
+  const [heatSort, setHeatSort] = useState<
+    'inquiryCount' | 'dealCount' | 'completenessAsc' | 'completenessDesc'
+  >();
 
   const query = useMemo<ProductQuery>(
     () => ({
@@ -219,6 +227,8 @@ const ProductListInner: React.FC = () => {
       ...filters,
       includeDeleted: filters.includeDeleted || undefined,
       mine: filters.mine || undefined,
+      hasImage: filters.hasImage || undefined,
+      hasVideo: filters.hasVideo || undefined,
       sort: heatSort,
     }),
     [page, pageSize, debounced, filters, heatSort],
@@ -608,12 +618,46 @@ const ProductListInner: React.FC = () => {
   const reviewing = refine && refineState !== 'todo';
   const columns: ColumnsType<Product> = [
     {
+      title: '商品编号',
+      dataIndex: 'id',
+      key: 'id',
+      width: 110,
+      fixed: 'left',
+      render: (v: number) => (
+        <span onClick={(e) => e.stopPropagation()}>
+          <Typography.Text className="num" copyable={{ text: String(v) }}>
+            {v}
+          </Typography.Text>
+        </span>
+      ),
+    },
+    {
       title: '商品',
       key: 'product',
       width: 320,
       render: (_, r) => (
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <BrandMark name={r.categoryName} size={40} />
+          {r.mainImageUrl ? (
+            <span
+              onClick={(e) => e.stopPropagation()}
+              style={{ flex: 'none', lineHeight: 0 }}
+            >
+              <Image
+                src={r.mainImageUrl}
+                alt={r.mpnDisplay}
+                width={40}
+                height={40}
+                loading="lazy"
+                style={{
+                  objectFit: 'cover',
+                  borderRadius: 8,
+                  border: `1px solid ${palette.hairline}`,
+                }}
+              />
+            </span>
+          ) : (
+            <BrandMark name={r.categoryName} size={40} />
+          )}
           <div style={{ minWidth: 0 }}>
             <a
               href={`/product/products/${r.id}`}
@@ -738,8 +782,14 @@ const ProductListInner: React.FC = () => {
             title: '档案完整度',
             key: 'completeness',
             width: 190,
-            sorter: (a: Product, b: Product) =>
-              (a.completeness?.done ?? 0) - (b.completeness?.done ?? 0),
+            sorter: true,
+            sortDirections: ['ascend' as const, 'descend' as const],
+            sortOrder:
+              heatSort === 'completenessAsc'
+                ? ('ascend' as const)
+                : heatSort === 'completenessDesc'
+                  ? ('descend' as const)
+                  : null,
             render: (_: unknown, r: Product) => (
               <CompletenessBar value={r.completeness} />
             ),
@@ -1174,6 +1224,23 @@ const ProductListInner: React.FC = () => {
           ]}
           onChange={(v) => updateFilters({ status: v })}
         />
+        {(
+          [
+            ['hasImage', '有图片', '已设主图的商品'],
+            ['hasVideo', '有视频', '至少有一个视频的商品'],
+          ] as const
+        ).map(([k, label, tip]) => (
+          <Tooltip key={k} title={tip}>
+            <button
+              type="button"
+              aria-pressed={!!filters[k]}
+              style={{ ...chip(!!filters[k]), height: 32 }}
+              onClick={() => updateFilters({ [k]: !filters[k] || undefined })}
+            >
+              {label}
+            </button>
+          </Tooltip>
+        ))}
         {!platform && (
           <Checkbox
             checked={!!filters.mine}
@@ -1297,6 +1364,17 @@ const ProductListInner: React.FC = () => {
                   s?.columnKey === 'dealCount')
               ) {
                 setHeatSort(s.order ? s.columnKey : undefined);
+                setPage(1);
+                setSelected([]);
+              }
+              if (extra.action === 'sort' && s?.columnKey === 'completeness') {
+                setHeatSort(
+                  s.order === 'ascend'
+                    ? 'completenessAsc'
+                    : s.order === 'descend'
+                      ? 'completenessDesc'
+                      : undefined,
+                );
                 setPage(1);
                 setSelected([]);
               }
