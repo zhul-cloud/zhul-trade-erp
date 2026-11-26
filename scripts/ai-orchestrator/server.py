@@ -895,6 +895,76 @@ def process_candidate(payload: dict, callback_url: str):
         send_callback(callback_url, "failed", error=message[:500])
 
 
+UNLINKED_SKILL = "unlinked-model-parse"
+
+UNLINKED_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "items": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "key": {"type": "string"},
+                    "kind": {"type": "string", "enum": ["model", "fee", "unknown"]},
+                    "brand": {"type": "string"},
+                    "model": {"type": "string"},
+                },
+                "required": ["key", "kind", "brand", "model"],
+            },
+        }
+    },
+    "required": ["items"],
+}
+
+UNLINKED_PROMPT = """你是工控自动化产品的商品运营。下面每一组是历史单据明细里没能匹配到商品的「品牌 + 型号」原文：
+有的是写法不规范的真实型号（少了分隔符、大小写不对、夹着空格），有的其实是运费、快递费、手续费、样品费、税费等费用行或说明文字。
+逐组判断：
+- kind：是商品型号填 model；是费用、合计、折扣或说明文字填 fee；判断不出填 unknown
+- kind 为 model 时：model 填厂家官方写法的真实型号（如 6es7 214-1ag40 写成 6ES7214-1AG40-0XB0 这类完整订货号；只能确定到原文程度时按原文规范大小写与分隔符，不要补不确定的后缀），brand 填品牌的通用英文名（如 Siemens、Mitsubishi、Omron），原文看不出品牌时按型号规则判断，仍判断不出 brand 填空字符串
+- kind 为 fee 或 unknown 时，brand、model 填空字符串
+- 不确定型号写法时 kind 填 unknown，不要猜
+- key 原样返回，每条输入都要有对应输出
+只输出 JSON。"""
+
+UNLINKED_BATCH = 50
+
+
+def call_unlinked_parse(cfg: AiConfig, input_data: dict) -> dict:
+    """按 50 组一批识别待关联单据的真实型号或费用行，合并后一次返回；不联网搜索。"""
+    items = input_data.get("items") or []
+    results = []
+    for i in range(0, len(items), UNLINKED_BATCH):
+        batch = items[i:i + UNLINKED_BATCH]
+        structured = call_api(cfg, UNLINKED_PROMPT, json.dumps({"items": batch}, ensure_ascii=False), [], UNLINKED_SCHEMA,
+                              role="parse")
+        if "items" not in structured:
+            raise RuntimeError("AI 未返回符合 schema 的结果")
+        results.extend(structured["items"])
+    print(f"[ai-orchestrator] 待关联单据型号识别完成 {len(items)} 组")
+    return {"items": results}
+
+
+def process_unlinked(payload: dict, callback_url: str):
+    start_job()
+    key = _api_key_of(payload)
+    try:
+        cfg = parse_chain(payload, callback_url)
+        input_data = payload.get("input") or {}
+        if not input_data.get("items"):
+            send_callback(callback_url, "failed", error="没有需要识别的型号")
+            return
+        send_callback(callback_url, "success", output=call_unlinked_parse(cfg, input_data))
+    except ConfigError as e:
+        send_callback(callback_url, "failed", error=str(e))
+    except (JobTimeout, anthropic.APITimeoutError, openai.APITimeoutError):
+        send_callback(callback_url, "failed", error=f"AI 处理超过 {TIMEOUT_SECONDS} 秒未完成")
+    except Exception as e:
+        message = scrub(str(e), key)
+        print(f"[ai-orchestrator] unlinked-model-parse failed: {message}")
+        send_callback(callback_url, "failed", error=message[:500])
+
+
 REFINE_SKILL = "product-category-refine"
 
 REFINE_PROMPT = """你是工控自动化产品的商品运营。下面每个商品已经建档，但品类只到一级品类或在兜底「其他」里。
@@ -2069,6 +2139,11 @@ class Handler(BaseHTTPRequestHandler):
         if skill_id == CANDIDATE_SKILL:
             if callback_url:
                 threading.Thread(target=process_candidate, args=(payload, callback_url), daemon=True).start()
+            return
+
+        if skill_id == UNLINKED_SKILL:
+            if callback_url:
+                threading.Thread(target=process_unlinked, args=(payload, callback_url), daemon=True).start()
             return
 
         if skill_id == REFINE_SKILL:
