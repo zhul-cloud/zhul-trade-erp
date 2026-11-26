@@ -191,7 +191,7 @@ const LINE_RULES = [
     level: 'error',
     message:
       '主题色浅底只表示选中、当前（ui-redesign D42）：说明文字用 Callout，数字或汇总块用中性浅底 palette.inset，属性标签用中性色；批量操作条、搜索命中等选中类用法写 lint-ui-ignore primary-soft 说明',
-    re: /\bbackground:\s*(\w+\.primarySoft\b|(?!(?:on|active|checked|selected|sel|cur|groupOn|last|hit|\w+\.current)\s*\?)[\w.!]+\s*\?\s*\w+\.primarySoft\b)/,
+    re: /\bbackground:\s*\w+\.primarySoft\b/,
   },
   {
     id: 'scroll-max-content',
@@ -495,6 +495,30 @@ function checkSource(src, rel) {
       }
     }
   }
+
+  // 主题色浅底的条件写法（按语法树判断，换行写的、写在否分支的都查得到，D42）：
+  // 条件是选中、当前类变量（on、active、checked、current 等）或比较、调用（mode === v、picked(id)）且浅底在「是」分支时放过；
+  // 按类别区分（user ? …、last ? …）或浅底写在「否」分支的报错
+  const SELECTED_COND =
+    /^!?(on|active|checked|selected|sel|cur|current|groupOn|hit|picked|isActive)$|\.current$|===|!==|\(/;
+  const PRIMARY_SOFT_MSG = LINE_RULES.find(
+    (r) => r.id === 'primary-soft',
+  ).message;
+  walk(sf, (n) => {
+    if (
+      !ts.isPropertyAssignment(n) ||
+      n.name.getText(sf) !== 'background' ||
+      !ts.isConditionalExpression(n.initializer)
+    )
+      return;
+    const e = n.initializer;
+    const soft = (x) => /\.primarySoft$/.test(x.getText(sf).trim());
+    if (!soft(e.whenTrue) && !soft(e.whenFalse)) return;
+    const cond = e.condition.getText(sf).replace(/\s+/g, '');
+    if (soft(e.whenTrue) && !soft(e.whenFalse) && SELECTED_COND.test(cond))
+      return;
+    push('primary-soft', 'error', PRIMARY_SOFT_MSG, lineOf(n.getStart(sf)));
+  });
 
   // 进度条颜色：strokeColor 只能是 palette.chart（按语法树判断，换行写法也查得到）
   walk(sf, (n) => {

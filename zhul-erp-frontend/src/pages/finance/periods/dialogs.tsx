@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useDeltaColor } from '@/theme/delta';
 import { formatAmount } from '@/utils/format';
 import { SignedMoney } from '../costingParts';
 import { type Period, periodApi } from '../costingService';
@@ -25,6 +26,8 @@ export const signedCny = (v?: number) => {
  */
 export const PeriodTiles: React.FC<{ p: Period }> = ({ p }) => {
   const { palette } = useAppTheme();
+  // 在库成本调整按个人涨跌色设置着色，与 SignedMoney 一致（D65）
+  const { of: deltaOf } = useDeltaColor();
   const items: [string, string, React.CSSProperties?][] = [
     ['期初库存金额', formatAmount(p.openingAmount, 'CNY')],
     ['本月入库', formatAmount(p.inAmount, 'CNY')],
@@ -32,9 +35,7 @@ export const PeriodTiles: React.FC<{ p: Period }> = ({ p }) => {
     [
       '在库成本调整',
       signedCny(p.stockAdjustAmount),
-      p.stockAdjustAmount
-        ? { color: p.stockAdjustAmount > 0 ? palette.green : palette.red }
-        : undefined,
+      p.stockAdjustAmount ? { color: deltaOf(p.stockAdjustAmount) } : undefined,
     ],
     ['期末库存金额', formatAmount(p.closingAmount, 'CNY')],
   ];

@@ -474,8 +474,9 @@ const SalesStatsPage: React.FC = () => {
               display: 'grid',
               placeItems: 'center',
               fontSize: 16,
-              background: last ? palette.primarySoft : palette.neutralSoft,
-              color: last ? palette.link : palette.sub,
+              // 终点与其余步骤两类、无好坏：用主题色深浅（D47、规范「层级与表面」）
+              background: last ? palette.chartSoft : palette.neutralSoft,
+              color: last ? palette.ink : palette.sub,
             }}
           >
             {x.icon}
@@ -483,7 +484,7 @@ const SalesStatsPage: React.FC = () => {
           <span style={{ fontSize: 13, color: palette.sub }}>{x.label}</span>
         </div>
         <div
-          style={{ ...num, fontSize: 24, fontWeight: 700, color: palette.ink }}
+          style={{ ...num, fontSize: 24, fontWeight: 600, color: palette.ink }}
         >
           {x.value}
         </div>

@@ -1,7 +1,7 @@
 import type { TableColumnsType } from 'antd';
 import { Button, Segmented, Skeleton, Table, TreeSelect } from 'antd';
 import dayjs from 'dayjs';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { HelpTip } from '@/components/ListLayout';
 import { MetricGrid, MetricTile } from '@/components/MetricCard';
@@ -77,8 +77,9 @@ const NumButton: React.FC<{
     style={{
       all: 'unset',
       cursor: 'pointer',
-      color,
-      fontWeight: color ? 600 : 400,
+      // 0 不用强调色（复审 9.1 第三轮）
+      color: value ? color : undefined,
+      fontWeight: color && value ? 600 : 400,
       fontVariantNumeric: 'tabular-nums',
     }}
   >
@@ -90,6 +91,9 @@ const NumButton: React.FC<{
 const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
   const { palette } = useAppTheme();
   const wide = useWide();
+  // 负责人表和右栏放不下并排时（1366 宽），右栏挪到下面，表格不横向滚动（复审 9.1 第三轮）
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const [boxW, setBoxW] = useState<number>();
   const [period, setPeriod] = useState('week');
   const [deptId, setDeptId] = useState<number>();
   const [depts, setDepts] = useState<DeptTreeOption[]>([]);
@@ -155,6 +159,14 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
       )}
     </div>
   );
+
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => setBoxW(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [data]);
 
   if (error)
     return (
@@ -475,9 +487,13 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
         ),
       )}
       <div
+        ref={boxRef}
         style={{
           display: 'grid',
-          gridTemplateColumns: wide ? 'minmax(0, 1fr) 304px' : 'minmax(0, 1fr)',
+          gridTemplateColumns:
+            wide && (boxW == null || boxW >= tableScrollX(ownerCols) + 360)
+              ? 'minmax(0, 1fr) 304px'
+              : 'minmax(0, 1fr)',
           gap: 16,
           alignItems: 'start',
         }}
@@ -531,13 +547,14 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
                 <b style={{ color: palette.sub, fontSize: 13, paddingTop: 8 }}>
                   {row.name}
                 </b>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns:
-                      'repeat(auto-fill, minmax(118px, 1fr))',
-                    gap: 8,
-                  }}
+                {/* 阶段块按行均分，不剩单张一行（MetricGrid） */}
+                <MetricGrid
+                  cols={Math.max(
+                    1,
+                    data.stages.filter((st) => st.board === row.board).length,
+                  )}
+                  min={118}
+                  gap={8}
                 >
                   {data.stages
                     .filter((st) => st.board === row.board)
@@ -565,7 +582,7 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
                         <div
                           style={{
                             fontSize: 18,
-                            fontWeight: 700,
+                            fontWeight: 600,
                             color: palette.ink,
                           }}
                         >
@@ -581,7 +598,7 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
                         </div>
                       </button>
                     ))}
-                </div>
+                </MetricGrid>
               </div>
             ))}
           </Card>

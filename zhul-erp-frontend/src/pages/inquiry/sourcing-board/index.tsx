@@ -984,6 +984,7 @@ const SourcingBoardPage: React.FC = () => {
                             width: 30,
                             height: 30,
                             borderRadius: 15,
+                            // lint-ui-ignore primary-soft: 采购员头像，规范 D42 的头像例外
                             background: p.partTime
                               ? palette.infoSoft
                               : palette.primarySoft,

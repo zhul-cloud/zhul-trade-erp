@@ -11,6 +11,8 @@ import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { MetricGrid, MetricTile } from '@/components/MetricCard';
+import { rowAlert } from '@/components/RowAlert';
+import { useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { liveRequests } from '@/utils/liveRequests';
@@ -145,6 +147,7 @@ const TeamView: React.FC<{
   onProject: (scope: { brandId: number; categoryId?: number }) => void;
 }> = ({ canProject, onJump, onProject }) => {
   const { palette } = useAppTheme();
+  const wide = useWide();
   const [period, setPeriod] = useState(30);
   const [team, setTeam] = useState<Team>();
   const [error, setError] = useState('');
@@ -189,11 +192,14 @@ const TeamView: React.FC<{
       </>
     );
   const t = team;
+  /** 逾期 3 个及以上或多次延后 2 个及以上：需要关注 */
+  const attention = (r: Team['owners'][number]) =>
+    r.overdue >= 3 || r.multiDefer >= 2;
   const ownerColumns: TableColumnsType<Team['owners'][number]> = [
     {
       title: '负责人',
       key: 'name',
-      width: 140,
+      width: 96,
       render: (_, r) => (
         <div style={{ display: 'grid' }}>
           {/* 没有负责人的行没有对应的筛选，不做成链接，避免跳到「全部负责人」（audit UI-089） */}
@@ -209,27 +215,28 @@ const TeamView: React.FC<{
           ) : (
             <span>{r.ownerName ?? '未指定负责人'}</span>
           )}
-          {(r.overdue >= 3 || r.multiDefer >= 2) && (
-            <span style={{ fontSize: 12, color: palette.orange }}>
-              需要关注
+          {/* 需要关注的行左侧有色条（rowAlert），原因写成状态标签，与客户跟进一致 */}
+          {attention(r) && (
+            <span>
+              <Pill tone="orange">需要关注</Pill>
             </span>
           )}
         </div>
       ),
     },
-    { title: '名下型号', dataIndex: 'models', width: 90 },
-    { title: '无渠道', dataIndex: 'noChannel', width: 90 },
-    { title: '未验证', dataIndex: 'lead', width: 90 },
-    { title: '需确认', dataIndex: 'confirm', width: 90 },
+    { title: '名下型号', dataIndex: 'models', width: 72 },
+    { title: '无渠道', dataIndex: 'noChannel', width: 56 },
+    { title: '未验证', dataIndex: 'lead', width: 56 },
+    { title: '需确认', dataIndex: 'confirm', width: 56 },
     {
       title: '今天要跟',
-      width: 90,
+      width: 72,
       dataIndex: 'dueToday',
       render: (v, r) => (r.ownerId ? v : '—'),
     },
     {
       title: '逾期',
-      width: 90,
+      width: 56,
       dataIndex: 'overdue',
       render: (v: number, r) =>
         r.ownerId ? (
@@ -240,7 +247,7 @@ const TeamView: React.FC<{
     },
     {
       title: '多次延后',
-      width: 90,
+      width: 72,
       dataIndex: 'multiDefer',
       render: (v: number, r) =>
         r.ownerId ? (
@@ -251,7 +258,7 @@ const TeamView: React.FC<{
     },
     {
       title: '本周记处理',
-      width: 100,
+      width: 88,
       dataIndex: 'records',
       render: (v, r) => (r.ownerId ? v : '—'),
     },
@@ -314,7 +321,10 @@ const TeamView: React.FC<{
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            // 固定三栏（品牌、品类、原因），窄屏一栏
+            gridTemplateColumns: wide
+              ? 'repeat(3, minmax(0, 1fr))'
+              : 'minmax(0, 1fr)',
             gap: 24,
           }}
         >
@@ -368,6 +378,7 @@ const TeamView: React.FC<{
               }}
               scroll={{ x: tableScrollX(ownerColumns) }}
               columns={ownerColumns}
+              onRow={(r) => rowAlert(attention(r) ? 'warning' : undefined)}
             />
           </Card>
           <Card style={{ padding: 20 }}>

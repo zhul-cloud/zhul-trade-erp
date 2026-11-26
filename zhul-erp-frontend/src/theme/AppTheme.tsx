@@ -112,7 +112,7 @@ const globalCss = (
   /* 悬停复制（CopyText，D27）：复制图标平时隐藏，悬停内容或键盘聚焦时出现；占位不变，出现时不挤动文字 */
   .zhul-copy { display: inline-flex; align-items: center; gap: 2px; max-width: 100%; }
   .zhul-copy-btn { all: unset; flex: none; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 4px; color: ${p.mute}; cursor: pointer; opacity: 0; transition: opacity .15s; }
-  .zhul-copy:hover .zhul-copy-btn, .zhul-copy-btn:focus-visible { opacity: 1; }
+  .zhul-copy:hover .zhul-copy-btn, .zhul-copy:focus-within .zhul-copy-btn { opacity: 1; }
   .zhul-copy-btn:hover { color: ${p.ink}; background: ${p.neutralSoft}; }
   .zhul-copy-btn:focus-visible { outline: 2px solid ${p.link}; outline-offset: 1px; }
   @media (hover: none) { .zhul-copy-btn { opacity: 1; } }

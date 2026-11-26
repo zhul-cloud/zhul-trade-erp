@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Input, Modal, Popover, Radio, Select, Table } from 'antd';
 import { Link2, RotateCcw, Search, Sparkles } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
@@ -152,6 +153,8 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
   const [pageSize, setPageSize] = usePageSize(20, 'unlinked');
   const [rows, setRows] = useState<UnlinkedGroup[]>([]);
   const [total, setTotal] = useState(0);
+  /** 另一状态的数量（状态下拉选项带数量，同一接口每页 1 条只取总数） */
+  const [otherTotal, setOtherTotal] = useState<number>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [selected, setSelected] = useState<UnlinkedGroup[]>([]);
@@ -166,14 +169,15 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
     setLoading(true);
     setError(undefined);
     try {
-      const r = await candidateApi.unlinked({
-        keyword: query,
-        page,
-        pageSize,
-        marked,
-      });
+      const [r, other] = await Promise.all([
+        candidateApi.unlinked({ keyword: query, page, pageSize, marked }),
+        candidateApi
+          .unlinked({ keyword: query, page: 1, pageSize: 1, marked: !marked })
+          .catch(() => undefined),
+      ]);
       setRows(r.records);
       setTotal(r.total);
+      setOtherTotal(other?.total);
     } catch (e) {
       setError(readBizError(e).message);
     } finally {
@@ -492,6 +496,12 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
           },
         ] as TableColumnsType<UnlinkedGroup>)),
   ];
+  // 1366 宽下默认列放不下：「明细条数」默认收进「列」设置（列表页统一规范），按视图分开记
+  const columnsSet = useColumnSettings(
+    marked ? 'product-unlinked-marked' : 'product-unlinked',
+    columns,
+    { hidden: ['明细条数'] },
+  );
 
   return (
     <>
@@ -526,9 +536,21 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
               setPage(1);
             }}
             options={[
-              { value: 'open', label: '待关联' },
-              { value: 'marked', label: '已标为不是商品' },
-            ]}
+              {
+                value: 'open',
+                label: '待关联',
+                n: marked ? otherTotal : total,
+              },
+              {
+                value: 'marked',
+                label: '已标为不是商品',
+                n: marked ? total : otherTotal,
+              },
+            ].map(({ value, label, n }) => ({
+              value,
+              // 选项带数量，为 0 或还不知道时只写名称（列表页统一规范）
+              label: n ? `${label} · ${n}` : label,
+            }))}
             aria-label="状态"
           />
         </FilterField>
@@ -540,6 +562,7 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
           count={selected.length > 0 ? undefined : total}
           unit="组"
           loading={loading}
+          settings={columnsSet.settings}
           left={
             selected.length > 0 ? (
               <SelectionCount
@@ -607,10 +630,10 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
         >
           <Table<UnlinkedGroup>
             rowKey="key"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             rowSelection={{
               selectedRowKeys: selected.map((g) => g.key),
               preserveSelectedRowKeys: true,

@@ -304,11 +304,10 @@ describe('CopyText 悬停复制（D27）', () => {
         React.createElement(
           'div',
           { onClick: onRow },
-          React.createElement(
-            CopyText,
-            { text: 'SO20261126001' },
-            React.createElement('span', null, 'SO20261126001'),
-          ),
+          React.createElement(CopyText, {
+            text: 'SO20261126001',
+            children: React.createElement('span', null, 'SO20261126001'),
+          }),
         ),
       ),
     );
@@ -327,11 +326,10 @@ describe('CopyText 悬停复制（D27）', () => {
       React.createElement(
         App,
         null,
-        React.createElement(
-          CopyText,
-          { text: null },
-          React.createElement('span', null, '草稿采购订单'),
-        ),
+        React.createElement(CopyText, {
+          text: null,
+          children: React.createElement('span', null, '草稿采购订单'),
+        }),
       ),
     );
     expect(screen.queryByRole('button')).toBeNull();

@@ -20,6 +20,7 @@ import { BatchLink } from '@/pages/warehouse/inventoryParts';
 import { docHref } from '@/pages/warehouse/inventoryService';
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useDeltaColor } from '@/theme/delta';
 import { tableScrollX } from '@/utils/tableScroll';
 import { ReasonPill, SignedMoney } from '../costingParts';
 import {
@@ -40,10 +41,12 @@ const unit = (v?: number) => (v == null ? '—' : Number(v).toFixed(6));
 /** 单位成本的变化量：+3.000000 / −1.500000；没变化「—」 */
 const UnitDiff: React.FC<{ value?: number }> = ({ value }) => {
   const { palette } = useAppTheme();
+  // 按个人涨跌色设置着色，与 SignedMoney 一致（D65）
+  const { of: deltaOf } = useDeltaColor();
   const v = Number(value ?? 0);
   if (v === 0) return <span style={{ color: palette.mute }}>—</span>;
   return (
-    <span style={{ color: v > 0 ? palette.green : palette.red }}>
+    <span style={{ color: deltaOf(v) }}>
       {v > 0 ? '+' : '−'}
       {Math.abs(v).toFixed(6)}
     </span>

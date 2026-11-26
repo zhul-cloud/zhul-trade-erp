@@ -429,6 +429,7 @@ const ReviewDrawer: React.FC<{
                           padding: '8px 12px',
                           borderRadius: 10,
                           fontSize: 13,
+                          // lint-ui-ignore primary-soft: 单选选中的推荐报价，属于选中态
                           background: rec
                             ? palette.primarySoft
                             : voided
