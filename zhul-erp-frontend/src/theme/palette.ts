@@ -342,7 +342,8 @@ export const chartSeries = (
  * 支出家族的键仍叫 gray（后端接口传的值），颜色是洋红 #F0468E：灰色像禁用，跟主题色又会在
  * 紫、天蓝、宝蓝、青绿主题下和其他家族撞色（对比图 R20，2026-11-24 用户选 B，D58）
  */
-export type MetricFamily = 'blue' | 'purple' | 'cyan' | 'gray';
+// neutral：非金额指标（付款条件、发货进度、合同等）用中性灰图标块，只给前端用，后端看板不传（D67）
+export type MetricFamily = 'blue' | 'purple' | 'cyan' | 'gray' | 'neutral';
 export const METRIC_FAMILY: Record<
   ThemeMode,
   Record<MetricFamily, [string, string]>
@@ -353,12 +354,14 @@ export const METRIC_FAMILY: Record<
     purple: ['#8E33FF', '#EDDEFF'],
     cyan: ['#00B8D9', '#D6F4F9'],
     gray: ['#F0468E', '#FDE1ED'],
+    neutral: ['#637381', '#ECEEF0'],
   },
   dark: {
     blue: ['#1877F2', '#1A293D'],
     purple: ['#8E33FF', '#2D1E3F'],
     cyan: ['#00B8D9', '#163339'],
     gray: ['#F0468E', '#3C212D'],
+    neutral: ['#A0A0A0', '#2F2F2F'],
   },
 };
 
