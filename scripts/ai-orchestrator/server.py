@@ -1180,6 +1180,61 @@ def process_tariff(payload: dict, callback_url: str):
         print(f"[ai-orchestrator] hs-tariff-ref failed: {message}")
         send_callback(callback_url, "failed", error=message[:500])
 
+VIDEO_SCRIPT_SKILL = "video-script"
+
+VIDEO_SCRIPT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "title": {"type": "string"},
+        "shots": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "image": {"type": "integer"},
+                    "caption": {"type": "string"},
+                },
+                "required": ["image", "caption"],
+            },
+        },
+    },
+    "required": ["title", "shots"],
+}
+
+
+def call_video_script(cfg: AiConfig, input_data: dict) -> dict:
+    """商品短视频脚本（openspec product-video-task）：不联网，只按输入的资料写；镜头数、时长由后端再校验"""
+    structured = call_api(cfg, _read_skill(VIDEO_SCRIPT_SKILL), json.dumps(input_data, ensure_ascii=False), [],
+                          VIDEO_SCRIPT_SCHEMA, role="parse")
+    if "shots" not in structured:
+        raise RuntimeError("AI 未返回符合 schema 的视频脚本")
+    count = len(input_data.get("images") or [])
+    structured["shots"] = [s for s in structured["shots"]
+                           if isinstance(s.get("image"), int) and 1 <= s["image"] <= count and (s.get("caption") or "").strip()]
+    product = input_data.get("product") or {}
+    print(f"[ai-orchestrator] 视频脚本 {product.get('brand')} {product.get('model')} 镜头 {len(structured['shots'])} 个")
+    return structured
+
+
+def process_video_script(payload: dict, callback_url: str):
+    start_job()
+    key = _api_key_of(payload)
+    try:
+        cfg = parse_chain(payload, callback_url)
+        input_data = payload.get("input") or {}
+        if not input_data.get("images"):
+            send_callback(callback_url, "failed", error="没有选用的图片")
+            return
+        send_callback(callback_url, "success", output=call_video_script(cfg, input_data))
+    except ConfigError as e:
+        send_callback(callback_url, "failed", error=str(e))
+    except (JobTimeout, anthropic.APITimeoutError, openai.APITimeoutError):
+        send_callback(callback_url, "failed", error=f"AI 处理超过 {TIMEOUT_SECONDS} 秒未完成")
+    except Exception as e:
+        message = scrub(str(e), key)
+        print(f"[ai-orchestrator] video-script failed: {message}")
+        send_callback(callback_url, "failed", error=message[:500])
+
 PRODUCT_CONTENT_SKILL = "product-content"
 # 一个商品的资料与营销内容要核实多个网页，联网次数至少这么多（公司设置更高时按公司设置）
 PRODUCT_CONTENT_MIN_WEB_CALLS = int(os.environ.get("AI_PRODUCT_CONTENT_MIN_WEB_CALLS") or "40")
@@ -2159,6 +2214,11 @@ class Handler(BaseHTTPRequestHandler):
         if skill_id == TARIFF_SKILL:
             if callback_url:
                 threading.Thread(target=process_tariff, args=(payload, callback_url), daemon=True).start()
+            return
+
+        if skill_id == VIDEO_SCRIPT_SKILL:
+            if callback_url:
+                threading.Thread(target=process_video_script, args=(payload, callback_url), daemon=True).start()
             return
 
         if skill_id == BACKGROUND_SKILL:
