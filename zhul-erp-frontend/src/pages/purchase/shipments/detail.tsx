@@ -206,46 +206,47 @@ const ShipmentDetailPage: React.FC = () => {
               { label: '作废原因', value: s.voidReason, hidden: !voided },
             ]}
           />
-          <Card style={{ padding: 20, marginBottom: 16 }}>
-            <SectionTitle>
-              明细
-              <span
-                style={{
-                  color: palette.mute,
-                  fontSize: 13,
-                  fontWeight: 400,
-                  marginLeft: 8,
-                }}
-              >
-                {s.items.length} 个型号 · {totalQty} 件
-              </span>
-            </SectionTitle>
-            <Table<ShipmentItem>
-              rowKey="id"
-              size="middle"
-              pagination={false}
-              columns={columns}
-              dataSource={s.items}
-              scroll={{ x: tableScrollX(columns) }}
-            />
-          </Card>
-          <DocFilesCard
-            ownerType="SHIPMENT"
-            files={d.attachments}
-            remark={s.note}
-            editable={!voided && !!access.purchaseShipments}
-            filesEditable={inTransit && canShip}
-            onAttach={(ids) => shipmentApi.attach(s.id, ids)}
-            onRemove={(fid) => shipmentApi.removeAttachment(s.id, fid)}
-            onRemark={(text) => shipmentApi.remark(s.id, text)}
-            onChanged={load}
-          />
         </div>
         <div style={{ minWidth: 0 }}>
           <RelatedDocsCard docs={relatedRows(d.related)} />
           <DocLogCard logs={d.logs} />
         </div>
       </div>
+      {/* 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18） */}
+      <Card style={{ padding: 20, marginBottom: 16 }}>
+        <SectionTitle>
+          明细
+          <span
+            style={{
+              color: palette.mute,
+              fontSize: 13,
+              fontWeight: 400,
+              marginLeft: 8,
+            }}
+          >
+            {s.items.length} 个型号 · {totalQty} 件
+          </span>
+        </SectionTitle>
+        <Table<ShipmentItem>
+          rowKey="id"
+          size="middle"
+          pagination={false}
+          columns={columns}
+          dataSource={s.items}
+          scroll={{ x: tableScrollX(columns) }}
+        />
+      </Card>
+      <DocFilesCard
+        ownerType="SHIPMENT"
+        files={d.attachments}
+        remark={s.note}
+        editable={!voided && !!access.purchaseShipments}
+        filesEditable={inTransit && canShip}
+        onAttach={(ids) => shipmentApi.attach(s.id, ids)}
+        onRemove={(fid) => shipmentApi.removeAttachment(s.id, fid)}
+        onRemark={(text) => shipmentApi.remark(s.id, text)}
+        onChanged={load}
+      />
       <ShipmentDrawer
         open={dialog === 'edit'}
         shipmentId={s.id}

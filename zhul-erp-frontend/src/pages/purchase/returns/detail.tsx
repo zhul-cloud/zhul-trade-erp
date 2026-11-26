@@ -147,7 +147,7 @@ const PurchaseReturnDetail: React.FC = () => {
       ? '公司支付'
       : undefined;
 
-  const main = (
+  const info = (
     <>
       <InfoGrid
         items={[
@@ -211,6 +211,11 @@ const PurchaseReturnDetail: React.FC = () => {
           { label: '作废原因', value: p.voidReason, hidden: !voided },
         ]}
       />
+    </>
+  );
+  // 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18）
+  const wideSections = (
+    <>
       {(p.freightProofs ?? []).length > 0 && (
         <Card style={{ padding: 20, marginBottom: 16 }}>
           <SectionTitle>运费截图</SectionTitle>
@@ -366,12 +371,13 @@ const PurchaseReturnDetail: React.FC = () => {
           alignItems: 'start',
         }}
       >
-        <div style={{ minWidth: 0 }}>{main}</div>
+        <div style={{ minWidth: 0 }}>{info}</div>
         <div style={{ minWidth: 0 }}>
           <RelatedDocsCard docs={related} />
           <DocLogCard logs={p.logs} />
         </div>
       </div>
+      {wideSections}
       <ShipModal
         data={dialog === 'ship' ? p : undefined}
         onClose={() => setDialog(undefined)}

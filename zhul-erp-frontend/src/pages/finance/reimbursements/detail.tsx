@@ -99,7 +99,7 @@ const ReimbursementDetail: React.FC = () => {
     },
   ];
 
-  const main = (
+  const info = (
     <>
       <InfoGrid
         items={[
@@ -146,6 +146,11 @@ const ReimbursementDetail: React.FC = () => {
           },
         ]}
       />
+    </>
+  );
+  // 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18）
+  const wideSections = (
+    <>
       <Card style={{ padding: 20, marginBottom: 16 }}>
         <SectionTitle
           extra={
@@ -228,12 +233,13 @@ const ReimbursementDetail: React.FC = () => {
           alignItems: 'start',
         }}
       >
-        <div style={{ minWidth: 0 }}>{main}</div>
+        <div style={{ minWidth: 0 }}>{info}</div>
         <div style={{ minWidth: 0 }}>
           <RelatedDocsCard docs={relatedRows(bx.related)} />
           <DocLogCard logs={bx.logs} />
         </div>
       </div>
+      {wideSections}
       <PayModal
         targets={paying ? [bx] : undefined}
         onClose={() => setPaying(false)}

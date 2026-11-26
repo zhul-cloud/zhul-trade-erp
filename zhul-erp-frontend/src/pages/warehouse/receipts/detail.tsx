@@ -217,66 +217,67 @@ const ReceiptDetailPage: React.FC = () => {
               { label: '冲销原因', value: r.reverseReason, hidden: valid },
             ]}
           />
-          <Card style={{ padding: 20, marginBottom: 16 }}>
-            <SectionTitle>
-              明细
-              <span
-                style={{
-                  color: palette.mute,
-                  fontSize: 13,
-                  fontWeight: 400,
-                  marginLeft: 8,
-                }}
-              >
-                发货 {sum('shippedQty')} · 实收 {sum('receivedQty')} · 合格{' '}
-                {sum('qualifiedQty')}
-              </span>
-            </SectionTitle>
-            <Table<ReceiptItem>
-              rowKey="id"
-              size="middle"
-              pagination={false}
-              columns={columns}
-              dataSource={d.items}
-              scroll={{ x: tableScrollX(columns) }}
-            />
-          </Card>
-          <DocFilesCard
-            remark={r.note}
-            editable={editable}
-            onRemark={(text) => receiptApi.remark(r.id, text)}
-            onChanged={load}
-            groups={[
-              {
-                label: '验收照片',
-                ownerType: 'RECEIPT',
-                files: d.attachments,
-                editable,
-                onAttach: (ids) => receiptApi.attach(r.id, ids),
-                onRemove: (fid) => receiptApi.removeAttachment(r.id, fid),
-              },
-              ...(hasDefect
-                ? [
-                    {
-                      label: '不良照片',
-                      ownerType: 'RECEIPT_DEFECT' as const,
-                      files: d.defectAttachments ?? [],
-                      editable,
-                      onAttach: (ids: number[]) =>
-                        receiptApi.attach(r.id, ids, true),
-                      onRemove: (fid: number) =>
-                        receiptApi.removeAttachment(r.id, fid, true),
-                    },
-                  ]
-                : []),
-            ]}
-          />
         </div>
         <div style={{ minWidth: 0 }}>
           <RelatedDocsCard docs={related} />
           <DocLogCard logs={d.logs} />
         </div>
       </div>
+      {/* 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18） */}
+      <Card style={{ padding: 20, marginBottom: 16 }}>
+        <SectionTitle>
+          明细
+          <span
+            style={{
+              color: palette.mute,
+              fontSize: 13,
+              fontWeight: 400,
+              marginLeft: 8,
+            }}
+          >
+            发货 {sum('shippedQty')} · 实收 {sum('receivedQty')} · 合格{' '}
+            {sum('qualifiedQty')}
+          </span>
+        </SectionTitle>
+        <Table<ReceiptItem>
+          rowKey="id"
+          size="middle"
+          pagination={false}
+          columns={columns}
+          dataSource={d.items}
+          scroll={{ x: tableScrollX(columns) }}
+        />
+      </Card>
+      <DocFilesCard
+        remark={r.note}
+        editable={editable}
+        onRemark={(text) => receiptApi.remark(r.id, text)}
+        onChanged={load}
+        groups={[
+          {
+            label: '验收照片',
+            ownerType: 'RECEIPT',
+            files: d.attachments,
+            editable,
+            onAttach: (ids) => receiptApi.attach(r.id, ids),
+            onRemove: (fid) => receiptApi.removeAttachment(r.id, fid),
+          },
+          ...(hasDefect
+            ? [
+                {
+                  label: '不良照片',
+                  ownerType: 'RECEIPT_DEFECT' as const,
+                  files: d.defectAttachments ?? [],
+                  editable,
+                  onAttach: (ids: number[]) =>
+                    receiptApi.attach(r.id, ids, true),
+                  onRemove: (fid: number) =>
+                    receiptApi.removeAttachment(r.id, fid, true),
+                },
+              ]
+            : []),
+        ]}
+      />
       <ReasonModal
         open={reversing}
         title={`冲销采购入库单 ${r.grNo}`}

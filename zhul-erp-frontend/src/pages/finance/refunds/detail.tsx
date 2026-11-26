@@ -107,7 +107,7 @@ const RefundDetail: React.FC = () => {
     },
   ];
 
-  const main = (
+  const info = (
     <>
       <InfoGrid
         items={[
@@ -136,6 +136,11 @@ const RefundDetail: React.FC = () => {
           { label: '作废原因', value: f.voidReason, hidden: valid },
         ]}
       />
+    </>
+  );
+  // 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18）
+  const wideSections = (
+    <>
       <Card style={{ padding: 20, marginBottom: 16 }}>
         <SectionTitle extra={<b>合计 {formatAmount(f.amount, cur)}</b>}>
           明细
@@ -210,12 +215,13 @@ const RefundDetail: React.FC = () => {
           alignItems: 'start',
         }}
       >
-        <div style={{ minWidth: 0 }}>{main}</div>
+        <div style={{ minWidth: 0 }}>{info}</div>
         <div style={{ minWidth: 0 }}>
           <RelatedDocsCard docs={relatedRows(f.related)} />
           <DocLogCard logs={f.logs} />
         </div>
       </div>
+      {wideSections}
       <ReasonModal
         open={voiding}
         title={`作废 ${f.refundNo}`}

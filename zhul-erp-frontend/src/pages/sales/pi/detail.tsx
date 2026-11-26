@@ -1535,13 +1535,6 @@ const PiDetail: React.FC = () => {
       render: (_, r) => <b style={num}>{formatMoney(r.amount)}</b>,
     },
     {
-      title: 'HS 编码 · 原产国',
-      key: 'hs',
-      width: 160,
-      render: (_, r) =>
-        [r.hsCode, r.originCountry].filter(Boolean).join(' · ') || '—',
-    },
-    {
       title: '毛利率',
       key: 'margin',
       width: 90,
@@ -1565,6 +1558,13 @@ const PiDetail: React.FC = () => {
         ) : (
           <span style={num}>{formatMoney(r.netProfit)}</span>
         ),
+    },
+    {
+      title: 'HS 编码 · 原产国',
+      key: 'hs',
+      width: 160,
+      render: (_, r) =>
+        [r.hsCode, r.originCountry].filter(Boolean).join(' · ') || '—',
     },
   ];
 
@@ -2596,11 +2596,16 @@ const PiDetail: React.FC = () => {
     </Card>
   );
 
-  const main = (
-    <div style={{ minWidth: 0 }}>
+  // 上半：提示、版本、单据信息；下半：明细、费用与合计、来源去向（宽内容）
+  const top = (
+    <>
       {banner}
       {versionsCard}
       {editable ? header : readonlyHeader}
+    </>
+  );
+  const bottom = (
+    <>
       {itemsBlock}
       <div
         style={{
@@ -2620,6 +2625,12 @@ const PiDetail: React.FC = () => {
           reloadKey={`${pi.status}-${pi.order?.id}`}
         />
       </div>
+    </>
+  );
+  const main = (
+    <div style={{ minWidth: 0 }}>
+      {top}
+      {bottom}
     </div>
   );
 
@@ -2671,19 +2682,24 @@ const PiDetail: React.FC = () => {
           {previewCard}
         </div>
       ) : pi.status !== PI_STATUS.DRAFT && !editable ? (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: wide
-              ? 'minmax(0, 2.6fr) minmax(320px, 1fr)'
-              : '1fr',
-            gap: 16,
-            alignItems: 'start',
-          }}
-        >
-          {main}
-          {receiptsCard}
-        </div>
+        // 照销售订单：上半两栏（右栏收款），明细等宽内容放下方通栏，1366 宽下明细不被挤出（复审 P18）
+        <>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: wide
+                ? 'minmax(0, 2.6fr) minmax(340px, 1fr)'
+                : '1fr',
+              gap: 16,
+              alignItems: 'start',
+              marginBottom: 16,
+            }}
+          >
+            <div style={{ minWidth: 0 }}>{top}</div>
+            {receiptsCard}
+          </div>
+          {bottom}
+        </>
       ) : (
         <>
           {main}

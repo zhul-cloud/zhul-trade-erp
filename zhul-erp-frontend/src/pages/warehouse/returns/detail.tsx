@@ -161,7 +161,7 @@ const ReturnReceiptDetail: React.FC = () => {
     },
   ];
 
-  const main = (
+  const info = (
     <>
       <InfoGrid
         items={[
@@ -194,6 +194,11 @@ const ReturnReceiptDetail: React.FC = () => {
           { label: '作废原因', value: r.voidReason, hidden: !voided },
         ]}
       />
+    </>
+  );
+  // 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18）
+  const wideSections = (
+    <>
       <Card style={{ padding: 20, marginBottom: 16 }}>
         <SectionTitle>明细</SectionTitle>
         <Table<ReturnReceiptItem>
@@ -322,9 +327,10 @@ const ReturnReceiptDetail: React.FC = () => {
           alignItems: 'start',
         }}
       >
-        <div style={{ minWidth: 0 }}>{main}</div>
+        <div style={{ minWidth: 0 }}>{info}</div>
         <div style={{ minWidth: 0 }}>{side}</div>
       </div>
+      {wideSections}
       <ReceiveModal
         data={dialog === 'receive' ? r : undefined}
         onClose={() => setDialog(undefined)}

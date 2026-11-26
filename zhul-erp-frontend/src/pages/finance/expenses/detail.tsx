@@ -148,7 +148,7 @@ const ExpenseDetail: React.FC = () => {
         ]),
   ];
 
-  const main = (
+  const info = (
     <>
       <InfoGrid
         items={[
@@ -213,6 +213,11 @@ const ExpenseDetail: React.FC = () => {
           },
         ]}
       />
+    </>
+  );
+  // 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18）
+  const wideSections = (
+    <>
       {e.allocations.length > 0 && (
         <Card style={{ padding: 20, marginBottom: 16 }}>
           <SectionTitle
@@ -310,12 +315,13 @@ const ExpenseDetail: React.FC = () => {
           alignItems: 'start',
         }}
       >
-        <div style={{ minWidth: 0 }}>{main}</div>
+        <div style={{ minWidth: 0 }}>{info}</div>
         <div style={{ minWidth: 0 }}>
           <RelatedDocsCard docs={relatedRows(e.related)} />
           <DocLogCard logs={e.logs} />
         </div>
       </div>
+      {wideSections}
       <ExpenseDrawer
         open={editing}
         editing={e}
