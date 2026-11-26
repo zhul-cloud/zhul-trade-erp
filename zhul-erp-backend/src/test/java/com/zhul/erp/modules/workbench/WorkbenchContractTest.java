@@ -131,7 +131,7 @@ class WorkbenchContractTest extends TenantContractSupport {
         int[] all = {DASHBOARD, MY_TASKS, OPP_STATS, PI, REQUIREMENTS, ORDERS, SHIPMENTS, 100051, 100053, 100054, 100079,
                 100100, 100102, 100103, 100107, 100108, 100109, 100112, 100113, 100114, 100116, 100117};
         Map<String, List<String>> expected = Map.of(
-                "boss", List.of("biz-overview", "cash", "sales-funnel", "revenue-trend", "risk-alerts", "rankings"),
+                "boss", List.of("biz-overview", "cash", "sales-funnel", "revenue-trend", "risk-alerts", "rankings", "sales-compare"),
                 "sales_lead", List.of("team-performance", "follow-ups", "opportunity-stats", "sales-compare", "quote-conversion"),
                 "sales", List.of("my-todo", "my-performance", "quote-progress", "overdue-pi", "my-opportunities"),
                 "purchase_lead", List.of("sourcing-overview", "buyer-efficiency", "purchase-execution", "bargain-result", "payables"),
@@ -151,6 +151,12 @@ class WorkbenchContractTest extends TenantContractSupport {
                 }
                 JsonNode data = ok(call(get(API + "/widgets/" + key), token));
                 assertTrue(data.path("blocks").size() > 0, key + "：" + data);
+                if (key.equals("sales-compare")) {
+                    // openspec boss-workbench-sales-compare：成交额后是毛利率
+                    List<String> titles = new ArrayList<>();
+                    data.path("blocks").get(0).path("table").path("columns").forEach(c -> titles.add(c.path("title").asText()));
+                    assertEquals(List.of("业务员", "询盘", "报价", "成交额", "毛利率", "询盘→成交"), titles, data.toString());
+                }
             }
         }
     }
