@@ -30,6 +30,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
+import { ReceiptProgress } from '@/pages/sales/orders/parts';
 import {
   type BankOption,
   bankOptionsApi,
@@ -1372,13 +1373,167 @@ export const PayableBody: React.FC<{
   );
 };
 
-/** 采购订单、运费账单详情里的「付款」面板 */
+/**
+ * 付款面板的窄版（详情页右栏 340，照销售订单收款卡，ui-redesign D44、复审 P9）：
+ * 已付大字 / 应付、进度条、剩余；付款计划、付款单改为两行一条的列表，金额右对齐。
+ * 付款条件不在这里重复（详情页的订单信息里已有）
+ */
+const PayableCompactBody: React.FC<{ payable: Payable }> = ({ payable: p }) => {
+  const { palette } = useAppTheme();
+  const c = p.currencyCode;
+  const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
+  const lines = p.payments.filter((l) => !l.voided);
+  const subTitle = (text: string) => (
+    <div
+      style={{
+        fontSize: 13,
+        fontWeight: 600,
+        color: palette.ink,
+        paddingBottom: 6,
+        borderBottom: `1px solid ${palette.hairline}`,
+      }}
+    >
+      {text}
+    </div>
+  );
+  const row = (
+    key: React.Key,
+    left: React.ReactNode,
+    right: React.ReactNode,
+    second: React.ReactNode,
+  ) => (
+    <div
+      key={key}
+      style={{
+        padding: '8px 0',
+        borderBottom: `1px solid ${palette.hairline}`,
+        display: 'grid',
+        gap: 2,
+      }}
+    >
+      <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
+        <span style={{ flex: 1, minWidth: 0, color: palette.ink }}>{left}</span>
+        <b style={{ ...num, color: palette.ink }}>{right}</b>
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          fontSize: 12,
+          color: palette.mute,
+        }}
+      >
+        {second}
+      </div>
+    </div>
+  );
+  return (
+    <div style={{ display: 'grid', gap: 16 }}>
+      <div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: 6,
+            flexWrap: 'wrap',
+            marginBottom: 8,
+          }}
+        >
+          <span style={{ fontSize: 13, color: palette.sub }}>已付</span>
+          <b style={{ ...num, fontSize: 20, color: palette.ink }}>
+            {formatAmount(p.paidAmount, c)}
+          </b>
+          <span style={{ ...num, fontSize: 13, color: palette.mute }}>
+            / {formatAmount(p.amount, c)}
+          </span>
+        </div>
+        <ReceiptProgress
+          received={p.paidAmount}
+          total={p.amount}
+          width="100%"
+          hideStatus
+        />
+        <div style={{ ...num, fontSize: 12, color: palette.sub, marginTop: 4 }}>
+          {p.unpaidAmount > 0 && `未付 ${formatAmount(p.unpaidAmount, c)}`}
+          {p.creditAmount > 0 && (
+            <span style={{ color: palette.orange }}>
+              {p.unpaidAmount > 0 ? ' · ' : ''}供应商欠款{' '}
+              {formatAmount(p.creditAmount, c)}
+            </span>
+          )}
+          {c !== 'CNY' && ` · 已付人民币 ${formatAmount(p.paidCny, 'CNY')}`}
+        </div>
+      </div>
+      {p.installments.length > 0 && (
+        <div>
+          {subTitle('付款计划')}
+          {p.installments.map((i) =>
+            row(
+              i.seq,
+              `第 ${i.seq} 期 · ${i.ratio}% · ${i.triggerName}`,
+              formatAmount(i.amount, c),
+              <>
+                <DueTag date={i.dueDate} state={i.dueState} days={i.dueDays} />
+                <span style={num}>已付 {formatAmount(i.paidAmount, c)}</span>
+                <PayStatusPill status={i.status} />
+              </>,
+            ),
+          )}
+        </div>
+      )}
+      <div>
+        {subTitle('付款单')}
+        {lines.length === 0 ? (
+          <div style={{ padding: '8px 0' }}>
+            <EmptyState compact title="还没有付款" />
+          </div>
+        ) : (
+          lines.map((l) =>
+            row(
+              `${l.paymentId}-${l.relation}-${l.otherPayableNo ?? ''}`,
+              <>
+                <Link to={`/finance/payments/${l.paymentId}`}>
+                  {l.paymentNo}
+                </Link>{' '}
+                <span style={{ fontSize: 12, color: palette.mute }}>
+                  {RELATION[l.relation]}
+                </span>
+              </>,
+              formatAmount(l.amount, c),
+              <>
+                <span>{l.payDate}</span>
+                <span>
+                  {l.kind === 2
+                    ? (l.accountName ?? '—')
+                    : l.method === METHOD.ADVANCE
+                      ? `员工垫付 ${l.advanceUser ?? ''}`
+                      : l.method === METHOD.PRIVATE
+                        ? `私对私 ${l.payerAccount ?? ''}`
+                        : (l.accountName ?? '—')}
+                </span>
+                {l.attachments.length > 0 && (
+                  <ProofLinks files={l.attachments} />
+                )}
+              </>,
+            ),
+          )
+        )}
+      </div>
+    </div>
+  );
+};
+
+/** 采购订单、运费账单详情里的「付款」面板；compact 为详情页右栏的窄版 */
 export const PayablePanel: React.FC<{
   sourceType: number;
   sourceId: number;
   /** 采购订单可以登记员工垫付 */
   allowAdvance?: boolean;
-}> = ({ sourceType, sourceId, allowAdvance }) => {
+  /** 详情页右栏的窄版（PayableCompactBody） */
+  compact?: boolean;
+}> = ({ sourceType, sourceId, allowAdvance, compact }) => {
   const { palette } = useAppTheme();
   const access = useAccess() as Record<string, boolean>;
   const [data, setData] = useState<Payable | null>();
@@ -1462,7 +1617,11 @@ export const PayablePanel: React.FC<{
           </Button>
         )}
       </div>
-      <PayableBody payable={data} />
+      {compact ? (
+        <PayableCompactBody payable={data} />
+      ) : (
+        <PayableBody payable={data} />
+      )}
       <RegisterPaymentDrawer
         open={!!drawer}
         anchorId={data.id}

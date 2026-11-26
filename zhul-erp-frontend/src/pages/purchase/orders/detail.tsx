@@ -60,6 +60,7 @@ import {
   ProofLinks,
 } from '@/pages/finance/payables/components';
 import { SOURCE } from '@/pages/finance/payables/service';
+import { useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { PR_STATUS_TONE } from '@/pages/sales/after-sales/service';
@@ -205,6 +206,7 @@ const PurchaseOrderDetail: React.FC = () => {
   const { message, modal } = App.useApp();
   const confirmDanger = useConfirmDanger();
   const access = useAccess();
+  const wide = useWide();
   const [po, setPo] = useState<PurchaseOrder>();
   // 草稿还没编号：页签写「草稿采购订单 · 供应商」，几张草稿同时打开时分得清
   usePageTitle(
@@ -674,6 +676,8 @@ const PurchaseOrderDetail: React.FC = () => {
       ? null
       : round2(draft.contractAmount - preview.total);
 
+  // 右栏只放下单后的付款面板（草稿没有应付，整页单栏）；供应商合同放左栏指标卡下面，两栏高度接近
+  const hasSide = po.status !== PO_STATUS.DRAFT;
   return (
     <div>
       <PageHeader
@@ -803,161 +807,118 @@ const PurchaseOrderDetail: React.FC = () => {
         }
       />
 
+      {/* 照销售订单：上半左栏放订单信息，右栏 340 放付款与合同；型号、发货与入库等宽表放下方通栏（复审 P9、R25 方案 B） */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gridTemplateColumns:
+            wide && hasSide ? 'minmax(0, 2.6fr) minmax(340px, 1fr)' : '1fr',
           gap: 16,
-          marginBottom: 16,
+          alignItems: 'start',
         }}
       >
-        <StatCard
-          icon={<Wallet size="1em" />}
-          color={palette.link}
-          label="合计"
-          value={formatAmount(preview.total, draft.currencyCode)}
-          hint={
-            preview.missing > 0
-              ? `${preview.missing} 行未填单价`
-              : `货款 ${formatAmount(preview.goods, draft.currencyCode)} ${preview.fees < 0 ? '− 优惠净额 ' : '+ 费用 '}${formatAmount(Math.abs(preview.fees), draft.currencyCode)}${preview.invoiceCost ? ` + 开票成本 ${formatAmount(preview.invoiceCost, draft.currencyCode)}` : ''}`
-          }
-          hintColor={preview.missing > 0 ? palette.orange : undefined}
-        />
-        <StatCard
-          icon={<TrendingDown size="1em" />}
-          color={deltaOf(preview.bargain)}
-          label="砍价合计"
-          value={formatAmount(preview.bargain, 'CNY')}
-          hint={
-            preview.bargainRate == null
-              ? '填好单价后计算'
-              : `整体砍价率 ${preview.bargainRate.toFixed(2)}% · 目标金额 ${formatAmount(preview.target, 'CNY')}`
-          }
-          hintColor={deltaOf(preview.bargain)}
-        />
-        <StatCard
-          icon={<Calendar size="1em" />}
-          color={palette.info}
-          label="付款条件"
-          value={
-            draft.paymentTerms.length === 0
-              ? '未填'
-              : draft.paymentTerms.length === 1
-                ? '一次付清'
-                : draft.paymentTerms
-                    .map((t) => `${Number(t.percent)}%`)
-                    .join(' + ')
-          }
-          hint={po.paymentTermsText || '确认下单前须填写'}
-        />
-        {po.shipProgress ? (
-          <StatCard
-            icon={<Car size="1em" />}
-            // 逾期归错误色（status-colors.md「逾期 错误」，ui-redesign S5）
-            color={po.overdueDays ? palette.red : palette.link}
-            label="发货进度"
-            value={`已发 ${po.shippedQty ?? 0} / ${po.totalQty ?? 0}`}
-            hint={shipHint(po)}
-            hintColor={po.overdueDays ? palette.red : undefined}
-          />
-        ) : po.shop ? (
-          <StatCard
-            icon={<ShoppingBag size="1em" />}
-            color={palette.orange}
-            label="采购对象"
-            value="线上店铺"
-            hint="不需要供应商档案；买得多了可以转为供应商"
-          />
-        ) : (
-          <StatCard
-            icon={<FileLock size="1em" />}
-            color={palette.orange}
-            label="供应商合同"
-            value={
-              po.attachments.length
-                ? `${po.attachments.length} 个文件`
-                : '未上传'
-            }
-            hint={
-              contractDiff
-                ? `合同金额与采购订单合计相差 ${formatAmount(Math.abs(contractDiff), draft.currencyCode)}`
-                : po.contractNo
-                  ? `合同编号 ${po.contractNo}`
-                  : '选填，货值低的可以不传'
-            }
-            hintColor={contractDiff ? palette.orange : undefined}
-          />
-        )}
-      </div>
-
-      {editable && (
-        <Card style={{ marginBottom: 16, padding: 20 }}>
+        <div style={{ minWidth: 0 }}>
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
+              // 两栏时左栏 2×2；单栏（草稿、窄屏）时照原样一行排开
+              gridTemplateColumns:
+                wide && hasSide
+                  ? 'repeat(2, minmax(0, 1fr))'
+                  : 'repeat(auto-fit, minmax(220px, 1fr))',
               gap: 16,
-              alignItems: 'end',
+              marginBottom: 16,
             }}
           >
-            <div>
-              <div
-                style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}
-              >
-                采购对象
-              </div>
-              <div style={{ color: palette.ink, lineHeight: '32px' }}>
-                {po.supplierName}
-                {po.shop && (
-                  <span style={{ color: palette.mute }}> · 线上店铺</span>
-                )}
-              </div>
-              {sub(
-                palette.mute,
-                isDraft
-                  ? '要换采购对象：在下面勾选型号点「改到其他供应商」，全选就是整单换'
-                  : '已下单的不能换采购对象，可以取消后重新下单',
-              )}
-            </div>
-            <div>
-              <div
-                style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}
-              >
-                币种
-              </div>
-              <Select
-                style={{ width: '100%' }}
-                value={draft.currencyCode}
-                options={['CNY', ...CURRENCIES.filter((c) => c !== 'CNY')].map(
-                  (c) => ({
-                    value: c,
-                    label: c,
-                  }),
-                )}
-                onChange={(v) =>
-                  setDraft((d) => (d ? { ...d, currencyCode: v } : d))
+            <StatCard
+              icon={<Wallet size="1em" />}
+              color={palette.link}
+              label="合计"
+              value={formatAmount(preview.total, draft.currencyCode)}
+              hint={
+                preview.missing > 0
+                  ? `${preview.missing} 行未填单价`
+                  : `货款 ${formatAmount(preview.goods, draft.currencyCode)} ${preview.fees < 0 ? '− 优惠净额 ' : '+ 费用 '}${formatAmount(Math.abs(preview.fees), draft.currencyCode)}${preview.invoiceCost ? ` + 开票成本 ${formatAmount(preview.invoiceCost, draft.currencyCode)}` : ''}`
+              }
+              hintColor={preview.missing > 0 ? palette.orange : undefined}
+            />
+            <StatCard
+              icon={<TrendingDown size="1em" />}
+              color={deltaOf(preview.bargain)}
+              label="砍价合计"
+              value={formatAmount(preview.bargain, 'CNY')}
+              hint={
+                preview.bargainRate == null
+                  ? '填好单价后计算'
+                  : `整体砍价率 ${preview.bargainRate.toFixed(2)}% · 目标金额 ${formatAmount(preview.target, 'CNY')}`
+              }
+              hintColor={deltaOf(preview.bargain)}
+            />
+            <StatCard
+              icon={<Calendar size="1em" />}
+              color={palette.info}
+              label="付款条件"
+              value={
+                draft.paymentTerms.length === 0
+                  ? '未填'
+                  : draft.paymentTerms.length === 1
+                    ? '一次付清'
+                    : draft.paymentTerms
+                        .map((t) => `${Number(t.percent)}%`)
+                        .join(' + ')
+              }
+              hint={po.paymentTermsText || '确认下单前须填写'}
+            />
+            {po.shipProgress ? (
+              <StatCard
+                icon={<Car size="1em" />}
+                // 逾期归错误色（status-colors.md「逾期 错误」，ui-redesign S5）
+                color={po.overdueDays ? palette.red : palette.link}
+                label="发货进度"
+                value={`已发 ${po.shippedQty ?? 0} / ${po.totalQty ?? 0}`}
+                hint={shipHint(po)}
+                hintColor={po.overdueDays ? palette.red : undefined}
+              />
+            ) : po.shop ? (
+              <StatCard
+                icon={<ShoppingBag size="1em" />}
+                color={palette.orange}
+                label="采购对象"
+                value="线上店铺"
+                hint="不需要供应商档案；买得多了可以转为供应商"
+              />
+            ) : (
+              <StatCard
+                icon={<FileLock size="1em" />}
+                color={palette.orange}
+                label="供应商合同"
+                value={
+                  po.attachments.length
+                    ? `${po.attachments.length} 个文件`
+                    : '未上传'
                 }
-                aria-label="币种"
+                hint={
+                  contractDiff
+                    ? `合同金额与采购订单合计相差 ${formatAmount(Math.abs(contractDiff), draft.currencyCode)}`
+                    : po.contractNo
+                      ? `合同编号 ${po.contractNo}`
+                      : '选填，货值低的可以不传'
+                }
+                hintColor={contractDiff ? palette.orange : undefined}
               />
-            </div>
-            <div>
+            )}
+          </div>
+
+          {editable && (
+            <Card style={{ marginBottom: 16, padding: 20 }}>
               <div
-                style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
+                  gap: 16,
+                  alignItems: 'end',
+                }}
               >
-                开票
-              </div>
-              <Segmented<string>
-                value={draft.invoiceRequired ? 'yes' : 'no'}
-                disabled={po.invoiceStatus === 2}
-                options={[
-                  { label: '不开票', value: 'no' },
-                  { label: '开票', value: 'yes' },
-                ]}
-                onChange={(v) => setInvoice({ invoiceRequired: v === 'yes' })}
-              />
-            </div>
-            {draft.invoiceRequired && (
-              <>
                 <div>
                   <div
                     style={{
@@ -966,17 +927,45 @@ const PurchaseOrderDetail: React.FC = () => {
                       marginBottom: 6,
                     }}
                   >
-                    税点
+                    采购对象
                   </div>
-                  <InputNumber
-                    min={0}
-                    max={100}
-                    precision={2}
-                    value={draft.taxPoint}
-                    suffix="%"
+                  <div style={{ color: palette.ink, lineHeight: '32px' }}>
+                    {po.supplierName}
+                    {po.shop && (
+                      <span style={{ color: palette.mute }}> · 线上店铺</span>
+                    )}
+                  </div>
+                  {sub(
+                    palette.mute,
+                    isDraft
+                      ? '要换采购对象：在下面勾选型号点「改到其他供应商」，全选就是整单换'
+                      : '已下单的不能换采购对象，可以取消后重新下单',
+                  )}
+                </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: palette.sub,
+                      marginBottom: 6,
+                    }}
+                  >
+                    币种
+                  </div>
+                  <Select
                     style={{ width: '100%' }}
-                    onChange={(v) => setInvoice({ taxPoint: v ?? 0 })}
-                    aria-label="税点"
+                    value={draft.currencyCode}
+                    options={[
+                      'CNY',
+                      ...CURRENCIES.filter((c) => c !== 'CNY'),
+                    ].map((c) => ({
+                      value: c,
+                      label: c,
+                    }))}
+                    onChange={(v) =>
+                      setDraft((d) => (d ? { ...d, currencyCode: v } : d))
+                    }
+                    aria-label="币种"
                   />
                 </div>
                 <div>
@@ -987,19 +976,93 @@ const PurchaseOrderDetail: React.FC = () => {
                       marginBottom: 6,
                     }}
                   >
-                    开票金额
+                    开票
                   </div>
-                  <InputNumber
-                    min={0}
-                    precision={2}
-                    value={draft.invoiceAmount}
-                    placeholder={`按货款 ${preview.goods.toFixed(2)}`}
-                    prefix={draft.currencyCode}
-                    style={{ width: '100%' }}
-                    onChange={(v) => setInvoice({ invoiceAmount: v })}
-                    aria-label="开票金额"
+                  <Segmented<string>
+                    value={draft.invoiceRequired ? 'yes' : 'no'}
+                    disabled={po.invoiceStatus === 2}
+                    options={[
+                      { label: '不开票', value: 'no' },
+                      { label: '开票', value: 'yes' },
+                    ]}
+                    onChange={(v) =>
+                      setInvoice({ invoiceRequired: v === 'yes' })
+                    }
                   />
                 </div>
+                {draft.invoiceRequired && (
+                  <>
+                    <div>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: palette.sub,
+                          marginBottom: 6,
+                        }}
+                      >
+                        税点
+                      </div>
+                      <InputNumber
+                        min={0}
+                        max={100}
+                        precision={2}
+                        value={draft.taxPoint}
+                        suffix="%"
+                        style={{ width: '100%' }}
+                        onChange={(v) => setInvoice({ taxPoint: v ?? 0 })}
+                        aria-label="税点"
+                      />
+                    </div>
+                    <div>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: palette.sub,
+                          marginBottom: 6,
+                        }}
+                      >
+                        开票金额
+                      </div>
+                      <InputNumber
+                        min={0}
+                        precision={2}
+                        value={draft.invoiceAmount}
+                        placeholder={`按货款 ${preview.goods.toFixed(2)}`}
+                        prefix={draft.currencyCode}
+                        style={{ width: '100%' }}
+                        onChange={(v) => setInvoice({ invoiceAmount: v })}
+                        aria-label="开票金额"
+                      />
+                    </div>
+                    <div>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: palette.sub,
+                          marginBottom: 6,
+                        }}
+                      >
+                        预计开票日期
+                      </div>
+                      <DatePicker
+                        style={{ width: '100%' }}
+                        value={
+                          draft.expectedInvoiceDate
+                            ? dayjs(draft.expectedInvoiceDate)
+                            : null
+                        }
+                        onChange={(d) =>
+                          setInvoice({
+                            expectedInvoiceDate: d
+                              ? d.format('YYYY-MM-DD')
+                              : null,
+                          })
+                        }
+                        aria-label="预计开票日期"
+                      />
+                    </div>
+                  </>
+                )}
                 <div>
                   <div
                     style={{
@@ -1008,65 +1071,97 @@ const PurchaseOrderDetail: React.FC = () => {
                       marginBottom: 6,
                     }}
                   >
-                    预计开票日期
+                    预计发货日期
                   </div>
                   <DatePicker
                     style={{ width: '100%' }}
                     value={
-                      draft.expectedInvoiceDate
-                        ? dayjs(draft.expectedInvoiceDate)
+                      draft.expectedShipDate
+                        ? dayjs(draft.expectedShipDate)
                         : null
                     }
-                    onChange={(d) =>
-                      setInvoice({
-                        expectedInvoiceDate: d ? d.format('YYYY-MM-DD') : null,
-                      })
+                    allowClear={isDraft}
+                    disabledDate={(d) =>
+                      !!po.orderDate && d.isBefore(dayjs(po.orderDate), 'day')
                     }
-                    aria-label="预计开票日期"
+                    onChange={(d) =>
+                      setDraft((x) =>
+                        x
+                          ? {
+                              ...x,
+                              expectedShipDate: d
+                                ? d.format('YYYY-MM-DD')
+                                : null,
+                            }
+                          : x,
+                      )
+                    }
+                    placeholder={isDraft ? '下单时必填' : undefined}
+                    aria-label="预计发货日期"
                   />
                 </div>
-              </>
-            )}
-            <div>
-              <div
-                style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}
-              >
-                预计发货日期
               </div>
-              <DatePicker
-                style={{ width: '100%' }}
-                value={
-                  draft.expectedShipDate ? dayjs(draft.expectedShipDate) : null
+              {preview.rateUnknown && (
+                <Alert
+                  style={{ marginTop: 12 }}
+                  type="info"
+                  showIcon
+                  title={`${draft.currencyCode} 保存后按系统汇率换算人民币，砍价随之重算`}
+                />
+              )}
+            </Card>
+          )}
+
+          {editable && (
+            <Card style={{ padding: 20, marginBottom: 16 }}>
+              <b
+                style={{
+                  color: palette.ink,
+                  display: 'block',
+                  marginBottom: 12,
+                }}
+              >
+                <Calendar size="1em" /> 付款条件{' '}
+                <HelpTip title="默认取供应商的默认付款条件；确认下单后按它生成应付的付款计划，下单后修改会重新分期" />
+              </b>
+              <PaymentTermsEditor
+                value={draft.paymentTerms}
+                onChange={(terms) =>
+                  setDraft((d) => (d ? { ...d, paymentTerms: terms } : d))
                 }
-                allowClear={isDraft}
-                disabledDate={(d) =>
-                  !!po.orderDate && d.isBefore(dayjs(po.orderDate), 'day')
-                }
-                onChange={(d) =>
-                  setDraft((x) =>
-                    x
-                      ? {
-                          ...x,
-                          expectedShipDate: d ? d.format('YYYY-MM-DD') : null,
-                        }
-                      : x,
-                  )
-                }
-                placeholder={isDraft ? '下单时必填' : undefined}
-                aria-label="预计发货日期"
               />
-            </div>
-          </div>
-          {preview.rateUnknown && (
-            <Alert
-              style={{ marginTop: 12 }}
-              type="info"
-              showIcon
-              title={`${draft.currencyCode} 保存后按系统汇率换算人民币，砍价随之重算`}
+            </Card>
+          )}
+          {!po.shop && (
+            <ContractCard
+              po={po}
+              draft={draft}
+              editable={
+                editable || (canEdit && po.status !== PO_STATUS.CANCELLED)
+              }
+              fieldsEditable={editable}
+              contractDiff={contractDiff}
+              onDraft={(patch) => setDraft((d) => (d ? { ...d, ...patch } : d))}
+              onChanged={(p) => {
+                setPo(p);
+              }}
             />
           )}
-        </Card>
-      )}
+        </div>
+        {hasSide && (
+          <div style={{ minWidth: 0 }}>
+            {po.status !== PO_STATUS.DRAFT && (
+              <PayablePanel
+                key={`${po.id}-${po.status}-${po.totalAmount}-${po.expectedShipDate ?? ''}-${JSON.stringify(po.paymentTerms ?? [])}`}
+                sourceType={SOURCE.PO}
+                sourceId={po.id}
+                allowAdvance
+                compact
+              />
+            )}
+          </div>
+        )}
+      </div>
 
       <Card style={{ marginBottom: 16, padding: 20 }}>
         <div
@@ -1360,85 +1455,40 @@ const PurchaseOrderDetail: React.FC = () => {
         />
       )}
 
-      {po.status !== PO_STATUS.DRAFT && (
-        <PayablePanel
-          key={`${po.id}-${po.status}-${po.totalAmount}-${po.expectedShipDate ?? ''}-${JSON.stringify(po.paymentTerms ?? [])}`}
-          sourceType={SOURCE.PO}
-          sourceId={po.id}
-          allowAdvance
-        />
-      )}
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
-          gap: 16,
-        }}
-      >
-        <Card style={{ padding: 20 }}>
-          <b style={{ color: palette.ink, display: 'block', marginBottom: 12 }}>
-            <Calendar size="1em" /> 付款条件{' '}
-            <HelpTip title="默认取供应商的默认付款条件；确认下单后按它生成应付的付款计划，下单后修改会重新分期" />
-          </b>
-          <PaymentTermsEditor
-            value={draft.paymentTerms}
-            disabled={!editable}
-            onChange={(terms) =>
-              setDraft((d) => (d ? { ...d, paymentTerms: terms } : d))
-            }
-          />
-        </Card>
-        {!po.shop && (
-          <ContractCard
-            po={po}
-            draft={draft}
-            editable={
-              editable || (canEdit && po.status !== PO_STATUS.CANCELLED)
-            }
-            fieldsEditable={editable}
-            contractDiff={contractDiff}
-            onDraft={(patch) => setDraft((d) => (d ? { ...d, ...patch } : d))}
-            onChanged={(p) => {
-              setPo(p);
-            }}
-          />
-        )}
-        <Card style={{ padding: 20 }}>
-          <b style={{ color: palette.ink, display: 'block', marginBottom: 12 }}>
-            <History size="1em" /> 操作日志
-          </b>
-          <div
-            style={{
-              display: 'grid',
-              gap: 8,
-              maxHeight: 320,
-              overflow: 'auto',
-            }}
-          >
-            {po.logs.map((l, i) => (
-              <div
-                // biome-ignore lint/suspicious/noArrayIndexKey: 日志只追加，按位置展示
-                key={i}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '120px 56px 1fr',
-                  gap: 8,
-                  fontSize: 12,
-                }}
-              >
-                <span style={{ color: palette.mute }}>
-                  {dayjs(l.createTime).format('MM-DD HH:mm')}
-                </span>
-                <span style={{ color: palette.sub }}>{l.operatorName}</span>
-                <span style={{ color: palette.sub }}>
-                  <b>{l.action}</b> {l.content}
-                </span>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
+      <Card style={{ padding: 20 }}>
+        <b style={{ color: palette.ink, display: 'block', marginBottom: 12 }}>
+          <History size="1em" /> 操作日志
+        </b>
+        <div
+          style={{
+            display: 'grid',
+            gap: 8,
+            maxHeight: 320,
+            overflow: 'auto',
+          }}
+        >
+          {po.logs.map((l, i) => (
+            <div
+              // biome-ignore lint/suspicious/noArrayIndexKey: 日志只追加，按位置展示
+              key={i}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '120px 56px 1fr',
+                gap: 8,
+                fontSize: 12,
+              }}
+            >
+              <span style={{ color: palette.mute }}>
+                {dayjs(l.createTime).format('MM-DD HH:mm')}
+              </span>
+              <span style={{ color: palette.sub }}>{l.operatorName}</span>
+              <span style={{ color: palette.sub }}>
+                <b>{l.action}</b> {l.content}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Card>
 
       <ConfirmModal
         open={confirmOpen}
