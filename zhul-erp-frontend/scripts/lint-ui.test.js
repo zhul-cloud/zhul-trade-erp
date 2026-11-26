@@ -403,6 +403,23 @@ describe('lint:ui 复审补充', () => {
         'const s = { background: active ? (danger ? palette.redSoft : palette.primarySoft) : undefined };',
       ),
     ).not.toContain('primary-soft:error');
+    // 直接写的 backgroundColor、链式写法，以及 !(x)、!picked(id)、!== 也查
+    expect(
+      rules('const s = { backgroundColor: palette.primarySoft };'),
+    ).toContain('primary-soft:error');
+    expect(
+      rules('const s = { background: theme.palette.primarySoft };'),
+    ).toContain('primary-soft:error');
+    expect(
+      rules(
+        'const s = { background: !picked(id) ? palette.primarySoft : undefined };',
+      ),
+    ).toContain('primary-soft:error');
+    expect(
+      rules(
+        'const s = { background: id !== cur ? palette.primarySoft : undefined };',
+      ),
+    ).toContain('primary-soft:error');
     // 取反、嵌套三元、backgroundColor 也查
     expect(
       rules(

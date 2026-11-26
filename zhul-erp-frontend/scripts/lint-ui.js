@@ -191,7 +191,7 @@ const LINE_RULES = [
     level: 'error',
     message:
       '主题色浅底只表示选中、当前（ui-redesign D42）：说明文字用 Callout，数字或汇总块用中性浅底 palette.inset，属性标签用中性色；批量操作条、搜索命中等选中类用法写 lint-ui-ignore primary-soft 说明',
-    re: /\bbackground:\s*\w+\.primarySoft\b/,
+    re: /\bbackground(Color)?:\s*[\w.]+\.primarySoft\b/,
   },
   {
     id: 'scroll-max-content',
@@ -500,7 +500,7 @@ function checkSource(src, rel) {
   // 浅底只能出现在「是」分支，且条件是选中、当前类变量（on、active、checked、current 等）或比较、调用（mode === v、picked(id)）；
   // 按类别区分（user ? …、last ? …）、取反（!active ? …）、写在「否」分支、嵌套三元里的都报错
   const SELECTED_COND =
-    /^(on|active|checked|selected|sel|cur|current|groupOn|hit|picked|isActive)$|\.current$|===|!==|\(/;
+    /^(on|active|checked|selected|sel|cur|current|groupOn|hit|picked|isActive)$|\.current$|===|\(/;
   const PRIMARY_SOFT_MSG = LINE_RULES.find(
     (r) => r.id === 'primary-soft',
   ).message;
@@ -512,7 +512,9 @@ function checkSource(src, rel) {
     const yes = unwrap(e.whenTrue);
     const no = unwrap(e.whenFalse);
     const cond = e.condition.getText(sf).replace(/\s+/g, '');
-    const selected = inSelected || SELECTED_COND.test(cond);
+    // 取反（!x、!(x)、!picked(id)）和不等比较（!==）表示「没选中」，不算选中态
+    const negated = cond.startsWith('!') || cond.includes('!==');
+    const selected = inSelected || (!negated && SELECTED_COND.test(cond));
     if (isSoft(yes) && !selected) return true;
     // 外层已是选中分支时，内层两个分支都属选中态
     if (isSoft(no) && !inSelected) return true;

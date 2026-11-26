@@ -499,123 +499,36 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
           gridTemplateColumns: twoCol
             ? 'minmax(0, 1fr) 304px'
             : 'minmax(0, 1fr)',
+          // 两栏：左列负责人、卡在哪一步，右列异常清单跨两行；多出的高度给第二行，负责人卡下面不留空
+          gridTemplateAreas: twoCol
+            ? '"owner ex" "stage ex"'
+            : '"owner" "ex" "stage"',
+          gridTemplateRows: twoCol ? 'auto 1fr' : undefined,
           gap: 16,
           alignItems: 'start',
         }}
       >
-        {/* 单栏时左栏展开（contents），三张卡按 order 排成：负责人 → 需要主管看一眼 → 卡在哪一步（异常优先，D68） */}
-        <div
-          style={{
-            display: twoCol ? 'grid' : 'contents',
-            gap: 16,
-            minWidth: 0,
-          }}
-        >
-          <Card style={{ padding: '16px 20px', order: 1 }}>
-            <b style={{ color: palette.ink }}>按负责人</b>
-            <Table<TeamOwner>
-              style={{ marginTop: 10 }}
-              rowKey="ownerId"
-              size="middle"
-              columns={ownerCols}
-              dataSource={data.owners}
-              pagination={false}
-              scroll={{ x: tableScrollX(ownerCols) }}
-              locale={{ emptyText: tableEmpty('这个范围里没有业务员') }}
-              onRow={(o) =>
-                rowAlert(o.attention ? 'warning' : undefined, {
-                  onClick: () => owner(o),
-                  style: { cursor: 'pointer' },
-                })
-              }
-            />
-          </Card>
-          <Card style={{ padding: '16px 20px', order: 3 }}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                gap: 12,
-                flexWrap: 'wrap',
-              }}
-            >
-              <span
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-              >
-                <b style={{ color: palette.ink }}>卡在哪一步</b>
-                <HelpTip title="平均停留超过参考天数的标橙" />
-              </span>
-            </div>
-            {STAGE_ROWS.map((row) => (
-              <div
-                key={row.board}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '72px minmax(0, 1fr)',
-                  gap: 10,
-                  marginTop: 12,
-                }}
-              >
-                <b style={{ color: palette.sub, fontSize: 13, paddingTop: 8 }}>
-                  {row.name}
-                </b>
-                {/* 阶段块按行均分，不剩单张一行（MetricGrid） */}
-                <MetricGrid
-                  cols={Math.max(
-                    1,
-                    data.stages.filter((st) => st.board === row.board).length,
-                  )}
-                  min={118}
-                  gap={8}
-                >
-                  {data.stages
-                    .filter((st) => st.board === row.board)
-                    .map((st) => (
-                      <button
-                        type="button"
-                        key={st.stageCode}
-                        onClick={() =>
-                          onJump({ board: st.board, stage: st.stageCode })
-                        }
-                        style={{
-                          all: 'unset',
-                          cursor: 'pointer',
-                          padding: '8px 10px',
-                          borderRadius: 10,
-                          background: st.over
-                            ? palette.orangeSoft
-                            : palette.inset,
-                          border: `1px solid ${st.over ? palette.orange : 'transparent'}`,
-                        }}
-                      >
-                        <div style={{ fontSize: 12, color: palette.sub }}>
-                          {st.stageCode} {st.stageName}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 18,
-                            fontWeight: 600,
-                            color: palette.ink,
-                          }}
-                        >
-                          {st.count}
-                          <span style={{ fontSize: 12, fontWeight: 400 }}>
-                            {' '}
-                            个
-                          </span>
-                        </div>
-                        <div style={{ fontSize: 12, color: palette.mute }}>
-                          {st.avgDays == null ? '—' : `平均 ${st.avgDays} 天`}
-                          {st.refDays != null && ` / 参考 ${st.refDays}`}
-                        </div>
-                      </button>
-                    ))}
-                </MetricGrid>
-              </div>
-            ))}
-          </Card>
-        </div>
-        <Card style={{ padding: '16px 20px', order: 2 }}>
+        {/* DOM 顺序即阅读与键盘顺序：负责人 → 需要主管看一眼 → 卡在哪一步（异常优先，D68）；两栏时靠区域名把异常清单放到右栏 */}
+        <Card style={{ padding: '16px 20px', gridArea: 'owner' }}>
+          <b style={{ color: palette.ink }}>按负责人</b>
+          <Table<TeamOwner>
+            style={{ marginTop: 10 }}
+            rowKey="ownerId"
+            size="middle"
+            columns={ownerCols}
+            dataSource={data.owners}
+            pagination={false}
+            scroll={{ x: tableScrollX(ownerCols) }}
+            locale={{ emptyText: tableEmpty('这个范围里没有业务员') }}
+            onRow={(o) =>
+              rowAlert(o.attention ? 'warning' : undefined, {
+                onClick: () => owner(o),
+                style: { cursor: 'pointer' },
+              })
+            }
+          />
+        </Card>
+        <Card style={{ padding: '16px 20px', gridArea: 'ex' }}>
           <div
             style={{
               display: 'flex',
@@ -648,6 +561,90 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
               全部查看
             </Button>
           )}
+        </Card>
+        <Card style={{ padding: '16px 20px', gridArea: 'stage' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: 12,
+              flexWrap: 'wrap',
+            }}
+          >
+            <span
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+            >
+              <b style={{ color: palette.ink }}>卡在哪一步</b>
+              <HelpTip title="平均停留超过参考天数的标橙" />
+            </span>
+          </div>
+          {STAGE_ROWS.map((row) => (
+            <div
+              key={row.board}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '72px minmax(0, 1fr)',
+                gap: 10,
+                marginTop: 12,
+              }}
+            >
+              <b style={{ color: palette.sub, fontSize: 13, paddingTop: 8 }}>
+                {row.name}
+              </b>
+              {/* 阶段块按行均分，不剩单张一行（MetricGrid） */}
+              <MetricGrid
+                cols={Math.max(
+                  1,
+                  data.stages.filter((st) => st.board === row.board).length,
+                )}
+                min={118}
+                gap={8}
+              >
+                {data.stages
+                  .filter((st) => st.board === row.board)
+                  .map((st) => (
+                    <button
+                      type="button"
+                      key={st.stageCode}
+                      onClick={() =>
+                        onJump({ board: st.board, stage: st.stageCode })
+                      }
+                      style={{
+                        all: 'unset',
+                        cursor: 'pointer',
+                        padding: '8px 10px',
+                        borderRadius: 10,
+                        background: st.over
+                          ? palette.orangeSoft
+                          : palette.inset,
+                        border: `1px solid ${st.over ? palette.orange : 'transparent'}`,
+                      }}
+                    >
+                      <div style={{ fontSize: 12, color: palette.sub }}>
+                        {st.stageCode} {st.stageName}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 18,
+                          fontWeight: 600,
+                          color: palette.ink,
+                        }}
+                      >
+                        {st.count}
+                        <span style={{ fontSize: 12, fontWeight: 400 }}>
+                          {' '}
+                          个
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 12, color: palette.mute }}>
+                        {st.avgDays == null ? '—' : `平均 ${st.avgDays} 天`}
+                        {st.refDays != null && ` / 参考 ${st.refDays}`}
+                      </div>
+                    </button>
+                  ))}
+              </MetricGrid>
+            </div>
+          ))}
         </Card>
       </div>
     </>

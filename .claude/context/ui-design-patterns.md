@@ -400,7 +400,7 @@ import {
 | `row-actions` | 错误 | 表格「操作」列没用 `RowActions`：审批、审核、工作队列、要显示进度的长操作等例外，在列上写 `lint-ui-ignore row-actions: 原因` |
 | `attr-tone` | 错误 | 类别、属性标签（客户指定、老客户、现货、默认等）用了彩色：改 `tone="gray"`，彩色只给流程状态与告警（S13） |
 | `antd-empty` | 错误 | 用了 antd 的 `Empty`：改公共 `EmptyState`（小地方 `compact`） |
-| `primary-soft` | 错误 | 写死了 `background` / `backgroundColor: …primarySoft`；条件写法按语法树查（换行写的也查得到）：浅底只能在「是」分支，条件须是 `on`、`active`、`checked`、`selected`、`current` 等选中态或比较、调用（`mode === v`、`picked(id)`），选中分支里再嵌套的三元继承选中态；按类别区分（`user ? …`）、取反（`!active ? …`）、写在「否」分支、写在非选中的嵌套三元里都报：说明文字改 `Callout`，数字、汇总块改 `inset`，属性改 `neutralSoft`；选中、批量操作条、搜索命中、头像、返回条写例外（D42） |
+| `primary-soft` | 错误 | 写死了 `background` / `backgroundColor: …primarySoft`；条件写法按语法树查（换行写的也查得到）：浅底只能在「是」分支，条件须是 `on`、`active`、`checked`、`selected`、`current` 等选中态或比较、调用（`mode === v`、`picked(id)`），选中分支里再嵌套的三元继承选中态；按类别区分（`user ? …`）、取反（`!active`、`!picked(id)`）、不等比较（`!==`）、写在「否」分支、写在非选中的嵌套三元里都报；已知限制：含 `===` 的条件一律放过（`mode === v` 是选中，`kind === 'ai'` 按类别上色也会被放过），`a && palette.primarySoft` 与模板字符串不查，这几种靠评审人工看：说明文字改 `Callout`，数字、汇总块改 `inset`，属性改 `neutralSoft`；选中、批量操作条、搜索命中、头像、返回条写例外（D42） |
 | `antd-icon` | 错误 | 用了 `@ant-design/icons`：改 lucide-react（尺寸 `size="1em"` 跟随字号，转圈加 `zhul-spin`）；品牌标识等 lucide 没有的写例外 |
 | `progress-color` | 错误 | 进度条（`Progress` 的 `strokeColor`）不是 `palette.chart`：进度只用主题色，程度用深浅，完成也不换色 |
 | `table-switch` | 错误 | 列表行里自己放 antd `Switch`：用公共 `StatusSwitch` |

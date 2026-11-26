@@ -215,10 +215,12 @@ const TeamView: React.FC<{
               type="link"
               size="small"
               title={r.ownerName ?? '未指定负责人'}
+              // 网格子项默认按内容算最小宽度，加 minWidth: 0 省略号才生效
               style={{
                 padding: 0,
                 justifyContent: 'flex-start',
                 maxWidth: '100%',
+                minWidth: 0,
               }}
               onClick={() => onJump({ ownerId: r.ownerId })}
             >

@@ -187,7 +187,6 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
   useEffect(() => {
     load();
   }, [load]);
-  useOnReactivate(load);
 
   const reload = React.useRef(load);
   reload.current = load;
@@ -238,6 +237,11 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
       alive = false;
     };
   }, [query, marked, countTick]);
+  // 从别的标签页切回时，列表和另一状态的数量一起刷新（那边可能关联或标记过）
+  useOnReactivate(() => {
+    load();
+    setCountTick((t) => t + 1);
+  });
 
   const done = () => {
     setSelected([]);
