@@ -226,9 +226,12 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
 
   // 另一状态的数量与页码无关：只在关键词、状态变化和操作完成后取（后端每次都要扫一遍明细）
   const [countTick, setCountTick] = useState(0);
+  // 关键词、状态变了才清空旧数（数已不对）；切回标签页、操作完成时保留旧数，请求回来再覆盖，不闪
+  useEffect(() => {
+    setOtherTotal(undefined);
+  }, [query, marked]);
   useEffect(() => {
     let alive = true;
-    setOtherTotal(undefined);
     candidateApi
       .unlinked({ keyword: query, page: 1, pageSize: 1, marked: !marked })
       .then((r) => alive && setOtherTotal(r.total))

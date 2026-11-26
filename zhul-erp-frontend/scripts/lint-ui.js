@@ -511,7 +511,8 @@ function checkSource(src, rel) {
   const badSoft = (e, inSelected = false) => {
     const yes = unwrap(e.whenTrue);
     const no = unwrap(e.whenFalse);
-    const cond = e.condition.getText(sf).replace(/\s+/g, '');
+    // 双重取反（!!x）等于 x 本身，先去掉再判断
+    const cond = e.condition.getText(sf).replace(/\s+/g, '').replace(/^!!/, '');
     // 取反（!x、!(x)、!picked(id)）和不等比较（!==）表示「没选中」，不算选中态
     const negated = cond.startsWith('!') || cond.includes('!==');
     const selected = inSelected || (!negated && SELECTED_COND.test(cond));
