@@ -4,6 +4,7 @@ import com.zhul.erp.modules.masterdata.dto.PaymentTermDTO;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -20,6 +21,10 @@ public class SavePurchaseOrderRequest {
     private String currencyCode;
     @NotNull(message = "请选择是否开票")
     private Boolean invoiceRequired;
+    /** 付款方式（1-对公、2-对私）；不传时按开票带出默认值 */
+    @Min(value = 1, message = "付款方式不正确")
+    @Max(value = 2, message = "付款方式不正确")
+    private Integer payMethod;
     @DecimalMin(value = "0", message = "税点不能为负")
     @DecimalMax(value = "100", message = "税点不能超过 100%")
     private BigDecimal taxPoint;
@@ -58,8 +63,8 @@ public class SavePurchaseOrderRequest {
         @Size(max = 64, message = "费用名称不能超过 64 个字符")
         private String feeName;
         /** 1-费用（默认）、2-优惠 */
-        @jakarta.validation.constraints.Min(value = 1, message = "费用类型无效")
-        @jakarta.validation.constraints.Max(value = 2, message = "费用类型无效")
+        @Min(value = 1, message = "费用类型无效")
+        @Max(value = 2, message = "费用类型无效")
         private Integer feeType;
         @NotNull(message = "请填写费用金额")
         @DecimalMin(value = "0", message = "费用金额不能为负")

@@ -45,6 +45,8 @@ public class PurchaseOrderVO implements ShipFields {
     private BigDecimal exchangeRate;
     /** 开票：税点（百分点）、开票金额、开票成本（原币，计入合计） */
     private Boolean invoiceRequired;
+    /** 付款方式（1-对公、2-对私） */
+    private Integer payMethod;
     private BigDecimal taxPoint;
     /** 填写的开票金额；为空表示按货款合计 */
     private BigDecimal invoiceAmount;

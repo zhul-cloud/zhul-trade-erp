@@ -26,6 +26,8 @@ public class PayableDO {
     private String shopPlatform;
     private String shopName;
     private String payeeName;
+    /** 约定的付款方式（0-未定、1-对公、2-对私） */
+    private Integer payMethod;
     /** 1-采购订单、2-运费账单 */
     private Integer sourceType;
     private Long sourceId;

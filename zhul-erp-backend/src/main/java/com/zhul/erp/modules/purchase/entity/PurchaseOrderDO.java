@@ -43,6 +43,8 @@ public class PurchaseOrderDO {
     private BigDecimal taxRate;
     /** 开票（0-不开票、1-开票） */
     private Integer invoiceRequired;
+    /** 付款方式（1-对公、2-对私） */
+    private Integer payMethod;
     /** 开票税点（百分点） */
     private BigDecimal taxPoint;
     /** 开票金额（原币）；为空时按货款合计 */
