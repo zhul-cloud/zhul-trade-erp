@@ -28,6 +28,7 @@ import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { ActualModelLine } from '@/components/DocFields/ActualModel';
 import DocModelCell, { productHref } from '@/components/DocFields/DocModelCell';
 import { ItemRemarkLine } from '@/components/DocFields/ItemRemark';
+import { tableEmpty } from '@/components/EmptyState';
 import { HelpTip, PageHeader } from '@/components/ListLayout';
 import {
   useOnReactivate,
@@ -960,10 +961,13 @@ const CustomerInquiryDetailPage: React.FC = () => {
             dataSource={detail.items}
             pagination={false}
             locale={{
-              emptyText:
+              emptyText: tableEmpty(
                 inq.status <= STATUS.PARSE_FAILED
                   ? '确认型号后显示'
                   : '没有型号',
+                undefined,
+                true,
+              ),
             }}
           />
           <Card title="原始内容">

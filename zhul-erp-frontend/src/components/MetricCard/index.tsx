@@ -245,6 +245,8 @@ export const MetricCard: React.FC<{
         ) : hint ? (
           <span
             className="num"
+            // 说明一行放不下时截断，悬停看全文
+            title={typeof hint === 'string' ? hint : undefined}
             style={{
               fontSize: 12,
               color: palette.mute,

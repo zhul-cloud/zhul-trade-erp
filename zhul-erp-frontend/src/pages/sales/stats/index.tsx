@@ -26,12 +26,14 @@ import { useBalancedCols } from '@/components/MetricCard';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import StatsRangeFilter, { presetRange } from '@/components/StatsRangeFilter';
 import { Pill } from '@/pages/inquiry/shared/components';
+import { useCountries } from '@/pages/product/components/useCountries';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useDeltaColor } from '@/theme/delta';
 import { StatsUnitSwitch, useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount } from '@/utils/format';
+import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   type CustomerRow,
@@ -73,6 +75,8 @@ export const HELP = {
 const SalesStatsPage: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
+  const { zhOf } = useCountries();
+  const customerPager = usePagination(50, 'customer');
   const { of: deltaOf } = useDeltaColor();
   const users = useUserOptions();
   const [range, setRange] = useState<[Dayjs, Dayjs]>(() =>
@@ -338,7 +342,7 @@ const SalesStatsPage: React.FC = () => {
       render: (v: string, r) => (
         <div>
           <b style={{ color: palette.ink }}>{v}</b>
-          {sub(r.country ?? '—')}
+          {sub(zhOf(r.country) || '—')}
         </div>
       ),
     },
@@ -581,7 +585,11 @@ const SalesStatsPage: React.FC = () => {
             columns={customerColumns}
             dataSource={data?.customers ?? []}
             scroll={{ x: tableScrollX(customerColumns) }}
-            pagination={{ pageSize: 50, showTotal: (t) => `共 ${t} 个客户` }}
+            // 主卡左上写的是「分组」，客户数写在分页里
+            pagination={{
+              ...customerPager,
+              showTotal: (t) => `共 ${t} 个客户`,
+            }}
             locale={{ emptyText: tableEmpty('期间内没有成交客户', loading) }}
           />
         ) : (

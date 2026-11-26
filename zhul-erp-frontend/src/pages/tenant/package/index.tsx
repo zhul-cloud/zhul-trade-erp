@@ -139,7 +139,8 @@ const TenantPackagePage: React.FC = () => {
   // ---------- 启用 / 禁用 ----------
   const toggleStatus = (row: TenantPackageItem) => {
     const disabling = row.status === 1;
-    modal.confirm({
+    // 停用用公共危险确认（错误色按钮、默认焦点在取消），启用用普通确认
+    (disabling ? confirmDanger : modal.confirm)({
       title: disabling ? '确认禁用套餐？' : '确认启用套餐？',
       content: disabling
         ? row.tenantCount > 0
@@ -147,7 +148,6 @@ const TenantPackagePage: React.FC = () => {
           : `确认禁用套餐「${row.name}」吗？禁用后该套餐不可被新租户选择。`
         : `启用后，套餐「${row.name}」可被新租户选择使用。`,
       okText: disabling ? '确认禁用' : '确认启用',
-      okButtonProps: disabling ? { danger: true } : undefined,
       cancelText: '取消',
       onOk: async () => {
         await updatePackageStatus(row.id, disabling ? 0 : 1);

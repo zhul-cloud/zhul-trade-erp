@@ -11,6 +11,7 @@ import {
 import { CircleCheck, Info, Search, TriangleAlert } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { EmptyState } from '@/components/EmptyState';
+import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
@@ -142,6 +143,7 @@ const NewPiModal: React.FC<{
 }> = ({ open, quotationId, onClose, onCreated }) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
+  const { zhOf } = useCountries();
   const [customers, setCustomers] = useState<CandidateCustomer[]>();
   const [keyword, setKeyword] = useState('');
   const [customer, setCustomer] = useState<CandidateCustomer>();
@@ -398,7 +400,7 @@ const NewPiModal: React.FC<{
                         )}
                       </div>
                       <div style={{ fontSize: 12, color: palette.mute }}>
-                        {[c.country, `${c.quotationCount} 张报价单`]
+                        {[zhOf(c.country), `${c.quotationCount} 张报价单`]
                           .filter(Boolean)
                           .join(' · ')}
                       </div>

@@ -19,6 +19,7 @@ import {
   ScanLine,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { rowAlert } from '@/components/RowAlert';
 import { useAppTheme } from '@/theme/AppTheme';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -762,9 +763,13 @@ const PasteQuoteModal: React.FC<{
               y: 420,
             }}
             locale={{
-              emptyText: aiMode
-                ? '原文里没有找到这个任务的型号'
-                : '没有认出带型号或价格的行',
+              emptyText: tableEmpty(
+                aiMode
+                  ? '原文里没有找到这个任务的型号'
+                  : '没有认出带型号或价格的行',
+                undefined,
+                true,
+              ),
             }}
             onRow={(r) =>
               aiMode && r.confidence === 'CHECK' && !r.locked

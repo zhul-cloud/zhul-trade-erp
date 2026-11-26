@@ -12,6 +12,7 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime, formatMoney } from '@/utils/format';
+import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { SignedMoney } from '../costingParts';
 import {
@@ -27,6 +28,7 @@ const PeriodsPage: React.FC = () => {
   const { palette } = useAppTheme();
   const access = useAccess() as Record<string, boolean>;
   const [rows, setRows] = useState<Period[]>([]);
+  const pager = usePagination(20, '', rows.length);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [closing, setClosing] = useState<string>();
@@ -194,7 +196,7 @@ const PeriodsPage: React.FC = () => {
                 loading,
               ),
             }}
-            pagination={rows.length > 20 ? { pageSize: 20 } : false}
+            pagination={pager}
           />
         </MainCard>
       )}

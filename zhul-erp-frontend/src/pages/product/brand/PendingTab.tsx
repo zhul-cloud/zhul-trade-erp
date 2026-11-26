@@ -14,6 +14,7 @@ import React, { useMemo, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { SelectionCount } from '@/components/ListLayout';
 import { formatDateTime } from '@/utils/format';
+import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { Pill } from '../components/Pills';
 import {
@@ -125,6 +126,7 @@ const PendingTab: React.FC<{
         (!k || p.name.toLowerCase().includes(k)),
     );
   }, [pending, source, keyword]);
+  const pager = usePagination(20, 'pending', rows.length);
 
   const picked = (keys: string[]) =>
     pending.filter((p) => keys.includes(p.pendingKey));
@@ -324,7 +326,7 @@ const PendingTab: React.FC<{
         rowKey="pendingKey"
         loading={loading}
         dataSource={rows}
-        pagination={{ defaultPageSize: 20, hideOnSinglePage: true }}
+        pagination={pager}
         rowSelection={{
           selectedRowKeys: selected,
           onChange: (keys) => setSelected(keys as string[]),

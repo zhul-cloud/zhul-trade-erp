@@ -147,7 +147,7 @@ const LINE_RULES = [
     level: 'warn',
     message:
       '表格空状态用 tableEmpty(文字, loading) 或 listEmpty()：加载中不显示、配图标，不直接写一句话',
-    re: /emptyText:\s*['`]/,
+    re: /emptyText:\s*(['`]|[\w.]+\s*(\?|\|\|))/,
   },
   {
     id: 'row-tint',
@@ -161,7 +161,7 @@ const LINE_RULES = [
     level: 'error',
     message:
       '危险操作的确认框用 useConfirmDanger()（问句标题写明对象、按钮写动作、默认焦点在取消），不自己给 confirm 配红色按钮',
-    re: /okButtonProps:\s*\{[^}]*\bdanger:\s*true|okType:\s*'danger'/,
+    re: /okButtonProps:\s*(\w+\s*\?\s*)?\{[^}]*\bdanger:\s*true|okType:\s*'danger'/,
   },
   {
     id: 'antd-icon',

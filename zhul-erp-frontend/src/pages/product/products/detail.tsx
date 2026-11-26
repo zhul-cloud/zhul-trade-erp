@@ -20,6 +20,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { HelpTip, PageHeader } from '@/components/ListLayout';
 import { usePageTitle, useTabDirty } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
@@ -263,6 +264,7 @@ const Sidebar: React.FC<{
 
 const DetailInner: React.FC = () => {
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { palette } = useProductTheme();
   const access = useAccess();
   const params = useParams<{ id: string }>();
@@ -349,7 +351,8 @@ const DetailInner: React.FC = () => {
   const toggleStatus = () => {
     if (!product) return;
     const disabling = product.status === 1;
-    modal.confirm({
+    // 停用用公共危险确认（错误色按钮、默认焦点在取消），启用用普通确认
+    (disabling ? confirmDanger : modal.confirm)({
       title: disabling
         ? `停用「${product.mpnDisplay}」？`
         : `启用「${product.mpnDisplay}」？`,

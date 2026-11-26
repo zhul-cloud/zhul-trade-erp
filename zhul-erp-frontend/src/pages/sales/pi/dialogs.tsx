@@ -33,6 +33,7 @@ import {
 import React, { useEffect, useMemo, useState } from 'react';
 import { EmptyState } from '@/components/EmptyState';
 import { HelpTip } from '@/components/ListLayout';
+import { useCountries } from '@/pages/product/components/useCountries';
 import { searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useBusinessUnits } from '@/utils/businessUnit';
@@ -307,6 +308,7 @@ export const PartyModal: React.FC<{
   onOk: (party: Party | null, saveToCustomer: boolean) => void;
 }> = ({ piId, type, open, value, customer, buyer, onClose, onOk }) => {
   const { palette } = useAppTheme();
+  const { zhOf } = useCountries();
   const [options, setOptions] = useState<PartyOption[]>();
   const [mode, setMode] = useState<'pick' | 'edit'>('pick');
   /** 选中项在 options 中的下标（客户注册信息没有 partyId） */
@@ -357,7 +359,7 @@ export const PartyModal: React.FC<{
         setCustomerOptions(
           list.map((c) => ({
             value: c.id,
-            label: [c.displayName || c.name, c.country]
+            label: [c.displayName || c.name, zhOf(c.country)]
               .filter(Boolean)
               .join(' · '),
           })),

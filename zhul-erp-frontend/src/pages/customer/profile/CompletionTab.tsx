@@ -16,6 +16,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { CountryText } from '@/components/CountryText';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useDictOptions } from '@/utils/dict';
@@ -584,7 +585,11 @@ const Wizard: React.FC<{
           {w.name || `未填客户名称 · ${w.customerCode}`}
         </h2>
         {grade ? <GradeBadge value={grade} /> : null}
-        <span style={{ fontSize: 12, color: palette.mute }}>{w.country}</span>
+        {w.country && (
+          <span style={{ fontSize: 12, color: palette.mute }}>
+            <CountryText value={w.country} />
+          </span>
+        )}
         <span
           style={{
             marginLeft: 'auto',

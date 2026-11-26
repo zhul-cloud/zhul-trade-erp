@@ -11,6 +11,7 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { AccountDrawer, ReconPill, useVoucherExport } from './parts';
 import { type VoucherMonth, voucherApi, voucherPath } from './service';
@@ -21,6 +22,7 @@ const VouchersPage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess() as Record<string, boolean>;
   const [rows, setRows] = useState<VoucherMonth[]>([]);
+  const pager = usePagination(20, '', rows.length);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [generating, setGenerating] = useState<string>();
@@ -194,7 +196,7 @@ const VouchersPage: React.FC = () => {
                 loading,
               ),
             }}
-            pagination={rows.length > 20 ? { pageSize: 20 } : false}
+            pagination={pager}
           />
         </MainCard>
       )}

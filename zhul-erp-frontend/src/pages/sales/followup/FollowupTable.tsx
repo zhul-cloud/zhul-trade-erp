@@ -5,7 +5,9 @@ import dayjs from 'dayjs';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { CustomerSubLine } from '@/components/DocFields';
+import { tableEmpty } from '@/components/EmptyState';
 import { Stars } from '@/pages/customer/profile/ui';
+import { useCountries } from '@/pages/product/components/useCountries';
 import { RECEIPT_META } from '@/pages/sales/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
@@ -593,6 +595,7 @@ export const FollowupTable: React.FC<{
 }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
+  const { zhOf } = useCountries();
   const sales = boardNo === BOARD_SALES;
   const develop = boardNo === BOARD_DEVELOP;
   const account = boardNo === BOARD_ACCOUNT;
@@ -1015,7 +1018,7 @@ export const FollowupTable: React.FC<{
             <CustomerLink item={r} />
             <span style={muted}>
               {[
-                r.country,
+                zhOf(r.country),
                 r.contactName
                   ? `${r.contactName}${r.contactTitle ? `（${r.contactTitle}）` : ''}`
                   : r.contactEmail
@@ -1452,15 +1455,18 @@ export const FollowupTable: React.FC<{
           },
         })}
         locale={{
-          emptyText: filter.nurture
-            ? '没有培育中的客户'
-            : filter.exception
-              ? '没有履约异常的订单'
-              : filter.dormant
-                ? '没有沉睡的客户'
-                : develop
-                  ? '这一段没有开发对象，点右上角「新建开发对象」'
-                  : '这一段没有要跟进的客户',
+          emptyText: tableEmpty(
+            filter.nurture
+              ? '没有培育中的客户'
+              : filter.exception
+                ? '没有履约异常的订单'
+                : filter.dormant
+                  ? '没有沉睡的客户'
+                  : develop
+                    ? '这一段没有开发对象，点右上角「新建开发对象」'
+                    : '这一段没有要跟进的客户',
+            loading && rows.length === 0,
+          ),
         }}
       />
       {(groups ? groups.length : records.length) > 0 && (

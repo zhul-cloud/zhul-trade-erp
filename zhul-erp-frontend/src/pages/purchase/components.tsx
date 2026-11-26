@@ -362,66 +362,6 @@ export const sub = (color: string, text: React.ReactNode) => (
   <div style={{ fontSize: 12, color }}>{text}</div>
 );
 
-export const StatCard: React.FC<{
-  icon: React.ReactNode;
-  color: string;
-  label: string;
-  value: React.ReactNode;
-  hint: React.ReactNode;
-  hintColor?: string;
-  /** 可点击筛选时传入；active 为当前已按它筛选 */
-  onClick?: () => void;
-  active?: boolean;
-}> = ({ icon, color, label, value, hint, hintColor, onClick, active }) => {
-  const { palette } = useAppTheme();
-  const card = (
-    <Card
-      style={{
-        padding: 18,
-        height: '100%',
-        border: `1px solid ${active ? color : palette.hairline}`,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ color, fontSize: 16 }}>{icon}</span>
-        <span style={{ color: palette.sub, fontSize: 13 }}>{label}</span>
-      </div>
-      <div
-        style={{
-          fontSize: 24,
-          fontWeight: 700,
-          color: palette.ink,
-          margin: '6px 0 2px',
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
-        {value}
-      </div>
-      <div style={{ fontSize: 12, color: hintColor ?? palette.mute }}>
-        {hint}
-      </div>
-    </Card>
-  );
-  return onClick ? (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      style={{
-        padding: 0,
-        border: 0,
-        textAlign: 'left',
-        background: 'transparent',
-        cursor: 'pointer',
-      }}
-    >
-      {card}
-    </button>
-  ) : (
-    card
-  );
-};
-
 // ---------------------------------------------------------------- 采购对象
 
 export const SHOP_CHANNELS = [

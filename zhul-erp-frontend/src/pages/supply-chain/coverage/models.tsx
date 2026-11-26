@@ -2,6 +2,7 @@ import { Eye, GitBranch, Search } from 'lucide-react';
 import { history, Link, useLocation } from '@umijs/max';
 import { Input, Select, Table, type TableColumnsType } from 'antd';
 import dayjs from 'dayjs';
+import { tableEmpty } from '@/components/EmptyState';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import { PageHeader } from '@/components/ListLayout';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -290,7 +291,9 @@ const CoverageModelsPage: React.FC = () => {
           columns={columnsSet.columns}
           dataSource={rows}
           scroll={{ x: tableScrollX(columnsSet.columns) }}
-          locale={{ emptyText: error || '没有符合条件的型号' }}
+          locale={{
+            emptyText: tableEmpty(error || '没有符合条件的型号', loading),
+          }}
           pagination={{
 ...PAGER_STYLE,
             current: f.page,

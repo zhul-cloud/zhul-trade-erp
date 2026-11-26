@@ -334,9 +334,10 @@ const DeptPage: React.FC = () => {
     if (newStatus === 0) {
       const check = await getDeptDeleteCheck(selectedDept.id);
       if (check.userCount > 0) {
-        modal.confirm({
-          title: '禁用确认',
-          content: `该部门下存在 ${check.userCount} 名关联用户，禁用后这些用户的部门信息将不可通过该部门筛选，请确认。`,
+        confirmDanger({
+          title: `禁用「${selectedDept.name}」？`,
+          content: `该部门下有 ${check.userCount} 名用户，禁用后不能再按这个部门筛选这些用户。`,
+          okText: '禁用',
           onOk: doToggle,
         });
         return;

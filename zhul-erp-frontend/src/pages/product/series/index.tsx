@@ -44,7 +44,8 @@ const SeriesPage: React.FC = () => {
 
   const toggleStatus = (row: Series) => {
     const disabling = row.status === 1;
-    modal.confirm({
+    // 停用用公共危险确认（错误色按钮、默认焦点在取消），启用用普通确认
+    (disabling ? confirmDanger : modal.confirm)({
       title: disabling
         ? `停用「${row.seriesName}」？`
         : `启用「${row.seriesName}」？`,

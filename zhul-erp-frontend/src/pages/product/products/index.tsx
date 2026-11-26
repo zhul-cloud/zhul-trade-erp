@@ -34,6 +34,7 @@ import React, {
   useState,
 } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import EllipsisText from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -137,6 +138,7 @@ const MISSING_CHIPS: {
 
 const ProductListInner: React.FC = () => {
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess();
   const { palette } = useProductTheme();
   const platform = !!access.productPlatform;
@@ -363,7 +365,8 @@ const ProductListInner: React.FC = () => {
 
   const changeStatus = (row: Product) => {
     const disabling = row.status === 1;
-    modal.confirm({
+    // 停用用公共危险确认（错误色按钮、默认焦点在取消），启用用普通确认
+    (disabling ? confirmDanger : modal.confirm)({
       title: disabling
         ? `停用「${row.mpnDisplay}」？`
         : `启用「${row.mpnDisplay}」？`,
@@ -381,7 +384,7 @@ const ProductListInner: React.FC = () => {
   };
 
   const batchStatus = (status: number) => {
-    modal.confirm({
+    (status === 0 ? confirmDanger : modal.confirm)({
       title:
         status === 0
           ? `批量停用 ${selected.length} 个商品？`

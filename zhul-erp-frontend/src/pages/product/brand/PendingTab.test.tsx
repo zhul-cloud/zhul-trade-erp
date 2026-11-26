@@ -6,7 +6,10 @@ import PendingTab from './PendingTab';
 
 const h = React.createElement;
 
-jest.mock('@umijs/max', () => ({ request: jest.fn() }));
+jest.mock('@umijs/max', () => ({
+  request: jest.fn(),
+  useLocation: () => ({ pathname: '/product/brand', search: '' }),
+}));
 jest.mock('../service', () => ({
   ...jest.requireActual('../service'),
   brandApi: { options: jest.fn() },

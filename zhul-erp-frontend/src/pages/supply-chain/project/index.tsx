@@ -15,6 +15,7 @@ import dayjs from 'dayjs';
 import { Check, CircleX, Ellipsis, Lightbulb, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { DocLogCard, SectionTitle } from '@/components/DocFields/DocPage';
+import { tableEmpty } from '@/components/EmptyState';
 import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { useWide } from '@/pages/inquiry/shared/components';
@@ -585,8 +586,11 @@ const ProjectDetailPage: React.FC = () => {
                   pagination={false}
                   scroll={{ x: 760 }}
                   locale={{
-                    emptyText:
+                    emptyText: tableEmpty(
                       '还没有候选，从线索供应商、搜索、展会或同行介绍里加',
+                      undefined,
+                      true,
+                    ),
                   }}
                 />
               </Card>

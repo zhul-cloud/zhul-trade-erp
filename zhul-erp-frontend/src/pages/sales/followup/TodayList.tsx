@@ -9,6 +9,7 @@ import {
   User,
 } from 'lucide-react';
 import React, { useState } from 'react';
+import { CountryText } from '@/components/CountryText';
 import { QuickFilters } from '@/components/ListLayout';
 import { useAppTheme } from '@/theme/AppTheme';
 import type { Picked, SelectAll } from './Batch';
@@ -265,7 +266,9 @@ const TodayCard: React.FC<{
         <CustomerLink item={c} />
         <ValueCell item={c} />
         {c.country && (
-          <span style={{ fontSize: 12, color: palette.mute }}>{c.country}</span>
+          <span style={{ fontSize: 12, color: palette.mute }}>
+            <CountryText value={c.country} />
+          </span>
         )}
         {c.ownerName && (
           <span style={{ fontSize: 12, color: palette.mute }}>

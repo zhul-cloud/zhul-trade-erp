@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import {
   FilterCard,
   FilterField,
@@ -90,6 +91,7 @@ const RENEW_MONTHS_OPTIONS = [
 const TenantListPage: React.FC = () => {
   const pager = usePagination(20);
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess();
   const { palette } = useAppTheme();
   const actionRef = useRef<ActionType>(undefined);
@@ -249,13 +251,13 @@ const TenantListPage: React.FC = () => {
   // ---------- 启用 / 禁用 ----------
   const toggleStatus = (row: TenantItem) => {
     const disabling = row.status === 1;
-    modal.confirm({
+    // 停用用公共危险确认（错误色按钮、默认焦点在取消），启用用普通确认
+    (disabling ? confirmDanger : modal.confirm)({
       title: disabling ? '确认禁用租户？' : '确认启用租户？',
       content: disabling
         ? `禁用后，租户「${row.name}」下的所有用户将无法登录，已进行中的操作将被中断。确认继续？`
         : `启用后，租户「${row.name}」下的用户可正常登录使用。请确认该租户的到期时间仍有效。`,
       okText: disabling ? '确认禁用' : '确认启用',
-      okButtonProps: disabling ? { danger: true } : undefined,
       cancelText: '取消',
       onOk: async () => {
         await updateTenantStatus(row.id, disabling ? 0 : 1);

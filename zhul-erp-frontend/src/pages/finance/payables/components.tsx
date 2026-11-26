@@ -26,7 +26,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { EmptyState } from '@/components/EmptyState';
+import { EmptyState, tableEmpty } from '@/components/EmptyState';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
@@ -971,7 +971,11 @@ export const RegisterPaymentDrawer: React.FC<{
             dataSource={rows.filter((r) => r.unpaidAmount > 0)}
             pagination={false}
             locale={{
-              emptyText: anchor ? '没有未付的应付单' : '先选择收款方',
+              emptyText: tableEmpty(
+                anchor ? '没有未付的应付单' : '先选择收款方',
+                loading,
+                true,
+              ),
             }}
           />
         </div>

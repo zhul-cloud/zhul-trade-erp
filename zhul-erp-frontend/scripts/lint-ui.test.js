@@ -349,6 +349,19 @@ describe('lint:ui 复审补充', () => {
       ),
     ).toEqual([]);
   });
+  it('按条件写的空状态文字也要经 tableEmpty', () => {
+    expect(rules("emptyText: anchor ? '没有' : '先选'")).toContain(
+      'plain-empty:warn',
+    );
+    expect(
+      rules("emptyText: tableEmpty(a ? 'x' : 'y', loading)"),
+    ).not.toContain('plain-empty:warn');
+  });
+  it('按条件加危险色的确认框也要用 useConfirmDanger', () => {
+    expect(
+      rules('okButtonProps: disabling ? { danger: true } : undefined,'),
+    ).toContain('danger-confirm:error');
+  });
   it('金额不用 ¥ 符号（复审 S8）', () => {
     expect(rules('const t = `¥` + v;')).toContain('currency-symbol:error');
     expect(rules("{yuan ? '¥' : ''}")).toContain('currency-symbol:error');

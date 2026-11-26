@@ -51,6 +51,7 @@ import { RelatedDocsCard } from '@/components/DocFields/DocPage';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import { tableEmpty } from '@/components/EmptyState';
 import { HelpTip, PageHeader, STICKY_TABLE } from '@/components/ListLayout';
+import { MetricCard } from '@/components/MetricCard';
 import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { rowAlert } from '@/components/RowAlert';
@@ -81,7 +82,6 @@ import {
 } from '@/pages/warehouse/components';
 import { type Attachment, shipmentApi } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
-import { useDeltaColor } from '@/theme/delta';
 import { formatAmount } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
@@ -105,7 +105,6 @@ import {
   PO_STATUS,
   PoStatusPill,
   ShipProgressPill,
-  StatCard,
   sub,
 } from '../components';
 import { type PurchaseReturn, purchaseReturnApi } from '../returns/service';
@@ -215,7 +214,6 @@ const PurchaseOrderDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const poId = Number(id);
   const { palette } = useAppTheme();
-  const { of: deltaOf } = useDeltaColor();
   const { message, modal } = App.useApp();
   const confirmDanger = useConfirmDanger();
   const access = useAccess();
@@ -877,33 +875,35 @@ const PurchaseOrderDetail: React.FC = () => {
               marginBottom: 16,
             }}
           >
-            <StatCard
-              icon={<Wallet size="1em" />}
-              color={palette.link}
+            {/* 公共数字卡（C3）：采购金额归「支出」家族，砍价省下的钱归「利润」家族；要处理的情况改告警标签 */}
+            <MetricCard
+              icon={<Wallet size={20} />}
+              family="gray"
               label="合计"
-              value={formatAmount(preview.total, draft.currencyCode)}
-              hint={
+              currency={draft.currencyCode}
+              value={amountText(preview.total, draft.currencyCode)}
+              alert={
                 preview.missing > 0
-                  ? `${preview.missing} 行未填单价`
-                  : `货款 ${formatAmount(preview.goods, draft.currencyCode)} ${preview.fees < 0 ? '− 优惠净额 ' : '+ 费用 '}${formatAmount(Math.abs(preview.fees), draft.currencyCode)}${preview.invoiceCost ? ` + 开票成本 ${formatAmount(preview.invoiceCost, draft.currencyCode)}` : ''}`
+                  ? { tone: 'warning', text: `${preview.missing} 行未填单价` }
+                  : undefined
               }
-              hintColor={preview.missing > 0 ? palette.orange : undefined}
+              hint={`货款 ${formatAmount(preview.goods, draft.currencyCode)} ${preview.fees < 0 ? '− 优惠净额 ' : '+ 费用 '}${formatAmount(Math.abs(preview.fees), draft.currencyCode)}${preview.invoiceCost ? ` + 开票成本 ${formatAmount(preview.invoiceCost, draft.currencyCode)}` : ''}`}
             />
-            <StatCard
-              icon={<TrendingDown size="1em" />}
-              color={deltaOf(preview.bargain)}
+            <MetricCard
+              icon={<TrendingDown size={20} />}
+              family="purple"
               label="砍价合计"
-              value={formatAmount(preview.bargain, 'CNY')}
+              currency="CNY"
+              value={amountText(preview.bargain, 'CNY')}
               hint={
                 preview.bargainRate == null
                   ? '填好单价后计算'
                   : `整体砍价率 ${preview.bargainRate.toFixed(2)}% · 目标金额 ${formatAmount(preview.target, 'CNY')}`
               }
-              hintColor={deltaOf(preview.bargain)}
             />
-            <StatCard
-              icon={<Calendar size="1em" />}
-              color={palette.info}
+            <MetricCard
+              icon={<Calendar size={20} />}
+              family="cyan"
               label="付款条件"
               value={
                 draft.paymentTerms.length === 0
@@ -917,41 +917,56 @@ const PurchaseOrderDetail: React.FC = () => {
               hint={po.paymentTermsText || '确认下单前须填写'}
             />
             {po.shipProgress ? (
-              <StatCard
-                icon={<Car size="1em" />}
-                // 逾期归错误色（status-colors.md「逾期 错误」，ui-redesign S5）
-                color={po.overdueDays ? palette.red : palette.link}
+              <MetricCard
+                icon={<Car size={20} />}
+                family="blue"
                 label="发货进度"
                 value={`已发 ${po.shippedQty ?? 0} / ${po.totalQty ?? 0}`}
+                // 逾期归错误色（status-colors.md「逾期 错误」，ui-redesign S5）
+                alert={
+                  po.overdueDays
+                    ? {
+                        tone: 'error',
+                        text: `逾期 ${po.overdueDays} 天 · 还有 ${(po.totalQty ?? 0) - (po.shippedQty ?? 0)} 件没发`,
+                      }
+                    : undefined
+                }
                 hint={shipHint(po)}
-                hintColor={po.overdueDays ? palette.red : undefined}
+                bar={
+                  po.totalQty ? (po.shippedQty ?? 0) / po.totalQty : undefined
+                }
               />
             ) : po.shop ? (
-              <StatCard
-                icon={<ShoppingBag size="1em" />}
-                color={palette.orange}
+              <MetricCard
+                icon={<ShoppingBag size={20} />}
+                family="blue"
                 label="采购对象"
                 value="线上店铺"
                 hint="不需要供应商档案；买得多了可以转为供应商"
               />
             ) : (
-              <StatCard
-                icon={<FileLock size="1em" />}
-                color={palette.orange}
+              <MetricCard
+                icon={<FileLock size={20} />}
+                family="blue"
                 label="供应商合同"
                 value={
                   po.attachments.length
                     ? `${po.attachments.length} 个文件`
                     : '未上传'
                 }
-                hint={
+                alert={
                   contractDiff
-                    ? `合同金额与采购订单合计相差 ${formatAmount(Math.abs(contractDiff), draft.currencyCode)}`
-                    : po.contractNo
-                      ? `合同编号 ${po.contractNo}`
-                      : '选填，货值低的可以不传'
+                    ? {
+                        tone: 'warning',
+                        text: `与合计相差 ${formatAmount(Math.abs(contractDiff), draft.currencyCode)}`,
+                      }
+                    : undefined
                 }
-                hintColor={contractDiff ? palette.orange : undefined}
+                hint={
+                  po.contractNo
+                    ? `合同编号 ${po.contractNo}`
+                    : '选填，货值低的可以不传'
+                }
               />
             )}
           </div>
@@ -1660,6 +1675,10 @@ const PurchaseOrderDetail: React.FC = () => {
 };
 
 // ---------------------------------------------------------------- 发货与入库
+
+/** 数字卡里的金额：币种代码由 MetricCard 弱化显示，这里只给数字 */
+const amountText = (v: number, currency: string) =>
+  formatAmount(v, currency).replace(/^[A-Z]{3}\s*/, '');
 
 const shipHint = (po: PurchaseOrder) => {
   const left = (po.totalQty ?? 0) - (po.shippedQty ?? 0);

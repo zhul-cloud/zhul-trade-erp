@@ -16,10 +16,12 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { CountryText } from '@/components/CountryText';
 import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle } from '@/components/PageTabs/hooks';
 import { StatusPill } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
+import { useCountries } from '@/pages/product/components/useCountries';
 import RecordFollowupModal from '@/pages/sales/followup/RecordFollowupModal';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
@@ -53,6 +55,7 @@ const OpportunityDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
+  const { zhOf } = useCountries();
   const confirmDanger = useConfirmDanger();
   const access = useAccess() as Record<string, boolean>;
   const canEdit = !!access['crm:opportunity:edit'];
@@ -325,7 +328,7 @@ const OpportunityDetailPage: React.FC = () => {
             <MigratedPill migrated={d.migrated} />
           </>
         }
-        sub={`${d.customerName} · 首次接触 ${d.firstContactDate} · 负责人 ${d.ownerName || '未分配'}${d.country ? ` · ${d.country}` : ''}`}
+        sub={`${d.customerName} · 首次接触 ${d.firstContactDate} · 负责人 ${d.ownerName || '未分配'}${d.country ? ` · ${zhOf(d.country)}` : ''}`}
         extra={
           <>
             {canEdit && (
@@ -514,7 +517,7 @@ const OpportunityDetailPage: React.FC = () => {
                   : d.customerName,
                 d.customerNameMissing,
               )}
-              {kv('国家/地区', d.country)}
+              {kv('国家/地区', d.country && <CountryText value={d.country} />)}
               {kv('WhatsApp', d.whatsapp)}
               {kv('邮箱', d.email)}
               {kv('联系电话', d.phone)}
