@@ -134,6 +134,43 @@ class SupplierApiContractTest extends IntegrationTestBase {
     }
 
     /** spec master-data/supplier「供应商默认付款条件」 */
+    /** openspec supplier-purchaser：新增、编辑时选所属采购员，只能选本公司启用的用户；详情与列表显示，已停用的标出来 */
+    @Test
+    void purchaser_setOnCreateAndEdit_sameTenantActiveOnly_shownInListAndDetail() throws Exception {
+        loginAsAdmin("supplier_admin");
+        String admin = token("supplier_admin");
+        jdbc.update("delete from user_basic where id in (98100001, 98100002, 98100003)");
+        jdbc.update("insert into user_basic (id, tenant_id, name, username, status) values "
+                + "(98100001, 1, '张三', 'it_sp_zhang', 1), (98100002, 1, '李四', 'it_sp_li', 0), (98100003, 2, '王五', 'it_sp_wang', 1)");
+        try {
+            assertEquals("所属采购员不存在", call(json(post(BASE), "{\"name\":\"采购员A\",\"supplierType\":1,\"force\":true,"
+                    + "\"purchaserId\":98100003}"), admin).path("message").asText(), "其他公司的用户不能选");
+            assertEquals("所属采购员已停用，请选择其他人", call(json(post(BASE), "{\"name\":\"采购员A\",\"supplierType\":1,"
+                    + "\"force\":true,\"purchaserId\":98100002}"), admin).path("message").asText());
+            long id = call(json(post(BASE), "{\"name\":\"采购员A\",\"supplierType\":1,\"force\":true,\"purchaserId\":98100001}"),
+                    admin).path("data").path("createdSupplier").path("id").asLong();
+            JsonNode detail = call(get(BASE + "/" + id), admin).path("data");
+            assertEquals(98100001L, detail.path("purchaserId").asLong());
+            assertEquals("张三", detail.path("purchaserName").asText());
+            JsonNode row = call(get(BASE + "/page").param("name", "采购员A"), admin).path("data").path("records").get(0);
+            assertEquals("张三", row.path("purchaserName").asText());
+
+            // 用户停用后原值保留并标出；编辑时不改它也能保存
+            jdbc.update("update user_basic set status = 0 where id = 98100001");
+            assertTrue(call(get(BASE + "/" + id), admin).path("data").path("purchaserDisabled").asBoolean());
+            JsonNode kept = call(json(put(BASE + "/" + id), "{\"name\":\"采购员A\",\"supplierType\":1,\"status\":1,"
+                    + "\"purchaserId\":98100001}"), admin);
+            assertEquals(0, kept.path("code").asInt(), kept.toString());
+            // 清空
+            assertEquals(0, call(json(put(BASE + "/" + id), "{\"name\":\"采购员A\",\"supplierType\":1,\"status\":1}"), admin)
+                    .path("code").asInt());
+            JsonNode cleared = call(get(BASE + "/" + id), admin).path("data").path("purchaserId");
+            assertTrue(cleared.isMissingNode() || cleared.isNull(), "清空后未指定");
+        } finally {
+            jdbc.update("delete from user_basic where id in (98100001, 98100002, 98100003)");
+        }
+    }
+
     @Test
     void defaultPaymentTerms_validatedAndShown() throws Exception {
         loginAsAdmin("supplier_admin");

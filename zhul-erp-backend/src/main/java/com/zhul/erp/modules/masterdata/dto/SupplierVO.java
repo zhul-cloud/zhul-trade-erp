@@ -24,6 +24,10 @@ public class SupplierVO {
     private Integer handoverMode;
     private String courierCarrier;
     private String courierAccount;
+    /** 所属采购员；用户已停用时 purchaserDisabled 为 true */
+    private Long purchaserId;
+    private String purchaserName;
+    private Boolean purchaserDisabled;
     private Integer industry;
     private String creditCode;
     private String legalRepresentative;

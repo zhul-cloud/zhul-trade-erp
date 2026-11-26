@@ -29,6 +29,7 @@ import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { termsTotal } from '@/pages/purchase/calc';
 import { PaymentTermsEditor } from '@/pages/purchase/components';
 import type { PaymentTerm } from '@/pages/purchase/service';
+import { getUserOptions, type UserOption } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import {
@@ -105,6 +106,7 @@ const toFormState = (s: SupplierItem): FormState => ({
   shortName: s.shortName,
   // 存量数据的"未设置"（0）不回填，让用户补选一个真实类型
   supplierType: s.supplierType || (undefined as unknown as number),
+  purchaserId: s.purchaserId ?? undefined,
   industry: s.industry || undefined,
   status: s.status,
   creditCode: s.creditCode,
@@ -135,6 +137,7 @@ const toPayload = (v: FormState): SupplierFormValues => ({
   name: text(v.name),
   shortName: text(v.shortName),
   supplierType: v.supplierType,
+  purchaserId: v.purchaserId ?? null,
   industry: v.industry,
   status: v.status,
   creditCode: text(v.creditCode).toUpperCase(),
@@ -156,6 +159,41 @@ const toPayload = (v: FormState): SupplierFormValues => ({
   accounts: toAccountPayload(v.accounts),
   attachments: toAttachmentPayload(v.attachments),
 });
+
+/** 所属采购员：本公司启用的用户；已停用的原值保留并标出（openspec supplier-purchaser） */
+const PurchaserSelect: React.FC<{
+  record?: SupplierItem | null;
+  value?: number;
+  onChange?: (v?: number) => void;
+}> = ({ record, value, onChange }) => {
+  const [users, setUsers] = useState<UserOption[]>([]);
+  useEffect(() => {
+    getUserOptions({ status: 1 })
+      .then(setUsers)
+      .catch(() => setUsers([]));
+  }, []);
+  const options = users.map((u) => ({ value: u.id, label: u.name }));
+  if (
+    record?.purchaserId &&
+    !options.some((o) => o.value === record.purchaserId)
+  ) {
+    options.push({
+      value: record.purchaserId,
+      label: `${record.purchaserName ?? '—'}${record.purchaserDisabled ? '（已停用）' : ''}`,
+    });
+  }
+  return (
+    <Select
+      allowClear
+      placeholder="未指定"
+      value={value}
+      onChange={(v) => onChange?.(v)}
+      options={options}
+      showSearch={{ optionFilterProp: 'label' }}
+      aria-label="所属采购员"
+    />
+  );
+};
 
 const SupplierFormPage: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
@@ -428,6 +466,13 @@ const SupplierFormPage: React.FC = () => {
                   placeholder="请选择供应商类型"
                   options={SUPPLIER_TYPE_SELECT_OPTIONS}
                 />
+              </Form.Item>
+              <Form.Item
+                name="purchaserId"
+                label="所属采购员"
+                extra="选填，这家供应商由谁对接"
+              >
+                <PurchaserSelect record={record} />
               </Form.Item>
               <Form.Item name="industry" label="所属行业">
                 <Select
