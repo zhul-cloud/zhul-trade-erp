@@ -16,7 +16,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
-import { Card } from '@/pages/inquiry/shared/components';
+import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { ProductSelect } from '@/pages/product/components/ProductSelect';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -355,9 +355,7 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
             {g.aiModel}
           </b>
           <span style={{ display: 'inline-flex', gap: 8 }}>
-            <Tag color="purple" style={{ marginInlineEnd: 0 }}>
-              AI 建议
-            </Tag>
+            <Pill tone="gray">AI 建议</Pill>
             <button
               type="button"
               className="zhul-link"
@@ -371,9 +369,7 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
     if (g.aiKind === KIND.FEE)
       return (
         <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-          <Tag color="orange" style={{ marginInlineEnd: 0 }}>
-            费用
-          </Tag>
+          <Pill tone="gray">费用</Pill>
           <button
             type="button"
             className="zhul-link"

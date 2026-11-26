@@ -62,7 +62,7 @@ import {
 import {
   defaultPayMethod,
   PAY_METHOD,
-  PayMethodTag,
+  PAY_METHOD_NAMES,
 } from '@/pages/finance/payables/payMethod';
 import { SOURCE } from '@/pages/finance/payables/service';
 import { useWide } from '@/pages/inquiry/shared/components';
@@ -732,7 +732,6 @@ const PurchaseOrderDetail: React.FC = () => {
         tags={
           <>
             <MigratedPill migrated={po.migrated} />
-            {po.payMethod != null && <PayMethodTag value={po.payMethod} />}
             {po.status === PO_STATUS.ORDERED && po.shipProgress ? (
               <ShipProgressPill
                 code={po.shipProgress}
@@ -747,6 +746,7 @@ const PurchaseOrderDetail: React.FC = () => {
           <>
             {po.shop && '线上店铺 · '}
             {po.supplierName} · {po.purchaserName}
+            {po.payMethod != null && ` · ${PAY_METHOD_NAMES[po.payMethod]}付款`}
             {po.orderDate
               ? ` · ${po.orderDate} 下单${po.expectedShipDate ? ` · 预计 ${po.expectedShipDate} 发货` : ''}`
               : ` · ${dayjs(po.createTime).format('YYYY-MM-DD')} 创建 · 确认下单时分配编号`}

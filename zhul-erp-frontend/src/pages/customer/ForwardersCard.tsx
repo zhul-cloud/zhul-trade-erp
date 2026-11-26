@@ -99,7 +99,7 @@ const ForwardersCard: React.FC<{
                 {f.name}
               </b>
               {f.handoverMode === 2 && (
-                <Pill tone="violet">
+                <Pill tone="gray">
                   {['上门取件', f.courierCarrier].filter(Boolean).join(' · ')}
                 </Pill>
               )}

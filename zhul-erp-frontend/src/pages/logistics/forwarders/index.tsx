@@ -486,7 +486,7 @@ const ForwarderPage: React.FC = () => {
             <Pill tone="gray">客户指定</Pill>
             <span style={{ color: palette.link }}>{r.customerName ?? '—'}</span>
             {r.handoverMode === HANDOVER.PICKUP && (
-              <Pill tone="violet">
+              <Pill tone="gray">
                 {['上门取件', r.courierCarrier].filter(Boolean).join(' · ')}
               </Pill>
             )}

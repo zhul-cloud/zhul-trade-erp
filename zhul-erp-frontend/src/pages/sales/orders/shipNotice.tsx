@@ -265,7 +265,7 @@ export const ShipNoticeModal: React.FC<{
                   color: palette.mute,
                 }}
               >
-                <Pill tone="violet">
+                <Pill tone="gray">
                   {pickupText(
                     chosenForwarder.courierCarrier,
                     chosenForwarder.courierAccount,

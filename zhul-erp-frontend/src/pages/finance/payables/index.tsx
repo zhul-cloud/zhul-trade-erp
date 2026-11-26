@@ -201,7 +201,7 @@ const PayableManagement: React.FC = () => {
     {
       title: '收款方',
       key: 'payee',
-      width: 180,
+      width: 172,
       render: (_, r) => (
         // 名称单行省略，下面一行类型用次要色文字（同客户列；标签 24 高会撑高行，D21）
         <div style={{ minWidth: 0 }}>
@@ -217,7 +217,7 @@ const PayableManagement: React.FC = () => {
     {
       title: '付款方式',
       dataIndex: 'payMethod',
-      width: 96,
+      width: 80,
       render: (v?: number) => <PayMethodTag value={v} />,
     },
     {

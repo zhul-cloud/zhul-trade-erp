@@ -1,6 +1,6 @@
-import { Tag } from 'antd';
-import { Landmark, User } from 'lucide-react';
 import React from 'react';
+import { Pill } from '@/pages/inquiry/shared/components';
+import { useAppTheme } from '@/theme/AppTheme';
 import { METHOD } from './service';
 
 /** 应付单约定的付款方式（openspec payable-payment-method）：0-未定、1-对公、2-对私 */
@@ -12,31 +12,14 @@ export const PAY_METHOD_NAMES: Record<number, string> = {
   2: '对私',
 };
 
-/** 约定的付款方式标签：对公蓝、对私橙、未定灰 */
+/** 约定的付款方式：属性用中性灰标签（ui-redesign S13），未定用浅色文字 */
 export const PayMethodTag: React.FC<{ value?: number | null }> = ({
   value,
 }) => {
-  if (value === PAY_METHOD.PUBLIC)
-    return (
-      <Tag
-        color="blue"
-        icon={<Landmark size={12} />}
-        style={{ marginInlineEnd: 0 }}
-      >
-        对公
-      </Tag>
-    );
-  if (value === PAY_METHOD.PRIVATE)
-    return (
-      <Tag
-        color="orange"
-        icon={<User size={12} />}
-        style={{ marginInlineEnd: 0 }}
-      >
-        对私
-      </Tag>
-    );
-  return <Tag style={{ marginInlineEnd: 0 }}>未定</Tag>;
+  const { palette } = useAppTheme();
+  if (value === PAY_METHOD.PUBLIC || value === PAY_METHOD.PRIVATE)
+    return <Pill tone="gray">{PAY_METHOD_NAMES[value]}</Pill>;
+  return <span style={{ color: palette.mute }}>未定</span>;
 };
 
 /**

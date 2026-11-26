@@ -604,7 +604,7 @@ export const ShipModal: React.FC<{
             marginBottom: 16,
           }}
         >
-          <Pill tone="violet">{sh.pickupLabel ?? '上门取件'}</Pill>
+          <Pill tone="gray">{sh.pickupLabel ?? '上门取件'}</Pill>
           上门取件的货代只能交给客户的货代
         </div>
       )}
