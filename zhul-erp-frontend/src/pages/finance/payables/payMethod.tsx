@@ -1,4 +1,5 @@
 import React from 'react';
+import { AlertLabel } from '@/components/MetricCard';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { METHOD } from './service';
@@ -24,22 +25,20 @@ export const PayMethodTag: React.FC<{ value?: number | null }> = ({
 
 /**
  * 付款方式下方的一行提示（随所选应付单变化的结果，规范「说明文字」放字段下方）：
- * warn 为约定不一致、需要确认（警告色），note 为预选说明（次要色）。单笔、批量登记付款共用。
+ * warn 为约定不一致、需要确认，用带图标的浅底警告标签（规范「警告不用纯文字」）；note 为预选说明（次要色）。
+ * 单笔、批量登记付款共用。
  */
 export const MethodHint: React.FC<{
   tone: 'warn' | 'note';
   children: React.ReactNode;
 }> = ({ tone, children }) => {
   const { palette } = useAppTheme();
-  return (
-    <div
-      role={tone === 'warn' ? 'status' : undefined}
-      style={{
-        fontSize: 12,
-        marginTop: 6,
-        color: tone === 'warn' ? palette.orange : palette.mute,
-      }}
-    >
+  return tone === 'warn' ? (
+    <div role="status" style={{ marginTop: 6 }}>
+      <AlertLabel tone="warning">{children}</AlertLabel>
+    </div>
+  ) : (
+    <div style={{ fontSize: 12, marginTop: 6, color: palette.mute }}>
       {children}
     </div>
   );

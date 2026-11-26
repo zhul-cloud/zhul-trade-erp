@@ -24,6 +24,7 @@ import {
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { CountryText } from '@/components/CountryText';
 import EllipsisText from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -102,7 +103,7 @@ const CustomerListPage: React.FC = () => {
   const access = useAccess() as Record<string, boolean>;
   const { palette } = useAppTheme();
   const [form] = Form.useForm<FilterForm>();
-  const { options: countryOptions, zhOf } = useCountries();
+  const { options: countryOptions } = useCountries();
 
   const canAdd = !!access['partner:customer:add'];
   const canEdit = !!access['partner:customer:edit'];
@@ -345,7 +346,8 @@ const CustomerListPage: React.FC = () => {
       title: '国家/地区',
       dataIndex: 'country',
       width: 110,
-      render: (v: string) => zhOf(v) || '—',
+      // 国旗 + 中文名，单行省略、悬停看英文名（C2）
+      render: (v: string) => <CountryText value={v} />,
     },
     {
       title: '主联系人',

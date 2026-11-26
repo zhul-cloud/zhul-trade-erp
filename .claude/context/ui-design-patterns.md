@@ -397,8 +397,15 @@ import {
 | `row-actions` | 错误 | 表格「操作」列没用 `RowActions`：审批、审核、工作队列、要显示进度的长操作等例外，在列上写 `lint-ui-ignore row-actions: 原因` |
 | `attr-tone` | 错误 | 类别、属性标签（客户指定、老客户、现货、默认等）用了彩色：改 `tone="gray"`，彩色只给流程状态与告警（S13） |
 | `antd-empty` | 错误 | 用了 antd 的 `Empty`：改公共 `EmptyState`（小地方 `compact`） |
-| `primary-soft` | 错误 | 写死了 `background: …primarySoft`：说明文字改 `Callout`，数字、汇总块改 `inset`，属性改 `neutralSoft`；选中、批量操作条、搜索命中、头像、返回条写例外（D42） |
+| `primary-soft` | 错误 | 写死了 `background: …primarySoft`（含按类别的三元写法；条件是 `on`、`active`、`checked`、`selected`、`current` 等选中态的不报）：说明文字改 `Callout`，数字、汇总块改 `inset`，属性改 `neutralSoft`；选中、批量操作条、搜索命中、头像、返回条写例外（D42） |
 | `antd-icon` | 错误 | 用了 `@ant-design/icons`：改 lucide-react（尺寸 `size="1em"` 跟随字号，转圈加 `zhul-spin`）；品牌标识等 lucide 没有的写例外 |
+| `progress-color` | 错误 | 进度条（`Progress` 的 `strokeColor`）不是 `palette.chart`：进度只用主题色，程度用深浅，完成也不换色 |
+| `table-switch` | 错误 | 列表行里自己放 antd `Switch`：用公共 `StatusSwitch` |
+| `column-settings` | 错误 | 用了 `auditColumns()` / `proAuditColumns()` 的页面没接 `useColumnSettings`（创建、更新两列默认收起，D55） |
+| `scroll-max-content` | 错误 | 表格横向滚动写 `'max-content'`：用 `tableScrollX(columns)` |
+| `page-tabs` | 错误 | 页面里直接用 antd `Tabs`：看不同对象或视图用 `ViewTabs`，按状态过滤用状态下拉；卡片、抽屉里的分区页签写例外（复审 S3） |
+| `scope-switch` | 错误 | 自己拼「我的 / 全部人员 / 我负责的」：用 `ScopeSwitch`（复审 S3） |
+| `currency-symbol` | 错误 | 金额写了 `¥`：用「币种代码 + 空格 + 金额」（复审 S8） |
 
 - 确认弹窗（`confirm`）、警告条（`Alert`）、`Popconfirm` 里的文字不检查，按「说明文字」一节原样保留。
 - `npm run lint:ui -- src/pages/sales` 只查指定目录（按当前所在目录解析，找不到时报错），有错误就失败；不带参数时扫全仓库，只有已迁移目录（脚本里的 `ENFORCED`）有错误才失败。每迁完一个业务域，把目录加进 `ENFORCED`。全部迁完后（任务 7.8）并入 `npm run lint`。

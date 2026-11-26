@@ -18,7 +18,7 @@ import { Pill } from '@/pages/crm/opportunity/components';
 import { PATHS } from '@/pages/sales/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount } from '@/utils/format';
+import { formatAmount, formatMoney } from '@/utils/format';
 import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
@@ -35,6 +35,7 @@ import {
 } from './service';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
+// 汇总行、快捷筛选写「CNY 金额」；表格里「折人民币」整列同币种，单元格只写数字（S12）
 const cny = (v?: number) => formatAmount(v ?? 0, 'CNY');
 /** 快捷筛选数量「CNY 金额 · N 张」：没有单据时不写（只留名称） */
 const quickCount = (amount?: number, n?: number) =>
@@ -194,7 +195,7 @@ const ReceivablesPage: React.FC = () => {
       key: 'cny',
       width: 130,
       align: 'right',
-      render: (_, r) => <span style={num}>{cny(r.remainingCny)}</span>,
+      render: (_, r) => <span style={num}>{formatMoney(r.remainingCny)}</span>,
     },
     {
       title: '约定付款日',
@@ -262,7 +263,7 @@ const ReceivablesPage: React.FC = () => {
       key: 'cny',
       width: 130,
       align: 'right',
-      render: (_, g) => <span style={num}>{cny(g.remainingCny)}</span>,
+      render: (_, g) => <span style={num}>{formatMoney(g.remainingCny)}</span>,
     },
     {
       title: '其中逾期',
@@ -272,7 +273,7 @@ const ReceivablesPage: React.FC = () => {
       render: (_, g) =>
         g.overdueCny > 0 ? (
           <span style={{ ...num, color: palette.red }}>
-            {cny(g.overdueCny)}
+            {formatMoney(g.overdueCny)}
           </span>
         ) : (
           <span style={{ color: palette.mute }}>—</span>

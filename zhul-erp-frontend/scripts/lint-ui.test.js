@@ -357,6 +357,17 @@ describe('lint:ui 复审补充', () => {
       rules("emptyText: tableEmpty(a ? 'x' : 'y', loading)"),
     ).not.toContain('plain-empty:warn');
   });
+  it('按类别加主题色浅底也报，选中态不报（D42）', () => {
+    expect(
+      rules('background: user ? palette.primarySoft : palette.inset,'),
+    ).toContain('primary-soft:error');
+    expect(
+      rules('background: active ? palette.primarySoft : palette.inset,'),
+    ).not.toContain('primary-soft:error');
+    expect(
+      rules('background: n.current ? palette.primarySoft : palette.inset,'),
+    ).not.toContain('primary-soft:error');
+  });
   it('按条件加危险色的确认框也要用 useConfirmDanger', () => {
     expect(
       rules('okButtonProps: disabling ? { danger: true } : undefined,'),

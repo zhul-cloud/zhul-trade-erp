@@ -3,7 +3,9 @@ import { Button, Segmented, Skeleton, Table, TreeSelect } from 'antd';
 import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
-import { MetricGrid } from '@/components/MetricCard';
+import { HelpTip } from '@/components/ListLayout';
+import { MetricGrid, MetricTile } from '@/components/MetricCard';
+import { rowAlert } from '@/components/RowAlert';
 import { useWide } from '@/pages/inquiry/shared/components';
 import {
   type DeptTreeOption,
@@ -179,31 +181,26 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
     label: string;
     value: React.ReactNode;
     sub: string;
-    color: string;
   }[] = [
     {
       label: '新商机',
       value: r.newOpportunities.value,
       sub: `${prevLabel} ${r.newOpportunities.prev}`,
-      color: palette.info,
     },
     {
       label: '发出报价',
       value: r.quotationsSent.value,
       sub: `${prevLabel} ${r.quotationsSent.prev}`,
-      color: palette.link,
     },
     {
       label: '发出 PI',
       value: r.pisSent.value,
       sub: `${prevLabel} ${r.pisSent.prev}`,
-      color: palette.link,
     },
     {
       label: '到账成交',
       value: `${r.orders.count} 单`,
       sub: formatAmount(r.orders.amountCny ?? 0, 'CNY'),
-      color: palette.link,
     },
     {
       label: '按时送达',
@@ -211,19 +208,16 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
       sub: r.delivered
         ? `${r.delivered - r.onTime} 单晚到`
         : '还没有签收的订单',
-      color: palette.link,
     },
     {
       label: '获得评价',
       value: r.reviewed,
       sub: `邀请 ${r.invited} · 婉拒 ${r.declined}`,
-      color: palette.red,
     },
     {
       label: '老客户成交',
       value: `${r.repeat.count} 单`,
       sub: formatAmount(r.repeat.amountCny ?? 0, 'CNY'),
-      color: palette.green,
     },
     {
       label: '老客户按时联系',
@@ -232,31 +226,26 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
       sub: r.accountDue
         ? `应联系 ${r.accountDue} · 按时 ${r.accountOnTime}`
         : '这段时间没有应联系的老客户',
-      color: palette.green,
     },
     {
       label: '老客户新询盘',
       value: r.accountInquiries.value,
       sub: `${prevLabel} ${r.accountInquiries.prev}`,
-      color: palette.green,
     },
     {
       label: '沉睡客户',
       value: r.dormant,
       sub: `本期激活 ${r.activated}`,
-      color: palette.orange,
     },
     {
       label: '主动开发 · 新增对象',
       value: r.developNew,
       sub: '本期新建或加入',
-      color: palette.info,
     },
     {
       label: '首次触达',
       value: r.developTouched,
       sub: '首次触达日在本期',
-      color: palette.info,
     },
     {
       label: '回复',
@@ -265,19 +254,16 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
         r.developReplyPercent != null
           ? `回复率 ${r.developReplyPercent}%（${r.developReplied} ÷ ${r.developTouched}）`
           : '本期还没有首次触达',
-      color: palette.info,
     },
     {
       label: '转为商机',
       value: r.developConverted,
       sub: '进入商机成交',
-      color: palette.info,
     },
     {
       label: '停止开发',
       value: r.developStopped,
       sub: '可在客户详情重新开发',
-      color: palette.info,
     },
   ];
 
@@ -287,13 +273,14 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
     {
       title: '负责人',
       key: 'name',
-      width: 120,
+      width: 96,
       render: (_, o) => (
         <div style={{ display: 'grid', gap: 2 }}>
           <b style={{ color: palette.ink }}>{o.ownerName}</b>
+          {/* 需要关注的行左侧有色条（rowAlert），原因写成状态标签 */}
           {o.attention && (
-            <span style={{ fontSize: 12, color: palette.orange }}>
-              需要关注
+            <span>
+              <Pill tone="orange">需要关注</Pill>
             </span>
           )}
         </div>
@@ -302,7 +289,7 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
     ...BOARD_COLS.map((name, i) => ({
       title: name,
       key: `b${i}`,
-      width: 80,
+      width: 72,
       render: (_: unknown, o: TeamOwner) => {
         const board = i + 1;
         const open = [
@@ -323,7 +310,7 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
     {
       title: '今天要跟',
       key: 'today',
-      width: 80,
+      width: 72,
       render: (_, o) => (
         <NumButton
           value={o.todayDue}
@@ -335,7 +322,7 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
     {
       title: '逾期',
       key: 'overdue',
-      width: 70,
+      width: 56,
       render: (_, o) => (
         <NumButton
           value={o.overdue}
@@ -347,7 +334,7 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
     {
       title: '多次延后',
       key: 'snoozes',
-      width: 80,
+      width: 72,
       render: (_, o) => (
         <span
           style={{
@@ -362,7 +349,7 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
     {
       title: '本期记跟进',
       key: 'records',
-      width: 120,
+      width: 104,
       render: (_, o) => {
         const diff = o.records - o.prevRecords;
         return (
@@ -472,27 +459,17 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
             key={row[0]?.label ?? ri}
             cols={row.length}
             min={140}
-            gap={10}
-            style={{ marginBottom: ri === 2 ? 16 : 10 }}
+            gap={12}
+            style={{ marginBottom: ri === 2 ? 16 : 12 }}
           >
+            {/* 公共紧凑数字块：数值统一墨色，不按指标写死彩色（复审 9.1 第二轮） */}
             {row.map((t) => (
-              <Card key={t.label} style={{ padding: 16 }}>
-                <div style={{ fontSize: 12, color: palette.mute }}>
-                  {t.label}
-                </div>
-                <div
-                  style={{
-                    fontSize: 24,
-                    fontWeight: 700,
-                    color: t.color,
-                    margin: '4px 0 2px',
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  {t.value}
-                </div>
-                <div style={{ fontSize: 12, color: palette.sub }}>{t.sub}</div>
-              </Card>
+              <MetricTile
+                key={t.label}
+                label={t.label}
+                value={t.value}
+                sub={t.sub}
+              />
             ))}
           </MetricGrid>
         ),
@@ -500,7 +477,7 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: wide ? 'minmax(0, 1fr) 360px' : 'minmax(0, 1fr)',
+          gridTemplateColumns: wide ? 'minmax(0, 1fr) 304px' : 'minmax(0, 1fr)',
           gap: 16,
           alignItems: 'start',
         }}
@@ -517,13 +494,12 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
               pagination={false}
               scroll={{ x: tableScrollX(ownerCols) }}
               locale={{ emptyText: tableEmpty('这个范围里没有业务员') }}
-              onRow={(o) => ({
-                onClick: () => owner(o),
-                style: {
-                  cursor: 'pointer',
-                  background: o.attention ? palette.orangeSoft : undefined,
-                },
-              })}
+              onRow={(o) =>
+                rowAlert(o.attention ? 'warning' : undefined, {
+                  onClick: () => owner(o),
+                  style: { cursor: 'pointer' },
+                })
+              }
             />
           </Card>
           <Card style={{ padding: '16px 20px' }}>
@@ -535,9 +511,11 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
                 flexWrap: 'wrap',
               }}
             >
-              <b style={{ color: palette.ink }}>卡在哪一步</b>
-              <span style={{ fontSize: 12, color: palette.mute }}>
-                平均停留超过参考天数的标橙
+              <span
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              >
+                <b style={{ color: palette.ink }}>卡在哪一步</b>
+                <HelpTip title="平均停留超过参考天数的标橙" />
               </span>
             </div>
             {STAGE_ROWS.map((row) => (
@@ -550,7 +528,7 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
                   marginTop: 12,
                 }}
               >
-                <b style={{ color: palette.link, fontSize: 13, paddingTop: 8 }}>
+                <b style={{ color: palette.sub, fontSize: 13, paddingTop: 8 }}>
                   {row.name}
                 </b>
                 <div

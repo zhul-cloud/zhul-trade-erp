@@ -148,8 +148,9 @@ const RecordRow: React.FC<{ r: FollowupRecord; last: boolean }> = ({
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: 12,
-            color: user ? palette.link : palette.mute,
-            background: user ? palette.primarySoft : palette.inset,
+            // 两类图标本身不同，底色都用中性（主题色浅底只表示选中，D42）
+            color: user ? palette.sub : palette.mute,
+            background: user ? palette.neutralSoft : palette.inset,
           }}
         >
           {channelIcon(r)}

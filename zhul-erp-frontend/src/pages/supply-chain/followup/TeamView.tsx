@@ -10,6 +10,7 @@ import {
 import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
+import { MetricGrid, MetricTile } from '@/components/MetricCard';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { liveRequests } from '@/utils/liveRequests';
@@ -47,31 +48,6 @@ export interface TeamJump {
   /** 无货统计期（30 / 90 天），与团队视图一致 */
   days?: number;
 }
-
-const Kpi: React.FC<{
-  label: string;
-  value: React.ReactNode;
-  sub: string;
-  color?: string;
-}> = ({ label, value, sub, color }) => {
-  const { palette } = useAppTheme();
-  return (
-    <Card style={{ padding: '16px 20px' }}>
-      <div style={{ fontSize: 13, color: palette.sub }}>{label}</div>
-      <div
-        style={{
-          fontSize: 28,
-          fontWeight: 700,
-          color: color ?? palette.ink,
-          margin: '4px 0',
-        }}
-      >
-        {value}
-      </div>
-      <div style={{ fontSize: 12, color: palette.mute }}>{sub}</div>
-    </Card>
-  );
-};
 
 const RankList: React.FC<{
   title: string;
@@ -283,46 +259,39 @@ const TeamView: React.FC<{
   return (
     <div>
       {head}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
-          gap: 12,
-        }}
-      >
-        <Kpi
+      {/* 公共紧凑数字块，数值统一墨色（复审 9.1 第二轮）；固定 6 项用 MetricGrid */}
+      <MetricGrid cols={6} min={150} gap={12}>
+        <MetricTile
           label="无货"
           value={`${t.stockoutModels} 个型号`}
           sub={`${t.stockoutTimes} 次 · 上期 ${t.prevStockoutModels} 个型号`}
-          color={t.stockoutModels ? palette.red : undefined}
         />
-        <Kpi
+        <MetricTile
           label="无货率"
           value={rate(t.stockoutRate)}
           sub="无货型号 / 询过价的型号"
         />
-        <Kpi
+        <MetricTile
           label="有效覆盖率"
           value={rate(t.coverRate)}
           sub="可直接报价 / 矩阵内型号"
         />
-        <Kpi
+        <MetricTile
           label="可报价率"
           value={rate(t.quotableRate)}
           sub="可直接报价 + 需确认"
         />
-        <Kpi
+        <MetricTile
           label="备用渠道率"
           value={rate(t.backupRate)}
           sub="有备选渠道 / 可报价型号"
         />
-        <Kpi
+        <MetricTile
           label="补上的缺口"
           value={`${t.filledGaps} 个型号`}
           sub="由无渠道、未验证变为可报"
-          color={t.filledGaps ? palette.green : undefined}
         />
-      </div>
+      </MetricGrid>
 
       <Card style={{ padding: 20, marginTop: 16 }}>
         <div
@@ -335,7 +304,7 @@ const TeamView: React.FC<{
           <span>
             <b style={{ fontSize: 16 }}>无货集中在哪</b>
             <span style={{ color: palette.mute, marginLeft: 8 }}>
-              近 {t.days} 天 · 点名称查看型号
+              近 {t.days} 天
             </span>
           </span>
           <Link to={`${PATHS.coverage}?mode=stockout`}>
@@ -352,7 +321,7 @@ const TeamView: React.FC<{
           <RankList
             title="按品牌"
             rows={t.byBrand}
-            color={palette.red}
+            color={palette.chart}
             onJump={(r) => onJump({ brandId: r.brandId, days: t.days })}
             onProject={
               canProject
@@ -363,13 +332,13 @@ const TeamView: React.FC<{
           <RankList
             title="按品类"
             rows={t.byCategory}
-            color={palette.red}
+            color={palette.chart}
             onJump={(r) => onJump({ categoryId: r.categoryId, days: t.days })}
           />
           <RankList
             title="无货原因"
             rows={t.reasons}
-            color={palette.orange}
+            color={palette.chart}
             reason
           />
         </div>

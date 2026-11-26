@@ -148,7 +148,8 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
   const [query, setQuery] = useState<string>();
   const [marked, setMarked] = useState(false);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = usePageSize(20);
+  // 与「候选审核」同一路径，按视图分开记每页条数
+  const [pageSize, setPageSize] = usePageSize(20, 'unlinked');
   const [rows, setRows] = useState<UnlinkedGroup[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -385,7 +386,7 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
     {
       title: '品牌 · 型号（单据原文）',
       key: 'model',
-      width: 220,
+      width: 210,
       fixed: 'left',
       render: (_, g) => (
         <b style={{ color: palette.ink }}>
@@ -449,13 +450,13 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
           {
             title: 'AI 建议',
             key: 'ai',
-            width: 210,
+            width: 200,
             render: (_, g) => aiCell(g),
           },
           {
             title: '可能是',
             key: 'suggestion',
-            width: 200,
+            width: 190,
             render: (_, g) =>
               g.suggestion ? (
                 <span>
@@ -536,6 +537,9 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
         <ErrorHint message={error} onRetry={load} />
       ) : (
         <MainCard
+          count={selected.length > 0 ? undefined : total}
+          unit="组"
+          loading={loading}
           left={
             selected.length > 0 ? (
               <SelectionCount
@@ -545,12 +549,11 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
               />
             ) : (
               <>
-                {!loading && `共 ${total} 组`}
                 <HelpTip
                   title={
                     marked
                       ? '标为不是商品的写法不再列入待关联清单；恢复后回到清单'
-                      : 'AI 只给建议，采纳或标记都要人点；单号点开单据详情，返回后回到待关联'
+                      : 'AI 只给建议，采纳或标记都要人点'
                   }
                 />
                 {aiJob?.taskId && (
@@ -615,7 +618,11 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
             }}
             locale={{
               emptyText: tableEmpty(
-                marked ? '没有标为不是商品的型号' : '所有单据明细都已关联商品',
+                query
+                  ? '没有符合条件的型号，换个关键词试试'
+                  : marked
+                    ? '没有标为不是商品的型号'
+                    : '所有单据明细都已关联商品',
                 loading,
               ),
             }}

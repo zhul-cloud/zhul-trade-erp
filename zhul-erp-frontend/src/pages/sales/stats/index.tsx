@@ -76,7 +76,7 @@ const SalesStatsPage: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
   const { zhOf } = useCountries();
-  const customerPager = usePagination(50, 'customer');
+  const customerPager = usePagination(20, 'customer');
   const { of: deltaOf } = useDeltaColor();
   const users = useUserOptions();
   const [range, setRange] = useState<[Dayjs, Dayjs]>(() =>

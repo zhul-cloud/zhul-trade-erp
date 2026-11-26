@@ -18,6 +18,7 @@ import dayjs from 'dayjs';
 import { Plus, Trash2 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ProductSelect } from '@/pages/product/components/ProductSelect';
+import { useCountries } from '@/pages/product/components/useCountries';
 import type { ProductOption } from '@/pages/product/service';
 import { CURRENCIES } from '@/pages/quotation/components';
 import type { Attachment } from '@/pages/warehouse/service';
@@ -452,6 +453,7 @@ export const CreateOrderDrawer: React.FC<{
 }> = ({ open, onClose, onDone, reorder }) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
+  const { zhOf } = useCountries();
   const access = useAccess() as Record<string, boolean>;
   const users = useUserOptions();
   const [customerId, setCustomerId] = useState<number>();
@@ -545,7 +547,9 @@ export const CreateOrderDrawer: React.FC<{
   ) =>
     list.map((c) => ({
       value: c.id,
-      label: [c.displayName || c.name, c.country].filter(Boolean).join(' · '),
+      label: [c.displayName || c.name, zhOf(c.country)]
+        .filter(Boolean)
+        .join(' · '),
     }));
 
   const patch = (key: number, v: Partial<Line>) =>

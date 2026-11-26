@@ -389,3 +389,57 @@ export const MetricGrid: React.FC<{
     </div>
   );
 };
+
+/**
+ * 紧凑数字块（复审 9.1 第二轮）：一组较多的统计数（如跟进页「团队」视图十几项）用它，比数字卡矮，不带图标块。
+ * 名称 13 次要色、数值 24/600 墨色（不按指标写死彩色，0 也不显示成告警）、副文字 12 次要色；
+ * 白卡表面与数字卡一致（浅色阴影、深色描边）。放进 `MetricGrid` 排列。
+ */
+export const MetricTile: React.FC<{
+  label: React.ReactNode;
+  value: React.ReactNode;
+  sub?: React.ReactNode;
+}> = ({ label, value, sub }) => {
+  const { palette, mode } = useAppTheme();
+  const light = mode === 'light';
+  return (
+    <div
+      style={{
+        minWidth: 0,
+        padding: '16px 20px',
+        borderRadius: 10,
+        background: palette.card,
+        border: light ? 'none' : `1px solid ${palette.hairline}`,
+        boxShadow: light ? CARD_SHADOW : 'none',
+      }}
+    >
+      <div style={{ fontSize: 13, color: palette.mute }}>{label}</div>
+      <div
+        className="num"
+        style={{
+          fontSize: 24,
+          fontWeight: 600,
+          lineHeight: '32px',
+          color: palette.ink,
+          margin: '4px 0',
+        }}
+      >
+        {value}
+      </div>
+      {sub != null && (
+        <div
+          title={typeof sub === 'string' ? sub : undefined}
+          style={{
+            fontSize: 12,
+            color: palette.mute,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {sub}
+        </div>
+      )}
+    </div>
+  );
+};

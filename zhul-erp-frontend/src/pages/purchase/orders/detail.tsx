@@ -875,7 +875,7 @@ const PurchaseOrderDetail: React.FC = () => {
               marginBottom: 16,
             }}
           >
-            {/* 公共数字卡（C3）：采购金额归「支出」家族，砍价省下的钱归「利润」家族；要处理的情况改告警标签 */}
+            {/* 公共数字卡（C3）：采购都属支出家族（METRIC_FAMILY.gray，实为洋红），砍价省下的钱归利润家族；要处理的情况改告警标签 */}
             <MetricCard
               icon={<Wallet size={20} />}
               family="gray"
@@ -903,7 +903,7 @@ const PurchaseOrderDetail: React.FC = () => {
             />
             <MetricCard
               icon={<Calendar size={20} />}
-              family="cyan"
+              family="gray"
               label="付款条件"
               value={
                 draft.paymentTerms.length === 0
@@ -919,7 +919,7 @@ const PurchaseOrderDetail: React.FC = () => {
             {po.shipProgress ? (
               <MetricCard
                 icon={<Car size={20} />}
-                family="blue"
+                family="gray"
                 label="发货进度"
                 value={`已发 ${po.shippedQty ?? 0} / ${po.totalQty ?? 0}`}
                 // 逾期归错误色（status-colors.md「逾期 错误」，ui-redesign S5）
@@ -939,7 +939,7 @@ const PurchaseOrderDetail: React.FC = () => {
             ) : po.shop ? (
               <MetricCard
                 icon={<ShoppingBag size={20} />}
-                family="blue"
+                family="gray"
                 label="采购对象"
                 value="线上店铺"
                 hint="不需要供应商档案；买得多了可以转为供应商"
@@ -947,7 +947,7 @@ const PurchaseOrderDetail: React.FC = () => {
             ) : (
               <MetricCard
                 icon={<FileLock size={20} />}
-                family="blue"
+                family="gray"
                 label="供应商合同"
                 value={
                   po.attachments.length

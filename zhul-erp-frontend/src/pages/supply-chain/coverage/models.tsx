@@ -2,7 +2,7 @@ import { Eye, GitBranch, Search } from 'lucide-react';
 import { history, Link, useLocation } from '@umijs/max';
 import { Input, Select, Table, type TableColumnsType } from 'antd';
 import dayjs from 'dayjs';
-import { tableEmpty } from '@/components/EmptyState';
+import { listEmpty, tableEmpty } from '@/components/EmptyState';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import { PageHeader } from '@/components/ListLayout';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -292,7 +292,10 @@ const CoverageModelsPage: React.FC = () => {
           dataSource={rows}
           scroll={{ x: tableScrollX(columnsSet.columns) }}
           locale={{
-            emptyText: tableEmpty(error || '没有符合条件的型号', loading),
+            // 出错时给「重试」，不把错误信息当空状态（复审 9.1 第二轮）
+            emptyText: error
+              ? listEmpty({ error: true, onRetry: () => setTick((t) => t + 1) })
+              : tableEmpty('没有符合条件的型号', loading),
           }}
           pagination={{
 ...PAGER_STYLE,

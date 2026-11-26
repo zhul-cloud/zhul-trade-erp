@@ -188,7 +188,7 @@ const PayableManagement: React.FC = () => {
     {
       title: '编号',
       dataIndex: 'payableNo',
-      width: 140,
+      width: 128,
       fixed: 'left',
       render: (v: string, r) => (
         <button
@@ -203,7 +203,7 @@ const PayableManagement: React.FC = () => {
     {
       title: '收款方',
       key: 'payee',
-      width: 172,
+      width: 152,
       render: (_, r) => (
         // 名称单行省略，下面一行类型用次要色文字（同客户列；标签 24 高会撑高行，D21）
         <div style={{ minWidth: 0 }}>
@@ -225,7 +225,7 @@ const PayableManagement: React.FC = () => {
     {
       title: '状态',
       dataIndex: 'status',
-      width: 150,
+      width: 120,
       render: (v: number, r) => (
         <Space size={6}>
           <PayStatusPill status={v} />
@@ -247,7 +247,7 @@ const PayableManagement: React.FC = () => {
     {
       title: '下一期到期',
       key: 'due',
-      width: 160,
+      width: 150,
       render: (_, r) => (
         <DueTag date={r.nextDueDate} state={r.dueState} days={r.dueDays} />
       ),
