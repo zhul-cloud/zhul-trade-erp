@@ -9,7 +9,9 @@ import com.zhul.erp.modules.inquiry.support.PriceKeys;
 import com.zhul.erp.modules.inventory.service.InventoryOpening;
 import com.zhul.erp.modules.product.candidate.constants.CandidateConstants;
 import com.zhul.erp.modules.product.candidate.dto.UnlinkedGroupVO;
+import com.zhul.erp.modules.product.candidate.entity.DocUnlinkedMarkDO;
 import com.zhul.erp.modules.product.candidate.entity.ProductCandidateDO;
+import com.zhul.erp.modules.product.candidate.repository.DocUnlinkedMarkMapper;
 import com.zhul.erp.modules.product.candidate.repository.ProductCandidateMapper;
 import com.zhul.erp.modules.product.candidate.support.ModelRules;
 import com.zhul.erp.modules.product.constants.ProductConstants;
@@ -37,10 +39,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 /**
  * 单据明细关联商品的历史回填与「待关联」清单（spec product/document-product-link「历史单据回填与待关联清单」）。
@@ -66,6 +71,7 @@ public class DocProductLinkService {
     private final PlatformScopeGuard platformScopeGuard;
     private final LogService logService;
     private final InventoryOpening inventoryOpening;
+    private final DocUnlinkedMarkMapper markMapper;
 
     // ---------------------------------------------------------------- 历史回填
 
@@ -243,8 +249,69 @@ public class DocProductLinkService {
 
     // ---------------------------------------------------------------- 待关联清单
 
-    /** 当前公司（平台账号为全部）还没关联商品的单据明细，按「品牌 + 归一化型号」归并，最近出现的在前 */
-    public PageResult<UnlinkedGroupVO> unlinked(String keyword, String table, int page, int pageSize) {
+    /** 明细表 → 所属单据：外键列、单据表、单号列、单据类型（前端据此打开单据详情） */
+    private record Header(String column, String table, String noColumn, String type) {
+    }
+
+    private static final Map<String, Header> HEADERS = Map.ofEntries(
+            Map.entry("quotation_item", new Header("quotation_id", "quotation", "quotation_no", "QT")),
+            Map.entry("proforma_invoice_item", new Header("pi_id", "proforma_invoice", "pi_no", "PI")),
+            Map.entry("sales_order_item", new Header("so_id", "sales_order", "so_no", "SO")),
+            // 采购需求没有单号，显示来源销售订单
+            Map.entry("purchase_requirement", new Header("so_id", "sales_order", "so_no", "SO")),
+            Map.entry("purchase_order_item", new Header("po_id", "purchase_order", "po_no", "PO")),
+            Map.entry("supplier_shipment_item", new Header("shipment_id", "supplier_shipment", "sd_no", "SD")),
+            Map.entry("purchase_receipt_item", new Header("receipt_id", "purchase_receipt", "gr_no", "GR")),
+            // 到货差异显示所属采购订单
+            Map.entry("receiving_discrepancy", new Header("po_id", "purchase_order", "po_no", "PO")),
+            Map.entry("outbound_order_item", new Header("outbound_id", "outbound_order", "ob_no", "OB")),
+            Map.entry("after_sales_item", new Header("after_sales_id", "after_sales", "as_no", "AS")),
+            Map.entry("sales_return_item", new Header("return_id", "sales_return", "return_no", "SR")),
+            Map.entry("return_receipt_item", new Header("receipt_id", "return_receipt", "receipt_no", "RR")),
+            Map.entry("purchase_return_item", new Header("purchase_return_id", "purchase_return", "return_no", "PR")));
+
+    /** 每组最多带出的单号 */
+    static final int DOC_REF_LIMIT = 20;
+
+    /**
+     * 当前公司（平台账号为全部）还没关联商品的单据明细，按「品牌 + 归一化型号」归并，最近出现的在前。
+     * marked 为 false 时去掉「标为不是商品」的组，为 true 时只列这些组（openspec unlinked-docs-enhance）。
+     */
+    public PageResult<UnlinkedGroupVO> unlinked(String keyword, String table, int page, int pageSize, boolean marked) {
+        Map<String, Map<String, LocalDateTime>> refs = new HashMap<>();
+        Map<String, UnlinkedGroupVO> groups = collect(keyword, table, refs);
+        Map<String, DocUnlinkedMarkDO> marks = marks(groups.keySet());
+        List<UnlinkedGroupVO> all = new ArrayList<>();
+        for (UnlinkedGroupVO g : groups.values()) {
+            DocUnlinkedMarkDO m = marks.get(g.getKey());
+            boolean ignored = m != null && Objects.equals(m.getIgnored(), 1);
+            if (ignored == marked) {
+                all.add(g);
+            }
+        }
+        all.sort(Comparator.comparing(UnlinkedGroupVO::getLastSeenAt, Comparator.nullsLast(Comparator.reverseOrder())));
+        int size = pageSize <= 0 ? 20 : Math.min(pageSize, 100);
+        int from = Math.max(0, (Math.max(page, 1) - 1) * size);
+        List<UnlinkedGroupVO> slice = from >= all.size() ? List.of() : all.subList(from, Math.min(all.size(), from + size));
+        fillDocRefs(slice, refs);
+        slice.forEach(g -> fillMark(g, marks.get(g.getKey())));
+        suggest(slice);
+        return PageResult.of((long) all.size(), slice);
+    }
+
+    /** 指定归并键的组（AI 识别、批量采纳用）；已关联完的键不在结果里 */
+    public Map<String, UnlinkedGroupVO> groupsOf(Collection<String> keys) {
+        Set<String> wanted = new HashSet<>(keys);
+        Map<String, UnlinkedGroupVO> out = new LinkedHashMap<>();
+        collect(null, null, new HashMap<>()).forEach((k, g) -> {
+            if (wanted.contains(k)) {
+                out.put(k, g);
+            }
+        });
+        return out;
+    }
+
+    private Map<String, UnlinkedGroupVO> collect(String keyword, String table, Map<String, Map<String, LocalDateTime>> refs) {
         Map<String, UnlinkedGroupVO> groups = new LinkedHashMap<>();
         String kw = keyword == null ? "" : keyword.trim().toLowerCase(Locale.ROOT);
         String kwKey = MpnNormalizer.normalize(kw);
@@ -257,7 +324,9 @@ public class DocProductLinkService {
                 if (key == null) {
                     continue;
                 }
+                // 型号原文也比对：「运费」这类中文在归一化型号里会被去掉
                 if (!kw.isEmpty() && !(MpnNormalizer.normalize(nz(l.model())).contains(kwKey.isEmpty() ? kw : kwKey)
+                        || nz(l.model()).toLowerCase(Locale.ROOT).contains(kw)
                         || nz(l.brand()).toLowerCase(Locale.ROOT).contains(kw))) {
                     continue;
                 }
@@ -274,15 +343,100 @@ public class DocProductLinkService {
                 if (g.getLastSeenAt() == null || l.time() != null && l.time().isAfter(g.getLastSeenAt())) {
                     g.setLastSeenAt(l.time());
                 }
+                if (l.headerId() != null && l.headerId() > 0) {
+                    refs.computeIfAbsent(key, k -> new HashMap<>())
+                            .merge(e.table() + "#" + l.headerId(), l.time() == null ? LocalDateTime.MIN : l.time(),
+                                    (a, b) -> a.isAfter(b) ? a : b);
+                }
             }
         }
-        List<UnlinkedGroupVO> all = new ArrayList<>(groups.values());
-        all.sort(Comparator.comparing(UnlinkedGroupVO::getLastSeenAt, Comparator.nullsLast(Comparator.reverseOrder())));
-        int size = pageSize <= 0 ? 20 : Math.min(pageSize, 100);
-        int from = Math.max(0, (Math.max(page, 1) - 1) * size);
-        List<UnlinkedGroupVO> slice = from >= all.size() ? List.of() : all.subList(from, Math.min(all.size(), from + size));
-        suggest(slice);
-        return PageResult.of((long) all.size(), slice);
+        return groups;
+    }
+
+    /** 单号：按最近出现排序，每组最多 20 个；同一张单据只算一次（采购需求、到货差异显示所属单据） */
+    private void fillDocRefs(List<UnlinkedGroupVO> slice, Map<String, Map<String, LocalDateTime>> refs) {
+        Map<String, Set<Long>> idsByTable = new HashMap<>();
+        Map<String, List<Map.Entry<String, LocalDateTime>>> sorted = new HashMap<>();
+        for (UnlinkedGroupVO g : slice) {
+            Map<String, LocalDateTime> mine = refs.getOrDefault(g.getKey(), Map.of());
+            // 同一张单据可能由几类明细指过来（如采购需求和销售订单都指向销售订单），按单据去重
+            Map<String, LocalDateTime> byDoc = new HashMap<>();
+            mine.forEach((k, t) -> {
+                int i = k.indexOf('#');
+                Header h = HEADERS.get(k.substring(0, i));
+                if (h != null) {
+                    byDoc.merge(h.table() + "#" + k.substring(i + 1), t, (a, b) -> a.isAfter(b) ? a : b);
+                }
+            });
+            List<Map.Entry<String, LocalDateTime>> list = new ArrayList<>(byDoc.entrySet());
+            list.sort(Map.Entry.<String, LocalDateTime>comparingByValue().reversed().thenComparing(Map.Entry.comparingByKey()));
+            g.setDocCount(list.size());
+            List<Map.Entry<String, LocalDateTime>> top = list.subList(0, Math.min(DOC_REF_LIMIT, list.size()));
+            sorted.put(g.getKey(), top);
+            top.forEach(en -> {
+                int i = en.getKey().indexOf('#');
+                idsByTable.computeIfAbsent(en.getKey().substring(0, i), x -> new HashSet<>()).add(Long.parseLong(en.getKey().substring(i + 1)));
+            });
+        }
+        Map<String, Map<Long, String>> numbers = new HashMap<>();
+        Map<String, Header> byTable = new HashMap<>();
+        HEADERS.values().forEach(h -> byTable.putIfAbsent(h.table(), h));
+        idsByTable.forEach((t, ids) -> {
+            Header h = byTable.get(t);
+            Map<Long, String> m = new HashMap<>();
+            jdbc.query("SELECT id, " + h.noColumn() + " AS no FROM `" + t + "` WHERE id IN (:ids)",
+                    new MapSqlParameterSource("ids", ids),
+                    (org.springframework.jdbc.core.RowCallbackHandler) rs -> m.put(rs.getLong("id"), rs.getString("no")));
+            numbers.put(t, m);
+        });
+        for (UnlinkedGroupVO g : slice) {
+            List<UnlinkedGroupVO.DocRef> out = new ArrayList<>();
+            for (Map.Entry<String, LocalDateTime> en : sorted.getOrDefault(g.getKey(), List.of())) {
+                int i = en.getKey().indexOf('#');
+                String t = en.getKey().substring(0, i);
+                long id = Long.parseLong(en.getKey().substring(i + 1));
+                UnlinkedGroupVO.DocRef r = new UnlinkedGroupVO.DocRef();
+                r.setType(byTable.get(t).type());
+                r.setId(id);
+                String no = numbers.getOrDefault(t, Map.of()).get(id);
+                // 采购订单草稿还没有编号
+                r.setNo(StringUtils.hasText(no) ? no : "草稿");
+                out.add(r);
+            }
+            g.setDocRefs(out);
+        }
+    }
+
+    /** 当前公司这些归并键的标记（平台账号看全部单据时用平台自己的标记） */
+    public Map<String, DocUnlinkedMarkDO> marks(Collection<String> keys) {
+        if (keys.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, DocUnlinkedMarkDO> out = new HashMap<>();
+        List<String> list = new ArrayList<>(keys);
+        for (int i = 0; i < list.size(); i += 500) {
+            markMapper.selectList(new LambdaQueryWrapper<DocUnlinkedMarkDO>()
+                            .in(DocUnlinkedMarkDO::getGroupKey, list.subList(i, Math.min(list.size(), i + 500)))
+                            .isNull(DocUnlinkedMarkDO::getDeletedAt))
+                    .forEach(m -> out.put(m.getGroupKey(), m));
+        }
+        return out;
+    }
+
+    private static void fillMark(UnlinkedGroupVO g, DocUnlinkedMarkDO m) {
+        if (m == null) {
+            return;
+        }
+        if (m.getAiKind() != null && m.getAiKind() > 0) {
+            g.setAiKind(m.getAiKind());
+            g.setAiBrand(m.getAiBrand());
+            g.setAiModel(m.getAiModel());
+        }
+        if (Objects.equals(m.getIgnored(), 1)) {
+            g.setIgnored(true);
+            g.setIgnoredBy(m.getIgnoredBy());
+            g.setIgnoredAt(m.getIgnoredAt());
+        }
     }
 
     /** 为一组明细选择商品（已建档或候选），批量关联；返回关联的条数 */
@@ -350,18 +504,21 @@ public class DocProductLinkService {
         return n;
     }
 
-    private record Line(long id, String brand, String model, LocalDateTime time) {
+    private record Line(long id, String brand, String model, LocalDateTime time, Long headerId) {
     }
 
-    /** 某表当前公司还没关联商品的明细（询盘型号不在这里，由询盘里「回填真实型号」处理） */
+    /** 某表当前公司还没关联商品的明细，带所属单据 ID（询盘型号不在这里，由询盘里「回填真实型号」处理） */
     private List<Line> lines(DocumentProductTables.Entry e) {
         boolean all = platformScopeGuard.isPlatform();
         Integer tenant = TenantContext.getTenantId();
-        String sql = "SELECT id, brand, model, create_time FROM `" + e.table() + "` WHERE product_id IS NULL AND deleted_at IS NULL"
+        Header h = HEADERS.get(e.table());
+        String sql = "SELECT id, brand, model, create_time" + (h == null ? "" : ", " + h.column() + " AS header_id")
+                + " FROM `" + e.table() + "` WHERE product_id IS NULL AND deleted_at IS NULL"
                 + (all ? "" : " AND tenant_id = :tenant");
         return jdbc.query(sql, new MapSqlParameterSource("tenant", tenant == null ? -1 : tenant),
                 (rs, i) -> new Line(rs.getLong("id"), rs.getString("brand"), rs.getString("model"),
-                        rs.getTimestamp("create_time") == null ? null : rs.getTimestamp("create_time").toLocalDateTime()));
+                        rs.getTimestamp("create_time") == null ? null : rs.getTimestamp("create_time").toLocalDateTime(),
+                        h == null ? null : rs.getLong("header_id")));
     }
 
     /** 「可能是」：同归一化型号的已建档或候选商品（当前公司可选的） */
