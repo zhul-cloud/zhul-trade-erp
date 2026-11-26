@@ -32,6 +32,8 @@ public class SupplierDO {
     private Integer volumeDivisor;
     /** 归属客户（只对服务商有意义）：空为公司货代，有值为该客户的指定货代（openspec feedback-1116-batch2） */
     private Long customerId;
+    /** 所属采购员（用户 ID，选填，只做登记，openspec supplier-purchaser） */
+    private Long purchaserId;
     /** 所属行业（0-未设置、1-制造业、2-原材料、3-信息技术、4-物流运输、5-金融服务、6-其他） */
     private Integer industry;
     /** 统一社会信用代码（18位大写字母数字） */

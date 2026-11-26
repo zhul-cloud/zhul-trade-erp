@@ -20,6 +20,10 @@ public class SupplierVO {
     /** 归属客户（服务商）：空为公司货代 */
     private Long customerId;
     private String customerName;
+    /** 所属采购员；用户已停用时 purchaserDisabled 为 true */
+    private Long purchaserId;
+    private String purchaserName;
+    private Boolean purchaserDisabled;
     private Integer industry;
     private String creditCode;
     private String legalRepresentative;
