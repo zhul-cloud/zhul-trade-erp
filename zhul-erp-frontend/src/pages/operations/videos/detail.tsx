@@ -358,11 +358,16 @@ const VideoTaskDetailPage: React.FC = () => {
           <span
             style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}
           >
-            {data.productName || '—'}
-            {data.category ? ` · ${data.category}` : ''} · {factsTag}
-            {data.status === 2 && data.expectedAt
-              ? ` · 预计 ${dayjs(data.expectedAt).format('MM-DD HH:mm')} 开始`
-              : ''}
+            {[
+              data.productName,
+              data.category,
+              data.status === 2 && data.expectedAt
+                ? `预计 ${dayjs(data.expectedAt).format('MM-DD HH:mm')} 开始`
+                : undefined,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+            {factsTag}
           </span>
         }
         actions={
@@ -706,9 +711,11 @@ const VideoTaskDetailPage: React.FC = () => {
                   key={i}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '18px 64px 1fr 46px 24px',
-                    gap: 8,
+                    gridTemplateColumns: '18px 72px 1fr auto 24px',
+                    gap: '6px 8px',
                     alignItems: 'center',
+                    paddingBottom: 8,
+                    borderBottom: `1px solid ${palette.hairline}`,
                   }}
                 >
                   <span style={{ color: palette.mute, fontSize: 12 }}>
@@ -731,15 +738,7 @@ const VideoTaskDetailPage: React.FC = () => {
                     aria-label={`镜头 ${i + 1} 的图片`}
                     popupMatchSelectWidth={false}
                   />
-                  <Input.TextArea
-                    autoSize={{ minRows: 1, maxRows: 3 }}
-                    value={s.caption}
-                    maxLength={LIMITS.maxCaption}
-                    disabled={!editable}
-                    onChange={(e) => setShot(i, { caption: e.target.value })}
-                    placeholder="英文字幕，也是配音文案"
-                    aria-label={`镜头 ${i + 1} 的字幕`}
-                  />
+                  <span />
                   <span
                     style={{
                       fontSize: 12,
@@ -765,6 +764,16 @@ const VideoTaskDetailPage: React.FC = () => {
                   ) : (
                     <span />
                   )}
+                  <Input.TextArea
+                    style={{ gridColumn: '2 / -1' }}
+                    autoSize={{ minRows: 2, maxRows: 4 }}
+                    value={s.caption}
+                    maxLength={LIMITS.maxCaption}
+                    disabled={!editable}
+                    onChange={(e) => setShot(i, { caption: e.target.value })}
+                    placeholder="英文字幕，也是配音文案"
+                    aria-label={`镜头 ${i + 1} 的字幕`}
+                  />
                 </div>
               ))}
             </div>

@@ -153,6 +153,11 @@ class VideoTaskContractTest extends TenantContractSupport {
         assertEquals("multiple", r.get(2).path("result").asText());
         assertEquals(List.of(p2, p2other), ids(r.get(2).path("products")));
         assertEquals("none", r.get(3).path("result").asText());
+
+        // 别家公司询到的候选商品：本公司选不到，也不能匹配（否则上传时报商品不存在）
+        jdbc.update("update product set archive_status = 1 where id = ?", p2);
+        JsonNode c = ok(call(json(post(API + "/folders/match"), "{\"folders\":[\"" + BRAND + "_V-2\"]}"), a));
+        assertEquals("none", c.get(0).path("result").asText());
     }
 
     // ================================================================ 状态流转与审核

@@ -341,7 +341,7 @@ export const BatchUploadModal: React.FC<{
   };
 
   const productText = (p?: ProductOption) =>
-    p ? `${p.brandName ?? ''} · ${p.productName || p.mpnDisplay}` : '—';
+    p ? `${p.brandName || '未定品牌'} · ${p.productName || p.mpnDisplay}` : '—';
 
   return (
     <Modal
@@ -560,11 +560,20 @@ export const BatchUploadModal: React.FC<{
                     key={r.folder}
                     style={{
                       ...line,
-                      gridTemplateColumns: '1.1fr 48px 1.4fr 90px',
+                      gridTemplateColumns: '200px 48px minmax(0, 1fr) 24px',
                       borderTop: i ? line.borderTop : 'none',
                     }}
                   >
-                    <code>{r.folder}</code>
+                    <code
+                      title={r.folder}
+                      style={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {r.folder}
+                    </code>
                     <span>{r.files.length} 张</span>
                     <Select
                       allowClear

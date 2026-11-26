@@ -42,7 +42,9 @@ public class VideoFolderMatcher {
         for (String raw : folders) {
             FolderMatchVO vo = new FolderMatchVO();
             vo.setFolder(raw == null ? "" : raw);
-            List<ProductOptionVO> products = products(raw == null ? "" : raw.trim());
+            // 只保留本公司能选的商品（与上传时的校验一致）：精确匹配会带出别家公司询到的候选商品
+            List<ProductOptionVO> products = products(raw == null ? "" : raw.trim()).stream()
+                    .filter(o -> productLookup.selectable(o.getId()) != null).toList();
             vo.setProducts(products);
             vo.setResult(products.isEmpty() ? NONE : products.size() == 1 ? MATCHED : MULTIPLE);
             out.add(vo);
