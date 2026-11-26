@@ -59,6 +59,7 @@ const RULE_NAMES = new Set([
   'scroll-max-content',
   'page-tabs',
   'scope-switch',
+  'currency-symbol',
 ]);
 
 /**
@@ -214,6 +215,14 @@ const LINE_RULES = [
     message:
       '切换数据范围用公共 ScopeSwitch（页头右侧，统一叫「我的 / 全部」）；内容不同的视图（如团队统计）用 ViewTabs（复审 S3）',
     re: /\bvalue:\s*'mine'\s*,\s*label:|label:\s*'(全部人员|我负责的)'/,
+  },
+  {
+    id: 'currency-symbol',
+    level: 'error',
+    pages: true,
+    message:
+      '金额写「币种代码 + 空格 + 金额」（formatAmount），不用 ¥ 符号（ui-design-patterns「金额显示」，复审 S8）',
+    re: /['"`]¥/,
   },
   {
     id: 'filler-maybe',

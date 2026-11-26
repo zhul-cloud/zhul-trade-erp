@@ -438,12 +438,16 @@ const StocksPage: React.FC = () => {
                 {
                   value: 'available',
                   label: '只看可用',
-                  count: summary && `${summary.available ?? 0} 件`,
+                  count: summary?.available
+                    ? `${summary.available} 件`
+                    : undefined,
                 },
                 {
                   value: 'defective',
                   label: '只看有不良',
-                  count: summary && `${summary.defective ?? 0} 件`,
+                  count: summary?.defective
+                    ? `${summary.defective} 件`
+                    : undefined,
                 },
               ]}
               value={filters.quick ? [filters.quick] : []}

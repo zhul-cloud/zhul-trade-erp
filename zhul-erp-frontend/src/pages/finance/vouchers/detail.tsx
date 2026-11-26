@@ -26,8 +26,7 @@ import {
   voucherApi,
 } from './service';
 
-const yuan = (v?: number) =>
-  `¥${formatAmount(v ?? 0, 'CNY').replace(/^CNY\s/, '')}`;
+const yuan = (v?: number) => formatAmount(v ?? 0, 'CNY');
 const plain = (v?: number) => formatAmount(v ?? 0, 'CNY').replace(/^CNY\s/, '');
 
 /** 期初 + 凭证里库存商品净额 + 不生成凭证的变动 = 期末（ui-design-patterns「汇总数字按算式排」） */

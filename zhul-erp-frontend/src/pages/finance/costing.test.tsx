@@ -94,7 +94,7 @@ it('成本调整列表：月份合计卡片，只看有销售成本调整，来�
   );
   mount(CostAdjustments);
   expect(await screen.findByText('CA20261205001')).toBeTruthy();
-  expect(screen.getByText('+¥1,284.06')).toBeTruthy();
+  expect(screen.getByText('CNY +1,284.06')).toBeTruthy();
   expect(
     screen.getByText('外币付款 9 · 采购订单费用 3 · 折价接收 2'),
   ).toBeTruthy();

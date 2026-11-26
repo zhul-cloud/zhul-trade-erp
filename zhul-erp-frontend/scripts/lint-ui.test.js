@@ -349,6 +349,13 @@ describe('lint:ui 复审补充', () => {
       ),
     ).toEqual([]);
   });
+  it('金额不用 ¥ 符号（复审 S8）', () => {
+    expect(rules('const t = `¥` + v;')).toContain('currency-symbol:error');
+    expect(rules("{yuan ? '¥' : ''}")).toContain('currency-symbol:error');
+    expect(rules("formatAmount(v, 'CNY')")).not.toContain(
+      'currency-symbol:error',
+    );
+  });
   it('页面级页签用 ViewTabs，范围切换用 ScopeSwitch（复审 S3）', () => {
     expect(rules('<Tabs activeKey={tab} items={items} />')).toContain(
       'page-tabs:error',

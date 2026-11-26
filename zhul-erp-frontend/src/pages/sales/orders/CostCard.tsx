@@ -313,7 +313,7 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
           <Pill tone="orange">未结算</Pill>
         )}
         {!cost.settled && (
-          <span style={{ fontSize: 12, color: palette.orange }}>
+          <span style={{ fontSize: 12, color: palette.mute }}>
             还差：{cost.pending.join(' · ')}
           </span>
         )}

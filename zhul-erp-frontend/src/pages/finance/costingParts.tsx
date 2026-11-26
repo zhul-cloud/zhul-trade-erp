@@ -20,8 +20,8 @@ export const SignedMoney: React.FC<{ value?: number; yuan?: boolean }> = ({
         fontVariantNumeric: 'tabular-nums',
       }}
     >
+      {yuan ? 'CNY ' : ''}
       {v > 0 ? '+' : '−'}
-      {yuan ? '¥' : ''}
       {text}
     </span>
   );

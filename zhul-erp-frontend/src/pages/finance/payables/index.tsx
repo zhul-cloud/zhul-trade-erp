@@ -176,10 +176,12 @@ const PayableManagement: React.FC = () => {
     else if (next) apply({ due: next, hasCredit: false });
     else apply({ due: undefined, hasCredit: false });
   };
-  /** 快捷筛选的名称与数量（金额 · 张数），数量由 QuickFilters 统一画 */
+  /** 快捷筛选的名称与数量（金额 · 张数），数量由 QuickFilters 统一画；金额为 0 时只写名称 */
   const quickLabel = (name: string, amount?: number, n?: string) => ({
     label: name,
-    count: `${formatAmount(amount ?? 0, 'CNY')}${n ? ` · ${n}` : ''}`,
+    count: amount
+      ? `${formatAmount(amount, 'CNY')}${n ? ` · ${n}` : ''}`
+      : undefined,
   });
 
   const columns: TableColumnsType<Payable> = [

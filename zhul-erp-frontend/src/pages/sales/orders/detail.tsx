@@ -1668,7 +1668,7 @@ const OrderDetail: React.FC = () => {
         <div
           style={{
             fontSize: 12,
-            color: palette.orange,
+            color: palette.mute,
             marginTop: -4,
             marginBottom: 12,
           }}

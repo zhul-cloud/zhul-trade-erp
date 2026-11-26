@@ -300,12 +300,13 @@ const CostAdjustmentsPage: React.FC = () => {
                 {
                   value: 'cogs',
                   label: '只看有销售成本调整',
-                  count: (
+                  // 当月没有调整时只写名称，不写「—」
+                  count: summary?.cogsAmount ? (
                     <>
                       {`${monthLabel} `}
-                      <SignedMoney value={summary?.cogsAmount} yuan />
+                      <SignedMoney value={summary.cogsAmount} yuan />
                     </>
-                  ),
+                  ) : undefined,
                 },
               ]}
               value={filters.cogsOnly ? ['cogs'] : []}

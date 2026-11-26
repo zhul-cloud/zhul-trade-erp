@@ -35,7 +35,10 @@ import {
 } from './service';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
-const cny = (v?: number) => formatAmount(v ?? 0, 'CNY').replace('CNY ', '¥');
+const cny = (v?: number) => formatAmount(v ?? 0, 'CNY');
+/** 快捷筛选数量「CNY 金额 · N 张」：没有单据时不写（只留名称） */
+const quickCount = (amount?: number, n?: number) =>
+  n ? `${cny(amount)} · ${n} 张` : undefined;
 
 const DUE_OPTIONS: { value: DueFilter; label: string }[] = [
   { value: 'OVERDUE', label: '已逾期' },
@@ -312,7 +315,6 @@ const ReceivablesPage: React.FC = () => {
           {
             key: 'total',
             label: '应收未收',
-            // 本页金额都写成 ¥（develop 原样），汇总行跟着用
             value: cny(s?.totalCny),
             sub: `${s?.customers ?? 0} 个客户 · ${s?.orders ?? 0} 张订单`,
           },
@@ -388,18 +390,18 @@ const ReceivablesPage: React.FC = () => {
               {
                 value: 'OVERDUE',
                 label: '已逾期',
-                count: `${cny(s?.overdueCny)} · ${s?.overdueOrders ?? 0} 张`,
+                count: quickCount(s?.overdueCny, s?.overdueOrders),
                 danger: (s?.overdueOrders ?? 0) > 0,
               },
               {
                 value: 'WEEK',
                 label: '7 天内到期',
-                count: `${cny(s?.weekCny)} · ${s?.weekOrders ?? 0} 张`,
+                count: quickCount(s?.weekCny, s?.weekOrders),
               },
               {
                 value: 'MONTH',
                 label: '本月到期',
-                count: `${cny(s?.monthCny)} · ${s?.monthOrders ?? 0} 张`,
+                count: quickCount(s?.monthCny, s?.monthOrders),
               },
             ]}
             value={quickValue}
