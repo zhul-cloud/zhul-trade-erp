@@ -25,6 +25,10 @@ export interface Forwarder {
   /** 归属客户：为空是公司货代 */
   customerId?: number | null;
   contactName?: string;
+  /** 交接方式：1-送到货代、2-上门取件（客户用自己的快递账号约快递上门，openspec customer-courier-pickup） */
+  handoverMode?: number;
+  courierCarrier?: string | null;
+  courierAccount?: string | null;
 }
 
 /** 货代管理列表的一行（spec logistics/forwarder） */
@@ -36,6 +40,9 @@ export interface ForwarderRow {
   /** 归属客户：空为公司货代 */
   customerId?: number | null;
   customerName?: string | null;
+  handoverMode?: number;
+  courierCarrier?: string | null;
+  courierAccount?: string | null;
   contactName?: string;
   contactPhone?: string;
   contactEmail?: string;
@@ -61,10 +68,24 @@ export interface ForwarderQuery {
   status?: number;
 }
 
+/** 交接方式：1-送到货代、2-上门取件 */
+export const HANDOVER = { DELIVER: 1, PICKUP: 2 } as const;
+
+/** 「上门取件 · 承运商 · 账号」，与后端 LogisticsSupport.pickupLabel 一致 */
+export const pickupText = (carrier?: string | null, account?: string | null) =>
+  ['上门取件', carrier?.trim(), account?.trim()].filter(Boolean).join(' · ');
+
+/** 承运商候选（登记出运、上门取件的货代共用） */
+export const CARRIERS = ['DHL', 'FedEx', 'UPS', 'TNT', 'EMS'];
+
 export interface SaveForwarderBody {
   name: string;
   shortName?: string;
   customerId?: number | null;
+  /** 1-送到货代、2-上门取件；只有客户指定货代能选上门取件 */
+  handoverMode?: number;
+  courierCarrier?: string;
+  courierAccount?: string;
   contactName?: string;
   contactPhone?: string;
   contactEmail?: string;
@@ -136,6 +157,8 @@ export interface Outbound extends Audit {
   ownerName?: string;
   forwarderId: number;
   forwarderName?: string;
+  /** 货代为上门取件时「上门取件 · 承运商 · 账号」（openspec customer-courier-pickup） */
+  pickupLabel?: string | null;
   /** 1-发货通知、2-直发货代 */
   source: number;
   sourceName: string;
@@ -258,6 +281,10 @@ export interface Logistics extends Audit {
   reconciled: boolean;
   /** 交客户指定货代：运单号选填（未填显示「客户安排」），运费为送货运费，不进运费账单 */
   customerForwarder?: boolean;
+  /** 上门取件：待出运按货代当前的交接方式，已出运按登记时的快照；pickupCarrier 为货代上的承运商 */
+  pickup?: boolean;
+  pickupLabel?: string | null;
+  pickupCarrier?: string | null;
   voidReason?: string;
   note?: string;
   outboundCount: number;

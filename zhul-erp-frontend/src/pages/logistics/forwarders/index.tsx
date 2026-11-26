@@ -3,6 +3,7 @@ import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   App,
+  AutoComplete,
   Button,
   Drawer,
   Form,
@@ -28,9 +29,11 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
+  CARRIERS,
   type ForwarderQuery,
   type ForwarderRow,
   forwarderApi,
+  HANDOVER,
   readBizError,
 } from '../service';
 
@@ -40,6 +43,9 @@ interface FormValues {
   name: string;
   shortName?: string;
   customerId?: number;
+  handoverMode?: number;
+  courierCarrier?: string;
+  courierAccount?: string;
   contactName?: string;
   contactPhone?: string;
   contactEmail?: string;
@@ -115,13 +121,21 @@ export const ForwarderDrawer: React.FC<{
   const [saving, setSaving] = useState(false);
   const [ownerLabel, setOwnerLabel] = useState<string | null>();
   const name = Form.useWatch('name', form) ?? '';
+  const ownerId = Form.useWatch('customerId', form);
+  const handover = Form.useWatch('handoverMode', form);
+  // 只有客户指定货代能选上门取件（openspec customer-courier-pickup）
+  const customerOwned = !!(customerId ?? ownerId);
 
   useEffect(() => {
     if (!open) return;
     form.resetFields();
     setOwnerLabel(undefined);
     if (!id) {
-      form.setFieldsValue({ volumeDivisor: 5000, accounts: [] });
+      form.setFieldsValue({
+        volumeDivisor: 5000,
+        accounts: [],
+        handoverMode: HANDOVER.DELIVER,
+      });
       return;
     }
     setLoading(true);
@@ -133,6 +147,9 @@ export const ForwarderDrawer: React.FC<{
           name: f.name,
           shortName: f.shortName,
           customerId: f.customerId ?? undefined,
+          handoverMode: f.handoverMode ?? HANDOVER.DELIVER,
+          courierCarrier: f.courierCarrier ?? undefined,
+          courierAccount: f.courierAccount ?? undefined,
           contactName: f.contactName,
           contactPhone: f.contactPhone,
           contactEmail: f.contactEmail,
@@ -146,6 +163,9 @@ export const ForwarderDrawer: React.FC<{
       .finally(() => setLoading(false));
   }, [open, id, form, message]);
 
+  const pickupOn = (v: FormValues) =>
+    !!(customerId ?? v.customerId) && v.handoverMode === HANDOVER.PICKUP;
+
   const save = async () => {
     // 校验不过时表单已提示，不再往外抛
     const v = await form.validateFields().catch(() => undefined);
@@ -156,6 +176,13 @@ export const ForwarderDrawer: React.FC<{
         name: v.name.trim(),
         shortName: v.shortName?.trim(),
         customerId: customerId ?? v.customerId ?? null,
+        ...(pickupOn(v)
+          ? {
+              handoverMode: HANDOVER.PICKUP,
+              courierCarrier: v.courierCarrier?.trim(),
+              courierAccount: v.courierAccount?.trim(),
+            }
+          : { handoverMode: HANDOVER.DELIVER }),
         contactName: v.contactName?.trim(),
         contactPhone: v.contactPhone?.trim(),
         contactEmail: v.contactEmail?.trim(),
@@ -225,6 +252,55 @@ export const ForwarderDrawer: React.FC<{
             >
               <CustomerSelect initialLabel={ownerLabel} />
             </Form.Item>
+          )}
+          {customerOwned && (
+            <>
+              <Form.Item
+                name="handoverMode"
+                label="交接方式"
+                extra={
+                  handover === HANDOVER.PICKUP
+                    ? '客户用自己的快递账号约快递上门取货'
+                    : undefined
+                }
+              >
+                <Segmented<number>
+                  options={[
+                    { label: '送到货代', value: HANDOVER.DELIVER },
+                    { label: '上门取件', value: HANDOVER.PICKUP },
+                  ]}
+                />
+              </Form.Item>
+              {handover === HANDOVER.PICKUP && (
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <Form.Item
+                    name="courierCarrier"
+                    label="承运商"
+                    style={{ flex: 1 }}
+                    rules={[
+                      {
+                        required: true,
+                        whitespace: true,
+                        message: '请选择承运商',
+                      },
+                    ]}
+                  >
+                    <AutoComplete
+                      options={CARRIERS.map((value) => ({ value }))}
+                      maxLength={32}
+                      placeholder="如 DHL、FedEx"
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name="courierAccount"
+                    label="客户快递账号"
+                    style={{ flex: 1 }}
+                  >
+                    <Input maxLength={32} placeholder="选填" />
+                  </Form.Item>
+                </div>
+              )}
+            </>
           )}
           <div style={{ display: 'flex', gap: 12 }}>
             <Form.Item name="contactName" label="联系人" style={{ flex: 1 }}>
@@ -392,6 +468,11 @@ const ForwarderPage: React.FC = () => {
           >
             <Pill tone="violet">客户指定</Pill>
             <span style={{ color: palette.link }}>{r.customerName ?? '—'}</span>
+            {r.handoverMode === HANDOVER.PICKUP && (
+              <Pill tone="violet">
+                {['上门取件', r.courierCarrier].filter(Boolean).join(' · ')}
+              </Pill>
+            )}
           </span>
         ) : (
           <Pill tone="gray">公司货代</Pill>

@@ -189,6 +189,9 @@ class ForwarderContractTest extends IntegrationTestBase {
         assertEquals(2, row.path("handoverMode").asInt());
         assertEquals("DHL", row.path("courierCarrier").asText());
         assertEquals("965432100", row.path("courierAccount").asText());
+        JsonNode form = ok(call(get(FW + "/" + id + "/form")));
+        assertEquals(2, form.path("handoverMode").asInt(), "编辑取数带出交接方式");
+        assertEquals("DHL", form.path("courierCarrier").asText());
         JsonNode option = ok(call(get(FW).param("customerId", String.valueOf(acme)))).get(0);
         assertEquals(id, option.path("id").asLong());
         assertEquals(2, option.path("handoverMode").asInt());

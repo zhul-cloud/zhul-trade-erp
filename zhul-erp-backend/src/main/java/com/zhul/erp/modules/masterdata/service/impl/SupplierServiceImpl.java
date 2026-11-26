@@ -513,6 +513,9 @@ public class SupplierServiceImpl implements SupplierService {
         vo.setSupplierType(supplier.getSupplierType());
         vo.setVolumeDivisor(supplier.getVolumeDivisor());
         vo.setCustomerId(supplier.getCustomerId());
+        vo.setHandoverMode(supplier.getHandoverMode());
+        vo.setCourierCarrier(supplier.getCourierCarrier());
+        vo.setCourierAccount(supplier.getCourierAccount());
         vo.setIndustry(supplier.getIndustry());
         vo.setCreditCode(supplier.getCreditCode());
         vo.setLegalRepresentative(supplier.getLegalRepresentative());
