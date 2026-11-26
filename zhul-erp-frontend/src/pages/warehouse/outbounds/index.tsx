@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { CustomerCell } from '@/components/DocFields';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
@@ -189,7 +190,9 @@ const Outbounds: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <Link to={DOC_PATHS.outbound(r.id)}>{v}</Link>
+          <CopyText text={v}>
+            <Link to={DOC_PATHS.outbound(r.id)}>{v}</Link>
+          </CopyText>
           {sub(palette.mute, formatDateTime(r.createTime).slice(0, 10))}
           {(r.packMates?.length ?? 0) > 0 && <PackTag ob={r} />}
         </div>

@@ -1,6 +1,7 @@
 import { history } from '@umijs/max';
 import { App, Button, Form, Input, Modal, Radio, Skeleton, Table } from 'antd';
 import React, { useEffect, useState } from 'react';
+import { CopyText } from '@/components/CopyText';
 import { tableEmpty } from '@/components/EmptyState';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
@@ -396,17 +397,19 @@ export const RfmModal: React.FC<{
               title: '订单号',
               dataIndex: 'soNo',
               render: (v, r) => (
-                <button
-                  type="button"
-                  className="zhul-link"
-                  onClick={() => {
-                    // 先关弹窗：弹窗挂在 body 上，跳页后不会随旧页面隐藏（audit UI-071）
-                    onClose();
-                    history.push(`/sales/orders/${r.id}`);
-                  }}
-                >
-                  {v}
-                </button>
+                <CopyText text={v}>
+                  <button
+                    type="button"
+                    className="zhul-link"
+                    onClick={() => {
+                      // 先关弹窗：弹窗挂在 body 上，跳页后不会随旧页面隐藏（audit UI-071）
+                      onClose();
+                      history.push(`/sales/orders/${r.id}`);
+                    }}
+                  >
+                    {v}
+                  </button>
+                </CopyText>
               ),
             },
             { title: '下单日期', dataIndex: 'salesDate' },

@@ -14,6 +14,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Eye, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { tableEmpty } from '@/components/EmptyState';
@@ -258,17 +259,19 @@ const RefundPage: React.FC = () => {
       width: 150,
       fixed: 'left',
       render: (v: string, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          style={{
-            whiteSpace: 'nowrap',
-            textDecoration: r.status === 2 ? 'line-through' : undefined,
-          }}
-          onClick={() => history.push(DOC_PATHS.refund(r.id))}
-        >
-          {v}
-        </button>
+        <CopyText text={v}>
+          <button
+            type="button"
+            className="zhul-link"
+            style={{
+              whiteSpace: 'nowrap',
+              textDecoration: r.status === 2 ? 'line-through' : undefined,
+            }}
+            onClick={() => history.push(DOC_PATHS.refund(r.id))}
+          >
+            {v}
+          </button>
+        </CopyText>
       ),
     },
     {

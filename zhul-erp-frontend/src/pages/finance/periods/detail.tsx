@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Input, Select, Skeleton, Table, Tabs } from 'antd';
 import { Download, Info, Lock, LockOpen, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CopyText } from '@/components/CopyText';
 import { tableEmpty } from '@/components/EmptyState';
 import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
@@ -218,7 +219,13 @@ const CogsTab: React.FC<{ month: string }> = ({ month }) => {
         const href = docHref(r.docType, r.docId);
         return (
           <div>
-            {href ? <Link to={href}>{v}</Link> : v}
+            {href ? (
+              <CopyText text={v}>
+                <Link to={href}>{v}</Link>
+              </CopyText>
+            ) : (
+              v
+            )}
             {r.kind === 2 && (
               <div style={{ fontSize: 12, color: palette.mute }}>
                 {r.kindName}
@@ -347,7 +354,11 @@ const AdjustTab: React.FC<{ month: string }> = ({ month }) => {
       title: '调整单号',
       dataIndex: 'adjustNo',
       width: 160,
-      render: (v: string, r) => <Link to={caPath(r.id)}>{v}</Link>,
+      render: (v: string, r) => (
+        <CopyText text={v}>
+          <Link to={caPath(r.id)}>{v}</Link>
+        </CopyText>
+      ),
     },
     { title: '调整日期', dataIndex: 'adjustDate', width: 110 },
     {

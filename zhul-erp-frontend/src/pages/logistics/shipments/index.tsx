@@ -5,6 +5,7 @@ import type { Dayjs } from 'dayjs';
 import { Eye, Inbox, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
@@ -323,7 +324,9 @@ const Shipments: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <Link to={DOC_PATHS.logistics(r.id)}>{v}</Link>
+          <CopyText text={v}>
+            <Link to={DOC_PATHS.logistics(r.id)}>{v}</Link>
+          </CopyText>
           {sub(palette.mute, r.shippedDate ?? '—')}
           {r.migrated && (
             <div style={{ marginTop: 4 }}>

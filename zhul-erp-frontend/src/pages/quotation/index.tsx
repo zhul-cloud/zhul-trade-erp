@@ -23,6 +23,7 @@ import {
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { CopyText } from '@/components/CopyText';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
@@ -199,13 +200,15 @@ const QuotationList: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(PATHS.detail(r.id))}
-          >
-            {v}
-          </button>
+          <CopyText text={v}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(PATHS.detail(r.id))}
+            >
+              {v}
+            </button>
+          </CopyText>
           {r.editingVersionNo ? (
             <div style={{ marginTop: 4 }}>
               <Pill tone="orange">Rev.{r.editingVersionNo} 编辑中</Pill>

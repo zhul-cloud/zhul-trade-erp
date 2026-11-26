@@ -16,6 +16,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Eye, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { EmptyState, tableEmpty } from '@/components/EmptyState';
 import {
   CardTitle,
@@ -500,16 +501,18 @@ const FxSettlementPage: React.FC = () => {
       width: 150,
       fixed: 'left',
       render: (v: string, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => open(r.id)}
-          style={{
-            textDecoration: r.status === 2 ? 'line-through' : undefined,
-          }}
-        >
-          {v}
-        </button>
+        <CopyText text={v}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => open(r.id)}
+            style={{
+              textDecoration: r.status === 2 ? 'line-through' : undefined,
+            }}
+          >
+            {v}
+          </button>
+        </CopyText>
       ),
     },
     { title: '结汇日期', dataIndex: 'settleDate', width: 110 },

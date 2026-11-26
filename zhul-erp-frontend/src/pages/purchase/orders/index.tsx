@@ -5,6 +5,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Eye, Pencil, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import SourceNos from '@/components/DocFields/SourceNos';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -164,14 +165,16 @@ const PurchaseOrderList: React.FC = () => {
       fixed: 'left',
       render: (v: string | undefined, r) => (
         <div>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(PATHS.order(r.id))}
-          >
-            {/* 草稿确认下单后才编号；名称与详情页标题一致 */}
-            {v ?? '草稿采购订单'}
-          </button>
+          <CopyText text={v}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(PATHS.order(r.id))}
+            >
+              {/* 草稿确认下单后才编号；名称与详情页标题一致 */}
+              {v ?? '草稿采购订单'}
+            </button>
+          </CopyText>
           {r.migrated && (
             <div style={{ marginTop: 4 }}>
               <MigratedPill migrated />

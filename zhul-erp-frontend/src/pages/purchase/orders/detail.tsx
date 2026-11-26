@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { CopyText } from '@/components/CopyText';
 import { CountryText } from '@/components/CountryText';
 import {
   CandidateTag,
@@ -609,13 +610,15 @@ const PurchaseOrderDetail: React.FC = () => {
       width: 200,
       render: (v: string, r) => (
         <div style={{ minWidth: 0 }}>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(PATHS.salesOrder(r.soId))}
-          >
-            {v}
-          </button>
+          <CopyText text={v}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(PATHS.salesOrder(r.soId))}
+            >
+              {v}
+            </button>
+          </CopyText>
           <div
             title={r.customerName}
             style={{
@@ -895,6 +898,8 @@ const PurchaseOrderDetail: React.FC = () => {
               label="砍价合计"
               currency="CNY"
               value={amountText(preview.bargain, 'CNY')}
+              // 砍价金额按涨跌色，与列表、砍价统计一致（design.md 第 8 节）
+              toneBy={preview.bargain}
               hint={
                 preview.bargainRate == null
                   ? '填好单价后计算'

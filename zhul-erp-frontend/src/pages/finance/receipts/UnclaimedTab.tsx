@@ -22,6 +22,7 @@ import {
   UploadIcon,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CopyText } from '@/components/CopyText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   CardTitle,
@@ -462,14 +463,16 @@ const UnclaimedTab: React.FC<{
       width: 150,
       render: (v: string | undefined, r) =>
         v ? (
-          <button
-            type="button"
-            className="zhul-link"
-            style={{ whiteSpace: 'nowrap' }}
-            onClick={() => history.push(`/finance/receipts/${r.id}`)}
-          >
-            {v}
-          </button>
+          <CopyText text={v}>
+            <button
+              type="button"
+              className="zhul-link"
+              style={{ whiteSpace: 'nowrap' }}
+              onClick={() => history.push(`/finance/receipts/${r.id}`)}
+            >
+              {v}
+            </button>
+          </CopyText>
         ) : (
           '—'
         ),
@@ -569,14 +572,16 @@ const UnclaimedTab: React.FC<{
       width: 150,
       render: (v: string | undefined, r) =>
         v ? (
-          <button
-            type="button"
-            className="zhul-link"
-            style={{ whiteSpace: 'nowrap' }}
-            onClick={() => history.push(`/finance/receipts/${r.id}`)}
-          >
-            {v}
-          </button>
+          <CopyText text={v}>
+            <button
+              type="button"
+              className="zhul-link"
+              style={{ whiteSpace: 'nowrap' }}
+              onClick={() => history.push(`/finance/receipts/${r.id}`)}
+            >
+              {v}
+            </button>
+          </CopyText>
         ) : (
           '—'
         ),

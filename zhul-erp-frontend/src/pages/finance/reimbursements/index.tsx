@@ -16,6 +16,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Eye, Search, TriangleAlert, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -633,7 +634,9 @@ const _ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
       width: 150,
       fixed: 'left',
       render: (v: string, r) => (
-        <Link to={DOC_PATHS.reimbursement(r.id)}>{v}</Link>
+        <CopyText text={v}>
+          <Link to={DOC_PATHS.reimbursement(r.id)}>{v}</Link>
+        </CopyText>
       ),
     },
     { title: '提交人', dataIndex: 'applicantName', width: 100 },

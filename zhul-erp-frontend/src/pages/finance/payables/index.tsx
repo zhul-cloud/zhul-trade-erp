@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 import { Banknote, Eye, Plus, Search, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import EllipsisText from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -191,13 +192,15 @@ const PayableManagement: React.FC = () => {
       width: 128,
       fixed: 'left',
       render: (v: string, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => openDetail(r.id)}
-        >
-          {v}
-        </button>
+        <CopyText text={v}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => openDetail(r.id)}
+          >
+            {v}
+          </button>
+        </CopyText>
       ),
     },
     {

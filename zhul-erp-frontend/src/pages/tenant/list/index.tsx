@@ -253,11 +253,12 @@ const TenantListPage: React.FC = () => {
     const disabling = row.status === 1;
     // 停用用公共危险确认（错误色按钮、默认焦点在取消），启用用普通确认
     (disabling ? confirmDanger : modal.confirm)({
-      title: disabling ? '确认禁用租户？' : '确认启用租户？',
+      // 危险确认：标题写明对象、按钮写动作（2026-11-26 用户确认，待定 D）；后果说明原样保留
+      title: disabling ? `禁用「${row.name}」？` : `启用「${row.name}」？`,
       content: disabling
         ? `禁用后，租户「${row.name}」下的所有用户将无法登录，已进行中的操作将被中断。确认继续？`
         : `启用后，租户「${row.name}」下的用户可正常登录使用。请确认该租户的到期时间仍有效。`,
-      okText: disabling ? '确认禁用' : '确认启用',
+      okText: disabling ? '禁用' : '启用',
       cancelText: '取消',
       onOk: async () => {
         await updateTenantStatus(row.id, disabling ? 0 : 1);

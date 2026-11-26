@@ -3,9 +3,11 @@ import { App } from 'antd';
 import dayjs from 'dayjs';
 import React from 'react';
 import { setToken } from '@/utils/tokenStore';
+import { CopyText } from './CopyText';
 import { CountryText } from './CountryText';
 import { EmptyState, listEmpty, renderEmpty, tableEmpty } from './EmptyState';
 import { SelectionCount } from './ListLayout';
+import { MetricTile } from './MetricCard';
 import { RowActions, rowActionsWidth } from './RowActions';
 import { rowAlert } from './RowAlert';
 import { formatShortTime, UserName } from './UserName';
@@ -287,5 +289,65 @@ describe('SelectionCount', () => {
     expect(screen.getByText('客户 A')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '取消选择' }));
     expect(onClear).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('CopyText 悬停复制（D27）', () => {
+  it('点复制写入剪贴板、提示，且不触发外层点击', async () => {
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    const onRow = jest.fn();
+    render(
+      React.createElement(
+        App,
+        null,
+        React.createElement(
+          'div',
+          { onClick: onRow },
+          React.createElement(
+            CopyText,
+            { text: 'SO20261126001' },
+            React.createElement('span', null, 'SO20261126001'),
+          ),
+        ),
+      ),
+    );
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole('button', { name: '复制 SO20261126001' }),
+      );
+    });
+    expect(writeText).toHaveBeenCalledWith('SO20261126001');
+    expect(onRow).not.toHaveBeenCalled();
+    expect(await screen.findByText('已复制 SO20261126001')).toBeTruthy();
+  });
+
+  it('没有原文时只显示内容', () => {
+    render(
+      React.createElement(
+        App,
+        null,
+        React.createElement(
+          CopyText,
+          { text: null },
+          React.createElement('span', null, '草稿采购订单'),
+        ),
+      ),
+    );
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+});
+
+describe('MetricTile 紧凑数字块', () => {
+  it('数值 600 字重，副文字显示', () => {
+    render(
+      React.createElement(MetricTile, {
+        label: '获得评价',
+        value: 0,
+        sub: '邀请 0 · 婉拒 0',
+      }),
+    );
+    expect(screen.getByText('0').style.fontWeight).toBe('600');
+    expect(screen.getByText('邀请 0 · 婉拒 0')).toBeTruthy();
   });
 });

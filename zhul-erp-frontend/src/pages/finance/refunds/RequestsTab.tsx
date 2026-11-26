@@ -4,6 +4,7 @@ import { App, Button, Input, Select, Space, Table } from 'antd';
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { tableEmpty } from '@/components/EmptyState';
@@ -146,7 +147,9 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <Link to={PATHS.refundRequest(r.id)}>{v}</Link>
+          <CopyText text={v}>
+            <Link to={PATHS.refundRequest(r.id)}>{v}</Link>
+          </CopyText>
           {r.refundNo && sub(`退款单 ${r.refundNo}`)}
         </div>
       ),
@@ -162,13 +165,15 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
       dataIndex: 'soNo',
       width: 150,
       render: (v: string, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => history.push(`/sales/orders/${r.soId}`)}
-        >
-          {v}
-        </button>
+        <CopyText text={v}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(`/sales/orders/${r.soId}`)}
+          >
+            {v}
+          </button>
+        </CopyText>
       ),
     },
     {

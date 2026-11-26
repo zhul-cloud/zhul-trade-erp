@@ -4,6 +4,7 @@ import { App, Button, Form, Input, Select, Table } from 'antd';
 import { FileText, Landmark, Paperclip, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { CustomerCell } from '@/components/DocFields';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -128,13 +129,15 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
       fixed: 'left',
       render: (v: string | undefined, r) =>
         r.piId ? (
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(PATHS.pi(r.piId as number))}
-          >
-            {v}
-          </button>
+          <CopyText text={v}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(PATHS.pi(r.piId as number))}
+            >
+              {v}
+            </button>
+          </CopyText>
         ) : (
           <div>
             <button

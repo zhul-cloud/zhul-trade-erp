@@ -4,6 +4,7 @@ import { App, Input, Select, Table } from 'antd';
 import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
@@ -134,7 +135,9 @@ const ShipmentsTab: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <Link to={DOC_PATHS.shipment(r.id)}>{v}</Link>
+          <CopyText text={v}>
+            <Link to={DOC_PATHS.shipment(r.id)}>{v}</Link>
+          </CopyText>
           {sub(palette.mute, r.shipDate ?? '—')}
         </div>
       ),
@@ -422,7 +425,9 @@ const DiffsTab: React.FC<{ pending?: number; onChanged: () => void }> = ({
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <Link to={DOC_PATHS.receipt(r.receiptId)}>{v}</Link>
+          <CopyText text={v}>
+            <Link to={DOC_PATHS.receipt(r.receiptId)}>{v}</Link>
+          </CopyText>
           {sub(palette.mute, r.receivedDate ?? '—')}
         </div>
       ),
@@ -490,13 +495,15 @@ const DiffsTab: React.FC<{ pending?: number; onChanged: () => void }> = ({
       dataIndex: 'poNo',
       width: 160,
       render: (v: string, r: { poId: number }) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => history.push(WAREHOUSE_PATHS.order(r.poId))}
-        >
-          {v}
-        </button>
+        <CopyText text={v}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(WAREHOUSE_PATHS.order(r.poId))}
+          >
+            {v}
+          </button>
+        </CopyText>
       ),
     },
     {

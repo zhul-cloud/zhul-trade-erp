@@ -4,6 +4,7 @@ import { App, Segmented, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { TriangleAlert } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CopyText } from '@/components/CopyText';
 import { CustomerCell } from '@/components/DocFields';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -232,13 +233,15 @@ const ProfitStatsPage: React.FC = () => {
       dataIndex: 'soNo',
       width: 170,
       render: (v: string, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => history.push(`/sales/orders/${r.soId}`)}
-        >
-          {v}
-        </button>
+        <CopyText text={v}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(`/sales/orders/${r.soId}`)}
+          >
+            {v}
+          </button>
+        </CopyText>
       ),
     },
     {

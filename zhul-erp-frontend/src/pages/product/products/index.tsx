@@ -13,7 +13,6 @@ import {
   Spin,
   Table,
   Tooltip,
-  Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -35,6 +34,7 @@ import React, {
 } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { CopyText } from '@/components/CopyText';
 import EllipsisText from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -691,12 +691,11 @@ const ProductListInner: React.FC = () => {
       key: 'id',
       width: 110,
       fixed: 'left',
+      // 悬停复制用公共 CopyText（D27），不用 antd 常显的复制图标
       render: (v: number) => (
-        <span onClick={(e) => e.stopPropagation()}>
-          <Typography.Text className="num" copyable={{ text: String(v) }}>
-            {v}
-          </Typography.Text>
-        </span>
+        <CopyText text={String(v)}>
+          <span className="num">{v}</span>
+        </CopyText>
       ),
     },
     {

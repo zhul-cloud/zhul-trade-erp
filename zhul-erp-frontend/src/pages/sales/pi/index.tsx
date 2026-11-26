@@ -16,6 +16,7 @@ import { Eye, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { CopyText } from '@/components/CopyText';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
@@ -221,13 +222,15 @@ const PiList: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(PATHS.pi(r.id))}
-          >
-            {v}
-          </button>
+          <CopyText text={v}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(PATHS.pi(r.id))}
+            >
+              {v}
+            </button>
+          </CopyText>
           {sub(r.createTime?.slice(0, 10) ?? '—')}
         </div>
       ),
@@ -370,13 +373,15 @@ const PiList: React.FC = () => {
       width: 150,
       render: (v: string | undefined, r) =>
         v && r.orderId ? (
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(PATHS.order(r.orderId as number))}
-          >
-            {v}
-          </button>
+          <CopyText text={v}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(PATHS.order(r.orderId as number))}
+            >
+              {v}
+            </button>
+          </CopyText>
         ) : (
           '—'
         ),

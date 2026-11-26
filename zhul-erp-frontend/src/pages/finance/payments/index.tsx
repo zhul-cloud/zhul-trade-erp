@@ -5,6 +5,7 @@ import type { Dayjs } from 'dayjs';
 import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -123,17 +124,19 @@ const PaymentRecords: React.FC = () => {
       width: 150,
       fixed: 'left',
       render: (v: string, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          style={{
-            whiteSpace: 'nowrap',
-            textDecoration: r.voided ? 'line-through' : undefined,
-          }}
-          onClick={() => history.push(DOC_PATHS.payment(r.id))}
-        >
-          {v}
-        </button>
+        <CopyText text={v}>
+          <button
+            type="button"
+            className="zhul-link"
+            style={{
+              whiteSpace: 'nowrap',
+              textDecoration: r.voided ? 'line-through' : undefined,
+            }}
+            onClick={() => history.push(DOC_PATHS.payment(r.id))}
+          >
+            {v}
+          </button>
+        </CopyText>
       ),
     },
     {

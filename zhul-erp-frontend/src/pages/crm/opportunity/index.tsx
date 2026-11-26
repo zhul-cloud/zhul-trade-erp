@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import { Eye, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { CustomerCell } from '@/components/DocFields';
 import EllipsisText from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -170,13 +171,15 @@ const OpportunityPage: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(`${LIST_PATH}/${r.id}`)}
-          >
-            {v}
-          </button>
+          <CopyText text={v}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(`${LIST_PATH}/${r.id}`)}
+            >
+              {v}
+            </button>
+          </CopyText>
           {r.migrated && (
             <div style={{ marginTop: 4 }}>
               <MigratedPill migrated />

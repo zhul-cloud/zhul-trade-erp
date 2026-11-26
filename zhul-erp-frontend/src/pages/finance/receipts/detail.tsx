@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Skeleton, Table } from 'antd';
 import { CircleX, Paperclip, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CopyText } from '@/components/CopyText';
 import {
   DocLogCard,
   InfoGrid,
@@ -133,7 +134,9 @@ const ReceiptDocDetail: React.FC = () => {
       dataIndex: 'settleNo',
       width: 160,
       render: (v: string, s) => (
-        <Link to={DOC_PATHS.fxSettlement(s.settlementId)}>{v}</Link>
+        <CopyText text={v}>
+          <Link to={DOC_PATHS.fxSettlement(s.settlementId)}>{v}</Link>
+        </CopyText>
       ),
     },
     { title: '结汇日期', dataIndex: 'settleDate', width: 110 },

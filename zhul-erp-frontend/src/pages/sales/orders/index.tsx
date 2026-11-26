@@ -14,6 +14,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { CopyPlus, Eye, Plus, Search, TriangleAlert } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
@@ -266,13 +267,15 @@ const OrderList: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(PATHS.order(r.id))}
-          >
-            {v}
-          </button>
+          <CopyText text={v}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(PATHS.order(r.id))}
+            >
+              {v}
+            </button>
+          </CopyText>
           {r.migrated && (
             <div style={{ marginTop: 4 }}>
               <MigratedPill migrated />

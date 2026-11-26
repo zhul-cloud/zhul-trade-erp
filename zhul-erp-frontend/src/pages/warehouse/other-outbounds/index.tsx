@@ -4,6 +4,7 @@ import { Button, Form, Input, Select, Table } from 'antd';
 import { Eye, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import EllipsisText from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -93,7 +94,9 @@ const OtherOutboundsPage: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <Link to={ooPath(r.id)}>{v}</Link>
+          <CopyText text={v}>
+            <Link to={ooPath(r.id)}>{v}</Link>
+          </CopyText>
           {sub(r.outboundDate)}
         </div>
       ),

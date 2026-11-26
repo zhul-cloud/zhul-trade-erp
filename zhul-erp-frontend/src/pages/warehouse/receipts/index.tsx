@@ -4,6 +4,7 @@ import { Button, Input, Select, Table } from 'antd';
 import { Eye, Inbox, PackageCheck, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
@@ -114,7 +115,9 @@ const Receipts: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <Link to={DOC_PATHS.shipment(r.id)}>{v}</Link>
+          <CopyText text={v}>
+            <Link to={DOC_PATHS.shipment(r.id)}>{v}</Link>
+          </CopyText>
           {sub(palette.mute, r.shipDate ?? '—')}
         </div>
       ),
@@ -242,7 +245,9 @@ const Receipts: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <Link to={DOC_PATHS.receipt(r.id)}>{v}</Link>
+          <CopyText text={v}>
+            <Link to={DOC_PATHS.receipt(r.id)}>{v}</Link>
+          </CopyText>
           {sub(palette.mute, r.receivedDate ?? '—')}
         </div>
       ),

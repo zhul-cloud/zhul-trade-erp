@@ -4,6 +4,7 @@ import { Checkbox, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CopyText } from '@/components/CopyText';
 import { tableEmpty } from '@/components/EmptyState';
 import { FilterField, MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
@@ -150,7 +151,13 @@ const MovesPage: React.FC = () => {
         const href = docHref(r.docType, r.docId);
         return (
           <div>
-            {href ? <Link to={href}>{v}</Link> : v || '—'}
+            {href ? (
+              <CopyText text={v}>
+                <Link to={href}>{v}</Link>
+              </CopyText>
+            ) : (
+              v || '—'
+            )}
             {r.targetNo && (
               <div style={{ fontSize: 12, color: palette.mute }}>
                 {r.targetType === 1 ? '订单' : '退货单'} {r.targetNo}

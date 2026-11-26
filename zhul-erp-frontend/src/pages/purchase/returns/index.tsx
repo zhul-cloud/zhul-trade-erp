@@ -4,6 +4,7 @@ import { App, Form, Input, Select, Table } from 'antd';
 import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import { tableEmpty } from '@/components/EmptyState';
@@ -137,7 +138,9 @@ const PurchaseReturnsPage: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <Link to={SALES_PATHS.purchaseReturn(r.id)}>{v}</Link>
+          <CopyText text={v}>
+            <Link to={SALES_PATHS.purchaseReturn(r.id)}>{v}</Link>
+          </CopyText>
           {sub(r.createTime?.slice(0, 10))}
         </div>
       ),
@@ -214,7 +217,13 @@ const PurchaseReturnsPage: React.FC = () => {
       dataIndex: 'poNo',
       width: 160,
       render: (v: string | undefined, r) =>
-        v && r.poId ? <Link to={PATHS.order(r.poId)}>{v}</Link> : dash,
+        v && r.poId ? (
+          <CopyText text={v}>
+            <Link to={PATHS.order(r.poId)}>{v}</Link>
+          </CopyText>
+        ) : (
+          dash
+        ),
     },
     {
       title: '来源单号',

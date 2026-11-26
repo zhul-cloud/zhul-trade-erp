@@ -35,6 +35,7 @@ import React, {
   useState,
 } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { CountryText } from '@/components/CountryText';
 import { CustomerCell } from '@/components/DocFields';
 import { DescRemarkCell } from '@/components/DocFields/ItemRemark';
@@ -511,13 +512,15 @@ const RequirementList: React.FC = () => {
       width: 160,
       fixed: 'left',
       render: (v: string, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => history.push(PATHS.salesOrder(r.soId))}
-        >
-          {v}
-        </button>
+        <CopyText text={v}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(PATHS.salesOrder(r.soId))}
+          >
+            {v}
+          </button>
+        </CopyText>
       ),
     },
     {

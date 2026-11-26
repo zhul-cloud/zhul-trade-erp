@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { CustomerCell } from '@/components/DocFields';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -327,13 +328,15 @@ const CustomerInquiryPage: React.FC = () => {
       fixed: 'left',
       render: (v, r) => (
         <div>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(`${PATHS.inquiries}/${r.id}`)}
-          >
-            {v}
-          </button>
+          <CopyText text={v}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(`${PATHS.inquiries}/${r.id}`)}
+            >
+              {v}
+            </button>
+          </CopyText>
           {(r.urgent || r.migrated) && (
             <div style={{ marginTop: 4, display: 'flex', gap: 4 }}>
               {r.urgent && <Pill tone="red">紧急</Pill>}

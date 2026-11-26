@@ -5,6 +5,7 @@ import type { Dayjs } from 'dayjs';
 import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { CustomerCell } from '@/components/DocFields';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -169,17 +170,19 @@ const RecordsTab: React.FC = () => {
       width: 150,
       fixed: 'left',
       render: (v: string, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          style={{
-            whiteSpace: 'nowrap',
-            textDecoration: r.status === 2 ? 'line-through' : undefined,
-          }}
-          onClick={() => open(r)}
-        >
-          {v || '—'}
-        </button>
+        <CopyText text={v}>
+          <button
+            type="button"
+            className="zhul-link"
+            style={{
+              whiteSpace: 'nowrap',
+              textDecoration: r.status === 2 ? 'line-through' : undefined,
+            }}
+            onClick={() => open(r)}
+          >
+            {v || '—'}
+          </button>
+        </CopyText>
       ),
     },
     {

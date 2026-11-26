@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Input, Segmented, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CopyText } from '@/components/CopyText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
@@ -188,13 +189,15 @@ const BargainStatsPage: React.FC = () => {
       dataIndex: 'poNo',
       width: 170,
       render: (v: string, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => history.push(`/purchase/orders/${r.poId}`)}
-        >
-          {v}
-        </button>
+        <CopyText text={v}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(`/purchase/orders/${r.poId}`)}
+          >
+            {v}
+          </button>
+        </CopyText>
       ),
     },
     { title: '下单日期', dataIndex: 'orderDate', width: 110 },

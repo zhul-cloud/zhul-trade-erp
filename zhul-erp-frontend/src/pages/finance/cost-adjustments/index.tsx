@@ -5,6 +5,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Download, Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -106,7 +107,9 @@ const CostAdjustmentsPage: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <Link to={caPath(r.id)}>{v}</Link>
+          <CopyText text={v}>
+            <Link to={caPath(r.id)}>{v}</Link>
+          </CopyText>
           {sub(r.adjustDate)}
         </div>
       ),

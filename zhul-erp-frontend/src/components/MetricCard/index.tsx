@@ -119,6 +119,8 @@ export const MetricCard: React.FC<{
   hint?: React.ReactNode;
   /** 0–1 的比例：第三行右侧画一条细进度 */
   bar?: number;
+  /** 数值按涨跌着色（正为涨色、负为跌色，跟个人涨跌色设置）：砍价、盈亏这类按方向着色的金额传数值本身 */
+  toneBy?: number | null;
   onClick?: () => void;
 }> = ({
   label,
@@ -130,9 +132,11 @@ export const MetricCard: React.FC<{
   alert,
   hint,
   bar,
+  toneBy,
   onClick,
 }) => {
   const { palette, mode } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
   const [hover, setHover] = useState(false);
   const light = mode === 'light';
   // 卡宽不到 180（窄屏、栏少）时用紧凑版：内边距 16、图标块 32、名称 13，卡高不变
@@ -211,7 +215,7 @@ export const MetricCard: React.FC<{
         style={{
           fontWeight: 600,
           lineHeight: '30px',
-          color: palette.ink,
+          color: toneBy == null || toneBy === 0 ? palette.ink : deltaOf(toneBy),
           fontVariantNumeric: 'tabular-nums',
         }}
       >

@@ -17,6 +17,7 @@ import { Check, ClipboardCheck, Download, Eye, Info, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { CopyText } from '@/components/CopyText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
@@ -256,15 +257,17 @@ const StatementDrawer: React.FC<{
       dataIndex: 'shNo',
       width: 150,
       render: (v: string, l) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() =>
-            history.push(`${LOGISTICS_PATHS.shipments}/${l.logisticsId}`)
-          }
-        >
-          {v}
-        </button>
+        <CopyText text={v}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() =>
+              history.push(`${LOGISTICS_PATHS.shipments}/${l.logisticsId}`)
+            }
+          >
+            {v}
+          </button>
+        </CopyText>
       ),
     },
     { title: '出运日期', dataIndex: 'shippedDate', width: 110 },

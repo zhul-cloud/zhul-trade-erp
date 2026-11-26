@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import { Star } from 'lucide-react';
 import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
+import { textOn } from '@/theme/palette';
 import { formatDateTime } from '@/utils/format';
 import { type FieldSource, GRADE_NAMES, SOURCE } from './service';
 
@@ -45,11 +46,12 @@ export const GradeBadge: React.FC<{
 }> = ({ value, adjusted, size = 'small' }) => {
   const { palette } = useAppTheme();
   if (!value) return <span style={{ color: palette.mute }}>未成交</span>;
+  // 等级有高低、无好坏：S、A 用主题色深浅，B、C 中性（2026-11-26 用户确认，复审 9.1 第二轮待定 B）；不用红色，以免读成风险
   const tone =
     value === 1
-      ? { fg: palette.red, bg: palette.redSoft }
+      ? { fg: textOn(palette.chart), bg: palette.chart }
       : value === 2
-        ? { fg: palette.link, bg: palette.primarySoft }
+        ? { fg: palette.ink, bg: palette.chartSoft }
         : { fg: palette.sub, bg: palette.inset };
   const box = size === 'large' ? 34 : 24;
   return (

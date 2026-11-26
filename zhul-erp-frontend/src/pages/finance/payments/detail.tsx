@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { App, Skeleton, Table } from 'antd';
 import { CircleX } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CopyText } from '@/components/CopyText';
 import {
   DocLogCard,
   InfoGrid,
@@ -96,7 +97,9 @@ const PaymentDetail: React.FC = () => {
       dataIndex: 'payableNo',
       width: 150,
       render: (v: string, a) => (
-        <Link to={DOC_PATHS.payable(a.payableId)}>{v}</Link>
+        <CopyText text={v}>
+          <Link to={DOC_PATHS.payable(a.payableId)}>{v}</Link>
+        </CopyText>
       ),
     },
     {

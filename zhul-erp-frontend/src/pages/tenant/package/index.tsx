@@ -141,13 +141,14 @@ const TenantPackagePage: React.FC = () => {
     const disabling = row.status === 1;
     // 停用用公共危险确认（错误色按钮、默认焦点在取消），启用用普通确认
     (disabling ? confirmDanger : modal.confirm)({
-      title: disabling ? '确认禁用套餐？' : '确认启用套餐？',
+      // 危险确认：标题写明对象、按钮写动作（2026-11-26 用户确认，待定 D）；后果说明原样保留
+      title: disabling ? `禁用「${row.name}」？` : `启用「${row.name}」？`,
       content: disabling
         ? row.tenantCount > 0
           ? `套餐「${row.name}」当前有 ${row.tenantCount} 个租户在使用。禁用后，该套餐不可被新租户选择，但已绑定的租户暂不受影响。`
           : `确认禁用套餐「${row.name}」吗？禁用后该套餐不可被新租户选择。`
         : `启用后，套餐「${row.name}」可被新租户选择使用。`,
-      okText: disabling ? '确认禁用' : '确认启用',
+      okText: disabling ? '禁用' : '启用',
       cancelText: '取消',
       onOk: async () => {
         await updatePackageStatus(row.id, disabling ? 0 : 1);
