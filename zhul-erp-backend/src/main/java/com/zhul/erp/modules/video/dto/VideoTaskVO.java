@@ -3,6 +3,7 @@ package com.zhul.erp.modules.video.dto;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /** 视频任务列表的一行 */
 @Data
@@ -23,6 +24,8 @@ public class VideoTaskVO {
     private String rejectReason;
     private Integer usedCount;
     private Integer imageCount;
+    /** 选用图片的前 3 张（列表缩略图），按排序 */
+    private List<Long> thumbnailIds;
     /** 已通过的竖屏视频与封面（列表缩略图，点击播放） */
     private Long videoAttachmentId;
     private Long coverAttachmentId;

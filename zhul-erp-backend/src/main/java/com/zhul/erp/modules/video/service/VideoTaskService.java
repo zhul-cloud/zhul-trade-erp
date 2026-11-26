@@ -54,6 +54,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -283,6 +284,9 @@ public class VideoTaskService {
             List<VideoMaterialDO> ms = materials.getOrDefault(t.getId(), List.of());
             vo.setImageCount(ms.size());
             vo.setUsedCount((int) ms.stream().filter(m -> Objects.equals(m.getUsed(), 1)).count());
+            vo.setThumbnailIds(ms.stream().filter(m -> Objects.equals(m.getUsed(), 1))
+                    .sorted(Comparator.comparing(VideoMaterialDO::getSort).thenComparing(VideoMaterialDO::getId))
+                    .limit(3).map(VideoMaterialDO::getAttachmentId).toList());
             VideoOutputDO o = approvedPortrait.get(t.getId());
             if (o != null) {
                 vo.setVideoAttachmentId(o.getVideoAttachmentId());

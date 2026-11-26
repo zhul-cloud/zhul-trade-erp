@@ -31,6 +31,7 @@ import { type Product, productApi, readBizError } from '../service';
 import { ProductThemeProvider, useProductTheme } from '../theme';
 import { BasicCard } from './cards/BasicCard';
 import { UnsavedContext, type UnsavedEntry } from './cards/CardShell';
+import { CompanyMediaCard } from './cards/CompanyMediaCard';
 import { ApplicationCard, DocumentCard, FaqCard } from './cards/ContentCards';
 import { ImportRecordCard } from './cards/ImportRecords';
 import { LogisticsCustomsCard } from './cards/LogisticsCustomsCard';
@@ -263,6 +264,8 @@ const DetailInner: React.FC = () => {
   const { message, modal } = App.useApp();
   const { palette } = useProductTheme();
   const access = useAccess();
+  // 设为官方素材后让「图片与视频」重新取数
+  const [mediaVersion, setMediaVersion] = useState(0);
   const params = useParams<{ id: string }>();
   const [search] = useSearchParams();
   const id = Number(params.id);
@@ -591,7 +594,17 @@ const DetailInner: React.FC = () => {
             done={doneOf('basic')}
             onChanged={load}
           />
-          <MediaCard {...common} done={doneOf('media')} />
+          <MediaCard
+            key={`media-${mediaVersion}`}
+            {...common}
+            done={doneOf('media')}
+          />
+          {access.operationsMedia && (
+            <CompanyMediaCard
+              productId={product.id}
+              onOfficial={() => setMediaVersion((v) => v + 1)}
+            />
+          )}
           <SpecCard {...common} done={doneOf('specifications')} />
           <LogisticsCustomsCard
             productId={product.id}

@@ -109,6 +109,9 @@ jobs:
           - name: ai-orchestrator
             context: scripts
             file: scripts/ai-orchestrator/Dockerfile
+          - name: video-generator
+            context: scripts/video-generator
+            file: scripts/video-generator/Dockerfile
     steps:
       - uses: actions/checkout@v7
         with:

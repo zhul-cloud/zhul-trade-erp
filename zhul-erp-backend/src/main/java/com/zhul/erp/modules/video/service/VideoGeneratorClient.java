@@ -87,6 +87,7 @@ public class VideoGeneratorClient {
     }
 
     public boolean tokenMatches(String provided) {
-        return provided != null && provided.equals(token);
+        // 令牌没配置（空值）时一律拒绝，不能让空令牌的请求通过
+        return StringUtils.hasText(token) && token.equals(provided);
     }
 }
