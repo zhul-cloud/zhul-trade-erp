@@ -538,7 +538,8 @@ const SalesStatsPage: React.FC = () => {
       </FilterCard>
       {total && (
         // 一组数字不外包卡片，标题直接落在页面底上（规范「层级不超过三层」）
-        <section style={{ marginBottom: 24 }}>
+        // 分组落在页面底上：上下离卡片 24，比卡片间距 16 大一档（S18）
+        <section style={{ paddingTop: 8, marginBottom: 24 }}>
           <div style={{ marginBottom: 12 }}>
             <CardTitle>销售漏斗</CardTitle>
           </div>

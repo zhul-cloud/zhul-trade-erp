@@ -931,7 +931,15 @@ const CustomerInquiryDetailPage: React.FC = () => {
             minWidth: 0,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* 分组标题落在页面底上：离上方卡片 24，与右栏「报价单」对齐（S18） */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginTop: 8,
+            }}
+          >
             <h2
               style={{
                 margin: 0,
@@ -1011,6 +1019,8 @@ const CustomerInquiryDetailPage: React.FC = () => {
               <h2
                 style={{
                   margin: 0,
+                  // 落在页面底上的分组标题离上方卡片 24（16 + 8），比卡片间距大一档（S18）
+                  marginTop: 8,
                   fontSize: 16,
                   fontWeight: 600,
                   color: palette.ink,
