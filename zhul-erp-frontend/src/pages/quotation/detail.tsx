@@ -1374,21 +1374,6 @@ const QuotationDetail: React.FC = () => {
       width: 220,
       render: (_, r) => modelCell(r),
     },
-    {
-      title: '描述',
-      width: 240,
-      render: ellipsisRender,
-      dataIndex: 'description',
-      ellipsis: true,
-    },
-    {
-      title: '货况',
-      key: 'cond',
-      width: 110,
-      render: (_, r) => <ConditionPill value={r.itemCondition} />,
-    },
-    { title: '货期', dataIndex: 'leadTimeName', width: 100 },
-    { title: '质保', dataIndex: 'warranty', width: 90 },
     { title: '数量', dataIndex: 'quantity', width: 70, align: 'right' },
     {
       title: '单价',
@@ -1453,6 +1438,21 @@ const QuotationDetail: React.FC = () => {
         ) : (
           <span style={num}>{formatAmount(r.netProfit, q.currencyCode)}</span>
         ),
+    },
+    {
+      title: '货况',
+      key: 'cond',
+      width: 110,
+      render: (_, r) => <ConditionPill value={r.itemCondition} />,
+    },
+    { title: '货期', dataIndex: 'leadTimeName', width: 100 },
+    { title: '质保', dataIndex: 'warranty', width: 90 },
+    {
+      title: '描述',
+      width: 240,
+      render: ellipsisRender,
+      dataIndex: 'description',
+      ellipsis: true,
     },
   ];
 

@@ -379,42 +379,9 @@ const CustomerInquiryDetailPage: React.FC = () => {
       ),
     },
     {
-      title: '描述',
-      dataIndex: 'description',
-      width: 320,
-      // 描述可能很长（AI 解析出的规格说明）：自动换行，最多显示 4 行，超出部分悬停看全文
-      render: (v?: string) =>
-        v ? (
-          <Tooltip title={v} placement="topLeft">
-            <span
-              style={{
-                color: palette.sub,
-                lineHeight: 1.6,
-                whiteSpace: 'normal',
-                overflowWrap: 'anywhere',
-                display: '-webkit-box',
-                WebkitLineClamp: 4,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-              }}
-            >
-              {v}
-            </span>
-          </Tooltip>
-        ) : (
-          <span style={{ color: palette.mute }}>—</span>
-        ),
-    },
-    {
       title: '数量',
       width: 80,
       render: (_, r) => `${r.quantity} ${r.unit || ''}`,
-    },
-    {
-      title: '任务',
-      dataIndex: 'taskCode',
-      width: 64,
-      render: (v?: string) => (v ? v.slice(13) : '—'),
     },
     {
       title: '回价',
@@ -493,6 +460,12 @@ const CustomerInquiryDetailPage: React.FC = () => {
         );
       },
     },
+    {
+      title: '任务',
+      dataIndex: 'taskCode',
+      width: 64,
+      render: (v?: string) => (v ? v.slice(13) : '—'),
+    },
     ...(canSeeShop
       ? [
           {
@@ -566,6 +539,33 @@ const CustomerInquiryDetailPage: React.FC = () => {
           <Pill tone="orange">候选中</Pill>
         ) : r.archiveStatus === 3 ? (
           <Pill tone="gray">待回填真实型号</Pill>
+        ) : (
+          <span style={{ color: palette.mute }}>—</span>
+        ),
+    },
+    {
+      title: '描述',
+      dataIndex: 'description',
+      width: 320,
+      // 描述可能很长（AI 解析出的规格说明）：自动换行，最多显示 4 行，超出部分悬停看全文
+      render: (v?: string) =>
+        v ? (
+          <Tooltip title={v} placement="topLeft">
+            <span
+              style={{
+                color: palette.sub,
+                lineHeight: 1.6,
+                whiteSpace: 'normal',
+                overflowWrap: 'anywhere',
+                display: '-webkit-box',
+                WebkitLineClamp: 4,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }}
+            >
+              {v}
+            </span>
+          </Tooltip>
         ) : (
           <span style={{ color: palette.mute }}>—</span>
         ),
