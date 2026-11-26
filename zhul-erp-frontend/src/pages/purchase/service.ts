@@ -368,6 +368,8 @@ export interface PurchaseOrder {
   exchangeRate: number;
   /** 开票：税点（百分点）、填写的开票金额（为空按货款）、实际计算用的开票金额、开票成本 */
   invoiceRequired: boolean;
+  /** 付款方式：1-对公、2-对私（openspec payable-payment-method） */
+  payMethod?: number;
   taxPoint: number;
   invoiceAmount?: number | null;
   invoiceAmountEffective?: number | null;
@@ -432,6 +434,7 @@ export const FEE_TYPE = { CHARGE: 1, DISCOUNT: 2 } as const;
 export interface SavePoBody {
   currencyCode: string;
   invoiceRequired: boolean;
+  payMethod?: number;
   taxPoint?: number;
   invoiceAmount?: number | null;
   expectedInvoiceDate?: string | null;

@@ -15,6 +15,10 @@ public final class FinanceConstants {
 
     /** 来源类型 */
     public static final int SOURCE_PURCHASE_ORDER = 1;
+    /** 应付单约定的付款方式：0-未定、1-对公、2-对私（与采购订单、供应商收款账户类型同值） */
+    public static final int PAY_UNDECIDED = 0;
+    public static final int PAY_PUBLIC = 1;
+    public static final int PAY_PRIVATE = 2;
     public static final int SOURCE_STATEMENT = 2;
 
     /** 应付单与期次状态 */

@@ -27,6 +27,7 @@ import { liveRequests } from '@/utils/liveRequests';
 import { amountTotals, type Group, groupPayables } from './batch';
 import { ACCEPT_PROOF, Field, newKey, PayeeAccountPicker } from './components';
 import { DueNowHint } from './dueNow';
+import { methodMismatch, suggestMethod } from './payMethod';
 import { METHOD, type Payable, type PayeeAccount, paymentApi } from './service';
 
 interface GroupInput {
@@ -60,6 +61,15 @@ export const BatchPayModal: React.FC<{
   const groups = useMemo(() => groupPayables(rows), [rows]);
   const [payDate, setPayDate] = useState<Dayjs>(dayjs());
   const [method, setMethod] = useState<number>(METHOD.COMPANY);
+  // 按所选应付单约定预选（openspec payable-payment-method）；不一致时不预选、提示
+  const suggestion = useMemo(
+    () => suggestMethod(rows.map((r) => r.payMethod)),
+    [rows],
+  );
+  const mismatch = methodMismatch(
+    method,
+    rows.map((r) => r.payMethod),
+  );
   const [accounts, setAccounts] = useState<BankOption[]>([]);
   const [inputs, setInputs] = useState<Record<string, GroupInput>>({});
   const [key, setKey] = useState(newKey);
@@ -70,7 +80,7 @@ export const BatchPayModal: React.FC<{
     const { live, cancel } = liveRequests();
     setKey(newKey());
     setPayDate(dayjs());
-    setMethod(METHOD.COMPANY);
+    setMethod(suggestion.method ?? METHOD.COMPANY);
     setInputs(
       Object.fromEntries(
         groups.map((g) => [
@@ -220,6 +230,21 @@ export const BatchPayModal: React.FC<{
                 { value: METHOD.PRIVATE, label: '私对私' },
               ]}
             />
+            {suggestion.mixed ? (
+              <div
+                style={{ fontSize: 12, color: palette.orange, marginTop: 6 }}
+              >
+                所选应付单付款方式不一致，请确认付款方式
+              </div>
+            ) : (
+              mismatch && (
+                <div
+                  style={{ fontSize: 12, color: palette.orange, marginTop: 6 }}
+                >
+                  {mismatch}
+                </div>
+              )
+            )}
           </Field>
           <div style={{ flex: 1, textAlign: 'right' }}>
             <div style={{ fontSize: 12, color: palette.mute }}>

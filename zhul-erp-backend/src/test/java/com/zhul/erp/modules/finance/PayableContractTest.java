@@ -619,6 +619,49 @@ class PayableContractTest extends SalesContractSupport {
         assertEquals(r.path("paymentNo").asText(), a.get("source_doc_no"));
     }
 
+    /** openspec payable-payment-method：采购订单付款方式改了写日志、应付同步、可按付款方式筛选；运费账单取货代默认账户类型 */
+    @Test
+    void payMethod_followsPurchaseOrder_filter_statementByForwarderAccount() throws Exception {
+        long sup = supplier("对私工控", null);
+        long poId = orderedPo(sup, "PM-1", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        assertEquals(2, po(poId, admin).path("payMethod").asInt(), "不开票的草稿默认对私");
+        assertEquals(2, bySource(poId, admin).path("payMethod").asInt());
+
+        Map<String, Object> body = poBody(po(poId, admin), null);
+        body.put("payMethod", 1);
+        ok(savePo(poId, body, admin));
+        assertEquals(1, bySource(poId, admin).path("payMethod").asInt(), "采购订单改为对公，应付同步");
+        assertEquals(1, jdbc.queryForObject("select count(*) from purchase_order_log where po_id = ? and content like ?",
+                Integer.class, poId, "%付款方式：对私 → 对公%"));
+        body.remove("payMethod");
+        ok(savePo(poId, body, admin));
+        assertEquals(1, po(poId, admin).path("payMethod").asInt(), "没传付款方式时保留原值");
+        body.put("payMethod", 3);
+        fail(savePo(poId, body, admin));
+
+        long other = orderedPo(supplier("对私二号", null), "PM-2", 1, "100", List.of(term(100, 1, 0))).path("id").asLong();
+        long otherAp = bySource(other, admin).path("id").asLong();
+        JsonNode priv = ok(call(get(AP).param("payMethod", "2"), admin)).path("records");
+        List<Long> privIds = new ArrayList<>();
+        priv.forEach(r -> {
+            assertEquals(2, r.path("payMethod").asInt());
+            privIds.add(r.path("id").asLong());
+        });
+        assertTrue(privIds.contains(otherAp));
+        assertFalse(privIds.contains(bySource(poId, admin).path("id").asLong()));
+
+        long fwd = supplier("捷运对私", null);
+        supplierAccount(fwd, 2, "王建国", "农业银行", "6228480408123456789", "13800005678", 1);
+        long bare = supplier("没账户货代", null);
+        jdbc.update("insert into forwarder_statement (tenant_id, forwarder_id, period, status, our_total, statement_total, confirmed_at) "
+                + "values (0, ?, '2026-11', 2, 100.00, 100.00, now()), (0, ?, '2026-11', 2, 50.00, 50.00, now())", fwd, bare);
+        backfill.run(null);
+        assertEquals(2, jdbc.queryForObject("select p.pay_method from fin_payable p join forwarder_statement s on s.id = p.source_id "
+                + "where p.source_type = 2 and s.forwarder_id = ?", Integer.class, fwd), "取货代默认账户类型");
+        assertEquals(0, jdbc.queryForObject("select p.pay_method from fin_payable p join forwarder_statement s on s.id = p.source_id "
+                + "where p.source_type = 2 and s.forwarder_id = ?", Integer.class, bare), "没有默认账户为未定");
+    }
+
     @Test
     void backfillCreatesMissingPayables_onlyOnce() throws Exception {
         long sup = supplier("老供应商", null);

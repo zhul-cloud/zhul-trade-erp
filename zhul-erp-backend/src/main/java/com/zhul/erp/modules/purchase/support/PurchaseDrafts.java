@@ -165,6 +165,7 @@ public class PurchaseDrafts {
         po.setTaxIncluded(0);
         po.setTaxRate(BigDecimal.ZERO);
         po.setInvoiceRequired(0);
+        po.setPayMethod(PurchaseConstants.defaultPayMethod(cp.channel(), false));
         po.setTaxPoint(BigDecimal.ZERO);
         po.setInvoiceCost(BigDecimal.ZERO);
         po.setInvoiceStatus(PurchaseConstants.INVOICE_NONE);
