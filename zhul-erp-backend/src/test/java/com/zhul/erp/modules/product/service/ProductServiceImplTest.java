@@ -92,7 +92,8 @@ class ProductServiceImplTest {
                 relationshipMapper, productFinder, productNames, completenessService, new PlatformScopeGuard(),
                 usageCheckers, heatMapper, new com.zhul.erp.modules.product.support.IndustryScope(null, null, null, null),
                 com.zhul.erp.modules.product.support.TestProductWriteGuards.ownedBy(0), orderCodes, event -> { },
-                org.mockito.Mockito.mock(org.springframework.beans.factory.ObjectProvider.class));
+                org.mockito.Mockito.mock(org.springframework.beans.factory.ObjectProvider.class),
+                org.mockito.Mockito.mock(com.zhul.erp.modules.product.repository.ProductMediaMapper.class));
         when(brandMapper.selectOne(any())).thenReturn(brand(1L, 1));
         when(categoryMapper.selectOne(any())).thenReturn(category(2L, 1));
     }

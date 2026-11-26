@@ -12,5 +12,9 @@ public class ForwarderVO {
     private Boolean customerOwned;
     /** 归属客户：为空是公司货代。直发货代等按型号所属客户过滤时用 */
     private Long customerId;
+    /** 交接方式：1-送到货代、2-上门取件 */
+    private Integer handoverMode;
+    private String courierCarrier;
+    private String courierAccount;
     private String contactName;
 }

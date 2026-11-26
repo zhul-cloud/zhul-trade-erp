@@ -14,7 +14,9 @@ import com.zhul.erp.modules.finance.repository.PaymentAllocationMapper;
 import com.zhul.erp.modules.finance.support.InstallmentPlanner;
 import com.zhul.erp.modules.logistics.entity.ForwarderStatementDO;
 import com.zhul.erp.modules.logistics.repository.ForwarderStatementMapper;
+import com.zhul.erp.modules.masterdata.entity.SupplierBankAccountDO;
 import com.zhul.erp.modules.masterdata.entity.SupplierDO;
+import com.zhul.erp.modules.masterdata.repository.SupplierBankAccountMapper;
 import com.zhul.erp.modules.masterdata.repository.SupplierMapper;
 import com.zhul.erp.modules.masterdata.support.PaymentTerms;
 import com.zhul.erp.modules.masterdata.support.SupplierRenamedEvent;
@@ -65,6 +67,7 @@ public class PayableSyncService {
     private final PurchaseReceiptMapper receiptMapper;
     private final ShipProgress shipProgress;
     private final SupplierMapper supplierMapper;
+    private final SupplierBankAccountMapper bankAccountMapper;
     private final ForwarderStatementMapper statementMapper;
     private final ExpenseMapper expenseMapper;
     private final DocumentNumberService documentNumberService;
@@ -116,6 +119,8 @@ public class PayableSyncService {
         p.setSourceNo(po.getPoNo());
         // 线上店铺转为供应商后，收款方随之更新
         fillPayee(p, po);
+        // 付款方式随采购订单（openspec payable-payment-method）
+        p.setPayMethod(po.getPayMethod() == null ? FinanceConstants.PAY_UNDECIDED : po.getPayMethod());
         // 币种随采购订单（有资金往来时采购订单不允许改币种，见 hasMoneyMovement；audit BUS-004）
         p.setCurrencyCode(po.getCurrencyCode());
         p.setExchangeRate(po.getExchangeRate() == null ? BigDecimal.ONE : po.getExchangeRate());
@@ -145,6 +150,7 @@ public class PayableSyncService {
         p.setPayeeType(FinanceConstants.PAYEE_FORWARDER);
         p.setSupplierId(st.getForwarderId());
         p.setPayeeName(supplierName(st.getForwarderId()));
+        p.setPayMethod(defaultAccountType(st.getForwarderId()));
         payableMapper.insert(p);
         BigDecimal amount = nz(st.getStatementTotal());
         LocalDate due = st.getConfirmedAt() == null ? LocalDate.now() : st.getConfirmedAt().toLocalDate();
@@ -177,6 +183,9 @@ public class PayableSyncService {
         p.setShopPlatform(e.getShopPlatform() == null ? "" : e.getShopPlatform());
         p.setShopName(e.getShopName() == null ? "" : e.getShopName());
         p.setPayeeName(e.getPayeeName());
+        p.setPayMethod(Objects.equals(e.getMethod(), FinanceConstants.METHOD_PRIVATE) ? FinanceConstants.PAY_PRIVATE
+                : Objects.equals(e.getMethod(), FinanceConstants.METHOD_COMPANY) ? FinanceConstants.PAY_PUBLIC
+                : FinanceConstants.PAY_UNDECIDED);
         p.setCurrencyCode(e.getCurrencyCode());
         p.setExchangeRate(e.getExchangeRate());
         BigDecimal amount = active ? e.getAmount() : BigDecimal.ZERO;
@@ -399,6 +408,19 @@ public class PayableSyncService {
             p.setSupplierId(po.getSupplierId());
             p.setPayeeName(supplierName(po.getSupplierId()));
         }
+    }
+
+    /** 货代默认收款账户的类型（1-对公、2-对私）；没有默认账户为未定 */
+    private int defaultAccountType(Long supplierId) {
+        if (supplierId == null) {
+            return FinanceConstants.PAY_UNDECIDED;
+        }
+        SupplierBankAccountDO a = bankAccountMapper.selectOne(new LambdaQueryWrapper<SupplierBankAccountDO>()
+                .eq(SupplierBankAccountDO::getSupplierId, supplierId)
+                .eq(SupplierBankAccountDO::getIsDefault, 1)
+                .isNull(SupplierBankAccountDO::getDeletedAt)
+                .last("LIMIT 1"));
+        return a == null || a.getAccountType() == null ? FinanceConstants.PAY_UNDECIDED : a.getAccountType();
     }
 
     private String supplierName(Long id) {

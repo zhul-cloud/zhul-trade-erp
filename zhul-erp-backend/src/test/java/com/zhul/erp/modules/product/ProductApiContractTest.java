@@ -128,6 +128,49 @@ class ProductApiContractTest extends IntegrationTestBase {
         assertEquals(10, record.path("completeness").path("total").asInt());
     }
 
+    /** openspec product-list-media-code：完整度在全部商品范围排序，有图片（已设主图）/ 有视频筛选，列表带主图地址 */
+    @Test
+    void completenessSort_acrossPages_hasImageHasVideo_mainImageUrl() throws Exception {
+        loginAsAdmin("contract_admin");
+        String admin = token("contract_admin", 0);
+        long full = createBrandAndCategoryAndProduct(admin);
+        long brand = jdbc.queryForObject("select id from product_brand", Long.class);
+        long category = jdbc.queryForObject("select id from product_category", Long.class);
+        long bare = call(json(post(BASE + "/products"), "{\"brandId\":" + brand + ",\"categoryId\":" + category
+                + ",\"mpnRaw\":\"BARE-1\"}"), admin).path("data").path("id").asLong();
+        long video = call(json(post(BASE + "/products"), "{\"brandId\":" + brand + ",\"categoryId\":" + category
+                + ",\"mpnRaw\":\"VIDEO-1\"}"), admin).path("data").path("id").asLong();
+        jdbc.update("insert into product_media (tenant_id, product_id, media_type, file_url, is_main) values (0, ?, 1, '/img/main.png', 1), "
+                + "(0, ?, 1, '/img/not-main.png', 0), (0, ?, 2, '/video/demo.mp4', 0)", full, video, video);
+        jdbc.update("insert into product_customs (tenant_id, product_id, hs_code) values (0, ?, '8537101190')", full);
+        jdbc.update("insert into product_logistics (tenant_id, product_id, net_weight_kg) values (0, ?, 0.5)", video);
+
+        List<Long> asc = new java.util.ArrayList<>();
+        for (int page = 1; page <= 2; page++) {
+            call(get(BASE + "/products").param("sort", "completenessAsc").param("page", String.valueOf(page)).param("pageSize", "2"), admin)
+                    .path("data").path("records").forEach(r -> asc.add(r.path("id").asLong()));
+        }
+        assertEquals(List.of(bare, video, full), asc, "完整度 1、2、3 跨页从低到高");
+        JsonNode desc = call(get(BASE + "/products").param("sort", "completenessDesc").param("pageSize", "1"), admin)
+                .path("data").path("records").get(0);
+        assertEquals(full, desc.path("id").asLong());
+        assertEquals(3, desc.path("completeness").path("done").asInt(), "排序依据与返回的完整度一致");
+        assertEquals("/img/main.png", desc.path("mainImageUrl").asText());
+
+        JsonNode withImage = call(get(BASE + "/products").param("hasImage", "true"), admin).path("data");
+        assertEquals(1, withImage.path("total").asInt(), "只有图片、没设主图的不算有图片");
+        assertEquals(full, withImage.path("records").get(0).path("id").asLong());
+        int missing = call(get(BASE + "/products").param("missing", "media"), admin).path("data").path("total").asInt();
+        assertEquals(3, withImage.path("total").asInt() + missing, "有图片与缺图片互补");
+        JsonNode withVideo = call(get(BASE + "/products").param("hasVideo", "true"), admin).path("data");
+        assertEquals(1, withVideo.path("total").asInt());
+        assertEquals(video, withVideo.path("records").get(0).path("id").asLong());
+        assertTrue(withVideo.path("records").get(0).path("mainImageUrl").isNull()
+                || withVideo.path("records").get(0).path("mainImageUrl").isMissingNode());
+        assertEquals(0, call(get(BASE + "/products").param("hasVideo", "true").param("missing", "logistics"), admin)
+                .path("data").path("total").asInt(), "可与缺项筛选组合");
+    }
+
     @Test
     void errorResponsesUseNumericCodeMessageAndErrorCodeInData() throws Exception {
         loginAsAdmin("contract_admin");

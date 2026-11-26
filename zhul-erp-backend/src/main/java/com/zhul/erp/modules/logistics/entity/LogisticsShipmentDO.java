@@ -24,6 +24,8 @@ public class LogisticsShipmentDO {
     private Long forwarderId;
     /** 是否交客户指定货代（0-否、1-是），新建与登记出运时按货代归属记快照 */
     private Integer customerForwarder;
+    /** 是否上门取件（0-否、1-是），登记出运时按货代的交接方式记快照 */
+    private Integer pickup;
     private Long ownerId;
     /** 1-待出运、2-已出运、3-已作废 */
     private Integer status;

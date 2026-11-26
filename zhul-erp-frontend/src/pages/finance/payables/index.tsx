@@ -22,6 +22,7 @@ import {
   RefundModal,
   RegisterPaymentDrawer,
 } from './components';
+import { PAY_METHOD, PayMethodTag } from './payMethod';
 import {
   PAY_STATUS,
   PAYEE,
@@ -41,6 +42,7 @@ const num: React.CSSProperties = {
 interface Filters {
   keyword: string;
   payeeType?: number;
+  payMethod?: number;
   status?: number;
   due?: string;
   currencyCode?: string;
@@ -95,6 +97,7 @@ const PayableManagement: React.FC = () => {
         pageSize,
         keyword: filters.keyword.trim() || undefined,
         payeeType: filters.payeeType,
+        payMethod: filters.payMethod,
         status: filters.status,
         due: filters.due,
         currencyCode: filters.currencyCode,
@@ -208,6 +211,12 @@ const PayableManagement: React.FC = () => {
           <PayeeTypePill type={r.payeeType} />
         </div>
       ),
+    },
+    {
+      title: '付款方式',
+      dataIndex: 'payMethod',
+      width: 96,
+      render: (v?: number) => <PayMethodTag value={v} />,
     },
     {
       title: '来源单号',
@@ -413,6 +422,18 @@ const PayableManagement: React.FC = () => {
               { value: PAYEE.SUPPLIER, label: '供应商' },
               { value: PAYEE.SHOP, label: '线上店铺' },
               { value: PAYEE.FORWARDER, label: '货代' },
+            ]}
+          />
+          <Select
+            allowClear
+            placeholder="付款方式"
+            style={{ width: 120 }}
+            value={draft.payMethod}
+            onChange={(v) => apply({ payMethod: v })}
+            options={[
+              { value: PAY_METHOD.PUBLIC, label: '对公' },
+              { value: PAY_METHOD.PRIVATE, label: '对私' },
+              { value: PAY_METHOD.UNDECIDED, label: '未定' },
             ]}
           />
           <Select

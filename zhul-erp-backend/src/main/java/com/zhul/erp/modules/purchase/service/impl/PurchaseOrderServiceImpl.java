@@ -454,6 +454,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         vo.setCurrencyCode(p.getCurrencyCode());
         vo.setExchangeRate(p.getExchangeRate());
         vo.setInvoiceRequired(Objects.equals(p.getInvoiceRequired(), 1));
+        vo.setPayMethod(p.getPayMethod());
         vo.setTaxPoint(p.getTaxPoint());
         vo.setInvoiceAmount(p.getInvoiceAmount());
         vo.setInvoiceAmountEffective(Objects.equals(p.getInvoiceRequired(), 1)
@@ -631,6 +632,12 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             p.setExchangeRate(rate);
         }
         applyInvoice(p, req);
+        // 付款方式由页面按开票带出、采购员可改；没传时保留原值（旧数据为空时按开票带出）
+        if (req.getPayMethod() != null) {
+            p.setPayMethod(req.getPayMethod());
+        } else if (p.getPayMethod() == null) {
+            p.setPayMethod(PurchaseConstants.defaultPayMethod(p.getChannel(), Objects.equals(p.getInvoiceRequired(), 1)));
+        }
         List<PaymentTermDTO> terms = PaymentTerms.normalize(req.getPaymentTerms());
         p.setPaymentTerms(PaymentTerms.toJson(terms));
         p.setContractNo(req.getContractNo() == null ? "" : req.getContractNo().trim());
@@ -815,7 +822,8 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     }
 
     /** 单头中需要记日志的字段 */
-    private record Snapshot(String currency, String tax, String terms, String contractNo, String contractAmount) {
+    private record Snapshot(String currency, String tax, String payMethod, String terms, String contractNo,
+                            String contractAmount) {
         List<String> diff(Snapshot o) {
             List<String> out = new ArrayList<>();
             if (!currency.equals(o.currency)) {
@@ -823,6 +831,9 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             }
             if (!tax.equals(o.tax)) {
                 out.add(tax + " → " + o.tax);
+            }
+            if (!payMethod.equals(o.payMethod)) {
+                out.add("付款方式：" + payMethod + " → " + o.payMethod);
             }
             if (!terms.equals(o.terms)) {
                 out.add("付款条件 " + (terms.isEmpty() ? "未填" : terms) + " → " + (o.terms.isEmpty() ? "未填" : o.terms));
@@ -842,7 +853,9 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 ? "开票 " + p.getTaxPoint().stripTrailingZeros().toPlainString() + "%（开票金额 "
                 + (p.getInvoiceAmount() == null ? "按货款" : p.getInvoiceAmount().toPlainString()) + "）"
                 : "不开票";
-        return new Snapshot(p.getCurrencyCode(), tax, PaymentTerms.text(PaymentTerms.fromJson(p.getPaymentTerms())),
+        return new Snapshot(p.getCurrencyCode(), tax,
+                PurchaseConstants.PAY_METHOD_NAMES.getOrDefault(p.getPayMethod(), "未定"),
+                PaymentTerms.text(PaymentTerms.fromJson(p.getPaymentTerms())),
                 Objects.requireNonNullElse(p.getContractNo(), ""),
                 p.getContractAmount() == null ? "无" : p.getContractAmount().toPlainString());
     }

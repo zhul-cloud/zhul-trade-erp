@@ -18,13 +18,16 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { ObStatusPill } from '@/pages/logistics/components';
 import {
   type Forwarder,
   forwarderApi,
+  HANDOVER,
   type NoticeForm,
   type Outbound,
   outboundApi,
+  pickupText,
   readBizError,
 } from '@/pages/logistics/service';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -51,6 +54,7 @@ export const ShipNoticeModal: React.FC<{
   const [forwarders, setForwarders] = useState<Forwarder[]>([]);
   const [error, setError] = useState<string>();
   const [forwarderId, setForwarderId] = useState<number>();
+  const chosenForwarder = forwarders.find((f) => f.id === forwarderId);
   const [note, setNote] = useState('');
   const [lines, setLines] = useState<Record<number, Line>>({});
   const [busy, setBusy] = useState(false);
@@ -232,7 +236,13 @@ export const ShipNoticeModal: React.FC<{
                         label: '客户指定',
                         options: forwarders
                           .filter((f) => f.customerOwned)
-                          .map((f) => ({ value: f.id, label: f.name })),
+                          .map((f) => ({
+                            value: f.id,
+                            label:
+                              f.handoverMode === HANDOVER.PICKUP
+                                ? `${f.name}（上门取件）`
+                                : f.name,
+                          })),
                       },
                       {
                         label: '公司货代',
@@ -249,6 +259,26 @@ export const ShipNoticeModal: React.FC<{
               style={{ width: '100%' }}
               aria-label="货代"
             />
+            {chosenForwarder?.handoverMode === HANDOVER.PICKUP && (
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 8,
+                  alignItems: 'center',
+                  marginTop: 6,
+                  fontSize: 12,
+                  color: palette.mute,
+                }}
+              >
+                <Pill tone="violet">
+                  {pickupText(
+                    chosenForwarder.courierCarrier,
+                    chosenForwarder.courierAccount,
+                  )}
+                </Pill>
+                打包后等快递上门取件
+              </div>
+            )}
           </div>
           {section(
             <InboxOutlined />,

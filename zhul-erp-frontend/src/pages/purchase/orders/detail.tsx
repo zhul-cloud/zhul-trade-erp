@@ -48,6 +48,11 @@ import {
   PayablePanel,
   ProofLinks,
 } from '@/pages/finance/payables/components';
+import {
+  defaultPayMethod,
+  PAY_METHOD,
+  PayMethodTag,
+} from '@/pages/finance/payables/payMethod';
 import { SOURCE } from '@/pages/finance/payables/service';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { CURRENCIES } from '@/pages/quotation/components';
@@ -111,6 +116,9 @@ import ShipmentDrawer from '../shipments/ShipmentDrawer';
 interface Draft {
   currencyCode: string;
   invoiceRequired: boolean;
+  /** 付款方式（1-对公、2-对私）；payMethodTouched 为采购员手动改过，之后切换开票不再跟着变 */
+  payMethod: number;
+  payMethodTouched: boolean;
   taxPoint: number;
   /** 填写的开票金额；为空按货款合计 */
   invoiceAmount: number | null;
@@ -141,6 +149,10 @@ const toDraft = (po: PurchaseOrder): Draft => {
   return {
     currencyCode: po.currencyCode,
     invoiceRequired: po.invoiceRequired,
+    payMethod: po.payMethod ?? defaultPayMethod(!!po.shop, po.invoiceRequired),
+    payMethodTouched:
+      po.payMethod != null &&
+      po.payMethod !== defaultPayMethod(!!po.shop, po.invoiceRequired),
     taxPoint: Number(po.taxPoint ?? 0),
     invoiceAmount: po.invoiceAmount == null ? null : Number(po.invoiceAmount),
     expectedInvoiceDate: po.expectedInvoiceDate ?? null,
@@ -166,6 +178,7 @@ const toDraft = (po: PurchaseOrder): Draft => {
 const toBody = (po: PurchaseOrder, d: Draft): SavePoBody => ({
   currencyCode: d.currencyCode,
   invoiceRequired: d.invoiceRequired,
+  payMethod: d.payMethod,
   taxPoint: d.invoiceRequired ? d.taxPoint : 0,
   invoiceAmount: d.invoiceRequired ? d.invoiceAmount : null,
   expectedInvoiceDate: d.invoiceRequired ? d.expectedInvoiceDate : null,
@@ -326,7 +339,16 @@ const PurchaseOrderDetail: React.FC = () => {
         'invoiceRequired' | 'taxPoint' | 'invoiceAmount' | 'expectedInvoiceDate'
       >
     >,
-  ) => setDraft((d) => (d ? { ...d, ...patch } : d));
+  ) =>
+    setDraft((d) => {
+      if (!d) return d;
+      const next = { ...d, ...patch };
+      // 付款方式还是系统带出的值时跟着开票变（openspec payable-payment-method）
+      if (patch.invoiceRequired !== undefined && !d.payMethodTouched && po) {
+        next.payMethod = defaultPayMethod(!!po.shop, patch.invoiceRequired);
+      }
+      return next;
+    });
 
   const save = async (quiet = false) => {
     setSaving(true);
@@ -614,6 +636,7 @@ const PurchaseOrderDetail: React.FC = () => {
           >
             {title}
             {po.shop && <Pill tone="orange">线上店铺</Pill>}
+            {po.payMethod != null && <PayMethodTag value={po.payMethod} />}
             <MigratedPill migrated={po.migrated} />
             <PoStatusPill status={po.status} />
             <ShipProgressPill
@@ -879,6 +902,26 @@ const PurchaseOrderDetail: React.FC = () => {
                 ]}
                 onChange={(v) => setInvoice({ invoiceRequired: v === 'yes' })}
               />
+            </div>
+            <div>
+              <div
+                style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}
+              >
+                付款方式
+              </div>
+              <Segmented<number>
+                value={draft.payMethod}
+                options={[
+                  { label: '对公', value: PAY_METHOD.PUBLIC },
+                  { label: '对私', value: PAY_METHOD.PRIVATE },
+                ]}
+                onChange={(v) =>
+                  setDraft((d) =>
+                    d ? { ...d, payMethod: v, payMethodTouched: true } : d,
+                  )
+                }
+              />
+              {sub(palette.mute, '开票默认对公、不开票默认对私，可以改')}
             </div>
             {draft.invoiceRequired && (
               <>
