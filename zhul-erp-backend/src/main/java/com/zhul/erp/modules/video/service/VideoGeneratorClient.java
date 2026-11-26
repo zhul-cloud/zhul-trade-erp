@@ -41,7 +41,11 @@ public class VideoGeneratorClient {
     public record Shot(int image, String caption, double seconds) {
     }
 
-    private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+    /** 固定 HTTP/1.1：默认 HTTP/2 对明文地址会先发 h2c 升级，uvicorn 处理升级请求时读不到请求体 */
+    private final HttpClient http = HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_1_1)
+            .connectTimeout(Duration.ofSeconds(5))
+            .build();
     private final ObjectMapper objectMapper;
     private final String baseUrl;
     private final String token;

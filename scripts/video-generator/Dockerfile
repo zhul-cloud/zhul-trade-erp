@@ -10,8 +10,10 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /MoneyPrinterTurbo
-RUN curl -fsSL --retry 3 "https://github.com/harry0703/MoneyPrinterTurbo/archive/refs/tags/${MPT_VERSION}.tar.gz" \
-        | tar xz --strip-components=1 \
+# 先下载到文件再解压：管道里断流无法重试；-C - 让重试从断点续传
+RUN curl -fsSL --retry 5 --retry-all-errors -C - -o /tmp/mpt.tar.gz \
+        "https://github.com/harry0703/MoneyPrinterTurbo/archive/refs/tags/${MPT_VERSION}.tar.gz" \
+    && tar xzf /tmp/mpt.tar.gz --strip-components=1 && rm /tmp/mpt.tar.gz \
     && cp config.example.toml config.toml \
     && pip install --no-cache-dir -r requirements.txt
 
