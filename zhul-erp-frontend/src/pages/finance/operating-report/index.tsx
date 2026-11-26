@@ -84,6 +84,8 @@ const OperatingReportPage: React.FC = () => {
       `${path}?dateFrom=${dateFrom}&dateTo=${dateTo}${extra}${unitParam}`,
     );
   };
+  /** 表格里金额为 0 一律写灰色「—」（同一张表统一，会计报表写法；汇总行的大数字照常写 0，复审 P16） */
+  const dash = <span style={{ color: palette.mute }}>—</span>;
   const link = (
     value: number,
     onClick: () => void,
@@ -104,7 +106,7 @@ const OperatingReportPage: React.FC = () => {
         {cny(value)}
       </button>
     ) : (
-      <span style={{ color: palette.mute }}>—</span>
+      dash
     );
 
   const columns: TableColumnsType<OperatingRow> = [
@@ -137,7 +139,7 @@ const OperatingReportPage: React.FC = () => {
       dataIndex: 'cost',
       width: 140,
       align: 'right',
-      render: (v: number) => <span style={num}>{cny(v)}</span>,
+      render: (v: number) => (v ? <span style={num}>{cny(v)}</span> : dash),
     },
     {
       title: '销售毛利',
@@ -235,16 +237,15 @@ const OperatingReportPage: React.FC = () => {
       dataIndex: 'opexTotal',
       width: 130,
       align: 'right',
-      render: (v: number) => <b style={num}>{cny(v)}</b>,
+      render: (v: number) => (v ? <b style={num}>{cny(v)}</b> : dash),
     },
     {
       title: '预计盈亏',
       dataIndex: 'net',
       width: 140,
       align: 'right',
-      render: (v: number) => (
-        <b style={{ ...num, color: deltaOf(v) }}>{cny(v)}</b>
-      ),
+      render: (v: number) =>
+        v ? <b style={{ ...num, color: deltaOf(v) }}>{cny(v)}</b> : dash,
     },
     {
       title: '净利率',
