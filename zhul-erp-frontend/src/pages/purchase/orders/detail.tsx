@@ -42,7 +42,7 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
-import { CustomerCell } from '@/components/DocFields';
+import { CountryText } from '@/components/CountryText';
 import {
   CandidateTag,
   DocDescription,
@@ -446,37 +446,11 @@ const PurchaseOrderDetail: React.FC = () => {
       ),
     },
     {
-      title: '描述',
-      key: 'description',
-      width: 240,
-      render: (_, r) => <DocDescription text={r.description} />,
-    },
-    {
-      title: '来源单号',
-      dataIndex: 'soNo',
-      width: 160,
-      render: (v: string, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => history.push(PATHS.salesOrder(r.soId))}
-        >
-          {v}
-        </button>
-      ),
-    },
-    {
-      title: '客户',
-      key: 'customer',
-      width: 200,
-      render: (_, r) => (
-        <CustomerCell name={r.customerName} country={r.customerCountry} />
-      ),
-    },
-    {
       title: '数量',
       dataIndex: 'quantity',
       width: 100,
+      // 数字右对齐（S12）；编辑时是输入框，左对齐
+      align: editable ? undefined : 'right',
       render: (v: number, r) =>
         editable ? (
           <div>
@@ -500,52 +474,11 @@ const PurchaseOrderDetail: React.FC = () => {
           v
         ),
     },
-    ...(isDraft
-      ? []
-      : [
-          {
-            title: '已发',
-            dataIndex: 'shippedQty',
-            width: 80,
-            render: (v: number, r: PoItem) => (
-              <span
-                style={{ color: v >= r.quantity ? palette.ink : palette.sub }}
-              >
-                {v}
-              </span>
-            ),
-          },
-          {
-            title: '已入库（合格）',
-            dataIndex: 'receivedQty',
-            width: 120,
-            render: (v: number, r: PoItem) => (
-              <span
-                style={{
-                  color: v >= r.quantity && v > 0 ? palette.green : palette.sub,
-                }}
-              >
-                {v}
-              </span>
-            ),
-          },
-        ]),
-    {
-      title: '目标价',
-      dataIndex: 'targetPrice',
-      width: 110,
-      align: 'right',
-      render: (v?: number | null) =>
-        v == null ? (
-          <span style={{ fontSize: 12, color: palette.mute }}>没有目标价</span>
-        ) : (
-          formatAmount(v, 'CNY')
-        ),
-    },
     {
       title: `单价（${draft.currencyCode}）`,
       dataIndex: 'unitPrice',
       width: 160,
+      align: editable ? undefined : 'right',
       render: (v: number | null | undefined, r) =>
         editable ? (
           <InputNumber
@@ -566,20 +499,38 @@ const PurchaseOrderDetail: React.FC = () => {
           <b>{formatAmount(v, po.currencyCode)}</b>
         ),
     },
+    // 人民币计价时与单价相同，不显示（复审 P18）
+    ...(draft.currencyCode === 'CNY'
+      ? []
+      : [
+          {
+            title: '人民币单价',
+            key: 'net',
+            width: 120,
+            align: 'right' as const,
+            render: (_: unknown, r: PoItem) => {
+              const n = preview.lines.get(r.id)?.net;
+              return n == null ? '—' : formatAmount(n, 'CNY');
+            },
+          },
+        ]),
     {
-      title: '人民币单价',
-      key: 'net',
-      width: 120,
+      title: '目标价',
+      dataIndex: 'targetPrice',
+      width: 110,
       align: 'right',
-      render: (_, r) => {
-        const n = preview.lines.get(r.id)?.net;
-        return n == null ? '—' : formatAmount(n, 'CNY');
-      },
+      render: (v?: number | null) =>
+        v == null ? (
+          <span style={{ fontSize: 12, color: palette.mute }}>没有目标价</span>
+        ) : (
+          formatAmount(v, 'CNY')
+        ),
     },
     {
       title: '砍价',
       key: 'bargain',
       width: 130,
+      align: 'right',
       render: (_, r) => {
         const b = preview.lines.get(r.id)?.bargain;
         const qty = draft.items[r.id]?.quantity ?? r.quantity;
@@ -598,6 +549,79 @@ const PurchaseOrderDetail: React.FC = () => {
           />
         );
       },
+    },
+    ...(isDraft
+      ? []
+      : [
+          {
+            title: '已发',
+            dataIndex: 'shippedQty',
+            width: 80,
+            align: 'right' as const,
+            render: (v: number, r: PoItem) => (
+              <span
+                style={{ color: v >= r.quantity ? palette.ink : palette.sub }}
+              >
+                {v}
+              </span>
+            ),
+          },
+          {
+            title: '已入库（合格）',
+            dataIndex: 'receivedQty',
+            width: 120,
+            align: 'right' as const,
+            render: (v: number, r: PoItem) => (
+              <span
+                style={{
+                  color: v >= r.quantity && v > 0 ? palette.green : palette.sub,
+                }}
+              >
+                {v}
+              </span>
+            ),
+          },
+        ]),
+    {
+      // 来源单号与客户成对出现，合成两行一列（复审 P18、R26 方案 B）
+      title: '来源单号 · 客户',
+      dataIndex: 'soNo',
+      width: 200,
+      render: (v: string, r) => (
+        <div style={{ minWidth: 0 }}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(PATHS.salesOrder(r.soId))}
+          >
+            {v}
+          </button>
+          <div
+            title={r.customerName}
+            style={{
+              fontSize: 12,
+              color: palette.mute,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {r.customerName ?? '—'}
+            {r.customerCountry && (
+              <>
+                {' · '}
+                <CountryText value={r.customerCountry} />
+              </>
+            )}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: '描述',
+      key: 'description',
+      width: 240,
+      render: (_, r) => <DocDescription text={r.description} />,
     },
     ...(isDraft && editable
       ? [
@@ -1792,11 +1816,12 @@ const ShipmentsCard: React.FC<{
     const db = b.kind === 'ship' ? b.ref.shipDate : b.ref.receivedDate;
     return (db ?? '').localeCompare(da ?? '') || b.key.localeCompare(a.key);
   });
+  // 列宽按内容收窄，1366 宽下操作列不被挤出（合计 1016，复审 P18）
   const columns: TableColumnsType<FlowRow> = [
     {
       title: '单据',
       key: 'no',
-      width: 170,
+      width: 150,
       render: (_, r) =>
         r.kind === 'ship' ? (
           <Link to={DOC_PATHS.shipment(r.ref.id)}>{r.ref.sdNo}</Link>
@@ -1807,7 +1832,7 @@ const ShipmentsCard: React.FC<{
     {
       title: '类型',
       key: 'kind',
-      width: 120,
+      width: 100,
       render: (_, r) =>
         r.kind === 'ship' ? (
           <Pill tone="gray">{r.ref.sourceName}</Pill>
@@ -1818,7 +1843,7 @@ const ShipmentsCard: React.FC<{
     {
       title: '快递 · 单号',
       key: 'tracking',
-      width: 220,
+      width: 170,
       render: (_, r) =>
         r.kind === 'ship'
           ? trackingText(r.ref.carrier, r.ref.trackingNo)
@@ -1827,14 +1852,14 @@ const ShipmentsCard: React.FC<{
     {
       title: '日期',
       key: 'date',
-      width: 120,
+      width: 110,
       render: (_, r) =>
         (r.kind === 'ship' ? r.ref.shipDate : r.ref.receivedDate) ?? '—',
     },
     {
       title: '预计到货',
       key: 'eta',
-      width: 130,
+      width: 120,
       render: (_, r) =>
         r.kind === 'ship' && r.ref.expectedArrivalDate ? (
           <div>
@@ -1853,7 +1878,7 @@ const ShipmentsCard: React.FC<{
     {
       title: '数量',
       key: 'qty',
-      width: 180,
+      width: 130,
       render: (_, r) =>
         r.kind === 'ship'
           ? `发货 ${r.ref.totalQuantity}`

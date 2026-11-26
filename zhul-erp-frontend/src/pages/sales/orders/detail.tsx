@@ -750,12 +750,6 @@ const OrderDetail: React.FC = () => {
       ),
     },
     {
-      title: '描述',
-      key: 'description',
-      width: 260,
-      render: (_, r) => <DocDescription text={r.description} />,
-    },
-    {
       title: '数量',
       dataIndex: 'quantity',
       width: 130,
@@ -796,22 +790,21 @@ const OrderDetail: React.FC = () => {
       render: (_, r) => <b style={num}>{formatMoney(r.amount)}</b>,
     },
     {
-      title: '现货 / 期货',
-      dataIndex: 'stockType',
-      width: 100,
-      render: (v: number) => <StockPill type={v} />,
-    },
-    {
-      title: '采购员',
-      dataIndex: 'purchaserName',
-      width: 110,
-      render: (v: string | null | undefined, r) =>
+      title: '进度',
+      dataIndex: 'progressCode',
+      width: 120,
+      render: (v: string, r) =>
         r.quantity === 0 ? (
-          <span style={{ color: palette.mute }}>—</span>
-        ) : r.purchaserNames?.length ? (
-          <EllipsisText text={r.purchaserNames.join('、')} />
+          <span style={{ fontSize: 12, color: palette.mute }}>不再跟进</span>
         ) : (
-          (v ?? <span style={{ color: palette.orange }}>未指定</span>)
+          <div>
+            {completed ? (
+              <ProgressPill code="COMPLETED" name={o.progressName} />
+            ) : (
+              <ProgressPill code={v} name={r.progressName} />
+            )}
+            <NotNeededNote qty={r.notNeededQty} reasons={r.notNeededReasons} />
+          </div>
         ),
     },
     {
@@ -898,6 +891,25 @@ const OrderDetail: React.FC = () => {
       },
     },
     {
+      title: '现货 / 期货',
+      dataIndex: 'stockType',
+      width: 100,
+      render: (v: number) => <StockPill type={v} />,
+    },
+    {
+      title: '采购员',
+      dataIndex: 'purchaserName',
+      width: 110,
+      render: (v: string | null | undefined, r) =>
+        r.quantity === 0 ? (
+          <span style={{ color: palette.mute }}>—</span>
+        ) : r.purchaserNames?.length ? (
+          <EllipsisText text={r.purchaserNames.join('、')} />
+        ) : (
+          (v ?? <span style={{ color: palette.orange }}>未指定</span>)
+        ),
+    },
+    {
       title: '采购订单 · 发货单',
       key: 'docs',
       width: 190,
@@ -928,22 +940,10 @@ const OrderDetail: React.FC = () => {
         ),
     },
     {
-      title: '进度',
-      dataIndex: 'progressCode',
-      width: 120,
-      render: (v: string, r) =>
-        r.quantity === 0 ? (
-          <span style={{ fontSize: 12, color: palette.mute }}>不再跟进</span>
-        ) : (
-          <div>
-            {completed ? (
-              <ProgressPill code="COMPLETED" name={o.progressName} />
-            ) : (
-              <ProgressPill code={v} name={r.progressName} />
-            )}
-            <NotNeededNote qty={r.notNeededQty} reasons={r.notNeededReasons} />
-          </div>
-        ),
+      title: '描述',
+      key: 'description',
+      width: 260,
+      render: (_, r) => <DocDescription text={r.description} />,
     },
   ];
 
