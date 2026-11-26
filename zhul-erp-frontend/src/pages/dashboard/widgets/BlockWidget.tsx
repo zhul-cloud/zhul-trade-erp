@@ -120,7 +120,8 @@ type Format = 'money' | 'percent' | 'count';
 
 /** 待办图标（后端给图标键）：统一 lucide，18px 放在 38 的底块里 */
 const ICON_SIZE = 18;
-const ICONS: Record<string, React.ReactNode> = {
+/** 待办图标（后端 W.todo 下发的名称）；后端新用的名称要在这里补上，见 iconContract.test.ts */
+export const ICONS: Record<string, React.ReactNode> = {
   inbox: <Inbox size={ICON_SIZE} />,
   'file-text': <FileText size={ICON_SIZE} />,
   'file-done': <FileCheck size={ICON_SIZE} />,
@@ -613,8 +614,8 @@ const Funnel: React.FC<{ steps: NonNullable<Block['steps']> }> = ({
   );
 };
 
-/** 数字卡图标（后端随指标下发 lucide 名称，同待办的 icon）；没有时按格式给默认 */
-const CARD_ICONS: Record<string, React.ElementType> = {
+/** 数字卡图标（后端随指标下发 lucide 名称，同待办的 icon）；没有时按格式给默认。后端新用的名称要在这里补上，见 iconContract.test.ts */
+export const CARD_ICONS: Record<string, React.ElementType> = {
   handshake: Handshake,
   'shopping-bag': ShoppingBag,
   coins: Coins,
@@ -631,7 +632,7 @@ const CARD_ICONS: Record<string, React.ElementType> = {
   inbox: Inbox,
   'file-text': FileText,
 };
-const FAMILIES: MetricFamily[] = ['blue', 'purple', 'cyan', 'gray'];
+export const FAMILIES: MetricFamily[] = ['blue', 'purple', 'cyan', 'gray'];
 const metricMeta = (m: MetricData): [React.ElementType, MetricFamily] => {
   const byFormat: [React.ElementType, MetricFamily] =
     m.format === 'money'

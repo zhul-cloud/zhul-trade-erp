@@ -2,7 +2,7 @@ import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Segmented, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { CircleCheck, CircleX, Trophy, UserPlus } from 'lucide-react';
+import { BadgeCheck, CircleX, Trophy, UserPlus } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { MetricGrid } from '@/components/MetricCard';
@@ -14,10 +14,9 @@ import {
   readBizError,
   type StatRow,
 } from '@/pages/crm/opportunity/service';
-import { Stat } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DeltaText } from '@/theme/delta';
-import { MoreLink, WidgetCard } from './widgets/WidgetCard';
+import { Metric, MoreLink, WidgetCard } from './widgets/WidgetCard';
 
 export type CardPreset = 'today' | 'week' | 'month';
 
@@ -106,7 +105,8 @@ const OpportunityCard: React.FC = () => {
       width: 90,
       align: 'right',
       render: (v: number) => (
-        <span style={{ ...num, color: v ? palette.green : palette.mute }}>
+        // 不按好坏上色（同商机统计，复审 P1、P2）
+        <span style={{ ...num, color: v ? palette.ink : palette.mute }}>
           {v}
         </span>
       ),
@@ -147,10 +147,9 @@ const OpportunityCard: React.FC = () => {
       {data && sum && (
         <>
           <MetricGrid cols={4} min={180} gap={12} style={{ marginBottom: 16 }}>
-            <Stat
+            {/* 图标块按指标家族着色（D2），与后端商机数字卡同为蓝色家族；不用主题色、状态色（D47、D58） */}
+            <Metric
               icon={<UserPlus size="1em" />}
-              color={palette.link}
-              soft={palette.primarySoft}
               label="新增"
               value={sum.total}
               hint={
@@ -163,26 +162,20 @@ const OpportunityCard: React.FC = () => {
                 )
               }
             />
-            <Stat
-              icon={<CircleCheck size="1em" />}
-              color={palette.green}
-              soft={palette.greenSoft}
+            <Metric
+              icon={<BadgeCheck size="1em" />}
               label="有效"
               value={sum.valid}
               hint={`有效率 ${rate(sum.valid, sum.total)}`}
             />
-            <Stat
+            <Metric
               icon={<Trophy size="1em" />}
-              color={palette.orange}
-              soft={palette.orangeSoft}
               label="赢单"
               value={sum.won}
               hint={`输单 ${sum.lost}`}
             />
-            <Stat
+            <Metric
               icon={<CircleX size="1em" />}
-              color={palette.mute}
-              soft={palette.inset}
               label="无效"
               value={sum.invalid}
               hint={
