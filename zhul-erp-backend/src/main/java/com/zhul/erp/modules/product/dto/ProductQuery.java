@@ -21,6 +21,13 @@ public class ProductQuery extends PageQuery {
     private String refineState;
     /** 只看本租户维护的商品（租户账号有效，平台账号忽略） */
     private Boolean mine;
-    /** 按热度排序（倒序）：inquiryCount-询盘次数、dealCount-成交次数；不传按更新时间倒序 */
+    /**
+     * 排序：inquiryCount-询盘次数、dealCount-成交次数（倒序）；completenessAsc、completenessDesc-按完整度升序、降序
+     * （同分按更新时间倒序）；不传按更新时间倒序
+     */
     private String sort;
+    /** 只看有图片的（已设主图，与「缺图片」互补） */
+    private Boolean hasImage;
+    /** 只看有视频的（至少一个视频） */
+    private Boolean hasVideo;
 }

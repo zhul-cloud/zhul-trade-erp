@@ -391,6 +391,8 @@ export interface Product {
   usageCount?: number;
   warnings?: string[];
   completeness?: Completeness;
+  /** 列表：主图地址，没有主图为空（openspec product-list-media-code） */
+  mainImageUrl?: string | null;
   /** 所属租户（0-平台） */
   ownerTenantId?: number;
   /** 当前账号能否修改（平台账号、或商品属于本租户；不含按钮权限） */
@@ -442,7 +444,13 @@ export interface ProductQuery extends PageParams {
   /** missing 为 refine（品类未细分）时的建议状态 */
   refineState?: RefineState;
   /** 按热度倒序：inquiryCount / dealCount */
+  /**
+   * 排序：inquiryCount、dealCount（倒序）；completenessAsc、completenessDesc（按完整度，全部商品范围）
+   */
   sort?: string;
+  /** 只看有图片（已设主图）、有视频的 */
+  hasImage?: boolean;
+  hasVideo?: boolean;
 }
 
 export interface ProductOption {

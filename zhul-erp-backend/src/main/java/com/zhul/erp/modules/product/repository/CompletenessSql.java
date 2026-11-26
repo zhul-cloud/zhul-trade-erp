@@ -41,4 +41,25 @@ public final class CompletenessSql {
 
     public static final String MISSING_PRICE = "SELECT 1 FROM product_reference_price r WHERE r.product_id = product.id "
             + "AND r.deleted_at IS NULL";
+
+    // ---- 按完整度排序与有视频筛选（openspec product-list-media-code）：外层是 product 表 ----
+
+    /** 有视频：至少一个未删除的视频 */
+    public static final String HAS_VIDEO = "SELECT 1 FROM product_media v WHERE v.product_id = product.id "
+            + "AND v.deleted_at IS NULL AND v.media_type = 2";
+
+    /**
+     * 完整度（已完成的模块数，0–10），各模块条件与 ProductCompletenessMapper、缺项筛选一致：
+     * 基本信息按商品自身字段，其余 9 个模块各一个 EXISTS。
+     */
+    public static final String SCORE = "((CASE WHEN product.brand_id > 0 AND product.category_id > 0 AND product.mpn_raw <> '' THEN 1 ELSE 0 END)"
+            + " + EXISTS(" + MISSING_MEDIA + ")"
+            + " + EXISTS(SELECT 1 FROM product_specification s WHERE s.product_id = product.id AND s.deleted_at IS NULL AND s.lang = 'zh')"
+            + " + EXISTS(" + MISSING_LOGISTICS + ")"
+            + " + EXISTS(" + MISSING_CUSTOMS + ")"
+            + " + EXISTS(" + MISSING_PRICE + ")"
+            + " + EXISTS(SELECT 1 FROM product_relationship rl WHERE rl.product_id = product.id AND rl.deleted_at IS NULL)"
+            + " + EXISTS(SELECT 1 FROM product_document d WHERE d.product_id = product.id AND d.deleted_at IS NULL)"
+            + " + EXISTS(SELECT 1 FROM product_application a WHERE a.product_id = product.id AND a.deleted_at IS NULL AND a.lang = 'zh')"
+            + " + EXISTS(SELECT 1 FROM product_faq f WHERE f.product_id = product.id AND f.deleted_at IS NULL AND f." + FAQ_DONE + "))";
 }
