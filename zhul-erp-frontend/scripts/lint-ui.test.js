@@ -349,4 +349,27 @@ describe('lint:ui 复审补充', () => {
       ),
     ).toEqual([]);
   });
+  it('页面级页签用 ViewTabs，范围切换用 ScopeSwitch（复审 S3）', () => {
+    expect(rules('<Tabs activeKey={tab} items={items} />')).toContain(
+      'page-tabs:error',
+    );
+    // 组件目录（ViewTabs 本身）不报
+    expect(rules('<Tabs activeKey={tab} items={items} />', COMP)).not.toContain(
+      'page-tabs:error',
+    );
+    expect(
+      rules(
+        '// lint-ui-ignore page-tabs: 卡片内分区\n<Tabs activeKey={tab} items={items} />',
+      ),
+    ).not.toContain('page-tabs:error');
+    expect(rules("const o = [{ value: 'mine', label: '我的' }];")).toContain(
+      'scope-switch:error',
+    );
+    expect(rules("const o = [{ value: 'all', label: '全部人员' }];")).toContain(
+      'scope-switch:error',
+    );
+    expect(rules("const o = [{ key: 'mine', label: '我的' }];")).not.toContain(
+      'scope-switch:error',
+    );
+  });
 });

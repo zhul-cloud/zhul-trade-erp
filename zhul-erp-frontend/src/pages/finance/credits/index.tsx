@@ -1,15 +1,6 @@
 import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import {
-  App,
-  Button,
-  DatePicker,
-  Form,
-  Input,
-  Select,
-  Table,
-  Tabs,
-} from 'antd';
+import { App, Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import {
   CircleCheck,
@@ -32,6 +23,7 @@ import {
   QuickFilters,
   SummaryBar,
   type SummaryItem,
+  ViewTabs,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -335,7 +327,7 @@ const CreditPage: React.FC = () => {
         }
       />
       {s && <SummaryBar items={summaryItems(s)} />}
-      <Tabs
+      <ViewTabs
         activeKey={tab}
         onChange={(k) => setTab(k as 'accounts' | 'recon')}
         items={[

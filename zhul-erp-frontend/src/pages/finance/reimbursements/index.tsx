@@ -3,17 +3,14 @@ import type { TableColumnsType } from 'antd';
 import {
   Alert,
   App,
-  Badge,
   Button,
   DatePicker,
   Input,
   InputNumber,
   Modal,
-  Segmented,
   Select,
   Space,
   Table,
-  Tabs,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Eye, Search, TriangleAlert, Undo2 } from 'lucide-react';
@@ -27,7 +24,10 @@ import {
   HelpTip,
   MainCard,
   PageHeader,
+  type Scope,
+  ScopeSwitch,
   SummaryBar,
+  ViewTabs,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -276,13 +276,11 @@ const RefundReceivedModal: React.FC<{
 const PendingTab: React.FC<{
   onSubmitted: () => void;
   onCount: (n: number) => void;
-}> = ({ onSubmitted, onCount }) => {
+  /** 我的 / 全部：页头右侧的范围切换，有「报销付款」权限才有「全部」 */
+  scope: Scope;
+}> = ({ onSubmitted, onCount, scope }) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
-  const access = useAccess() as Record<string, boolean>;
-  // 有「报销付款」权限（管理员、财务）的可以看所有人的垫付，并代别人提交
-  const canAll = !!access['finance:reimburse:pay'];
-  const [scope, setScope] = useState<'mine' | 'all'>('mine');
   const [person, setPerson] = useState<number>();
   const [items, setItems] = useState<AdvanceItem[]>([]);
   const [reminders, setReminders] = useState<RefundReminder[]>([]);
@@ -490,33 +488,20 @@ const PendingTab: React.FC<{
       )}
       <MainCard
         left={
-          canAll ? (
+          scope === 'all' ? (
             <>
-              <Segmented<'mine' | 'all'>
-                value={scope}
-                onChange={(v) => {
-                  setScope(v);
-                  setPerson(undefined);
-                  setSelected([]);
-                }}
-                options={[
-                  { value: 'mine', label: '我的' },
-                  { value: 'all', label: '全部人员' },
-                ]}
+              {`共 ${shown.length} 项`}
+              <Select
+                allowClear
+                showSearch={{ optionFilterProp: 'label' }}
+                placeholder="垫付人"
+                aria-label="垫付人"
+                style={{ width: 160 }}
+                value={person}
+                onChange={setPerson}
+                options={people}
               />
-              {scope === 'all' && (
-                <Select
-                  allowClear
-                  showSearch={{ optionFilterProp: 'label' }}
-                  placeholder="垫付人"
-                  aria-label="垫付人"
-                  style={{ width: 160 }}
-                  value={person}
-                  onChange={setPerson}
-                  options={people}
-                />
-              )}
-              {scope === 'all' && <HelpTip title={HELP.allPeople} />}
+              <HelpTip title={HELP.allPeople} />
             </>
           ) : (
             `共 ${shown.length} 项`
@@ -834,28 +819,36 @@ const _ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
 
 /** 财务管理 → 报销单：员工提交本人的垫付，财务登记已付 */
 const ReimbursementPage: React.FC = () => {
+  const access = useAccess() as Record<string, boolean>;
+  // 有「报销付款」权限（管理员、财务）的可以看所有人的垫付，并代别人提交
+  const canAll = !!access['finance:reimburse:pay'];
+  const [scope, setScope] = useState<Scope>('mine');
   const [tab, setTab] = useState('pending');
   const [count, setCount] = useState<number>();
   const [signal, setSignal] = useState(0);
   const onCount = useCallback((n: number) => setCount(n), []);
   return (
     <div>
-      <PageHeader help={HELP.page} />
-      <Tabs
+      <PageHeader
+        help={HELP.page}
+        extra={
+          canAll && tab === 'pending' ? (
+            <ScopeSwitch value={scope} onChange={setScope} />
+          ) : undefined
+        }
+      />
+      <ViewTabs
         activeKey={tab}
         onChange={setTab}
         items={[
           {
             key: 'pending',
-            label: (
-              <span
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-              >
-                待报销 {count ? <Badge count={count} color="orange" /> : null}
-              </span>
-            ),
+            label: '待报销',
+            count,
             children: (
               <PendingTab
+                key={scope}
+                scope={scope}
                 onCount={onCount}
                 onSubmitted={() => {
                   setSignal((s) => s + 1);

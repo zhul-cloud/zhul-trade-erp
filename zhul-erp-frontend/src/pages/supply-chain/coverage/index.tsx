@@ -1,7 +1,7 @@
 import { history, Link, useAccess } from '@umijs/max';
-import { Segmented, Select, Skeleton, Switch } from 'antd';
+import { Select, Skeleton, Switch } from 'antd';
 import { EmptyState } from '@/components/EmptyState';
-import { PageHeader } from '@/components/ListLayout';
+import { PageHeader, ViewTabs } from '@/components/ListLayout';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -197,20 +197,6 @@ const CoverageMatrixPage: React.FC = () => {
     <div>
       <PageHeader
         title="覆盖矩阵"
-        tags={
-          <Segmented
-              value={mode}
-              onChange={(v) => {
-                setMode(v as Mode);
-                setPriority(undefined);
-              }}
-              options={[
-                { value: 'cover', label: '按覆盖状态' },
-                { value: 'stockout', label: '按无货' },
-                { value: 'supplier', label: '按供应商' },
-              ]}
-            />
-        }
         extra={
           stock ? (
             <span style={{ color: palette.mute, fontSize: 13 }}>颜色越深，无货次数越多</span>
@@ -238,6 +224,19 @@ const CoverageMatrixPage: React.FC = () => {
             </span>
           )
         }
+      />
+      {/* 三张不同的矩阵（图例、筛选不同），用视图页签（复审 S3） */}
+      <ViewTabs
+        activeKey={mode}
+        onChange={(k) => {
+          setMode(k as Mode);
+          setPriority(undefined);
+        }}
+        items={[
+          { key: 'cover', label: '按覆盖状态' },
+          { key: 'stockout', label: '按无货' },
+          { key: 'supplier', label: '按供应商' },
+        ]}
       />
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
         <Select

@@ -12,7 +12,6 @@ import {
   Skeleton,
   Spin,
   Table,
-  Tabs,
 } from 'antd';
 import { Bot, Check, Merge, Pencil, Plus, Search, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -26,6 +25,7 @@ import {
   MainCard,
   PageHeader,
   SelectionCount,
+  ViewTabs,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { UserName } from '@/components/UserName';
@@ -107,8 +107,10 @@ const aiSummary = (j: AiFill) => {
     : `AI 解析品类完成：填了 ${j.filled ?? 0} 个${skipped}${unchanged}`;
 };
 
-/** 1-4 为候选状态；5 为「待关联单据」 */
-type Tab = 1 | 2 | 3 | 4 | 5;
+/** 候选状态（搜索区「状态」下拉） */
+type Status = 1 | 2 | 3 | 4;
+/** 视图页签：候选审核、待关联单据（复审 S3：状态进下拉，不同视图用页签） */
+type View = 'list' | 'unlinked';
 type TabCounts = Awaited<ReturnType<typeof candidateApi.counts>>;
 
 /** 帮助文字：help-texts.md「商品候选」，关键词范围以 search-scope.md 为准 */
@@ -120,8 +122,8 @@ export const HELP = {
   done: '按可信度从高到低、再按更新时间倒序',
 } as const;
 
-/** 页签上的数字按当前筛选条件统计，和筛选后的列表一致 */
-const TABS: { value: Tab; label: string; key: keyof TabCounts }[] = [
+/** 状态下拉里的数字按当前筛选条件统计，和筛选后的列表一致 */
+const STATUSES: { value: Status; label: string; key: keyof TabCounts }[] = [
   { value: 1, label: '待审核', key: 'pending' },
   { value: 2, label: '已建档', key: 'archived' },
   { value: 3, label: '已并入', key: 'merged' },
@@ -1255,7 +1257,8 @@ const Candidates: React.FC = () => {
   const { message, modal } = App.useApp();
   const access = useAccess();
   const canReview = !!access['product:candidate:review'];
-  const [tab, setTab] = useState<Tab>(1);
+  const [view, setView] = useState<View>('list');
+  const [status, setStatus] = useState<Status>(1);
   const [counts, setCounts] = useState<TabCounts>();
   const [importOpen, setImportOpen] = useState(false);
   const [search] = useSearchParams();
@@ -1283,14 +1286,14 @@ const Candidates: React.FC = () => {
   const [editing, setEditing] = useState(false);
 
   const load = useCallback(async () => {
-    if (tab === 5) return;
+    if (view === 'unlinked') return;
     setLoading(true);
     setError(undefined);
     try {
       const res = await candidateApi.page({
         page,
         pageSize,
-        status: tab,
+        status,
         ...query,
       });
       setRows(res.records);
@@ -1300,7 +1303,7 @@ const Candidates: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, tab, query]);
+  }, [page, pageSize, view, status, query]);
 
   const [unlinkedCount, setUnlinkedCount] = useState<number>();
   const refreshCount = useCallback(() => {
@@ -1554,7 +1557,7 @@ const Candidates: React.FC = () => {
       render: (_, c) => brandCell(c),
     },
     {
-      title: tab === 1 ? '品类（建议）' : '品类',
+      title: status === 1 ? '品类（建议）' : '品类',
       key: 'category',
       width: 130,
       render: (_, c) =>
@@ -1593,7 +1596,7 @@ const Candidates: React.FC = () => {
       width: 100,
       render: (_, c) => <Heat c={c} />,
     },
-    ...(tab === 1
+    ...(status === 1
       ? [
           {
             title: '被单据引用',
@@ -1639,7 +1642,7 @@ const Candidates: React.FC = () => {
           className="zhul-link"
           onClick={() => setViewing(c.id)}
         >
-          {tab === 1 && canReview ? '审核' : '查看'}
+          {status === 1 && canReview ? '审核' : '查看'}
         </button>
       ),
     },
@@ -1672,39 +1675,27 @@ const Candidates: React.FC = () => {
           </Button>
         }
       />
-      {/* 状态页签保留（spec product/product-candidate「分页签」）：待审核与其他页签的列和操作不同，待关联单据是另一类内容 */}
-      <Tabs
-        activeKey={String(tab)}
-        onChange={(k) => {
-          setTab(Number(k) as Tab);
-          setPage(1);
-          setSelected([]);
-        }}
-        items={[
-          ...TABS.map((t) => {
-            const n = counts?.[t.key];
-            return {
-              key: String(t.value),
-              label: n === undefined ? t.label : `${t.label} · ${n}`,
-            };
-          }),
-          ...(canReview
-            ? [
-                {
-                  key: '5',
-                  label:
-                    unlinkedCount === undefined
-                      ? '待关联单据'
-                      : `待关联单据 · ${unlinkedCount}`,
-                },
-              ]
-            : []),
-        ]}
-      />
-      {tab !== 5 && (
+      {/* 待关联单据是另一类内容，用页签；候选状态放搜索区的状态下拉（复审 S3），待审核的列和操作随状态变 */}
+      {canReview && (
+        <ViewTabs
+          activeKey={view}
+          onChange={(k) => {
+            setView(k as View);
+            setPage(1);
+            setSelected([]);
+          }}
+          items={[
+            { key: 'list', label: '候选审核' },
+            { key: 'unlinked', label: '待关联单据', count: unlinkedCount },
+          ]}
+        />
+      )}
+      {view === 'list' && (
         <FilterCard
           onSearch={apply}
           onReset={() => {
+            setStatus(1);
+            setSelected([]);
             setKeyword('');
             setLevel(undefined);
             setBrandState(undefined);
@@ -1759,6 +1750,24 @@ const Candidates: React.FC = () => {
               aria-label="关键词"
             />
           </FilterField>
+          <FilterField label="状态">
+            <Select<Status>
+              value={status}
+              onChange={(v) => {
+                setStatus(v);
+                setPage(1);
+                setSelected([]);
+              }}
+              options={STATUSES.map((t) => {
+                const n = counts?.[t.key];
+                return {
+                  value: t.value,
+                  label: n ? `${t.label} · ${n}` : t.label,
+                };
+              })}
+              aria-label="状态"
+            />
+          </FilterField>
           <FilterField label="可信度">
             <Select
               allowClear
@@ -1775,8 +1784,8 @@ const Candidates: React.FC = () => {
           </FilterField>
         </FilterCard>
       )}
-      {tab === 5 && <UnlinkedPanel onChanged={refreshCount} />}
-      {tab !== 5 && aiJob?.taskId && (
+      {view === 'unlinked' && <UnlinkedPanel onChanged={refreshCount} />}
+      {view === 'list' && aiJob?.taskId && (
         <Card style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <Spin size="small" />
@@ -1791,7 +1800,7 @@ const Candidates: React.FC = () => {
           </div>
         </Card>
       )}
-      {tab !== 5 && aiDone && (
+      {view === 'list' && aiDone && (
         <Card style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <Check size="1em" style={{ color: palette.green }} />
@@ -1827,13 +1836,13 @@ const Candidates: React.FC = () => {
           </div>
         </Card>
       )}
-      {tab === 5 ? null : error ? (
+      {view === 'unlinked' ? null : error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
         <MainCard
           settings={columnsSet.settings}
           left={
-            tab === 1 && canReview && selected.length > 0 ? (
+            status === 1 && canReview && selected.length > 0 ? (
               <SelectionCount
                 count={selected.length}
                 onClear={() => setSelected([])}
@@ -1841,12 +1850,12 @@ const Candidates: React.FC = () => {
             ) : (
               <>
                 {`共 ${total} 条`}
-                <HelpTip title={tab === 1 ? HELP.pending : HELP.done} />
+                <HelpTip title={status === 1 ? HELP.pending : HELP.done} />
               </>
             )
           }
           right={
-            tab === 1 &&
+            status === 1 &&
             canReview && (
               <>
                 {(selected.length > 0 || aiJob) &&
@@ -1903,7 +1912,7 @@ const Candidates: React.FC = () => {
             loading={loading}
             scroll={{ x: tableScrollX(columnsSet.columns) }}
             rowSelection={
-              tab === 1 && canReview
+              status === 1 && canReview
                 ? {
                     selectedRowKeys: selected.map((c) => c.id),
                     onChange: (_, rs) => setSelected(rs),
@@ -1912,7 +1921,7 @@ const Candidates: React.FC = () => {
             }
             locale={{
               emptyText: tableEmpty(
-                tab === 1
+                status === 1
                   ? '没有待审核的候选；确认询盘后，商品库里没有的型号会出现在这里'
                   : '没有记录',
                 loading,

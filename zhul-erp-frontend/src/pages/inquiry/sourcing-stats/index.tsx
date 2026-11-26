@@ -1,6 +1,6 @@
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Table, Tabs } from 'antd';
+import { App, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
@@ -12,6 +12,7 @@ import {
   MainCard,
   PageHeader,
   SummaryBar,
+  ViewTabs,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import StatsRangeFilter, { presetRange } from '@/components/StatsRangeFilter';
@@ -259,7 +260,7 @@ const SourcingStatsPage: React.FC = () => {
     <div>
       <PageHeader help={ownPeriod ? undefined : HELP.page} />
       {/* 按月份、按人员、无货分析、品牌品类是四类内容，用页签（原来的分段按钮） */}
-      <Tabs
+      <ViewTabs
         activeKey={view}
         onChange={(k) => setView(k as typeof view)}
         items={[

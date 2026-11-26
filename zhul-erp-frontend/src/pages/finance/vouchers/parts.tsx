@@ -219,7 +219,7 @@ export const AccountDrawer: React.FC<{
       {loading ? (
         <Skeleton active paragraph={{ rows: 10 }} />
       ) : (
-        <Tabs
+        <Tabs // lint-ui-ignore page-tabs: 科目设置抽屉里的分区页签
           activeKey={tab}
           onChange={setTab}
           items={[

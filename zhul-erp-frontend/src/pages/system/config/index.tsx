@@ -10,7 +10,7 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import { App, Button, Form, Input, Tabs, Upload } from 'antd';
+import { App, Button, Form, Input, Upload } from 'antd';
 import {
   Pencil,
   Plus,
@@ -28,6 +28,7 @@ import {
   FilterField,
   MainCard,
   PageHeader,
+  ViewTabs,
 } from '@/components/ListLayout';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { proAuditColumns } from '@/components/UserName';
@@ -444,15 +445,16 @@ const ConfigPage: React.FC = () => {
           )
         }
       />
-      {/* 配置分组是不同类的内容，用页签；数量跟在名称后 */}
-      <Tabs
+      {/* 配置分组是不同类的内容，用页签；数量写「名称 N」 */}
+      <ViewTabs
         activeKey={activeGroup}
         onChange={(key) => setActiveGroup(key)}
         items={[
-          { key: 'ALL', label: `全部 · ${totalCount}` },
+          { key: 'ALL', label: '全部', count: totalCount },
           ...groupCounts.map((g) => ({
             key: g.group,
-            label: `${groupLabel(g.group)} · ${g.count}`,
+            label: groupLabel(g.group),
+            count: g.count,
           })),
         ]}
       />

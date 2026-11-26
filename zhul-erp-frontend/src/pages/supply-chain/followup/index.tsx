@@ -1,13 +1,5 @@
 import { history, useSearchParams } from '@umijs/max';
-import {
-  App,
-  Button,
-  Checkbox,
-  Input,
-  type InputRef,
-  Segmented,
-  Select,
-} from 'antd';
+import { App, Button, Checkbox, Input, type InputRef, Select } from 'antd';
 import { Pencil, Plus, Search } from 'lucide-react';
 import React, {
   useCallback,
@@ -21,6 +13,7 @@ import {
   type FilterChipItem,
   FilterPopover,
   PageHeader,
+  ViewTabs,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { useWide } from '@/pages/inquiry/shared/components';
@@ -792,29 +785,30 @@ const SupplyFollowupPage: React.FC = () => {
     <div>
       <PageHeader
         extra={
-          <>
-            {canTeam && (
-              <Segmented
-                value={view}
-                onChange={(v) => setView(v as 'mine' | 'team')}
-                options={[
-                  { value: 'mine', label: '我的' },
-                  { value: 'team', label: '团队' },
-                ]}
-              />
-            )}
-            {view === 'mine' && canEdit && flow !== 'dev' && (
-              <Button
-                type="primary"
-                icon={<Pencil size="1em" />}
-                onClick={() => setRecord({ demands: pickedDemands })}
-              >
-                记一次处理
-              </Button>
-            )}
-          </>
+          view === 'mine' &&
+          canEdit &&
+          flow !== 'dev' && (
+            <Button
+              type="primary"
+              icon={<Pencil size="1em" />}
+              onClick={() => setRecord({ demands: pickedDemands })}
+            >
+              记一次处理
+            </Button>
+          )
         }
       />
+      {/* 团队是另一张统计视图（不是同一列表看更多人），用视图页签（复审 S3） */}
+      {canTeam && (
+        <ViewTabs
+          activeKey={view}
+          onChange={(k) => setView(k as 'mine' | 'team')}
+          items={[
+            { key: 'mine', label: '我的' },
+            { key: 'team', label: '团队' },
+          ]}
+        />
+      )}
       {view === 'team' ? (
         <TeamView
           canProject={canProject}

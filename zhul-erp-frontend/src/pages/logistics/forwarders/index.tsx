@@ -23,6 +23,7 @@ import {
   FilterField,
   MainCard,
   PageHeader,
+  ViewTabs,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -588,23 +589,16 @@ const ForwarderPage: React.FC = () => {
           )
         }
       />
-      <Segmented<Tab>
-        value={tab}
-        onChange={(v) => {
-          setTab(v);
+      <ViewTabs
+        activeKey={tab}
+        onChange={(k) => {
+          setTab(k as Tab);
           setPage(1);
         }}
-        style={{ marginBottom: 16 }}
-        options={[
-          { value: 'all', label: `全部${counts ? ` ${counts.all}` : ''}` },
-          {
-            value: 'company',
-            label: `公司货代${counts ? ` ${counts.company}` : ''}`,
-          },
-          {
-            value: 'customer',
-            label: `客户指定${counts ? ` ${counts.customer}` : ''}`,
-          },
+        items={[
+          { key: 'all', label: '全部', count: counts?.all },
+          { key: 'company', label: '公司货代', count: counts?.company },
+          { key: 'customer', label: '客户指定', count: counts?.customer },
         ]}
       />
       <FilterCard

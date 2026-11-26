@@ -2,7 +2,6 @@ import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   App,
-  Badge,
   Button,
   Checkbox,
   DatePicker,
@@ -12,7 +11,6 @@ import {
   Select,
   Space,
   Table,
-  Tabs,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Eye, Plus } from 'lucide-react';
@@ -27,6 +25,7 @@ import {
   MainCard,
   PageHeader,
   SummaryBar,
+  ViewTabs,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -677,7 +676,7 @@ const FxSettlementPage: React.FC = () => {
           )
         }
       />
-      <Tabs
+      <ViewTabs
         activeKey={tab}
         onChange={setTab}
         items={[
@@ -802,16 +801,8 @@ const FxSettlementPage: React.FC = () => {
           },
           {
             key: 'pending',
-            label: (
-              <span
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-              >
-                待结汇
-                {pendingCount ? (
-                  <Badge count={pendingCount} color="orange" />
-                ) : null}
-              </span>
-            ),
+            label: '待结汇',
+            count: pendingCount,
             children:
               pending.length === 0 ? (
                 <MainCard>

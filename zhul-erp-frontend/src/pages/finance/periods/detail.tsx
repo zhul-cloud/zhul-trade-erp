@@ -553,7 +553,7 @@ const PeriodDetail: React.FC = () => {
         )}
       </Card>
       <Card style={{ padding: '4px 20px 20px' }}>
-        <Tabs
+        <Tabs // lint-ui-ignore page-tabs: 期间详情卡片里的分区页签
           activeKey={tab}
           onChange={setTab}
           items={[

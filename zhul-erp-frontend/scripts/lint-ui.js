@@ -57,6 +57,8 @@ const RULE_NAMES = new Set([
   'table-switch',
   'column-settings',
   'scroll-max-content',
+  'page-tabs',
+  'scope-switch',
 ]);
 
 /**
@@ -196,6 +198,22 @@ const LINE_RULES = [
     message:
       "表格横向滚动宽度用 tableScrollX(columns)（各列宽度之和），不用 'max-content'：那样按内容排版，列宽不生效、长文本不省略（audit UI-041、ui-redesign P10）",
     re: /\bx:\s*'max-content'/,
+  },
+  {
+    id: 'page-tabs',
+    level: 'error',
+    pages: true,
+    message:
+      '页面里看不同对象或视图用公共 ViewTabs（下划线页签，数量写「名称 N」）；按状态过滤用搜索区的状态下拉，同一批数据换分组用主卡右侧的分段（复审 S3）。卡片、抽屉里的分区页签写 lint-ui-ignore page-tabs 说明',
+    re: /<Tabs\b/,
+  },
+  {
+    id: 'scope-switch',
+    level: 'error',
+    pages: true,
+    message:
+      '切换数据范围用公共 ScopeSwitch（页头右侧，统一叫「我的 / 全部」）；内容不同的视图（如团队统计）用 ViewTabs（复审 S3）',
+    re: /\bvalue:\s*'mine'\s*,\s*label:|label:\s*'(全部人员|我负责的)'/,
   },
   {
     id: 'filler-maybe',
@@ -350,6 +368,7 @@ function checkSource(src, rel) {
   let offset = 0;
   codeLines.forEach((l, i) => {
     for (const r of LINE_RULES) {
+      if (r.pages && !isPage) continue;
       const m = r.re.exec(l);
       if (!m) continue;
       if (r.text && inExempt(offset + m.index)) continue;

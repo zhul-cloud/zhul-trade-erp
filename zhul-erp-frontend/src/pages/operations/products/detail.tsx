@@ -1,8 +1,8 @@
 import { Link, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Alert, Table, Tabs } from 'antd';
+import { Alert, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
-import { PageHeader } from '@/components/ListLayout';
+import { PageHeader, ViewTabs } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { Card } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -227,7 +227,7 @@ const OperationsProductDetail: React.FC = () => {
           title={`商品资料${data.status === 1 ? '尚未补全' : '尚未核对'}（${factsSummary(data)}）：营销内容可以先做，资料核对后才算营销完成`}
         />
       )}
-      <Tabs
+      <ViewTabs
         activeKey={current}
         onChange={(k) => setTab(k as Tab)}
         items={[

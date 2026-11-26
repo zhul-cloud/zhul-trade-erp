@@ -1,7 +1,7 @@
-import { Badge, Button, Tabs } from 'antd';
+import { Button } from 'antd';
 import { Plus } from 'lucide-react';
 import React, { useCallback, useState } from 'react';
-import { PageHeader } from '@/components/ListLayout';
+import { PageHeader, ViewTabs } from '@/components/ListLayout';
 import DeskTab from './DeskTab';
 import OverpaidTab from './OverpaidTab';
 import RecordsTab from './RecordsTab';
@@ -21,13 +21,6 @@ const ReceiptManagement: React.FC = () => {
   const onDesk = useCallback((n: number) => setDeskCount(n), []);
   const onUnclaimed = useCallback((n: number) => setUnclaimedCount(n), []);
 
-  const label = (text: string, n?: number) => (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      {text}
-      {n ? <Badge count={n} color="orange" /> : null}
-    </span>
-  );
-
   return (
     <div>
       <PageHeader
@@ -45,19 +38,21 @@ const ReceiptManagement: React.FC = () => {
           </Button>
         }
       />
-      <Tabs
+      <ViewTabs
         activeKey={tab}
         onChange={setTab}
         destroyOnHidden={false}
         items={[
           {
             key: 'desk',
-            label: label('待确认', deskCount),
+            label: '待确认',
+            count: deskCount,
             children: <DeskTab onTotal={onDesk} />,
           },
           {
             key: 'unclaimed',
-            label: label('未认领到账', unclaimedCount),
+            label: '未认领到账',
+            count: unclaimedCount,
             forceRender: true,
             children: (
               <UnclaimedTab
@@ -68,13 +63,14 @@ const ReceiptManagement: React.FC = () => {
           },
           {
             key: 'overpaid',
-            label: label('待处理多收', overpaidCount),
+            label: '待处理多收',
+            count: overpaidCount,
             forceRender: true,
             children: <OverpaidTab onCount={onOverpaid} />,
           },
           {
             key: 'records',
-            label: label('收款单'),
+            label: '收款单',
             children: <RecordsTab />,
           },
         ]}

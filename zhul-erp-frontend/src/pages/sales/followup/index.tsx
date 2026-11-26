@@ -1,8 +1,8 @@
 import { useAccess } from '@umijs/max';
-import { Button, Input, type InputRef, Segmented, Select } from 'antd';
+import { Button, Input, type InputRef, Select } from 'antd';
 import { Pencil, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { PageHeader } from '@/components/ListLayout';
+import { PageHeader, ViewTabs } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { useWide } from '@/pages/inquiry/shared/components';
 import { useCountries } from '@/pages/product/components/useCountries';
@@ -343,29 +343,29 @@ const FollowupPage: React.FC = () => {
       <PageHeader
         help={view === 'team' ? HELP.team : HELP.mine}
         extra={
-          <>
-            {canTeam && (
-              <Segmented
-                value={view}
-                onChange={(v) => setView(v as 'mine' | 'team')}
-                options={[
-                  { value: 'mine', label: '我的' },
-                  { value: 'team', label: '团队' },
-                ]}
-              />
-            )}
-            {view === 'mine' && canRecord && (
-              <Button
-                type="primary"
-                icon={<Pencil size="1em" />}
-                onClick={() => openRecord()}
-              >
-                记一次跟进
-              </Button>
-            )}
-          </>
+          view === 'mine' &&
+          canRecord && (
+            <Button
+              type="primary"
+              icon={<Pencil size="1em" />}
+              onClick={() => openRecord()}
+            >
+              记一次跟进
+            </Button>
+          )
         }
       />
+      {/* 团队是另一张统计视图（不是同一列表看更多人），用视图页签（复审 S3） */}
+      {canTeam && (
+        <ViewTabs
+          activeKey={view}
+          onChange={(k) => setView(k as 'mine' | 'team')}
+          items={[
+            { key: 'mine', label: '我的' },
+            { key: 'team', label: '团队' },
+          ]}
+        />
+      )}
       {view === 'team' ? (
         <TeamView onJump={jump} />
       ) : (

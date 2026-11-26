@@ -1,7 +1,6 @@
 import { Link, useParams, useSearchParams } from '@umijs/max';
-import { Tabs } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
-import { PageHeader } from '@/components/ListLayout';
+import { PageHeader, ViewTabs } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -78,8 +77,8 @@ const ListingProductDetail: React.FC = () => {
         extra={<Link to={`/operations/products/${productId}`}>去营销任务</Link>}
       />
       {/* 每个平台一份内容，用页签切换（原来的分段按钮） */}
-      <Tabs
-        activeKey={current?.platform}
+      <ViewTabs
+        activeKey={current?.platform ?? ''}
         onChange={(p) => setSearch({ platform: p }, { replace: true })}
         items={data.tasks.map((t) => ({
           key: t.platform,

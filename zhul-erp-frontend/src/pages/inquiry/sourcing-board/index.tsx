@@ -6,7 +6,6 @@ import {
   Dropdown,
   Input,
   Modal,
-  Segmented,
   Select,
   Skeleton,
   Tooltip,
@@ -26,7 +25,12 @@ import {
   Zap,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { HelpTip, PageHeader, SummaryBar } from '@/components/ListLayout';
+import {
+  HelpTip,
+  PageHeader,
+  SummaryBar,
+  ViewTabs,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -291,6 +295,38 @@ const SourcingBoardPage: React.FC = () => {
             ]}
           />
 
+          {/* 任务队列：各队列的操作不同，用视图页签（复审 S3） */}
+          <ViewTabs
+            activeKey={String(tab)}
+            onChange={(k) => {
+              setTab(Number(k));
+              setDeferredView(false);
+              setPage(1);
+            }}
+            items={[
+              {
+                key: String(UNASSIGNED),
+                label: '待分配',
+                count: board.tabs?.unassigned ?? s.unassigned,
+              },
+              {
+                key: String(SOURCING),
+                label: '询价中',
+                count: board.tabs?.sourcing ?? s.sourcing,
+              },
+              {
+                key: String(REVIEW),
+                label: '待审核',
+                count: board.tabs?.review ?? s.pendingReview,
+              },
+              {
+                key: String(DONE),
+                label: '已回价',
+                count: board.tabs?.done ?? s.done,
+              },
+              { key: String(ALL), label: '全部' },
+            ]}
+          />
           <div
             style={{
               display: 'grid',
@@ -338,33 +374,6 @@ const SourcingBoardPage: React.FC = () => {
                 />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <Segmented
-                  value={tab}
-                  onChange={(v) => {
-                    setTab(v as number);
-                    setDeferredView(false);
-                    setPage(1);
-                  }}
-                  options={[
-                    {
-                      value: UNASSIGNED,
-                      label: `待分配 ${board.tabs?.unassigned ?? s.unassigned}`,
-                    },
-                    {
-                      value: SOURCING,
-                      label: `询价中 ${board.tabs?.sourcing ?? s.sourcing}`,
-                    },
-                    {
-                      value: REVIEW,
-                      label: `待审核 ${board.tabs?.review ?? s.pendingReview ?? 0}`,
-                    },
-                    {
-                      value: DONE,
-                      label: `已回价 ${board.tabs?.done ?? s.done ?? 0}`,
-                    },
-                    { value: ALL, label: '全部' },
-                  ]}
-                />
                 {tab === UNASSIGNED && (
                   <Button
                     size="small"

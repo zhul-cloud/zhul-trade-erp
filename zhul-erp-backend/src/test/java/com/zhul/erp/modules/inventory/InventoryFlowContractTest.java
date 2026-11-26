@@ -368,7 +368,7 @@ class InventoryFlowContractTest extends SalesContractSupport {
         long fwd = forwarder();
 
         jdbc.update("insert into sys_config (tenant_id, config_key, config_name, config_value, config_type, is_builtin, is_encrypted,"
-                + " config_group, remark) values (0, 'inventory.mode', '库存模式', 'stock', 'STRING', 0, 0, '库存', '')");
+                + " config_group, remark) values (0, 'inventory.mode', '库存模式', 'stock', 'STRING', 0, 0, 'inventory', '')");
         long soId = jdbc.queryForObject("select so_id from sales_order_item where id = ?", Long.class, soItem);
         JsonNode ob = ok(call(json(post(OB + "/notice"), write(Map.of("soId", soId, "forwarderId", fwd,
                 "items", List.of(Map.of("soItemId", soItem, "quantity", 3))))), admin));

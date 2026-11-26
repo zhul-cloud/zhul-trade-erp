@@ -33,7 +33,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { actualModelStamp } from '@/components/DocFields/ActualModel';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
-import { HelpTip, PageHeader } from '@/components/ListLayout';
+import { HelpTip, PageHeader, ViewTabs } from '@/components/ListLayout';
 import { useTabDirty } from '@/components/PageTabs/hooks';
 import { ProofLinks } from '@/pages/finance/payables/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -852,6 +852,24 @@ const MyTasksPage: React.FC = () => {
           </>
         }
       />
+      {/* 任务队列：各队列的操作不同，用视图页签（复审 S3） */}
+      <ViewTabs
+        activeKey={view}
+        onChange={(k) =>
+          leave(() => {
+            setView(k as typeof view);
+            setDone(k === 'done');
+          })
+        }
+        items={[
+          { key: 'sales', label: '待认领', count: salesTotal },
+          { key: 'pending', label: '待处理', count: counts.pending },
+          ...(reviewAccount || counts.reviewing
+            ? [{ key: 'reviewing', label: '审核中', count: counts.reviewing }]
+            : []),
+          { key: 'done', label: '已回价', count: counts.done },
+        ]}
+      />
       <div
         style={{
           display: 'grid',
@@ -890,23 +908,6 @@ const MyTasksPage: React.FC = () => {
               <HelpTip title={HELP.keyword} />
             </div>
           )}
-          <Segmented
-            value={view}
-            onChange={(v) =>
-              leave(() => {
-                setView(v as typeof view);
-                setDone(v === 'done');
-              })
-            }
-            options={[
-              { value: 'sales', label: `待认领 ${salesTotal}` },
-              { value: 'pending', label: `待处理 ${counts.pending}` },
-              ...(reviewAccount || counts.reviewing
-                ? [{ value: 'reviewing', label: `审核中 ${counts.reviewing}` }]
-                : []),
-              { value: 'done', label: `已回价 ${counts.done}` },
-            ]}
-          />
           {view === 'sales' ? (
             <SalesPending
               onChanged={loadList}

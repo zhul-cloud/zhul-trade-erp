@@ -47,6 +47,8 @@ import {
   PageHeader,
   Panel,
   QuickFilters,
+  type Scope,
+  ScopeSwitch,
   SummaryBar,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
@@ -82,7 +84,6 @@ import {
 } from '../service';
 
 type View = 'order' | 'model';
-type Scope = 'mine' | 'all';
 
 interface Filters {
   keyword?: string;
@@ -637,13 +638,9 @@ const RequirementList: React.FC = () => {
       <PageHeader
         help={HELP.page}
         extra={
-          <Segmented
+          <ScopeSwitch
             value={scope}
-            onChange={(v) => reset(() => setScope(v as Scope))}
-            options={[
-              { value: 'mine', label: '我负责的' },
-              { value: 'all', label: '全部' },
-            ]}
+            onChange={(v) => reset(() => setScope(v))}
           />
         }
       />

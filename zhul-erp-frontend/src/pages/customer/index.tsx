@@ -5,7 +5,6 @@ import {
   Button,
   Form,
   Input,
-  Segmented,
   Select,
   Skeleton,
   Table,
@@ -33,6 +32,7 @@ import {
   MainCard,
   PageHeader,
   SelectionCount,
+  ViewTabs,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -611,24 +611,18 @@ const CustomerListPage: React.FC = () => {
           )
         }
       />
-      <Segmented
-        value={tab}
-        onChange={(v) => setTab(v as 'all' | 'fill' | 'dups' | 'pool')}
-        style={{ marginBottom: 16 }}
-        options={[
+      <ViewTabs
+        activeKey={tab}
+        onChange={(k) => setTab(k as 'all' | 'fill' | 'dups' | 'pool')}
+        items={[
           {
-            value: 'all',
-            label: `全部客户${tab === 'all' ? ` ${total}` : ''}`,
+            key: 'all',
+            label: '全部客户',
+            count: tab === 'all' ? total : undefined,
           },
-          { value: 'fill', label: '档案补全' },
-          {
-            value: 'dups',
-            label: `疑似重复${dupCount ? ` ${dupCount}` : ''}`,
-          },
-          {
-            value: 'pool',
-            label: `公海客户${poolCount ? ` ${poolCount}` : ''}`,
-          },
+          { key: 'fill', label: '档案补全' },
+          { key: 'dups', label: '疑似重复', count: dupCount },
+          { key: 'pool', label: '公海客户', count: poolCount },
         ]}
       />
       {tab === 'pool' ? (

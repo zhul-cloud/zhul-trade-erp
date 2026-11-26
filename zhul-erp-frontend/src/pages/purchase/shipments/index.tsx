@@ -1,6 +1,6 @@
 import { history, Link, useAccess, useLocation } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Input, Segmented, Select, Table } from 'antd';
+import { App, Input, Select, Table } from 'antd';
 import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
@@ -13,6 +13,7 @@ import {
   FilterField,
   MainCard,
   PageHeader,
+  ViewTabs,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -72,16 +73,12 @@ const SupplierShipments: React.FC = () => {
   return (
     <div>
       <PageHeader help={tab === 'diffs' ? HELP.diffs : HELP.page} />
-      <Segmented<Tab>
-        value={tab}
-        onChange={setTab}
-        style={{ marginBottom: 16 }}
-        options={[
-          { value: 'shipments', label: '发货记录' },
-          {
-            value: 'diffs',
-            label: `到货差异${pending ? ` ${pending}` : ''}`,
-          },
+      <ViewTabs
+        activeKey={tab}
+        onChange={(k) => setTab(k as Tab)}
+        items={[
+          { key: 'shipments', label: '发货记录' },
+          { key: 'diffs', label: '到货差异', count: pending },
         ]}
       />
       {tab === 'shipments' ? (

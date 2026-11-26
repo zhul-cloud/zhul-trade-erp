@@ -696,7 +696,7 @@ const StrategyDrawer: React.FC<{
         />
       ) : (
         <>
-          <Tabs
+          <Tabs // lint-ui-ignore page-tabs: 抽屉里的分区页签
             activeKey={kind}
             onChange={(k) => setKind(k as Kind)}
             items={[

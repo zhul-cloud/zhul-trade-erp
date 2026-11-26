@@ -1,15 +1,6 @@
 import { history, Link, useLocation } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import {
-  App,
-  Button,
-  DatePicker,
-  Form,
-  Input,
-  Segmented,
-  Select,
-  Table,
-} from 'antd';
+import { App, Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Download, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -19,6 +10,7 @@ import {
   HelpTip,
   MainCard,
   PageHeader,
+  ViewTabs,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { SignedMoney } from '@/pages/finance/costingParts';
@@ -265,16 +257,14 @@ const LedgerPage: React.FC = () => {
             ? '按单据的业务日期归月；点品类查看它的明细账'
             : `按单据的业务日期归月；期末金额 = 期初 + 入库 − 出库 + 成本调整${filters.warehouseId ? '' : '（全部仓库不含仓库之间的调拨）'}；点数量查看对应流水`
         }
-        extra={
-          <Segmented<View>
-            value={view}
-            onChange={(v) => switchView(v)}
-            options={[
-              { label: '类目账', value: 'category' },
-              { label: '明细账', value: 'detail' },
-            ]}
-          />
-        }
+      />
+      <ViewTabs
+        activeKey={view}
+        onChange={(k) => switchView(k as View)}
+        items={[
+          { key: 'category', label: '类目账' },
+          { key: 'detail', label: '明细账' },
+        ]}
       />
       <FilterCard
         form={form}

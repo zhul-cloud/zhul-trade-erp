@@ -2,7 +2,6 @@ import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   App,
-  Badge,
   Button,
   Checkbox,
   DatePicker,
@@ -10,7 +9,6 @@ import {
   Modal,
   Select,
   Table,
-  Tabs,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Eye, Plus, Search } from 'lucide-react';
@@ -25,6 +23,7 @@ import {
   MainCard,
   PageHeader,
   SummaryBar,
+  ViewTabs,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -405,24 +404,12 @@ const RefundPage: React.FC = () => {
           )
         }
       />
-      <Tabs
+      <ViewTabs
         activeKey={view}
         onChange={(k) => setView(k as 'refunds' | 'requests')}
         items={[
           { key: 'refunds', label: '退款单' },
-          {
-            key: 'requests',
-            label: (
-              <span
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-              >
-                退款申请
-                {pendingRequests ? (
-                  <Badge count={pendingRequests} color="orange" />
-                ) : null}
-              </span>
-            ),
-          },
+          { key: 'requests', label: '退款申请', count: pendingRequests },
         ]}
       />
       {view === 'requests' ? (

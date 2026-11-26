@@ -9,7 +9,7 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import { App, Button, Input, Select, Space, Tabs, Tooltip } from 'antd';
+import { App, Button, Input, Select, Space, Tooltip } from 'antd';
 import { Ban, CircleCheck, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
@@ -20,6 +20,7 @@ import {
   FilterField,
   MainCard,
   PageHeader,
+  ViewTabs,
 } from '@/components/ListLayout';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { proAuditColumns } from '@/components/UserName';
@@ -358,17 +359,12 @@ const BrandPage: React.FC = () => {
         }
       />
       {canConfirm && (
-        <Tabs
+        <ViewTabs
           activeKey={tab}
           onChange={(k) => setTab(k as 'brands' | 'pending')}
           items={[
             { key: 'brands', label: '品牌' },
-            {
-              key: 'pending',
-              label: pending.length
-                ? `待确认品牌 ${pending.length}`
-                : '待确认品牌',
-            },
+            { key: 'pending', label: '待确认品牌', count: pending.length },
           ]}
         />
       )}

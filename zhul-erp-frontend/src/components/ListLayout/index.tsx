@@ -7,7 +7,9 @@ import {
   Input,
   InputNumber,
   Popover,
+  Segmented,
   Select,
+  Tabs,
   Tooltip,
   TreeSelect,
 } from 'antd';
@@ -819,6 +821,81 @@ export const QuickFilters: React.FC<{
     </fieldset>
   );
 };
+
+export interface ViewTabItem {
+  key: string;
+  label: string;
+  /** 数量：写成「名称 N」，为 0 或没有时只写名称；各页不再自己拼「名称 · N」或加徽标 */
+  count?: number;
+  children?: React.ReactNode;
+  forceRender?: boolean;
+}
+
+/**
+ * 视图页签（复审 S3，对比图 R27 方案 A）：看不同对象或视图（全部客户 / 公海客户、退款单 / 退款申请）时用，
+ * 放在页头下方。按状态过滤用搜索区的状态下拉，切换数据范围用 ScopeSwitch，同一批数据换分组用主卡右侧的分段。
+ */
+export const ViewTabs: React.FC<{
+  items: ViewTabItem[];
+  activeKey: string;
+  onChange: (key: string) => void;
+  /** 有 children 时，切走的页签是否卸载（默认 antd 行为：保留） */
+  destroyOnHidden?: boolean;
+}> = ({ items, activeKey, onChange, destroyOnHidden }) => {
+  const { palette } = useAppTheme();
+  return (
+    <Tabs
+      activeKey={activeKey}
+      onChange={onChange}
+      destroyOnHidden={destroyOnHidden}
+      items={items.map((i) => ({
+        key: i.key,
+        forceRender: i.forceRender,
+        children: i.children,
+        label: (
+          <span>
+            {i.label}
+            {!!i.count && (
+              <>
+                {/* 读屏念「待确认 5」 */}
+                <span className="zhul-sr-only"> </span>
+                <span
+                  className="num"
+                  style={{
+                    marginLeft: 4,
+                    color: i.key === activeKey ? undefined : palette.mute,
+                  }}
+                >
+                  {i.count}
+                </span>
+              </>
+            )}
+          </span>
+        ),
+      }))}
+    />
+  );
+};
+
+export type Scope = 'mine' | 'all';
+
+/**
+ * 数据范围切换（复审 S3，R27 方案 A）：统一放页头右侧（PageHeader 的 extra，主按钮之前），统一叫「我的 / 全部」。
+ */
+export const ScopeSwitch: React.FC<{
+  value: Scope;
+  onChange: (value: Scope) => void;
+}> = ({ value, onChange }) => (
+  <Segmented<Scope>
+    value={value}
+    onChange={onChange}
+    aria-label="数据范围"
+    options={[
+      { value: 'mine', label: '我的' },
+      { value: 'all', label: '全部' },
+    ]}
+  />
+);
 
 /**
  * 「更多筛选」里已生效条件的胶囊：搜索条件区算出来，交给紧挨着它下面的主卡显示。
