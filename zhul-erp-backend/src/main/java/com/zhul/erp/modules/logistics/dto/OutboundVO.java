@@ -22,6 +22,8 @@ public class OutboundVO {
     private String ownerName;
     private Long forwarderId;
     private String forwarderName;
+    /** 货代为上门取件时「上门取件 · 承运商 · 账号」，否则为空 */
+    private String pickupLabel;
     private Integer source;
     private String sourceName;
     private Integer status;

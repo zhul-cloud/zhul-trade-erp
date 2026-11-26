@@ -113,6 +113,7 @@ public class ForwarderService {
         }
         Long id = r.getCreatedSupplier().getId();
         setCustomer(id, customerId);
+        setHandover(id, customerId, req);
         // 每家货代一个货代仓，同一事务内建好（spec logistics/forwarder）
         inventoryWarehouses.syncForwarder(id, req.getName().trim(), s.getStatus());
         logService.recordOperateLog(MENU, "新增货代", null, Map.of("name", req.getName().trim(),
@@ -129,6 +130,7 @@ public class ForwarderService {
         s.setStatus(req.getStatus());
         supplierService.update(id, s);
         setCustomer(id, customerId);
+        setHandover(id, customerId, req);
         inventoryWarehouses.syncForwarder(id, req.getName().trim(), req.getStatus());
         if (!Objects.equals(before.getCustomerId(), customerId)) {
             logService.recordOperateLog(MENU, "修改货代归属客户",
@@ -192,6 +194,23 @@ public class ForwarderService {
                 .eq(SupplierDO::getId, id));
     }
 
+    /** 交接方式：只有客户指定货代能选上门取件，上门取件必填承运商；公司货代回到送到货代并清空快递信息 */
+    private void setHandover(Long id, Long customerId, SaveForwarderRequest req) {
+        boolean pickup = Objects.equals(req.getHandoverMode(), LogisticsConstants.HANDOVER_PICKUP);
+        if (pickup && customerId == null) {
+            throw new BizException("只有客户指定货代能选上门取件");
+        }
+        String carrier = pickup ? text(req.getCourierCarrier()) : "";
+        if (pickup && carrier.isEmpty()) {
+            throw new BizException("请选择承运商");
+        }
+        supplierMapper.update(null, new LambdaUpdateWrapper<SupplierDO>()
+                .set(SupplierDO::getHandoverMode, pickup ? LogisticsConstants.HANDOVER_PICKUP : LogisticsConstants.HANDOVER_DELIVER)
+                .set(SupplierDO::getCourierCarrier, carrier)
+                .set(SupplierDO::getCourierAccount, pickup ? text(req.getCourierAccount()) : "")
+                .eq(SupplierDO::getId, id));
+    }
+
     private static void copy(SaveForwarderRequest req, AbstractSupplierRequest s) {
         s.setName(req.getName().trim());
         s.setShortName(text(req.getShortName()));
@@ -224,6 +243,9 @@ public class ForwarderService {
             vo.setCustomerId(s.getCustomerId());
             CustomerDO c = s.getCustomerId() == null ? null : customers.get(s.getCustomerId());
             vo.setCustomerName(c == null ? null : displayName(c));
+            vo.setHandoverMode(handoverOf(s));
+            vo.setCourierCarrier(s.getCourierCarrier());
+            vo.setCourierAccount(s.getCourierAccount());
             vo.setContactName(s.getContactName());
             vo.setContactPhone(s.getContactPhone());
             vo.setContactEmail(s.getContactEmail());
@@ -240,6 +262,11 @@ public class ForwarderService {
             out.add(vo);
         }
         return out;
+    }
+
+    private static int handoverOf(SupplierDO s) {
+        return s.getCustomerId() != null && Objects.equals(s.getHandoverMode(), LogisticsConstants.HANDOVER_PICKUP)
+                ? LogisticsConstants.HANDOVER_PICKUP : LogisticsConstants.HANDOVER_DELIVER;
     }
 
     private String customerName(Long customerId) {

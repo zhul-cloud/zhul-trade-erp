@@ -288,15 +288,25 @@ const ShipmentDetail: React.FC = () => {
             value: sh.waybillNo
               ? `${sh.carrier ?? ''} ${sh.waybillNo}`
               : sh.customerForwarder && sh.status === 2
-                ? '客户安排'
+                ? sh.pickup
+                  ? '客户安排取件'
+                  : '客户安排'
                 : undefined,
           },
           {
-            label: sh.customerForwarder ? '交货日期' : '出运日期',
+            label: sh.pickup
+              ? '取件日期'
+              : sh.customerForwarder
+                ? '交货日期'
+                : '出运日期',
             value: sh.shippedDate,
           },
           {
-            label: sh.customerForwarder ? '送货运费' : '运费',
+            label: sh.pickup
+              ? '运费'
+              : sh.customerForwarder
+                ? '送货运费'
+                : '运费',
             value:
               sh.freight === null || sh.freight === undefined
                 ? undefined
@@ -447,10 +457,19 @@ const ShipmentDetail: React.FC = () => {
           sh.waybillNo
             ? `${sh.carrier ?? ''} ${sh.waybillNo}`
             : sh.customerForwarder
-              ? '客户安排'
+              ? sh.pickup
+                ? '客户安排取件'
+                : '客户安排'
               : undefined,
         )}
-        {field(sh.customerForwarder ? '交货日期' : '出运日期', sh.shippedDate)}
+        {field(
+          sh.pickup
+            ? '取件日期'
+            : sh.customerForwarder
+              ? '交货日期'
+              : '出运日期',
+          sh.shippedDate,
+        )}
         {field(
           sh.customerForwarder ? '送货运费' : '实际运费',
           sh.freight === null || sh.freight === undefined
@@ -570,6 +589,9 @@ const ShipmentDetail: React.FC = () => {
             <ShStatusPill value={sh.status}>{sh.statusName}</ShStatusPill>
             {sh.reconciled && <Pill tone="green">已对账</Pill>}
             {sh.customerForwarder && <Pill tone="orange">客户指定货代</Pill>}
+            {sh.pickup && (
+              <Pill tone="violet">{sh.pickupLabel ?? '上门取件'}</Pill>
+            )}
             <MigratedPill migrated={sh.migrated} />
           </>
         }

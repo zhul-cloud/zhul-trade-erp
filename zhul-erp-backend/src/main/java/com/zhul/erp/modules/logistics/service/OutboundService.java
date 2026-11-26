@@ -829,6 +829,7 @@ public class OutboundService {
                 mates.values().stream().flatMap(List::stream)).map(OutboundOrderDO::getSoId).toList());
         Map<Long, String> customers = support.customerNames(rows.stream().map(OutboundOrderDO::getCustomerId).toList());
         Map<Long, String> forwarders = support.supplierNames(rows.stream().map(OutboundOrderDO::getForwarderId).toList());
+        Map<Long, String> pickups = support.pickupLabels(rows.stream().map(OutboundOrderDO::getForwarderId).toList());
         Map<Long, String> users = support.userNames(java.util.stream.Stream.concat(
                 rows.stream().flatMap(r -> java.util.stream.Stream.of(r.getOwnerId(), r.getPackedBy())),
                 waybills.values().stream().map(CourierWaybillDO::getPayerId)).toList());
@@ -854,6 +855,7 @@ public class OutboundService {
             vo.setOwnerName(users.get(ob.getOwnerId()));
             vo.setForwarderId(ob.getForwarderId());
             vo.setForwarderName(forwarders.get(ob.getForwarderId()));
+            vo.setPickupLabel(pickups.get(ob.getForwarderId()));
             vo.setSource(ob.getSource());
             vo.setSourceName(LogisticsConstants.OB_SOURCE_NAMES.get(ob.getSource()));
             vo.setStatus(ob.getStatus());
