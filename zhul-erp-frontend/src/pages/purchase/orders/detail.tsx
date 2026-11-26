@@ -1877,6 +1877,7 @@ const ShipmentsCard: React.FC<{
     },
     {
       title: '数量',
+      align: 'right' as const,
       key: 'qty',
       width: 130,
       render: (_, r) =>

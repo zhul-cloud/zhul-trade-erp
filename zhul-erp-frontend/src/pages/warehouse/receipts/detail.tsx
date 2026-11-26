@@ -83,11 +83,27 @@ const ReceiptDetailPage: React.FC = () => {
       width: 220,
       render: (_, x) => <DocModelCell model={x.model} brand={x.brand} />,
     },
-    { title: '发货', dataIndex: 'shippedQty', width: 70 },
-    { title: '实收', dataIndex: 'receivedQty', width: 70 },
-    { title: '合格', dataIndex: 'qualifiedQty', width: 70 },
+    {
+      title: '发货',
+      align: 'right' as const,
+      dataIndex: 'shippedQty',
+      width: 70,
+    },
+    {
+      title: '实收',
+      align: 'right' as const,
+      dataIndex: 'receivedQty',
+      width: 70,
+    },
+    {
+      title: '合格',
+      align: 'right' as const,
+      dataIndex: 'qualifiedQty',
+      width: 70,
+    },
     {
       title: '不良',
+      align: 'right' as const,
       dataIndex: 'defectiveQty',
       width: 120,
       render: (v: number, x) => (
@@ -101,6 +117,7 @@ const ReceiptDetailPage: React.FC = () => {
     },
     {
       title: '差异',
+      align: 'right' as const,
       key: 'diff',
       width: 80,
       render: (_, x) => {

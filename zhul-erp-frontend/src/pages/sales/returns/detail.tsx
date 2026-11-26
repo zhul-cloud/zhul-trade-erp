@@ -92,7 +92,12 @@ const SalesReturnDetail: React.FC = () => {
       width: 200,
       render: (_, x) => <DocModelCell model={x.model} brand={x.brand} />,
     },
-    { title: '退货数量', dataIndex: 'quantity', width: 90 },
+    {
+      title: '退货数量',
+      align: 'right' as const,
+      dataIndex: 'quantity',
+      width: 90,
+    },
     {
       title: `成交单价（${cur}）`,
       align: 'right',
@@ -114,12 +119,14 @@ const SalesReturnDetail: React.FC = () => {
       : []),
     {
       title: '实收',
+      align: 'right' as const,
       dataIndex: 'receivedQty',
       width: 70,
       render: (v?: number | null) => v ?? '—',
     },
     {
       title: '合格',
+      align: 'right' as const,
       dataIndex: 'qualifiedQty',
       width: 70,
       render: (v?: number | null) => v ?? '—',

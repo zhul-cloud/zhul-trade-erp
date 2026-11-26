@@ -407,7 +407,12 @@ export const ReorderPickModal: React.FC<{
                   </div>
                 ),
               },
-              { title: '数量', dataIndex: 'quantity', width: 80 },
+              {
+                title: '数量',
+                align: 'right' as const,
+                dataIndex: 'quantity',
+                width: 80,
+              },
               {
                 title: `单价（${draft.currencyCode}）`,
                 align: 'right',

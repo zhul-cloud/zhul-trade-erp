@@ -380,6 +380,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
     },
     {
       title: '数量',
+      align: 'right' as const,
       width: 80,
       render: (_, r) => `${r.quantity} ${r.unit || ''}`,
     },

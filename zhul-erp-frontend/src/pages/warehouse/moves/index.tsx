@@ -180,6 +180,7 @@ const MovesPage: React.FC = () => {
     },
     {
       title: '数量',
+      align: 'right' as const,
       dataIndex: 'quantity',
       width: 70,
       render: (v: number) => <SignedQty value={v} />,

@@ -116,7 +116,7 @@ const BatchRows: React.FC<{
         <StockStatusPill status={v} name={b.stockStatusName} />
       ),
     },
-    { title: '结存', dataIndex: 'onHand', width: 70 },
+    { title: '结存', align: 'right' as const, dataIndex: 'onHand', width: 70 },
     {
       title: '预占给',
       key: 'res',
@@ -288,6 +288,7 @@ const StocksPage: React.FC = () => {
     },
     {
       title: '不良',
+      align: 'right' as const,
       dataIndex: 'defective',
       width: 70,
       render: (v: number) => num(v, palette.red),
@@ -314,6 +315,7 @@ const StocksPage: React.FC = () => {
     },
     {
       title: '在途',
+      align: 'right' as const,
       dataIndex: 'inTransit',
       width: 70,
       render: (v?: number) =>

@@ -241,6 +241,7 @@ export const PagedModelsModal: React.FC<{
     },
     {
       title: '数量',
+      align: 'right' as const,
       key: 'qty',
       width: 80,
       render: (_, r) =>

@@ -88,7 +88,12 @@ const OtherOutboundDetail: React.FC = () => {
         <StockStatusPill status={v} name={x.stockStatusName} />
       ),
     },
-    { title: '数量', dataIndex: 'quantity', width: 70 },
+    {
+      title: '数量',
+      align: 'right' as const,
+      dataIndex: 'quantity',
+      width: 70,
+    },
     {
       title: '单价（CNY）',
       dataIndex: 'unitPriceCny',
@@ -128,6 +133,7 @@ const OtherOutboundDetail: React.FC = () => {
     },
     {
       title: '数量',
+      align: 'right' as const,
       dataIndex: 'quantity',
       width: 70,
       render: (v: number) => <SignedQty value={v} />,

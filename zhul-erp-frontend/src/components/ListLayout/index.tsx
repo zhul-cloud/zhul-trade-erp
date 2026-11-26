@@ -162,8 +162,7 @@ const useStuckHeader = (enabled: boolean) => {
       const long =
         document.documentElement.scrollHeight > 2 * window.innerHeight;
       // 原页头整个滚到顶栏下面（看不见）之后才吸顶
-      const next =
-        long && natural + height - window.scrollY < TOP_BAR_BOTTOM;
+      const next = long && natural + height - window.scrollY < TOP_BAR_BOTTOM;
       if (next === on) return;
       on = next;
       // 吸顶时记下原来的高度，占位不变，下面的内容不跳

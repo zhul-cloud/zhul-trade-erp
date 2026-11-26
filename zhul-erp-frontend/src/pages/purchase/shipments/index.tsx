@@ -452,6 +452,7 @@ const DiffsTab: React.FC<{ pending?: number; onChanged: () => void }> = ({
     },
     {
       title: '差异',
+      align: 'right' as const,
       dataIndex: 'type',
       width: 100,
       render: (v: number, r) => (

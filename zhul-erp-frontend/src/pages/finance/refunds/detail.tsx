@@ -87,6 +87,7 @@ const RefundDetail: React.FC = () => {
     },
     {
       title: '数量',
+      align: 'right' as const,
       dataIndex: 'quantity',
       width: 70,
       render: (v?: number) => v ?? '—',

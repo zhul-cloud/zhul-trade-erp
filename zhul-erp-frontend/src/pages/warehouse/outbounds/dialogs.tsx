@@ -493,7 +493,13 @@ export const HandOverModal: React.FC<{
         columns={[
           { title: '销售出库单', dataIndex: 'obNo' },
           { title: '订单', dataIndex: 'soNo' },
-          { title: '箱数', dataIndex: 'boxCount', width: 70, onCell: span },
+          {
+            title: '箱数',
+            align: 'right' as const,
+            dataIndex: 'boxCount',
+            width: 70,
+            onCell: span,
+          },
           {
             title: '计费重',
             dataIndex: 'chargeableWeight',

@@ -88,13 +88,20 @@ const ShipmentDetailPage: React.FC = () => {
     },
     {
       title: '订单数量',
+      align: 'right' as const,
       dataIndex: 'orderQty',
       width: 90,
       render: (v?: number) => v ?? '—',
     },
-    { title: '本次发货', dataIndex: 'quantity', width: 90 },
+    {
+      title: '本次发货',
+      align: 'right' as const,
+      dataIndex: 'quantity',
+      width: 90,
+    },
     {
       title: '已入库',
+      align: 'right' as const,
       dataIndex: 'receivedQty',
       width: 80,
       render: (v?: number) => v ?? 0,

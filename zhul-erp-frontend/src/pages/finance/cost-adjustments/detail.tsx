@@ -128,7 +128,12 @@ const CostAdjustDetail: React.FC = () => {
       width: 110,
       render: (v: number) => <UnitDiff value={v} />,
     },
-    { title: '数量', dataIndex: 'quantity', width: 70 },
+    {
+      title: '数量',
+      align: 'right' as const,
+      dataIndex: 'quantity',
+      width: 70,
+    },
     {
       title: '调整金额',
       dataIndex: 'amountCny',
@@ -174,7 +179,12 @@ const CostAdjustDetail: React.FC = () => {
           </div>
         ),
     },
-    { title: '数量', dataIndex: 'quantity', width: 80 },
+    {
+      title: '数量',
+      align: 'right' as const,
+      dataIndex: 'quantity',
+      width: 80,
+    },
     {
       title: '调整金额',
       dataIndex: 'amountCny',

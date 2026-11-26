@@ -380,6 +380,7 @@ const RequirementList: React.FC = () => {
     },
     {
       title: '数量',
+      align: 'right' as const,
       dataIndex: 'quantity',
       width: 100,
       render: (v: number, r) => (

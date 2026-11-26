@@ -229,7 +229,12 @@ const CogsTab: React.FC<{ month: string }> = ({ month }) => {
       },
     },
     { title: '日期', dataIndex: 'bizDate', width: 110 },
-    { title: '数量', dataIndex: 'quantity', width: 70 },
+    {
+      title: '数量',
+      align: 'right' as const,
+      dataIndex: 'quantity',
+      width: 70,
+    },
     { title: '货款', dataIndex: 'amountGoods', width: 110, render: plain },
     { title: '开票', dataIndex: 'amountInvoice', width: 100, render: plain },
     { title: '采购费用', dataIndex: 'amountFee', width: 100, render: plain },

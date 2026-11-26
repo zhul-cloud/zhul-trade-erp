@@ -116,7 +116,12 @@ const PurchaseReturnDetail: React.FC = () => {
       width: 200,
       render: (_, x) => <DocModelCell model={x.model} brand={x.brand} />,
     },
-    { title: '数量', dataIndex: 'quantity', width: 80 },
+    {
+      title: '数量',
+      align: 'right' as const,
+      dataIndex: 'quantity',
+      width: 80,
+    },
     ...(fromStock
       ? [
           {

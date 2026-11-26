@@ -225,7 +225,12 @@ const ShipmentDetail: React.FC = () => {
         </div>
       ),
     },
-    { title: '数量', dataIndex: 'quantity', width: 80 },
+    {
+      title: '数量',
+      align: 'right' as const,
+      dataIndex: 'quantity',
+      width: 80,
+    },
     {
       title: '销售出库单',
       key: 'src',

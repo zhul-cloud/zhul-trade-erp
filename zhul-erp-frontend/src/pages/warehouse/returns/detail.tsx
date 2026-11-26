@@ -101,12 +101,14 @@ const ReturnReceiptDetail: React.FC = () => {
     { title: '退货', dataIndex: 'quantity', width: 70 },
     {
       title: '实收',
+      align: 'right' as const,
       dataIndex: 'receivedQty',
       width: 70,
       render: (v) => v ?? '—',
     },
     {
       title: '合格',
+      align: 'right' as const,
       dataIndex: 'qualifiedQty',
       width: 70,
       render: (v) => v ?? '—',
