@@ -42,6 +42,8 @@ public class ProductVO {
     private List<String> warnings;
     /** 档案完整度，仅平台账号返回，租户账号为 null */
     private CompletenessVO completeness;
+    /** 列表：主图地址，没有主图为空 */
+    private String mainImageUrl;
     private LocalDateTime createTime;
     private String createBy;
     private LocalDateTime updateTime;

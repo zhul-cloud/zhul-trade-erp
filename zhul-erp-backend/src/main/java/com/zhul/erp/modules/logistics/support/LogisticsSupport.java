@@ -108,6 +108,10 @@ public class LogisticsSupport {
                     vo.setContactName(s.getContactName());
                     vo.setCustomerOwned(customerId != null && customerId.equals(s.getCustomerId()));
                     vo.setCustomerId(s.getCustomerId());
+                    boolean pickup = isPickup(s);
+                    vo.setHandoverMode(pickup ? LogisticsConstants.HANDOVER_PICKUP : LogisticsConstants.HANDOVER_DELIVER);
+                    vo.setCourierCarrier(pickup ? s.getCourierCarrier() : null);
+                    vo.setCourierAccount(pickup ? s.getCourierAccount() : null);
                     return vo;
                 })
                 .sorted(java.util.Comparator.comparing((ForwarderVO v) -> !v.getCustomerOwned()))
@@ -138,6 +142,45 @@ public class LogisticsSupport {
     public int customerForwarderFlag(Long forwarderId) {
         SupplierDO s = forwarderId == null ? null : supplierMapper.selectById(forwarderId);
         return s != null && s.getCustomerId() != null ? 1 : 0;
+    }
+
+    /** 上门取件的客户指定货代（openspec customer-courier-pickup）；不是时为空 */
+    public SupplierDO pickupForwarder(Long forwarderId) {
+        SupplierDO s = forwarderId == null ? null : supplierMapper.selectById(forwarderId);
+        return isPickup(s) ? s : null;
+    }
+
+    /** 上门取件的货代（id → 货代），只含上门取件的 */
+    public Map<Long, SupplierDO> pickupForwarders(Collection<Long> ids) {
+        List<Long> keys = ids.stream().filter(x -> x != null && x > 0).distinct().toList();
+        if (keys.isEmpty()) {
+            return Map.of();
+        }
+        return supplierMapper.selectBatchIds(keys).stream().filter(LogisticsSupport::isPickup)
+                .collect(Collectors.toMap(SupplierDO::getId, s -> s));
+    }
+
+    /** 货代 → 「上门取件 · 承运商 · 账号」，只含上门取件的货代 */
+    public Map<Long, String> pickupLabels(Collection<Long> ids) {
+        Map<Long, String> out = new HashMap<>();
+        pickupForwarders(ids).forEach((id, s) -> out.put(id, pickupLabel(s.getCourierCarrier(), s.getCourierAccount())));
+        return out;
+    }
+
+    public static String pickupLabel(String carrier, String account) {
+        StringBuilder b = new StringBuilder("上门取件");
+        if (carrier != null && !carrier.isBlank()) {
+            b.append(" · ").append(carrier.trim());
+        }
+        if (account != null && !account.isBlank()) {
+            b.append(" · ").append(account.trim());
+        }
+        return b.toString();
+    }
+
+    private static boolean isPickup(SupplierDO s) {
+        return s != null && s.getCustomerId() != null
+                && Objects.equals(s.getHandoverMode(), LogisticsConstants.HANDOVER_PICKUP);
     }
 
     public BigDecimal divisorOf(Long forwarderId) {

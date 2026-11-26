@@ -309,6 +309,43 @@ class OutboundShippingContractTest extends SalesContractSupport {
     }
 
     /**
+     * openspec customer-courier-pickup：上门取件的客户指定货代——出库单带出上门取件，登记出运只能交给客户的货代，
+     * 只填取件日期，承运商默认带出，没有运费，不进运费账单
+     */
+    @Test
+    void shipment_courierPickup_onlyPickupDate_noFreight() throws Exception {
+        JsonNode po = orderedPo(supplier("华控自动化", null), 10);
+        long soId = soOf(po);
+        receive(po, 10);
+        long customerId = jdbc.queryForObject("select customer_id from sales_order where id = ?", Long.class, soId);
+        jdbc.update("update supplier set customer_id = ?, handover_mode = 2, courier_carrier = 'DHL', courier_account = '965432100' "
+                + "where id = ?", customerId, forwarder);
+        JsonNode ob = ok(notice(soId, 10));
+        assertEquals("上门取件 · DHL · 965432100", ok(call(get(OB + "/" + ob.path("id").asLong()), admin)).path("pickupLabel").asText());
+        ok(pack(ob, new int[] {55, 40, 30, 3000, 10}));
+        ok(handOver(List.of(ob.path("id").asLong()), "50"));
+        long shId = ok(call(json(post(SH), write(Map.of("customerId", customerId, "forwarderId", forwarder,
+                "outboundIds", List.of(ob.path("id").asLong())))), admin)).path("id").asLong();
+        assertEquals("上门取件的货代只能交给客户的货代", fail(call(json(post(SH + "/" + shId + "/ship"), write(Map.of(
+                "shippedDate", LocalDate.now().toString(), "customerForwarder", false))), admin)).path("message").asText());
+        assertEquals("请填写取件日期", fail(call(json(post(SH + "/" + shId + "/ship"), write(Map.of("freight", "80"))), admin))
+                .path("message").asText());
+
+        JsonNode shipped = ok(call(json(post(SH + "/" + shId + "/ship"), write(Map.of(
+                "shippedDate", LocalDate.now().toString(), "freight", "80"))), admin));
+        assertTrue(shipped.path("customerForwarder").asBoolean());
+        assertTrue(shipped.path("pickup").asBoolean());
+        assertEquals("DHL", shipped.path("carrier").asText(), "承运商默认取货代上的");
+        assertEquals(0, shipped.path("freight").decimalValue().compareTo(BigDecimal.ZERO), "上门取件没有运费");
+        assertEquals("这个月没有要对账的出运单", fail(call(json(post(ST), write(Map.of("forwarderId", forwarder,
+                "period", LocalDate.now().toString().substring(0, 7)))), admin)).path("message").asText());
+
+        // 之后货代改回送到货代，已出运的出运单仍是上门取件
+        jdbc.update("update supplier set handover_mode = 1 where id = ?", forwarder);
+        assertTrue(ok(call(get(SH + "/" + shId), admin)).path("pickup").asBoolean());
+    }
+
+    /**
      * openspec ship-forwarder-choice：登记出运时由业务员选择交给谁。货代没绑定客户也能选「客户的货代」，
      * 只填交货日期、不进运费账单；修改运单沿用登记时的选择
      */

@@ -99,6 +99,13 @@ export interface WillMerge {
 }
 
 /** 待关联清单的一组：同品牌原文 + 归一化型号的未关联商品的单据明细 */
+/** 涉及的一张单据：类型（QT、PI、SO、PO、SD、GR、OB、AS、SR、RR、PR）、ID、单号 */
+export interface UnlinkedDocRef {
+  type: string;
+  id: number;
+  no: string;
+}
+
 export interface UnlinkedGroup {
   key: string;
   brand: string;
@@ -107,6 +114,36 @@ export interface UnlinkedGroup {
   lineCount: number;
   lastSeenAt?: string;
   suggestion?: ProductOption;
+  /** 最近的单据（最多 20 张）与总张数（openspec unlinked-docs-enhance） */
+  docRefs?: UnlinkedDocRef[];
+  docCount?: number;
+  /** AI 判断：1-商品型号、2-费用或非商品、3-看不出；没识别过为空 */
+  aiKind?: number;
+  aiBrand?: string;
+  aiModel?: string;
+  /** 已标为不是商品（「显示已标记」时） */
+  ignored?: boolean;
+  ignoredBy?: string;
+  ignoredAt?: string;
+}
+
+/** 批量 AI 识别型号的进度与结果 */
+export interface UnlinkedAi {
+  taskId?: number;
+  /** 1-排队中、2-处理中、3-已完成、4-失败 */
+  status?: number;
+  total?: number;
+  skipped?: number;
+  models?: number;
+  fees?: number;
+  unknown?: number;
+  errorMessage?: string;
+}
+
+export interface UnlinkedAdopt {
+  adopted: number;
+  lines: number;
+  failures: { key: string; model?: string; message: string }[];
 }
 
 const quiet = { skipErrorHandler: true } as const;
@@ -161,11 +198,37 @@ export const candidateApi = {
   references: (id: number) =>
     send<Record<string, number>>('GET', `${C}/${id}/references`),
   /** 待关联清单：还没关联商品的单据明细，按型号归并 */
-  unlinked: (q: { keyword?: string; page: number; pageSize: number }) =>
+  unlinked: (q: {
+    keyword?: string;
+    page: number;
+    pageSize: number;
+    /** 只看已标为不是商品的组 */
+    marked?: boolean;
+  }) =>
     request<{ data: PageResult<UnlinkedGroup> }>(`${C}/unlinked`, {
-      params: { keyword: q.keyword, page: q.page, page_size: q.pageSize },
+      params: {
+        keyword: q.keyword,
+        page: q.page,
+        page_size: q.pageSize,
+        marked: q.marked || undefined,
+      },
       ...quiet,
     }).then((r) => r.data),
+  /** 标为不是商品 / 恢复，返回组数 */
+  ignoreUnlinked: (keys: string[]) =>
+    send<number>('POST', `${C}/unlinked/ignore`, { keys }),
+  restoreUnlinked: (keys: string[]) =>
+    send<number>('POST', `${C}/unlinked/restore`, { keys }),
+  /** 批量 AI 识别型号（只给建议）与进度 */
+  aiUnlinked: (keys: string[]) =>
+    send<UnlinkedAi>('POST', `${C}/unlinked/ai`, { keys }),
+  aiUnlinkedStatus: (taskId: number) =>
+    request<{ data: UnlinkedAi }>(`${C}/unlinked/ai/${taskId}`, quiet).then(
+      (r) => r.data,
+    ),
+  /** 批量采纳 AI 建议的型号 */
+  adoptUnlinked: (keys: string[]) =>
+    send<UnlinkedAdopt>('POST', `${C}/unlinked/adopt`, { keys }),
   /** 选择商品（productId）或填写真实型号（brand + model）后批量关联，返回关联的条数 */
   linkUnlinked: (body: {
     key: string;

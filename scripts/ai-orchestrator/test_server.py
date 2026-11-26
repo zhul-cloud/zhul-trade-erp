@@ -1097,6 +1097,43 @@ if __name__ == "__main__":
     unittest.main()
 
 
+class UnlinkedParseTest(unittest.TestCase):
+    """unlinked-model-parse：待关联单据的型号识别，50 组一批，只给建议"""
+
+    def setUp(self):
+        self.server = load_server()
+        self.cfg = self.server.parse_ai_config(ai())
+
+    def test_batches_of_fifty_merged_in_order_without_web_search(self):
+        items = [{"key": str(i), "brand": "", "model": f"M{i}"} for i in range(70)]
+        calls = []
+
+        def fake(cfg, prompt, text, attachments, schema, **kw):
+            batch = json.loads(text)["items"]
+            calls.append((prompt, len(batch), schema, kw.get("web_search", False)))
+            return {"items": [{"key": b["key"], "kind": "unknown", "brand": "", "model": ""} for b in batch]}
+
+        with mock.patch.object(self.server, "call_api", fake):
+            out = self.server.call_unlinked_parse(self.cfg, {"items": items})
+        self.assertEqual([c[1] for c in calls], [50, 20])
+        self.assertEqual([i["key"] for i in out["items"]], [str(i) for i in range(70)])
+        self.assertIs(calls[0][0], self.server.UNLINKED_PROMPT)
+        self.assertIs(calls[0][2], self.server.UNLINKED_SCHEMA)
+        self.assertFalse(calls[0][3])
+
+    def test_empty_input_and_errors_fail_without_key(self):
+        sent = []
+        with mock.patch.object(self.server, "send_callback",
+                               lambda url, status, output=None, error=None: sent.append((status, error))):
+            self.server.process_unlinked({"input": {"items": []}, "ai": ai()}, "http://cb")
+            with mock.patch.object(self.server, "call_unlinked_parse",
+                                   mock.MagicMock(side_effect=RuntimeError(f"bad key {KEY}"))):
+                self.server.process_unlinked({"input": {"items": [{"key": "1"}]}, "ai": ai()}, "http://cb")
+        self.assertEqual(sent[0], ("failed", "没有需要识别的型号"))
+        self.assertEqual(sent[1][0], "failed")
+        self.assertNotIn(KEY, sent[1][1])
+
+
 class CandidateClassifyTest(unittest.TestCase):
     def setUp(self):
         self.server = load_server()

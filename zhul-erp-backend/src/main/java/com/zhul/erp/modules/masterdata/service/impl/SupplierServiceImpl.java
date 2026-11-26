@@ -1,6 +1,7 @@
 package com.zhul.erp.modules.masterdata.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
@@ -48,6 +49,9 @@ import java.util.Set;
 import com.zhul.erp.framework.storage.StorageArea;
 import com.zhul.erp.framework.storage.FileStorageService.FileLink;
 import com.zhul.erp.framework.storage.FileStorageService;
+import com.zhul.erp.modules.system.entity.UserBasicDO;
+import com.zhul.erp.modules.system.repository.UserBasicMapper;
+import com.zhul.erp.modules.system.service.LogService;
 
 @Service
 @RequiredArgsConstructor
@@ -68,6 +72,8 @@ public class SupplierServiceImpl implements SupplierService {
     private final SupplierAttachmentSync attachmentSync;
     private final FileStorageService fileStorage;
     private final ApplicationEventPublisher events;
+    private final UserBasicMapper userBasicMapper;
+    private final LogService logService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -89,6 +95,7 @@ public class SupplierServiceImpl implements SupplierService {
         SupplierDO supplier = new SupplierDO();
         supplier.setTenantId(tenantId);
         applyFields(supplier, req);
+        supplier.setPurchaserId(requirePurchaser(req.getPurchaserId(), null));
         supplier.setSupplierType(req.getSupplierType() != null ? req.getSupplierType() : SupplierConstants.UNSET);
         supplier.setVolumeDivisor(req.getVolumeDivisor() != null ? req.getVolumeDivisor() : 5000);
         supplier.setStatus(req.getStatus() != null ? req.getStatus() : 1);
@@ -149,6 +156,7 @@ public class SupplierServiceImpl implements SupplierService {
         }
         SupplierVO vo = toVo(supplier);
         fillDetail(vo, id, false);
+        fillPurchasers(List.of(vo));
         return vo;
     }
 
@@ -158,6 +166,7 @@ public class SupplierServiceImpl implements SupplierService {
         SupplierFormVO vo = new SupplierFormVO();
         fillVo(vo, supplier);
         fillDetail(vo, id, true);
+        fillPurchasers(List.of(vo));
         return vo;
     }
 
@@ -203,6 +212,7 @@ public class SupplierServiceImpl implements SupplierService {
             vo.setProductScopes(scopes.getOrDefault(supplier.getId(), List.of()));
             records.add(vo);
         }
+        fillPurchasers(records);
         return PageResult.of(pageResult.getTotal(), records);
     }
 
@@ -276,6 +286,14 @@ public class SupplierServiceImpl implements SupplierService {
             supplier.setStatus(req.getStatus());
         }
         supplierMapper.updateById(supplier);
+        Long purchaser = requirePurchaser(req.getPurchaserId(), supplier.getPurchaserId());
+        if (!Objects.equals(purchaser, supplier.getPurchaserId())) {
+            supplierMapper.update(null, new LambdaUpdateWrapper<SupplierDO>()
+                    .set(SupplierDO::getPurchaserId, purchaser).eq(SupplierDO::getId, id));
+            logService.recordOperateLog("供应商管理", "修改所属采购员",
+                    Map.of("name", supplier.getName(), "purchaser", purchaserText(supplier.getPurchaserId())),
+                    Map.of("name", supplier.getName(), "purchaser", purchaserText(purchaser)));
+        }
         String newName = SupplierRenamedEvent.displayName(supplier);
         if (!newName.equals(oldName)) {
             events.publishEvent(new SupplierRenamedEvent(supplier.getTenantId(), id, newName));
@@ -498,6 +516,50 @@ public class SupplierServiceImpl implements SupplierService {
         return tenantId != null ? tenantId : 0;
     }
 
+    /**
+     * 所属采购员须是本公司的用户（user_basic 经租户拦截器只查本租户）；改成别人时须是启用的用户，
+     * 原值不变时允许已停用的用户留着
+     */
+    private Long requirePurchaser(Long purchaserId, Long current) {
+        if (purchaserId == null || Objects.equals(purchaserId, current)) {
+            return purchaserId;
+        }
+        UserBasicDO u = purchaserId > Integer.MAX_VALUE ? null : userBasicMapper.selectById(purchaserId.intValue());
+        if (u == null) {
+            throw new BizException("所属采购员不存在");
+        }
+        if (!Objects.equals(u.getStatus(), 1)) {
+            throw new BizException("所属采购员已停用，请选择其他人");
+        }
+        return purchaserId;
+    }
+
+    private String purchaserText(Long purchaserId) {
+        if (purchaserId == null) {
+            return "未指定";
+        }
+        UserBasicDO u = purchaserId > Integer.MAX_VALUE ? null : userBasicMapper.selectById(purchaserId.intValue());
+        return u == null ? "未指定" : u.getName();
+    }
+
+    /** 列表与详情：所属采购员的姓名与是否已停用（一次查询） */
+    private void fillPurchasers(List<? extends SupplierVO> vos) {
+        List<Integer> ids = vos.stream().map(SupplierVO::getPurchaserId)
+                .filter(x -> x != null && x <= Integer.MAX_VALUE).map(Long::intValue).distinct().toList();
+        if (ids.isEmpty()) {
+            return;
+        }
+        Map<Long, UserBasicDO> users = new java.util.HashMap<>();
+        userBasicMapper.selectBatchIds(ids).forEach(u -> users.put(u.getId().longValue(), u));
+        for (SupplierVO vo : vos) {
+            UserBasicDO u = vo.getPurchaserId() == null ? null : users.get(vo.getPurchaserId());
+            if (u != null) {
+                vo.setPurchaserName(u.getName());
+                vo.setPurchaserDisabled(!Objects.equals(u.getStatus(), 1));
+            }
+        }
+    }
+
     private SupplierVO toVo(SupplierDO supplier) {
         SupplierVO vo = new SupplierVO();
         fillVo(vo, supplier);
@@ -513,6 +575,10 @@ public class SupplierServiceImpl implements SupplierService {
         vo.setSupplierType(supplier.getSupplierType());
         vo.setVolumeDivisor(supplier.getVolumeDivisor());
         vo.setCustomerId(supplier.getCustomerId());
+        vo.setHandoverMode(supplier.getHandoverMode());
+        vo.setCourierCarrier(supplier.getCourierCarrier());
+        vo.setCourierAccount(supplier.getCourierAccount());
+        vo.setPurchaserId(supplier.getPurchaserId());
         vo.setIndustry(supplier.getIndustry());
         vo.setCreditCode(supplier.getCreditCode());
         vo.setLegalRepresentative(supplier.getLegalRepresentative());
