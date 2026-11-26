@@ -18,6 +18,10 @@ public enum MediaCategory {
     INSPECTION(7, "验货记录", "到货验收", true, false),
     DEFECT(8, "到货异常", "到货验收", false, false),
     MARKETING(9, "营销实拍", "营销拍摄", true, true),
+    /** 视频任务上传的图片；与视频素材一样进入时默认已勾选「用于发品」 */
+    IMAGE_ASSET(12, "图片素材", "营销拍摄", true, true),
+    /** 视频任务审核通过的视频（竖屏、横屏各一个） */
+    VIDEO_ASSET(13, "视频素材", "营销拍摄", true, true),
     PACKING(10, "打包发货", "仓库发货", true, false),
     FEEDBACK(11, "客户反馈", "售后反馈", false, false);
 
@@ -58,6 +62,11 @@ public enum MediaCategory {
 
     public boolean listingAllowed() {
         return listingAllowed;
+    }
+
+    /** 进入素材库时默认勾选「用于发品」：视频任务的图片素材和视频素材 */
+    public boolean listingByDefault() {
+        return this == IMAGE_ASSET || this == VIDEO_ASSET;
     }
 
     public static Optional<MediaCategory> of(Integer code) {

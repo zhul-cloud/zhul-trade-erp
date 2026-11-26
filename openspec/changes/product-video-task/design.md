@@ -33,10 +33,10 @@
 
 新增 `scripts/video-generator/` 镜像：基础是 MoneyPrinterTurbo 官方代码（固定版本），外层用一个小的 FastAPI 封装（`server.py`）。封装做四件事：
 
-1. 接收后端的生成请求：任务号、两个画幅、图片的签名下载链接、按镜头的字幕、配音参数、回调地址；
+1. 接收后端的生成请求：任务号、版本号、两个画幅、图片下载地址（后端内部接口，带共享令牌取图，只在任务生成中可取）、按镜头的字幕、配音参数、回调地址；
 2. 下载图片，用 Pillow 按目标比例从中心裁切铺满（9:16 裁到 1080×1920，16:9 裁到 1920×1080）；
 3. 在同一进程里调用 MoneyPrinterTurbo 的生成函数：`video_source=local`、`video_concat_mode=sequential`、`video_clip_duration = 估算总时长 ÷ 镜头数`，字幕逐句拼成 `video_script`；
-4. 先生成竖屏再生成横屏，完成后把两个 mp4 和封面上传到后端的内部上传接口，再回调结果。
+4. 先生成竖屏再生成横屏，完成后用一次 multipart 回调把两个 mp4、两张封面和时长一起交给后端（实现时合并了「上传」和「回调」两步，少一个接口、不会出现只传了一半的状态）。
 
 - **为什么不直接调用 MoneyPrinterTurbo 的 HTTP 接口**：它要求素材在本地文件系统，生成前要先裁图，结果也要轮询，这些都放进封装里，后端只需要一次提交和一次回调，模式与 AI 编排服务一致。
 - **为什么不在后端里用 ffmpeg 自己拼**：要自己实现配音、字幕对齐和转场，等于重写 MoneyPrinterTurbo。用户已经指定沿用它。
@@ -47,7 +47,7 @@
 
 - 新增定时任务 `VideoQueueJob`：每分钟执行一次，按 `TenantScope.platform` 跨租户读队列。
 - 只在夜间时段内、且没有「生成中」的任务时，取 `queued_at` 最早的任务，乐观更新为「生成中」后提交。
-- 用 Redisson 锁 `zhul:erp:lock:video:dispatch` 防止多个实例重复派发。
+- 用一条带条件的 UPDATE 认领任务（`status = 排队中` 且全库没有「生成中」的任务时才改成「生成中」），多个实例同时派发也只有一个成功。项目实际没有引入 Redisson，所以没用分布式锁；暂停标记和「连续不可用次数」放在 Redis 普通键里。
 - 回调、超时处理用 `TenantContext.runAs(任务的租户)`。
 - **为什么放在后端**：
   - 队列状态、排队位置、时段设置、跨租户先后顺序都在 ERP 数据库里，页面可以直接查询；
@@ -63,8 +63,9 @@
 | `product_video_material` | task_id、attachment_id、sort、used |
 | `product_video_output` | task_id、version、aspect（9:16 / 16:9）、video_attachment_id、cover_attachment_id、duration_sec、status（待审核 / 已通过 / 已替换） |
 
-- 三张表都是私有表（PRIVATE），要在 `TenantTables` 里归类。
-- 图片、视频都作为附件挂在视频任务上（业务类型 `video_task`），沿用私有存储和签名链接。
+- 另加一张 `product_video_log` 记录加入队列、开始、完成、失败、通过、退回等历史，详情页展示。
+- 四张表都是私有表（PRIVATE），要在 `TenantTables` 里归类。
+- 上传的图片作为附件挂在视频任务上（业务类型 `VIDEO_TASK`），生成的视频和封面挂在输出上（`VIDEO_OUTPUT`），沿用私有存储和签名链接；文件按「品牌 / 型号」目录存放，与素材库一致，型号统一用 `mpn_raw`。
 - 素材库按现有「附件即素材」的方式汇总：
   - 「图片素材」= 挂在视频任务上的图片附件；
   - 「视频素材」= 状态为「已通过」的输出。

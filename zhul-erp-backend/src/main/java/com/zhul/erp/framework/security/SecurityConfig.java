@@ -39,6 +39,8 @@ public class SecurityConfig {
         // AI 编排服务的 webhook 回调：不走用户态 JWT，改用共享密钥校验
         // （见 AiTaskController#callback、design.md 决策3）
         "/api/v1/ai-tasks/*/callback",
+        // 视频生成服务取图与回调：同样不走 JWT，用 X-Video-Token 共享密钥校验（见 VideoGeneratorController）
+        "/api/v1/video-generator/**",
         "/doc.html",
         "/webjars/**",
         "/v3/api-docs/**",
