@@ -13,6 +13,10 @@ public class ForwarderRowVO {
     private String shortName;
     /** 归属客户：空为公司货代 */
     private Long customerId;
+    /** 交接方式：1-送到货代、2-上门取件 */
+    private Integer handoverMode;
+    private String courierCarrier;
+    private String courierAccount;
     private String customerName;
     private String contactName;
     private String contactPhone;

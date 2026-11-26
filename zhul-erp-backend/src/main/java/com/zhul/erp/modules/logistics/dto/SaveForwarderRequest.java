@@ -21,6 +21,16 @@ public class SaveForwarderRequest {
     private String shortName;
     /** 归属客户：空为公司货代 */
     private Long customerId;
+    /** 交接方式（1-送到货代、2-上门取件）；只有客户指定货代能选上门取件，空为送到货代 */
+    @Min(value = 1, message = "交接方式不正确")
+    @Max(value = 2, message = "交接方式不正确")
+    private Integer handoverMode;
+    /** 上门取件的承运商 */
+    @Size(max = 32, message = "承运商不能超过32个字符")
+    private String courierCarrier;
+    /** 上门取件的客户快递账号（选填） */
+    @Size(max = 32, message = "客户快递账号不能超过32个字符")
+    private String courierAccount;
     @Size(max = 50, message = "联系人不能超过50个字符")
     private String contactName;
     @Size(max = 20, message = "联系电话不能超过20个字符")

@@ -23,6 +23,11 @@ public class LogisticsVO {
     private Integer volumeDivisor;
     /** 交客户指定货代：运单号选填（未填显示「客户安排」），运费为送货运费，不进运费账单 */
     private Boolean customerForwarder;
+    /** 上门取件（openspec customer-courier-pickup）：待出运按货代当前的交接方式，已出运按登记时的快照 */
+    private Boolean pickup;
+    /** 上门取件的货代信息「上门取件 · DHL · 账号」，登记出运时承运商默认取 pickupCarrier */
+    private String pickupLabel;
+    private String pickupCarrier;
     private Long ownerId;
     private String ownerName;
     private Integer status;
