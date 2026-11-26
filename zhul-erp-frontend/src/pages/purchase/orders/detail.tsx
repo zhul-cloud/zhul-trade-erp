@@ -1060,7 +1060,8 @@ const PurchaseOrderDetail: React.FC = () => {
                       marginBottom: 6,
                     }}
                   >
-                    付款方式
+                    付款方式{' '}
+                    <HelpTip title="开票默认对公、不开票默认对私，可以改" />
                   </div>
                   <Segmented<number>
                     value={draft.payMethod}
@@ -1074,7 +1075,6 @@ const PurchaseOrderDetail: React.FC = () => {
                       )
                     }
                   />
-                  {sub(palette.mute, '开票默认对公、不开票默认对私，可以改')}
                 </div>
                 {draft.invoiceRequired && (
                   <>

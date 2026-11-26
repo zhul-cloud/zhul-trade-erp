@@ -24,7 +24,7 @@ import { liveRequests } from '@/utils/liveRequests';
 import { amountTotals, type Group, groupPayables } from './batch';
 import { ACCEPT_PROOF, Field, newKey, PayeeAccountPicker } from './components';
 import { DueNowHint } from './dueNow';
-import { methodMismatch, suggestMethod } from './payMethod';
+import { MethodHint, methodMismatch, suggestMethod } from './payMethod';
 import { METHOD, type Payable, type PayeeAccount, paymentApi } from './service';
 
 interface GroupInput {
@@ -228,19 +228,11 @@ export const BatchPayModal: React.FC<{
               ]}
             />
             {suggestion.mixed ? (
-              <div
-                style={{ fontSize: 12, color: palette.orange, marginTop: 6 }}
-              >
+              <MethodHint tone="warn">
                 所选应付单付款方式不一致，请确认付款方式
-              </div>
+              </MethodHint>
             ) : (
-              mismatch && (
-                <div
-                  style={{ fontSize: 12, color: palette.orange, marginTop: 6 }}
-                >
-                  {mismatch}
-                </div>
-              )
+              mismatch && <MethodHint tone="warn">{mismatch}</MethodHint>
             )}
           </Field>
           <div style={{ flex: 1, textAlign: 'right' }}>

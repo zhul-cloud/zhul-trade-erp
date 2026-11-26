@@ -13,7 +13,7 @@ import {
   Skeleton,
   Table,
 } from 'antd';
-import { Ban, CircleCheck, Pencil, Plus, Search } from 'lucide-react';
+import { Ban, CircleCheck, Info, Pencil, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
@@ -274,11 +274,10 @@ export const ForwarderDrawer: React.FC<{
               <Form.Item
                 name="handoverMode"
                 label="交接方式"
-                extra={
-                  handover === HANDOVER.PICKUP
-                    ? '客户用自己的快递账号约快递上门取货'
-                    : undefined
-                }
+                tooltip={{
+                  title: '上门取件：客户用自己的快递账号约快递上门取货',
+                  icon: <Info size={14} />,
+                }}
               >
                 <Segmented<number>
                   options={[

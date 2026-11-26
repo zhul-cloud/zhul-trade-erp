@@ -469,11 +469,7 @@ const SupplierFormPage: React.FC = () => {
                   options={SUPPLIER_TYPE_SELECT_OPTIONS}
                 />
               </Form.Item>
-              <Form.Item
-                name="purchaserId"
-                label="所属采购员"
-                extra="选填，这家供应商由谁对接"
-              >
+              <Form.Item name="purchaserId" label="所属采购员">
                 <PurchaserSelect record={record} />
               </Form.Item>
               <Form.Item name="industry" label="所属行业">

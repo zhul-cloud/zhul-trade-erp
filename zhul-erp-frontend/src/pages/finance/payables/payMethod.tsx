@@ -23,6 +23,29 @@ export const PayMethodTag: React.FC<{ value?: number | null }> = ({
 };
 
 /**
+ * 付款方式下方的一行提示（随所选应付单变化的结果，规范「说明文字」放字段下方）：
+ * warn 为约定不一致、需要确认（警告色），note 为预选说明（次要色）。单笔、批量登记付款共用。
+ */
+export const MethodHint: React.FC<{
+  tone: 'warn' | 'note';
+  children: React.ReactNode;
+}> = ({ tone, children }) => {
+  const { palette } = useAppTheme();
+  return (
+    <div
+      role={tone === 'warn' ? 'status' : undefined}
+      style={{
+        fontSize: 12,
+        marginTop: 6,
+        color: tone === 'warn' ? palette.orange : palette.mute,
+      }}
+    >
+      {children}
+    </div>
+  );
+};
+
+/**
  * 按所选应付单的约定给出登记付款的预选：都对公 → 公司对公，都对私 → 私对私；
  * 不一致返回 mixed，没有可判断的（都未定或没选）两者都为空。
  */

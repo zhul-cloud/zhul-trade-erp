@@ -43,7 +43,12 @@ import { formatAmount, formatMoney } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
 import { tableScrollX } from '@/utils/tableScroll';
 import { DueNowHint, dueNowOf } from './dueNow';
-import { methodMismatch, PayMethodTag, suggestMethod } from './payMethod';
+import {
+  MethodHint,
+  methodMismatch,
+  PayMethodTag,
+  suggestMethod,
+} from './payMethod';
 import {
   ChannelIcon,
   PAY_CHANNEL,
@@ -691,24 +696,19 @@ export const RegisterPaymentDrawer: React.FC<{
             ]}
           />
           {mismatch ? (
-            <Alert
-              type="warning"
-              showIcon
-              message={mismatch}
-              style={{ marginTop: 8 }}
-            />
+            <MethodHint tone="warn">{mismatch}</MethodHint>
           ) : suggestion.mixed ? (
-            <div style={{ fontSize: 12, color: palette.orange, marginTop: 6 }}>
+            <MethodHint tone="warn">
               所选应付单付款方式不一致，请确认付款方式
-            </div>
+            </MethodHint>
           ) : (
             !methodTouched &&
             suggestion.method !== undefined && (
-              <div style={{ fontSize: 12, color: palette.mute, marginTop: 6 }}>
+              <MethodHint tone="note">
                 按应付单约定「
                 {suggestion.method === METHOD.COMPANY ? '对公' : '对私'}
                 」预选，可以改
-              </div>
+              </MethodHint>
             )
           )}
           {method === METHOD.PRIVATE && (
