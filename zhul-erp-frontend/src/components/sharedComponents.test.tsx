@@ -292,6 +292,17 @@ describe('SelectionCount', () => {
   });
 });
 
+/**
+ * 子元素按 createElement 的第三个参数传，不写 children 属性（Biome noChildrenProp）；
+ * 本文件的编译不允许把导入的名字当类型用，所以这里只用断言
+ */
+const copyText = (text: string | null, child: unknown) =>
+  React.createElement(
+    CopyText,
+    { text } as { text: string | null; children: never },
+    child as never,
+  );
+
 describe('CopyText 悬停复制（D27）', () => {
   it('点复制写入剪贴板、提示，且不触发外层点击', async () => {
     const writeText = jest.fn().mockResolvedValue(undefined);
@@ -304,10 +315,10 @@ describe('CopyText 悬停复制（D27）', () => {
         React.createElement(
           'div',
           { onClick: onRow },
-          React.createElement(CopyText, {
-            text: 'SO20261126001',
-            children: React.createElement('span', null, 'SO20261126001'),
-          }),
+          copyText(
+            'SO20261126001',
+            React.createElement('span', null, 'SO20261126001'),
+          ),
         ),
       ),
     );
@@ -326,10 +337,7 @@ describe('CopyText 悬停复制（D27）', () => {
       React.createElement(
         App,
         null,
-        React.createElement(CopyText, {
-          text: null,
-          children: React.createElement('span', null, '草稿采购订单'),
-        }),
+        copyText(null, React.createElement('span', null, '草稿采购订单')),
       ),
     );
     expect(screen.queryByRole('button')).toBeNull();

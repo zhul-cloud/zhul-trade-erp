@@ -474,9 +474,9 @@ const SalesStatsPage: React.FC = () => {
               display: 'grid',
               placeItems: 'center',
               fontSize: 16,
-              // 终点与其余步骤两类、无好坏：用主题色深浅（D47、规范「层级与表面」）
-              background: last ? palette.chartSoft : palette.neutralSoft,
-              color: last ? palette.ink : palette.sub,
+              // lint-ui-ignore primary-soft: D41 漏斗终点图标块，规范「主题色浅底」的固定例外
+              background: last ? palette.primarySoft : palette.neutralSoft,
+              color: last ? palette.link : palette.sub,
             }}
           >
             {x.icon}

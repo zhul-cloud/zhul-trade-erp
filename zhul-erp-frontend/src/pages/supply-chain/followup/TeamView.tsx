@@ -192,6 +192,13 @@ const TeamView: React.FC<{
       </>
     );
   const t = team;
+  const ellipsis: React.CSSProperties = {
+    display: 'block',
+    minWidth: 0,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  };
   /** 逾期 3 个及以上或多次延后 2 个及以上：需要关注 */
   const attention = (r: Team['owners'][number]) =>
     r.overdue >= 3 || r.multiDefer >= 2;
@@ -207,13 +214,21 @@ const TeamView: React.FC<{
             <Button
               type="link"
               size="small"
-              style={{ padding: 0, justifyContent: 'flex-start' }}
+              title={r.ownerName ?? '未指定负责人'}
+              style={{
+                padding: 0,
+                justifyContent: 'flex-start',
+                maxWidth: '100%',
+              }}
               onClick={() => onJump({ ownerId: r.ownerId })}
             >
-              {r.ownerName ?? '未指定负责人'}
+              {/* 列宽 96：名字长时单行省略，悬停看全名，不撑宽表格 */}
+              <span style={ellipsis}>{r.ownerName ?? '未指定负责人'}</span>
             </Button>
           ) : (
-            <span>{r.ownerName ?? '未指定负责人'}</span>
+            <span style={ellipsis} title={r.ownerName ?? '未指定负责人'}>
+              {r.ownerName ?? '未指定负责人'}
+            </span>
           )}
           {/* 需要关注的行左侧有色条（rowAlert），原因写成状态标签，与客户跟进一致 */}
           {attention(r) && (

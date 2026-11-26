@@ -1,7 +1,7 @@
 import type { TableColumnsType } from 'antd';
 import { Button, Segmented, Skeleton, Table, TreeSelect } from 'antd';
 import dayjs from 'dayjs';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { HelpTip } from '@/components/ListLayout';
 import { MetricGrid, MetricTile } from '@/components/MetricCard';
@@ -160,9 +160,12 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
     </div>
   );
 
-  useEffect(() => {
+  // 绘制前先量一次，首帧就按正确的栏数显示，不先两栏再跳成单栏
+  useLayoutEffect(() => {
     const el = boxRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    if (!el) return undefined;
+    setBoxW(el.clientWidth);
+    if (typeof ResizeObserver === 'undefined') return undefined;
     const ro = new ResizeObserver(() => setBoxW(el.clientWidth));
     ro.observe(el);
     return () => ro.disconnect();
@@ -461,6 +464,9 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
     </div>
   );
 
+  // 负责人表和右栏放得下并排才两栏（1366 宽放不下，右栏内容移到表格下方）
+  const twoCol =
+    wide && (boxW == null || boxW >= tableScrollX(ownerCols) + 360);
   return (
     <>
       {toolbar}
@@ -490,16 +496,22 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
         ref={boxRef}
         style={{
           display: 'grid',
-          gridTemplateColumns:
-            wide && (boxW == null || boxW >= tableScrollX(ownerCols) + 360)
-              ? 'minmax(0, 1fr) 304px'
-              : 'minmax(0, 1fr)',
+          gridTemplateColumns: twoCol
+            ? 'minmax(0, 1fr) 304px'
+            : 'minmax(0, 1fr)',
           gap: 16,
           alignItems: 'start',
         }}
       >
-        <div style={{ display: 'grid', gap: 16, minWidth: 0 }}>
-          <Card style={{ padding: '16px 20px' }}>
+        {/* 单栏时左栏展开（contents），三张卡按 order 排成：负责人 → 需要主管看一眼 → 卡在哪一步（异常优先，D68） */}
+        <div
+          style={{
+            display: twoCol ? 'grid' : 'contents',
+            gap: 16,
+            minWidth: 0,
+          }}
+        >
+          <Card style={{ padding: '16px 20px', order: 1 }}>
             <b style={{ color: palette.ink }}>按负责人</b>
             <Table<TeamOwner>
               style={{ marginTop: 10 }}
@@ -518,7 +530,7 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
               }
             />
           </Card>
-          <Card style={{ padding: '16px 20px' }}>
+          <Card style={{ padding: '16px 20px', order: 3 }}>
             <div
               style={{
                 display: 'flex',
@@ -603,7 +615,7 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
             ))}
           </Card>
         </div>
-        <Card style={{ padding: '16px 20px' }}>
+        <Card style={{ padding: '16px 20px', order: 2 }}>
           <div
             style={{
               display: 'flex',

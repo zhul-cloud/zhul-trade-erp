@@ -169,15 +169,14 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
     setLoading(true);
     setError(undefined);
     try {
-      const [r, other] = await Promise.all([
-        candidateApi.unlinked({ keyword: query, page, pageSize, marked }),
-        candidateApi
-          .unlinked({ keyword: query, page: 1, pageSize: 1, marked: !marked })
-          .catch(() => undefined),
-      ]);
+      const r = await candidateApi.unlinked({
+        keyword: query,
+        page,
+        pageSize,
+        marked,
+      });
       setRows(r.records);
       setTotal(r.total);
-      setOtherTotal(other?.total);
     } catch (e) {
       setError(readBizError(e).message);
     } finally {
@@ -226,9 +225,24 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
     setPage(1);
   };
 
+  // 另一状态的数量与页码无关：只在关键词、状态变化和操作完成后取（后端每次都要扫一遍明细）
+  const [countTick, setCountTick] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    setOtherTotal(undefined);
+    candidateApi
+      .unlinked({ keyword: query, page: 1, pageSize: 1, marked: !marked })
+      .then((r) => alive && setOtherTotal(r.total))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [query, marked, countTick]);
+
   const done = () => {
     setSelected([]);
     load();
+    setCountTick((t) => t + 1);
     onChanged();
   };
 
@@ -532,6 +546,8 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
             value={marked ? 'marked' : 'open'}
             onChange={(v) => {
               setMarked(v === 'marked');
+              // 新数据回来前不显示上一状态的数量
+              setTotal(0);
               setSelected([]);
               setPage(1);
             }}

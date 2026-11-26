@@ -397,6 +397,28 @@ describe('lint:ui 复审补充', () => {
         'const s = { background: mode === v ? palette.primarySoft : undefined };',
       ),
     ).not.toContain('primary-soft:error');
+    // 选中分支里再按危险与否区分：继承选中态，不报
+    expect(
+      rules(
+        'const s = { background: active ? (danger ? palette.redSoft : palette.primarySoft) : undefined };',
+      ),
+    ).not.toContain('primary-soft:error');
+    // 取反、嵌套三元、backgroundColor 也查
+    expect(
+      rules(
+        'const s = { background: !active ? palette.primarySoft : undefined };',
+      ),
+    ).toContain('primary-soft:error');
+    expect(
+      rules(
+        'const s = { background: on ? palette.inset : x ? palette.primarySoft : undefined };',
+      ),
+    ).toContain('primary-soft:error');
+    expect(
+      rules(
+        'const s = { backgroundColor: user ? palette.primarySoft : undefined };',
+      ),
+    ).toContain('primary-soft:error');
   });
   it('按条件加危险色的确认框也要用 useConfirmDanger', () => {
     expect(

@@ -496,28 +496,40 @@ function checkSource(src, rel) {
     }
   }
 
-  // 主题色浅底的条件写法（按语法树判断，换行写的、写在否分支的都查得到，D42）：
-  // 条件是选中、当前类变量（on、active、checked、current 等）或比较、调用（mode === v、picked(id)）且浅底在「是」分支时放过；
-  // 按类别区分（user ? …、last ? …）或浅底写在「否」分支的报错
+  // 主题色浅底的条件写法（按语法树判断，D42）：background / backgroundColor 的条件表达式里，
+  // 浅底只能出现在「是」分支，且条件是选中、当前类变量（on、active、checked、current 等）或比较、调用（mode === v、picked(id)）；
+  // 按类别区分（user ? …、last ? …）、取反（!active ? …）、写在「否」分支、嵌套三元里的都报错
   const SELECTED_COND =
-    /^!?(on|active|checked|selected|sel|cur|current|groupOn|hit|picked|isActive)$|\.current$|===|!==|\(/;
+    /^(on|active|checked|selected|sel|cur|current|groupOn|hit|picked|isActive)$|\.current$|===|!==|\(/;
   const PRIMARY_SOFT_MSG = LINE_RULES.find(
     (r) => r.id === 'primary-soft',
   ).message;
+  const unwrap = (x) =>
+    ts.isParenthesizedExpression(x) ? unwrap(x.expression) : x;
+  const isSoft = (x) => /\.primarySoft$/.test(unwrap(x).getText(sf).trim());
+  // inSelected：外层已经是选中分支（active ? (danger ? redSoft : primarySoft) : …），里层继承选中态
+  const badSoft = (e, inSelected = false) => {
+    const yes = unwrap(e.whenTrue);
+    const no = unwrap(e.whenFalse);
+    const cond = e.condition.getText(sf).replace(/\s+/g, '');
+    const selected = inSelected || SELECTED_COND.test(cond);
+    if (isSoft(yes) && !selected) return true;
+    // 外层已是选中分支时，内层两个分支都属选中态
+    if (isSoft(no) && !inSelected) return true;
+    return (
+      (ts.isConditionalExpression(yes) && badSoft(yes, selected)) ||
+      (ts.isConditionalExpression(no) && badSoft(no, inSelected))
+    );
+  };
   walk(sf, (n) => {
     if (
       !ts.isPropertyAssignment(n) ||
-      n.name.getText(sf) !== 'background' ||
-      !ts.isConditionalExpression(n.initializer)
+      !['background', 'backgroundColor'].includes(n.name.getText(sf))
     )
       return;
-    const e = n.initializer;
-    const soft = (x) => /\.primarySoft$/.test(x.getText(sf).trim());
-    if (!soft(e.whenTrue) && !soft(e.whenFalse)) return;
-    const cond = e.condition.getText(sf).replace(/\s+/g, '');
-    if (soft(e.whenTrue) && !soft(e.whenFalse) && SELECTED_COND.test(cond))
-      return;
-    push('primary-soft', 'error', PRIMARY_SOFT_MSG, lineOf(n.getStart(sf)));
+    const init = unwrap(n.initializer);
+    if (ts.isConditionalExpression(init) && badSoft(init))
+      push('primary-soft', 'error', PRIMARY_SOFT_MSG, lineOf(n.getStart(sf)));
   });
 
   // 进度条颜色：strokeColor 只能是 palette.chart（按语法树判断，换行写法也查得到）
