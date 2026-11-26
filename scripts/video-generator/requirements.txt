@@ -4,3 +4,5 @@ uvicorn>=0.29
 requests>=2.31
 pillow>=10.0
 httpx>=0.27
+# MoneyPrinterTurbo v1.3.3 自带 edge-tts 7.2.7，微软语音服务已拒绝（403），在其依赖之后覆盖安装
+edge-tts==7.3.1

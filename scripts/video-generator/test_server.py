@@ -97,5 +97,14 @@ class GenerateTest(unittest.TestCase):
         self.assertEqual(files, [])
 
 
+class FailureReasonTest(unittest.TestCase):
+
+    def test_stage_to_reason(self):
+        self.assertIn("配音", server.failure_reason({"failed_stage": "audio", "error": "failed to synthesize audio"}))
+        self.assertIn("图片", server.failure_reason({"failed_stage": "materials"}))
+        self.assertNotIn("MoneyPrinterTurbo", server.failure_reason(None))
+        self.assertNotIn("failed", server.failure_reason({"failed_stage": "pipeline", "error": "boom failed"}))
+
+
 if __name__ == "__main__":
     unittest.main()

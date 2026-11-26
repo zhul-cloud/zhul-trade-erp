@@ -45,6 +45,8 @@ import com.zhul.erp.modules.video.support.VideoSettings;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -789,8 +791,11 @@ public class VideoTaskService {
         logMapper.insert(l);
     }
 
-    /** 当前登录用户；后台任务、生成服务回调没有登录用户时为 sys */
+    /** 当前登录用户；后台任务、生成服务回调（匿名身份）没有登录用户时为 sys */
     static String operator() {
+        if (SecurityContextHolder.getContext().getAuthentication() instanceof AnonymousAuthenticationToken) {
+            return "sys";
+        }
         String name = SecurityUtils.getCurrentUsername();
         return StringUtils.hasText(name) ? name : "sys";
     }

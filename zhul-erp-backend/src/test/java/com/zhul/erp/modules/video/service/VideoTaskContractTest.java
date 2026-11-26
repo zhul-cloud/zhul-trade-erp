@@ -205,6 +205,12 @@ class VideoTaskContractTest extends TenantContractSupport {
         assertEquals("待审核", r.path("statusName").asText());
         assertEquals(2, r.path("outputs").size());
         assertEquals(0, videoAssets(A), "待审核的视频不进素材库");
+        assertEquals(VideoConstants.SYSTEM, r.path("logs").get(0).path("operator").asText(),
+                "生成服务回调没有登录用户，历史里记为系统");
+        assertEquals(List.of("V-1_16x9_v1.jpg", "V-1_16x9_v1.mp4", "V-1_9x16_v1.jpg", "V-1_9x16_v1.mp4"),
+                jdbc.queryForList("select file_name from biz_attachment where owner_type = ? and owner_id in"
+                        + " (select id from product_video_output where task_id = ?) order by file_name",
+                        String.class, VideoConstants.OWNER_OUTPUT, id), "成片按型号、画幅、版本命名");
 
         // 退回要写原因
         assertEquals("请填写退回原因", fail(call(json(post(API + "/" + id + "/reject"), "{\"reason\":\" \"}"), a)).path("message").asText());

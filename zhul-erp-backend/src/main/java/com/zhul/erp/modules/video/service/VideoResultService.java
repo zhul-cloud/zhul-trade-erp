@@ -106,9 +106,10 @@ public class VideoResultService {
             outputMapper.insert(o);
             VideoOutputDO upd = new VideoOutputDO();
             upd.setId(o.getId());
-            upd.setVideoAttachmentId(store(t, o.getId(), p.video(), Set.of("mp4"), VIDEO_MAX, 2));
+            String name = outputName(t.getModel(), aspect, version);
+            upd.setVideoAttachmentId(store(t, o.getId(), p.video(), Set.of("mp4"), VIDEO_MAX, 2, name));
             if (p.cover() != null && !p.cover().isEmpty()) {
-                upd.setCoverAttachmentId(store(t, o.getId(), p.cover(), Set.of("jpg", "png", "webp"), COVER_MAX, 1));
+                upd.setCoverAttachmentId(store(t, o.getId(), p.cover(), Set.of("jpg", "png", "webp"), COVER_MAX, 1, name));
             }
             outputMapper.updateById(upd);
         }
@@ -156,7 +157,8 @@ public class VideoResultService {
                 .eq(VideoTaskDO::getStatus, VideoConstants.STATUS_GENERATING));
     }
 
-    private Long store(VideoTaskDO t, Long outputId, MultipartFile file, Set<String> exts, long max, int kind) {
+    private Long store(VideoTaskDO t, Long outputId, MultipartFile file, Set<String> exts, long max, int kind,
+                       String name) {
         String ext = UploadRules.check(file, exts, max, kind == 2 ? "视频只支持 MP4" : "封面只支持 JPG、PNG、WEBP");
         FileStorageService.StoredFile s = files.storeForModel(StorageArea.MEDIA, t.getTenantId(), t.getBrand(), t.getModel(), file, ext);
         BizAttachmentDO a = new BizAttachmentDO();
@@ -167,13 +169,19 @@ public class VideoResultService {
         a.setStorage(s.storage());
         a.setFileKey(s.fileKey());
         a.setUrl("");
-        a.setFileName(s.fileName());
+        a.setFileName(name + "." + ext);
         a.setFileSize(s.fileSize());
         a.setContentType(s.contentType());
         a.setProcessingStatus(VideoTranscoder.NONE);
         a.setUploadedBy(0L);
         attachmentMapper.insert(a);
         return a.getId();
+    }
+
+    /** 成片文件名：型号_画幅_版本，如 V-1_9x16_v2（生成服务给的文件名都叫 final-1，分不出竖屏横屏） */
+    static String outputName(String model, String aspect, int version) {
+        String m = model == null ? "" : model.trim().replaceAll("[\\\\/:*?\"<>|\\s]+", "-");
+        return (m.isEmpty() ? "video" : m) + "_" + aspect.replace(':', 'x') + "_v" + version;
     }
 
     static String aspectName(String aspect) {

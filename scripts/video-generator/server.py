@@ -25,6 +25,12 @@ MPT_ROOT = os.environ.get("MPT_ROOT") or "/MoneyPrinterTurbo"
 WORK_ROOT = os.path.join(MPT_ROOT, "storage", "local_videos")
 NAMES = {"9:16": "portrait", "16:9": "landscape"}
 LABELS = {"9:16": "竖屏", "16:9": "横屏"}
+# MoneyPrinterTurbo 失败阶段 → 给运营看的原因；英文原始错误只写在生成服务日志里
+STAGE_REASONS = {
+    "audio": "配音生成失败，语音服务暂时不可用，稍后重新生成",
+    "materials": "图片素材处理失败，请检查图片后重新生成",
+    "video": "视频合成失败，稍后重新生成",
+}
 
 log = logging.getLogger("video-generator")
 logging.basicConfig(level=logging.INFO, format="[video-generator] %(message)s")
@@ -135,8 +141,13 @@ def render(job: dict, aspect: str, materials: list[str]) -> str:
     result = mpt.start(f"erp-{job.get('taskId')}-{NAMES[aspect]}-{uuid.uuid4().hex[:6]}", params, stop_at="video")
     videos = (result or {}).get("videos") or []
     if not videos or not os.path.exists(videos[0]):
-        raise JobError("MoneyPrinterTurbo 没有生成视频，请查看生成服务日志")
+        raise JobError(failure_reason(result))
     return videos[0]
+
+
+def failure_reason(result: dict | None) -> str:
+    stage = (result or {}).get("failed_stage")
+    return STAGE_REASONS.get(stage, "视频生成失败，稍后重新生成；多次失败请联系管理员")
 
 
 def extract_cover(video: str, dst: str):

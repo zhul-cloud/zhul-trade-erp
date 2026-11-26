@@ -875,7 +875,7 @@ const VideoTaskDetailPage: React.FC = () => {
                     key={i}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '84px 56px 1fr',
+                      gridTemplateColumns: '76px 84px minmax(0, 1fr)',
                       gap: 8,
                       fontSize: 12,
                     }}
@@ -883,7 +883,17 @@ const VideoTaskDetailPage: React.FC = () => {
                     <span style={{ color: palette.mute }}>
                       {dayjs(l.time).format('MM-DD HH:mm')}
                     </span>
-                    <span style={{ color: palette.sub }}>{l.operator}</span>
+                    <span
+                      title={l.operator}
+                      style={{
+                        color: palette.sub,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {l.operator}
+                    </span>
                     <span>
                       {l.actionName}
                       {l.version ? `（第 ${l.version} 版）` : ''}
