@@ -23,7 +23,7 @@ export const LIMITS = {
   minSeconds: 15,
   maxSeconds: 20,
   /** 上传前浏览器把长边缩到这个像素 */
-  resizeTo: 2560,
+  resizeTo: 2048,
 };
 
 export const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'webp'];
@@ -242,7 +242,7 @@ export const extOf = (name: string) =>
   name.includes('.') ? (name.split('.').pop() ?? '').toLowerCase() : '';
 
 /**
- * 浏览器里把长边缩到 2560 像素再上传（大图生成很慢，见 design）；本来就小的图片原样上传。
+ * 浏览器里把长边缩到 2048 像素再上传（与后端 ImageCompressor 一致；大图生成很慢，见 design）；本来就小的图片原样上传。
  * 输出 JPEG（PNG 透明背景会变白），文件名改成 .jpg。
  */
 export const resizeForUpload = async (

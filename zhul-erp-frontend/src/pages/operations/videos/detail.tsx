@@ -645,7 +645,7 @@ const VideoTaskDetailPage: React.FC = () => {
               )}
             </div>
             <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
-              JPG / PNG / WEBP，单张不超过 20MB，上传前自动缩到长边 2560
+              JPG / PNG / WEBP，单张不超过 20MB，上传前自动缩到长边 2048
               像素；HEIC 请先转成 JPG。
             </div>
           </Card>
