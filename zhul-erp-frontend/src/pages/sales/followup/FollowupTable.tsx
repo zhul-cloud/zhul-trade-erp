@@ -13,6 +13,7 @@ import {
 import dayjs from 'dayjs';
 import { ChevronDown, ChevronRight, Ellipsis } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import { CustomerSubLine } from '@/components/DocFields';
 import { tableEmpty } from '@/components/EmptyState';
@@ -80,7 +81,18 @@ export const StageBar: React.FC<{
   onBlocker: (v?: string) => void;
   /** 右侧的工具：搜索、负责人，主动开发另有国家筛选、新建开发对象 */
   extra?: React.ReactNode;
-}> = ({ boardNo, board, value, onChange, blocker, onBlocker, extra }) => {
+  /** 这一行最后：「列」「作战卡」等工具按钮（D74：和筛选同一行，不另占一行） */
+  trailing?: React.ReactNode;
+}> = ({
+  boardNo,
+  board,
+  value,
+  onChange,
+  blocker,
+  onBlocker,
+  extra,
+  trailing,
+}) => {
   const { palette } = useAppTheme();
   const blockers = useBlockers(boardNo);
   // 商机成交、主动开发：阶段上方标分组名，可点分组
@@ -305,6 +317,7 @@ export const StageBar: React.FC<{
           }))}
         />
       )}
+      {trailing}
     </div>
   );
 };
@@ -579,8 +592,8 @@ export const FollowupTable: React.FC<{
   onNewInquiry?: (customerId: number) => void;
   /** 主动开发「转为商机」 */
   onConvert?: (item: FollowupItem) => void;
-  /** 表格上方工具栏右端（如「作战卡」按钮，D74） */
-  toolbarRight?: React.ReactNode;
+  /** 「列」按钮渲染到的位置（阶段导航那一行的末尾，D74）；没有时放在表格上方 */
+  settingsSlot?: HTMLElement | null;
 }> = ({
   boardNo,
   filter,
@@ -604,7 +617,7 @@ export const FollowupTable: React.FC<{
   onMore,
   onNewInquiry,
   onConvert,
-  toolbarRight,
+  settingsSlot,
 }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
@@ -1459,31 +1472,33 @@ export const FollowupTable: React.FC<{
   return (
     <>
       {batchBar}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          alignItems: 'center',
-          gap: 8,
-          marginBottom: 8,
-        }}
-      >
-        {groups && multi && (
-          <Button
-            type="link"
-            size="small"
-            onClick={() => {
-              writeExpandAll(!expandAll);
-              setExpandAll(!expandAll);
-              setFlipped([]);
-            }}
-          >
-            {expandAll ? '全部收起' : '全部展开'}
-          </Button>
-        )}
-        {colSet.settings}
-        {toolbarRight}
-      </div>
+      {settingsSlot && createPortal(colSet.settings, settingsSlot)}
+      {(!settingsSlot || (groups && multi)) && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            gap: 8,
+            marginBottom: 4,
+          }}
+        >
+          {groups && multi && (
+            <Button
+              type="link"
+              size="small"
+              onClick={() => {
+                writeExpandAll(!expandAll);
+                setExpandAll(!expandAll);
+                setFlipped([]);
+              }}
+            >
+              {expandAll ? '全部收起' : '全部展开'}
+            </Button>
+          )}
+          {!settingsSlot && colSet.settings}
+        </div>
+      )}
       <Table<Row>
         rowKey="_key"
         columns={colSet.columns}

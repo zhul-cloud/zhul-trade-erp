@@ -62,6 +62,10 @@ const FollowupPage: React.FC = () => {
   const canRecord = !!access[PERM_RECORD];
   const canTeam = !!access[PERM_TEAM];
   const battle = useSidePanel('zhul_followup_battle', '作战卡');
+  // 「列」按钮渲染到阶段导航那一行末尾（D74）
+  const [settingsSlot, setSettingsSlot] = useState<HTMLSpanElement | null>(
+    null,
+  );
 
   const [view, setView] = useState<'mine' | 'team'>('mine');
   /** 下方显示什么：今日待办（默认）或某个板块 */
@@ -399,6 +403,30 @@ const FollowupPage: React.FC = () => {
                   onChange={setFilter}
                   blocker={blocker}
                   onBlocker={setBlocker}
+                  trailing={
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        gap: 8,
+                        marginLeft: 'auto',
+                      }}
+                    >
+                      {/* 新建放在右端，筛选留在左边（空状态提示「点右上角」） */}
+                      {boardNo === BOARD_DEVELOP && canRecord && (
+                        <Button
+                          icon={<Plus size="1em" />}
+                          onClick={() => setProspectOpen(true)}
+                        >
+                          新建开发对象
+                        </Button>
+                      )}
+                      <span
+                        ref={setSettingsSlot}
+                        style={{ display: 'contents' }}
+                      />
+                      {battle.button}
+                    </span>
+                  }
                   extra={
                     <>
                       {tools}
@@ -412,14 +440,6 @@ const FollowupPage: React.FC = () => {
                           showSearch={{ optionFilterProp: 'label' }}
                           options={countryOptions}
                         />
-                      )}
-                      {boardNo === BOARD_DEVELOP && canRecord && (
-                        <Button
-                          icon={<Plus size="1em" />}
-                          onClick={() => setProspectOpen(true)}
-                        >
-                          新建开发对象
-                        </Button>
                       )}
                     </>
                   }
@@ -453,7 +473,7 @@ const FollowupPage: React.FC = () => {
                   onMore={() => loadList(page + 1)}
                   onNewInquiry={setInquiryCustomer}
                   onConvert={setConvertItem}
-                  toolbarRight={battle.button}
+                  settingsSlot={settingsSlot}
                 />
               </Card>
               {battle.panel(
