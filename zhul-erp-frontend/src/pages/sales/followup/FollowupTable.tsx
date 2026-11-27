@@ -673,6 +673,8 @@ export const FollowupTable: React.FC<{
     title: sales ? '客户 / 商机' : '客户',
     key: 'customer',
     width: 220,
+    // 首列固定在左，不进「列」设置（前面有勾选列时它不再是第 0 列）
+    fixed: 'left',
     render: (_, r) => (
       <div style={{ display: 'grid', gap: 4 }}>
         <CustomerLink item={r} />
@@ -1435,6 +1437,7 @@ export const FollowupTable: React.FC<{
     cols.unshift({
       key: 'pick',
       width: 40,
+      fixed: 'left',
       render: (_, r) =>
         r._group ? (
           <span onClick={(e) => e.stopPropagation()}>

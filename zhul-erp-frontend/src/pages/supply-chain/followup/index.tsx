@@ -876,52 +876,51 @@ const SupplyFollowupPage: React.FC = () => {
                 {battle.button}
               </div>
               {/* 作战卡默认收起，工具栏右端按钮打开（D74，对比图 R33 方案 B） */}
-              <>
-                <Card style={{ padding: 0, overflow: 'hidden', minWidth: 0 }}>
-                  <DevTable
-                    page={devPage}
-                    loading={loading}
-                    focusKey={focusKey}
-                    canDev={canDev}
-                    canProject={canProject}
-                    canSeeSupplier={canSeeSupplier}
-                    onMore={() => loadList(page + 1)}
-                    onProject={(g) =>
-                      setProjectScope({
-                        brandId: g.brandId,
-                        categoryId: g.categoryId || undefined,
-                        dev: true,
-                      })
+
+              <Card style={{ padding: 0, overflow: 'hidden', minWidth: 0 }}>
+                <DevTable
+                  page={devPage}
+                  loading={loading}
+                  focusKey={focusKey}
+                  canDev={canDev}
+                  canProject={canProject}
+                  canSeeSupplier={canSeeSupplier}
+                  onMore={() => loadList(page + 1)}
+                  onProject={(g) =>
+                    setProjectScope({
+                      brandId: g.brandId,
+                      categoryId: g.categoryId || undefined,
+                      dev: true,
+                    })
+                  }
+                  onRecord={(g, ids) =>
+                    setCandRecord({
+                      title: devTitle(g),
+                      candidates: g.candidates,
+                      checkedIds: ids,
+                    })
+                  }
+                  onCandidate={(g, supplier) => {
+                    if (g.projectTarget == null || !g.projectId) {
+                      message.info('先建开发任务，再把这家加为候选');
+                      if (canProject)
+                        setProjectScope({
+                          brandId: g.brandId,
+                          categoryId: g.categoryId || undefined,
+                          dev: true,
+                        });
+                      return;
                     }
-                    onRecord={(g, ids) =>
-                      setCandRecord({
-                        title: devTitle(g),
-                        candidates: g.candidates,
-                        checkedIds: ids,
-                      })
-                    }
-                    onCandidate={(g, supplier) => {
-                      if (g.projectTarget == null || !g.projectId) {
-                        message.info('先建开发任务，再把这家加为候选');
-                        if (canProject)
-                          setProjectScope({
-                            brandId: g.brandId,
-                            categoryId: g.categoryId || undefined,
-                            dev: true,
-                          });
-                        return;
-                      }
-                      setCandidate({
-                        projectId: g.projectId,
-                        title: devTitle(g),
-                        count: g.candidates.length,
-                        supplier,
-                      });
-                    }}
-                  />
-                </Card>
-                {battle.panel(<BattleCard bare stage={battleStage} />)}
-              </>
+                    setCandidate({
+                      projectId: g.projectId,
+                      title: devTitle(g),
+                      count: g.candidates.length,
+                      supplier,
+                    });
+                  }}
+                />
+              </Card>
+              {battle.panel(<BattleCard bare stage={battleStage} />)}
             </>
           ) : (
             <>
@@ -979,63 +978,62 @@ const SupplyFollowupPage: React.FC = () => {
                 <span ref={setSettingsSlot} style={{ display: 'contents' }} />
                 {battle.button}
               </div>
-              <>
-                <div style={{ minWidth: 0 }}>
-                  {batchBar}
-                  <Card
-                    style={{
-                      padding: unclassifiedView ? 16 : 0,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {unclassifiedView ? (
-                      <SignalTable
-                        rows={signals.records}
-                        total={signals.total}
-                        page={page}
-                        pageSize={signalSize}
-                        loading={loading}
-                        picked={pickedSignals}
-                        canEdit={canEdit}
-                        onPick={setPickedSignals}
-                        onPage={(p, s) =>
-                          s === signalSize ? loadList(p) : setSignalSize(s)
-                        }
-                        onClassify={setClassify}
-                        onIgnore={setIgnore}
-                        settingsSlot={settingsSlot}
-                      />
-                    ) : (
-                      <GroupTable
-                        board={flow}
-                        page={groups}
-                        loading={loading}
-                        picked={picked}
-                        selectedId={selected?.id}
-                        canEdit={canEdit}
-                        canProject={canProject}
-                        onPick={pick}
-                        onSelect={setSelected}
-                        onRecord={(g: Group, ids?: number[]) =>
-                          setRecord({
-                            title: scopeName(g),
-                            demands: g.items,
-                            checkedIds: ids,
-                          })
-                        }
-                        onProject={(g) =>
-                          setProjectScope({
-                            brandId: g.brandId,
-                            categoryId: g.categoryId || undefined,
-                          })
-                        }
-                        onMore={() => loadList(page + 1)}
-                      />
-                    )}
-                  </Card>
-                </div>
-                {battle.panel(<BattleCard bare stage={battleStage} />)}
-              </>
+
+              <div style={{ minWidth: 0 }}>
+                {batchBar}
+                <Card
+                  style={{
+                    padding: unclassifiedView ? 16 : 0,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {unclassifiedView ? (
+                    <SignalTable
+                      rows={signals.records}
+                      total={signals.total}
+                      page={page}
+                      pageSize={signalSize}
+                      loading={loading}
+                      picked={pickedSignals}
+                      canEdit={canEdit}
+                      onPick={setPickedSignals}
+                      onPage={(p, s) =>
+                        s === signalSize ? loadList(p) : setSignalSize(s)
+                      }
+                      onClassify={setClassify}
+                      onIgnore={setIgnore}
+                      settingsSlot={settingsSlot}
+                    />
+                  ) : (
+                    <GroupTable
+                      board={flow}
+                      page={groups}
+                      loading={loading}
+                      picked={picked}
+                      selectedId={selected?.id}
+                      canEdit={canEdit}
+                      canProject={canProject}
+                      onPick={pick}
+                      onSelect={setSelected}
+                      onRecord={(g: Group, ids?: number[]) =>
+                        setRecord({
+                          title: scopeName(g),
+                          demands: g.items,
+                          checkedIds: ids,
+                        })
+                      }
+                      onProject={(g) =>
+                        setProjectScope({
+                          brandId: g.brandId,
+                          categoryId: g.categoryId || undefined,
+                        })
+                      }
+                      onMore={() => loadList(page + 1)}
+                    />
+                  )}
+                </Card>
+              </div>
+              {battle.panel(<BattleCard bare stage={battleStage} />)}
             </>
           )}
         </>

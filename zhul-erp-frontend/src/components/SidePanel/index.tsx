@@ -1,6 +1,7 @@
 import { Button, Drawer } from 'antd';
 import { PanelRightOpen } from 'lucide-react';
 import React, { useState } from 'react';
+import { useTabActive } from '@/components/PageTabs/hooks';
 
 const read = (key: string) => {
   try {
@@ -25,6 +26,8 @@ const write = (key: string, open: boolean) => {
  */
 export function useSidePanel(storageKey: string, title: string) {
   const [open, setOpen] = useState(() => read(storageKey));
+  // 抽屉挂在 body 上：切到别的标签页时页面只是隐藏，抽屉要跟着收起，回来再显示
+  const active = useTabActive();
   const set = (v: boolean) => {
     setOpen(v);
     write(storageKey, v);
@@ -41,7 +44,7 @@ export function useSidePanel(storageKey: string, title: string) {
   const panel = (children: React.ReactNode) => (
     // 面板内容自带标题（如「作战卡 · S7 成交推进」），抽屉头只留关闭按钮
     <Drawer
-      open={open}
+      open={open && active}
       onClose={() => set(false)}
       mask={false}
       size={400}

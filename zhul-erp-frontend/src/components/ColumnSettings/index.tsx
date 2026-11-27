@@ -272,6 +272,12 @@ export function useColumnSettings<C extends Col>(
 ): { columns: C[]; settings: React.ReactNode } {
   const { palette } = useAppTheme();
   const [state, setState] = useState<ColumnState>(() => load(id));
+  // 同一组件换了存储标识（如跟进页切板块）时重新读取，不把上一个板块的设置带过来
+  const [loadedId, setLoadedId] = useState(id);
+  if (loadedId !== id) {
+    setLoadedId(id);
+    setState(load(id));
+  }
   // 页面写的是列标识或列名，这里统一换成列标识（每次渲染列定义都是新数组，按内容比较避免重算）
   const want = new Set([...AUDIT_KEYS, ...(opts.hidden ?? [])]);
   const found = columns

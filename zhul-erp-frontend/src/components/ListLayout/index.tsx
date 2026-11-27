@@ -1058,6 +1058,19 @@ const findViewTabsAbove = (from: Element | null): Element | null => {
   return null;
 };
 
+/** 一组页签可能被多个搜索区（各页签面板里各一个）拼接：按引用计数，最后一个离开才去掉 data-attached */
+const attachCount = new WeakMap<Element, number>();
+const attachTabs = (tabs: Element, delta: 1 | -1) => {
+  const n = (attachCount.get(tabs) ?? 0) + delta;
+  if (n > 0) {
+    attachCount.set(tabs, n);
+    tabs.setAttribute('data-attached', '');
+  } else {
+    attachCount.delete(tabs);
+    tabs.removeAttribute('data-attached');
+  }
+};
+
 /**
  * 主卡找它上面的搜索条件区：同级的前面几个元素（或其中包含的），最多往上找 3 层；
  * 到页签面板就停，别的页签里的搜索条件区不算。
@@ -1273,15 +1286,16 @@ export const FilterCard: React.FC<{
   const filterId = useId();
   // 紧挨在视图页签后面时，和页签拼成一张卡：页签做卡头（D72）
   const [attached, setAttached] = useState(false);
+  // 每次渲染都重判：页签晚于搜索区出现、或中间后来插进提示条时跟着变（没有依赖数组是有意的）
   useLayoutEffect(() => {
     // useId 的值不含引号，放在带引号的属性选择器里不用转义（测试环境 jsdom 没有 CSS.escape）
     const el = document.querySelector(`[data-zhul-filter="${filterId}"]`);
     const tabs = findViewTabsAbove(el);
     setAttached(!!tabs);
     if (!tabs) return undefined;
-    tabs.setAttribute('data-attached', '');
-    return () => tabs.removeAttribute('data-attached');
-  }, [filterId]);
+    attachTabs(tabs, 1);
+    return () => attachTabs(tabs, -1);
+  });
   const line = layout === 'line';
   const { snap, clear } = useMoreChips(filterId, more, open, onSearch);
   const search =

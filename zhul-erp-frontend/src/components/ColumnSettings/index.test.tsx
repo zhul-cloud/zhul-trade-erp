@@ -131,6 +131,32 @@ describe('useColumnSettings', () => {
     ).toEqual([]);
   });
 
+  it('换了存储标识（如跟进页切板块）读新标识的设置，不沿用上一个', async () => {
+    const Two: React.FC<{ id: string }> = ({ id }) => {
+      const s = useColumnSettings(id, cols, { hidden: ['品牌'] });
+      return (
+        <div>
+          {s.settings}
+          <ul>
+            {s.columns
+              .filter((c) => !(c as { hidden?: boolean }).hidden)
+              .map((c) => (
+                <li key={String(colId(c))}>{String(c.title)}</li>
+              ))}
+          </ul>
+        </div>
+      );
+    };
+    const { rerender } = render(<Two id="board-a" />);
+    fireEvent.click(screen.getByRole('button', { name: /列设置/ }));
+    fireEvent.click(await screen.findByRole('checkbox', { name: '品牌' }));
+    expect(visible()).toContain('品牌');
+    rerender(<Two id="board-b" />);
+    expect(visible()).not.toContain('品牌');
+    rerender(<Two id="board-a" />);
+    expect(visible()).toContain('品牌');
+  });
+
   it('只剩一列可设置的列时不能再收起', async () => {
     render(<Demo />);
     fireEvent.click(screen.getByRole('button', { name: /列设置/ }));
