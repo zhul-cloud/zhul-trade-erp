@@ -555,7 +555,19 @@ const SummaryStrip: React.FC<{ items: SummaryItem[] }> = ({ items }) => {
               >
                 {it.label}
               </span>
-              {tip && <HelpTip title={tip} />}
+              {tip && (
+                <HelpTip
+                  title={tip}
+                  // 口径和副文字合在一起时，读屏也能读到两段
+                  label={
+                    [it.help, it.sub]
+                      .filter(
+                        (x) => typeof x === 'string' || typeof x === 'number',
+                      )
+                      .join('；') || undefined
+                  }
+                />
+              )}
             </span>
             <span
               className="num"
