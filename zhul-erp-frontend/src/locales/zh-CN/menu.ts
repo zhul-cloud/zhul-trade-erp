@@ -92,6 +92,7 @@ export default {
   'menu.operations': '运营管理',
   'menu.operations.products': '营销任务',
   'menu.operations.listings': '发品任务',
+  'menu.operations.videos': '视频任务',
   'menu.operations.media': '素材库',
   'menu.product.brands': '品牌',
   'menu.product.categories': '品类',

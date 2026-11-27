@@ -707,6 +707,13 @@ export const MediaCard: React.FC<{
                         </Pill>
                       </span>
                     )}
+                    {m.source === '公司素材' && (
+                      <span
+                        style={{ position: 'absolute', bottom: 8, left: 8 }}
+                      >
+                        <Pill tone="accent">来源：公司素材</Pill>
+                      </span>
+                    )}
                   </div>
                   <div style={{ padding: 12 }}>
                     <div

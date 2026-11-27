@@ -276,7 +276,7 @@ PrimeDash 的组件尺寸、字体与本变更的取舍见 `reference-primedash.
 3. 最后同步一次 develop，复审同步带进来的改动，跑本机全量前端检查，再用 BrowserOS neo 逐页回归浅色和深色。
 4. 在分支规范里补上长期分支例外，然后发 PR 到 develop，跑完整 CI 后合并。
 5. 按发版流程拉 `release/X.Y.0` 上线，升次版本号。上线后业务人员按 `acceptance.md` 在生产上验收，结论写「生产验收（日期）」。
-6. **回滚**：本次带两个数据迁移——V1.5.62（工作台老板、业务员内置模板的组件顺序，回退方法写在脚本文件头：把 widgets 改回 V1.3.5 的内容）、V1.5.63（系统设置库存分组改存代码 `inventory`，回退脚本 `sql/build/rollback/V1.5.63__config_group_inventory_code_rollback.sql`）。生产出问题时回退到上一个版本的镜像并按需执行回退，develop 上 revert 这次合并提交。
+6. **回滚**：本次带两个数据迁移——V1.5.63（工作台老板、业务员内置模板的组件顺序，回退方法写在脚本文件头：把 widgets 改回 V1.3.5 的内容）、V1.5.64（系统设置库存分组改存代码 `inventory`，回退脚本 `sql/build/rollback/V1.5.64__config_group_inventory_code_rollback.sql`）。生产出问题时回退到上一个版本的镜像并按需执行回退，develop 上 revert 这次合并提交。
 
 ## Open Questions
 
