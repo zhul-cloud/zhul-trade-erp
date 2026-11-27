@@ -702,13 +702,8 @@ const UnclaimedTab: React.FC<{
           )}
         </FilterCard>
       </Form>
-      <MainCard
-        left={
-          loading && !(data?.unclaimed?.length ?? 0)
-            ? undefined
-            : `共 ${data?.unclaimed?.length ?? 0} 条`
-        }
-      >
+      {/* 结果数交给 MainCard：第一次加载不闪「共 0 条」，之后重新查询不消失、不让操作行跳 */}
+      <MainCard count={data?.unclaimed?.length ?? 0} loading={loading}>
         <Table<ReceiptRow>
           rowKey="id"
           columns={columns}

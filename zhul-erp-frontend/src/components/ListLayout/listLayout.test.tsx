@@ -242,6 +242,17 @@ describe('快捷筛选', () => {
     expect(a.getAttribute('aria-pressed')).toBe('false');
     expect(b.getAttribute('aria-pressed')).toBe('true');
   });
+
+  it('结果数：第一次加载不闪「共 0 条」，之后重新查询保留，不让快捷筛选跳动', () => {
+    const card = (loading: boolean) =>
+      h(MainCard, { count: 0, loading, quick: h('span', null, '筛选') });
+    const { rerender } = render(card(true));
+    expect(screen.queryByText('共 0 条')).toBeNull();
+    rerender(card(false));
+    expect(screen.getByText('共 0 条')).toBeTruthy();
+    rerender(card(true));
+    expect(screen.getByText('共 0 条')).toBeTruthy();
+  });
 });
 
 describe('帮助图标', () => {
