@@ -108,6 +108,7 @@ const SupplyFollowupPage: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
   const battle = useSidePanel('zhul_supply_followup_battle', '作战卡');
+  const [settingsSlot, setSettingsSlot] = useState<HTMLElement | null>(null);
   const { brands, tree, categories, tops } = useOptions();
   const [params] = useSearchParams();
   const users = useUsers();
@@ -974,6 +975,8 @@ const SupplyFollowupPage: React.FC = () => {
                     录入信号
                   </Button>
                 )}
+                {/* 待归类信号表的「列」按钮渲染到这里，不在表格上方单占一行（同客户跟进，D74） */}
+                <span ref={setSettingsSlot} style={{ display: 'contents' }} />
                 {battle.button}
               </div>
               <>
@@ -1000,6 +1003,7 @@ const SupplyFollowupPage: React.FC = () => {
                         }
                         onClassify={setClassify}
                         onIgnore={setIgnore}
+                        settingsSlot={settingsSlot}
                       />
                     ) : (
                       <GroupTable

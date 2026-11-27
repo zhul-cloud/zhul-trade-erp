@@ -168,7 +168,14 @@ const TimelineRow: React.FC<{ t: TimelineItem }> = ({ t }) => {
           {fulfillment && <Pill tone="red">履约异常</Pill>}
           <span style={{ flex: 1 }} />
           {docNo &&
-            (docUrl ? <Link to={docUrl}>{docNo}</Link> : <span>{docNo}</span>)}
+            (docUrl ? (
+              // 表格外的单号同样墨色 600，悬停主题色加下划线（D23）
+              <Link to={docUrl} className="zhul-link zhul-link-doc">
+                {docNo}
+              </Link>
+            ) : (
+              <span>{docNo}</span>
+            ))}
         </div>
         {body && (
           <div
@@ -701,7 +708,9 @@ const DemandDetailPage: React.FC = () => {
                   {evUrl && (
                     <>
                       {' '}
-                      <Link to={evUrl}>{ev.docNo}</Link>
+                      <Link to={evUrl} className="zhul-link zhul-link-doc">
+                        {ev.docNo}
+                      </Link>
                     </>
                   )}
                   {d.evidenceValid ? '，在有效期内' : '，已过有效期'}
@@ -713,7 +722,7 @@ const DemandDetailPage: React.FC = () => {
             </div>
           </Card>
           <Card style={{ padding: 20 }}>
-            <SectionTitle>责任人与下一步</SectionTitle>
+            <SectionTitle>负责人与下一步</SectionTitle>
             <div style={{ display: 'grid', gap: 12 }}>
               {(
                 [
@@ -741,7 +750,16 @@ const DemandDetailPage: React.FC = () => {
                     gap: 12,
                   }}
                 >
-                  <span style={{ color: palette.sub }}>{k}</span>
+                  {/* 标签不收缩：值长时只让值换行，不把「下一步行动」挤成两行 */}
+                  <span
+                    style={{
+                      color: palette.sub,
+                      flexShrink: 0,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {k}
+                  </span>
                   <span style={{ textAlign: 'right' }}>{v}</span>
                 </div>
               ))}

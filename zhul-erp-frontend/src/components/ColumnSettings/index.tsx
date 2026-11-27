@@ -289,6 +289,8 @@ export function useColumnSettings<C extends Col>(
     while (box && !box.querySelector('.ant-table')) box = box.parentElement;
     if (!box) return;
     const el = box;
+    // 量表格本身的宽度：「列」按钮可能放在卡片外（页头、筛选行），找到的容器比表格宽，会多补列
+    const table = el.querySelector<HTMLElement>('.ant-table-wrapper');
     const measure = () => {
       const cs = getComputedStyle(el);
       const pad =
@@ -300,8 +302,7 @@ export function useColumnSettings<C extends Col>(
         'th.ant-table-row-expand-icon-cell',
       );
       const w = Math.floor(
-        el.clientWidth -
-          pad -
+        (table?.clientWidth || el.clientWidth - pad) -
           (sel?.offsetWidth ?? 0) -
           (expand?.offsetWidth ?? 0),
       );
@@ -310,6 +311,7 @@ export function useColumnSettings<C extends Col>(
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
+    if (table) ro.observe(table);
     return () => ro.disconnect();
   });
   const arranged = useMemo(() => {

@@ -158,8 +158,11 @@ const globalCss = (
   .zhul-link:active { color: ${link.active}; }
   /* 表格里的单号、来源单号与「查看」等文字链接（ui-redesign D23）：平时墨色，悬停主题色加下划线；单号列（首列或勾选列后一列）600。
      表格不再满屏主题色，也不和警告标签撞色；按钮（删除等）不受影响 */
-  .ant-table-tbody .zhul-link, .ant-table-tbody a:not(.ant-btn) { color: ${p.ink}; }
-  .ant-table-tbody .zhul-link:hover, .ant-table-tbody a:not(.ant-btn):hover {
+  /* 自己用 grid 画的表格（供应链跟进的分组表）根节点加 zhul-grid-table，同样适用 */
+  .ant-table-tbody .zhul-link, .ant-table-tbody a:not(.ant-btn),
+  .zhul-grid-table .zhul-link, .zhul-grid-table a:not(.ant-btn) { color: ${p.ink}; }
+  .ant-table-tbody .zhul-link:hover, .ant-table-tbody a:not(.ant-btn):hover,
+  .zhul-grid-table .zhul-link:hover, .zhul-grid-table a:not(.ant-btn):hover {
     color: ${link.hover}; text-decoration: underline; text-underline-offset: 3px;
   }
   .ant-table-tbody > tr > td:first-child .zhul-link, .ant-table-tbody > tr > td:first-child a:not(.ant-btn),

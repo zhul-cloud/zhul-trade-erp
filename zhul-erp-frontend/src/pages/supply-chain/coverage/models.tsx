@@ -187,7 +187,8 @@ const CoverageModelsPage: React.FC = () => {
           <span style={{ color: palette.mute }}>{d.cntStockout ? '只有无货记录' : '没有价格记录'}</span>
         ),
     },
-    { title: '负责人', dataIndex: 'ownerName', width: 90, render: (v?: string) => v || '—' },
+    // 110：五个字的人名不折行
+    { title: '负责人', dataIndex: 'ownerName', width: 110, render: (v?: string) => v || '—' },
     { title: '下一步行动 · 日期', key: 'next', width: 220, render: (_, d) => <NextCell d={d} /> },
     ...auditColumns<Demand>(),
     {

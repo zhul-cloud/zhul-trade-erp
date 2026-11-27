@@ -1,6 +1,7 @@
 import { Button, Table, type TableColumnsType } from 'antd';
 import dayjs from 'dayjs';
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { auditColumns } from '@/components/UserName';
@@ -49,6 +50,8 @@ export const SignalTable: React.FC<{
   onPage: (p: number, size: number) => void;
   onClassify: (s: Signal[]) => void;
   onIgnore: (s: Signal[]) => void;
+  /** 「列」按钮渲染到的位置（工具栏右端）；没有时放在表格上方 */
+  settingsSlot?: HTMLElement | null;
 }> = ({
   rows,
   total,
@@ -61,6 +64,7 @@ export const SignalTable: React.FC<{
   onPage,
   onClassify,
   onIgnore,
+  settingsSlot,
 }) => {
   const { palette } = useAppTheme();
   const columns: TableColumnsType<Signal> = [
@@ -147,15 +151,19 @@ export const SignalTable: React.FC<{
   });
   return (
     <>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          marginBottom: 12,
-        }}
-      >
-        {columnsSet.settings}
-      </div>
+      {settingsSlot ? (
+        createPortal(columnsSet.settings, settingsSlot)
+      ) : (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            marginBottom: 12,
+          }}
+        >
+          {columnsSet.settings}
+        </div>
+      )}
       <Table<Signal>
         rowKey="id"
         loading={loading}
