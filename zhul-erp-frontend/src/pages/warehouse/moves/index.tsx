@@ -131,7 +131,7 @@ const MovesPage: React.FC = () => {
     {
       title: '业务类型',
       dataIndex: 'bizName',
-      width: 150,
+      width: 130,
       render: (_: string, r) => (
         <b style={{ color: palette.ink }}>{bizText(r)}</b>
       ),
@@ -215,7 +215,7 @@ const MovesPage: React.FC = () => {
   ];
   // 1366 宽默认列放得下（列表页统一规范第 2 条）：次要列默认收进「列」，宽屏自动补回
   const columnsSet = useColumnSettings('warehouse-moves', columns, {
-    hidden: ['操作类型', '仓库', '批次', '单价（CNY）', '操作人'],
+    hidden: ['操作类型', '批次', '单价（CNY）', '操作人'],
   });
 
   const apply = (f: Filters) => {

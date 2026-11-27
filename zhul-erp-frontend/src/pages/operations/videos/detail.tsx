@@ -552,8 +552,9 @@ const VideoTaskDetailPage: React.FC = () => {
                       fontSize: 11,
                       lineHeight: '18px',
                       textAlign: 'center',
-                      color: m.used ? palette.onPrimary : '#fff',
-                      background: m.used ? palette.primary : palette.mute,
+                      // 未选用：卡片底配次要色字，浅色深色都看得清（白字配 mute 在深色只有约 2.6:1）
+                      color: m.used ? palette.onPrimary : palette.sub,
+                      background: m.used ? palette.primary : palette.card,
                     }}
                   >
                     {m.used ? usedIndex.get(m.attachmentId) : '—'}

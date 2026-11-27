@@ -354,7 +354,7 @@ const BankAccountPage: React.FC = () => {
     {
       title: '银行 · 账户名称',
       key: 'bank',
-      width: 340,
+      width: 260,
       render: (_, r) => (
         <div>
           <div style={{ fontWeight: 600, color: palette.ink }}>
@@ -467,9 +467,9 @@ const BankAccountPage: React.FC = () => {
       ),
     },
   ];
-  // 1366 宽默认列放得下：类型、SWIFT、国家默认收进「列」，宽屏自动补回
+  // 1366 宽默认列放得下：SWIFT、国家默认收进「列」，宽屏自动补回；「类型」要用来判断（对私账户不能设为默认），默认显示
   const columnsSet = useColumnSettings('system-bank-account', columns, {
-    hidden: ['类型', 'SWIFT', '国家 / 地区'],
+    hidden: ['SWIFT', '国家 / 地区'],
   });
 
   return (

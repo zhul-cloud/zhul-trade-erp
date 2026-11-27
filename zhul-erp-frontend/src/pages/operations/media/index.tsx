@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import { Images, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
-import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import EllipsisText from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
@@ -123,9 +123,7 @@ const MediaLibraryPage: React.FC = () => {
             className="zhul-link"
             onClick={() => setOpen(r)}
           >
-            <b>
-              {r.brand} · {r.model}
-            </b>
+            <b>{[r.brand, r.model].filter(Boolean).join(' · ')}</b>
           </button>
           <div style={{ fontSize: 12, color: palette.mute }}>
             {r.productName || '—'}
@@ -133,7 +131,6 @@ const MediaLibraryPage: React.FC = () => {
         </div>
       ),
     },
-    { title: '品牌', dataIndex: 'brand', width: 110, render: ellipsisRender },
     {
       title: '品类',
       dataIndex: 'category',
@@ -200,9 +197,9 @@ const MediaLibraryPage: React.FC = () => {
       ),
     },
   ];
-  // 1366 宽默认列放得下：品牌已在「商品」列里，最近新增素材为次要信息，默认收进「列」
+  // 1366 宽默认列放得下：最近新增素材为次要信息，默认收进「列」（品牌已在「商品」列里，不再单列）
   const columnsSet = useColumnSettings('operations-media', columns, {
-    hidden: ['品牌', '最近新增素材'],
+    hidden: ['最近新增素材'],
   });
 
   return (

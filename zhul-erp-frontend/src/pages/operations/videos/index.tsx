@@ -288,8 +288,12 @@ const VideoTasksPage: React.FC = () => {
       render: (_, r) => (
         <div style={{ minWidth: 0 }}>
           <Link to={`/operations/videos/${r.id}`}>
-            <span style={{ color: palette.sub }}>{r.brand}</span>
-            <b style={{ marginLeft: 6 }}>{r.model}</b>
+            {r.brand && (
+              <span style={{ color: palette.sub, marginRight: 6 }}>
+                {r.brand}
+              </span>
+            )}
+            <b>{r.model}</b>
           </Link>
           <div style={{ fontSize: 12, color: palette.mute }}>
             {r.productName || '—'}
@@ -374,21 +378,35 @@ const VideoTasksPage: React.FC = () => {
     <div>
       <PageHeader
         extra={
-          canUpload && (
+          (platform || canUpload) && (
             <>
-              <Button
-                icon={<FolderPlus size={16} />}
-                onClick={() => setBatchOpen(true)}
-              >
-                批量上传
-              </Button>
-              <Button
-                type="primary"
-                icon={<Upload size={16} />}
-                onClick={() => setUploadOpen(true)}
-              >
-                上传素材
-              </Button>
+              {/* 生成时段只有平台账号能改：操作放页头，不放汇总行副文字（窄时副文字会被隐藏） */}
+              {platform && (
+                <Button
+                  type="text"
+                  icon={<Settings size={16} />}
+                  onClick={() => setWindowEdit(true)}
+                >
+                  生成设置
+                </Button>
+              )}
+              {canUpload && (
+                <Button
+                  icon={<FolderPlus size={16} />}
+                  onClick={() => setBatchOpen(true)}
+                >
+                  批量上传
+                </Button>
+              )}
+              {canUpload && (
+                <Button
+                  type="primary"
+                  icon={<Upload size={16} />}
+                  onClick={() => setUploadOpen(true)}
+                >
+                  上传素材
+                </Button>
+              )}
             </>
           )
         }
@@ -402,28 +420,11 @@ const VideoTasksPage: React.FC = () => {
             help: '全服务器同一时间只生成一个，按加入队列的先后',
             value: slot.replace('-', '–'),
             sub: (
-              <span
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
-              >
-                <Pill tone={running ? 'green' : 'gray'}>
-                  {running ? '运行中' : '未到时段'}
-                </Pill>
-                {platform && (
-                  <Button
-                    type="link"
-                    size="small"
-                    icon={<Settings size={14} />}
-                    style={{ padding: 0 }}
-                    onClick={() => setWindowEdit(true)}
-                  >
-                    生成设置
-                  </Button>
-                )}
-              </span>
+              <Pill tone={running ? 'green' : 'gray'}>
+                {running ? '运行中' : '未到时段'}
+              </Pill>
             ),
           },
-          { key: 'queued', label: '本公司排队', value: counts.queued ?? 0 },
-          { key: 'review', label: '待审核', value: counts.review ?? 0 },
         ]}
       />
       <FilterCard onSearch={apply} onReset={reset}>
