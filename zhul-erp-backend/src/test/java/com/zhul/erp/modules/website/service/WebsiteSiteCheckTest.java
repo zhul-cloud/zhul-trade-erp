@@ -29,7 +29,8 @@ class WebsiteSiteCheckTest {
     private final SiteSecrets secrets = mock(SiteSecrets.class);
     private final SitePublisherClient publisher = mock(SitePublisherClient.class);
     private final WebsiteSiteService service = new WebsiteSiteService(siteMapper, mock(WebsiteCategoryMapMapper.class),
-            mock(ProductCategoryMapper.class), secrets, publisher, om);
+            mock(ProductCategoryMapper.class), secrets, publisher, om,
+            mock(com.zhul.erp.modules.listing.service.ListingTaskSync.class));
 
     private WebsiteSiteDO site() {
         WebsiteSiteDO s = new WebsiteSiteDO();

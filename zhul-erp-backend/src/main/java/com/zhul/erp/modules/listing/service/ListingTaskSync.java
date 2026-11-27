@@ -20,7 +20,16 @@ import com.zhul.erp.modules.product.content.service.FactTaskService;
 import com.zhul.erp.modules.product.content.service.PlatformSettingService;
 import com.zhul.erp.modules.product.content.support.MarketingChangedEvent;
 import com.zhul.erp.modules.product.content.support.MarketingPlatform;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.modules.product.entity.ProductBrandDO;
+import com.zhul.erp.modules.product.entity.ProductCategoryDO;
+import com.zhul.erp.modules.product.repository.ProductCategoryMapper;
+import com.zhul.erp.modules.website.constants.WebsiteConstants;
+import com.zhul.erp.modules.website.dto.SiteScope;
+import com.zhul.erp.modules.website.entity.WebsiteSiteDO;
+import com.zhul.erp.modules.website.repository.WebsiteSiteMapper;
+import com.zhul.erp.modules.website.support.SiteScopeMatcher;
 import com.zhul.erp.modules.product.entity.ProductDO;
 import com.zhul.erp.modules.product.repository.ProductBrandMapper;
 import com.zhul.erp.modules.product.repository.ProductMapper;
@@ -31,7 +40,9 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -44,6 +55,8 @@ import java.util.stream.Collectors;
 /**
  * 发品任务的生成与取消（spec product/listing-task「发品任务的生成」「取消与恢复」）。
  * 幂等：按当前的资料状态、平台设置、不发布标记和营销写入，逐个「商品 × 平台」对齐任务；补生成、平时的事件都走这里。
+ * 独立站按站点区分（openspec website-publish）：每个站点一个任务，另看站点是否启用、商品是否在站点的商品范围内；
+ * 公司还没有站点时与原来一样，按平台生成一个独立站任务（site_id 为 0），建好第一个站点后挂到这个站点上。
  */
 @Slf4j
 @Service
@@ -57,6 +70,9 @@ public class ListingTaskSync {
     private final ProductMapper productMapper;
     private final ProductBrandMapper brandMapper;
     private final PlatformSettingService platformSettings;
+    private final WebsiteSiteMapper siteMapper;
+    private final ProductCategoryMapper categoryMapper;
+    private final ObjectMapper objectMapper;
 
     /** 营销变化：在发布方的事务里同步处理，失败一起回滚 */
     @EventListener
@@ -126,7 +142,9 @@ public class ListingTaskSync {
                         .eq(ListingTaskDO::getTenantId, tenantId)
                         .in(ListingTaskDO::getProductId, products.keySet())
                         .isNull(ListingTaskDO::getDeletedAt))
-                .forEach(t -> existing.put(t.getProductId() + "|" + t.getPlatform(), t));
+                .forEach(t -> existing.put(key(t.getProductId(), t.getPlatform(), t.getSiteId()), t));
+        List<Site> sites = sites(tenantId);
+        Map<Long, Long> parents = sites.isEmpty() ? Map.of() : categoryParents(products.values());
 
         int changed = 0;
         for (ProductDO p : products.values()) {
@@ -134,37 +152,123 @@ public class ListingTaskSync {
             ProductContentTaskDO content = contents.get(p.getId());
             boolean verified = FactTaskService.verified(facts.get(p.getId()));
             for (MarketingPlatform platform : MarketingPlatform.values()) {
-                String k = p.getId() + "|" + platform.code();
-                ListingTaskDO task = existing.get(k);
-                String cancel = !enabled.contains(platform) ? ListingConstants.CANCEL_DISABLED
-                        : skipped.contains(k) ? ListingConstants.CANCEL_SKIPPED : null;
-                if (task == null) {
-                    if (cancel == null && verified && platform.written(content)) {
-                        changed += create(tenantId, p.getId(), platform, assetKey);
-                    }
+                String skipKey = p.getId() + "|" + platform.code();
+                String platformCancel = !enabled.contains(platform) ? ListingConstants.CANCEL_DISABLED
+                        : skipped.contains(skipKey) ? ListingConstants.CANCEL_SKIPPED : null;
+                boolean written = platform.written(content);
+                if (platform != MarketingPlatform.SITE) {
+                    changed += align(existing.get(key(p.getId(), platform.code(), 0L)), tenantId, p.getId(), platform, 0L,
+                            platformCancel, verified, written, assetKey);
                     continue;
                 }
-                int status = task.getStatus();
-                if (cancel != null) {
-                    if (status == ListingConstants.STATUS_PENDING) {
-                        changed += update(task, ListingConstants.STATUS_CANCELLED, cancel, assetKey);
-                    }
-                } else if (status == ListingConstants.STATUS_CANCELLED && platform.written(content)) {
-                    // 任务生成过，说明当时已满足条件；之后资料回到待核也保持任务，所以恢复只看内容还在
-                    changed += update(task, ListingConstants.STATUS_PENDING, "", assetKey);
-                } else if (!Objects.equals(task.getAssetKey(), assetKey)) {
-                    update(task, status, task.getCancelReason(), assetKey);
+                ListingTaskDO legacy = existing.get(key(p.getId(), platform.code(), 0L));
+                if (sites.isEmpty()) {
+                    // 还没有站点：与原来一样按平台生成一个任务（site_id 为 0），手工发布；建好第一个站点后挂到这个站点上
+                    changed += align(legacy, tenantId, p.getId(), platform, 0L, platformCancel, verified, written, assetKey);
+                    continue;
+                }
+                Site first = sites.get(0);
+                if (legacy != null && !existing.containsKey(key(p.getId(), platform.code(), first.id()))) {
+                    adopt(legacy, first.id());
+                    existing.put(key(p.getId(), platform.code(), first.id()), legacy);
+                }
+                for (Site site : sites) {
+                    String cancel = platformCancel != null ? platformCancel
+                            : !site.enabled() ? ListingConstants.CANCEL_SITE_DISABLED
+                            : !SiteScopeMatcher.matches(site.scope(), p.getBrandId(), p.getCategoryId(), parents.get(p.getCategoryId()))
+                            ? ListingConstants.CANCEL_OUT_OF_SCOPE : null;
+                    changed += align(existing.get(key(p.getId(), platform.code(), site.id())), tenantId, p.getId(), platform, site.id(),
+                            cancel, verified, written, assetKey);
                 }
             }
         }
         return changed;
     }
 
-    private int create(int tenantId, Long productId, MarketingPlatform platform, String assetKey) {
+    /** 对齐一个任务：没有就按条件新建；有就按取消原因取消（只取消待发布的）或恢复；返回状态变化数 */
+    private int align(ListingTaskDO task, int tenantId, Long productId, MarketingPlatform platform, Long siteId,
+                      String cancel, boolean verified, boolean written, String assetKey) {
+        if (task == null) {
+            return cancel == null && verified && written ? create(tenantId, productId, platform, siteId, assetKey) : 0;
+        }
+        int status = task.getStatus();
+        if (cancel != null) {
+            if (status == ListingConstants.STATUS_PENDING) {
+                return update(task, ListingConstants.STATUS_CANCELLED, cancel, assetKey);
+            }
+            if (status == ListingConstants.STATUS_CANCELLED && !Objects.equals(cancel, task.getCancelReason())) {
+                update(task, status, cancel, assetKey);
+            }
+        } else if (status == ListingConstants.STATUS_CANCELLED && written) {
+            // 任务生成过，说明当时已满足条件；之后资料回到待核也保持任务，所以恢复只看内容还在
+            return update(task, ListingConstants.STATUS_PENDING, "", assetKey);
+        } else if (!Objects.equals(task.getAssetKey(), assetKey)) {
+            update(task, status, task.getCancelReason(), assetKey);
+        }
+        return 0;
+    }
+
+    /** 公司建好第一个站点前生成的独立站任务，挂到第一个站点上 */
+    private void adopt(ListingTaskDO task, Long siteId) {
+        taskMapper.update(null, new LambdaUpdateWrapper<ListingTaskDO>()
+                .eq(ListingTaskDO::getId, task.getId())
+                .eq(ListingTaskDO::getSiteId, 0L)
+                .set(ListingTaskDO::getSiteId, siteId)
+                .set(ListingTaskDO::getUpdateTime, LocalDateTime.now())
+                .set(ListingTaskDO::getUpdateBy, SecurityUtils.getCurrentUsername()));
+        task.setSiteId(siteId);
+        log.info("旧独立站任务挂到站点，taskId={}，siteId={}", task.getId(), siteId);
+    }
+
+    private static String key(Long productId, String platform, Long siteId) {
+        return productId + "|" + platform + "|" + (siteId == null ? 0L : siteId);
+    }
+
+    private record Site(Long id, boolean enabled, SiteScope scope) {
+    }
+
+    /** 本公司未删除的站点，按 id 升序（第一个站点接收旧任务）；只复制的站点也生成任务，由人工标记已发布 */
+    private List<Site> sites(int tenantId) {
+        List<Site> out = new ArrayList<>();
+        for (WebsiteSiteDO s : siteMapper.selectList(new LambdaQueryWrapper<WebsiteSiteDO>()
+                .eq(WebsiteSiteDO::getTenantId, tenantId).isNull(WebsiteSiteDO::getDeletedAt))) {
+            out.add(new Site(s.getId(), Objects.equals(s.getStatus(), WebsiteConstants.STATUS_ENABLED), scope(s.getProductScope())));
+        }
+        out.sort(Comparator.comparing(Site::id));
+        return out;
+    }
+
+    private SiteScope scope(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(json, SiteScope.class);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("站点商品范围解析失败", e);
+        }
+    }
+
+    private Map<Long, Long> categoryParents(Collection<ProductDO> products) {
+        List<Long> ids = products.stream().map(ProductDO::getCategoryId).filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Long> out = new HashMap<>(ids.size() * 2);
+        for (ProductCategoryDO c : categoryMapper.selectBatchIds(ids)) {
+            if (c.getParentId() != null) {
+                out.put(c.getId(), c.getParentId());
+            }
+        }
+        return out;
+    }
+
+    private int create(int tenantId, Long productId, MarketingPlatform platform, Long siteId, String assetKey) {
         ListingTaskDO row = new ListingTaskDO();
         row.setTenantId(tenantId);
         row.setProductId(productId);
         row.setPlatform(platform.code());
+        row.setSiteId(siteId);
         row.setAssetKey(assetKey);
         row.setStatus(ListingConstants.STATUS_PENDING);
         try {

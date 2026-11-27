@@ -51,7 +51,7 @@ public interface ListingTaskMapper extends BaseMapper<ListingTaskDO> {
             + "<when test=\"tab == 'cancelled'\"> HAVING cancelled = total</when>"
             + "</choose>";
 
-    String ROW = "SELECT l.id, l.tenant_id, l.product_id, l.platform, l.asset_key, l.status, l.cancel_reason, l.ref_brand, "
+    String ROW = "SELECT l.id, l.tenant_id, l.product_id, l.platform, l.site_id, l.asset_key, l.status, l.cancel_reason, l.ref_brand, "
             + "l.ref_model, l.ref_by, l.ref_time, l.listing_url, l.platform_item_id, l.note, l.published_by, l.published_at, "
             + "l.content_at, l.synced_by, l.synced_at, l.replaced_by, l.replaced_at, l.create_time, l.create_by, "
             + "l.update_time, l.update_by, " + NEED_MEDIA + " AS need_media, " + UPDATED + " AS content_updated, "

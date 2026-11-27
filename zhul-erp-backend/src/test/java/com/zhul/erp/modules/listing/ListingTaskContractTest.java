@@ -108,6 +108,8 @@ class ListingTaskContractTest extends TenantContractSupport {
         jdbc.update("delete from product where brand_id in (select id from product_brand where brand_name = ?)", BRAND);
         jdbc.update("delete from product_brand where brand_name = ?", BRAND);
         jdbc.update("delete from sys_config where config_key = 'product.content.platforms' and tenant_id in (?, ?)", A, B);
+        jdbc.update("delete from website_site_secret where tenant_id in (?, ?)", A, B);
+        jdbc.update("delete from website_site where tenant_id in (?, ?)", A, B);
         files.deleteQuietly("LOCAL", "it-listing/ref-1.png", false);
         files.deleteQuietly("LOCAL", "it-listing/official.mp4", true);
         files.deleteQuietly("LOCAL", "it-listing/ref-2.mp4", false);
@@ -167,6 +169,81 @@ class ListingTaskContractTest extends TenantContractSupport {
         assertEquals(1, tasks(B, p2).get("alibaba"), "公司 B 不受影响");
         ok(call(json(put(TASKS + "/platforms"), write(Map.of("platforms", List.of("alibaba", "site")))), a));
         assertEquals(1, tasks(A, p1).get("alibaba"));
+    }
+
+    @Test
+    void site_tasks_perSite_scope_disabled_andLegacyAdopted() throws Exception {
+        // 还没有站点：与原来一样生成一个独立站任务（站点为 0）
+        ok(call(json(post(TASKS + "/products/" + p1 + "/verify-facts"), "{}"), a));
+        confirm(a, platformMd("site", "L-1", "en", "## SEO 标题\nL-1 Servo Drive\n"));
+        confirm(a, platformMd("site", "L-1", "ru", "## SEO 标题\nСервопривод L-1\n"));
+        assertEquals(Map.of(0L, 1), siteTasks(p1));
+        long legacy = id(A, p1, "site");
+
+        // 第一个站点：旧任务挂到这个站点上，不重复生成
+        long s1 = site("Fouwell", "https://it-listing-1.example.com", List.of());
+        assertEquals(Map.of(s1, 1), siteTasks(p1));
+        assertEquals(legacy, (long) jdbc.queryForObject("select id from listing_task where site_id = ?", Long.class, s1));
+
+        // 第二个站点范围包含这个品牌：各一个任务；第三个站点不包含：不生成
+        long s2 = site("Second", "https://it-listing-2.example.com", List.of(brand));
+        long s3 = site("Third", "https://it-listing-3.example.com", List.of(brand + 100000));
+        assertEquals(Map.of(s1, 1, s2, 1), siteTasks(p1));
+
+        // 修改范围：移入生成，移出取消，原因「不在站点商品范围」
+        updateScope(s3, "Third", "https://it-listing-3.example.com", List.of(brand));
+        assertEquals(1, siteTasks(p1).get(s3));
+        updateScope(s3, "Third", "https://it-listing-3.example.com", List.of(brand + 100000));
+        assertEquals(3, siteTasks(p1).get(s3));
+        assertEquals("不在站点商品范围", siteReason(p1, s3));
+
+        // 停用站点：待发布的取消，已发布的不变；启用后恢复
+        listingMedia("L-1", 1);
+        ok(call(json(post(API + "/" + legacy + "/publish"), write(Map.of("listingUrl", "https://it-listing-1.example.com/products/l-1/"))), a));
+        ok(call(json(put("/api/v1/websites/" + s2 + "/status"), "{\"status\":0}"), a));
+        ok(call(json(put("/api/v1/websites/" + s1 + "/status"), "{\"status\":0}"), a));
+        assertEquals(Map.of(s1, 2, s2, 3, s3, 3), siteTasks(p1));
+        assertEquals("站点已停用", siteReason(p1, s2));
+        ok(call(json(put("/api/v1/websites/" + s2 + "/status"), "{\"status\":1}"), a));
+        assertEquals(1, siteTasks(p1).get(s2));
+
+        // 列表：每个站点一个标签「独立站 · 站点名」
+        JsonNode labels = ok(call(json(post(API + "/page"), "{\"tab\":\"all\"}"), a)).path("records").get(0).path("tasks");
+        List<String> names = new ArrayList<>();
+        labels.forEach(t -> names.add(t.path("platformLabel").asText()));
+        assertEquals(List.of("独立站 · Fouwell", "独立站 · Second", "独立站 · Third"), names);
+        assertEquals(0, siteTasksOf(B, p1).size(), "公司 B 不受影响");
+    }
+
+    private long site(String name, String url, List<Long> brandIds) throws Exception {
+        return ok(call(json(post("/api/v1/websites"), write(siteBody(name, url, brandIds))), a)).path("id").asLong();
+    }
+
+    private void updateScope(long id, String name, String url, List<Long> brandIds) throws Exception {
+        ok(call(json(put("/api/v1/websites/" + id), write(siteBody(name, url, brandIds))), a));
+    }
+
+    private static Map<String, Object> siteBody(String name, String url, List<Long> brandIds) {
+        return Map.of("name", name, "url", url, "publishMode", 2, "pathTemplate", "/products/{slug}/",
+                "languages", List.of(Map.of("code", "en", "prefix", ""), Map.of("code", "ru", "prefix", "/ru")),
+                "productScope", Map.of("brandIds", brandIds, "categoryIds", List.of()));
+    }
+
+    /** 公司 A 这个商品的独立站任务：站点 → 状态 */
+    private Map<Long, Integer> siteTasks(long productId) {
+        return siteTasksOf(A, productId);
+    }
+
+    private Map<Long, Integer> siteTasksOf(int tenantId, long productId) {
+        Map<Long, Integer> out = new LinkedHashMap<>();
+        jdbc.queryForList("select site_id, status from listing_task where tenant_id = ? and product_id = ? and platform = 'site'",
+                tenantId, productId).forEach(r -> out.put(((Number) r.get("site_id")).longValue(), ((Number) r.get("status")).intValue()));
+        return out;
+    }
+
+    private String siteReason(long productId, long siteId) {
+        return jdbc.queryForObject("select cancel_reason from listing_task where tenant_id = ? and product_id = ? and site_id = ?",
+                String.class, A, productId, siteId);
     }
 
     @Test

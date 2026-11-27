@@ -9,6 +9,7 @@ import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.ResultCode;
 import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.framework.tenant.TenantScope;
+import com.zhul.erp.modules.listing.service.ListingTaskSync;
 import com.zhul.erp.modules.product.entity.ProductCategoryDO;
 import com.zhul.erp.modules.product.repository.ProductCategoryMapper;
 import com.zhul.erp.modules.website.constants.WebsiteConstants;
@@ -48,7 +49,7 @@ import java.util.regex.Pattern;
 /**
  * 站点（spec product/website-site）：新建、修改、停用、检测连接、品类对照。
  * 网址全平台唯一，校验用 TenantScope.platform 跨公司查询；凭据加密保存，只返回是否已配置与末四位。
- * 事务边界：保存站点与其凭据在同一事务；检测连接只读，不开事务（同步调用发布服务，可能持续数分钟）。
+ * 事务边界：保存站点、凭据，以及随之重新对齐的发品任务（新建、启用停用、商品范围变化）在同一事务；检测连接只读，不开事务（同步调用发布服务，可能持续数分钟）。
  */
 @Slf4j
 @Service
@@ -75,6 +76,7 @@ public class WebsiteSiteService {
     private final SiteSecrets secrets;
     private final SitePublisherClient publisher;
     private final ObjectMapper objectMapper;
+    private final ListingTaskSync listingSync;
 
     // ================================================================ 查询
 
@@ -113,6 +115,7 @@ public class WebsiteSiteService {
         apply(s, req, null);
         siteMapper.insert(s);
         saveSecrets(s, req);
+        listingSync.syncAll(s.getTenantId());
         log.info("新建站点，siteId={}，url={}", s.getId(), s.getUrl());
         return toVO(s);
     }
@@ -120,9 +123,13 @@ public class WebsiteSiteService {
     @Transactional(rollbackFor = Exception.class)
     public SiteVO update(Long id, SiteRequest req) {
         WebsiteSiteDO s = get(id);
+        String scopeBefore = s.getProductScope();
         apply(s, req, id);
         siteMapper.updateById(s);
         saveSecrets(s, req);
+        if (!Objects.equals(scopeBefore, s.getProductScope())) {
+            listingSync.syncAll(s.getTenantId());
+        }
         log.info("修改站点，siteId={}", id);
         return toVO(get(id));
     }
@@ -134,8 +141,12 @@ public class WebsiteSiteService {
             throw new BizException("状态不正确");
         }
         WebsiteSiteDO s = get(id);
+        boolean changed = !Objects.equals(s.getStatus(), status);
         s.setStatus(status);
         siteMapper.updateById(s);
+        if (changed) {
+            listingSync.syncAll(s.getTenantId());
+        }
         log.info("站点{}，siteId={}", status == WebsiteConstants.STATUS_ENABLED ? "启用" : "停用", id);
         return toVO(get(id));
     }

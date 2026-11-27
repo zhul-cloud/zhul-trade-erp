@@ -17,6 +17,8 @@ import com.zhul.erp.modules.listing.dto.PublishRequest;
 import com.zhul.erp.modules.listing.dto.ReferenceRequest;
 import com.zhul.erp.modules.listing.entity.ListingTaskDO;
 import com.zhul.erp.modules.listing.repository.ListingTaskMapper;
+import com.zhul.erp.modules.website.entity.WebsiteSiteDO;
+import com.zhul.erp.modules.website.repository.WebsiteSiteMapper;
 import com.zhul.erp.modules.listing.repository.ListingTaskRow;
 import com.zhul.erp.modules.media.dto.MediaDetailVO;
 import com.zhul.erp.modules.media.dto.MediaItemVO;
@@ -76,7 +78,7 @@ import java.util.zip.ZipOutputStream;
 public class ListingTaskService {
 
     private static final List<String> TABS = List.of("pending", "updated", "replace", "published", "cancelled", "all");
-    private static final String[] STATUS_NAMES = {"", "待发布", "已发布", "已取消"};
+    private static final String[] STATUS_NAMES = {"", "待发布", "已发布", "已取消", "发布中", "已上线待确认"};
     private static final Map<String, String> PRODUCT_STATUS_NAMES = Map.of("pending", "待发布", "updated", "内容有更新",
             "replace", "待替换素材", "published", "已发布", "cancelled", "已取消");
     private static final Pattern URL = Pattern.compile("^https?://\\S+$", Pattern.CASE_INSENSITIVE);
@@ -90,6 +92,7 @@ public class ListingTaskService {
     private final MediaReferenceService mediaReferences;
     private final ContentTaskService contentTasks;
     private final FileStorageService files;
+    private final WebsiteSiteMapper siteMapper;
 
     // ================================================================ 列表
 
@@ -137,7 +140,8 @@ public class ListingTaskService {
             return out;
         }
         List<ListingTaskRow> rows = new ArrayList<>(taskMapper.rowsOfProducts(TenantContext.getTenantId(), productIds));
-        rows.sort(Comparator.comparing((ListingTaskRow r) -> platformOrder(r.getPlatform())));
+        rows.sort(Comparator.comparing((ListingTaskRow r) -> platformOrder(r.getPlatform()))
+                .thenComparing(r -> r.getSiteId() == null ? 0L : r.getSiteId()));
         for (ListingTaskVO t : toVos(rows)) {
             ListingProductVO p = out.computeIfAbsent(t.getProductId(), id -> {
                 ListingProductVO v = new ListingProductVO();
@@ -214,10 +218,16 @@ public class ListingTaskService {
                 ProductBrandDO::getId, ProductBrandDO::getBrandName);
         Map<Long, String> categories = names(products.values().stream().map(ProductDO::getCategoryId), categoryMapper::selectBatchIds,
                 ProductCategoryDO::getId, c -> StringUtils.hasText(c.getCategoryNameZh()) ? c.getCategoryNameZh() : c.getCategoryName());
+        Map<Long, String> siteNames = names(rows.stream().map(ListingTaskDO::getSiteId).filter(id -> id != null && id > 0),
+                siteMapper::selectBatchIds, WebsiteSiteDO::getId, WebsiteSiteDO::getName);
         Map<String, int[]> counts = mediaCounts(rows.stream().map(ListingTaskDO::getAssetKey).collect(Collectors.toSet()));
         List<ListingTaskVO> out = new ArrayList<>(rows.size());
         for (ListingTaskRow r : rows) {
             ListingTaskVO vo = base(r, products.get(r.getProductId()), brands, categories);
+            String siteName = siteNames.get(r.getSiteId());
+            if (siteName != null) {
+                vo.setPlatformLabel(vo.getPlatformLabel() + " · " + siteName);
+            }
             vo.setNeedMedia(Boolean.TRUE.equals(r.getNeedMedia()));
             vo.setContentUpdated(Boolean.TRUE.equals(r.getContentUpdated()));
             vo.setNeedReplace(Boolean.TRUE.equals(r.getNeedReplace()));
@@ -268,6 +278,7 @@ public class ListingTaskService {
             vo.setCategory(categories.get(p.getCategoryId()));
         }
         vo.setPlatform(t.getPlatform());
+        vo.setSiteId(t.getSiteId() == null ? 0L : t.getSiteId());
         MarketingPlatform platform = MarketingPlatform.of(t.getPlatform());
         vo.setPlatformLabel(platform == null ? t.getPlatform() : platform.label());
         vo.setStatus(t.getStatus());

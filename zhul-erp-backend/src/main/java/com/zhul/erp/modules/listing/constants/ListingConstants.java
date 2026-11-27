@@ -15,6 +15,8 @@ public final class ListingConstants {
 
     public static final String CANCEL_DISABLED = "平台已停用";
     public static final String CANCEL_SKIPPED = "标记不发布";
+    public static final String CANCEL_SITE_DISABLED = "站点已停用";
+    public static final String CANCEL_OUT_OF_SCOPE = "不在站点商品范围";
 
     public static final String MENU = "/operations/listings";
     public static final String PERM_EDIT = "operations:listing:edit";
