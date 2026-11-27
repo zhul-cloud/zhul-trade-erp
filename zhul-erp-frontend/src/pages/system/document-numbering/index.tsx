@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/ListLayout';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
+import { attrTone } from '@/theme/palette';
 import { prefixApi, readBizError } from './service';
 
 const PREFIX_RULE = /^[A-Z]{2,4}$/;
@@ -86,7 +87,7 @@ const DocumentNumberingPage: React.FC = () => {
       dataIndex: 'external',
       width: 100,
       render: (x: boolean) => (
-        <Pill tone={x ? 'gray' : 'mute'}>{x ? '是' : '否'}</Pill>
+        <Pill tone={x ? attrTone(0) : 'gray'}>{x ? '是' : '否'}</Pill>
       ),
     },
     {

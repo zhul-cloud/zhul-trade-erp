@@ -519,7 +519,7 @@ export const ReconTab: React.FC<{
       <div style={{ ...num, textAlign: 'right' }}>
         <div
           style={{
-            fontWeight: strong ? 700 : 500,
+            fontWeight: strong ? 600 : 400,
             color: strong ? palette.ink : palette.sub,
           }}
         >

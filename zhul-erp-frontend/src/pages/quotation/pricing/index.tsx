@@ -135,7 +135,7 @@ const PricingStrategyPage: React.FC = () => {
     }
   };
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!data) return <Skeleton active paragraph={{ rows: 10 }} />;
 
   const openEdit = (c: PricingStrategy['conditions'][number]) => {
@@ -397,7 +397,7 @@ const PricingStrategyPage: React.FC = () => {
                     <div
                       style={{
                         fontSize: 24,
-                        fontWeight: 700,
+                        fontWeight: 600,
                         color: palette.ink,
                         marginTop: 6,
                       }}
@@ -465,9 +465,7 @@ const PricingStrategyPage: React.FC = () => {
                       }}
                     >
                       {data.premiumBrands.map((b) => (
-                        <Tag key={b} color="processing">
-                          {b}
-                        </Tag>
+                        <Tag key={b}>{b}</Tag>
                       ))}
                       {canEdit && (
                         <button
@@ -714,7 +712,6 @@ const PricingStrategyPage: React.FC = () => {
             <Tag
               key={b}
               closable
-              color="processing"
               onClose={() => setBrands(brands.filter((x) => x !== b))}
             >
               {b}

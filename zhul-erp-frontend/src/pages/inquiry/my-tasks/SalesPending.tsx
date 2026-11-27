@@ -94,7 +94,7 @@ const SalesPending: React.FC<{
   const transfer = (ids: number[]) =>
     act(ids, inquiryApi.transferTasks, '已转给采购');
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!data) return <Skeleton active />;
   if (data.total === 0)
     return (

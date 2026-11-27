@@ -141,7 +141,7 @@ const LedgerTab: React.FC<{ month: string }> = ({ month }) => {
       render: plain,
     },
   ];
-  if (t.error) return <ErrorHint message={t.error} onRetry={t.load} />;
+  if (t.error) return <ErrorHint page message={t.error} onRetry={t.load} />;
   return (
     <>
       <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
@@ -261,7 +261,7 @@ const CogsTab: React.FC<{ month: string }> = ({ month }) => {
   const sum = (k: keyof PeriodCogs) =>
     t.rows.reduce((s, r) => s + Number(r[k] ?? 0), 0);
   const system = t.rows.filter((r) => r.systemQty > 0);
-  if (t.error) return <ErrorHint message={t.error} onRetry={t.load} />;
+  if (t.error) return <ErrorHint page message={t.error} onRetry={t.load} />;
   return (
     <>
       <div
@@ -396,7 +396,7 @@ const AdjustTab: React.FC<{ month: string }> = ({ month }) => {
       render: (v: number) => <SignedMoney value={v} />,
     },
   ];
-  if (t.error) return <ErrorHint message={t.error} onRetry={t.load} />;
+  if (t.error) return <ErrorHint page message={t.error} onRetry={t.load} />;
   return (
     <Table<CostAdjust>
       rowKey="id"
@@ -431,7 +431,7 @@ const CategoryTab: React.FC<{ month: string }> = ({ month }) => {
   useEffect(() => {
     load();
   }, [load]);
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   return (
     <CategoryLedgerTable
       data={data}
@@ -474,7 +474,7 @@ const PeriodDetail: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
   useOnReactivate(load);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!p) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const closed = p.status === PERIOD_CLOSED;

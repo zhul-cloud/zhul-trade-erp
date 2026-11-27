@@ -162,7 +162,7 @@ export const CategoryLedgerTable: React.FC<{
               </b>
             </Table.Summary.Cell>
             <Table.Summary.Cell index={5} align="right">
-              <b style={{ fontSize: 15 }}>
+              <b style={{ fontSize: 16 }}>
                 {num(money(t.closingAmount), true)}
               </b>
             </Table.Summary.Cell>

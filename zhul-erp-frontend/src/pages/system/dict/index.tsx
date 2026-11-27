@@ -523,7 +523,7 @@ const DictPage: React.FC = () => {
                       alignItems: 'center',
                       gap: 8,
                       fontSize: 16,
-                      fontWeight: 700,
+                      fontWeight: 600,
                     }}
                   >
                     {selectedType.dictName}

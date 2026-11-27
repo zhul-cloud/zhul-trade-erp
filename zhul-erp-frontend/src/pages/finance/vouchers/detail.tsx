@@ -64,7 +64,7 @@ const ReconTiles: React.FC<{ d: VoucherMonthDetail }> = ({ d }) => {
               <div
                 style={{
                   fontSize: 20,
-                  fontWeight: i === items.length - 1 ? 700 : 600,
+                  fontWeight: 600,
                   marginTop: 4,
                   fontVariantNumeric: 'tabular-nums',
                   whiteSpace: 'nowrap',
@@ -220,7 +220,7 @@ const VoucherMonthPage: React.FC = () => {
     load,
   );
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!d) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const exported = (d.exportCount ?? 0) > 0;
@@ -247,7 +247,11 @@ const VoucherMonthPage: React.FC = () => {
           <span>
             <span style={red(v.debitTotal)}>{v.action}</span>{' '}
             {href ? (
-              <Link to={href} onClick={(e) => e.stopPropagation()}>
+              <Link
+                className="zhul-link zhul-link-doc"
+                to={href}
+                onClick={(e) => e.stopPropagation()}
+              >
                 {v.sourceDocNo}
               </Link>
             ) : (

@@ -1,6 +1,6 @@
 import { history, Link } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Form, Input, Select, Table } from 'antd';
+import { App, Button, Form, Input, Select, Table } from 'antd';
 import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
@@ -8,7 +8,7 @@ import { CopyText } from '@/components/CopyText';
 import { CustomerCell } from '@/components/DocFields';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
-import { tableEmpty } from '@/components/EmptyState';
+import { EmptyState, tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -356,9 +356,26 @@ const SalesReturnsPage: React.FC = () => {
           scroll={{ x: tableScrollX(columnsSet.columns) }}
           locale={{
             emptyText: tableEmpty(
-              filters.status === TH_STATUS.CONFIRMING
-                ? '没有待确认的退货；在售后单选择「仅退货」或「退货退款」后会出现在这里'
-                : '没有符合条件的销售退货单',
+              filters.status === TH_STATUS.CONFIRMING ? (
+                // 默认只看待办状态：为空时给「查看全部」（UI-117）
+                <EmptyState
+                  title="没有待确认的退货"
+                  description="在售后单选择「仅退货」或「退货退款」后会出现在这里"
+                  action={
+                    <Button
+                      onClick={() => {
+                        form.setFieldValue('status', undefined);
+                        setFilters((f) => ({ ...f, status: undefined }));
+                        setPage(1);
+                      }}
+                    >
+                      查看全部
+                    </Button>
+                  }
+                />
+              ) : (
+                '没有符合条件的销售退货单'
+              ),
               loading,
             ),
           }}

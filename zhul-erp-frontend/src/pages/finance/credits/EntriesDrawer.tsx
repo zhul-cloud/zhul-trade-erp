@@ -72,7 +72,7 @@ const EntriesDrawer: React.FC<{
       }}
     >
       <div style={{ fontSize: 12, color: palette.mute }}>{label}</div>
-      <div style={{ ...num, fontSize: 16, fontWeight: 700, color }}>
+      <div style={{ ...num, fontSize: 16, fontWeight: 600, color }}>
         {value}
       </div>
     </div>
@@ -213,7 +213,7 @@ const EntriesDrawer: React.FC<{
                       <div
                         style={{
                           ...num,
-                          fontWeight: 700,
+                          fontWeight: 600,
                           color: e.amount > 0 ? palette.green : palette.ink,
                         }}
                       >

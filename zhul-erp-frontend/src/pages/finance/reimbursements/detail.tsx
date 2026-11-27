@@ -61,7 +61,7 @@ const ReimbursementDetail: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
   useOnReactivate(load);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!bx) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const paid = bx.status === BX_STATUS.PAID;
@@ -127,7 +127,12 @@ const ReimbursementDetail: React.FC = () => {
           {
             label: '付款单',
             value: bx.paymentId ? (
-              <Link to={DOC_PATHS.payment(bx.paymentId)}>{bx.paymentNo}</Link>
+              <Link
+                to={DOC_PATHS.payment(bx.paymentId)}
+                className="zhul-link zhul-link-doc"
+              >
+                {bx.paymentNo}
+              </Link>
             ) : (
               bx.paymentNo
             ),

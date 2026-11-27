@@ -73,7 +73,7 @@ const ReceiptDocDetail: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
   useOnReactivate(load);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!d) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const r = d.receipt;

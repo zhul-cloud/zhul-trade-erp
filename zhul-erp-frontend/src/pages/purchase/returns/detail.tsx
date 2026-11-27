@@ -94,7 +94,7 @@ const PurchaseReturnDetail: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
   useOnReactivate(load);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!p) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const canEdit = !!access['purchase:purchase-return:edit'];
@@ -160,14 +160,24 @@ const PurchaseReturnDetail: React.FC = () => {
             label: '采购订单',
             value:
               p.poNo && p.poId ? (
-                <Link to={PATHS.order(p.poId)}>{p.poNo}</Link>
+                <Link
+                  to={PATHS.order(p.poId)}
+                  className="zhul-link zhul-link-doc"
+                >
+                  {p.poNo}
+                </Link>
               ) : undefined,
           },
           {
             label: '销售订单',
             value:
               p.soNo && p.soId ? (
-                <Link to={SALES_PATHS.order(p.soId)}>{p.soNo}</Link>
+                <Link
+                  to={SALES_PATHS.order(p.soId)}
+                  className="zhul-link zhul-link-doc"
+                >
+                  {p.soNo}
+                </Link>
               ) : undefined,
             hidden: !afterSales,
           },
@@ -175,7 +185,10 @@ const PurchaseReturnDetail: React.FC = () => {
             label: '售后单',
             value:
               p.asNo && p.afterSalesId ? (
-                <Link to={SALES_PATHS.afterSales(p.afterSalesId)}>
+                <Link
+                  className="zhul-link zhul-link-doc"
+                  to={SALES_PATHS.afterSales(p.afterSalesId)}
+                >
                   {p.asNo}
                 </Link>
               ) : undefined,

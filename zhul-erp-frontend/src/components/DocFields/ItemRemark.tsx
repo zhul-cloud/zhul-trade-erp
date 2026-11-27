@@ -3,7 +3,7 @@ import { MessageSquare, Pencil, Plus, TriangleAlert } from 'lucide-react';
 import React, { useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
 import { useAppTheme } from '@/theme/AppTheme';
-import { actualModelStamp } from './ActualModel';
+import { ChangeStamp } from './ActualModel';
 
 /** 型号备注最多 200 字（与后端一致） */
 export const ITEM_REMARK_MAX = 200;
@@ -173,7 +173,6 @@ export const ItemRemarkLine: React.FC<{
     setEditing(true);
   };
   if (text) {
-    const stamp = actualModelStamp(by, at);
     return (
       <div
         style={{
@@ -200,9 +199,7 @@ export const ItemRemarkLine: React.FC<{
             onClick={open}
           />
         )}
-        {stamp && (
-          <span style={{ color: palette.faint, fontWeight: 400 }}>{stamp}</span>
-        )}
+        <ChangeStamp by={by} at={at} />
       </div>
     );
   }

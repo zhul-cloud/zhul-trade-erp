@@ -640,7 +640,7 @@ const StrategyDrawer: React.FC<{
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
         <span style={{ ...num, color: palette.mute }}>{a}</span>
         <ArrowRight size="1em" style={{ color: palette.mute, fontSize: 11 }} />
-        <b style={{ ...num, fontSize: 17, color: color ?? palette.ink }}>{b}</b>
+        <b style={{ ...num, fontSize: 16, color: color ?? palette.ink }}>{b}</b>
       </div>
       {extra && (
         <div style={{ fontSize: 12, color: palette.mute }}>{extra}</div>

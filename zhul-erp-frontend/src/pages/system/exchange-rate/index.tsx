@@ -8,7 +8,7 @@ import { tableEmpty } from '@/components/EmptyState';
 import { PageHeader } from '@/components/ListLayout';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { readBizError } from '@/pages/crm/opportunity/service';
-import { Card, useWide } from '@/pages/inquiry/shared/components';
+import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -114,11 +114,13 @@ const ExchangeRatePage: React.FC = () => {
       title: '1 外币 = 人民币',
       dataIndex: 'rate',
       width: 140,
+      // 汇率是数字列：右对齐、表格正文字号（UI-117）；未设置是要处理的状态，用标签
+      align: 'right',
       render: (v?: number) =>
         v == null ? (
-          <b style={{ color: palette.orange }}>未设置</b>
+          <Pill tone="orange">未设置</Pill>
         ) : (
-          <b style={{ ...num, fontSize: 16 }}>{fmt(v)}</b>
+          <b style={num}>{fmt(v)}</b>
         ),
     },
     {
@@ -176,7 +178,7 @@ const ExchangeRatePage: React.FC = () => {
     },
   ];
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
 
   return (
     <div>
@@ -370,7 +372,7 @@ const ExchangeRatePage: React.FC = () => {
               style={{
                 ...num,
                 fontSize: 20,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: palette.sub,
               }}
             >
@@ -384,7 +386,7 @@ const ExchangeRatePage: React.FC = () => {
               style={{
                 ...num,
                 fontSize: 20,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: palette.ink,
               }}
             >

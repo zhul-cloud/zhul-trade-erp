@@ -95,13 +95,18 @@ it('汇总行：本月实收、进行中（含各阶段）、本月订单、未�
     '销售订单',
   );
   expect(summaryItem('本月实收人民币')).toContain('CNY 386,420.00');
-  expect(summaryItem('本月实收人民币')).toContain(
-    '线上 CNY 120,300.00 · 线下 CNY 266,120.00',
-  );
   expect(summaryItem('进行中')).toContain('18');
-  expect(summaryItem('进行中')).toContain(
-    '待采购 5 · 已下单 7 · 已入库 3 · 已交货代 2 · 已出运 1 · 待验货 0',
-  );
+  // 副文字收进帮助图标（D76，R35 方案 B）
+  expect(
+    screen.getByRole('img', {
+      name: /线上 CNY 120,300\.00 · 线下 CNY 266,120\.00/,
+    }),
+  ).toBeTruthy();
+  expect(
+    screen.getByRole('img', {
+      name: /待采购 5 · 已下单 7 · 已入库 3 · 已交货代 2 · 已出运 1 · 待验货 0/,
+    }),
+  ).toBeTruthy();
   expect(summaryItem('本月订单')).toMatch(/本月订单\s*26$/);
   expect(summaryItem('未指定采购员')).toMatch(/未指定采购员\s*3$/);
   // 口径放进帮助图标

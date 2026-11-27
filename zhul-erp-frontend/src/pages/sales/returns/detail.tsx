@@ -63,7 +63,7 @@ const SalesReturnDetail: React.FC = () => {
     if (!dialog) load();
   });
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!r) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const refund = r.handling === HANDLING.REFUND;
@@ -139,7 +139,14 @@ const SalesReturnDetail: React.FC = () => {
         items={[
           {
             label: '销售订单',
-            value: <Link to={PATHS.order(r.soId)}>{r.soNo}</Link>,
+            value: (
+              <Link
+                to={PATHS.order(r.soId)}
+                className="zhul-link zhul-link-doc"
+              >
+                {r.soNo}
+              </Link>
+            ),
           },
           { label: '处理方式', value: r.handlingName },
           {

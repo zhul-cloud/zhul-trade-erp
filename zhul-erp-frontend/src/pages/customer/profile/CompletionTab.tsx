@@ -213,7 +213,7 @@ const StepCard: React.FC<{
             display: 'inline-grid',
             placeItems: 'center',
             fontSize: 12,
-            fontWeight: 700,
+            fontWeight: 600,
             // 已完成的步骤用主题色（步骤条规则），未完成的中性，不再每步一种颜色
             color: done || step.step === 1 ? palette.onPrimary : palette.sub,
             background:
@@ -222,7 +222,7 @@ const StepCard: React.FC<{
         >
           {done || step.step === 1 ? <Check size="1em" /> : step.step}
         </span>
-        <span style={{ fontSize: 14, fontWeight: 700, color: palette.ink }}>
+        <span style={{ fontSize: 14, fontWeight: 600, color: palette.ink }}>
           {step.name}
         </span>
         <span style={{ fontSize: 12, color: palette.mute }}>
@@ -273,7 +273,7 @@ const Queue: React.FC<{
           marginBottom: 6,
         }}
       >
-        <span style={{ fontWeight: 700, color: palette.ink }}>待补全</span>
+        <span style={{ fontWeight: 600, color: palette.ink }}>待补全</span>
         <span
           className="num"
           style={{
@@ -578,7 +578,7 @@ const Wizard: React.FC<{
           style={{
             margin: 0,
             fontSize: 18,
-            fontWeight: 700,
+            fontWeight: 600,
             color: palette.ink,
           }}
         >
@@ -600,7 +600,7 @@ const Wizard: React.FC<{
         >
           <span
             className="num"
-            style={{ fontSize: 18, fontWeight: 700, color: palette.orange }}
+            style={{ fontSize: 18, fontWeight: 600, color: palette.orange }}
           >
             {w.done} / 5
           </span>
@@ -1037,7 +1037,7 @@ const CompletionTab: React.FC = () => {
       </div>
     );
   }
-  if (error) return <ErrorHint message={error} onRetry={init} />;
+  if (error) return <ErrorHint page message={error} onRetry={init} />;
   if (rows.length === 0 && ownerId == null) {
     return (
       <EmptyHint

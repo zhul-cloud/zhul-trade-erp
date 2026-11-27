@@ -1,6 +1,5 @@
 import XMarkdown from '@ant-design/x-markdown';
 import { Download, Eye, FileText } from 'lucide-react';
-import { tableScrollX } from '@/utils/tableScroll';
 import '@ant-design/x-markdown/es/XMarkdown/index.css';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Drawer, Segmented, Space, Table } from 'antd';
@@ -204,10 +203,11 @@ export const ImportRecordList: React.FC<{
   useOnReactivate(load);
 
   const columns: TableColumnsType<ContentImportRecord> = [
+    // 详情左栏的表不横向滚动（UI-117）：语言并到类型第二行，写入摘要不写宽度、吃掉剩余空间
     {
       title: '文件',
       dataIndex: 'fileName',
-      width: 220,
+      width: 200,
       render: (v: string, r) => (
         <button
           type="button"
@@ -224,20 +224,22 @@ export const ImportRecordList: React.FC<{
       ),
     },
     {
-      title: '类型',
+      title: '类型 · 语言',
       key: 'type',
-      width: 170,
-      render: (_, r) => <TypeCell r={r} />,
-    },
-    {
-      title: '语言',
-      dataIndex: 'lang',
-      width: 70,
-      render: (v?: string) => (v ? (LANG_NAME[v] ?? v) : '—'),
+      width: 150,
+      render: (_, r) => (
+        <div>
+          <TypeCell r={r} />
+          {r.lang && (
+            <div style={{ fontSize: 12, color: palette.sub }}>
+              {LANG_NAME[r.lang] ?? r.lang}
+            </div>
+          )}
+        </div>
+      ),
     },
     {
       title: '写入摘要',
-      width: 240,
       dataIndex: 'summary',
       ellipsis: true,
       render: (v?: string) => v || '—',
@@ -245,7 +247,7 @@ export const ImportRecordList: React.FC<{
     {
       title: '确认',
       key: 'confirmed',
-      width: 150,
+      width: 130,
       render: (_, r) => (
         <div>
           <div style={{ color: r.mine ? palette.ink : palette.sub }}>
@@ -299,7 +301,6 @@ export const ImportRecordList: React.FC<{
             ? { pageSize: 10, showSizeChanger: false }
             : false
         }
-        scroll={{ x: tableScrollX(columns) }}
         locale={{ emptyText: tableEmpty('还没有上传记录', !rows) }}
       />
       <div style={{ marginTop: 8, fontSize: 12, color: palette.sub }}>

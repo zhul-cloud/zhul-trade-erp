@@ -28,7 +28,6 @@ import {
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
-import { Pill } from '@/pages/inquiry/shared/components';
 import {
   kg,
   LOGISTICS_PATHS,
@@ -222,9 +221,13 @@ const Outbounds: React.FC = () => {
       render: (v: string, r) => (
         <div>
           {ellipsisRender(v)}
+          {/* 第二行小字：标签叠两行会把行撑到 73（UI-117） */}
           {r.pickupLabel && (
-            <div style={{ marginTop: 4 }} title={r.pickupLabel}>
-              <Pill tone="magenta">上门取件</Pill>
+            <div
+              style={{ fontSize: 12, color: palette.sub }}
+              title={r.pickupLabel}
+            >
+              上门取件
             </div>
           )}
         </div>

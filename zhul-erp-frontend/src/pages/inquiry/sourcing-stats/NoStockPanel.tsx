@@ -136,7 +136,7 @@ const NoStockPanel: React.FC = () => {
           <button
             type="button"
             className="zhul-link"
-            style={{ ...num, fontWeight: 700 }}
+            style={{ ...num, fontWeight: 600 }}
             onClick={() => open(g, by)}
           >
             {v}
@@ -291,7 +291,7 @@ const NoStockPanel: React.FC = () => {
                   style={{
                     ...num,
                     fontSize: 12,
-                    fontWeight: last ? 700 : 600,
+                    fontWeight: 600,
                     color: last ? palette.ink : palette.sub,
                   }}
                 >

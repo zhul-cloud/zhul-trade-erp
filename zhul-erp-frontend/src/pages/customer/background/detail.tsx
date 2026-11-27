@@ -35,7 +35,7 @@ import {
   STATUS,
 } from './service';
 
-/** 卡片：标题照详情页 Section（18/500）；icon 参数保留，ui-redesign 起不再显示 */
+/** 卡片：标题照详情页 Section（16/600）；icon 参数保留，ui-redesign 起不再显示 */
 const Card: React.FC<{
   icon?: React.ReactNode;
   title?: React.ReactNode;
@@ -164,7 +164,7 @@ const BackgroundReportPage: React.FC = () => {
   let body: React.ReactNode;
   let actions: React.ReactNode = null;
   if (error) {
-    body = <ErrorHint message={error} onRetry={load} />;
+    body = <ErrorHint page message={error} onRetry={load} />;
   } else if (report === undefined) {
     body = (
       <div style={{ background: palette.card, borderRadius: 16, padding: 24 }}>
@@ -251,14 +251,14 @@ const BackgroundReportPage: React.FC = () => {
                 className="zhul-spin"
                 style={{ fontSize: 24, color: palette.link }}
               />
-              <div style={{ marginTop: 12, fontSize: 15 }}>
+              <div style={{ marginTop: 12, fontSize: 16 }}>
                 {r.source === SOURCE_AI
                   ? '正在联网背调，大约需要 3–5 分钟，完成后自动刷新'
                   : '正在从报告里提取结论和字段建议，约 1 分钟'}
               </div>
             </>
           ) : (
-            <div style={{ fontSize: 15 }}>
+            <div style={{ fontSize: 16 }}>
               背调失败：{r.failReason || '原因未知'}。可以回到客户重新发起。
             </div>
           )}
@@ -354,7 +354,7 @@ const BackgroundReportPage: React.FC = () => {
                 </XMarkdown>
               </div>
               <style>{`
-                .bg-report-body h1,.bg-report-body h2,.bg-report-body h3{font-size:14px;font-weight:700;margin:14px 0 6px;color:${palette.ink}}
+                .bg-report-body h1,.bg-report-body h2,.bg-report-body h3{font-size:14px;font-weight:600;margin:14px 0 6px;color:${palette.ink}}
                 .bg-report-body p{margin:6px 0}
                 .bg-report-body ul,.bg-report-body ol{margin:4px 0;padding-left:20px;list-style:disc}
                 .bg-report-body ol{list-style:decimal}

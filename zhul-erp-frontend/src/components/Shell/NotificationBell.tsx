@@ -17,7 +17,7 @@ import {
   notificationApi,
 } from '@/services/zhul/notification';
 import { useAppTheme } from '@/theme/AppTheme';
-import type { Palette } from '@/theme/palette';
+import { ATTR_TONE, type Palette, type ThemeMode } from '@/theme/palette';
 import { liveRequests } from '@/utils/liveRequests';
 import { IconButton } from './IconButton';
 
@@ -26,10 +26,14 @@ const PAGE_SIZE = 20;
 
 type Tab = 'todo' | 'all';
 
-/** 节点图标与配色：询价主题色、采购信息色、收货成功色、差异与收款警告色、销售中性 */
-const nodeStyle = (node: string, p: Palette) => {
+/**
+ * 节点图标与配色（类别图标块，可多色）：询价紫、采购信息色、收货成功色、差异与收款警告色、销售中性。
+ * 询价原用主题色浅底，主题色浅底只表示选中（D42），改用属性色紫（UI-117）
+ */
+const nodeStyle = (node: string, p: Palette, mode: ThemeMode) => {
   if (node.startsWith('SOURCING') || node === 'INQUIRY_QUOTABLE') {
-    return { icon: <Search size="1em" />, color: p.link, bg: p.primarySoft };
+    const [color, bg] = ATTR_TONE[mode].purple;
+    return { icon: <Search size="1em" />, color, bg };
   }
   if (node === 'MODEL_DOUBT') {
     return { icon: <Search size="1em" />, color: p.orange, bg: p.orangeSoft };
@@ -94,7 +98,8 @@ const Row: React.FC<{
   palette: Palette;
   onOpen: (item: NotificationItem) => void;
 }> = ({ item, palette, onOpen }) => {
-  const s = nodeStyle(item.node, palette);
+  const { mode } = useAppTheme();
+  const s = nodeStyle(item.node, palette, mode);
   const settled = item.kind === 'TODO' ? item.done : item.read;
   const chip = (text: string, color: string, bg: string) => (
     <span
@@ -156,7 +161,7 @@ const Row: React.FC<{
           {item.kind === 'TODO' &&
             (item.done
               ? chip('已处理', palette.mute, palette.inset)
-              : chip('待办', palette.link, palette.primarySoft))}
+              : chip('待办', palette.orange, palette.orangeSoft))}
           {item.urgent &&
             !item.done &&
             chip('紧急', palette.red, palette.redSoft)}

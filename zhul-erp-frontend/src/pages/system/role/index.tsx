@@ -440,7 +440,8 @@ const RolePage: React.FC = () => {
       width: 100,
       search: false,
       render: (_, record) => (
-        <span style={{ color: p.link }}>{record.userCount} 人</span>
+        // 只是人数、不能点：用正文墨色（表格里的主题色只给能点的，D23）
+        <span className="num">{record.userCount} 人</span>
       ),
     },
     ...proAuditColumns<RoleItem>(),

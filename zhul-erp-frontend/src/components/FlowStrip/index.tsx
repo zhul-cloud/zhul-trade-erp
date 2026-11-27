@@ -167,7 +167,7 @@ const StripCard: React.FC<{
           className="num"
           style={{
             fontSize: 24,
-            fontWeight: 700,
+            fontWeight: 600,
             lineHeight: '30px',
             color: open ? palette.ink : palette.faint,
           }}

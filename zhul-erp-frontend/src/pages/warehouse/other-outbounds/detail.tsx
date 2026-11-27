@@ -62,7 +62,7 @@ const OtherOutboundDetail: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
   useOnReactivate(load);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!r) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const done = r.status === OO_DONE;
@@ -158,7 +158,9 @@ const OtherOutboundDetail: React.FC = () => {
             label: '来源单号',
             value: r.sourceDocNo ? (
               sourceHref ? (
-                <Link to={sourceHref}>{r.sourceDocNo}</Link>
+                <Link to={sourceHref} className="zhul-link zhul-link-doc">
+                  {r.sourceDocNo}
+                </Link>
               ) : (
                 r.sourceDocNo
               )

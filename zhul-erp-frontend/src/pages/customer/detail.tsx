@@ -133,7 +133,7 @@ const LocalTimeCard: React.FC<{ timezone: string }> = ({ timezone }) => {
               className="num"
               style={{
                 fontSize: 40,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: palette.ink,
                 lineHeight: 1,
               }}
@@ -267,7 +267,7 @@ const CreditCard: React.FC<{ customerId: number; customerName: string }> = ({
           <div
             style={{
               fontSize: 18,
-              fontWeight: 700,
+              fontWeight: 600,
               fontVariantNumeric: 'tabular-nums',
               color: a.available > 0 ? palette.green : palette.mute,
             }}
@@ -398,7 +398,7 @@ const CustomerDetailPage: React.FC = () => {
       </div>
     );
   } else if (error) {
-    body = <ErrorHint message={error} onRetry={() => load()} />;
+    body = <ErrorHint page message={error} onRetry={() => load()} />;
   } else if (!record) {
     body = (
       <EmptyHint
@@ -759,7 +759,7 @@ const CustomerDetailPage: React.FC = () => {
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontWeight: 700,
+                    fontWeight: 600,
                     color: palette.link,
                     background: palette.primarySoft, // lint-ui-ignore primary-soft: 负责人头像，同全站头像写法
                   }}

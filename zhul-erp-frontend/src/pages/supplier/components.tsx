@@ -1,14 +1,22 @@
 import React from 'react';
 import { Pill } from '@/components/Pill';
 import { useAppTheme } from '@/theme/AppTheme';
+import { attrTone } from '@/theme/palette';
 import { labelOf, SUPPLIER_TYPE_OPTIONS } from './constants';
 
 export const LIST_PATH = '/supplier/list';
 
 /** 供应商类型；0（存量数据、询盘内联创建）显示「未设置」。类型是属性，用公共中性标签（ui-redesign S13） */
-export const SupplierTypePill: React.FC<{ value?: number }> = ({ value }) => (
-  <Pill tone="gray">{labelOf(SUPPLIER_TYPE_OPTIONS, value) ?? '未设置'}</Pill>
-);
+/** 供应商类型：取值固定，按选项顺序取属性色；「其他」「未设置」用灰（D75） */
+export const SupplierTypePill: React.FC<{ value?: number }> = ({ value }) => {
+  const i = SUPPLIER_TYPE_OPTIONS.findIndex((o) => o.value === value);
+  const other = i < 0 || value === 5;
+  return (
+    <Pill tone={other ? 'gray' : attrTone(i)}>
+      {labelOf(SUPPLIER_TYPE_OPTIONS, value) ?? '未设置'}
+    </Pill>
+  );
+};
 
 /** 状态胶囊（详情页用；列表里是开关） */
 export const StatusPill: React.FC<{ status?: number }> = ({ status }) => {
@@ -64,7 +72,7 @@ export const SectionCard: React.FC<{
           color: palette.ink,
         }}
       >
-        <span style={{ color: palette.link, fontSize: 15 }}>{icon}</span>
+        <span style={{ color: palette.link, fontSize: 16 }}>{icon}</span>
         {title}
       </h2>
       {children}

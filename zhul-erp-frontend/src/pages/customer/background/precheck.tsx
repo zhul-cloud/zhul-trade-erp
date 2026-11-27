@@ -142,7 +142,7 @@ export const PrecheckList: React.FC<{
             fontSize: size,
           }}
         >
-          <span style={{ fontSize: 15 }}>
+          <span style={{ fontSize: 16 }}>
             <ItemIcon item={i} />
           </span>
           <span

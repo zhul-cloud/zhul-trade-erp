@@ -14,7 +14,7 @@ import {
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount } from '@/utils/format';
+import { formatAmount, formatMoney } from '@/utils/format';
 import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import {
   AgeText,
@@ -147,28 +147,34 @@ const PriceHistoryPage: React.FC = () => {
       ),
     },
     {
-      title: '最低价',
+      // 整列都是人民币：币种写在表头，单元格只写数字；最低价不是状态，不用绿色（UI-117）
+      title: '最低价（CNY）',
       align: 'right',
-      width: 130,
+      width: 140,
       render: (_, r) =>
         r.minPriceCny == null ? (
           <span style={{ color: palette.mute }}>无货</span>
         ) : (
-          <b style={{ color: palette.green }}>{formatAmount(r.minPriceCny)}</b>
+          <b style={{ color: palette.ink }}>{formatMoney(r.minPriceCny)}</b>
         ),
     },
     {
-      title: '最高价',
+      title: '最高价（CNY）',
       align: 'right',
-      width: 130,
+      width: 140,
       render: (_, r) =>
-        r.maxPriceCny == null ? '—' : formatAmount(r.maxPriceCny),
+        r.maxPriceCny == null ? '—' : formatMoney(r.maxPriceCny),
     },
-    { title: '记录数', dataIndex: 'recordCount', width: 90 },
+    { title: '记录数', dataIndex: 'recordCount', width: 90, align: 'right' },
     {
       title: '最近询价',
       width: 190,
-      render: (_, r) => <AgeText days={r.daysAgo} date={r.lastQuotedAt} />,
+      render: (_, r) =>
+        r.daysAgo == null ? (
+          '—'
+        ) : (
+          <AgeText days={r.daysAgo} date={r.lastQuotedAt} />
+        ),
     },
   ];
 

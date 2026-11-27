@@ -90,7 +90,7 @@ const QuotationPreviewDrawer: React.FC<{
       style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}
     >
       <span style={{ color: palette.sub }}>{label}</span>
-      <span style={{ fontWeight: strong ? 700 : 400 }}>{value}</span>
+      <span style={{ fontWeight: strong ? 600 : 400 }}>{value}</span>
     </div>
   );
 

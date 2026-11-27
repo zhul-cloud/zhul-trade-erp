@@ -247,7 +247,7 @@ const BattleCard: React.FC<{
           flexWrap: 'wrap',
         }}
       >
-        <span style={{ fontWeight: 700, fontSize: 16, color: palette.ink }}>
+        <span style={{ fontWeight: 600, fontSize: 16, color: palette.ink }}>
           作战卡 · {sop.stageCode} {sop.name}
         </span>
         <StageAdjust

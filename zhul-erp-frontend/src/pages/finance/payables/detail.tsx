@@ -54,14 +54,18 @@ const PayableDetail: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
   useOnReactivate(load);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!p) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const c = p.currencyCode;
   const canRegister = !!access['finance:payment:register'];
   const open =
     p.status === PAY_STATUS.UNPAID || p.status === PAY_STATUS.PARTIAL;
-  const source = <Link to={sourcePath(p)}>{p.sourceNo}</Link>;
+  const source = (
+    <Link to={sourcePath(p)} className="zhul-link zhul-link-doc">
+      {p.sourceNo}
+    </Link>
+  );
   const voidedCount = p.payments.filter((l) => l.voided).length;
 
   const main = (

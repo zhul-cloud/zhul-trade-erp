@@ -299,7 +299,7 @@ const SalesStatsPage: React.FC = () => {
             style={num}
             onClick={() => go('/finance/profit-stats', r)}
           >
-            <div style={{ fontWeight: 700 }}>{cny(r.revenue.all)}</div>
+            <div style={{ fontWeight: 600 }}>{cny(r.revenue.all)}</div>
             {sub(`${cny(r.revenue.fresh)} / ${cny(r.revenue.old)}`)}
           </button>
         ) : (

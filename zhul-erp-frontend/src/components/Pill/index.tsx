@@ -73,6 +73,8 @@ export const Pill: React.FC<{
         color: c.fg,
         background: c.bg,
         whiteSpace: 'nowrap',
+        // 不超出所在单元格；里面放 EllipsisText 时长文字省略
+        maxWidth: '100%',
       }}
     >
       {children}

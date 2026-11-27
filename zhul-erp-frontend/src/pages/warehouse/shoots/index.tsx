@@ -121,7 +121,14 @@ const Shoots: React.FC = () => {
       width: 180,
       render: (_, r) => (
         <div>
-          {r.grNo && <Link to={DOC_PATHS.receipt(r.receiptId)}>{r.grNo}</Link>}
+          {r.grNo && (
+            <Link
+              to={DOC_PATHS.receipt(r.receiptId)}
+              className="zhul-link zhul-link-doc"
+            >
+              {r.grNo}
+            </Link>
+          )}
           {r.soNo && sub(palette.mute, r.soNo)}
         </div>
       ),

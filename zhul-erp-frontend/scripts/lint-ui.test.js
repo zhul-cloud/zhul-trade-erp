@@ -35,6 +35,31 @@ describe('lint:ui', () => {
     ).not.toContain('glow:error');
   });
 
+  it('字重只用 400、600（检查表 #7）', () => {
+    expect(rules('const a = { fontWeight: 700 };')).toContain(
+      'cjk-weight:error',
+    );
+    expect(rules('const a = { fontWeight: cur ? 600 : 500 };')).toContain(
+      'cjk-weight:error',
+    );
+    expect(rules("const a = { fontWeight: 'bold' };")).toContain(
+      'cjk-weight:error',
+    );
+    expect(rules('const css = `h2{font-weight:700}`;')).toContain(
+      'cjk-weight:error',
+    );
+    expect(rules('const a = { fontWeight: cur ? 600 : 400 };')).not.toContain(
+      'cjk-weight:error',
+    );
+  });
+
+  it('字号不在字阶里报错（15、17）', () => {
+    expect(rules('const a = { fontSize: 15 };')).toContain('font-scale:error');
+    expect(rules('const a = { fontSize: 16 };')).not.toContain(
+      'font-scale:error',
+    );
+  });
+
   it('属性标签用状态色报错，灰与属性色放行（D75）', () => {
     expect(rules('<Pill tone="orange">对私</Pill>')).toContain(
       'attr-tone:error',

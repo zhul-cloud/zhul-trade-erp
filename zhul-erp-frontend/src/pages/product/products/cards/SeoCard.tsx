@@ -625,7 +625,7 @@ const KeywordLibrary: React.FC<{ keywords: PlatformContent['keywords'] }> = ({
         return (
           <div key={tier} style={{ display: 'flex', gap: 12 }}>
             <div style={{ width: 52, flex: '0 0 52px' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: fg }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: fg }}>
                 {name}
               </div>
               <div style={{ fontSize: 11, color: palette.mute }}>

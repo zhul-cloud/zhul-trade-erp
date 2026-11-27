@@ -95,7 +95,7 @@ export const UserMenu: React.FC = () => {
                 flex: 'none',
                 background: palette.primarySoft, // lint-ui-ignore primary-soft: 头像，规范「头像：主题色浅底加首字」
                 color: palette.link,
-                fontWeight: 700,
+                fontWeight: 600,
               }}
             >
               {initial}
@@ -156,7 +156,7 @@ export const UserMenu: React.FC = () => {
             style={{
               background: palette.primarySoft, // lint-ui-ignore primary-soft: 头像，规范「头像：主题色浅底加首字」
               color: palette.link,
-              fontWeight: 700,
+              fontWeight: 600,
             }}
           >
             {initial}

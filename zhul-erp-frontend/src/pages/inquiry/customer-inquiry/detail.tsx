@@ -213,7 +213,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
     }
   };
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!detail) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const inq = detail.inquiry;
@@ -785,7 +785,10 @@ const CustomerInquiryDetailPage: React.FC = () => {
           {detail.remark && <Meta label="备注">{detail.remark}</Meta>}
           {detail.opportunityCode && (
             <Meta label={`来源商机 · ${detail.opportunityStageName ?? ''}`}>
-              <Link to={`/crm/opportunities/${inq.opportunityId}`}>
+              <Link
+                className="zhul-link zhul-link-doc"
+                to={`/crm/opportunities/${inq.opportunityId}`}
+              >
                 {detail.opportunityCode}
               </Link>
             </Meta>
@@ -1048,8 +1051,11 @@ const CustomerInquiryDetailPage: React.FC = () => {
                     <div
                       style={{ display: 'flex', alignItems: 'center', gap: 8 }}
                     >
-                      <Link to={QUOTATION_PATHS.detail(qt.id)}>
-                        <b>{qt.quotationNo}</b>
+                      <Link
+                        className="zhul-link zhul-link-doc"
+                        to={QUOTATION_PATHS.detail(qt.id)}
+                      >
+                        {qt.quotationNo}
                       </Link>
                       <span style={{ marginLeft: 'auto' }}>
                         <QuotationStatusPill status={qt.status} />

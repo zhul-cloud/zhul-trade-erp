@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
-import { actualModelStamp } from '@/components/DocFields/ActualModel';
+import { ChangeStamp } from '@/components/DocFields/ActualModel';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import { HelpTip, PageHeader, ViewTabs } from '@/components/ListLayout';
 import { useTabDirty } from '@/components/PageTabs/hooks';
@@ -807,7 +807,7 @@ const MyTasksPage: React.FC = () => {
     });
   };
 
-  if (error) return <ErrorHint message={error} onRetry={loadList} />;
+  if (error) return <ErrorHint page message={error} onRetry={loadList} />;
 
   return (
     <div>
@@ -1054,7 +1054,7 @@ const MyTasksPage: React.FC = () => {
                 }}
               >
                 <span
-                  style={{ fontSize: 17, fontWeight: 700, color: palette.ink }}
+                  style={{ fontSize: 16, fontWeight: 600, color: palette.ink }}
                 >
                   {detail.task.taskCode} · {detail.task.brand}
                   {detail.task.category ? ` · ${detail.task.category}` : ''}
@@ -1239,7 +1239,7 @@ const MyTasksPage: React.FC = () => {
                     <span
                       style={{
                         fontSize: 16,
-                        fontWeight: 700,
+                        fontWeight: 600,
                         color: palette.ink,
                       }}
                     >
@@ -1338,9 +1338,11 @@ const MyTasksPage: React.FC = () => {
                         aria-label={`${it.model} 真实型号`}
                       />
                       {it.actualModel && it.actualModelBy && (
-                        <span style={{ color: palette.faint, fontSize: 12 }}>
-                          {actualModelStamp(it.actualModelBy, it.actualModelAt)}
-                        </span>
+                        <ChangeStamp
+                          by={it.actualModelBy}
+                          at={it.actualModelAt}
+                          style={{ fontSize: 12 }}
+                        />
                       )}
                     </span>
                     {it.difficulty > 0 && (

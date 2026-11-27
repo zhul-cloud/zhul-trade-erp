@@ -117,7 +117,7 @@ const AfterSalesDetail: React.FC = () => {
   // 跟进记录写了内容或传了附件还没保存：离开前确认（audit UI-066）
   useUnsavedGuard(!!note.trim() || noteFiles.length > 0);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!a) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const active = a.status === AS_STATUS.OPEN || a.status === AS_STATUS.WAITING;
@@ -232,7 +232,7 @@ const AfterSalesDetail: React.FC = () => {
       >
         <span style={{ fontSize: 20, color: fg }}>{icon}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: fg }}>
+          <div style={{ fontWeight: 600, fontSize: 16, color: fg }}>
             {title}
           </div>
           <div style={{ fontSize: 12, color: palette.sub }}>{desc}</div>

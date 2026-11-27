@@ -67,7 +67,7 @@ const ShipmentDetailPage: React.FC = () => {
   useOnReactivate(load);
   const closeDialog = useCallback(() => setDialog(undefined), []);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!d) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const s = d.shipment;
@@ -190,7 +190,14 @@ const ShipmentDetailPage: React.FC = () => {
             items={[
               {
                 label: '采购订单',
-                value: <Link to={WAREHOUSE_PATHS.order(s.poId)}>{s.poNo}</Link>,
+                value: (
+                  <Link
+                    to={WAREHOUSE_PATHS.order(s.poId)}
+                    className="zhul-link zhul-link-doc"
+                  >
+                    {s.poNo}
+                  </Link>
+                ),
               },
               {
                 label: '快递 · 单号',

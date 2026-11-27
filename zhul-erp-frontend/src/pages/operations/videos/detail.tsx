@@ -221,7 +221,7 @@ const VideoTaskDetailPage: React.FC = () => {
     }
   };
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!data) return null;
 
   const locked = LOCKED.includes(data.status);
@@ -561,7 +561,9 @@ const VideoTaskDetailPage: React.FC = () => {
                       color: m.used ? palette.onPrimary : palette.sub,
                       background: m.used ? palette.primary : palette.card,
                       // 白底商品图上卡片底色看不出边界，补一圈细线
-                      border: m.used ? undefined : `1px solid ${palette.hairline}`,
+                      border: m.used
+                        ? undefined
+                        : `1px solid ${palette.hairline}`,
                       boxSizing: 'border-box',
                     }}
                   >

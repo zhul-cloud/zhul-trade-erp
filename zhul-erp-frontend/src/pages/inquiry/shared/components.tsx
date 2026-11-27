@@ -336,7 +336,7 @@ export const Stat: React.FC<{
       <div
         style={{
           fontSize: 28,
-          fontWeight: 700,
+          fontWeight: 600,
           color: palette.ink,
           margin: '12px 0 4px',
         }}

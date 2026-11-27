@@ -59,7 +59,7 @@ const DeferredList: React.FC<{
               }}
             >
               <Calendar size="1em" style={{ color: palette.link }} />
-              <b style={{ color: palette.ink, fontSize: 15 }}>
+              <b style={{ color: palette.ink, fontSize: 16 }}>
                 {d.format('MM-DD')} {WEEK[d.day()]}回来
               </b>
               <span style={{ color: palette.mute, fontSize: 12 }}>

@@ -9,7 +9,7 @@ import { CopyText } from '@/components/CopyText';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
-import { tableEmpty } from '@/components/EmptyState';
+import { EmptyState, tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -483,9 +483,26 @@ const AfterSalesPage: React.FC = () => {
           scroll={{ x: tableScrollX(columnsSet.columns) }}
           locale={{
             emptyText: tableEmpty(
-              filters.status === AS_STATUS.OPEN
-                ? '没有处理中的售后单；客户反馈问题时点右上角「新建售后单」，或在订单详情点「售后」'
-                : '没有符合条件的售后单',
+              filters.status === AS_STATUS.OPEN ? (
+                // 默认只看待办状态：为空时给「查看全部」（UI-117）
+                <EmptyState
+                  title="没有处理中的售后单"
+                  description="客户反馈问题时点右上角「新建售后单」，或在订单详情点「售后」"
+                  action={
+                    <Button
+                      onClick={() => {
+                        form.setFieldValue('status', undefined);
+                        setFilters((f) => ({ ...f, status: undefined }));
+                        setPage(1);
+                      }}
+                    >
+                      查看全部
+                    </Button>
+                  }
+                />
+              ) : (
+                '没有符合条件的售后单'
+              ),
               loading,
             ),
           }}

@@ -1183,6 +1183,8 @@ const ExpensePage: React.FC = () => {
           columns={columnsSet.columns}
           dataSource={rows}
           scroll={{ x: tableScrollX(columnsSet.columns) }}
+          // 默认带日期条件：为空按「无结果」显示，带「清空筛选」（UI-117）
+          locale={{ emptyText: tableEmpty('没有符合条件的费用单', loading) }}
           pagination={{
             ...PAGER_STYLE,
             current: page,

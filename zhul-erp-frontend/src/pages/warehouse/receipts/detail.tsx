@@ -63,7 +63,7 @@ const ReceiptDetailPage: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
   useOnReactivate(load);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!d) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const r = d.receipt;
@@ -221,12 +221,24 @@ const ReceiptDetailPage: React.FC = () => {
             items={[
               {
                 label: '采购订单',
-                value: <Link to={WAREHOUSE_PATHS.order(r.poId)}>{r.poNo}</Link>,
+                value: (
+                  <Link
+                    to={WAREHOUSE_PATHS.order(r.poId)}
+                    className="zhul-link zhul-link-doc"
+                  >
+                    {r.poNo}
+                  </Link>
+                ),
               },
               {
                 label: '发货单',
                 value: (
-                  <Link to={DOC_PATHS.shipment(r.shipmentId)}>{r.sdNo}</Link>
+                  <Link
+                    to={DOC_PATHS.shipment(r.shipmentId)}
+                    className="zhul-link zhul-link-doc"
+                  >
+                    {r.sdNo}
+                  </Link>
                 ),
               },
               { label: '收货日期', value: r.receivedDate },

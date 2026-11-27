@@ -154,7 +154,7 @@ export const ShipNoticeModal: React.FC<{
   ) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <span style={{ color: palette.link }}>{icon}</span>
-      <b style={{ color: palette.ink, fontSize: 15 }}>{title}</b>
+      <b style={{ color: palette.ink, fontSize: 16 }}>{title}</b>
       {extra && (
         <span style={{ fontSize: 12, color: palette.mute }}>{extra}</span>
       )}
@@ -428,7 +428,12 @@ export const OrderOutbounds: React.FC<{
               background: palette.inset,
             }}
           >
-            <Link to={DOC_PATHS.outbound(r.id)}>{r.obNo}</Link>
+            <Link
+              to={DOC_PATHS.outbound(r.id)}
+              className="zhul-link zhul-link-doc"
+            >
+              {r.obNo}
+            </Link>
             <ObStatusPill value={r.status}>{r.statusName}</ObStatusPill>
             {r.source === 2 && (
               <span style={{ fontSize: 12, color: palette.orange }}>

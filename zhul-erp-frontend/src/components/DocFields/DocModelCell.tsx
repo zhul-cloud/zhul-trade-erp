@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { Tag, Tooltip } from 'antd';
 import { TriangleAlert } from 'lucide-react';
 import React from 'react';
+import EllipsisText from '@/components/EllipsisText';
 import ViewMediaLink from '@/pages/operations/media/ViewMediaLink';
 import { useAppTheme } from '@/theme/AppTheme';
 
@@ -137,10 +138,11 @@ export interface DocItemMeta {
   category?: string;
 }
 
+/** 品牌单行：放不下省略、悬停看全文，不把明细行撑高（检查表 #21，UI-117） */
 const BrandText: React.FC<{ text?: string }> = ({ text }) => {
   const { palette } = useAppTheme();
   return (
-    <span style={{ fontWeight: 600, color: palette.ink }}>{text || '—'}</span>
+    <EllipsisText text={text} style={{ fontWeight: 600, color: palette.ink }} />
   );
 };
 
@@ -151,13 +153,14 @@ export const docBrandColumns = <T,>(
   {
     title: '品牌',
     key: 'brand',
-    width: 110,
+    // 130：「Schneider Electric」这类常见长品牌在 1366 下放得下
+    width: 130,
     render: (_, r) => <BrandText text={get(r)?.brand} />,
   },
   {
     title: '品类',
     key: 'category',
     width: 110,
-    render: (_, r) => get(r)?.category || '—',
+    render: (_, r) => <EllipsisText text={get(r)?.category} />,
   },
 ];

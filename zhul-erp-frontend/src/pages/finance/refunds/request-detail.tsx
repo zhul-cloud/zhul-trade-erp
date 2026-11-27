@@ -79,7 +79,7 @@ const RefundRequestDetail: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
   useOnReactivate(load);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!q) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const canEdit = !!access['finance:refund:edit'];
@@ -213,12 +213,24 @@ const RefundRequestDetail: React.FC = () => {
             label: '售后单',
             value:
               q.afterSalesId && q.asNo ? (
-                <Link to={PATHS.afterSales(q.afterSalesId)}>{q.asNo}</Link>
+                <Link
+                  to={PATHS.afterSales(q.afterSalesId)}
+                  className="zhul-link zhul-link-doc"
+                >
+                  {q.asNo}
+                </Link>
               ) : undefined,
           },
           {
             label: '销售订单',
-            value: <Link to={PATHS.order(q.soId)}>{q.soNo}</Link>,
+            value: (
+              <Link
+                to={PATHS.order(q.soId)}
+                className="zhul-link zhul-link-doc"
+              >
+                {q.soNo}
+              </Link>
+            ),
           },
           { label: '金额合计', value: formatAmount(q.amount, cur) },
           { label: '原因', value: q.reasonName },

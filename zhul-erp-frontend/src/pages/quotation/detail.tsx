@@ -696,7 +696,7 @@ const QuotationDetail: React.FC = () => {
     }
   };
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!q || !draft) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const revising = editable && q.status === STATUS.SENT;

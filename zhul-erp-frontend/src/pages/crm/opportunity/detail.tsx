@@ -428,7 +428,7 @@ const OpportunityDetailPage: React.FC = () => {
                 <div
                   style={{
                     fontSize: 12,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     color: cur
                       ? palette.link
                       : done
@@ -443,7 +443,7 @@ const OpportunityDetailPage: React.FC = () => {
                 </div>
                 <div
                   style={{
-                    fontWeight: cur ? 700 : 500,
+                    fontWeight: cur ? 600 : 400,
                     color: cur
                       ? palette.ink
                       : done

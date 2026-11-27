@@ -131,7 +131,7 @@ export const BrandGroupHeader: React.FC<{
         onClick={onToggle}
         style={{ ...plain, flex: 1, minWidth: 0, textAlign: 'left' }}
       >
-        <span style={{ fontSize: 15, fontWeight: 700, color: palette.ink }}>
+        <span style={{ fontSize: 16, fontWeight: 600, color: palette.ink }}>
           {brand}
         </span>
         <Pill tone="gray">
