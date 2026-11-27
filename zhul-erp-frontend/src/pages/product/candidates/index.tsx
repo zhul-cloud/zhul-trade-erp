@@ -142,8 +142,8 @@ export const LevelDots: React.FC<{ level: number; name: string }> = ({
   name,
 }) => {
   const { palette } = useAppTheme();
-  const color =
-    level >= 3 ? palette.green : level === 2 ? palette.link : palette.orange;
+  // 可信度是程度：点亮几个点表示高低，统一用图表主题色；文字不着色（进度类规则，UI-117）
+  const color = palette.chart;
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
       <span style={{ display: 'inline-flex', gap: 3 }}>
@@ -159,7 +159,7 @@ export const LevelDots: React.FC<{ level: number; name: string }> = ({
           />
         ))}
       </span>
-      <span style={{ fontSize: 12, color }}>{name}</span>
+      <span style={{ fontSize: 12, color: palette.sub }}>{name}</span>
     </span>
   );
 };

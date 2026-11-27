@@ -150,7 +150,7 @@ const PriceHistoryPage: React.FC = () => {
       // 整列都是人民币：币种写在表头，单元格只写数字；最低价不是状态，不用绿色（UI-117）
       title: '最低价（CNY）',
       align: 'right',
-      width: 130,
+      width: 140,
       render: (_, r) =>
         r.minPriceCny == null ? (
           <span style={{ color: palette.mute }}>无货</span>
@@ -161,7 +161,7 @@ const PriceHistoryPage: React.FC = () => {
     {
       title: '最高价（CNY）',
       align: 'right',
-      width: 130,
+      width: 140,
       render: (_, r) =>
         r.maxPriceCny == null ? '—' : formatMoney(r.maxPriceCny),
     },

@@ -1064,7 +1064,7 @@ const ConfirmPage: React.FC = () => {
                       style={{
                         color:
                           g.key === NO_BRAND ? palette.orange : palette.ink,
-                        fontSize: 15,
+                        fontSize: 16,
                       }}
                     >
                       {g.brand}

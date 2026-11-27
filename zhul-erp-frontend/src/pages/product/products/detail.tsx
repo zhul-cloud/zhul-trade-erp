@@ -502,8 +502,9 @@ const DetailInner: React.FC = () => {
                 </h2>
                 <span
                   className="num"
+                  // 主角数字用字阶上限 28（检查表 #6，UI-117）
                   style={{
-                    fontSize: 32,
+                    fontSize: 28,
                     fontWeight: 600,
                     color: palette.ink,
                   }}

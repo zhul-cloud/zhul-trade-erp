@@ -9,9 +9,14 @@ export interface SourceRef {
   href?: string;
 }
 
+/** 单号链接：墨色 600、悬停主题色下划线（D23、zhul-link-doc），页头说明行、表格、悬停列表一致（UI-117） */
 const RefLink: React.FC<{ r: SourceRef & { no: string } }> = ({ r }) =>
   r.href ? (
-    <Link to={r.href} style={{ whiteSpace: 'nowrap' }}>
+    <Link
+      to={r.href}
+      className="zhul-link zhul-link-doc"
+      style={{ whiteSpace: 'nowrap' }}
+    >
       {r.no}
     </Link>
   ) : (

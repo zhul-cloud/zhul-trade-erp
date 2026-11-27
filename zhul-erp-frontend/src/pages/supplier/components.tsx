@@ -72,7 +72,7 @@ export const SectionCard: React.FC<{
           color: palette.ink,
         }}
       >
-        <span style={{ color: palette.link, fontSize: 15 }}>{icon}</span>
+        <span style={{ color: palette.link, fontSize: 16 }}>{icon}</span>
         {title}
       </h2>
       {children}

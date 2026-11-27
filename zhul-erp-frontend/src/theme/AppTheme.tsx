@@ -54,8 +54,8 @@ const globalCss = (
     .map(([k, v]) => `--z-${k}: ${v};`)
     .join(' ')} }
   body { background: ${p.canvas}; font-family: ${SANS_FONT}; }
-  /* 中文只用 400/600（检查表 #7）：<b>、<strong> 浏览器默认 700，<dt> 在 antd 重置里是 500，这里兜底 */
-  b, strong { font-weight: 600; }
+  /* 中文只用 400/600（检查表 #7）：<b>、<strong> 浏览器默认 700，标题标签和 <dt> 在 antd 重置里是 500，这里兜底 */
+  b, strong, h1, h2, h3, h4, h5, h6 { font-weight: 600; }
   dt { font-weight: 400; }
   /* 深色模式下让滚动条等浏览器原生控件也用深色 */
   :root[data-theme='dark'] { color-scheme: dark; }

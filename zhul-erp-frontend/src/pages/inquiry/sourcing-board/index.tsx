@@ -1176,7 +1176,7 @@ const ReviewList: React.FC<{
           background: palette.inset,
         }}
       >
-        <span style={{ fontSize: 15, fontWeight: 600, color: palette.ink }}>
+        <span style={{ fontSize: 16, fontWeight: 600, color: palette.ink }}>
           兼职回价待审核
         </span>
         <Pill tone="gray">

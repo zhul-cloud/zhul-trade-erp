@@ -475,7 +475,7 @@ const WizardInner: React.FC = () => {
       <h2
         id="wizard-question"
         tabIndex={-1}
-        style={{ fontSize: 32, fontWeight: 600, margin: 0 }}
+        style={{ fontSize: 24, fontWeight: 600, margin: 0 }}
       >
         {text}
       </h2>
@@ -1170,7 +1170,7 @@ const WizardInner: React.FC = () => {
                 <h2
                   id="wizard-question"
                   tabIndex={-1}
-                  style={{ fontSize: 32, margin: '12px 0 4px' }}
+                  style={{ fontSize: 24, margin: '12px 0 4px' }}
                 >
                   {product.mpnDisplay} 已创建
                 </h2>

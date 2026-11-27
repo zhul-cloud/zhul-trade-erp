@@ -584,7 +584,7 @@ const RecentModal: React.FC<{
     >
       {d && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: palette.ink }}>
+          <div style={{ fontSize: 16, fontWeight: 600, color: palette.ink }}>
             这个客户 {ago}由 {d.requestedByName} 背调过（{conclusion}）。
           </div>
           <div style={{ fontSize: 13, color: palette.sub }}>

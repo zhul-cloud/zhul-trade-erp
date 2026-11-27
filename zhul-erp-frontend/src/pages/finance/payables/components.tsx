@@ -38,11 +38,11 @@ import {
 } from '@/pages/sales/service';
 import { AttachmentWall, usePreview } from '@/pages/warehouse/components';
 import type { Attachment } from '@/pages/warehouse/service';
+import { UserName } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
 import { attrTone } from '@/theme/palette';
 import { formatAmount, formatMoney } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
-import { tableScrollX } from '@/utils/tableScroll';
 import { DueNowHint, dueNowOf } from './dueNow';
 import {
   MethodHint,
@@ -1275,32 +1275,46 @@ export const PaymentLineTable: React.FC<{
   const { palette } = useAppTheme();
   const c = p.currencyCode;
   const lines = p.payments.filter((l) => showVoided || !l.voided);
+  // 详情左栏的表不横向滚动（UI-117）：日期、登记人并到单号第二行，作废并到类型第二行，
+  // 「付款方式 · 账户」不写宽度、吃掉剩余空间
+  const sub = (node: React.ReactNode) => (
+    <div style={{ fontSize: 12, color: palette.mute }}>{node}</div>
+  );
   const paymentColumns: TableColumnsType<PaymentLine> = [
     {
-      title: '付款单号',
+      title: '付款单号 · 日期',
       dataIndex: 'paymentNo',
-      width: 150,
+      width: 160,
       render: (v: string, l) => (
-        <Link to={`/finance/payments/${l.paymentId}`}>{v}</Link>
+        <div>
+          <Link
+            to={`/finance/payments/${l.paymentId}`}
+            className="zhul-link zhul-link-doc"
+          >
+            {v}
+          </Link>
+          {sub(
+            <>
+              {l.payDate} · <UserName value={l.createBy} />
+            </>,
+          )}
+        </div>
       ),
     },
-    { title: '日期', dataIndex: 'payDate', width: 110 },
     {
       title: '类型',
       key: 'r',
-      width: 130,
+      width: 120,
       render: (_, l) => (
-        <span>
+        <div>
           {RELATION[l.relation]}
-          {l.otherPayableNo ? (
-            <span style={{ color: palette.mute }}> · {l.otherPayableNo}</span>
-          ) : null}
-        </span>
+          {l.otherPayableNo && sub(l.otherPayableNo)}
+          {l.voided && <Pill tone="mute">已作废</Pill>}
+        </div>
       ),
     },
     {
       title: '付款方式 · 账户 / 垫付人',
-      width: 220,
       key: 'm',
       render: (_, l) => (
         <div>
@@ -1345,15 +1359,8 @@ export const PaymentLineTable: React.FC<{
     {
       title: '截图',
       key: 'f',
-      width: 90,
+      width: 80,
       render: (_, l) => <ProofLinks files={l.attachments} />,
-    },
-    {
-      title: '登记人',
-      dataIndex: 'createBy',
-      width: 100,
-      render: (v: string, l) =>
-        l.voided ? <Pill tone="mute">已作废</Pill> : v,
     },
   ];
 
@@ -1365,7 +1372,6 @@ export const PaymentLineTable: React.FC<{
       size="small"
       pagination={false}
       dataSource={lines}
-      scroll={{ x: tableScrollX(paymentColumns) }}
       columns={paymentColumns}
     />
   );

@@ -744,7 +744,7 @@ const ListingPanel: React.FC<{
           )}
 
           <section style={{ display: 'grid', gap: 12 }}>
-            <div style={{ fontSize: 15, fontWeight: 600, color: palette.ink }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: palette.ink }}>
               <Image size="1em" /> 发品素材
             </div>
             {showRef && (
@@ -825,7 +825,7 @@ const ListingPanel: React.FC<{
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span
                 style={{
-                  fontSize: 15,
+                  fontSize: 16,
                   fontWeight: 600,
                   color: palette.ink,
                   flex: 1,

@@ -253,7 +253,7 @@ export const ConfirmReturnModal: React.FC<{
               placeholder="退款说明（选填）"
               aria-label="退款说明"
             />
-            <div style={{ fontSize: 15 }}>
+            <div style={{ fontSize: 16 }}>
               退款合计 <b>{formatAmount(total, cur)}</b>
             </div>
           </>
@@ -595,7 +595,7 @@ export const CreateReturnModal: React.FC<{
           </div>
         )}
         {refund && (
-          <div style={{ fontSize: 15 }}>
+          <div style={{ fontSize: 16 }}>
             预计退款 <b>{formatAmount(estimate, cur)}</b>
             <span style={{ fontSize: 12, color: palette.mute }}>
               {' '}

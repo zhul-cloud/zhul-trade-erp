@@ -144,7 +144,7 @@ const PostCard: React.FC<{
                     borderRadius: 999,
                     display: 'grid',
                     placeItems: 'center',
-                    fontSize: 11,
+                    fontSize: 12,
                     color: palette.ink,
                     background: palette.card,
                   }}

@@ -222,7 +222,8 @@ export const MetricCard: React.FC<{
         {currency && (
           <span
             style={{
-              fontSize: '0.58em',
+              // 币种代码固定 13（字阶），不随数值缩放出 13.92 这类小数字号（UI-117）
+              fontSize: 13,
               color: palette.mute,
               marginInlineEnd: 4,
             }}

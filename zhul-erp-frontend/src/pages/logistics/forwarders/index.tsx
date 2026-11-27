@@ -482,8 +482,8 @@ const ForwarderPage: React.FC = () => {
       width: 240,
       render: (_, r) =>
         r.customerId ? (
-          // 两行：标签 + 客户名单行省略；上门取件放第二行，不挤进右边一列（模板审核 UI-117）
-          <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
+          // 两行：标签 + 客户名单行省略；上门取件作第二行小字，不挤进右边一列、行高不超过两行（UI-117）
+          <div style={{ display: 'grid', minWidth: 0 }}>
             <span
               style={{
                 display: 'flex',
@@ -499,10 +499,8 @@ const ForwarderPage: React.FC = () => {
               />
             </span>
             {r.handoverMode === HANDOVER.PICKUP && (
-              <span>
-                <Pill tone={FORWARDER_TONE.pickup}>
-                  {['上门取件', r.courierCarrier].filter(Boolean).join(' · ')}
-                </Pill>
+              <span style={{ fontSize: 12, color: palette.sub }}>
+                {['上门取件', r.courierCarrier].filter(Boolean).join(' · ')}
               </span>
             )}
           </div>

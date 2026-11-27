@@ -31,7 +31,8 @@ export const BrandMark: React.FC<{
         background: color || palette.neutralSoft,
         color: color ? '#FFFFFF' : palette.sub,
         fontWeight: 600,
-        fontSize: Math.round(size * 0.46),
+        // 按字阶取档，不出 15 这类越界字号（UI-117）
+        fontSize: size >= 40 ? 16 : size >= 28 ? 14 : 12,
         flex: 'none',
       }}
     >

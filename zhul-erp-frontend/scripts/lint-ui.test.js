@@ -53,6 +53,13 @@ describe('lint:ui', () => {
     );
   });
 
+  it('字号不在字阶里报错（15、17）', () => {
+    expect(rules('const a = { fontSize: 15 };')).toContain('font-scale:error');
+    expect(rules('const a = { fontSize: 16 };')).not.toContain(
+      'font-scale:error',
+    );
+  });
+
   it('属性标签用状态色报错，灰与属性色放行（D75）', () => {
     expect(rules('<Pill tone="orange">对私</Pill>')).toContain(
       'attr-tone:error',

@@ -481,7 +481,7 @@ const SummaryInline: React.FC<{
           <span
             className="num"
             style={{
-              fontSize: 15,
+              fontSize: 16,
               fontWeight: 600,
               color: palette.ink,
               whiteSpace: 'nowrap',

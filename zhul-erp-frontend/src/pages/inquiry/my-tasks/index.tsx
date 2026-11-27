@@ -1054,7 +1054,7 @@ const MyTasksPage: React.FC = () => {
                 }}
               >
                 <span
-                  style={{ fontSize: 17, fontWeight: 600, color: palette.ink }}
+                  style={{ fontSize: 16, fontWeight: 600, color: palette.ink }}
                 >
                   {detail.task.taskCode} · {detail.task.brand}
                   {detail.task.category ? ` · ${detail.task.category}` : ''}

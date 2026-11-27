@@ -251,14 +251,14 @@ const BackgroundReportPage: React.FC = () => {
                 className="zhul-spin"
                 style={{ fontSize: 24, color: palette.link }}
               />
-              <div style={{ marginTop: 12, fontSize: 15 }}>
+              <div style={{ marginTop: 12, fontSize: 16 }}>
                 {r.source === SOURCE_AI
                   ? '正在联网背调，大约需要 3–5 分钟，完成后自动刷新'
                   : '正在从报告里提取结论和字段建议，约 1 分钟'}
               </div>
             </>
           ) : (
-            <div style={{ fontSize: 15 }}>
+            <div style={{ fontSize: 16 }}>
               背调失败：{r.failReason || '原因未知'}。可以回到客户重新发起。
             </div>
           )}

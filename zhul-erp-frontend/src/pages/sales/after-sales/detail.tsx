@@ -232,7 +232,7 @@ const AfterSalesDetail: React.FC = () => {
       >
         <span style={{ fontSize: 20, color: fg }}>{icon}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 15, color: fg }}>
+          <div style={{ fontWeight: 600, fontSize: 16, color: fg }}>
             {title}
           </div>
           <div style={{ fontSize: 12, color: palette.sub }}>{desc}</div>

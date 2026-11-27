@@ -216,7 +216,7 @@ export const RfmModal: React.FC<{
         className="num"
         style={{
           marginTop: 4,
-          fontSize: 15,
+          fontSize: 16,
           fontWeight: 600,
           color: palette.ink,
         }}
@@ -348,7 +348,7 @@ export const RfmModal: React.FC<{
           }}
         >
           <span style={{ color: palette.mute }}>综合分数</span>
-          <b className="num" style={{ fontSize: 15, color: palette.ink }}>
+          <b className="num" style={{ fontSize: 16, color: palette.ink }}>
             {w[0]} × {data.r} + {w[1]} × {data.f} + {w[2]} × {data.m} ={' '}
             {data.score}
           </b>
@@ -530,7 +530,7 @@ const GradeCard: React.FC<{
         <h2
           style={{
             margin: 0,
-            fontSize: 15,
+            fontSize: 16,
             fontWeight: 600,
             color: palette.ink,
           }}

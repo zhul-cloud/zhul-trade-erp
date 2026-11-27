@@ -620,7 +620,7 @@ const DeptPage: React.FC = () => {
                 padding: 20,
               }}
             >
-              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>
+              <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
                 核算设置
               </div>
               <div

@@ -120,7 +120,8 @@ const OutboundDetailPage: React.FC = () => {
     {
       title: '型号',
       dataIndex: 'model',
-      width: 220,
+      // 1366 下左栏约 664：各列合计 648，不横向滚动（UI-117）
+      width: 200,
       render: (_, x) => (
         <DocModelCell
           model={x.model}
@@ -139,6 +140,7 @@ const OutboundDetailPage: React.FC = () => {
     {
       title: '已装箱',
       dataIndex: 'packedQty',
+      align: 'right' as const,
       width: 80,
       render: (v?: number) => v ?? 0,
     },
