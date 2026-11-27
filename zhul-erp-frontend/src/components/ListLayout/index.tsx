@@ -1550,7 +1550,8 @@ export const FilterChip: React.FC<{ item: FilterChipItem }> = ({ item }) => {
 /**
  * 主内容区：操作行（左：结果数或已选，后面是快捷筛选 quick 与已生效条件 chips；右：批量操作）+ 表格。
  * 快捷筛选放在这里，不放搜索条件区（ui-redesign D22）。
- * 结果数传 count（和 unit，默认「条」）：count 没有值、或加载中且为 0 时不显示，不在转圈时闪「共 0 条」（S17）。
+ * 结果数传 count（和 unit，默认「条」）：count 没有值、或第一次加载中且为 0 时不显示，不在转圈时闪「共 0 条」（S17）；
+ * 之后重新查询时保留上次的数，不让操作行跳动。
  */
 export const MainCard: React.FC<{
   count?: number;
@@ -1575,8 +1576,12 @@ export const MainCard: React.FC<{
   settings,
   children,
 }) => {
+  // 只在第一次加载、还没有结果时不显示「共 0 条」；之后重新查询保留上次的数，
+  // 否则结果为 0 时每查一次它就消失再出现，后面的快捷筛选跟着左右跳
+  const loaded = useRef(false);
+  if (!loading && count !== undefined) loaded.current = true;
   const counted =
-    count === undefined || (loading && !count)
+    count === undefined || (loading && !count && !loaded.current)
       ? undefined
       : `共 ${count} ${unit}`;
   const left =
