@@ -4,6 +4,7 @@ import { Checkbox, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { CopyText } from '@/components/CopyText';
 import { tableEmpty } from '@/components/EmptyState';
 import { FilterField, MainCard, PageHeader } from '@/components/ListLayout';
@@ -212,6 +213,10 @@ const MovesPage: React.FC = () => {
       render: (v?: string) => v || '系统',
     },
   ];
+  // 1366 宽默认列放得下（列表页统一规范第 2 条）：次要列默认收进「列」，宽屏自动补回
+  const columnsSet = useColumnSettings('warehouse-moves', columns, {
+    hidden: ['操作类型', '仓库', '批次', '单价（CNY）', '操作人'],
+  });
 
   const apply = (f: Filters) => {
     setFilters(f);
@@ -291,6 +296,7 @@ const MovesPage: React.FC = () => {
         <MainCard
           count={total}
           loading={loading}
+          settings={columnsSet.settings}
           chips={
             productId
               ? [
@@ -320,9 +326,9 @@ const MovesPage: React.FC = () => {
           <Table<InvMove>
             rowKey="id"
             loading={loading}
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             locale={{ emptyText: tableEmpty('没有符合条件的流水', loading) }}
             pagination={{
               ...PAGER_STYLE,

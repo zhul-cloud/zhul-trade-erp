@@ -4,6 +4,7 @@ import { Input, Select, Space, Table } from 'antd';
 import dayjs from 'dayjs';
 import { Images, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -199,6 +200,10 @@ const MediaLibraryPage: React.FC = () => {
       ),
     },
   ];
+  // 1366 宽默认列放得下：品牌已在「商品」列里，最近新增素材为次要信息，默认收进「列」
+  const columnsSet = useColumnSettings('operations-media', columns, {
+    hidden: ['品牌', '最近新增素材'],
+  });
 
   return (
     <div>
@@ -253,13 +258,18 @@ const MediaLibraryPage: React.FC = () => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <MainCard count={total} unit="个型号" loading={loading}>
+        <MainCard
+          count={total}
+          unit="个型号"
+          loading={loading}
+          settings={columnsSet.settings}
+        >
           <Table<MediaModel>
             rowKey={(r) => `${r.brand}|${r.model}`}
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             locale={{
               emptyText: tableEmpty(
                 query

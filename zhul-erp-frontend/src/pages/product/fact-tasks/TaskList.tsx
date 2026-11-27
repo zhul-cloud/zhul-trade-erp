@@ -333,7 +333,7 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
     {
       title: '商品',
       key: 'product',
-      width: 300,
+      width: 280,
       fixed: 'left',
       render: (_, t) => (
         <div>
@@ -386,11 +386,10 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
         facts ? (
           factsCell(t)
         ) : factsVerified(t.status) ? (
-          <span style={{ color: palette.green }}>已核对</span>
+          <Pill tone="green">已核对</Pill>
         ) : (
-          <span style={{ color: palette.orange }}>
-            {t.status === 1 ? '待补' : '待核'}
-          </span>
+          // 提醒用状态标签，不写彩色纯文字
+          <Pill tone="orange">{t.status === 1 ? '待补' : '待核'}</Pill>
         ),
     },
     ...(facts
@@ -511,9 +510,16 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
       },
     },
   ];
-  const columnsSet = useColumnSettings('product-fact-tasks-TaskList', columns, {
-    hidden: ['品牌', '品类', '最近下载'],
-  });
+  // 营销模式多了「营销（本公司）」一列：「资料」列与状态重复，默认收进「列」，1366 宽放得下（列表页统一规范第 2 条）
+  const columnsSet = useColumnSettings(
+    facts ? 'product-fact-tasks-TaskList' : 'operations-marketing-TaskList',
+    columns,
+    {
+      hidden: facts
+        ? ['品牌', '品类', '最近下载']
+        : ['品牌', '品类', '最近下载', '资料'],
+    },
+  );
 
   return (
     <div>

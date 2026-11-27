@@ -11,6 +11,7 @@ import { useAccess } from '@umijs/max';
 import { App, Badge, Button, Input, Table, Tag, Tooltip } from 'antd';
 import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { EmptyState, tableEmpty } from '@/components/EmptyState';
 import { PageHeader } from '@/components/ListLayout';
@@ -401,6 +402,10 @@ const DictPage: React.FC = () => {
       ),
     },
   ];
+  // 右侧表格区较窄：英文名称、样式标签、排序默认收进「列」
+  const itemSet = useColumnSettings('system-dict-items', itemColumns, {
+    hidden: ['英文名称', '样式标签', '排序'],
+  });
 
   return (
     <>
@@ -530,20 +535,29 @@ const DictPage: React.FC = () => {
                     编码 <span className="num">{selectedType.dictType}</span>
                   </div>
                 </div>
-                {canAdd && (
-                  <Button
-                    type="primary"
-                    icon={<Plus size="1em" />}
-                    onClick={openCreateItem}
-                  >
-                    新增字典项
-                  </Button>
-                )}
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    gap: 8,
+                    alignItems: 'center',
+                  }}
+                >
+                  {itemSet.settings}
+                  {canAdd && (
+                    <Button
+                      type="primary"
+                      icon={<Plus size="1em" />}
+                      onClick={openCreateItem}
+                    >
+                      新增字典项
+                    </Button>
+                  )}
+                </span>
               </div>
               <Table
                 rowKey="id"
-                columns={itemColumns}
-                scroll={{ x: tableScrollX(itemColumns) }}
+                columns={itemSet.columns}
+                scroll={{ x: tableScrollX(itemSet.columns) }}
                 dataSource={itemList}
                 loading={itemLoading}
                 pagination={pager}

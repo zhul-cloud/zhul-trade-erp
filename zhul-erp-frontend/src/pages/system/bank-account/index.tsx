@@ -13,9 +13,10 @@ import {
 } from 'antd';
 import { Ban, CircleCheck, Info, Pencil, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { tableEmpty } from '@/components/EmptyState';
-import { PageHeader } from '@/components/ListLayout';
+import { MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { Pill } from '@/pages/inquiry/shared/components';
@@ -466,6 +467,10 @@ const BankAccountPage: React.FC = () => {
       ),
     },
   ];
+  // 1366 宽默认列放得下：类型、SWIFT、国家默认收进「列」，宽屏自动补回
+  const columnsSet = useColumnSettings('system-bank-account', columns, {
+    hidden: ['类型', 'SWIFT', '国家 / 地区'],
+  });
 
   return (
     <div>
@@ -493,20 +498,27 @@ const BankAccountPage: React.FC = () => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Table<BankAccount>
-          rowKey="id"
-          columns={columns}
-          dataSource={sorted}
+        <MainCard
+          count={rows?.length}
+          unit="个"
           loading={!rows}
-          pagination={false}
-          scroll={{ x: tableScrollX(columns) }}
-          locale={{
-            emptyText: tableEmpty(
-              '还没有收款账户：添加后开 PI 时会按币种自动带出',
-              !rows,
-            ),
-          }}
-        />
+          settings={columnsSet.settings}
+        >
+          <Table<BankAccount>
+            rowKey="id"
+            columns={columnsSet.columns}
+            dataSource={sorted}
+            loading={!rows}
+            pagination={false}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
+            locale={{
+              emptyText: tableEmpty(
+                '还没有收款账户：添加后开 PI 时会按币种自动带出',
+                !rows,
+              ),
+            }}
+          />
+        </MainCard>
       )}
       {rows && (
         <div
