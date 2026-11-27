@@ -17,18 +17,20 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/warehouse/service';
 import { type ReceiverPost, receiverApi } from '@/services/zhul/notification';
 import { useAppTheme } from '@/theme/AppTheme';
-import type { Palette } from '@/theme/palette';
+import { ATTR_TONE, type Palette, type ThemeMode } from '@/theme/palette';
 
 type User = { id: number; name: string };
 
-const postStyle = (post: string, p: Palette) => {
+const postStyle = (post: string, p: Palette, mode: ThemeMode) => {
   if (post === 'RECEIVER') {
     return { icon: <Box size="1em" />, color: p.green, bg: p.greenSoft };
   }
   if (post === 'FINANCE') {
     return { icon: <Wallet size="1em" />, color: p.orange, bg: p.orangeSoft };
   }
-  return { icon: <Search size="1em" />, color: p.link, bg: p.primarySoft };
+  // 询价岗位与通知铃同色：属性色紫（主题色浅底只表示选中，D42、UI-117）
+  const [color, bg] = ATTR_TONE[mode].purple;
+  return { icon: <Search size="1em" />, color, bg };
 };
 
 /** 一个岗位：接收人（收货人可跟采购订单的采购员走）+ 它接收的通知 */
@@ -38,13 +40,13 @@ const PostCard: React.FC<{
   canEdit: boolean;
   onSave: (poBuyer: boolean, userIds: number[]) => Promise<void>;
 }> = ({ data, candidates, canEdit, onSave }) => {
-  const { palette } = useAppTheme();
+  const { palette, mode } = useAppTheme();
   const [adding, setAdding] = useState(false);
   const [specified, setSpecified] = useState(!data.poBuyer);
   const isReceiver = data.post === 'RECEIVER';
   const byBuyer = isReceiver && !specified;
   const ids = data.users.map((u) => u.id);
-  const s = postStyle(data.post, palette);
+  const s = postStyle(data.post, palette, mode);
 
   useEffect(() => setSpecified(!data.poBuyer), [data.poBuyer]);
 

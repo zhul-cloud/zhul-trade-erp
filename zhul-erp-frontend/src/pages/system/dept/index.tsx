@@ -110,7 +110,7 @@ const toAntdTree = (list: DeptItem[]): any[] =>
         >
           {item.name}
         </span>
-        {item.isBusinessUnit === 1 && <Pill tone="blue">事业部</Pill>}
+        {item.isBusinessUnit === 1 && <Pill tone="gray">事业部</Pill>}
         {item.status === 0 && <Pill tone="mute">禁用</Pill>}
       </Space>
     ),
@@ -580,7 +580,7 @@ const DeptPage: React.FC = () => {
                 <div style={{ fontSize: 14, fontWeight: 600, color: p.ink }}>
                   {selectedDept.isBusinessUnit === 1 ? (
                     <Space size={8}>
-                      <Pill tone="blue">事业部</Pill>
+                      <Pill tone="gray">事业部</Pill>
                       {selectedDept.buStartMonth} 起核算
                     </Space>
                   ) : unitInfo.unit ? (
