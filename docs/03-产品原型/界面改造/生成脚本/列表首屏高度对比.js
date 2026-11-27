@@ -6,6 +6,8 @@ const T = (p, content, o = {}) => I(p, { type: 'text', name: 'c:' + o.color, con
 const H = (p, gap = 6, o = {}) => I(p, { type: 'frame', layout: 'horizontal', gap, alignItems: 'center', ...o });
 const V = (p, gap = 0, o = {}) => I(p, { type: 'frame', layout: 'vertical', gap, ...o });
 const INK = '#212B36', SUB = '#454F5B', MUTE = '#919EAB', HEAD_C = '#637381', LINE = '#EDEFF2', HEAD = '#F9FAFB', CANVAS = '#F4F6F8', CARD = '#FFFFFF', RED = '#B71D18';
+// 主按钮照本机琥珀主题：主题色实底、白字（D70），与真实页面一致
+const PRIMARY = '#FDA92D', ON_PRIMARY = '#FFFFFF';
 const SHADOW = [{ type: 'shadow', offsetX: 0, offsetY: 12, blur: 24, spread: -4, color: 'rgba(145,158,171,0.12)' }];
 const W = 1074; // 1366 - 侧栏 260 - 左右外边距 16
 const VIEW = 688; // 768 - 顶栏 80：内容区可见高度
@@ -36,7 +38,7 @@ const titleRow = (p, metricsInline) => {
   T(r, '销售订单', { size: 20, weight: 600, color: INK });
   const right = H(r, 20);
   if (metricsInline) METRICS.forEach(([k, v]) => { const m = H(right, 6); T(m, k, { size: 13, color: SUB }); T(m, v, { size: 16, weight: 600, color: INK }); });
-  const b = H(right, 0, { height: 36, padding: [0, 16], cornerRadius: 8, fill: fill('#FDA92D') }); T(b, '+ 新建订单', { size: 14, weight: 600, color: '#1C252E' });
+  const b = H(right, 0, { height: 36, padding: [0, 16], cornerRadius: 8, fill: fill(PRIMARY) }); T(b, '+ 新建订单', { size: 14, weight: 600, color: ON_PRIMARY });
 };
 const summaryFull = (p) => {
   const c = card(p, { layout: 'horizontal', padding: [16, 0], height: 96 });
@@ -60,7 +62,7 @@ const filter = (p) => {
   });
   I(c, { type: 'frame', width: 'fill_container', height: 1 });
   const r = H(c, 0, { height: 36, padding: [0, 14], cornerRadius: 8, stroke: { thickness: 1, align: 'inside', fill: fill('#DFE3E8') } }); T(r, '重置', { size: 14, color: INK });
-  const q = H(c, 0, { height: 36, padding: [0, 14], cornerRadius: 8, fill: fill('#1C252E') }); T(q, '查询', { size: 14, weight: 600, color: '#FFFFFF' });
+  const q = H(c, 0, { height: 36, padding: [0, 14], cornerRadius: 8, fill: fill(PRIMARY) }); T(q, '查询', { size: 14, weight: 600, color: ON_PRIMARY });
 };
 const main = (p, room) => {
   const c = card(p, { padding: [16, 16, 0, 16], gap: 16, clipContent: true, height: room });

@@ -58,68 +58,32 @@ describe('汇总行', () => {
     ).toBeTruthy();
   });
 
-  it('3 个及以上：栏宽够时副文字都显示；内容变短后重新测量，恢复显示（D69）', () => {
-    let width = 500;
-    const sw = jest
-      .spyOn(Element.prototype, 'scrollWidth', 'get')
-      .mockImplementation(() => width);
-    const cw = jest
-      .spyOn(Element.prototype, 'clientWidth', 'get')
-      .mockReturnValue(300);
-    const items = (sub: string) => [
-      { label: '进行中', value: 18, sub, subHideable: true },
-      { label: '本月订单', value: 26 },
-      { label: '未指定采购员', value: 3 },
-    ];
-    try {
-      const { rerender } = render(h(SummaryBar, { items: items('待采购 5') }));
-      expect(screen.getByRole('region', { name: '汇总' })).toBeTruthy();
-      expect(screen.queryByText('待采购 5')).toBeNull();
-      width = 200;
-      rerender(h(SummaryBar, { items: items('待采购 4') }));
-      expect(screen.getByText('待采购 4')).toBeTruthy();
-    } finally {
-      sw.mockRestore();
-      cw.mockRestore();
-    }
-  });
-
-  it('3 个及以上：栏宽不够时只隐藏可隐藏的副文字，整段隐藏', () => {
-    // jsdom 把这两个属性定义在 Element.prototype 上；用 spyOn 才能在用例结束后还原
-    const sw = jest
-      .spyOn(Element.prototype, 'scrollWidth', 'get')
-      .mockReturnValue(500);
-    const cw = jest
-      .spyOn(Element.prototype, 'clientWidth', 'get')
-      .mockReturnValue(300);
-    try {
-      render(
-        h(SummaryBar, {
-          items: [
-            {
-              label: '本月实收人民币',
-              value: 386420,
-              currency: 'CNY',
-              sub: '线上 CNY 120,300.00 · 线下 CNY 266,120.00',
-            },
-            {
-              label: '进行中',
-              value: 18,
-              sub: '待采购 5 · 已下单 7',
-              subHideable: true,
-            },
-            { label: '本月订单', value: 26 },
-          ],
-        }),
-      );
-      expect(screen.queryByText('待采购 5 · 已下单 7')).toBeNull();
-      expect(
-        screen.getByText('线上 CNY 120,300.00 · 线下 CNY 266,120.00'),
-      ).toBeTruthy();
-    } finally {
-      sw.mockRestore();
-      cw.mockRestore();
-    }
+  it('3 个及以上：白卡一行「名称 + 数值」，副文字收进帮助图标（R35，UI-117）', () => {
+    render(
+      h(SummaryBar, {
+        items: [
+          {
+            label: '本月实收人民币',
+            value: 386420,
+            currency: 'CNY',
+            sub: '线上 CNY 120,800.00 · 线下 CNY 265,620.00',
+          },
+          { label: '进行中', value: 18 },
+          { label: '本月订单', value: 26 },
+        ],
+      }),
+    );
+    expect(screen.getByRole('region', { name: '汇总' })).toBeTruthy();
+    expect(screen.getByText('CNY 386,420.00')).toBeTruthy();
+    // 副文字不再占一行，只在帮助图标里
+    expect(
+      screen.queryByText('线上 CNY 120,800.00 · 线下 CNY 265,620.00'),
+    ).toBeNull();
+    expect(
+      screen.getByRole('img', {
+        name: '线上 CNY 120,800.00 · 线下 CNY 265,620.00',
+      }),
+    ).toBeTruthy();
   });
 
   it('1–2 个：一行紧凑指标，不成白卡，副文字不隐藏', () => {

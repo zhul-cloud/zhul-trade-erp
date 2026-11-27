@@ -408,21 +408,11 @@ export interface SummaryItem {
   currency?: string;
   /** 数字后面的一行副文字 */
   sub?: React.ReactNode;
-  /** 宽度不够时可以整段隐藏副文字；只给页面别处也能看到的副文字设 true */
+  /** 旧参数：3 个及以上指标的副文字已收进帮助图标（R35），不再需要按宽度隐藏；保留以兼容调用 */
   subHideable?: boolean;
 }
 
 const summaryKeyOf = (it: SummaryItem) => it.key ?? it.label;
-
-/** 用于判断内容是否变了（变了要重新测量副文字放不放得下） */
-const summaryKey = (items: SummaryItem[]) =>
-  items
-    .map((it) =>
-      [it.label, it.value, it.sub]
-        .map((v) => (typeof v === 'string' || typeof v === 'number' ? v : ''))
-        .join('|'),
-    )
-    .join(';');
 
 const summaryValue = (it: SummaryItem) =>
   it.currency && (typeof it.value === 'number' || typeof it.value === 'string')
@@ -508,47 +498,11 @@ const SummaryInline: React.FC<{
 };
 
 /**
- * 3 个及以上指标：一张白卡，等宽分栏、竖线分隔，副文字放在数值下面（D69，对比图 R29 方案 B）。
- * 栏宽放不下时，subHideable 的副文字整段隐藏（不截断）；其余副文字换行。
+ * 3 个及以上指标：一张白卡，等宽分栏、竖线分隔（D69）。每栏一行「名称 + 数值」，数值 16/600；
+ * 副文字和口径一起收进名称旁的帮助图标（对比图 R35 方案 B，UI-117）：卡高 52，1366×768 下列表首屏 5 行。
  */
 const SummaryStrip: React.FC<{ items: SummaryItem[] }> = ({ items }) => {
   const { palette } = useAppTheme();
-  const cells = useRef(new Map<string, HTMLDivElement | null>());
-  const subs = useRef(new Map<string, HTMLSpanElement | null>());
-  // 副文字显示时测到的自然宽度；隐藏后用它判断栏宽够了没有
-  const need = useRef(new Map<string, number>());
-  const [hidden, setHidden] = useState<string[]>([]);
-
-  const measure = useCallback(() => {
-    const next: string[] = [];
-    for (const it of items) {
-      if (!it.sub || !it.subHideable) continue;
-      const k = summaryKeyOf(it);
-      const sub = subs.current.get(k);
-      if (sub) need.current.set(k, sub.scrollWidth);
-      const cell = cells.current.get(k);
-      if (cell && (need.current.get(k) ?? 0) > cell.clientWidth + 1)
-        next.push(k);
-    }
-    setHidden((prev) => (prev.join('|') === next.join('|') ? prev : next));
-  }, [items]);
-
-  // 内容变了：先恢复显示副文字、清掉旧的自然宽度，再按新内容测量
-  const key = summaryKey(items);
-  useLayoutEffect(() => {
-    need.current.clear();
-    setHidden([]);
-  }, [key]);
-  useLayoutEffect(() => {
-    measure();
-  }, [key, hidden, measure]);
-  useEffect(() => {
-    if (typeof ResizeObserver === 'undefined') return undefined;
-    const ro = new ResizeObserver(measure);
-    for (const el of cells.current.values()) if (el) ro.observe(el);
-    return () => ro.disconnect();
-  }, [measure]);
-
   return (
     <Panel
       as="section"
@@ -561,51 +515,61 @@ const SummaryStrip: React.FC<{ items: SummaryItem[] }> = ({ items }) => {
       }}
     >
       {items.map((it, i) => {
-        const k = summaryKeyOf(it);
+        const tip =
+          it.help && it.sub ? (
+            <>
+              {it.help}
+              <div style={{ marginTop: 4 }}>{it.sub}</div>
+            </>
+          ) : (
+            (it.help ?? it.sub)
+          );
         return (
           <div
-            key={k}
+            key={summaryKeyOf(it)}
             style={{
               minWidth: 0,
               padding: '0 20px',
               borderLeft: i ? `1px solid ${palette.hairline}` : undefined,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
             }}
           >
-            <div
-              ref={(el) => {
-                cells.current.set(k, el);
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                minWidth: 0,
+                fontSize: 13,
+                color: palette.mute,
               }}
-              style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
             >
-              <SummaryLabel it={it} size={13} />
               <span
-                className="num"
                 style={{
-                  fontSize: 20,
-                  fontWeight: 600,
-                  lineHeight: 1.25,
-                  color: palette.ink,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
                 }}
               >
-                {summaryValue(it)}
+                {it.label}
               </span>
-              {it.sub && !hidden.includes(k) && (
-                <span
-                  ref={(el) => {
-                    subs.current.set(k, el);
-                  }}
-                  className="num"
-                  style={{
-                    fontSize: 12,
-                    color: palette.mute,
-                    whiteSpace: it.subHideable ? 'nowrap' : 'normal',
-                  }}
-                >
-                  {it.sub}
-                </span>
-              )}
-            </div>
+              {tip && <HelpTip title={tip} />}
+            </span>
+            <span
+              className="num"
+              style={{
+                flex: 'none',
+                fontSize: 16,
+                fontWeight: 600,
+                lineHeight: '24px',
+                color: palette.ink,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {summaryValue(it)}
+            </span>
           </div>
         );
       })}
