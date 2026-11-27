@@ -474,7 +474,14 @@ export const BatchUploadModal: React.FC<{
                 <div style={{ fontSize: 12, color: palette.sub }}>
                   {c.label}
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: c.color }}>
+                {/* 0 用正文色，不显示成状态色；数字 600 字重 */}
+                <div
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 600,
+                    color: c.value ? c.color : palette.ink,
+                  }}
+                >
                   {c.value}
                 </div>
               </div>

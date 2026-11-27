@@ -1,5 +1,5 @@
 import { history, Link, useAccess, useParams } from '@umijs/max';
-import { App, Button, Input, Modal, Select, Upload } from 'antd';
+import { Alert, App, Button, Input, Modal, Select, Upload } from 'antd';
 import dayjs from 'dayjs';
 import {
   ArrowRight,
@@ -437,10 +437,14 @@ const VideoTaskDetailPage: React.FC = () => {
                     : '还没有生成。选好 4–8 张图片、写好脚本后加入队列，夜间自动生成竖屏和横屏两个视频。'}
               </div>
             )}
+            {/* 要用户处理的提醒用提示条，不写彩色纯文字（规范「警告不用纯文字」） */}
             {data.status === 6 && data.rejectReason && (
-              <div style={{ marginTop: 12, color: palette.orange }}>
-                <CircleAlert size="1em" /> 退回原因：{data.rejectReason}
-              </div>
+              <Alert
+                type="warning"
+                showIcon
+                style={{ marginTop: 12 }}
+                title={`退回原因：${data.rejectReason}`}
+              />
             )}
             {regenerating && (
               <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
@@ -667,23 +671,20 @@ const VideoTaskDetailPage: React.FC = () => {
             }
           >
             {data.factsUnverified && (
-              <div
-                style={{
-                  marginBottom: 10,
-                  fontSize: 12,
-                  color: palette.orange,
-                }}
-              >
-                <CircleAlert size="1em" /> 商品资料还没核对，AI
-                只写品牌、型号和产品类型；参数请自己核实后再补
-              </div>
+              <Alert
+                type="warning"
+                showIcon
+                style={{ marginBottom: 10 }}
+                title="商品资料还没核对，AI 只写品牌、型号和产品类型；参数请自己核实后再补"
+              />
             )}
             {data.scriptStatus === 3 && data.scriptError && (
-              <div
-                style={{ marginBottom: 10, fontSize: 12, color: palette.red }}
-              >
-                {data.scriptError}
-              </div>
+              <Alert
+                type="error"
+                showIcon
+                style={{ marginBottom: 10 }}
+                title={data.scriptError}
+              />
             )}
             <div style={{ fontSize: 12, color: palette.mute, marginBottom: 4 }}>
               视频标题
