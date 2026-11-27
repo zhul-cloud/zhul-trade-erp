@@ -41,6 +41,8 @@ public class ProductMediaDO {
     private Integer isMain;
     /** 来源，如 Manufacturer Website */
     private String source;
+    /** 由本公司素材「设为官方素材」时的来源附件（biz_attachment.id），其余为 0 */
+    private Long sourceAttachmentId;
     /** 排序 */
     private Integer sortOrder;
     /** 软删除时间，NULL表示未删除 */

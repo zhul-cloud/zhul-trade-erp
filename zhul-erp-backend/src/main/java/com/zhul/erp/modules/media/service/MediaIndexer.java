@@ -39,6 +39,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MediaIndexer {
 
+    /** 视频任务的图片附件归属类型（与 VideoConstants.OWNER_TASK 一致；素材模块不依赖视频模块） */
+    public static final String VIDEO_TASK = "VIDEO_TASK";
+
     /** 需要型号标注的单据附件 → 素材类别 */
     private static final Map<String, MediaCategory> DOCUMENT_CATEGORIES = Map.of(
             AttachmentService.SHIPMENT, MediaCategory.SUPPLIER_SHIPMENT,
@@ -167,6 +170,21 @@ public class MediaIndexer {
         sync(tenantId, MediaCategory.BIZ_ATTACHMENT, all.stream().map(BizAttachmentDO::getId).toList(), desired);
     }
 
+    /**
+     * 视频任务：任务上的图片归「图片素材」；生成结果只有已通过的视频归「视频素材」（待审核、退回、已替换的不进入）。
+     * outputAttachments 为这个任务全部生成结果的视频附件，approvedVideos 为其中已通过的
+     */
+    public void indexVideoTask(Long taskId, int tenantId, String brand, String model,
+                               Collection<Long> outputAttachments, Collection<Long> approvedVideos) {
+        String k = key(brand, model);
+        List<BizAttachmentDO> images = ownerAttachments(VIDEO_TASK, taskId, tenantId);
+        sync(tenantId, MediaCategory.BIZ_ATTACHMENT, images.stream().map(BizAttachmentDO::getId).toList(),
+                images.stream().filter(a -> a.getDeletedAt() == null && Objects.equals(a.getKind(), 1))
+                        .map(a -> new Desired(a.getId(), k, brand.trim(), model.trim(), MediaCategory.IMAGE_ASSET, 1)).toList());
+        sync(tenantId, MediaCategory.BIZ_ATTACHMENT, outputAttachments,
+                approvedVideos.stream().map(id -> new Desired(id, k, brand.trim(), model.trim(), MediaCategory.VIDEO_ASSET, 2)).toList());
+    }
+
     /** 询价回价：图片归回价型号的「供方实拍」（PDF 报价单不算素材） */
     public void indexSourcingQuote(Long quoteId, int tenantId, String brand, String model) {
         List<BizAttachmentDO> all = ownerAttachments(AttachmentService.SOURCING_QUOTE, quoteId, tenantId);
@@ -262,7 +280,7 @@ public class MediaIndexer {
                 i.setSourceTable(sourceTable);
                 i.setSourceId(d.sourceId());
                 i.setCanSend(d.category().canSendByDefault() ? 1 : 0);
-                i.setForListing(0);
+                i.setForListing(d.category().listingByDefault() ? 1 : 0);
                 i.setNote("");
                 i.setFlagBy(0L);
                 itemMapper.insert(i);
