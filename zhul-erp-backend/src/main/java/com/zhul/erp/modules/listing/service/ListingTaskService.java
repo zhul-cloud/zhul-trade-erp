@@ -325,6 +325,21 @@ public class ListingTaskService {
         return vo;
     }
 
+    /**
+     * 发布到独立站用的图片和视频：任务选了参考素材时用参考型号可发客户的，否则用本型号用于发品的（与详情页显示一致）。
+     * reference 为 true 表示用的是参考素材。
+     */
+    public SiteMedia siteMedia(ListingTaskDO t) {
+        if (StringUtils.hasText(t.getRefModel())) {
+            return new SiteMedia(media(t.getRefBrand(), t.getRefModel(), false), true);
+        }
+        ListingTaskVO task = toVos(List.of(row(t))).get(0);
+        return new SiteMedia(task.getModel() == null ? List.of() : media(task.getBrand(), task.getModel(), true), false);
+    }
+
+    public record SiteMedia(List<MediaItemVO> items, boolean reference) {
+    }
+
     /** 一个型号的图片和视频：本型号取用于发品的，参考型号取可发客户的 */
     private List<MediaItemVO> media(String brand, String model, boolean forListing) {
         MediaDetailVO d = mediaLibrary.detail(brand == null ? "" : brand, model);

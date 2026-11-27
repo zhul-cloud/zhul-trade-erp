@@ -449,6 +449,21 @@ public class MediaLibraryService {
         if (!Objects.equals(item.getCanSend(), 1)) {
             throw new BizException("仅内部的素材不能下载");
         }
+        return fileOf(item);
+    }
+
+    /** 标了「用于发品」的素材文件位置（发布到独立站用，不要求可发客户） */
+    public FileSource listingSource(Long itemId) {
+        MediaRef ref = new MediaRef();
+        ref.setItemId(itemId);
+        MediaItemDO item = locate(ref, false);
+        if (!Objects.equals(item.getForListing(), 1)) {
+            throw new BizException("素材没有标「用于发品」");
+        }
+        return fileOf(item);
+    }
+
+    private FileSource fileOf(MediaItemDO item) {
         if (MediaCategory.BIZ_ATTACHMENT.equals(item.getSourceTable())) {
             BizAttachmentDO a = attachmentMapper.selectById(item.getSourceId());
             if (a == null || a.getDeletedAt() != null) {

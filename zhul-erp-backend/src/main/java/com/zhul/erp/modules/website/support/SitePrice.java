@@ -36,32 +36,33 @@ public final class SitePrice {
 
     /** 计算结果；amount 为空表示没有售价。依据字段按来源填写，其余为空 */
     public record Result(BigDecimal amount, String source, Long quoteId, BigDecimal unitPriceCny, BigDecimal factor,
-                         BigDecimal rate, LocalDate rateDate) {
-        public static final Result NONE = new Result(null, null, null, null, null, null, null);
+                         BigDecimal rate, LocalDate rateDate, LocalDateTime quotedAt) {
+        public static final Result NONE = new Result(null, null, null, null, null, null, null, null);
     }
 
     public static Result calc(BigDecimal manual, Quote quote, BigDecimal factor, Rate usd, Reference reference) {
         if (positive(manual)) {
-            return new Result(manual.setScale(2, RoundingMode.HALF_UP), SOURCE_MANUAL, null, null, null, null, null);
+            return new Result(manual.setScale(2, RoundingMode.HALF_UP), SOURCE_MANUAL, null, null, null, null, null, null);
         }
         boolean hasRate = usd != null && positive(usd.rate());
         if (quote != null && positive(quote.unitPriceCny()) && positive(factor) && hasRate) {
             BigDecimal amount = quote.unitPriceCny().multiply(factor)
                     .divide(usd.rate(), DIVIDE_SCALE, RoundingMode.HALF_UP).setScale(2, RoundingMode.HALF_UP);
             if (positive(amount)) {
-                return new Result(amount, SOURCE_QUOTE, quote.quoteId(), quote.unitPriceCny(), factor, usd.rate(), usd.rateDate());
+                return new Result(amount, SOURCE_QUOTE, quote.quoteId(), quote.unitPriceCny(), factor, usd.rate(), usd.rateDate(),
+                        quote.quotedAt());
             }
         }
         if (reference != null) {
             if ("USD".equals(reference.currencyCode()) && positive(reference.priceOriginal())) {
                 return new Result(reference.priceOriginal().setScale(2, RoundingMode.HALF_UP), SOURCE_REFERENCE,
-                        null, null, null, null, null);
+                        null, null, null, null, null, null);
             }
             if (hasRate && positive(reference.priceCny())) {
                 BigDecimal amount = reference.priceCny().divide(usd.rate(), DIVIDE_SCALE, RoundingMode.HALF_UP)
                         .setScale(2, RoundingMode.HALF_UP);
                 if (positive(amount)) {
-                    return new Result(amount, SOURCE_REFERENCE, null, null, null, usd.rate(), usd.rateDate());
+                    return new Result(amount, SOURCE_REFERENCE, null, null, null, usd.rate(), usd.rateDate(), null);
                 }
             }
         }

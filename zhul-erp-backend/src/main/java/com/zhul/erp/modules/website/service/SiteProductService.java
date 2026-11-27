@@ -2,6 +2,7 @@ package com.zhul.erp.modules.website.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.ResultCode;
@@ -33,8 +34,11 @@ import java.math.RoundingMode;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * 站点商品（spec website-publish「站点商品」）：链接别名、售价及来源、站点状态。
@@ -150,6 +154,7 @@ public class SiteProductService {
             throw new BizException("售价要大于 0");
         }
         wp.setManualPrice(price == null ? null : price.setScale(2, RoundingMode.HALF_UP));
+        markErp(wp, "price");
         mapper.updateById(wp);
         log.info("修改站点售价，websiteProductId={}，手工={}", id, wp.getManualPrice() != null);
         return wp;
@@ -164,8 +169,25 @@ public class SiteProductService {
             throw new BizException("站点状态只能手工改成 legacy，其他按商品生命周期");
         }
         wp.setSiteStatus(v);
+        markErp(wp, "status");
         mapper.updateById(wp);
         return wp;
+    }
+
+    /** 已导入的商品手工改了售价、状态：这一组此后以 ERP 为准（没有对应的更新时间可比） */
+    private void markErp(WebsiteProductDO wp, String group) {
+        if (wp.getImportedAt() == null) {
+            return;
+        }
+        try {
+            Set<String> all = new LinkedHashSet<>(wp.getErpFields() == null ? List.of()
+                    : objectMapper.readValue(wp.getErpFields(), new TypeReference<List<String>>() { }));
+            if (all.add(group)) {
+                wp.setErpFields(objectMapper.writeValueAsString(all));
+            }
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("改用 ERP 内容的字段读写失败", e);
+        }
     }
 
     // ================================================================ 售价

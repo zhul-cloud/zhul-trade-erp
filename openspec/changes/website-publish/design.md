@@ -113,6 +113,26 @@
 - 站内唯一不用唯一索引（预览时会为多个商品算别名，可能暂时相同），由预览阻断和同一站点同一时间只执行一张发布单保证。
 - 回价经 `inquiry_item.product_id` 关联商品；只取已提交（status=2）、有货、未删除、单价大于 0 的。
 
+### 4b. 站点数据的取值与导入后的取舍（2026-11-27 实现时确定）
+
+| 站点字段 | ERP 来源 | 字段组（取舍单位） | 组的更新时间 |
+| --- | --- | --- | --- |
+| `spec` / `spec_ru` | 多语言一句话规格（`product_locale`），英文没有时用商品档案的规格摘要 | spec / spec_ru | 摘要行的更新时间 |
+| `overview`、`meta_description`（及 `_ru`） | 本公司营销内容的首屏定义块、SEO 描述 | content_en / content_ru | 营销内容写入时间（`enAt` / `ruAt`） |
+| `specs`、`applications` | 商品资料（英文） | specs / applications | 资料行最近更新（含删除） |
+| `faq` | 本公司英文 FAQ；没有时用商品资料里已审核、模板生成的 FAQ | faq | 同上 |
+| `compatibility` | 型号关系；置信度低、未知的不标关系类型 | compatibility | 同上 |
+| `deep_ru` | 俄文规格、应用场景、关系说明，本公司俄文 FAQ | deep_ru | 以上各项最近更新 |
+| `photo`、`photos`、`videos` | 发品任务的素材（见第 8 条） | media | 该型号素材记录最近更新、选参考素材的时间 |
+| `sell_price` 等 | 站点售价 | price | 询价最低价的回价时间；手工售价改为直接以 ERP 为准 |
+| `status` | 站点状态 | status | 无；手工改状态后以 ERP 为准 |
+
+- 品牌、型号、系列、站点品类、链接别名、发布单号始终用 ERP；`linkedin` 图和站点独有字段（如 `reviews_verified`）ERP 没有对应位置，始终原样保留。
+- 站点数据约定第 1 版没有 SEO 标题字段（站点自己生成 `<title>`），SEO 标题只在预览里检查、不导出。
+- ERP 的值为空时不写这个字段，站点按没有处理。
+- 已导入商品手工改售价或站点状态时，自动把这一组记入「改用 ERP 内容」（`erp_fields`），因为这两组没有可比的更新时间。
+- 预览只计算素材链接、不复制；发布时才复制到公开桶。
+
 ### 5. 售价计算
 
 - 取本公司近 180 天、有货的 `sourcing_quote.unit_price_cny` 的最小值，按商品 id 匹配；
