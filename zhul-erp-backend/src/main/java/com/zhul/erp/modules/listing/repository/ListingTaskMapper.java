@@ -37,14 +37,15 @@ public interface ListingTaskMapper extends BaseMapper<ListingTaskDO> {
             + "<if test='keyword != null'> AND (p.product_name LIKE CONCAT('%', #{keyword}, '%') OR p.mpn_raw LIKE CONCAT('%', #{keyword}, '%')"
             + "<if test='mpn != null'> OR p.mpn_normalized LIKE CONCAT('%', #{mpn}, '%')</if>)</if>)</if>";
 
-    /** 按商品汇总各平台任务：待发布、内容有更新、待替换素材、已发布、已取消的平台数 */
-    String BY_PRODUCT = "SELECT l.product_id, MAX(l.update_time) AS update_time, SUM(l.status = 1) AS pending, "
+    /** 按商品汇总各平台任务：待发布（含发布中）、待确认上线、内容有更新、待替换素材、已发布、已取消的平台数 */
+    String BY_PRODUCT = "SELECT l.product_id, MAX(l.update_time) AS update_time, SUM(l.status IN (1, 4)) AS pending, SUM(l.status = 5) AS unconfirmed, "
             + "SUM(" + UPDATED + ") AS updated, SUM(" + NEED_REPLACE + ") AS need_replace, SUM(l.status = 2) AS published, "
             + "SUM(l.status = 3) AS cancelled, COUNT(*) AS total " + FROM + FILTER + " GROUP BY l.product_id";
 
     /** 商品页签（spec「发品任务列表」） */
     String TAB = "<choose>"
             + "<when test=\"tab == 'pending'\"> HAVING pending &gt; 0</when>"
+            + "<when test=\"tab == 'unconfirmed'\"> HAVING unconfirmed &gt; 0</when>"
             + "<when test=\"tab == 'updated'\"> HAVING updated &gt; 0</when>"
             + "<when test=\"tab == 'replace'\"> HAVING need_replace &gt; 0</when>"
             + "<when test=\"tab == 'published'\"> HAVING pending = 0 AND published &gt; 0</when>"
@@ -53,7 +54,7 @@ public interface ListingTaskMapper extends BaseMapper<ListingTaskDO> {
 
     String ROW = "SELECT l.id, l.tenant_id, l.product_id, l.platform, l.site_id, l.asset_key, l.status, l.cancel_reason, l.ref_brand, "
             + "l.ref_model, l.ref_by, l.ref_time, l.listing_url, l.platform_item_id, l.note, l.published_by, l.published_at, "
-            + "l.content_at, l.synced_by, l.synced_at, l.replaced_by, l.replaced_at, l.create_time, l.create_by, "
+            + "l.content_at, l.release_id, l.site_outdated, l.confirmed_by, l.confirmed_at, l.synced_by, l.synced_at, l.replaced_by, l.replaced_at, l.create_time, l.create_by, "
             + "l.update_time, l.update_by, " + NEED_MEDIA + " AS need_media, " + UPDATED + " AS content_updated, "
             + NEED_REPLACE + " AS need_replace ";
 
@@ -71,7 +72,7 @@ public interface ListingTaskMapper extends BaseMapper<ListingTaskDO> {
                        @Param("keyword") String keyword, @Param("mpn") String mpn);
 
     /** 各页签的商品数：pending、updated、replace、published、cancelled、all */
-    @Select("<script>SELECT COALESCE(SUM(x.pending &gt; 0), 0) AS pending, COALESCE(SUM(x.updated &gt; 0), 0) AS updated, "
+    @Select("<script>SELECT COALESCE(SUM(x.pending &gt; 0), 0) AS pending, COALESCE(SUM(x.unconfirmed &gt; 0), 0) AS unconfirmed, COALESCE(SUM(x.updated &gt; 0), 0) AS updated, "
             + "COALESCE(SUM(x.need_replace &gt; 0), 0) AS `replace`, COALESCE(SUM(x.pending = 0 AND x.published &gt; 0), 0) AS published, "
             + "COALESCE(SUM(x.cancelled = x.total), 0) AS cancelled, COUNT(*) AS `all` FROM (" + BY_PRODUCT + ") x</script>")
     Map<String, Object> productCounts(@Param("tenantId") Integer tenantId,

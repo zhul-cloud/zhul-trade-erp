@@ -10,6 +10,7 @@ import com.zhul.erp.modules.listing.dto.ListingTaskQuery;
 import com.zhul.erp.modules.listing.dto.PublishRequest;
 import com.zhul.erp.modules.listing.dto.ReferenceRequest;
 import com.zhul.erp.modules.listing.service.ListingTaskService;
+import com.zhul.erp.modules.listing.service.SiteTaskFlow;
 import com.zhul.erp.modules.media.dto.MediaItemVO;
 import com.zhul.erp.modules.media.dto.MediaReferenceVO;
 import com.zhul.erp.modules.media.dto.MediaUrlRequest;
@@ -44,6 +45,7 @@ public class ListingTaskController {
     private static final String EDIT = VIEW + " and @perm.has('" + ListingConstants.PERM_EDIT + "')";
 
     private final ListingTaskService service;
+    private final SiteTaskFlow siteTasks;
 
     @PostMapping("/page")
     @PreAuthorize(VIEW)
@@ -148,6 +150,14 @@ public class ListingTaskController {
     @PreAuthorize(EDIT)
     public Result<ListingTaskDetailVO> sync(@PathVariable Long id) {
         return Result.ok(service.markSynced(id));
+    }
+
+    /** 确认上线（自动发布站点的独立站任务）：body {"purged": true} */
+    @PostMapping("/{id}/confirm-live")
+    @PreAuthorize(EDIT)
+    public Result<ListingTaskDetailVO> confirmLive(@PathVariable Long id, @RequestBody(required = false) Map<String, Boolean> body) {
+        siteTasks.confirm(id, body != null && Boolean.TRUE.equals(body.get("purged")));
+        return Result.ok(service.detail(id));
     }
 
     @PostMapping("/{id}/replace")

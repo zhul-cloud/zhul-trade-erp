@@ -77,9 +77,9 @@ import java.util.zip.ZipOutputStream;
 @RequiredArgsConstructor
 public class ListingTaskService {
 
-    private static final List<String> TABS = List.of("pending", "updated", "replace", "published", "cancelled", "all");
+    private static final List<String> TABS = List.of("pending", "unconfirmed", "updated", "replace", "published", "cancelled", "all");
     private static final String[] STATUS_NAMES = {"", "待发布", "已发布", "已取消", "发布中", "已上线待确认"};
-    private static final Map<String, String> PRODUCT_STATUS_NAMES = Map.of("pending", "待发布", "updated", "内容有更新",
+    private static final Map<String, String> PRODUCT_STATUS_NAMES = Map.of("pending", "待发布", "unconfirmed", "待确认上线", "updated", "内容有更新",
             "replace", "待替换素材", "published", "已发布", "cancelled", "已取消");
     private static final Pattern URL = Pattern.compile("^https?://\\S+$", Pattern.CASE_INSENSITIVE);
 
@@ -93,6 +93,7 @@ public class ListingTaskService {
     private final ContentTaskService contentTasks;
     private final FileStorageService files;
     private final WebsiteSiteMapper siteMapper;
+    private final SiteTaskFlow siteTasks;
 
     // ================================================================ 列表
 
@@ -166,12 +167,15 @@ public class ListingTaskService {
         return out;
     }
 
-    /** 商品状态：待发布 → 内容有更新 → 待替换素材 → 已发布 → 已取消，取第一个满足的 */
+    /** 商品状态：待发布（含发布中）→ 待确认上线 → 内容有更新 → 待替换素材 → 已发布 → 已取消，取第一个满足的 */
     private static void summarize(ListingProductVO p) {
         List<ListingTaskVO> ts = p.getTasks();
         String status;
-        if (ts.stream().anyMatch(t -> t.getStatus() == ListingConstants.STATUS_PENDING)) {
+        if (ts.stream().anyMatch(t -> t.getStatus() == ListingConstants.STATUS_PENDING
+                || t.getStatus() == ListingConstants.STATUS_PUBLISHING)) {
             status = "pending";
+        } else if (ts.stream().anyMatch(t -> t.getStatus() == ListingConstants.STATUS_LIVE_UNCONFIRMED)) {
+            status = "unconfirmed";
         } else if (ts.stream().anyMatch(t -> Boolean.TRUE.equals(t.getContentUpdated()))) {
             status = "updated";
         } else if (ts.stream().anyMatch(t -> Boolean.TRUE.equals(t.getNeedReplace()))) {
@@ -293,6 +297,9 @@ public class ListingTaskService {
         vo.setNote(blankToNull(t.getNote()));
         vo.setPublishedBy(blankToNull(t.getPublishedBy()));
         vo.setPublishedAt(t.getPublishedAt());
+        vo.setReleaseId(t.getReleaseId() == null || t.getReleaseId() == 0 ? null : t.getReleaseId());
+        vo.setConfirmedBy(blankToNull(t.getConfirmedBy()));
+        vo.setConfirmedAt(t.getConfirmedAt());
         vo.setSyncedBy(blankToNull(t.getSyncedBy()));
         vo.setSyncedAt(t.getSyncedAt());
         vo.setReplacedBy(blankToNull(t.getReplacedBy()));
@@ -316,6 +323,7 @@ public class ListingTaskService {
         ListingTaskVO task = toVos(List.of(row(t))).get(0);
         vo.setTask(task);
         vo.setContent(contentTasks.productContent(t.getProductId()));
+        vo.setSite(siteTasks.siteInfo(t));
         if (task.getModel() != null) {
             vo.setOwnMedia(media(task.getBrand(), task.getModel(), true));
         }
@@ -551,8 +559,10 @@ public class ListingTaskService {
     @Transactional(rollbackFor = Exception.class)
     public ListingTaskDetailVO publish(Long id, PublishRequest req) {
         ListingTaskDO t = lock(id);
+        requireManualSite(t, "这个站点通过一键发布上线");
         if (t.getStatus() != ListingConstants.STATUS_PENDING) {
-            throw new BizException(t.getStatus() == ListingConstants.STATUS_PUBLISHED ? "任务已发布" : "任务已取消，不能发布");
+            throw new BizException(t.getStatus() == ListingConstants.STATUS_PUBLISHED ? "任务已发布"
+                    : t.getStatus() == ListingConstants.STATUS_CANCELLED ? "任务已取消，不能发布" : "任务正在发布或等待确认上线");
         }
         Map<String, Object> flags = taskMapper.flags(id);
         if (bool(flags.get("need_media"))) {
@@ -602,7 +612,7 @@ public class ListingTaskService {
 
     @Transactional(rollbackFor = Exception.class)
     public ListingTaskDetailVO markSynced(Long id) {
-        lock(id);
+        requireManualSite(lock(id), "这个站点通过「同步到站点」更新");
         Map<String, Object> flags = taskMapper.flags(id);
         if (!bool(flags.get("content_updated"))) {
             throw new BizException("没有需要同步的更新");
@@ -634,6 +644,13 @@ public class ListingTaskService {
                 .set(ListingTaskDO::getUpdateTime, now)
                 .set(ListingTaskDO::getUpdateBy, user));
         return detail(id);
+    }
+
+    /** 「自动发布」站点的独立站任务只能经一键发布改变发布状态 */
+    private void requireManualSite(ListingTaskDO t, String message) {
+        if (siteTasks.autoPublish(t)) {
+            throw new BizException(message);
+        }
     }
 
     // ================================================================ 工具
@@ -684,7 +701,7 @@ public class ListingTaskService {
         return o instanceof Number n ? n.intValue() == 1 : Boolean.TRUE.equals(o);
     }
 
-    private static LocalDateTime time(Object o) {
+    static LocalDateTime time(Object o) {
         if (o instanceof LocalDateTime t) {
             return t;
         }

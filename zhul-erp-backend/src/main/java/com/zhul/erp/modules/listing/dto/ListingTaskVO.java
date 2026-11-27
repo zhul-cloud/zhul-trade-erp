@@ -39,6 +39,10 @@ public class ListingTaskVO {
     private String note;
     private String publishedBy;
     private LocalDateTime publishedAt;
+    /** 最近一张独立站发布单 */
+    private Long releaseId;
+    private String confirmedBy;
+    private LocalDateTime confirmedAt;
     private String syncedBy;
     private LocalDateTime syncedAt;
     private String replacedBy;
