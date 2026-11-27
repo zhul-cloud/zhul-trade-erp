@@ -38,4 +38,19 @@ public final class WebsiteConstants {
     public static final int MAX_PURGE_NOTE = 500;
     public static final int MAX_SECRET = 16 * 1024;
     public static final String CURRENCY = "USD";
+
+    /** 发布单状态 */
+    public static final int RELEASE_QUEUED = 1;
+    public static final int RELEASE_RUNNING = 2;
+    public static final int RELEASE_DONE = 3;
+    public static final int RELEASE_FAILED = 4;
+    public static final int RELEASE_DEPLOY_FAILED = 5;
+    /** 步骤状态 */
+    public static final int STEP_RUNNING = 1;
+    public static final int STEP_SUCCESS = 2;
+    public static final int STEP_FAILED = 3;
+    public static final int STEP_WARNING = 4;
+    /** 执行中超过这么久没有结束，看门狗标为失败 */
+    public static final int RELEASE_TIMEOUT_MINUTES = 40;
+    public static final String STEP_DEPLOY = "deploy";
 }
