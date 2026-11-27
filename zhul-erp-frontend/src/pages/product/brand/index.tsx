@@ -76,12 +76,12 @@ const TWO_LINES: React.CSSProperties = {
 const chineseName = (aliases?: string[]) =>
   aliases?.find((a) => /[\u4e00-\u9fff]/.test(a));
 
-/** 品牌等级标签：核心、常做显示，普通不显示 */
+/** 品牌等级标签：核心蓝、常做紫（属性色，同列不重复，D75），普通不显示 */
 const LevelPill: React.FC<{ level?: number }> = ({ level }) =>
   level === 2 ? (
-    <Pill tone="gray">核心</Pill>
+    <Pill tone="blue">核心</Pill>
   ) : level === 1 ? (
-    <Pill tone="gray">常做</Pill>
+    <Pill tone="purple">常做</Pill>
   ) : null;
 
 const BrandPage: React.FC = () => {

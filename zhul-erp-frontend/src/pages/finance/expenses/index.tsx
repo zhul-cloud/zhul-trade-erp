@@ -63,6 +63,7 @@ import {
   PayStatusPill,
   ProofLinks,
 } from '../payables/components';
+import { PAY_WAY_TONE } from '../payables/payMethod';
 import { METHOD, PAYEE } from '../payables/service';
 import { afterSalesOptions } from '../refunds/service';
 import {
@@ -923,14 +924,21 @@ const ExpensePage: React.FC = () => {
       render: (_, r) =>
         r.method === METHOD.COMPANY || r.method === METHOD.PRIVATE ? (
           <Space size={6}>
-            <Pill tone={r.method === METHOD.PRIVATE ? 'orange' : 'gray'}>
+            <Pill
+              tone={
+                r.method === METHOD.PRIVATE
+                  ? PAY_WAY_TONE.private
+                  : PAY_WAY_TONE.public
+              }
+            >
               {r.method === METHOD.PRIVATE ? '私对私' : '公司对公'}
             </Pill>
             <PayStatusPill status={r.payStatus} />
           </Space>
         ) : (
           <div>
-            <Pill tone="gray">员工垫付</Pill> {r.advanceUserName}
+            <Pill tone={PAY_WAY_TONE.advance}>员工垫付</Pill>{' '}
+            {r.advanceUserName}
             <div style={{ fontSize: 12, color: palette.mute }}>
               {r.reimburseNo
                 ? `${r.reimburseNo} · ${r.reimburseStatus === 2 ? '已报销' : '待付款'}`

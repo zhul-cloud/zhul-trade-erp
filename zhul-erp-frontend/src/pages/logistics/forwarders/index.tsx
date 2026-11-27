@@ -42,6 +42,7 @@ import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   CARRIERS,
+  FORWARDER_TONE,
   type ForwarderQuery,
   type ForwarderRow,
   forwarderApi,
@@ -483,16 +484,16 @@ const ForwarderPage: React.FC = () => {
           <span
             style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}
           >
-            <Pill tone="gray">客户指定</Pill>
+            <Pill tone={FORWARDER_TONE.customer}>客户指定</Pill>
             <span style={{ color: palette.link }}>{r.customerName ?? '—'}</span>
             {r.handoverMode === HANDOVER.PICKUP && (
-              <Pill tone="gray">
+              <Pill tone={FORWARDER_TONE.pickup}>
                 {['上门取件', r.courierCarrier].filter(Boolean).join(' · ')}
               </Pill>
             )}
           </span>
         ) : (
-          <Pill tone="gray">公司货代</Pill>
+          <Pill tone={FORWARDER_TONE.company}>公司货代</Pill>
         ),
     },
     {

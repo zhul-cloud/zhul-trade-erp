@@ -17,6 +17,7 @@ import { HelpTip } from '@/components/ListLayout';
 import { Pill } from '@/components/Pill';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
+import { attrTone } from '@/theme/palette';
 import { useBusinessUnits } from '@/utils/businessUnit';
 import {
   CJK_PATTERN,
@@ -38,10 +39,15 @@ export const LIST_PATH = '/customer/list';
 /** 状态标签统一用公共组件（规范「状态标签」） */
 export { Pill };
 
-/** 客户角色；0 为询盘快速创建尚未补全的客户。角色是属性，中性标签（ui-redesign S13） */
-export const RolePill: React.FC<{ value?: number }> = ({ value }) => (
-  <Pill tone="gray">{labelOf(ROLE_OPTIONS, value) ?? '未设置'}</Pill>
-);
+/** 客户角色；0 为询盘快速创建尚未补全的客户。属性色按 ROLE_OPTIONS 顺序取，同列不重复，未设置灰（D75） */
+export const RolePill: React.FC<{ value?: number }> = ({ value }) => {
+  const i = ROLE_OPTIONS.findIndex((o) => o.value === value);
+  return (
+    <Pill tone={i < 0 ? 'gray' : attrTone(i)}>
+      {labelOf(ROLE_OPTIONS, value) ?? '未设置'}
+    </Pill>
+  );
+};
 
 export const StatusPill: React.FC<{ status?: number }> = ({ status }) => (
   <Pill tone={status === 1 ? 'green' : 'gray'}>

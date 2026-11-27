@@ -13,14 +13,24 @@ export const PAY_METHOD_NAMES: Record<number, string> = {
   2: '对私',
 };
 
-/** 约定的付款方式：属性用中性灰标签（ui-redesign S13），未定用浅色文字 */
+/**
+ * 付款方式、账户类型的属性色，全站同一个值同一种颜色（D75）：对公 / 公司对公蓝、对私 / 私对私紫、员工垫付洋红、未定灰
+ */
+export const PAY_WAY_TONE = {
+  public: 'blue',
+  private: 'purple',
+  advance: 'magenta',
+} as const;
+
+/** 约定的付款方式：属性标签，对公蓝、对私紫、未定灰，同列不重复（D75，对比图 R34） */
 export const PayMethodTag: React.FC<{ value?: number | null }> = ({
   value,
 }) => {
-  const { palette } = useAppTheme();
-  if (value === PAY_METHOD.PUBLIC || value === PAY_METHOD.PRIVATE)
-    return <Pill tone="gray">{PAY_METHOD_NAMES[value]}</Pill>;
-  return <span style={{ color: palette.mute }}>未定</span>;
+  if (value === PAY_METHOD.PUBLIC)
+    return <Pill tone={PAY_WAY_TONE.public}>对公</Pill>;
+  if (value === PAY_METHOD.PRIVATE)
+    return <Pill tone={PAY_WAY_TONE.private}>对私</Pill>;
+  return <Pill tone="gray">未定</Pill>;
 };
 
 /**

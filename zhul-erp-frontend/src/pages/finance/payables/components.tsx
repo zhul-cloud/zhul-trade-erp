@@ -39,6 +39,7 @@ import {
 import { AttachmentWall, usePreview } from '@/pages/warehouse/components';
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { attrTone } from '@/theme/palette';
 import { formatAmount, formatMoney } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -46,6 +47,7 @@ import { DueNowHint, dueNowOf } from './dueNow';
 import {
   MethodHint,
   methodMismatch,
+  PAY_WAY_TONE,
   PayMethodTag,
   suggestMethod,
 } from './payMethod';
@@ -95,10 +97,11 @@ const PAYEE_LABELS: Record<number, string> = {
 /** 收款方类型的名称（列表第二行用文字：类型是属性，不用标签） */
 export const payeeTypeLabel = (type: number) => PAYEE_LABELS[type];
 
-/** 收款方类型：属性，中性标签（ui-redesign S13） */
+/** 收款方类型：属性标签，按 PAYEE_LABELS 的顺序取属性色，同列不重复（D75） */
 export const PayeeTypePill: React.FC<{ type: number }> = ({ type }) => {
   const label = PAYEE_LABELS[type];
-  return label ? <Pill tone="gray">{label}</Pill> : null;
+  const i = Object.keys(PAYEE_LABELS).indexOf(String(type));
+  return label ? <Pill tone={attrTone(i)}>{label}</Pill> : null;
 };
 
 /** 到期标记：已逾期 N 天 / N 天内到期 / 待入库 / 日期 */
@@ -221,7 +224,13 @@ export const PayeeAccountPicker: React.FC<{
           >
             <div style={{ display: 'grid', gap: 4 }}>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <Pill tone={a.accountType === 2 ? 'orange' : 'gray'}>
+                <Pill
+                  tone={
+                    a.accountType === 2
+                      ? PAY_WAY_TONE.private
+                      : PAY_WAY_TONE.public
+                  }
+                >
                   {a.accountType === 2 ? '对私' : '对公'}
                 </Pill>
                 <b>{a.accountName}</b>
@@ -1299,15 +1308,15 @@ export const PaymentLineTable: React.FC<{
             (l.accountName ?? '—')
           ) : l.method === METHOD.ADVANCE ? (
             <span>
-              <Pill tone="gray">员工垫付</Pill> {l.advanceUser}
+              <Pill tone={PAY_WAY_TONE.advance}>员工垫付</Pill> {l.advanceUser}
             </span>
           ) : l.method === METHOD.PRIVATE ? (
             <span>
-              <Pill tone="orange">私对私</Pill> {l.payerAccount}
+              <Pill tone={PAY_WAY_TONE.private}>私对私</Pill> {l.payerAccount}
             </span>
           ) : (
             <span>
-              <Pill tone="gray">公司对公</Pill> {l.accountName}
+              <Pill tone={PAY_WAY_TONE.public}>公司对公</Pill> {l.accountName}
             </span>
           )}
           {l.payeeAccount && (

@@ -63,7 +63,9 @@ const RULE_NAMES = new Set([
 ]);
 
 /**
- * 类别、属性标签（不是流程状态）：一律中性 gray / mute（ui-redesign S4、S13）。
+ * 类别、属性标签（不是流程状态）：用灰或属性色（blue / purple / magenta / indigo / plum / brown / olive），
+ * 不用状态色（绿、橙、红、青、信息蓝、主题色有好坏或「选中」含义）；同一列不同取值颜色不重复靠评审看
+ * （ui-redesign D75，推翻 S13 的「一律中性」）。
  * 名单取自 openspec/changes/ui-redesign/status-colors.md 归「中性」的标签，加现货、期货、新客户
  */
 const ATTR_LABELS = [
@@ -181,9 +183,9 @@ const LINE_RULES = [
     id: 'attr-tone',
     level: 'error',
     message:
-      '类别、属性标签（客户指定、老客户、现货、默认等）用中性 tone="gray"，彩色只给流程状态与告警（ui-redesign S13）',
+      '类别、属性标签（客户指定、老客户、现货、默认等）用灰或属性色 blue / purple / magenta / indigo / plum / brown / olive，不用状态色；同一列不同取值颜色不重复（ui-redesign D75）',
     re: new RegExp(
-      `<Pill\\s+tone="(?!gray"|mute")\\w+"[^>]*>\\s*(${ATTR_LABELS.join('|')})\\s*</Pill>`,
+      `<Pill\\s+tone="(green|orange|red|cyan|info|accent|violet|selected)"[^>]*>\\s*(${ATTR_LABELS.join('|')})\\s*</Pill>`,
     ),
   },
   {

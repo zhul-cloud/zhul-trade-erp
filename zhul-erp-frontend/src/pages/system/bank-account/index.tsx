@@ -340,14 +340,15 @@ const BankAccountPage: React.FC = () => {
       width: 90,
       render: (v: number, r: BankAccount) =>
         v === ACCOUNT_TYPE.PRIVATE ? (
-          <Pill tone="orange">
+          // 账户类型是属性：对公蓝、对私紫，和应付、付款记录同色（D75）
+          <Pill tone="purple">
             对私
             {r.payChannel && r.payChannel !== PAY_CHANNEL.BANK
               ? ` · ${PAY_CHANNEL_NAMES[r.payChannel]}`
               : ''}
           </Pill>
         ) : (
-          <Pill tone="gray">对公</Pill>
+          <Pill tone="blue">对公</Pill>
         ),
     },
     { title: '币种', dataIndex: 'currencyCode', width: 80 },

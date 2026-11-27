@@ -170,12 +170,13 @@ const SourcingStatsPage: React.FC = () => {
       render: (v: string, r) => (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           <b style={{ color: palette.ink }}>{v}</b>
+          {/* 角色是属性：业务员蓝、兼职紫、采购洋红，询价看板的「兼职」同色（D75） */}
           {r.role === 'SALES' ? (
-            <Pill tone="gray">业务员</Pill>
+            <Pill tone="blue">业务员</Pill>
           ) : r.role === 'PART_TIME' ? (
-            <Pill tone="gray">兼职</Pill>
+            <Pill tone="purple">兼职</Pill>
           ) : (
-            <Pill tone="gray">采购</Pill>
+            <Pill tone="magenta">采购</Pill>
           )}
         </span>
       ),

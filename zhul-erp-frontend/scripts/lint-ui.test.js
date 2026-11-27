@@ -35,6 +35,27 @@ describe('lint:ui', () => {
     ).not.toContain('glow:error');
   });
 
+  it('属性标签用状态色报错，灰与属性色放行（D75）', () => {
+    expect(rules('<Pill tone="orange">对私</Pill>')).toContain(
+      'attr-tone:error',
+    );
+    expect(rules('<Pill tone="green">现货</Pill>')).toContain(
+      'attr-tone:error',
+    );
+    expect(rules('<Pill tone="violet">核心</Pill>')).toContain(
+      'attr-tone:error',
+    );
+    expect(rules('<Pill tone="purple">对私</Pill>')).not.toContain(
+      'attr-tone:error',
+    );
+    expect(rules('<Pill tone="gray">客户指定</Pill>')).not.toContain(
+      'attr-tone:error',
+    );
+    expect(rules('<Pill tone="indigo">本公司</Pill>')).not.toContain(
+      'attr-tone:error',
+    );
+  });
+
   it('页面里写死的颜色报错，纯白和组件目录不报', () => {
     expect(rules("const a = { color: '#2563EB' };")).toContain(
       'hardcoded-color:error',
