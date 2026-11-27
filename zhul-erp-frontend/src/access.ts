@@ -292,10 +292,12 @@ export default function access(initialState: {
     operationsMedia: can('/operations/media'),
     operationsListings: can('/operations/listings'),
     operationsVideos: can('/operations/videos'),
+    operationsWebsites: can('/operations/websites'),
     operationsMenu:
       can('/operations/products') ||
       can('/operations/listings') ||
       can('/operations/videos') ||
+      can('/operations/websites') ||
       can('/operations/media'),
     'operations:marketing:edit': can('operations:marketing:edit'),
     'operations:video:upload': can('operations:video:upload'),
@@ -303,6 +305,8 @@ export default function access(initialState: {
     'media:library:upload': can('media:library:upload'),
     'media:library:edit': can('media:library:edit'),
     'operations:listing:edit': can('operations:listing:edit'),
+    'operations:website:edit': can('operations:website:edit'),
+    'operations:website:publish': can('operations:website:publish'),
     'product:candidate:review': can('product:candidate:review'),
     productMenu: any(
       '/product/products',

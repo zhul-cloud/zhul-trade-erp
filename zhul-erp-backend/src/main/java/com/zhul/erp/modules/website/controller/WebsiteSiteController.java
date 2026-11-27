@@ -10,6 +10,7 @@ import com.zhul.erp.modules.website.dto.SiteJobVO;
 import com.zhul.erp.modules.website.dto.SiteRequest;
 import com.zhul.erp.modules.website.dto.SiteVO;
 import com.zhul.erp.modules.website.service.SiteImportService;
+import com.zhul.erp.modules.website.service.SiteSummaryService;
 import com.zhul.erp.modules.website.service.WebsiteSiteService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -38,17 +39,18 @@ public class WebsiteSiteController {
 
     private final WebsiteSiteService service;
     private final SiteImportService imports;
+    private final SiteSummaryService summaries;
 
     @GetMapping
     @PreAuthorize(VIEW)
     public Result<List<SiteVO>> list() {
-        return Result.ok(service.list());
+        return Result.ok(summaries.list());
     }
 
     @GetMapping("/{id}")
     @PreAuthorize(VIEW)
     public Result<SiteVO> detail(@PathVariable Long id) {
-        return Result.ok(service.detail(id));
+        return Result.ok(summaries.detail(id));
     }
 
     @PostMapping
@@ -131,6 +133,6 @@ public class WebsiteSiteController {
     @PreAuthorize(EDIT)
     public Result<SiteVO> takeover(@PathVariable Long id) {
         imports.takeover(id);
-        return Result.ok(service.detail(id));
+        return Result.ok(summaries.detail(id));
     }
 }

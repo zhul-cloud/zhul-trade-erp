@@ -360,18 +360,24 @@ public class WebsiteSiteService {
                 .eq(ProductCategoryDO::getStatus, 1).isNull(ProductCategoryDO::getDeletedAt));
         all.sort(Comparator.comparing((ProductCategoryDO c) -> c.getSortOrder() == null ? 0 : c.getSortOrder())
                 .thenComparing(ProductCategoryDO::getId));
+        Map<Long, Integer> counts = new HashMap<>(64);
+        for (Map<String, Object> r : siteMapper.categoryCounts(siteId)) {
+            counts.put(((Number) r.get("cid")).longValue(), ((Number) r.get("cnt")).intValue());
+        }
         Map<Long, List<CategoryMapVO>> children = new HashMap<>(32);
         for (ProductCategoryDO c : all) {
             if (c.getParentId() != null) {
                 children.computeIfAbsent(c.getParentId(), k -> new ArrayList<>())
-                        .add(new CategoryMapVO(c.getId(), displayName(c), map.getOrDefault(c.getId(), ""), List.of()));
+                        .add(new CategoryMapVO(c.getId(), displayName(c), map.getOrDefault(c.getId(), ""),
+                                counts.getOrDefault(c.getId(), 0), List.of()));
             }
         }
         List<CategoryMapVO> out = new ArrayList<>();
         for (ProductCategoryDO c : all) {
             if (c.getParentId() == null) {
-                out.add(new CategoryMapVO(c.getId(), displayName(c), map.getOrDefault(c.getId(), ""),
-                        children.getOrDefault(c.getId(), List.of())));
+                List<CategoryMapVO> subs = children.getOrDefault(c.getId(), List.of());
+                int total = counts.getOrDefault(c.getId(), 0) + subs.stream().mapToInt(CategoryMapVO::productCount).sum();
+                out.add(new CategoryMapVO(c.getId(), displayName(c), map.getOrDefault(c.getId(), ""), total, subs));
             }
         }
         return out;

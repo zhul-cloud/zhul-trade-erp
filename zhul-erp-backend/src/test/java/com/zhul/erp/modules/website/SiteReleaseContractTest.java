@@ -134,6 +134,18 @@ class SiteReleaseContractTest extends TenantContractSupport {
         jdbc.update("insert into website_site_job (tenant_id, site_id, job_type, job_no, status, result) values (?, ?, 'import', 'IMP-1', 4, ?)",
                 A, siteId, "{\"unmatched\":[{\"brand\":\"Y\",\"model\":\"ONLY-SITE\"}]}");
 
+        int inCategory = -1;
+        for (JsonNode top : ok(call(get("/api/v1/websites/" + siteId + "/category-map"), a))) {
+            for (JsonNode n : top.path("children").isEmpty() ? List.of(top) : List.of(top, top.path("children"))) {
+                for (JsonNode m : n.isArray() ? n : List.of(n)) {
+                    if (m.path("categoryId").asLong() == CATEGORY) {
+                        inCategory = m.path("productCount").asInt();
+                    }
+                }
+            }
+        }
+        assertEquals(2, inCategory, "品类对照显示站点范围内的商品数");
+
         JsonNode r = ok(call(json(post("/api/v1/websites/" + siteId + "/releases"), write(Map.of("taskIds", List.of(t1)))), a));
         String no = r.path("releaseNo").asText();
         assertTrue(no.startsWith("WP"));
@@ -178,6 +190,15 @@ class SiteReleaseContractTest extends TenantContractSupport {
         assertEquals(5, taskStatus(t1));
         assertEquals("https://it-rl.example.com/products/itrlbrand-rl-1/",
                 jdbc.queryForObject("select listing_url from listing_task where id = ?", String.class, t1));
+        JsonNode summary = null;
+        for (JsonNode s : ok(call(get("/api/v1/websites"), a))) {
+            if (s.path("id").asLong() == siteId) {
+                summary = s.path("summary");
+            }
+        }
+        assertEquals(no, summary.path("lastRelease").path("releaseNo").asText(), "站点管理显示最近发布");
+        assertTrue(summary.path("publishedCount").asInt() >= 1, "已上线待确认也算已上线");
+        assertTrue(summary.path("scopeCount").asInt() >= summary.path("publishedCount").asInt());
         Map<String, Object> wp = jdbc.queryForMap("select slug_locked + 0 as slug_locked, last_snapshot, live_urls from website_product where tenant_id = ? and product_id = ?", A, p1);
         assertEquals(1, ((Number) wp.get("slug_locked")).intValue());
         assertEquals(no, objectMapper.readTree((String) wp.get("last_snapshot")).path("release").asText());

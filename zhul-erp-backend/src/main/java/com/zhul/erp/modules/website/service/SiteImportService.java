@@ -580,6 +580,14 @@ public class SiteImportService {
         return v;
     }
 
+    /** 最近一次一致性比对还没确认的差异条数；最近的比对不是「已完成」时为 null（站点管理列表用） */
+    public Integer latestPending(Long siteId) {
+        WebsiteSiteJobDO j = jobMapper.selectOne(new LambdaQueryWrapper<WebsiteSiteJobDO>()
+                .eq(WebsiteSiteJobDO::getSiteId, siteId).eq(WebsiteSiteJobDO::getJobType, COMPARE)
+                .orderByDesc(WebsiteSiteJobDO::getId).last("LIMIT 1"));
+        return j == null || j.getStatus() != JOB_DONE ? null : pending(j);
+    }
+
     /** 没有确认接受的差异条数 */
     private int pending(WebsiteSiteJobDO j) {
         Set<String> done = new HashSet<>();

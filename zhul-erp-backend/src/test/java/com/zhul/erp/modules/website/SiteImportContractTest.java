@@ -182,6 +182,9 @@ class SiteImportContractTest extends TenantContractSupport {
         assertEquals(2, c.path("pending").asInt());
         err = fail(call(post("/api/v1/websites/" + siteId + "/takeover"), a));
         assertEquals("还有 2 条差异没有确认", err.path("message").asText());
+        JsonNode summary = ok(call(get("/api/v1/websites/" + siteId), a)).path("summary");
+        assertEquals(2, summary.path("pendingDiffs").asInt(), "站点管理显示未确认差异");
+        assertEquals(1, summary.path("importedCount").asInt());
 
         fail(call(json(post("/api/v1/websites/jobs/" + cmp.path("id").asLong() + "/accept"),
                 write(Map.of("items", List.of(Map.of("model", "IM-1", "field", "sell_price")), "reason", " "))), a));

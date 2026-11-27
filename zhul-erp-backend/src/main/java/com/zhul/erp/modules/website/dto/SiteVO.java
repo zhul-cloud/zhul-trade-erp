@@ -40,4 +40,6 @@ public class SiteVO {
     private String createBy;
     private LocalDateTime updateTime;
     private String updateBy;
+    /** 商品数、最近发布、未确认差异（只在列表、详情返回） */
+    private SiteSummary summary;
 }
