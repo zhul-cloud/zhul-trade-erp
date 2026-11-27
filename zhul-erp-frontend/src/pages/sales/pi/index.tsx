@@ -1,12 +1,3 @@
-import {
-  ClockCircleOutlined,
-  FileDoneOutlined,
-  FileTextOutlined,
-  HourglassOutlined,
-  PlusOutlined,
-  SearchOutlined,
-  WalletOutlined,
-} from '@ant-design/icons';
 import { history, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -15,18 +6,31 @@ import {
   DatePicker,
   Form,
   Input,
-  Popconfirm,
   Select,
   Space,
   Table,
   Tooltip,
 } from 'antd';
 import type { Dayjs } from 'dayjs';
+import { Eye, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { CopyText } from '@/components/CopyText';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  QuickFilters,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import {
   FirstModelCell,
   fetchAllModels,
@@ -34,16 +38,15 @@ import {
   PagedModelsModal,
   TagList,
 } from '@/pages/inquiry/customer-inquiry/ModelCells';
-import { Stat, useWide } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
+import { auditColumns } from '@/pages/purchase/components';
 import { getUserOptions } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
-  Card,
   PATHS,
   PI_STATUS,
   PI_STATUS_META,
@@ -52,7 +55,6 @@ import {
   RECEIPT_META,
   RECEIPT_STATUS,
   ReceiptStatusPill,
-  SalesPageTitle,
 } from '../components';
 import {
   type PiListItem,
@@ -82,10 +84,23 @@ export const quickFromUrl = (search: URLSearchParams): Filters | undefined => {
   return undefined;
 };
 
+/** 快捷筛选 */
+const QUICK_UNPAID = 'unpaid';
+const QUICK_EXPIRED = 'expired';
+
+/** 帮助文字：help-texts.md「形式发票列表」，关键词范围以 search-scope.md 为准 */
+export const HELP = {
+  keyword: '可搜：PI 编号、客户名称或简称、型号。包含匹配，整段文字一起匹配',
+  created: '默认最近 3 个月，清空后看全部',
+  monthReceived: '本月确认到账的金额（按到账日期），各币种折合人民币合计',
+  monthOrders: '本月由 PI 转成的销售订单',
+  unpaid: '已发送或已转订单、还没付清的 PI',
+  expired: '已发送、过了有效期还没收到水单或到账的 PI',
+} as const;
+
 const PiList: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
-  const wide = useWide();
   const [form] = Form.useForm<Filters>();
   const [search] = useSearchParams();
   // 创建日期默认最近 3 个月，清空日期看全部；从工作台「已过期未收款」「PI 待收款」跳来时看全部
@@ -106,7 +121,7 @@ const PiList: React.FC = () => {
   /** 「查看」全部型号的 PI */
   const [viewing, setViewing] = useState<PiListItem>();
 
-  /** 型号数、总数量、合计的排序（后端排序，翻页后保持） */
+  /** 型号数、合计的排序（后端排序，翻页后保持） */
   const [sort, setSort] = useState<{
     field?: string;
     order?: 'ascend' | 'descend';
@@ -165,9 +180,13 @@ const PiList: React.FC = () => {
       .catch(() => setOwners([]));
   }, []);
 
-  const quick = (patch: Filters) => {
-    form.setFieldsValue(patch);
-    setFilters((f) => ({ ...f, ...patch }));
+  /** 按表单当前的条件查询（快捷筛选不在表单里，沿用当前选择） */
+  const searchNow = () => {
+    setFilters({
+      ...form.getFieldsValue(),
+      expiredUnpaid: filters.expiredUnpaid,
+      unpaid: filters.unpaid,
+    });
     setPage(1);
   };
 
@@ -190,26 +209,36 @@ const PiList: React.FC = () => {
     !filters.ownerId &&
     !filters.range;
 
+  const sub = (text: React.ReactNode) => (
+    <div style={{ fontSize: 12, color: palette.mute }}>{text}</div>
+  );
+
+  const confirmDanger = useConfirmDanger();
   const columns: TableColumnsType<PiListItem> = [
     {
-      title: 'PI 编号',
+      title: 'PI 编号 · 创建日期',
       dataIndex: 'piNo',
       width: 170,
       fixed: 'left',
       render: (v: string, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => history.push(PATHS.pi(r.id))}
-        >
-          {v}
-        </button>
+        <div>
+          <CopyText text={v}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(PATHS.pi(r.id))}
+            >
+              {v}
+            </button>
+          </CopyText>
+          {sub(r.createTime?.slice(0, 10) ?? '—')}
+        </div>
       ),
     },
     {
       title: '客户',
       dataIndex: 'customerName',
-      width: 260,
+      width: 240,
       render: (v: string, r) => (
         <CustomerCell
           name={v}
@@ -219,6 +248,77 @@ const PiList: React.FC = () => {
         />
       ),
     },
+    {
+      title: 'PI 状态',
+      dataIndex: 'status',
+      width: 190,
+      render: (v: number, r) => (
+        <Space size={6} wrap>
+          <PiStatusPill status={v} />
+          {r.expired && (
+            <Tooltip
+              title={`已过期 ${r.expiredDays} 天 · 有效期至 ${r.validUntil} · 未收到水单或到账`}
+            >
+              <span>
+                <Pill tone="red">已过期</Pill>
+              </span>
+            </Tooltip>
+          )}
+          {r.closeReasonName && (
+            <span style={{ fontSize: 12, color: palette.mute }}>
+              {r.closeReasonName.replace(/^【[^】]+】/, '')}
+            </span>
+          )}
+          {r.currentVersionNo > 1 && (
+            <span style={{ fontSize: 12, color: palette.sub }}>
+              Rev.{r.currentVersionNo}
+            </span>
+          )}
+          {r.revising && <Pill tone="orange">修改中</Pill>}
+        </Space>
+      ),
+    },
+    {
+      title: '合计',
+      dataIndex: 'totalAmount',
+      sorter: true,
+      sortOrder: sortOf('totalAmount'),
+      width: 150,
+      align: 'right',
+      render: (v: number, r) => (
+        <b style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {formatAmount(v, r.currencyCode)}
+        </b>
+      ),
+    },
+    {
+      title: '收款状态',
+      dataIndex: 'receiptStatus',
+      width: 110,
+      render: (v: number, r) =>
+        r.status === PI_STATUS.DRAFT ? '—' : <ReceiptStatusPill status={v} />,
+    },
+    {
+      title: '有效期至',
+      dataIndex: 'validUntil',
+      width: 116,
+      render: (v: string | undefined, r) => (
+        <span
+          style={{
+            fontVariantNumeric: 'tabular-nums',
+            whiteSpace: 'nowrap',
+            color: r.expired
+              ? palette.red
+              : r.status === PI_STATUS.SENT
+                ? palette.sub
+                : palette.mute,
+          }}
+        >
+          {v ?? '—'}
+        </span>
+      ),
+    },
+    // 型号与总数量分两列（同询盘列表）：主规范要求两者都能排序，合成一列会丢掉一种排序
     {
       title: '型号',
       dataIndex: 'itemCount',
@@ -245,86 +345,14 @@ const PiList: React.FC = () => {
     {
       title: '品牌',
       key: 'brands',
-      width: 170,
+      width: 160,
       render: (_, r) => <TagList values={r.brands} label="品牌" />,
     },
     {
       title: '品类',
       key: 'categories',
-      width: 170,
+      width: 160,
       render: (_, r) => <TagList values={r.categories} label="品类" />,
-    },
-    {
-      title: '币种 · 合计',
-      dataIndex: 'totalAmount',
-      sorter: true,
-      sortOrder: sortOf('totalAmount'),
-      width: 150,
-      align: 'right',
-      render: (v: number, r) => (
-        <b style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {formatAmount(v, r.currencyCode)}
-        </b>
-      ),
-    },
-    {
-      title: '收款状态',
-      dataIndex: 'receiptStatus',
-      width: 110,
-      render: (v: number, r) =>
-        r.status === PI_STATUS.DRAFT ? '—' : <ReceiptStatusPill status={v} />,
-    },
-    {
-      title: 'PI 状态',
-      dataIndex: 'status',
-      width: 190,
-      render: (v: number, r) => (
-        <Space size={6} wrap>
-          <PiStatusPill status={v} />
-          {r.expired && (
-            <Tooltip
-              title={`已过期 ${r.expiredDays} 天 · 有效期至 ${r.validUntil} · 未收到水单或到账`}
-            >
-              <span>
-                <Pill tone="red">已过期</Pill>
-              </span>
-            </Tooltip>
-          )}
-          {r.closeReasonName && (
-            <span style={{ fontSize: 12, color: palette.mute }}>
-              {r.closeReasonName.replace(/^【[^】]+】/, '')}
-            </span>
-          )}
-          {r.currentVersionNo > 1 && (
-            <span style={{ fontSize: 12, color: palette.link }}>
-              Rev.{r.currentVersionNo}
-            </span>
-          )}
-          {r.revising && (
-            <span style={{ fontSize: 12, color: palette.orange }}>修改中</span>
-          )}
-        </Space>
-      ),
-    },
-    {
-      title: '有效期至',
-      dataIndex: 'validUntil',
-      width: 116,
-      render: (v: string | undefined, r) => (
-        <span
-          style={{
-            fontVariantNumeric: 'tabular-nums',
-            whiteSpace: 'nowrap',
-            color: r.expired
-              ? palette.red
-              : r.status === PI_STATUS.SENT
-                ? palette.sub
-                : palette.mute,
-          }}
-        >
-          {v ?? '—'}
-        </span>
-      ),
     },
     {
       title: '来源单号',
@@ -345,13 +373,15 @@ const PiList: React.FC = () => {
       width: 150,
       render: (v: string | undefined, r) =>
         v && r.orderId ? (
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(PATHS.order(r.orderId as number))}
-          >
-            {v}
-          </button>
+          <CopyText text={v}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(PATHS.order(r.orderId as number))}
+            >
+              {v}
+            </button>
+          </CopyText>
         ) : (
           '—'
         ),
@@ -363,75 +393,102 @@ const PiList: React.FC = () => {
       render: ellipsisRender,
     },
     {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      width: 170,
-      render: (v: string) => formatDateTime(v),
-    },
-    {
       title: '最近发送',
       dataIndex: 'sentAt',
       width: 170,
       render: (v?: string) => formatDateTime(v),
     },
+    ...auditColumns<PiListItem>(),
     {
       title: '操作',
       key: 'actions',
-      width: 120,
+      // 草稿：编辑在行内、删除收进「更多」；其余只有查看，图标在同一位置（ui-redesign S6）
+      width: rowActionsWidth(2),
       fixed: 'right',
-      render: (_, r) =>
-        r.status === PI_STATUS.DRAFT ? (
-          <Space size={12}>
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => history.push(PATHS.pi(r.id))}
-            >
-              编辑
-            </button>
-            <Popconfirm
-              title="删除这张草稿？"
-              description="删除后不能恢复，报价单里的型号可以重新开 PI"
-              okText="删除"
-              okButtonProps={{ danger: true }}
-              onConfirm={() => remove(r.id)}
-            >
-              <a style={{ color: palette.red }}>删除</a>
-            </Popconfirm>
-          </Space>
-        ) : (
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(PATHS.pi(r.id))}
-          >
-            查看
-          </button>
-        ),
+      render: (_, r) => {
+        const draft = r.status === PI_STATUS.DRAFT;
+        return (
+          <RowActions
+            inline={[
+              draft
+                ? {
+                    key: 'edit',
+                    label: '编辑',
+                    icon: <Pencil size={18} />,
+                    onClick: () => history.push(PATHS.pi(r.id)),
+                  }
+                : {
+                    key: 'view',
+                    label: '查看',
+                    icon: <Eye size={18} />,
+                    onClick: () => history.push(PATHS.pi(r.id)),
+                  },
+            ]}
+            more={[
+              draft && {
+                key: 'delete',
+                label: '删除',
+                icon: <Trash2 size={16} />,
+                danger: true,
+              },
+            ]}
+            onMore={() =>
+              confirmDanger({
+                title: '删除这张草稿？',
+                content: '删除后不能恢复，报价单里的型号可以重新开 PI',
+                onOk: () => remove(r.id),
+              })
+            }
+          />
+        );
+      },
     },
   ];
+  const columnsSet = useColumnSettings('sales-pi', columns, {
+    hidden: [
+      '有效期至',
+      '型号',
+      '总数量',
+      '品牌',
+      '品类',
+      '来源单号',
+      '销售订单',
+      '业务员',
+      '最近发送',
+    ],
+  });
 
-  const statButton = (node: React.ReactNode, onClick?: () => void) =>
-    onClick ? (
-      <button
-        type="button"
-        style={{ all: 'unset', cursor: 'pointer' }}
-        onClick={onClick}
-      >
-        {node}
-      </button>
-    ) : (
-      node
-    );
+  /** 搜索条件里的下拉：标签在上，读屏名称与标签相同 */
+  const select = (
+    name: keyof Filters,
+    label: string,
+    options: { value: string | number; label: string }[],
+    extra?: React.ComponentProps<typeof Select>,
+  ) => (
+    <FilterField label={label}>
+      <Form.Item name={name} noStyle>
+        <Select
+          allowClear
+          placeholder="全部"
+          aria-label={label}
+          options={options}
+          {...extra}
+        />
+      </Form.Item>
+    </FilterField>
+  );
+
+  /** 下拉选项后面带数量（统计卡片并入状态下拉，stat-cards.md） */
+  const withCount = (label: string, n?: number) =>
+    n ? `${label} · ${n}` : label;
 
   return (
     <div>
-      <SalesPageTitle
-        description="客户有意向后，从报价单开 PI 确认型号与金额并请款；客户付款后转成销售订单。"
-        actions={
+      <PageHeader
+        extra={
           <Button
             type="primary"
-            icon={<PlusOutlined />}
+            icon={<Plus size={18} />}
             onClick={() => setNewOpen(true)}
           >
             新建 PI
@@ -439,252 +496,185 @@ const PiList: React.FC = () => {
         }
       />
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: wide
-            ? 'repeat(4, minmax(0, 1fr))'
-            : 'repeat(2, minmax(0, 1fr))',
-          gap: 16,
-          marginBottom: 16,
-        }}
-      >
-        {statButton(
-          <Stat
-            icon={<FileTextOutlined />}
-            color={palette.sub}
-            soft={palette.inset}
-            label="草稿"
-            value={stats?.draftCount ?? '—'}
-            hint={<span style={{ color: palette.mute }}>还没发给客户</span>}
-          />,
-          () => quick({ status: PI_STATUS.DRAFT, receiptStatus: undefined }),
-        )}
-        {statButton(
-          <Stat
-            icon={<HourglassOutlined />}
-            color={palette.orange}
-            soft={palette.orangeSoft}
-            label="待到账"
-            value={stats?.slipOnlyCount ?? '—'}
-            hint={
-              <span style={{ color: palette.mute }}>
-                客户发了水单、财务还没确认到账
-              </span>
-            }
-          />,
-          () =>
-            quick({
-              status: undefined,
-              receiptStatus: RECEIPT_STATUS.SLIP_ONLY,
-            }),
-        )}
-        <Stat
-          icon={<WalletOutlined />}
-          color={palette.link}
-          soft={palette.accentSoft}
-          label="本月到账"
-          value={stats ? formatAmount(stats.monthReceivedUsd, 'USD') : '—'}
-          hint={
-            <span style={{ color: palette.mute }}>
-              {stats
-                ? `折合 ${formatAmount(stats.monthReceivedCny, 'CNY')}（各币种合计）`
-                : '—'}
-            </span>
-          }
+      {stats && (
+        <SummaryBar
+          items={[
+            {
+              key: 'received',
+              label: '本月到账人民币',
+              help: HELP.monthReceived,
+              value: stats.monthReceivedCny,
+              currency: 'CNY',
+              sub:
+                Number(stats.monthReceivedUsd) > 0
+                  ? `其中美元 ${formatAmount(stats.monthReceivedUsd, 'USD')}`
+                  : undefined,
+            },
+            {
+              key: 'orders',
+              label: '本月转订单',
+              help: HELP.monthOrders,
+              value: stats.monthOrderCount,
+              sub:
+                stats.monthOrderUnpaid > 0
+                  ? `凭水单先转、还未到账 ${stats.monthOrderUnpaid} 张`
+                  : undefined,
+            },
+          ]}
         />
-        <Stat
-          icon={<FileDoneOutlined />}
-          color={palette.green}
-          soft={palette.greenSoft}
-          label="本月转订单"
-          value={stats?.monthOrderCount ?? '—'}
-          hint={
-            stats && stats.monthOrderUnpaid > 0 ? (
-              <span style={{ color: palette.orange }}>
-                凭水单先转、还未到账 {stats.monthOrderUnpaid} 张
-              </span>
-            ) : (
-              <span style={{ color: palette.mute }}>客户付款后由 PI 转成</span>
-            )
-          }
-        />
-      </div>
+      )}
 
-      <Card style={{ marginBottom: 16, padding: 20 }}>
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{ range: filters.range }}
-          onFinish={(v) => {
-            setFilters({
-              ...v,
-              expiredUnpaid: filters.expiredUnpaid,
-              unpaid: filters.unpaid,
-            });
+      <Form
+        form={form}
+        initialValues={{ range: filters.range }}
+        component={false}
+      >
+        <FilterCard
+          onSearch={searchNow}
+          onReset={() => {
+            form.resetFields();
+            form.setFieldsValue(defaults);
+            setFilters(defaults);
             setPage(1);
           }}
+          // 列宽 110：关键词、两个状态、创建日期排一行
+          minColumn={110}
+          moreCount={filters.ownerId ? 1 : 0}
+          more={select('ownerId', '业务员', owners, {
+            showSearch: { optionFilterProp: 'label' },
+          })}
         >
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '2fr 1fr 1fr 1fr 1.6fr auto',
-              gap: 12,
-              alignItems: 'end',
-            }}
-          >
-            <Form.Item
-              name="keyword"
-              label="关键词"
-              style={{ marginBottom: 0 }}
-            >
+          <FilterField label="关键词" span={2} help={HELP.keyword}>
+            <Form.Item name="keyword" noStyle>
               <Input
                 allowClear
-                prefix={<SearchOutlined />}
+                prefix={<Search size={16} />}
                 placeholder="PI 编号、客户、型号"
+                aria-label="关键词"
+                onPressEnter={searchNow}
               />
             </Form.Item>
-            <Form.Item
-              name="status"
-              label="PI 状态"
-              style={{ marginBottom: 0 }}
-            >
-              <Select
-                allowClear
-                placeholder="全部"
-                options={Object.entries(PI_STATUS_META).map(([k, v]) => ({
-                  value: Number(k),
-                  label: v.label,
-                }))}
-              />
-            </Form.Item>
-            <Form.Item
-              name="receiptStatus"
-              label="收款状态"
-              style={{ marginBottom: 0 }}
-            >
-              <Select
-                allowClear
-                placeholder="全部"
-                options={Object.entries(RECEIPT_META).map(([k, v]) => ({
-                  value: Number(k),
-                  label: v.label,
-                }))}
-              />
-            </Form.Item>
-            <Form.Item
-              name="ownerId"
-              label="业务员"
-              style={{ marginBottom: 0 }}
-            >
-              <Select
-                allowClear
-                placeholder="全部"
-                options={owners}
-                showSearch={{ optionFilterProp: 'label' }}
-              />
-            </Form.Item>
-            <Form.Item
-              name="range"
-              label="创建日期"
-              style={{ marginBottom: 0 }}
-            >
-              <DatePicker.RangePicker style={{ width: '100%' }} />
-            </Form.Item>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Button
-                onClick={() => {
-                  form.resetFields();
-                  form.setFieldsValue(defaults);
-                  setFilters(defaults);
-                  setPage(1);
-                }}
-              >
-                重置
-              </Button>
-              <Button type="primary" htmlType="submit">
-                查询
-              </Button>
-            </div>
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              marginTop: 12,
-            }}
+          </FilterField>
+          {select(
+            'status',
+            'PI 状态',
+            Object.entries(PI_STATUS_META).map(([k, v]) => ({
+              value: Number(k),
+              label:
+                Number(k) === PI_STATUS.DRAFT
+                  ? withCount(v.label, stats?.draftCount)
+                  : v.label,
+            })),
+            // 切换状态立即查询（doc-list-unify 状态下拉的写法）
+            { onChange: () => searchNow() },
+          )}
+          {select(
+            'receiptStatus',
+            '收款状态',
+            Object.entries(RECEIPT_META).map(([k, v]) => ({
+              value: Number(k),
+              label:
+                Number(k) === RECEIPT_STATUS.SLIP_ONLY
+                  ? withCount(v.label, stats?.slipOnlyCount)
+                  : v.label,
+            })),
+            { onChange: () => searchNow() },
+          )}
+          <FilterField
+            label="创建日期"
+            span={2}
+            help={HELP.created}
+            htmlFor="pi-created"
           >
-            <span style={{ fontSize: 12, color: palette.mute }}>快捷筛选</span>
-            <Button
-              size="small"
-              type={filters.unpaid ? 'primary' : 'default'}
-              icon={<WalletOutlined />}
-              onClick={() => {
-                setFilters((f) => ({ ...f, unpaid: !f.unpaid }));
-                setPage(1);
-              }}
-              aria-pressed={!!filters.unpaid}
-            >
-              待收款{stats?.unpaidCount != null ? ` ${stats.unpaidCount}` : ''}
-            </Button>
-            <Button
-              size="small"
-              danger={!!filters.expiredUnpaid}
-              type={filters.expiredUnpaid ? 'primary' : 'default'}
-              icon={<ClockCircleOutlined />}
-              onClick={() => {
-                setFilters((f) => ({ ...f, expiredUnpaid: !f.expiredUnpaid }));
-                setPage(1);
-              }}
-              aria-pressed={!!filters.expiredUnpaid}
-            >
-              已过期未收款{overdueCount != null ? ` ${overdueCount}` : ''}
-            </Button>
-          </div>
-        </Form>
-      </Card>
+            <Form.Item name="range" noStyle>
+              <DatePicker.RangePicker
+                id={{ start: 'pi-created' }}
+                style={{ width: '100%' }}
+              />
+            </Form.Item>
+          </FilterField>
+        </FilterCard>
+      </Form>
 
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : !loading && rows.length === 0 && noFilter ? (
-        <Card>
+        <MainCard>
           <EmptyHint
             title="还没有 PI"
             description="在已发送的报价单上点「开 PI」，或在这里从客户的多张报价单挑型号"
             actionText="新建 PI"
             onAction={() => setNewOpen(true)}
           />
-        </Card>
+        </MainCard>
       ) : (
-        <Table<PiListItem>
-          rowKey="id"
-          onChange={(_p, _f, sorter, extra) => {
-            if (extra.action !== 'sort') return;
-            const one = Array.isArray(sorter) ? sorter[0] : sorter;
-            setSort({
-              field: one?.order ? String(one.field) : undefined,
-              order: one?.order ?? undefined,
-            });
-            setPage(1);
-          }}
-          columns={columns}
-          dataSource={rows}
+        <MainCard
+          settings={columnsSet.settings}
+          count={total}
           loading={loading}
-          scroll={{ x: tableScrollX(columns) }}
-          locale={{ emptyText: '没有符合条件的 PI，换个筛选条件试试' }}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
-            onChange: (p, s) => {
-              setPage(p);
-              setPageSize(s);
-            },
-          }}
-        />
+          quick={
+            <QuickFilters
+              options={[
+                {
+                  value: QUICK_UNPAID,
+                  label: '待收款',
+                  count: stats?.unpaidCount,
+                },
+                {
+                  value: QUICK_EXPIRED,
+                  label: '已过期未收款',
+                  count: overdueCount,
+                  danger: (overdueCount ?? 0) > 0,
+                },
+              ]}
+              value={[
+                ...(filters.unpaid ? [QUICK_UNPAID] : []),
+                ...(filters.expiredUnpaid ? [QUICK_EXPIRED] : []),
+              ]}
+              onChange={(v) => {
+                setFilters((f) => ({
+                  ...f,
+                  unpaid: v.includes(QUICK_UNPAID) || undefined,
+                  expiredUnpaid: v.includes(QUICK_EXPIRED) || undefined,
+                }));
+                setPage(1);
+              }}
+            />
+          }
+        >
+          <Table<PiListItem>
+            rowKey="id"
+            onChange={(_p, _f, sorter, extra) => {
+              if (extra.action !== 'sort') return;
+              const one = Array.isArray(sorter) ? sorter[0] : sorter;
+              setSort({
+                field: one?.order ? String(one.field) : undefined,
+                order: one?.order ?? undefined,
+              });
+              setPage(1);
+            }}
+            columns={columnsSet.columns}
+            dataSource={rows}
+            loading={loading}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
+            locale={{
+              emptyText: tableEmpty(
+                '没有符合条件的 PI，换个筛选条件试试',
+                loading,
+              ),
+            }}
+            pagination={{
+              ...PAGER_STYLE,
+              current: page,
+              pageSize,
+              total,
+              onChange: (p, s) => {
+                setPage(p);
+                setPageSize(s);
+              },
+            }}
+          />
+        </MainCard>
       )}
 
       <PagedModelsModal

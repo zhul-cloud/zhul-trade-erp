@@ -1,12 +1,14 @@
-import { DownloadOutlined, FileTextOutlined } from '@ant-design/icons';
 import XMarkdown from '@ant-design/x-markdown';
+import { Download, Eye, FileText } from 'lucide-react';
 import { tableScrollX } from '@/utils/tableScroll';
 import '@ant-design/x-markdown/es/XMarkdown/index.css';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Drawer, Segmented, Space, Table } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { EmptyHint } from '../../components/EmptyHint';
 import { Pill } from '../../components/Pills';
 import {
@@ -41,9 +43,9 @@ const downloadRaw = (fileName: string, text: string) => {
 const TypeCell: React.FC<{ r: ContentImportRecord }> = ({ r }) => (
   <Space size={6}>
     {r.packageType === 'facts' ? (
-      <Pill tone="accent">资料包</Pill>
+      <Pill tone="gray">资料包</Pill>
     ) : r.packageType === 'marketing' ? (
-      <Pill tone="violet">营销包</Pill>
+      <Pill tone="gray">营销包</Pill>
     ) : (
       <Pill tone="gray">未知</Pill>
     )}
@@ -87,7 +89,7 @@ export const ImportPreviewDrawer: React.FC<{
       footer={
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <Button
-            icon={<DownloadOutlined />}
+            icon={<Download size="1em" />}
             disabled={!r}
             onClick={() => r && downloadRaw(r.fileName, raw)}
           >
@@ -212,10 +214,10 @@ export const ImportRecordList: React.FC<{
           className="zhul-link"
           onClick={() => setViewing(r.id)}
         >
-          <FileTextOutlined /> {v}
+          <FileText size="1em" /> {v}
           {r.source === 2 && (
             <span style={{ marginLeft: 6 }}>
-              <Pill tone="violet">AI 生成</Pill>
+              <Pill tone="gray">AI 生成</Pill>
             </span>
           )}
         </button>
@@ -258,15 +260,18 @@ export const ImportRecordList: React.FC<{
     {
       title: '操作',
       key: 'actions',
-      width: 70,
+      width: rowActionsWidth(1),
       render: (_, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => setViewing(r.id)}
-        >
-          预览
-        </button>
+        <RowActions
+          inline={[
+            {
+              key: 'preview',
+              label: '预览',
+              icon: <Eye size={18} />,
+              onClick: () => setViewing(r.id),
+            },
+          ]}
+        />
       ),
     },
   ];
@@ -295,7 +300,7 @@ export const ImportRecordList: React.FC<{
             : false
         }
         scroll={{ x: tableScrollX(columns) }}
-        locale={{ emptyText: '还没有上传记录' }}
+        locale={{ emptyText: tableEmpty('还没有上传记录', !rows) }}
       />
       <div style={{ marginTop: 8, fontSize: 12, color: palette.sub }}>
         {type === 'facts'

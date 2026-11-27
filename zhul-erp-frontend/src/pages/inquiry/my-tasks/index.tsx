@@ -1,20 +1,4 @@
 import {
-  CheckOutlined,
-  CopyOutlined,
-  DeleteOutlined,
-  DownloadOutlined,
-  DownOutlined,
-  ExportOutlined,
-  FireOutlined,
-  PlusOutlined,
-  RollbackOutlined,
-  SendOutlined,
-  SnippetsOutlined,
-  StarOutlined,
-  UndoOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
-import {
   Alert,
   App,
   Button,
@@ -30,9 +14,26 @@ import {
   theme,
 } from 'antd';
 import dayjs from 'dayjs';
+import {
+  Check,
+  ChevronDown,
+  ClipboardList,
+  Copy,
+  Download,
+  ExternalLink,
+  Flame,
+  Plus,
+  Send,
+  Star,
+  Trash2,
+  Undo2,
+  Upload,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { actualModelStamp } from '@/components/DocFields/ActualModel';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
+import { HelpTip, PageHeader, ViewTabs } from '@/components/ListLayout';
 import { useTabDirty } from '@/components/PageTabs/hooks';
 import { ProofLinks } from '@/pages/finance/payables/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -48,7 +49,6 @@ import {
   excludeTax,
   LeadTimeText,
   LevelPill,
-  PageTitle,
   Pill,
   TaxHint,
   useLifecycles,
@@ -159,14 +159,12 @@ const ITEM_FILTER_LABEL: Record<ItemFilter, string> = {
   submitted: '已提交',
 };
 
-const REVIEW_PILL: Record<
-  number,
-  { label: string; tone: 'accent' | 'green' | 'orange' }
-> = {
-  1: { label: '待审核', tone: 'accent' },
-  2: { label: '已通过', tone: 'green' },
-  3: { label: '被退回', tone: 'orange' },
-};
+const REVIEW_PILL: Record<number, { label: string; tone: 'green' | 'orange' }> =
+  {
+    1: { label: '待审核', tone: 'orange' },
+    2: { label: '已通过', tone: 'green' },
+    3: { label: '被退回', tone: 'orange' },
+  };
 
 const entryError = (e: DraftEntry) => {
   if (e.unitPrice == null) return '请填写单价';
@@ -175,11 +173,19 @@ const entryError = (e: DraftEntry) => {
   return '';
 };
 
+/** 帮助文字：help-texts.md「我的询价」，关键词范围以 search-scope.md 为准 */
+export const HELP = {
+  page: '逐个型号问价，填好提交即可；也可以下载询价包在 Excel 里填，填完上传回来',
+  keyword:
+    '可搜：任务编号、品牌、品类、询盘编号、型号（确认型号、原始型号，忽略大小写和符号）',
+} as const;
+
 /** 我的询价：只看分配给自己的任务，逐个型号录入各渠道的询价结果 */
 const MyTasksPage: React.FC = () => {
   const wide = useWide();
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { token } = theme.useToken();
   const { conditionOptions, leadTimeOptions } = useQuoteDicts();
   const noStockReasons = useDictOptions(DICT_NO_STOCK_REASON, '');
@@ -756,7 +762,7 @@ const MyTasksPage: React.FC = () => {
       );
       return;
     }
-    modal.confirm({
+    confirmDanger({
       title: '撤回这个任务的回价？',
       width: 520,
       content: (
@@ -788,7 +794,6 @@ const MyTasksPage: React.FC = () => {
         </div>
       ),
       okText: '撤回回价',
-      okButtonProps: { danger: true },
       cancelText: '再想想',
       onOk: async () => {
         try {
@@ -806,12 +811,14 @@ const MyTasksPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        description="逐个型号问价，填好提交即可；也可以下载询价包在 Excel 里填，填完上传回来。"
-        actions={
+      <PageHeader
+        help={HELP.page}
+        extra={
           <>
             <Button
-              icon={<DownloadOutlined />}
+              type="text"
+              icon={<Download size={16} />}
+              style={activeId ? { color: palette.link } : undefined}
               disabled={!activeId}
               onClick={() =>
                 activeId &&
@@ -824,6 +831,8 @@ const MyTasksPage: React.FC = () => {
             </Button>
             {tasks && tasks.length > 1 && !done && (
               <Button
+                type="text"
+                style={{ color: palette.link }}
                 onClick={() =>
                   myTaskApi
                     .downloadPackage(tasks.map((t) => t.id))
@@ -835,14 +844,31 @@ const MyTasksPage: React.FC = () => {
             )}
             <Button
               type="primary"
-              ghost
-              icon={<UploadOutlined />}
+              icon={<Upload size={18} />}
               onClick={() => setImportOpen(true)}
             >
               导入询价结果
             </Button>
           </>
         }
+      />
+      {/* 任务队列：各队列的操作不同，用视图页签（复审 S3） */}
+      <ViewTabs
+        activeKey={view}
+        onChange={(k) =>
+          leave(() => {
+            setView(k as typeof view);
+            setDone(k === 'done');
+          })
+        }
+        items={[
+          { key: 'sales', label: '待认领', count: salesTotal },
+          { key: 'pending', label: '待处理', count: counts.pending },
+          ...(reviewAccount || counts.reviewing
+            ? [{ key: 'reviewing', label: '审核中', count: counts.reviewing }]
+            : []),
+          { key: 'done', label: '已回价', count: counts.done },
+        ]}
       />
       <div
         style={{
@@ -857,44 +883,31 @@ const MyTasksPage: React.FC = () => {
       >
         <div style={{ display: 'grid', gap: 10 }}>
           {view !== 'sales' && (
-            <Input.Search
-              allowClear
-              placeholder="搜任务编号、询盘单号、品牌、型号"
-              value={keyword}
-              onChange={(e) => {
-                setKeyword(e.target.value);
-                if (!e.target.value) {
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Input.Search
+                allowClear
+                placeholder="任务编号、询盘编号、型号"
+                aria-label="搜索询价任务"
+                value={keyword}
+                onChange={(e) => {
+                  setKeyword(e.target.value);
+                  if (!e.target.value) {
+                    leave(() => {
+                      setSearch('');
+                      setDoneLimit(LOAD_STEP);
+                    });
+                  }
+                }}
+                onSearch={(v) =>
                   leave(() => {
-                    setSearch('');
+                    setSearch(v.trim());
                     setDoneLimit(LOAD_STEP);
-                  });
+                  })
                 }
-              }}
-              onSearch={(v) =>
-                leave(() => {
-                  setSearch(v.trim());
-                  setDoneLimit(LOAD_STEP);
-                })
-              }
-            />
+              />
+              <HelpTip title={HELP.keyword} />
+            </div>
           )}
-          <Segmented
-            value={view}
-            onChange={(v) =>
-              leave(() => {
-                setView(v as typeof view);
-                setDone(v === 'done');
-              })
-            }
-            options={[
-              { value: 'sales', label: `待认领 ${salesTotal}` },
-              { value: 'pending', label: `待处理 ${counts.pending}` },
-              ...(reviewAccount || counts.reviewing
-                ? [{ value: 'reviewing', label: `审核中 ${counts.reviewing}` }]
-                : []),
-              { value: 'done', label: `已回价 ${counts.done}` },
-            ]}
-          />
           {view === 'sales' ? (
             <SalesPending
               onChanged={loadList}
@@ -940,8 +953,8 @@ const MyTasksPage: React.FC = () => {
                   padding: 16,
                   borderRadius: 16,
                   background:
-                    t.id === activeId ? palette.accentSoft : palette.card,
-                  border: `1px solid ${t.id === activeId ? palette.accentLine : palette.hairline}`,
+                    t.id === activeId ? palette.primarySoft : palette.card,
+                  border: `1px solid ${t.id === activeId ? palette.primaryLine : palette.hairline}`,
                   display: 'grid',
                   gap: 6,
                 }}
@@ -1049,7 +1062,7 @@ const MyTasksPage: React.FC = () => {
                 <LevelPill value={detail.task.level} />
                 {detail.task.urgent && (
                   <Pill tone="red">
-                    <FireOutlined /> 紧急
+                    <Flame size="1em" /> 紧急
                   </Pill>
                 )}
                 {reviewingView && <Pill tone="cyan">审核中</Pill>}
@@ -1061,7 +1074,7 @@ const MyTasksPage: React.FC = () => {
                   {editable && (
                     <Button
                       size="small"
-                      icon={<SnippetsOutlined />}
+                      icon={<ClipboardList size="1em" />}
                       onClick={() => setPasteOpen(true)}
                     >
                       粘贴报价
@@ -1070,7 +1083,7 @@ const MyTasksPage: React.FC = () => {
                   {detail.items.length > 0 && (
                     <Space.Compact size="small">
                       <Button
-                        icon={<CopyOutlined />}
+                        icon={<Copy size="1em" />}
                         onClick={() => copyTaskScript(false)}
                       >
                         复制全部话术
@@ -1095,7 +1108,7 @@ const MyTasksPage: React.FC = () => {
                         }}
                       >
                         <Button
-                          icon={<DownOutlined />}
+                          icon={<ChevronDown size="1em" />}
                           aria-label="复制话术的更多选项"
                         />
                       </Dropdown>
@@ -1104,7 +1117,7 @@ const MyTasksPage: React.FC = () => {
                   {(!done || editable) && !reviewingView && (
                     <Button
                       size="small"
-                      icon={<RollbackOutlined />}
+                      icon={<Undo2 size="1em" />}
                       onClick={() => {
                         openReturn(detail.task);
                       }}
@@ -1124,7 +1137,7 @@ const MyTasksPage: React.FC = () => {
                   {editable && done && (
                     <Button
                       size="small"
-                      icon={<UndoOutlined />}
+                      icon={<Undo2 size="1em" />}
                       loading={busy}
                       onClick={withdraw}
                     >
@@ -1135,7 +1148,7 @@ const MyTasksPage: React.FC = () => {
                     <Button
                       size="small"
                       type="primary"
-                      icon={<SendOutlined />}
+                      icon={<Send size="1em" />}
                       loading={busy}
                       onClick={() => save(true)}
                     >
@@ -1387,7 +1400,7 @@ const MyTasksPage: React.FC = () => {
                         fontSize: 13,
                       }}
                     >
-                      <RollbackOutlined />
+                      <Undo2 size="1em" />
                       <span style={{ flex: 1 }}>被退回：{it.reviewNote}</span>
                       <span style={{ color: palette.mute, fontSize: 12 }}>
                         {it.reviewedByName}
@@ -1503,7 +1516,7 @@ const MyTasksPage: React.FC = () => {
                     </span>
                     <Button
                       size="small"
-                      icon={<CopyOutlined />}
+                      icon={<Copy size="1em" />}
                       onClick={() => copy(it.inquiryScript)}
                     >
                       复制话术
@@ -1534,11 +1547,11 @@ const MyTasksPage: React.FC = () => {
                             gap: 4,
                             padding: '2px 10px',
                             borderRadius: 12,
-                            background: palette.accentSoft,
+                            background: palette.neutralSoft,
                             fontSize: 12,
                           }}
                         >
-                          <ExportOutlined /> {l.platform} ·{' '}
+                          <ExternalLink size="1em" /> {l.platform} ·{' '}
                           {i === 0 ? '精确型号' : kw}
                         </a>
                       )),
@@ -1620,7 +1633,7 @@ const MyTasksPage: React.FC = () => {
                           key={q.id}
                           style={{ color: palette.mute, fontSize: 12 }}
                         >
-                          <Pill tone="red">已作废</Pill>{' '}
+                          <Pill tone="mute">已作废</Pill>{' '}
                           {formatAmount(q.unitPrice)} {channelLabel(q.channel)}{' '}
                           · {q.shopName || '—'}
                           {q.reviewNote ? `：${q.reviewNote}` : ''}
@@ -1754,9 +1767,9 @@ const MyTasksPage: React.FC = () => {
                                       }
                                       icon={
                                         d.recommended ? (
-                                          <CheckOutlined />
+                                          <Check size="1em" />
                                         ) : (
-                                          <StarOutlined />
+                                          <Star size="1em" />
                                         )
                                       }
                                       aria-pressed={!!d.recommended}
@@ -1794,7 +1807,7 @@ const MyTasksPage: React.FC = () => {
                                 type="text"
                                 danger={hoverDel === d.key}
                                 aria-label="删除这条报价"
-                                icon={<DeleteOutlined />}
+                                icon={<Trash2 size="1em" />}
                                 onMouseEnter={() => setHoverDel(d.key)}
                                 onMouseLeave={() => setHoverDel(undefined)}
                                 onClick={() => removeEntry(it.id, d.key, idx)}
@@ -2080,7 +2093,7 @@ const MyTasksPage: React.FC = () => {
                       <Button
                         block
                         type="dashed"
-                        icon={<PlusOutlined />}
+                        icon={<Plus size="1em" />}
                         onClick={() =>
                           patchItem(it.id, {
                             drafts: [...s.drafts, newEntry()],

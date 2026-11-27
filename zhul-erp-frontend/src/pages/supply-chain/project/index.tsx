@@ -1,8 +1,8 @@
-import { BulbOutlined, CheckOutlined, PlusOutlined } from '@ant-design/icons';
 import { Link, useParams } from '@umijs/max';
 import {
   App,
   Button,
+  Dropdown,
   InputNumber,
   Modal,
   Progress,
@@ -12,10 +12,13 @@ import {
   type TableColumnsType,
 } from 'antd';
 import dayjs from 'dayjs';
+import { Check, CircleX, Ellipsis, Lightbulb, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { DocLogCard, SectionTitle } from '@/components/DocFields/DocPage';
+import { tableEmpty } from '@/components/EmptyState';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import { PageTitle, useWide } from '@/pages/inquiry/shared/components';
+import { useWide } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -52,9 +55,9 @@ import {
 
 const STATUS: Record<
   number,
-  { label: string; tone: 'accent' | 'green' | 'gray' }
+  { label: string; tone: 'info' | 'green' | 'gray' }
 > = {
-  [PROJECT.ACTIVE]: { label: '进行中', tone: 'accent' },
+  [PROJECT.ACTIVE]: { label: '进行中', tone: 'info' },
   [PROJECT.DONE]: { label: '已完成', tone: 'green' },
   [PROJECT.CANCELLED]: { label: '已取消', tone: 'gray' },
 };
@@ -67,9 +70,8 @@ const DevProgress: React.FC<{
   label: string;
   value: number;
   total: number;
-  color: string;
   hint: string;
-}> = ({ label, value, total, color, hint }) => {
+}> = ({ label, value, total, hint }) => {
   const { palette } = useAppTheme();
   return (
     <div style={{ minWidth: 0 }}>
@@ -82,7 +84,8 @@ const DevProgress: React.FC<{
       <Progress
         percent={total ? Math.min(100, Math.round((value / total) * 100)) : 0}
         showInfo={false}
-        strokeColor={color}
+        // 两段进度都只用主题色（全站进度条规则），不各用一种颜色
+        strokeColor={palette.chart}
       />
       <div style={{ fontSize: 12, color: palette.mute }}>{hint}</div>
     </div>
@@ -278,6 +281,7 @@ const ProjectDetailPage: React.FC = () => {
         ),
     },
     {
+      // lint-ui-ignore row-actions: 开发候选的处理队列（记处理、关联供应商库），保留文字按钮
       title: '操作',
       key: 'op',
       width: 150,
@@ -329,7 +333,7 @@ const ProjectDetailPage: React.FC = () => {
           <CoverPill status={d.coverageStatus || undefined} />
           {solved(d) && (
             <span style={{ color: palette.green, fontSize: 13 }}>
-              <CheckOutlined /> 已解决
+              <Check size="1em" /> 已解决
             </span>
           )}
         </span>
@@ -363,18 +367,15 @@ const ProjectDetailPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={['供应链跟进', p.name]}
-        title={
-          <span
-            style={{ display: 'inline-flex', gap: 10, alignItems: 'center' }}
-          >
-            {p.name}
+      <PageHeader
+        title={p.name}
+        tags={
+          <>
             <Pill tone={st.tone}>{st.label}</Pill>
             {devTask && <Pill tone="cyan">开发供应商</Pill>}
-          </span>
+          </>
         }
-        description={[
+        sub={[
           p.brandName,
           p.categoryName,
           p.ownerName && `负责人 ${p.ownerName}`,
@@ -388,15 +389,47 @@ const ProjectDetailPage: React.FC = () => {
         ]
           .filter(Boolean)
           .join(' · ')}
-        actions={
+        // 页头操作（照销售订单详情）：一个主按钮，其余为文字按钮，取消专项收进「更多」
+        extra={
           active &&
           p.canClose && (
             <>
-              <Button onClick={() => setTargetOpen(true)}>
+              <Button
+                type="text"
+                style={{ color: palette.link }}
+                onClick={() => setTargetOpen(true)}
+              >
                 {devTask ? '改目标' : '加开发目标'}
               </Button>
-              <Button onClick={() => setItems(true)}>增减型号</Button>
-              <Button onClick={() => setClose(false)}>取消专项</Button>
+              <Button
+                type="text"
+                style={{ color: palette.link }}
+                onClick={() => setItems(true)}
+              >
+                增减型号
+              </Button>
+              <Dropdown
+                trigger={['click']}
+                placement="bottomRight"
+                menu={{
+                  items: [
+                    {
+                      key: 'cancel',
+                      icon: <CircleX size={16} />,
+                      label: '取消专项',
+                      danger: true,
+                    },
+                  ],
+                  onClick: () => setClose(false),
+                }}
+              >
+                <Button
+                  type="text"
+                  shape="circle"
+                  icon={<Ellipsis size={18} />}
+                  aria-label="更多操作"
+                />
+              </Dropdown>
               <Button type="primary" onClick={() => setClose(true)}>
                 标为已完成
               </Button>
@@ -441,7 +474,8 @@ const ProjectDetailPage: React.FC = () => {
               <Progress
                 percent={Math.round((p.solved / p.total) * 100)}
                 showInfo={false}
-                strokeColor={palette.green}
+                // 进度只用主题色（全站进度条规则）
+                strokeColor={palette.chart}
                 style={{ marginTop: 12 }}
               />
             )}
@@ -458,21 +492,19 @@ const ProjectDetailPage: React.FC = () => {
                   label="本专项合格候选"
                   value={dev.qualified}
                   total={dev.target}
-                  color={palette.green}
                   hint="候选在范围内有近 90 天的有效报价或采购订单即为合格"
                 />
                 <DevProgress
                   label="范围内合格供应商"
                   value={dev.rangeQualified}
                   total={dev.required}
-                  color={palette.link}
                   hint={`热度要求 ${dev.required} 家；含不是候选的供应商`}
                 />
               </div>
             )}
             {active && dev?.suggestClose && p.canClose && (
               <div style={{ marginTop: 12, color: palette.green }}>
-                <CheckOutlined />{' '}
+                <Check size="1em" />{' '}
                 {dev.qualified >= dev.target
                   ? '合格候选已达到目标'
                   : '这个品牌品类的合格供应商已经够了'}
@@ -531,7 +563,7 @@ const ProjectDetailPage: React.FC = () => {
                     </Button>
                     <Button
                       type="primary"
-                      icon={<PlusOutlined />}
+                      icon={<Plus size="1em" />}
                       onClick={() =>
                         setCandidate({
                           projectId: p.id,
@@ -554,8 +586,11 @@ const ProjectDetailPage: React.FC = () => {
                   pagination={false}
                   scroll={{ x: 760 }}
                   locale={{
-                    emptyText:
+                    emptyText: tableEmpty(
                       '还没有候选，从线索供应商、搜索、展会或同行介绍里加',
+                      undefined,
+                      true,
+                    ),
                   }}
                 />
               </Card>
@@ -570,7 +605,7 @@ const ProjectDetailPage: React.FC = () => {
                     color: palette.sub,
                   }}
                 >
-                  <BulbOutlined style={{ color: palette.link }} />
+                  <Lightbulb size="1em" style={{ color: palette.link }} />
                   <span>
                     范围内另有 {dev.others.length} 家合格供应商不是候选
                     {canSee &&

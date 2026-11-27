@@ -1,6 +1,6 @@
-import { LockOutlined } from '@ant-design/icons';
 import { request } from '@umijs/max';
 import { Segmented, Select } from 'antd';
+import { Lock } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Pill } from '@/pages/crm/opportunity/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -181,7 +181,7 @@ export const StatsUnitSwitch: React.FC<{
           fontWeight: 600,
         }}
       >
-        <LockOutlined style={{ color: palette.mute }} />
+        <Lock size="1em" style={{ color: palette.mute }} />
         {allowed[0].name}
       </span>
     );

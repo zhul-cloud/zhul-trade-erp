@@ -1,7 +1,9 @@
 import { Link, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table, Tooltip } from 'antd';
+import { App, Skeleton, Table } from 'antd';
+import { CircleX } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CopyText } from '@/components/CopyText';
 import {
   DocLogCard,
   InfoGrid,
@@ -10,13 +12,11 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { tableEmpty } from '@/components/EmptyState';
+import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import {
-  Card,
-  PageTitle,
-  Pill,
-  useWide,
-} from '@/pages/inquiry/shared/components';
+import { UserName } from '@/components/UserName';
+import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/sales/service';
 import {
@@ -25,8 +25,8 @@ import {
   relatedRows,
 } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import { PAY_CHANNEL_NAMES } from '../payables/payQr';
 import { METHOD, type Payment, paymentApi } from '../payables/service';
 
@@ -97,7 +97,9 @@ const PaymentDetail: React.FC = () => {
       dataIndex: 'payableNo',
       width: 150,
       render: (v: string, a) => (
-        <Link to={DOC_PATHS.payable(a.payableId)}>{v}</Link>
+        <CopyText text={v}>
+          <Link to={DOC_PATHS.payable(a.payableId)}>{v}</Link>
+        </CopyText>
       ),
     },
     {
@@ -123,11 +125,11 @@ const PaymentDetail: React.FC = () => {
       ),
     },
     {
-      title: '核销金额',
+      title: `核销金额（${cur}）`,
       dataIndex: 'amount',
       width: 130,
       align: 'right',
-      render: (v: number) => <span style={num}>{formatAmount(v, cur)}</span>,
+      render: (v: number) => <span style={num}>{formatMoney(v)}</span>,
     },
     {
       title: '核销人民币',
@@ -140,7 +142,7 @@ const PaymentDetail: React.FC = () => {
     },
   ];
 
-  const main = (
+  const info = (
     <>
       <InfoGrid
         items={[
@@ -185,6 +187,11 @@ const PaymentDetail: React.FC = () => {
           },
         ]}
       />
+    </>
+  );
+  // 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18）
+  const wideSections = (
+    <>
       <Card style={{ padding: 20, marginBottom: 16 }}>
         <SectionTitle
           extra={
@@ -206,8 +213,8 @@ const PaymentDetail: React.FC = () => {
           pagination={false}
           columns={columns}
           dataSource={p.allocations}
-          scroll={{ x: 'max-content' }}
-          locale={{ emptyText: '没有核销应付单' }}
+          scroll={{ x: tableScrollX(columns) }}
+          locale={{ emptyText: tableEmpty('没有核销应付单', undefined, true) }}
         />
       </Card>
       <DocFilesCard
@@ -225,17 +232,14 @@ const PaymentDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[<MenuLink key="list" to="/finance/payments" />, p.paymentNo]}
-        title={
-          <>
-            {p.paymentNo}
-            <Pill tone={valid ? 'green' : 'mute'}>
-              {valid ? '有效' : '已作废'}
-            </Pill>
-          </>
+      <PageHeader
+        title={p.paymentNo}
+        tags={
+          <Pill tone={valid ? 'green' : 'mute'}>
+            {valid ? '有效' : '已作废'}
+          </Pill>
         }
-        description={
+        sub={
           <>
             {p.payeeName} ·{' '}
             {sources.length ? (
@@ -243,22 +247,25 @@ const PaymentDetail: React.FC = () => {
             ) : (
               '—'
             )}{' '}
-            · {p.advanceUser || p.createBy || '—'} ·{' '}
+            · {p.advanceUser || <UserName value={p.createBy} />} ·{' '}
             {formatDateTime(p.createTime).slice(0, 16)} 创建
           </>
         }
-        actions={
+        extra={
           valid &&
           (p.canVoid || p.voidBlockedReason) && (
-            <Tooltip title={p.canVoid ? undefined : p.voidBlockedReason}>
-              <Button
-                danger
-                disabled={!p.canVoid}
-                onClick={() => setVoiding(true)}
-              >
-                作废
-              </Button>
-            </Tooltip>
+            <MoreActions
+              items={[
+                {
+                  key: 'void',
+                  label: '作废',
+                  icon: <CircleX size={16} />,
+                  danger: true,
+                  disabledReason: p.canVoid ? undefined : p.voidBlockedReason,
+                },
+              ]}
+              onClick={() => setVoiding(true)}
+            />
           )
         }
       />
@@ -272,12 +279,13 @@ const PaymentDetail: React.FC = () => {
           alignItems: 'start',
         }}
       >
-        <div style={{ minWidth: 0 }}>{main}</div>
+        <div style={{ minWidth: 0 }}>{info}</div>
         <div style={{ minWidth: 0 }}>
           <RelatedDocsCard docs={relatedRows(p.related)} />
           <DocLogCard logs={p.logs} />
         </div>
       </div>
+      {wideSections}
       <ReasonModal
         open={voiding}
         title={`作废 ${p.paymentNo}`}

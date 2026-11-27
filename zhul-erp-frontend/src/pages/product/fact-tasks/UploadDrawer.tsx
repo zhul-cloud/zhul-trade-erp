@@ -1,11 +1,3 @@
-import {
-  CheckCircleFilled,
-  CloseCircleFilled,
-  EditOutlined,
-  FileTextOutlined,
-  InboxOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
 import XMarkdown from '@ant-design/x-markdown';
 import { useAccess } from '@umijs/max';
 import {
@@ -23,8 +15,17 @@ import {
   Tooltip,
   Upload,
 } from 'antd';
+import {
+  CircleCheck,
+  CircleX,
+  FileText,
+  Inbox,
+  Pencil,
+  UploadIcon,
+} from 'lucide-react';
 import '@ant-design/x-markdown/es/XMarkdown/index.css';
 import React, { useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { PLATFORM_META } from '../products/cards/SeoCard';
@@ -355,7 +356,7 @@ export const UploadDrawer: React.FC<{
         b.target === 'shared' ? (
           <Pill tone="cyan">共享商品库</Pill>
         ) : (
-          <Pill tone="violet">本公司</Pill>
+          <Pill tone="gray">本公司</Pill>
         ),
     },
     {
@@ -364,6 +365,7 @@ export const UploadDrawer: React.FC<{
       width: 200,
       render: (_: unknown, b: ContentBlock) => (
         <Space size={8}>
+          {/* lint-ui-ignore table-switch: 导入预览里逐块选「写入 / 跳过」，不是启用、停用，读屏文字也不同 */}
           <Switch
             size="small"
             checked={!b.skipped}
@@ -382,7 +384,7 @@ export const UploadDrawer: React.FC<{
             <Button
               type="text"
               size="small"
-              icon={<EditOutlined />}
+              icon={<Pencil size="1em" />}
               onClick={() => {
                 setDraft(b.raw);
                 setEditing(b);
@@ -447,7 +449,7 @@ export const UploadDrawer: React.FC<{
                 <Button danger>放弃结果</Button>
               </Popconfirm>
             ) : (
-              <Button icon={<UploadOutlined />} onClick={reset}>
+              <Button icon={<UploadIcon size="1em" />} onClick={reset}>
                 重新选择文件
               </Button>
             )}
@@ -509,9 +511,9 @@ export const UploadDrawer: React.FC<{
                 }}
               >
                 {it.success ? (
-                  <CheckCircleFilled style={{ color: palette.green }} />
+                  <CircleCheck size="1em" style={{ color: palette.green }} />
                 ) : (
-                  <CloseCircleFilled style={{ color: palette.red }} />
+                  <CircleX size="1em" style={{ color: palette.red }} />
                 )}
                 <div>
                   <b style={{ color: palette.ink }}>{it.fileName}</b>
@@ -569,7 +571,7 @@ export const UploadDrawer: React.FC<{
                     fontSize: 13,
                   }}
                 >
-                  <FileTextOutlined /> {f.fileName}
+                  <FileText size="1em" /> {f.fileName}
                   <button
                     type="button"
                     className="zhul-link"
@@ -607,7 +609,7 @@ export const UploadDrawer: React.FC<{
             }}
           >
             <p className="ant-upload-drag-icon">
-              <InboxOutlined />
+              <Inbox size="1em" />
             </p>
             <p className="ant-upload-text">
               {loading ? '正在解析…' : '点击或拖入 Markdown 文件'}
@@ -666,12 +668,13 @@ export const UploadDrawer: React.FC<{
                       borderRadius: 10,
                       textAlign: 'left',
                       cursor: 'pointer',
-                      background: on ? palette.accentSoft : palette.inset,
+                      background: on ? palette.primarySoft : palette.inset,
                       border: `1px solid ${on ? palette.link : 'transparent'}`,
                       color: palette.ink,
                     }}
                   >
-                    <FileTextOutlined
+                    <FileText
+                      size="1em"
                       style={{ color: on ? palette.link : palette.mute }}
                     />
                     <span style={{ flex: 1, minWidth: 0 }}>
@@ -751,9 +754,7 @@ export const UploadDrawer: React.FC<{
                   {p.productLabel ?? `${p.brand ?? '—'} · ${p.model ?? '—'}`}
                 </b>
                 {(p.type || p.lang) && (
-                  <Pill tone={p.type === 'marketing' ? 'violet' : 'accent'}>
-                    {packageLabel(p)}
-                  </Pill>
+                  <Pill tone="gray">{packageLabel(p)}</Pill>
                 )}
               </div>
               {p.errors.length > 0 && (
@@ -772,7 +773,9 @@ export const UploadDrawer: React.FC<{
                 dataSource={p.blocks}
                 pagination={false}
                 loading={loading}
-                locale={{ emptyText: '没有解析到内容' }}
+                locale={{
+                  emptyText: tableEmpty('没有解析到内容', loading, true),
+                }}
                 expandable={{
                   rowExpandable: (b) => b.rows.length > 0,
                   expandedRowRender: (b) =>

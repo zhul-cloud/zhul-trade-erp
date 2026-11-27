@@ -1,27 +1,33 @@
-import {
-  CalendarOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  PlusOutlined,
-  SearchOutlined,
-  UserAddOutlined,
-} from '@ant-design/icons';
 import { history, useAccess, useModel } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Button, DatePicker, Form, Input, Select, Skeleton, Table } from 'antd';
+import { Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
+import { Eye, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
-import { CustomerSub } from '@/components/DocFields';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
+import { CustomerCell } from '@/components/DocFields';
 import EllipsisText from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  QuickFilters,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { getUserOptions } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import { Card, MigratedPill, PageTitle, Pill, StagePill } from './components';
+import { MigratedPill, Pill, StagePill } from './components';
 import { CATEGORY_ACTIVE, LIST_PATH } from './constants';
 import RegisterDrawer from './RegisterDrawer';
 import { rate } from './StatsPanel';
@@ -51,6 +57,17 @@ const toQuery = (f: FilterState): OpportunityQuery => ({
   to: f.range?.[1]?.format('YYYY-MM-DD'),
 });
 
+const QUICK_TODAY = 'today';
+
+/** 帮助文字：help-texts.md「商机管理列表」，关键词范围以 search-scope.md 为准，口径取自 OpportunityServiceImpl.summary() */
+export const HELP = {
+  page: '记录每个新客户从首次接触到赢单的过程；老客户的新需求请直接新建询盘',
+  keyword:
+    '可搜：商机编号；客户编号、名称、联系人、邮箱、WhatsApp。包含匹配，整段文字一起匹配',
+  weekNew: '本周（周一起）首次接触的商机数',
+  monthValid: '本月首次接触的商机里，进入过 S3（有效）的比例',
+} as const;
+
 const OpportunityPage: React.FC = () => {
   const { options: sourceOptions, labelOf: sourceLabel } = useDictOptions(
     DICT_SOURCE_CHANNEL,
@@ -64,7 +81,7 @@ const OpportunityPage: React.FC = () => {
   const [form] = Form.useForm<FilterState>();
   const [query, setQuery] = useState<OpportunityQuery>({});
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = usePageSize(10);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<OpportunityItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -73,6 +90,7 @@ const OpportunityPage: React.FC = () => {
   const [stages, setStages] = useState<OpportunityStage[]>([]);
   const [owners, setOwners] = useState<{ value: number; label: string }[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [todayOnly, setTodayOnly] = useState(false);
 
   useEffect(() => {
     opportunityApi
@@ -98,7 +116,14 @@ const OpportunityPage: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await opportunityApi.page({ ...query, page, pageSize });
+      // 快捷筛选「今日新增」：首次接触日期取今天，与汇总口径一致
+      const today = dayjs().format('YYYY-MM-DD');
+      const res = await opportunityApi.page({
+        ...query,
+        ...(todayOnly ? { from: today, to: today } : {}),
+        page,
+        pageSize,
+      });
       setRows(res.records);
       setTotal(res.total);
     } catch (e) {
@@ -106,7 +131,7 @@ const OpportunityPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [query, page, pageSize]);
+  }, [query, todayOnly, page, pageSize]);
 
   useEffect(() => {
     load();
@@ -133,51 +158,55 @@ const OpportunityPage: React.FC = () => {
   };
   const reset = () => {
     form.resetFields();
+    setTodayOnly(false);
     setPage(1);
     setQuery({});
   };
 
   const columns: TableColumnsType<OpportunityItem> = [
     {
-      title: '商机编号',
+      title: '商机编号 · 首次接触',
       dataIndex: 'opportunityCode',
-      width: 160,
+      width: 170,
+      fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(`${LIST_PATH}/${r.id}`)}
-          >
-            {v}
-          </button>
+          <CopyText text={v}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(`${LIST_PATH}/${r.id}`)}
+            >
+              {v}
+            </button>
+          </CopyText>
           {r.migrated && (
             <div style={{ marginTop: 4 }}>
               <MigratedPill migrated />
             </div>
           )}
+          <div className="num" style={{ fontSize: 12, color: palette.mute }}>
+            {r.firstContactDate}
+          </div>
         </div>
       ),
     },
     {
       title: '客户',
       dataIndex: 'customerName',
-      width: 280,
+      width: 260,
       render: (_, r) => (
         <div style={{ minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontWeight: 600, color: palette.ink }}>
-              {r.customerName}
-            </span>
-            {r.customerNameMissing && <Pill tone="orange">未填客户名称</Pill>}
-          </div>
-          <div style={{ fontSize: 12, color: palette.mute }}>
-            <CustomerSub
-              country={r.country}
-              contact={r.customerContact}
-              empty={null}
-            />
-          </div>
+          <CustomerCell
+            name={r.customerName}
+            country={r.country}
+            contact={r.customerContact}
+          />
+          {r.customerNameMissing && (
+            <div style={{ marginTop: 4 }}>
+              <Pill tone="orange">未填客户名称</Pill>
+            </div>
+          )}
         </div>
       ),
     },
@@ -192,12 +221,6 @@ const OpportunityPage: React.FC = () => {
           }
         />
       ),
-    },
-    {
-      title: '首次接触',
-      dataIndex: 'firstContactDate',
-      width: 120,
-      render: (v: string) => <span className="num">{v}</span>,
     },
     {
       title: '阶段',
@@ -228,111 +251,70 @@ const OpportunityPage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 90,
+      width: rowActionsWidth(1),
       fixed: 'right',
       render: (_, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => history.push(`${LIST_PATH}/${r.id}`)}
-        >
-          查看
-        </button>
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(`${LIST_PATH}/${r.id}`),
+            },
+          ]}
+        />
       ),
     },
   ];
+  const columnsSet = useColumnSettings('crm-opportunity', columns, {
+    hidden: ['来源渠道'],
+  });
 
-  const kpis = [
-    {
-      icon: <UserAddOutlined />,
-      label: '今日新增',
-      value: summary?.todayNew,
-      hint: summary ? `其中无效 ${summary.todayInvalid}` : '',
-      color: palette.link,
-    },
-    {
-      icon: <CalendarOutlined />,
-      label: '本周新增',
-      value: summary?.weekNew,
-      hint: summary ? `上周 ${summary.lastWeekNew}` : '',
-      color: palette.link,
-    },
-    {
-      icon: <ClockCircleOutlined />,
-      label: '待跟进（S1）',
-      value: summary?.firstStageCount,
-      hint: summary?.firstStageStale
-        ? `超过 2 天未推进 ${summary.firstStageStale} 条`
-        : '都在 2 天内',
-      color: summary?.firstStageStale ? palette.orange : palette.mute,
-    },
-    {
-      icon: <CheckCircleOutlined />,
-      label: '本月有效率',
-      value: summary ? rate(summary.monthValid, summary.monthNew) : undefined,
-      hint: '有效 = 进入过 S3',
-      color: palette.green,
-    },
-  ];
-
+  const firstStage = stages.find((s) => s.category === CATEGORY_ACTIVE)?.code;
   const stageOptions = [
     { value: 'ACTIVE', label: '进行中' },
     { value: 'CLOSED', label: '已结束' },
-    ...stages.map((s) => ({
-      value: s.code,
-      label: s.category === CATEGORY_ACTIVE ? `${s.code} ${s.name}` : s.name,
-    })),
+    ...stages.map((s) => {
+      const name =
+        s.category === CATEGORY_ACTIVE ? `${s.code} ${s.name}` : s.name;
+      // 原「待跟进（S1）」卡片的数量并入阶段下拉（stat-cards.md 状态类）
+      const n = s.code === firstStage ? summary?.firstStageCount : undefined;
+      return { value: s.code, label: n ? `${name} · ${n}` : name };
+    }),
   ];
 
-  let body: React.ReactNode;
-  if (error) {
-    body = <ErrorHint message={error} onRetry={load} />;
-  } else if (!loading && total === 0 && JSON.stringify(query) === '{}') {
-    body = (
-      <EmptyHint
-        title="还没有商机"
-        description="接到新客户时登记一条商机，每天各渠道的新增和有效情况会自动统计。"
-        actionText={canAdd ? '登记商机' : undefined}
-        onAction={canAdd ? () => setDrawerOpen(true) : undefined}
-      />
-    );
-  } else {
-    body = (
-      <Table<OpportunityItem>
-        rowKey="id"
-        loading={loading}
-        columns={columns}
-        dataSource={rows}
-        scroll={{ x: tableScrollX(columns) }}
-        locale={{ emptyText: '没有符合条件的商机，换个筛选条件试试' }}
-        onRow={(r) => ({
-          style: { cursor: 'pointer' },
-          onDoubleClick: () => history.push(`${LIST_PATH}/${r.id}`),
-        })}
-        pagination={{
-          current: page,
-          pageSize,
-          total,
-          showSizeChanger: true,
-          showTotal: (t) => `共 ${t} 条`,
-          onChange: (p, s) => {
-            setPage(p);
-            setPageSize(s);
-          },
-        }}
-      />
-    );
-  }
+  /** 搜索条件里的下拉：标签在上，读屏名称与标签相同 */
+  const select = (
+    name: keyof FilterState,
+    label: string,
+    options: { value: string | number; label: string }[],
+    extra?: React.ComponentProps<typeof Select>,
+  ) => (
+    <FilterField label={label}>
+      <Form.Item name={name} noStyle>
+        <Select
+          allowClear
+          placeholder="全部"
+          aria-label={label}
+          options={options}
+          {...extra}
+        />
+      </Form.Item>
+    </FilterField>
+  );
+
+  const noQuery = JSON.stringify(query) === '{}' && !todayOnly;
 
   return (
-    <div style={{ color: palette.ink }}>
-      <PageTitle
-        description="记录每个新客户从首次接触到赢单的过程；老客户的新需求请直接新建询盘。"
-        actions={
+    <div>
+      <PageHeader
+        help={HELP.page}
+        extra={
           canAdd && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size={18} />}
               onClick={() => setDrawerOpen(true)}
             >
               登记商机
@@ -340,140 +322,139 @@ const OpportunityPage: React.FC = () => {
           )
         }
       />
-      {/* 列宽写成 minmax(0, 1fr)：不写时网格列按内容撑开，宽表格会把整页撑出横向滚动（audit UI-041） */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1fr)',
-          gap: 20,
-        }}
-      >
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-            gap: 16,
-          }}
+      {summary && (
+        <SummaryBar
+          items={[
+            {
+              key: 'week',
+              label: '本周新增',
+              help: HELP.weekNew,
+              value: summary.weekNew,
+              sub: `上周 ${summary.lastWeekNew}`,
+            },
+            {
+              key: 'valid',
+              label: '本月有效率',
+              help: HELP.monthValid,
+              value: rate(summary.monthValid, summary.monthNew),
+            },
+          ]}
+        />
+      )}
+
+      <Form<FilterState> form={form} component={false}>
+        <FilterCard
+          onSearch={search}
+          onReset={reset}
+          // 列宽 110：关键词、阶段、首次接触日期排一行
+          minColumn={110}
+          moreCount={
+            [query.sourceChannel, query.ownerId].filter(Boolean).length
+          }
+          more={
+            <>
+              {select('sourceChannel', '来源渠道', sourceOptions)}
+              {owners.length > 0 &&
+                select('ownerId', '负责人', owners, {
+                  showSearch: { optionFilterProp: 'label' },
+                })}
+            </>
+          }
         >
-          {kpis.map((k) => (
-            <Card key={k.label} style={{ padding: 20 }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  color: palette.mute,
-                }}
-              >
-                <span
-                  aria-hidden
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 32,
-                    height: 32,
-                    borderRadius: 10,
-                    color: k.color,
-                    background: palette.accentSoft,
-                  }}
-                >
-                  {k.icon}
-                </span>
-                {k.label}
-              </div>
-              {summary ? (
-                <div
-                  className="num"
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 700,
-                    margin: '10px 0 4px',
-                  }}
-                >
-                  {k.value}
-                </div>
-              ) : (
-                <Skeleton
-                  active
-                  paragraph={false}
-                  style={{ margin: '12px 0' }}
-                />
-              )}
-              <div style={{ fontSize: 12, color: k.color }}>{k.hint}</div>
-            </Card>
-          ))}
-        </div>
+          <FilterField label="关键词" span={2} help={HELP.keyword}>
+            <Form.Item name="keyword" noStyle>
+              <Input
+                allowClear
+                prefix={<Search size={16} />}
+                placeholder="商机编号、客户、联系人"
+                aria-label="关键词"
+                onPressEnter={search}
+              />
+            </Form.Item>
+          </FilterField>
+          {select('stage', '阶段', stageOptions, {
+            // 切换阶段立即查询（doc-list-unify 状态下拉的写法）
+            onChange: () => search(),
+          })}
+          <FilterField
+            label="首次接触日期"
+            span={2}
+            htmlFor="opportunity-first-contact"
+          >
+            <Form.Item name="range" noStyle>
+              <DatePicker.RangePicker
+                id={{ start: 'opportunity-first-contact' }}
+                style={{ width: '100%' }}
+                // 「今日新增」打开时日期固定取今天，日期框置灰，避免看起来还按这里的范围查
+                disabled={todayOnly}
+              />
+            </Form.Item>
+          </FilterField>
+        </FilterCard>
+      </Form>
 
-        <Card>
-          <Form<FilterState> form={form} layout="vertical" onFinish={search}>
-            <div
-              style={{
-                display: 'flex',
-                gap: 20,
-                alignItems: 'flex-end',
-                flexWrap: 'wrap',
+      {error ? (
+        <ErrorHint message={error} onRetry={load} />
+      ) : !loading && total === 0 && noQuery ? (
+        <MainCard>
+          <EmptyHint
+            title="还没有商机"
+            description="接到新客户时登记一条商机，每天各渠道的新增和有效情况会自动统计。"
+            actionText={canAdd ? '登记商机' : undefined}
+            onAction={canAdd ? () => setDrawerOpen(true) : undefined}
+          />
+        </MainCard>
+      ) : (
+        <MainCard
+          settings={columnsSet.settings}
+          count={total}
+          loading={loading}
+          quick={
+            <QuickFilters
+              options={[
+                {
+                  value: QUICK_TODAY,
+                  label: '今日新增',
+                  count: summary?.todayNew,
+                },
+              ]}
+              value={todayOnly ? [QUICK_TODAY] : []}
+              onChange={(v) => {
+                setTodayOnly(v.includes(QUICK_TODAY));
+                setPage(1);
               }}
-            >
-              <Form.Item
-                name="keyword"
-                label="关键词"
-                style={{ flex: 1, minWidth: 260, marginBottom: 0 }}
-              >
-                <Input
-                  allowClear
-                  prefix={<SearchOutlined />}
-                  placeholder="商机编号、客户、联系人、邮箱或 WhatsApp"
-                />
-              </Form.Item>
-              <Form.Item
-                name="sourceChannel"
-                label="来源渠道"
-                style={{ width: 180, marginBottom: 0 }}
-              >
-                <Select allowClear placeholder="全部" options={sourceOptions} />
-              </Form.Item>
-              <Form.Item
-                name="stage"
-                label="阶段"
-                style={{ width: 160, marginBottom: 0 }}
-              >
-                <Select allowClear placeholder="全部" options={stageOptions} />
-              </Form.Item>
-              {owners.length > 0 && (
-                <Form.Item
-                  name="ownerId"
-                  label="负责人"
-                  style={{ width: 150, marginBottom: 0 }}
-                >
-                  <Select
-                    allowClear
-                    showSearch={{ optionFilterProp: 'label' }}
-                    placeholder="全部"
-                    options={owners}
-                  />
-                </Form.Item>
-              )}
-              <Form.Item
-                name="range"
-                label="首次接触日期"
-                style={{ width: 260, marginBottom: 0 }}
-              >
-                <DatePicker.RangePicker style={{ width: '100%' }} />
-              </Form.Item>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <Button onClick={reset}>重置</Button>
-                <Button type="primary" htmlType="submit">
-                  查询
-                </Button>
-              </div>
-            </div>
-          </Form>
-        </Card>
-
-        <div style={{ fontSize: 14, fontWeight: 600 }}>共 {total} 条记录</div>
-        {body}
-      </div>
+            />
+          }
+        >
+          <Table<OpportunityItem>
+            rowKey="id"
+            loading={loading}
+            columns={columnsSet.columns}
+            dataSource={rows}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
+            locale={{
+              emptyText: tableEmpty(
+                '没有符合条件的商机，换个筛选条件试试',
+                loading,
+              ),
+            }}
+            onRow={(r) => ({
+              style: { cursor: 'pointer' },
+              onDoubleClick: () => history.push(`${LIST_PATH}/${r.id}`),
+            })}
+            pagination={{
+              ...PAGER_STYLE,
+              current: page,
+              pageSize,
+              total,
+              onChange: (p, s) => {
+                setPage(p);
+                setPageSize(s);
+              },
+            }}
+          />
+        </MainCard>
+      )}
       <RegisterDrawer
         open={drawerOpen}
         ownerName={initialState?.currentUser?.name}

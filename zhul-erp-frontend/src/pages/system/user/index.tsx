@@ -1,12 +1,3 @@
-import {
-  ApartmentOutlined,
-  CheckCircleOutlined,
-  KeyOutlined,
-  StopOutlined,
-  TeamOutlined,
-  UserAddOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   ModalForm,
@@ -22,17 +13,40 @@ import {
   App,
   Avatar,
   Button,
-  Card,
   Form,
   Input,
   Modal,
-  Popconfirm,
+  Select,
   Space,
   Tag,
+  TreeSelect,
 } from 'antd';
+import {
+  Ban,
+  CircleCheck,
+  KeyRound,
+  Network,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  User,
+} from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
-import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import EllipsisText from '@/components/EllipsisText';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  SummaryBar,
+} from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { proAuditColumns } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
+import { seriesFor, textOn } from '@/theme/palette';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import type { UserItem, UserStats } from './service';
@@ -49,14 +63,13 @@ import {
   updateUserStatus,
 } from './service';
 
-const AVATAR_COLORS = [
-  '#1677FF',
-  '#16A34A',
-  '#F59E0B',
-  '#7C3AED',
-  '#DC2626',
-  '#0EA5E9',
-];
+/** 头像底色轮流取图表系列色（不表达状态） */
+
+/** 帮助文字：help-texts.md「用户管理」 */
+export const HELP = {
+  total: '没有删除的用户',
+  newThisMonth: '本月 1 日起新建的用户',
+} as const;
 
 const DEPT_TREE_PROPS = {
   treeDefaultExpandAll: true,
@@ -65,8 +78,10 @@ const DEPT_TREE_PROPS = {
 };
 
 const UserPage: React.FC = () => {
-  const pager = usePagination(10);
-  const { palette: p } = useAppTheme();
+  const pager = usePagination(20);
+  const { palette: p, mode } = useAppTheme();
+  // 头像底色用图表系列色，深浅模式各一组；字色按底色取白或深色（白字在绿、青上不足 3:1）
+  const avatarColors = seriesFor(mode);
   const actionRef = useRef<ActionType>(undefined);
   const { message } = App.useApp();
   const access = useAccess();
@@ -77,6 +92,24 @@ const UserPage: React.FC = () => {
   const [resetPwdUserId, setResetPwdUserId] = useState<number | null>(null);
   const [pwdForm] = Form.useForm();
   const [stats, setStats] = useState<UserStats | null>(null);
+  /** 搜索条件：状态切换后立即查询，姓名、部门点「查询」才生效 */
+  const [filters, setFilters] = useState<{
+    name?: string;
+    deptId?: number;
+    status?: number;
+  }>({});
+  const [keyword, setKeyword] = useState('');
+  const [draftDept, setDraftDept] = useState<number>();
+  const [deptTree, setDeptTree] = useState<
+    Awaited<ReturnType<typeof getDeptTreeOptions>>
+  >([]);
+  // 首次查询返回前没有总数，主卡不显示「共 0 条」
+  const [total, setTotal] = useState<number>();
+  useEffect(() => {
+    getDeptTreeOptions()
+      .then(setDeptTree)
+      .catch(() => setDeptTree([]));
+  }, []);
 
   const loadStats = async () => {
     const res = await getUserStats();
@@ -181,7 +214,7 @@ const UserPage: React.FC = () => {
   // username 记入各表的创建人 / 更新人（varchar(32)），最长 32
   const renderFormItems = (isCreate: boolean) => (
     <>
-      <ProForm.Group title={groupTitle(<UserOutlined />, '基础信息')}>
+      <ProForm.Group title={groupTitle(<User size="1em" />, '基础信息')}>
         {isCreate && (
           <ProFormText
             name="username"
@@ -223,7 +256,7 @@ const UserPage: React.FC = () => {
           fieldProps={{ maxLength: 64 }}
         />
       </ProForm.Group>
-      <ProForm.Group title={groupTitle(<ApartmentOutlined />, '组织信息')}>
+      <ProForm.Group title={groupTitle(<Network size="1em" />, '组织信息')}>
         <ProFormTreeSelect
           name="deptId"
           label="所属部门"
@@ -248,7 +281,7 @@ const UserPage: React.FC = () => {
           rules={[{ required: true, message: '请选择角色' }]}
         />
       </ProForm.Group>
-      <ProForm.Group title={groupTitle(<KeyOutlined />, '账号设置')}>
+      <ProForm.Group title={groupTitle(<KeyRound size="1em" />, '账号设置')}>
         {isCreate && (
           <ProFormText.Password
             name="password"
@@ -272,16 +305,20 @@ const UserPage: React.FC = () => {
     </>
   );
 
+  const confirmDanger = useConfirmDanger();
   const columns: ProColumns<UserItem>[] = [
     {
+      fixed: 'left',
       title: '用户',
       dataIndex: 'name',
       width: 220,
+      search: false,
       render: (_, record, index) => (
         <Space style={{ maxWidth: '100%' }} styles={{ item: { minWidth: 0 } }}>
           <Avatar
             style={{
-              backgroundColor: AVATAR_COLORS[index % AVATAR_COLORS.length],
+              backgroundColor: avatarColors[index % avatarColors.length],
+              color: textOn(avatarColors[index % avatarColors.length]),
             }}
           >
             {(record.nickname || record.name || '?').charAt(0)}
@@ -308,9 +345,7 @@ const UserPage: React.FC = () => {
       title: '部门',
       dataIndex: 'deptId',
       width: 140,
-      valueType: 'treeSelect',
-      request: getDeptTreeOptions,
-      fieldProps: DEPT_TREE_PROPS,
+      search: false,
       render: (_, record) => record.deptName,
     },
     { title: '岗位', dataIndex: 'positionName', width: 120, search: false },
@@ -336,10 +371,7 @@ const UserPage: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 90,
-      valueEnum: {
-        0: { text: '禁用', status: 'Error' },
-        1: { text: '启用', status: 'Success' },
-      },
+      search: false,
       render: (_, record) => (
         <Tag
           color={record.status === 1 ? 'success' : 'default'}
@@ -349,186 +381,190 @@ const UserPage: React.FC = () => {
         </Tag>
       ),
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      width: 160,
-      search: false,
-      valueType: 'dateTime',
-    },
-    {
-      title: '创建人',
-      dataIndex: 'createBy',
-      width: 150,
-      render: ellipsisRender,
-      search: false,
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      width: 160,
-      search: false,
-      valueType: 'dateTime',
-    },
-    {
-      title: '更新人',
-      dataIndex: 'updateBy',
-      width: 150,
-      render: ellipsisRender,
-      search: false,
-    },
+    ...proAuditColumns<UserItem>(),
     {
       title: '操作',
       fixed: 'right',
       valueType: 'option',
-      width: 220,
-      render: (_, record) => (
-        <Space>
-          {!!(access as Record<string, unknown>)['system:user:edit'] && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => {
-                setEditingUser(record);
-                setEditOpen(true);
-              }}
-            >
-              编辑
-            </button>
-          )}
-          {!!(access as Record<string, unknown>)['system:user:resetPwd'] && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => {
+      // 编辑放行内；重置密码、启用/禁用、删除收进「更多」，危险项在末尾（ui-redesign S6）
+      width: rowActionsWidth(2),
+      render: (_, record) => {
+        const can = (k: string) => !!(access as Record<string, unknown>)[k];
+        const enabled = record.status === 1;
+        return (
+          <RowActions
+            inline={[
+              can('system:user:edit') && {
+                key: 'edit',
+                label: '编辑',
+                icon: <Pencil size={18} />,
+                onClick: () => {
+                  setEditingUser(record);
+                  setEditOpen(true);
+                },
+              },
+            ]}
+            more={[
+              can('system:user:resetPwd') && {
+                key: 'resetPwd',
+                label: '重置密码',
+                icon: <KeyRound size={16} />,
+              },
+              can('system:user:status') && {
+                key: 'status',
+                label: enabled ? '禁用' : '启用',
+                icon: enabled ? <Ban size={16} /> : <CircleCheck size={16} />,
+                danger: enabled,
+              },
+              can('system:user:delete') && {
+                key: 'delete',
+                label: '删除',
+                icon: <Trash2 size={16} />,
+                danger: true,
+              },
+            ]}
+            onMore={(key) => {
+              if (key === 'resetPwd') {
                 setResetPwdUserId(record.id);
                 setResetPwdOpen(true);
-              }}
-            >
-              重置密码
-            </button>
-          )}
-          {!!(access as Record<string, unknown>)['system:user:status'] && (
-            <Popconfirm
-              title={
-                record.status === 1 ? '确认禁用该用户？' : '确认启用该用户？'
               }
-              onConfirm={() => handleStatusChange(record)}
-            >
-              <a style={{ color: record.status === 1 ? p.red : p.green }}>
-                {record.status === 1 ? '禁用' : '启用'}
-              </a>
-            </Popconfirm>
-          )}
-          {!!(access as Record<string, unknown>)['system:user:delete'] && (
-            <Popconfirm
-              title="确认删除该用户？"
-              onConfirm={() => handleDelete(record.id)}
-            >
-              <a style={{ color: p.red }}>删除</a>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
+              if (key === 'status') {
+                if (enabled) {
+                  confirmDanger({
+                    title: `禁用用户「${record.name || record.username}」？`,
+                    okText: '禁用',
+                    onOk: () => handleStatusChange(record),
+                  });
+                } else {
+                  handleStatusChange(record);
+                }
+              }
+              if (key === 'delete') {
+                confirmDanger({
+                  title: `删除用户「${record.name || record.username}」？`,
+                  onOk: () => handleDelete(record.id),
+                });
+              }
+            }}
+          />
+        );
+      },
     },
   ];
+  const columnsSet = useColumnSettings('system-user', columns, {
+    hidden: ['岗位'],
+  });
 
-  const statCards = [
-    {
-      icon: <TeamOutlined />,
-      color: p.link,
-      bg: p.accentSoft,
-      label: '总用户数',
-      value: stats?.total,
-    },
-    {
-      icon: <CheckCircleOutlined />,
-      color: p.green,
-      bg: p.greenSoft,
-      label: '启用用户',
-      value: stats?.enabled,
-    },
-    {
-      icon: <StopOutlined />,
-      color: p.mute,
-      bg: p.inset,
-      label: '禁用用户',
-      value: stats?.disabled,
-    },
-    {
-      icon: <UserAddOutlined />,
-      color: p.violet,
-      bg: p.violetSoft,
-      label: '本月新增',
-      value: stats?.newThisMonth,
-    },
-  ];
+  /** 状态数量并入状态下拉（stat-cards.md：用户管理） */
+  const withCount = (label: string, n?: number) =>
+    n ? `${label} · ${n}` : label;
+  const search = () => {
+    setFilters({
+      ...filters,
+      name: keyword.trim() || undefined,
+      deptId: draftDept,
+    });
+  };
 
   return (
     <>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 16,
-          marginBottom: 16,
-        }}
-      >
-        {statCards.map((s) => (
-          <Card key={s.label} styles={{ body: { padding: 20 } }}>
-            <Space align="center">
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: s.bg,
-                  color: s.color,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 18,
-                }}
-              >
-                {s.icon}
-              </div>
-              <span style={{ color: p.mute }}>{s.label}</span>
-            </Space>
-            <div style={{ fontSize: 28, fontWeight: 700, marginTop: 12 }}>
-              {s.value ?? '-'}
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      <ProTable<UserItem>
-        scroll={{ x: tableScrollX(columns) }}
-        headerTitle="用户列表"
-        actionRef={actionRef}
-        rowKey="id"
-        columns={columns}
-        request={async (params) => {
-          const res = await getUserList(params);
-          return {
-            data: res.data.records,
-            total: res.data.total,
-            success: true,
-          };
-        }}
-        pagination={pager}
-        search={{ labelWidth: 'auto' }}
-        toolBarRender={() => [
+      <PageHeader
+        extra={
           !!(access as Record<string, unknown>)['system:user:add'] && (
             <Button
-              key="add"
               type="primary"
+              icon={<Plus size={18} />}
               onClick={() => setCreateOpen(true)}
             >
               新增用户
             </Button>
-          ),
+          )
+        }
+      />
+      <SummaryBar
+        items={[
+          {
+            key: 'total',
+            label: '总用户数',
+            help: HELP.total,
+            value: stats?.total ?? '—',
+          },
+          {
+            key: 'new',
+            label: '本月新增',
+            help: HELP.newThisMonth,
+            value: stats?.newThisMonth ?? '—',
+          },
         ]}
       />
+      <FilterCard
+        onSearch={search}
+        onReset={() => {
+          setKeyword('');
+          setDraftDept(undefined);
+          setFilters({});
+          // 条件清空时 ProTable 不会自动回到第 1 页
+          actionRef.current?.setPageInfo?.({ current: 1 });
+        }}
+      >
+        <FilterField label="用户" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="姓名"
+            aria-label="用户"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={search}
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select<number>
+            allowClear
+            placeholder="全部"
+            aria-label="状态"
+            value={filters.status}
+            // 状态下拉切换后立即查询
+            onChange={(v) => setFilters({ ...filters, status: v })}
+            options={[
+              { value: 1, label: withCount('启用', stats?.enabled) },
+              { value: 0, label: withCount('禁用', stats?.disabled) },
+            ]}
+          />
+        </FilterField>
+        <FilterField label="部门">
+          <TreeSelect
+            {...DEPT_TREE_PROPS}
+            placeholder="全部"
+            aria-label="部门"
+            value={draftDept}
+            onChange={setDraftDept}
+            treeData={deptTree}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard settings={columnsSet.settings} count={total}>
+        <ProTable<UserItem>
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
+          actionRef={actionRef}
+          rowKey="id"
+          columns={columnsSet.columns}
+          params={filters}
+          request={async (params) => {
+            const res = await getUserList(params);
+            setTotal(res.data.total);
+            return {
+              data: res.data.records,
+              total: res.data.total,
+              success: true,
+            };
+          }}
+          pagination={pager}
+          search={false}
+          options={false}
+          toolBarRender={false}
+        />
+      </MainCard>
 
       {/* 新增用户 */}
       <ModalForm

@@ -83,15 +83,6 @@ export const MAX_PARTIES = 20;
 export const labelOf = (options: Option[], value?: number | null) =>
   options.find((o) => o.value === value)?.label;
 
-/** 角色标签配色（原型）：经销商蓝、集成商青、贸易商橙、OEM 绿、终端用户紫，其余灰 */
-export type Tone = 'accent' | 'cyan' | 'orange' | 'green' | 'violet' | 'gray';
-export const ROLE_TONE: Record<number, Tone> = {
-  1: 'violet',
-  2: 'cyan',
-  3: 'accent',
-  4: 'orange',
-  5: 'green',
-};
 /** 电话 / WhatsApp：+ 数字 空格 - 括号，最多 30 位 */
 export const PHONE_PATTERN = /^[+0-9 ()-]{0,30}$/;
 export const CUSTOMER_CODE_PATTERN = /^[A-Za-z0-9]{1,20}$/;

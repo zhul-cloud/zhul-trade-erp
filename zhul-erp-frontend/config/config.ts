@@ -47,6 +47,16 @@ export default defineConfig({
   publicPath: PUBLIC_PATH,
 
   /**
+   * 国旗 SVG（flag-icons，ui-redesign C2）原样复制到产物的 flags/ 目录，按需用 <img> 加载。
+   * 不能经 CSS 或 import 引用：打包器会把 SVG 转成 React 组件，背景图失效。
+   */
+  copy: [
+    { from: 'node_modules/flag-icons/flags/4x3', to: 'flags' },
+    // 圆形国旗（排行头像）用方形版，裁圆时不切掉图案
+    { from: 'node_modules/flag-icons/flags/1x1', to: 'flags/1x1' },
+  ],
+
+  /**
    * @name 兼容性设置
    * @description 设置 ie11 不一定完美兼容，需要检查自己使用的所有依赖
    * @doc https://umijs.org/docs/api/config#targets
@@ -116,7 +126,7 @@ export default defineConfig({
    */
   title: '烛龙ERP',
   // 浏览器标签页图标，与侧栏 AppLogo 一致；改图标时把 v 改一下，避免浏览器沿用缓存
-  favicons: ['/favicon.ico?v=2'],
+  favicons: ['/favicon.ico?v=3'],
   layout: {
     locale: true,
     ...defaultSettings,
@@ -138,8 +148,8 @@ export default defineConfig({
     // default zh-CN
     default: 'zh-CN',
     antd: true,
-    // default true, when it is true, will use `navigator.language` overwrite default
-    baseNavigator: true,
+    // 不跟随浏览器语言：界面文案是中文，英文浏览器下 antd 组件也要中文（ui-redesign S8）；用户在顶栏切换的语言照常生效
+    baseNavigator: false,
   },
   /**
    * @name antd 插件
@@ -150,11 +160,8 @@ export default defineConfig({
     appConfig: {},
     configProvider: {
       variant: 'outlined',
-      theme: {
-        token: {
-          fontFamily: 'AlibabaSans, sans-serif',
-        },
-      },
+      // 两个字的按钮不自动插空格（「重置」不是「重 置」），和其他按钮一致
+      button: { autoInsertSpace: false },
     },
   },
   /**

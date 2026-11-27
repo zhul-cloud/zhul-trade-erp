@@ -1,8 +1,3 @@
-import {
-  CarOutlined,
-  CheckOutlined,
-  InfoCircleOutlined,
-} from '@ant-design/icons';
 import { useModel } from '@umijs/max';
 import {
   App,
@@ -17,6 +12,7 @@ import {
   Table,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Car, Check, Info } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BoxEditor,
@@ -205,7 +201,7 @@ export const PackDrawer: React.FC<{
               color: problem && obs ? palette.orange : palette.mute,
             }}
           >
-            <InfoCircleOutlined />{' '}
+            <Info size="1em" />{' '}
             {problem && obs
               ? problem
               : '体积重 = 长 × 宽 × 高 ÷ 5000；计费重取毛重和体积重的大者'}
@@ -214,7 +210,7 @@ export const PackDrawer: React.FC<{
           <Button onClick={onClose}>取消</Button>
           <Button
             type="primary"
-            icon={<CheckOutlined />}
+            icon={<Check size="1em" />}
             loading={busy}
             disabled={!!problem}
             onClick={submit}
@@ -248,7 +244,7 @@ export const PackDrawer: React.FC<{
                 fontSize: 13,
               }}
             >
-              <InfoCircleOutlined /> 以下型号还没有营销实拍：
+              <Info size="1em" /> 以下型号还没有营销实拍：
               {missing.join('、')}
               。货发走前可以请拍摄人员补拍，不影响打包。
             </div>
@@ -265,7 +261,7 @@ export const PackDrawer: React.FC<{
                 fontSize: 13,
               }}
             >
-              <InfoCircleOutlined /> 这 {obs.length}{' '}
+              <Info size="1em" /> 这 {obs.length}{' '}
               张单共用这些箱子，要一起交快递、一起放进出运单；需要分开时在销售出库单详情里「拆开」。
             </div>
           )}
@@ -396,7 +392,7 @@ export const HandOverModal: React.FC<{
       destroyOnHidden
       title={
         <span>
-          <CarOutlined /> 交国内快递{forwarder ? ` · ${forwarder}` : ''}
+          <Car size="1em" /> 交国内快递{forwarder ? ` · ${forwarder}` : ''}
         </span>
       }
       footer={
@@ -404,7 +400,7 @@ export const HandOverModal: React.FC<{
           <Button onClick={onClose}>取消</Button>
           <Button
             type="primary"
-            icon={<CarOutlined />}
+            icon={<Car size="1em" />}
             loading={busy}
             disabled={!carrier.trim() || freight === null}
             onClick={submit}
@@ -497,7 +493,13 @@ export const HandOverModal: React.FC<{
         columns={[
           { title: '销售出库单', dataIndex: 'obNo' },
           { title: '订单', dataIndex: 'soNo' },
-          { title: '箱数', dataIndex: 'boxCount', width: 70, onCell: span },
+          {
+            title: '箱数',
+            align: 'right' as const,
+            dataIndex: 'boxCount',
+            width: 70,
+            onCell: span,
+          },
           {
             title: '计费重',
             dataIndex: 'chargeableWeight',
@@ -506,6 +508,7 @@ export const HandOverModal: React.FC<{
           },
           {
             title: '分到运费',
+            align: 'right',
             key: 'share',
             onCell: span,
             render: (_, r) =>
@@ -516,7 +519,7 @@ export const HandOverModal: React.FC<{
         ]}
       />
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 12 }}>
-        <InfoCircleOutlined />{' '}
+        <Info size="1em" />{' '}
         登记后销售出库单为「已交货代」，订单型号自动推进；运费由垫付人以后走报销。
       </div>
     </Modal>

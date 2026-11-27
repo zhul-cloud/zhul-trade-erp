@@ -1,9 +1,3 @@
-import {
-  BranchesOutlined,
-  DownloadOutlined,
-  InfoCircleOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import type { TableColumnsType } from 'antd';
 import {
   Alert,
@@ -14,10 +8,12 @@ import {
   Segmented,
   Table,
 } from 'antd';
+import { Download, GitBranch, Info, TriangleAlert } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { rowAlert } from '@/components/RowAlert';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount } from '@/utils/format';
+import { formatAmount, formatMoney } from '@/utils/format';
 import { DISCOUNT } from '../components';
 import { type Pi, type PiItem, piApi, readBizError } from '../service';
 import {
@@ -139,11 +135,11 @@ const BargainDrawer: React.FC<{
         ),
     },
     {
-      title: '售价小计',
+      title: `售价小计（${cur}）`,
       dataIndex: 'amount',
       width: 120,
       align: 'right',
-      render: (a: number) => <span style={num}>{formatAmount(a, cur)}</span>,
+      render: (a: number) => <span style={num}>{formatMoney(a)}</span>,
     },
     {
       title: trying ? '让利后折合' : '折合',
@@ -287,12 +283,11 @@ const BargainDrawer: React.FC<{
       footer={
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 12, color: palette.mute }}>
-            <InfoCircleOutlined />{' '}
-            费用不计入毛利；没有采购成本价的型号不参与测算
+            <Info size="1em" /> 费用不计入毛利；没有采购成本价的型号不参与测算
           </span>
           <Button
             style={{ marginLeft: 'auto' }}
-            icon={<DownloadOutlined />}
+            icon={<Download size="1em" />}
             disabled={!s.costed}
             onClick={exportSheet}
           >
@@ -302,7 +297,7 @@ const BargainDrawer: React.FC<{
             <Button
               type="primary"
               danger={below}
-              icon={<BranchesOutlined />}
+              icon={<GitBranch size="1em" />}
               disabled={!trying}
               loading={busy}
               onClick={apply}
@@ -488,7 +483,7 @@ const BargainDrawer: React.FC<{
                 a.margin != null &&
                 i.floorMargin != null &&
                 a.margin < i.floorMargin;
-              return red ? { style: { background: palette.redSoft } } : {};
+              return red ? rowAlert('error') : {};
             }}
           />
 
@@ -496,7 +491,7 @@ const BargainDrawer: React.FC<{
             <Alert
               type={below ? 'error' : 'warning'}
               showIcon
-              icon={<WarningOutlined />}
+              icon={<TriangleAlert size="1em" />}
               title={
                 below
                   ? `让利后整单毛利率 ${pct(margin1)}，低于红线 ${Math.abs(gap as number).toFixed(1)} 点${belowLines.length ? `；${belowLines.map((i) => i.model).join('、')} 低于各自红线` : ''}。只提示不拦截，确需让利请先和主管确认。`

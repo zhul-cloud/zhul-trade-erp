@@ -1,26 +1,37 @@
-import { WarningOutlined } from '@ant-design/icons';
-import { Link, useAccess } from '@umijs/max';
+import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   Alert,
   App,
-  Badge,
   Button,
   DatePicker,
   Input,
   InputNumber,
   Modal,
-  Segmented,
   Select,
   Space,
   Table,
-  Tabs,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Eye, Search, TriangleAlert, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  HelpTip,
+  MainCard,
+  PageHeader,
+  type Scope,
+  ScopeSwitch,
+  SummaryBar,
+  ViewTabs,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle } from '@/pages/inquiry/shared/components';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { auditColumns } from '@/pages/purchase/components';
 import { readBizError } from '@/pages/sales/service';
 import {
@@ -30,8 +41,8 @@ import {
 } from '@/pages/warehouse/components';
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount, formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { ACCEPT_PROOF, ProofLinks } from '../payables/components';
 import {
@@ -56,8 +67,17 @@ const newKey = () =>
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
+/** 帮助文字：help-texts.md「报销管理」，关键词范围以 search-scope.md 为准 */
+export const HELP = {
+  page: '勾选自己的待报销项提交，暂不审批；快递费、退货运费在这里补传截图。供应商退到你手里的钱，登记「已收到退款」后会在报销时冲减',
+  allPeople:
+    '可以代别人提交：勾选多人的垫付时，每人生成一张报销单，报销人是垫付本人',
+  pendingTotal: '数据范围内待付款的报销单合计',
+} as const;
+
 /** 登记已收到退款：供应商退到员工手里 */
 /** 从待报销撤回：撤回即作废这一项（openspec po-cancel-refund） */
+
 export const WithdrawItemModal: React.FC<{
   target?: AdvanceItem;
   onClose: () => void;
@@ -257,13 +277,11 @@ const RefundReceivedModal: React.FC<{
 const PendingTab: React.FC<{
   onSubmitted: () => void;
   onCount: (n: number) => void;
-}> = ({ onSubmitted, onCount }) => {
+  /** 我的 / 全部：页头右侧的范围切换，有「报销付款」权限才有「全部」 */
+  scope: Scope;
+}> = ({ onSubmitted, onCount, scope }) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
-  const access = useAccess() as Record<string, boolean>;
-  // 有「报销付款」权限（管理员、财务）的可以看所有人的垫付，并代别人提交
-  const canAll = !!access['finance:reimburse:pay'];
-  const [scope, setScope] = useState<'mine' | 'all'>('mine');
   const [person, setPerson] = useState<number>();
   const [items, setItems] = useState<AdvanceItem[]>([]);
   const [reminders, setReminders] = useState<RefundReminder[]>([]);
@@ -417,14 +435,16 @@ const PendingTab: React.FC<{
       width: 120,
       render: (_, i) =>
         i.withdrawable ? (
-          <Button
-            type="link"
-            size="small"
-            style={{ padding: 0 }}
-            onClick={() => setWithdrawing(i)}
-          >
-            撤回
-          </Button>
+          <RowActions
+            inline={[
+              {
+                key: 'withdraw',
+                label: '撤回',
+                icon: <Undo2 size={18} />,
+                onClick: () => setWithdrawing(i),
+              },
+            ]}
+          />
         ) : (
           <span style={{ color: palette.mute, fontSize: 12 }}>
             {i.sourceType === 2
@@ -443,7 +463,7 @@ const PendingTab: React.FC<{
         <Alert
           type="warning"
           showIcon
-          icon={<WarningOutlined />}
+          icon={<TriangleAlert size="1em" />}
           style={{ marginBottom: 16 }}
           title={`有 ${reminders.length} 笔供应商欠款还没退回`}
           description={
@@ -467,47 +487,28 @@ const PendingTab: React.FC<{
           }
         />
       )}
-      <Card>
-        {canAll && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              marginBottom: 14,
-              flexWrap: 'wrap',
-            }}
-          >
-            <Segmented<'mine' | 'all'>
-              value={scope}
-              onChange={(v) => {
-                setScope(v);
-                setPerson(undefined);
-                setSelected([]);
-              }}
-              options={[
-                { value: 'mine', label: '我的' },
-                { value: 'all', label: '全部人员' },
-              ]}
-            />
-            {scope === 'all' && (
+      <MainCard
+        left={
+          scope === 'all' ? (
+            <>
+              {`共 ${shown.length} 项`}
               <Select
                 allowClear
                 showSearch={{ optionFilterProp: 'label' }}
                 placeholder="垫付人"
+                aria-label="垫付人"
                 style={{ width: 160 }}
                 value={person}
                 onChange={setPerson}
                 options={people}
               />
-            )}
-            {scope === 'all' && (
-              <span style={{ color: palette.mute, fontSize: 12 }}>
-                可以代别人提交：勾选多人的垫付时，每人生成一张报销单，报销人是垫付本人
-              </span>
-            )}
-          </div>
-        )}
+              <HelpTip title={HELP.allPeople} />
+            </>
+          ) : (
+            `共 ${shown.length} 项`
+          )
+        }
+      >
         <Table<AdvanceItem>
           rowKey={keyOf}
           loading={loading}
@@ -518,7 +519,7 @@ const PendingTab: React.FC<{
             selectedRowKeys: selected,
             onChange: (keys) => setSelected(keys as string[]),
           }}
-          locale={{ emptyText: '没有待报销的垫付' }}
+          locale={{ emptyText: tableEmpty('没有待报销的垫付', loading) }}
           scroll={{ x: tableScrollX(columns) }}
         />
         <div
@@ -552,7 +553,7 @@ const PendingTab: React.FC<{
             提交报销单
           </Button>
         </div>
-      </Card>
+      </MainCard>
       <RefundReceivedModal
         target={refund}
         onClose={() => setRefund(undefined)}
@@ -584,6 +585,10 @@ const _ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState<Reimbursement[]>();
   const [picked, setPicked] = useState<Reimbursement[]>([]);
+  const search = () => {
+    setQuery(keyword.trim());
+    setPage(1);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -629,7 +634,9 @@ const _ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
       width: 150,
       fixed: 'left',
       render: (v: string, r) => (
-        <Link to={DOC_PATHS.reimbursement(r.id)}>{v}</Link>
+        <CopyText text={v}>
+          <Link to={DOC_PATHS.reimbursement(r.id)}>{v}</Link>
+        </CopyText>
       ),
     },
     { title: '提交人', dataIndex: 'applicantName', width: 100 },
@@ -641,11 +648,11 @@ const _ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
     },
     { title: '项数', dataIndex: 'lineCount', width: 70 },
     {
-      title: '合计',
+      title: '合计（CNY）',
       dataIndex: 'totalAmount',
       width: 130,
       align: 'right',
-      render: (v: number) => <b style={num}>{formatAmount(v, 'CNY')}</b>,
+      render: (v: number) => <b style={num}>{formatMoney(v)}</b>,
     },
     {
       title: '状态',
@@ -663,65 +670,64 @@ const _ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
     {
       title: '操作',
       key: 'op',
-      width: 90,
+      width: rowActionsWidth(1),
       fixed: 'right',
-      render: (_, r) => <Link to={DOC_PATHS.reimbursement(r.id)}>查看</Link>,
+      render: (_, r) => (
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(DOC_PATHS.reimbursement(r.id)),
+            },
+          ]}
+        />
+      ),
     },
   ];
+  const columnsSet = useColumnSettings('finance-reimbursements', columns);
 
   return (
     <div>
-      <div
-        style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}
+      <SummaryBar
+        items={[
+          {
+            key: 'pendingTotal',
+            label: '待付款合计',
+            help: HELP.pendingTotal,
+            value: pendingTotal,
+            currency: 'CNY',
+          },
+        ]}
+      />
+      <FilterCard
+        onSearch={search}
+        onReset={() => {
+          setKeyword('');
+          setQuery('');
+          setStatus(undefined);
+          setPage(1);
+        }}
       >
-        <div
-          style={{
-            flex: '0 1 260px',
-            padding: '16px 18px',
-            borderRadius: 14,
-            background: palette.card,
-            border: `1px solid ${palette.hairline}`,
-          }}
-        >
-          <div style={{ fontSize: 13, color: palette.sub }}>待付款合计</div>
-          <div
-            style={{
-              ...num,
-              fontSize: 22,
-              fontWeight: 800,
-              color: palette.orange,
-              marginTop: 4,
-            }}
-          >
-            {formatAmount(pendingTotal, 'CNY')}
-          </div>
-        </div>
-      </div>
-      <Card>
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            marginBottom: 14,
-            flexWrap: 'wrap',
-          }}
-        >
+        <FilterField label="关键词" span={2}>
           <Input
             allowClear
-            placeholder="编号、提交人"
-            style={{ width: 200 }}
+            prefix={<Search size={16} />}
+            placeholder="报销单号、提交人"
+            aria-label="关键词"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            onPressEnter={() => {
-              setQuery(keyword.trim());
-              setPage(1);
-            }}
+            onPressEnter={search}
           />
+        </FilterField>
+        <FilterField label="状态">
           <Select
             allowClear
-            placeholder="状态"
-            style={{ width: 120 }}
+            placeholder="全部"
+            aria-label="状态"
             value={status}
+            // 状态下拉切换后立即查询
             onChange={(v) => {
               setStatus(v);
               setPage(1);
@@ -731,19 +737,51 @@ const _ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
               label: m.label,
             }))}
           />
-          <Button
-            onClick={() => {
-              setQuery(keyword.trim());
-              setPage(1);
-            }}
-          >
-            查询
-          </Button>
-        </div>
+        </FilterField>
+      </FilterCard>
+      <MainCard
+        settings={columnsSet.settings}
+        left={
+          picked.length > 0 ? (
+            <>
+              <b style={{ color: palette.link }}>
+                已选 {picked.length} 张（
+                {new Set(picked.map((r) => r.applicantId)).size} 人）
+              </b>
+              <span>
+                合计{' '}
+                {formatAmount(
+                  picked.reduce((s, r) => s + r.totalAmount, 0),
+                  'CNY',
+                )}
+              </span>
+              {picked.length > 50 && (
+                <span style={{ color: palette.orange }}>一次最多 50 张</span>
+              )}
+            </>
+          ) : (
+            `共 ${total} 条`
+          )
+        }
+        right={
+          picked.length > 0 && (
+            <>
+              <Button onClick={() => setPicked([])}>取消选择</Button>
+              <Button
+                type="primary"
+                disabled={picked.length > 50}
+                onClick={() => setPaying(picked)}
+              >
+                批量登记已付
+              </Button>
+            </>
+          )
+        }
+      >
         <Table<Reimbursement>
           rowKey="id"
           loading={loading}
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
           rowSelection={
             canPay
@@ -757,59 +795,19 @@ const _ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
                 }
               : undefined
           }
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           pagination={{
+            ...PAGER_STYLE,
             current: page,
             pageSize,
             total,
-            showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
             onChange: (p, s) => {
               setPage(p);
               setPageSize(s);
             },
           }}
         />
-        {picked.length > 0 && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              marginTop: 14,
-              padding: '12px 18px',
-              borderRadius: 12,
-              background: palette.inset,
-              flexWrap: 'wrap',
-            }}
-          >
-            <span>
-              已选 {picked.length} 张（
-              {new Set(picked.map((r) => r.applicantId)).size} 人），合计{' '}
-              <b style={{ ...num, fontSize: 18 }}>
-                {formatAmount(
-                  picked.reduce((s, r) => s + r.totalAmount, 0),
-                  'CNY',
-                )}
-              </b>
-            </span>
-            {picked.length > 50 && (
-              <span style={{ color: palette.orange, fontSize: 12 }}>
-                一次最多 50 张
-              </span>
-            )}
-            <span style={{ flex: 1 }} />
-            <Button onClick={() => setPicked([])}>取消选择</Button>
-            <Button
-              type="primary"
-              disabled={picked.length > 50}
-              onClick={() => setPaying(picked)}
-            >
-              批量登记已付
-            </Button>
-          </div>
-        )}
-      </Card>
+      </MainCard>
       <PayModal
         targets={paying}
         onClose={() => setPaying(undefined)}
@@ -824,28 +822,36 @@ const _ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
 
 /** 财务管理 → 报销单：员工提交本人的垫付，财务登记已付 */
 const ReimbursementPage: React.FC = () => {
+  const access = useAccess() as Record<string, boolean>;
+  // 有「报销付款」权限（管理员、财务）的可以看所有人的垫付，并代别人提交
+  const canAll = !!access['finance:reimburse:pay'];
+  const [scope, setScope] = useState<Scope>('mine');
   const [tab, setTab] = useState('pending');
   const [count, setCount] = useState<number>();
   const [signal, setSignal] = useState(0);
   const onCount = useCallback((n: number) => setCount(n), []);
   return (
     <div>
-      <PageTitle description="勾选自己的待报销项提交，暂不审批；快递费、退货运费在这里补传截图。供应商退到你手里的钱，登记「已收到退款」后会在报销时冲减。" />
-      <Tabs
+      <PageHeader
+        help={HELP.page}
+        extra={
+          canAll && tab === 'pending' ? (
+            <ScopeSwitch value={scope} onChange={setScope} />
+          ) : undefined
+        }
+      />
+      <ViewTabs
         activeKey={tab}
         onChange={setTab}
         items={[
           {
             key: 'pending',
-            label: (
-              <span
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-              >
-                待报销 {count ? <Badge count={count} color="orange" /> : null}
-              </span>
-            ),
+            label: '待报销',
+            count,
             children: (
               <PendingTab
+                key={scope}
+                scope={scope}
                 onCount={onCount}
                 onSubmitted={() => {
                   setSignal((s) => s + 1);

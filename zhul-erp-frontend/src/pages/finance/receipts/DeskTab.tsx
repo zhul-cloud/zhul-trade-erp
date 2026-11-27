@@ -1,19 +1,23 @@
-import {
-  BankOutlined,
-  FileTextOutlined,
-  PaperClipOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Form, Input, Segmented, Select, Table } from 'antd';
+import { App, Button, Form, Input, Select, Table } from 'antd';
+import { FileText, Landmark, Paperclip, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
-import { CustomerSub } from '@/components/DocFields';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
+import { CustomerCell } from '@/components/DocFields';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  HelpTip,
+  MainCard,
+  QuickFilters,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { useFilePreview } from '@/pages/inquiry/shared/FilePreview';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
-  Card,
   PATHS,
   RECEIPT_META,
   ReceiptStatusPill,
@@ -31,7 +35,7 @@ import {
 } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 
 interface Filters {
@@ -41,12 +45,23 @@ interface Filters {
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 
+/** 帮助文字：help-texts.md「收款管理」，关键词范围以 search-scope.md 为准 */
+export const DESK_HELP = {
+  keyword:
+    '可搜：PI 编号（不带前缀也能搜到）、订单编号（只限收款记在订单上的手动订单和费用订单）、客户名称或简称',
+  todo: '只列有待确认水单、或已有到账但没收齐的 PI；收齐后取消「只看待处理」仍可查到。登记规则与 PI 页的登记到账相同',
+} as const;
+
 /** 收款单 → 待确认：业务员上传水单后，财务在这里确认到账（现阶段由总经理兼任） */
 const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
   const [form] = Form.useForm<Filters>();
   const [filters, setFilters] = useState<Filters>({});
+  const search = () => {
+    setFilters(form.getFieldsValue());
+    setPage(1);
+  };
   const [all, setAll] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
@@ -114,13 +129,15 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
       fixed: 'left',
       render: (v: string | undefined, r) =>
         r.piId ? (
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(PATHS.pi(r.piId as number))}
-          >
-            {v}
-          </button>
+          <CopyText text={v}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(PATHS.pi(r.piId as number))}
+            >
+              {v}
+            </button>
+          </CopyText>
         ) : (
           <div>
             <button
@@ -139,19 +156,12 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
       key: 'customer',
       width: 220,
       render: (_, r) => (
-        <div>
-          <div style={{ color: palette.ink, fontWeight: 500 }}>
-            {r.customerName}
-          </div>
-          <div style={{ fontSize: 12, color: palette.mute }}>
-            <CustomerSub
-              country={r.customerCountry}
-              contact={r.customerContact}
-              empty={null}
-            />
-            {r.ownerName && <div>业务员 {r.ownerName}</div>}
-          </div>
-        </div>
+        <CustomerCell
+          name={r.customerName}
+          country={r.customerCountry}
+          contact={r.customerContact}
+          extra={r.ownerName && `业务员 ${r.ownerName}`}
+        />
       ),
     },
     {
@@ -204,7 +214,7 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
             {r.pendingSlips.map((s) => (
               <div key={s.id}>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <FileTextOutlined style={{ color: palette.link }} />
+                  <FileText size="1em" style={{ color: palette.link }} />
                   <b style={num}>{formatAmount(s.amount, r.currencyCode)}</b>
                   <span style={{ fontSize: 12, color: palette.mute }}>
                     {s.receiptDate?.slice(5)}
@@ -236,7 +246,7 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
                       )
                     }
                   >
-                    <PaperClipOutlined /> {f.fileName}
+                    <Paperclip size="1em" /> {f.fileName}
                   </button>
                 ))}
               </div>
@@ -257,6 +267,7 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
       render: (v?: string) => v ?? '—',
     },
     {
+      // lint-ui-ignore row-actions: 工作队列，每行一个主要动作「登记到账」，保留按钮
       title: '操作',
       key: 'actions',
       width: 130,
@@ -265,7 +276,7 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
         <Button
           size="small"
           type={r.pendingSlips.length > 0 ? 'primary' : 'default'}
-          icon={<BankOutlined />}
+          icon={<Landmark size="1em" />}
           loading={opening === rowKey(r)}
           onClick={() => openConfirm(r)}
         >
@@ -274,99 +285,104 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('finance-receipts', columns, {
+    // 「待确认水单」是登记到账前要核对的内容，默认显示
+    hidden: ['合计', '已到账', '销售订单'],
+  });
 
   return (
     <div>
-      <Card style={{ marginBottom: 16, padding: 20 }}>
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={(v) => {
-            setFilters(v);
+      <Form form={form} component={false}>
+        <FilterCard
+          onSearch={search}
+          onReset={() => {
+            form.resetFields();
+            setFilters({});
+            setAll(false);
             setPage(1);
           }}
         >
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '2fr 1fr auto auto',
-              gap: 12,
-              alignItems: 'end',
-            }}
-          >
-            <Form.Item
-              name="keyword"
-              label="关键词"
-              style={{ marginBottom: 0 }}
-            >
+          <FilterField label="关键词" span={2} help={DESK_HELP.keyword}>
+            <Form.Item name="keyword" noStyle>
               <Input
                 allowClear
-                prefix={<SearchOutlined />}
-                placeholder="PI 编号（带不带前缀都可）、客户"
+                prefix={<Search size={16} />}
+                placeholder="PI 编号、订单编号、客户"
+                aria-label="关键词"
+                onPressEnter={search}
               />
             </Form.Item>
-            <Form.Item
-              name="receiptStatus"
-              label="收款状态"
-              style={{ marginBottom: 0 }}
-            >
+          </FilterField>
+          <FilterField label="收款状态">
+            <Form.Item name="receiptStatus" noStyle>
               <Select
                 allowClear
                 placeholder="全部"
+                aria-label="收款状态"
                 options={Object.entries(RECEIPT_META).map(([k, v]) => ({
                   value: Number(k),
                   label: v.label,
                 }))}
+                // 状态下拉切换后立即查询
+                onChange={(v) => {
+                  setFilters({ ...form.getFieldsValue(), receiptStatus: v });
+                  setPage(1);
+                }}
               />
             </Form.Item>
-            <Segmented
-              value={all ? 'all' : 'todo'}
-              onChange={(v) => {
-                setAll(v === 'all');
-                setPage(1);
-              }}
-              options={[
-                { value: 'todo', label: '待处理' },
-                { value: 'all', label: '全部' },
-              ]}
-            />
-            <Button type="primary" htmlType="submit">
-              查询
-            </Button>
-          </div>
-        </Form>
-      </Card>
+          </FilterField>
+        </FilterCard>
+      </Form>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Table<ReceiptDeskRow>
-          rowKey={rowKey}
-          columns={columns}
-          dataSource={rows}
+        <MainCard
+          settings={columnsSet.settings}
+          count={total}
           loading={loading}
-          scroll={{ x: tableScrollX(columns) }}
-          locale={{
-            emptyText: all
-              ? '没有符合条件的 PI'
-              : '没有待处理的到账：业务员上传水单后会出现在这里',
-          }}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
-            onChange: (p, s) => {
-              setPage(p);
-              setPageSize(s);
-            },
-          }}
-        />
+          quick={
+            <span
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <QuickFilters
+                options={[{ value: 'todo', label: '只看待处理' }]}
+                value={all ? [] : ['todo']}
+                onChange={(v) => {
+                  setAll(v.length === 0);
+                  setPage(1);
+                }}
+              />
+              <HelpTip title={DESK_HELP.todo} />
+            </span>
+          }
+        >
+          <Table<ReceiptDeskRow>
+            rowKey={rowKey}
+            columns={columnsSet.columns}
+            dataSource={rows}
+            loading={loading}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
+            locale={{
+              emptyText: tableEmpty(
+                all
+                  ? '没有符合条件的 PI'
+                  : '没有待处理的到账：业务员上传水单后会出现在这里',
+                loading,
+              ),
+            }}
+            pagination={{
+              ...PAGER_STYLE,
+              current: page,
+              pageSize,
+              total,
+              onChange: (p, s) => {
+                setPage(p);
+                setPageSize(s);
+              },
+            }}
+          />
+        </MainCard>
       )}
-      <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
-        默认只列有待确认水单、或已有到账但没收齐的
-        PI；收齐后切到「全部」仍可查到。登记规则与 PI 页的登记到账相同。
-      </div>
       <ConfirmReceiptModal
         owner={owner}
         open={!!owner}

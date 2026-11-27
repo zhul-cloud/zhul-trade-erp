@@ -1,9 +1,5 @@
-import {
-  CheckCircleOutlined,
-  StopOutlined,
-  UnorderedListOutlined,
-} from '@ant-design/icons';
 import { App, Button, Checkbox } from 'antd';
+import { Ban, CircleCheck, List } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -101,7 +97,7 @@ const Suggestions: React.FC<{
             flexWrap: 'wrap',
           }}
         >
-          <UnorderedListOutlined style={{ color: palette.link }} />
+          <List size="1em" style={{ color: palette.link }} />
           <span style={{ fontSize: 14, fontWeight: 600, color: palette.ink }}>
             字段建议 {suggestions.length} 条
           </span>
@@ -130,15 +126,15 @@ const Suggestions: React.FC<{
               padding: '12px 14px',
               borderRadius: 12,
               background: palette.inset,
-              border: `1px solid ${on ? palette.accentLine : 'transparent'}`,
+              border: `1px solid ${on ? palette.primaryLine : 'transparent'}`,
               opacity: s.state === 'ignored' ? 0.6 : 1,
             }}
           >
             <span style={{ paddingTop: 2 }}>
               {s.state === 'adopted' ? (
-                <CheckCircleOutlined style={{ color: palette.green }} />
+                <CircleCheck size="1em" style={{ color: palette.green }} />
               ) : s.unavailableReason || s.state === 'ignored' ? (
-                <StopOutlined style={{ color: palette.mute }} />
+                <Ban size="1em" style={{ color: palette.mute }} />
               ) : (
                 <Checkbox
                   checked={on}

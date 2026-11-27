@@ -1,5 +1,5 @@
-import { PictureOutlined } from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
+import { Image } from 'lucide-react';
 import React, { useState } from 'react';
 import MediaDrawer from './MediaDrawer';
 
@@ -22,7 +22,7 @@ const ViewMediaLink: React.FC<{ brand?: string; model?: string }> = ({
         }}
         style={{ fontSize: 12 }}
       >
-        <PictureOutlined /> 查看素材
+        <Image size="1em" /> 查看素材
       </button>
       {open && (
         <MediaDrawer

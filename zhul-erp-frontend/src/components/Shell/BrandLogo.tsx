@@ -1,39 +1,42 @@
 import { useModel } from '@umijs/max';
 import React, { useEffect } from 'react';
-import { LOGO_GRADIENT } from '@/theme/palette';
+import { useAppTheme } from '@/theme/AppTheme';
 import {
   DEFAULT_APPEARANCE,
+  FAVICON_COLOR,
   LOGO_FONT_RATIO,
-  LOGO_GRADIENT_STOPS,
   LOGO_RADIUS_RATIO,
   logoChar,
 } from '@/utils/appearance';
 
-/** 默认 Logo：渐变圆角方块 + 白色的系统名称首字（未上传 Logo 时使用） */
+/** 默认 Logo：主题色纯色圆角方块 + 白色的系统名称首字（未上传 Logo 时使用）；深色下用主题色的深色取值 */
 export const DefaultLogo: React.FC<{ siteName?: string; size: number }> = ({
   siteName,
   size,
-}) => (
-  <span
-    role="img"
-    aria-label={siteName}
-    style={{
-      width: size,
-      height: size,
-      borderRadius: Math.round(size * LOGO_RADIUS_RATIO),
-      background: LOGO_GRADIENT,
-      color: '#FFFFFF',
-      fontWeight: 800,
-      fontSize: Math.round(size * LOGO_FONT_RATIO),
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flex: 'none',
-    }}
-  >
-    {logoChar(siteName)}
-  </span>
-);
+}) => {
+  const { palette } = useAppTheme();
+  return (
+    <span
+      role="img"
+      aria-label={siteName}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: Math.round(size * LOGO_RADIUS_RATIO),
+        background: palette.link,
+        color: palette.onPrimary,
+        fontWeight: 800,
+        fontSize: Math.round(size * LOGO_FONT_RATIO),
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flex: 'none',
+      }}
+    >
+      {logoChar(siteName)}
+    </span>
+  );
+};
 
 /** 当前外观（getInitialState 加载，登录前页面同样可用） */
 export const useAppearance = () =>
@@ -59,13 +62,10 @@ const drawDefaultIcon = (siteName?: string): string | undefined => {
   ctx.arcTo(0, size, 0, 0, r);
   ctx.arcTo(0, 0, size, 0, r);
   ctx.closePath();
-  const gradient = ctx.createLinearGradient(0, 0, size, size); // 135°：左上 → 右下
-  LOGO_GRADIENT_STOPS.forEach((c, i, all) => {
-    gradient.addColorStop(i / (all.length - 1), c);
-  });
-  ctx.fillStyle = gradient;
+  ctx.fillStyle = FAVICON_COLOR;
   ctx.fill();
-  ctx.fillStyle = '#FFFFFF';
+  // 默认 Logo 是琥珀底：白字只有 1.93:1，用深色字（与主按钮一致）
+  ctx.fillStyle = '#212B36';
   ctx.font = `800 ${size * LOGO_FONT_RATIO}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

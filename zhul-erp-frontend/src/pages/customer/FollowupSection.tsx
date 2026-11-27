@@ -1,21 +1,22 @@
-import {
-  AuditOutlined,
-  CheckOutlined,
-  ClockCircleOutlined,
-  DownOutlined,
-  EditOutlined,
-  FileTextOutlined,
-  MailOutlined,
-  MessageOutlined,
-  PhoneOutlined,
-  RiseOutlined,
-  UpOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { App, Button, Checkbox, Segmented, Skeleton, Tooltip } from 'antd';
 import dayjs from 'dayjs';
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  ClipboardCheck,
+  Clock,
+  FileText,
+  Mail,
+  MessageSquare,
+  Pencil,
+  Phone,
+  TrendingUp,
+  User,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { MetricGrid } from '@/components/MetricCard';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import {
   DueText,
@@ -84,16 +85,20 @@ export const useCustomerFollowup = (customerId: number, enabled: boolean) => {
 
 const channelIcon = (r: FollowupRecord) => {
   if (r.recordType !== RECORD_USER)
-    return r.targetType === 4 ? <AuditOutlined /> : <FileTextOutlined />;
+    return r.targetType === 4 ? (
+      <ClipboardCheck size="1em" />
+    ) : (
+      <FileText size="1em" />
+    );
   switch (r.channel) {
     case 1:
-      return <MessageOutlined />;
+      return <MessageSquare size="1em" />;
     case 2:
-      return <MailOutlined />;
+      return <Mail size="1em" />;
     case 3:
-      return <PhoneOutlined />;
+      return <Phone size="1em" />;
     default:
-      return <UserOutlined />;
+      return <User size="1em" />;
   }
 };
 
@@ -143,8 +148,9 @@ const RecordRow: React.FC<{ r: FollowupRecord; last: boolean }> = ({
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: 12,
-            color: user ? palette.link : palette.mute,
-            background: user ? palette.accentSoft : palette.inset,
+            // 两类图标本身不同，底色都用中性（主题色浅底只表示选中，D42）
+            color: user ? palette.sub : palette.mute,
+            background: user ? palette.neutralSoft : palette.inset,
           }}
         >
           {channelIcon(r)}
@@ -174,7 +180,7 @@ const RecordRow: React.FC<{ r: FollowupRecord; last: boolean }> = ({
           {adjust && reason && <Pill tone="gray">{reason}</Pill>}
           {moved && (
             <Pill tone="green">
-              <RiseOutlined /> {r.stageBefore || '—'} → {r.stageAfter}
+              <TrendingUp size="1em" /> {r.stageBefore || '—'} → {r.stageAfter}
             </Pill>
           )}
           {(r.docNos?.length ?? 0) > 1 && (
@@ -232,7 +238,7 @@ const RecordRow: React.FC<{ r: FollowupRecord; last: boolean }> = ({
         )}
         {r.profileFields.length > 0 && (
           <div style={{ marginTop: 4, fontSize: 12, color: palette.mute }}>
-            <UserOutlined /> 写入档案：
+            <User size="1em" /> 写入档案：
             {r.profileFields.map((f) => `${f.label} ${f.value}`).join('；')}
           </div>
         )}
@@ -247,7 +253,7 @@ const RecordRow: React.FC<{ r: FollowupRecord; last: boolean }> = ({
               type="link"
               size="small"
               style={{ padding: 0 }}
-              icon={raw ? <UpOutlined /> : <DownOutlined />}
+              icon={raw ? <ChevronUp size="1em" /> : <ChevronDown size="1em" />}
               onClick={() => setRaw((v) => !v)}
             >
               {raw ? '收起原文' : '展开原文'}
@@ -441,7 +447,7 @@ export const FollowupSection: React.FC<{
           gap: 8,
         }}
       >
-        <MessageOutlined style={{ color: palette.link }} />
+        <MessageSquare size="1em" style={{ color: palette.link }} />
         跟进
       </h2>
       {cur && <StageTag item={cur} />}
@@ -458,8 +464,7 @@ export const FollowupSection: React.FC<{
             maxWidth: 360,
           }}
         >
-          <ClockCircleOutlined /> 下一步：{cur.nextAction}{' '}
-          <DueText item={cur} />
+          <Clock size="1em" /> 下一步：{cur.nextAction} <DueText item={cur} />
         </span>
       )}
       <span style={{ flex: 1 }} />
@@ -478,7 +483,7 @@ export const FollowupSection: React.FC<{
       {canRecord && (
         <Button
           type="primary"
-          icon={<EditOutlined />}
+          icon={<Pencil size="1em" />}
           onClick={() => setRecording(true)}
         >
           记一次跟进
@@ -486,7 +491,7 @@ export const FollowupSection: React.FC<{
       )}
       <Button
         onClick={toggle}
-        icon={collapsed ? <DownOutlined /> : <UpOutlined />}
+        icon={collapsed ? <ChevronDown size="1em" /> : <ChevronUp size="1em" />}
         iconPlacement="end"
       >
         {collapsed ? '展开' : '收起'}
@@ -529,7 +534,7 @@ export const FollowupSection: React.FC<{
                 flexWrap: 'wrap',
               }}
             >
-              <ClockCircleOutlined style={{ color: palette.red }} />
+              <Clock size="1em" style={{ color: palette.red }} />
               <b style={{ color: palette.red }}>下一步</b>
               <span style={{ color: palette.ink, flex: 1, minWidth: 0 }}>
                 {cur.nextAction}
@@ -540,7 +545,7 @@ export const FollowupSection: React.FC<{
                   <SnoozeButton item={cur} onDone={onChanged} />
                   <Button
                     size="small"
-                    icon={<CheckOutlined />}
+                    icon={<Check size="1em" />}
                     onClick={() => setRecording(true)}
                   >
                     已完成，记一次
@@ -555,7 +560,7 @@ export const FollowupSection: React.FC<{
                 marginTop: 14,
                 padding: '10px 14px',
                 borderRadius: 10,
-                background: palette.violetSoft,
+                background: palette.infoSoft,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
@@ -563,7 +568,7 @@ export const FollowupSection: React.FC<{
                 fontSize: 13,
               }}
             >
-              <b style={{ color: palette.violet }}>主动开发</b>
+              <b style={{ color: palette.info }}>主动开发</b>
               <span style={{ color: palette.ink, flex: 1, minWidth: 0 }}>
                 {develop.state === 'open'
                   ? `${develop.stageCode} ${develop.stageName} · 已触达 ${develop.touchCount ?? 0} 次${develop.prospectReason ? ` · ${develop.prospectReason}` : ''}`
@@ -595,14 +600,7 @@ export const FollowupSection: React.FC<{
               )}
             </div>
           )}
-          <div
-            style={{
-              marginTop: 14,
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-              gap: 12,
-            }}
-          >
+          <MetricGrid cols={4} min={120} gap={12} style={{ marginTop: 14 }}>
             {stat(
               '最近联系',
               data.lastContactAt
@@ -619,7 +617,7 @@ export const FollowupSection: React.FC<{
                   : ''
               }`,
             )}
-          </div>
+          </MetricGrid>
           <FollowupTimeline
             customerId={customerId}
             first={data}
@@ -733,7 +731,11 @@ export const FollowupChainCard: React.FC<{ data?: CustomerFollowup }> = ({
                 justifyContent: 'center',
                 fontSize: 11,
                 fontWeight: 700,
-                color: active ? '#fff' : done ? palette.green : palette.mute,
+                color: active
+                  ? palette.onPrimary
+                  : done
+                    ? palette.green
+                    : palette.mute,
                 background: active
                   ? palette.link
                   : done
@@ -741,7 +743,7 @@ export const FollowupChainCard: React.FC<{ data?: CustomerFollowup }> = ({
                     : palette.inset,
               }}
             >
-              {done ? <CheckOutlined /> : n}
+              {done ? <Check size="1em" /> : n}
             </span>
             <div>
               <div

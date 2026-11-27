@@ -77,7 +77,7 @@ it('公海列表点认领后调用认领', async () => {
   wrap(React.createElement(PoolTab));
   expect(await screen.findByText('业务员离职')).toBeTruthy();
   await act(async () => {
-    fireEvent.click(screen.getByText('认领'));
+    fireEvent.click(screen.getByRole('button', { name: '认领' }));
   });
   await act(async () => {
     const buttons = await screen.findAllByRole('button', { name: /^认\s*领$/ });

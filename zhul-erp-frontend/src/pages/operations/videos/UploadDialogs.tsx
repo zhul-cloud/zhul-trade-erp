@@ -1,14 +1,14 @@
-import {
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  DownloadOutlined,
-  ExclamationCircleOutlined,
-  FolderOpenOutlined,
-  InboxOutlined,
-  LoadingOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
 import { App, Button, Modal, Progress, Select, Upload } from 'antd';
+import {
+  CircleAlert,
+  CircleCheck,
+  CircleX,
+  Download,
+  FolderOpen,
+  Inbox,
+  LoaderCircle,
+  Upload as UploadIcon,
+} from 'lucide-react';
 import React, { useMemo, useRef, useState } from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { ProductSelect } from '@/pages/product/components/ProductSelect';
@@ -122,7 +122,7 @@ export const UploadModal: React.FC<{
           }}
         >
           <p className="ant-upload-drag-icon">
-            <InboxOutlined />
+            <Inbox size="1em" />
           </p>
           <p>点击或拖入图片</p>
           <p style={{ fontSize: 12, color: palette.mute }}>
@@ -296,11 +296,11 @@ export const BatchUploadModal: React.FC<{
   const doneCount = rows.filter((r) => r.state === 'done').length;
   const stateIcon = (r: Row) =>
     r.state === 'uploading' ? (
-      <LoadingOutlined />
+      <LoaderCircle size="1em" className="zhul-spin" />
     ) : r.state === 'done' ? (
-      <CheckCircleOutlined style={{ color: palette.green }} />
+      <CircleCheck size="1em" style={{ color: palette.green }} />
     ) : r.state === 'failed' ? (
-      <CloseCircleOutlined style={{ color: palette.red }} />
+      <CircleX size="1em" style={{ color: palette.red }} />
     ) : null;
 
   const section = (
@@ -383,7 +383,7 @@ export const BatchUploadModal: React.FC<{
             {!started && (
               <Button
                 type="primary"
-                icon={<UploadOutlined />}
+                icon={<UploadIcon size="1em" />}
                 disabled={!ready.length}
                 onClick={run}
               >
@@ -418,7 +418,10 @@ export const BatchUploadModal: React.FC<{
             background: palette.inset,
           }}
         >
-          <FolderOpenOutlined style={{ fontSize: 32, color: palette.link }} />
+          <FolderOpen
+            size="1em"
+            style={{ fontSize: 32, color: palette.link }}
+          />
           <div style={{ marginTop: 12 }}>
             {matching ? '正在匹配型号…' : '选择一个文件夹'}
           </div>
@@ -438,7 +441,7 @@ export const BatchUploadModal: React.FC<{
               background: palette.inset,
             }}
           >
-            <FolderOpenOutlined style={{ color: palette.link }} />
+            <FolderOpen size="1em" style={{ color: palette.link }} />
             <b>{root}</b>
             <span style={{ fontSize: 12, color: palette.mute }}>
               {rows.length} 个子文件夹 ·{' '}
@@ -471,7 +474,14 @@ export const BatchUploadModal: React.FC<{
                 <div style={{ fontSize: 12, color: palette.sub }}>
                   {c.label}
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: c.color }}>
+                {/* 0 用正文色，不显示成状态色；数字 600 字重 */}
+                <div
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 600,
+                    color: c.value ? c.color : palette.ink,
+                  }}
+                >
                   {c.value}
                 </div>
               </div>
@@ -481,7 +491,7 @@ export const BatchUploadModal: React.FC<{
           {matched.length > 0 && (
             <>
               {section(
-                <CheckCircleOutlined style={{ color: palette.green }} />,
+                <CircleCheck size="1em" style={{ color: palette.green }} />,
                 `已匹配 ${matched.length}`,
                 '按子文件夹名匹配型号，写成「品牌_型号」时按品牌加型号',
               )}
@@ -550,7 +560,7 @@ export const BatchUploadModal: React.FC<{
           {multiple.length > 0 && (
             <>
               {section(
-                <ExclamationCircleOutlined style={{ color: palette.orange }} />,
+                <CircleAlert size="1em" style={{ color: palette.orange }} />,
                 `有多个商品 ${multiple.length}`,
                 '选定品牌后才能上传',
               )}
@@ -604,13 +614,13 @@ export const BatchUploadModal: React.FC<{
           {none.length > 0 && (
             <>
               {section(
-                <CloseCircleOutlined style={{ color: palette.red }} />,
+                <CircleX size="1em" style={{ color: palette.red }} />,
                 `未匹配 ${none.length}`,
                 '不上传；先在商品档案里建好商品再传',
                 <Button
                   type="link"
                   size="small"
-                  icon={<DownloadOutlined />}
+                  icon={<Download size="1em" />}
                   onClick={downloadNone}
                 >
                   下载清单

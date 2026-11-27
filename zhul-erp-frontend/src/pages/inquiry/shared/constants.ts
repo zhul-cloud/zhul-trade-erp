@@ -10,7 +10,8 @@ export type Tone =
   | 'orange'
   | 'green'
   | 'red'
-  | 'mute';
+  | 'mute'
+  | 'info';
 
 export const STATUS = {
   PENDING_PARSE: 1,

@@ -1,16 +1,11 @@
-import {
-  BarChartOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  ExportOutlined,
-  TrophyOutlined,
-  UserAddOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Alert, Button, Segmented, Skeleton, Table } from 'antd';
+import { Segmented, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { BadgeCheck, CircleX, Trophy, UserPlus } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
+import { MetricGrid } from '@/components/MetricCard';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { rate } from '@/pages/crm/opportunity/StatsPanel';
 import {
@@ -19,8 +14,9 @@ import {
   readBizError,
   type StatRow,
 } from '@/pages/crm/opportunity/service';
-import { Card, Stat } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
+import { DeltaText } from '@/theme/delta';
+import { Metric, MoreLink, WidgetCard } from './widgets/WidgetCard';
 
 export type CardPreset = 'today' | 'week' | 'month';
 
@@ -109,7 +105,8 @@ const OpportunityCard: React.FC = () => {
       width: 90,
       align: 'right',
       render: (v: number) => (
-        <span style={{ ...num, color: v ? palette.green : palette.mute }}>
+        // 不按好坏上色（同商机统计，复审 P1、P2）
+        <span style={{ ...num, color: v ? palette.ink : palette.mute }}>
           {v}
         </span>
       ),
@@ -124,117 +121,61 @@ const OpportunityCard: React.FC = () => {
   ];
 
   return (
-    <Card style={{ padding: 20 }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          flexWrap: 'wrap',
-          marginBottom: 16,
-        }}
-      >
-        <span
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 10,
-            background: palette.accentSoft,
-            color: palette.link,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <BarChartOutlined />
-        </span>
-        <b style={{ fontSize: 16, color: palette.ink }}>商机统计</b>
-        <span style={{ fontSize: 12, color: palette.mute }}>
-          按首次接触日期，口径同每日渠道统计
-        </span>
-        <span style={{ marginLeft: 'auto' }} />
-        <Segmented
-          value={preset}
-          onChange={(v) => setPreset(v as CardPreset)}
-          options={PRESETS}
-        />
-        <Button
-          icon={<ExportOutlined />}
-          onClick={() =>
-            history.push(`/crm/opportunity-stats?preset=${preset}`)
-          }
-        >
-          查看完整统计
-        </Button>
-      </div>
-      {error ? (
-        <Alert
-          type="error"
-          showIcon
-          title={`商机统计加载失败：${error}`}
-          action={
-            <Button size="small" onClick={load}>
-              重试
-            </Button>
-          }
-        />
-      ) : !data || !sum ? (
-        <Skeleton active paragraph={{ rows: 5 }} />
-      ) : (
+    <WidgetCard
+      title="商机统计"
+      help="按首次接触日期，口径同每日渠道统计"
+      extra={
         <>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-              gap: 12,
-              marginBottom: 16,
-            }}
+          <Segmented
+            value={preset}
+            onChange={(v) => setPreset(v as CardPreset)}
+            options={PRESETS}
+          />
+          <MoreLink
+            onClick={() =>
+              history.push(`/crm/opportunity-stats?preset=${preset}`)
+            }
           >
-            <Stat
-              icon={<UserAddOutlined />}
-              color={palette.link}
-              soft={palette.accentSoft}
+            查看完整统计
+          </MoreLink>
+        </>
+      }
+      loading={!error && (!data || !sum)}
+      error={error}
+      onRetry={load}
+    >
+      {data && sum && (
+        <>
+          <MetricGrid cols={4} min={180} gap={12} style={{ marginBottom: 16 }}>
+            {/* 图标块按指标家族着色（D2），与后端商机数字卡同为蓝色家族；不用主题色、状态色（D47、D58） */}
+            <Metric
+              icon={<UserPlus size="1em" />}
               label="新增"
               value={sum.total}
               hint={
                 delta == null ? (
                   '—'
                 ) : (
-                  <span
-                    style={{
-                      color:
-                        delta > 0
-                          ? palette.green
-                          : delta < 0
-                            ? palette.orange
-                            : palette.mute,
-                    }}
-                  >
+                  <DeltaText value={delta}>
                     较上一周期 {delta > 0 ? `+${delta}` : delta}
-                  </span>
+                  </DeltaText>
                 )
               }
             />
-            <Stat
-              icon={<CheckCircleOutlined />}
-              color={palette.green}
-              soft={palette.greenSoft}
+            <Metric
+              icon={<BadgeCheck size="1em" />}
               label="有效"
               value={sum.valid}
               hint={`有效率 ${rate(sum.valid, sum.total)}`}
             />
-            <Stat
-              icon={<TrophyOutlined />}
-              color={palette.orange}
-              soft={palette.orangeSoft}
+            <Metric
+              icon={<Trophy size="1em" />}
               label="赢单"
               value={sum.won}
               hint={`输单 ${sum.lost}`}
             />
-            <Stat
-              icon={<CloseCircleOutlined />}
-              color={palette.mute}
-              soft={palette.inset}
+            <Metric
+              icon={<CircleX size="1em" />}
               label="无效"
               value={sum.invalid}
               hint={
@@ -243,18 +184,20 @@ const OpportunityCard: React.FC = () => {
                   : '—'
               }
             />
-          </div>
+          </MetricGrid>
           <Table<StatRow>
             rowKey="label"
             size="middle"
             columns={columns}
             dataSource={data.rows}
             pagination={false}
-            locale={{ emptyText: '这段时间还没有登记商机' }}
+            locale={{
+              emptyText: tableEmpty('这段时间还没有登记商机', undefined, true),
+            }}
           />
         </>
       )}
-    </Card>
+    </WidgetCard>
   );
 };
 

@@ -1,12 +1,23 @@
 import { history, Link } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Input, Segmented, Select, Table } from 'antd';
+import { App, Form, Input, Select, Table } from 'antd';
+import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
-import { Card, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { PR_STATUS_TONE } from '@/pages/sales/after-sales/service';
 import { PATHS as SALES_PATHS } from '@/pages/sales/components';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
@@ -14,9 +25,9 @@ import { readBizError } from '@/pages/sales/service';
 import { searchSuppliers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import { auditColumns, PATHS, PurchasePageTitle } from '../components';
+import { auditColumns, PATHS } from '../components';
 import {
   PR_SOURCE_OPTIONS,
   PR_STATUS,
@@ -25,29 +36,51 @@ import {
   purchaseReturnApi,
 } from './service';
 
+type Filters = {
+  keyword?: string;
+  status?: number;
+  supplierId?: number;
+  sourceType?: number;
+  ownerId?: number;
+};
+
+/** 帮助文字：help-texts.md「采购退货列表」，关键词范围以 search-scope.md 为准 */
+export const HELP = {
+  page: '退给供应商的货（售后退货、到货不良退货、多发退回）：寄出、供应商签收后登记退款或抵扣',
+  keyword:
+    '可搜：退货单号、快递单号、型号、退货入库单号、采购入库单号；采购订单编号、店铺、供应商、采购订单型号',
+} as const;
+
+/** 下拉选项后面带数量（stat-cards.md：状态并入下拉） */
+const withCount = (label: string, n?: number) =>
+  n ? `${label} · ${n}` : label;
+
 /** 采购管理 → 采购退货（spec purchase/purchase-return） */
 const PurchaseReturnsPage: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
   const url = useUrlFilter();
   const users = useUserOptions();
-  const [status, setStatus] = useState<number | 'all'>(
-    url.keyword ? 'all' : PR_STATUS.PENDING,
+  const [form] = Form.useForm<Filters>();
+  // 默认看待寄出；从别的单据带单号跳来时看全部
+  const [defaults] = useState<Filters>(() =>
+    url.keyword ? { keyword: url.keyword } : { status: PR_STATUS.PENDING },
   );
-  const [supplierId, setSupplierId] = useState<number>();
+  const [filters, setFilters] = useState<Filters>(defaults);
   const [supplierOptions, setSupplierOptions] = useState<
     { value: number; label: string }[]
   >([]);
-  const [sourceType, setSourceType] = useState<number>();
-  const [ownerId, setOwnerId] = useState<number>();
-  const [keyword, setKeyword] = useState(url.keyword);
-  const [query, setQuery] = useState(url.keyword);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<PurchaseReturn[]>([]);
   const [total, setTotal] = useState(0);
   const [counts, setCounts] = useState<{ pending: number; shipped: number }>();
   const [loading, setLoading] = useState(true);
+
+  const searchNow = () => {
+    setFilters(form.getFieldsValue());
+    setPage(1);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -56,11 +89,11 @@ const PurchaseReturnsPage: React.FC = () => {
         purchaseReturnApi.page({
           page,
           pageSize,
-          status: status === 'all' ? undefined : status,
-          supplierId,
-          sourceType,
-          ownerId,
-          keyword: query || undefined,
+          status: filters.status,
+          supplierId: filters.supplierId,
+          sourceType: filters.sourceType,
+          ownerId: filters.ownerId,
+          keyword: filters.keyword?.trim() || undefined,
         }),
         purchaseReturnApi.counts(),
       ]);
@@ -72,7 +105,7 @@ const PurchaseReturnsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, status, supplierId, sourceType, ownerId, query, message]);
+  }, [page, pageSize, filters, message]);
   useEffect(() => {
     load();
   }, [load]);
@@ -105,12 +138,54 @@ const PurchaseReturnsPage: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <Link to={SALES_PATHS.purchaseReturn(r.id)}>{v}</Link>
+          <CopyText text={v}>
+            <Link to={SALES_PATHS.purchaseReturn(r.id)}>{v}</Link>
+          </CopyText>
           {sub(r.createTime?.slice(0, 10))}
         </div>
       ),
     },
     { title: '供应商', dataIndex: 'supplierName', width: 160 },
+    {
+      title: '状态',
+      dataIndex: 'statusName',
+      width: 90,
+      render: (v: string, r) => (
+        <Pill tone={PR_STATUS_TONE[r.status] ?? 'gray'}>{v}</Pill>
+      ),
+    },
+    {
+      title: '退款或抵扣',
+      align: 'right',
+      dataIndex: 'refundAmount',
+      width: 120,
+      render: (v: number | undefined, r) =>
+        r.status === PR_STATUS.DONE
+          ? formatAmount(v ?? 0, r.currencyCode ?? 'CNY')
+          : dash,
+    },
+    {
+      title: '运费',
+      align: 'right',
+      dataIndex: 'freightCny',
+      width: 100,
+      render: (v?: number) =>
+        Number(v) > 0 ? formatAmount(v ?? 0, 'CNY') : dash,
+    },
+    {
+      title: '快递',
+      key: 'express',
+      width: 150,
+      render: (_, r) =>
+        r.carrier ? (
+          <div>
+            {r.carrier}
+            {sub(r.trackingNo)}
+          </div>
+        ) : (
+          dash
+        ),
+    },
     {
       title: '型号 · 数量',
       key: 'items',
@@ -142,45 +217,13 @@ const PurchaseReturnsPage: React.FC = () => {
       dataIndex: 'poNo',
       width: 160,
       render: (v: string | undefined, r) =>
-        v && r.poId ? <Link to={PATHS.order(r.poId)}>{v}</Link> : dash,
-    },
-    {
-      title: '快递',
-      key: 'express',
-      width: 150,
-      render: (_, r) =>
-        r.carrier ? (
-          <div>
-            {r.carrier}
-            {sub(r.trackingNo)}
-          </div>
+        v && r.poId ? (
+          <CopyText text={v}>
+            <Link to={PATHS.order(r.poId)}>{v}</Link>
+          </CopyText>
         ) : (
           dash
         ),
-    },
-    {
-      title: '运费',
-      dataIndex: 'freightCny',
-      width: 100,
-      render: (v?: number) =>
-        Number(v) > 0 ? formatAmount(v ?? 0, 'CNY') : dash,
-    },
-    {
-      title: '退款或抵扣',
-      dataIndex: 'refundAmount',
-      width: 120,
-      render: (v: number | undefined, r) =>
-        r.status === PR_STATUS.DONE
-          ? formatAmount(v ?? 0, r.currencyCode ?? 'CNY')
-          : dash,
-    },
-    {
-      title: '状态',
-      dataIndex: 'statusName',
-      width: 90,
-      render: (v: string, r) => (
-        <Pill tone={PR_STATUS_TONE[r.status] ?? 'gray'}>{v}</Pill>
-      ),
     },
     {
       title: '来源单号',
@@ -193,123 +236,154 @@ const PurchaseReturnsPage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 80,
+      width: rowActionsWidth(1),
       fixed: 'right',
-      render: (_, r) => <Link to={SALES_PATHS.purchaseReturn(r.id)}>查看</Link>,
+      render: (_, r) => (
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(SALES_PATHS.purchaseReturn(r.id)),
+            },
+          ]}
+        />
+      ),
     },
   ];
+  const columnsSet = useColumnSettings('purchase-returns', columns, {
+    hidden: [
+      '运费',
+      '品牌',
+      '品类',
+      '来源类型',
+      '采购订单',
+      '来源单号',
+      '负责人',
+    ],
+  });
 
   return (
     <div>
-      <PurchasePageTitle />
-      <Card style={{ padding: 16 }}>
-        <Segmented<number | 'all'>
-          value={status}
-          onChange={(v) => {
-            setStatus(v);
+      <PageHeader help={HELP.page} />
+      <Form form={form} initialValues={defaults} component={false}>
+        <FilterCard
+          onSearch={searchNow}
+          onReset={() => {
+            // 重置回默认视图：待寄出
+            const d = { status: PR_STATUS.PENDING };
+            form.resetFields();
+            form.setFieldsValue({ ...d, keyword: undefined });
+            setFilters(d);
             setPage(1);
           }}
-          options={[
-            {
-              value: PR_STATUS.PENDING,
-              label: `待寄出 ${counts?.pending ?? ''}`,
-            },
-            {
-              value: PR_STATUS.SHIPPED,
-              label: `已寄出 ${counts?.shipped ?? ''}`,
-            },
-            { value: PR_STATUS.DONE, label: '已完成' },
-            { value: PR_STATUS.VOID, label: '已作废' },
-            { value: 'all', label: '全部' },
-          ]}
-          style={{ marginBottom: 12 }}
-        />
-        <div
-          style={{
-            display: 'flex',
-            gap: 12,
-            flexWrap: 'wrap',
-            marginBottom: 12,
-          }}
+          minColumn={130}
+          moreCount={
+            [filters.sourceType, filters.ownerId].filter((v) => v != null)
+              .length
+          }
+          more={
+            <>
+              <FilterField label="来源类型">
+                <Form.Item name="sourceType" noStyle>
+                  <Select<number>
+                    allowClear
+                    placeholder="全部"
+                    options={PR_SOURCE_OPTIONS}
+                    aria-label="来源类型"
+                  />
+                </Form.Item>
+              </FilterField>
+              <FilterField label="负责人">
+                <Form.Item name="ownerId" noStyle>
+                  <Select<number>
+                    allowClear
+                    showSearch={{ optionFilterProp: 'label' }}
+                    placeholder="全部"
+                    options={users}
+                    aria-label="负责人"
+                  />
+                </Form.Item>
+              </FilterField>
+            </>
+          }
         >
-          <Select<number>
-            allowClear
-            showSearch={{ filterOption: false, onSearch: searchSup }}
-            placeholder="供应商"
-            value={supplierId}
-            options={supplierOptions}
-            onFocus={() => supplierOptions.length === 0 && searchSup('')}
-            onChange={(v) => {
-              setSupplierId(v);
-              setPage(1);
-            }}
-            style={{ width: 180 }}
-            aria-label="供应商"
-          />
-          <Select<number>
-            allowClear
-            placeholder="来源类型"
-            value={sourceType}
-            options={PR_SOURCE_OPTIONS}
-            onChange={(v) => {
-              setSourceType(v);
-              setPage(1);
-            }}
-            style={{ width: 180 }}
-            aria-label="来源类型"
-          />
-          <Select<number>
-            allowClear
-            showSearch={{ optionFilterProp: 'label' }}
-            placeholder="负责人"
-            value={ownerId}
-            options={users}
-            onChange={(v) => {
-              setOwnerId(v);
-              setPage(1);
-            }}
-            style={{ width: 150 }}
-            aria-label="负责人"
-          />
-          <Input.Search
-            allowClear
-            placeholder="单号、型号、快递单号"
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            onSearch={(v) => {
-              setQuery(v.trim());
-              setPage(1);
-            }}
-            style={{ width: 280 }}
-            aria-label="关键词"
-          />
-        </div>
+          <FilterField label="关键词" span={2} help={HELP.keyword}>
+            <Form.Item name="keyword" noStyle>
+              <Input
+                allowClear
+                prefix={<Search size={16} />}
+                placeholder="退货单号、型号、快递单号"
+                aria-label="关键词"
+                onPressEnter={searchNow}
+              />
+            </Form.Item>
+          </FilterField>
+          <FilterField label="状态">
+            <Form.Item name="status" noStyle>
+              <Select<number>
+                allowClear
+                placeholder="全部"
+                aria-label="状态"
+                options={[
+                  {
+                    value: PR_STATUS.PENDING,
+                    label: withCount('待寄出', counts?.pending),
+                  },
+                  {
+                    value: PR_STATUS.SHIPPED,
+                    label: withCount('已寄出', counts?.shipped),
+                  },
+                  { value: PR_STATUS.DONE, label: '已完成' },
+                  { value: PR_STATUS.VOID, label: '已作废' },
+                ]}
+                // 切换状态立即查询（doc-list-unify 状态下拉的写法）
+                onChange={() => searchNow()}
+              />
+            </Form.Item>
+          </FilterField>
+          <FilterField label="供应商">
+            <Form.Item name="supplierId" noStyle>
+              <Select<number>
+                allowClear
+                showSearch={{ filterOption: false, onSearch: searchSup }}
+                placeholder="全部"
+                options={supplierOptions}
+                onFocus={() => supplierOptions.length === 0 && searchSup('')}
+                aria-label="供应商"
+              />
+            </Form.Item>
+          </FilterField>
+        </FilterCard>
+      </Form>
+      <MainCard settings={columnsSet.settings} count={total} loading={loading}>
         <Table<PurchaseReturn>
           rowKey="id"
-          size="middle"
           loading={loading}
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           locale={{
-            emptyText:
-              status === PR_STATUS.PENDING
+            emptyText: tableEmpty(
+              filters.status === PR_STATUS.PENDING
                 ? '没有待寄出的采购退货；退货入库去向选「退回供应商」或到货差异选择退货后会出现在这里'
                 : '没有符合条件的采购退货单',
+              loading,
+            ),
           }}
           pagination={{
+            ...PAGER_STYLE,
             current: page,
             pageSize,
             total,
-            showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
             onChange: (p, s) => {
               setPage(p);
               setPageSize(s);
             },
           }}
         />
-      </Card>
+      </MainCard>
     </div>
   );
 };

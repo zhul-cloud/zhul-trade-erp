@@ -1,6 +1,6 @@
-import { RightOutlined } from '@ant-design/icons';
 import { Link } from '@umijs/max';
 import { Button, Modal, Table } from 'antd';
+import { ChevronRight } from 'lucide-react';
 import React, { useState } from 'react';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
@@ -26,10 +26,15 @@ export const SectionTitle: React.FC<{
   );
 };
 
-/** 基本信息：标签在上、值在下，自动换行成多列 */
+/** 基本信息：标签在上、值在下，自动换行成多列；full 的项占整行（内容长的，如出运详情的 CI / PL） */
 export const InfoGrid: React.FC<{
   title?: string;
-  items: { label: string; value?: React.ReactNode; hidden?: boolean }[];
+  items: {
+    label: string;
+    value?: React.ReactNode;
+    hidden?: boolean;
+    full?: boolean;
+  }[];
 }> = ({ title = '基本信息', items }) => {
   const { palette } = useAppTheme();
   return (
@@ -45,7 +50,10 @@ export const InfoGrid: React.FC<{
         {items
           .filter((i) => !i.hidden)
           .map((i) => (
-            <div key={i.label} style={{ minWidth: 0 }}>
+            <div
+              key={i.label}
+              style={{ minWidth: 0, gridColumn: i.full ? '1 / -1' : undefined }}
+            >
               <div style={{ color: palette.mute, fontSize: 12 }}>{i.label}</div>
               <div
                 style={{
@@ -122,7 +130,8 @@ export const RelatedDocsCard: React.FC<{
                   <Pill tone={d.tone ?? 'gray'}>{d.statusName}</Pill>
                 )}
                 {d.href && (
-                  <RightOutlined
+                  <ChevronRight
+                    size="1em"
                     style={{ color: palette.mute, fontSize: 11 }}
                   />
                 )}

@@ -1,18 +1,14 @@
-import {
-  BarChartOutlined,
-  CarOutlined,
-  DashboardOutlined,
-  FileDoneOutlined,
-  InboxOutlined,
-  RightOutlined,
-  SendOutlined,
-  ShoppingOutlined,
-  UnorderedListOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { Button, Tooltip } from 'antd';
 import dayjs from 'dayjs';
+import {
+  ChevronRight,
+  FileCheck,
+  Inbox,
+  Send,
+  TriangleAlert,
+  Truck,
+} from 'lucide-react';
 import React from 'react';
 import { LevelPill, Pill } from '@/pages/inquiry/shared/components';
 import { formatMinutes, PATHS } from '@/pages/inquiry/shared/constants';
@@ -79,7 +75,7 @@ const TaskRow: React.FC<{ task: MyTask }> = ({ task: t }) => {
           ? `已超时 ${formatMinutes(t.remainingMinutes)}`
           : `剩 ${formatMinutes(t.remainingMinutes)}`}
       </span>
-      <RightOutlined style={{ color: palette.faint, fontSize: 12 }} />
+      <ChevronRight size="1em" style={{ color: palette.faint, fontSize: 12 }} />
     </button>
   );
 };
@@ -90,10 +86,8 @@ export const MyInquiryWidget: React.FC = () => {
   const { data, error, reload } = useWidgetData<QuoteBoard>('my-inquiry');
   return (
     <WidgetCard
-      icon={<UnorderedListOutlined />}
-      tone="blue"
       title="我的询价"
-      sub="分配给我的询价任务，最急的在前"
+      help="分配给我的询价任务，最急的在前"
       extra={
         <Button size="small" onClick={() => history.push(PATHS.myTasks)}>
           去我的询价
@@ -157,10 +151,8 @@ export const QuoteStatsWidget: React.FC = () => {
   const { data, error, reload } = useWidgetData<QuoteBoard>('quote-stats');
   return (
     <WidgetCard
-      icon={<DashboardOutlined />}
-      tone="green"
       title="回价统计"
-      sub="本月"
+      period="本月"
       loading={!data}
       error={error}
       onRetry={reload}
@@ -205,10 +197,8 @@ export const QuoteTrendWidget: React.FC = () => {
   const total = trend.reduce((sum, d) => sum + d.items, 0);
   return (
     <WidgetCard
-      icon={<BarChartOutlined />}
-      tone="blue"
       title="近 30 天回价"
-      sub="每天回价的型号数"
+      help="每天回价的型号数"
       extra={
         <span style={{ color: palette.mute, fontSize: 12 }}>
           共 {total} 个型号
@@ -232,8 +222,7 @@ export const QuoteTrendWidget: React.FC = () => {
                 minWidth: 0,
                 height: d.items ? `${(d.items / max) * 100}%` : 3,
                 borderRadius: 4,
-                background: d.items ? palette.link : palette.hairline,
-                opacity: d.items ? 0.85 : 1,
+                background: d.items ? palette.chart : palette.hairline,
                 transition: 'height 200ms ease-out',
               }}
             />
@@ -264,8 +253,8 @@ export const MyPurchaseWidget: React.FC = () => {
     items.push(
       <TodoItem
         key="req"
-        icon={<InboxOutlined />}
-        tone="blue"
+        icon={<Inbox size={18} />}
+        tone="violet"
         title="待下单的采购需求"
         desc="销售订单已确认，还没全部下单"
         count={data.openRequirements}
@@ -278,8 +267,8 @@ export const MyPurchaseWidget: React.FC = () => {
     items.push(
       <TodoItem
         key="ship"
-        icon={<SendOutlined />}
-        tone="violet"
+        icon={<Send size={18} />}
+        tone="blue"
         title="待供应商发货"
         desc={
           data.overdueShip
@@ -291,8 +280,9 @@ export const MyPurchaseWidget: React.FC = () => {
       />,
       <TodoItem
         key="draft"
-        icon={<FileDoneOutlined />}
-        tone="gray"
+        icon={<FileCheck size={18} />}
+        // 待处理类数量用信息色（规范「图标底块」），不用灰色
+        tone="violet"
         title="草稿采购订单"
         desc="还没确认下单"
         count={data.drafts ?? 0}
@@ -304,7 +294,7 @@ export const MyPurchaseWidget: React.FC = () => {
     items.push(
       <TodoItem
         key="transit"
-        icon={<CarOutlined />}
+        icon={<Truck size={18} />}
         tone="green"
         title="在途"
         desc="供应商已发货，还没到仓"
@@ -313,7 +303,7 @@ export const MyPurchaseWidget: React.FC = () => {
       />,
       <TodoItem
         key="diff"
-        icon={<WarningOutlined />}
+        icon={<TriangleAlert size={18} />}
         tone="red"
         title="到货差异待处理"
         desc="少发、错发、不良"
@@ -324,20 +314,12 @@ export const MyPurchaseWidget: React.FC = () => {
     );
   }
   return (
-    <WidgetCard
-      icon={<ShoppingOutlined />}
-      tone="violet"
-      title="我的采购"
-      sub="点击进入对应列表"
-      loading={!data}
-      error={error}
-      onRetry={reload}
-    >
+    <WidgetCard title="我的采购" loading={!data} error={error} onRetry={reload}>
       <div
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-          gap: 8,
+          columnGap: 24,
         }}
       >
         {items}

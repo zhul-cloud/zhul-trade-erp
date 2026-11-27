@@ -1,4 +1,4 @@
-import { Breadcrumb, Grid } from 'antd';
+import { Grid } from 'antd';
 import dayjs from 'dayjs';
 import React from 'react';
 import { Card, Pill } from '@/pages/crm/opportunity/components';
@@ -12,7 +12,6 @@ import {
   useDictOptions,
 } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
-import { useMenu } from '@/utils/menuName';
 import {
   channelLabel,
   conditionTone,
@@ -30,73 +29,6 @@ export {
 
 /** 宽屏（≥1200px）左右两栏，窄屏上下排列 */
 export const useWide = () => !!Grid.useBreakpoint().xl;
-
-/**
- * 面包屑「分组 / …」+ 标题 + 右侧操作。分组、标题与面包屑默认取当前页面在「菜单管理」里的名称（列表页不用传），
- * 详情页传自己的标题与面包屑；root 为面包屑第一级（默认为当前页面所属分组）。
- */
-export const PageTitle: React.FC<{
-  crumbs?: React.ReactNode[];
-  title?: React.ReactNode;
-  description?: React.ReactNode;
-  actions?: React.ReactNode;
-  root?: string;
-}> = ({ crumbs, title, description, actions, root }) => {
-  const { palette } = useAppTheme();
-  const menu = useMenu();
-  const group = root ?? menu?.group;
-  const items = [group, ...(crumbs ?? [menu?.name])].filter(Boolean);
-  return (
-    <header
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-end',
-        gap: 16,
-        marginBottom: 20,
-        flexWrap: 'wrap',
-      }}
-    >
-      <div style={{ minWidth: 0 }}>
-        <Breadcrumb
-          items={items.map((c) => ({ title: c }))}
-          style={{ fontSize: 13 }}
-        />
-        <h1
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            flexWrap: 'wrap',
-            fontSize: 28,
-            fontWeight: 700,
-            margin: '8px 0 0',
-            color: palette.ink,
-          }}
-        >
-          {title ?? menu?.name}
-        </h1>
-        {description && (
-          <div style={{ margin: '6px 0 0', color: palette.sub, fontSize: 14 }}>
-            {description}
-          </div>
-        )}
-      </div>
-      {actions && (
-        <div
-          style={{
-            display: 'flex',
-            gap: 12,
-            alignItems: 'center',
-            flexWrap: 'wrap',
-          }}
-        >
-          {actions}
-        </div>
-      )}
-    </header>
-  );
-};
 
 export const StatusPill: React.FC<{ status: number }> = ({ status }) => {
   const m = STATUS_META[status] ?? { label: '未知', tone: 'gray' as const };
@@ -129,10 +61,9 @@ export const TaskStatusPill: React.FC<{
   );
 };
 
+/** 新 / 老客户是客户属性：中性标签（status-colors.md「老客户」归中性；ui-redesign S13） */
 export const CustomerTypePill: React.FC<{ type: number }> = ({ type }) => (
-  <Pill tone={type === 2 ? 'violet' : 'cyan'}>
-    {type === 2 ? '老客户' : '新客户'}
-  </Pill>
+  <Pill tone="gray">{type === 2 ? '老客户' : '新客户'}</Pill>
 );
 
 /** 货况、货期字典：下拉只含启用项，名称含停用项；码值 0 为未填 */
@@ -243,7 +174,7 @@ export const LeadTimeText: React.FC<{ value?: number; fallback?: string }> = ({
   return <>{leadTimeLabel(value) || fallback}</>;
 };
 
-/** 回价进度条：全部完成时变绿 */
+/** 回价进度条：只用主题色（全站进度条规则），全部完成不换颜色 */
 export const Progress: React.FC<{
   done: number;
   total: number;
@@ -270,7 +201,7 @@ export const Progress: React.FC<{
             width: `${pct * 100}%`,
             height: '100%',
             borderRadius: 3,
-            background: full ? palette.green : palette.link,
+            background: palette.chart,
             transition: 'width 200ms ease-out',
           }}
         />
@@ -279,7 +210,7 @@ export const Progress: React.FC<{
         style={{
           fontSize: 12,
           fontWeight: 600,
-          color: full ? palette.green : palette.sub,
+          color: full ? palette.ink : palette.sub,
           fontVariantNumeric: 'tabular-nums',
         }}
       >
@@ -344,10 +275,19 @@ export const DeadlineText: React.FC<{ date: string; status: number }> = ({
         ? palette.orange
         : palette.sub;
   return (
-    <span style={{ display: 'inline-flex', flexDirection: 'column' }}>
-      <span style={{ color, fontVariantNumeric: 'tabular-nums' }}>{date}</span>
+    // 块级两行（日期 22 + 提醒 18）：行内 flex 会多出基线空隙把行撑高（D21 行高）
+    <span style={{ display: 'flex', flexDirection: 'column' }}>
+      <span
+        style={{
+          color,
+          fontVariantNumeric: 'tabular-nums',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {date}
+      </span>
       {active && diff <= 0 && (
-        <span style={{ fontSize: 11, color }}>
+        <span style={{ fontSize: 12, lineHeight: '18px', color }}>
           {diff === 0 ? '今天截止' : `已过期 ${-diff} 天`}
         </span>
       )}

@@ -1,18 +1,27 @@
-import { InboxOutlined, SearchOutlined } from '@ant-design/icons';
 import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Button, Input, Select, Space, Table } from 'antd';
+import { Button, Input, Select, Table } from 'antd';
+import { Eye, Inbox, PackageCheck, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
-import { FilterCard, FilterField, MainCard } from '@/components/ListLayout';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   ArrivalCell,
@@ -21,7 +30,6 @@ import {
   ReceiptStatusPill,
   sub,
   WAREHOUSE_PATHS,
-  WarehousePageTitle,
 } from '../components';
 import {
   type Receipt,
@@ -107,7 +115,9 @@ const Receipts: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <Link to={DOC_PATHS.shipment(r.id)}>{v}</Link>
+          <CopyText text={v}>
+            <Link to={DOC_PATHS.shipment(r.id)}>{v}</Link>
+          </CopyText>
           {sub(palette.mute, r.shipDate ?? '—')}
         </div>
       ),
@@ -120,6 +130,25 @@ const Receipts: React.FC = () => {
         <div>
           <b style={{ color: palette.ink }}>{v || '—'}</b>
           {sub(palette.mute, r.shop ? '平台店铺' : '供应商')}
+        </div>
+      ),
+    },
+    {
+      title: '预计到货',
+      dataIndex: 'expectedArrivalDate',
+      width: 110,
+      render: (v: string | undefined, r) => (
+        <ArrivalCell date={v} overdue={r.arrivalOverdue} />
+      ),
+    },
+    {
+      title: '快递 · 单号',
+      key: 'tracking',
+      width: 180,
+      render: (_, r) => (
+        <div>
+          <b style={{ color: palette.ink }}>{r.carrier || '—'}</b>
+          {r.trackingNo && sub(palette.mute, r.trackingNo)}
         </div>
       ),
     },
@@ -153,25 +182,6 @@ const Receipts: React.FC = () => {
       ),
     },
     {
-      title: '快递 · 单号',
-      key: 'tracking',
-      width: 180,
-      render: (_, r) => (
-        <div>
-          <b style={{ color: palette.ink }}>{r.carrier || '—'}</b>
-          {r.trackingNo && sub(palette.mute, r.trackingNo)}
-        </div>
-      ),
-    },
-    {
-      title: '预计到货',
-      dataIndex: 'expectedArrivalDate',
-      width: 110,
-      render: (v: string | undefined, r) => (
-        <ArrivalCell date={v} overdue={r.arrivalOverdue} />
-      ),
-    },
-    {
       title: '登记来源',
       dataIndex: 'sourceName',
       width: 110,
@@ -199,24 +209,33 @@ const Receipts: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 130,
+      width: rowActionsWidth(2),
       fixed: 'right',
       render: (_, r) => (
-        <Space size={12}>
-          {canEdit && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setAccepting(r.id)}
-            >
-              验收入库
-            </button>
-          )}
-          <Link to={DOC_PATHS.shipment(r.id)}>查看</Link>
-        </Space>
+        <RowActions
+          inline={[
+            canEdit && {
+              key: 'accept',
+              label: '验收入库',
+              icon: <PackageCheck size={18} />,
+              onClick: () => setAccepting(r.id),
+            },
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(DOC_PATHS.shipment(r.id)),
+            },
+          ]}
+        />
       ),
     },
   ];
+  const shipColumnsSet = useColumnSettings(
+    'warehouse-receipts-pending',
+    shipColumns,
+    { hidden: ['品牌', '品类', '登记来源', '来源单号', '采购员'] },
+  );
 
   const receiptColumns: TableColumnsType<Receipt> = [
     {
@@ -226,7 +245,9 @@ const Receipts: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <Link to={DOC_PATHS.receipt(r.id)}>{v}</Link>
+          <CopyText text={v}>
+            <Link to={DOC_PATHS.receipt(r.id)}>{v}</Link>
+          </CopyText>
           {sub(palette.mute, r.receivedDate ?? '—')}
         </div>
       ),
@@ -236,6 +257,36 @@ const Receipts: React.FC = () => {
       dataIndex: 'supplierName',
       width: 150,
       render: (v?: string) => <b style={{ color: palette.ink }}>{v || '—'}</b>,
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 100,
+      render: (v: number, r) => (
+        <ReceiptStatusPill value={v}>{r.statusName}</ReceiptStatusPill>
+      ),
+    },
+    {
+      title: '合格 · 不良 · 差异',
+      key: 'qty',
+      width: 140,
+      render: (_, r) => (
+        <span>
+          <span style={{ color: palette.green }}>{r.qualifiedQty}</span>
+          {' · '}
+          <span style={{ color: r.defectiveQty ? palette.red : palette.mute }}>
+            {r.defectiveQty}
+          </span>
+          {' · '}
+          <span
+            style={{
+              color: r.discrepancyCount ? palette.orange : palette.mute,
+            }}
+          >
+            {r.discrepancyCount}
+          </span>
+        </span>
+      ),
     },
     {
       title: '型号 · 数量',
@@ -272,36 +323,6 @@ const Receipts: React.FC = () => {
       ),
     },
     {
-      title: '合格 · 不良 · 差异',
-      key: 'qty',
-      width: 140,
-      render: (_, r) => (
-        <span>
-          <span style={{ color: palette.green }}>{r.qualifiedQty}</span>
-          {' · '}
-          <span style={{ color: r.defectiveQty ? palette.red : palette.mute }}>
-            {r.defectiveQty}
-          </span>
-          {' · '}
-          <span
-            style={{
-              color: r.discrepancyCount ? palette.orange : palette.mute,
-            }}
-          >
-            {r.discrepancyCount}
-          </span>
-        </span>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (v: number, r) => (
-        <ReceiptStatusPill value={v}>{r.statusName}</ReceiptStatusPill>
-      ),
-    },
-    {
       title: '来源单号',
       key: 'source',
       width: 160,
@@ -324,11 +345,27 @@ const Receipts: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 70,
+      width: rowActionsWidth(1),
       fixed: 'right',
-      render: (_, r) => <Link to={DOC_PATHS.receipt(r.id)}>查看</Link>,
+      render: (_, r) => (
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(DOC_PATHS.receipt(r.id)),
+            },
+          ]}
+        />
+      ),
     },
   ];
+  const receiptColumnsSet = useColumnSettings(
+    'warehouse-receipts',
+    receiptColumns,
+    { hidden: ['品牌', '品类', '登记来源', '来源单号', '采购员'] },
+  );
 
   const apply = () => {
     setQuery(keyword.trim() || undefined);
@@ -339,11 +376,10 @@ const Receipts: React.FC = () => {
     setPage(1);
   };
   const pagination = {
+    ...PAGER_STYLE,
     current: page,
     pageSize,
     total,
-    showSizeChanger: true,
-    showTotal: (t: number) => `共 ${t} 条`,
     onChange: (p: number, s: number) => {
       setPage(p);
       setPageSize(s);
@@ -352,7 +388,20 @@ const Receipts: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle description="按发货单验收：只记录实收、合格、不良，差异由采购员处理。" />
+      <PageHeader
+        help="按发货单验收：只记录实收、合格、不良，差异由采购员处理。没有发货单的货点「直接收货」，系统补一条发货记录并标「仓库补登」"
+        extra={
+          canEdit && (
+            <Button
+              type="primary"
+              icon={<Inbox size="1em" />}
+              onClick={() => setDirect(true)}
+            >
+              直接收货
+            </Button>
+          )
+        }
+      />
       <FilterCard
         onSearch={apply}
         onReset={() => {
@@ -361,17 +410,25 @@ const Receipts: React.FC = () => {
           changeTab('pending');
         }}
       >
-        <FilterField label="关键词" span={2}>
+        <FilterField
+          label="关键词"
+          span={2}
+          help={
+            tab === 'pending'
+              ? '可搜：发货单号、快递单号；采购订单编号、店铺、供应商、采购订单型号'
+              : '可搜：采购入库单号；发货单号、快递单号；采购订单编号、店铺、供应商、采购订单型号'
+          }
+        >
           <Input
             allowClear
-            prefix={<SearchOutlined />}
+            prefix={<Search size="1em" />}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             onPressEnter={apply}
             placeholder={
               tab === 'pending'
-                ? '快递单号、采购订单号、型号、采购对象'
-                : '采购入库单号、发货单号、快递单号、采购订单号、型号'
+                ? '发货单号、快递单号、采购订单编号'
+                : '采购入库单号、发货单号、快递单号'
             }
             aria-label="关键词"
           />
@@ -395,50 +452,42 @@ const Receipts: React.FC = () => {
         <ErrorHint message={error} onRetry={load} />
       ) : (
         <MainCard
-          left={tab === 'pending' ? `待收货 ${total} 张` : `已入库 ${total} 张`}
-          right={
-            canEdit && (
-              <Button
-                type="primary"
-                icon={<InboxOutlined />}
-                onClick={() => setDirect(true)}
-              >
-                直接收货
-              </Button>
-            )
+          settings={
+            tab === 'pending'
+              ? shipColumnsSet.settings
+              : receiptColumnsSet.settings
           }
+          left={tab === 'pending' ? `待收货 ${total} 张` : `已入库 ${total} 张`}
         >
           {tab === 'pending' ? (
             <Table<Shipment>
               rowKey="id"
-              columns={shipColumns}
+              columns={shipColumnsSet.columns}
               dataSource={ships}
               loading={loading}
-              scroll={{ x: tableScrollX(shipColumns) }}
+              scroll={{ x: tableScrollX(shipColumnsSet.columns) }}
               locale={{
-                emptyText: query
-                  ? '没有匹配的在途发货单；货到了但没有发货单，点「直接收货」'
-                  : '没有待收货的发货单',
+                emptyText: tableEmpty(
+                  query
+                    ? '没有匹配的在途发货单；货到了但没有发货单，点「直接收货」'
+                    : '没有待收货的发货单',
+                  loading,
+                ),
               }}
               pagination={pagination}
             />
           ) : (
             <Table<Receipt>
               rowKey="id"
-              columns={receiptColumns}
+              columns={receiptColumnsSet.columns}
               dataSource={receipts}
               loading={loading}
-              scroll={{ x: tableScrollX(receiptColumns) }}
-              locale={{ emptyText: '还没有采购入库单' }}
+              scroll={{ x: tableScrollX(receiptColumnsSet.columns) }}
+              locale={{ emptyText: tableEmpty('还没有采购入库单', loading) }}
               pagination={pagination}
             />
           )}
         </MainCard>
-      )}
-      {tab === 'pending' && (
-        <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-          按发货日期从早到晚；没有发货单的货点「直接收货」，系统补一条发货记录并标「仓库补登」。
-        </div>
       )}
       <AcceptDrawer
         shipmentId={accepting}

@@ -1,9 +1,3 @@
-import {
-  PlusOutlined,
-  SearchOutlined,
-  UploadOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   ModalForm,
@@ -16,22 +10,30 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
+import { App, Button, Form, Input, Upload } from 'antd';
 import {
-  App,
-  Badge,
-  Button,
-  Form,
-  Input,
-  Space,
-  Tabs,
-  Tag,
-  Upload,
-} from 'antd';
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  TriangleAlert,
+  UploadIcon,
+} from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  ViewTabs,
+} from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { proAuditColumns } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
 import { APPEARANCE_IMAGE_KEYS } from '@/utils/appearance';
-import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { CONFIG_KEY_MESSAGE, CONFIG_KEY_PATTERN } from './configKey';
@@ -107,7 +109,10 @@ const ImageUrlField: React.FC<{ name: string; allowEmpty?: boolean }> = ({
                   gap: 4,
                 }}
               >
-                <UploadOutlined spin={uploading} />
+                <UploadIcon
+                  size="1em"
+                  className={uploading ? 'zhul-spin' : undefined}
+                />
                 上传图片
               </span>
             </Upload>
@@ -139,22 +144,28 @@ const ImageUrlField: React.FC<{ name: string; allowEmpty?: boolean }> = ({
   );
 };
 
-const TYPE_COLOR: Record<ConfigType, string> = {
-  STRING: 'blue',
-  INTEGER: 'green',
-  BOOLEAN: 'orange',
-  JSON: 'purple',
-  URL: 'red',
+/** 配置类型的中文名（ui-redesign S9：不把 STRING 等技术枚举展示给用户；类型是属性，不着色） */
+const TYPE_LABEL: Record<ConfigType, string> = {
+  STRING: '文本',
+  INTEGER: '整数',
+  BOOLEAN: '开关',
+  JSON: 'JSON',
+  URL: '链接',
 };
 
 const ConfigPage: React.FC = () => {
   const pager = usePagination(20);
   const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>(undefined);
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess();
 
   const [keyword, setKeyword] = useState('');
+  /** 关键词点「查询」或回车才生效 */
+  const [draftKeyword, setDraftKeyword] = useState('');
+  // 首次查询返回前没有总数，主卡不显示「共 0 条」
+  const [total, setTotal] = useState<number>();
   const [activeGroup, setActiveGroup] = useState<string>('ALL');
   const [groupCounts, setGroupCounts] = useState<ConfigGroupCount[]>([]);
 
@@ -245,12 +256,10 @@ const ConfigPage: React.FC = () => {
   };
 
   const handleDelete = (record: ConfigItem) => {
-    modal.confirm({
-      title: '确认删除',
+    confirmDanger({
+      title: `删除配置项「${record.configName}」？`,
       width: 480,
-      content: `确认删除配置项「${record.configName}」（键：${record.configKey}）？删除后不可恢复，请确认没有业务代码依赖此配置键。`,
-      okText: '确认删除',
-      okButtonProps: { danger: true },
+      content: `键：${record.configKey}。删除后不可恢复，请确认没有业务代码依赖这个配置键。`,
       onOk: async () => {
         try {
           await deleteConfig(record.id);
@@ -268,11 +277,8 @@ const ConfigPage: React.FC = () => {
       return <span style={{ fontFamily: 'monospace' }}>****</span>;
     }
     if (record.configType === 'BOOLEAN') {
-      return (
-        <Tag color={record.configValue === 'true' ? 'blue' : 'default'}>
-          {record.configValue}
-        </Tag>
-      );
+      // 开关显示「开启 / 关闭」，不显示 true / false（S9）
+      return record.configValue === 'true' ? '开启' : '关闭';
     }
     return (
       <EllipsisText
@@ -283,27 +289,30 @@ const ConfigPage: React.FC = () => {
   };
 
   const columns: ProColumns<ConfigItem>[] = [
+    // 名称在前、配置键在后（ui-redesign S9、P17：技术键是次要信息）
     {
-      title: '配置键',
-      dataIndex: 'configKey',
-      width: 220,
-      render: (_, r) => (
-        <EllipsisText text={r.configKey} style={{ fontFamily: 'monospace' }} />
-      ),
-    },
-    {
+      fixed: 'left',
       title: '配置名称',
       dataIndex: 'configName',
       width: 150,
       render: ellipsisRender,
     },
     {
+      title: '配置键',
+      dataIndex: 'configKey',
+      width: 220,
+      render: (_, r) => (
+        <EllipsisText
+          text={r.configKey}
+          style={{ fontFamily: 'monospace', color: p.mute }}
+        />
+      ),
+    },
+    {
       title: '类型',
       dataIndex: 'configType',
       width: 90,
-      render: (_, r) => (
-        <Tag color={TYPE_COLOR[r.configType]}>{r.configType}</Tag>
-      ),
+      render: (_, r) => TYPE_LABEL[r.configType] ?? r.configType,
     },
     {
       title: '配置值',
@@ -315,67 +324,40 @@ const ConfigPage: React.FC = () => {
       title: '来源',
       dataIndex: 'isBuiltin',
       width: 90,
-      render: (_, r) =>
-        r.isBuiltin === 1 ? (
-          <Badge color="blue" text="内置" />
-        ) : (
-          <Badge color="default" text="自定义" />
-        ),
+      render: (_, r) => (r.isBuiltin === 1 ? '内置' : '自定义'),
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      width: 160,
-      render: (_, r) => formatDateTime(r.createTime),
-    },
-    {
-      title: '创建人',
-      dataIndex: 'createBy',
-      width: 150,
-      render: ellipsisRender,
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      width: 160,
-      render: (_, r) => formatDateTime(r.updateTime),
-    },
-    {
-      title: '更新人',
-      dataIndex: 'updateBy',
-      width: 150,
-      render: ellipsisRender,
-    },
+    ...proAuditColumns<ConfigItem>(),
     {
       title: '操作',
       fixed: 'right',
       valueType: 'option',
-      width: 120,
-      render: (_, record) => (
-        <Space size={14}>
-          {canEdit && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => openEdit(record)}
-            >
-              编辑
-            </button>
-          )}
-          {canDelete && record.isBuiltin !== 1 && (
-            <button
-              type="button"
-              className="zhul-link"
-              style={{ color: p.red }}
-              onClick={() => handleDelete(record)}
-            >
-              删除
-            </button>
-          )}
-        </Space>
+      // 编辑放行内，删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(2),
+      render: (_, r) => (
+        <RowActions
+          inline={[
+            canEdit && {
+              key: 'edit',
+              label: '编辑',
+              icon: <Pencil size={18} />,
+              onClick: () => openEdit(r),
+            },
+          ]}
+          more={[
+            canDelete &&
+              r.isBuiltin !== 1 && {
+                key: 'delete',
+                label: '删除',
+                icon: <Trash2 size={16} />,
+                danger: true,
+              },
+          ]}
+          onMore={() => handleDelete(r)}
+        />
       ),
     },
   ];
+  const columnsSet = useColumnSettings('system-config', columns);
 
   const needsRestart = (remark?: string) => !!remark && remark.includes('重启');
 
@@ -421,7 +403,6 @@ const ConfigPage: React.FC = () => {
         );
       case 'URL':
         return <ImageUrlField key={name} name={name} allowEmpty={allowEmpty} />;
-      case 'STRING':
       default:
         if (isEncrypted) {
           return (
@@ -451,78 +432,79 @@ const ConfigPage: React.FC = () => {
 
   return (
     <>
-      <ProTable<ConfigItem>
-        scroll={{ x: tableScrollX(columns) }}
-        headerTitle="配置列表"
-        actionRef={actionRef}
-        rowKey="id"
-        columns={columns}
-        search={false}
-        pagination={pager}
-        request={(params) =>
-          getConfigList({
-            current: params.current,
-            pageSize: params.pageSize,
-            keyword,
-            group: activeGroup === 'ALL' ? undefined : activeGroup,
-          })
-        }
-        params={{ keyword, activeGroup }}
-        toolbar={{
-          filter: (
-            <Space orientation="vertical" style={{ width: '100%' }} size={16}>
-              <Space>
-                <Input
-                  placeholder="请输入配置键或配置名称"
-                  prefix={<SearchOutlined />}
-                  allowClear
-                  style={{ width: 320 }}
-                  value={keyword}
-                  onChange={(e) => setKeyword(e.target.value)}
-                  onPressEnter={() => actionRef.current?.reload()}
-                />
-                <Button
-                  type="primary"
-                  onClick={() => actionRef.current?.reload()}
-                >
-                  搜索
-                </Button>
-                <Button
-                  onClick={() => {
-                    setKeyword('');
-                    setActiveGroup('ALL');
-                  }}
-                >
-                  重置
-                </Button>
-              </Space>
-              <Tabs
-                activeKey={activeGroup}
-                onChange={(key) => setActiveGroup(key)}
-                items={[
-                  { key: 'ALL', label: `全部 (${totalCount})` },
-                  ...groupCounts.map((g) => ({
-                    key: g.group,
-                    label: `${groupLabel(g.group)} (${g.count})`,
-                  })),
-                ]}
-              />
-            </Space>
-          ),
-        }}
-        toolBarRender={() => [
+      <PageHeader
+        extra={
           canAdd && (
             <Button
-              key="add"
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => setCreateOpen(true)}
             >
               新增自定义配置
             </Button>
-          ),
+          )
+        }
+      />
+      {/* 配置分组是不同类的内容，用页签；数量写「名称 N」 */}
+      <ViewTabs
+        activeKey={activeGroup}
+        onChange={(key) => setActiveGroup(key)}
+        items={[
+          { key: 'ALL', label: '全部', count: totalCount },
+          ...groupCounts.map((g) => ({
+            key: g.group,
+            label: groupLabel(g.group),
+            count: g.count,
+          })),
         ]}
       />
+      <FilterCard
+        onSearch={() => {
+          // 关键词没变时条件不变，表格不会自己刷新，点查询也要重新取数
+          setKeyword(draftKeyword.trim());
+          actionRef.current?.reload();
+        }}
+        onReset={() => {
+          setDraftKeyword('');
+          setKeyword('');
+          setActiveGroup('ALL');
+        }}
+      >
+        <FilterField label="关键词" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="配置键或配置名称"
+            aria-label="关键词"
+            value={draftKeyword}
+            onChange={(e) => setDraftKeyword(e.target.value)}
+            onPressEnter={() => setKeyword(draftKeyword.trim())}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard settings={columnsSet.settings} count={total}>
+        <ProTable<ConfigItem>
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
+          actionRef={actionRef}
+          rowKey="id"
+          columns={columnsSet.columns}
+          search={false}
+          options={false}
+          toolBarRender={false}
+          pagination={pager}
+          request={async (params) => {
+            const res = await getConfigList({
+              current: params.current,
+              pageSize: params.pageSize,
+              keyword,
+              group: activeGroup === 'ALL' ? undefined : activeGroup,
+            });
+            setTotal(res.total ?? 0);
+            return res;
+          }}
+          params={{ keyword, activeGroup }}
+        />
+      </MainCard>
 
       {/* 编辑配置值 */}
       <ModalForm
@@ -597,7 +579,7 @@ const ConfigPage: React.FC = () => {
               marginTop: 8,
             }}
           >
-            <WarningOutlined style={{ color: p.orange }} />
+            <TriangleAlert size="1em" style={{ color: p.orange }} />
             <span style={{ color: p.orange, fontSize: 12 }}>
               该配置修改后需重启服务生效
             </span>
@@ -714,7 +696,7 @@ const InfoRow: React.FC<{ label: string; value: string; mono?: boolean }> = ({
       <span
         style={{
           fontSize: 13,
-          fontWeight: 500,
+          fontWeight: 600,
           color: p.ink,
           fontFamily: mono ? 'monospace' : undefined,
         }}

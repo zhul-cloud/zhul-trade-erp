@@ -1,18 +1,25 @@
-import {
-  EditOutlined,
-  EnvironmentOutlined,
-  FileTextOutlined,
-  InfoCircleOutlined,
-  MergeOutlined,
-  SwapOutlined,
-  UserAddOutlined,
-  WalletOutlined,
-} from '@ant-design/icons';
 import { history, useAccess, useParams } from '@umijs/max';
-import { Button, Skeleton } from 'antd';
+import { Button, Dropdown, Skeleton } from 'antd';
+import {
+  ArrowLeftRight,
+  Ellipsis,
+  FileText,
+  Inbox,
+  Info,
+  MapPin,
+  Merge,
+  Pencil,
+  SquarePen,
+  UserPlus,
+  Wallet,
+  Waves,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { Callout } from '@/components/Callout';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
+import { UserName } from '@/components/UserName';
 import EntriesDrawer from '@/pages/finance/credits/EntriesDrawer';
 import { type CreditAccount, creditApi } from '@/pages/finance/credits/service';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -28,7 +35,6 @@ import {
 import { useBackgroundPrecheck } from './background/precheck';
 import {
   LIST_PATH,
-  PageTitle,
   PartyGroups,
   Pill,
   RolePill,
@@ -376,6 +382,7 @@ const CustomerDetailPage: React.FC = () => {
 
   let body: React.ReactNode;
   let title: React.ReactNode = '客户详情';
+  let tags: React.ReactNode = null;
   let actions: React.ReactNode = null;
   if (loading) {
     body = (
@@ -403,9 +410,9 @@ const CustomerDetailPage: React.FC = () => {
     );
   } else {
     const r = record;
-    title = (
+    title = <span style={{ wordBreak: 'break-word' }}>{r.displayName}</span>;
+    tags = (
       <>
-        <span style={{ wordBreak: 'break-word' }}>{r.displayName}</span>
         {r.nameMissing && <Pill tone="orange">未填客户名称</Pill>}
         <RolePill value={r.customerRole} />
         {profile && profile.grade.finalGrade > 0 && (
@@ -414,27 +421,99 @@ const CustomerDetailPage: React.FC = () => {
         <StatusPill status={r.status} />
       </>
     );
+    // 页头操作（照销售订单详情）：一个主按钮；常用的次要操作为文字按钮；放入公海、转移、合并收进「更多」
+    const textBtn = (
+      label: string,
+      icon: React.ReactNode,
+      onClick: () => void,
+    ) => (
+      <Button
+        type="text"
+        icon={icon}
+        style={{ color: palette.link }}
+        onClick={onClick}
+      >
+        {label}
+      </Button>
+    );
+    const more = [
+      ...(canEdit || access['partner:customer:transfer']
+        ? [
+            {
+              key: 'pool',
+              label: '放入公海',
+              icon: <Waves size={16} />,
+              onClick: () => setPoolOpen(true),
+            },
+          ]
+        : []),
+      ...(access['partner:customer:transfer']
+        ? [
+            {
+              key: 'transfer',
+              label: '转移',
+              icon: <ArrowLeftRight size={16} />,
+              onClick: () => setTransferOpen(true),
+            },
+          ]
+        : []),
+      ...(access['partner:customer:merge']
+        ? [
+            {
+              key: 'merge',
+              label: '合并',
+              icon: <Merge size={16} />,
+              onClick: () => setMergeOpen(true),
+            },
+          ]
+        : []),
+    ];
+    const moreBtn = more.length > 0 && (
+      <Dropdown
+        trigger={['click']}
+        placement="bottomRight"
+        menu={{
+          items: more.map(({ onClick: _, ...it }) => it),
+          onClick: ({ key }) => more.find((x) => x.key === key)?.onClick(),
+        }}
+      >
+        <Button
+          type="text"
+          shape="circle"
+          icon={<Ellipsis size={18} />}
+          aria-label="更多操作"
+        />
+      </Dropdown>
+    );
     actions = inPool ? (
       <Button
         type="primary"
-        icon={<UserAddOutlined />}
+        icon={<UserPlus size={18} />}
         onClick={() => claim(r, () => load())}
       >
         认领
       </Button>
     ) : (
       <>
-        {(canEdit || access['partner:customer:transfer']) && (
-          <Button onClick={() => setPoolOpen(true)}>放入公海</Button>
-        )}
-        {access['partner:customer:transfer'] && (
-          <Button icon={<SwapOutlined />} onClick={() => setTransferOpen(true)}>
-            转移
-          </Button>
-        )}
-        {access['partner:customer:merge'] && (
-          <Button icon={<MergeOutlined />} onClick={() => setMergeOpen(true)}>
-            合并
+        {/* 照原型 B1：文字按钮 → 更多 → 主按钮 */}
+        {canEdit &&
+          profile &&
+          textBtn('编辑档案', <SquarePen size={16} />, () =>
+            setEditModule(profile.completeness.missing[0]?.module ?? 1),
+          )}
+        {canEdit &&
+          canBackground &&
+          textBtn('编辑', <Pencil size={16} />, () =>
+            history.push(`${LIST_PATH}/${r.id}/edit`),
+          )}
+        {!canBackground && moreBtn}
+        {canEdit && !canBackground && (
+          <Button
+            type="primary"
+            icon={<Pencil size={18} />}
+            onClick={() => history.push(`${LIST_PATH}/${r.id}/edit`)}
+          >
+            编辑
           </Button>
         )}
         {canBackground && (
@@ -445,26 +524,8 @@ const CustomerDetailPage: React.FC = () => {
             onStarted={bg.reload}
             precheck={precheck}
             onFix={fixPrecheck}
+            beforePrimary={moreBtn}
           />
-        )}
-        {canEdit && profile && (
-          <Button
-            icon={<EditOutlined />}
-            onClick={() =>
-              setEditModule(profile.completeness.missing[0]?.module ?? 1)
-            }
-          >
-            编辑档案
-          </Button>
-        )}
-        {canEdit && (
-          <Button
-            type={canBackground ? 'default' : 'primary'}
-            icon={<EditOutlined />}
-            onClick={() => history.push(`${LIST_PATH}/${r.id}/edit`)}
-          >
-            编辑
-          </Button>
         )}
       </>
     );
@@ -487,16 +548,14 @@ const CustomerDetailPage: React.FC = () => {
     body = (
       <>
         {inPool && (
-          <div
+          <Callout
+            tone="action"
             role="status"
+            icon={<Inbox size="1em" />}
             style={{
               marginBottom: 16,
-              padding: '10px 16px',
-              borderRadius: 12,
-              fontSize: 13,
               color: palette.ink,
-              background: palette.accentSoft,
-              border: `1px solid ${palette.accentLine}`,
+              background: palette.card,
             }}
           >
             <b>在公海</b>
@@ -512,7 +571,7 @@ const CustomerDetailPage: React.FC = () => {
             <span style={{ color: palette.mute }}>
               ；认领后才能修改资料、新建单据
             </span>
-          </div>
+          </Callout>
         )}
         <div
           style={{
@@ -569,7 +628,7 @@ const CustomerDetailPage: React.FC = () => {
                 onEdit={canEdit ? setEditModule : undefined}
               />
             )}
-            <SectionCard icon={<InfoCircleOutlined />} title="基本信息">
+            <SectionCard icon={<Info size="1em" />} title="基本信息">
               <Grid>
                 <Field label="客户编码" mono>
                   {r.customerCode}
@@ -582,7 +641,7 @@ const CustomerDetailPage: React.FC = () => {
                 </Field>
               </Grid>
             </SectionCard>
-            <SectionCard icon={<EnvironmentOutlined />} title="注册地址与税务">
+            <SectionCard icon={<MapPin size="1em" />} title="注册地址与税务">
               <Grid>
                 <Field label="国家/地区">{countryLabel(r.country)}</Field>
                 <Field label="州/省">{r.state}</Field>
@@ -599,7 +658,7 @@ const CustomerDetailPage: React.FC = () => {
                 </Field>
               </Grid>
             </SectionCard>
-            <SectionCard icon={<WalletOutlined />} title="默认交易条件">
+            <SectionCard icon={<Wallet size="1em" />} title="默认交易条件">
               <div
                 style={{
                   padding: '14px 16px',
@@ -607,8 +666,7 @@ const CustomerDetailPage: React.FC = () => {
                   borderRadius: 12,
                   fontSize: 16,
                   fontWeight: 600,
-                  background: palette.accentSoft,
-                  border: `1px solid ${palette.accentLine}`,
+                  background: palette.inset,
                 }}
               >
                 {summary}
@@ -637,7 +695,7 @@ const CustomerDetailPage: React.FC = () => {
                 <Field label="目的港">{r.destinationPort}</Field>
               </Grid>
             </SectionCard>
-            <SectionCard icon={<FileTextOutlined />} title="收货与单证信息">
+            <SectionCard icon={<FileText size="1em" />} title="收货与单证信息">
               <PartyGroups parties={r.parties} countryLabel={countryLabel} />
             </SectionCard>
           </div>
@@ -703,7 +761,7 @@ const CustomerDetailPage: React.FC = () => {
                     justifyContent: 'center',
                     fontWeight: 700,
                     color: palette.link,
-                    background: palette.accentSoft,
+                    background: palette.primarySoft, // lint-ui-ignore primary-soft: 负责人头像，同全站头像写法
                   }}
                 >
                   {(r.ownerName || '?').slice(0, 1)}
@@ -734,11 +792,15 @@ const CustomerDetailPage: React.FC = () => {
             </SideCard>
             <LocalTimeCard timezone={r.timezone} />
             <SideCard title="系统信息">
-              <SideRow label="创建人">{r.createBy}</SideRow>
+              <SideRow label="创建人">
+                <UserName value={r.createBy} />
+              </SideRow>
               <SideRow label="创建时间">
                 <span className="num">{formatDateTime(r.createTime)}</span>
               </SideRow>
-              <SideRow label="最后修改人">{r.updateBy}</SideRow>
+              <SideRow label="最后修改人">
+                <UserName value={r.updateBy} />
+              </SideRow>
               <SideRow label="最后修改时间">
                 <span className="num">{formatDateTime(r.updateTime)}</span>
               </SideRow>
@@ -815,13 +877,10 @@ const CustomerDetailPage: React.FC = () => {
 
   return (
     <div style={{ color: palette.ink }}>
-      <a className="zhul-skip" href="#customer-main">
-        跳到主要内容
-      </a>
-      <PageTitle
+      <PageHeader
         title={title}
-        current="客户详情"
-        description={
+        tags={tags}
+        sub={
           record
             ? [
                 record.nameCn,
@@ -833,7 +892,7 @@ const CustomerDetailPage: React.FC = () => {
                 .join(' · ')
             : undefined
         }
-        actions={actions}
+        extra={actions}
       />
       {body}
     </div>

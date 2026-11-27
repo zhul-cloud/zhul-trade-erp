@@ -1,10 +1,3 @@
-import {
-  DeleteOutlined,
-  DownloadOutlined,
-  PlusOutlined,
-  SwapOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import type { CheckboxProps, TableColumnsType, TableProps } from 'antd';
 import {
@@ -12,29 +5,47 @@ import {
   Button,
   Form,
   Input,
-  Segmented,
   Select,
   Skeleton,
-  Switch,
   Table,
   Tooltip,
 } from 'antd';
+import {
+  ArrowLeftRight,
+  Download,
+  Eye,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  Upload,
+  Waves,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { CountryText } from '@/components/CountryText';
 import EllipsisText from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  SelectionCount,
+  ViewTabs,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { StatusSwitch } from '@/components/StatusSwitch';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useCountries } from '@/pages/product/components/useCountries';
+import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
-import { formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
-import {
-  LIST_PATH,
-  PageTitle,
-  Pill,
-  RolePill,
-  TransferModal,
-} from './components';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
+import { LIST_PATH, Pill, RolePill, TransferModal } from './components';
 import { DISABLE_CONFIRM_TEXT, ROLE_OPTIONS } from './constants';
 import { gradeColumns } from './gradeColumns';
 import { PoolTab, PutIntoPoolModal } from './pool';
@@ -78,14 +89,21 @@ const compact = (q: FilterForm): CustomerQuery =>
     }).filter(([, v]) => v !== undefined && v !== ''),
   ) as CustomerQuery;
 
+/** 帮助文字：help-texts.md「客户管理列表」，客户名称的搜索范围以 search-scope.md 为准 */
+export const HELP = {
+  page: '档案完整度 5/5 为已建档；先补有成交的客户。报价单、PI、CI 从这里带出客户信息',
+  name: '可搜：英文名、中文名、简称。客户编码、联系人在旁边的输入框里搜',
+} as const;
+
 const CustomerListPage: React.FC = () => {
   const { options: sourceOptions, labelOf: sourceLabel } =
     useDictOptions(DICT_SOURCE_CHANNEL);
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess() as Record<string, boolean>;
   const { palette } = useAppTheme();
   const [form] = Form.useForm<FilterForm>();
-  const { options: countryOptions, zhOf } = useCountries();
+  const { options: countryOptions } = useCountries();
 
   const canAdd = !!access['partner:customer:add'];
   const canEdit = !!access['partner:customer:edit'];
@@ -112,7 +130,7 @@ const CustomerListPage: React.FC = () => {
 
   const [query, setQuery] = useState<CustomerQuery>({});
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = usePageSize(10);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<CustomerListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -181,23 +199,16 @@ const CustomerListPage: React.FC = () => {
 
   useOnReactivate(load);
 
-  // 建档状态由表格上方的统计条切换，查询、重置筛选时沿用 / 清掉
-  const search = (
-    profileStatus: CustomerQuery['profileStatus'] | null = query.profileStatus,
-  ) => {
-    setQuery(
-      compact({
-        ...form.getFieldsValue(),
-        profileStatus: profileStatus ?? undefined,
-      }),
-    );
+  // 建档状态在搜索条件里（下拉带数量），和其他条件一起查询、一起重置
+  const search = () => {
+    setQuery(compact(form.getFieldsValue()));
     setPage(1);
     setSelected([]);
   };
 
   const reset = () => {
     form.resetFields();
-    search(null);
+    search();
   };
 
   const toggleStatus = (record: CustomerListItem, checked: boolean) => {
@@ -215,31 +226,19 @@ const CustomerListPage: React.FC = () => {
       apply();
       return;
     }
-    modal.confirm({
-      title: '确认要禁用该客户吗？',
+    confirmDanger({
+      title: `禁用客户「${record.displayName}」？`,
       content: DISABLE_CONFIRM_TEXT,
-      okText: '确认禁用',
-      cancelText: '取消',
+      okText: '禁用',
       onOk: apply,
     });
   };
 
   const confirmDelete = (record: CustomerListItem) => {
-    modal.confirm({
-      title: '确认删除',
-      content: (
-        <>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>
-            确认删除客户「{record.displayName}（{record.customerCode}）」吗？
-          </div>
-          <div style={{ color: palette.sub, fontSize: 13 }}>
-            删除后不可恢复。如只是暂停合作，建议改为禁用。已有询盘或单据记录的客户不能删除。
-          </div>
-        </>
-      ),
-      okText: '确认删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
+    confirmDanger({
+      title: `删除客户「${record.displayName}（${record.customerCode}）」？`,
+      content:
+        '删除后不可恢复。如只是暂停合作，建议改为禁用。已有询盘或单据记录的客户不能删除。',
       onOk: async () => {
         try {
           await customerApi.remove(record.id);
@@ -254,12 +253,9 @@ const CustomerListPage: React.FC = () => {
   };
 
   const confirmBatchDelete = () => {
-    modal.confirm({
-      title: '确认删除',
-      content: `确认删除已选的 ${selected.length} 个客户吗？删除后不可恢复，已有询盘或单据记录的客户会被跳过。`,
-      okText: '确认删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
+    confirmDanger({
+      title: `删除已选的 ${selected.length} 个客户？`,
+      content: '删除后不可恢复，已有询盘或单据记录的客户会被跳过。',
       onOk: async () => {
         const r = await customerApi.batchRemove(selected as number[]);
         const parts = [`已删除 ${r.deleted} 个`];
@@ -301,38 +297,29 @@ const CustomerListPage: React.FC = () => {
     bottom: React.ReactNode,
     topStyle?: React.CSSProperties,
   ) => (
+    // 第二行没有内容就不显示，不放「—」占位（ui-redesign P4）
     <div style={{ lineHeight: 1.5, minWidth: 0 }}>
       <div style={topStyle}>{top}</div>
-      <div
-        style={{
-          fontSize: 12,
-          color: palette.mute,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {bottom || '—'}
-      </div>
+      {bottom ? (
+        <div
+          style={{
+            fontSize: 12,
+            color: palette.mute,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {bottom}
+        </div>
+      ) : null}
     </div>
   );
 
   const columns: TableColumnsType<CustomerListItem> = [
     {
-      title: '序号',
-      key: 'index',
-      width: 60,
-      render: (_, __, i) => (
-        <span className="num">{(page - 1) * pageSize + i + 1}</span>
-      ),
-    },
-    {
-      title: '客户编码',
-      dataIndex: 'customerCode',
-      width: 110,
-      render: (v: string) => <span className="num">{v}</span>,
-    },
-    {
+      fixed: 'left',
+      // 名称在前、编码在后（ui-redesign S9：编码是次要信息）
       title: '客户名称',
       dataIndex: 'name',
       width: 230,
@@ -350,10 +337,17 @@ const CustomerListPage: React.FC = () => {
       ),
     },
     {
+      title: '客户编码',
+      dataIndex: 'customerCode',
+      width: 110,
+      render: (v: string) => <span className="num">{v}</span>,
+    },
+    {
       title: '国家/地区',
       dataIndex: 'country',
       width: 110,
-      render: (v: string) => zhOf(v) || '—',
+      // 国旗 + 中文名，单行省略、悬停看英文名（C2）
+      render: (v: string) => <CountryText value={v} />,
     },
     {
       title: '主联系人',
@@ -365,7 +359,7 @@ const CustomerListPage: React.FC = () => {
           r.contactEmail,
         ),
     },
-    ...gradeColumns(palette, sort),
+    ...gradeColumns(sort),
     {
       title: '档案完整度',
       dataIndex: 'profileMask',
@@ -436,94 +430,77 @@ const CustomerListPage: React.FC = () => {
       dataIndex: 'status',
       width: 72,
       render: (v: number, r) => (
-        <Switch
+        <StatusSwitch
           checked={v === 1}
+          name={r.displayName}
+          offText="禁用"
           disabled={!canStatus}
           loading={togglingId === r.id}
-          aria-label={
-            v === 1
-              ? `${r.displayName} 已启用，点击禁用`
-              : `${r.displayName} 已禁用，点击启用`
-          }
           onChange={(checked) => toggleStatus(r, checked)}
         />
       ),
     },
-    {
-      title: '创建时间 / 创建人',
-      key: 'created',
-      width: 170,
-      render: (_, r) =>
-        stacked(
-          <span className="num">{formatDateTime(r.createTime)}</span>,
-          r.createBy,
-        ),
-    },
-    {
-      title: '更新时间 / 更新人',
-      key: 'updated',
-      width: 170,
-      render: (_, r) =>
-        stacked(
-          <span className="num">{formatDateTime(r.updateTime)}</span>,
-          r.updateBy,
-        ),
-    },
+    // 列表页统一规范：创建时间、创建人、更新时间、更新人各一列
+    ...auditColumns<CustomerListItem>(),
     {
       title: '操作',
       key: 'actions',
-      width: 260,
+      // 常用的查看、编辑放行内，转移、放入公海、删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(canTransfer || canPool || canDelete ? 3 : 2),
       fixed: 'right',
       render: (_, r) => (
-        <div style={{ display: 'flex', gap: 12 }}>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(`${LIST_PATH}/${r.id}`)}
-          >
-            查看
-          </button>
-          {canEdit && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => history.push(`${LIST_PATH}/${r.id}/edit`)}
-            >
-              编辑
-            </button>
-          )}
-          {canTransfer && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setTransferTargets([r])}
-            >
-              转移
-            </button>
-          )}
-          {canPool && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setPoolTargets([r])}
-            >
-              放入公海
-            </button>
-          )}
-          {canDelete && (
-            <button
-              type="button"
-              className="zhul-link"
-              style={{ color: palette.red }}
-              onClick={() => confirmDelete(r)}
-            >
-              删除
-            </button>
-          )}
-        </div>
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(`${LIST_PATH}/${r.id}`),
+            },
+            canEdit && {
+              key: 'edit',
+              label: '编辑',
+              icon: <Pencil size={18} />,
+              onClick: () => history.push(`${LIST_PATH}/${r.id}/edit`),
+            },
+          ]}
+          more={[
+            canTransfer && {
+              key: 'transfer',
+              label: '转移',
+              icon: <ArrowLeftRight size={16} />,
+            },
+            canPool && {
+              key: 'pool',
+              label: '放入公海',
+              icon: <Waves size={16} />,
+            },
+            canDelete && {
+              key: 'delete',
+              label: '删除',
+              icon: <Trash2 size={16} />,
+              danger: true,
+            },
+          ]}
+          onMore={(key) => {
+            if (key === 'transfer') setTransferTargets([r]);
+            if (key === 'pool') setPoolTargets([r]);
+            if (key === 'delete') confirmDelete(r);
+          }}
+        />
       ),
     },
   ];
+  const columnsSet = useColumnSettings('customer', columns, {
+    hidden: [
+      '客户编码',
+      '主联系人',
+      '潜力等级',
+      '档案完整度',
+      '客户角色',
+      '客户来源',
+    ],
+  });
 
   // 潜力等级、经营等级、档案完整度可以排序；取消排序回到默认（经营等级 S→C，再按潜力等级）
   const onTableChange: TableProps<CustomerListItem>['onChange'] = (
@@ -547,35 +524,107 @@ const CustomerListPage: React.FC = () => {
     setPage(1);
   };
 
-  const label = (text: string) => (
-    <span style={{ fontSize: 13, color: palette.sub }}>{text}</span>
-  );
   const selectedRows = rows.filter((r) => selected.includes(r.id));
 
+  /** 搜索条件里的下拉：标签在上，读屏名称与标签相同 */
+  const select = (
+    name: string,
+    label: string,
+    options: { value: string | number; label: string }[] | undefined,
+    extra?: React.ComponentProps<typeof Select>,
+  ) => (
+    <FilterField label={label}>
+      <Form.Item name={name} noStyle>
+        <Select
+          allowClear
+          placeholder="全部"
+          aria-label={label}
+          options={options}
+          {...extra}
+        />
+      </Form.Item>
+    </FilterField>
+  );
+  const input = (name: string, label: string, placeholder: string) => (
+    <FilterField label={label}>
+      <Form.Item name={name} noStyle>
+        <Input
+          allowClear
+          placeholder={placeholder}
+          aria-label={label}
+          onPressEnter={() => search()}
+        />
+      </Form.Item>
+    </FilterField>
+  );
+  const MORE_KEYS = [
+    'country',
+    'customerRole',
+    'bizGrade',
+    'missingModules',
+    'sourceChannel',
+    'ownerId',
+    'status',
+  ] as const;
+  const moreCount = MORE_KEYS.filter((k) => {
+    const v = (query as Record<string, unknown>)[k];
+    return Array.isArray(v) ? v.length > 0 : v != null && v !== '';
+  }).length;
+  const withCount = (label: string, n?: number) =>
+    n ? `${label} · ${n}` : label;
+
   return (
-    <div style={{ color: palette.ink }}>
-      <a className="zhul-skip" href="#customer-main">
-        跳到主要内容
-      </a>
-      <PageTitle description="档案完整度 5/5 为已建档；先补有成交的客户。报价单、PI、CI 从这里带出客户信息。" />
-      <Segmented
-        value={tab}
-        onChange={(v) => setTab(v as 'all' | 'fill' | 'dups' | 'pool')}
-        style={{ marginBottom: 16 }}
-        options={[
+    <div>
+      <PageHeader
+        help={HELP.page}
+        // 导入、导出、新增只属于「全部客户」页签：导出按这个页签的筛选条件
+        extra={
+          tab === 'all' && (
+            <>
+              <Tooltip title="批量导入即将上线">
+                <span>
+                  <Button type="text" icon={<Upload size={16} />} disabled>
+                    导入
+                  </Button>
+                </span>
+              </Tooltip>
+              {canExport && (
+                <Button
+                  type="text"
+                  icon={<Download size={16} />}
+                  style={{ color: total === 0 ? undefined : palette.link }}
+                  loading={exporting}
+                  disabled={total === 0}
+                  onClick={confirmExport}
+                >
+                  导出
+                </Button>
+              )}
+              {canAdd && (
+                <Button
+                  type="primary"
+                  icon={<Plus size={18} />}
+                  onClick={() => history.push(`${LIST_PATH}/new`)}
+                >
+                  新增客户
+                </Button>
+              )}
+            </>
+          )
+        }
+      />
+      <ViewTabs
+        activeKey={tab}
+        onChange={(k) => setTab(k as 'all' | 'fill' | 'dups' | 'pool')}
+        items={[
           {
-            value: 'all',
-            label: `全部客户${tab === 'all' ? ` ${total}` : ''}`,
+            key: 'all',
+            label: '全部客户',
+            count: tab === 'all' ? total : undefined,
           },
-          { value: 'fill', label: '档案补全' },
-          {
-            value: 'dups',
-            label: `疑似重复${dupCount ? ` ${dupCount}` : ''}`,
-          },
-          {
-            value: 'pool',
-            label: `公海客户${poolCount ? ` ${poolCount}` : ''}`,
-          },
+          { key: 'fill', label: '档案补全' },
+          { key: 'dups', label: '疑似重复', count: dupCount },
+          { key: 'pool', label: '公海客户', count: poolCount },
         ]}
       />
       {tab === 'pool' ? (
@@ -590,229 +639,131 @@ const CustomerListPage: React.FC = () => {
         />
       ) : (
         <>
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={() => search()}
-            style={{
-              background: palette.card,
-              border: `1px solid ${palette.hairline}`,
-              borderRadius: 16,
-              padding: '20px 24px 4px',
-              marginBottom: 20,
-            }}
-          >
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                columnGap: 24,
-              }}
+          <Form form={form} component={false}>
+            <FilterCard
+              onSearch={() => search()}
+              onReset={reset}
+              // 列宽 110：客户名称、客户编码、主要联系人、建档状态排一行
+              minColumn={110}
+              moreCount={moreCount}
+              more={
+                <>
+                  {select('country', '国家/地区', countryOptions, {
+                    showSearch: { optionFilterProp: 'label' },
+                  })}
+                  {select('customerRole', '客户角色', ROLE_OPTIONS)}
+                  {select('bizGrade', '经营等级', BIZ_GRADE_OPTIONS)}
+                  {select('missingModules', '缺的模块', MODULE_OPTIONS, {
+                    mode: 'multiple',
+                    maxTagCount: 'responsive',
+                  })}
+                  {select('sourceChannel', '客户来源', sourceOptions)}
+                  {showOwner &&
+                    select(
+                      'ownerId',
+                      '负责业务员',
+                      owners?.owners.map((o) => ({
+                        value: o.id,
+                        label: o.name,
+                      })),
+                      { showSearch: { optionFilterProp: 'label' } },
+                    )}
+                  {select('status', '状态', STATUS_OPTIONS, {
+                    // 状态下拉切换后立即查询（interface-style）
+                    onChange: () => search(),
+                  })}
+                </>
+              }
             >
-              <Form.Item name="customerCode" label={label('客户编码')}>
-                <Input placeholder="请输入客户编码" allowClear />
-              </Form.Item>
-              <Form.Item name="name" label={label('客户名称')}>
-                <Input placeholder="英文名、中文名或简称" allowClear />
-              </Form.Item>
-              <Form.Item name="contactName" label={label('主要联系人')}>
-                <Input placeholder="联系人姓名" allowClear />
-              </Form.Item>
-              <Form.Item name="country" label={label('国家/地区')}>
-                <Select
-                  placeholder="全部"
-                  allowClear
-                  showSearch={{ optionFilterProp: 'label' }}
-                  options={countryOptions}
-                />
-              </Form.Item>
-              <Form.Item name="customerRole" label={label('客户角色')}>
-                <Select placeholder="全部" allowClear options={ROLE_OPTIONS} />
-              </Form.Item>
-              <Form.Item name="bizGrade" label={label('经营等级')}>
-                <Select
-                  placeholder="全部"
-                  allowClear
-                  options={BIZ_GRADE_OPTIONS}
-                />
-              </Form.Item>
-              <Form.Item name="missingModules" label={label('缺的模块')}>
-                <Select
-                  mode="multiple"
-                  placeholder="全部"
-                  allowClear
-                  maxTagCount="responsive"
-                  options={MODULE_OPTIONS}
-                />
-              </Form.Item>
-              <Form.Item name="sourceChannel" label={label('客户来源')}>
-                <Select placeholder="全部" allowClear options={sourceOptions} />
-              </Form.Item>
-              {showOwner && (
-                <Form.Item name="ownerId" label={label('负责业务员')}>
-                  <Select
-                    placeholder="全部"
+              <FilterField label="客户名称" span={2} help={HELP.name}>
+                <Form.Item name="name" noStyle>
+                  <Input
                     allowClear
-                    showSearch={{ optionFilterProp: 'label' }}
-                    options={owners?.owners.map((o) => ({
-                      value: o.id,
-                      label: o.name,
-                    }))}
+                    prefix={<Search size={16} />}
+                    placeholder="英文名、中文名或简称"
+                    aria-label="客户名称"
+                    onPressEnter={() => search()}
                   />
                 </Form.Item>
+              </FilterField>
+              {input('customerCode', '客户编码', '客户编码')}
+              {input('contactName', '主要联系人', '联系人姓名')}
+              {select(
+                'profileStatus',
+                '建档状态',
+                [
+                  { value: 'done', label: withCount('已建档', counts?.done) },
+                  {
+                    value: 'pending',
+                    label: withCount('待完善', counts?.pending),
+                  },
+                ],
+                // 切换建档状态立即查询（doc-list-unify 状态下拉的写法）
+                { onChange: () => search() },
               )}
-              <Form.Item name="status" label={label('状态')}>
-                <Select
-                  placeholder="全部"
-                  allowClear
-                  options={STATUS_OPTIONS}
-                />
-              </Form.Item>
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                gap: 12,
-                justifyContent: 'flex-end',
-                marginBottom: 16,
-              }}
-            >
-              <Button onClick={reset}>重置</Button>
-              <Button type="primary" htmlType="submit">
-                查询
-              </Button>
-            </div>
+            </FilterCard>
           </Form>
 
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: 12,
-              marginBottom: 12,
-              flexWrap: 'wrap',
-            }}
-          >
-            <Segmented
-              value={query.profileStatus ?? 'all'}
-              onChange={(v) =>
-                search(v === 'all' ? null : (v as 'done' | 'pending'))
-              }
-              options={[
-                {
-                  value: 'all',
-                  label: `全部${counts ? ` ${counts.all}` : ''}`,
-                },
-                {
-                  value: 'done',
-                  label: `已建档${counts ? ` ${counts.done}` : ''}`,
-                },
-                {
-                  value: 'pending',
-                  label: `待完善${counts ? ` ${counts.pending}` : ''}`,
-                },
-              ]}
-            />
-            <div style={{ display: 'flex', gap: 12 }}>
-              {canAdd && (
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={() => history.push(`${LIST_PATH}/new`)}
+          <MainCard
+            settings={columnsSet.settings}
+            left={
+              selected.length > 0 ? (
+                <SelectionCount
+                  count={selected.length}
+                  onClear={() => setSelected([])}
+                />
+              ) : (
+                `共 ${total} 条`
+              )
+            }
+            right={
+              selected.length > 0 && (
+                <div
+                  role="toolbar"
+                  aria-label="批量操作"
+                  style={{ display: 'flex', gap: 8 }}
                 >
-                  新增客户
-                </Button>
-              )}
-              <Tooltip title="批量导入即将上线">
-                <Button icon={<UploadOutlined />} disabled>
-                  导入
-                </Button>
-              </Tooltip>
-              {canExport && (
-                <Button
-                  icon={<DownloadOutlined />}
-                  loading={exporting}
-                  disabled={total === 0}
-                  onClick={confirmExport}
-                >
-                  导出
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {selected.length > 0 && (
-            <div
-              role="toolbar"
-              aria-label="批量操作"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 12,
-                padding: '10px 16px',
-                marginBottom: 12,
-                borderRadius: 12,
-                background: palette.accentSoft,
-                border: `1px solid ${palette.accentLine}`,
-              }}
-            >
-              <span style={{ fontWeight: 600, color: palette.link }}>
-                已选 <span className="num">{selected.length}</span> 条
-              </span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <Button type="link" onClick={() => setSelected([])}>
-                  取消选择
-                </Button>
-                {canTransfer && (
-                  <Button
-                    icon={<SwapOutlined />}
-                    onClick={() => setTransferTargets(selectedRows)}
-                  >
-                    批量转移
-                  </Button>
-                )}
-                {canPool && (
-                  <Button onClick={() => setPoolTargets(selectedRows)}>
-                    放入公海
-                  </Button>
-                )}
-                {canDelete && (
-                  <Button
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={confirmBatchDelete}
-                  >
-                    批量删除
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div
-            style={{
-              background: palette.card,
-              borderRadius: 16,
-              border: `1px solid ${palette.hairline}`,
-              overflow: 'hidden',
-            }}
+                  {canTransfer && (
+                    <Button
+                      icon={<ArrowLeftRight size={16} />}
+                      onClick={() => setTransferTargets(selectedRows)}
+                    >
+                      批量转移
+                    </Button>
+                  )}
+                  {canPool && (
+                    <Button
+                      icon={<Waves size={16} />}
+                      onClick={() => setPoolTargets(selectedRows)}
+                    >
+                      放入公海
+                    </Button>
+                  )}
+                  {canDelete && (
+                    <Button
+                      danger
+                      icon={<Trash2 size={16} />}
+                      onClick={confirmBatchDelete}
+                    >
+                      批量删除
+                    </Button>
+                  )}
+                </div>
+              )
+            }
           >
             {error ? (
               <ErrorHint message={error} onRetry={load} />
             ) : firstLoad ? (
-              <div style={{ padding: 24 }}>
-                <Skeleton active paragraph={{ rows: 6 }} />
-              </div>
+              <Skeleton active paragraph={{ rows: 6 }} />
             ) : (
               <Table<CustomerListItem>
                 rowKey="id"
-                columns={columns}
+                columns={columnsSet.columns}
                 dataSource={rows}
                 loading={loading}
                 sticky
-                scroll={{ x: showOwner ? 2080 : 1980 }}
+                scroll={{ x: tableScrollX(columnsSet.columns) }}
                 onChange={onTableChange}
                 rowSelection={{
                   selectedRowKeys: selected,
@@ -824,12 +775,11 @@ const CustomerListPage: React.FC = () => {
                     }) as unknown as Partial<CheckboxProps>,
                 }}
                 pagination={{
+                  ...PAGER_STYLE,
                   current: page,
                   pageSize,
                   total,
-                  showSizeChanger: true,
                   pageSizeOptions: [10, 20, 50],
-                  showTotal: (t) => `共 ${t} 条，每页 ${pageSize} 条`,
                   onChange: (p, s) => {
                     setPage(p);
                     setPageSize(s);
@@ -837,24 +787,27 @@ const CustomerListPage: React.FC = () => {
                   },
                 }}
                 locale={{
-                  emptyText: hasCondition ? (
-                    <EmptyHint
-                      title="没有找到匹配的客户"
-                      secondaryText="清空筛选"
-                      onSecondary={reset}
-                    />
-                  ) : (
-                    <EmptyHint
-                      title="还没有客户档案"
-                      description="成交或需要做单的客户建档后，报价单和 PI 会自动带出客户信息。"
-                      actionText={canAdd ? '新增客户' : undefined}
-                      onAction={() => history.push(`${LIST_PATH}/new`)}
-                    />
+                  emptyText: tableEmpty(
+                    hasCondition ? (
+                      <EmptyHint
+                        title="没有找到匹配的客户"
+                        secondaryText="清空筛选"
+                        onSecondary={reset}
+                      />
+                    ) : (
+                      <EmptyHint
+                        title="还没有客户档案"
+                        description="成交或需要做单的客户建档后，报价单和 PI 会自动带出客户信息。"
+                        actionText={canAdd ? '新增客户' : undefined}
+                        onAction={() => history.push(`${LIST_PATH}/new`)}
+                      />
+                    ),
+                    loading,
                   ),
                 }}
               />
             )}
-          </div>
+          </MainCard>
         </>
       )}
 

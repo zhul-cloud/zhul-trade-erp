@@ -1,4 +1,3 @@
-import { BulbOutlined, SearchOutlined } from '@ant-design/icons';
 import type { TableColumnsType } from 'antd';
 import {
   App,
@@ -10,8 +9,12 @@ import {
   Space,
   Table,
 } from 'antd';
+import { Lightbulb, Search } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
+import { SelectionCount } from '@/components/ListLayout';
 import { formatDateTime } from '@/utils/format';
+import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { Pill } from '../components/Pills';
 import {
@@ -123,6 +126,7 @@ const PendingTab: React.FC<{
         (!k || p.name.toLowerCase().includes(k)),
     );
   }, [pending, source, keyword]);
+  const pager = usePagination(20, 'pending', rows.length);
 
   const picked = (keys: string[]) =>
     pending.filter((p) => keys.includes(p.pendingKey));
@@ -205,7 +209,7 @@ const PendingTab: React.FC<{
         }}
         onClick={() => (warn ? ignore([row]) : openLink([row]))}
       >
-        <BulbOutlined style={{ marginRight: 4 }} />
+        <Lightbulb size="1em" style={{ marginRight: 4 }} />
         {row.suggestText}
       </button>
     );
@@ -239,6 +243,7 @@ const PendingTab: React.FC<{
       render: (v: string) => <span className="num">{formatDateTime(v)}</span>,
     },
     {
+      // lint-ui-ignore row-actions: 待审品牌的审核队列，保留文字按钮
       title: '操作',
       key: 'op',
       width: 240,
@@ -295,36 +300,38 @@ const PendingTab: React.FC<{
         />
         <Input
           allowClear
-          prefix={<SearchOutlined />}
+          prefix={<Search size="1em" />}
           placeholder="搜索写法"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           style={{ width: 240 }}
         />
         <div style={{ flex: 1 }} />
-        <Button
-          disabled={!selected.length}
-          onClick={() => openLink(selectedRows)}
-        >
-          批量设为别名
-        </Button>
-        <Button
-          disabled={!selected.length}
-          onClick={() => ignore(selectedRows)}
-        >
-          批量标为不是品牌
-        </Button>
+        {/* 批量操作随勾选出现 */}
+        {selected.length > 0 && (
+          <>
+            <SelectionCount
+              count={selected.length}
+              unit="个"
+              onClear={() => setSelected([])}
+            />
+            <Button onClick={() => openLink(selectedRows)}>批量设为别名</Button>
+            <Button onClick={() => ignore(selectedRows)}>
+              批量标为不是品牌
+            </Button>
+          </>
+        )}
       </div>
       <Table<PendingBrand>
         rowKey="pendingKey"
         loading={loading}
         dataSource={rows}
-        pagination={{ defaultPageSize: 50, hideOnSinglePage: true }}
+        pagination={pager}
         rowSelection={{
           selectedRowKeys: selected,
           onChange: (keys) => setSelected(keys as string[]),
         }}
-        locale={{ emptyText: '没有待确认的品牌' }}
+        locale={{ emptyText: tableEmpty('没有待确认的品牌', loading) }}
         footer={() =>
           '设为别名或新建品牌后，询盘、订单、采购单里这个写法自动换成正式品牌名'
         }

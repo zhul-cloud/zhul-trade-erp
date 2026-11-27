@@ -8,14 +8,15 @@ import {
   SectionTitle,
 } from '@/components/DocFields/DocPage';
 import { DocFilesCard } from '@/components/DocFiles';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, useWide } from '@/pages/inquiry/shared/components';
+import { UserName } from '@/components/UserName';
+import { Card, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/sales/service';
 import { relatedRows } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
 import {
   DueTag,
   InstallmentTable,
@@ -175,25 +176,26 @@ const PayableDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[<MenuLink key="list" to="/finance/payables" />, p.payableNo]}
-        title={
+      <PageHeader
+        title={p.payableNo}
+        tags={<PayStatusPill status={p.status} />}
+        sub={
           <>
-            {p.payableNo}
-            <PayStatusPill status={p.status} />
-          </>
-        }
-        description={
-          <>
-            {p.payeeName || '—'} · {source} · {p.createBy ?? '—'} ·{' '}
+            {p.payeeName || '—'} · {source} · <UserName value={p.createBy} /> ·{' '}
             {formatDateTime(p.createTime).slice(0, 16)} 创建
           </>
         }
-        actions={
+        extra={
           canRegister && (
             <>
               {p.creditAmount > 0 && (
-                <Button onClick={() => setRefunding(true)}>退款</Button>
+                <Button
+                  type="text"
+                  style={{ color: palette.link }}
+                  onClick={() => setRefunding(true)}
+                >
+                  退款
+                </Button>
               )}
               {open && (
                 <Button type="primary" onClick={() => setPaying(true)}>

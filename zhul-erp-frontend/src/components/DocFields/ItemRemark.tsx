@@ -1,11 +1,7 @@
-import {
-  EditOutlined,
-  MessageOutlined,
-  PlusOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { App, Button, Input } from 'antd';
+import { MessageSquare, Pencil, Plus, TriangleAlert } from 'lucide-react';
 import React, { useState } from 'react';
+import EllipsisText from '@/components/EllipsisText';
 import { useAppTheme } from '@/theme/AppTheme';
 import { actualModelStamp } from './ActualModel';
 
@@ -41,7 +37,7 @@ export const ItemRemarkText: React.FC<{ text?: string; alert?: boolean }> = ({
       style={{
         color,
         fontSize: 12,
-        fontWeight: 500,
+        fontWeight: 400,
         lineHeight: 1.5,
         display: 'flex',
         gap: 6,
@@ -50,15 +46,42 @@ export const ItemRemarkText: React.FC<{ text?: string; alert?: boolean }> = ({
       }}
     >
       {alert ? (
-        <WarningOutlined style={{ marginTop: 3 }} />
+        <TriangleAlert size="1em" style={{ marginTop: 3 }} />
       ) : (
-        <MessageOutlined style={{ marginTop: 3 }} />
+        <MessageSquare size="1em" style={{ marginTop: 3 }} />
       )}
       <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
         {alert ? '备注已更新：' : ''}
         {text || '（已清空）'}
         {alert ? '（请与供应商核对）' : ''}
       </span>
+    </div>
+  );
+};
+
+/**
+ * 列表的「描述」格（采购需求，2026-11-24 用户选定）：描述一行，有备注时下面一行橙色「备注：…」。
+ * 两行都单行省略、悬停看全文，再长也不折行撑高（D21）；详情页的明细仍用 DocDescription、ItemRemarkText 完整显示。
+ */
+export const DescRemarkCell: React.FC<{
+  description?: string;
+  remark?: string;
+}> = ({ description, remark }) => {
+  const { palette } = useAppTheme();
+  return (
+    <div style={{ minWidth: 0 }}>
+      {description ? (
+        <EllipsisText text={description} style={{ color: palette.sub }} />
+      ) : (
+        <span style={{ color: palette.faint }}>—</span>
+      )}
+      {remark && (
+        <EllipsisText
+          text={`备注：${remark}`}
+          tip={<span style={{ whiteSpace: 'pre-wrap' }}>{remark}</span>}
+          style={{ fontSize: 12, lineHeight: '18px', color: palette.orange }}
+        />
+      )}
     </div>
   );
 };
@@ -156,7 +179,7 @@ export const ItemRemarkLine: React.FC<{
         style={{
           color: palette.orange,
           fontSize: 12,
-          fontWeight: 500,
+          fontWeight: 400,
           lineHeight: 1.5,
           display: 'flex',
           gap: 6,
@@ -165,12 +188,13 @@ export const ItemRemarkLine: React.FC<{
           marginTop: 2,
         }}
       >
-        <MessageOutlined style={{ marginTop: 3 }} />
+        <MessageSquare size="1em" style={{ marginTop: 3 }} />
         <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
           {text}
         </span>
         {editable && (
-          <EditOutlined
+          <Pencil
+            size="1em"
             aria-label="修改型号备注"
             style={{ color: palette.faint, cursor: 'pointer', marginTop: 3 }}
             onClick={open}
@@ -187,7 +211,7 @@ export const ItemRemarkLine: React.FC<{
     <Button
       type="link"
       size="small"
-      icon={<PlusOutlined />}
+      icon={<Plus size="1em" />}
       onClick={open}
       style={{ padding: 0, height: 'auto', alignSelf: 'flex-start' }}
     >

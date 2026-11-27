@@ -168,16 +168,16 @@
 | 登录地点 | content.location | 160px | 左对齐 | — | IP 解析地理位置（市级精度）；解析失败显示「未知」；超长省略，hover Tooltip 显示完整文本 |
 | 浏览器 | content.browser | 160px | 左对齐 | — | 如"Chrome 124.0"；超长省略，hover Tooltip |
 | 操作系统 | content.os | 140px | 左对齐 | — | 如"Windows 11"；超长省略，hover Tooltip |
-| 登录结果 | result | 120px | 居中 | — | Tag 组件：成功=绿色（#52c41a），失败=红色（#ff4d4f）；成功且 is_online=true 时，Tag 右侧附加蓝色实心圆点 + 文字「在线」 |
+| 登录结果 | result | 120px | 居中 | — | Tag 组件：成功=成功色，失败=错误色；成功且 is_online=true 时，Tag 右侧附加信息色实心圆点 + 文字「在线」 |
 | 登录时间 | operate_time | 180px | 左对齐 | 右 | 按登录用户时区格式化，格式：YYYY-MM-DD HH:mm:ss |
 
 **在线状态标识规则：**
-- 同一用户可能存在多条登录记录，仅 `content.is_online = true` 的记录在「登录结果」列附加蓝色「在线」标识
+- 同一用户可能存在多条登录记录，仅 `content.is_online = true` 的记录在「登录结果」列附加信息色「在线」标识
 - 强制下线成功后，对应行的在线标识消失，checkbox 置灰（列表刷新后生效）
 
 **表格其他规格：**
 - 默认排序：operate_time 降序（最新在前），不支持前端自定义列排序
-- 行 hover：背景色 #f5f7fa
+- 行 hover：背景色见界面规范
 - 空数据：Ant Design Empty 组件，文案「暂无登录日志数据」
 - 分页：默认 20 条/页，可选 20 / 50 / 100，显示总数「共 XXX 条」
 - 切换分页后已勾选状态清空

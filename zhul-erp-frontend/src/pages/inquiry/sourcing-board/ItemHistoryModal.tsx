@@ -1,6 +1,6 @@
-import { HistoryOutlined } from '@ant-design/icons';
 import { Modal, Skeleton, Timeline } from 'antd';
 import dayjs from 'dayjs';
+import { History } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -71,7 +71,7 @@ const ItemHistoryModal: React.FC<{
       open={!!item}
       title={
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          <HistoryOutlined /> 修改记录 · {item?.model}
+          <History size="1em" /> 修改记录 · {item?.model}
         </span>
       }
       footer={null}

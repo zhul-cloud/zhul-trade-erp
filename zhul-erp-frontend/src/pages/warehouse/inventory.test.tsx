@@ -408,3 +408,24 @@ it('库存不足：STOCK_SHORTAGE 弹窗逐行显示缺多少，其他错误不�
   expect(screen.getByText('缺 5')).toBeTruthy();
   expect(screen.getByText('缺 1')).toBeTruthy();
 });
+
+it('库存查询：关键词输入框里按回车就查询（筛选卡片的查询按钮不是提交按钮）', async () => {
+  const bodies: Record<string, unknown>[] = [];
+  (request as jest.Mock).mockImplementation(
+    (url: string, opts?: { data?: Record<string, unknown> }) => {
+      if (url.endsWith('/stocks/page') && opts?.data) bodies.push(opts.data);
+      if (url.endsWith('/stocks/summary')) return Promise.resolve({ data: {} });
+      if (url.endsWith('/warehouses')) return Promise.resolve({ data: [] });
+      return Promise.resolve(page([]));
+    },
+  );
+  mount(React.createElement(Stocks));
+  const input = await screen.findByRole('textbox', { name: '关键词' });
+  await act(async () => {
+    fireEvent.change(input, { target: { value: '6ES7' } });
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', keyCode: 13 });
+  });
+  await waitFor(() =>
+    expect(bodies.some((b) => b.keyword === '6ES7')).toBe(true),
+  );
+});

@@ -8,10 +8,13 @@ import {
   Select,
   Space,
   Table,
+  type TableColumnsType,
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { formatAmount } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import { EmptyHint } from '../../components/EmptyHint';
 import { CURRENCY_OPTIONS } from '../../constants';
 import {
@@ -37,7 +40,8 @@ export const PriceCard: React.FC<{
   done?: boolean;
   onChanged: () => void;
 }> = ({ productId, readOnly, done, onChanged }) => {
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { palette } = useProductTheme();
   const [form] = Form.useForm<ReferencePrice & { date?: dayjs.Dayjs | null }>();
   const [price, setPrice] = useState<ReferencePrice>();
@@ -116,12 +120,10 @@ export const PriceCard: React.FC<{
   );
 
   const clear = () =>
-    modal.confirm({
+    confirmDanger({
       title: '清除参考价？',
       content: '清除后商品回到"未维护参考价"，之后可以重新填写。',
       okText: '清除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
       onOk: async () => {
         await priceApi.clear(productId);
         message.success('已清除');
@@ -130,6 +132,35 @@ export const PriceCard: React.FC<{
         onChanged();
       },
     });
+
+  const linkColumns: TableColumnsType<ListingPrice> = [
+    { title: '价格类别', dataIndex: 'category', width: 160 },
+    { title: '平台/网站', dataIndex: 'platform', width: 100 },
+    { title: '成色', dataIndex: 'itemCondition', width: 80 },
+    {
+      title: '参考价格（USD）',
+      dataIndex: 'priceUsd',
+      width: 130,
+      align: 'right',
+      render: (v: number) => (
+        <span className="num">{formatAmount(v, 'USD')}</span>
+      ),
+    },
+    { title: '来源原价', dataIndex: 'sourcePrice', width: 120 },
+    {
+      title: '来源链接',
+      width: 220,
+      dataIndex: 'linkUrl',
+      render: (v: string, r) =>
+        v ? (
+          <a href={v} target="_blank" rel="noopener noreferrer">
+            {r.linkTitle || '打开'}
+          </a>
+        ) : (
+          '—'
+        ),
+    },
+  ];
 
   return (
     <CardShell
@@ -286,35 +317,8 @@ export const PriceCard: React.FC<{
             rowKey="id"
             pagination={false}
             dataSource={listings}
-            columns={[
-              { title: '价格类别', dataIndex: 'category', width: 160 },
-              { title: '平台/网站', dataIndex: 'platform', width: 100 },
-              { title: '成色', dataIndex: 'itemCondition', width: 80 },
-              {
-                title: '参考价格（USD）',
-                dataIndex: 'priceUsd',
-                width: 130,
-                align: 'right',
-                render: (v: number) => (
-                  <span className="num">{formatAmount(v, 'USD')}</span>
-                ),
-              },
-              { title: '来源原价', dataIndex: 'sourcePrice', width: 120 },
-              {
-                title: '来源链接',
-                width: 220,
-                dataIndex: 'linkUrl',
-                render: (v: string, r) =>
-                  v ? (
-                    <a href={v} target="_blank" rel="noopener noreferrer">
-                      {r.linkTitle || '打开'}
-                    </a>
-                  ) : (
-                    '—'
-                  ),
-              },
-            ]}
-            scroll={{ x: 'max-content' }}
+            columns={linkColumns}
+            scroll={{ x: tableScrollX(linkColumns) }}
           />
         </div>
       )}

@@ -1,29 +1,32 @@
-import {
-  ExclamationCircleOutlined,
-  FolderAddOutlined,
-  MoonOutlined,
-  OrderedListOutlined,
-  SearchOutlined,
-  SettingOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
 import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import {
-  App,
-  Button,
-  Checkbox,
-  Input,
-  Modal,
-  Select,
-  Table,
-  Tabs,
-  TimePicker,
-} from 'antd';
+import { App, Button, Input, Modal, Select, Table, TimePicker } from 'antd';
 import dayjs from 'dayjs';
+import {
+  FolderPlus,
+  ListMinus,
+  ListPlus,
+  RotateCcw,
+  Search,
+  Settings,
+  Upload,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  SelectionCount,
+  SummaryBar,
+} from '@/components/ListLayout';
+import { AlertLabel } from '@/components/MetricCard';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { auditColumns } from '@/components/UserName';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
   type BrandOption,
@@ -31,9 +34,8 @@ import {
   type CategoryOption,
   categoryApi,
 } from '@/pages/product/service';
-import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { isPlatformAccount } from '@/utils/platform';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
@@ -59,7 +61,6 @@ import { BatchUploadModal, UploadModal } from './UploadDialogs';
 const MaterialCell: React.FC<{ task: VideoTask }> = ({ task: t }) => {
   const { palette } = useAppTheme();
   const links = useTaskLinks(t.id, t.thumbnailIds ?? []);
-  const short = t.usedCount < LIMITS.minShots;
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
       {(t.thumbnailIds ?? []).map((id) => (
@@ -69,7 +70,8 @@ const MaterialCell: React.FC<{ task: VideoTask }> = ({ task: t }) => {
         style={{
           marginLeft: 4,
           fontVariantNumeric: 'tabular-nums',
-          color: short ? palette.orange : palette.sub,
+          // 选用不够的提醒写在状态列（带图标的警告标签），这里只写数
+          color: palette.sub,
         }}
       >
         {t.usedCount} / {t.imageCount}
@@ -284,10 +286,14 @@ const VideoTasksPage: React.FC = () => {
       width: 260,
       fixed: 'left',
       render: (_, r) => (
-        <div>
+        <div style={{ minWidth: 0 }}>
           <Link to={`/operations/videos/${r.id}`}>
-            <span style={{ color: palette.sub }}>{r.brand}</span>
-            <b style={{ marginLeft: 6 }}>{r.model}</b>
+            {r.brand && (
+              <span style={{ color: palette.sub, marginRight: 6 }}>
+                {r.brand}
+              </span>
+            )}
+            <b>{r.model}</b>
           </Link>
           <div style={{ fontSize: 12, color: palette.mute }}>
             {r.productName || '—'}
@@ -323,211 +329,212 @@ const VideoTasksPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 140,
+      width: rowActionsWidth(1),
       fixed: 'right',
+      // 加入队列 / 重新生成 / 移出队列按状态三选一，占一个图标位；点商品名打开详情
       render: (_, r) => (
-        <span style={{ display: 'inline-flex', gap: 12 }}>
-          <Link to={`/operations/videos/${r.id}`}>详情</Link>
-          {canUpload && r.status === 2 && (
-            <Button
-              type="link"
-              size="small"
-              style={{ padding: 0 }}
-              loading={acting === r.id}
-              onClick={() => act(r, () => videoApi.dequeue(r.id), '已移出队列')}
-            >
-              移出队列
-            </Button>
-          )}
-          {canUpload && QUEUEABLE.includes(r.status) && (
-            <Button
-              type="link"
-              size="small"
-              style={{ padding: 0 }}
-              loading={acting === r.id}
-              onClick={() => act(r, () => videoApi.queue(r.id), '已加入队列')}
-            >
-              {r.status === 5 ? '重新生成' : '加入队列'}
-            </Button>
-          )}
-        </span>
+        <RowActions
+          inline={[
+            canUpload && r.status === 2
+              ? {
+                  key: 'dequeue',
+                  label: '移出队列',
+                  icon: <ListMinus size={18} />,
+                  disabledReason: acting === r.id ? '处理中' : undefined,
+                  onClick: () =>
+                    act(r, () => videoApi.dequeue(r.id), '已移出队列'),
+                }
+              : canUpload &&
+                QUEUEABLE.includes(r.status) && {
+                  key: 'queue',
+                  label: r.status === 5 ? '重新生成' : '加入队列',
+                  icon:
+                    r.status === 5 ? (
+                      <RotateCcw size={18} />
+                    ) : (
+                      <ListPlus size={18} />
+                    ),
+                  disabledReason: acting === r.id ? '处理中' : undefined,
+                  onClick: () =>
+                    act(r, () => videoApi.queue(r.id), '已加入队列'),
+                },
+          ]}
+        />
       ),
     },
   ];
+  const columnsSet = useColumnSettings('operations-videos', columns);
+
+  const reset = () => {
+    setKeyword('');
+    setBrandId(undefined);
+    setCategoryId(undefined);
+    setTab('all');
+    setQuery({});
+    setPage(1);
+  };
 
   return (
     <div>
-      <PageTitle
-        actions={
-          canUpload && (
-            <span style={{ display: 'inline-flex', gap: 8 }}>
-              <Button
-                icon={<FolderAddOutlined />}
-                onClick={() => setBatchOpen(true)}
-              >
-                批量上传
-              </Button>
-              <Button
-                type="primary"
-                icon={<UploadOutlined />}
-                onClick={() => setUploadOpen(true)}
-              >
-                上传素材
-              </Button>
-            </span>
+      <PageHeader
+        extra={
+          (platform || canUpload) && (
+            <>
+              {/* 生成时段只有平台账号能改：操作放页头，不放汇总行副文字（窄时副文字会被隐藏） */}
+              {platform && (
+                <Button
+                  type="text"
+                  icon={<Settings size={16} />}
+                  style={{ color: palette.link }}
+                  onClick={() => setWindowEdit(true)}
+                >
+                  生成设置
+                </Button>
+              )}
+              {canUpload && (
+                <Button
+                  icon={<FolderPlus size={16} />}
+                  onClick={() => setBatchOpen(true)}
+                >
+                  批量上传
+                </Button>
+              )}
+              {canUpload && (
+                <Button
+                  type="primary"
+                  icon={<Upload size={16} />}
+                  onClick={() => setUploadOpen(true)}
+                >
+                  上传素材
+                </Button>
+              )}
+            </>
           )
         }
       />
-      <Card style={{ padding: '14px 18px', marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: palette.violetSoft,
-              color: palette.violet,
-            }}
-          >
-            <MoonOutlined />
-          </span>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <b>夜间生成 {slot.replace('-', '–')}</b>
+      {/* 原「夜间生成」说明卡改为汇总行（列表页统一规范：页头下方一行指标，口径进帮助图标） */}
+      <SummaryBar
+        items={[
+          {
+            key: 'window',
+            label: '夜间生成',
+            help: '全服务器同一时间只生成一个，按加入队列的先后',
+            value: slot.replace('-', '–'),
+            sub: (
               <Pill tone={running ? 'green' : 'gray'}>
                 {running ? '运行中' : '未到时段'}
               </Pill>
-            </div>
-            <div style={{ fontSize: 12, color: palette.mute, marginTop: 2 }}>
-              本公司排队 {counts.queued ?? 0} 个 · 待审核 {counts.review ?? 0}{' '}
-              个 · 全服务器同一时间只生成一个，按加入队列的先后
-            </div>
-          </div>
-          {platform && (
-            <Button
-              type="text"
-              icon={<SettingOutlined />}
-              onClick={() => setWindowEdit(true)}
-            >
-              生成设置
-            </Button>
-          )}
-        </div>
-      </Card>
+            ),
+          },
+        ]}
+      />
+      <FilterCard onSearch={apply} onReset={reset}>
+        <FilterField label="关键词" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={apply}
+            placeholder="型号、名称"
+            aria-label="关键词"
+          />
+        </FilterField>
+        {/* 全部、待生成……生成失败是同一种工作按进度筛：状态下拉，选项带数量（D61） */}
+        <FilterField label="状态">
+          <Select<VideoTab>
+            value={tab}
+            onChange={(v) => {
+              setTab(v);
+              setPage(1);
+              setSelected([]);
+            }}
+            options={TABS.map((t) => {
+              const n = t.key === 'all' ? undefined : counts[t.key];
+              return {
+                value: t.key,
+                label: n ? `${t.label} · ${n}` : t.label,
+              };
+            })}
+            aria-label="状态"
+          />
+        </FilterField>
+        <FilterField label="品牌">
+          <Select
+            allowClear
+            showSearch={{ optionFilterProp: 'label' }}
+            value={brandId}
+            onChange={setBrandId}
+            placeholder="全部"
+            options={brands.map((b) => ({ value: b.id, label: b.brandName }))}
+            aria-label="品牌"
+          />
+        </FilterField>
+        <FilterField label="品类">
+          <Select
+            allowClear
+            showSearch={{ optionFilterProp: 'label' }}
+            value={categoryId}
+            onChange={setCategoryId}
+            placeholder="全部"
+            options={categories.map((c) => ({
+              value: c.id,
+              label: c.categoryNameZh || c.categoryName,
+            }))}
+            aria-label="品类"
+          />
+        </FilterField>
+      </FilterCard>
 
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: '4px 18px 18px' }}>
-          <Tabs
-            activeKey={tab}
-            onChange={(k) => {
-              setTab(k as VideoTab);
-              setPage(1);
-            }}
-            items={TABS.map((t) => ({
-              key: t.key,
-              label:
-                counts[t.key] !== undefined
-                  ? `${t.label} ${counts[t.key]}`
-                  : t.label,
-            }))}
-          />
-          <div
-            style={{
-              display: 'flex',
-              gap: 12,
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              marginBottom: 12,
-            }}
-          >
-            <Input
-              allowClear
-              prefix={<SearchOutlined />}
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              onPressEnter={apply}
-              placeholder="搜索型号、名称"
-              style={{ width: 220 }}
-              aria-label="关键词"
-            />
-            <Select
-              allowClear
-              showSearch={{ optionFilterProp: 'label' }}
-              value={brandId}
-              onChange={setBrandId}
-              placeholder="品牌"
-              options={brands.map((b) => ({ value: b.id, label: b.brandName }))}
-              style={{ width: 160 }}
-              aria-label="品牌"
-            />
-            <Select
-              allowClear
-              showSearch={{ optionFilterProp: 'label' }}
-              value={categoryId}
-              onChange={setCategoryId}
-              placeholder="品类"
-              options={categories.map((c) => ({
-                value: c.id,
-                label: c.categoryNameZh || c.categoryName,
-              }))}
-              style={{ width: 160 }}
-              aria-label="品类"
-            />
-            <Button onClick={apply}>查询</Button>
-          </div>
-          {selected.length > 0 && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '8px 14px',
-                marginBottom: 12,
-                borderRadius: 10,
-                border: `1px solid ${palette.accentLine}`,
-                background: palette.accentSoft,
-              }}
-            >
-              <Checkbox checked onChange={() => setSelected([])}>
-                <b>已选 {selected.length} 个</b>
-              </Checkbox>
-              {selectedShort.length > 0 && (
-                <span style={{ fontSize: 12, color: palette.orange }}>
-                  <ExclamationCircleOutlined />{' '}
-                  {selectedShort
-                    .slice(0, 2)
-                    .map((s) => s.model)
-                    .join('、')}
-                  {selectedShort.length > 2
-                    ? ` 等 ${selectedShort.length} 个`
-                    : ''}
-                  不能加入（选用不足 4 张或状态不对），加入时会跳过
-                </span>
-              )}
-              <span style={{ flex: 1 }} />
-              <Button type="text" onClick={() => setSelected([])}>
-                取消选择
-              </Button>
+        <MainCard
+          count={selected.length > 0 ? undefined : total}
+          unit="个"
+          loading={loading}
+          settings={columnsSet.settings}
+          left={
+            selected.length > 0 && (
+              <>
+                <SelectionCount
+                  count={selected.length}
+                  unit="个"
+                  onClear={() => setSelected([])}
+                />
+                {selectedShort.length > 0 && (
+                  <AlertLabel tone="warning">
+                    {selectedShort
+                      .slice(0, 2)
+                      .map((s) => s.model)
+                      .join('、')}
+                    {selectedShort.length > 2
+                      ? ` 等 ${selectedShort.length} 个`
+                      : ''}
+                    选用不足 4 张或状态不对，加入时跳过
+                  </AlertLabel>
+                )}
+              </>
+            )
+          }
+          right={
+            selected.length > 0 && (
               <Button
                 type="primary"
-                icon={<OrderedListOutlined />}
+                icon={<ListPlus size={16} />}
                 onClick={batchQueue}
               >
                 批量加入队列
               </Button>
-            </div>
-          )}
+            )
+          }
+        >
           <Table<VideoTask>
             rowKey="id"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             rowSelection={
               canUpload
                 ? {
@@ -537,21 +544,25 @@ const VideoTasksPage: React.FC = () => {
                 : undefined
             }
             locale={{
-              emptyText: TABS.find((t) => t.key === tab)?.empty ?? '没有记录',
+              emptyText: tableEmpty(
+                query.keyword || query.brandId || query.categoryId
+                  ? '没有符合条件的视频任务，换个条件试试'
+                  : (TABS.find((t) => t.key === tab)?.empty ?? '没有记录'),
+                loading,
+              ),
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
-              showTotal: (t: number) => `共 ${t} 个任务`,
               onChange: (p: number, s: number) => {
                 setPage(p);
                 setPageSize(s);
               },
             }}
           />
-        </Card>
+        </MainCard>
       )}
 
       <UploadModal

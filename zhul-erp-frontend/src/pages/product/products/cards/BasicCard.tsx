@@ -1,5 +1,5 @@
-import { LockOutlined } from '@ant-design/icons';
 import { App, Button, Form, Input, Select, Space } from 'antd';
+import { Lock } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { groupedCategoryOptions } from '../../components/categoryOptions';
 import {
@@ -149,7 +149,7 @@ export const BasicCard: React.FC<{
               label={
                 locked ? (
                   <span>
-                    <LockOutlined /> 品牌（{lockHint}）
+                    <Lock size="1em" /> 品牌（{lockHint}）
                   </span>
                 ) : (
                   '品牌'
@@ -172,7 +172,7 @@ export const BasicCard: React.FC<{
               label={
                 locked ? (
                   <span>
-                    <LockOutlined /> 原始型号（{lockHint}）
+                    <Lock size="1em" /> 原始型号（{lockHint}）
                   </span>
                 ) : (
                   '原始型号'
@@ -256,7 +256,8 @@ export const BasicCard: React.FC<{
           <FieldGrid>
             <Field label="品牌">
               {locked && (
-                <LockOutlined
+                <Lock
+                  size="1em"
                   aria-label={lockHint}
                   style={{ marginRight: 4 }}
                 />
@@ -265,7 +266,8 @@ export const BasicCard: React.FC<{
             </Field>
             <Field label="原始型号">
               {locked && (
-                <LockOutlined
+                <Lock
+                  size="1em"
                   aria-label={lockHint}
                   style={{ marginRight: 4 }}
                 />

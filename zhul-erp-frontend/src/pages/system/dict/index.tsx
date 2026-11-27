@@ -1,10 +1,4 @@
 import {
-  DeleteOutlined,
-  EditOutlined,
-  PlusOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
-import {
   ModalForm,
   ProFormDigit,
   ProFormRadio,
@@ -14,20 +8,18 @@ import {
   ProFormTextArea,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import {
-  App,
-  Badge,
-  Button,
-  Empty,
-  Input,
-  Space,
-  Table,
-  Tag,
-  Tooltip,
-} from 'antd';
+import { App, Badge, Button, Input, Table, Tag, Tooltip } from 'antd';
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { EmptyState, tableEmpty } from '@/components/EmptyState';
+import { PageHeader } from '@/components/ListLayout';
+import { Pill } from '@/components/Pill';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePagination } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import type { DictItemRow, DictTypeItem } from './service';
 import {
   createDictItem,
@@ -63,7 +55,8 @@ type ItemDrawerMode = 'create' | 'edit';
 const DictPage: React.FC = () => {
   const pager = usePagination(20);
   const { palette: p } = useAppTheme();
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess();
 
   const [typeList, setTypeList] = useState<DictTypeItem[]>([]);
@@ -93,7 +86,12 @@ const DictPage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadTypes();
+    loadTypes().then((list) => {
+      // 默认选中第一个类型，右侧不空着；当前类型被搜索过滤掉时改选第一项（ui-redesign R8-1）
+      setSelectedType((cur) =>
+        cur && list.some((t) => t.id === cur.id) ? cur : (list[0] ?? null),
+      );
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyword]);
 
@@ -176,17 +174,14 @@ const DictPage: React.FC = () => {
       message.error('请先删除该字典类型下的所有字典项');
       return;
     }
-    modal.confirm({
-      title: '确认删除',
-      content: `确认删除字典类型「${record.dictName}」？`,
-      okText: '确认删除',
-      okButtonProps: { danger: true },
+    confirmDanger({
+      title: `删除字典类型「${record.dictName}」？`,
       onOk: async () => {
         try {
           await deleteDictType(record.id);
           message.success('删除成功');
-          if (selectedType?.id === record.id) setSelectedType(null);
-          loadTypes();
+          const list = await loadTypes();
+          if (selectedType?.id === record.id) setSelectedType(list[0] ?? null);
         } catch {
           message.error('删除失败');
         }
@@ -243,11 +238,8 @@ const DictPage: React.FC = () => {
   };
 
   const handleDeleteItem = (record: DictItemRow) => {
-    modal.confirm({
-      title: '确认删除',
-      content: `确认删除字典项「${record.itemName}」？`,
-      okText: '确认删除',
-      okButtonProps: { danger: true },
+    confirmDanger({
+      title: `删除字典项「${record.itemName}」？`,
       onOk: async () => {
         try {
           await deleteDictItem(record.id);
@@ -260,60 +252,85 @@ const DictPage: React.FC = () => {
     });
   };
 
+  const [hoverRow, setHoverRow] = useState<number>();
+  const [focusRow, setFocusRow] = useState<number>();
   const renderTypeRow = (t: DictTypeItem) => {
     const selected = selectedType?.id === t.id;
+    const showMore = selected || hoverRow === t.id || focusRow === t.id;
+    const builtin = t.isBuiltin === 1;
     return (
       <div
         key={t.id}
+        // 整行可点选中；键盘用行内的名称按钮
         onClick={() => setSelectedType(t)}
+        onMouseEnter={() => setHoverRow(t.id)}
+        onMouseLeave={() => setHoverRow(undefined)}
+        onFocus={() => setFocusRow(t.id)}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node))
+            setFocusRow(undefined);
+        }}
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '8px 10px',
+          gap: 4,
+          height: 36,
+          padding: '0 2px 0 10px',
           borderRadius: 8,
           cursor: 'pointer',
-          background: selected ? p.accentSoft : 'transparent',
-          marginBottom: 2,
+          background: selected
+            ? p.primarySoft
+            : hoverRow === t.id
+              ? p.hover
+              : 'transparent',
         }}
       >
-        <div style={{ minWidth: 0 }}>
-          <Space size={6}>
-            <span
-              style={{
-                fontSize: 13,
-                fontWeight: selected ? 600 : 500,
-                color: selected ? p.link : p.ink,
-              }}
-            >
-              {t.dictName}
-            </span>
-            {t.isBuiltin === 1 && <Tag style={{ fontSize: 10 }}>内置</Tag>}
-          </Space>
-          <div style={{ fontSize: 11, color: p.mute, fontFamily: 'monospace' }}>
-            {t.dictType}
-          </div>
-        </div>
+        <button
+          type="button"
+          aria-current={selected || undefined}
+          title={t.dictName}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            height: '100%',
+            padding: 0,
+            border: 0,
+            background: 'transparent',
+            textAlign: 'left',
+            cursor: 'pointer',
+            fontSize: 14,
+            fontWeight: selected ? 600 : 400,
+            color: selected ? p.link : p.ink,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {t.dictName}
+        </button>
         {(canEdit || canDelete) && (
-          <Space size={8} onClick={(e) => e.stopPropagation()}>
-            {canEdit && (
-              <EditOutlined
-                style={{ color: p.mute, fontSize: 13 }}
-                onClick={() => openEditType(t)}
-              />
-            )}
-            {canDelete &&
-              (t.isBuiltin === 1 ? (
-                <Tooltip title="系统内置字典不可删除">
-                  <DeleteOutlined style={{ color: p.faint, fontSize: 13 }} />
-                </Tooltip>
-              ) : (
-                <DeleteOutlined
-                  style={{ color: p.red, fontSize: 13 }}
-                  onClick={() => handleDeleteType(t)}
-                />
-              ))}
-          </Space>
+          <div style={{ opacity: showMore ? 1 : 0 }}>
+            <RowActions
+              moreLabel={`更多：${t.dictName}`}
+              more={[
+                canEdit && {
+                  key: 'edit',
+                  label: '编辑',
+                  icon: <Pencil size="1em" />,
+                },
+                canDelete && {
+                  key: 'delete',
+                  label: '删除',
+                  icon: <Trash2 size="1em" />,
+                  danger: true,
+                  disabledReason: builtin ? '系统内置，不能删除' : undefined,
+                },
+              ]}
+              onMore={(key) =>
+                key === 'edit' ? openEditType(t) : handleDeleteType(t)
+              }
+            />
+          </div>
         )}
       </div>
     );
@@ -360,35 +377,39 @@ const DictPage: React.FC = () => {
     },
     {
       title: '操作',
-      width: 120,
-      render: (_: unknown, record: DictItemRow) => (
-        <Space size={14}>
-          {canEdit && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => openEditItem(record)}
-            >
-              编辑
-            </button>
-          )}
-          {canDelete && (
-            <button
-              type="button"
-              className="zhul-link"
-              style={{ color: p.red }}
-              onClick={() => handleDeleteItem(record)}
-            >
-              删除
-            </button>
-          )}
-        </Space>
+      // 编辑放行内，删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(2),
+      render: (_: unknown, r: DictItemRow) => (
+        <RowActions
+          inline={[
+            canEdit && {
+              key: 'edit',
+              label: '编辑',
+              icon: <Pencil size={18} />,
+              onClick: () => openEditItem(r),
+            },
+          ]}
+          more={[
+            canDelete && {
+              key: 'delete',
+              label: '删除',
+              icon: <Trash2 size={16} />,
+              danger: true,
+            },
+          ]}
+          onMore={() => handleDeleteItem(r)}
+        />
       ),
     },
   ];
+  // 右侧表格区较窄：英文名称、样式标签、排序默认收进「列」
+  const itemSet = useColumnSettings('system-dict-items', itemColumns, {
+    hidden: ['英文名称', '样式标签', '排序'],
+  });
 
   return (
     <>
+      <PageHeader />
       <div
         style={{
           display: 'flex',
@@ -408,27 +429,39 @@ const DictPage: React.FC = () => {
             borderRight: `1px solid ${p.hairline}`,
           }}
         >
-          {canAdd && (
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              block
-              style={{ marginBottom: 12 }}
-              onClick={openCreateType}
-            >
-              新增字典类型
-            </Button>
-          )}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 12,
+            }}
+          >
+            <b style={{ fontSize: 14, color: p.ink }}>字典类型</b>
+            <span style={{ fontSize: 13, color: p.mute }}>
+              {typeList.length}
+            </span>
+            {canAdd && (
+              <Tooltip title="新增字典类型">
+                <Button
+                  aria-label="新增字典类型"
+                  icon={<Plus size="1em" />}
+                  style={{ marginLeft: 'auto' }}
+                  onClick={openCreateType}
+                />
+              </Tooltip>
+            )}
+          </div>
           <Input
             placeholder="搜索字典名称"
-            prefix={<SearchOutlined />}
+            prefix={<Search size="1em" />}
             allowClear
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             style={{ marginBottom: 12 }}
           />
           {typeList.length === 0 ? (
-            <Empty description="暂无字典数据" style={{ marginTop: 40 }} />
+            <EmptyState title="暂无字典数据" />
           ) : (
             <>
               {builtinTypes.length > 0 && (
@@ -441,7 +474,10 @@ const DictPage: React.FC = () => {
                       margin: '8px 4px',
                     }}
                   >
-                    系统内置
+                    系统内置{' '}
+                    <span style={{ fontWeight: 400, color: p.faint }}>
+                      {builtinTypes.length}
+                    </span>
                   </div>
                   {builtinTypes.map(renderTypeRow)}
                 </>
@@ -456,7 +492,10 @@ const DictPage: React.FC = () => {
                       margin: '12px 4px 8px',
                     }}
                   >
-                    自定义
+                    自定义{' '}
+                    <span style={{ fontWeight: 400, color: p.faint }}>
+                      {customTypes.length}
+                    </span>
                   </div>
                   {customTypes.map(renderTypeRow)}
                 </>
@@ -478,45 +517,60 @@ const DictPage: React.FC = () => {
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 16, fontWeight: 700 }}>
-                    当前字典：{selectedType.dictName}
-                  </div>
                   <div
                     style={{
-                      fontSize: 12,
-                      color: p.mute,
-                      fontFamily: 'monospace',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      fontSize: 16,
+                      fontWeight: 700,
                     }}
                   >
-                    {selectedType.dictType}
+                    {selectedType.dictName}
+                    {selectedType.isBuiltin === 1 && (
+                      <Pill tone="gray">内置</Pill>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 12, color: p.mute }}>
+                    编码 <span className="num">{selectedType.dictType}</span>
                   </div>
                 </div>
-                {canAdd && (
-                  <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={openCreateItem}
-                  >
-                    新增字典项
-                  </Button>
-                )}
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    gap: 8,
+                    alignItems: 'center',
+                  }}
+                >
+                  {itemSet.settings}
+                  {canAdd && (
+                    <Button
+                      type="primary"
+                      icon={<Plus size="1em" />}
+                      onClick={openCreateItem}
+                    >
+                      新增字典项
+                    </Button>
+                  )}
+                </span>
               </div>
               <Table
                 rowKey="id"
-                columns={itemColumns}
+                columns={itemSet.columns}
+                scroll={{ x: tableScrollX(itemSet.columns) }}
                 dataSource={itemList}
                 loading={itemLoading}
                 pagination={pager}
                 locale={{
-                  emptyText: '该字典类型下暂无字典项，点击「新增字典项」添加',
+                  emptyText: tableEmpty(
+                    '这个字典类型还没有字典项，用「新增字典项」添加',
+                    itemLoading,
+                  ),
                 }}
               />
             </>
           ) : (
-            <Empty
-              description="请在左侧选择一个字典类型"
-              style={{ marginTop: 80 }}
-            />
+            <EmptyState title="请在左侧选择一个字典类型" />
           )}
         </div>
       </div>

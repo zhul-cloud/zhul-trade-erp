@@ -1,35 +1,50 @@
-import {
-  ArrowRightOutlined,
-  CheckOutlined,
-  CheckSquareOutlined,
-  DownloadOutlined,
-  SearchOutlined,
-  SettingOutlined,
-  ThunderboltOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
-import { Link, useAccess, useSearchParams } from '@umijs/max';
+import { history, Link, useAccess, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Input, Segmented, Select, Table } from 'antd';
+import { App, Button, Input, Select, Table } from 'antd';
+import {
+  BadgeCheck,
+  Check,
+  Download,
+  Eye,
+  History,
+  Layers,
+  Search,
+  Settings,
+  Sparkles,
+  SquareCheck,
+  Upload,
+  Zap,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  HelpTip,
+  MainCard,
+  PageHeader,
+  SelectionCount,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle } from '@/pages/inquiry/shared/components';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { Pill } from '@/pages/product/components/Pills';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { ImportRecordsDrawer } from '../products/cards/ImportRecords';
 import {
   factsVerified,
   MarketingDownload,
   type MarketingPick,
+  marketingPicks,
   PlatformChips,
   useDownloadPackage,
   usePlatforms,
-  VerifyFactsButton,
+  useVerifyFacts,
 } from '../products/cards/SeoCard';
 import {
   type BrandOption,
@@ -92,7 +107,7 @@ const TABS: Record<
     {
       key: '3',
       label: '营销待生成',
-      tone: 'accent',
+      tone: 'orange',
       empty: '没有待生成营销内容的商品',
     },
     {
@@ -120,6 +135,7 @@ const rowStatus = (entry: PackageType, status: number) => {
       : TABS.marketing[3];
 };
 
+/** 帮助文字：help-texts.md「资料任务、营销任务」；关键词范围以 search-scope.md 为准 */
 const COPY: Record<PackageType, { description: string; footer: string }> = {
   facts: {
     description:
@@ -283,6 +299,8 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
     setPage(1);
   };
 
+  const verifyFacts = useVerifyFacts();
+
   const download = async (ids: number[], platform?: MarketingPick) => {
     const stages = rows
       .filter((r) => ids.includes(r.productId))
@@ -315,7 +333,7 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
     {
       title: '商品',
       key: 'product',
-      width: 300,
+      width: 280,
       fixed: 'left',
       render: (_, t) => (
         <div>
@@ -368,11 +386,10 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
         facts ? (
           factsCell(t)
         ) : factsVerified(t.status) ? (
-          <span style={{ color: palette.green }}>已核对</span>
+          <Pill tone="green">已核对</Pill>
         ) : (
-          <span style={{ color: palette.orange }}>
-            {t.status === 1 ? '待补' : '待核'}
-          </span>
+          // 提醒用状态标签，不写彩色纯文字
+          <Pill tone="orange">{t.status === 1 ? '待补' : '待核'}</Pill>
         ),
     },
     ...(facts
@@ -420,156 +437,118 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
     {
       title: '操作',
       key: 'actions',
-      width: facts ? 420 : 380,
+      // 行内两个常用操作，其余收进「更多」（ui-redesign S6：原来一行 6 个文字链接）
+      width: rowActionsWidth(3),
       fixed: 'right',
-      render: (_, t) => (
-        <span
-          style={{
-            display: 'inline-flex',
-            gap: 12,
-            alignItems: 'center',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {canAi && !aiBusy(t.ai) && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => startOne(t)}
-            >
-              AI 生成
-            </button>
-          )}
-          {facts ? (
-            <>
-              <button
-                type="button"
-                className="zhul-link"
-                onClick={() => download([t.productId])}
-              >
-                下载资料包
-              </button>
-              {!factsVerified(t.status) && access['product:content:edit'] && (
-                <VerifyFactsButton
-                  productId={t.productId}
-                  label={label(t)}
-                  link
-                  onDone={load}
-                />
-              )}
-            </>
-          ) : (
-            <>
-              <Link to={`/operations/products/${t.productId}`}>详情</Link>
-              <MarketingDownload
-                link
-                label="下载"
-                platforms={platforms}
-                onPick={(p) => download([t.productId], p)}
-              />
-            </>
-          )}
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => setRowUpload({ id: t.productId, label: label(t) })}
-          >
-            上传
-          </button>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => setRowCombined({ id: t.productId, label: label(t) })}
-          >
-            资料+营销
-          </button>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => setRowRecords({ id: t.productId, label: label(t) })}
-          >
-            上传记录
-          </button>
-        </span>
-      ),
+      render: (_, t) => {
+        const name = label(t);
+        return (
+          <RowActions
+            inline={[
+              canAi &&
+                !aiBusy(t.ai) && {
+                  key: 'ai',
+                  label: 'AI 生成',
+                  icon: <Sparkles size={18} />,
+                  onClick: () => startOne(t),
+                },
+              facts
+                ? {
+                    key: 'download',
+                    label: '下载资料包',
+                    icon: <Download size={18} />,
+                    onClick: () => download([t.productId]),
+                  }
+                : {
+                    key: 'detail',
+                    label: '详情',
+                    icon: <Eye size={18} />,
+                    onClick: () =>
+                      history.push(`/operations/products/${t.productId}`),
+                  },
+            ]}
+            more={[
+              facts &&
+                !factsVerified(t.status) &&
+                access['product:content:edit'] && {
+                  key: 'verify',
+                  label: '资料已核',
+                  icon: <BadgeCheck size={16} />,
+                },
+              ...(facts
+                ? []
+                : marketingPicks(platforms).map((p) => ({
+                    key: `dl:${p.key}`,
+                    label: `下载 · ${p.name}`,
+                    icon: <Download size={16} />,
+                  }))),
+              { key: 'upload', label: '上传', icon: <Upload size={16} /> },
+              {
+                key: 'combined',
+                label: '资料+营销',
+                icon: <Layers size={16} />,
+              },
+              {
+                key: 'records',
+                label: '上传记录',
+                icon: <History size={16} />,
+              },
+            ]}
+            onMore={(key) => {
+              if (key === 'verify') verifyFacts(t.productId, name, load);
+              if (key.startsWith('dl:'))
+                download([t.productId], key.slice(3) as MarketingPick);
+              if (key === 'upload')
+                setRowUpload({ id: t.productId, label: name });
+              if (key === 'combined')
+                setRowCombined({ id: t.productId, label: name });
+              if (key === 'records')
+                setRowRecords({ id: t.productId, label: name });
+            }}
+          />
+        );
+      },
     },
   ];
+  // 营销模式多了「营销（本公司）」一列：「资料」列与状态重复，默认收进「列」，1366 宽放得下（列表页统一规范第 2 条）
+  const columnsSet = useColumnSettings(
+    facts ? 'product-fact-tasks-TaskList' : 'operations-marketing-TaskList',
+    columns,
+    {
+      hidden: facts
+        ? ['品牌', '品类', '最近下载']
+        : ['品牌', '品类', '最近下载', '资料'],
+    },
+  );
 
   return (
     <div>
-      <PageTitle
-        description={copy.description}
-        actions={
+      <PageHeader
+        help={
+          facts
+            ? copy.description
+            : `${copy.description}流程：${TABS.marketing
+                .slice(1)
+                .map((t) => t.label)
+                .join(
+                  ' → ',
+                )}。资料在「商品管理 → 资料任务」补和核对，所有公司共用；这里只管本公司的营销内容。资料未核对时也能先做营销，资料核对后才算完成。`
+        }
+        extra={
           <>
             {!facts && (
               <Button
-                icon={<SettingOutlined />}
+                type="text"
+                icon={<Settings size="1em" />}
+                style={{ color: palette.link }}
                 onClick={() => setSettingsOpen(true)}
               >
                 平台设置
               </Button>
             )}
-            {canAi && (
-              <Button
-                icon={<ThunderboltOutlined />}
-                disabled={
-                  selected.length === 0 || selected.length > AI_MAX_BATCH
-                }
-                title={
-                  selected.length > AI_MAX_BATCH
-                    ? `一次最多 AI 生成 ${AI_MAX_BATCH} 个商品`
-                    : undefined
-                }
-                onClick={() => setAiStart(selectedRows)}
-              >
-                AI 生成{selected.length ? ` · ${selected.length}` : ''}
-              </Button>
-            )}
-            {facts ? (
-              <Button
-                icon={<DownloadOutlined />}
-                disabled={selected.length === 0}
-                loading={downloading === 'facts'}
-                onClick={() => download(selected)}
-              >
-                下载资料包{selected.length ? ` · ${selected.length}` : ''}
-              </Button>
-            ) : (
-              <MarketingDownload
-                platforms={platforms}
-                disabled={selected.length === 0}
-                downloading={downloading}
-                label={`下载营销包${selected.length ? ` · ${selected.length}` : ''}`}
-                onPick={(p) => download(selected, p)}
-              />
-            )}
-            {facts && access['product:content:edit'] && (
-              <Button
-                icon={<CheckOutlined />}
-                disabled={selectedRows.length === 0}
-                onClick={() => setBatchVerify(selectedRows)}
-              >
-                资料已核
-                {selectedRows.length ? ` · ${selectedRows.length}` : ''}
-              </Button>
-            )}
-            {canAi && (
-              <Button
-                icon={<CheckSquareOutlined />}
-                disabled={selectedPending === 0}
-                title={
-                  selected.length && !selectedPending
-                    ? '勾选的商品没有待确认的 AI 结果'
-                    : undefined
-                }
-                onClick={() => setBatchConfirm(selectedRows)}
-              >
-                确认 AI 结果{selectedPending ? ` · ${selectedPending}` : ''}
-              </Button>
-            )}
             <Button
               type="primary"
-              icon={<UploadOutlined />}
+              icon={<Upload size="1em" />}
               onClick={() => setUploadOpen(true)}
             >
               {facts ? '上传资料包' : '上传营销包'}
@@ -577,69 +556,85 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
           </>
         }
       />
-      {!facts && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            flexWrap: 'wrap',
-            padding: '10px 14px',
-            borderRadius: 10,
-            background: palette.inset,
-            marginBottom: 16,
-            fontSize: 12,
-            color: palette.mute,
-          }}
-        >
-          <span style={{ fontWeight: 600 }}>流程</span>
-          {TABS.marketing.slice(1).map((s, i) => (
-            <React.Fragment key={s.key}>
-              {i > 0 && <ArrowRightOutlined style={{ fontSize: 10 }} />}
-              <Pill tone={s.tone}>{s.label}</Pill>
-            </React.Fragment>
-          ))}
-          <span style={{ marginLeft: 8 }}>
-            资料在「商品管理 →
-            资料任务」补和核对，所有公司共用；这里只管本公司的营销内容。资料未核对时也能先做营销，资料核对后才算完成。
-          </span>
-        </div>
-      )}
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          marginBottom: 16,
+      <FilterCard
+        onSearch={apply}
+        onReset={() => {
+          setKeyword('');
+          setBrandId(undefined);
+          setCategoryId(undefined);
+          setQuery({});
+          setTab(tabs[1].key);
+          setPage(1);
+          setSelected([]);
         }}
+        moreCount={
+          [query.brandId, query.categoryId].filter((v) => v != null).length
+        }
+        more={
+          <>
+            <FilterField label="品牌">
+              <Select
+                allowClear
+                showSearch={{ optionFilterProp: 'label' }}
+                value={brandId}
+                onChange={setBrandId}
+                placeholder="全部"
+                options={brands.map((b) => ({
+                  value: b.id,
+                  label: b.brandName,
+                }))}
+                aria-label="品牌"
+              />
+            </FilterField>
+            <FilterField label="品类">
+              <Select
+                allowClear
+                showSearch={{ optionFilterProp: 'label' }}
+                value={categoryId}
+                onChange={setCategoryId}
+                placeholder="全部"
+                options={categories.map((c) => ({
+                  value: c.id,
+                  label: c.categoryNameZh || c.categoryName,
+                }))}
+                aria-label="品类"
+              />
+            </FilterField>
+          </>
+        }
       >
-        <Segmented<string>
-          value={tab}
-          onChange={(t) => {
-            setTab(t);
-            setPage(1);
-            setSelected([]);
-          }}
-          options={tabs.map((t) => ({
-            value: t.key,
-            label:
-              counts[t.key] !== undefined
-                ? `${t.label} · ${counts[t.key]}`
-                : t.label,
-          }))}
-        />
-        <span style={{ display: 'flex', gap: 12, flex: 1, minWidth: 0 }}>
+        <FilterField label="关键词" span={2}>
           <Input
             allowClear
-            prefix={<SearchOutlined />}
+            prefix={<Search size={16} />}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             onPressEnter={apply}
             placeholder="型号、名称"
-            style={{ width: 220 }}
             aria-label="关键词"
           />
+        </FilterField>
+        <FilterField label="状态">
+          {/* 原来的状态页签，选项带数量，切换后立即查询 */}
+          <Select<string>
+            value={tab}
+            onChange={(t) => {
+              setTab(t);
+              setPage(1);
+              setSelected([]);
+            }}
+            options={tabs.map((t) => ({
+              value: t.key,
+              // 为 0 时只写名称；「全部」不是状态，不带数量
+              label:
+                counts[t.key] && t.key !== 'all'
+                  ? `${t.label} · ${counts[t.key]}`
+                  : t.label,
+            }))}
+            aria-label="状态"
+          />
+        </FilterField>
+        <FilterField label="AI 生成">
           <Select
             allowClear
             value={query.ai}
@@ -648,81 +643,125 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
               setPage(1);
               setSelected([]);
             }}
-            prefix="AI 生成"
             placeholder="全部"
             options={[
               { value: 'pending', label: '待确认' },
               { value: 'running', label: '排队或生成中' },
               { value: 'failed', label: '失败' },
             ]}
-            popupMatchSelectWidth={false}
-            style={{ width: 190 }}
             aria-label="AI 生成"
           />
-          <Select
-            allowClear
-            showSearch={{ optionFilterProp: 'label' }}
-            value={brandId}
-            onChange={setBrandId}
-            placeholder="全部品牌"
-            options={brands.map((b) => ({ value: b.id, label: b.brandName }))}
-            style={{ width: 160 }}
-            aria-label="品牌"
-          />
-          <Select
-            allowClear
-            showSearch={{ optionFilterProp: 'label' }}
-            value={categoryId}
-            onChange={setCategoryId}
-            placeholder="全部品类"
-            options={categories.map((c) => ({
-              value: c.id,
-              label: c.categoryNameZh || c.categoryName,
-            }))}
-            style={{ width: 160 }}
-            aria-label="品类"
-          />
-          <span style={{ flex: 1 }} />
-          <Button type="primary" onClick={apply}>
-            查询
-          </Button>
-        </span>
-      </div>
+        </FilterField>
+      </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={() => load()} />
       ) : (
-        <Card style={{ padding: 0 }}>
+        <MainCard
+          settings={columnsSet.settings}
+          left={
+            selected.length > 0 ? (
+              <SelectionCount
+                count={selected.length}
+                unit="个"
+                onClear={() => setSelected([])}
+              />
+            ) : (
+              <>
+                {`共 ${total} 条`}
+                <HelpTip title={copy.footer} />
+              </>
+            )
+          }
+          // 批量操作随勾选出现（ui-design-patterns 原则 10）
+          right={
+            selected.length > 0 && (
+              <>
+                {canAi && (
+                  <Button
+                    icon={<Zap size="1em" />}
+                    disabled={selected.length > AI_MAX_BATCH}
+                    title={
+                      selected.length > AI_MAX_BATCH
+                        ? `一次最多 AI 生成 ${AI_MAX_BATCH} 个商品`
+                        : undefined
+                    }
+                    onClick={() => setAiStart(selectedRows)}
+                  >
+                    AI 生成
+                  </Button>
+                )}
+                {facts ? (
+                  <Button
+                    icon={<Download size="1em" />}
+                    loading={downloading === 'facts'}
+                    onClick={() => download(selected)}
+                  >
+                    下载资料包
+                  </Button>
+                ) : (
+                  <MarketingDownload
+                    platforms={platforms}
+                    downloading={downloading}
+                    label="下载营销包"
+                    onPick={(p) => download(selected, p)}
+                  />
+                )}
+                {facts && access['product:content:edit'] && (
+                  <Button
+                    icon={<Check size="1em" />}
+                    onClick={() => setBatchVerify(selectedRows)}
+                  >
+                    资料已核
+                  </Button>
+                )}
+                {canAi && (
+                  <Button
+                    icon={<SquareCheck size="1em" />}
+                    disabled={selectedPending === 0}
+                    title={
+                      !selectedPending
+                        ? '勾选的商品没有待确认的 AI 结果'
+                        : undefined
+                    }
+                    onClick={() => setBatchConfirm(selectedRows)}
+                  >
+                    确认 AI 结果{selectedPending ? ` · ${selectedPending}` : ''}
+                  </Button>
+                )}
+              </>
+            )
+          }
+        >
           <Table<ContentTask>
             rowKey="productId"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             rowSelection={{
               selectedRowKeys: selected,
               onChange: (keys) => setSelected(keys as number[]),
               preserveSelectedRowKeys: true,
             }}
             locale={{
-              emptyText: tabs.find((t) => t.key === tab)?.empty ?? '没有记录',
+              emptyText: tableEmpty(
+                tabs.find((t) => t.key === tab)?.empty ?? '没有记录',
+                loading,
+              ),
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
-              showTotal: (t: number) => `共 ${t} 条`,
               onChange: (p: number, s: number) => {
                 setPage(p);
                 setPageSize(s);
               },
             }}
           />
-        </Card>
+        </MainCard>
       )}
-      <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-        {copy.footer}
-      </div>
       {!facts && (
         <PlatformSettings
           open={settingsOpen}

@@ -1,19 +1,29 @@
-import { SearchOutlined } from '@ant-design/icons';
 import { history, Link, useAccess, useLocation } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Input, Segmented, Select, Table } from 'antd';
+import { App, Input, Select, Table } from 'antd';
+import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  ViewTabs,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { PATHS as SALES_PATHS } from '@/pages/sales/components';
 import {
   ArrivalCell,
-  Card,
   DiffStatusPill,
   DiffTypePill,
   DOC_PATHS,
@@ -21,7 +31,6 @@ import {
   ShipStatusPill,
   sub,
   WAREHOUSE_PATHS,
-  WarehousePageTitle,
 } from '@/pages/warehouse/components';
 import {
   type Discrepancy,
@@ -32,11 +41,21 @@ import {
 } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import HandleDiscrepancyModal from './HandleDiscrepancyModal';
 
 type Tab = 'shipments' | 'diffs';
+
+/** 帮助文字：help-texts.md「发货跟踪」，关键词范围以 search-scope.md 为准 */
+export const HELP = {
+  page: '登记供应商发出的货；仓库验收后发现的少发、不良、多发在「到货差异」处理',
+  diffs: '仓库只记录实收、合格、不良；怎么处理由采购员和供应商沟通后决定',
+  shipmentKeyword:
+    '可搜：发货单号、快递单号；采购订单编号、店铺、供应商名称或简称、采购订单型号',
+  diffKeyword:
+    '可搜：型号、采购入库单号；采购订单编号、店铺、供应商、采购订单型号',
+} as const;
 
 const SupplierShipments: React.FC = () => {
   const { search } = useLocation();
@@ -54,23 +73,19 @@ const SupplierShipments: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle description="登记供应商发出的货；仓库验收后发现的少发、不良、多发在这里处理。" />
-      <Segmented<Tab>
-        value={tab}
-        onChange={setTab}
-        style={{ marginBottom: 16 }}
-        options={[
-          { value: 'shipments', label: '发货记录' },
-          {
-            value: 'diffs',
-            label: pending ? `到货差异 · 待处理 ${pending}` : '到货差异',
-          },
+      <PageHeader help={tab === 'diffs' ? HELP.diffs : HELP.page} />
+      <ViewTabs
+        activeKey={tab}
+        onChange={(k) => setTab(k as Tab)}
+        items={[
+          { key: 'shipments', label: '发货记录' },
+          { key: 'diffs', label: '到货差异', count: pending },
         ]}
       />
       {tab === 'shipments' ? (
         <ShipmentsTab />
       ) : (
-        <DiffsTab onChanged={refreshCount} />
+        <DiffsTab pending={pending} onChanged={refreshCount} />
       )}
     </div>
   );
@@ -120,7 +135,9 @@ const ShipmentsTab: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <Link to={DOC_PATHS.shipment(r.id)}>{v}</Link>
+          <CopyText text={v}>
+            <Link to={DOC_PATHS.shipment(r.id)}>{v}</Link>
+          </CopyText>
           {sub(palette.mute, r.shipDate ?? '—')}
         </div>
       ),
@@ -130,9 +147,37 @@ const ShipmentsTab: React.FC = () => {
       dataIndex: 'supplierName',
       width: 150,
       render: (v: string, r) => (
-        <div>
-          <b style={{ color: palette.ink }}>{v || '—'}</b>
+        <div style={{ minWidth: 0 }}>
+          {/* 长公司名单行省略，悬停看全名（同客户列，D21 行高） */}
+          {ellipsisRender(v)}
           {sub(palette.mute, r.shop ? '平台店铺' : '供应商')}
+        </div>
+      ),
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 110,
+      render: (v: number, r) => (
+        <ShipStatusPill value={v}>{r.statusName}</ShipStatusPill>
+      ),
+    },
+    {
+      title: '预计到货',
+      dataIndex: 'expectedArrivalDate',
+      width: 110,
+      render: (v: string | undefined, r) => (
+        <ArrivalCell date={v} overdue={r.arrivalOverdue} />
+      ),
+    },
+    {
+      title: '快递 · 单号',
+      key: 'tracking',
+      width: 180,
+      render: (_, r) => (
+        <div>
+          <b style={{ color: palette.ink }}>{r.carrier || '—'}</b>
+          {r.trackingNo && sub(palette.mute, r.trackingNo)}
         </div>
       ),
     },
@@ -166,25 +211,6 @@ const ShipmentsTab: React.FC = () => {
       ),
     },
     {
-      title: '快递 · 单号',
-      key: 'tracking',
-      width: 180,
-      render: (_, r) => (
-        <div>
-          <b style={{ color: palette.ink }}>{r.carrier || '—'}</b>
-          {r.trackingNo && sub(palette.mute, r.trackingNo)}
-        </div>
-      ),
-    },
-    {
-      title: '预计到货',
-      dataIndex: 'expectedArrivalDate',
-      width: 110,
-      render: (v: string | undefined, r) => (
-        <ArrivalCell date={v} overdue={r.arrivalOverdue} />
-      ),
-    },
-    {
       title: '登记来源',
       dataIndex: 'sourceName',
       width: 120,
@@ -196,16 +222,8 @@ const ShipmentsTab: React.FC = () => {
             {v}
           </span>
           {r.directForwarderName &&
-            sub(palette.violet, `直发 ${r.directForwarderName}`)}
+            sub(palette.info, `直发 ${r.directForwarderName}`)}
         </div>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      width: 110,
-      render: (v: number, r) => (
-        <ShipStatusPill value={v}>{r.statusName}</ShipStatusPill>
       ),
     },
     {
@@ -226,42 +244,65 @@ const ShipmentsTab: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 80,
+      width: rowActionsWidth(1),
       fixed: 'right',
-      render: (_, r) => <Link to={DOC_PATHS.shipment(r.id)}>查看</Link>,
+      render: (_, r) => (
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(DOC_PATHS.shipment(r.id)),
+            },
+          ]}
+        />
+      ),
     },
   ];
+  const columnsSet = useColumnSettings('purchase-shipments', columns, {
+    hidden: ['品牌', '品类', '登记来源', '来源单号', '采购员'],
+  });
+
+  const searchShipments = () => {
+    setQuery({ keyword: keyword.trim() || undefined, status });
+    setPage(1);
+  };
 
   return (
     <>
-      <Card style={{ marginBottom: 16, padding: 20 }}>
-        <div
-          style={{
-            display: 'flex',
-            gap: 12,
-            flexWrap: 'wrap',
-            alignItems: 'center',
-          }}
-        >
+      <FilterCard
+        onSearch={searchShipments}
+        onReset={() => {
+          setKeyword('');
+          setStatus(undefined);
+          setQuery({});
+          setPage(1);
+        }}
+        minColumn={130}
+      >
+        <FilterField label="关键词" span={2} help={HELP.shipmentKeyword}>
           <Input
             allowClear
-            prefix={<SearchOutlined />}
+            prefix={<Search size={16} />}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            onPressEnter={() => {
-              setQuery({ keyword: keyword.trim() || undefined, status });
-              setPage(1);
-            }}
-            placeholder="发货单号、采购订单号、快递单号、型号、采购对象"
-            style={{ width: 360 }}
+            onPressEnter={searchShipments}
+            placeholder="发货单号、快递单号、采购订单编号"
             aria-label="关键词"
           />
+        </FilterField>
+        <FilterField label="状态">
           <Select
             allowClear
-            placeholder="全部状态"
+            placeholder="全部"
             value={status}
-            onChange={setStatus}
-            style={{ width: 140 }}
+            onChange={(v) => {
+              // 切换状态立即查询（doc-list-unify 状态下拉的写法）
+              setStatus(v);
+              setQuery({ keyword: keyword.trim() || undefined, status: v });
+              setPage(1);
+            }}
             options={[
               { value: 1, label: '在途' },
               { value: 2, label: '已入库' },
@@ -269,42 +310,40 @@ const ShipmentsTab: React.FC = () => {
             ]}
             aria-label="状态"
           />
-          <span style={{ flex: 1 }} />
-          <Button
-            type="primary"
-            onClick={() => {
-              setQuery({ keyword: keyword.trim() || undefined, status });
-              setPage(1);
-            }}
-          >
-            查询
-          </Button>
-        </div>
-      </Card>
+        </FilterField>
+      </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Table<Shipment>
-          rowKey="id"
-          columns={columns}
-          dataSource={rows}
+        <MainCard
+          settings={columnsSet.settings}
+          count={total}
           loading={loading}
-          scroll={{ x: tableScrollX(columns) }}
-          locale={{
-            emptyText: '还没有发货记录；在采购订单详情点「登记发货」',
-          }}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
-            onChange: (p, s) => {
-              setPage(p);
-              setPageSize(s);
-            },
-          }}
-        />
+        >
+          <Table<Shipment>
+            rowKey="id"
+            columns={columnsSet.columns}
+            dataSource={rows}
+            loading={loading}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
+            locale={{
+              emptyText: tableEmpty(
+                '还没有发货记录；在采购订单详情点「登记发货」',
+                loading,
+              ),
+            }}
+            pagination={{
+              ...PAGER_STYLE,
+              current: page,
+              pageSize,
+              total,
+              onChange: (p, s) => {
+                setPage(p);
+                setPageSize(s);
+              },
+            }}
+          />
+        </MainCard>
       )}
     </>
   );
@@ -312,7 +351,10 @@ const ShipmentsTab: React.FC = () => {
 
 // ---------------------------------------------------------------- 到货差异
 
-const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
+const DiffsTab: React.FC<{ pending?: number; onChanged: () => void }> = ({
+  pending,
+  onChanged,
+}) => {
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
   const access = useAccess();
@@ -383,7 +425,9 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <Link to={DOC_PATHS.receipt(r.receiptId)}>{v}</Link>
+          <CopyText text={v}>
+            <Link to={DOC_PATHS.receipt(r.receiptId)}>{v}</Link>
+          </CopyText>
           {sub(palette.mute, r.receivedDate ?? '—')}
         </div>
       ),
@@ -410,6 +454,7 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
     },
     {
       title: '差异',
+      align: 'right' as const,
       dataIndex: 'type',
       width: 100,
       render: (v: number, r) => (
@@ -450,13 +495,15 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
       dataIndex: 'poNo',
       width: 160,
       render: (v: string, r: { poId: number }) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => history.push(WAREHOUSE_PATHS.order(r.poId))}
-        >
-          {v}
-        </button>
+        <CopyText text={v}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(WAREHOUSE_PATHS.order(r.poId))}
+          >
+            {v}
+          </button>
+        </CopyText>
       ),
     },
     {
@@ -467,6 +514,7 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
     },
     ...auditColumns<Discrepancy>(),
     {
+      // lint-ui-ignore row-actions: 到货差异的处理队列，保留文字按钮
       title: '操作',
       key: 'actions',
       width: 100,
@@ -507,24 +555,63 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
         ),
     },
   ];
+  const columnsSet = useColumnSettings('purchase-shipments-diffs', columns, {
+    hidden: ['来源单号', '采购员'],
+  });
 
   return (
     <>
-      <Card style={{ marginBottom: 16, padding: 20 }}>
-        <div
-          style={{
-            display: 'flex',
-            gap: 12,
-            flexWrap: 'wrap',
-            alignItems: 'center',
-          }}
-        >
+      <FilterCard
+        onSearch={apply}
+        onReset={() => {
+          // 重置回默认视图：待处理
+          setKeyword('');
+          setType(undefined);
+          setStatus(1);
+          setQuery({ status: 1 });
+          setPage(1);
+        }}
+        minColumn={130}
+      >
+        <FilterField label="关键词" span={2} help={HELP.diffKeyword}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={apply}
+            placeholder="型号、采购入库单号、采购订单编号"
+            aria-label="关键词"
+          />
+        </FilterField>
+        <FilterField label="状态">
           <Select
             allowClear
-            placeholder="全部类型"
+            placeholder="全部"
+            value={status}
+            onChange={(v) => {
+              // 切换状态立即查询（doc-list-unify 状态下拉的写法）
+              setStatus(v);
+              setQuery({
+                keyword: keyword.trim() || undefined,
+                type,
+                status: v,
+              });
+              setPage(1);
+            }}
+            options={[
+              { value: 1, label: pending ? `待处理 · ${pending}` : '待处理' },
+              { value: 2, label: '已处理' },
+            ]}
+            aria-label="状态"
+          />
+        </FilterField>
+        <FilterField label="差异类型">
+          <Select
+            allowClear
+            placeholder="全部"
             value={type}
             onChange={setType}
-            style={{ width: 130 }}
             options={[
               { value: 1, label: '少发' },
               { value: 2, label: '不良' },
@@ -532,65 +619,43 @@ const DiffsTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
             ]}
             aria-label="差异类型"
           />
-          <Select
-            allowClear
-            placeholder="全部状态"
-            value={status}
-            onChange={setStatus}
-            style={{ width: 130 }}
-            options={[
-              { value: 1, label: '待处理' },
-              { value: 2, label: '已处理' },
-            ]}
-            aria-label="状态"
-          />
-          <Input
-            allowClear
-            prefix={<SearchOutlined />}
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            onPressEnter={apply}
-            placeholder="采购入库单、采购订单、型号、采购对象"
-            style={{ width: 300 }}
-            aria-label="关键词"
-          />
-          <span style={{ flex: 1 }} />
-          <Button type="primary" onClick={apply}>
-            查询
-          </Button>
-        </div>
-      </Card>
+        </FilterField>
+      </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Table<Discrepancy>
-          rowKey="id"
-          columns={columns}
-          dataSource={rows}
+        <MainCard
+          settings={columnsSet.settings}
+          count={total}
           loading={loading}
-          scroll={{ x: tableScrollX(columns) }}
-          locale={{
-            emptyText:
-              query.status === 1
-                ? '没有待处理的到货差异'
-                : '没有符合条件的到货差异',
-          }}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
-            onChange: (p, s) => {
-              setPage(p);
-              setPageSize(s);
-            },
-          }}
-        />
+        >
+          <Table<Discrepancy>
+            rowKey="id"
+            columns={columnsSet.columns}
+            dataSource={rows}
+            loading={loading}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
+            locale={{
+              emptyText: tableEmpty(
+                query.status === 1
+                  ? '没有待处理的到货差异'
+                  : '没有符合条件的到货差异',
+                loading,
+              ),
+            }}
+            pagination={{
+              ...PAGER_STYLE,
+              current: page,
+              pageSize,
+              total,
+              onChange: (p, s) => {
+                setPage(p);
+                setPageSize(s);
+              },
+            }}
+          />
+        </MainCard>
       )}
-      <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-        仓库只记录实收、合格、不良；怎么处理由采购员和供应商沟通后决定。
-      </div>
       <HandleDiscrepancyModal
         target={handling}
         onClose={() => setHandling(undefined)}

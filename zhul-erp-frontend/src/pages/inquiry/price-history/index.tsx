@@ -1,20 +1,25 @@
-import { SearchOutlined } from '@ant-design/icons';
 import { history, useAccess, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Button, DatePicker, Form, Input, Select, Table, Tag } from 'antd';
+import { DatePicker, Form, Input, Select, Table, Tag } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import {
   AgeText,
-  Card,
   ConditionPill,
   LeadTimeText,
-  PageTitle,
   SupplierText,
   TaxHint,
   useQuoteDicts,
@@ -53,6 +58,12 @@ const fromSearch = (search: URLSearchParams): Filters => {
   };
 };
 
+/** 帮助文字：help-texts.md「询价记录」 */
+export const HELP = {
+  page: '同一型号以前问到的价格都在这里，询价和报价前先查一查',
+  model: '同品牌、型号写法不同（大小写、空格、连字符）也会归到一起',
+} as const;
+
 /** 询价记录：同一型号以前问到的价格，询价和报价前先查一查 */
 const PriceHistoryPage: React.FC = () => {
   const { palette } = useAppTheme();
@@ -60,9 +71,18 @@ const PriceHistoryPage: React.FC = () => {
   const canSeeSupplier = !!access['inquiry:supplier:view'];
   const { conditionOptions } = useQuoteDicts();
   const [form] = Form.useForm<Filters>();
-  const [search] = useSearchParams();
-  const searchKey = search.toString();
-  const [filters, setFilters] = useState<Filters>(() => fromSearch(search));
+  const [params] = useSearchParams();
+  const searchKey = params.toString();
+  const [filters, setFilters] = useState<Filters>(() => fromSearch(params));
+  // 查询时保留从链接带来的品类（品类不在表单里，用标签显示、可单独去掉）
+  const search = () => {
+    setPage(1);
+    setFilters({
+      ...form.getFieldsValue(),
+      categoryId: filters.categoryId,
+      categoryName: filters.categoryName,
+    });
+  };
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<PriceHistoryGroup[]>([]);
@@ -103,7 +123,7 @@ const PriceHistoryPage: React.FC = () => {
 
   useOnReactivate(load);
 
-  // 标签页已打开时再从别处带筛选跳过来，按新链接重新筛
+  // 首次打开和标签页已打开时再从别处带筛选跳过来，都按链接填表单并重新筛（不用 initialValues，重置才回到空）
   useEffect(() => {
     if (!searchKey) return;
     const f = fromSearch(new URLSearchParams(searchKey));
@@ -128,6 +148,7 @@ const PriceHistoryPage: React.FC = () => {
     },
     {
       title: '最低价',
+      align: 'right',
       width: 130,
       render: (_, r) =>
         r.minPriceCny == null ? (
@@ -138,6 +159,7 @@ const PriceHistoryPage: React.FC = () => {
     },
     {
       title: '最高价',
+      align: 'right',
       width: 130,
       render: (_, r) =>
         r.maxPriceCny == null ? '—' : formatAmount(r.maxPriceCny),
@@ -209,143 +231,144 @@ const PriceHistoryPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle description="同一型号以前问到的价格都在这里，询价和报价前先查一查。同品牌、型号写法不同（大小写、空格、连字符）也会归到一起。" />
-      <Card style={{ marginBottom: 16, padding: 20 }}>
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={filters}
-          onFinish={() => {
+      <PageHeader help={HELP.page} />
+      <Form form={form} component={false}>
+        <FilterCard
+          onSearch={search}
+          onReset={() => {
+            form.resetFields();
             setPage(1);
-            setFilters({
-              ...form.getFieldsValue(),
-              categoryId: filters.categoryId,
-              categoryName: filters.categoryName,
-            });
+            setFilters({});
           }}
+          minColumn={130}
+          moreCount={
+            [
+              canSeeSupplier ? filters.channel : undefined,
+              filters.range,
+            ].filter((v) => v != null).length
+          }
+          more={
+            <>
+              {canSeeSupplier && (
+                <FilterField label="渠道">
+                  <Form.Item name="channel" noStyle>
+                    <Select
+                      allowClear
+                      placeholder="全部"
+                      aria-label="渠道"
+                      options={CHANNEL_OPTIONS}
+                    />
+                  </Form.Item>
+                </FilterField>
+              )}
+              <FilterField label="询价日期" span={2} htmlFor="ph-date">
+                <Form.Item name="range" noStyle>
+                  <DatePicker.RangePicker
+                    id={{ start: 'ph-date' }}
+                    style={{ width: '100%' }}
+                  />
+                </Form.Item>
+              </FilterField>
+            </>
+          }
         >
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: canSeeSupplier
-                ? '2fr 1fr 1fr 1fr 1fr 1.5fr auto'
-                : '2fr 1fr 1fr 1fr 1.5fr auto',
-              gap: 12,
-              alignItems: 'end',
-            }}
-          >
-            <Form.Item name="model" label="型号" style={{ marginBottom: 0 }}>
+          <FilterField label="型号" span={2} help={HELP.model}>
+            <Form.Item name="model" noStyle>
               <Input
                 allowClear
-                prefix={<SearchOutlined />}
-                placeholder="输入型号的一部分，如 HG-SN"
+                prefix={<Search size={16} />}
+                placeholder="型号的一部分，如 HG-SN"
+                aria-label="型号"
+                onPressEnter={search}
               />
             </Form.Item>
-            <Form.Item name="brand" label="品牌" style={{ marginBottom: 0 }}>
-              <Input allowClear placeholder="如 Mitsubishi 或 三菱" />
+          </FilterField>
+          <FilterField label="品牌">
+            <Form.Item name="brand" noStyle>
+              <Input
+                allowClear
+                placeholder="如 Mitsubishi 或 三菱"
+                aria-label="品牌"
+                onPressEnter={search}
+              />
             </Form.Item>
-            <Form.Item
-              name="itemCondition"
-              label="货况"
-              style={{ marginBottom: 0 }}
-            >
+          </FilterField>
+          <FilterField label="回价">
+            <Form.Item name="stock" noStyle>
               <Select
                 allowClear
                 placeholder="全部"
-                options={conditionOptions}
-              />
-            </Form.Item>
-            <Form.Item name="stock" label="回价" style={{ marginBottom: 0 }}>
-              <Select
-                allowClear
-                placeholder="全部"
+                aria-label="回价"
                 options={[
                   { value: 'priced', label: '有价' },
                   { value: 'none', label: '无货' },
                 ]}
               />
             </Form.Item>
-            {canSeeSupplier && (
-              <Form.Item
-                name="channel"
-                label="渠道"
-                style={{ marginBottom: 0 }}
-              >
-                <Select
-                  allowClear
-                  placeholder="全部"
-                  options={CHANNEL_OPTIONS}
-                />
-              </Form.Item>
-            )}
-            <Form.Item
-              name="range"
-              label="询价日期"
-              style={{ marginBottom: 0 }}
-            >
-              <DatePicker.RangePicker style={{ width: '100%' }} />
+          </FilterField>
+          <FilterField label="货况">
+            <Form.Item name="itemCondition" noStyle>
+              <Select
+                allowClear
+                placeholder="全部"
+                aria-label="货况"
+                options={conditionOptions}
+              />
             </Form.Item>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Button
-                onClick={() => {
-                  form.resetFields();
-                  setPage(1);
-                  setFilters({});
-                }}
-              >
-                重置
-              </Button>
-              <Button type="primary" htmlType="submit">
-                查询
-              </Button>
-            </div>
-          </div>
-        </Form>
-        {filters.categoryId && (
-          <div style={{ marginTop: 12 }}>
-            <Tag
-              closable
-              onClose={() => {
-                setPage(1);
-                setFilters((f) => ({
-                  ...f,
-                  categoryId: undefined,
-                  categoryName: undefined,
-                }));
-              }}
-            >
-              品类：{filters.categoryName ?? filters.categoryId}
-            </Tag>
-          </div>
-        )}
-      </Card>
+          </FilterField>
+        </FilterCard>
+      </Form>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Table<PriceHistoryGroup>
-          rowKey={(r) => `${r.brandKey}|${r.modelKey}`}
-          columns={columns}
-          dataSource={rows}
+        <MainCard
+          count={total}
+          unit="个型号"
           loading={loading}
-          expandable={{ expandedRowRender: expanded }}
-          locale={{
-            emptyText:
-              filters.model || filters.brand
-                ? '没有找到这个型号的历史价格，需要询价'
-                : '还没有询价记录，采购提交回价后会出现在这里',
-          }}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 个型号`,
-            onChange: (p, s) => {
-              setPage(p);
-              setPageSize(s);
-            },
-          }}
-        />
+          quick={
+            filters.categoryId ? (
+              <Tag
+                closable
+                onClose={() => {
+                  setPage(1);
+                  setFilters((f) => ({
+                    ...f,
+                    categoryId: undefined,
+                    categoryName: undefined,
+                  }));
+                }}
+              >
+                品类：{filters.categoryName ?? filters.categoryId}
+              </Tag>
+            ) : undefined
+          }
+        >
+          <Table<PriceHistoryGroup>
+            rowKey={(r) => `${r.brandKey}|${r.modelKey}`}
+            columns={columns}
+            dataSource={rows}
+            loading={loading}
+            expandable={{ expandedRowRender: expanded }}
+            locale={{
+              emptyText: tableEmpty(
+                filters.model || filters.brand
+                  ? '没有找到这个型号的历史价格，需要询价'
+                  : '还没有询价记录，采购提交回价后会出现在这里',
+                loading,
+              ),
+            }}
+            pagination={{
+              ...PAGER_STYLE,
+              current: page,
+              pageSize,
+              total,
+              onChange: (p, s) => {
+                setPage(p);
+                setPageSize(s);
+              },
+            }}
+          />
+        </MainCard>
       )}
     </div>
   );

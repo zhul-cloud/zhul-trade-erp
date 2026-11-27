@@ -2,9 +2,10 @@ import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, InputNumber, Modal, Segmented, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
-import { CustomerSub } from '@/components/DocFields';
+import { CustomerCell } from '@/components/DocFields';
+import { tableEmpty } from '@/components/EmptyState';
+import { HelpTip, MainCard } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
@@ -21,6 +22,11 @@ import { creditApi, type Overpaid } from '../credits/service';
 import { settleCny } from '../fx-settlements/calc';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
+
+/** 帮助文字：help-texts.md「收款管理」 */
+const OVERPAID_HELP = {
+  list: '多收不计入订单收入，处理前按到账汇率估算人民币，处理后锁定。可以分几次处理；处理后从这里消失，记录在客户余额的流水里',
+} as const;
 
 /** 收款管理 → 待处理多收（spec sales/payment-receipt「多收的处理」）：转客户余额，或退回客户 */
 const OverpaidTab: React.FC<{ onCount?: (n: number) => void }> = ({
@@ -90,17 +96,11 @@ const OverpaidTab: React.FC<{ onCount?: (n: number) => void }> = ({
       dataIndex: 'customerName',
       width: 200,
       render: (v: string, r) => (
-        <div>
-          <b style={{ color: palette.ink }}>{v}</b>
-          {(r.customerCountry || r.customerContact) && (
-            <div style={{ fontSize: 12, color: palette.mute }}>
-              <CustomerSub
-                country={r.customerCountry}
-                contact={r.customerContact}
-              />
-            </div>
-          )}
-        </div>
+        <CustomerCell
+          name={v}
+          country={r.customerCountry}
+          contact={r.customerContact}
+        />
       ),
     },
     {
@@ -146,6 +146,7 @@ const OverpaidTab: React.FC<{ onCount?: (n: number) => void }> = ({
     },
     { title: '业务员', dataIndex: 'salesName', width: 100 },
     {
+      // lint-ui-ignore row-actions: 工作队列，多收款逐笔处理（转余额或退回），保留按钮
       title: '操作',
       key: 'op',
       width: 220,
@@ -174,7 +175,14 @@ const OverpaidTab: React.FC<{ onCount?: (n: number) => void }> = ({
   ];
 
   return (
-    <Card>
+    <MainCard
+      left={
+        <>
+          {`共 ${rows?.length ?? 0} 条`}
+          <HelpTip title={OVERPAID_HELP.list} />
+        </>
+      }
+    >
       <Table<Overpaid>
         rowKey={(r) => `${r.ownerType}-${r.ownerId}`}
         loading={rows === null}
@@ -182,11 +190,8 @@ const OverpaidTab: React.FC<{ onCount?: (n: number) => void }> = ({
         dataSource={rows ?? []}
         pagination={false}
         scroll={{ x: tableScrollX(columns) }}
-        locale={{ emptyText: '没有待处理的多收' }}
+        locale={{ emptyText: tableEmpty('没有待处理的多收', rows === null) }}
       />
-      <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-        多收不计入订单收入，处理前按到账汇率估算人民币，处理后锁定。可以分几次处理；处理后从这里消失，记录在客户余额的流水里。
-      </div>
       <ProcessModal
         target={processing}
         onClose={() => setProcessing(undefined)}
@@ -195,7 +200,7 @@ const OverpaidTab: React.FC<{ onCount?: (n: number) => void }> = ({
           onCount?.(list.length);
         }}
       />
-    </Card>
+    </MainCard>
   );
 };
 

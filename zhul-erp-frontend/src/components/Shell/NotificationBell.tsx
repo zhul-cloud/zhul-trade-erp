@@ -1,25 +1,17 @@
-import {
-  BellOutlined,
-  CodeSandboxOutlined,
-  FileTextOutlined,
-  SearchOutlined,
-  ShoppingCartOutlined,
-  WalletOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
-import {
-  App,
-  Badge,
-  Button,
-  Drawer,
-  Empty,
-  Segmented,
-  Spin,
-  Tooltip,
-} from 'antd';
+import { App, Badge, Button, Drawer, Segmented, Spin } from 'antd';
 import dayjs from 'dayjs';
+import {
+  Bell,
+  Box,
+  FileText,
+  Search,
+  ShoppingCart,
+  TriangleAlert,
+  Wallet,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { EmptyState } from '@/components/EmptyState';
 import {
   type NotificationItem,
   notificationApi,
@@ -27,32 +19,37 @@ import {
 import { useAppTheme } from '@/theme/AppTheme';
 import type { Palette } from '@/theme/palette';
 import { liveRequests } from '@/utils/liveRequests';
+import { IconButton } from './IconButton';
 
 const POLL_MS = 60_000;
 const PAGE_SIZE = 20;
 
 type Tab = 'todo' | 'all';
 
-/** 节点图标与配色：询价蓝、采购紫、收货绿、差异与收款橙、销售灰 */
+/** 节点图标与配色：询价主题色、采购信息色、收货成功色、差异与收款警告色、销售中性 */
 const nodeStyle = (node: string, p: Palette) => {
   if (node.startsWith('SOURCING') || node === 'INQUIRY_QUOTABLE') {
-    return { icon: <SearchOutlined />, color: p.link, bg: p.accentSoft };
+    return { icon: <Search size="1em" />, color: p.link, bg: p.primarySoft };
   }
   if (node === 'MODEL_DOUBT') {
-    return { icon: <SearchOutlined />, color: p.orange, bg: p.orangeSoft };
+    return { icon: <Search size="1em" />, color: p.orange, bg: p.orangeSoft };
   }
   if (node.startsWith('SO_') || node === 'PURCHASER_CHANGED') {
     return {
-      icon: <ShoppingCartOutlined />,
-      color: p.violet,
-      bg: p.violetSoft,
+      icon: <ShoppingCart size="1em" />,
+      color: p.info,
+      bg: p.infoSoft,
     };
   }
   if (node.startsWith('RECEIPT')) {
-    return { icon: <WalletOutlined />, color: p.orange, bg: p.orangeSoft };
+    return { icon: <Wallet size="1em" />, color: p.orange, bg: p.orangeSoft };
   }
   if (node === 'DISCREPANCY') {
-    return { icon: <WarningOutlined />, color: p.orange, bg: p.orangeSoft };
+    return {
+      icon: <TriangleAlert size="1em" />,
+      color: p.orange,
+      bg: p.orangeSoft,
+    };
   }
   if (
     node === 'SUPPLIER_SHIPPED' ||
@@ -60,9 +57,9 @@ const nodeStyle = (node: string, p: Palette) => {
     node === 'GOODS_RECEIVED' ||
     node === 'ORDER_READY'
   ) {
-    return { icon: <CodeSandboxOutlined />, color: p.green, bg: p.greenSoft };
+    return { icon: <Box size="1em" />, color: p.green, bg: p.greenSoft };
   }
-  return { icon: <FileTextOutlined />, color: p.mute, bg: p.inset };
+  return { icon: <FileText size="1em" />, color: p.mute, bg: p.inset };
 };
 
 const timeText = (t: string) => {
@@ -159,7 +156,7 @@ const Row: React.FC<{
           {item.kind === 'TODO' &&
             (item.done
               ? chip('已处理', palette.mute, palette.inset)
-              : chip('待办', palette.link, palette.accentSoft))}
+              : chip('待办', palette.link, palette.primarySoft))}
           {item.urgent &&
             !item.done &&
             chip('紧急', palette.red, palette.redSoft)}
@@ -325,16 +322,19 @@ export const NotificationBell: React.FC = () => {
 
   return (
     <>
-      <Tooltip title="通知">
-        <Badge count={count} size="small" offset={[-6, 6]}>
-          <Button
-            type="text"
-            aria-label="通知"
-            icon={<BellOutlined />}
-            onClick={() => setOpen(true)}
-          />
-        </Badge>
-      </Tooltip>
+      {/* 角标：未处理的待办 + 未读的知会，12px 错误色底白字，外加卡片色描边与图标分开 */}
+      <Badge
+        count={count}
+        offset={[-6, 6]}
+        style={{ boxShadow: `0 0 0 1.5px ${palette.card}` }}
+      >
+        <IconButton
+          label="通知"
+          icon={<Bell size={20} />}
+          pressed={open}
+          onClick={() => setOpen(true)}
+        />
+      </Badge>
       <Drawer
         title="通知"
         open={open}
@@ -361,9 +361,9 @@ export const NotificationBell: React.FC = () => {
         />
         <Spin spinning={loading && page === 1}>
           {items.length === 0 && !loading ? (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={tab === 'todo' ? '没有待处理的通知' : '还没有通知'}
+            <EmptyState
+              compact
+              title={tab === 'todo' ? '没有待处理的通知' : '还没有通知'}
             />
           ) : (
             groups.map((g) => (

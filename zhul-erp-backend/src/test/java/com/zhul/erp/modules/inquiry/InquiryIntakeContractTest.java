@@ -223,7 +223,12 @@ class InquiryIntakeContractTest extends InquiryContractSupport {
         assertEquals(List.of(single, mid), List.of(byCount.get(0).path("id").asLong(), byCount.get(1).path("id").asLong()),
                 "型号数不超过 2，按型号数正序");
         JsonNode ignored = ok(call(json(post(INQ + "/page"), "{\"sortField\":\"id; drop table\"}"), admin));
-        assertEquals(3, ignored.path("total").asInt(), "不认识的排序字段忽略，按创建时间倒序");
+        assertEquals(3, ignored.path("total").asInt(), "不认识的排序字段忽略，按更新时间倒序");
+
+        // 不排序时按更新时间倒序：最早建的询盘刚被改过，排到最前
+        jdbc.update("update customer_inquiry set update_time = date_add(now(), interval 1 hour) where id = ?", single);
+        JsonNode byUpdate = ok(call(json(post(INQ + "/page"), "{}"), admin)).path("records");
+        assertEquals(single, byUpdate.get(0).path("id").asLong(), "默认按更新时间倒序");
     }
 
     @Test

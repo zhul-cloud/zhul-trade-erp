@@ -1,25 +1,28 @@
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
-import { Link, useAccess } from '@umijs/max';
+import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Button, Form, Input, Select, Table } from 'antd';
+import { Eye, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import EllipsisText from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
+import { FilterField, MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
-import { Card, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { formatMoney } from '@/utils/format';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import { WarehousePageTitle } from '../components';
 import { FilterCard, useWarehouses } from '../inventoryParts';
 import {
   docHref,
   OO_DONE,
-  OO_TYPE_TONE,
   OO_TYPES,
   type OtherOutbound,
   ooPath,
@@ -91,20 +94,29 @@ const OtherOutboundsPage: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <Link to={ooPath(r.id)}>{v}</Link>
+          <CopyText text={v}>
+            <Link to={ooPath(r.id)}>{v}</Link>
+          </CopyText>
           {sub(r.outboundDate)}
         </div>
       ),
     },
+    { title: '仓库', dataIndex: 'warehouseName', width: 140 },
     {
-      title: '出库类型',
-      dataIndex: 'outboundTypeName',
-      width: 100,
+      title: '状态',
+      dataIndex: 'statusName',
+      width: 90,
       render: (v: string, r) => (
-        <Pill tone={OO_TYPE_TONE[r.outboundType] ?? 'gray'}>{v}</Pill>
+        <Pill tone={r.status === OO_DONE ? 'green' : 'mute'}>{v}</Pill>
       ),
     },
-    { title: '仓库', dataIndex: 'warehouseName', width: 140 },
+    {
+      title: '金额（CNY）',
+      align: 'right',
+      dataIndex: 'amountCny',
+      width: 110,
+      render: (v: number) => formatMoney(v),
+    },
     {
       title: '型号 · 数量',
       dataIndex: 'firstModel',
@@ -147,18 +159,16 @@ const OtherOutboundsPage: React.FC = () => {
       ),
     },
     {
-      title: '金额（¥）',
-      dataIndex: 'amountCny',
-      width: 110,
-      render: (v: number) => formatAmount(v, 'CNY'),
+      title: '出库类型',
+      dataIndex: 'outboundTypeName',
+      width: 100,
+      render: (v: string) => <Pill tone="gray">{v}</Pill>,
     },
     {
-      title: '状态',
-      dataIndex: 'statusName',
-      width: 90,
-      render: (v: string, r) => (
-        <Pill tone={r.status === OO_DONE ? 'green' : 'mute'}>{v}</Pill>
-      ),
+      title: '原因',
+      dataIndex: 'reason',
+      width: 200,
+      render: (v: string) => <EllipsisText text={v} />,
     },
     {
       title: '来源单号',
@@ -172,27 +182,48 @@ const OtherOutboundsPage: React.FC = () => {
         />
       ),
     },
-    {
-      title: '原因',
-      dataIndex: 'reason',
-      width: 200,
-      render: (v: string) => <EllipsisText text={v} />,
-    },
     ...auditColumns<OtherOutbound>(),
     {
       title: '操作',
       key: 'op',
-      width: 70,
+      width: rowActionsWidth(1),
       fixed: 'right',
-      render: (_, r) => <Link to={ooPath(r.id)}>查看</Link>,
+      render: (_, r) => (
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(ooPath(r.id)),
+            },
+          ]}
+        />
+      ),
     },
   ];
+  const columnsSet = useColumnSettings('warehouse-other-outbounds', columns, {
+    hidden: ['出库类型', '品牌', '品类', '来源单号'],
+  });
 
   const noFilter = Object.values(JSON.parse(queryKey)).every((v) => v == null);
 
   return (
     <div>
-      <WarehousePageTitle />
+      <PageHeader
+        help="报废、转样品、货代丢失或损坏；退回供应商请到库存查询发起"
+        extra={
+          access['inventory:other-outbound:edit'] && (
+            <Button
+              type="primary"
+              icon={<Plus size="1em" />}
+              onClick={() => setCreating(true)}
+            >
+              新建其他出库
+            </Button>
+          )
+        }
+      />
       <FilterCard
         form={form}
         initialValues={initial()}
@@ -205,98 +236,86 @@ const OtherOutboundsPage: React.FC = () => {
           setPage(1);
         }}
       >
-        <Form.Item
-          name="keyword"
-          label="关键词"
-          style={{ marginBottom: 0, gridColumn: 'span 2' }}
-        >
-          <Input
-            allowClear
-            prefix={<SearchOutlined />}
-            placeholder="出库单号、型号"
-          />
-        </Form.Item>
-        <Form.Item
-          name="outboundType"
-          label="出库类型"
-          style={{ marginBottom: 0 }}
-        >
-          <Select
-            allowClear
-            placeholder="全部"
-            options={OO_TYPES.map((t) => ({ value: t.value, label: t.label }))}
-          />
-        </Form.Item>
-        <Form.Item name="warehouseId" label="仓库" style={{ marginBottom: 0 }}>
-          <Select
-            allowClear
-            placeholder="全部仓库"
-            options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
-          />
-        </Form.Item>
-        <Form.Item name="status" label="状态" style={{ marginBottom: 0 }}>
-          <Select
-            allowClear
-            placeholder="全部"
-            options={[
-              { value: 1, label: '已出库' },
-              { value: 2, label: '已作废' },
-            ]}
-          />
-        </Form.Item>
+        <FilterField label="关键词" span={2}>
+          <Form.Item name="keyword" noStyle>
+            <Input
+              aria-label="关键词"
+              allowClear
+              prefix={<Search size="1em" />}
+              onPressEnter={() => form.submit()}
+              placeholder="出库单号、型号"
+            />
+          </Form.Item>
+        </FilterField>
+        <FilterField label="出库类型">
+          <Form.Item name="outboundType" noStyle>
+            <Select
+              aria-label="出库类型"
+              allowClear
+              placeholder="全部"
+              options={OO_TYPES.map((t) => ({
+                value: t.value,
+                label: t.label,
+              }))}
+            />
+          </Form.Item>
+        </FilterField>
+        <FilterField label="仓库">
+          <Form.Item name="warehouseId" noStyle>
+            <Select
+              aria-label="仓库"
+              allowClear
+              placeholder="全部仓库"
+              options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
+            />
+          </Form.Item>
+        </FilterField>
+        <FilterField label="状态">
+          <Form.Item name="status" noStyle>
+            <Select
+              aria-label="状态"
+              allowClear
+              placeholder="全部"
+              options={[
+                { value: 1, label: '已出库' },
+                { value: 2, label: '已作废' },
+              ]}
+            />
+          </Form.Item>
+        </FilterField>
       </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 16 }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 12,
-              gap: 12,
-              flexWrap: 'wrap',
-            }}
-          >
-            <span style={{ color: palette.sub, fontSize: 13 }}>
-              报废、转样品、货代丢失或损坏；退回供应商请到库存查询发起
-            </span>
-            {access['inventory:other-outbound:edit'] && (
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => setCreating(true)}
-              >
-                新建其他出库
-              </Button>
-            )}
-          </div>
+        <MainCard
+          settings={columnsSet.settings}
+          count={total}
+          loading={loading}
+        >
           <Table<OtherOutbound>
             rowKey="id"
-            size="middle"
             loading={loading}
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             locale={{
-              emptyText: noFilter
-                ? '还没有其他出库单'
-                : '没有符合条件的其他出库单',
+              emptyText: tableEmpty(
+                noFilter ? '还没有其他出库单' : '没有符合条件的其他出库单',
+                loading,
+              ),
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
-              showTotal: (t) => `共 ${t} 条`,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);
               },
             }}
           />
-        </Card>
+        </MainCard>
       )}
       <OtherOutboundModal
         open={creating}

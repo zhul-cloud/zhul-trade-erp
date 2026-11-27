@@ -1,45 +1,10 @@
 import React from 'react';
+import { Pill } from '@/components/Pill';
 import { LIFECYCLE_META } from '../constants';
 import { useProductTheme } from '../theme';
 
-type Tone = 'green' | 'orange' | 'red' | 'gray' | 'accent' | 'violet';
-
-/** 胶囊标签：颜色只用来表达状态（绿=正常、橙=注意、红=停产/风险、灰=未知/无、蓝=强调、紫=核心） */
-export const Pill: React.FC<{
-  tone: Tone;
-  children: React.ReactNode;
-  title?: string;
-}> = ({ tone, children, title }) => {
-  const { palette } = useProductTheme();
-  const map: Record<Tone, { fg: string; bg: string }> = {
-    green: { fg: palette.green, bg: palette.greenSoft },
-    orange: { fg: palette.orange, bg: palette.orangeSoft },
-    red: { fg: palette.red, bg: palette.redSoft },
-    gray: { fg: palette.sub, bg: palette.inset },
-    accent: { fg: palette.link, bg: palette.accentSoft },
-    violet: { fg: palette.violet, bg: palette.violetSoft },
-  };
-  const c = map[tone];
-  return (
-    <span
-      title={title}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        height: 24,
-        padding: '0 10px',
-        borderRadius: 12,
-        fontSize: 12,
-        fontWeight: 600,
-        color: c.fg,
-        background: c.bg,
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {children}
-    </span>
-  );
-};
+/** 状态标签统一用公共组件（规范「状态标签」） */
+export { Pill };
 
 export const LifecyclePill: React.FC<{ value: number }> = ({ value }) => {
   const meta = LIFECYCLE_META[value] ?? LIFECYCLE_META[6];
@@ -63,8 +28,8 @@ export const BrandMark: React.FC<{
         width: size,
         height: size,
         borderRadius: size / 3,
-        background: color || palette.accentSoft,
-        color: color ? '#FFFFFF' : palette.link,
+        background: color || palette.neutralSoft,
+        color: color ? '#FFFFFF' : palette.sub,
         fontWeight: 700,
         fontSize: Math.round(size * 0.46),
         flex: 'none',

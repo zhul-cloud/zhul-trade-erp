@@ -49,5 +49,16 @@ export function useCountries() {
     return (nameEn?: string) => (nameEn ? map.get(nameEn) : undefined);
   }, [list]);
 
-  return { options, labelOf, zhOf, codeOf };
+  /** 按英文名、两位代码或中文名找国家（各处保存的写法不完全一致） */
+  const find = useMemo(() => {
+    const map = new Map<string, Country>();
+    for (const c of list) {
+      map.set(c.nameEn.toLowerCase(), c);
+      map.set(c.code.toLowerCase(), c);
+      map.set(c.nameZh, c);
+    }
+    return (v?: string) => (v ? map.get(v.trim().toLowerCase()) : undefined);
+  }, [list]);
+
+  return { options, labelOf, zhOf, codeOf, find };
 }

@@ -1,9 +1,3 @@
-import {
-  ArrowRightOutlined,
-  DeleteOutlined,
-  LockOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import {
   Alert,
@@ -17,13 +11,15 @@ import {
   Table,
   Tag,
 } from 'antd';
+import { ArrowRight, Lock, Plus, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { HelpTip, PageHeader } from '@/components/ListLayout';
 import { ConditionPill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { exchangeRateApi } from '@/pages/system/exchange-rate/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatMargin } from '../calc';
-import { Card, QuotationPageTitle } from '../components';
+import { Card } from '../components';
 import { type PricingStrategy, pricingApi, readBizError } from '../service';
 
 const DOMESTIC_ALT = 6;
@@ -202,7 +198,7 @@ const PricingStrategyPage: React.FC = () => {
 
   return (
     <div>
-      <QuotationPageTitle description="依据《工控自动化产品定价策略 SOP》V6 第十章：按品相给建议毛利率与红线，售价 = 采购成本价 ÷ (1 − 毛利率)；报价时也可以按加价定价。" />
+      <PageHeader help="依据《工控自动化产品定价策略 SOP》V6 第十章：按品相给建议毛利率与红线，售价 = 采购成本价 ÷ (1 − 毛利率)；报价时也可以按加价定价" />
       {!canEdit && (
         <Alert
           type="info"
@@ -485,7 +481,7 @@ const PricingStrategyPage: React.FC = () => {
                             setBrandsOpen(true);
                           }}
                         >
-                          <PlusOutlined /> 编辑品牌
+                          <Plus size="1em" /> 编辑品牌
                         </button>
                       )}
                     </div>
@@ -525,7 +521,7 @@ const PricingStrategyPage: React.FC = () => {
                   fontWeight: 600,
                 }}
               >
-                <LockOutlined /> 汇率在「业务设置 → 汇率」统一维护
+                <Lock size="1em" /> 汇率在「业务设置 → 汇率」统一维护
               </div>
               <div
                 style={{
@@ -543,7 +539,7 @@ const PricingStrategyPage: React.FC = () => {
                   .join(' · ')}
               </div>
               <Button
-                icon={<ArrowRightOutlined />}
+                icon={<ArrowRight size="1em" />}
                 onClick={() => history.push('/system/exchange-rate')}
               >
                 前往汇率
@@ -661,7 +657,7 @@ const PricingStrategyPage: React.FC = () => {
             />
             <Button
               type="text"
-              icon={<DeleteOutlined />}
+              icon={<Trash2 size="1em" />}
               aria-label="删除这一档"
               onClick={() => setTiers(tiers.filter((_, j) => j !== i))}
             />
@@ -671,7 +667,7 @@ const PricingStrategyPage: React.FC = () => {
           <Button
             type="dashed"
             block
-            icon={<PlusOutlined />}
+            icon={<Plus size="1em" />}
             onClick={() =>
               setTiers([
                 ...tiers,
@@ -725,10 +721,21 @@ const PricingStrategyPage: React.FC = () => {
             </Tag>
           ))}
         </div>
-        <div style={{ margin: '12px 0 6px', color: palette.sub }}>添加品牌</div>
+        <div
+          style={{
+            margin: '12px 0 6px',
+            color: palette.sub,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          添加品牌
+          <HelpTip title="按品牌及别名识别，如「恩德斯豪斯」" />
+        </div>
         <Input
           value={brandInput}
-          placeholder="输入品牌名后回车，按品牌及别名识别（如「恩德斯豪斯」）"
+          placeholder="输入品牌名后回车"
           onChange={(e) => setBrandInput(e.target.value)}
           onPressEnter={() => {
             const v = brandInput.trim();

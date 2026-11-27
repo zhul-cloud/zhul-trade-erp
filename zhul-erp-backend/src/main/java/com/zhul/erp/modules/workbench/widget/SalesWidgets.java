@@ -121,9 +121,10 @@ public class SalesWidgets {
             LocalDate today = LocalDate.now();
             long late = sourcing.stream().filter(i -> i.getQuoteDeadline() != null && i.getQuoteDeadline().isBefore(today)).count();
             return W.of(W.metrics(
-                    W.link(W.metric("等采购回价的型号", waiting, "count", "来自 " + sourcing.size() + " 张询盘"), INQUIRIES),
-                    W.tone(W.metric("已过报价截止", late, "count", late > 0 ? "截止日期已过，还在询价" : "都还没到截止日期"),
-                            late > 0 ? "red" : null)));
+                    W.look(W.link(W.metric("等采购回价的型号", waiting, "count", "来自 " + sourcing.size() + " 张询盘"), INQUIRIES),
+                            "hourglass", "blue"),
+                    W.look(W.tone(W.metric("已过报价截止", late, "count", late > 0 ? "截止日期已过，还在询价" : "都还没到截止日期"),
+                            late > 0 ? "red" : null), "calendar-x", "gray")));
         });
     }
 
@@ -136,9 +137,10 @@ public class SalesWidgets {
             long won = s == null ? 0 : s.getWon();
             BigDecimal r = W.rate(valid, total);
             return W.of(W.metrics(
-                    W.link(W.metric("本月新增商机", total, "count", null), OPPORTUNITIES),
-                    W.metric("有效商机", valid, "count", r == null ? "有效率 —" : "有效率 " + r.toPlainString() + "%"),
-                    W.metric("赢单", won, "count", null)));
+                    W.look(W.link(W.metric("本月新增商机", total, "count", null), OPPORTUNITIES), "user-plus", "blue"),
+                    W.look(W.metric("有效商机", valid, "count", r == null ? "有效率 —" : "有效率 " + r.toPlainString() + "%"),
+                            "badge-check", "blue"),
+                    W.look(W.metric("赢单", won, "count", null), "trophy", "blue")));
         });
     }
 
@@ -259,18 +261,21 @@ public class SalesWidgets {
         BigDecimal receivedPrev = orders.receivedNetCny(W.lastMonthStart(), W.lastMonthEnd());
         List<WidgetData.Metric> items = new ArrayList<>();
         if (team) {
-            items.add(W.compare("新增询盘", cur.getInquiries().getAll(), prev.getInquiries().getAll(), "count", true));
-            items.add(W.compare("报价单", cur.getQuotations().getAll(), prev.getQuotations().getAll(), "count", true));
+            items.add(W.look(W.compare("新增询盘", cur.getInquiries().getAll(), prev.getInquiries().getAll(), "count", true),
+                    "inbox", "blue"));
+            items.add(W.look(W.compare("报价单", cur.getQuotations().getAll(), prev.getQuotations().getAll(), "count", true),
+                    "file-text", "blue"));
         }
-        items.add(W.compare("成交额", money(cur.getRevenue()), money(prev.getRevenue()), "money", true));
+        items.add(W.look(W.compare("成交额", money(cur.getRevenue()), money(prev.getRevenue()), "money", true), "handshake", "blue"));
         if (team) {
-            items.add(W.compare("毛利率", cur.getProfitRate(), prev.getProfitRate(), "percent", true));
+            items.add(W.look(W.compare("毛利率", cur.getProfitRate(), prev.getProfitRate(), "percent", true), "percent", "purple"));
         } else {
-            items.add(W.compare("毛利", money(cur.getProfit()), money(prev.getProfit()), "money", true));
+            items.add(W.look(W.compare("毛利", money(cur.getProfit()), money(prev.getProfit()), "money", true), "coins", "purple"));
         }
-        items.add(W.compare("实收回款", received, receivedPrev, "money", true));
+        items.add(W.look(W.compare("实收回款", received, receivedPrev, "money", true), "hand-coins", "cyan"));
         if (!team) {
-            items.add(W.compare("成交订单", cur.getOrders().getAll(), prev.getOrders().getAll(), "count", true));
+            items.add(W.look(W.compare("成交订单", cur.getOrders().getAll(), prev.getOrders().getAll(), "count", true),
+                    "shopping-bag", "blue"));
         }
         return W.of(W.metrics(items));
     }

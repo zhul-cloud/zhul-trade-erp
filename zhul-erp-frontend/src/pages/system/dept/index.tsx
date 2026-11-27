@@ -1,10 +1,4 @@
 import {
-  BankOutlined,
-  MinusCircleOutlined,
-  PlusOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
-import {
   ModalForm,
   ProFormDigit,
   ProFormRadio,
@@ -18,7 +12,6 @@ import {
   App,
   Button,
   DatePicker,
-  Empty,
   Input,
   InputNumber,
   Modal,
@@ -27,7 +20,11 @@ import {
   Tree,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { CircleMinus, Plus, Search } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { EmptyState } from '@/components/EmptyState';
+import { PageHeader } from '@/components/ListLayout';
 import { readBizError } from '@/pages/crm/opportunity/service';
 import { getUserOptions } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -157,6 +154,7 @@ const toTreeSelectData = (list: DeptItem[], excludeIds: number[]): any[] =>
 const DeptPage: React.FC = () => {
   const { palette: p } = useAppTheme();
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess();
 
   const [treeData, setTreeData] = useState<DeptItem[]>([]);
@@ -336,9 +334,10 @@ const DeptPage: React.FC = () => {
     if (newStatus === 0) {
       const check = await getDeptDeleteCheck(selectedDept.id);
       if (check.userCount > 0) {
-        modal.confirm({
-          title: '禁用确认',
-          content: `该部门下存在 ${check.userCount} 名关联用户，禁用后这些用户的部门信息将不可通过该部门筛选，请确认。`,
+        confirmDanger({
+          title: `禁用「${selectedDept.name}」？`,
+          content: `该部门下有 ${check.userCount} 名用户，禁用后不能再按这个部门筛选这些用户。`,
+          okText: '禁用',
           onOk: doToggle,
         });
         return;
@@ -372,11 +371,9 @@ const DeptPage: React.FC = () => {
       );
       return;
     }
-    modal.confirm({
-      title: '确认删除',
-      content: `确认删除部门「${selectedDept.name}」？此操作不可撤销。`,
-      okButtonProps: { danger: true },
-      okText: '确认删除',
+    confirmDanger({
+      title: `删除部门「${selectedDept.name}」？`,
+      content: '此操作不可撤销。',
       onOk: doDelete,
     });
   };
@@ -443,6 +440,7 @@ const DeptPage: React.FC = () => {
 
   return (
     <>
+      <PageHeader />
       <div
         style={{
           display: 'flex',
@@ -465,16 +463,16 @@ const DeptPage: React.FC = () => {
         >
           <Input
             placeholder="搜索部门名称"
-            prefix={<SearchOutlined />}
+            prefix={<Search size="1em" />}
             allowClear
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             style={{ marginBottom: 12 }}
           />
           {!loading && treeData.length === 0 ? (
-            <Empty description="暂无部门数据" style={{ marginTop: 40 }} />
+            <EmptyState title="暂无部门数据" />
           ) : !loading && displayTree.length === 0 ? (
-            <Empty description="未找到相关部门" style={{ marginTop: 40 }} />
+            <EmptyState kind="noResult" title="未找到相关部门" />
           ) : (
             <Tree
               treeData={antdTreeData}
@@ -503,14 +501,14 @@ const DeptPage: React.FC = () => {
             </span>
             <Space size={10}>
               {canAdd && (
-                <Button icon={<PlusOutlined />} onClick={openCreateTop}>
+                <Button icon={<Plus size="1em" />} onClick={openCreateTop}>
                   新增顶级部门
                 </Button>
               )}
               {selectedDept && canAdd && (
                 <Button
                   type="primary"
-                  icon={<PlusOutlined />}
+                  icon={<Plus size="1em" />}
                   onClick={openCreateChild}
                 >
                   新增子部门
@@ -521,7 +519,7 @@ const DeptPage: React.FC = () => {
               )}
               {selectedDept && canEdit && (
                 <Button
-                  icon={<MinusCircleOutlined />}
+                  icon={<CircleMinus size="1em" />}
                   onClick={handleToggleStatus}
                 >
                   {selectedDept.status === 1 ? '禁用' : '启用'}
@@ -602,7 +600,7 @@ const DeptPage: React.FC = () => {
                 <div style={{ fontSize: 12, color: p.mute, marginBottom: 5 }}>
                   独立核算
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 500, color: p.ink }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: p.ink }}>
                   {selectedDept.isBusinessUnit === 1 ? (
                     <Space size={8}>
                       <Tag color="purple" style={{ marginInlineEnd: 0 }}>
@@ -636,11 +634,7 @@ const DeptPage: React.FC = () => {
                 )}
             </div>
           ) : (
-            <Empty
-              image={<BankOutlined style={{ fontSize: 48, color: p.faint }} />}
-              description="请选择左侧部门查看详情"
-              style={{ marginTop: 80 }}
-            />
+            <EmptyState title="请选择左侧部门查看详情" />
           )}
           {bu.enabled && (
             <div
@@ -724,7 +718,7 @@ const DeptPage: React.FC = () => {
         okButtonProps={{ disabled: !markMonth }}
         destroyOnHidden
       >
-        <div style={{ marginBottom: 8, fontWeight: 500 }}>
+        <div style={{ marginBottom: 8, fontWeight: 600 }}>
           {selectedDept?.name}
         </div>
         <div style={{ fontSize: 12, color: p.mute, marginBottom: 6 }}>
@@ -887,7 +881,7 @@ const Field: React.FC<{ label: string; value: string; dot?: string }> = ({
       <div
         style={{
           fontSize: 14,
-          fontWeight: 500,
+          fontWeight: 600,
           color: p.ink,
           display: 'flex',
           alignItems: 'center',

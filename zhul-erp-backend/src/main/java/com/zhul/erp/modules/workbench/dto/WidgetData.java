@@ -51,9 +51,16 @@ public class WidgetData {
         /** 较上期的变化：percent 为百分比变化，count/money 为差值；为空不显示 */
         private BigDecimal delta;
         private String deltaFormat;
+        /** 和上月比较的指标为 true；算不出变化（上月为 0 或没有数据）时前端改显示上月的数（ui-redesign D59） */
+        private Boolean compared;
+        /** 上月的数，原始精度；没有数据为空 */
+        private BigDecimal previous;
         /** 变大是好事（收入）还是坏事（费用） */
         private Boolean higherIsBetter = true;
         private String link;
+        /** 数字卡图标（lucide 名称，如 handshake）与指标家族色：blue 成交、purple 利润、cyan 收款、gray 支出（ui-redesign D2）；为空时前端按格式给默认 */
+        private String icon;
+        private String family;
     }
 
     /** 待办：图标、色调、名称、说明、数量，点击进入列表 */

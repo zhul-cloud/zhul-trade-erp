@@ -1,13 +1,3 @@
-import {
-  CopyOutlined,
-  EnvironmentOutlined,
-  FileTextOutlined,
-  InfoCircleOutlined,
-  LockOutlined,
-  PlusOutlined,
-  UserOutlined,
-  WalletOutlined,
-} from '@ant-design/icons';
 import { history, useAccess, useParams } from '@umijs/max';
 import {
   Alert,
@@ -21,9 +11,23 @@ import {
   Skeleton,
   Space,
 } from 'antd';
+import {
+  Copy,
+  FileText,
+  Info,
+  Lock,
+  MapPin,
+  Plus,
+  User,
+  Wallet,
+} from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { Callout } from '@/components/Callout';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
+import { UserName } from '@/components/UserName';
 import {
   ALI_LEVEL_OPTIONS,
   CHANNEL_ALIBABA,
@@ -34,13 +38,7 @@ import { useAppTheme } from '@/theme/AppTheme';
 import { UnitSelect, useBusinessUnits } from '@/utils/businessUnit';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
-import {
-  LIST_PATH,
-  PageTitle,
-  PartyDrawer,
-  PartyGroups,
-  SectionCard,
-} from './components';
+import { LIST_PATH, PartyDrawer, PartyGroups, SectionCard } from './components';
 import {
   CJK_PATTERN,
   CURRENCY_OPTIONS,
@@ -206,7 +204,8 @@ const CustomerFormPage: React.FC = () => {
   const { options: sourceOptions } = useDictOptions(DICT_SOURCE_CHANNEL);
   const { id } = useParams<{ id?: string }>();
   const editing = !!id;
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess() as Record<string, boolean>;
   const { palette } = useAppTheme();
   const [form] = Form.useForm<FormState>();
@@ -414,9 +413,9 @@ const CustomerFormPage: React.FC = () => {
       leave();
       return;
     }
-    modal.confirm({
-      title: '确认离开？',
-      content: '当前填写内容将不会保存。',
+    confirmDanger({
+      title: '有未保存的修改',
+      content: '现在离开，填写的内容不会保存。',
       okText: '离开',
       cancelText: '继续编辑',
       onOk: leave,
@@ -487,7 +486,7 @@ const CustomerFormPage: React.FC = () => {
   if (!allowed) {
     return (
       <>
-        <PageTitle title={title} current={title} />
+        <PageHeader title={title} />
         <EmptyHint
           title="没有权限"
           description={`你的账号没有${editing ? '编辑' : '新增'}客户的权限，请联系管理员开通。`}
@@ -529,7 +528,7 @@ const CustomerFormPage: React.FC = () => {
     <div style={{ display: 'flex', gap: 8 }}>
       <Button
         size="small"
-        icon={<CopyOutlined />}
+        icon={<Copy size="1em" />}
         disabled={parties.length >= MAX_PARTIES}
         onClick={() => {
           setCopyOnOpen(true);
@@ -540,7 +539,7 @@ const CustomerFormPage: React.FC = () => {
       </Button>
       <Button
         size="small"
-        icon={<PlusOutlined />}
+        icon={<Plus size="1em" />}
         disabled={parties.length >= MAX_PARTIES}
         title={
           parties.length >= MAX_PARTIES
@@ -555,10 +554,7 @@ const CustomerFormPage: React.FC = () => {
   );
   return (
     <div style={{ color: palette.ink }}>
-      <a className="zhul-skip" href="#customer-main">
-        跳到主要内容
-      </a>
-      <PageTitle title={title} current={title} />
+      <PageHeader title={title} />
 
       {body ?? (
         <Form<FormState>
@@ -605,7 +601,7 @@ const CustomerFormPage: React.FC = () => {
             />
           )}
 
-          <SectionCard icon={<InfoCircleOutlined />} title="基本信息">
+          <SectionCard icon={<Info size="1em" />} title="基本信息">
             <div style={grid}>
               <Form.Item
                 name="customerCode"
@@ -632,7 +628,8 @@ const CustomerFormPage: React.FC = () => {
                   readOnly={editing}
                   suffix={
                     editing ? (
-                      <LockOutlined
+                      <Lock
+                        size="1em"
                         aria-label="只读"
                         style={{ color: palette.mute }}
                       />
@@ -735,7 +732,8 @@ const CustomerFormPage: React.FC = () => {
                     value={record?.ownerName || '未分配'}
                     readOnly
                     suffix={
-                      <LockOutlined
+                      <Lock
+                        size="1em"
                         aria-label="只读"
                         style={{ color: palette.mute }}
                       />
@@ -813,7 +811,7 @@ const CustomerFormPage: React.FC = () => {
           </SectionCard>
 
           <SectionCard
-            icon={<EnvironmentOutlined />}
+            icon={<MapPin size="1em" />}
             title="注册地址与税务"
             description="客户公司的注册信息，作为报价单、PI 上买方的默认地址。单据字段请使用英文。"
           >
@@ -865,7 +863,7 @@ const CustomerFormPage: React.FC = () => {
             </div>
           </SectionCard>
 
-          <SectionCard icon={<UserOutlined />} title="主联系人">
+          <SectionCard icon={<User size="1em" />} title="主联系人">
             <div style={grid}>
               <Form.Item
                 name="contactName"
@@ -920,7 +918,7 @@ const CustomerFormPage: React.FC = () => {
             </div>
           </SectionCard>
 
-          <SectionCard icon={<WalletOutlined />} title="默认交易条件">
+          <SectionCard icon={<Wallet size="1em" />} title="默认交易条件">
             <div style={grid}>
               <Form.Item
                 name="currency"
@@ -1045,25 +1043,13 @@ const CustomerFormPage: React.FC = () => {
                 <Input placeholder="如 Hamburg" maxLength={100} />
               </Form.Item>
             </div>
-            <div
-              style={{
-                display: 'flex',
-                gap: 8,
-                alignItems: 'center',
-                padding: '10px 12px',
-                borderRadius: 10,
-                background: palette.accentSoft,
-                fontSize: 12,
-                color: palette.sub,
-              }}
-            >
-              <InfoCircleOutlined style={{ color: palette.link }} />
+            <Callout>
               以上为默认值，创建报价单、PI、合同时自动带出，可在单据上修改；修改这里不影响已生成的单据。
-            </div>
+            </Callout>
           </SectionCard>
 
           <SectionCard
-            icon={<FileTextOutlined />}
+            icon={<FileText size="1em" />}
             title="收货与单证信息"
             extra={partyActions}
           >
@@ -1097,7 +1083,7 @@ const CustomerFormPage: React.FC = () => {
               <span>
                 创建人{' '}
                 <span style={{ color: palette.ink }}>
-                  {record.createBy || '—'}
+                  <UserName value={record.createBy} />
                 </span>
               </span>
               <span>
@@ -1109,7 +1095,7 @@ const CustomerFormPage: React.FC = () => {
               <span>
                 最后修改人{' '}
                 <span style={{ color: palette.ink }}>
-                  {record.updateBy || '—'}
+                  <UserName value={record.updateBy} />
                 </span>
               </span>
               <span>

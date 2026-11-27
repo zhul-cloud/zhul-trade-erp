@@ -1,6 +1,7 @@
-import { BankOutlined, UserOutlined } from '@ant-design/icons';
-import { Tag } from 'antd';
 import React from 'react';
+import { AlertLabel } from '@/components/MetricCard';
+import { Pill } from '@/pages/inquiry/shared/components';
+import { useAppTheme } from '@/theme/AppTheme';
 import { METHOD } from './service';
 
 /** 应付单约定的付款方式（openspec payable-payment-method）：0-未定、1-对公、2-对私 */
@@ -12,27 +13,35 @@ export const PAY_METHOD_NAMES: Record<number, string> = {
   2: '对私',
 };
 
-/** 约定的付款方式标签：对公蓝、对私橙、未定灰 */
+/** 约定的付款方式：属性用中性灰标签（ui-redesign S13），未定用浅色文字 */
 export const PayMethodTag: React.FC<{ value?: number | null }> = ({
   value,
 }) => {
-  if (value === PAY_METHOD.PUBLIC)
-    return (
-      <Tag color="blue" icon={<BankOutlined />} style={{ marginInlineEnd: 0 }}>
-        对公
-      </Tag>
-    );
-  if (value === PAY_METHOD.PRIVATE)
-    return (
-      <Tag
-        color="orange"
-        icon={<UserOutlined />}
-        style={{ marginInlineEnd: 0 }}
-      >
-        对私
-      </Tag>
-    );
-  return <Tag style={{ marginInlineEnd: 0 }}>未定</Tag>;
+  const { palette } = useAppTheme();
+  if (value === PAY_METHOD.PUBLIC || value === PAY_METHOD.PRIVATE)
+    return <Pill tone="gray">{PAY_METHOD_NAMES[value]}</Pill>;
+  return <span style={{ color: palette.mute }}>未定</span>;
+};
+
+/**
+ * 付款方式下方的一行提示（随所选应付单变化的结果，规范「说明文字」放字段下方）：
+ * warn 为约定不一致、需要确认，用带图标的浅底警告标签（规范「警告不用纯文字」）；note 为预选说明（次要色）。
+ * 单笔、批量登记付款共用。
+ */
+export const MethodHint: React.FC<{
+  tone: 'warn' | 'note';
+  children: React.ReactNode;
+}> = ({ tone, children }) => {
+  const { palette } = useAppTheme();
+  return tone === 'warn' ? (
+    <div role="status" style={{ marginTop: 6 }}>
+      <AlertLabel tone="warning">{children}</AlertLabel>
+    </div>
+  ) : (
+    <div style={{ fontSize: 12, marginTop: 6, color: palette.mute }}>
+      {children}
+    </div>
+  );
 };
 
 /**

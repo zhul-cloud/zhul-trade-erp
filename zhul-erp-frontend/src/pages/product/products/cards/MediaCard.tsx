@@ -1,14 +1,4 @@
 import {
-  ArrowDownOutlined,
-  ArrowUpOutlined,
-  CheckCircleFilled,
-  CloseCircleFilled,
-  DeleteOutlined,
-  PlayCircleFilled,
-  StarFilled,
-  UploadOutlined,
-} from '@ant-design/icons';
-import {
   App,
   Button,
   Checkbox,
@@ -21,7 +11,18 @@ import {
   Space,
   Upload,
 } from 'antd';
+import {
+  ArrowDown,
+  ArrowUp,
+  CircleCheck,
+  CirclePlay,
+  CircleX,
+  Star,
+  Trash2,
+  UploadIcon,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { EmptyHint } from '../../components/EmptyHint';
 import { Pill } from '../../components/Pills';
@@ -267,7 +268,7 @@ export const UploadModal: React.FC<{
           }}
         >
           <p style={{ fontSize: 16, margin: '8px 0' }}>
-            <UploadOutlined /> 把文件拖到这里，或点击选择
+            <UploadIcon size="1em" /> 把文件拖到这里，或点击选择
           </p>
           <p style={{ color: palette.sub, fontSize: 13, margin: 0 }}>
             {mediaType === 1
@@ -361,7 +362,8 @@ export const UploadModal: React.FC<{
                 </div>
                 <div style={{ flexShrink: 0 }}>
                   {f.status === 'done' ? (
-                    <CheckCircleFilled
+                    <CircleCheck
+                      size="1em"
                       style={{ color: palette.green, fontSize: 16 }}
                     />
                   ) : f.status === 'uploading' ? (
@@ -373,14 +375,15 @@ export const UploadModal: React.FC<{
                     </span>
                   ) : f.status === 'error' ? (
                     <Space size={4}>
-                      <CloseCircleFilled
+                      <CircleX
+                        size="1em"
                         style={{ color: palette.red, fontSize: 16 }}
                       />
                       <Button
                         size="small"
                         type="text"
                         aria-label={`移除 ${f.file.name}`}
-                        icon={<DeleteOutlined />}
+                        icon={<Trash2 size="1em" />}
                         onClick={() => removeFile(f.uid)}
                       />
                     </Space>
@@ -389,7 +392,7 @@ export const UploadModal: React.FC<{
                       size="small"
                       type="text"
                       aria-label={`移除 ${f.file.name}`}
-                      icon={<DeleteOutlined />}
+                      icon={<Trash2 size="1em" />}
                       disabled={uploading}
                       onClick={() => removeFile(f.uid)}
                     />
@@ -525,7 +528,8 @@ export const MediaCard: React.FC<{
   done?: boolean;
   onChanged: () => void;
 }> = ({ productId, readOnly, done, onChanged }) => {
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { palette } = useProductTheme();
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -565,12 +569,9 @@ export const MediaCard: React.FC<{
   };
 
   const remove = (m: MediaItem) =>
-    modal.confirm({
+    confirmDanger({
       title: '删除这个文件？',
       content: '文件记录会被移除，之后可以重新上传。',
-      okText: '删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
       onOk: async () => {
         await mediaApi.remove(productId, m.id);
         message.success('已删除');
@@ -606,7 +607,7 @@ export const MediaCard: React.FC<{
           <Space>
             <Button onClick={() => setLinkOpen(true)}>添加链接</Button>
             <Button
-              icon={<UploadOutlined />}
+              icon={<UploadIcon size="1em" />}
               onClick={() => setUploadOpen(true)}
             >
               上传
@@ -669,7 +670,7 @@ export const MediaCard: React.FC<{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      background: m.mediaType === 2 ? '#0B1220' : palette.inset,
+                      background: palette.inset,
                     }}
                   >
                     {m.mediaType === 1 ? (
@@ -689,15 +690,19 @@ export const MediaCard: React.FC<{
                         target="_blank"
                         rel="noreferrer"
                         aria-label={`播放视频 ${m.title || ''}`}
-                        style={{ color: '#F8FAFC', fontSize: 40 }}
+                        style={{ color: palette.mute, fontSize: 40 }}
                       >
-                        <PlayCircleFilled />
+                        <CirclePlay size="1em" />
                       </a>
                     )}
                     {m.isMain === 1 && (
                       <span style={{ position: 'absolute', top: 8, left: 8 }}>
-                        <Pill tone="accent">
-                          <StarFilled style={{ marginRight: 4 }} />
+                        <Pill tone="gray">
+                          <Star
+                            size="1em"
+                            fill="currentColor"
+                            style={{ marginRight: 4 }}
+                          />
                           主图
                         </Pill>
                       </span>
@@ -742,14 +747,14 @@ export const MediaCard: React.FC<{
                         <Button
                           size="small"
                           aria-label="上移"
-                          icon={<ArrowUpOutlined />}
+                          icon={<ArrowUp size="1em" />}
                           disabled={i === 0}
                           onClick={() => move(i, -1)}
                         />
                         <Button
                           size="small"
                           aria-label="下移"
-                          icon={<ArrowDownOutlined />}
+                          icon={<ArrowDown size="1em" />}
                           disabled={i === items.length - 1}
                           onClick={() => move(i, 1)}
                         />
@@ -757,7 +762,7 @@ export const MediaCard: React.FC<{
                           size="small"
                           aria-label="删除"
                           danger
-                          icon={<DeleteOutlined />}
+                          icon={<Trash2 size="1em" />}
                           onClick={() => remove(m)}
                         />
                       </Space>

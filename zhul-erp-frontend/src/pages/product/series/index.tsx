@@ -1,4 +1,3 @@
-import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   ModalForm,
@@ -8,19 +7,31 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import { App, Button, Tooltip } from 'antd';
-import React, { useRef, useState } from 'react';
+import { App, Button, Input, Select } from 'antd';
+import { Ban, CircleCheck, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
-import { formatDateTime } from '@/utils/format';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { proAuditColumns } from '@/components/UserName';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { Pill } from '../components/Pills';
 import { brandApi, type Series, seriesApi } from '../service';
-import { PageHeader, ProductThemeProvider } from '../theme';
+import { ProductThemeProvider } from '../theme';
 
 const SeriesPage: React.FC = () => {
   const pager = usePagination(20);
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess();
   const actionRef = useRef<ActionType>(undefined);
   const [editing, setEditing] = useState<Series | null>(null);
@@ -33,7 +44,8 @@ const SeriesPage: React.FC = () => {
 
   const toggleStatus = (row: Series) => {
     const disabling = row.status === 1;
-    modal.confirm({
+    // 停用用公共危险确认（错误色按钮、默认焦点在取消），启用用普通确认
+    (disabling ? confirmDanger : modal.confirm)({
       title: disabling
         ? `停用「${row.seriesName}」？`
         : `启用「${row.seriesName}」？`,
@@ -51,12 +63,9 @@ const SeriesPage: React.FC = () => {
   };
 
   const remove = (row: Series) => {
-    modal.confirm({
+    confirmDanger({
       title: `删除「${row.seriesName}」？`,
       content: '删除后系列不再出现在列表中，该品牌下同名系列也不能重新创建。',
-      okText: '删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
       onOk: async () => {
         await seriesApi.remove(row.id);
         message.success('已删除');
@@ -69,29 +78,26 @@ const SeriesPage: React.FC = () => {
     const list = await brandApi.options();
     return list.map((b) => ({ label: b.brandName, value: b.id }));
   };
+  /** 搜索条件：状态切换后立即查询，关键词、品牌点「查询」才生效 */
+  const [filters, setFilters] = useState<{
+    keyword?: string;
+    brandId?: number;
+    status?: number;
+  }>({});
+  const [keyword, setKeyword] = useState('');
+  const [draftBrand, setDraftBrand] = useState<number>();
+  const [brands, setBrands] = useState<{ label: string; value: number }[]>([]);
+  // 首次查询返回前没有总数，主卡不显示「共 0 条」
+  const [total, setTotal] = useState<number>();
+  useEffect(() => {
+    brandOptions()
+      .then(setBrands)
+      .catch(() => setBrands([]));
+  }, []);
 
   const columns: ProColumns<Series>[] = [
     {
-      title: '系列名称',
-      dataIndex: 'keyword',
-      hideInTable: true,
-      fieldProps: { placeholder: '输入系列名称' },
-    },
-    {
-      title: '品牌',
-      dataIndex: 'brandFilter',
-      hideInTable: true,
-      valueType: 'select',
-      request: brandOptions,
-    },
-    {
-      title: '状态',
-      dataIndex: 'statusFilter',
-      hideInTable: true,
-      valueType: 'select',
-      valueEnum: { 1: { text: '启用' }, 0: { text: '停用' } },
-    },
-    {
+      fixed: 'left',
       title: '系列名称',
       dataIndex: 'seriesName',
       search: false,
@@ -134,103 +140,70 @@ const SeriesPage: React.FC = () => {
           <Pill tone="gray">已停用</Pill>
         ),
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      search: false,
-      width: 160,
-      render: (_, r) => (
-        <span className="num">{formatDateTime(r.createTime)}</span>
-      ),
-    },
-    {
-      title: '创建人',
-      dataIndex: 'createBy',
-      search: false,
-      width: 150,
-      render: ellipsisRender,
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      search: false,
-      width: 160,
-      render: (_, r) => (
-        <span className="num">{formatDateTime(r.updateTime)}</span>
-      ),
-    },
-    {
-      title: '更新人',
-      dataIndex: 'updateBy',
-      search: false,
-      width: 150,
-      render: ellipsisRender,
-    },
+    ...proAuditColumns<Series>(),
     {
       title: '操作',
       hideInTable:
         !access['product:series:edit'] && !access['product:series:delete'],
       fixed: 'right',
       valueType: 'option',
-      width: 140,
-      render: (_, row) => [
-        access['product:series:edit'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="edit"
-            onClick={() => openForm(row)}
-          >
-            编辑
-          </button>
-        ),
-        access['product:series:edit'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="status"
-            onClick={() => toggleStatus(row)}
-          >
-            {row.status === 1 ? '停用' : '启用'}
-          </button>
-        ),
-        access['product:series:delete'] &&
-          (row.productCount > 0 ? (
-            <Tooltip
-              key="delete"
-              title={`已有 ${row.productCount} 个商品使用，请先停用`}
-            >
-              <span
-                aria-disabled="true"
-                style={{ opacity: 0.6, cursor: 'not-allowed' }}
-              >
-                删除
-              </span>
-            </Tooltip>
-          ) : (
-            <button
-              type="button"
-              className="zhul-link"
-              key="delete"
-              onClick={() => remove(row)}
-            >
-              删除
-            </button>
-          )),
-      ],
+      // 编辑放行内；停用/启用、删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(2),
+      render: (_, row) => {
+        const canEdit = !!access['product:series:edit'];
+        const canDelete = !!access['product:series:delete'];
+        return (
+          <RowActions
+            inline={[
+              canEdit && {
+                key: 'edit',
+                label: '编辑',
+                icon: <Pencil size={18} />,
+                onClick: () => openForm(row),
+              },
+            ]}
+            more={[
+              canEdit && {
+                key: 'status',
+                label: row.status === 1 ? '停用' : '启用',
+                icon:
+                  row.status === 1 ? (
+                    <Ban size={16} />
+                  ) : (
+                    <CircleCheck size={16} />
+                  ),
+              },
+              canDelete && {
+                key: 'delete',
+                label: '删除',
+                icon: <Trash2 size={16} />,
+                danger: true,
+                disabledReason:
+                  row.productCount > 0
+                    ? `已有 ${row.productCount} 个商品使用，请先停用`
+                    : undefined,
+              },
+            ]}
+            onMore={(key) => {
+              if (key === 'status') toggleStatus(row);
+              if (key === 'delete') remove(row);
+            }}
+          />
+        );
+      },
     },
   ];
+  const columnsSet = useColumnSettings('product-series', columns);
 
   return (
     <ProductThemeProvider>
       <PageHeader
-        eyebrow="PRODUCT MASTER"
-        description="品牌下可选的分组（如 Siemens 的 S7-1200），同一个品牌下系列名称不重复，不同品牌可以同名。"
-        actions={
+        help="品牌下可选的分组（如 Siemens 的 S7-1200），同一个品牌下系列名称不重复，不同品牌可以同名"
+        extra={
           access['product:series:add'] && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => openForm(null)}
             >
               新增系列
@@ -238,34 +211,92 @@ const SeriesPage: React.FC = () => {
           )
         }
       />
-      <ProTable<Series>
-        scroll={{ x: tableScrollX(columns) }}
-        rowKey="id"
-        actionRef={actionRef}
-        columns={columns}
-        search={{ labelWidth: 'auto', defaultCollapsed: false }}
-        options={false}
-        request={async (params) => {
-          const res = await seriesApi.page({
-            page: params.current,
-            pageSize: params.pageSize,
-            keyword: params.keyword,
-            brandId:
-              params.brandFilter === undefined
-                ? undefined
-                : Number(params.brandFilter),
-            status:
-              params.statusFilter === undefined
-                ? undefined
-                : Number(params.statusFilter),
-          });
-          return { data: res.records, total: res.total, success: true };
+      <FilterCard
+        onSearch={() =>
+          setFilters({
+            ...filters,
+            keyword: keyword.trim(),
+            brandId: draftBrand,
+          })
+        }
+        onReset={() => {
+          setKeyword('');
+          setDraftBrand(undefined);
+          setFilters({});
         }}
-        pagination={{ ...pager, showTotal: (t) => `共 ${t} 条记录` }}
-        locale={{
-          emptyText: '还没有系列。系列是可选的，商品可以不属于任何系列。',
-        }}
-      />
+      >
+        <FilterField label="系列名称" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="系列名称"
+            aria-label="系列名称"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={() =>
+              setFilters({
+                ...filters,
+                keyword: keyword.trim(),
+                brandId: draftBrand,
+              })
+            }
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select
+            allowClear
+            placeholder="全部"
+            aria-label="状态"
+            value={filters.status}
+            // 状态下拉切换后立即查询
+            onChange={(v) => setFilters({ ...filters, status: v })}
+            options={[
+              { value: 1, label: '启用' },
+              { value: 0, label: '停用' },
+            ]}
+          />
+        </FilterField>
+        <FilterField label="品牌">
+          <Select
+            allowClear
+            showSearch={{ optionFilterProp: 'label' }}
+            placeholder="全部"
+            aria-label="品牌"
+            value={draftBrand}
+            onChange={setDraftBrand}
+            options={brands}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard settings={columnsSet.settings} count={total}>
+        <ProTable<Series>
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
+          rowKey="id"
+          actionRef={actionRef}
+          columns={columnsSet.columns}
+          search={false}
+          options={false}
+          toolBarRender={false}
+          params={filters}
+          request={async (params) => {
+            const res = await seriesApi.page({
+              page: params.current,
+              pageSize: params.pageSize,
+              keyword: filters.keyword || undefined,
+              brandId: filters.brandId,
+              status: filters.status,
+            });
+            setTotal(res.total);
+            return { data: res.records, total: res.total, success: true };
+          }}
+          pagination={pager}
+          locale={{
+            emptyText: tableEmpty(
+              '还没有系列。系列是可选的，商品可以不属于任何系列。',
+            ),
+          }}
+        />
+      </MainCard>
       <ModalForm<{ brandId: number; seriesName: string; description?: string }>
         name="seriesEdit"
         title={editing ? '编辑系列' : '新增系列'}

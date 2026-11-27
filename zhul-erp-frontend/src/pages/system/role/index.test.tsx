@@ -133,7 +133,9 @@ describe('RolePage 分配权限（audit UI-014）', () => {
     const ids = deferred<number[]>();
     mocked.getRoleMenuIds.mockReturnValue(ids.promise);
     renderPage();
-    fireEvent.click((await screen.findAllByText('分配权限'))[0]);
+    fireEvent.click(
+      (await screen.findAllByRole('button', { name: '分配权限' }))[0],
+    );
 
     expect(saveButton().disabled).toBe(true);
     fireEvent.click(saveButton());
@@ -153,9 +155,13 @@ describe('RolePage 分配权限（audit UI-014）', () => {
       code === 'RA' ? slowA.promise : Promise.resolve([12]),
     );
     renderPage();
-    fireEvent.click((await screen.findAllByText('分配权限'))[0]);
+    fireEvent.click(
+      (await screen.findAllByRole('button', { name: '分配权限' }))[0],
+    );
     fireEvent.click(screen.getByRole('button', { name: /^取\s?消$/ }));
-    fireEvent.click((await screen.findAllByText('分配权限'))[1]);
+    fireEvent.click(
+      (await screen.findAllByRole('button', { name: '分配权限' }))[1],
+    );
     await waitFor(() => expect(saveButton().disabled).toBe(false));
 
     slowA.resolve([11]);
@@ -198,7 +204,7 @@ describe('RolePage 编辑角色（audit UI-037）', () => {
     const slowA = deferred<number[]>();
     mocked.getRoleDeptIds.mockImplementation(() => slowA.promise);
     renderPage();
-    const edits = await screen.findAllByText('编辑');
+    const edits = await screen.findAllByRole('button', { name: '编辑' });
     fireEvent.click(edits[0]);
     fireEvent.click(edits[1]);
     expect(await screen.findByText('编辑角色 - 角色乙')).toBeTruthy();
@@ -227,7 +233,9 @@ describe('RolePage 编辑抽屉的标签（audit UI-026）', () => {
 
   it('抽屉里的标签指向抽屉自己的输入框，不指向背景的搜索框', async () => {
     renderPage();
-    fireEvent.click((await screen.findAllByText('编辑'))[0]);
+    fireEvent.click(
+      (await screen.findAllByRole('button', { name: '编辑' }))[0],
+    );
     const drawer = (await screen.findByText('编辑角色 - 角色甲')).closest(
       '.ant-drawer',
     ) as Element;
@@ -243,7 +251,9 @@ describe('RolePage 编辑抽屉的标签（audit UI-026）', () => {
 
   it('只读的角色编码框也有可读名称', async () => {
     renderPage();
-    fireEvent.click((await screen.findAllByText('编辑'))[0]);
+    fireEvent.click(
+      (await screen.findAllByRole('button', { name: '编辑' }))[0],
+    );
     const drawer = (await screen.findByText('编辑角色 - 角色甲')).closest(
       '.ant-drawer',
     ) as HTMLElement;

@@ -1,11 +1,11 @@
-import {
-  CheckCircleOutlined,
-  ExportOutlined,
-  PictureOutlined,
-  PlayCircleFilled,
-} from '@ant-design/icons';
 import { Link } from '@umijs/max';
 import { App, Button, Image, Segmented } from 'antd';
+import {
+  CircleCheck,
+  CirclePlay,
+  ExternalLink,
+  Image as ImageIcon,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { type FileLink, mediaApi } from '@/pages/operations/media/service';
@@ -107,7 +107,7 @@ export const CompanyMediaCard: React.FC<{
           <Link
             to={`/operations/media?keyword=${encodeURIComponent(data.model)}`}
           >
-            <Button type="link" icon={<ExportOutlined />}>
+            <Button type="link" icon={<ExternalLink size="1em" />}>
               去素材库
             </Button>
           </Link>
@@ -190,7 +190,7 @@ export const CompanyMediaCard: React.FC<{
                             aria-label={`播放视频 ${m.fileName ?? ''}`}
                             style={{ color: palette.sub, fontSize: 36 }}
                           >
-                            <PlayCircleFilled />
+                            <CirclePlay size="1em" />
                           </a>
                         ) : url ? (
                           <Image
@@ -201,7 +201,10 @@ export const CompanyMediaCard: React.FC<{
                             styles={{ image: { objectFit: 'cover' } }}
                           />
                         ) : (
-                          <PictureOutlined style={{ color: palette.sub }} />
+                          <ImageIcon
+                            size="1em"
+                            style={{ color: palette.sub }}
+                          />
                         )}
                         <span
                           style={{
@@ -233,7 +236,7 @@ export const CompanyMediaCard: React.FC<{
                         <Button
                           size="small"
                           type="link"
-                          icon={<CheckCircleOutlined />}
+                          icon={<CircleCheck size="1em" />}
                           style={{ padding: 0 }}
                           loading={busy === itemId}
                           onClick={() => makeOfficial(itemId, video)}

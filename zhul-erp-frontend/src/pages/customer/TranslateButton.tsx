@@ -1,6 +1,6 @@
-import { TranslationOutlined } from '@ant-design/icons';
 import type { FormInstance } from 'antd';
 import { App, Button } from 'antd';
+import { Languages } from 'lucide-react';
 import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { CJK_PATTERN } from './constants';
@@ -16,10 +16,10 @@ export const TranslateButton: React.FC<{
     <Button
       type="text"
       size="small"
-      icon={<TranslationOutlined />}
+      icon={<Languages size="1em" />}
       loading={loading}
       onClick={onClick}
-      style={{ color: palette.link, background: palette.accentSoft }}
+      style={{ color: palette.link, background: palette.neutralSoft }}
     >
       {loading ? '翻译中' : 'AI 翻译'}
     </Button>

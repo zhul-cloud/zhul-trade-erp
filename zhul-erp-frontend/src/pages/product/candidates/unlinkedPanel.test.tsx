@@ -75,9 +75,9 @@ it('显示最近 3 个单号与「等 N 张」，批量采纳只提交 AI 识别
   expect(screen.queryByText('SO20260912004')).toBeNull();
 
   const boxes = screen.getAllByRole('checkbox');
-  // 第 0 个是「显示已标记」，第 1 个是表头全选
+  // 第 0 个是表头全选（是否已标记改在搜索区的状态下拉里）
+  fireEvent.click(boxes[1]);
   fireEvent.click(boxes[2]);
-  fireEvent.click(boxes[3]);
   const adopt = await screen.findByRole('button', { name: /批量采纳 1 组/ });
   fireEvent.click(adopt);
   await waitFor(() => expect(candidateApi.adoptUnlinked).toHaveBeenCalled());

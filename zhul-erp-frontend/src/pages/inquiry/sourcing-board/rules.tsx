@@ -1,21 +1,19 @@
-import {
-  ArrowDownOutlined,
-  ArrowUpOutlined,
-  PlusOutlined,
-  ThunderboltOutlined,
-} from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Form, Modal, Radio, Select, Switch, Table } from 'antd';
+import { ArrowDown, ArrowUp, Pencil, Plus, Trash2, Zap } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import BrandCategoryPicker from '@/components/BrandCategoryPicker';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { tableEmpty } from '@/components/EmptyState';
+import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { StatusSwitch } from '@/components/StatusSwitch';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
-import { MenuLink } from '@/utils/menuName';
 import { tableScrollX } from '@/utils/tableScroll';
-import { Card, PageTitle, Pill } from '../shared/components';
-import { PATHS } from '../shared/constants';
+import { Card, Pill } from '../shared/components';
 import {
   type AssignRule,
   boardApi,
@@ -120,6 +118,7 @@ const AssignRulesPage: React.FC = () => {
     }
   };
 
+  const confirmDanger = useConfirmDanger();
   const columns: TableColumnsType<AssignRule> = [
     {
       title: '优先级',
@@ -133,7 +132,7 @@ const AssignRulesPage: React.FC = () => {
                 size="small"
                 type="text"
                 aria-label="上移"
-                icon={<ArrowUpOutlined />}
+                icon={<ArrowUp size="1em" />}
                 disabled={i === 0}
                 onClick={() => move(i, -1)}
               />
@@ -141,7 +140,7 @@ const AssignRulesPage: React.FC = () => {
                 size="small"
                 type="text"
                 aria-label="下移"
-                icon={<ArrowDownOutlined />}
+                icon={<ArrowDown size="1em" />}
                 disabled={i === (rules?.length ?? 0) - 1}
                 onClick={() => move(i, 1)}
               />
@@ -176,9 +175,9 @@ const AssignRulesPage: React.FC = () => {
       dataIndex: 'status',
       width: 100,
       render: (v, r) => (
-        <Switch
-          size="small"
+        <StatusSwitch
           checked={v === 1}
+          name={`${r.matchType === 1 ? '品牌' : '品类'} ${r.matchValues.join('、')} 规则`}
           disabled={!canEdit}
           onChange={(on) =>
             act(
@@ -198,38 +197,36 @@ const AssignRulesPage: React.FC = () => {
     {
       title: '操作',
       fixed: 'right',
-      width: 120,
-      render: (_, r) =>
-        canEdit ? (
-          <span style={{ display: 'inline-flex', gap: 12 }}>
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setEditing(r)}
-            >
-              编辑
-            </button>
-            <button
-              type="button"
-              className="zhul-link"
-              style={{ color: palette.red }}
-              onClick={() =>
-                modal.confirm({
-                  title: '删除这条规则？',
-                  content:
-                    '删除后命中这条规则的任务改为按后面的规则或推荐分配，已分配的任务不受影响。',
-                  okText: '删除',
-                  okButtonProps: { danger: true },
-                  cancelText: '取消',
-                  onOk: () =>
-                    act(() => boardApi.deleteRule(r.id), '规则已删除'),
-                })
-              }
-            >
-              删除
-            </button>
-          </span>
-        ) : null,
+      // 编辑放行内，删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(2),
+      render: (_, r) => (
+        <RowActions
+          inline={[
+            canEdit && {
+              key: 'edit',
+              label: '编辑',
+              icon: <Pencil size={18} />,
+              onClick: () => setEditing(r),
+            },
+          ]}
+          more={[
+            canEdit && {
+              key: 'delete',
+              label: '删除',
+              icon: <Trash2 size={16} />,
+              danger: true,
+            },
+          ]}
+          onMore={() =>
+            confirmDanger({
+              title: '删除这条规则？',
+              content:
+                '删除后命中这条规则的任务改为按后面的规则或推荐分配，已分配的任务不受影响。',
+              onOk: () => act(() => boardApi.deleteRule(r.id), '规则已删除'),
+            })
+          }
+        />
+      ),
     },
   ];
 
@@ -237,15 +234,14 @@ const AssignRulesPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[<MenuLink key="b" to={PATHS.board} />, '分配规则']}
+      <PageHeader
         title="分配规则"
-        description="按品牌、品类指定采购，没命中时按推荐。开启后新任务自动分配；关闭时可以在工作台选中任务手动「按规则分配」试用。"
-        actions={
+        help="按品牌、品类指定采购，没命中时按推荐。开启后新任务自动分配；关闭时可以在询价分配里选中任务，手动「按规则分配」试用"
+        extra={
           canEdit && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size={18} />}
               onClick={() => setEditing('new')}
             >
               新增规则
@@ -268,7 +264,7 @@ const AssignRulesPage: React.FC = () => {
               fontSize: 18,
             }}
           >
-            <ThunderboltOutlined />
+            <Zap size="1em" />
           </span>
           <span style={{ display: 'grid' }}>
             <span style={{ color: palette.ink, fontWeight: 600 }}>
@@ -309,7 +305,9 @@ const AssignRulesPage: React.FC = () => {
         dataSource={rules ?? []}
         loading={!rules}
         pagination={false}
-        locale={{ emptyText: '还没有规则，没有规则时全部按推荐分配' }}
+        locale={{
+          emptyText: tableEmpty('还没有规则，没有规则时全部按推荐分配', !rules),
+        }}
         footer={() => (
           <span style={{ display: 'flex', gap: 12, color: palette.sub }}>
             <b style={{ color: palette.ink }}>兜底</b>以上都没命中时，按推荐（近

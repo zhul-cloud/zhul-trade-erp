@@ -1,6 +1,7 @@
 import { useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table, Tooltip } from 'antd';
+import { App, Skeleton, Table } from 'antd';
+import { CircleX } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
   docBrandColumns,
@@ -13,20 +14,17 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import {
-  Card,
-  PageTitle,
-  Pill,
-  useWide,
-} from '@/pages/inquiry/shared/components';
+import { UserName } from '@/components/UserName';
+import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { PATHS } from '@/pages/sales/components';
 import { readBizError } from '@/pages/sales/service';
 import { ReasonModal, relatedRows } from '@/pages/warehouse/components';
 import { UnitPill, useBusinessUnits } from '@/utils/businessUnit';
-import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   REFUND_TYPE_WITHDRAW,
   type Refund,
@@ -89,25 +87,28 @@ const RefundDetail: React.FC = () => {
     },
     {
       title: '数量',
+      align: 'right' as const,
       dataIndex: 'quantity',
       width: 70,
       render: (v?: number) => v ?? '—',
     },
     {
-      title: '单价',
+      title: `单价（${cur}）`,
+      align: 'right',
       dataIndex: 'unitPrice',
       width: 120,
-      render: (v?: number) => (v == null ? '—' : formatAmount(v, cur)),
+      render: (v?: number) => (v == null ? '—' : formatMoney(v)),
     },
     {
-      title: '金额',
+      title: `金额（${cur}）`,
+      align: 'right',
       dataIndex: 'amount',
       width: 120,
-      render: (v: number) => <b>{formatAmount(v, cur)}</b>,
+      render: (v: number) => <b>{formatMoney(v)}</b>,
     },
   ];
 
-  const main = (
+  const info = (
     <>
       <InfoGrid
         items={[
@@ -136,6 +137,11 @@ const RefundDetail: React.FC = () => {
           { label: '作废原因', value: f.voidReason, hidden: valid },
         ]}
       />
+    </>
+  );
+  // 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18）
+  const wideSections = (
+    <>
       <Card style={{ padding: 20, marginBottom: 16 }}>
         <SectionTitle extra={<b>合计 {formatAmount(f.amount, cur)}</b>}>
           明细
@@ -146,7 +152,7 @@ const RefundDetail: React.FC = () => {
           pagination={false}
           columns={columns}
           dataSource={f.items ?? []}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(columns) }}
         />
       </Card>
       <DocFilesCard
@@ -164,36 +170,39 @@ const RefundDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[<MenuLink key="list" to="/finance/refunds" />, f.refundNo]}
-        title={
-          <>
-            {f.refundNo}
-            <Pill tone={valid ? 'green' : 'mute'}>
-              {valid ? '有效' : '已作废'}
-            </Pill>
-          </>
+      <PageHeader
+        title={f.refundNo}
+        tags={
+          <Pill tone={valid ? 'green' : 'mute'}>
+            {valid ? '有效' : '已作废'}
+          </Pill>
         }
-        description={
+        sub={
           <>
             {f.customerName ?? '—'} ·{' '}
             {source ? <SourceNos mode="inline" refs={[source]} /> : '—'} ·{' '}
-            {f.createBy ?? '—'} · {formatDateTime(f.createTime).slice(0, 16)}{' '}
-            创建
+            <UserName value={f.createBy} /> ·{' '}
+            {formatDateTime(f.createTime).slice(0, 16)} 创建
           </>
         }
-        actions={
+        // 作废收进「更多」；迁移数据不能作废，原因写在菜单项里
+        extra={
           valid &&
           !!access['finance:refund:edit'] && (
-            <Tooltip title={f.migrated ? '历史迁移数据不能修改' : undefined}>
-              <Button
-                danger
-                disabled={f.migrated}
-                onClick={() => setVoiding(true)}
-              >
-                作废
-              </Button>
-            </Tooltip>
+            <MoreActions
+              items={[
+                {
+                  key: 'void',
+                  label: '作废',
+                  icon: <CircleX size={16} />,
+                  danger: true,
+                  disabledReason: f.migrated
+                    ? '历史迁移数据不能修改'
+                    : undefined,
+                },
+              ]}
+              onClick={() => setVoiding(true)}
+            />
           )
         }
       />
@@ -207,12 +216,13 @@ const RefundDetail: React.FC = () => {
           alignItems: 'start',
         }}
       >
-        <div style={{ minWidth: 0 }}>{main}</div>
+        <div style={{ minWidth: 0 }}>{info}</div>
         <div style={{ minWidth: 0 }}>
           <RelatedDocsCard docs={relatedRows(f.related)} />
           <DocLogCard logs={f.logs} />
         </div>
       </div>
+      {wideSections}
       <ReasonModal
         open={voiding}
         title={`作废 ${f.refundNo}`}

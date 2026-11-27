@@ -1,6 +1,7 @@
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table } from 'antd';
+import { App, Button, Dropdown, Skeleton, Table } from 'antd';
+import { CircleX, Ellipsis } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
   docBrandColumns,
@@ -14,12 +15,13 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   Card,
   DOC_PATHS,
@@ -27,7 +29,6 @@ import {
   ReceiptStatusPill,
   relatedRows,
   WAREHOUSE_PATHS,
-  WarehousePageTitle,
 } from '../components';
 import {
   type ReceiptDetail as Detail,
@@ -82,11 +83,27 @@ const ReceiptDetailPage: React.FC = () => {
       width: 220,
       render: (_, x) => <DocModelCell model={x.model} brand={x.brand} />,
     },
-    { title: '发货', dataIndex: 'shippedQty', width: 70 },
-    { title: '实收', dataIndex: 'receivedQty', width: 70 },
-    { title: '合格', dataIndex: 'qualifiedQty', width: 70 },
+    {
+      title: '发货',
+      align: 'right' as const,
+      dataIndex: 'shippedQty',
+      width: 70,
+    },
+    {
+      title: '实收',
+      align: 'right' as const,
+      dataIndex: 'receivedQty',
+      width: 70,
+    },
+    {
+      title: '合格',
+      align: 'right' as const,
+      dataIndex: 'qualifiedQty',
+      width: 70,
+    },
     {
       title: '不良',
+      align: 'right' as const,
       dataIndex: 'defectiveQty',
       width: 120,
       render: (v: number, x) => (
@@ -100,6 +117,7 @@ const ReceiptDetailPage: React.FC = () => {
     },
     {
       title: '差异',
+      align: 'right' as const,
       key: 'diff',
       width: 80,
       render: (_, x) => {
@@ -107,7 +125,7 @@ const ReceiptDetailPage: React.FC = () => {
         if (gap > 0)
           return <span style={{ color: palette.orange }}>少 {gap}</span>;
         if (gap < 0)
-          return <span style={{ color: palette.cyan }}>多 {-gap}</span>;
+          return <span style={{ color: palette.info }}>多 {-gap}</span>;
         return 0;
       },
     },
@@ -143,17 +161,12 @@ const ReceiptDetailPage: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle
-        crumbs={[<MenuLink key="list" to={WAREHOUSE_PATHS.receipts} />, r.grNo]}
-        title={
-          <>
-            {r.grNo}
-            <ReceiptStatusPill value={r.status}>
-              {r.statusName}
-            </ReceiptStatusPill>
-          </>
+      <PageHeader
+        title={r.grNo}
+        tags={
+          <ReceiptStatusPill value={r.status}>{r.statusName}</ReceiptStatusPill>
         }
-        description={
+        sub={
           <>
             {r.supplierName ?? '—'} ·{' '}
             <SourceNos
@@ -164,12 +177,32 @@ const ReceiptDetailPage: React.FC = () => {
             {formatDateTime(r.createTime).slice(0, 16)} 创建
           </>
         }
-        actions={
+        // 冲销属危险操作，收进「更多」
+        extra={
           d.reversible &&
           canEdit && (
-            <Button danger onClick={() => setReversing(true)}>
-              冲销
-            </Button>
+            <Dropdown
+              trigger={['click']}
+              placement="bottomRight"
+              menu={{
+                items: [
+                  {
+                    key: 'reverse',
+                    icon: <CircleX size={16} />,
+                    label: '冲销',
+                    danger: true,
+                  },
+                ],
+                onClick: () => setReversing(true),
+              }}
+            >
+              <Button
+                type="text"
+                shape="circle"
+                icon={<Ellipsis size={18} />}
+                aria-label="更多操作"
+              />
+            </Dropdown>
           )
         }
       />
@@ -201,66 +234,67 @@ const ReceiptDetailPage: React.FC = () => {
               { label: '冲销原因', value: r.reverseReason, hidden: valid },
             ]}
           />
-          <Card style={{ padding: 20, marginBottom: 16 }}>
-            <SectionTitle>
-              明细
-              <span
-                style={{
-                  color: palette.mute,
-                  fontSize: 13,
-                  fontWeight: 400,
-                  marginLeft: 8,
-                }}
-              >
-                发货 {sum('shippedQty')} · 实收 {sum('receivedQty')} · 合格{' '}
-                {sum('qualifiedQty')}
-              </span>
-            </SectionTitle>
-            <Table<ReceiptItem>
-              rowKey="id"
-              size="middle"
-              pagination={false}
-              columns={columns}
-              dataSource={d.items}
-              scroll={{ x: 'max-content' }}
-            />
-          </Card>
-          <DocFilesCard
-            remark={r.note}
-            editable={editable}
-            onRemark={(text) => receiptApi.remark(r.id, text)}
-            onChanged={load}
-            groups={[
-              {
-                label: '验收照片',
-                ownerType: 'RECEIPT',
-                files: d.attachments,
-                editable,
-                onAttach: (ids) => receiptApi.attach(r.id, ids),
-                onRemove: (fid) => receiptApi.removeAttachment(r.id, fid),
-              },
-              ...(hasDefect
-                ? [
-                    {
-                      label: '不良照片',
-                      ownerType: 'RECEIPT_DEFECT' as const,
-                      files: d.defectAttachments ?? [],
-                      editable,
-                      onAttach: (ids: number[]) =>
-                        receiptApi.attach(r.id, ids, true),
-                      onRemove: (fid: number) =>
-                        receiptApi.removeAttachment(r.id, fid, true),
-                    },
-                  ]
-                : []),
-            ]}
-          />
         </div>
         <div style={{ minWidth: 0 }}>
           <RelatedDocsCard docs={related} />
           <DocLogCard logs={d.logs} />
         </div>
       </div>
+      {/* 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18） */}
+      <Card style={{ padding: 20, marginBottom: 16 }}>
+        <SectionTitle>
+          明细
+          <span
+            style={{
+              color: palette.mute,
+              fontSize: 13,
+              fontWeight: 400,
+              marginLeft: 8,
+            }}
+          >
+            发货 {sum('shippedQty')} · 实收 {sum('receivedQty')} · 合格{' '}
+            {sum('qualifiedQty')}
+          </span>
+        </SectionTitle>
+        <Table<ReceiptItem>
+          rowKey="id"
+          size="middle"
+          pagination={false}
+          columns={columns}
+          dataSource={d.items}
+          scroll={{ x: tableScrollX(columns) }}
+        />
+      </Card>
+      <DocFilesCard
+        remark={r.note}
+        editable={editable}
+        onRemark={(text) => receiptApi.remark(r.id, text)}
+        onChanged={load}
+        groups={[
+          {
+            label: '验收照片',
+            ownerType: 'RECEIPT',
+            files: d.attachments,
+            editable,
+            onAttach: (ids) => receiptApi.attach(r.id, ids),
+            onRemove: (fid) => receiptApi.removeAttachment(r.id, fid),
+          },
+          ...(hasDefect
+            ? [
+                {
+                  label: '不良照片',
+                  ownerType: 'RECEIPT_DEFECT' as const,
+                  files: d.defectAttachments ?? [],
+                  editable,
+                  onAttach: (ids: number[]) =>
+                    receiptApi.attach(r.id, ids, true),
+                  onRemove: (fid: number) =>
+                    receiptApi.removeAttachment(r.id, fid, true),
+                },
+              ]
+            : []),
+        ]}
+      />
       <ReasonModal
         open={reversing}
         title={`冲销采购入库单 ${r.grNo}`}

@@ -1,9 +1,4 @@
-import {
-  DeleteOutlined,
-  PlusOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
-import { Link, useAccess } from '@umijs/max';
+import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   Alert,
@@ -20,10 +15,21 @@ import {
   Table,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Eye, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { Pill } from '@/pages/inquiry/shared/components';
 import {
   auditColumns,
   SHOP_CHANNELS,
@@ -49,9 +55,9 @@ import {
 } from '@/utils/businessUnit';
 import { recentRange } from '@/utils/dateRange';
 import { useDictTexts } from '@/utils/dict';
-import { formatAmount } from '@/utils/format';
+import { formatAmount, formatMoney } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   ACCEPT_PROOF,
@@ -629,7 +635,7 @@ export const ExpenseDrawer: React.FC<{
               }}
               placeholder={
                 <span>
-                  <PlusOutlined /> 按订单号搜索并添加型号
+                  <Plus size="1em" /> 按订单号搜索并添加型号
                 </span>
               }
               style={{ width: 300 }}
@@ -662,7 +668,7 @@ export const ExpenseDrawer: React.FC<{
             size="small"
             pagination={false}
             dataSource={allocs}
-            locale={{ emptyText: '没有关联订单型号' }}
+            locale={{ emptyText: tableEmpty('没有关联订单型号') }}
             columns={[
               { title: '销售订单', width: 160, dataIndex: 'soNo' },
               { title: '型号', width: 160, dataIndex: 'model' },
@@ -696,7 +702,7 @@ export const ExpenseDrawer: React.FC<{
                     type="text"
                     danger
                     aria-label="删除这一行"
-                    icon={<DeleteOutlined />}
+                    icon={<Trash2 size="1em" />}
                     onClick={() =>
                       setAllocs((l) =>
                         l.filter((x) => x.soItemId !== a.soItemId),
@@ -771,6 +777,13 @@ interface Filters {
   showVoid: boolean;
   unit?: number;
 }
+
+/** 帮助文字：help-texts.md「费用管理」 */
+export const HELP = {
+  page: '补发运费这类偶发成本，以及房租、工资、平台费等运营成本；公司对公生成应付，员工垫付进入垫付人的待报销，私对私保存即已付。关联订单型号的计入订单成本，不关联的按类别与分摊月数计入经营统计',
+  total:
+    '按当前筛选条件统计的有效费用单（不含已作废），折人民币；没选日期时统计本月',
+} as const;
 
 /** 初始筛选：日期默认最近 3 个月（清空看全部）；经营统计跳转时带 dateFrom、dateTo、category、linked */
 const initial = (): Filters => {
@@ -870,23 +883,64 @@ const ExpensePage: React.FC = () => {
         </Link>
       ),
     },
-    { title: '发生日期', dataIndex: 'occurDate', width: 110 },
     { title: '名称', dataIndex: 'name', width: 160, render: ellipsisRender },
-    ...(bu.enabled
-      ? [
-          {
-            title: '所属事业部',
-            key: 'unit',
-            width: 180,
-            render: (_: unknown, r: Expense) =>
-              r.allocations.length ? (
-                <span style={{ color: palette.mute }}>跟随订单</span>
-              ) : (
-                <UnitPill info={bu} id={r.businessUnitId} />
-              ),
-          },
-        ]
-      : []),
+    { title: '收款方', dataIndex: 'payeeName', width: 160, ellipsis: true },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 120,
+      render: (v: number, r) =>
+        v === 2 ? (
+          <div>
+            <Pill tone="mute">已作废</Pill>
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              {r.voidReason}
+            </div>
+          </div>
+        ) : (
+          <Pill tone="green">有效</Pill>
+        ),
+    },
+    {
+      title: '金额',
+      dataIndex: 'amount',
+      width: 130,
+      align: 'right',
+      render: (v: number, r) => (
+        <span style={num}>{formatAmount(v, r.currencyCode)}</span>
+      ),
+    },
+    {
+      title: '人民币',
+      dataIndex: 'amountCny',
+      width: 120,
+      align: 'right',
+      render: (v: number) => <span style={num}>{formatMoney(v)}</span>,
+    },
+    {
+      title: '付款',
+      key: 'pay',
+      width: 170,
+      render: (_, r) =>
+        r.method === METHOD.COMPANY || r.method === METHOD.PRIVATE ? (
+          <Space size={6}>
+            <Pill tone={r.method === METHOD.PRIVATE ? 'orange' : 'gray'}>
+              {r.method === METHOD.PRIVATE ? '私对私' : '公司对公'}
+            </Pill>
+            <PayStatusPill status={r.payStatus} />
+          </Space>
+        ) : (
+          <div>
+            <Pill tone="gray">员工垫付</Pill> {r.advanceUserName}
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              {r.reimburseNo
+                ? `${r.reimburseNo} · ${r.reimburseStatus === 2 ? '已报销' : '待付款'}`
+                : '待报销'}
+            </div>
+          </div>
+        ),
+    },
+    { title: '发生日期', dataIndex: 'occurDate', width: 110 },
     {
       title: '类别',
       key: 'category',
@@ -902,46 +956,21 @@ const ExpensePage: React.FC = () => {
         </div>
       ),
     },
-    { title: '收款方', dataIndex: 'payeeName', width: 160, ellipsis: true },
-    {
-      title: '金额',
-      dataIndex: 'amount',
-      width: 130,
-      align: 'right',
-      render: (v: number, r) => (
-        <span style={num}>{formatAmount(v, r.currencyCode)}</span>
-      ),
-    },
-    {
-      title: '人民币',
-      dataIndex: 'amountCny',
-      width: 120,
-      align: 'right',
-      render: (v: number) => <span style={num}>{formatAmount(v, 'CNY')}</span>,
-    },
-    {
-      title: '付款',
-      key: 'pay',
-      width: 170,
-      render: (_, r) =>
-        r.method === METHOD.COMPANY || r.method === METHOD.PRIVATE ? (
-          <Space size={6}>
-            <Pill tone={r.method === METHOD.PRIVATE ? 'orange' : 'accent'}>
-              {r.method === METHOD.PRIVATE ? '私对私' : '公司对公'}
-            </Pill>
-            <PayStatusPill status={r.payStatus} />
-          </Space>
-        ) : (
-          <div>
-            <Pill tone="violet">员工垫付</Pill> {r.advanceUserName}
-            <div style={{ fontSize: 12, color: palette.mute }}>
-              {r.reimburseNo
-                ? `${r.reimburseNo} · ${r.reimburseStatus === 2 ? '已报销' : '待付款'}`
-                : '待报销'}
-            </div>
-          </div>
-        ),
-    },
+    ...(bu.enabled
+      ? [
+          {
+            title: '所属事业部',
+            key: 'unit',
+            width: 180,
+            render: (_: unknown, r: Expense) =>
+              r.allocations.length ? (
+                <span style={{ color: palette.mute }}>跟随订单</span>
+              ) : (
+                <UnitPill info={bu} id={r.businessUnitId} />
+              ),
+          },
+        ]
+      : []),
     {
       title: '关联订单',
       key: 'so',
@@ -965,41 +994,39 @@ const ExpensePage: React.FC = () => {
       width: 90,
       render: (_, r) => <ProofLinks files={r.attachments} />,
     },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      width: 120,
-      render: (v: number, r) =>
-        v === 2 ? (
-          <div>
-            <Pill tone="mute">已作废</Pill>
-            <div style={{ fontSize: 12, color: palette.mute }}>
-              {r.voidReason}
-            </div>
-          </div>
-        ) : (
-          <Pill tone="green">有效</Pill>
-        ),
-    },
     ...auditColumns<Expense>(),
     {
       title: '操作',
       key: 'op',
-      width: 90,
+      width: rowActionsWidth(1),
       fixed: 'right',
-      render: (_, r) => <Link to={DOC_PATHS.expense(r.id)}>查看</Link>,
+      render: (_, r) => (
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(DOC_PATHS.expense(r.id)),
+            },
+          ]}
+        />
+      ),
     },
   ];
+  const columnsSet = useColumnSettings('finance-expenses', columns, {
+    hidden: ['人民币', '类别', '关联订单', '凭证', '收款方', '所属事业部'],
+  });
 
   return (
     <div>
-      <PageTitle
-        description="补发运费这类偶发成本，以及房租、工资、平台费等运营成本；公司对公生成应付，员工垫付进入垫付人的待报销，私对私保存即已付。关联订单型号的计入订单成本，不关联的按类别与分摊月数计入经营统计。"
-        actions={
+      <PageHeader
+        help={HELP.page}
+        extra={
           canEdit && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => setDrawer({})}
             >
               新建费用单
@@ -1007,135 +1034,162 @@ const ExpensePage: React.FC = () => {
           )
         }
       />
-      <div
-        style={{
-          display: 'inline-block',
-          padding: '16px 18px',
-          borderRadius: 14,
-          background: palette.card,
-          border: `1px solid ${palette.hairline}`,
-          marginBottom: 16,
-          minWidth: 240,
+      <SummaryBar
+        items={[
+          {
+            key: 'total',
+            label: filters.range ? '所选期间费用' : '本月费用',
+            help: HELP.total,
+            value: monthTotal,
+            currency: 'CNY',
+          },
+        ]}
+      />
+      <FilterCard
+        onSearch={() => apply({})}
+        onReset={() => {
+          const f: Filters = {
+            keyword: '',
+            soNo: '',
+            range: recentRange(),
+            showVoid: false,
+          };
+          setDraft(f);
+          setFilters(f);
+          setPage(1);
         }}
+        moreCount={
+          [
+            filters.soNo.trim() || undefined,
+            filters.method,
+            bu.enabled ? filters.unit : undefined,
+            filters.linked,
+            filters.showVoid || undefined,
+          ].filter((v) => v != null).length
+        }
+        more={
+          <>
+            <FilterField label="关联订单号">
+              <Input
+                allowClear
+                placeholder="订单编号"
+                aria-label="关联订单号"
+                value={draft.soNo}
+                onChange={(e) => setDraft({ ...draft, soNo: e.target.value })}
+                onPressEnter={() => apply({})}
+              />
+            </FilterField>
+            <FilterField label="付款方式">
+              <Select
+                allowClear
+                placeholder="全部"
+                aria-label="付款方式"
+                value={draft.method}
+                onChange={(v) => setDraft({ ...draft, method: v })}
+                options={[
+                  { value: METHOD.COMPANY, label: '公司对公' },
+                  { value: METHOD.ADVANCE, label: '员工垫付' },
+                  { value: METHOD.PRIVATE, label: '私对私' },
+                ]}
+              />
+            </FilterField>
+            {bu.enabled && (
+              <FilterField label="所属事业部">
+                <Select
+                  allowClear
+                  placeholder="全部"
+                  aria-label="所属事业部"
+                  value={draft.unit}
+                  onChange={(v) => setDraft({ ...draft, unit: v })}
+                  options={unitFilterOptions(bu)}
+                />
+              </FilterField>
+            )}
+            <FilterField label="是否关联订单">
+              <Select
+                allowClear
+                placeholder="全部"
+                aria-label="是否关联订单"
+                value={draft.linked == null ? undefined : String(draft.linked)}
+                onChange={(v) =>
+                  setDraft({
+                    ...draft,
+                    linked: v == null ? undefined : v === 'true',
+                  })
+                }
+                options={[
+                  { value: 'false', label: '运营成本（不关联订单）' },
+                  { value: 'true', label: '关联订单' },
+                ]}
+              />
+            </FilterField>
+            <FilterField label="已作废">
+              <Checkbox
+                checked={draft.showVoid}
+                onChange={(e) =>
+                  setDraft({ ...draft, showVoid: e.target.checked })
+                }
+              >
+                一并显示
+              </Checkbox>
+            </FilterField>
+          </>
+        }
       >
-        <div style={{ fontSize: 13, color: palette.sub }}>
-          {filters.range ? '所选期间费用' : '本月费用'}（人民币）
-        </div>
-        <div
-          style={{
-            ...num,
-            fontSize: 22,
-            fontWeight: 800,
-            color: palette.ink,
-            marginTop: 4,
-          }}
-        >
-          {formatAmount(monthTotal, 'CNY')}
-        </div>
-      </div>
-      <Card>
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            flexWrap: 'wrap',
-            marginBottom: 14,
-            alignItems: 'center',
-          }}
-        >
+        <FilterField label="关键词" span={2}>
           <Input
             allowClear
-            prefix={<SearchOutlined />}
-            placeholder="编号、名称、收款方"
-            style={{ width: 200 }}
+            prefix={<Search size={16} />}
+            placeholder="费用编号、名称、收款方"
+            aria-label="关键词"
             value={draft.keyword}
             onChange={(e) => setDraft({ ...draft, keyword: e.target.value })}
             onPressEnter={() => apply({})}
           />
-          <Input
-            allowClear
-            placeholder="关联订单号"
-            style={{ width: 180 }}
-            value={draft.soNo}
-            onChange={(e) => setDraft({ ...draft, soNo: e.target.value })}
-            onPressEnter={() => apply({})}
-          />
+        </FilterField>
+        <FilterField label="费用日期" span={2}>
           <DatePicker.RangePicker
+            style={{ width: '100%' }}
+            aria-label="费用日期"
             value={draft.range}
             onChange={(v) =>
-              apply({ range: v?.[0] && v[1] ? [v[0], v[1]] : null })
+              setDraft({
+                ...draft,
+                range: v?.[0] && v[1] ? [v[0], v[1]] : null,
+              })
             }
           />
+        </FilterField>
+        <FilterField label="费用类别">
           <Select
             allowClear
-            placeholder="付款方式"
-            style={{ width: 120 }}
-            value={draft.method}
-            onChange={(v) => apply({ method: v })}
-            options={[
-              { value: METHOD.COMPANY, label: '公司对公' },
-              { value: METHOD.ADVANCE, label: '员工垫付' },
-              { value: METHOD.PRIVATE, label: '私对私' },
-            ]}
-          />
-          {bu.enabled && (
-            <Select
-              allowClear
-              placeholder="所属事业部"
-              style={{ width: 170 }}
-              value={draft.unit}
-              onChange={(v) => apply({ unit: v })}
-              options={unitFilterOptions(bu)}
-            />
-          )}
-          <Select
-            allowClear
-            placeholder="费用类别"
-            style={{ width: 130 }}
+            placeholder="全部"
+            aria-label="费用类别"
             value={draft.category}
-            onChange={(v) => apply({ category: v })}
+            onChange={(v) => setDraft({ ...draft, category: v })}
             options={categories.map((c) => ({ value: c.code, label: c.name }))}
           />
-          <Select
-            allowClear
-            placeholder="是否关联订单"
-            style={{ width: 150 }}
-            value={draft.linked == null ? undefined : String(draft.linked)}
-            onChange={(v) =>
-              apply({ linked: v == null ? undefined : v === 'true' })
-            }
-            options={[
-              { value: 'false', label: '运营成本（不关联订单）' },
-              { value: 'true', label: '关联订单' },
-            ]}
-          />
-          <Checkbox
-            checked={draft.showVoid}
-            onChange={(e) => apply({ showVoid: e.target.checked })}
-          >
-            显示已作废
-          </Checkbox>
-          <Button onClick={() => apply({})}>查询</Button>
-        </div>
+        </FilterField>
+      </FilterCard>
+      <MainCard settings={columnsSet.settings} count={total} loading={loading}>
         <Table<Expense>
           rowKey="id"
           loading={loading}
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           pagination={{
+            ...PAGER_STYLE,
             current: page,
             pageSize,
             total,
-            showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
             onChange: (p, s) => {
               setPage(p);
               setPageSize(s);
             },
           }}
         />
-      </Card>
+      </MainCard>
       <ExpenseDrawer
         open={!!drawer}
         editing={drawer?.editing}

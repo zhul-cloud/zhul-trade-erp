@@ -1,18 +1,20 @@
-import {
-  AppstoreOutlined,
-  BankOutlined,
-  EditOutlined,
-  HistoryOutlined,
-  InfoCircleOutlined,
-  PaperClipOutlined,
-  PhoneOutlined,
-  WalletOutlined,
-} from '@ant-design/icons';
 import { history, useAccess, useParams } from '@umijs/max';
 import { Button, Skeleton } from 'antd';
+import {
+  History,
+  Info,
+  Landmark,
+  LayoutGrid,
+  Paperclip,
+  Pencil,
+  Phone,
+  Wallet,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
+import { UserName } from '@/components/UserName';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -20,7 +22,6 @@ import { AccountCard } from './accounts';
 import { AttachmentGroups } from './attachments';
 import {
   LIST_PATH,
-  PageTitle,
   SectionCard,
   StatusPill,
   SupplierTypePill,
@@ -141,7 +142,7 @@ const SupplierDetailPage: React.FC = () => {
         : Number(record.registeredCapital).toFixed(2);
     body = (
       <>
-        <SectionCard icon={<InfoCircleOutlined />} title="基本信息">
+        <SectionCard icon={<Info size="1em" />} title="基本信息">
           <Grid>
             <Field label="供应商编码" mono>
               {record.supplierCode}
@@ -160,7 +161,7 @@ const SupplierDetailPage: React.FC = () => {
           </Grid>
         </SectionCard>
 
-        <SectionCard icon={<BankOutlined />} title="工商信息">
+        <SectionCard icon={<Landmark size="1em" />} title="工商信息">
           <Grid>
             <Field label="统一社会信用代码" mono>
               {record.creditCode}
@@ -175,7 +176,7 @@ const SupplierDetailPage: React.FC = () => {
           </Grid>
         </SectionCard>
 
-        <SectionCard icon={<PhoneOutlined />} title="联系信息">
+        <SectionCard icon={<Phone size="1em" />} title="联系信息">
           <Grid>
             <Field label="联系人">{record.contactName}</Field>
             <Field label="所属采购员">
@@ -197,7 +198,7 @@ const SupplierDetailPage: React.FC = () => {
           </Grid>
         </SectionCard>
 
-        <SectionCard icon={<WalletOutlined />} title="结算信息">
+        <SectionCard icon={<Wallet size="1em" />} title="结算信息">
           {record.accounts.length ? (
             <div style={{ display: 'grid', gap: 10 }}>
               {record.accounts.map((a) => (
@@ -220,11 +221,11 @@ const SupplierDetailPage: React.FC = () => {
           />
         </SectionCard>
 
-        <SectionCard icon={<AppstoreOutlined />} title="主营产品">
+        <SectionCard icon={<LayoutGrid size="1em" />} title="主营产品">
           <ScopeLines scopes={record.productScopes} />
         </SectionCard>
 
-        <SectionCard icon={<PaperClipOutlined />} title="附件">
+        <SectionCard icon={<Paperclip size="1em" />} title="附件">
           <AttachmentGroups
             supplierId={record.id}
             attachments={record.attachments}
@@ -232,16 +233,20 @@ const SupplierDetailPage: React.FC = () => {
           />
         </SectionCard>
 
-        <SectionCard icon={<HistoryOutlined />} title="系统信息">
+        <SectionCard icon={<History size="1em" />} title="系统信息">
           <Grid>
             <Field label="备注" full>
               {record.remark}
             </Field>
-            <Field label="创建人">{record.createBy}</Field>
+            <Field label="创建人">
+              <UserName value={record.createBy} />
+            </Field>
             <Field label="创建时间" mono>
               {formatDateTime(record.createTime)}
             </Field>
-            <Field label="最后修改人">{record.updateBy}</Field>
+            <Field label="最后修改人">
+              <UserName value={record.updateBy} />
+            </Field>
             <Field label="最后修改时间" mono>
               {formatDateTime(record.updateTime)}
             </Field>
@@ -253,17 +258,25 @@ const SupplierDetailPage: React.FC = () => {
 
   return (
     <div style={{ color: palette.ink }}>
-      <a className="zhul-skip" href="#supplier-main">
-        跳到主要内容
-      </a>
-      <PageTitle
-        title="供应商详情"
-        current="供应商详情"
-        actions={
+      <PageHeader
+        title={record?.name ?? '供应商详情'}
+        tags={
+          record && (
+            <>
+              <SupplierTypePill value={record.supplierType} />
+              <StatusPill status={record.status} />
+            </>
+          )
+        }
+        sub={
+          record &&
+          [record.supplierCode, record.shortName].filter(Boolean).join(' · ')
+        }
+        extra={
           canEdit && (
             <Button
               type="primary"
-              icon={<EditOutlined />}
+              icon={<Pencil size={18} />}
               onClick={() => history.push(`${LIST_PATH}/${id}/edit`)}
             >
               编辑

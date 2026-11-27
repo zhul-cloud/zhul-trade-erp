@@ -1,12 +1,3 @@
-import {
-  CheckCircleOutlined,
-  FileTextOutlined,
-  PercentageOutlined,
-  PlusOutlined,
-  SearchOutlined,
-  SendOutlined,
-  SlidersOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -15,17 +6,37 @@ import {
   DatePicker,
   Form,
   Input,
-  Popconfirm,
   Select,
   Space,
   Table,
 } from 'antd';
 import type { Dayjs } from 'dayjs';
+import {
+  Eye,
+  MessageSquareText,
+  Pencil,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  Trash2,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { CopyText } from '@/components/CopyText';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import {
   FirstModelCell,
   fetchAllModels,
@@ -33,21 +44,19 @@ import {
   PagedModelsModal,
   TagList,
 } from '@/pages/inquiry/customer-inquiry/ModelCells';
-import { Stat, useWide } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
+import { auditColumns } from '@/pages/purchase/components';
 import { getUserOptions } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { formatMargin } from './calc';
 import {
-  Card,
   CURRENCIES,
   PATHS,
   Pill,
-  QuotationPageTitle,
   QuotationStatusPill,
   STATUS,
   STATUS_META,
@@ -70,10 +79,20 @@ interface Filters {
   range?: [Dayjs, Dayjs];
 }
 
+/** 帮助文字：help-texts.md「报价管理列表」，关键词范围以 search-scope.md 为准，统计口径取自 QuotationServiceImpl.stats() */
+export const HELP = {
+  keyword:
+    '可搜：报价单编号、客户名称或简称、型号（只搜当前版本）。包含匹配，整段文字一起匹配',
+  created: '默认最近 3 个月，清空后看全部',
+  monthWon:
+    '本月成交或部分成交的报价单（按成交时间）；成交金额、净利润按人民币合计',
+  monthMargin: '本月成交报价单的毛利率平均值（各单直接平均，不按金额加权）',
+  belowFloor: '本月新建的报价单里，有型号毛利率低于定价策略红线的张数',
+} as const;
+
 const QuotationList: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
-  const wide = useWide();
   const [form] = Form.useForm<Filters>();
   // 创建日期默认最近 3 个月，清空日期看全部
   const [defaults] = useState<Filters>(() => ({ range: recentRange() }));
@@ -145,9 +164,9 @@ const QuotationList: React.FC = () => {
       .catch(() => setOwners([]));
   }, []);
 
-  const quickStatus = (status: number) => {
-    form.setFieldsValue({ status });
-    setFilters((f) => ({ ...f, status }));
+  /** 按表单当前的条件查询 */
+  const searchNow = () => {
+    setFilters(form.getFieldsValue());
     setPage(1);
   };
 
@@ -168,33 +187,45 @@ const QuotationList: React.FC = () => {
     !filters.ownerId &&
     !filters.range;
 
+  const sub = (text: React.ReactNode) => (
+    <div style={{ fontSize: 12, color: palette.mute }}>{text}</div>
+  );
+
+  const confirmDanger = useConfirmDanger();
   const columns: TableColumnsType<QuotationListItem> = [
     {
-      title: '报价单编号',
+      title: '报价单编号 · 创建日期',
       dataIndex: 'quotationNo',
-      width: 210,
+      width: 190,
       fixed: 'left',
       render: (v: string, r) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(PATHS.detail(r.id))}
-          >
-            {v}
-          </button>
+        <div>
+          <CopyText text={v}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(PATHS.detail(r.id))}
+            >
+              {v}
+            </button>
+          </CopyText>
           {r.editingVersionNo ? (
-            <Pill tone="orange">Rev.{r.editingVersionNo} 编辑中</Pill>
+            <div style={{ marginTop: 4 }}>
+              <Pill tone="orange">Rev.{r.editingVersionNo} 编辑中</Pill>
+            </div>
           ) : (r.currentVersionNo ?? 1) > 1 ? (
-            <Pill tone="accent">Rev.{r.currentVersionNo}</Pill>
+            <div style={{ marginTop: 4 }}>
+              <Pill tone="gray">Rev.{r.currentVersionNo}</Pill>
+            </div>
           ) : null}
-        </span>
+          {sub(r.createTime?.slice(0, 10) ?? '—')}
+        </div>
       ),
     },
     {
       title: '客户',
       dataIndex: 'customerName',
-      width: 260,
+      width: 240,
       render: (v: string, r) => (
         <CustomerCell
           name={v}
@@ -204,6 +235,41 @@ const QuotationList: React.FC = () => {
         />
       ),
     },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 150,
+      render: (v: number, r) => (
+        <Space orientation="vertical" size={2}>
+          <QuotationStatusPill status={v} />
+          {r.lostReasonName && (
+            <span style={{ fontSize: 12, color: palette.mute }}>
+              {r.lostReasonName.replace(/^【[^】]*】/, '')}
+            </span>
+          )}
+        </Space>
+      ),
+    },
+    {
+      title: '合计',
+      dataIndex: 'totalAmount',
+      sorter: true,
+      sortOrder: sortOf('totalAmount'),
+      width: 150,
+      align: 'right',
+      render: (v: number, r) => (
+        <b style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {formatAmount(v, r.currencyCode)}
+        </b>
+      ),
+    },
+    {
+      title: '发送时间',
+      dataIndex: 'sentAt',
+      width: 170,
+      render: (v?: string) => formatDateTime(v),
+    },
+    // 型号与总数量分两列（同询盘列表）：主规范要求两者都能排序，合成一列会丢掉一种排序
     {
       title: '型号',
       dataIndex: 'itemCount',
@@ -230,27 +296,14 @@ const QuotationList: React.FC = () => {
     {
       title: '品牌',
       key: 'brands',
-      width: 170,
+      width: 160,
       render: (_, r) => <TagList values={r.brands} label="品牌" />,
     },
     {
       title: '品类',
       key: 'categories',
-      width: 170,
+      width: 160,
       render: (_, r) => <TagList values={r.categories} label="品类" />,
-    },
-    {
-      title: '币种 · 合计',
-      dataIndex: 'totalAmount',
-      sorter: true,
-      sortOrder: sortOf('totalAmount'),
-      width: 150,
-      align: 'right',
-      render: (v: number, r) => (
-        <b style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {formatAmount(v, r.currencyCode)}
-        </b>
-      ),
     },
     {
       title: '毛利率',
@@ -261,21 +314,6 @@ const QuotationList: React.FC = () => {
         <span style={{ fontVariantNumeric: 'tabular-nums' }}>
           {formatMargin(v)}
         </span>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      width: 150,
-      render: (v: number, r) => (
-        <Space orientation="vertical" size={2}>
-          <QuotationStatusPill status={v} />
-          {r.lostReasonName && (
-            <span style={{ fontSize: 12, color: palette.mute }}>
-              {r.lostReasonName.replace(/^【[^】]*】/, '')}
-            </span>
-          )}
-        </Space>
       ),
     },
     {
@@ -292,91 +330,114 @@ const QuotationList: React.FC = () => {
       ),
     },
     {
-      title: '创建人',
+      title: '业务员',
       dataIndex: 'ownerName',
-      width: 150,
+      width: 100,
       render: ellipsisRender,
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      width: 170,
-      render: (v: string) => formatDateTime(v),
-    },
-    {
-      title: '发送时间',
-      dataIndex: 'sentAt',
-      width: 170,
-      render: (v?: string) => formatDateTime(v),
-    },
+    ...auditColumns<QuotationListItem>(),
     {
       title: '操作',
       key: 'actions',
-      width: 190,
+      // 编辑（草稿）或查看、文字报价放行内，删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(3),
       fixed: 'right',
-      render: (_, r) =>
-        r.status === STATUS.DRAFT ? (
-          <Space size={12}>
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => history.push(PATHS.detail(r.id))}
-            >
-              编辑
-            </button>
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setTextId(r.id)}
-            >
-              文字报价
-            </button>
-            <Popconfirm
-              title="删除这张草稿？"
-              description="删除后不能恢复，询盘里的型号可以重新报价"
-              okText="删除"
-              okButtonProps={{ danger: true }}
-              onConfirm={() => remove(r.id)}
-            >
-              <a style={{ color: palette.red }}>删除</a>
-            </Popconfirm>
-          </Space>
-        ) : (
-          <Space size={12}>
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => history.push(PATHS.detail(r.id))}
-            >
-              查看
-            </button>
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setTextId(r.id)}
-            >
-              文字报价
-            </button>
-          </Space>
-        ),
+      render: (_, r) => {
+        const draft = r.status === STATUS.DRAFT;
+        return (
+          <RowActions
+            inline={[
+              {
+                key: 'open',
+                label: draft ? '编辑' : '查看',
+                icon: draft ? <Pencil size={18} /> : <Eye size={18} />,
+                onClick: () => history.push(PATHS.detail(r.id)),
+              },
+              {
+                key: 'text',
+                label: '文字报价',
+                icon: <MessageSquareText size={18} />,
+                onClick: () => setTextId(r.id),
+              },
+            ]}
+            more={[
+              draft && {
+                key: 'delete',
+                label: '删除',
+                icon: <Trash2 size={16} />,
+                danger: true,
+              },
+            ]}
+            onMore={() =>
+              confirmDanger({
+                title: '删除这张草稿？',
+                content: '删除后不能恢复，询盘里的型号可以重新报价',
+                onOk: () => remove(r.id),
+              })
+            }
+          />
+        );
+      },
     },
   ];
+  const columnsSet = useColumnSettings('quotation', columns, {
+    hidden: [
+      '发送时间',
+      '型号',
+      '总数量',
+      '品牌',
+      '品类',
+      '毛利率',
+      '来源单号',
+      '业务员',
+    ],
+  });
+
+  /** 搜索条件里的下拉：标签在上，读屏名称与标签相同 */
+  const select = (
+    name: keyof Filters,
+    label: string,
+    options: { value: string | number; label: string }[],
+    extra?: React.ComponentProps<typeof Select>,
+  ) => (
+    <FilterField label={label}>
+      <Form.Item name={name} noStyle>
+        <Select
+          allowClear
+          placeholder="全部"
+          aria-label={label}
+          options={options}
+          {...extra}
+        />
+      </Form.Item>
+    </FilterField>
+  );
+
+  /** 下拉选项后面带数量（统计卡片并入状态下拉，stat-cards.md） */
+  const withCount = (label: string, n?: number) =>
+    n ? `${label} · ${n}` : label;
+
+  const counts: Record<number, number | undefined> = {
+    [STATUS.DRAFT]: stats?.draftCount,
+    [STATUS.SENT]: stats?.sentCount,
+  };
 
   return (
     <div>
-      <QuotationPageTitle
-        description="把可报价的型号定好售价发给客户；报价单标为已发送后，询盘单自动变为「已报价」。"
-        actions={
+      <PageHeader
+        extra={
           <>
             <Button
-              icon={<SlidersOutlined />}
+              type="text"
+              icon={<SlidersHorizontal size={16} />}
+              style={{ color: palette.link }}
               onClick={() => history.push(PATHS.pricing)}
             >
               定价策略
             </Button>
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size={18} />}
               onClick={() => setNewOpen(true)}
             >
               新建报价单
@@ -385,211 +446,145 @@ const QuotationList: React.FC = () => {
         }
       />
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: wide
-            ? 'repeat(4, minmax(0, 1fr))'
-            : 'repeat(2, minmax(0, 1fr))',
-          gap: 16,
-          marginBottom: 16,
-        }}
-      >
-        <button
-          type="button"
-          style={{ all: 'unset', cursor: 'pointer' }}
-          onClick={() => quickStatus(STATUS.DRAFT)}
-        >
-          <Stat
-            icon={<FileTextOutlined />}
-            color={palette.sub}
-            soft={palette.inset}
-            label="草稿"
-            value={stats?.draftCount ?? '—'}
-            hint={<span style={{ color: palette.mute }}>还没发给客户</span>}
-          />
-        </button>
-        <button
-          type="button"
-          style={{ all: 'unset', cursor: 'pointer' }}
-          onClick={() => quickStatus(STATUS.SENT)}
-        >
-          <Stat
-            icon={<SendOutlined />}
-            color={palette.link}
-            soft={palette.accentSoft}
-            label="已发送待回复"
-            value={stats?.sentCount ?? '—'}
-            hint={
-              stats && stats.sentCount > 0 ? (
-                <span style={{ color: palette.orange }}>
-                  最久 {stats.oldestSentDays} 天没有回复
-                </span>
-              ) : (
-                <span style={{ color: palette.mute }}>等客户回复</span>
-              )
-            }
-          />
-        </button>
-        <Stat
-          icon={<CheckCircleOutlined />}
-          color={palette.green}
-          soft={palette.greenSoft}
-          label="本月成交"
-          value={stats?.monthWonCount ?? '—'}
-          hint={
-            <span style={{ color: palette.mute }}>
-              {stats
-                ? `成交金额 ${formatAmount(stats.monthWonAmountCny, 'CNY')} · 净利润 ${formatAmount(stats.monthWonNetProfitCny, 'CNY')}`
-                : '—'}
-            </span>
-          }
+      {stats && (
+        <SummaryBar
+          items={[
+            {
+              key: 'won',
+              label: '本月成交',
+              help: HELP.monthWon,
+              value: stats.monthWonCount,
+              sub: `成交金额 ${formatAmount(stats.monthWonAmountCny, 'CNY')} · 净利润 ${formatAmount(stats.monthWonNetProfitCny, 'CNY')}`,
+            },
+            {
+              key: 'margin',
+              label: '本月平均毛利率',
+              help: HELP.monthMargin,
+              value: formatMargin(stats.monthAvgMargin),
+            },
+            {
+              key: 'floor',
+              label: '本月低于红线',
+              help: HELP.belowFloor,
+              value: stats.monthBelowFloorCount,
+            },
+          ]}
         />
-        <Stat
-          icon={<PercentageOutlined />}
-          color={palette.orange}
-          soft={palette.orangeSoft}
-          label="本月平均毛利率"
-          value={formatMargin(stats?.monthAvgMargin)}
-          hint={
-            stats && stats.monthBelowFloorCount > 0 ? (
-              <span style={{ color: palette.red }}>
-                低于红线的报价单 {stats.monthBelowFloorCount} 张
-              </span>
-            ) : (
-              <span style={{ color: palette.mute }}>按本月成交的报价单</span>
-            )
-          }
-        />
-      </div>
+      )}
 
-      <Card style={{ marginBottom: 16, padding: 20 }}>
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={defaults}
-          onFinish={(v) => {
-            setFilters(v);
+      <Form form={form} initialValues={defaults} component={false}>
+        <FilterCard
+          onSearch={searchNow}
+          onReset={() => {
+            form.resetFields();
+            setFilters(defaults);
             setPage(1);
           }}
+          // 列宽 110：关键词、状态、创建日期排一行
+          minColumn={110}
+          moreCount={
+            [filters.currencyCode, filters.ownerId].filter(Boolean).length
+          }
+          more={
+            <>
+              {select(
+                'currencyCode',
+                '币种',
+                CURRENCIES.map((c) => ({ value: c, label: c })),
+              )}
+              {select('ownerId', '业务员', owners, {
+                showSearch: { optionFilterProp: 'label' },
+              })}
+            </>
+          }
         >
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '2fr 1fr 1fr 1fr 1.6fr auto',
-              gap: 12,
-              alignItems: 'end',
-            }}
-          >
-            <Form.Item
-              name="keyword"
-              label="关键词"
-              style={{ marginBottom: 0 }}
-            >
+          <FilterField label="关键词" span={2} help={HELP.keyword}>
+            <Form.Item name="keyword" noStyle>
               <Input
                 allowClear
-                prefix={<SearchOutlined />}
+                prefix={<Search size={16} />}
                 placeholder="报价单编号、客户、型号"
+                aria-label="关键词"
+                onPressEnter={searchNow}
               />
             </Form.Item>
-            <Form.Item name="status" label="状态" style={{ marginBottom: 0 }}>
-              <Select
-                allowClear
-                placeholder="全部"
-                options={Object.entries(STATUS_META).map(([k, v]) => ({
-                  value: Number(k),
-                  label: v.label,
-                }))}
+          </FilterField>
+          {select(
+            'status',
+            '状态',
+            Object.entries(STATUS_META).map(([k, v]) => ({
+              value: Number(k),
+              label: withCount(v.label, counts[Number(k)]),
+            })),
+            // 切换状态立即查询（doc-list-unify 状态下拉的写法）
+            { onChange: () => searchNow() },
+          )}
+          <FilterField
+            label="创建日期"
+            span={2}
+            help={HELP.created}
+            htmlFor="quotation-created"
+          >
+            <Form.Item name="range" noStyle>
+              <DatePicker.RangePicker
+                id={{ start: 'quotation-created' }}
+                style={{ width: '100%' }}
               />
             </Form.Item>
-            <Form.Item
-              name="currencyCode"
-              label="币种"
-              style={{ marginBottom: 0 }}
-            >
-              <Select
-                allowClear
-                placeholder="全部"
-                options={CURRENCIES.map((c) => ({ value: c, label: c }))}
-              />
-            </Form.Item>
-            <Form.Item
-              name="ownerId"
-              label="创建人"
-              style={{ marginBottom: 0 }}
-            >
-              <Select
-                allowClear
-                placeholder="全部"
-                options={owners}
-                showSearch={{ optionFilterProp: 'label' }}
-              />
-            </Form.Item>
-            <Form.Item
-              name="range"
-              label="创建日期"
-              style={{ marginBottom: 0 }}
-            >
-              <DatePicker.RangePicker style={{ width: '100%' }} />
-            </Form.Item>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Button
-                onClick={() => {
-                  form.resetFields();
-                  setFilters(defaults);
-                  setPage(1);
-                }}
-              >
-                重置
-              </Button>
-              <Button type="primary" htmlType="submit">
-                查询
-              </Button>
-            </div>
-          </div>
-        </Form>
-      </Card>
+          </FilterField>
+        </FilterCard>
+      </Form>
 
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : !loading && rows.length === 0 && noFilter ? (
-        <Card>
+        <MainCard>
           <EmptyHint
             title="还没有报价单"
             description="从询盘单点「去报价」，或在这里新建报价单，挑选要报的型号"
             actionText="新建报价单"
             onAction={() => setNewOpen(true)}
           />
-        </Card>
+        </MainCard>
       ) : (
-        <Table<QuotationListItem>
-          rowKey="id"
-          onChange={(_p, _f, sorter, extra) => {
-            if (extra.action !== 'sort') return;
-            const one = Array.isArray(sorter) ? sorter[0] : sorter;
-            setSort({
-              field: one?.order ? String(one.field) : undefined,
-              order: one?.order ?? undefined,
-            });
-            setPage(1);
-          }}
-          columns={columns}
-          dataSource={rows}
+        <MainCard
+          settings={columnsSet.settings}
+          count={total}
           loading={loading}
-          scroll={{ x: tableScrollX(columns) }}
-          locale={{ emptyText: '没有符合条件的报价单，换个筛选条件试试' }}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
-            onChange: (p, s) => {
-              setPage(p);
-              setPageSize(s);
-            },
-          }}
-        />
+        >
+          <Table<QuotationListItem>
+            rowKey="id"
+            onChange={(_p, _f, sorter, extra) => {
+              if (extra.action !== 'sort') return;
+              const one = Array.isArray(sorter) ? sorter[0] : sorter;
+              setSort({
+                field: one?.order ? String(one.field) : undefined,
+                order: one?.order ?? undefined,
+              });
+              setPage(1);
+            }}
+            columns={columnsSet.columns}
+            dataSource={rows}
+            loading={loading}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
+            locale={{
+              emptyText: tableEmpty(
+                '没有符合条件的报价单，换个筛选条件试试',
+                loading,
+              ),
+            }}
+            pagination={{
+              ...PAGER_STYLE,
+              current: page,
+              pageSize,
+              total,
+              onChange: (p, s) => {
+                setPage(p);
+                setPageSize(s);
+              },
+            }}
+          />
+        </MainCard>
       )}
 
       <PagedModelsModal

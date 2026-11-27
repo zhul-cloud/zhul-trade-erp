@@ -1,14 +1,15 @@
-import {
-  EditOutlined,
-  FileExcelOutlined,
-  FileTextOutlined,
-  RocketOutlined,
-  StopOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table } from 'antd';
+import { App, Button, Dropdown, Skeleton, Table } from 'antd';
+import {
+  CircleX,
+  Ellipsis,
+  FileSpreadsheet,
+  FileText,
+  Pencil,
+  Ship,
+  TriangleAlert,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
   docBrandColumns,
@@ -21,14 +22,9 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import {
-  Card,
-  MigratedPill,
-  PageTitle,
-  Pill,
-  useWide,
-} from '@/pages/inquiry/shared/components';
+import { Card, MigratedPill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
   DOC_PATHS,
@@ -37,7 +33,7 @@ import {
 } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
+import { tableScrollX } from '@/utils/tableScroll';
 import { kg, LOGISTICS_PATHS, ShStatusPill } from '../components';
 import {
   type DirectRef,
@@ -180,12 +176,6 @@ const ShipmentDetail: React.FC = () => {
     }
   };
 
-  const field = (label: string, value: React.ReactNode) => (
-    <div style={{ display: 'flex', gap: 12, padding: '4px 0' }}>
-      <span style={{ width: 80, color: palette.mute }}>{label}</span>
-      <span style={{ flex: 1, color: palette.ink }}>{value ?? '—'}</span>
-    </div>
-  );
   const soId = (no?: string) => sh.orders.find((o) => o.soNo === no)?.id;
   const rows: ItemRow[] = [
     ...(sh.outbounds ?? []).flatMap((o) =>
@@ -218,7 +208,7 @@ const ShipmentDetail: React.FC = () => {
   ];
   const docCount = (sh.outbounds ?? []).length + waiting.length;
   const itemColumns: TableColumnsType<ItemRow> = [
-    { title: '#', key: 'no', width: 48, render: (_, __, i) => i + 1 },
+    { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
     ...docBrandColumns<ItemRow>((x) => x),
     {
       title: '型号',
@@ -235,17 +225,22 @@ const ShipmentDetail: React.FC = () => {
         </div>
       ),
     },
-    { title: '数量', dataIndex: 'quantity', width: 80 },
+    {
+      title: '数量',
+      align: 'right' as const,
+      dataIndex: 'quantity',
+      width: 80,
+    },
     {
       title: '销售出库单',
       key: 'src',
-      width: 160,
+      width: 130,
       render: (_, x) => <Link to={x.srcHref}>{x.srcNo}</Link>,
     },
     {
       title: '销售订单',
       key: 'so',
-      width: 160,
+      width: 130,
       render: (_, x) =>
         x.soId ? (
           <Link to={LOGISTICS_PATHS.salesOrder(x.soId)}>{x.soNo}</Link>
@@ -267,65 +262,212 @@ const ShipmentDetail: React.FC = () => {
     </span>
   );
 
-  const main = (
+  const boxColumns: TableColumnsType<BoxRow> = [
+    {
+      title: '销售出库单',
+      key: 'src',
+      width: 160,
+      render: (_, r) => (
+        <div>
+          {r.obs.map((o, i) => (
+            <React.Fragment key={o.id}>
+              {i > 0 && '、'}
+              <Link to={DOC_PATHS.outbound(o.id)}>{o.obNo}</Link>
+            </React.Fragment>
+          ))}
+          {r.direct && (
+            <span
+              style={{
+                marginLeft: 6,
+                fontSize: 12,
+                color: palette.info,
+              }}
+            >
+              直发
+            </span>
+          )}
+        </div>
+      ),
+    },
+    { title: '箱号', dataIndex: 'boxNo', width: 60 },
+    { title: '尺寸 cm', dataIndex: 'dims', width: 110 },
+    {
+      title: '毛重 · 净重',
+      key: 'w',
+      width: 120,
+      render: (_, r) =>
+        `${Number(r.gross).toFixed(2)}${r.net ? ` · ${Number(r.net).toFixed(2)}` : ''}`,
+    },
+    {
+      title: '计费重',
+      dataIndex: 'chargeable',
+      width: 90,
+      render: (v: number) => <b>{Number(v).toFixed(2)}</b>,
+    },
+    { title: '箱内型号', width: 220, dataIndex: 'items' },
+    {
+      title: '国际运费分摊',
+      align: 'right',
+      dataIndex: 'freight',
+      width: 130,
+      render: (v?: number) =>
+        v === undefined ? '—' : <b>{formatAmount(v, 'CNY')}</b>,
+    },
+  ];
+
+  const info = (
+    <InfoGrid
+      items={[
+        {
+          label: '货代',
+          value: `${sh.forwarderName ?? '—'}（体积系数 ${sh.volumeDivisor}）`,
+        },
+        {
+          label: '箱数',
+          value: sh.boxCount ? `${sh.boxCount} 箱` : undefined,
+        },
+        {
+          label: '计费重',
+          value: sh.boxCount ? kg(sh.chargeableWeight) : undefined,
+        },
+        {
+          label: '承运商 · 运单号',
+          value: sh.waybillNo
+            ? `${sh.carrier ?? ''} ${sh.waybillNo}`
+            : sh.customerForwarder && sh.status === 2
+              ? sh.pickup
+                ? '客户安排取件'
+                : '客户安排'
+              : undefined,
+        },
+        {
+          label: sh.pickup
+            ? '取件日期'
+            : sh.customerForwarder
+              ? '交货日期'
+              : '出运日期',
+          value: sh.shippedDate,
+        },
+        {
+          label: sh.pickup
+            ? '运费'
+            : sh.customerForwarder
+              ? '送货运费'
+              : '运费',
+          value:
+            sh.freight === null || sh.freight === undefined
+              ? undefined
+              : formatAmount(sh.freight, 'CNY'),
+        },
+        {
+          label: '对账',
+          value:
+            sh.status === 2
+              ? sh.customerForwarder
+                ? '不对账（交客户指定货代）'
+                : sh.reconciled
+                  ? '已对账'
+                  : '未对账'
+              : undefined,
+        },
+        { label: '作废原因', value: sh.voidReason, hidden: !voided },
+        // 原「出运信息」卡并入（运单号、日期、运费上面已有，只差面单与 CI / PL；P10、R25 方案 B）
+        {
+          label: '面单',
+          value: <FaceSheets value={sh.faceSheets ?? []} />,
+          full: true,
+        },
+        {
+          label: 'CI / PL',
+          full: true,
+          value:
+            (sh.docGroups ?? []).length === 0 ? (
+              <span style={{ color: palette.mute }}>
+                还没有生成
+                {canEdit && !voided && !sh.migrated
+                  ? '，点右上角「生成 CI/PL」'
+                  : ''}
+              </span>
+            ) : (
+              <div style={{ display: 'grid', gap: 8 }}>
+                {(sh.docGroups ?? []).map((g) => (
+                  <div key={g.id}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <FileSpreadsheet
+                        size="1em"
+                        style={{ color: palette.green }}
+                      />
+                      <b>
+                        {g.ciNo} · {g.plNo}
+                      </b>
+                      <span style={{ fontSize: 12, color: palette.mute }}>
+                        {g.soNos.join('、')}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: 14,
+                        marginTop: 4,
+                        fontSize: 13,
+                      }}
+                    >
+                      <span style={{ color: palette.mute }}>CI</span>
+                      <button
+                        type="button"
+                        className="zhul-link"
+                        onClick={() => exportDoc(g.id, 'ci', 'xlsx')}
+                      >
+                        Excel
+                      </button>
+                      <button
+                        type="button"
+                        className="zhul-link"
+                        onClick={() => exportDoc(g.id, 'ci', 'pdf')}
+                      >
+                        PDF
+                      </button>
+                      <span style={{ color: palette.mute, marginLeft: 8 }}>
+                        PL
+                      </span>
+                      <button
+                        type="button"
+                        className="zhul-link"
+                        onClick={() => exportDoc(g.id, 'pl', 'xlsx')}
+                      >
+                        Excel
+                      </button>
+                      <button
+                        type="button"
+                        className="zhul-link"
+                        onClick={() => exportDoc(g.id, 'pl', 'pdf')}
+                      >
+                        PDF
+                      </button>
+                    </div>
+                    {g.paymentRef && (
+                      <div style={{ fontSize: 12, color: palette.mute }}>
+                        付款参考：{g.paymentRef}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ),
+        },
+      ]}
+    />
+  );
+  // 宽表格放在两栏下方通栏（照销售订单详情；P10、R25 方案 B）
+  const wideSections = (
     <>
-      <InfoGrid
-        items={[
-          {
-            label: '货代',
-            value: `${sh.forwarderName ?? '—'}（体积系数 ${sh.volumeDivisor}）`,
-          },
-          {
-            label: '箱数',
-            value: sh.boxCount ? `${sh.boxCount} 箱` : undefined,
-          },
-          {
-            label: '计费重',
-            value: sh.boxCount ? kg(sh.chargeableWeight) : undefined,
-          },
-          {
-            label: '承运商 · 运单号',
-            value: sh.waybillNo
-              ? `${sh.carrier ?? ''} ${sh.waybillNo}`
-              : sh.customerForwarder && sh.status === 2
-                ? sh.pickup
-                  ? '客户安排取件'
-                  : '客户安排'
-                : undefined,
-          },
-          {
-            label: sh.pickup
-              ? '取件日期'
-              : sh.customerForwarder
-                ? '交货日期'
-                : '出运日期',
-            value: sh.shippedDate,
-          },
-          {
-            label: sh.pickup
-              ? '运费'
-              : sh.customerForwarder
-                ? '送货运费'
-                : '运费',
-            value:
-              sh.freight === null || sh.freight === undefined
-                ? undefined
-                : formatAmount(sh.freight, 'CNY'),
-          },
-          {
-            label: '对账',
-            value:
-              sh.status === 2
-                ? sh.customerForwarder
-                  ? '不对账（交客户指定货代）'
-                  : sh.reconciled
-                    ? '已对账'
-                    : '未对账'
-                : undefined,
-          },
-          { label: '作废原因', value: sh.voidReason, hidden: !voided },
-        ]}
-      />
       <Card style={{ padding: 20, marginBottom: 16 }}>
         <SectionTitle>
           明细
@@ -350,7 +492,7 @@ const ShipmentDetail: React.FC = () => {
                 fontSize: 13,
               }}
             >
-              <WarningOutlined />
+              <TriangleAlert size="1em" />
               <span style={{ flex: 1 }}>
                 直发货 {d.sdNo}
                 {d.supplierName ? `（${d.supplierName}）` : ''}{' '}
@@ -373,7 +515,7 @@ const ShipmentDetail: React.FC = () => {
           pagination={false}
           columns={itemColumns}
           dataSource={rows}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(itemColumns) }}
         />
       </Card>
       {boxes.length > 0 && (
@@ -395,174 +537,11 @@ const ShipmentDetail: React.FC = () => {
             size="middle"
             pagination={false}
             dataSource={boxes}
-            scroll={{ x: 'max-content' }}
-            columns={[
-              {
-                title: '销售出库单',
-                key: 'src',
-                width: 160,
-                render: (_, r) => (
-                  <div>
-                    {r.obs.map((o, i) => (
-                      <React.Fragment key={o.id}>
-                        {i > 0 && '、'}
-                        <Link to={DOC_PATHS.outbound(o.id)}>{o.obNo}</Link>
-                      </React.Fragment>
-                    ))}
-                    {r.direct && (
-                      <span
-                        style={{
-                          marginLeft: 6,
-                          fontSize: 12,
-                          color: palette.violet,
-                        }}
-                      >
-                        直发
-                      </span>
-                    )}
-                  </div>
-                ),
-              },
-              { title: '箱号', dataIndex: 'boxNo', width: 60 },
-              { title: '尺寸 cm', dataIndex: 'dims', width: 110 },
-              {
-                title: '毛重 · 净重',
-                key: 'w',
-                width: 120,
-                render: (_, r) =>
-                  `${Number(r.gross).toFixed(2)}${r.net ? ` · ${Number(r.net).toFixed(2)}` : ''}`,
-              },
-              {
-                title: '计费重',
-                dataIndex: 'chargeable',
-                width: 90,
-                render: (v: number) => <b>{Number(v).toFixed(2)}</b>,
-              },
-              { title: '箱内型号', width: 220, dataIndex: 'items' },
-              {
-                title: '国际运费分摊',
-                dataIndex: 'freight',
-                width: 130,
-                render: (v?: number) =>
-                  v === undefined ? '—' : <b>{formatAmount(v, 'CNY')}</b>,
-              },
-            ]}
+            scroll={{ x: tableScrollX(boxColumns) }}
+            columns={boxColumns}
           />
         </Card>
       )}
-      <Card style={{ padding: 20, marginBottom: 16 }}>
-        <SectionTitle>出运信息</SectionTitle>
-        {field(
-          '运单号',
-          sh.waybillNo
-            ? `${sh.carrier ?? ''} ${sh.waybillNo}`
-            : sh.customerForwarder
-              ? sh.pickup
-                ? '客户安排取件'
-                : '客户安排'
-              : undefined,
-        )}
-        {field(
-          sh.pickup
-            ? '取件日期'
-            : sh.customerForwarder
-              ? '交货日期'
-              : '出运日期',
-          sh.shippedDate,
-        )}
-        {field(
-          sh.customerForwarder ? '送货运费' : '实际运费',
-          sh.freight === null || sh.freight === undefined
-            ? undefined
-            : formatAmount(sh.freight, 'CNY'),
-        )}
-        {field('面单', <FaceSheets value={sh.faceSheets ?? []} />)}
-        {field(
-          'CI / PL',
-          (sh.docGroups ?? []).length === 0 ? (
-            <span style={{ color: palette.mute }}>
-              还没有生成
-              {canEdit && !voided && !sh.migrated
-                ? '，点右上角「生成 CI/PL」'
-                : ''}
-            </span>
-          ) : (
-            <div style={{ display: 'grid', gap: 8 }}>
-              {(sh.docGroups ?? []).map((g) => (
-                <div key={g.id}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <FileExcelOutlined style={{ color: palette.green }} />
-                    <b>
-                      {g.ciNo} · {g.plNo}
-                    </b>
-                    <span style={{ fontSize: 12, color: palette.mute }}>
-                      {g.soNos.join('、')}
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      gap: 14,
-                      marginTop: 4,
-                      fontSize: 13,
-                    }}
-                  >
-                    <span style={{ color: palette.mute }}>CI</span>
-                    <button
-                      type="button"
-                      className="zhul-link"
-                      onClick={() => exportDoc(g.id, 'ci', 'xlsx')}
-                    >
-                      Excel
-                    </button>
-                    <button
-                      type="button"
-                      className="zhul-link"
-                      onClick={() => exportDoc(g.id, 'ci', 'pdf')}
-                    >
-                      PDF
-                    </button>
-                    <span style={{ color: palette.mute, marginLeft: 8 }}>
-                      PL
-                    </span>
-                    <button
-                      type="button"
-                      className="zhul-link"
-                      onClick={() => exportDoc(g.id, 'pl', 'xlsx')}
-                    >
-                      Excel
-                    </button>
-                    <button
-                      type="button"
-                      className="zhul-link"
-                      onClick={() => exportDoc(g.id, 'pl', 'pdf')}
-                    >
-                      PDF
-                    </button>
-                  </div>
-                  {g.paymentRef && (
-                    <div style={{ fontSize: 12, color: palette.mute }}>
-                      付款参考：{g.paymentRef}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ),
-        )}
-        {pending && (
-          <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-            货代申报发出后点「登记出运」
-          </div>
-        )}
-      </Card>
       <DocFilesCard
         ownerType="LOGISTICS_DOC"
         files={sh.attachments ?? []}
@@ -578,25 +557,21 @@ const ShipmentDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[
-          <MenuLink key="list" to={LOGISTICS_PATHS.shipments} />,
-          sh.shNo,
-        ]}
-        title={
+      <PageHeader
+        title={sh.shNo}
+        tags={
           <>
-            {sh.shNo}
+            {/* 页头只放一个流程状态；属性写在说明行（ui-redesign S14） */}
             <ShStatusPill value={sh.status}>{sh.statusName}</ShStatusPill>
-            {sh.reconciled && <Pill tone="green">已对账</Pill>}
-            {sh.customerForwarder && <Pill tone="orange">客户指定货代</Pill>}
-            {sh.pickup && (
-              <Pill tone="violet">{sh.pickupLabel ?? '上门取件'}</Pill>
-            )}
             <MigratedPill migrated={sh.migrated} />
           </>
         }
-        description={
+        sub={
           <>
+            {sh.reconciled && '已对账 · '}
+            {sh.pickup
+              ? `客户指定货代 · ${sh.pickupLabel ?? '上门取件'} · `
+              : sh.customerForwarder && '客户指定货代 · '}
             {sh.customerName ?? '—'} ·{' '}
             <SourceNos
               mode="inline"
@@ -609,49 +584,73 @@ const ShipmentDetail: React.FC = () => {
             {formatDateTime(sh.createTime).slice(0, 16)} 创建
           </>
         }
-        actions={
+        // 页头操作（照销售订单详情）：登记出运为主按钮，其余为文字按钮，作废收进「更多」
+        extra={
           canEdit &&
           !voided &&
           !sh.migrated && (
             <>
               {pending && (
-                <>
-                  <Button
-                    icon={<StopOutlined />}
-                    onClick={() => setDialog('void')}
-                  >
-                    作废
-                  </Button>
-                  <Button
-                    icon={<EditOutlined />}
-                    onClick={() => setDialog('items')}
-                  >
-                    调整货物
-                  </Button>
-                </>
+                <Button
+                  type="text"
+                  icon={<Pencil size={16} />}
+                  style={{ color: palette.link }}
+                  onClick={() => setDialog('items')}
+                >
+                  调整货物
+                </Button>
               )}
               <Button
-                icon={<FileTextOutlined />}
+                type="text"
+                icon={<FileText size={16} />}
+                style={{ color: palette.link }}
                 onClick={() => setDialog('docs')}
               >
                 生成 CI/PL
               </Button>
-              {pending ? (
+              {!pending && (
+                <Button
+                  type="text"
+                  icon={<Ship size={16} />}
+                  style={{ color: palette.link }}
+                  onClick={() => setDialog('ship')}
+                >
+                  修改出运信息
+                </Button>
+              )}
+              {pending && (
+                <Dropdown
+                  trigger={['click']}
+                  placement="bottomRight"
+                  menu={{
+                    items: [
+                      {
+                        key: 'void',
+                        icon: <CircleX size={16} />,
+                        label: '作废',
+                        danger: true,
+                      },
+                    ],
+                    onClick: () => setDialog('void'),
+                  }}
+                >
+                  <Button
+                    type="text"
+                    shape="circle"
+                    icon={<Ellipsis size={18} />}
+                    aria-label="更多操作"
+                  />
+                </Dropdown>
+              )}
+              {pending && (
                 <Button
                   type="primary"
-                  icon={<RocketOutlined />}
+                  icon={<Ship size={16} />}
                   disabled={waiting.length > 0}
                   title={waiting.length ? '直发货确认实收后才能登记出运' : ''}
                   onClick={() => setDialog('ship')}
                 >
                   登记出运
-                </Button>
-              ) : (
-                <Button
-                  icon={<RocketOutlined />}
-                  onClick={() => setDialog('ship')}
-                >
-                  修改出运信息
                 </Button>
               )}
             </>
@@ -668,12 +667,13 @@ const ShipmentDetail: React.FC = () => {
           alignItems: 'start',
         }}
       >
-        <div style={{ minWidth: 0 }}>{main}</div>
+        <div style={{ minWidth: 0 }}>{info}</div>
         <div style={{ minWidth: 0 }}>
           <RelatedDocsCard docs={relatedRows(sh.related)} />
           <DocLogCard logs={sh.logs} />
         </div>
       </div>
+      {wideSections}
 
       <ConfirmDirectDrawer
         sh={sh}

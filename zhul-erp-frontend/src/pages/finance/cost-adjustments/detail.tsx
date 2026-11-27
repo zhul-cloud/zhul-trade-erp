@@ -12,19 +12,16 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import {
-  Card,
-  PageTitle,
-  Pill,
-  useWide,
-} from '@/pages/inquiry/shared/components';
+import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { BatchLink } from '@/pages/warehouse/inventoryParts';
 import { docHref } from '@/pages/warehouse/inventoryService';
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
-import { MenuLink } from '@/utils/menuName';
+import { useDeltaColor } from '@/theme/delta';
+import { tableScrollX } from '@/utils/tableScroll';
 import { ReasonPill, SignedMoney } from '../costingParts';
 import {
   type CostAdjust,
@@ -44,10 +41,12 @@ const unit = (v?: number) => (v == null ? '—' : Number(v).toFixed(6));
 /** 单位成本的变化量：+3.000000 / −1.500000；没变化「—」 */
 const UnitDiff: React.FC<{ value?: number }> = ({ value }) => {
   const { palette } = useAppTheme();
+  // 按个人涨跌色设置着色，与 SignedMoney 一致（D65）
+  const { of: deltaOf } = useDeltaColor();
   const v = Number(value ?? 0);
   if (v === 0) return <span style={{ color: palette.mute }}>—</span>;
   return (
-    <span style={{ color: v > 0 ? palette.green : palette.red }}>
+    <span style={{ color: deltaOf(v) }}>
       {v > 0 ? '+' : '−'}
       {Math.abs(v).toFixed(6)}
     </span>
@@ -132,7 +131,12 @@ const CostAdjustDetail: React.FC = () => {
       width: 110,
       render: (v: number) => <UnitDiff value={v} />,
     },
-    { title: '数量', dataIndex: 'quantity', width: 70 },
+    {
+      title: '数量',
+      align: 'right' as const,
+      dataIndex: 'quantity',
+      width: 70,
+    },
     {
       title: '调整金额',
       dataIndex: 'amountCny',
@@ -178,7 +182,12 @@ const CostAdjustDetail: React.FC = () => {
           </div>
         ),
     },
-    { title: '数量', dataIndex: 'quantity', width: 80 },
+    {
+      title: '数量',
+      align: 'right' as const,
+      dataIndex: 'quantity',
+      width: 80,
+    },
     {
       title: '调整金额',
       dataIndex: 'amountCny',
@@ -232,7 +241,7 @@ const CostAdjustDetail: React.FC = () => {
           pagination={false}
           columns={batchColumns}
           dataSource={r.batches}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(batchColumns) }}
           expandable={{
             defaultExpandAllRows: true,
             rowExpandable: (b) => b.parts.length > 0,
@@ -269,18 +278,10 @@ const CostAdjustDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[
-          <MenuLink key="list" to="/finance/cost-adjustments" />,
-          r.adjustNo,
-        ]}
-        title={
-          <>
-            {r.adjustNo}
-            <ReasonPill reason={r.reason} name={r.reasonName} />
-          </>
-        }
-        description={
+      <PageHeader
+        title={r.adjustNo}
+        tags={<ReasonPill reason={r.reason} name={r.reasonName} />}
+        sub={
           <>
             所属 {r.periodMonth} · {r.adjustDate} 系统生成
             {r.sourceDocNo && (

@@ -1,25 +1,25 @@
-import { SearchOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import {
-  App,
-  Button,
-  Checkbox,
-  Input,
-  Modal,
-  Popover,
-  Radio,
-  Table,
-  Tag,
-} from 'antd';
+import { App, Button, Input, Modal, Popover, Radio, Select, Table } from 'antd';
+import { Link2, RotateCcw, Search, Sparkles } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  HelpTip,
+  MainCard,
+  SelectionCount,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card } from '@/pages/inquiry/shared/components';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { ProductSelect } from '@/pages/product/components/ProductSelect';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { AI_TASK_NOT_FOUND, type ProductOption } from '../service';
 import {
@@ -149,9 +149,12 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
   const [query, setQuery] = useState<string>();
   const [marked, setMarked] = useState(false);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = usePageSize(20);
+  // 与「候选审核」同一路径，按视图分开记每页条数
+  const [pageSize, setPageSize] = usePageSize(20, 'unlinked');
   const [rows, setRows] = useState<UnlinkedGroup[]>([]);
   const [total, setTotal] = useState(0);
+  /** 另一状态的数量（状态下拉选项带数量，同一接口每页 1 条只取总数） */
+  const [otherTotal, setOtherTotal] = useState<number>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [selected, setSelected] = useState<UnlinkedGroup[]>([]);
@@ -184,7 +187,6 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
   useEffect(() => {
     load();
   }, [load]);
-  useOnReactivate(load);
 
   const reload = React.useRef(load);
   reload.current = load;
@@ -222,9 +224,32 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
     setPage(1);
   };
 
+  // 另一状态的数量与页码无关：只在关键词、状态变化和操作完成后取（后端每次都要扫一遍明细）
+  const [countTick, setCountTick] = useState(0);
+  // 关键词、状态变了才清空旧数（数已不对）；切回标签页、操作完成时保留旧数，请求回来再覆盖，不闪
+  useEffect(() => {
+    setOtherTotal(undefined);
+  }, [query, marked]);
+  useEffect(() => {
+    let alive = true;
+    candidateApi
+      .unlinked({ keyword: query, page: 1, pageSize: 1, marked: !marked })
+      .then((r) => alive && setOtherTotal(r.total))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [query, marked, countTick]);
+  // 从别的标签页切回时，列表和另一状态的数量一起刷新（那边可能关联或标记过）
+  useOnReactivate(() => {
+    load();
+    setCountTick((t) => t + 1);
+  });
+
   const done = () => {
     setSelected([]);
     load();
+    setCountTick((t) => t + 1);
     onChanged();
   };
 
@@ -353,9 +378,7 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
             {g.aiModel}
           </b>
           <span style={{ display: 'inline-flex', gap: 8 }}>
-            <Tag color="purple" style={{ marginInlineEnd: 0 }}>
-              AI 建议
-            </Tag>
+            <Pill tone="gray">AI 建议</Pill>
             <button
               type="button"
               className="zhul-link"
@@ -369,9 +392,7 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
     if (g.aiKind === KIND.FEE)
       return (
         <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-          <Tag color="orange" style={{ marginInlineEnd: 0 }}>
-            费用
-          </Tag>
+          <Pill tone="gray">费用</Pill>
           <button
             type="button"
             className="zhul-link"
@@ -390,7 +411,7 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
     {
       title: '品牌 · 型号（单据原文）',
       key: 'model',
-      width: 260,
+      width: 210,
       fixed: 'left',
       render: (_, g) => (
         <b style={{ color: palette.ink }}>
@@ -402,7 +423,7 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
     {
       title: '涉及单据',
       key: 'docs',
-      width: 180,
+      width: 170,
       render: (_, g) => <DocRefs g={g} />,
     },
     {
@@ -414,7 +435,7 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
     {
       title: '最近出现',
       dataIndex: 'lastSeenAt',
-      width: 160,
+      width: 150,
       render: (v?: string) => formatDateTime(v),
     },
     ...(marked
@@ -434,16 +455,19 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
           {
             title: '操作',
             key: 'actions',
-            width: 80,
+            width: rowActionsWidth(1),
             fixed: 'right',
             render: (_, g) => (
-              <button
-                type="button"
-                className="zhul-link"
-                onClick={() => restore([g])}
-              >
-                恢复
-              </button>
+              <RowActions
+                inline={[
+                  {
+                    key: 'restore',
+                    label: '恢复',
+                    icon: <RotateCcw size={18} />,
+                    onClick: () => restore([g]),
+                  },
+                ]}
+              />
             ),
           },
         ] as TableColumnsType<UnlinkedGroup>)
@@ -451,21 +475,22 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
           {
             title: 'AI 建议',
             key: 'ai',
-            width: 260,
+            width: 200,
             render: (_, g) => aiCell(g),
           },
           {
             title: '可能是',
             key: 'suggestion',
-            width: 240,
+            width: 190,
             render: (_, g) =>
               g.suggestion ? (
                 <span>
                   {g.suggestion.brandName} · {g.suggestion.mpnDisplay}
                   {g.suggestion.candidate && (
-                    <Tag color="orange" style={{ marginInlineStart: 6 }}>
-                      候选
-                    </Tag>
+                    // 属性标签用中性灰（ui-redesign S13）
+                    <span style={{ marginInlineStart: 6 }}>
+                      <Pill tone="gray">候选</Pill>
+                    </span>
                   )}
                 </span>
               ) : (
@@ -475,149 +500,191 @@ export const UnlinkedPanel: React.FC<{ onChanged: () => void }> = ({
           {
             title: '操作',
             key: 'actions',
-            width: 80,
+            width: rowActionsWidth(1),
             fixed: 'right',
             render: (_, g) => (
-              <button
-                type="button"
-                className="zhul-link"
-                onClick={() => setLinking({ group: g })}
-              >
-                关联
-              </button>
+              <RowActions
+                inline={[
+                  {
+                    key: 'link',
+                    label: '关联',
+                    icon: <Link2 size={18} />,
+                    onClick: () => setLinking({ group: g }),
+                  },
+                ]}
+              />
             ),
           },
         ] as TableColumnsType<UnlinkedGroup>)),
   ];
+  // 1366 宽下默认列放不下：「明细条数」默认收进「列」设置（列表页统一规范），按视图分开记
+  const columnsSet = useColumnSettings(
+    marked ? 'product-unlinked-marked' : 'product-unlinked',
+    columns,
+    { hidden: ['明细条数'] },
+  );
 
   return (
     <>
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          alignItems: 'center',
-          marginBottom: 16,
+      {/* 照「候选审核」视图套列表骨架：搜索条件区 + 主卡（结果数 / 已选、批量操作）；是否已标记是状态，放状态下拉 */}
+      <FilterCard
+        onSearch={search}
+        onReset={() => {
+          setKeyword('');
+          setQuery(undefined);
+          setMarked(false);
+          setSelected([]);
+          setPage(1);
         }}
       >
-        <Input
-          allowClear
-          prefix={<SearchOutlined />}
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          onPressEnter={search}
-          placeholder="品牌、型号"
-          style={{ width: 260 }}
-          aria-label="关键词"
-        />
-        <Checkbox
-          checked={marked}
-          onChange={(e) => {
-            setMarked(e.target.checked);
-            setSelected([]);
-            setPage(1);
-          }}
-        >
-          显示已标记
-        </Checkbox>
-        {aiJob?.taskId && (
-          <span style={{ fontSize: 12, color: palette.mute }}>
-            <ThunderboltOutlined /> AI 正在识别 {aiJob.total ?? ''} 组…
-          </span>
-        )}
-        <span style={{ flex: 1 }} />
-        <Button type="primary" onClick={search}>
-          查询
-        </Button>
-      </div>
-      {selected.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            alignItems: 'center',
-            padding: '10px 16px',
-            borderRadius: 12,
-            background: palette.accentSoft,
-            marginBottom: 12,
-          }}
-        >
-          <b style={{ color: palette.ink }}>已选 {selected.length} 组</b>
-          {marked ? (
-            <Button onClick={() => restore(selected)}>恢复</Button>
-          ) : (
-            <>
-              <Button
-                icon={<ThunderboltOutlined />}
-                loading={busy}
-                disabled={!!aiJob?.taskId}
-                onClick={aiRecognize}
-              >
-                {aiJob?.taskId ? 'AI 识别中' : 'AI 识别型号'}
-              </Button>
-              <Button
-                disabled={adoptable.length === 0 || busy}
-                title={
-                  adoptable.length === 0
-                    ? '选中的组还没有 AI 建议的型号'
-                    : undefined
-                }
-                onClick={adopt}
-              >
-                批量采纳{adoptable.length ? ` ${adoptable.length} 组` : ''}
-              </Button>
-              <Button onClick={() => ignore(selected)}>标为不是商品</Button>
-            </>
-          )}
-          <span style={{ flex: 1 }} />
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => setSelected([])}
-          >
-            取消选择
-          </button>
-        </div>
-      )}
+        <FilterField label="关键词" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={search}
+            placeholder="品牌、型号"
+            aria-label="关键词"
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select<'open' | 'marked'>
+            value={marked ? 'marked' : 'open'}
+            onChange={(v) => {
+              setMarked(v === 'marked');
+              // 新数据回来前不显示上一状态的数量
+              setTotal(0);
+              setSelected([]);
+              setPage(1);
+            }}
+            options={[
+              {
+                value: 'open',
+                label: '待关联',
+                n: marked ? otherTotal : total,
+              },
+              {
+                value: 'marked',
+                label: '已标为不是商品',
+                n: marked ? total : otherTotal,
+              },
+            ].map(({ value, label, n }) => ({
+              value,
+              // 选项带数量，为 0 或还不知道时只写名称（列表页统一规范）
+              label: n ? `${label} · ${n}` : label,
+            }))}
+            aria-label="状态"
+          />
+        </FilterField>
+      </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 0 }}>
+        <MainCard
+          count={selected.length > 0 ? undefined : total}
+          unit="组"
+          loading={loading}
+          settings={columnsSet.settings}
+          left={
+            selected.length > 0 ? (
+              <SelectionCount
+                count={selected.length}
+                unit="组"
+                onClear={() => setSelected([])}
+              />
+            ) : (
+              <>
+                <HelpTip
+                  title={
+                    marked
+                      ? '标为不是商品的写法不再列入待关联清单；恢复后回到清单'
+                      : 'AI 只给建议，采纳或标记都要人点'
+                  }
+                />
+                {aiJob?.taskId && (
+                  <span
+                    role="status"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontSize: 12,
+                      color: palette.mute,
+                    }}
+                  >
+                    <Sparkles size={14} aria-hidden /> AI 正在识别{' '}
+                    {aiJob.total ?? ''} 组…
+                  </span>
+                )}
+              </>
+            )
+          }
+          right={
+            selected.length > 0 &&
+            (marked ? (
+              <Button onClick={() => restore(selected)}>恢复</Button>
+            ) : (
+              <>
+                <Button onClick={() => ignore(selected)}>标为不是商品</Button>
+                <Button
+                  disabled={adoptable.length === 0 || busy}
+                  title={
+                    adoptable.length === 0
+                      ? '选中的组还没有 AI 建议的型号'
+                      : undefined
+                  }
+                  onClick={adopt}
+                >
+                  批量采纳{adoptable.length ? ` ${adoptable.length} 组` : ''}
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<Sparkles size={16} />}
+                  loading={busy}
+                  disabled={!!aiJob?.taskId}
+                  onClick={aiRecognize}
+                >
+                  {aiJob?.taskId ? 'AI 识别中' : 'AI 识别型号'}
+                </Button>
+              </>
+            ))
+          }
+        >
           <Table<UnlinkedGroup>
             rowKey="key"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             rowSelection={{
               selectedRowKeys: selected.map((g) => g.key),
               preserveSelectedRowKeys: true,
               onChange: (_, picked) => setSelected(picked),
             }}
             locale={{
-              emptyText: marked
-                ? '没有标为不是商品的型号'
-                : '所有单据明细都已关联商品',
+              emptyText: tableEmpty(
+                query
+                  ? '没有符合条件的型号，换个关键词试试'
+                  : marked
+                    ? '没有标为不是商品的型号'
+                    : '所有单据明细都已关联商品',
+                loading,
+              ),
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
-              showTotal: (t: number) => `共 ${t} 组`,
               onChange: (p: number, s: number) => {
                 setPage(p);
                 setPageSize(s);
               },
             }}
           />
-        </Card>
+        </MainCard>
       )}
-      <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-        {marked
-          ? '标为不是商品的写法不再列入待关联清单；恢复后回到清单'
-          : 'AI 只给建议，采纳或标记都要人点；单号点开单据详情，返回后回到待关联'}
-      </div>
       <LinkModal
         group={linking?.group}
         adopt={linking?.adopt}

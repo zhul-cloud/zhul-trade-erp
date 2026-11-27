@@ -1,25 +1,14 @@
-import {
-  DeleteOutlined,
-  ExclamationCircleOutlined,
-  PlusOutlined,
-  ShopOutlined,
-  ShoppingOutlined,
-} from '@ant-design/icons';
-import type { TableColumnsType } from 'antd';
 import { Button, Input, InputNumber, Segmented, Select, Space } from 'antd';
+import { CircleAlert, Plus, ShoppingBag, Store, Trash2 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
-import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
-import {
-  Card,
-  MigratedPill,
-  PageTitle,
-  Pill,
-} from '@/pages/inquiry/shared/components';
+import EllipsisText from '@/components/EllipsisText';
+import { Card, MigratedPill, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 import { forwarderApi } from '@/pages/logistics/service';
 import { searchSuppliers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount, formatDateTime } from '@/utils/format';
+import { useDeltaColor } from '@/theme/delta';
+import { formatAmount } from '@/utils/format';
 import { TRIGGERS, termsText, termsTotal } from './calc';
 import type {
   CounterpartyValue,
@@ -37,10 +26,6 @@ export const PATHS = {
   order: (id: number) => `/purchase/orders/${id}`,
   salesOrder: (id: number) => `/sales/orders/${id}`,
 };
-
-export const PurchasePageTitle: React.FC<
-  Omit<React.ComponentProps<typeof PageTitle>, 'root'>
-> = (props) => <PageTitle {...props} />;
 
 const PO_META: Record<number, { label: string; tone: Tone }> = {
   1: { label: '草稿', tone: 'gray' },
@@ -98,10 +83,11 @@ export const BargainText: React.FC<{
   empty?: string;
 }> = ({ amount, rate, empty = '没有目标价' }) => {
   const { palette } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
   if (amount == null) {
     return <span style={{ fontSize: 12, color: palette.mute }}>{empty}</span>;
   }
-  const color = amount < 0 ? palette.red : palette.green;
+  const color = deltaOf(amount);
   return (
     <div style={{ color, fontVariantNumeric: 'tabular-nums' }}>
       <b>{formatAmount(amount, 'CNY')}</b>
@@ -119,6 +105,8 @@ export const SupplierPicker: React.FC<{
   onChange: (supplierId: number | undefined, name: string) => void;
   'aria-label'?: string;
   forwarder?: boolean;
+  /** 搜索条件区放在框内的名称（FilterField 自动传入） */
+  prefix?: React.ReactNode;
 }> = ({
   value,
   label,
@@ -127,6 +115,7 @@ export const SupplierPicker: React.FC<{
   onChange,
   'aria-label': ariaLabel,
   forwarder,
+  prefix,
 }) => {
   const [options, setOptions] = useState<{ value: number; label: string }[]>(
     [],
@@ -181,6 +170,7 @@ export const SupplierPicker: React.FC<{
     <Select
       allowClear
       aria-label={ariaLabel}
+      prefix={prefix}
       style={style}
       placeholder={placeholder}
       value={value}
@@ -200,6 +190,8 @@ export const SupplierPicker: React.FC<{
     />
   );
 };
+/** 放进搜索条件区时，名称和其他下拉一样放在框内（ListLayout 的 FilterField 识别） */
+Object.assign(SupplierPicker, { filterPrefix: true });
 
 type Preset = 'prepay' | 'cod' | 'credit' | 'custom';
 
@@ -318,7 +310,7 @@ export const PaymentTermsEditor: React.FC<{
                 <Button
                   type="text"
                   size="small"
-                  icon={<DeleteOutlined />}
+                  icon={<Trash2 size="1em" />}
                   aria-label="删除这一期"
                   onClick={() => onChange(value.filter((_, n) => n !== i))}
                 />
@@ -329,7 +321,7 @@ export const PaymentTermsEditor: React.FC<{
             <Button
               size="small"
               type="dashed"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               style={{ width: 120 }}
               onClick={() =>
                 onChange([
@@ -369,66 +361,6 @@ const round = (v: number) => Math.round(v * 100) / 100;
 export const sub = (color: string, text: React.ReactNode) => (
   <div style={{ fontSize: 12, color }}>{text}</div>
 );
-
-export const StatCard: React.FC<{
-  icon: React.ReactNode;
-  color: string;
-  label: string;
-  value: React.ReactNode;
-  hint: React.ReactNode;
-  hintColor?: string;
-  /** 可点击筛选时传入；active 为当前已按它筛选 */
-  onClick?: () => void;
-  active?: boolean;
-}> = ({ icon, color, label, value, hint, hintColor, onClick, active }) => {
-  const { palette } = useAppTheme();
-  const card = (
-    <Card
-      style={{
-        padding: 18,
-        height: '100%',
-        border: `1px solid ${active ? color : palette.hairline}`,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ color, fontSize: 16 }}>{icon}</span>
-        <span style={{ color: palette.sub, fontSize: 13 }}>{label}</span>
-      </div>
-      <div
-        style={{
-          fontSize: 24,
-          fontWeight: 700,
-          color: palette.ink,
-          margin: '6px 0 2px',
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
-        {value}
-      </div>
-      <div style={{ fontSize: 12, color: hintColor ?? palette.mute }}>
-        {hint}
-      </div>
-    </Card>
-  );
-  return onClick ? (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      style={{
-        padding: 0,
-        border: 0,
-        textAlign: 'left',
-        background: 'transparent',
-        cursor: 'pointer',
-      }}
-    >
-      {card}
-    </button>
-  ) : (
-    card
-  );
-};
 
 // ---------------------------------------------------------------- 采购对象
 
@@ -531,7 +463,10 @@ export const SourceCell: React.FC<{
           tip={supplierName}
           text={
             <>
-              <ShopOutlined style={{ color: palette.link, marginRight: 6 }} />
+              <Store
+                size="1em"
+                style={{ color: palette.link, marginRight: 6 }}
+              />
               {supplierName}
             </>
           }
@@ -548,7 +483,8 @@ export const SourceCell: React.FC<{
           tip={`${channelName ? `${channelName} · ` : ''}${shopName}`}
           text={
             <>
-              <ShoppingOutlined
+              <ShoppingBag
+                size="1em"
                 style={{ color: palette.orange, marginRight: 6 }}
               />
               {channelName ? `${channelName} · ` : ''}
@@ -563,7 +499,7 @@ export const SourceCell: React.FC<{
   return (
     <div>
       <div style={{ color: palette.orange }}>
-        <ExclamationCircleOutlined style={{ marginRight: 6 }} />
+        <CircleAlert size="1em" style={{ marginRight: 6 }} />
         还没定
       </div>
       <div style={{ fontSize: 12, color: palette.mute }}>
@@ -573,37 +509,5 @@ export const SourceCell: React.FC<{
   );
 };
 
-/** 列表页统一规范：创建时间 → 创建人 → 更新时间 → 更新人；人名多为邮箱，单行省略、悬停看全（audit UI-041） */
-export const auditColumns = <
-  T extends {
-    createTime?: string;
-    createBy?: string;
-    updateTime?: string;
-    updateBy?: string;
-  },
->(): TableColumnsType<T> => [
-  {
-    title: '创建时间',
-    dataIndex: 'createTime',
-    width: 170,
-    render: (v?: string) => formatDateTime(v),
-  },
-  {
-    title: '创建人',
-    dataIndex: 'createBy',
-    width: 150,
-    render: ellipsisRender,
-  },
-  {
-    title: '更新时间',
-    dataIndex: 'updateTime',
-    width: 170,
-    render: (v?: string) => formatDateTime(v),
-  },
-  {
-    title: '更新人',
-    dataIndex: 'updateBy',
-    width: 150,
-    render: ellipsisRender,
-  },
-];
+/** 列表的「创建」「更新」两列（ui-redesign D25，默认收进列设置 D55）：统一用公共组件，这里只转出，原有引用不用改 */
+export { auditColumns } from '@/components/UserName';

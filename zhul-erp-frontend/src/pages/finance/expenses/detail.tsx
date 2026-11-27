@@ -1,6 +1,7 @@
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table, Tooltip } from 'antd';
+import { App, Button, Skeleton, Table } from 'antd';
+import { CircleX, Pencil } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   DocLogCard,
@@ -9,11 +10,12 @@ import {
   SectionTitle,
 } from '@/components/DocFields/DocPage';
 import { DocFilesCard } from '@/components/DocFiles';
+import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
+import { UserName } from '@/components/UserName';
 import {
   Card,
   MigratedPill,
-  PageTitle,
   Pill,
   useWide,
 } from '@/pages/inquiry/shared/components';
@@ -26,8 +28,8 @@ import {
 } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { UnitPill, useBusinessUnits } from '@/utils/businessUnit';
-import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import { PayStatusPill } from '../payables/components';
 import { METHOD } from '../payables/service';
 import {
@@ -125,11 +127,11 @@ const ExpenseDetail: React.FC = () => {
     },
     { title: '型号', dataIndex: 'model', width: 200 },
     {
-      title: '分摊金额',
+      title: `分摊金额（${c}）`,
       dataIndex: 'amount',
       width: 140,
       align: 'right',
-      render: (v: number) => <span style={num}>{formatAmount(v, c)}</span>,
+      render: (v: number) => <span style={num}>{formatMoney(v)}</span>,
     },
     ...(c === 'CNY'
       ? []
@@ -146,7 +148,7 @@ const ExpenseDetail: React.FC = () => {
         ]),
   ];
 
-  const main = (
+  const info = (
     <>
       <InfoGrid
         items={[
@@ -211,6 +213,11 @@ const ExpenseDetail: React.FC = () => {
           },
         ]}
       />
+    </>
+  );
+  // 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18）
+  const wideSections = (
+    <>
       {e.allocations.length > 0 && (
         <Card style={{ padding: 20, marginBottom: 16 }}>
           <SectionTitle
@@ -228,7 +235,7 @@ const ExpenseDetail: React.FC = () => {
             pagination={false}
             columns={columns}
             dataSource={e.allocations}
-            scroll={{ x: 'max-content' }}
+            scroll={{ x: tableScrollX(columns) }}
           />
         </Card>
       )}
@@ -247,18 +254,17 @@ const ExpenseDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[<MenuLink key="list" to="/finance/expenses" />, e.expenseNo]}
-        title={
+      <PageHeader
+        title={e.expenseNo}
+        tags={
           <>
-            {e.expenseNo}
             <Pill tone={valid ? 'green' : 'mute'}>
               {valid ? '有效' : '已作废'}
             </Pill>
             {e.migrated && <MigratedPill migrated />}
           </>
         }
-        description={
+        sub={
           <>
             {e.payeeName || '—'}
             {firstSo && (
@@ -268,23 +274,33 @@ const ExpenseDetail: React.FC = () => {
                 <Link to={`/sales/orders/${firstSo.soId}`}>{firstSo.soNo}</Link>
               </>
             )}{' '}
-            · {e.createBy ?? '—'} · {formatDateTime(e.createTime).slice(0, 16)}{' '}
-            创建
+            · <UserName value={e.createBy} /> ·{' '}
+            {formatDateTime(e.createTime).slice(0, 16)} 创建
           </>
         }
-        actions={
+        extra={
           canEdit && (
             <>
-              <Button onClick={() => setEditing(true)}>修改</Button>
-              <Tooltip title={voidBlocked}>
-                <Button
-                  danger
-                  disabled={!!voidBlocked}
-                  onClick={() => setVoiding(true)}
-                >
-                  作废
-                </Button>
-              </Tooltip>
+              <Button
+                type="text"
+                icon={<Pencil size={16} />}
+                style={{ color: palette.link }}
+                onClick={() => setEditing(true)}
+              >
+                修改
+              </Button>
+              <MoreActions
+                items={[
+                  {
+                    key: 'void',
+                    label: '作废',
+                    icon: <CircleX size={16} />,
+                    danger: true,
+                    disabledReason: voidBlocked || undefined,
+                  },
+                ]}
+                onClick={() => setVoiding(true)}
+              />
             </>
           )
         }
@@ -299,12 +315,13 @@ const ExpenseDetail: React.FC = () => {
           alignItems: 'start',
         }}
       >
-        <div style={{ minWidth: 0 }}>{main}</div>
+        <div style={{ minWidth: 0 }}>{info}</div>
         <div style={{ minWidth: 0 }}>
           <RelatedDocsCard docs={relatedRows(e.related)} />
           <DocLogCard logs={e.logs} />
         </div>
       </div>
+      {wideSections}
       <ExpenseDrawer
         open={editing}
         editing={e}

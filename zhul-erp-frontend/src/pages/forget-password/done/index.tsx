@@ -1,6 +1,6 @@
-import { CheckCircleFilled } from '@ant-design/icons';
 import { Helmet, history } from '@umijs/max';
 import { Button } from 'antd';
+import { CircleCheck } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { AuthLayout } from '@/components';
 import { usePageTitle } from '@/components/Shell/BrandLogo';
@@ -30,7 +30,7 @@ const Done: React.FC = () => {
         <title>{usePageTitle('密码重置成功')}</title>
       </Helmet>
       <div style={{ textAlign: 'center' }}>
-        <CheckCircleFilled style={{ fontSize: 72, color: p.green }} />
+        <CircleCheck size="1em" style={{ fontSize: 72, color: p.green }} />
         <div
           style={{
             fontSize: 20,

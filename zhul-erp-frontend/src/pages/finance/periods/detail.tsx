@@ -1,16 +1,13 @@
-import {
-  DownloadOutlined,
-  InfoCircleOutlined,
-  LockOutlined,
-  SearchOutlined,
-  UnlockOutlined,
-} from '@ant-design/icons';
 import { history, Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Input, Select, Skeleton, Table, Tabs } from 'antd';
+import { Download, Info, Lock, LockOpen, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CopyText } from '@/components/CopyText';
+import { tableEmpty } from '@/components/EmptyState';
+import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { ModelCell, useWarehouses } from '@/pages/warehouse/inventoryParts';
 import {
@@ -22,7 +19,8 @@ import { CategoryLedgerTable } from '@/pages/warehouse/ledger/CategoryLedgerTabl
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
+import { PAGER_STYLE } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { ReasonPill, SignedMoney } from '../costingParts';
 import {
   type CostAdjust,
@@ -75,10 +73,10 @@ const usePaged = <T,>(
     load,
     reset: () => setPage(1),
     pagination: {
+      ...PAGER_STYLE,
       current: page,
       pageSize,
       total,
-      showSizeChanger: true,
       showTotal: (t: number) => `共 ${t} 条`,
       onChange: (p: number, s: number) => {
         setPage(p);
@@ -160,7 +158,7 @@ const LedgerTab: React.FC<{ month: string }> = ({ month }) => {
         />
         <Input.Search
           allowClear
-          prefix={<SearchOutlined />}
+          prefix={<Search size="1em" />}
           placeholder="型号、品牌"
           style={{ width: 260 }}
           onSearch={(v) => {
@@ -175,8 +173,8 @@ const LedgerTab: React.FC<{ month: string }> = ({ month }) => {
         loading={t.loading}
         columns={columns}
         dataSource={t.rows}
-        scroll={{ x: 'max-content' }}
-        locale={{ emptyText: `${month} 没有库存往来` }}
+        scroll={{ x: tableScrollX(columns) }}
+        locale={{ emptyText: tableEmpty(`${month} 没有库存往来`, t.loading) }}
         pagination={t.pagination}
       />
     </>
@@ -221,7 +219,13 @@ const CogsTab: React.FC<{ month: string }> = ({ month }) => {
         const href = docHref(r.docType, r.docId);
         return (
           <div>
-            {href ? <Link to={href}>{v}</Link> : v}
+            {href ? (
+              <CopyText text={v}>
+                <Link to={href}>{v}</Link>
+              </CopyText>
+            ) : (
+              v
+            )}
             {r.kind === 2 && (
               <div style={{ fontSize: 12, color: palette.mute }}>
                 {r.kindName}
@@ -232,7 +236,12 @@ const CogsTab: React.FC<{ month: string }> = ({ month }) => {
       },
     },
     { title: '日期', dataIndex: 'bizDate', width: 110 },
-    { title: '数量', dataIndex: 'quantity', width: 70 },
+    {
+      title: '数量',
+      align: 'right' as const,
+      dataIndex: 'quantity',
+      width: 70,
+    },
     { title: '货款', dataIndex: 'amountGoods', width: 110, render: plain },
     { title: '开票', dataIndex: 'amountInvoice', width: 100, render: plain },
     { title: '采购费用', dataIndex: 'amountFee', width: 100, render: plain },
@@ -283,8 +292,8 @@ const CogsTab: React.FC<{ month: string }> = ({ month }) => {
         loading={t.loading}
         columns={columns}
         dataSource={t.rows}
-        scroll={{ x: 'max-content' }}
-        locale={{ emptyText: `${month} 没有出运` }}
+        scroll={{ x: tableScrollX(columns) }}
+        locale={{ emptyText: tableEmpty(`${month} 没有出运`, t.loading) }}
         pagination={t.pagination}
         summary={() =>
           t.rows.length > 0 ? (
@@ -323,7 +332,7 @@ const CogsTab: React.FC<{ month: string }> = ({ month }) => {
           key={`${r.soItemId}-${r.docId}`}
           style={{ color: palette.sub, fontSize: 13, marginTop: 8 }}
         >
-          <InfoCircleOutlined style={{ color: palette.link, marginRight: 6 }} />
+          <Info size="1em" style={{ color: palette.link, marginRight: 6 }} />
           {r.model} 的 {r.systemQty} 个来自系统外入库，成本为
           0；订单成本按采购订单单价计
         </div>
@@ -345,7 +354,11 @@ const AdjustTab: React.FC<{ month: string }> = ({ month }) => {
       title: '调整单号',
       dataIndex: 'adjustNo',
       width: 160,
-      render: (v: string, r) => <Link to={caPath(r.id)}>{v}</Link>,
+      render: (v: string, r) => (
+        <CopyText text={v}>
+          <Link to={caPath(r.id)}>{v}</Link>
+        </CopyText>
+      ),
     },
     { title: '调整日期', dataIndex: 'adjustDate', width: 110 },
     {
@@ -391,8 +404,8 @@ const AdjustTab: React.FC<{ month: string }> = ({ month }) => {
       loading={t.loading}
       columns={columns}
       dataSource={t.rows}
-      scroll={{ x: 'max-content' }}
-      locale={{ emptyText: `${month} 没有成本调整` }}
+      scroll={{ x: tableScrollX(columns) }}
+      locale={{ emptyText: tableEmpty(`${month} 没有成本调整`, t.loading) }}
       pagination={t.pagination}
     />
   );
@@ -474,45 +487,22 @@ const PeriodDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[<MenuLink key="list" to="/finance/periods" />, month]}
-        title={
-          <>
-            {month} 库存月结
-            <Pill tone={closed ? 'green' : 'orange'}>{p.statusName}</Pill>
-          </>
-        }
-        description={
+      <PageHeader
+        title={`${month} 库存月结`}
+        tags={<Pill tone={closed ? 'green' : 'orange'}>{p.statusName}</Pill>}
+        sub={
           closed
             ? `${p.closedByName ?? ''} ${formatDateTime(p.closedAt).slice(0, 16)} 结账 · 显示结账时保存的快照`
             : p.reopenReason
               ? `${p.reopenedByName ?? ''} ${formatDateTime(p.reopenedAt).slice(0, 16)} 反结账：${p.reopenReason} · 显示实时数字`
               : '未结账 · 显示实时数字'
         }
-        actions={
+        extra={
           <>
-            {!closed && access['inventory:period:close'] && (
-              <Button
-                type="primary"
-                icon={<LockOutlined />}
-                disabled={!p.closable}
-                title={p.closable ? undefined : p.closeBlock}
-                onClick={() => setClosing(true)}
-              >
-                结账
-              </Button>
-            )}
-            {p.reopenable && access['inventory:period:reopen'] && (
-              <Button
-                danger
-                icon={<UnlockOutlined />}
-                onClick={() => setReopening(true)}
-              >
-                反结账
-              </Button>
-            )}
             <Button
-              icon={<DownloadOutlined />}
+              type="text"
+              icon={<Download size="1em" />}
+              style={{ color: palette.link }}
               loading={exporting}
               onClick={async () => {
                 setExporting(true);
@@ -527,6 +517,30 @@ const PeriodDetail: React.FC = () => {
             >
               导出 Excel
             </Button>
+            {/* 反结账收进「更多」 */}
+            <MoreActions
+              items={[
+                p.reopenable &&
+                  access['inventory:period:reopen'] && {
+                    key: 'reopen',
+                    label: '反结账',
+                    icon: <LockOpen size={16} />,
+                    danger: true,
+                  },
+              ]}
+              onClick={() => setReopening(true)}
+            />
+            {!closed && access['inventory:period:close'] && (
+              <Button
+                type="primary"
+                icon={<Lock size="1em" />}
+                disabled={!p.closable}
+                title={p.closable ? undefined : p.closeBlock}
+                onClick={() => setClosing(true)}
+              >
+                结账
+              </Button>
+            )}
           </>
         }
       />
@@ -539,7 +553,8 @@ const PeriodDetail: React.FC = () => {
                 key={r}
                 style={{ color: palette.sub, fontSize: 13, marginTop: 4 }}
               >
-                <InfoCircleOutlined
+                <Info
+                  size="1em"
                   style={{ color: palette.orange, marginRight: 6 }}
                 />
                 {r}
@@ -549,7 +564,7 @@ const PeriodDetail: React.FC = () => {
         )}
       </Card>
       <Card style={{ padding: '4px 20px 20px' }}>
-        <Tabs
+        <Tabs // lint-ui-ignore page-tabs: 期间详情卡片里的分区页签
           activeKey={tab}
           onChange={setTab}
           items={[

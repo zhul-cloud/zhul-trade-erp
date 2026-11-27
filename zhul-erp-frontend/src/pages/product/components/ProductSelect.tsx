@@ -70,7 +70,10 @@ export const ProductSelect: React.FC<{
     () =>
       options.map((o) => ({
         value: o.id,
-        label: `${o.mpnDisplay} · ${o.brandName}${o.categoryName ? ` · ${o.categoryName}` : ''}`,
+        // 品牌、品类可能为空（未定品牌的商品），空的不拼，避免显示 undefined
+        label: [o.mpnDisplay, o.brandName, o.categoryName]
+          .filter(Boolean)
+          .join(' · '),
         candidate: !!o.candidate,
       })),
     [options],

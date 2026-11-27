@@ -18,8 +18,6 @@ jest.mock('@umijs/max', () => ({
   useAccess: () => ({}),
   useModel: () => ({ initialState: {} }),
 }));
-// 销售跟进的样式文件在模块顶层写 JSX，测试环境用不到箭头，直接替换
-jest.mock('@/pages/sales/followup/FlowChain', () => ({ Arrow: () => null }));
 jest.mock('./components', () => ({
   ...jest.requireActual('./components'),
   useOptions: () => ({

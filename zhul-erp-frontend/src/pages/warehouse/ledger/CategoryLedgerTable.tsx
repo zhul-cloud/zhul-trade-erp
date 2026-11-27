@@ -1,7 +1,8 @@
-import { RightOutlined } from '@ant-design/icons';
 import type { TableColumnsType } from 'antd';
 import { Table } from 'antd';
+import { ChevronRight } from 'lucide-react';
 import React from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { SignedMoney } from '@/pages/finance/costingParts';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
@@ -116,7 +117,10 @@ export const CategoryLedgerTable: React.FC<{
       width: 40,
       align: 'right',
       render: () => (
-        <RightOutlined style={{ color: palette.mute, fontSize: 12 }} />
+        <ChevronRight
+          size="1em"
+          style={{ color: palette.mute, fontSize: 12 }}
+        />
       ),
     },
   ];
@@ -125,13 +129,12 @@ export const CategoryLedgerTable: React.FC<{
   return (
     <Table<CategoryLedgerRow>
       rowKey={(r) => String(r.categoryId)}
-      size="middle"
       loading={loading}
       columns={columns}
       dataSource={data?.rows ?? []}
       pagination={false}
       scroll={{ x: tableScrollX(columns) }}
-      locale={{ emptyText: '这个月没有库存' }}
+      locale={{ emptyText: tableEmpty('这个月没有库存', loading) }}
       onRow={(r) => ({
         onClick: () => onPick(r.categoryId ?? 0),
         style: { cursor: 'pointer' },

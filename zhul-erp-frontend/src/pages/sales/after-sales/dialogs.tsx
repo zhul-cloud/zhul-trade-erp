@@ -1,4 +1,3 @@
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import {
   App,
   Button,
@@ -12,7 +11,9 @@ import {
   Space,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Plus, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { Callout } from '@/components/Callout';
 import {
   DICT_REFUND_REASON,
   REFUND_METHODS,
@@ -451,7 +452,7 @@ export const CreateAfterSalesModal: React.FC<{
                 {mode === 'none' && lines.length > 1 && (
                   <Button
                     type="text"
-                    icon={<DeleteOutlined />}
+                    icon={<Trash2 size="1em" />}
                     aria-label="删除这一行"
                     onClick={() =>
                       setLines((s) => s.filter((x) => x.key !== l.key))
@@ -464,7 +465,7 @@ export const CreateAfterSalesModal: React.FC<{
           {mode === 'none' && (
             <Button
               type="dashed"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               style={{ marginTop: 8 }}
               onClick={() =>
                 setLines((s) => [...s, { key: Date.now(), quantity: 1 }])
@@ -982,7 +983,7 @@ export const RefundRequestModal: React.FC<{
                     borderRadius: 12,
                     cursor: disabled ? 'not-allowed' : 'pointer',
                     opacity: disabled ? 0.45 : 1,
-                    background: on ? palette.accentSoft : palette.inset,
+                    background: on ? palette.primarySoft : palette.inset,
                     border: `${on ? 1.5 : 1}px solid ${on ? palette.link : palette.hairline}`,
                     color: palette.ink,
                     font: 'inherit',
@@ -1139,21 +1140,13 @@ export const ReplacementModal: React.FC<{
       destroyOnHidden
     >
       <Space orientation="vertical" size={14} style={{ width: '100%' }}>
-        <div
-          style={{
-            padding: '10px 14px',
-            borderRadius: 12,
-            background: palette.accentSoft,
-            fontSize: 13,
-            color: palette.sub,
-          }}
-        >
-          <b style={{ color: palette.link }}>生成一张 0 元的售后补发订单</b>
+        <Callout>
+          <b style={{ color: palette.ink }}>生成一张 0 元的售后补发订单</b>
           <div>
             客户、币种、事业部、业务员取原订单；不出
             PI、不收款，照常生成采购需求走采购和出运。补发的成本计入原订单。
           </div>
-        </div>
+        </Callout>
         <div
           style={{
             display: 'grid',
@@ -1252,7 +1245,7 @@ export const ReplacementModal: React.FC<{
               <Button
                 type="text"
                 size="small"
-                icon={<DeleteOutlined />}
+                icon={<Trash2 size="1em" />}
                 aria-label="删除配件"
                 onClick={() =>
                   setRows((rs) => rs.filter((x) => x.key !== r.key))
@@ -1263,7 +1256,7 @@ export const ReplacementModal: React.FC<{
         ))}
         <Button
           type="link"
-          icon={<PlusOutlined />}
+          icon={<Plus size="1em" />}
           style={{ padding: 0 }}
           onClick={() =>
             setRows((rs) => [
@@ -1299,7 +1292,7 @@ export const ReplacementModal: React.FC<{
             <span style={{ color: palette.sub }}>申报货值（CI / PL 用）</span>
             <b>{formatAmount(declaredTotal, cur)}</b>
           </div>
-          <div style={{ color: palette.cyan, fontWeight: 600 }}>
+          <div style={{ color: palette.info, fontWeight: 600 }}>
             出运单据注明 Free of charge replacement, no commercial value
           </div>
         </div>
@@ -1307,7 +1300,7 @@ export const ReplacementModal: React.FC<{
           value={remark}
           maxLength={300}
           onChange={(e) => setRemark(e.target.value)}
-          placeholder="说明（选填），如 换新 1 台伺服电机，随货补寄编码器线缆"
+          placeholder="选填，如 换新 1 台伺服电机"
           aria-label="补发说明"
         />
       </Space>

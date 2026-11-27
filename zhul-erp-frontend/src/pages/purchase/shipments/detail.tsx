@@ -1,6 +1,7 @@
 import { history, Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table } from 'antd';
+import { App, Button, Dropdown, Skeleton, Table } from 'antd';
+import { CircleX, Ellipsis, PackageCheck, Pencil } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
   docBrandColumns,
@@ -13,6 +14,7 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -25,7 +27,6 @@ import {
   ShipStatusPill,
   trackingText,
   WAREHOUSE_PATHS,
-  WarehousePageTitle,
 } from '@/pages/warehouse/components';
 import { AcceptDrawer } from '@/pages/warehouse/receipts/dialogs';
 import {
@@ -36,7 +37,7 @@ import {
 } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
+import { tableScrollX } from '@/utils/tableScroll';
 import ShipmentDrawer from './ShipmentDrawer';
 
 /** 发货单详情（spec purchase/supplier-shipment）：在途时可改、可作废、可验收入库 */
@@ -87,13 +88,20 @@ const ShipmentDetailPage: React.FC = () => {
     },
     {
       title: '订单数量',
+      align: 'right' as const,
       dataIndex: 'orderQty',
       width: 90,
       render: (v?: number) => v ?? '—',
     },
-    { title: '本次发货', dataIndex: 'quantity', width: 90 },
+    {
+      title: '本次发货',
+      align: 'right' as const,
+      dataIndex: 'quantity',
+      width: 90,
+    },
     {
       title: '已入库',
+      align: 'right' as const,
       dataIndex: 'receivedQty',
       width: 80,
       render: (v?: number) => v ?? 0,
@@ -102,18 +110,10 @@ const ShipmentDetailPage: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle
-        crumbs={[
-          <MenuLink key="list" to={WAREHOUSE_PATHS.shipments} />,
-          s.sdNo,
-        ]}
-        title={
-          <>
-            {s.sdNo}
-            <ShipStatusPill value={s.status}>{s.statusName}</ShipStatusPill>
-          </>
-        }
-        description={
+      <PageHeader
+        title={s.sdNo}
+        tags={<ShipStatusPill value={s.status}>{s.statusName}</ShipStatusPill>}
+        sub={
           <>
             {s.supplierName ?? '—'} ·{' '}
             <SourceNos
@@ -124,19 +124,50 @@ const ShipmentDetailPage: React.FC = () => {
             {formatDateTime(s.createTime).slice(0, 16)} 创建
           </>
         }
-        actions={
+        // 页头操作（照销售订单详情）：验收入库为主按钮，修改为文字按钮，作废收进「更多」
+        extra={
           inTransit && (
             <>
               {canShip && !s.logisticsId && (
-                <Button danger onClick={() => setDialog('void')}>
-                  作废
+                <Button
+                  type="text"
+                  icon={<Pencil size={16} />}
+                  style={{ color: palette.link }}
+                  onClick={() => setDialog('edit')}
+                >
+                  修改
                 </Button>
               )}
               {canShip && !s.logisticsId && (
-                <Button onClick={() => setDialog('edit')}>修改</Button>
+                <Dropdown
+                  trigger={['click']}
+                  placement="bottomRight"
+                  menu={{
+                    items: [
+                      {
+                        key: 'void',
+                        icon: <CircleX size={16} />,
+                        label: '作废',
+                        danger: true,
+                      },
+                    ],
+                    onClick: () => setDialog('void'),
+                  }}
+                >
+                  <Button
+                    type="text"
+                    shape="circle"
+                    icon={<Ellipsis size={18} />}
+                    aria-label="更多操作"
+                  />
+                </Dropdown>
               )}
               {canReceive && !s.directForwarderId && (
-                <Button type="primary" onClick={() => setDialog('accept')}>
+                <Button
+                  type="primary"
+                  icon={<PackageCheck size={16} />}
+                  onClick={() => setDialog('accept')}
+                >
                   验收入库
                 </Button>
               )}
@@ -182,46 +213,47 @@ const ShipmentDetailPage: React.FC = () => {
               { label: '作废原因', value: s.voidReason, hidden: !voided },
             ]}
           />
-          <Card style={{ padding: 20, marginBottom: 16 }}>
-            <SectionTitle>
-              明细
-              <span
-                style={{
-                  color: palette.mute,
-                  fontSize: 13,
-                  fontWeight: 400,
-                  marginLeft: 8,
-                }}
-              >
-                {s.items.length} 个型号 · {totalQty} 件
-              </span>
-            </SectionTitle>
-            <Table<ShipmentItem>
-              rowKey="id"
-              size="middle"
-              pagination={false}
-              columns={columns}
-              dataSource={s.items}
-              scroll={{ x: 'max-content' }}
-            />
-          </Card>
-          <DocFilesCard
-            ownerType="SHIPMENT"
-            files={d.attachments}
-            remark={s.note}
-            editable={!voided && !!access.purchaseShipments}
-            filesEditable={inTransit && canShip}
-            onAttach={(ids) => shipmentApi.attach(s.id, ids)}
-            onRemove={(fid) => shipmentApi.removeAttachment(s.id, fid)}
-            onRemark={(text) => shipmentApi.remark(s.id, text)}
-            onChanged={load}
-          />
         </div>
         <div style={{ minWidth: 0 }}>
           <RelatedDocsCard docs={relatedRows(d.related)} />
           <DocLogCard logs={d.logs} />
         </div>
       </div>
+      {/* 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18） */}
+      <Card style={{ padding: 20, marginBottom: 16 }}>
+        <SectionTitle>
+          明细
+          <span
+            style={{
+              color: palette.mute,
+              fontSize: 13,
+              fontWeight: 400,
+              marginLeft: 8,
+            }}
+          >
+            {s.items.length} 个型号 · {totalQty} 件
+          </span>
+        </SectionTitle>
+        <Table<ShipmentItem>
+          rowKey="id"
+          size="middle"
+          pagination={false}
+          columns={columns}
+          dataSource={s.items}
+          scroll={{ x: tableScrollX(columns) }}
+        />
+      </Card>
+      <DocFilesCard
+        ownerType="SHIPMENT"
+        files={d.attachments}
+        remark={s.note}
+        editable={!voided && !!access.purchaseShipments}
+        filesEditable={inTransit && canShip}
+        onAttach={(ids) => shipmentApi.attach(s.id, ids)}
+        onRemove={(fid) => shipmentApi.removeAttachment(s.id, fid)}
+        onRemark={(text) => shipmentApi.remark(s.id, text)}
+        onChanged={load}
+      />
       <ShipmentDrawer
         open={dialog === 'edit'}
         shipmentId={s.id}

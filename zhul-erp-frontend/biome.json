@@ -23,7 +23,9 @@
       "!biome.json",
       "!tailwind.css",
       "!package-lock.json",
-      "!**/.worktrees"
+      "!**/.worktrees",
+      "!**/.claude/skills",
+      "!**/.agents/skills"
     ]
   },
   "formatter": {

@@ -1,9 +1,10 @@
-import { StarFilled } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { Tooltip } from 'antd';
 import dayjs from 'dayjs';
+import { Star } from 'lucide-react';
 import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
+import { textOn } from '@/theme/palette';
 import { formatDateTime } from '@/utils/format';
 import { type FieldSource, GRADE_NAMES, SOURCE } from './service';
 
@@ -21,13 +22,18 @@ export const Stars: React.FC<{ value?: number }> = ({ value }) => {
         padding: '0 8px',
         borderRadius: 8,
         background: palette.orangeSoft,
-        color: '#FBBF24',
+        color: palette.orange,
         fontWeight: 700,
         fontSize: 12,
         whiteSpace: 'nowrap',
       }}
     >
-      <StarFilled /> {value} / 5
+      <Star
+        size="1em"
+        fill="currentColor"
+        style={{ color: palette.orangeMain }}
+      />{' '}
+      {value} / 5
     </span>
   );
 };
@@ -40,11 +46,12 @@ export const GradeBadge: React.FC<{
 }> = ({ value, adjusted, size = 'small' }) => {
   const { palette } = useAppTheme();
   if (!value) return <span style={{ color: palette.mute }}>未成交</span>;
+  // 等级有高低、无好坏：S、A 用主题色深浅，B、C 中性（2026-11-26 用户确认，复审 9.1 第二轮待定 B）；不用红色，以免读成风险
   const tone =
     value === 1
-      ? { fg: palette.red, bg: palette.redSoft }
+      ? { fg: textOn(palette.chart), bg: palette.chart }
       : value === 2
-        ? { fg: palette.link, bg: palette.accentSoft }
+        ? { fg: palette.ink, bg: palette.chartSoft }
         : { fg: palette.sub, bg: palette.inset };
   const box = size === 'large' ? 34 : 24;
   return (
@@ -65,7 +72,7 @@ export const GradeBadge: React.FC<{
         {GRADE_NAMES[value]}
       </span>
       {adjusted && (
-        <span style={{ fontSize: 11, color: palette.violet }}>已调整</span>
+        <span style={{ fontSize: 11, color: palette.info }}>已调整</span>
       )}
     </span>
   );
@@ -90,7 +97,8 @@ export const Progress5: React.FC<{ mask: number; width?: number }> = ({
             width: width / 5 - 3,
             height: 6,
             borderRadius: 3,
-            background: mask & (1 << i) ? palette.green : palette.hairline,
+            // 进度只用主题色（全站进度条规则），不换颜色
+            background: mask & (1 << i) ? palette.chart : palette.inset,
           }}
         />
       ))}
@@ -126,9 +134,9 @@ export const SourceTag: React.FC<{
             : `人工${source?.operatorName ? ` · ${source.operatorName}` : ''}`);
   const color =
     system || s === SOURCE.SYSTEM
-      ? palette.cyan
+      ? palette.info
       : s === SOURCE.REPORT
-        ? palette.violet
+        ? palette.info
         : s === SOURCE.FOLLOWUP
           ? palette.link
           : palette.mute;
@@ -251,7 +259,7 @@ export const Chip: React.FC<{ children: React.ReactNode; count?: number }> = ({
       }}
     >
       {children}
-      {count != null && <span style={{ color: palette.cyan }}>{count}</span>}
+      {count != null && <span style={{ color: palette.info }}>{count}</span>}
     </span>
   );
 };

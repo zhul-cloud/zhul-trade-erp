@@ -1,10 +1,7 @@
-import {
-  CheckCircleOutlined,
-  LoadingOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { Progress } from 'antd';
+import { CircleCheck, LoaderCircle, TriangleAlert } from 'lucide-react';
 import React from 'react';
+import { MetricGrid } from '@/components/MetricCard';
 import { Pill } from '@/pages/crm/opportunity/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import type { UnparsedPart } from '../shared/service';
@@ -48,7 +45,7 @@ export const ParseProgressCard: React.FC<{
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <Pill tone="accent">解析中</Pill>
+        <Pill tone="info">解析中</Pill>
         <span style={{ color: palette.ink, fontSize: 16, fontWeight: 600 }}>
           {reading ? '正在读取附件' : `已解析 ${done} / ${total} 批`}
         </span>
@@ -56,19 +53,17 @@ export const ParseProgressCard: React.FC<{
       <Progress
         percent={reading || !total ? 0 : Math.floor((done / total) * 100)}
         showInfo={false}
-        strokeColor={{ from: '#3B82F6', to: '#22D3EE' }}
+        strokeColor={palette.chart}
         style={{ margin: '10px 0 4px' }}
       />
       <div style={{ color: palette.sub, fontSize: 13 }}>
         附件较大，正在分批解析。可以先离开页面，完成后变为「待确认」。
       </div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-          gap: 10,
-          marginTop: 14,
-        }}
+      <MetricGrid
+        cols={STAGES.length}
+        min={140}
+        gap={10}
+        style={{ marginTop: 14 }}
       >
         {STAGES.map((s, i) => {
           const state =
@@ -96,12 +91,15 @@ export const ParseProgressCard: React.FC<{
               }}
             >
               {state === 'done' && (
-                <CheckCircleOutlined
+                <CircleCheck
+                  size="1em"
                   style={{ color: palette.green, fontSize: 18 }}
                 />
               )}
               {state === 'active' && (
-                <LoadingOutlined
+                <LoaderCircle
+                  size="1em"
+                  className="zhul-spin"
                   style={{ color: palette.link, fontSize: 18 }}
                 />
               )}
@@ -130,7 +128,7 @@ export const ParseProgressCard: React.FC<{
             </div>
           );
         })}
-      </div>
+      </MetricGrid>
       <div style={{ color: palette.mute, fontSize: 12, marginTop: 12 }}>
         长时间没有进展或总时长超限时，会判为解析失败，可以重新解析。
       </div>
@@ -158,7 +156,10 @@ export const UnparsedAlert: React.FC<{ parts?: UnparsedPart[] }> = ({
       }}
     >
       <div style={{ color: palette.ink, fontWeight: 600 }}>
-        <WarningOutlined style={{ color: palette.orange, marginRight: 8 }} />
+        <TriangleAlert
+          size="1em"
+          style={{ color: palette.orange, marginRight: 8 }}
+        />
         {parts.length} 处内容未能解析，请手动补充
       </div>
       <ul style={{ margin: '8px 0 0', paddingLeft: 22, color: palette.sub }}>

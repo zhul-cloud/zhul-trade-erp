@@ -1,37 +1,40 @@
-import {
-  CheckCircleOutlined,
-  DownloadOutlined,
-  EditOutlined,
-  LockOutlined,
-  SendOutlined,
-  WalletOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import {
-  App,
-  Button,
-  DatePicker,
-  Input,
-  Segmented,
-  Select,
-  Skeleton,
-  Switch,
-  Table,
-} from 'antd';
+import { App, Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import {
+  CircleCheck,
+  Download,
+  HandCoins,
+  Pencil,
+  ScrollText,
+  Search,
+  TriangleAlert,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
-import { CustomerSub } from '@/components/DocFields';
+import { CustomerSubLine } from '@/components/DocFields';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  HelpTip,
+  MainCard,
+  PageHeader,
+  QuickFilters,
+  SummaryBar,
+  type SummaryItem,
+  ViewTabs,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill, Stat } from '@/pages/inquiry/shared/components';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { EmptyHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useBusinessUnits } from '@/utils/businessUnit';
-import { formatAmount } from '@/utils/format';
+import { formatAmount, formatMoney } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { AdjustModal, WithdrawModal } from './CreditModals';
 import EntriesDrawer from './EntriesDrawer';
@@ -47,6 +50,54 @@ import {
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'RUB', 'CNY'];
 
+/** 帮助文字：help-texts.md「余额管理」，关键词范围以 search-scope.md 为准 */
+export const HELP = {
+  page: '客户暂存在公司的钱：售后退款转的余额、代收款、客户多付的部分。可以抵扣下一张 PI，也可以转给客户',
+  keyword: '可搜：客户显示名（不区分大小写）',
+  occupied: '还没转订单的 PI 上的抵扣，客户付款前不能再用',
+  monthWithdraw:
+    '本月退款日期的余额提现退款单；汇兑损益为本月登记的「汇兑损益」其他收入合计，可以为负',
+  recon:
+    '「抵扣」= 本月占用 − 本月释放。默认月份为上月；导出的 Excel 与页面一致，用于月末和银行流水、支付宝转账记录核对',
+} as const;
+
+/** 原统计卡片改为汇总行（stat-cards.md），口径不变：可用余额取前两个币种 */
+const summaryItems = (s: CreditSummary): SummaryItem[] => [
+  ...(s.currencies.length
+    ? s.currencies
+    : [{ currencyCode: 'USD', amount: 0, amountCny: 0, count: 0 }]
+  )
+    .slice(0, 2)
+    .map((c) => ({
+      key: `cur-${c.currencyCode}`,
+      label: `${c.currencyCode} 可用余额`,
+      value: c.amount,
+      currency: c.currencyCode,
+      sub: `${c.count} 个客户 · 价值 ${formatAmount(c.amountCny, 'CNY')}`,
+    })),
+  {
+    key: 'occupied',
+    label: '已被 PI 占用',
+    help: HELP.occupied,
+    value: s.occupied.length
+      ? s.occupied
+          .map((o) => formatAmount(o.amount, o.currencyCode))
+          .join(' · ')
+      : '—',
+    sub: s.occupied.length
+      ? `${s.occupied.reduce((n, o) => n + o.count, 0)} 张 PI`
+      : undefined,
+  },
+  {
+    key: 'monthWithdraw',
+    label: '本月转给客户',
+    help: HELP.monthWithdraw,
+    value: s.monthWithdrawCny,
+    currency: 'CNY',
+    sub: `${s.monthWithdrawCount} 笔 · 汇兑损益 ${s.monthFxGain >= 0 ? '+' : ''}${formatAmount(s.monthFxGain, 'CNY')}`,
+  },
+];
+
 /** 财务管理 → 余额管理（spec finance/customer-credit） */
 const CreditPage: React.FC = () => {
   const { message } = App.useApp();
@@ -57,7 +108,6 @@ const CreditPage: React.FC = () => {
   const [bu] = useBusinessUnits();
   const [tab, setTab] = useState<'accounts' | 'recon'>('accounts');
   const [summary, setSummary] = useState<CreditSummary>();
-  const [keyword, setKeyword] = useState('');
   const [query, setQuery] = useState('');
   const [currency, setCurrency] = useState<string>();
   const [unitId, setUnitId] = useState<number>();
@@ -70,6 +120,11 @@ const CreditPage: React.FC = () => {
   const [withdrawing, setWithdrawing] = useState<CreditAccount>();
   const [adjusting, setAdjusting] = useState<{ account?: CreditAccount }>();
   const [version, setVersion] = useState(0);
+  const [form] = Form.useForm<{
+    keyword?: string;
+    currency?: string;
+    unitId?: number;
+  }>();
 
   const load = useCallback(async () => {
     try {
@@ -133,17 +188,15 @@ const CreditPage: React.FC = () => {
           </span>
           {a.collection && (
             <span style={{ marginLeft: 6 }}>
-              <Pill tone="violet">代收</Pill>
+              <Pill tone="gray">代收</Pill>
             </span>
           )}
-          <div style={{ fontSize: 12, color: palette.mute }}>
-            {[a.customerCountry, a.currencyCode].filter(Boolean).join(' · ')}
-          </div>
-          {a.customerContact && (
-            <div style={{ fontSize: 12, color: palette.mute }}>
-              <CustomerSub contact={a.customerContact} />
-            </div>
-          )}
+          <CustomerSubLine
+            country={a.customerCountry}
+            contact={a.customerContact}
+            extra={a.currencyCode}
+            style={{ color: palette.mute, fontSize: 12, lineHeight: '18px' }}
+          />
         </div>
       ),
     },
@@ -200,7 +253,7 @@ const CreditPage: React.FC = () => {
       dataIndex: 'availableCny',
       width: 140,
       align: 'right',
-      render: (v: number) => <span style={num}>{formatAmount(v, 'CNY')}</span>,
+      render: (v: number) => <span style={num}>{formatMoney(v)}</span>,
     },
     {
       title: '最近变动',
@@ -218,236 +271,175 @@ const CreditPage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 150,
+      width: rowActionsWidth(2),
       fixed: 'right',
       render: (_, a) => (
-        <span style={{ display: 'inline-flex', gap: 12 }}>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => setViewing(a)}
-          >
-            流水
-          </button>
-          {canWithdraw &&
-            (a.available > 0 ? (
-              <button
-                type="button"
-                className="zhul-link"
-                onClick={() => setWithdrawing(a)}
-              >
-                转给客户
-              </button>
-            ) : (
-              <span
-                style={{ color: palette.mute }}
-                title={a.occupied > 0 ? '余额都被 PI 占用' : '没有可用余额'}
-              >
-                转给客户
-              </span>
-            ))}
-        </span>
+        <RowActions
+          inline={[
+            {
+              key: 'ledger',
+              label: '流水',
+              icon: <ScrollText size={18} />,
+              onClick: () => setViewing(a),
+            },
+            canWithdraw && {
+              key: 'withdraw',
+              label: '转给客户',
+              icon: <HandCoins size={18} />,
+              disabledReason:
+                a.available > 0
+                  ? undefined
+                  : a.occupied > 0
+                    ? '余额都被 PI 占用'
+                    : '没有可用余额',
+              onClick: () => setWithdrawing(a),
+            },
+          ]}
+        />
       ),
     },
   ];
 
   const s = summary;
+  const search = () => {
+    const v = form.getFieldsValue();
+    setQuery((v.keyword ?? '').trim());
+    setCurrency(v.currency);
+    setUnitId(v.unitId);
+    setPage(1);
+  };
   const empty =
     rows !== null && rows.length === 0 && !query && !currency && !unitId;
 
   return (
     <div>
-      <PageTitle
-        description="客户暂存在公司的钱：售后退款转的余额、代收款、客户多付的部分。可以抵扣下一张 PI，也可以转给客户。"
-        actions={
+      <PageHeader
+        help={HELP.page}
+        extra={
           canAdjust && (
-            <Button icon={<EditOutlined />} onClick={() => setAdjusting({})}>
+            <Button
+              icon={<Pencil size="1em" />}
+              onClick={() => setAdjusting({})}
+            >
               手工调整
             </Button>
           )
         }
       />
-      {!s ? (
-        <Skeleton active paragraph={{ rows: 2 }} />
-      ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: 16,
-            marginBottom: 16,
-          }}
-        >
-          {(s.currencies.length
-            ? s.currencies
-            : [{ currencyCode: 'USD', amount: 0, amountCny: 0, count: 0 }]
-          )
-            .slice(0, 2)
-            .map((c) => (
-              <Stat
-                key={c.currencyCode}
-                icon={<WalletOutlined />}
-                color={palette.link}
-                soft={palette.accentSoft}
-                label={`${c.currencyCode} 可用余额`}
-                value={formatAmount(c.amount, c.currencyCode)}
-                hint={`${c.count} 个客户 · 价值 ${formatAmount(c.amountCny, 'CNY')}`}
-              />
-            ))}
-          <Stat
-            icon={<LockOutlined />}
-            color={palette.orange}
-            soft={palette.orangeSoft}
-            label="已被 PI 占用"
-            value={
-              s.occupied.length
-                ? s.occupied
-                    .map((o) => formatAmount(o.amount, o.currencyCode))
-                    .join(' · ')
-                : '—'
-            }
-            hint={
-              s.occupied.length
-                ? `${s.occupied.reduce((n, o) => n + o.count, 0)} 张 PI，客户付款前不能再用`
-                : '没有被占用的余额'
-            }
-          />
-          <Stat
-            icon={<SendOutlined />}
-            color={palette.green}
-            soft={palette.greenSoft}
-            label="本月转给客户"
-            value={formatAmount(s.monthWithdrawCny, 'CNY')}
-            hint={`${s.monthWithdrawCount} 笔 · 汇兑损益 ${s.monthFxGain >= 0 ? '+' : ''}${formatAmount(s.monthFxGain, 'CNY')}`}
-          />
-        </div>
-      )}
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          alignItems: 'center',
-          marginBottom: 14,
-          flexWrap: 'wrap',
-        }}
-      >
-        <Segmented<'accounts' | 'recon'>
-          value={tab}
-          onChange={setTab}
-          options={[
-            { value: 'accounts', label: '客户余额' },
-            { value: 'recon', label: '月度核对' },
-          ]}
-        />
-      </div>
+      {s && <SummaryBar items={summaryItems(s)} />}
+      <ViewTabs
+        activeKey={tab}
+        onChange={(k) => setTab(k as 'accounts' | 'recon')}
+        items={[
+          { key: 'accounts', label: '客户余额' },
+          { key: 'recon', label: '月度核对' },
+        ]}
+      />
       {tab === 'recon' ? (
         <ReconTab unitsEnabled={bu.enabled} units={bu.units} />
       ) : (
-        <Card>
-          <div
-            style={{
-              display: 'flex',
-              gap: 10,
-              flexWrap: 'wrap',
-              marginBottom: 14,
-              alignItems: 'center',
-            }}
-          >
-            <Input.Search
-              allowClear
-              placeholder="搜客户名称"
-              style={{ width: 240 }}
-              value={keyword}
-              onChange={(e) => {
-                setKeyword(e.target.value);
-                if (!e.target.value) setQuery('');
-              }}
-              onSearch={(v) => {
-                setQuery(v.trim());
+        <>
+          <Form form={form} component={false}>
+            <FilterCard
+              onSearch={search}
+              onReset={() => {
+                form.resetFields();
+                setQuery('');
+                setCurrency(undefined);
+                setUnitId(undefined);
+                setShowAll(false);
                 setPage(1);
-              }}
-            />
-            <Select
-              allowClear
-              placeholder="全部币种"
-              style={{ width: 130 }}
-              value={currency}
-              onChange={(v) => {
-                setCurrency(v);
-                setPage(1);
-              }}
-              options={CURRENCIES.map((c) => ({ value: c, label: c }))}
-            />
-            {bu.enabled && (
-              <Select
-                allowClear
-                placeholder="全部事业部"
-                style={{ width: 160 }}
-                value={unitId}
-                onChange={(v) => {
-                  setUnitId(v);
-                  setPage(1);
-                }}
-                options={bu.units.map((u) => ({ value: u.id, label: u.name }))}
-              />
-            )}
-            <span
-              style={{
-                marginLeft: 'auto',
-                display: 'inline-flex',
-                gap: 8,
-                alignItems: 'center',
-                fontSize: 12,
-                color: palette.sub,
               }}
             >
-              <Switch
-                size="small"
-                checked={!showAll}
+              <FilterField label="客户" span={2} help={HELP.keyword}>
+                <Form.Item name="keyword" noStyle>
+                  <Input
+                    allowClear
+                    prefix={<Search size={16} />}
+                    placeholder="客户名称"
+                    aria-label="客户"
+                    onPressEnter={search}
+                  />
+                </Form.Item>
+              </FilterField>
+              <FilterField label="币种">
+                <Form.Item name="currency" noStyle>
+                  <Select
+                    allowClear
+                    placeholder="全部"
+                    aria-label="币种"
+                    options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+                  />
+                </Form.Item>
+              </FilterField>
+              {bu.enabled && (
+                <FilterField label="事业部">
+                  <Form.Item name="unitId" noStyle>
+                    <Select
+                      allowClear
+                      placeholder="全部"
+                      aria-label="事业部"
+                      options={bu.units.map((u) => ({
+                        value: u.id,
+                        label: u.name,
+                      }))}
+                    />
+                  </Form.Item>
+                </FilterField>
+              )}
+            </FilterCard>
+          </Form>
+          <MainCard
+            left={
+              <>
+                {`共 ${total} 条`}
+                <HelpTip
+                  title={`每行是一个余额账户（客户 + 币种${bu.enabled ? ' + 事业部' : ''}），审计信息在流水里。「PI 占用中」是还没转订单的 PI 上的抵扣，已从可用余额扣除，关闭 PI 后退回`}
+                />
+              </>
+            }
+            quick={
+              <QuickFilters
+                options={[{ value: 'hasBalance', label: '只看有余额的' }]}
+                value={showAll ? [] : ['hasBalance']}
                 onChange={(v) => {
-                  setShowAll(!v);
+                  setShowAll(v.length === 0);
                   setPage(1);
                 }}
               />
-              只看有余额的
-            </span>
-          </div>
-          {empty ? (
-            <EmptyHint
-              title="还没有客户余额"
-              description="售后退款选「转客户余额」、PI 上的代收款收齐、或处理客户多付后，余额会出现在这里。"
-              actionText={canAdjust ? '录入旧系统余额' : undefined}
-              onAction={canAdjust ? () => setAdjusting({}) : undefined}
-            />
-          ) : (
-            <Table<CreditAccount>
-              rowKey={(a) =>
-                `${a.customerId}-${a.currencyCode}-${a.businessUnitId ?? 0}`
-              }
-              loading={rows === null}
-              columns={columns}
-              dataSource={rows ?? []}
-              scroll={{ x: tableScrollX(columns) }}
-              onRow={(a) => ({ onDoubleClick: () => setViewing(a) })}
-              pagination={{
-                current: page,
-                pageSize,
-                total,
-                showSizeChanger: true,
-                showTotal: (t) => `共 ${t} 条`,
-                onChange: (p, size) => {
-                  setPage(p);
-                  setPageSize(size);
-                },
-              }}
-            />
-          )}
-          <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-            每行是一个余额账户（客户 + 币种{bu.enabled ? ' + 事业部' : ''}
-            ），审计信息在流水里。「PI 占用中」是还没转订单的 PI
-            上的抵扣，已从可用余额扣除，关闭 PI 后退回。
-          </div>
-        </Card>
+            }
+          >
+            {empty ? (
+              <EmptyHint
+                title="还没有客户余额"
+                description="售后退款选「转客户余额」、PI 上的代收款收齐、或处理客户多付后，余额会出现在这里。"
+                actionText={canAdjust ? '录入旧系统余额' : undefined}
+                onAction={canAdjust ? () => setAdjusting({}) : undefined}
+              />
+            ) : (
+              <Table<CreditAccount>
+                rowKey={(a) =>
+                  `${a.customerId}-${a.currencyCode}-${a.businessUnitId ?? 0}`
+                }
+                loading={rows === null}
+                columns={columns}
+                dataSource={rows ?? []}
+                scroll={{ x: tableScrollX(columns) }}
+                onRow={(a) => ({ onDoubleClick: () => setViewing(a) })}
+                pagination={{
+                  ...PAGER_STYLE,
+                  current: page,
+                  pageSize,
+                  total,
+                  onChange: (p, size) => {
+                    setPage(p);
+                    setPageSize(size);
+                  },
+                }}
+              />
+            )}
+          </MainCard>
+        </>
       )}
       <EntriesDrawer
         open={!!viewing}
@@ -489,6 +481,13 @@ const CreditPage: React.FC = () => {
   );
 };
 
+/** 月度核对默认看上月的 USD、全部事业部 */
+const reconDefaults = (): {
+  month: Dayjs;
+  currency: string;
+  unitId?: number;
+} => ({ month: dayjs().subtract(1, 'month'), currency: 'USD' });
+
 /** 月度核对：期初 + 转入 − 抵扣 − 提现 = 期末，每格上面原币、下面人民币 */
 export const ReconTab: React.FC<{
   unitsEnabled: boolean;
@@ -496,9 +495,11 @@ export const ReconTab: React.FC<{
 }> = ({ unitsEnabled, units }) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
-  const [month, setMonth] = useState<Dayjs>(dayjs().subtract(1, 'month'));
+  const [month, setMonth] = useState<Dayjs>(() => reconDefaults().month);
   const [currency, setCurrency] = useState('USD');
   const [unitId, setUnitId] = useState<number>();
+  /** 搜索区里还没点「查询」的条件 */
+  const [draft, setDraft] = useState(reconDefaults);
   const [data, setData] = useState<Recon | null>(null);
   const [exporting, setExporting] = useState(false);
 
@@ -564,109 +565,136 @@ export const ReconTab: React.FC<{
   ];
 
   return (
-    <Card>
-      <div
-        style={{
-          display: 'flex',
-          gap: 10,
-          flexWrap: 'wrap',
-          marginBottom: 14,
-          alignItems: 'center',
+    <>
+      <FilterCard
+        onSearch={() => {
+          setMonth(draft.month);
+          setCurrency(draft.currency);
+          setUnitId(draft.unitId);
         }}
-      >
-        <DatePicker
-          picker="month"
-          allowClear={false}
-          value={month}
-          disabledDate={(d) => d.isAfter(dayjs(), 'month')}
-          onChange={(d) => d && setMonth(d)}
-        />
-        <Select
-          value={currency}
-          onChange={setCurrency}
-          style={{ width: 110 }}
-          options={CURRENCIES.map((c) => ({ value: c, label: c }))}
-        />
-        {unitsEnabled && (
-          <Select
-            allowClear
-            placeholder="全部事业部"
-            style={{ width: 160 }}
-            value={unitId}
-            onChange={setUnitId}
-            options={units.map((u) => ({ value: u.id, label: u.name }))}
-          />
-        )}
-        <span style={{ marginLeft: 'auto' }} />
-        {data &&
-          (data.balanced ? (
-            <Pill tone="green">
-              <CheckCircleOutlined /> 期初 + 转入 − 抵扣 − 提现 = 期末，已平衡
-            </Pill>
-          ) : (
-            <Pill tone="red">
-              <WarningOutlined /> 合计不平衡，请联系管理员
-            </Pill>
-          ))}
-        <Button
-          icon={<DownloadOutlined />}
-          loading={exporting}
-          onClick={async () => {
-            setExporting(true);
-            try {
-              await creditApi.exportRecon(
-                month.format('YYYY-MM'),
-                currency,
-                unitId,
-              );
-            } catch (e) {
-              message.error((e as Error).message || readBizError(e).message);
-            } finally {
-              setExporting(false);
-            }
-          }}
-        >
-          导出 Excel
-        </Button>
-      </div>
-      <Table<ReconRow>
-        rowKey={(r) => `${r.customerId}-${r.businessUnitId ?? 0}`}
-        loading={!data}
-        columns={columns}
-        dataSource={data?.rows ?? []}
-        pagination={false}
-        scroll={{ x: tableScrollX(columns) }}
-        locale={{
-          emptyText: `${month.format('YYYY 年 M 月')}没有 ${currency} 余额变动`,
+        onReset={() => {
+          const d = reconDefaults();
+          setDraft(d);
+          setMonth(d.month);
+          setCurrency(d.currency);
+          setUnitId(d.unitId);
         }}
-        summary={() =>
-          data && data.rows.length > 0 ? (
-            <Table.Summary.Row style={{ background: palette.inset }}>
-              {columns.map((c, i) => (
-                <Table.Summary.Cell
-                  key={String(c.key ?? i)}
-                  index={i}
-                  align={i === 0 ? 'left' : 'right'}
-                >
-                  {i === 0 ? (
-                    <b>合计</b>
-                  ) : unitsEnabled && i === 1 ? null : (
-                    cell(
-                      data.total[(c as { key: keyof ReconRow }).key] as Pair,
-                      true,
-                    )
-                  )}
-                </Table.Summary.Cell>
-              ))}
-            </Table.Summary.Row>
-          ) : null
+        moreCount={unitsEnabled && unitId != null ? 1 : 0}
+        more={
+          unitsEnabled ? (
+            <FilterField label="事业部">
+              <Select
+                allowClear
+                placeholder="全部"
+                aria-label="事业部"
+                value={draft.unitId}
+                onChange={(v) => setDraft({ ...draft, unitId: v })}
+                options={units.map((u) => ({ value: u.id, label: u.name }))}
+              />
+            </FilterField>
+          ) : undefined
         }
-      />
-      <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-        「抵扣」= 本月占用 − 本月释放。默认月份为上月；导出的 Excel
-        与页面一致，用于月末和银行流水、支付宝转账记录核对。
-      </div>
-    </Card>
+      >
+        <FilterField label="月份">
+          <DatePicker
+            picker="month"
+            allowClear={false}
+            aria-label="月份"
+            style={{ width: '100%' }}
+            value={draft.month}
+            disabledDate={(d) => d.isAfter(dayjs(), 'month')}
+            onChange={(d) => d && setDraft({ ...draft, month: d })}
+          />
+        </FilterField>
+        <FilterField label="币种">
+          <Select
+            aria-label="币种"
+            value={draft.currency}
+            onChange={(v) => setDraft({ ...draft, currency: v })}
+            options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard
+        left={
+          <>
+            {data &&
+              (data.balanced ? (
+                <Pill tone="green">
+                  <CircleCheck size="1em" /> 期初 + 转入 − 抵扣 − 提现 =
+                  期末，已平衡
+                </Pill>
+              ) : (
+                <Pill tone="red">
+                  <TriangleAlert size="1em" /> 合计不平衡，请联系管理员
+                </Pill>
+              ))}
+            <HelpTip title={HELP.recon} />
+          </>
+        }
+        right={
+          <Button
+            type="text"
+            icon={<Download size="1em" />}
+            style={{ color: palette.link }}
+            loading={exporting}
+            onClick={async () => {
+              setExporting(true);
+              try {
+                await creditApi.exportRecon(
+                  month.format('YYYY-MM'),
+                  currency,
+                  unitId,
+                );
+              } catch (e) {
+                message.error((e as Error).message || readBizError(e).message);
+              } finally {
+                setExporting(false);
+              }
+            }}
+          >
+            导出 Excel
+          </Button>
+        }
+      >
+        <Table<ReconRow>
+          rowKey={(r) => `${r.customerId}-${r.businessUnitId ?? 0}`}
+          loading={!data}
+          columns={columns}
+          dataSource={data?.rows ?? []}
+          pagination={false}
+          scroll={{ x: tableScrollX(columns) }}
+          locale={{
+            emptyText: tableEmpty(
+              `${month.format('YYYY 年 M 月')}没有 ${currency} 余额变动`,
+              !data,
+            ),
+          }}
+          summary={() =>
+            data && data.rows.length > 0 ? (
+              <Table.Summary.Row style={{ background: palette.inset }}>
+                {columns.map((c, i) => (
+                  <Table.Summary.Cell
+                    key={String(c.key ?? i)}
+                    index={i}
+                    align={i === 0 ? 'left' : 'right'}
+                  >
+                    {i === 0 ? (
+                      <b>合计</b>
+                    ) : unitsEnabled && i === 1 ? null : (
+                      cell(
+                        data.total[(c as { key: keyof ReconRow }).key] as Pair,
+                        true,
+                      )
+                    )}
+                  </Table.Summary.Cell>
+                ))}
+              </Table.Summary.Row>
+            ) : null
+          }
+        />
+      </MainCard>
+    </>
   );
 };
 

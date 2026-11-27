@@ -1,5 +1,6 @@
 import { useAccess, useParams } from '@umijs/max';
 import { App, Button, Skeleton } from 'antd';
+import { CircleX, Pencil } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   DocLogCard,
@@ -7,19 +8,16 @@ import {
   RelatedDocsCard,
 } from '@/components/DocFields/DocPage';
 import { DocFilesCard } from '@/components/DocFiles';
+import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import {
-  MigratedPill,
-  PageTitle,
-  Pill,
-  useWide,
-} from '@/pages/inquiry/shared/components';
+import { UserName } from '@/components/UserName';
+import { MigratedPill, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/sales/service';
 import { ReasonModal, relatedRows } from '@/pages/warehouse/components';
+import { useAppTheme } from '@/theme/AppTheme';
 import { UnitPill, useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
 import { IncomeModal } from './index';
 import { incomeApi, type OtherIncome } from './service';
 
@@ -27,6 +25,7 @@ import { incomeApi, type OtherIncome } from './service';
 const OtherIncomeDetail: React.FC = () => {
   const id = Number(useParams<{ id: string }>().id);
   const { message } = App.useApp();
+  const { palette } = useAppTheme();
   const access = useAccess() as Record<string, boolean>;
   const wide = useWide();
   const [bu] = useBusinessUnits();
@@ -61,34 +60,45 @@ const OtherIncomeDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[
-          <MenuLink key="list" to="/finance/other-incomes" />,
-          x.incomeNo,
-        ]}
-        title={
+      <PageHeader
+        title={x.incomeNo}
+        tags={
           <>
-            {x.incomeNo}
             <Pill tone={valid ? 'green' : 'mute'}>
               {valid ? '有效' : '已作废'}
             </Pill>
-            {!manual && <Pill tone="mute">系统生成</Pill>}
             {x.migrated && <MigratedPill migrated />}
           </>
         }
-        description={
+        sub={
           <>
-            {x.categoryName ?? x.category} · {x.createBy ?? '—'} ·{' '}
+            {!manual && '系统生成 · '}
+            {x.categoryName ?? x.category} · <UserName value={x.createBy} /> ·{' '}
             {formatDateTime(x.createTime).slice(0, 16)} 创建
           </>
         }
-        actions={
+        extra={
           canEdit && (
             <>
-              <Button onClick={() => setEditing(true)}>修改</Button>
-              <Button danger onClick={() => setVoiding(true)}>
-                作废
+              <Button
+                type="text"
+                icon={<Pencil size={16} />}
+                style={{ color: palette.link }}
+                onClick={() => setEditing(true)}
+              >
+                修改
               </Button>
+              <MoreActions
+                items={[
+                  {
+                    key: 'void',
+                    label: '作废',
+                    icon: <CircleX size={16} />,
+                    danger: true,
+                  },
+                ]}
+                onClick={() => setVoiding(true)}
+              />
             </>
           )
         }

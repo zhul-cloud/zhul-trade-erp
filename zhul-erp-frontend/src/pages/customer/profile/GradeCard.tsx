@@ -1,6 +1,8 @@
 import { history } from '@umijs/max';
 import { App, Button, Form, Input, Modal, Radio, Skeleton, Table } from 'antd';
 import React, { useEffect, useState } from 'react';
+import { CopyText } from '@/components/CopyText';
+import { tableEmpty } from '@/components/EmptyState';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
@@ -267,7 +269,7 @@ export const RfmModal: React.FC<{
               fontSize: 12,
               color: hit ? palette.ink : palette.sub,
               fontWeight: hit ? 600 : 400,
-              background: hit ? palette.accentSoft : undefined,
+              background: hit ? palette.primarySoft : undefined,
             }}
           >
             <span style={{ color: hit ? palette.link : palette.mute }}>
@@ -341,8 +343,7 @@ export const RfmModal: React.FC<{
             marginTop: 16,
             padding: '12px 16px',
             borderRadius: 12,
-            background: palette.accentSoft,
-            border: `1px solid ${palette.accentLine}`,
+            background: palette.inset,
             fontSize: 13,
           }}
         >
@@ -364,11 +365,11 @@ export const RfmModal: React.FC<{
             }}
           >
             {data.adjust !== 0 && (
-              <span style={{ color: palette.violet, fontWeight: 600 }}>
+              <span style={{ color: palette.info, fontWeight: 600 }}>
                 {adjustText(data)} → 最终 {GRADE_NAMES[data.finalGrade]}
               </span>
             )}
-            <span style={{ color: palette.cyan, fontWeight: 600 }}>
+            <span style={{ color: palette.info, fontWeight: 600 }}>
               建议每 {data.followDays} 天跟进
             </span>
           </span>
@@ -388,23 +389,27 @@ export const RfmModal: React.FC<{
           rowKey="id"
           pagination={false}
           dataSource={data.orders}
-          locale={{ emptyText: '近 12 个月没有订单' }}
+          locale={{
+            emptyText: tableEmpty('近 12 个月没有订单', undefined, true),
+          }}
           columns={[
             {
               title: '订单号',
               dataIndex: 'soNo',
               render: (v, r) => (
-                <button
-                  type="button"
-                  className="zhul-link"
-                  onClick={() => {
-                    // 先关弹窗：弹窗挂在 body 上，跳页后不会随旧页面隐藏（audit UI-071）
-                    onClose();
-                    history.push(`/sales/orders/${r.id}`);
-                  }}
-                >
-                  {v}
-                </button>
+                <CopyText text={v}>
+                  <button
+                    type="button"
+                    className="zhul-link"
+                    onClick={() => {
+                      // 先关弹窗：弹窗挂在 body 上，跳页后不会随旧页面隐藏（audit UI-071）
+                      onClose();
+                      history.push(`/sales/orders/${r.id}`);
+                    }}
+                  >
+                    {v}
+                  </button>
+                </CopyText>
               ),
             },
             { title: '下单日期', dataIndex: 'salesDate' },
@@ -555,8 +560,8 @@ const GradeCard: React.FC<{
               padding: '2px 10px',
               borderRadius: 10,
               fontSize: 12,
-              color: palette.violet,
-              background: palette.violetSoft,
+              color: palette.info,
+              background: palette.infoSoft,
             }}
           >
             已调整 · 计算等级 {GRADE_NAMES[g.calc]}，{adjustText(g)}
@@ -568,7 +573,7 @@ const GradeCard: React.FC<{
               R{g.r} · F{g.f} · M{g.m} · 综合 {g.score}
             </span>
             <span
-              style={{ fontSize: 12, fontWeight: 600, color: palette.cyan }}
+              style={{ fontSize: 12, fontWeight: 600, color: palette.info }}
             >
               建议每 {g.followDays} 天跟进一次
             </span>

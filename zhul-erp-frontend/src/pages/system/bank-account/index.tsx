@@ -1,4 +1,3 @@
-import { InfoCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -10,12 +9,17 @@ import {
   Radio,
   Select,
   Skeleton,
-  Space,
   Table,
 } from 'antd';
+import { Ban, CircleCheck, Info, Pencil, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { tableEmpty } from '@/components/EmptyState';
+import { MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -250,7 +254,7 @@ const AccountModal: React.FC<{
 // ---------------------------------------------------------------- 页面
 
 const BankAccountPage: React.FC = () => {
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
   const { palette } = useAppTheme();
   const access = useAccess();
   const canEdit = !!access['system:bank-account:edit'];
@@ -316,6 +320,7 @@ const BankAccountPage: React.FC = () => {
       )
     : (rows ?? []);
 
+  const confirmDanger = useConfirmDanger();
   const columns: TableColumnsType<BankAccount> = [
     ...(bu.enabled
       ? [
@@ -349,7 +354,7 @@ const BankAccountPage: React.FC = () => {
     {
       title: '银行 · 账户名称',
       key: 'bank',
-      width: 340,
+      width: 260,
       render: (_, r) => (
         <div>
           <div style={{ fontWeight: 600, color: palette.ink }}>
@@ -387,7 +392,7 @@ const BankAccountPage: React.FC = () => {
       width: 100,
       render: (_, r) =>
         r.isDefault ? (
-          <Pill tone="accent">默认</Pill>
+          <Pill tone="gray">默认</Pill>
         ) : canEdit && r.enabled && r.accountType !== ACCOUNT_TYPE.PRIVATE ? (
           <button
             type="button"
@@ -419,68 +424,67 @@ const BankAccountPage: React.FC = () => {
       title: '操作',
       fixed: 'right',
       key: 'actions',
-      width: 120,
+      // 编辑放行内，停用、启用收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(2),
       hidden: !canEdit,
       render: (_, r) => (
-        <Space size={12}>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => {
-              setEditing(r);
-              setModalOpen(true);
-            }}
-          >
-            编辑
-          </button>
-          {r.enabled ? (
-            <button
-              type="button"
-              className="zhul-link"
-              style={{ color: palette.red }}
-              onClick={() =>
-                modal.confirm({
-                  title: `停用 ${r.bankName}？`,
-                  content:
-                    '停用后开 PI 时不能再选这个账户，已发送的 PI 不受影响。',
-                  okText: '停用',
-                  okButtonProps: { danger: true },
-                  onOk: () =>
-                    run(() => bankAccountApi.setEnabled(r.id, false), '已停用'),
-                })
-              }
-            >
-              停用
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() =>
-                run(() => bankAccountApi.setEnabled(r.id, true), '已启用')
-              }
-            >
-              启用
-            </button>
-          )}
-        </Space>
+        <RowActions
+          inline={[
+            {
+              key: 'edit',
+              label: '编辑',
+              icon: <Pencil size={18} />,
+              onClick: () => {
+                setEditing(r);
+                setModalOpen(true);
+              },
+            },
+          ]}
+          more={[
+            r.enabled
+              ? {
+                  key: 'off',
+                  label: '停用',
+                  icon: <Ban size={16} />,
+                  danger: true,
+                }
+              : { key: 'on', label: '启用', icon: <CircleCheck size={16} /> },
+          ]}
+          onMore={(key) => {
+            if (key === 'off')
+              confirmDanger({
+                title: `停用 ${r.bankName}？`,
+                content:
+                  '停用后开 PI 时不能再选这个账户，已发送的 PI 不受影响。',
+                okText: '停用',
+                onOk: () =>
+                  run(() => bankAccountApi.setEnabled(r.id, false), '已停用'),
+              });
+            if (key === 'on')
+              run(() => bankAccountApi.setEnabled(r.id, true), '已启用');
+          }}
+        />
       ),
     },
   ];
+  // 1366 宽默认列放得下：SWIFT、国家默认收进「列」，宽屏自动补回；「类型」要用来判断（对私账户不能设为默认），默认显示
+  const columnsSet = useColumnSettings('system-bank-account', columns, {
+    hidden: ['SWIFT', '国家 / 地区'],
+  });
 
   return (
     <div>
-      <PageTitle
-        description={
+      <PageHeader
+        help={
           bu.enabled
-            ? '显示在 PI 等对外单据上的收款银行信息；开 PI 时按事业部和币种带出默认账户，只能选本事业部的账户。'
-            : '显示在 PI 等对外单据上的收款银行信息；开 PI 时按币种带出默认账户。'
+            ? '显示在 PI 等对外单据上的收款银行信息；开 PI 时按事业部和币种带出默认账户，只能选本事业部的账户'
+            : '显示在 PI 等对外单据上的收款银行信息；开 PI 时按币种带出默认账户'
         }
-        actions={
+        extra={
           canEdit && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => {
                 setEditing(undefined);
                 setModalOpen(true);
@@ -494,17 +498,27 @@ const BankAccountPage: React.FC = () => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Table<BankAccount>
-          rowKey="id"
-          columns={columns}
-          dataSource={sorted}
+        <MainCard
+          count={rows?.length}
+          unit="个"
           loading={!rows}
-          pagination={false}
-          scroll={{ x: tableScrollX(columns) }}
-          locale={{
-            emptyText: '还没有收款账户：添加后开 PI 时会按币种自动带出',
-          }}
-        />
+          settings={columnsSet.settings}
+        >
+          <Table<BankAccount>
+            rowKey="id"
+            columns={columnsSet.columns}
+            dataSource={sorted}
+            loading={!rows}
+            pagination={false}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
+            locale={{
+              emptyText: tableEmpty(
+                '还没有收款账户：添加后开 PI 时会按币种自动带出',
+                !rows,
+              ),
+            }}
+          />
+        </MainCard>
       )}
       {rows && (
         <div
@@ -520,7 +534,7 @@ const BankAccountPage: React.FC = () => {
             color: palette.sub,
           }}
         >
-          <InfoCircleOutlined style={{ color: palette.link }} />
+          <Info size="1em" style={{ color: palette.link }} />
           账号在列表与日志中只显示后 4 位，PI
           上显示完整账号。停用默认账户前要先把同币种的另一个账户设为默认。单据前缀在「业务设置
           → 编号规则」设置。

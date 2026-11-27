@@ -1,14 +1,14 @@
-import {
-  ArrowRightOutlined,
-  CaretRightOutlined,
-  CheckCircleOutlined,
-  CheckOutlined,
-  CopyOutlined,
-  LoadingOutlined,
-  StarFilled,
-} from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import { App, Button, Checkbox, Select, Skeleton } from 'antd';
+import {
+  ArrowRight,
+  Check,
+  ChevronRight,
+  CircleCheck,
+  Copy,
+  LoaderCircle,
+  Star,
+} from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -16,6 +16,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { CountryText } from '@/components/CountryText';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useDictOptions } from '@/utils/dict';
@@ -97,8 +98,8 @@ const Chips: React.FC<{
             fontSize: 13,
             cursor: 'pointer',
             color: picked(o.value) ? palette.link : palette.sub,
-            background: picked(o.value) ? palette.accentSoft : 'transparent',
-            border: `1px solid ${picked(o.value) ? palette.accentLine : palette.hairline}`,
+            background: picked(o.value) ? palette.primarySoft : 'transparent',
+            border: `1px solid ${picked(o.value) ? palette.primaryLine : palette.hairline}`,
           }}
         >
           {o.label}
@@ -133,17 +134,18 @@ const Choice: React.FC<{
               height: 30,
               borderRadius: 8,
               cursor: 'pointer',
-              color: (value as number) >= n ? '#FBBF24' : palette.faint,
+              color:
+                (value as number) >= n ? palette.orangeMain : palette.faint,
               background:
                 (value as number) >= n ? palette.orangeSoft : 'transparent',
               border: `1px solid ${palette.hairline}`,
             }}
           >
-            <StarFilled />
+            <Star size="1em" fill="currentColor" />
           </button>
         ))}
         {suggestedStars ? (
-          <span style={{ fontSize: 12, color: palette.violet }}>
+          <span style={{ fontSize: 12, color: palette.info }}>
             背调建议 {suggestedStars} 星
           </span>
         ) : null}
@@ -175,15 +177,12 @@ const Choice: React.FC<{
   );
 };
 
-const STEP_TONE = ['green', 'violet', 'link', 'orange'] as const;
-
 const StepCard: React.FC<{
   step: CompletionStep;
   subtitle: React.ReactNode;
   children?: React.ReactNode;
 }> = ({ step, subtitle, children }) => {
   const { palette } = useAppTheme();
-  const tone = palette[STEP_TONE[step.step - 1]];
   const done = step.step > 1 && step.items.length === 0;
   return (
     <section
@@ -192,7 +191,7 @@ const StepCard: React.FC<{
         padding: 16,
         borderRadius: 14,
         background: palette.inset,
-        border: `1px solid ${step.step === 1 ? `${palette.green}55` : palette.hairline}`,
+        border: `1px solid ${step.step === 1 ? palette.primaryLine : palette.hairline}`,
         display: 'flex',
         flexDirection: 'column',
         gap: 12,
@@ -215,11 +214,13 @@ const StepCard: React.FC<{
             placeItems: 'center',
             fontSize: 12,
             fontWeight: 700,
-            color: '#fff',
-            background: done || step.step === 1 ? palette.green : tone,
+            // 已完成的步骤用主题色（步骤条规则），未完成的中性，不再每步一种颜色
+            color: done || step.step === 1 ? palette.onPrimary : palette.sub,
+            background:
+              done || step.step === 1 ? palette.primary : palette.neutralSoft,
           }}
         >
-          {done || step.step === 1 ? <CheckOutlined /> : step.step}
+          {done || step.step === 1 ? <Check size="1em" /> : step.step}
         </span>
         <span style={{ fontSize: 14, fontWeight: 700, color: palette.ink }}>
           {step.name}
@@ -308,15 +309,17 @@ const Queue: React.FC<{
               padding: '10px 12px',
               borderRadius: 12,
               cursor: 'pointer',
-              background: on ? palette.accentSoft : 'transparent',
-              border: `1px solid ${on ? palette.accentLine : 'transparent'}`,
+              background: on ? palette.primarySoft : 'transparent',
+              border: `1px solid ${on ? palette.primaryLine : 'transparent'}`,
               display: 'flex',
               flexDirection: 'column',
               gap: 4,
             }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {on && <CaretRightOutlined style={{ color: palette.link }} />}
+              {on && (
+                <ChevronRight size="1em" style={{ color: palette.link }} />
+              )}
               <span
                 style={{
                   flex: 1,
@@ -358,8 +361,8 @@ const Queue: React.FC<{
                   style={{
                     padding: '0 6px',
                     borderRadius: 6,
-                    color: palette.violet,
-                    background: palette.violetSoft,
+                    color: palette.info,
+                    background: palette.infoSoft,
                   }}
                 >
                   已问 {r.askedDays} 天
@@ -582,7 +585,11 @@ const Wizard: React.FC<{
           {w.name || `未填客户名称 · ${w.customerCode}`}
         </h2>
         {grade ? <GradeBadge value={grade} /> : null}
-        <span style={{ fontSize: 12, color: palette.mute }}>{w.country}</span>
+        {w.country && (
+          <span style={{ fontSize: 12, color: palette.mute }}>
+            <CountryText value={w.country} />
+          </span>
+        )}
         <span
           style={{
             marginLeft: 'auto',
@@ -679,8 +686,8 @@ const Wizard: React.FC<{
                     padding: '1px 8px',
                     borderRadius: 6,
                     fontSize: 12,
-                    color: palette.violet,
-                    background: palette.violetSoft,
+                    color: palette.info,
+                    background: palette.infoSoft,
                   }}
                 >
                   {report.reportNo}
@@ -713,7 +720,8 @@ const Wizard: React.FC<{
             </>
           ) : report?.status === STATUS.RUNNING || bg.running ? (
             <div style={{ fontSize: 13, color: palette.link }}>
-              <LoadingOutlined /> 正在背调，完成后这里会列出字段建议
+              <LoaderCircle size="1em" className="zhul-spin" />{' '}
+              正在背调，完成后这里会列出字段建议
             </div>
           ) : (
             access['partner:customer:background'] && (
@@ -796,14 +804,14 @@ const Wizard: React.FC<{
                   {i.contact && w.contactName ? ` · ${w.contactName}` : ''}
                 </span>
                 {i.askedDays != null && (
-                  <span style={{ fontSize: 12, color: palette.violet }}>
+                  <span style={{ fontSize: 12, color: palette.info }}>
                     {i.askedByName} 已问 {i.askedDays} 天
                   </span>
                 )}
                 {i.question && (
                   <Button
                     size="small"
-                    icon={<CopyOutlined />}
+                    icon={<Copy size="1em" />}
                     style={{ marginLeft: 'auto' }}
                     onClick={() => copy(i.question ?? '')}
                   >
@@ -840,7 +848,7 @@ const Wizard: React.FC<{
             {s4.copyAll && (
               <Button
                 size="small"
-                icon={<CopyOutlined />}
+                icon={<Copy size="1em" />}
                 style={{ marginLeft: 'auto' }}
                 onClick={() => copy(s4.copyAll ?? '')}
               >
@@ -877,7 +885,7 @@ const Wizard: React.FC<{
         )}
         <Button
           type="primary"
-          icon={<ArrowRightOutlined />}
+          icon={<ArrowRight size="1em" />}
           loading={saving === 'next'}
           disabled={!!saving}
           onClick={() => save(true)}
@@ -1049,7 +1057,7 @@ const CompletionTab: React.FC = () => {
             fontWeight: 600,
           }}
         >
-          <CheckCircleOutlined /> 今天已补完 {todayDone} 个客户
+          <CircleCheck size="1em" /> 今天已补完 {todayDone} 个客户
         </div>
       )}
       <div

@@ -1,6 +1,14 @@
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table } from 'antd';
+import { App, Button, Dropdown, Skeleton, Table } from 'antd';
+import {
+  CircleX,
+  Ellipsis,
+  Package,
+  Pencil,
+  RotateCcw,
+  Split,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
   docBrandColumns,
@@ -13,8 +21,9 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import { Pill, useWide } from '@/pages/inquiry/shared/components';
+import { useWide } from '@/pages/inquiry/shared/components';
 import {
   kg,
   LOGISTICS_PATHS,
@@ -31,14 +40,13 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { ShipNoticeModal } from '@/pages/sales/orders/shipNotice';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   AttachmentWall,
   Card,
   DOC_PATHS,
   ReasonModal,
   relatedRows,
-  WarehousePageTitle,
 } from '../components';
 import { HandOverModal, PackDrawer } from './dialogs';
 
@@ -122,7 +130,12 @@ const OutboundDetailPage: React.FC = () => {
         />
       ),
     },
-    { title: '数量', dataIndex: 'quantity', width: 80 },
+    {
+      title: '数量',
+      align: 'right' as const,
+      dataIndex: 'quantity',
+      width: 80,
+    },
     {
       title: '已装箱',
       dataIndex: 'packedQty',
@@ -163,22 +176,42 @@ const OutboundDetailPage: React.FC = () => {
     },
   ];
 
+  const moreItems = [
+    ...(ob.status === 1 && canNotice && ob.source === 1
+      ? [
+          {
+            key: 'withdraw',
+            icon: <CircleX size={16} />,
+            label: '撤回',
+            danger: true,
+          },
+        ]
+      : []),
+    ...(ob.status === 3 && canPack && !ob.logisticsId
+      ? [
+          {
+            key: 'undo',
+            icon: <RotateCcw size={16} />,
+            label: '撤销交快递',
+            danger: true,
+          },
+        ]
+      : []),
+  ];
+
   return (
     <div>
-      <WarehousePageTitle
-        crumbs={[
-          <MenuLink key="list" to={LOGISTICS_PATHS.outbounds} />,
-          ob.obNo,
-        ]}
-        title={
+      <PageHeader
+        title={ob.obNo}
+        tags={
           <>
-            {ob.obNo}
+            {/* 页头只放一个流程状态；属性写在说明行（ui-redesign S14） */}
             <ObStatusPill value={ob.status}>{ob.statusName}</ObStatusPill>
-            {merged && <Pill tone="orange">合并打包</Pill>}
           </>
         }
-        description={
+        sub={
           <>
+            {merged && '合并打包 · '}
             {ob.customerName ?? '—'} ·{' '}
             <SourceNos
               mode="inline"
@@ -190,30 +223,62 @@ const OutboundDetailPage: React.FC = () => {
             {formatDateTime(ob.createTime).slice(0, 16)} 创建
           </>
         }
-        actions={
+        // 页头操作（照销售订单详情）：打包或交快递为主按钮，修改通知、修改装箱、拆开为文字按钮，撤回、撤销交快递收进「更多」
+        extra={
           <>
             {ob.status === 1 && canNotice && ob.source === 1 && (
-              <>
-                <Button danger onClick={() => setDialog('withdraw')}>
-                  撤回
-                </Button>
-                <Button onClick={() => setDialog('notice')}>修改通知</Button>
-              </>
-            )}
-            {ob.status === 3 && canPack && !ob.logisticsId && (
-              <Button onClick={() => setDialog('undo')}>撤销交快递</Button>
-            )}
-            {(ob.status === 1 || ob.status === 2) && canPack && (
               <Button
-                type={ob.status === 1 ? 'primary' : 'default'}
+                type="text"
+                icon={<Pencil size={16} />}
+                style={{ color: palette.link }}
+                onClick={() => setDialog('notice')}
+              >
+                修改通知
+              </Button>
+            )}
+            {ob.status === 2 && canPack && (
+              <Button
+                type="text"
+                icon={<Package size={16} />}
+                style={{ color: palette.link }}
                 onClick={() => setDialog('pack')}
               >
-                {ob.status === 1 ? '打包' : '修改装箱'}
+                修改装箱
                 {merged && '（整组）'}
               </Button>
             )}
             {merged && ob.status === 2 && canPack && (
-              <Button onClick={() => setDialog('split')}>拆开</Button>
+              <Button
+                type="text"
+                icon={<Split size={16} />}
+                style={{ color: palette.link }}
+                onClick={() => setDialog('split')}
+              >
+                拆开
+              </Button>
+            )}
+            {moreItems.length > 0 && (
+              <Dropdown
+                trigger={['click']}
+                placement="bottomRight"
+                menu={{
+                  items: moreItems,
+                  onClick: ({ key }) => setDialog(key as 'withdraw' | 'undo'),
+                }}
+              >
+                <Button
+                  type="text"
+                  shape="circle"
+                  icon={<Ellipsis size={18} />}
+                  aria-label="更多操作"
+                />
+              </Dropdown>
+            )}
+            {ob.status === 1 && canPack && (
+              <Button type="primary" onClick={() => setDialog('pack')}>
+                打包
+                {merged && '（整组）'}
+              </Button>
             )}
             {ob.status === 2 && canPack && (
               <Button type="primary" onClick={openHandOver}>
@@ -273,12 +338,12 @@ const OutboundDetailPage: React.FC = () => {
               {
                 label: '货代',
                 value: ob.pickupLabel ? (
-                  <span
-                    style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}
-                  >
+                  <div>
                     {ob.forwarderName}
-                    <Pill tone="violet">{ob.pickupLabel}</Pill>
-                  </span>
+                    <div style={{ fontSize: 12, color: palette.mute }}>
+                      {ob.pickupLabel}
+                    </div>
+                  </div>
                 ) : (
                   ob.forwarderName
                 ),
@@ -325,7 +390,7 @@ const OutboundDetailPage: React.FC = () => {
               pagination={false}
               columns={columns}
               dataSource={ob.items}
-              scroll={{ x: 'max-content' }}
+              scroll={{ x: tableScrollX(columns) }}
             />
           </Card>
           {ob.boxes.length > 0 && (
@@ -358,7 +423,7 @@ const OutboundDetailPage: React.FC = () => {
                 pagination={false}
                 columns={boxColumns}
                 dataSource={ob.boxes}
-                scroll={{ x: 'max-content' }}
+                scroll={{ x: tableScrollX(boxColumns) }}
               />
               {(ob.packingAttachments?.length ?? 0) > 0 && (
                 <div style={{ marginTop: 16 }}>

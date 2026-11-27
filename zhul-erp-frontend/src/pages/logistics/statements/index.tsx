@@ -1,9 +1,3 @@
-import {
-  CheckOutlined,
-  DownloadOutlined,
-  InfoCircleOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -19,19 +13,30 @@ import {
   Table,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Check, ClipboardCheck, Download, Eye, Info, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { CopyText } from '@/components/CopyText';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import {
   PayablePanel,
   PayStatusPill,
 } from '@/pages/finance/payables/components';
 import { SOURCE } from '@/pages/finance/payables/service';
-import { Card, PageTitle } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { LOGISTICS_PATHS, StatementStatusPill } from '../components';
 import {
@@ -130,6 +135,7 @@ const StatementDrawer: React.FC<{
 }> = ({ id, canEdit, onClose, onChanged }) => {
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const [st, setSt] = useState<Statement>();
   const [error, setError] = useState<string>();
   const [edits, setEdits] = useState<
@@ -251,15 +257,17 @@ const StatementDrawer: React.FC<{
       dataIndex: 'shNo',
       width: 150,
       render: (v: string, l) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() =>
-            history.push(`${LOGISTICS_PATHS.shipments}/${l.logisticsId}`)
-          }
-        >
-          {v}
-        </button>
+        <CopyText text={v}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() =>
+              history.push(`${LOGISTICS_PATHS.shipments}/${l.logisticsId}`)
+            }
+          >
+            {v}
+          </button>
+        </CopyText>
       ),
     },
     { title: '出运日期', dataIndex: 'shippedDate', width: 110 },
@@ -363,7 +371,7 @@ const StatementDrawer: React.FC<{
         st && (
           <div style={{ display: 'flex', gap: 8 }}>
             <Button
-              icon={<DownloadOutlined />}
+              icon={<Download size="1em" />}
               onClick={() =>
                 statementApi
                   .export(st.id)
@@ -384,7 +392,7 @@ const StatementDrawer: React.FC<{
                 </Button>
                 <Button
                   type="primary"
-                  icon={<CheckOutlined />}
+                  icon={<Check size="1em" />}
                   loading={busy}
                   disabled={
                     !!missingNote ||
@@ -444,7 +452,7 @@ const StatementDrawer: React.FC<{
             columns={columns}
           />
           <div style={{ fontSize: 12, color: palette.mute }}>
-            <InfoCircleOutlined />{' '}
+            <Info size="1em" />{' '}
             {st.status === 2
               ? `${st.confirmedByName ?? ''} 于 ${formatDateTime(st.confirmedAt)} 确认；这些出运单已对账，运费不能再改。`
               : '确认后这些出运单标记「已对账」，有差额的按对账金额更新运费并重新分摊，运费不能再改；有差额的必须写说明。确认时生成货代应付，月结付款在「财务管理 → 应付单」登记。'}
@@ -462,11 +470,9 @@ const StatementDrawer: React.FC<{
                 danger
                 type="text"
                 onClick={() =>
-                  modal.confirm({
+                  confirmDanger({
                     title: '删除这张草稿？',
                     content: '出运单回到「未对账」，可以重新建运费账单。',
-                    okText: '删除',
-                    okButtonProps: { danger: true },
                     onOk: async () => {
                       try {
                         await statementApi.remove(st.id);
@@ -630,29 +636,38 @@ const Statements: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 80,
+      width: rowActionsWidth(1),
       fixed: 'right',
-      render: (_, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => setViewing(r.id)}
-        >
-          {r.status === 1 && canEdit ? '核对' : '查看'}
-        </button>
-      ),
+      render: (_, r) => {
+        const check = r.status === 1 && canEdit;
+        return (
+          <RowActions
+            inline={[
+              {
+                key: 'view',
+                label: check ? '核对' : '查看',
+                icon: check ? <ClipboardCheck size={18} /> : <Eye size={18} />,
+                onClick: () => setViewing(r.id),
+              },
+            ]}
+          />
+        );
+      },
     },
   ];
+  const columnsSet = useColumnSettings('logistics-statements', columns, {
+    hidden: ['出运单', '我们登记'],
+  });
 
   return (
     <div>
-      <PageTitle
-        description="按货代的月结账单逐票核对运费；有差额的确认后更新运费并重新分摊。"
-        actions={
+      <PageHeader
+        help="按货代的月结账单逐票核对运费；有差额的确认后更新运费并重新分摊"
+        extra={
           canEdit && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => setCreating(true)}
             >
               新建运费账单
@@ -660,46 +675,61 @@ const Statements: React.FC = () => {
           )
         }
       />
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-        <Select
-          allowClear
-          value={forwarderId}
-          onChange={(v) => {
-            setForwarderId(v);
-            setPage(1);
-          }}
-          placeholder="全部货代"
-          options={forwarders.map((f) => ({ value: f.id, label: f.name }))}
-          style={{ width: 200 }}
-          aria-label="货代"
-        />
-      </div>
+      <FilterCard
+        onSearch={() => load()}
+        onReset={() => {
+          setForwarderId(undefined);
+          setPage(1);
+        }}
+        minColumn={200}
+      >
+        <FilterField label="货代">
+          <Select
+            allowClear
+            value={forwarderId}
+            onChange={(v) => {
+              // 只有这一个条件，切换后立即查询
+              setForwarderId(v);
+              setPage(1);
+            }}
+            placeholder="全部"
+            options={forwarders.map((f) => ({ value: f.id, label: f.name }))}
+            aria-label="货代"
+          />
+        </FilterField>
+      </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 0 }}>
+        <MainCard
+          settings={columnsSet.settings}
+          count={total}
+          loading={loading}
+        >
           <Table<Statement>
             rowKey="id"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             locale={{
-              emptyText: '还没有运费账单；月底收到货代账单后点「新建运费账单」',
+              emptyText: tableEmpty(
+                '还没有运费账单；月底收到货代账单后点「新建运费账单」',
+                loading,
+              ),
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
-              showTotal: (t: number) => `共 ${t} 条`,
               onChange: (p: number, s: number) => {
                 setPage(p);
                 setPageSize(s);
               },
             }}
           />
-        </Card>
+        </MainCard>
       )}
       <CreateModal
         open={creating}

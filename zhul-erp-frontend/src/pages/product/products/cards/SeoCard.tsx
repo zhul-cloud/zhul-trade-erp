@@ -1,12 +1,6 @@
-import {
-  CheckOutlined,
-  DownloadOutlined,
-  DownOutlined,
-  StopOutlined,
-  UpOutlined,
-} from '@ant-design/icons';
 import XMarkdown from '@ant-design/x-markdown';
 import { history, useAccess } from '@umijs/max';
+import { Ban, Check, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import '@ant-design/x-markdown/es/XMarkdown/index.css';
 import {
   App,
@@ -16,11 +10,13 @@ import {
   Space,
   Switch,
   Table,
+  type TableColumnsType,
   Typography,
 } from 'antd';
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { tableScrollX } from '@/utils/tableScroll';
 import { LangSwitch } from '../../components/LangSwitch';
 import { Pill } from '../../components/Pills';
 import {
@@ -49,7 +45,7 @@ export const STAGES: Record<
 > = {
   1: { text: '资料待补', tone: 'gray' },
   2: { text: '资料待核', tone: 'orange' },
-  3: { text: '营销待生成', tone: 'accent' },
+  3: { text: '营销待生成', tone: 'orange' },
   4: { text: '已完成', tone: 'green' },
 };
 
@@ -127,8 +123,8 @@ const Chip: React.FC<{ label: string; state: ChipState; title: string }> = ({
         ...style,
       }}
     >
-      {state === 'done' && <CheckOutlined style={{ fontSize: 10 }} />}
-      {state === 'skip' && <StopOutlined style={{ fontSize: 10 }} />}
+      {state === 'done' && <Check size="1em" style={{ fontSize: 10 }} />}
+      {state === 'skip' && <Ban size="1em" style={{ fontSize: 10 }} />}
       {label}
     </span>
   );
@@ -237,7 +233,7 @@ export const LangChips: React.FC<{ enAt?: string; ruAt?: string }> = (
               background: done ? palette.greenSoft : palette.inset,
             }}
           >
-            {done && <CheckOutlined style={{ fontSize: 10 }} />}
+            {done && <Check size="1em" style={{ fontSize: 10 }} />}
             {label}
           </span>
         );
@@ -321,6 +317,28 @@ export const useProductContent = (productId: number) => {
   return { data, error, load };
 };
 
+/** 「资料已核」的二次确认与提交：按钮和表格行的「更多」菜单共用 */
+export const useVerifyFacts = () => {
+  const { message, modal } = App.useApp();
+  return (productId: number, label: string, onDone: () => void) =>
+    modal.confirm({
+      title: `确认「${label}」的资料已核对？`,
+      content:
+        '未核实的中文规格和应用场景会标为已核实，以后导入资料包不再覆盖它们。核对人和时间所有公司都看得到。',
+      okText: '资料已核',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await contentApi.verifyFacts(productId);
+          message.success('已标记资料已核');
+          onDone();
+        } catch (e) {
+          message.error(readBizError(e).message);
+        }
+      },
+    });
+};
+
 /** 「资料已核」：二次确认后调用，成功后刷新；表格行里用链接样式 */
 export const VerifyFactsButton: React.FC<{
   productId: number;
@@ -329,31 +347,14 @@ export const VerifyFactsButton: React.FC<{
   link?: boolean;
   onDone: () => void;
 }> = ({ productId, label, size, link, onDone }) => {
-  const { message, modal } = App.useApp();
+  const verify = useVerifyFacts();
   return (
     <Button
       size={size}
       type={link ? 'link' : 'primary'}
-      icon={link ? undefined : <CheckOutlined />}
+      icon={link ? undefined : <Check size="1em" />}
       style={link ? { padding: 0, height: 'auto' } : undefined}
-      onClick={() =>
-        modal.confirm({
-          title: `确认「${label}」的资料已核对？`,
-          content:
-            '未核实的中文规格和应用场景会标为已核实，以后导入资料包不再覆盖它们。核对人和时间所有公司都看得到。',
-          okText: '资料已核',
-          cancelText: '取消',
-          onOk: async () => {
-            try {
-              await contentApi.verifyFacts(productId);
-              message.success('已标记资料已核');
-              onDone();
-            } catch (e) {
-              message.error(readBizError(e).message);
-            }
-          },
-        })
-      }
+      onClick={() => verify(productId, label, onDone)}
     >
       资料已核
     </Button>
@@ -404,9 +405,9 @@ export const FactsStatusBar: React.FC<{
             <Pill tone="orange">
               待确认 {notes.length} 项{' '}
               {showNotes ? (
-                <UpOutlined style={{ fontSize: 10 }} />
+                <ChevronUp size="1em" style={{ fontSize: 10 }} />
               ) : (
-                <DownOutlined style={{ fontSize: 10 }} />
+                <ChevronDown size="1em" style={{ fontSize: 10 }} />
               )}
             </Pill>
           </Button>
@@ -424,7 +425,7 @@ export const FactsStatusBar: React.FC<{
             )}
             <Button
               size="small"
-              icon={<DownloadOutlined />}
+              icon={<Download size="1em" />}
               loading={downloading === 'facts'}
               onClick={() => download([productId], 'facts')}
             >
@@ -441,6 +442,35 @@ export const FactsStatusBar: React.FC<{
 /** 资料待确认项：来自资料包的「关键未知字段」「冲突与待确认」，所有公司共用，每次导入替换 */
 const FactNotes: React.FC<{ notes: FactNote[] }> = ({ notes }) => {
   const { palette } = useProductTheme();
+  const noteColumns: TableColumnsType<FactNote> = [
+    {
+      title: '类型',
+      dataIndex: 'kind',
+      width: 100,
+      render: (k: number) =>
+        k === 1 ? (
+          <Pill tone="gray">未知字段</Pill>
+        ) : (
+          <Pill tone="orange">冲突</Pill>
+        ),
+    },
+    { title: '项目', dataIndex: 'item', width: 260 },
+    {
+      title: '当前状态',
+      dataIndex: 'statusText',
+      width: 180,
+      render: (v?: string) => v || '—',
+    },
+    {
+      title: '影响 / 说明',
+      width: 240,
+      dataIndex: 'impact',
+      render: (v?: string) => (
+        <span style={{ color: palette.sub }}>{v || '—'}</span>
+      ),
+    },
+  ];
+
   return (
     <div
       style={{
@@ -458,39 +488,39 @@ const FactNotes: React.FC<{ notes: FactNote[] }> = ({ notes }) => {
         pagination={false}
         rowKey={(n) => `${n.kind}-${n.item}`}
         dataSource={notes}
-        scroll={{ x: 'max-content' }}
-        columns={[
-          {
-            title: '类型',
-            dataIndex: 'kind',
-            width: 100,
-            render: (k: number) =>
-              k === 1 ? (
-                <Pill tone="gray">未知字段</Pill>
-              ) : (
-                <Pill tone="orange">冲突</Pill>
-              ),
-          },
-          { title: '项目', dataIndex: 'item', width: 260 },
-          {
-            title: '当前状态',
-            dataIndex: 'statusText',
-            width: 180,
-            render: (v?: string) => v || '—',
-          },
-          {
-            title: '影响 / 说明',
-            width: 240,
-            dataIndex: 'impact',
-            render: (v?: string) => (
-              <span style={{ color: palette.sub }}>{v || '—'}</span>
-            ),
-          },
-        ]}
+        scroll={{ x: tableScrollX(noteColumns) }}
+        columns={noteColumns}
       />
     </div>
   );
 };
+
+/** 营销包能下载哪几份：全部启用平台、各平台、独立站俄文（下载菜单与表格行的「更多」共用） */
+export const marketingPicks = (
+  platforms: MarketingPlatform[],
+): { key: MarketingPick; name: string; file: string }[] => [
+  {
+    key: 'all',
+    name: '全部启用平台（推荐）',
+    file: platforms.includes('site')
+      ? '型号.marketing.md · 含独立站俄文'
+      : '型号.marketing.md · 一个文件',
+  },
+  ...platforms.map((p) => ({
+    key: p as MarketingPick,
+    name: PLATFORM_META[p].label,
+    file: PLATFORM_META[p].file,
+  })),
+  ...(platforms.includes('site')
+    ? [
+        {
+          key: 'site-ru' as MarketingPick,
+          name: '独立站俄文（单独重做）',
+          file: '型号.site.ru.md · 俄文',
+        },
+      ]
+    : []),
+];
 
 /** 下载营销包：第一项为全部启用平台（一个文件），其次是单个平台和独立站俄文 */
 export const MarketingDownload: React.FC<{
@@ -518,28 +548,12 @@ export const MarketingDownload: React.FC<{
       </span>
     ),
   });
+  const [all, ...rest] = marketingPicks(platforms);
   const menu = {
     items: [
-      option(
-        'all',
-        '全部启用平台（推荐）',
-        platforms.includes('site')
-          ? '型号.marketing.md · 含独立站俄文'
-          : '型号.marketing.md · 一个文件',
-      ),
+      option(all.key, all.name, all.file),
       { type: 'divider' as const },
-      ...platforms.map((p) =>
-        option(p, PLATFORM_META[p].label, PLATFORM_META[p].file),
-      ),
-      ...(platforms.includes('site')
-        ? [
-            option(
-              'site-ru',
-              '独立站俄文（单独重做）',
-              '型号.site.ru.md · 俄文',
-            ),
-          ]
-        : []),
+      ...rest.map((x) => option(x.key, x.name, x.file)),
     ],
     onClick: ({ key }: { key: string }) => onPick(key as MarketingPick),
   };
@@ -548,15 +562,17 @@ export const MarketingDownload: React.FC<{
     return (
       <Dropdown menu={menu} trigger={['click']} disabled={disabled}>
         <a>
-          {label ?? '下载营销包'} <DownOutlined style={{ fontSize: 10 }} />
+          {label ?? '下载营销包'}{' '}
+          <ChevronDown size="1em" style={{ fontSize: 10 }} />
         </a>
       </Dropdown>
     );
   }
   return (
     <Dropdown menu={menu} trigger={['click']} disabled={disabled}>
-      <Button size={size} icon={<DownloadOutlined />} loading={loading}>
-        {label ?? '下载营销包'} <DownOutlined style={{ fontSize: 10 }} />
+      <Button size={size} icon={<Download size="1em" />} loading={loading}>
+        {label ?? '下载营销包'}{' '}
+        <ChevronDown size="1em" style={{ fontSize: 10 }} />
       </Button>
     </Dropdown>
   );
@@ -587,9 +603,10 @@ const KeywordLibrary: React.FC<{ keywords: PlatformContent['keywords'] }> = ({
   const { palette } = useProductTheme();
   if (keywords.length === 0) return muted(palette);
   const tiers = [
-    { tier: 1, name: '核心', fg: palette.link, bg: palette.accentSoft },
-    { tier: 2, name: '主要', fg: palette.violet, bg: palette.violetSoft },
-    { tier: 3, name: '长尾', fg: palette.sub, bg: palette.inset },
+    // 档位是属性，不用主题色、信息色（ui-redesign S13、D42）：靠字色深浅区分
+    { tier: 1, name: '核心', fg: palette.ink, bg: palette.neutralSoft },
+    { tier: 2, name: '主要', fg: palette.sub, bg: palette.neutralSoft },
+    { tier: 3, name: '长尾', fg: palette.mute, bg: palette.inset },
   ];
   return (
     <div
@@ -623,7 +640,7 @@ const KeywordLibrary: React.FC<{ keywords: PlatformContent['keywords'] }> = ({
                     padding: '2px 8px',
                     borderRadius: 6,
                     fontSize: 12,
-                    fontWeight: 500,
+                    fontWeight: 400,
                     color: fg,
                     background: bg,
                   }}
@@ -981,7 +998,7 @@ export const OperationsSummary: React.FC<{
       }}
     >
       <b style={{ color: palette.ink }}>运营概况</b>
-      <Pill tone="violet">本公司</Pill>
+      <Pill tone="gray">本公司</Pill>
       <PlatformChips progress={data} platforms={data.platforms} />
       <span style={{ fontSize: 12, color: palette.sub }}>
         营销内容在「运营管理 → 营销任务」维护
@@ -1048,7 +1065,7 @@ export const PlatformPanel: React.FC<{
         <Space size={10}>
           <Button
             size="small"
-            icon={<DownloadOutlined />}
+            icon={<Download size="1em" />}
             loading={downloading === p}
             onClick={() => download([productId], 'marketing', [d.status], p)}
           >

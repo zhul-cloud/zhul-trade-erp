@@ -1,5 +1,5 @@
-import { CarOutlined, PlusOutlined } from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
+import { Car, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { ForwarderDrawer } from '@/pages/logistics/forwarders';
@@ -48,7 +48,7 @@ const ForwardersCard: React.FC<{
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <CarOutlined style={{ color: palette.link }} />
+        <Car size="1em" style={{ color: palette.link }} />
         <h2
           style={{
             margin: 0,
@@ -66,7 +66,7 @@ const ForwardersCard: React.FC<{
             className="zhul-link"
             onClick={() => setDrawer({ open: true })}
           >
-            <PlusOutlined /> 新增
+            <Plus size="1em" /> 新增
           </button>
         )}
       </div>
@@ -99,7 +99,7 @@ const ForwardersCard: React.FC<{
                 {f.name}
               </b>
               {f.handoverMode === 2 && (
-                <Pill tone="violet">
+                <Pill tone="gray">
                   {['上门取件', f.courierCarrier].filter(Boolean).join(' · ')}
                 </Pill>
               )}

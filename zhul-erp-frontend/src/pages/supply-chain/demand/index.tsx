@@ -1,18 +1,3 @@
-import {
-  AuditOutlined,
-  BranchesOutlined,
-  CalendarOutlined,
-  CloseCircleOutlined,
-  EditOutlined,
-  EyeOutlined,
-  MessageOutlined,
-  MoreOutlined,
-  PlusOutlined,
-  RobotOutlined,
-  SearchOutlined,
-  ShoppingCartOutlined,
-  StopOutlined,
-} from '@ant-design/icons';
 import { history, Link, useParams } from '@umijs/max';
 import {
   App,
@@ -25,15 +10,27 @@ import {
   Skeleton,
 } from 'antd';
 import dayjs from 'dayjs';
+import {
+  Ban,
+  Bot,
+  Calendar,
+  CircleX,
+  ClipboardCheck,
+  Ellipsis,
+  Eye,
+  GitBranch,
+  MessageSquare,
+  Pencil,
+  Plus,
+  Search,
+  ShoppingCart,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { DocLogCard, SectionTitle } from '@/components/DocFields/DocPage';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import SupplierSelect from '@/pages/inquiry/my-tasks/SupplierSelect';
-import {
-  PageTitle,
-  useQuoteDicts,
-  useWide,
-} from '@/pages/inquiry/shared/components';
+import { useQuoteDicts, useWide } from '@/pages/inquiry/shared/components';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
@@ -65,12 +62,12 @@ import {
 const FOLD = 7;
 
 const SIGNAL_ICON: Record<number, React.ReactNode> = {
-  [SRC.INQUIRY]: <MessageOutlined />,
-  [SRC.ORDER]: <ShoppingCartOutlined />,
-  [SRC.STOCKOUT]: <StopOutlined />,
-  [SRC.LOST]: <CloseCircleOutlined />,
-  [SRC.SEARCH]: <SearchOutlined />,
-  [SRC.RESEARCH]: <EyeOutlined />,
+  [SRC.INQUIRY]: <MessageSquare size="1em" />,
+  [SRC.ORDER]: <ShoppingCart size="1em" />,
+  [SRC.STOCKOUT]: <Ban size="1em" />,
+  [SRC.LOST]: <CircleX size="1em" />,
+  [SRC.SEARCH]: <Search size="1em" />,
+  [SRC.RESEARCH]: <Eye size="1em" />,
 };
 
 const evidenceDoc = (e: Evidence) =>
@@ -98,13 +95,13 @@ const TimelineRow: React.FC<{ t: TimelineItem }> = ({ t }) => {
   const icon = s ? (
     SIGNAL_ICON[s.sourceType]
   ) : fulfillment ? (
-    <ShoppingCartOutlined />
+    <ShoppingCart size="1em" />
   ) : confirm ? (
-    <AuditOutlined />
+    <ClipboardCheck size="1em" />
   ) : t.system ? (
-    <RobotOutlined />
+    <Bot size="1em" />
   ) : (
-    <EditOutlined />
+    <Pencil size="1em" />
   );
   const color = s
     ? s.sourceType === SRC.STOCKOUT
@@ -226,7 +223,7 @@ const ChannelCard: React.FC<{ c: Channel }> = ({ c }) => {
       }}
     >
       <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-        <Pill tone={primary ? 'accent' : 'gray'}>
+        <Pill tone={primary ? 'gray' : 'mute'}>
           {primary ? '主渠道' : '备选'}
         </Pill>
         <b>{c.supplierName ?? '—'}</b>
@@ -258,7 +255,7 @@ const ChannelCard: React.FC<{ c: Channel }> = ({ c }) => {
             gap: 6,
           }}
         >
-          <CalendarOutlined />
+          <Calendar size="1em" />
           {c.evidenceType === 2 ? '采购' : '询价'}{' '}
           {dayjs(c.evidenceDate).format('YYYY-MM-DD')}
         </span>
@@ -481,18 +478,15 @@ const DemandDetailPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={['供应链跟进', modelName(d)]}
-        title={
-          <span
-            style={{ display: 'inline-flex', gap: 10, alignItems: 'center' }}
-          >
-            {modelName(d)}
+      <PageHeader
+        title={modelName(d)}
+        tags={
+          <>
             <LevelPill value={d.demandLevel} />
             <PriorityPill value={d.priority} />
-          </span>
+          </>
         }
-        description={[
+        sub={[
           d.brandName,
           d.categoryName,
           d.lastSignalAt &&
@@ -501,21 +495,38 @@ const DemandDetailPage: React.FC = () => {
         ]
           .filter(Boolean)
           .join(' · ')}
-        actions={
+        // 页头操作（照销售订单详情）：记处理为主按钮，其余为文字按钮，合并重复收进「更多」
+        extra={
           data.canEdit && (
             <>
-              <Button onClick={() => setModal('priority')}>改优先级</Button>
+              <Button
+                type="text"
+                style={{ color: palette.link }}
+                onClick={() => setModal('priority')}
+              >
+                改优先级
+              </Button>
               {d.status === DEMAND.PAUSED ? (
                 <Button
+                  type="text"
+                  style={{ color: palette.link }}
                   onClick={() => act(() => supplyApi.resume(d.id), '已恢复')}
                 >
                   恢复
                 </Button>
               ) : (
-                <Button onClick={() => setModal('pause')}>暂不覆盖</Button>
+                <Button
+                  type="text"
+                  style={{ color: palette.link }}
+                  onClick={() => setModal('pause')}
+                >
+                  暂不覆盖
+                </Button>
               )}
               {d.status === DEMAND.WATCHING && (
                 <Button
+                  type="text"
+                  style={{ color: palette.link }}
                   onClick={() =>
                     act(() => supplyApi.join(d.id), '已加入覆盖矩阵')
                   }
@@ -523,18 +534,24 @@ const DemandDetailPage: React.FC = () => {
                   加入矩阵
                 </Button>
               )}
-              <Button type="primary" onClick={() => setModal('record')}>
-                记处理
-              </Button>
               <Dropdown
                 trigger={['click']}
+                placement="bottomRight"
                 menu={{
                   items: [{ key: 'merge', label: '合并重复' }],
                   onClick: () => setModal('merge'),
                 }}
               >
-                <Button icon={<MoreOutlined />} aria-label="更多操作" />
+                <Button
+                  type="text"
+                  shape="circle"
+                  icon={<Ellipsis size={18} />}
+                  aria-label="更多操作"
+                />
               </Dropdown>
+              <Button type="primary" onClick={() => setModal('record')}>
+                记处理
+              </Button>
             </>
           )
         }
@@ -648,7 +665,7 @@ const DemandDetailPage: React.FC = () => {
                       fontSize: 13,
                     }}
                   >
-                    <BranchesOutlined />{' '}
+                    <GitBranch size="1em" />{' '}
                     {channels.length === 1
                       ? '单一渠道 · 没有备选'
                       : `${channels.length} 个渠道`}
@@ -661,7 +678,7 @@ const DemandDetailPage: React.FC = () => {
                   <Button
                     block
                     type="dashed"
-                    icon={<PlusOutlined />}
+                    icon={<Plus size="1em" />}
                     onClick={() => setModal('channel')}
                   >
                     {channels.length ? '添加备选渠道' : '设置渠道'}

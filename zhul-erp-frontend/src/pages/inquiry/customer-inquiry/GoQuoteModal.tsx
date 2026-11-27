@@ -77,7 +77,7 @@ const GoQuoteModal: React.FC<{
                 padding: '10px 14px',
                 cursor: 'pointer',
                 borderTop: idx ? `1px solid ${palette.hairline}` : undefined,
-                background: picked.has(i.id) ? palette.accentSoft : undefined,
+                background: picked.has(i.id) ? palette.primarySoft : undefined,
               }}
             >
               <Checkbox

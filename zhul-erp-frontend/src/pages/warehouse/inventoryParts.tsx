@@ -1,7 +1,8 @@
 import { Link } from '@umijs/max';
-import { type App, Button, Form, type FormInstance } from 'antd';
+import { type App, Form, type FormInstance } from 'antd';
 import React, { useEffect, useState } from 'react';
-import { Card, Pill } from '@/pages/inquiry/shared/components';
+import { FilterCard as ListFilterCard } from '@/components/ListLayout';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
   batchHref,
@@ -51,9 +52,7 @@ export const WarehouseCell: React.FC<{ name?: string; type?: number }> = ({
   <div>
     <div>{name || '—'}</div>
     {type != null && (
-      <Pill tone={type === WH_OWN ? 'accent' : 'violet'}>
-        {type === WH_OWN ? '自有仓' : '货代仓'}
-      </Pill>
+      <Pill tone="gray">{type === WH_OWN ? '自有仓' : '货代仓'}</Pill>
     )}
   </div>
 );
@@ -128,48 +127,44 @@ export const warehouseQuery = (f: WarehouseFilter) =>
       ? {}
       : { warehouseScope: f };
 
-/** 筛选卡片：自适应网格 + 右侧重置 / 查询 */
+/**
+ * 筛选卡片：库存各页的表单写法套用 ListLayout 的搜索条件区（标签在上、右侧重置 / 查询）。
+ * 「查询」不是提交按钮，回车查询由各页的关键词输入框 onPressEnter 调 form.submit()
+ */
 export const FilterCard: React.FC<{
   form: FormInstance;
   initialValues: object;
   onSearch: (v: Record<string, unknown>) => void;
   onReset: () => void;
   children: React.ReactNode;
+  /** 还没挪到主卡操作行的快捷筛选（新页面用 MainCard 的 quick、chips） */
   extra?: React.ReactNode;
-}> = ({ form, initialValues, onSearch, onReset, children, extra }) => (
-  <Card style={{ marginBottom: 16, padding: 20 }}>
-    <Form
-      form={form}
-      layout="vertical"
-      initialValues={initialValues}
-      onFinish={onSearch}
+  more?: React.ReactNode;
+  moreCount?: number;
+}> = ({
+  form,
+  initialValues,
+  onSearch,
+  onReset,
+  children,
+  extra,
+  more,
+  moreCount,
+}) => (
+  <Form form={form} initialValues={initialValues} onFinish={onSearch}>
+    <ListFilterCard
+      onSearch={() => form.submit()}
+      onReset={() => {
+        form.resetFields();
+        onReset();
+      }}
+      quick={extra}
+      more={more}
+      moreCount={moreCount}
     >
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
-          gap: 12,
-          alignItems: 'end',
-        }}
-      >
-        {children}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <Button
-            onClick={() => {
-              form.resetFields();
-              onReset();
-            }}
-          >
-            重置
-          </Button>
-          <Button type="primary" htmlType="submit">
-            查询
-          </Button>
-        </div>
-      </div>
-      {extra}
-    </Form>
-  </Card>
+      {children}
+    </ListFilterCard>
+  </Form>
 );
 
 /**

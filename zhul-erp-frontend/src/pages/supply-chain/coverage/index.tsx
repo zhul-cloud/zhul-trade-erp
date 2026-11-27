@@ -1,8 +1,9 @@
 import { history, Link, useAccess } from '@umijs/max';
-import { Empty, Segmented, Select, Skeleton, Switch } from 'antd';
+import { Select, Skeleton, Switch } from 'antd';
+import { EmptyState } from '@/components/EmptyState';
+import { PageHeader, ViewTabs } from '@/components/ListLayout';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { PageTitle } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { Card, CoverBar, HeatPill, useCoverColors, useOptions, useUsers } from '../components';
 import { ProjectModal } from '../dialogs';
@@ -194,25 +195,9 @@ const CoverageMatrixPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        title={
-          <span style={{ display: 'inline-flex', gap: 16, alignItems: 'center' }}>
-            覆盖矩阵
-            <Segmented
-              value={mode}
-              onChange={(v) => {
-                setMode(v as Mode);
-                setPriority(undefined);
-              }}
-              options={[
-                { value: 'cover', label: '按覆盖状态' },
-                { value: 'stockout', label: '按无货' },
-                { value: 'supplier', label: '按供应商' },
-              ]}
-            />
-          </span>
-        }
-        actions={
+      <PageHeader
+        title="覆盖矩阵"
+        extra={
           stock ? (
             <span style={{ color: palette.mute, fontSize: 13 }}>颜色越深，无货次数越多</span>
           ) : sup ? (
@@ -239,6 +224,19 @@ const CoverageMatrixPage: React.FC = () => {
             </span>
           )
         }
+      />
+      {/* 三张不同的矩阵（图例、筛选不同），用视图页签（复审 S3） */}
+      <ViewTabs
+        activeKey={mode}
+        onChange={(k) => {
+          setMode(k as Mode);
+          setPriority(undefined);
+        }}
+        items={[
+          { key: 'cover', label: '按覆盖状态' },
+          { key: 'stockout', label: '按无货' },
+          { key: 'supplier', label: '按供应商' },
+        ]}
       />
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
         <Select
@@ -309,22 +307,19 @@ const CoverageMatrixPage: React.FC = () => {
       </div>
       <Card style={{ overflow: 'hidden' }}>
         {error ? (
-          <Empty style={{ padding: 40 }} description={error} />
+          <EmptyState kind="error" title={error} />
         ) : !data ? (
           <div style={{ padding: 20 }}>
             <Skeleton active paragraph={{ rows: 8 }} />
           </div>
         ) : data.brands.length === 0 ? (
-          <Empty
-            style={{ padding: 40 }}
-            description={
+          <EmptyState title={
               stock
                 ? `近 ${data.days} 天没有无货记录`
                 : sup
                   ? '还没有需要开发供应商的品牌品类'
                   : '没有进入覆盖矩阵的型号'
-            }
-          />
+            } />
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <div

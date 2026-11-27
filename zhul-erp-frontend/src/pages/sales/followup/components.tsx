@@ -1,4 +1,3 @@
-import { DownOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import {
   App,
@@ -11,12 +10,12 @@ import {
   Select,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { ChevronDown } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Card, Pill } from '@/pages/crm/opportunity/components';
 import { GRADE_NAMES } from '@/pages/customer/profile/service';
 import { GradeBadge, Stars } from '@/pages/customer/profile/ui';
 import { useAppTheme } from '@/theme/AppTheme';
-import { styleOf } from './boardStyle';
 import {
   type BatchEntry,
   type Blocker,
@@ -76,13 +75,13 @@ export const BOARD_LABEL: Record<number, string> = {
   5: '客户经营',
 };
 
-/** 板块 · 阶段，用板块颜色（K1） */
+/** 板块 · 阶段：中性标签（板块不再各用一种颜色，R10 方案 B） */
 export const StageTag: React.FC<{
   item: Pick<FollowupItem, 'board' | 'stageName'> & { stageCode?: string };
   /** 阶段名前带阶段码，如「S4 已报价」 */
   withCode?: boolean;
 }> = ({ item, withCode }) => {
-  const s = styleOf(item.board);
+  const { palette } = useAppTheme();
   return (
     <span
       style={{
@@ -91,8 +90,8 @@ export const StageTag: React.FC<{
         padding: '1px 8px',
         borderRadius: 6,
         fontSize: 12,
-        color: s.color,
-        background: `${s.color}14`,
+        color: palette.sub,
+        background: palette.neutralSoft,
         whiteSpace: 'nowrap',
       }}
     >
@@ -191,7 +190,7 @@ export const SnoozeButton: React.FC<{
         }}
       >
         <Button size="small" loading={saving && !picking}>
-          {label} <DownOutlined />
+          {label} <ChevronDown size="1em" />
         </Button>
       </Dropdown>
       <Modal

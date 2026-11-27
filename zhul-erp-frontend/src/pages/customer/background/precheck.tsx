@@ -1,12 +1,12 @@
-import {
-  BulbOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  ExclamationCircleOutlined,
-  MinusCircleOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { Button, Modal } from 'antd';
+import {
+  CircleAlert,
+  CircleCheck,
+  CircleMinus,
+  CircleX,
+  Lightbulb,
+  TriangleAlert,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
@@ -90,9 +90,9 @@ export const LevelPill: React.FC<{ level: PrecheckLevel }> = ({ level }) => {
       }}
     >
       {level === 'HIGH' ? (
-        <CheckCircleOutlined />
+        <CircleCheck size="1em" />
       ) : (
-        <ExclamationCircleOutlined />
+        <CircleAlert size="1em" />
       )}
       信息：{LEVEL_TEXT[level]}
     </span>
@@ -106,13 +106,13 @@ export const missingLabels = (d: BackgroundPrecheck) =>
 const ItemIcon: React.FC<{ item: PrecheckItem }> = ({ item }) => {
   const { palette } = useAppTheme();
   if (item.state === 'OK')
-    return <CheckCircleOutlined style={{ color: palette.green }} />;
+    return <CircleCheck size="1em" style={{ color: palette.green }} />;
   if (item.state === 'WARN')
-    return <WarningOutlined style={{ color: palette.orange }} />;
+    return <TriangleAlert size="1em" style={{ color: palette.orange }} />;
   return item.keyInfo ? (
-    <CloseCircleOutlined style={{ color: palette.red }} />
+    <CircleX size="1em" style={{ color: palette.red }} />
   ) : (
-    <MinusCircleOutlined style={{ color: palette.mute }} />
+    <CircleMinus size="1em" style={{ color: palette.mute }} />
   );
 };
 
@@ -149,7 +149,7 @@ export const PrecheckList: React.FC<{
             style={{
               flex: `0 0 ${dense ? 72 : 88}px`,
               color: palette.sub,
-              fontWeight: 500,
+              fontWeight: 600,
             }}
           >
             {i.label}
@@ -258,7 +258,7 @@ export const PrecheckModal: React.FC<{
           lineHeight: 1.6,
         }}
       >
-        <BulbOutlined style={{ color: c.color, marginTop: 4 }} />
+        <Lightbulb size="1em" style={{ color: c.color, marginTop: 4 }} />
         <span>{TIPS[data.level]}</span>
       </div>
     </Modal>

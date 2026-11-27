@@ -1,24 +1,36 @@
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, Input, Select, Space, Table } from 'antd';
 import dayjs from 'dayjs';
+import { Banknote, Eye, Plus, Search, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
+import EllipsisText from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  HelpTip,
+  MainCard,
+  PageHeader,
+  QuickFilters,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle } from '@/pages/inquiry/shared/components';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { BatchPayModal } from './BatchPayModal';
 import { currencyTotals, groupPayables, MAX_BATCH_PAYABLES } from './batch';
 import {
   DueTag,
-  PayeeTypePill,
   PayStatusPill,
+  payeeTypeLabel,
   RefundModal,
   RegisterPaymentDrawer,
 } from './components';
@@ -50,6 +62,15 @@ interface Filters {
   refundExpected: boolean;
   showClosed: boolean;
 }
+
+/** 帮助文字：help-texts.md「应付管理」 */
+export const HELP = {
+  page: '采购订单确认下单、运费账单确认后自动生成应付；付款按到期先后核销，多付的部分记为供应商欠款，可以抵扣下一笔或登记退款',
+  list: '默认按更新时间倒序；按到期筛选时按到期日排序。已关闭且没有欠款的默认不显示',
+} as const;
+
+/** 到期类快捷筛选（原统计卡片，stat-cards.md：条件类 → 快捷筛选，按全部应付统计） */
+const DUE_QUICK = ['MONTH', 'OVERDUE', 'SOON'];
 
 /** 从其他单据跳转来时地址带 keyword（应付单号） */
 const initial = (): Filters => ({
@@ -144,95 +165,96 @@ const PayableManagement: React.FC = () => {
     setPage(1);
   };
 
-  const statCard = (
-    label: string,
-    value: number,
-    hint: string,
-    color: string,
-    due?: string,
-    credit?: boolean,
-  ) => {
-    const active = credit ? filters.hasCredit : !!due && filters.due === due;
-    return (
-      <button
-        type="button"
-        onClick={() =>
-          apply(
-            credit
-              ? { hasCredit: !filters.hasCredit, due: undefined }
-              : { due: active ? undefined : due, hasCredit: false },
-          )
-        }
-        style={{
-          flex: '1 1 200px',
-          textAlign: 'left',
-          padding: '16px 18px',
-          borderRadius: 14,
-          background: palette.card,
-          border: `1px solid ${active ? palette.link : palette.hairline}`,
-          cursor: 'pointer',
-          color: palette.ink,
-        }}
-      >
-        <div style={{ fontSize: 13, color: palette.sub }}>{label}</div>
-        <div
-          style={{ ...num, fontSize: 22, fontWeight: 800, color, marginTop: 4 }}
-        >
-          {formatAmount(value, 'CNY')}
-        </div>
-        <div style={{ fontSize: 12, color: palette.mute }}>{hint}</div>
-      </button>
-    );
+  const quickValue = filters.hasCredit
+    ? ['CREDIT']
+    : filters.due && DUE_QUICK.includes(filters.due)
+      ? [filters.due]
+      : [];
+  const onQuick = (v: string[]) => {
+    // 四个条件互斥，取刚点的那个；再点一次取消
+    const next = v.find((x) => !quickValue.includes(x));
+    if (next === 'CREDIT') apply({ hasCredit: true, due: undefined });
+    else if (next) apply({ due: next, hasCredit: false });
+    else apply({ due: undefined, hasCredit: false });
   };
+  /** 快捷筛选的名称与数量（金额 · 张数），数量由 QuickFilters 统一画；金额为 0 时只写名称 */
+  const quickLabel = (name: string, amount?: number, n?: string) => ({
+    label: name,
+    count: amount
+      ? `${formatAmount(amount, 'CNY')}${n ? ` · ${n}` : ''}`
+      : undefined,
+  });
 
   const columns: TableColumnsType<Payable> = [
     {
       title: '编号',
       dataIndex: 'payableNo',
-      width: 140,
+      width: 128,
       fixed: 'left',
       render: (v: string, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => openDetail(r.id)}
-        >
-          {v}
-        </button>
+        <CopyText text={v}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => openDetail(r.id)}
+          >
+            {v}
+          </button>
+        </CopyText>
       ),
     },
     {
       title: '收款方',
       key: 'payee',
-      width: 200,
+      width: 152,
       render: (_, r) => (
-        <div>
-          <div style={{ fontWeight: 600 }}>{r.payeeName || '—'}</div>
-          <PayeeTypePill type={r.payeeType} />
+        // 名称单行省略，下面一行类型用次要色文字（同客户列；标签 24 高会撑高行，D21）
+        <div style={{ minWidth: 0 }}>
+          <EllipsisText text={r.payeeName} style={{ fontWeight: 600 }} />
+          <div
+            style={{ fontSize: 12, lineHeight: '18px', color: palette.mute }}
+          >
+            {payeeTypeLabel(r.payeeType)}
+          </div>
         </div>
       ),
     },
     {
       title: '付款方式',
       dataIndex: 'payMethod',
-      width: 96,
+      width: 80,
       render: (v?: number) => <PayMethodTag value={v} />,
     },
     {
-      title: '来源单号',
-      key: 'source',
-      width: 170,
-      render: (_, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => history.push(sourcePath(r))}
-        >
-          {r.sourceNo}
-        </button>
+      title: '状态',
+      dataIndex: 'status',
+      width: 120,
+      render: (v: number, r) => (
+        <Space size={6}>
+          <PayStatusPill status={v} />
+          {r.settledByMigration && (
+            <span style={{ fontSize: 12, color: palette.mute }}>历史迁移</span>
+          )}
+        </Space>
       ),
     },
-    { title: '币种', dataIndex: 'currencyCode', width: 64 },
+    {
+      title: '未付',
+      dataIndex: 'unpaidAmount',
+      width: 120,
+      align: 'right',
+      render: (v: number, r) => (
+        <b style={num}>{formatAmount(v, r.currencyCode)}</b>
+      ),
+    },
+    {
+      title: '下一期到期',
+      key: 'due',
+      width: 150,
+      render: (_, r) => (
+        <DueTag date={r.nextDueDate} state={r.dueState} days={r.dueDays} />
+      ),
+    },
     {
       title: '应付',
       dataIndex: 'amount',
@@ -249,15 +271,6 @@ const PayableManagement: React.FC = () => {
       align: 'right',
       render: (v: number, r) => (
         <span style={num}>{formatAmount(v, r.currencyCode)}</span>
-      ),
-    },
-    {
-      title: '未付',
-      dataIndex: 'unpaidAmount',
-      width: 120,
-      align: 'right',
-      render: (v: number, r) => (
-        <b style={num}>{formatAmount(v, r.currencyCode)}</b>
       ),
     },
     {
@@ -281,76 +294,73 @@ const PayableManagement: React.FC = () => {
           <span style={{ color: palette.mute }}>—</span>
         ),
     },
+    { title: '币种', dataIndex: 'currencyCode', width: 64 },
     {
-      title: '下一期到期',
-      key: 'due',
-      width: 160,
+      title: '来源单号',
+      key: 'source',
+      width: 170,
       render: (_, r) => (
-        <DueTag date={r.nextDueDate} state={r.dueState} days={r.dueDays} />
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      width: 150,
-      render: (v: number, r) => (
-        <Space size={6}>
-          <PayStatusPill status={v} />
-          {r.settledByMigration && (
-            <span style={{ fontSize: 12, color: palette.mute }}>历史迁移</span>
-          )}
-        </Space>
+        <button
+          type="button"
+          className="zhul-link"
+          onClick={() => history.push(sourcePath(r))}
+        >
+          {r.sourceNo}
+        </button>
       ),
     },
     ...auditColumns<Payable>(),
     {
       title: '操作',
       key: 'op',
-      width: 140,
+      // 查看、付款放行内，退款收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(3),
       fixed: 'right',
       render: (_, r) => (
-        <Space size={10}>
-          {canRegister &&
-            (r.status === PAY_STATUS.UNPAID ||
-              r.status === PAY_STATUS.PARTIAL) && (
-              <button
-                type="button"
-                className="zhul-link"
-                onClick={() => setPayAnchor(r.id)}
-              >
-                付款
-              </button>
-            )}
-          {canRegister && r.creditAmount > 0 && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setRefund(r)}
-            >
-              退款
-            </button>
-          )}
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => openDetail(r.id)}
-          >
-            查看
-          </button>
-        </Space>
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => openDetail(r.id),
+            },
+            canRegister &&
+              (r.status === PAY_STATUS.UNPAID ||
+                r.status === PAY_STATUS.PARTIAL) && {
+                key: 'pay',
+                label: '付款',
+                icon: <Banknote size={18} />,
+                onClick: () => setPayAnchor(r.id),
+              },
+          ]}
+          more={[
+            canRegister &&
+              r.creditAmount > 0 && {
+                key: 'refund',
+                label: '退款',
+                icon: <Undo2 size={16} />,
+              },
+          ]}
+          onMore={() => setRefund(r)}
+        />
       ),
     },
   ];
+  const columnsSet = useColumnSettings('finance-payables', columns, {
+    // 「欠款」带待退款提醒，属于风险信息，默认显示
+    hidden: ['应付', '已付', '币种', '来源单号'],
+  });
 
   return (
     <div>
-      <PageTitle
-        description="采购订单确认下单、运费账单确认后自动生成应付；付款按到期先后核销，多付的部分记为供应商欠款，可以抵扣下一笔或登记退款。"
-        actions={
+      <PageHeader
+        help={HELP.page}
+        extra={
           canRegister && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => setPayAnchor('pick')}
             >
               登记付款
@@ -358,89 +368,92 @@ const PayableManagement: React.FC = () => {
           )
         }
       />
-      <div
-        style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}
+      <FilterCard
+        onSearch={() => apply({})}
+        onReset={() => {
+          const f = { ...initial(), keyword: '' };
+          setDraft(f);
+          setFilters(f);
+          setPage(1);
+        }}
+        moreCount={
+          [
+            filters.due && !DUE_QUICK.includes(filters.due)
+              ? filters.due
+              : undefined,
+            filters.currencyCode,
+            filters.refundExpected || undefined,
+            filters.showClosed || undefined,
+          ].filter((v) => v != null).length
+        }
+        more={
+          <>
+            <FilterField label="到期">
+              <Select
+                allowClear
+                placeholder="全部"
+                aria-label="到期"
+                value={draft.due}
+                onChange={(v) => setDraft({ ...draft, due: v })}
+                options={[
+                  { value: 'OVERDUE', label: '已逾期' },
+                  { value: 'SOON', label: '7 天内到期' },
+                  { value: 'MONTH', label: '本月到期' },
+                  { value: 'WAITING', label: '待入库' },
+                ]}
+              />
+            </FilterField>
+            <FilterField label="币种">
+              <Select
+                allowClear
+                placeholder="全部"
+                aria-label="币种"
+                value={draft.currencyCode}
+                onChange={(v) => setDraft({ ...draft, currencyCode: v })}
+                options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+              />
+            </FilterField>
+            <FilterField label="待退款">
+              <Checkbox
+                checked={draft.refundExpected}
+                onChange={(e) =>
+                  setDraft({ ...draft, refundExpected: e.target.checked })
+                }
+              >
+                只看待退款
+              </Checkbox>
+            </FilterField>
+            <FilterField label="已关闭">
+              <Checkbox
+                checked={draft.showClosed}
+                onChange={(e) =>
+                  setDraft({ ...draft, showClosed: e.target.checked })
+                }
+              >
+                一并显示
+              </Checkbox>
+            </FilterField>
+          </>
+        }
       >
-        {statCard(
-          '本月到期未付',
-          stats?.monthDue ?? 0,
-          `${stats?.monthDueCount ?? 0} 张应付单`,
-          palette.ink,
-          'MONTH',
-        )}
-        {statCard(
-          '已逾期未付',
-          stats?.overdue ?? 0,
-          `${stats?.overdueCount ?? 0} 张 · 点击筛出`,
-          palette.red,
-          'OVERDUE',
-        )}
-        {statCard(
-          '7 天内到期',
-          stats?.soon ?? 0,
-          `${stats?.soonCount ?? 0} 张`,
-          palette.orange,
-          'SOON',
-        )}
-        {statCard(
-          '供应商欠款',
-          stats?.credit ?? 0,
-          stats?.refundExpectedCount
-            ? `${stats.refundExpectedCount} 笔待退款`
-            : '可抵扣或登记退款',
-          palette.orange,
-          undefined,
-          true,
-        )}
-      </div>
-      <Card>
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            flexWrap: 'wrap',
-            marginBottom: 14,
-            alignItems: 'center',
-          }}
-        >
+        <FilterField label="关键词" span={2}>
           <Input
             allowClear
-            prefix={<SearchOutlined />}
-            placeholder="编号、收款方、来源单号"
-            style={{ width: 240 }}
+            prefix={<Search size={16} />}
+            placeholder="应付单号、收款方、来源单号"
+            aria-label="关键词"
             value={draft.keyword}
             onChange={(e) => setDraft({ ...draft, keyword: e.target.value })}
             onPressEnter={() => apply({})}
           />
+        </FilterField>
+        <FilterField label="状态">
           <Select
             allowClear
-            placeholder="收款方类型"
-            style={{ width: 130 }}
-            value={draft.payeeType}
-            onChange={(v) => apply({ payeeType: v })}
-            options={[
-              { value: PAYEE.SUPPLIER, label: '供应商' },
-              { value: PAYEE.SHOP, label: '线上店铺' },
-              { value: PAYEE.FORWARDER, label: '货代' },
-            ]}
-          />
-          <Select
-            allowClear
-            placeholder="付款方式"
-            style={{ width: 120 }}
-            value={draft.payMethod}
-            onChange={(v) => apply({ payMethod: v })}
-            options={[
-              { value: PAY_METHOD.PUBLIC, label: '对公' },
-              { value: PAY_METHOD.PRIVATE, label: '对私' },
-              { value: PAY_METHOD.UNDECIDED, label: '未定' },
-            ]}
-          />
-          <Select
-            allowClear
-            placeholder="状态"
-            style={{ width: 120 }}
+            placeholder="全部"
+            aria-label="状态"
             value={draft.status}
+            // 状态下拉切换后立即查询
             onChange={(v) => apply({ status: v })}
             options={[
               { value: PAY_STATUS.UNPAID, label: '未付' },
@@ -449,87 +462,124 @@ const PayableManagement: React.FC = () => {
               { value: PAY_STATUS.CLOSED, label: '已关闭' },
             ]}
           />
+        </FilterField>
+        <FilterField label="收款方类型">
           <Select
             allowClear
-            placeholder="到期"
-            style={{ width: 140 }}
-            value={draft.due}
-            onChange={(v) => apply({ due: v })}
+            placeholder="全部"
+            aria-label="收款方类型"
+            value={draft.payeeType}
+            onChange={(v) => setDraft({ ...draft, payeeType: v })}
             options={[
-              { value: 'OVERDUE', label: '已逾期' },
-              { value: 'SOON', label: '7 天内到期' },
-              { value: 'MONTH', label: '本月到期' },
-              { value: 'WAITING', label: '待入库' },
+              { value: PAYEE.SUPPLIER, label: '供应商' },
+              { value: PAYEE.SHOP, label: '线上店铺' },
+              { value: PAYEE.FORWARDER, label: '货代' },
             ]}
           />
+        </FilterField>
+        <FilterField label="付款方式">
           <Select
             allowClear
-            placeholder="币种"
-            style={{ width: 100 }}
-            value={draft.currencyCode}
-            onChange={(v) => apply({ currencyCode: v })}
-            options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+            placeholder="全部"
+            aria-label="付款方式"
+            value={draft.payMethod}
+            onChange={(v) => apply({ payMethod: v })}
+            options={[
+              { value: PAY_METHOD.PUBLIC, label: '对公' },
+              { value: PAY_METHOD.PRIVATE, label: '对私' },
+              { value: PAY_METHOD.UNDECIDED, label: '未定' },
+            ]}
           />
-          <Checkbox
-            checked={draft.hasCredit}
-            onChange={(e) => apply({ hasCredit: e.target.checked })}
-          >
-            有欠款
-          </Checkbox>
-          <Checkbox
-            checked={draft.refundExpected}
-            onChange={(e) => apply({ refundExpected: e.target.checked })}
-          >
-            待退款
-          </Checkbox>
-          <Checkbox
-            checked={draft.showClosed}
-            onChange={(e) => apply({ showClosed: e.target.checked })}
-          >
-            显示已关闭
-          </Checkbox>
-          <Button onClick={() => apply({})}>查询</Button>
-        </div>
-        {picked.length > 0 && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              marginBottom: 12,
-              padding: '10px 16px',
-              borderRadius: 12,
-              background: palette.accentSoft,
-              flexWrap: 'wrap',
-            }}
-          >
-            <b style={{ color: palette.link }}>
-              已选 {picked.length} 张 · {groupPayables(picked).length} 家收款方
-            </b>
-            <span style={{ fontSize: 12, color: palette.sub }}>
-              {currencyTotals(picked)}
-            </span>
-            {picked.length > MAX_BATCH_PAYABLES && (
-              <span style={{ color: palette.orange, fontSize: 12 }}>
-                一次最多 {MAX_BATCH_PAYABLES} 张
-              </span>
-            )}
-            <span style={{ flex: 1 }} />
-            <Button onClick={() => setPicked([])}>清空</Button>
-            <Button
-              type="primary"
-              disabled={picked.length > MAX_BATCH_PAYABLES}
-              onClick={() => setBatchOpen(true)}
-            >
-              批量付款
-            </Button>
-          </div>
-        )}
+        </FilterField>
+      </FilterCard>
+      <MainCard
+        settings={columnsSet.settings}
+        left={
+          picked.length > 0 ? (
+            <>
+              <b style={{ color: palette.link }}>
+                已选 {picked.length} 张 · {groupPayables(picked).length}{' '}
+                家收款方
+              </b>
+              <span>{currencyTotals(picked)}</span>
+              {picked.length > MAX_BATCH_PAYABLES && (
+                <span style={{ color: palette.orange }}>
+                  一次最多 {MAX_BATCH_PAYABLES} 张
+                </span>
+              )}
+            </>
+          ) : (
+            <>
+              {`共 ${total} 条`}
+              <HelpTip title={HELP.list} />
+            </>
+          )
+        }
+        right={
+          picked.length > 0 && (
+            <>
+              <Button onClick={() => setPicked([])}>清空</Button>
+              <Button
+                type="primary"
+                disabled={picked.length > MAX_BATCH_PAYABLES}
+                onClick={() => setBatchOpen(true)}
+              >
+                批量付款
+              </Button>
+            </>
+          )
+        }
+        quick={
+          <QuickFilters
+            options={[
+              {
+                value: 'MONTH',
+                ...quickLabel(
+                  '本月到期未付',
+                  stats?.monthDue,
+                  `${stats?.monthDueCount ?? 0} 张`,
+                ),
+              },
+              {
+                value: 'OVERDUE',
+                ...quickLabel(
+                  '已逾期未付',
+                  stats?.overdue,
+                  `${stats?.overdueCount ?? 0} 张`,
+                ),
+                // 与应收「已逾期」一致：有逾期时数量用错误色
+                danger: (stats?.overdueCount ?? 0) > 0,
+              },
+              {
+                value: 'SOON',
+                ...quickLabel(
+                  '7 天内到期',
+                  stats?.soon,
+                  `${stats?.soonCount ?? 0} 张`,
+                ),
+              },
+              {
+                value: 'CREDIT',
+                ...quickLabel(
+                  '供应商欠款',
+                  stats?.credit,
+                  stats?.refundExpectedCount
+                    ? `${stats.refundExpectedCount} 笔待退款`
+                    : undefined,
+                ),
+              },
+            ]}
+            value={quickValue}
+            onChange={onQuick}
+          />
+        }
+      >
         <Table<Payable>
           rowKey="id"
           loading={loading}
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
+          locale={{ emptyText: tableEmpty('没有符合条件的应付', loading) }}
           rowSelection={
             canRegister
               ? {
@@ -540,23 +590,19 @@ const PayableManagement: React.FC = () => {
                 }
               : undefined
           }
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           pagination={{
+            ...PAGER_STYLE,
             current: page,
             pageSize,
             total,
-            showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
             onChange: (p, s) => {
               setPage(p);
               setPageSize(s);
             },
           }}
         />
-        <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-          默认按更新时间倒序；按到期筛选时按到期日排序。已关闭且没有欠款的默认不显示。
-        </div>
-      </Card>
+      </MainCard>
       <RegisterPaymentDrawer
         open={payAnchor !== undefined}
         anchorId={typeof payAnchor === 'number' ? payAnchor : undefined}

@@ -1,10 +1,8 @@
-import {
-  HistoryOutlined,
-  InfoCircleOutlined,
-  ShoppingCartOutlined,
-} from '@ant-design/icons';
 import { App, Button, Input, InputNumber, Modal, Select } from 'antd';
+import { ShoppingCart } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { Callout } from '@/components/Callout';
+import { CardTitle } from '@/components/ListLayout';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { Card, Pill } from '../components';
@@ -53,14 +51,17 @@ export const QtyCell: React.FC<{
 };
 
 /** 部分取消记录（新的在前） */
-export const PartialCancelRecords: React.FC<{ order: Order }> = ({ order }) => {
+export const PartialCancelRecords: React.FC<{
+  order: Order;
+  style?: React.CSSProperties;
+}> = ({ order, style }) => {
   const { palette } = useAppTheme();
   const rows = order.partialCancels ?? [];
   if (rows.length === 0) return null;
   const cur = order.currencyCode;
   const sum = rows.reduce((n, r) => n + Number(r.amount), 0);
   return (
-    <Card style={{ padding: 20, marginTop: 16 }}>
+    <Card style={{ padding: 20, marginTop: 16, ...style }}>
       <div
         style={{
           display: 'flex',
@@ -69,8 +70,7 @@ export const PartialCancelRecords: React.FC<{ order: Order }> = ({ order }) => {
           marginBottom: 12,
         }}
       >
-        <HistoryOutlined style={{ color: palette.link }} />
-        <b style={{ color: palette.ink }}>部分取消记录</b>
+        <CardTitle>部分取消记录</CardTitle>
         <span style={{ marginLeft: 'auto', fontSize: 12, color: palette.mute }}>
           共 {rows.length} 次 · 少了 {formatAmount(sum, cur)}
         </span>
@@ -230,23 +230,10 @@ export const PartialCancelModal: React.FC<{
 
   const editStep = (
     <>
-      <div
-        style={{
-          display: 'flex',
-          gap: 10,
-          padding: '10px 14px',
-          borderRadius: 12,
-          background: palette.accentSoft,
-          marginBottom: 14,
-          fontSize: 13,
-        }}
-      >
-        <InfoCircleOutlined style={{ color: palette.link, marginTop: 3 }} />
-        <span style={{ color: palette.sub }}>
-          可取消 = 当前数量 −
-          已出库（出库中、已交货代、已出运）；已出运的货请走售后。
-        </span>
-      </div>
+      <Callout style={{ marginBottom: 14 }}>
+        可取消 = 当前数量 −
+        已出库（出库中、已交货代、已出运）；已出运的货请走售后。
+      </Callout>
       <div
         style={{
           border: `1px solid ${palette.hairline}`,
@@ -395,7 +382,7 @@ export const PartialCancelModal: React.FC<{
           style={{
             padding: '12px 16px',
             borderRadius: 12,
-            background: palette.violetSoft,
+            background: palette.infoSoft,
             fontSize: 13,
             color: palette.sub,
           }}
@@ -420,8 +407,8 @@ export const PartialCancelModal: React.FC<{
           width: 22,
           height: 22,
           borderRadius: 11,
-          background: palette.accentSoft,
-          color: palette.link,
+          background: palette.neutralSoft,
+          color: palette.sub,
           fontSize: 12,
           fontWeight: 700,
           display: 'flex',
@@ -501,7 +488,7 @@ export const PartialCancelModal: React.FC<{
           marginBottom: 10,
         }}
       >
-        <ShoppingCartOutlined style={{ color: palette.link }} />
+        <ShoppingCart size="1em" style={{ color: palette.link }} />
         <b style={{ color: palette.ink }}>采购与库存会这样处理</b>
       </div>
       <div style={{ display: 'grid', gap: 12, marginBottom: 14 }}>
@@ -576,10 +563,10 @@ export const PartialCancelModal: React.FC<{
           style={{
             padding: '12px 16px',
             borderRadius: 12,
-            background: palette.violetSoft,
+            background: palette.infoSoft,
           }}
         >
-          <b style={{ color: palette.violet }}>
+          <b style={{ color: palette.info }}>
             已到账 {formatAmount(preview.received, cur)}，多出{' '}
             {formatAmount(preview.overpaidAfter, cur)}
           </b>

@@ -1,14 +1,16 @@
-import { BranchesOutlined, SearchOutlined } from '@ant-design/icons';
-import { Link, useLocation } from '@umijs/max';
+import { Eye, GitBranch, Search } from 'lucide-react';
+import { history, Link, useLocation } from '@umijs/max';
 import { Input, Select, Table, type TableColumnsType } from 'antd';
 import dayjs from 'dayjs';
+import { listEmpty, tableEmpty } from '@/components/EmptyState';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { PageHeader } from '@/components/ListLayout';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import { PageTitle } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
-import { usePageSize } from '@/utils/pageSize';
+import { usePageSize, PAGER_STYLE } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { Card, CoverPill, NextCell, PriorityPill, useUsers } from '../components';
 import {
@@ -21,6 +23,8 @@ import {
   scopeName,
   supplyApi,
 } from '../service';
+import { auditColumns } from '@/components/UserName';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 
 /** 列表筛选与页码放在一起：改筛选和回到第 1 页一次完成，不会先按旧页码多发一次请求（audit UI-090） */
 interface Filters {
@@ -158,8 +162,8 @@ const CoverageModelsPage: React.FC = () => {
         !d.channelCount ? (
           '—'
         ) : d.channelCount === 1 ? (
-          <span style={{ color: palette.cyan }}>
-            <BranchesOutlined /> 单一渠道
+          <span style={{ color: palette.info }}>
+            <GitBranch size="1em" /> 单一渠道
           </span>
         ) : (
           `${d.channelCount - 1} 个`
@@ -185,25 +189,33 @@ const CoverageModelsPage: React.FC = () => {
     },
     { title: '负责人', dataIndex: 'ownerName', width: 90, render: (v?: string) => v || '—' },
     { title: '下一步行动 · 日期', key: 'next', width: 220, render: (_, d) => <NextCell d={d} /> },
-    { title: '创建时间', dataIndex: 'createTime', width: 170, render: (v: string) => formatDateTime(v) },
-    { title: '创建人', dataIndex: 'createBy', width: 90, render: (v?: string) => v || '—' },
-    { title: '更新时间', dataIndex: 'updateTime', width: 170, render: (v: string) => formatDateTime(v) },
-    { title: '更新人', dataIndex: 'updateBy', width: 90, render: (v?: string) => v || '—' },
+    ...auditColumns<Demand>(),
     {
       title: '操作',
       key: 'op',
-      width: 70,
+      width: rowActionsWidth(1),
       fixed: 'right',
-      render: (_, d) => <Link to={PATHS.demand(d.id)}>查看</Link>,
+      render: (_, d) => (
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(PATHS.demand(d.id)),
+            },
+          ]}
+        />
+      ),
     },
   ];
+  const columnsSet = useColumnSettings('supply-chain-coverage-models', columns, { hidden: ['备选', '最近证据'] });
 
   return (
     <div>
-      <PageTitle
-        crumbs={['覆盖矩阵', title]}
+      <PageHeader
         title={title}
-        description={
+        sub={
           f.stockoutDays ? (
             `近 ${f.stockoutDays} 天无货 ${total} 个型号`
           ) : (
@@ -221,7 +233,7 @@ const CoverageModelsPage: React.FC = () => {
             )
           )
         }
-        actions={
+        extra={
           <>
             <Select
               allowClear
@@ -258,7 +270,7 @@ const CoverageModelsPage: React.FC = () => {
             />
             <Input
               allowClear
-              prefix={<SearchOutlined />}
+              prefix={<Search size="1em" />}
               placeholder="型号"
               style={{ width: 220 }}
               value={keywordInput}
@@ -268,23 +280,28 @@ const CoverageModelsPage: React.FC = () => {
               }}
               onPressEnter={() => change({ keyword: keywordInput })}
             />
+            <div style={{ marginLeft: 'auto' }}>{columnsSet.settings}</div>
           </>
         }
       />
       <Card style={{ overflow: 'hidden' }}>
         <Table<Demand>
           rowKey="id"
-          size="middle"
           loading={loading}
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
-          scroll={{ x: tableScrollX(columns) }}
-          locale={{ emptyText: error || '没有符合条件的型号' }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
+          locale={{
+            // 出错时给「重试」，不把错误信息当空状态（复审 9.1 第二轮）
+            emptyText: error
+              ? listEmpty({ error: true, onRetry: () => setTick((t) => t + 1) })
+              : tableEmpty('没有符合条件的型号', loading),
+          }}
           pagination={{
+...PAGER_STYLE,
             current: f.page,
             pageSize,
             total,
-            showSizeChanger: true,
             showTotal: (t) => `共 ${t} 条`,
             onChange: (p, s) => {
               setF((o) => ({ ...o, page: s === pageSize ? p : 1 }));

@@ -1,10 +1,7 @@
-import {
-  AuditOutlined,
-  FileDoneOutlined,
-  InfoCircleOutlined,
-} from '@ant-design/icons';
 import { App, Checkbox, Input, InputNumber, Modal, Radio } from 'antd';
+import { ClipboardCheck, FileCheck, Info } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { Callout } from '@/components/Callout';
 import { AttachmentWall } from '@/pages/warehouse/components';
 import {
   type Attachment,
@@ -101,7 +98,10 @@ const HandleDiscrepancyModal: React.FC<{
       width={620}
       title={
         <span>
-          <AuditOutlined style={{ color: palette.link, marginRight: 8 }} />
+          <ClipboardCheck
+            size="1em"
+            style={{ color: palette.link, marginRight: 8 }}
+          />
           处理到货差异 · {target.typeName} {target.quantity}
         </span>
       }
@@ -163,7 +163,7 @@ const HandleDiscrepancyModal: React.FC<{
               padding: '12px 14px',
               borderRadius: 10,
               border: `1px solid ${r === o.value ? palette.link : palette.hairline}`,
-              background: r === o.value ? palette.accentSoft : palette.inset,
+              background: r === o.value ? palette.primarySoft : palette.inset,
             }}
           >
             <b style={{ color: palette.ink }}>{o.label}</b>
@@ -199,24 +199,17 @@ const HandleDiscrepancyModal: React.FC<{
           </div>
         )}
         {RETURNS.includes(r) && (
-          <div
-            style={{
-              gridColumn: '1 / -1',
-              padding: '10px 12px',
-              borderRadius: 10,
-              background: palette.accentSoft,
-              color: palette.sub,
-              fontSize: 13,
-            }}
+          <Callout
+            icon={<FileCheck size="1em" />}
+            style={{ gridColumn: '1 / -1' }}
           >
-            <FileDoneOutlined style={{ color: palette.link }} />{' '}
             {r === 3
               ? `生成采购退货单（待寄出），退回 ${target.quantity} 个`
               : r === 4
                 ? `采购订单行减 ${target.quantity} 个，并生成采购退货单（待寄出）`
                 : `生成采购退货单（待寄出），寄回多发的 ${target.quantity} 个`}
             ；快递与运费到采购退货单上登记
-          </div>
+          </Callout>
         )}
         {r === 7 && (
           <>
@@ -269,7 +262,7 @@ const HandleDiscrepancyModal: React.FC<{
           color: palette.mute,
         }}
       >
-        <InfoCircleOutlined />{' '}
+        <Info size="1em" />{' '}
         处理后采购订单与订单进度随之更新；处理后不能直接改，需要更正时点「重新打开」。
       </div>
     </Modal>

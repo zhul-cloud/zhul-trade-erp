@@ -1,5 +1,5 @@
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { Button, Form, Select } from 'antd';
+import { Plus, Trash2 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   type BrandOption,
@@ -243,7 +243,7 @@ export const ProductScopeEditor: React.FC = () => {
               <div style={{ margin: '6px 0 14px', fontSize: 13 }}>
                 填上主营品牌后，询盘单会自动推荐这个供应商。
               </div>
-              <Button icon={<PlusOutlined />} onClick={() => add({})}>
+              <Button icon={<Plus size="1em" />} onClick={() => add({})}>
                 添加品牌
               </Button>
             </div>
@@ -306,7 +306,7 @@ export const ProductScopeEditor: React.FC = () => {
                   <Button
                     aria-label="删除这一行"
                     danger
-                    icon={<DeleteOutlined />}
+                    icon={<Trash2 size="1em" />}
                     onClick={() => remove(field.name)}
                   />
                 </div>
@@ -321,7 +321,7 @@ export const ProductScopeEditor: React.FC = () => {
                 }}
               >
                 <Button
-                  icon={<PlusOutlined />}
+                  icon={<Plus size="1em" />}
                   disabled={fields.length >= MAX_SCOPES}
                   onClick={() => add({})}
                 >

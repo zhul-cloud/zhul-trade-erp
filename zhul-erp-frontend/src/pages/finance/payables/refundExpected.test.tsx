@@ -62,7 +62,15 @@ it('勾选待退款后按待退款筛选，欠款旁显示待退款', async () =
     await screen.findByText('待退款 · 今天', {}, { timeout: 5000 }),
   ).toBeTruthy();
   await act(async () => {
-    fireEvent.click(screen.getByRole('checkbox', { name: '待退款' }));
+    fireEvent.click(screen.getByRole('button', { name: /更多筛选/ }));
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByRole('checkbox', { name: '只看待退款' }));
+  });
+  // 勾选不立即查询，点「查询」才生效
+  expect(params[params.length - 1].refundExpected).toBeUndefined();
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: /查\s*询/ }));
   });
   expect(params[params.length - 1].refundExpected).toBe(true);
 });

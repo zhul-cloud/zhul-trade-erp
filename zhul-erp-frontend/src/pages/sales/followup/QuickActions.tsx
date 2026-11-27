@@ -1,18 +1,19 @@
-import {
-  ArrowRightOutlined,
-  CheckCircleOutlined,
-  CheckOutlined,
-  DownOutlined,
-  EditOutlined,
-  ExclamationCircleOutlined,
-  HistoryOutlined,
-  SwapOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { App, Button, DatePicker, Dropdown, Input, Modal, Space } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import {
+  ArrowLeftRight,
+  ArrowRight,
+  Check,
+  ChevronDown,
+  CircleAlert,
+  CircleCheck,
+  History,
+  Pencil,
+} from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
+import { POPUP_SHADOW } from '@/theme/palette';
 import type { Picked } from './Batch';
 import { fmtDate, iso } from './components';
 import { quickDate, suggestOf } from './nextDate';
@@ -91,7 +92,7 @@ export const QuickButton: React.FC<{
   onRecord: () => void;
   onDone: () => void;
 }> = ({ customerId, items, disabled, onRecord, onDone }) => {
-  const { palette } = useAppTheme();
+  const { mode, palette } = useAppTheme();
   const { message } = App.useApp();
   const map = useQuickResults();
   const [open, setOpen] = useState(false);
@@ -168,7 +169,7 @@ export const QuickButton: React.FC<{
             borderRadius: 12,
             background: palette.card,
             border: `1px solid ${palette.hairline}`,
-            boxShadow: '0 8px 24px -4px rgba(0,0,0,0.18)',
+            boxShadow: mode === 'light' ? POPUP_SHADOW : 'none',
           }}
         >
           <div
@@ -204,13 +205,13 @@ export const QuickButton: React.FC<{
               marginTop: 4,
             }}
           >
-            <EditOutlined /> 要写细节，用「记跟进」
+            <Pencil size="1em" /> 要写细节，用「记跟进」
           </button>
         </div>
       )}
     >
-      <Button size="small" icon={<CheckOutlined />} loading={!!saving}>
-        已跟进 <DownOutlined />
+      <Button size="small" icon={<Check size="1em" />} loading={!!saving}>
+        已跟进 <ChevronDown size="1em" />
       </Button>
     </Dropdown>
   );
@@ -314,7 +315,7 @@ export const QuickBatchModal: React.FC<{
 
   const chip = (active: boolean): React.CSSProperties => ({
     borderColor: active ? palette.link : palette.hairline,
-    background: active ? palette.accentSoft : 'transparent',
+    background: active ? palette.primarySoft : 'transparent',
     color: active ? palette.link : palette.sub,
   });
 
@@ -366,8 +367,8 @@ export const QuickBatchModal: React.FC<{
                     style={{
                       padding: '1px 8px',
                       borderRadius: 6,
-                      color: palette.link,
-                      background: palette.accentSoft,
+                      color: palette.sub,
+                      background: palette.neutralSoft,
                     }}
                   >
                     {g.stage} {g.stageName}
@@ -404,7 +405,7 @@ export const QuickBatchModal: React.FC<{
                       {r.advanceTo && (
                         <>
                           {' '}
-                          <ArrowRightOutlined /> {r.advanceTo}
+                          <ArrowRight size="1em" /> {r.advanceTo}
                         </>
                       )}
                     </Button>
@@ -415,7 +416,7 @@ export const QuickBatchModal: React.FC<{
           })}
           {none.length > 0 && (
             <div style={{ fontSize: 12, color: palette.orange }}>
-              <ExclamationCircleOutlined />{' '}
+              <CircleAlert size="1em" />{' '}
               {none
                 .slice(0, 3)
                 .map((p) => p.customerName)
@@ -470,7 +471,8 @@ export const QuickBatchModal: React.FC<{
         }}
         title={
           <span>
-            <CheckCircleOutlined
+            <CircleCheck
+              size="1em"
               style={{ color: palette.green, marginRight: 8 }}
             />
             已记 {result?.r.success ?? 0} 个客户
@@ -507,7 +509,7 @@ export const QuickBatchModal: React.FC<{
             }}
           >
             <div style={{ color: palette.orange, fontSize: 12 }}>
-              <ExclamationCircleOutlined /> 没记上 {result.r.failures.length} 个
+              <CircleAlert size="1em" /> 没记上 {result.r.failures.length} 个
             </div>
             {result.r.failures.map((f) => (
               <div key={f.customerId} style={{ color: palette.ink }}>
@@ -579,7 +581,7 @@ export const StageAdjust: React.FC<{
             color: palette.mute,
           }}
         >
-          <SwapOutlined /> 调整
+          <ArrowLeftRight size="1em" /> 调整
         </button>
         <AdjustStageModal
           item={open ? item : undefined}
@@ -733,7 +735,7 @@ export const AdjustStageModal: React.FC<{
                 padding: '10px 14px',
                 borderRadius: 10,
                 border: `1px solid ${active ? palette.link : palette.hairline}`,
-                background: active ? palette.accentSoft : 'transparent',
+                background: active ? palette.primarySoft : 'transparent',
                 color: palette.ink,
               }}
             >
@@ -742,7 +744,7 @@ export const AdjustStageModal: React.FC<{
               {current && (
                 <span style={{ fontSize: 12, color: palette.mute }}>当前</span>
               )}
-              {active && <CheckOutlined style={{ color: palette.link }} />}
+              {active && <Check size="1em" style={{ color: palette.link }} />}
             </button>
           );
         })}
@@ -757,7 +759,7 @@ export const AdjustStageModal: React.FC<{
             style={{
               borderColor: reason === r.value ? palette.link : palette.hairline,
               background:
-                reason === r.value ? palette.accentSoft : 'transparent',
+                reason === r.value ? palette.primarySoft : 'transparent',
               color: reason === r.value ? palette.link : palette.sub,
             }}
           >
@@ -783,7 +785,7 @@ export const AdjustStageModal: React.FC<{
             background: palette.inset,
           }}
         >
-          <HistoryOutlined /> 会在客户时间线留一条「调整阶段：{from} → {to}
+          <History size="1em" /> 会在客户时间线留一条「调整阶段：{from} → {to}
           」，下一步不变
         </div>
       )}

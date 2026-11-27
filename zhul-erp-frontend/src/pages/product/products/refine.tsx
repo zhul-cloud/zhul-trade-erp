@@ -1,5 +1,5 @@
-import { RobotOutlined, SwapOutlined } from '@ant-design/icons';
 import { Select } from 'antd';
+import { ArrowLeftRight, Bot } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { Pill } from '../components/Pills';
 import type {
@@ -92,8 +92,8 @@ export const RefineTabs: React.FC<{
               height: 30,
               padding: '0 14px',
               borderRadius: 8,
-              border: `1px solid ${on ? '#2563EB' : 'transparent'}`,
-              background: on ? palette.accentSoft : 'transparent',
+              border: `1px solid ${on ? palette.primaryLine : 'transparent'}`,
+              background: on ? palette.primarySoft : 'transparent',
               color: on ? palette.ink : palette.sub,
               fontWeight: on ? 600 : 400,
               fontSize: 13,
@@ -125,12 +125,12 @@ export const AiSuggestion: React.FC<{ row: Product }> = ({ row }) => {
   return (
     <div style={{ display: 'grid', gap: 4, justifyItems: 'start' }}>
       <span style={{ fontWeight: 600, color: palette.ink }}>
-        <RobotOutlined style={{ color: '#8B5CF6', marginRight: 6 }} />
+        <Bot size="1em" style={{ color: palette.link, marginRight: 6 }} />
         {row.aiCategoryName}
       </span>
       {row.aiCategoryCross && (
         <Pill tone="orange">
-          <SwapOutlined /> 改一级品类
+          <ArrowLeftRight size="1em" /> 改一级品类
         </Pill>
       )}
     </div>

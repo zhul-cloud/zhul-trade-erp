@@ -1,20 +1,32 @@
-import {
-  CarOutlined,
-  CheckCircleOutlined,
-  InboxOutlined,
-  InfoCircleOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
 import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Input, Select, Space, Table } from 'antd';
+import { App, Button, Input, Select, Table } from 'antd';
+import {
+  Car,
+  CircleCheck,
+  Eye,
+  Inbox,
+  Info,
+  PackageOpen,
+  Search,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { CustomerCell } from '@/components/DocFields';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
-import { FilterCard, FilterField, MainCard } from '@/components/ListLayout';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  SelectionCount,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import { Pill } from '@/pages/inquiry/shared/components';
 import {
@@ -32,9 +44,9 @@ import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import { DOC_PATHS, distinctOf, sub, WarehousePageTitle } from '../components';
+import { DOC_PATHS, distinctOf, sub } from '../components';
 import { HandOverModal, PackDrawer } from './dialogs';
 
 type Tab = 'pending' | 'packed' | 'handed' | 'all';
@@ -160,29 +172,15 @@ const Outbounds: React.FC = () => {
     );
   };
 
-  const action = (r: Outbound) => {
-    if (tab === 'pending' && canPack)
-      return (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => setPacking(r.id)}
-        >
-          打包
-        </button>
-      );
-    if (tab === 'packed' && canPack)
-      return (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => setPacking(r.id)}
-        >
-          修改装箱
-        </button>
-      );
-    return null;
-  };
+  /** 待打包、已打包页签的行内主操作：打包、修改装箱 */
+  const action = (r: Outbound) =>
+    canPack &&
+    (tab === 'pending' || tab === 'packed') && {
+      key: 'pack',
+      label: tab === 'pending' ? '打包' : '修改装箱',
+      icon: <PackageOpen size={18} />,
+      onClick: () => setPacking(r.id),
+    };
 
   const columns: TableColumnsType<Outbound> = [
     {
@@ -192,7 +190,9 @@ const Outbounds: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <Link to={DOC_PATHS.outbound(r.id)}>{v}</Link>
+          <CopyText text={v}>
+            <Link to={DOC_PATHS.outbound(r.id)}>{v}</Link>
+          </CopyText>
           {sub(palette.mute, formatDateTime(r.createTime).slice(0, 10))}
           {(r.packMates?.length ?? 0) > 0 && <PackTag ob={r} />}
         </div>
@@ -205,32 +205,14 @@ const Outbounds: React.FC = () => {
       render: (_, r) => <CustomerCell name={r.customerName} />,
     },
     {
-      title: '型号 · 数量',
-      key: 'items',
-      width: 200,
-      render: (_, r) => (
-        <ModelQtyCell
-          items={r.items}
-          totalQty={r.totalQuantity}
-          docLabel={`${r.obNo} · ${r.customerName ?? ''}`}
-          onOpenDetail={() => history.push(DOC_PATHS.outbound(r.id))}
-        />
-      ),
-    },
-    {
-      title: '品牌',
-      key: 'brands',
-      width: 120,
-      render: (_, r) => (
-        <TagList values={distinctOf(r.items, 'brand')} label="品牌" />
-      ),
-    },
-    {
-      title: '品类',
-      key: 'categories',
-      width: 130,
-      render: (_, r) => (
-        <TagList values={distinctOf(r.items, 'category')} label="品类" />
+      title: '状态',
+      dataIndex: 'status',
+      width: 110,
+      render: (v: number, r) => (
+        <div>
+          <ObStatusPill value={v}>{r.statusName}</ObStatusPill>
+          {r.source === 2 && sub(palette.orange, r.sourceName)}
+        </div>
       ),
     },
     {
@@ -242,7 +224,7 @@ const Outbounds: React.FC = () => {
           {ellipsisRender(v)}
           {r.pickupLabel && (
             <div style={{ marginTop: 4 }} title={r.pickupLabel}>
-              <Pill tone="violet">上门取件</Pill>
+              <Pill tone="gray">上门取件</Pill>
             </div>
           )}
         </div>
@@ -284,14 +266,32 @@ const Outbounds: React.FC = () => {
         ),
     },
     {
-      title: '状态',
-      dataIndex: 'status',
-      width: 110,
-      render: (v: number, r) => (
-        <div>
-          <ObStatusPill value={v}>{r.statusName}</ObStatusPill>
-          {r.source === 2 && sub(palette.orange, r.sourceName)}
-        </div>
+      title: '型号 · 数量',
+      key: 'items',
+      width: 200,
+      render: (_, r) => (
+        <ModelQtyCell
+          items={r.items}
+          totalQty={r.totalQuantity}
+          docLabel={`${r.obNo} · ${r.customerName ?? ''}`}
+          onOpenDetail={() => history.push(DOC_PATHS.outbound(r.id))}
+        />
+      ),
+    },
+    {
+      title: '品牌',
+      key: 'brands',
+      width: 120,
+      render: (_, r) => (
+        <TagList values={distinctOf(r.items, 'brand')} label="品牌" />
+      ),
+    },
+    {
+      title: '品类',
+      key: 'categories',
+      width: 130,
+      render: (_, r) => (
+        <TagList values={distinctOf(r.items, 'category')} label="品类" />
       ),
     },
     {
@@ -314,16 +314,26 @@ const Outbounds: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 120,
+      width: rowActionsWidth(2),
       fixed: 'right',
       render: (_, r) => (
-        <Space size={12}>
-          {action(r)}
-          <Link to={DOC_PATHS.outbound(r.id)}>查看</Link>
-        </Space>
+        <RowActions
+          inline={[
+            action(r),
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(DOC_PATHS.outbound(r.id)),
+            },
+          ]}
+        />
       ),
     },
   ];
+  const columnsSet = useColumnSettings('warehouse-outbounds', columns, {
+    hidden: ['型号 · 数量', '品牌', '品类', '来源单号', '业务员'],
+  });
 
   const apply = () => {
     setQuery(keyword.trim() || undefined);
@@ -337,7 +347,7 @@ const Outbounds: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle description="按业务员的发货通知打包：逐箱登记尺寸、重量和箱内型号，交国内快递发往深圳货代；同一客户、同一货代的几张单可以合并打包。" />
+      <PageHeader help="按业务员的发货通知打包：逐箱登记尺寸、重量和箱内型号，交国内快递发往深圳货代；同一客户、同一货代的几张单可以合并打包" />
       <FilterCard
         onSearch={apply}
         onReset={() => {
@@ -346,18 +356,34 @@ const Outbounds: React.FC = () => {
           changeTab('pending');
         }}
       >
-        <FilterField label="关键词" span={2}>
+        <FilterField
+          label="关键词"
+          span={2}
+          help="可搜：销售出库单号、销售订单编号、出库型号、国内快递单号、客户名称"
+        >
           <Input
             allowClear
-            prefix={<SearchOutlined />}
+            prefix={<Search size="1em" />}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             onPressEnter={apply}
-            placeholder="销售出库单号、订单号、客户、型号"
+            placeholder="出库单号、订单编号、客户"
             aria-label="关键词"
           />
         </FilterField>
-        <FilterField label="状态">
+        <FilterField
+          label="状态"
+          // 原表格下方按状态显示的脚注（排序说明删去）
+          help={
+            tab === 'packed'
+              ? '勾选同一家货代的销售出库单合成一票快递，运费按计费重分摊'
+              : tab === 'handed'
+                ? '还没放进出运单的可以在详情里撤销交快递，回到待交快递'
+                : tab === 'all'
+                  ? '含已撤回的发货通知'
+                  : undefined
+          }
+        >
           <Select<Tab>
             value={tab}
             onChange={changeTab}
@@ -385,26 +411,26 @@ const Outbounds: React.FC = () => {
         <ErrorHint message={error} onRetry={load} />
       ) : (
         <MainCard
+          settings={columnsSet.settings}
           left={
             selectable && selected.length > 0 ? (
               <>
-                <CheckCircleOutlined style={{ color: palette.link }} />
-                <b style={{ color: palette.ink }}>已选 {selected.length} 张</b>
-                <span style={{ color: palette.sub }}>
-                  {tab === 'pending'
-                    ? `${selected[0].customerName ?? ''} · ${selected[0].forwarderName ?? ''}`
-                    : selected[0].forwarderName}
-                  {tab === 'packed' &&
-                    selected.some((r) => r.packId) &&
-                    ' · 合并打包的同组单已一起选中'}
-                </span>
-                <button
-                  type="button"
-                  className="zhul-link"
-                  onClick={() => setSelected([])}
-                >
-                  取消选择
-                </button>
+                <CircleCheck size="1em" style={{ color: palette.link }} />
+                <SelectionCount
+                  count={selected.length}
+                  unit="张"
+                  extra={
+                    <span style={{ color: palette.sub }}>
+                      {tab === 'pending'
+                        ? `${selected[0].customerName ?? ''} · ${selected[0].forwarderName ?? ''}`
+                        : selected[0].forwarderName}
+                      {tab === 'packed' &&
+                        selected.some((r) => r.packId) &&
+                        ' · 合并打包的同组单已一起选中'}
+                    </span>
+                  }
+                  onClear={() => setSelected([])}
+                />
               </>
             ) : (
               `${TAB_NAMES[tab]} ${total} 张`
@@ -416,7 +442,7 @@ const Outbounds: React.FC = () => {
               <>
                 {rows.some(conflicts) && (
                   <span style={{ fontSize: 12, color: palette.mute }}>
-                    <InfoCircleOutlined />{' '}
+                    <Info size="1em" />{' '}
                     {tab === 'pending'
                       ? selected.length >= MERGE_MAX
                         ? `一次最多合并 ${MERGE_MAX} 张`
@@ -427,7 +453,7 @@ const Outbounds: React.FC = () => {
                 {tab === 'pending' ? (
                   <Button
                     type="primary"
-                    icon={<InboxOutlined />}
+                    icon={<Inbox size="1em" />}
                     disabled={selected.length < 2}
                     title={
                       selected.length < 2 ? '再选一张才能合并打包' : undefined
@@ -439,7 +465,7 @@ const Outbounds: React.FC = () => {
                 ) : (
                   <Button
                     type="primary"
-                    icon={<CarOutlined />}
+                    icon={<Car size="1em" />}
                     onClick={() => setHanding(true)}
                   >
                     交快递
@@ -451,10 +477,10 @@ const Outbounds: React.FC = () => {
         >
           <Table<Outbound>
             rowKey="id"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             rowSelection={
               selectable
                 ? {
@@ -466,7 +492,7 @@ const Outbounds: React.FC = () => {
                 : undefined
             }
             locale={{
-              emptyText:
+              emptyText: tableEmpty(
                 tab === 'pending'
                   ? '没有待打包的销售出库单'
                   : tab === 'packed'
@@ -474,13 +500,14 @@ const Outbounds: React.FC = () => {
                     : tab === 'handed'
                       ? '还没有交货代的销售出库单'
                       : '还没有销售出库单',
+                loading,
+              ),
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
-              showTotal: (t: number) => `共 ${t} 条`,
               onChange: (p: number, s: number) => {
                 setPage(p);
                 setPageSize(s);
@@ -489,15 +516,6 @@ const Outbounds: React.FC = () => {
           />
         </MainCard>
       )}
-      <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-        {tab === 'pending'
-          ? '按通知时间从早到晚'
-          : tab === 'packed'
-            ? '勾选同一家货代的销售出库单合成一票快递，运费按计费重分摊'
-            : tab === 'handed'
-              ? '还没放进出运单的可以在详情里撤销交快递，回到待交快递'
-              : '含已撤回的发货通知'}
-      </div>
       <PackDrawer
         id={packing}
         onClose={() => setPacking(undefined)}

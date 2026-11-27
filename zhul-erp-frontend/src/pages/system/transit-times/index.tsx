@@ -1,9 +1,3 @@
-import {
-  ClockCircleOutlined,
-  EnvironmentOutlined,
-  PlusOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -14,11 +8,16 @@ import {
   InputNumber,
   Modal,
   Select,
-  Space,
   Table,
 } from 'antd';
+import { Clock, MapPin, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Card, PageTitle } from '@/pages/inquiry/shared/components';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { tableEmpty } from '@/components/EmptyState';
+import { PageHeader } from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { Card } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { CARRIERS } from '@/pages/purchase/shipments/ShipmentDrawer';
@@ -34,9 +33,9 @@ import { tableScrollX } from '@/utils/tableScroll';
 type Editing = Partial<TransitTime> & { open: true };
 
 const TransitTimes: React.FC = () => {
-  const pager = usePagination(50);
+  const pager = usePagination(20);
   const { palette } = useAppTheme();
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
   const access = useAccess();
   const canEdit = !!access['system:transit-time:edit'];
   const [carrier, setCarrier] = useState<string>();
@@ -77,8 +76,10 @@ const TransitTimes: React.FC = () => {
 
   const carriers = [...new Set(rows.map((r) => r.carrier))];
 
+  const confirmDanger = useConfirmDanger();
   const columns: TableColumnsType<TransitTime> = [
     {
+      fixed: 'left',
       title: '快递公司',
       dataIndex: 'carrier',
       width: 140,
@@ -108,56 +109,57 @@ const TransitTimes: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 110,
       fixed: 'right',
-      render: (_, r) =>
-        canEdit ? (
-          <Space size={12}>
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setEditing({ ...r, open: true })}
-            >
-              编辑
-            </button>
-            <button
-              type="button"
-              className="zhul-link"
-              style={{ color: palette.red }}
-              onClick={() =>
-                modal.confirm({
-                  title: `删除「${r.carrier} · ${r.originProvince || '默认'}」？`,
-                  content: '删除后按快递公司默认或默认运输天数估算。',
-                  okText: '删除',
-                  okButtonProps: { danger: true },
-                  onOk: async () => {
-                    try {
-                      await transitApi.remove(r.id);
-                      message.success('已删除');
-                      load();
-                    } catch (e) {
-                      message.error(readBizError(e).message);
-                    }
-                  },
-                })
-              }
-            >
-              删除
-            </button>
-          </Space>
-        ) : null,
+      // 编辑放行内，删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(2),
+      render: (_, r) => (
+        <RowActions
+          inline={[
+            canEdit && {
+              key: 'edit',
+              label: '编辑',
+              icon: <Pencil size={18} />,
+              onClick: () => setEditing({ ...r, open: true }),
+            },
+          ]}
+          more={[
+            canEdit && {
+              key: 'delete',
+              label: '删除',
+              icon: <Trash2 size={16} />,
+              danger: true,
+            },
+          ]}
+          onMore={() =>
+            confirmDanger({
+              title: `删除「${r.carrier} · ${r.originProvince || '默认'}」？`,
+              content: '删除后按快递公司默认或默认运输天数估算。',
+              onOk: async () => {
+                try {
+                  await transitApi.remove(r.id);
+                  message.success('已删除');
+                  load();
+                } catch (e) {
+                  message.error(readBizError(e).message);
+                }
+              },
+            })
+          }
+        />
+      ),
     },
   ];
+  const columnsSet = useColumnSettings('system-transit-times', columns);
 
   return (
     <div>
-      <PageTitle
-        description="货从供应商所在省份发到福州仓库要几天；登记发货时按这里估算预计到货日期。"
-        actions={
+      <PageHeader
+        help="货从供应商所在省份发到福州仓库要几天；登记发货时按这里估算预计到货日期"
+        extra={
           canEdit && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => setEditing({ open: true, days: 3 })}
             >
               新增规则
@@ -175,7 +177,7 @@ const TransitTimes: React.FC = () => {
       >
         <Card style={{ padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <ClockCircleOutlined style={{ color: palette.link }} />
+            <Clock size="1em" style={{ color: palette.link }} />
             <b style={{ color: palette.ink }}>默认运输天数</b>
             <span style={{ flex: 1 }} />
             <InputNumber
@@ -212,7 +214,7 @@ const TransitTimes: React.FC = () => {
         </Card>
         <Card style={{ padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <EnvironmentOutlined style={{ color: palette.link }} />
+            <MapPin size="1em" style={{ color: palette.link }} />
             <b style={{ color: palette.ink }}>估算顺序</b>
           </div>
           <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
@@ -241,7 +243,7 @@ const TransitTimes: React.FC = () => {
         />
         <Input
           allowClear
-          prefix={<SearchOutlined />}
+          prefix={<Search size="1em" />}
           value={province}
           onChange={(e) => setProvince(e.target.value)}
           onPressEnter={() =>
@@ -260,18 +262,21 @@ const TransitTimes: React.FC = () => {
         >
           查询
         </Button>
+        <div style={{ marginLeft: 'auto' }}>{columnsSet.settings}</div>
       </div>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
         <Table<TransitTime>
           rowKey="id"
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           pagination={{ ...pager, showTotal: (t) => `共 ${t} 条` }}
-          locale={{ emptyText: '没有规则；估算时按默认运输天数' }}
+          locale={{
+            emptyText: tableEmpty('没有规则；估算时按默认运输天数', loading),
+          }}
         />
       )}
       <RuleModal

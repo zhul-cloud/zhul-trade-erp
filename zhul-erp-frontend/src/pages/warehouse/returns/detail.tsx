@@ -1,6 +1,7 @@
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table } from 'antd';
+import { App, Button, Dropdown, Skeleton, Table } from 'antd';
+import { Ellipsis, RotateCcw } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
   docBrandColumns,
@@ -13,6 +14,7 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -32,8 +34,8 @@ import { PATHS } from '@/pages/sales/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
-import { ReasonModal, WarehousePageTitle } from '../components';
+import { tableScrollX } from '@/utils/tableScroll';
+import { ReasonModal } from '../components';
 import { DISP_TONE, DisposeModal, ReceiveModal } from './dialogs';
 
 /** 退货入库单详情（spec warehouse/sales-return）：验收、撤回入库、逐行处理去向 */
@@ -99,12 +101,14 @@ const ReturnReceiptDetail: React.FC = () => {
     { title: '退货', dataIndex: 'quantity', width: 70 },
     {
       title: '实收',
+      align: 'right' as const,
       dataIndex: 'receivedQty',
       width: 70,
       render: (v) => v ?? '—',
     },
     {
       title: '合格',
+      align: 'right' as const,
       dataIndex: 'qualifiedQty',
       width: 70,
       render: (v) => v ?? '—',
@@ -159,7 +163,7 @@ const ReturnReceiptDetail: React.FC = () => {
     },
   ];
 
-  const main = (
+  const info = (
     <>
       <InfoGrid
         items={[
@@ -192,6 +196,11 @@ const ReturnReceiptDetail: React.FC = () => {
           { label: '作废原因', value: r.voidReason, hidden: !voided },
         ]}
       />
+    </>
+  );
+  // 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18）
+  const wideSections = (
+    <>
       <Card style={{ padding: 20, marginBottom: 16 }}>
         <SectionTitle>明细</SectionTitle>
         <Table<ReturnReceiptItem>
@@ -200,7 +209,7 @@ const ReturnReceiptDetail: React.FC = () => {
           pagination={false}
           columns={columns}
           dataSource={r.items}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(columns) }}
         />
       </Card>
       <DocFilesCard
@@ -249,20 +258,12 @@ const ReturnReceiptDetail: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle
-        crumbs={[
-          <MenuLink key="list" to={PATHS.returnReceiptList} />,
-          r.receiptNo,
-        ]}
-        title={
-          <>
-            {r.receiptNo}
-            <Pill tone={RT_STATUS_TONE[r.status] ?? 'gray'}>
-              {r.statusName}
-            </Pill>
-          </>
+      <PageHeader
+        title={r.receiptNo}
+        tags={
+          <Pill tone={RT_STATUS_TONE[r.status] ?? 'gray'}>{r.statusName}</Pill>
         }
-        description={
+        sub={
           <>
             {r.customerName} ·{' '}
             <SourceNos
@@ -275,19 +276,41 @@ const ReturnReceiptDetail: React.FC = () => {
             创建
           </>
         }
-        actions={
+        // 页头操作（照销售订单详情）：验收或处理去向为主按钮，撤回入库收进「更多」
+        extra={
           <>
+            {r.status !== RT_STATUS.PENDING &&
+              !voided &&
+              canReceive &&
+              r.items.every((i) => i.disposedQty === 0) && (
+                <Dropdown
+                  trigger={['click']}
+                  placement="bottomRight"
+                  menu={{
+                    items: [
+                      {
+                        key: 'unreceive',
+                        icon: <RotateCcw size={16} />,
+                        label: '撤回入库',
+                        danger: true,
+                      },
+                    ],
+                    onClick: () => setDialog('unreceive'),
+                  }}
+                >
+                  <Button
+                    type="text"
+                    shape="circle"
+                    icon={<Ellipsis size={18} />}
+                    aria-label="更多操作"
+                  />
+                </Dropdown>
+              )}
             {r.status === RT_STATUS.PENDING && canReceive && (
               <Button type="primary" onClick={() => setDialog('receive')}>
                 验收
               </Button>
             )}
-            {r.status !== RT_STATUS.PENDING &&
-              !voided &&
-              canReceive &&
-              r.items.every((i) => i.disposedQty === 0) && (
-                <Button onClick={() => setDialog('unreceive')}>撤回入库</Button>
-              )}
             {r.status === RT_STATUS.RECEIVED && canDispose && (
               <Button type="primary" onClick={() => setDialog('dispose')}>
                 处理去向
@@ -306,9 +329,10 @@ const ReturnReceiptDetail: React.FC = () => {
           alignItems: 'start',
         }}
       >
-        <div style={{ minWidth: 0 }}>{main}</div>
+        <div style={{ minWidth: 0 }}>{info}</div>
         <div style={{ minWidth: 0 }}>{side}</div>
       </div>
+      {wideSections}
       <ReceiveModal
         data={dialog === 'receive' ? r : undefined}
         onClose={() => setDialog(undefined)}

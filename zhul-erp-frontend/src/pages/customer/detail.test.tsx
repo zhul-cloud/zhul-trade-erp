@@ -26,11 +26,9 @@ jest.mock('@umijs/max', () => ({
   Link: (p: { children: unknown }) => p.children,
   useAccess: () => ({ salesFollowup: true, 'partner:customer:merge': true }),
 }));
-// boardStyle 的 JSX 依赖全局 React（jest 下没有），这里只需要颜色
+// boardStyle 的 JSX 依赖全局 React（jest 下没有）
 jest.mock('@/pages/sales/followup/boardStyle', () => ({
-  styleOf: () => ({ color: '#4338CA', soft: '#E0E7FF', icon: null }),
-  BOARD_STYLE: {},
-  TODAY_COLOR: '#4F46E5',
+  BOARD_ICON: {},
   VIEW_TODAY: 0,
 }));
 jest.mock('@/pages/sales/followup/service', () => ({
@@ -142,7 +140,6 @@ const flush = () => act(async () => {});
 it('切回页面：静默刷新，子卡片的数据一并重取', async () => {
   const view = render(h(Page, { active: true }));
   await flush();
-  expect(screen.getByText('跳到主要内容')).toBeTruthy();
   const section = screen.getByRole('region', { name: '跟进' });
   expect(customerApi.detail).toHaveBeenCalledTimes(1);
 
@@ -188,7 +185,11 @@ it('客户名称为空：标题和流水抽屉用展示名', async () => {
 it('当前客户被合并：用替换打开保留的客户', async () => {
   render(h(Page, { active: true }));
   await flush();
-  fireEvent.click(screen.getByRole('button', { name: /合\s*并/ }));
+  // ui-redesign 7.1 起「合并」收进页头的「更多」菜单
+  fireEvent.click(screen.getByRole('button', { name: '更多操作' }));
+  await act(async () => {
+    fireEvent.click(await screen.findByRole('menuitem', { name: /合\s*并/ }));
+  });
   fireEvent.click(screen.getByText('模拟合并完成'));
   expect(history.replace).toHaveBeenCalledWith('/customer/list/99');
   expect(history.push).not.toHaveBeenCalled();

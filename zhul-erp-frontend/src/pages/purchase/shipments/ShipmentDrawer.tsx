@@ -1,11 +1,4 @@
 import {
-  CheckOutlined,
-  InfoCircleOutlined,
-  PictureOutlined,
-  UnorderedListOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
-import {
   App,
   AutoComplete,
   Button,
@@ -19,6 +12,7 @@ import {
   Skeleton,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Check, Image, Info, List, TriangleAlert } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { type Forwarder, forwarderApi } from '@/pages/logistics/service';
 import {
@@ -245,13 +239,13 @@ const ShipmentDrawer: React.FC<{
       footer={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 12, color: palette.mute }}>
-            <InfoCircleOutlined /> 一张采购订单可以分几批发；线上店铺同样登记
+            <Info size="1em" /> 一张采购订单可以分几批发；线上店铺同样登记
           </span>
           <span style={{ flex: 1 }} />
           <Button onClick={onClose}>取消</Button>
           <Button
             type="primary"
-            icon={<CheckOutlined />}
+            icon={<Check size="1em" />}
             loading={saving}
             disabled={
               !form ||
@@ -395,7 +389,7 @@ const ShipmentDrawer: React.FC<{
           </div>
 
           {section(
-            <UnorderedListOutlined />,
+            <List size="1em" />,
             '本次发货的型号',
             shipmentId
               ? '最多为未发数量加本单原数量'
@@ -479,13 +473,13 @@ const ShipmentDrawer: React.FC<{
                 fontSize: 13,
               }}
             >
-              <WarningOutlined />{' '}
+              <TriangleAlert size="1em" />{' '}
               直发货代的货不进福州仓库、不拍摄；货代收到后，业务员在出运单上按实收确认数量并填箱规，系统自动补入库和出库。
             </div>
           )}
 
           {section(
-            <PictureOutlined />,
+            <Image size="1em" />,
             '发货图片与视频',
             '图片 10MB 内，视频 95MB 内',
           )}

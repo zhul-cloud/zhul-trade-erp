@@ -1,11 +1,3 @@
-import {
-  CheckCircleOutlined,
-  LockOutlined,
-  SafetyOutlined,
-  SearchOutlined,
-  TeamOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   DrawerForm,
@@ -22,17 +14,38 @@ import {
   App,
   Badge,
   Button,
-  Card,
   Form,
   Input,
   Radio,
+  Select,
   Space,
   Spin,
   Tag,
   Tree,
 } from 'antd';
+import {
+  Ban,
+  CircleCheck,
+  Pencil,
+  Plus,
+  Search,
+  ShieldCheck,
+  Trash2,
+  TriangleAlert,
+} from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import EllipsisText from '@/components/EllipsisText';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  SummaryBar,
+} from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { proAuditColumns } from '@/components/UserName';
 import {
   type WorkbenchTemplate,
   workbenchApi,
@@ -51,7 +64,6 @@ import {
 import type { DeptTreeOption } from '@/pages/system/user/service';
 import { getDeptTreeOptions } from '@/pages/system/user/service';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import type { RoleItem, RoleStats } from './service';
@@ -143,13 +155,22 @@ const toAntdTree = (list: MenuItem[]): any[] =>
   }));
 
 const RolePage: React.FC = () => {
-  const pager = usePagination(10);
+  const pager = usePagination(20);
   const { palette: p } = useAppTheme();
   const actionRef = useRef<ActionType>(undefined);
   const { message, modal } = App.useApp();
   const access = useAccess();
 
   const [stats, setStats] = useState<RoleStats | null>(null);
+  /** 搜索条件：状态切换后立即查询，名称、编码点「查询」才生效 */
+  const [filters, setFilters] = useState<{
+    name?: string;
+    code?: string;
+    status?: number;
+  }>({});
+  const [draft, setDraft] = useState<{ name?: string; code?: string }>({});
+  // 首次查询返回前没有总数，主卡不显示「共 0 条」
+  const [total, setTotal] = useState<number>();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('create');
@@ -341,7 +362,10 @@ const RolePage: React.FC = () => {
         content: (
           <div>
             <div style={{ marginBottom: 12 }}>
-              <WarningOutlined style={{ color: p.orange, marginRight: 8 }} />
+              <TriangleAlert
+                size="1em"
+                style={{ color: p.orange, marginRight: 8 }}
+              />
               角色「{record.name}」已分配给 {check.userCount} 名用户：
             </div>
             <div
@@ -364,20 +388,20 @@ const RolePage: React.FC = () => {
       });
       return;
     }
-    modal.confirm({
-      title: '确认删除',
-      content: `确认删除角色「${record.name}」？`,
-      okButtonProps: { danger: true },
+    confirmDanger({
+      title: `删除角色「${record.name}」？`,
       onOk: () => doDelete(record.id),
     });
   };
 
+  const confirmDanger = useConfirmDanger();
   const columns: ProColumns<RoleItem>[] = [
-    { title: '序号', valueType: 'index', width: 60, search: false },
     {
+      fixed: 'left',
       title: '角色名称',
       dataIndex: 'name',
       width: 160,
+      search: false,
       render: (_, record) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <EllipsisText text={record.name} />
@@ -385,7 +409,7 @@ const RolePage: React.FC = () => {
         </div>
       ),
     },
-    { title: '角色编码', dataIndex: 'code', width: 140 },
+    { title: '角色编码', dataIndex: 'code', width: 140, search: false },
     {
       title: '数据权限',
       dataIndex: 'permissionScope',
@@ -398,6 +422,7 @@ const RolePage: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 80,
+      search: false,
       render: (_, record) =>
         record.status === 1 ? (
           <Badge status="success" text="启用" />
@@ -418,180 +443,189 @@ const RolePage: React.FC = () => {
         <span style={{ color: p.link }}>{record.userCount} 人</span>
       ),
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      search: false,
-      width: 160,
-      render: (_, r) => formatDateTime(r.createTime),
-    },
-    {
-      title: '创建人',
-      dataIndex: 'createBy',
-      search: false,
-      width: 150,
-      render: ellipsisRender,
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      search: false,
-      width: 160,
-      render: (_, r) => formatDateTime(r.updateTime),
-    },
-    {
-      title: '更新人',
-      dataIndex: 'updateBy',
-      search: false,
-      width: 150,
-      render: ellipsisRender,
-    },
+    ...proAuditColumns<RoleItem>(),
     {
       title: '操作',
       fixed: 'right',
       valueType: 'option',
-      width: 220,
-      render: (_, record) => (
-        <Space size={12}>
-          {canAssign && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => openAssign(record)}
-            >
-              分配权限
-            </button>
-          )}
-          {canEdit && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => openEdit(record)}
-            >
-              编辑
-            </button>
-          )}
-          {canEdit && (
-            <button
-              type="button"
-              className="zhul-link"
-              style={{ color: record.status === 1 ? p.red : p.green }}
-              onClick={() => handleToggleStatus(record)}
-            >
-              {record.status === 1 ? '禁用' : '启用'}
-            </button>
-          )}
-          {canDelete && record.isBuiltIn !== 1 && (
-            <button
-              type="button"
-              className="zhul-link"
-              style={{ color: p.red }}
-              onClick={() => handleDeleteClick(record)}
-            >
-              删除
-            </button>
-          )}
-        </Space>
-      ),
+      // 编辑、分配权限放行内；启用/禁用、删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(3),
+      render: (_, record) => {
+        const enabled = record.status === 1;
+        return (
+          <RowActions
+            inline={[
+              canEdit && {
+                key: 'edit',
+                label: '编辑',
+                icon: <Pencil size={18} />,
+                onClick: () => openEdit(record),
+              },
+              canAssign && {
+                key: 'assign',
+                label: '分配权限',
+                icon: <ShieldCheck size={18} />,
+                onClick: () => openAssign(record),
+              },
+            ]}
+            more={[
+              canEdit && {
+                key: 'status',
+                label: enabled ? '禁用' : '启用',
+                icon: enabled ? <Ban size={16} /> : <CircleCheck size={16} />,
+                danger: enabled,
+              },
+              canDelete &&
+                record.isBuiltIn !== 1 && {
+                  key: 'delete',
+                  label: '删除',
+                  icon: <Trash2 size={16} />,
+                  danger: true,
+                },
+            ]}
+            onMore={(key) => {
+              if (key === 'status') {
+                if (enabled) {
+                  confirmDanger({
+                    title: `禁用角色「${record.name}」？`,
+                    okText: '禁用',
+                    onOk: () => handleToggleStatus(record),
+                  });
+                } else {
+                  handleToggleStatus(record);
+                }
+              }
+              if (key === 'delete') handleDeleteClick(record);
+            }}
+          />
+        );
+      },
     },
   ];
+  const columnsSet = useColumnSettings('system-role', columns);
 
-  const statCards = stats
-    ? [
-        {
-          icon: <SafetyOutlined />,
-          color: p.link,
-          bg: p.accentSoft,
-          label: '角色总数',
-          value: stats.total,
-          hint: `覆盖 ${stats.deptCoverage} 个部门`,
-        },
-        {
-          icon: <CheckCircleOutlined />,
-          color: p.green,
-          bg: p.greenSoft,
-          label: '启用角色',
-          value: stats.enabledCount,
-          hint: `占比 ${stats.enabledRate}%`,
-        },
-        {
-          icon: <LockOutlined />,
-          color: p.violet,
-          bg: p.violetSoft,
-          label: '内置角色',
-          value: stats.builtInCount,
-          hint: '不可删除',
-        },
-        {
-          icon: <TeamOutlined />,
-          color: p.orange,
-          bg: p.orangeSoft,
-          label: '自定义角色',
-          value: stats.customCount,
-          hint: '可自由配置',
-        },
-      ]
-    : [];
+  const search = () =>
+    setFilters({
+      ...filters,
+      name: draft.name?.trim() || undefined,
+      code: draft.code?.trim() || undefined,
+    });
 
   const permCheckedCount = checkedKeys.length;
 
   return (
     <>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 16,
-          marginBottom: 16,
-        }}
-      >
-        {statCards.map((s) => (
-          <Card key={s.label} styles={{ body: { padding: 20 } }}>
-            <Space align="center">
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: s.bg,
-                  color: s.color,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 18,
-                }}
-              >
-                {s.icon}
-              </div>
-              <span style={{ color: p.mute }}>{s.label}</span>
-            </Space>
-            <div style={{ fontSize: 28, fontWeight: 700, marginTop: 12 }}>
-              {s.value}
-            </div>
-            <div style={{ fontSize: 12, color: p.green, marginTop: 4 }}>
-              {s.hint}
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      <ProTable<RoleItem>
-        scroll={{ x: tableScrollX(columns) }}
-        headerTitle="角色列表"
-        actionRef={actionRef}
-        rowKey="id"
-        columns={columns}
-        request={getRoleList}
-        pagination={pager}
-        search={{ labelWidth: 'auto' }}
-        toolBarRender={() => [
+      <PageHeader
+        extra={
           canAdd && (
-            <Button key="add" type="primary" onClick={openCreate}>
+            <Button
+              type="primary"
+              icon={<Plus size={18} />}
+              onClick={openCreate}
+            >
               新增角色
             </Button>
-          ),
-        ]}
+          )
+        }
       />
+      {stats && (
+        <SummaryBar
+          items={[
+            {
+              key: 'total',
+              label: '角色总数',
+              value: stats.total,
+              sub: `覆盖 ${stats.deptCoverage} 个部门 · 启用占比 ${stats.enabledRate}%`,
+            },
+            {
+              key: 'builtIn',
+              label: '内置角色',
+              help: '不可删除',
+              value: stats.builtInCount,
+            },
+            {
+              key: 'custom',
+              label: '自定义角色',
+              help: '可自由配置',
+              value: stats.customCount,
+            },
+          ]}
+        />
+      )}
+      <FilterCard
+        onSearch={search}
+        onReset={() => {
+          setDraft({});
+          setFilters({});
+          // 条件清空时 ProTable 不会自动回到第 1 页
+          actionRef.current?.setPageInfo?.({ current: 1 });
+        }}
+      >
+        <FilterField label="角色名称" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="角色名称"
+            aria-label="角色名称"
+            value={draft.name}
+            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+            onPressEnter={search}
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select<number>
+            allowClear
+            placeholder="全部"
+            aria-label="状态"
+            value={filters.status}
+            // 状态下拉切换后立即查询；启用数量取原「启用角色」卡片
+            onChange={(v) => setFilters({ ...filters, status: v })}
+            options={[
+              {
+                value: 1,
+                label: stats?.enabledCount
+                  ? `启用 · ${stats.enabledCount}`
+                  : '启用',
+              },
+              {
+                value: 0,
+                label:
+                  stats && stats.total - stats.enabledCount
+                    ? `禁用 · ${stats.total - stats.enabledCount}`
+                    : '禁用',
+              },
+            ]}
+          />
+        </FilterField>
+        <FilterField label="角色编码">
+          <Input
+            allowClear
+            placeholder="全部"
+            aria-label="角色编码"
+            value={draft.code}
+            onChange={(e) => setDraft({ ...draft, code: e.target.value })}
+            onPressEnter={search}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard settings={columnsSet.settings} count={total}>
+        <ProTable<RoleItem>
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
+          actionRef={actionRef}
+          rowKey="id"
+          columns={columnsSet.columns}
+          params={filters}
+          request={async (params) => {
+            const res = await getRoleList(params);
+            setTotal(res.total);
+            return res;
+          }}
+          pagination={pager}
+          search={false}
+          options={false}
+          toolBarRender={false}
+        />
+      </MainCard>
 
       {/* 新增 / 编辑角色 */}
       <DrawerForm
@@ -653,7 +687,7 @@ const RolePage: React.FC = () => {
             <Space orientation="vertical" style={{ width: '100%' }}>
               {SCOPE_OPTIONS.map((opt) => (
                 <Radio key={opt.value} value={opt.value}>
-                  <div style={{ fontWeight: 500 }}>{opt.title}</div>
+                  <div style={{ fontWeight: 400 }}>{opt.title}</div>
                   <div style={{ fontSize: 12, color: p.mute }}>{opt.desc}</div>
                 </Radio>
               ))}
@@ -780,7 +814,7 @@ const RolePage: React.FC = () => {
         </div>
         <Input
           placeholder="搜索菜单/按钮名称"
-          prefix={<SearchOutlined />}
+          prefix={<Search size="1em" />}
           allowClear
           style={{ marginBottom: 12 }}
           value={menuKeyword}

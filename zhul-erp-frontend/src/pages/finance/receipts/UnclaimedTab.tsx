@@ -1,17 +1,9 @@
-import {
-  FileImageOutlined,
-  FileTextOutlined,
-  PaperClipOutlined,
-  PlusOutlined,
-  SearchOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import type { TableColumnsType, UploadFile } from 'antd';
 import {
   App,
-  Button,
   DatePicker,
+  Form,
   Input,
   InputNumber,
   Modal,
@@ -20,11 +12,29 @@ import {
   Upload,
 } from 'antd';
 import dayjs from 'dayjs';
+import {
+  Ban,
+  FileImage,
+  FileText,
+  Paperclip,
+  Search,
+  Undo2,
+  UploadIcon,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CopyText } from '@/components/CopyText';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  CardTitle,
+  FilterCard,
+  FilterField,
+  MainCard,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { useFilePreview } from '@/pages/inquiry/shared/FilePreview';
 import { CURRENCIES } from '@/pages/quotation/components';
-import { Card, PATHS, Pill } from '@/pages/sales/components';
+import { PATHS, Pill } from '@/pages/sales/components';
 import {
   ReasonModal,
   SLIP_TYPES,
@@ -46,6 +56,11 @@ import { tableScrollX } from '@/utils/tableScroll';
 import { ledgerApi } from './service';
 
 const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
+
+/** 帮助文字：help-texts.md「收款管理」，关键词范围以 search-scope.md 为准 */
+const UNCLAIMED_HELP = {
+  keyword: '可搜：付款人、说明、金额（去掉千分位逗号后匹配）',
+} as const;
 const label: React.CSSProperties = { fontSize: 13, marginBottom: 6 };
 
 /** 付款方式与线上 / 线下 */
@@ -295,7 +310,7 @@ const RegisterModal: React.FC<{
           style={{ padding: '4px 0' }}
         >
           <span style={{ color: palette.sub }}>
-            <UploadOutlined /> 拖入或点击上传银行回单
+            <UploadIcon size="1em" /> 拖入或点击上传银行回单
           </span>
         </Upload.Dragger>
       </div>
@@ -355,11 +370,13 @@ const FilesModal: React.FC<{ row?: ReceiptRow; onClose: () => void }> = ({
               }}
             >
               {/\.pdf$/i.test(name) ? (
-                <FileTextOutlined
+                <FileText
+                  size="1em"
                   style={{ fontSize: 26, color: palette.sub }}
                 />
               ) : (
-                <FileImageOutlined
+                <FileImage
+                  size="1em"
                   style={{ fontSize: 26, color: palette.sub }}
                 />
               )}
@@ -380,6 +397,11 @@ const UnclaimedTab: React.FC<{
 }> = ({ registerSignal, onCount }) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
+  const [form] = Form.useForm<{
+    keyword?: string;
+    currency?: string;
+    unitFilter?: number;
+  }>();
   const [keyword, setKeyword] = useState('');
   const [currency, setCurrency] = useState<string>();
   const [data, setData] = useState<{
@@ -427,6 +449,13 @@ const UnclaimedTab: React.FC<{
     if (registerSignal > 0) setRegisterOpen(true);
   }, [registerSignal]);
 
+  const search = () => {
+    const v = form.getFieldsValue();
+    setKeyword(v.keyword ?? '');
+    setCurrency(v.currency);
+    setUnitFilter(v.unitFilter);
+  };
+
   const columns: TableColumnsType<ReceiptRow> = [
     {
       title: '收款单号',
@@ -434,14 +463,16 @@ const UnclaimedTab: React.FC<{
       width: 150,
       render: (v: string | undefined, r) =>
         v ? (
-          <button
-            type="button"
-            className="zhul-link"
-            style={{ whiteSpace: 'nowrap' }}
-            onClick={() => history.push(`/finance/receipts/${r.id}`)}
-          >
-            {v}
-          </button>
+          <CopyText text={v}>
+            <button
+              type="button"
+              className="zhul-link"
+              style={{ whiteSpace: 'nowrap' }}
+              onClick={() => history.push(`/finance/receipts/${r.id}`)}
+            >
+              {v}
+            </button>
+          </CopyText>
         ) : (
           '—'
         ),
@@ -501,7 +532,7 @@ const UnclaimedTab: React.FC<{
             className="zhul-link"
             onClick={() => setViewing(r)}
           >
-            <PaperClipOutlined /> {r.fileNames.length} 个
+            <Paperclip size="1em" /> {r.fileNames.length} 个
           </button>
         ) : (
           <span style={{ color: palette.mute }}>—</span>
@@ -517,16 +548,19 @@ const UnclaimedTab: React.FC<{
     {
       title: '操作',
       key: 'op',
-      width: 70,
+      width: rowActionsWidth(1),
       render: (_, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          style={{ color: palette.red }}
-          onClick={() => setReason({ id: r.id, kind: 'void' })}
-        >
-          作废
-        </button>
+        <RowActions
+          more={[
+            {
+              key: 'void',
+              label: '作废',
+              icon: <Ban size={16} />,
+              danger: true,
+            },
+          ]}
+          onMore={() => setReason({ id: r.id, kind: 'void' })}
+        />
       ),
     },
   ];
@@ -538,14 +572,16 @@ const UnclaimedTab: React.FC<{
       width: 150,
       render: (v: string | undefined, r) =>
         v ? (
-          <button
-            type="button"
-            className="zhul-link"
-            style={{ whiteSpace: 'nowrap' }}
-            onClick={() => history.push(`/finance/receipts/${r.id}`)}
-          >
-            {v}
-          </button>
+          <CopyText text={v}>
+            <button
+              type="button"
+              className="zhul-link"
+              style={{ whiteSpace: 'nowrap' }}
+              onClick={() => history.push(`/finance/receipts/${r.id}`)}
+            >
+              {v}
+            </button>
+          </CopyText>
         ) : (
           '—'
         ),
@@ -602,90 +638,99 @@ const UnclaimedTab: React.FC<{
     {
       title: '操作',
       key: 'op',
-      width: 90,
+      width: rowActionsWidth(1),
       render: (_, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          style={{ color: palette.orange }}
-          onClick={() => setReason({ id: r.id, kind: 'unclaim' })}
-        >
-          取消认领
-        </button>
+        <RowActions
+          more={[
+            {
+              key: 'unclaim',
+              label: '取消认领',
+              icon: <Undo2 size={16} />,
+              danger: true,
+            },
+          ]}
+          onMore={() => setReason({ id: r.id, kind: 'unclaim' })}
+        />
       ),
     },
   ];
 
   return (
     <div>
-      <Card style={{ marginBottom: 16, padding: 16 }}>
-        <div
-          style={{
-            display: 'flex',
-            gap: 12,
-            alignItems: 'center',
-            flexWrap: 'wrap',
+      <Form form={form} component={false}>
+        <FilterCard
+          onSearch={search}
+          onReset={() => {
+            form.resetFields();
+            setKeyword('');
+            setCurrency(undefined);
+            setUnitFilter(undefined);
           }}
         >
-          <Input
-            allowClear
-            style={{ width: 280 }}
-            prefix={<SearchOutlined />}
-            placeholder="付款人、金额、说明"
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-          />
-          <Select
-            allowClear
-            style={{ width: 140 }}
-            placeholder="全部币种"
-            value={currency}
-            onChange={setCurrency}
-            options={CURRENCIES.map((c) => ({ value: c, label: c }))}
-          />
+          <FilterField label="关键词" span={2} help={UNCLAIMED_HELP.keyword}>
+            <Form.Item name="keyword" noStyle>
+              <Input
+                allowClear
+                prefix={<Search size={16} />}
+                placeholder="付款人、金额、说明"
+                aria-label="关键词"
+                onPressEnter={search}
+              />
+            </Form.Item>
+          </FilterField>
+          <FilterField label="币种">
+            <Form.Item name="currency" noStyle>
+              <Select
+                allowClear
+                placeholder="全部"
+                aria-label="币种"
+                options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+              />
+            </Form.Item>
+          </FilterField>
           {bu.enabled && (
-            <Select
-              allowClear
-              style={{ width: 170 }}
-              placeholder="所属事业部"
-              value={unitFilter}
-              onChange={setUnitFilter}
-              options={unitFilterOptions(bu, false)}
-            />
+            <FilterField label="所属事业部">
+              <Form.Item name="unitFilter" noStyle>
+                <Select
+                  allowClear
+                  placeholder="全部"
+                  aria-label="所属事业部"
+                  options={unitFilterOptions(bu, false)}
+                />
+              </Form.Item>
+            </FilterField>
           )}
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            style={{ marginLeft: 'auto' }}
-            onClick={() => setRegisterOpen(true)}
-          >
-            登记未认领到账
-          </Button>
-        </div>
-      </Card>
-      <Table<ReceiptRow>
-        rowKey="id"
-        columns={columns}
-        dataSource={data?.unclaimed}
-        loading={loading}
-        pagination={false}
-        scroll={{ x: tableScrollX(columns) }}
-        locale={{ emptyText: '没有未认领的到账' }}
-      />
-      <div
-        style={{ margin: '20px 0 10px', fontWeight: 700, color: palette.ink }}
+        </FilterCard>
+      </Form>
+      <MainCard
+        left={
+          loading && !(data?.unclaimed?.length ?? 0)
+            ? undefined
+            : `共 ${data?.unclaimed?.length ?? 0} 条`
+        }
       >
-        最近认领
-      </div>
-      <Table<ReceiptRow>
-        rowKey="id"
-        columns={claimedColumns}
-        dataSource={data?.recentClaimed}
-        loading={loading}
-        pagination={false}
-        scroll={{ x: tableScrollX(claimedColumns) }}
-        locale={{ emptyText: '还没有认领记录' }}
-      />
+        <Table<ReceiptRow>
+          rowKey="id"
+          columns={columns}
+          dataSource={data?.unclaimed}
+          loading={loading}
+          pagination={false}
+          scroll={{ x: tableScrollX(columns) }}
+          locale={{ emptyText: tableEmpty('没有未认领的到账', loading) }}
+        />
+      </MainCard>
+      <div style={{ height: 16 }} />
+      <MainCard left={<CardTitle>最近认领</CardTitle>}>
+        <Table<ReceiptRow>
+          rowKey="id"
+          columns={claimedColumns}
+          dataSource={data?.recentClaimed}
+          loading={loading}
+          pagination={false}
+          scroll={{ x: tableScrollX(claimedColumns) }}
+          locale={{ emptyText: tableEmpty('还没有认领记录', loading) }}
+        />
+      </MainCard>
       <FilesModal row={viewing} onClose={() => setViewing(undefined)} />
       <RegisterModal
         open={registerOpen}

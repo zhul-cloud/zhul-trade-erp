@@ -1,14 +1,17 @@
-import { DownOutlined, RightOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Checkbox, Progress, Select, Space, Table } from 'antd';
 import dayjs from 'dayjs';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
-import { CustomerSub } from '@/components/DocFields';
+import { CustomerSubLine } from '@/components/DocFields';
+import { tableEmpty } from '@/components/EmptyState';
 import { Stars } from '@/pages/customer/profile/ui';
+import { useCountries } from '@/pages/product/components/useCountries';
 import { RECEIPT_META } from '@/pages/sales/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import type { Picked } from './Batch';
 import {
   CustomerLink,
@@ -65,7 +68,7 @@ export const StageBar: React.FC<{
   onChange: (v: StageFilter) => void;
   blocker?: string;
   onBlocker: (v?: string) => void;
-  /** 右侧的额外操作（主动开发：国家筛选、新建开发对象） */
+  /** 右侧的工具：搜索、负责人，主动开发另有国家筛选、新建开发对象 */
   extra?: React.ReactNode;
 }> = ({ boardNo, board, value, onChange, blocker, onBlocker, extra }) => {
   const { palette } = useAppTheme();
@@ -81,6 +84,7 @@ export const StageBar: React.FC<{
     <button
       type="button"
       key={key}
+      aria-pressed={active}
       onClick={() => onChange(f)}
       style={{
         all: 'unset',
@@ -90,9 +94,10 @@ export const StageBar: React.FC<{
         fontSize: 13,
         whiteSpace: 'nowrap',
         fontWeight: active ? 600 : 400,
-        color: active ? '#fff' : palette.ink,
-        background: active ? palette.link : palette.card,
-        border: `1px solid ${active ? palette.link : palette.hairline}`,
+        // 选中：主题色浅底加描边，不整块实底（整页只有页头一个实底主按钮，R10 方案 B）
+        color: active ? palette.link : palette.ink,
+        background: active ? palette.primarySoft : palette.card,
+        border: `1px solid ${active ? palette.primaryLine : palette.hairline}`,
         transition: 'background .15s',
       }}
     >
@@ -104,14 +109,15 @@ export const StageBar: React.FC<{
       style={{
         marginLeft: 6,
         fontWeight: 600,
-        color: active ? '#fff' : palette.link,
+        color: active ? palette.link : palette.sub,
       }}
     >
       {n}
     </span>
   );
   const gt = (key: string) => (
-    <RightOutlined
+    <ChevronRight
+      size="1em"
       key={key}
       style={{
         fontSize: 10,
@@ -160,6 +166,7 @@ export const StageBar: React.FC<{
         <div key={`grp${g.group}`} style={{ display: 'grid', gap: 4 }}>
           <button
             type="button"
+            aria-pressed={value.group === g.group}
             onClick={() => onChange({ group: g.group })}
             style={{
               all: 'unset',
@@ -171,7 +178,7 @@ export const StageBar: React.FC<{
               fontWeight: groupOn || value.group === g.group ? 600 : 400,
               color: value.group === g.group ? palette.link : palette.mute,
               background:
-                value.group === g.group ? palette.accentSoft : 'transparent',
+                value.group === g.group ? palette.primarySoft : 'transparent',
             }}
           >
             {g.name} {g.count}
@@ -184,7 +191,7 @@ export const StageBar: React.FC<{
               padding: groupOn ? 3 : 0,
               margin: groupOn ? -3 : 0,
               borderRadius: 12,
-              background: groupOn ? palette.accentSoft : 'transparent',
+              background: groupOn ? palette.primarySoft : 'transparent',
             }}
           >
             {stages}
@@ -229,7 +236,7 @@ export const StageBar: React.FC<{
                 style={{
                   marginLeft: 6,
                   fontWeight: 600,
-                  color: value.dormant ? '#fff' : palette.orange,
+                  color: palette.orange,
                 }}
               >
                 {board?.dormant ?? 0}
@@ -262,7 +269,7 @@ export const StageBar: React.FC<{
                 style={{
                   marginLeft: 6,
                   fontWeight: 600,
-                  color: value.exception ? '#fff' : palette.orange,
+                  color: palette.orange,
                 }}
               >
                 {board?.exceptions ?? 0}
@@ -425,7 +432,7 @@ const BlockerCell: React.FC<{ item: FollowupItem }> = ({ item }) =>
 const followsAfterSales = (r: FollowupItem) =>
   r.nextActionSource === NEXT_AFTER_SALES && !!r.afterSalesId;
 
-/** 客户列名称下面的两行：国家 / 地区、主联系人（统一客户列，audit UI-097）；团队视图再加一行业务员 */
+/** 客户列名称下面一行：国家 / 地区 · 主联系人（统一客户列，audit UI-097）；团队视图接上业务员 */
 const CustomerLines: React.FC<{
   country?: string;
   contact?: string;
@@ -433,10 +440,12 @@ const CustomerLines: React.FC<{
 }> = ({ country, contact, owner }) => {
   const { palette } = useAppTheme();
   return (
-    <div style={{ color: palette.mute, fontSize: 12, lineHeight: '18px' }}>
-      <CustomerSub country={country} contact={contact} />
-      {owner && <div>业务员 {owner}</div>}
-    </div>
+    <CustomerSubLine
+      country={country}
+      contact={contact}
+      extra={owner && `业务员 ${owner}`}
+      style={{ color: palette.mute, fontSize: 12, lineHeight: '18px' }}
+    />
   );
 };
 
@@ -586,6 +595,7 @@ export const FollowupTable: React.FC<{
 }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
+  const { zhOf } = useCountries();
   const sales = boardNo === BOARD_SALES;
   const develop = boardNo === BOARD_DEVELOP;
   const account = boardNo === BOARD_ACCOUNT;
@@ -701,6 +711,7 @@ export const FollowupTable: React.FC<{
     ),
   };
   const actionCol: TableColumnsType<Row>[number] = {
+    // lint-ui-ignore row-actions: 客户跟进工作队列，保留按钮
     title: '操作',
     key: 'action',
     width: 190,
@@ -757,7 +768,6 @@ export const FollowupTable: React.FC<{
                 <>
                   <Button
                     size="small"
-                    type="primary"
                     disabled={!canRecord}
                     onClick={() => onConvert?.(r)}
                   >
@@ -777,7 +787,6 @@ export const FollowupTable: React.FC<{
                 <>
                   <Button
                     size="small"
-                    type="primary"
                     disabled={!canRecord}
                     onClick={() => onNewInquiry?.(r.customerId)}
                   >
@@ -796,7 +805,6 @@ export const FollowupTable: React.FC<{
               ) : (
                 <Button
                   size="small"
-                  type="primary"
                   disabled={!canRecord}
                   onClick={() => onRecord(r)}
                 >
@@ -1010,7 +1018,7 @@ export const FollowupTable: React.FC<{
             <CustomerLink item={r} />
             <span style={muted}>
               {[
-                r.country,
+                zhOf(r.country),
                 r.contactName
                   ? `${r.contactName}${r.contactTitle ? `（${r.contactTitle}）` : ''}`
                   : r.contactEmail
@@ -1092,6 +1100,7 @@ export const FollowupTable: React.FC<{
       valueCol,
       {
         title: '近 12 个月成交',
+        align: 'right',
         key: 'recent',
         width: 160,
         render: (_, r) => (
@@ -1191,6 +1200,7 @@ export const FollowupTable: React.FC<{
       },
       {
         title: '已收 / 未收',
+        align: 'right',
         key: 'received',
         width: 200,
         render: (_, r) => {
@@ -1279,7 +1289,11 @@ export const FollowupTable: React.FC<{
             width: 14,
           }}
         >
-          {isOpen(g.customerId) ? <DownOutlined /> : <RightOutlined />}
+          {isOpen(g.customerId) ? (
+            <ChevronDown size="1em" />
+          ) : (
+            <ChevronRight size="1em" />
+          )}
         </button>
         <CustomerLink item={g} />
       </span>
@@ -1322,7 +1336,6 @@ export const FollowupTable: React.FC<{
           />
           <Button
             size="small"
-            type="primary"
             disabled={!canRecord}
             onClick={() =>
               onRecordTarget?.({
@@ -1412,12 +1425,11 @@ export const FollowupTable: React.FC<{
       )}
       <Table<Row>
         rowKey="_key"
-        size="middle"
         columns={cols}
         dataSource={rows}
         loading={loading && rows.length === 0}
         pagination={false}
-        scroll={{ x: 'max-content' }}
+        scroll={{ x: tableScrollX(cols) }}
         expandable={
           boardNo === BOARD_FULFIL
             ? {
@@ -1436,22 +1448,25 @@ export const FollowupTable: React.FC<{
             opacity: r._out ? 0.45 : undefined,
             background:
               r._key === selectedKey
-                ? palette.accentSoft
+                ? palette.primarySoft
                 : r._child
                   ? palette.inset
                   : undefined,
           },
         })}
         locale={{
-          emptyText: filter.nurture
-            ? '没有培育中的客户'
-            : filter.exception
-              ? '没有履约异常的订单'
-              : filter.dormant
-                ? '没有沉睡的客户'
-                : develop
-                  ? '这一段没有开发对象，点右上角「新建开发对象」'
-                  : '这一段没有要跟进的客户',
+          emptyText: tableEmpty(
+            filter.nurture
+              ? '没有培育中的客户'
+              : filter.exception
+                ? '没有履约异常的订单'
+                : filter.dormant
+                  ? '没有沉睡的客户'
+                  : develop
+                    ? '这一段没有开发对象，点右上角「新建开发对象」'
+                    : '这一段没有要跟进的客户',
+            loading && rows.length === 0,
+          ),
         }}
       />
       {(groups ? groups.length : records.length) > 0 && (

@@ -1,10 +1,5 @@
-import {
-  ArrowsAltOutlined,
-  DownOutlined,
-  RightOutlined,
-  ShrinkOutlined,
-} from '@ant-design/icons';
 import { Button, Checkbox, Pagination, Segmented } from 'antd';
+import { ChevronDown, ChevronRight, Maximize2, Minimize2 } from 'lucide-react';
 import React, { useCallback, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { Pill } from './components';
@@ -56,8 +51,8 @@ export const FoldToggle: React.FC<{
     value={mode}
     onChange={(v) => onChange(v as 'open' | 'fold')}
     options={[
-      { value: 'open', label: '全部展开', icon: <ArrowsAltOutlined /> },
-      { value: 'fold', label: '全部折叠', icon: <ShrinkOutlined /> },
+      { value: 'open', label: '全部展开', icon: <Maximize2 size="1em" /> },
+      { value: 'fold', label: '全部折叠', icon: <Minimize2 size="1em" /> },
     ]}
   />
 );
@@ -111,9 +106,15 @@ export const BrandGroupHeader: React.FC<{
         style={plain}
       >
         {folded ? (
-          <RightOutlined style={{ color: palette.mute, fontSize: 12 }} />
+          <ChevronRight
+            size="1em"
+            style={{ color: palette.mute, fontSize: 12 }}
+          />
         ) : (
-          <DownOutlined style={{ color: palette.mute, fontSize: 12 }} />
+          <ChevronDown
+            size="1em"
+            style={{ color: palette.mute, fontSize: 12 }}
+          />
         )}
       </button>
       {checkbox && (
