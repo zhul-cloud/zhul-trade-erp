@@ -128,6 +128,20 @@ export default [
         component: './operations/products/detail',
       },
       {
+        // 视频任务：每个商品上传素材、写脚本，夜间排队生成竖屏和横屏视频，审核通过进素材库
+        path: '/operations/videos',
+        name: 'videos',
+        icon: 'video-camera',
+        access: 'operationsVideos',
+        component: './operations/videos',
+      },
+      {
+        path: '/operations/videos/:id',
+        hideInMenu: true,
+        access: 'operationsVideos',
+        component: './operations/videos/detail',
+      },
+      {
         // 发品任务：商品 × 平台，复制营销内容与素材到平台发布后回填链接
         path: '/operations/listings',
         name: 'listings',

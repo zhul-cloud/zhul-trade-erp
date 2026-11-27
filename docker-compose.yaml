@@ -75,6 +75,8 @@ services:
       AES_KEY: ${AES_KEY:-}
       AI_TASK_CALLBACK_TOKEN: ${AI_TASK_CALLBACK_TOKEN:-}
       AI_ORCHESTRATOR_BASE_URL: ${AI_ORCHESTRATOR_BASE_URL:-http://ai-orchestrator:8899}
+      VIDEO_GENERATOR_URL: ${VIDEO_GENERATOR_URL:-}
+      VIDEO_TASK_CALLBACK_TOKEN: ${VIDEO_TASK_CALLBACK_TOKEN:-}
       AI_TASK_CALLBACK_BASE_URL: ${AI_TASK_CALLBACK_BASE_URL:-http://backend:8080}
       AI_TASK_MAX_MINUTES: ${AI_TASK_MAX_MINUTES:-180}
       SPRING_FLYWAY_LOCATIONS: ${FLYWAY_LOCATIONS:-classpath:db/migration}
@@ -145,6 +147,19 @@ services:
     volumes:
       - private-uploads:/app/private-uploads:ro
       - ai-orchestrator-home:/home/zhul
+
+  video-generator:
+    profiles: [app]
+    build:
+      context: ./scripts/video-generator
+    image: zhul-erp-video-generator:local
+    container_name: zhul-erp-video-generator
+    restart: unless-stopped
+    environment:
+      VIDEO_TASK_CALLBACK_TOKEN: ${VIDEO_TASK_CALLBACK_TOKEN:-}
+    # 不映射宿主机端口：只供同一 Compose 网络里的后端调用。夜间生成占满 CPU，限制资源以免影响白天的业务
+    cpus: 2
+    mem_limit: 3g
 
 volumes:
   # 默认不持久化：tmpfs 类型，后端与 AI 编排服务共享；全部容器停止后内容清空。

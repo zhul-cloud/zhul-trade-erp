@@ -223,6 +223,26 @@ jobs:
       - name: unittest
         run: python -m unittest -v
 
+  video-generator:
+    name: 视频生成服务测试
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: scripts/video-generator
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: scripts/video-generator/requirements.txt
+      - run: pip install -r requirements.txt
+      - name: unittest
+        run: python -m unittest -v
+
   # 整改台账：格式、ID、处理记录、任务记录引用与工具测试。只改 audit/ 时其他测试会跳过，这里照常运行
   audit-ledger:
     name: 整改台账检查

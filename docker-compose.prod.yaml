@@ -30,3 +30,8 @@ services:
     build: !reset null
     image: zhul-erp-ai-orchestrator:prod
     pull_policy: never
+
+  video-generator:
+    build: !reset null
+    image: zhul-erp-video-generator:prod
+    pull_policy: never

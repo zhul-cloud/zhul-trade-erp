@@ -120,6 +120,11 @@ zhul:
     from-name: ${MAIL_FROM_NAME:烛龙ERP}
     # 没配置发信邮箱时把验证码写进日志而不是报错，只用于本地开发与测试，生产不要开
     log-only: ${MAIL_LOG_ONLY:false}
+  video:
+    # 视频生成服务地址（scripts/video-generator，Compose 内网）；为空时不派发视频任务（功能关闭）
+    generator-url: ${VIDEO_GENERATOR_URL:}
+    # 生成服务回调与下载素材时携带的共享密钥（请求头 X-Video-Token）
+    callback-token: ${VIDEO_TASK_CALLBACK_TOKEN:zhul-erp-video-callback-secret}
   ai-task:
     # AI 编排服务地址（本次不实现该服务本身，本地联调可指向 scripts/ai-orchestrator-stub）
     orchestrator-base-url: ${AI_ORCHESTRATOR_BASE_URL:http://localhost:8899}

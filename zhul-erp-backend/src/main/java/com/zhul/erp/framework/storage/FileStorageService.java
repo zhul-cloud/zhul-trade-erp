@@ -176,10 +176,22 @@ public class FileStorageService {
 
     /** 把一个已有私有文件复制到另一个环节（如商机附件转到客户询盘），写入当前存储方式 */
     public StoredFile copy(String storage, String key, StorageArea area, int tenantId, String fileName) {
+        return copy(storage, key, area, tenantId, null, null, fileName);
+    }
+
+    /** 复制到「品牌 / 型号」目录（如本公司素材设为共享商品库的官方素材） */
+    public StoredFile copyToModel(String storage, String key, StorageArea area, int tenantId, String brand, String model,
+                                  String fileName) {
+        return copy(storage, key, area, tenantId, brand == null ? "" : brand, model == null ? "" : model, fileName);
+    }
+
+    private StoredFile copy(String storage, String key, StorageArea area, int tenantId, String brand, String model, String fileName) {
         Path tmp = download(storage, key);
         try {
             String ext = UploadRules.extOf(key);
-            String newKey = StorageKeys.newKey(area, tenantId, ext);
+            String newKey = brand == null && model == null
+                    ? StorageKeys.newKey(area, tenantId, ext)
+                    : StorageKeys.modelKey(area, tenantId, brand, model, ext);
             String contentType = UploadRules.contentTypeOf(ext);
             FileStorage fs = storages.current();
             fs.put(area.publicRead(), newKey, tmp, contentType);

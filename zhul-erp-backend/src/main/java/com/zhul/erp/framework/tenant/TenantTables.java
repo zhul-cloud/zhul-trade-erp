@@ -186,6 +186,11 @@ public final class TenantTables {
             Map.entry("product_seo", Policy.PRIVATE),
             Map.entry("product_seo_faq", Policy.PRIVATE),
             Map.entry("listing_task", Policy.PRIVATE),
+            // 视频任务：素材、脚本、生成结果都按公司隔离；队列跨公司派发走 TenantScope.platform
+            Map.entry("product_video_task", Policy.PRIVATE),
+            Map.entry("product_video_material", Policy.PRIVATE),
+            Map.entry("product_video_output", Policy.PRIVATE),
+            Map.entry("product_video_log", Policy.PRIVATE),
             // AI：平台订阅设置供获授权的公司读取
             Map.entry("ai_task", Policy.PRIVATE),
             Map.entry("sys_ai_config", Policy.SHARED_READ),

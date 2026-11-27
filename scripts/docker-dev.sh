@@ -28,7 +28,7 @@ if [ ! -f .env ]; then
   set_value AI_ORCHESTRATOR_MODE stub
   echo "== 已生成 .env（开发配置：导入演示账号，AI 使用 stub 假数据）"
 fi
-for key in JWT_SECRET AES_KEY AI_TASK_CALLBACK_TOKEN; do
+for key in JWT_SECRET AES_KEY AI_TASK_CALLBACK_TOKEN VIDEO_TASK_CALLBACK_TOKEN; do
   if [ -z "$(get "$key")" ]; then
     set_value "$key" "$(rand)"
     echo "== 已生成 $key"
