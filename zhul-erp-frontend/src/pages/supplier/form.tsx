@@ -354,7 +354,7 @@ const SupplierFormPage: React.FC = () => {
       </div>
     );
   } else if (loadError) {
-    body = <ErrorHint message={loadError} onRetry={loadRecord} />;
+    body = <ErrorHint page message={loadError} onRetry={loadRecord} />;
   } else if (editing && record === null) {
     body = (
       <EmptyHint

@@ -199,7 +199,7 @@ const OrderDetail: React.FC = () => {
     [o],
   );
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!o) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const cur = o.currencyCode;
@@ -672,7 +672,7 @@ const OrderDetail: React.FC = () => {
                 style={{
                   ...num,
                   fontSize: 20,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   color: goods[k] ? palette.ink : palette.mute,
                 }}
               >
@@ -1207,7 +1207,7 @@ const OrderDetail: React.FC = () => {
               paddingTop: 12,
             }}
           >
-            <b style={{ fontSize: 15, color: palette.ink }}>
+            <b style={{ fontSize: 16, color: palette.ink }}>
               {(o.partialCancels?.length ?? 0) > 0
                 ? '订单合计（部分取消后）'
                 : '合计'}
@@ -1284,7 +1284,11 @@ const OrderDetail: React.FC = () => {
             style={{ marginLeft: 'auto', fontSize: 12, color: palette.mute }}
           >
             来自{' '}
-            <Link to={PATHS.pi(o.piId)} style={{ fontSize: 12 }}>
+            <Link
+              className="zhul-link zhul-link-doc"
+              to={PATHS.pi(o.piId)}
+              style={{ fontSize: 12 }}
+            >
               {o.piNo}
             </Link>
           </span>
@@ -2014,7 +2018,12 @@ const OrderDetail: React.FC = () => {
               <>
                 {' '}
                 · 原订单{' '}
-                <Link to={PATHS.order(o.originalSoId)}>{o.originalSoNo}</Link>
+                <Link
+                  to={PATHS.order(o.originalSoId)}
+                  className="zhul-link zhul-link-doc"
+                >
+                  {o.originalSoNo}
+                </Link>
               </>
             )}{' '}
             · {o.ownerName ?? '—'} · {formatDateTime(o.createTime).slice(0, 16)}{' '}

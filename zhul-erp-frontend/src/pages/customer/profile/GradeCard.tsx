@@ -217,7 +217,7 @@ export const RfmModal: React.FC<{
         style={{
           marginTop: 4,
           fontSize: 15,
-          fontWeight: 700,
+          fontWeight: 600,
           color: palette.ink,
         }}
       >

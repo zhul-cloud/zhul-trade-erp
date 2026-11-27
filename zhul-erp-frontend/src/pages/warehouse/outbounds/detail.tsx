@@ -86,7 +86,7 @@ const OutboundDetailPage: React.FC = () => {
     load();
   };
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!ob) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const withdrawn = ob.status === 4;
@@ -313,7 +313,12 @@ const OutboundDetailPage: React.FC = () => {
                 {mates.map((m, i) => (
                   <React.Fragment key={m.id}>
                     {i > 0 && '、'}
-                    <Link to={DOC_PATHS.outbound(m.id)}>{m.obNo}</Link>
+                    <Link
+                      to={DOC_PATHS.outbound(m.id)}
+                      className="zhul-link zhul-link-doc"
+                    >
+                      {m.obNo}
+                    </Link>
                     {m.soNo && `（${m.soNo}）`}
                   </React.Fragment>
                 ))}{' '}
@@ -330,7 +335,10 @@ const OutboundDetailPage: React.FC = () => {
               {
                 label: '销售订单',
                 value: (
-                  <Link to={LOGISTICS_PATHS.salesOrder(ob.soId)}>
+                  <Link
+                    className="zhul-link zhul-link-doc"
+                    to={LOGISTICS_PATHS.salesOrder(ob.soId)}
+                  >
                     {ob.soNo}
                   </Link>
                 ),

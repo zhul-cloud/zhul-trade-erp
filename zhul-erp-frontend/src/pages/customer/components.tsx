@@ -56,7 +56,7 @@ export const StatusPill: React.FC<{ status?: number }> = ({ status }) => (
 );
 
 /**
- * 分组卡片：标题（右侧可放操作），下方是内容；标题照详情页 Section（18/500），说明放进帮助图标。
+ * 分组卡片：标题（右侧可放操作），下方是内容；标题照详情页 Section（16/600），说明放进帮助图标。
  * icon 保留参数以免改动调用处，ui-redesign 起不再显示（卡片标题不带图标）
  */
 export const SectionCard: React.FC<{

@@ -84,7 +84,7 @@ const GroupTitle: React.FC<{
         margin: '8px 0 14px',
       }}
     >
-      <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{title}</h2>
+      <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{title}</h2>
       {tag}
       <span style={{ fontSize: 13, color: palette.sub }}>{desc}</span>
     </div>
@@ -227,7 +227,7 @@ const Sidebar: React.FC<{
       {platform && (
         <div style={panel(palette)}>
           <h2 style={{ margin: '0 0 8px', fontSize: 16 }}>被引用</h2>
-          <div className="num" style={{ fontSize: 24, fontWeight: 700 }}>
+          <div className="num" style={{ fontSize: 24, fontWeight: 600 }}>
             {product.usageCount ?? 0} 处
           </div>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: palette.sub }}>
@@ -504,7 +504,7 @@ const DetailInner: React.FC = () => {
                   className="num"
                   style={{
                     fontSize: 32,
-                    fontWeight: 800,
+                    fontWeight: 600,
                     color: palette.ink,
                   }}
                 >

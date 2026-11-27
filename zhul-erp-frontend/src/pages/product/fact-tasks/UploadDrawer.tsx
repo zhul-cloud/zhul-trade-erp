@@ -750,7 +750,7 @@ export const UploadDrawer: React.FC<{
                   marginBottom: 12,
                 }}
               >
-                <b style={{ fontSize: 15, color: palette.ink }}>
+                <b style={{ fontSize: 16, color: palette.ink }}>
                   {p.productLabel ?? `${p.brand ?? '—'} · ${p.model ?? '—'}`}
                 </b>
                 {(p.type || p.lang) && (

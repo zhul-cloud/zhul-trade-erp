@@ -525,7 +525,7 @@ export const DocFilesCard: React.FC<{
   return (
     <Card style={{ padding: 20, marginBottom: 16, ...style }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-        <b style={{ color: palette.ink, fontSize: 15 }}>备注与附件</b>
+        <b style={{ color: palette.ink, fontSize: 16 }}>备注与附件</b>
         {total > 0 && (
           <span style={{ color: palette.mute, marginLeft: 8 }}>{total}</span>
         )}

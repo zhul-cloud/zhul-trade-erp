@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { FilterCard as ListFilterCard } from '@/components/ListLayout';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
+import { attrTone } from '@/theme/palette';
 import {
   batchHref,
   type InvWarehouse,
@@ -44,6 +45,10 @@ export const bizText = (m: {
   reversal?: boolean;
 }) => (m.reversal || !m.bizLabel ? m.bizName : m.bizLabel);
 
+/** 仓库类型的属性色：自有仓、货代仓全站同色（D75） */
+export const warehouseTypeTone = (type?: number) =>
+  attrTone(type === WH_OWN ? 0 : 1);
+
 /** 仓库名 + 自有仓 / 货代仓 */
 export const WarehouseCell: React.FC<{ name?: string; type?: number }> = ({
   name,
@@ -52,7 +57,9 @@ export const WarehouseCell: React.FC<{ name?: string; type?: number }> = ({
   <div>
     <div>{name || '—'}</div>
     {type != null && (
-      <Pill tone="gray">{type === WH_OWN ? '自有仓' : '货代仓'}</Pill>
+      <Pill tone={warehouseTypeTone(type)}>
+        {type === WH_OWN ? '自有仓' : '货代仓'}
+      </Pill>
     )}
   </div>
 );
@@ -64,7 +71,13 @@ export const BatchLink: React.FC<{
   sourceId?: number;
 }> = ({ batchNo, sourceType, sourceId }) => {
   const href = batchHref(sourceType, sourceId);
-  return href ? <Link to={href}>{batchNo}</Link> : <span>{batchNo}</span>;
+  return href ? (
+    <Link to={href} className="zhul-link zhul-link-doc">
+      {batchNo}
+    </Link>
+  ) : (
+    <span>{batchNo}</span>
+  );
 };
 
 /** 状态：合格绿、不良红 */

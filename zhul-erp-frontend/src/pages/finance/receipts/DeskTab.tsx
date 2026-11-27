@@ -273,9 +273,9 @@ const DeskTab: React.FC<{ onTotal?: (n: number) => void }> = ({ onTotal }) => {
       width: 130,
       fixed: 'right',
       render: (_, r) => (
+        // 表格里不用主题色实底（检查表 #9，UI-117）：有待确认水单靠「待确认水单」列提示
         <Button
           size="small"
-          type={r.pendingSlips.length > 0 ? 'primary' : 'default'}
           icon={<Landmark size="1em" />}
           loading={opening === rowKey(r)}
           onClick={() => openConfirm(r)}

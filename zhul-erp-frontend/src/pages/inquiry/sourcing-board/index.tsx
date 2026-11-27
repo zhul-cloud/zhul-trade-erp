@@ -222,7 +222,7 @@ const SourcingBoardPage: React.FC = () => {
     }
   };
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
 
   const s = board?.stats;
   return (
@@ -989,7 +989,7 @@ const SourcingBoardPage: React.FC = () => {
                               ? palette.infoSoft
                               : palette.primarySoft,
                             color: p.partTime ? palette.info : palette.link,
-                            fontWeight: 700,
+                            fontWeight: 600,
                             display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -1176,7 +1176,7 @@ const ReviewList: React.FC<{
           background: palette.inset,
         }}
       >
-        <span style={{ fontSize: 15, fontWeight: 700, color: palette.ink }}>
+        <span style={{ fontSize: 15, fontWeight: 600, color: palette.ink }}>
           兼职回价待审核
         </span>
         <Pill tone="gray">
@@ -1239,7 +1239,7 @@ const ReviewList: React.FC<{
             <span style={{ color: palette.mute, fontSize: 12 }}>
               待审核型号
             </span>
-            <b style={{ color: palette.ink, fontSize: 15 }}>
+            <b style={{ color: palette.ink, fontSize: 16 }}>
               {t.reviewItemCount ?? 0} / {t.itemCount}
             </b>
             <span style={{ color: palette.mute, fontSize: 12 }}>

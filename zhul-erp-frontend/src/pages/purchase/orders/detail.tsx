@@ -83,6 +83,7 @@ import {
 } from '@/pages/warehouse/components';
 import { type Attachment, shipmentApi } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { attrTone } from '@/theme/palette';
 import { formatAmount } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
@@ -340,7 +341,7 @@ const PurchaseOrderDetail: React.FC = () => {
     };
   }, [po, draft]);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!po || !draft || !preview) return <Skeleton active />;
 
   const setItem = (itemId: number, patch: Partial<Draft['items'][number]>) =>
@@ -1265,7 +1266,7 @@ const PurchaseOrderDetail: React.FC = () => {
           }}
         >
           {/* 口径放帮助图标，不常显灰字（ui-redesign S10） */}
-          <b style={{ color: palette.ink, fontSize: 15 }}>
+          <b style={{ color: palette.ink, fontSize: 16 }}>
             型号（{po.items.length}）
           </b>
           <HelpTip title="人民币单价 = 单价 × 汇率；砍价 = (目标价 − 人民币单价) × 数量；目标价为转订单时锁定的采购成本价；开票成本不参与砍价" />
@@ -1373,7 +1374,7 @@ const PurchaseOrderDetail: React.FC = () => {
                   <button
                     type="button"
                     className="zhul-link"
-                    style={{ fontWeight: 700 }}
+                    style={{ fontWeight: 600 }}
                     onClick={() => history.push(PATHS.salesOrder(r.soId))}
                   >
                     {r.soNo}
@@ -1788,7 +1789,7 @@ const InvoicePanel: React.FC<{
           marginBottom: 12,
         }}
       >
-        <b style={{ color: palette.ink, fontSize: 15 }}>开票</b>
+        <b style={{ color: palette.ink, fontSize: 16 }}>开票</b>
         {done ? (
           <Pill tone="green">已开票 · {po.invoicedDate}</Pill>
         ) : (
@@ -1895,9 +1896,19 @@ const ShipmentsCard: React.FC<{
       width: 150,
       render: (_, r) =>
         r.kind === 'ship' ? (
-          <Link to={DOC_PATHS.shipment(r.ref.id)}>{r.ref.sdNo}</Link>
+          <Link
+            to={DOC_PATHS.shipment(r.ref.id)}
+            className="zhul-link zhul-link-doc"
+          >
+            {r.ref.sdNo}
+          </Link>
         ) : (
-          <Link to={DOC_PATHS.receipt(r.ref.id)}>{r.ref.grNo}</Link>
+          <Link
+            to={DOC_PATHS.receipt(r.ref.id)}
+            className="zhul-link zhul-link-doc"
+          >
+            {r.ref.grNo}
+          </Link>
         ),
     },
     {
@@ -1905,10 +1916,11 @@ const ShipmentsCard: React.FC<{
       key: 'kind',
       width: 100,
       render: (_, r) =>
+        // 发货、入库两类记录用属性色区分（D75）
         r.kind === 'ship' ? (
-          <Pill tone="gray">{r.ref.sourceName}</Pill>
+          <Pill tone={attrTone(0)}>{r.ref.sourceName}</Pill>
         ) : (
-          <Pill tone="gray">采购入库</Pill>
+          <Pill tone={attrTone(1)}>采购入库</Pill>
         ),
     },
     {
@@ -2025,7 +2037,7 @@ const ShipmentsCard: React.FC<{
         }}
       >
         {/* 放在弹性行里会被压到最小宽度，不折行，免得图标单独占一行 */}
-        <b style={{ color: palette.ink, fontSize: 15, whiteSpace: 'nowrap' }}>
+        <b style={{ color: palette.ink, fontSize: 16, whiteSpace: 'nowrap' }}>
           <Car size="1em" /> 发货与入库{' '}
           <HelpTip title="有发货后不能直接取消采购订单，少发、退货在到货差异里处理" />
         </b>

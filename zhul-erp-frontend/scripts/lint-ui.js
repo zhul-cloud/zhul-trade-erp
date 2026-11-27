@@ -36,6 +36,7 @@ const SKIP_FILES = [/\.test\.[jt]sx?$/, /(^|[\\/])_mock\.[jt]s$/, /\.d\.ts$/];
 
 const RULE_NAMES = new Set([
   'gradient',
+  'cjk-weight',
   'glow',
   'hardcoded-color',
   'old-header',
@@ -194,6 +195,13 @@ const LINE_RULES = [
     message:
       '主题色浅底只表示选中、当前（ui-redesign D42）：说明文字用 Callout，数字或汇总块用中性浅底 palette.inset，属性标签用中性色；批量操作条、搜索命中等选中类用法写 lint-ui-ignore primary-soft 说明',
     re: /\bbackground(Color)?:\s*[\w.]+\.primarySoft\b/,
+  },
+  {
+    id: 'cjk-weight',
+    level: 'error',
+    message:
+      '字重只用 400、600（检查表 #7）：Windows 的微软雅黑只有常规和粗体，500 显示成常规、700 和 600 看不出差别；<b>、<strong> 已全局兜底为 600',
+    re: /\bfontWeight:[^,}\n]*\b(500|700|800|900)\b|\bfontWeight:\s*['"]bold|font-weight:\s*(500|700|800|900|bold)\b/,
   },
   {
     id: 'scroll-max-content',

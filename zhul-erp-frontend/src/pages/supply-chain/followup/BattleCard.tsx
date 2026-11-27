@@ -86,7 +86,7 @@ const BattleCard: React.FC<{ stage?: string; bare?: boolean }> = ({
     nodes.length > 1 ? `${nodes[0]}-${nodes[nodes.length - 1]}` : nodes[0];
   return (
     <Box bare={bare}>
-      <b style={{ display: 'inline-flex', gap: 8, fontSize: 15 }}>
+      <b style={{ display: 'inline-flex', gap: 8, fontSize: 16 }}>
         <Compass size="1em" style={{ color: palette.link }} /> 作战卡
       </b>
       <div

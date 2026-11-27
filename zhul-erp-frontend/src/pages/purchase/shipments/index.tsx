@@ -481,7 +481,10 @@ const DiffsTab: React.FC<{ pending?: number; onChanged: () => void }> = ({
             <b style={{ color: palette.ink }}>{v}</b>
             {resolutionDetail(r) && sub(palette.mute, resolutionDetail(r))}
             {r.purchaseReturnId && r.purchaseReturnNo && (
-              <Link to={SALES_PATHS.purchaseReturn(r.purchaseReturnId)}>
+              <Link
+                className="zhul-link zhul-link-doc"
+                to={SALES_PATHS.purchaseReturn(r.purchaseReturnId)}
+              >
                 {r.purchaseReturnNo}
               </Link>
             )}

@@ -983,6 +983,7 @@ export const ReviewDrawer: React.FC<{
                   </Pill>
                   {s.customerInquiryId && (
                     <Link
+                      className="zhul-link zhul-link-doc"
                       to={`/inquiry/customer-inquiries/${s.customerInquiryId}`}
                     >
                       {s.inquiryCode}
@@ -994,7 +995,12 @@ export const ReviewDrawer: React.FC<{
                     </span>
                   )}
                   {s.soId && (
-                    <Link to={`/sales/orders/${s.soId}`}>{s.soNo}</Link>
+                    <Link
+                      to={`/sales/orders/${s.soId}`}
+                      className="zhul-link zhul-link-doc"
+                    >
+                      {s.soNo}
+                    </Link>
                   )}
                   {s.fileName && (
                     <span style={{ color: palette.sub }}>

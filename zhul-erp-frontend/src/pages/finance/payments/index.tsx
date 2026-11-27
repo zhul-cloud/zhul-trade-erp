@@ -219,7 +219,12 @@ const PaymentRecords: React.FC = () => {
               textOverflow: 'ellipsis',
             }}
           >
-            <Link to={DOC_PATHS.payable(a.payableId)}>{a.payableNo}</Link>{' '}
+            <Link
+              to={DOC_PATHS.payable(a.payableId)}
+              className="zhul-link zhul-link-doc"
+            >
+              {a.payableNo}
+            </Link>{' '}
             <span style={{ color: palette.mute }}>{a.sourceNo}</span>{' '}
             {formatAmount(a.amount, r.currencyCode)}
             {a.fromCredit === 1 && (

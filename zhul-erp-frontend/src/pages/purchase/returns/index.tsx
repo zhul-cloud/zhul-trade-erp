@@ -1,13 +1,13 @@
 import { history, Link } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Form, Input, Select, Table } from 'antd';
+import { App, Button, Form, Input, Select, Table } from 'antd';
 import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import { CopyText } from '@/components/CopyText';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
-import { tableEmpty } from '@/components/EmptyState';
+import { EmptyState, tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -366,9 +366,26 @@ const PurchaseReturnsPage: React.FC = () => {
           scroll={{ x: tableScrollX(columnsSet.columns) }}
           locale={{
             emptyText: tableEmpty(
-              filters.status === PR_STATUS.PENDING
-                ? '没有待寄出的采购退货；退货入库去向选「退回供应商」或到货差异选择退货后会出现在这里'
-                : '没有符合条件的采购退货单',
+              filters.status === PR_STATUS.PENDING ? (
+                // 默认只看待办状态：为空时给「查看全部」（UI-117）
+                <EmptyState
+                  title="没有待寄出的采购退货"
+                  description="退货入库去向选「退回供应商」或到货差异选择退货后会出现在这里"
+                  action={
+                    <Button
+                      onClick={() => {
+                        form.setFieldValue('status', undefined);
+                        setFilters((f) => ({ ...f, status: undefined }));
+                        setPage(1);
+                      }}
+                    >
+                      查看全部
+                    </Button>
+                  }
+                />
+              ) : (
+                '没有符合条件的采购退货单'
+              ),
               loading,
             ),
           }}

@@ -4,16 +4,8 @@ import { attrTone } from '@/theme/palette';
 
 /** 询价协作的码值，与后端 InquiryConstants 一致 */
 
-export type Tone =
-  | 'gray'
-  | 'cyan'
-  | 'accent'
-  | 'violet'
-  | 'orange'
-  | 'green'
-  | 'red'
-  | 'mute'
-  | 'info';
+/** 标签色调：同公共 Pill（含 D75 属性色），不另维护一份 */
+export type Tone = PillTone;
 
 export const STATUS = {
   PENDING_PARSE: 1,

@@ -124,7 +124,7 @@ const SupplierDetailPage: React.FC = () => {
       </div>
     );
   } else if (error) {
-    body = <ErrorHint message={error} onRetry={load} />;
+    body = <ErrorHint page message={error} onRetry={load} />;
   } else if (!record) {
     body = (
       <EmptyHint

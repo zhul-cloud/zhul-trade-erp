@@ -76,7 +76,7 @@ const CostAdjustDetail: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
   useOnReactivate(load);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!r) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const sourceHref = docHref(r.sourceDocType, r.sourceDocId);
@@ -173,7 +173,12 @@ const CostAdjustDetail: React.FC = () => {
             {p.soNo && (
               <div style={{ fontSize: 12, color: palette.mute }}>
                 {p.soId ? (
-                  <Link to={`/sales/orders/${p.soId}`}>{p.soNo}</Link>
+                  <Link
+                    to={`/sales/orders/${p.soId}`}
+                    className="zhul-link zhul-link-doc"
+                  >
+                    {p.soNo}
+                  </Link>
                 ) : (
                   p.soNo
                 )}

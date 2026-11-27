@@ -475,7 +475,7 @@ const WizardInner: React.FC = () => {
       <h2
         id="wizard-question"
         tabIndex={-1}
-        style={{ fontSize: 32, fontWeight: 700, margin: 0 }}
+        style={{ fontSize: 32, fontWeight: 600, margin: 0 }}
       >
         {text}
       </h2>
@@ -607,7 +607,7 @@ const WizardInner: React.FC = () => {
                   gap: 8,
                   color: state === 'todo' ? palette.mute : palette.ink,
                   fontSize: 14,
-                  fontWeight: state === 'current' ? 700 : 500,
+                  fontWeight: state === 'current' ? 600 : 400,
                 }}
               >
                 <span
@@ -1290,7 +1290,7 @@ const WizardInner: React.FC = () => {
                   <div
                     style={{
                       fontSize: 20,
-                      fontWeight: 700,
+                      fontWeight: 600,
                       wordBreak: 'break-all',
                     }}
                   >

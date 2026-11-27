@@ -650,7 +650,7 @@ const PiDetail: React.FC = () => {
     setSearch(next);
   };
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!pi || !draft) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const v = pi.version;

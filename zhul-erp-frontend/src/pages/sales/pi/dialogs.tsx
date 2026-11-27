@@ -1020,7 +1020,7 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
         ].map(([k, v]) => (
           <div key={k as string}>
             <div style={{ fontSize: 12, color: palette.mute }}>{k}</div>
-            <b style={{ ...num, fontSize: 15, color: palette.ink }}>
+            <b style={{ ...num, fontSize: 16, color: palette.ink }}>
               {formatAmount(v as number, cur)}
             </b>
           </div>

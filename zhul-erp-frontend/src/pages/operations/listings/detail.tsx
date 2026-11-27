@@ -36,7 +36,7 @@ const ListingProductDetail: React.FC = () => {
 
   useOnReactivate(load);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!data) return <div style={{ color: palette.sub }}>正在加载…</div>;
 
   // 默认打开第一个待发布的平台；地址里带 platform 时打开那个平台

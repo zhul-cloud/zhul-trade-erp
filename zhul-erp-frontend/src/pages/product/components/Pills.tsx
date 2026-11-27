@@ -30,7 +30,7 @@ export const BrandMark: React.FC<{
         borderRadius: size / 3,
         background: color || palette.neutralSoft,
         color: color ? '#FFFFFF' : palette.sub,
-        fontWeight: 700,
+        fontWeight: 600,
         fontSize: Math.round(size * 0.46),
         flex: 'none',
       }}

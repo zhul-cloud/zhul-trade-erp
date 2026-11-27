@@ -204,7 +204,7 @@ const Stat: React.FC<{ n: number; label: string; color?: string }> = ({
       <div
         style={{
           fontSize: 28,
-          fontWeight: 700,
+          fontWeight: 600,
           color: n ? (color ?? palette.ink) : palette.ink,
         }}
       >

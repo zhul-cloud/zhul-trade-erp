@@ -16,7 +16,6 @@ import {
   InputNumber,
   Modal,
   Space,
-  Tag,
   Tree,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
@@ -25,6 +24,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { EmptyState } from '@/components/EmptyState';
 import { PageHeader } from '@/components/ListLayout';
+import { Pill } from '@/components/Pill';
 import { readBizError } from '@/pages/crm/opportunity/service';
 import { getUserOptions } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -110,31 +110,8 @@ const toAntdTree = (list: DeptItem[]): any[] =>
         >
           {item.name}
         </span>
-        {item.isBusinessUnit === 1 && (
-          <Tag
-            color="purple"
-            style={{
-              marginInlineEnd: 0,
-              fontSize: 11,
-              lineHeight: '16px',
-              padding: '0 5px',
-            }}
-          >
-            事业部
-          </Tag>
-        )}
-        {item.status === 0 && (
-          <Tag
-            style={{
-              marginInlineEnd: 0,
-              fontSize: 11,
-              lineHeight: '16px',
-              padding: '0 5px',
-            }}
-          >
-            禁用
-          </Tag>
-        )}
+        {item.isBusinessUnit === 1 && <Pill tone="blue">事业部</Pill>}
+        {item.status === 0 && <Pill tone="mute">禁用</Pill>}
       </Space>
     ),
     children: item.children ? toAntdTree(item.children) : undefined,
@@ -496,7 +473,7 @@ const DeptPage: React.FC = () => {
               marginBottom: 16,
             }}
           >
-            <span style={{ fontSize: 16, fontWeight: 700 }}>
+            <span style={{ fontSize: 16, fontWeight: 600 }}>
               {selectedDept ? selectedDept.name : '部门详情'}
             </span>
             <Space size={10}>
@@ -603,9 +580,7 @@ const DeptPage: React.FC = () => {
                 <div style={{ fontSize: 14, fontWeight: 600, color: p.ink }}>
                   {selectedDept.isBusinessUnit === 1 ? (
                     <Space size={8}>
-                      <Tag color="purple" style={{ marginInlineEnd: 0 }}>
-                        事业部
-                      </Tag>
+                      <Pill tone="blue">事业部</Pill>
                       {selectedDept.buStartMonth} 起核算
                     </Space>
                   ) : unitInfo.unit ? (
@@ -645,7 +620,7 @@ const DeptPage: React.FC = () => {
                 padding: 20,
               }}
             >
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>
                 核算设置
               </div>
               <div

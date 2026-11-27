@@ -263,7 +263,7 @@ export const BatchPayModal: React.FC<{
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <b style={{ fontSize: 15 }}>{g.payeeName}</b>
+                <b style={{ fontSize: 16 }}>{g.payeeName}</b>
                 <Pill tone="cyan">{g.currency}</Pill>
                 <span style={{ fontSize: 12, color: palette.mute }}>
                   {g.rows.length} 张应付

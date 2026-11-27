@@ -51,7 +51,7 @@ const OtherIncomeDetail: React.FC = () => {
     if (!editing) load();
   });
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!x) return <Skeleton active paragraph={{ rows: 10 }} />;
 
   const valid = x.status === 1;

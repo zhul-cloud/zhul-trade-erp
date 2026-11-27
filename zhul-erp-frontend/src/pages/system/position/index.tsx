@@ -13,6 +13,7 @@ import { Ban, CircleCheck, Pencil, Search, Trash2 } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { EmptyState } from '@/components/EmptyState';
 import {
   FilterCard,
   FilterField,
@@ -288,6 +289,18 @@ const PositionPage: React.FC = () => {
           search={false}
           options={false}
           toolBarRender={false}
+          locale={{
+            // 首次为空给下一步，带条件为空给「清空筛选」（UI-117）
+            emptyText:
+              filters.name || filters.status !== undefined ? (
+                <EmptyState kind="noResult" title="没有符合条件的岗位" />
+              ) : (
+                <EmptyState
+                  title="还没有岗位"
+                  description="点右上角「新增岗位」"
+                />
+              ),
+          }}
         />
       </MainCard>
       <ModalForm

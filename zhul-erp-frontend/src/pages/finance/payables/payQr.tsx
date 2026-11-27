@@ -103,7 +103,7 @@ export const PayeeQrPanel: React.FC<{
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              fontWeight: 700,
+              fontWeight: 600,
               color: palette.ink,
             }}
           >
@@ -150,7 +150,7 @@ export const PayeeQrPanel: React.FC<{
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              fontWeight: 700,
+              fontWeight: 600,
             }}
           >
             <ChannelIcon channel={channel} size={20} />

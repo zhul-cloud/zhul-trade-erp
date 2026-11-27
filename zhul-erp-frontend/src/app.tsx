@@ -1,6 +1,7 @@
 import type { Settings as LayoutSettings } from '@ant-design/pro-components';
 import type { RequestConfig, RunTimeLayoutConfig } from '@umijs/max';
 import { history, Link, request as umiRequest, useModel } from '@umijs/max';
+import { Button } from 'antd';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { ChevronDown, ChevronRight } from 'lucide-react';
@@ -15,6 +16,8 @@ import {
   LangDropdown,
   OfflineBanner,
 } from '@/components';
+import { EmptyState } from '@/components/EmptyState';
+import { Panel } from '@/components/ListLayout';
 import PageTabs from '@/components/PageTabs';
 import { tabsActions } from '@/components/PageTabs/store';
 import PasteToUpload from '@/components/PasteToUpload';
@@ -276,8 +279,21 @@ export const layout: RunTimeLayoutConfig = ({
     // Replace ProLayout's default ErrorBoundary with our offline-aware version,
     // so chunk load errors show friendly messages instead of "Something went wrong."
     ErrorBoundary,
-    // 自定义 403 页面
-    // unAccessible: <div>unAccessible</div>,
+    // 没有页面权限：用公共空状态的「无权限」，不用 antd Result 的默认插画（UI-117，检查表 #20）
+    unAccessible: (
+      <Panel style={{ padding: 24 }}>
+        <EmptyState
+          kind="forbidden"
+          title="没有这个页面的权限"
+          description="需要管理员给你的角色开通这个页面"
+          action={
+            <Link to="/">
+              <Button>回到首页</Button>
+            </Link>
+          }
+        />
+      </Panel>
+    ),
     // 增加一个 loading 的状态
     childrenRender: (children) => (
       <>

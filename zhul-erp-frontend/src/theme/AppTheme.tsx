@@ -54,6 +54,9 @@ const globalCss = (
     .map(([k, v]) => `--z-${k}: ${v};`)
     .join(' ')} }
   body { background: ${p.canvas}; font-family: ${SANS_FONT}; }
+  /* 中文只用 400/600（检查表 #7）：<b>、<strong> 浏览器默认 700，<dt> 在 antd 重置里是 500，这里兜底 */
+  b, strong { font-weight: 600; }
+  dt { font-weight: 400; }
   /* 深色模式下让滚动条等浏览器原生控件也用深色 */
   :root[data-theme='dark'] { color-scheme: dark; }
   /* 焦点框：antd 自己的焦点样式优先级更高（如 .ant-btn:not(:disabled):focus-visible），这里统一提高优先级覆盖 */
@@ -142,6 +145,8 @@ const globalCss = (
   .ant-menu-submenu-popup > .ant-menu { border: 1px solid ${p.elevatedLine}; }`
   }
   .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* 表格里的数字一律等宽（检查表 #8）：金额、数量、日期上下对齐；只影响数字字形，文字不变（UI-117） */
+  .ant-table, .zhul-grid-table { font-variant-numeric: tabular-nums; }
   /* 浏览器自动填充（账号、密码）会给输入框加浅蓝底：改回主题的输入框底色与文字色，深色模式下不再出现亮色块 */
   input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus, input:-webkit-autofill:active {
     -webkit-box-shadow: 0 0 0 1000px ${p.card} inset !important;
@@ -173,6 +178,10 @@ const globalCss = (
   /* 表格外的单号（分组头、卡片标题）同样墨色 600，悬停主题色加下划线 */
   .zhul-link.zhul-link-doc { color: ${p.ink}; font-weight: 600; }
   .zhul-link.zhul-link-doc:hover { color: ${link.hover}; text-decoration: underline; text-underline-offset: 3px; }
+  /* 关联单据卡的行（RelatedDocsCard）：单号同样墨色，悬停整行加深一档、单号变链接色加下划线 */
+  .zhul-related-row > div { transition: background .15s; }
+  .zhul-related-row:hover > div { background: ${p.neutralSoft} !important; }
+  .zhul-related-row:hover .zhul-related-no { color: ${link.hover} !important; text-decoration: underline; text-underline-offset: 3px; }
   /* 表格行高（D21）：内边距 11 让两行内容落在 63；单行和表头用最小高度补到 48（单元格的 height 即最小高度）。
      small、middle 尺寸的表格用于弹窗和卡片内，不受影响 */
   .ant-table:not(.ant-table-small):not(.ant-table-middle) > .ant-table-container .ant-table-thead > tr > th,

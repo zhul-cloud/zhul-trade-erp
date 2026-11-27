@@ -410,7 +410,7 @@ export const PartialCancelModal: React.FC<{
           background: palette.neutralSoft,
           color: palette.sub,
           fontSize: 12,
-          fontWeight: 700,
+          fontWeight: 600,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

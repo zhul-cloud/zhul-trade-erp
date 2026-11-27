@@ -100,7 +100,7 @@ const OperatingReportPage: React.FC = () => {
         style={{
           ...num,
           color: color ?? palette.ink,
-          fontWeight: bold ? 700 : 400,
+          fontWeight: bold ? 600 : 400,
         }}
       >
         {cny(value)}

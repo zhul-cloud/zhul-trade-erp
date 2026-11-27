@@ -470,7 +470,7 @@ const Receipts: React.FC = () => {
                 emptyText: tableEmpty(
                   query
                     ? '没有匹配的在途发货单；货到了但没有发货单，点「直接收货」'
-                    : '没有待收货的发货单',
+                    : '没有待收货的发货单；货到了但没有发货单，点「直接收货」',
                   loading,
                 ),
               }}

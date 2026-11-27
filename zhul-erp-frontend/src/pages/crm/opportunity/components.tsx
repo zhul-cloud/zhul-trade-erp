@@ -53,7 +53,7 @@ export const StagePill: React.FC<{
 };
 
 /** 卡片：标题（右侧可放操作）+ 内容 */
-/** 页面卡片：外观同骨架组件 Panel（圆角 10，浅色阴影、深色边框）；标题 18/500 同 Section */
+/** 页面卡片：外观同骨架组件 Panel（圆角 10，浅色阴影、深色边框）；标题 16/600 同 Section */
 export const Card: React.FC<{
   title?: string;
   extra?: React.ReactNode;

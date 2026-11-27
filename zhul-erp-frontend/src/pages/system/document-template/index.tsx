@@ -429,7 +429,7 @@ const DocumentTemplatePage: React.FC = () => {
     },
   ];
 
-  if (error) return <ErrorHint message={error} onRetry={refresh} />;
+  if (error) return <ErrorHint page message={error} onRetry={refresh} />;
 
   const builtin = versions?.find((v) => v.builtin);
 

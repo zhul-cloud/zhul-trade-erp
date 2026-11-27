@@ -14,7 +14,7 @@ import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import { FilterCard } from '../inventoryParts';
+import { FilterCard, warehouseTypeTone } from '../inventoryParts';
 import { type InvWarehouse, WH_OWN, warehouseApi } from '../inventoryService';
 import { readBizError } from '../service';
 
@@ -208,7 +208,9 @@ const WarehousesPage: React.FC = () => {
       title: '类型',
       dataIndex: 'type',
       width: 90,
-      render: (_: number, r) => <Pill tone="gray">{r.typeName}</Pill>,
+      render: (_: number, r) => (
+        <Pill tone={warehouseTypeTone(r.type)}>{r.typeName}</Pill>
+      ),
     },
     {
       title: '关联货代',

@@ -25,7 +25,7 @@ export const DefaultLogo: React.FC<{ siteName?: string; size: number }> = ({
         borderRadius: Math.round(size * LOGO_RADIUS_RATIO),
         background: palette.link,
         color: palette.onPrimary,
-        fontWeight: 800,
+        fontWeight: 800, // lint-ui-ignore cjk-weight: 字母 Logo，不是中文正文
         fontSize: Math.round(size * LOGO_FONT_RATIO),
         display: 'inline-flex',
         alignItems: 'center',

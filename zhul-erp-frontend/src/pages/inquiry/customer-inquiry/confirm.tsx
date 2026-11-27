@@ -819,7 +819,7 @@ const ConfirmPage: React.FC = () => {
     return <Skeleton active paragraph={{ rows: 10 }} />;
   }
   if (error || !draft) {
-    return <ErrorHint message={error || '加载失败'} onRetry={load} />;
+    return <ErrorHint page message={error || '加载失败'} onRetry={load} />;
   }
   // 待确认：确认 AI 解析结果；待解析 / 解析失败：手动录入（不改状态，确认时才离开原状态）
   const editable = [
@@ -1160,7 +1160,7 @@ const ConfirmPage: React.FC = () => {
                         borderRadius: 8,
                         background: palette.neutralSoft,
                         color: palette.sub,
-                        fontWeight: 700,
+                        fontWeight: 600,
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',

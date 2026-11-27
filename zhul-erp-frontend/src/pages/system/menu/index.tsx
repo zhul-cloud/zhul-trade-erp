@@ -34,9 +34,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { MainCard, PageHeader, SummaryBar } from '@/components/ListLayout';
+import { Pill } from '@/components/Pill';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { proAuditColumns } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
+import { type AttrTone, attrTone } from '@/theme/palette';
 import { tableScrollX } from '@/utils/tableScroll';
 import type { MenuItem } from './service';
 import {
@@ -51,11 +53,11 @@ import {
 
 const typeMap: Record<
   number,
-  { text: string; color: string; icon: React.ReactNode }
+  { text: string; color: AttrTone; icon: React.ReactNode }
 > = {
-  1: { text: '目录', color: 'blue', icon: <Folder size="1em" /> },
-  2: { text: '菜单', color: 'green', icon: <Menu size="1em" /> },
-  3: { text: '按钮', color: 'orange', icon: <Zap size="1em" /> },
+  1: { text: '目录', color: attrTone(0), icon: <Folder size="1em" /> },
+  2: { text: '菜单', color: attrTone(1), icon: <Menu size="1em" /> },
+  3: { text: '按钮', color: attrTone(2), icon: <Zap size="1em" /> },
 };
 
 const MICRO_APP_OPTIONS = [
@@ -437,7 +439,9 @@ const MenuPage: React.FC = () => {
       dataIndex: 'type',
       width: 80,
       render: (_, r) => (
-        <Tag color={typeMap[r.type]?.color}>{typeMap[r.type]?.text}</Tag>
+        <Pill tone={typeMap[r.type]?.color ?? 'gray'}>
+          {typeMap[r.type]?.text}
+        </Pill>
       ),
     },
     {
@@ -782,9 +786,9 @@ const MenuPage: React.FC = () => {
           {isEdit || lockType ? (
             <div style={{ marginBottom: 24, width: '100%' }}>
               <div style={{ fontSize: 13, marginBottom: 8 }}>资源类型</div>
-              <Tag color={typeMap[fixedType]?.color}>
+              <Pill tone={typeMap[fixedType]?.color ?? 'gray'}>
                 {typeMap[fixedType]?.text}
-              </Tag>
+              </Pill>
             </div>
           ) : (
             <ProFormRadio.Group

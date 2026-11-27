@@ -205,7 +205,7 @@ const RegisterDrawer: React.FC<{
         margin: '4px 0 14px',
       }}
     >
-      <span style={{ fontSize: 14, fontWeight: 700, color: palette.ink }}>
+      <span style={{ fontSize: 14, fontWeight: 600, color: palette.ink }}>
         {title}
       </span>
       {hint && (

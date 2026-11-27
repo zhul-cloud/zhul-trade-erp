@@ -81,7 +81,7 @@ const ModuleCard: React.FC<{
             display: 'inline-grid',
             placeItems: 'center',
             fontSize: 12,
-            fontWeight: 700,
+            fontWeight: 600,
             color: done ? palette.green : palette.orange,
             background: done ? palette.greenSoft : palette.orangeSoft,
           }}

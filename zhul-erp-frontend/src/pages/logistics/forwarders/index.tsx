@@ -17,6 +17,7 @@ import { Ban, CircleCheck, Info, Pencil, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
+import EllipsisText from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
@@ -481,17 +482,30 @@ const ForwarderPage: React.FC = () => {
       width: 240,
       render: (_, r) =>
         r.customerId ? (
-          <span
-            style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}
-          >
-            <Pill tone={FORWARDER_TONE.customer}>客户指定</Pill>
-            <span style={{ color: palette.link }}>{r.customerName ?? '—'}</span>
+          // 两行：标签 + 客户名单行省略；上门取件放第二行，不挤进右边一列（模板审核 UI-117）
+          <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
+            <span
+              style={{
+                display: 'flex',
+                gap: 6,
+                alignItems: 'center',
+                minWidth: 0,
+              }}
+            >
+              <Pill tone={FORWARDER_TONE.customer}>客户指定</Pill>
+              <EllipsisText
+                text={r.customerName}
+                style={{ color: palette.ink, minWidth: 0 }}
+              />
+            </span>
             {r.handoverMode === HANDOVER.PICKUP && (
-              <Pill tone={FORWARDER_TONE.pickup}>
-                {['上门取件', r.courierCarrier].filter(Boolean).join(' · ')}
-              </Pill>
+              <span>
+                <Pill tone={FORWARDER_TONE.pickup}>
+                  {['上门取件', r.courierCarrier].filter(Boolean).join(' · ')}
+                </Pill>
+              </span>
             )}
-          </span>
+          </div>
         ) : (
           <Pill tone={FORWARDER_TONE.company}>公司货代</Pill>
         ),

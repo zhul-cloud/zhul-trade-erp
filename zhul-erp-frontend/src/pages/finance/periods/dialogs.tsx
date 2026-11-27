@@ -63,7 +63,7 @@ export const PeriodTiles: React.FC<{ p: Period }> = ({ p }) => {
               <div
                 style={{
                   fontSize: 18,
-                  fontWeight: i === items.length - 1 ? 700 : 600,
+                  fontWeight: 600,
                   color: palette.ink,
                   marginTop: 4,
                   fontVariantNumeric: 'tabular-nums',

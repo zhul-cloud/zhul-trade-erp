@@ -752,7 +752,7 @@ const ProductListInner: React.FC = () => {
                 // 列窄时型号会被省略，悬停看全称
                 title={r.mpnDisplay}
                 style={{
-                  fontWeight: 700,
+                  fontWeight: 600,
                   fontSize: 14,
                   minWidth: 0,
                   overflow: 'hidden',

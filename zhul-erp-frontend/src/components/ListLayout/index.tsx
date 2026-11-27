@@ -24,6 +24,7 @@ import React, {
   useState,
   useSyncExternalStore,
 } from 'react';
+import { FilterResetContext } from '@/components/EmptyState';
 import { useAppTheme } from '@/theme/AppTheme';
 import { CARD_SHADOW } from '@/theme/palette';
 import { formatAmount } from '@/utils/format';
@@ -581,7 +582,7 @@ const SummaryStrip: React.FC<{ items: SummaryItem[] }> = ({ items }) => {
                 className="num"
                 style={{
                   fontSize: 20,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   lineHeight: 1.25,
                   color: palette.ink,
                   whiteSpace: 'nowrap',
@@ -770,10 +771,21 @@ export const FilterField: React.FC<{
     </span>
   );
   if (layout === 'line') {
-    // 日期范围放进名称后至少 300 宽，两个日期不截断
-    const range = controlOf(children)?.type === DatePicker.RangePicker;
+    // 日期范围放进名称后至少 300 宽，两个日期不截断；带时间（showTime）的两端各多 8 个字符，至少 440（UI-117）
+    const control = controlOf(children);
+    const range = control?.type === DatePicker.RangePicker;
+    const timed =
+      range && !!(control?.props as { showTime?: unknown }).showTime;
     const min =
-      span === 'auto' ? undefined : range ? 300 : span === 2 ? 220 : 140;
+      span === 'auto'
+        ? undefined
+        : timed
+          ? 440
+          : range
+            ? 300
+            : span === 2
+              ? 220
+              : 140;
     // 控件自带前缀（关键词的搜索图标）：不放名称（提示文字已说明），帮助图标放在框右侧
     const own =
       (controlOf(children)?.props as { prefix?: React.ReactNode } | undefined)
@@ -796,7 +808,13 @@ export const FilterField: React.FC<{
           flex: span === 'auto' ? '0 0 auto' : `1 1 ${min}px`,
           minWidth: min,
           maxWidth:
-            span === 'auto' ? undefined : span === 2 || range ? 360 : 220,
+            span === 'auto'
+              ? undefined
+              : timed
+                ? 480
+                : span === 2 || range
+                  ? 360
+                  : 220,
           display: 'flex',
           alignItems: 'center',
           gap: 8,
@@ -1012,6 +1030,8 @@ export const ScopeSwitch: React.FC<{
  * 按搜索条件区的实例区分（不按页面路径），同一页多个页签、同一路径开了两个标签时互不串。
  */
 const chipStore = new Map<string, FilterChipItem[]>();
+/** 搜索区的「重置」，同样按实例登记：主卡里的「无结果」空状态用它给「清空筛选」（UI-117） */
+const resetStore = new Map<string, () => void>();
 const chipListeners = new Set<() => void>();
 const publishChips = (id: string, chips: FilterChipItem[]) => {
   const prev = chipStore.get(id) ?? [];
@@ -1310,6 +1330,16 @@ export const FilterCard: React.FC<{
       clear();
       onReset();
     });
+  const resetRef = useRef(reset);
+  resetRef.current = reset;
+  const canReset = !!onReset;
+  useEffect(() => {
+    if (!canReset) return undefined;
+    resetStore.set(filterId, () => resetRef.current?.());
+    return () => {
+      resetStore.delete(filterId);
+    };
+  }, [filterId, canReset]);
   const buttons = (
     <div
       style={{
@@ -1601,6 +1631,7 @@ export const MainCard: React.FC<{
     if (id !== filterId) setFilterId(id);
   });
   const auto = useAutoChips(filterId);
+  const resetFilters = filterId ? resetStore.get(filterId) : undefined;
   const chips = [...(own ?? []), ...(auto ?? [])];
   const hasChips = chips.length > 0;
   return (
@@ -1640,12 +1671,14 @@ export const MainCard: React.FC<{
           {settings}
         </div>
       )}
-      {children}
+      <FilterResetContext.Provider value={resetFilters}>
+        {children}
+      </FilterResetContext.Provider>
     </Panel>
   );
 };
 
-/** 卡片标题（18/500，同 Section 标题）：给自己画卡片头部的组件用 */
+/** 卡片标题（16/600，同 Section 标题）：给自己画卡片头部的组件用 */
 export const CardTitle: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -1659,7 +1692,7 @@ export const CardTitle: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
-/** 详情页分区：卡片标题 18/500，可带帮助图标、标题旁计数（meta）和右侧操作；id 加在标题上，用于页内定位 */
+/** 详情页分区：卡片标题 16/600，可带帮助图标、标题旁计数（meta）和右侧操作；id 加在标题上，用于页内定位 */
 export const Section: React.FC<{
   title: React.ReactNode;
   help?: React.ReactNode;

@@ -15,6 +15,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Download, Eye, Search } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { UserName } from '@/components/UserName';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
@@ -154,7 +155,8 @@ const OperateLogPage: React.FC = () => {
       dataIndex: 'operatorName',
       width: 160,
       search: false,
-      render: ellipsisRender,
+      // 日志里记的是登录账号：显示姓名，不露出邮箱（原则 13，UI-117）
+      render: (_, r) => ellipsisRender(<UserName value={r.operatorName} />),
     },
     {
       title: '操作模块',
@@ -399,7 +401,7 @@ const OperateLogPage: React.FC = () => {
               ]}
             />
 
-            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>
               操作内容
             </div>
 

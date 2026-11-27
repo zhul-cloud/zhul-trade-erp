@@ -341,7 +341,7 @@ const DuplicatesTab: React.FC<{
       },
     });
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!groups)
     return (
       <div style={{ padding: 24, background: palette.card, borderRadius: 16 }}>

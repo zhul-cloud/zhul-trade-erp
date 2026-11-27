@@ -230,7 +230,7 @@ const AssignRulesPage: React.FC = () => {
     },
   ];
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
 
   return (
     <div>

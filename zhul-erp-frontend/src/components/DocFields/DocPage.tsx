@@ -19,7 +19,11 @@ export const SectionTitle: React.FC<{
   const { palette } = useAppTheme();
   return (
     <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
-      <b style={{ color: palette.ink, fontSize: 15 }}>{children}</b>
+      <h2
+        style={{ margin: 0, fontSize: 16, fontWeight: 600, color: palette.ink }}
+      >
+        {children}
+      </h2>
       <span style={{ flex: 1 }} />
       {extra}
     </div>
@@ -116,8 +120,9 @@ export const RelatedDocsCard: React.FC<{
                   {d.label}
                 </span>
                 <span
+                  className="zhul-related-no"
                   style={{
-                    color: d.href ? palette.link : palette.ink,
+                    color: palette.ink,
                     fontWeight: 600,
                     whiteSpace: 'nowrap',
                   }}
@@ -138,7 +143,7 @@ export const RelatedDocsCard: React.FC<{
               </div>
             );
             return d.href ? (
-              <Link key={key} to={d.href}>
+              <Link key={key} to={d.href} className="zhul-related-row">
                 {row}
               </Link>
             ) : (

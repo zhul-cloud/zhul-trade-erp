@@ -36,6 +36,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import EllipsisText from '@/components/EllipsisText';
+import { Pill } from '@/components/Pill';
 import {
   FilterCard,
   FilterField,
@@ -355,13 +356,10 @@ const UserPage: React.FC = () => {
       search: false,
       render: (_, record) =>
         record.roleName ? (
-          <Tag
-            color="processing"
-            variant="filled"
-            style={{ maxWidth: '100%', marginInlineEnd: 0 }}
-          >
-            <EllipsisText text={record.roleName} />
-          </Tag>
+          // 角色取值不固定（租户自建），按 D75 用灰标签
+          <Pill tone="gray">
+            <EllipsisText text={record.roleName} style={{ minWidth: 0 }} />
+          </Pill>
         ) : (
           '-'
         ),

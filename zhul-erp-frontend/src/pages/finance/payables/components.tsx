@@ -1229,8 +1229,8 @@ export const InstallmentTable: React.FC<{ payable: Payable }> = ({
           render: (v: number) => `第 ${v} 期`,
         },
         {
+          // 不写宽度：窄屏时这一列折行，金额列不折行（UI-117）
           title: '比例 · 时点',
-          width: 140,
           key: 't',
           render: (_, i) => `${i.ratio}% · ${i.triggerName}`,
         },
@@ -1239,7 +1239,7 @@ export const InstallmentTable: React.FC<{ payable: Payable }> = ({
           width: 130,
           dataIndex: 'amount',
           align: 'right',
-          render: (v: number) => formatMoney(v),
+          render: (v: number) => <span className="num">{formatMoney(v)}</span>,
         },
         {
           title: '到期日',
@@ -1254,7 +1254,7 @@ export const InstallmentTable: React.FC<{ payable: Payable }> = ({
           width: 130,
           dataIndex: 'paidAmount',
           align: 'right',
-          render: (v: number) => formatMoney(v),
+          render: (v: number) => <span className="num">{formatMoney(v)}</span>,
         },
         {
           title: '状态',
@@ -1551,7 +1551,10 @@ const PayableCompactBody: React.FC<{ payable: Payable }> = ({ payable: p }) => {
             row(
               `${l.paymentId}-${l.relation}-${l.otherPayableNo ?? ''}`,
               <>
-                <Link to={`/finance/payments/${l.paymentId}`}>
+                <Link
+                  className="zhul-link zhul-link-doc"
+                  to={`/finance/payments/${l.paymentId}`}
+                >
                   {l.paymentNo}
                 </Link>{' '}
                 <span style={{ fontSize: 12, color: palette.mute }}>
@@ -1646,11 +1649,15 @@ export const PayablePanel: React.FC<{
         }}
       >
         <Wallet size="1em" style={{ color: palette.link }} />
-        <b style={{ color: palette.ink, fontSize: 15 }}>付款</b>
+        <b style={{ color: palette.ink, fontSize: 16 }}>付款</b>
         <PayStatusPill status={data.status} />
         <PayMethodTag value={data.payMethod} />
         {access.payableDetail ? (
-          <Link to={`/finance/payables/${data.id}`} style={{ fontSize: 12 }}>
+          <Link
+            className="zhul-link zhul-link-doc"
+            to={`/finance/payables/${data.id}`}
+            style={{ fontSize: 12 }}
+          >
             {data.payableNo}
           </Link>
         ) : (

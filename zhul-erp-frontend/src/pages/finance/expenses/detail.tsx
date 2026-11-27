@@ -74,7 +74,7 @@ const ExpenseDetail: React.FC = () => {
     if (!editing) load();
   });
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!e) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const c = e.currencyCode;
@@ -100,7 +100,10 @@ const ExpenseDetail: React.FC = () => {
     <span>
       员工垫付 · {e.advanceUserName ?? '—'} ·{' '}
       {e.reimbursementId ? (
-        <Link to={DOC_PATHS.reimbursement(e.reimbursementId)}>
+        <Link
+          className="zhul-link zhul-link-doc"
+          to={DOC_PATHS.reimbursement(e.reimbursementId)}
+        >
           {e.reimburseNo}
         </Link>
       ) : (
@@ -183,7 +186,10 @@ const ExpenseDetail: React.FC = () => {
           {
             label: '付款单',
             value: e.paymentId ? (
-              <Link to={DOC_PATHS.payment(e.paymentId)}>
+              <Link
+                className="zhul-link zhul-link-doc"
+                to={DOC_PATHS.payment(e.paymentId)}
+              >
                 {e.paymentNo} · {e.payDate}
               </Link>
             ) : undefined,
@@ -202,7 +208,12 @@ const ExpenseDetail: React.FC = () => {
           {
             label: '关联售后单',
             value: e.afterSalesId ? (
-              <Link to={`/sales/after-sales/${e.afterSalesId}`}>{e.asNo}</Link>
+              <Link
+                to={`/sales/after-sales/${e.afterSalesId}`}
+                className="zhul-link zhul-link-doc"
+              >
+                {e.asNo}
+              </Link>
             ) : undefined,
             hidden: !e.afterSalesId,
           },
@@ -271,7 +282,12 @@ const ExpenseDetail: React.FC = () => {
               <>
                 {' '}
                 · 来源单号{' '}
-                <Link to={`/sales/orders/${firstSo.soId}`}>{firstSo.soNo}</Link>
+                <Link
+                  to={`/sales/orders/${firstSo.soId}`}
+                  className="zhul-link zhul-link-doc"
+                >
+                  {firstSo.soNo}
+                </Link>
               </>
             )}{' '}
             · <UserName value={e.createBy} /> ·{' '}

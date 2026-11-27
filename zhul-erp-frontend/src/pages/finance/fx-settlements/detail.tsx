@@ -54,7 +54,7 @@ const FxSettlementDetail: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
   useOnReactivate(load);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!s) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const cur = s.currencyCode;
@@ -75,7 +75,10 @@ const FxSettlementDetail: React.FC = () => {
       width: 150,
       render: (_, a) =>
         a.receipt?.receiptNo ? (
-          <Link to={`/finance/receipts/${a.receipt.id}`}>
+          <Link
+            className="zhul-link zhul-link-doc"
+            to={`/finance/receipts/${a.receipt.id}`}
+          >
             {a.receipt.receiptNo}
           </Link>
         ) : (

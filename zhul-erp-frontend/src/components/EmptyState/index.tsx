@@ -14,6 +14,14 @@ const DEFAULTS: Record<EmptyKind, [React.ElementType, string]> = {
 };
 
 /**
+ * 同一页搜索区的「重置」：MainCard 按配对的 FilterCard 提供（UI-117）。
+ * 「无结果」没传 action 时自动给「清空筛选」，各页不用再各自传 onClear。
+ */
+export const FilterResetContext = React.createContext<(() => void) | undefined>(
+  undefined,
+);
+
+/**
  * 数据视图的空状态（公共组件，规范「说明文字 · 数据视图的六种状态」，ui-redesign C4、S8）：
  * 居中的图标、一句话、可选的说明和下一步按钮。无结果时 action 给「清空筛选」，错误时给「重试」，
  * 无权限时 description 写明需要的权限。地方小（下拉、卡片里的小列表）用 compact，只占一行。
@@ -26,8 +34,17 @@ export const EmptyState: React.FC<{
   description?: React.ReactNode;
   action?: React.ReactNode;
   compact?: boolean;
-}> = ({ kind = 'empty', title, description, action, compact }) => {
+}> = ({ kind = 'empty', title, description, action: own, compact }) => {
   const { palette } = useAppTheme();
+  const resetFilters = React.useContext(FilterResetContext);
+  const action =
+    own === undefined && kind === 'noResult' && resetFilters ? (
+      <Button size={compact ? 'small' : undefined} onClick={resetFilters}>
+        清空筛选
+      </Button>
+    ) : (
+      own
+    );
   const [Icon, text] = DEFAULTS[kind];
   const error = kind === 'error';
   const color = error ? palette.red : palette.mute;

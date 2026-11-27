@@ -178,7 +178,9 @@ const BatchRows: React.FC<{
     },
   ];
   if (error)
-    return <ErrorHint message={error} onRetry={() => setRetry((n) => n + 1)} />;
+    return (
+      <ErrorHint page message={error} onRetry={() => setRetry((n) => n + 1)} />
+    );
   return (
     <Table<StockBatch>
       rowKey={(b) => `${b.batchId}:${b.stockStatus}`}

@@ -585,3 +585,39 @@ it('名称作前缀后，文本框不再重复名称、不写「全部」；关�
     '客户、订单编号',
   );
 });
+
+it('主卡里的「无结果」空状态自动给「清空筛选」，点了调用同一页搜索区的重置（UI-117）', async () => {
+  const onReset = jest.fn();
+  const { EmptyState } = jest.requireActual('@/components/EmptyState');
+  const Page = () => {
+    const [n, setN] = useState(0);
+    return h('div', null, [
+      h(FilterCard, {
+        key: 'f',
+        onSearch: () => undefined,
+        onReset,
+        children: h(Input, { 'aria-label': 'kw' }),
+      }),
+      h(
+        MainCard,
+        { key: 'm', count: n },
+        // 取数完成后重新渲染（模拟查询结果到达），空状态才出现
+        n === 0
+          ? h('button', { type: 'button', onClick: () => setN(1) }, '查')
+          : h(EmptyState, { kind: 'noResult' }),
+      ),
+    ]);
+  };
+  render(h(App, null, h(Page)));
+  await act(async () => {
+    fireEvent.click(screen.getByText('查'));
+  });
+  fireEvent.click(screen.getByRole('button', { name: '清空筛选' }));
+  expect(onReset).toHaveBeenCalledTimes(1);
+});
+
+it('没有配对搜索区时，「无结果」不出现清空按钮', () => {
+  const { EmptyState } = jest.requireActual('@/components/EmptyState');
+  render(h(MainCard, { count: 0 }, h(EmptyState, { kind: 'noResult' })));
+  expect(screen.queryByRole('button', { name: '清空筛选' })).toBeNull();
+});

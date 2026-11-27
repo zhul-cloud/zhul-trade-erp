@@ -127,7 +127,7 @@ export const AppLogo: React.FC<{ collapsed?: boolean }> = ({ collapsed }) => {
           style={{
             ...ellipsis,
             fontSize: 20,
-            fontWeight: 700,
+            fontWeight: 700, // lint-ui-ignore cjk-weight: 系统名称字标，跟登录页同款
             lineHeight: 1.3,
             color: palette.link,
           }}

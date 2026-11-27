@@ -110,7 +110,7 @@ const ShipmentDetail: React.FC = () => {
 
   useOnReactivate(load);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!sh) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const pending = sh.status === 1;
@@ -235,7 +235,11 @@ const ShipmentDetail: React.FC = () => {
       title: '销售出库单',
       key: 'src',
       width: 130,
-      render: (_, x) => <Link to={x.srcHref}>{x.srcNo}</Link>,
+      render: (_, x) => (
+        <Link to={x.srcHref} className="zhul-link zhul-link-doc">
+          {x.srcNo}
+        </Link>
+      ),
     },
     {
       title: '销售订单',
@@ -243,7 +247,12 @@ const ShipmentDetail: React.FC = () => {
       width: 130,
       render: (_, x) =>
         x.soId ? (
-          <Link to={LOGISTICS_PATHS.salesOrder(x.soId)}>{x.soNo}</Link>
+          <Link
+            to={LOGISTICS_PATHS.salesOrder(x.soId)}
+            className="zhul-link zhul-link-doc"
+          >
+            {x.soNo}
+          </Link>
         ) : (
           (x.soNo ?? '—')
         ),
@@ -272,7 +281,12 @@ const ShipmentDetail: React.FC = () => {
           {r.obs.map((o, i) => (
             <React.Fragment key={o.id}>
               {i > 0 && '、'}
-              <Link to={DOC_PATHS.outbound(o.id)}>{o.obNo}</Link>
+              <Link
+                to={DOC_PATHS.outbound(o.id)}
+                className="zhul-link zhul-link-doc"
+              >
+                {o.obNo}
+              </Link>
             </React.Fragment>
           ))}
           {r.direct && (

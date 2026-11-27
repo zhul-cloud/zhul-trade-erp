@@ -49,7 +49,7 @@ const DUE_OPTIONS: { value: DueFilter; label: string }[] = [
 
 /** 到期状态：逾期 N 天 / N 天后到期（7 天内）/ 今天到期 / 未到期 / 未约定 */
 const DueState: React.FC<{ r?: ReceivableRow }> = ({ r }) => {
-  if (!r?.dueDate) return <Pill tone="cyan">未约定</Pill>;
+  if (!r?.dueDate) return <Pill tone="gray">未约定</Pill>;
   if (r.overdueDays != null)
     return <Pill tone="red">逾期 {r.overdueDays} 天</Pill>;
   if (r.dueInDays === 0) return <Pill tone="orange">今天到期</Pill>;
@@ -137,7 +137,7 @@ const ReceivablesPage: React.FC = () => {
       <span style={{ color: palette.mute }}>—</span>
     );
   const money = (v: number, c: string, strong = false) => (
-    <span style={{ ...num, fontWeight: strong ? 700 : 400 }}>
+    <span style={{ ...num, fontWeight: strong ? 600 : 400 }}>
       {formatAmount(v, c)}
     </span>
   );

@@ -240,7 +240,7 @@ const StatementDrawer: React.FC<{
       <div
         style={{
           fontSize: 24,
-          fontWeight: 700,
+          fontWeight: 600,
           color: palette.ink,
           margin: '4px 0',
         }}
@@ -287,12 +287,14 @@ const StatementDrawer: React.FC<{
       title: '我们登记的运费',
       dataIndex: 'ourFreight',
       width: 130,
+      align: 'right',
       render: (v: number) => money(v),
     },
     {
       title: '对账金额',
       key: 'amount',
       width: 140,
+      align: 'right',
       render: (_, l) =>
         draft ? (
           <InputNumber
@@ -316,6 +318,7 @@ const StatementDrawer: React.FC<{
       title: '差额',
       key: 'diff',
       width: 110,
+      align: 'right',
       render: (_, l) => {
         const d = Math.round((amountOf(l) - l.ourFreight) * 100) / 100;
         return d === 0 ? (

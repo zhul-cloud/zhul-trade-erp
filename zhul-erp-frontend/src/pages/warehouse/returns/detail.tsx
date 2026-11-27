@@ -71,7 +71,7 @@ const ReturnReceiptDetail: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
   useOnReactivate(load);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!r) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const canReceive = !!access['warehouse:return:receive'];
@@ -142,7 +142,10 @@ const ReturnReceiptDetail: React.FC = () => {
                   {d.purchaseReturnId && d.purchaseReturnNo ? (
                     <>
                       {' · '}
-                      <Link to={PATHS.purchaseReturn(d.purchaseReturnId)}>
+                      <Link
+                        className="zhul-link zhul-link-doc"
+                        to={PATHS.purchaseReturn(d.purchaseReturnId)}
+                      >
                         {d.purchaseReturnNo}
                       </Link>
                     </>
@@ -169,11 +172,25 @@ const ReturnReceiptDetail: React.FC = () => {
         items={[
           {
             label: '售后单',
-            value: <Link to={PATHS.afterSales(r.afterSalesId)}>{r.asNo}</Link>,
+            value: (
+              <Link
+                to={PATHS.afterSales(r.afterSalesId)}
+                className="zhul-link zhul-link-doc"
+              >
+                {r.asNo}
+              </Link>
+            ),
           },
           {
             label: '销售订单',
-            value: <Link to={PATHS.order(r.soId)}>{r.soNo}</Link>,
+            value: (
+              <Link
+                to={PATHS.order(r.soId)}
+                className="zhul-link zhul-link-doc"
+              >
+                {r.soNo}
+              </Link>
+            ),
           },
           {
             label: '客户寄回',

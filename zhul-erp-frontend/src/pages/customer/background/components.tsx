@@ -139,7 +139,7 @@ export const ConclusionBox: React.FC<{
         <span
           style={{
             fontSize: compact ? 16 : 17,
-            fontWeight: 700,
+            fontWeight: 600,
             color: fg,
             whiteSpace: 'nowrap',
           }}
