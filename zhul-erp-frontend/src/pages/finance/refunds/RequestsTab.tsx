@@ -21,13 +21,12 @@ import { formatAmount } from '@/utils/format';
 import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import RefundModal from './RefundModal';
-import { type RefundRequest, RQ_STATUS, refundRequestApi } from './service';
-
-const METHOD_TONE: Record<number, 'violet' | 'gray' | 'accent'> = {
-  1: 'violet',
-  2: 'gray',
-  3: 'accent',
-};
+import {
+  type RefundRequest,
+  RQ_STATUS,
+  refundMethodTone,
+  refundRequestApi,
+} from './service';
 
 /** 来源单号：退货退款是销售退货单，其他是售后单（都没有时为空） */
 export const refundSourceRef = (r: RefundRequest) =>
@@ -205,7 +204,7 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
       dataIndex: 'methodName',
       width: 130,
       render: (v: string, r) => (
-        <Pill tone={METHOD_TONE[r.method] ?? 'gray'}>{v}</Pill>
+        <Pill tone={refundMethodTone(r.method)}>{v}</Pill>
       ),
     },
     {

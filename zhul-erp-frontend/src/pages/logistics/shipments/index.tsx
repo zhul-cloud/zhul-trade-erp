@@ -35,6 +35,7 @@ import {
   ShStatusPill,
 } from '../components';
 import {
+  FORWARDER_TONE,
   type Forwarder,
   forwarderApi,
   type Logistics,
@@ -396,7 +397,13 @@ const Shipments: React.FC = () => {
           {ellipsisRender(v)}
           {r.customerForwarder && (
             <div>
-              <Pill tone="gray">{r.pickup ? '上门取件' : '客户指定'}</Pill>
+              <Pill
+                tone={
+                  r.pickup ? FORWARDER_TONE.pickup : FORWARDER_TONE.customer
+                }
+              >
+                {r.pickup ? '上门取件' : '客户指定'}
+              </Pill>
             </div>
           )}
         </div>

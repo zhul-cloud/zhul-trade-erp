@@ -29,6 +29,7 @@ import {
 import {
   type BoxInput,
   type DirectRef,
+  FORWARDER_TONE,
   type Logistics,
   logisticsApi,
   type PendingGroup,
@@ -604,7 +605,9 @@ export const ShipModal: React.FC<{
             marginBottom: 16,
           }}
         >
-          <Pill tone="gray">{sh.pickupLabel ?? '上门取件'}</Pill>
+          <Pill tone={FORWARDER_TONE.pickup}>
+            {sh.pickupLabel ?? '上门取件'}
+          </Pill>
           上门取件的货代只能交给客户的货代
         </div>
       )}

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
+import { ATTR_TONE, type AttrTone } from '@/theme/palette';
 
 export type PillTone =
   | 'gray'
@@ -11,13 +12,16 @@ export type PillTone =
   | 'red'
   | 'mute'
   | 'info'
-  | 'selected';
+  | 'selected'
+  | AttrTone;
 
 /**
  * 状态标签：语义色浅底 + 文字色，12px/600，高 24，圆角 4（界面规范「状态标签」）；提醒类在文字前放图标。
  * 全站只用这一个，各模块不再各写一份（曾有圆角 12 的胶囊版本混用）。
  * 主题色浅底只表示选中、当前（ui-redesign D42）：只有 `selected` 用它（如「当前客户」「已选 N 个」「当前步骤」）；
- * 旧的 `accent` 按 status-colors.md 归类规则并入信息色，属性、类别标签用 `gray`。
+ * 旧的 `accent` 按 status-colors.md 归类规则并入信息色。
+ * 属性标签（取值固定的几种）用属性色 blue / purple / magenta，同一列不同取值颜色不重复，「未定、没有值」用 gray；
+ * 取值不固定的（行业、品类列表、素材标签、货代名称、版本号）用 gray（D75）。
  */
 export const Pill: React.FC<{
   tone: PillTone;
@@ -27,8 +31,19 @@ export const Pill: React.FC<{
   title?: string;
   children: React.ReactNode;
 }> = ({ tone, title, children }) => {
-  const { palette } = useAppTheme();
+  const { palette, mode } = useAppTheme();
+  const attr = (t: AttrTone) => ({
+    fg: ATTR_TONE[mode][t][0],
+    bg: ATTR_TONE[mode][t][1],
+  });
   const colors: Record<PillTone, { fg: string; bg: string }> = {
+    blue: attr('blue'),
+    purple: attr('purple'),
+    magenta: attr('magenta'),
+    indigo: attr('indigo'),
+    plum: attr('plum'),
+    brown: attr('brown'),
+    olive: attr('olive'),
     gray: { fg: palette.sub, bg: palette.neutralSoft },
     mute: { fg: palette.mute, bg: palette.neutralSoft },
     cyan: { fg: palette.info, bg: palette.neutralSoft },

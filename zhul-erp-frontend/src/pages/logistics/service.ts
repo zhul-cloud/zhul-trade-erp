@@ -71,6 +71,13 @@ export interface ForwarderQuery {
 /** 交接方式：1-送到货代、2-上门取件 */
 export const HANDOVER = { DELIVER: 1, PICKUP: 2 } as const;
 
+/** 货代归属与交接方式的属性色，货代列表、出运单共用（D75）：公司货代蓝、客户指定紫、上门取件洋红 */
+export const FORWARDER_TONE = {
+  company: 'blue',
+  customer: 'purple',
+  pickup: 'magenta',
+} as const;
+
 /** 「上门取件 · 承运商 · 账号」，与后端 LogisticsSupport.pickupLabel 一致 */
 export const pickupText = (carrier?: string | null, account?: string | null) =>
   ['上门取件', carrier?.trim(), account?.trim()].filter(Boolean).join(' · ');

@@ -224,7 +224,7 @@ const Outbounds: React.FC = () => {
           {ellipsisRender(v)}
           {r.pickupLabel && (
             <div style={{ marginTop: 4 }} title={r.pickupLabel}>
-              <Pill tone="gray">上门取件</Pill>
+              <Pill tone="magenta">上门取件</Pill>
             </div>
           )}
         </div>

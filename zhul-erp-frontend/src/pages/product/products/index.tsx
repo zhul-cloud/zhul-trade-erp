@@ -920,14 +920,15 @@ const ProductListInner: React.FC = () => {
       key: 'owner',
       width: 72,
       render: (_: unknown, r: Product) =>
+        // 维护方是属性：平台蓝、租户紫、本公司洋红、其他公司靛，同列不重复（D75）
         !r.ownerTenantId ? (
-          <Pill tone="gray">平台</Pill>
+          <Pill tone="blue">平台</Pill>
         ) : platform ? (
-          <Pill tone="gray">租户</Pill>
+          <Pill tone="purple">租户</Pill>
         ) : r.editable ? (
-          <Pill tone="gray">本公司</Pill>
+          <Pill tone="magenta">本公司</Pill>
         ) : (
-          <Pill tone="gray">其他公司</Pill>
+          <Pill tone="indigo">其他公司</Pill>
         ),
     },
     ...(reviewing

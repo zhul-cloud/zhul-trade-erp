@@ -367,6 +367,60 @@ export const METRIC_FAMILY: Record<
   },
 };
 
+/**
+ * 属性标签色（ui-redesign D75，对比图 R34，2026-11-27 用户选「统一带标签、不同颜色区分」）：
+ * 只给取值固定的属性（付款方式、维护方、角色、货代类型等），同一列不同取值颜色不重复；
+ * 不用状态色（绿、橙、红、青有好坏含义），「没有值 / 未定 / 未设置」用中性灰。取值多的（客户角色 7 种）
+ * 按 ATTR_ORDER 依次取相近色补足（用户选定，已告知靛 / 蓝、紫红 / 紫相近）。文字加深到 4.5:1 以上。
+ * [文字色, 浅底]
+ */
+export type AttrTone =
+  | 'blue'
+  | 'purple'
+  | 'magenta'
+  | 'indigo'
+  | 'plum'
+  | 'brown'
+  | 'olive';
+export const ATTR_ORDER: AttrTone[] = [
+  'blue',
+  'purple',
+  'magenta',
+  'indigo',
+  'plum',
+  'brown',
+  'olive',
+];
+export const ATTR_TONE: Record<
+  ThemeMode,
+  Record<AttrTone, [string, string]>
+> = {
+  light: {
+    blue: ['#0C53B7', '#DAE9FD'],
+    purple: ['#6A1FC7', '#EDDEFF'],
+    magenta: ['#B71D63', '#FDE1ED'],
+    indigo: ['#3730A3', '#E0E7FF'],
+    plum: ['#86198F', '#FAE8FF'],
+    brown: ['#7C4A1E', '#F3E8DC'],
+    olive: ['#4D5A12', '#EEF2D6'],
+  },
+  dark: {
+    blue: ['#76B0F8', '#1A293D'],
+    purple: ['#C493FF', '#2D1E3F'],
+    magenta: ['#F78DB9', '#3C212D'],
+    indigo: ['#A5B4FC', '#23264A'],
+    plum: ['#F0ABFC', '#3A1D3F'],
+    brown: ['#D9A877', '#352A20'],
+    olive: ['#C5D27A', '#2C3018'],
+  },
+};
+
+/** 按取值在选项里的顺序取属性色：同一种属性全站同一个值同一种颜色，同列不重复（D75） */
+export const attrTone = (index: number): AttrTone =>
+  ATTR_ORDER[
+    ((index % ATTR_ORDER.length) + ATTR_ORDER.length) % ATTR_ORDER.length
+  ];
+
 /** 浅色卡片、侧栏、顶栏的柔和扩散阴影（ui-redesign D30）；深色不用阴影 */
 export const CARD_SHADOW =
   '0 0 2px rgba(145,158,171,.2), 0 12px 24px -4px rgba(145,158,171,.12)';

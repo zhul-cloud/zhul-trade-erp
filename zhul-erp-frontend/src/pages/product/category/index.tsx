@@ -161,10 +161,11 @@ const CategoryPage: React.FC = () => {
       search: false,
       width: 90,
       render: (_, r) =>
+        // 层级是属性：一级蓝、细分紫（D75）
         r.parentId ? (
-          <Pill tone="gray">细分品类</Pill>
+          <Pill tone="purple">细分品类</Pill>
         ) : (
-          <Pill tone="gray">一级品类</Pill>
+          <Pill tone="blue">一级品类</Pill>
         ),
     },
     {

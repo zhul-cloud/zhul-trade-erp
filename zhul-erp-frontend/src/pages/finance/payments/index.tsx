@@ -27,6 +27,7 @@ import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
 import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
+import { PAY_WAY_TONE } from '../payables/payMethod';
 import { PAY_CHANNEL_NAMES } from '../payables/payQr';
 import {
   METHOD,
@@ -255,13 +256,14 @@ const PaymentRecords: React.FC = () => {
       title: '类型',
       dataIndex: 'kind',
       width: 110,
+      // 类型是属性：属性色，不用状态色，同列不重复（D75）
       render: (v: number) =>
         v === 2 ? (
-          <Pill tone="orange">退款</Pill>
+          <Pill tone="purple">退款</Pill>
         ) : v === 3 ? (
-          <Pill tone="cyan">报销付款</Pill>
+          <Pill tone="magenta">报销付款</Pill>
         ) : (
-          <Pill tone="gray">付款</Pill>
+          <Pill tone="blue">付款</Pill>
         ),
     },
     {
@@ -272,16 +274,16 @@ const PaymentRecords: React.FC = () => {
         r.kind === 2 ? (
           '—'
         ) : r.method === METHOD.ADVANCE ? (
-          <Pill tone="gray">员工垫付</Pill>
+          <Pill tone={PAY_WAY_TONE.advance}>员工垫付</Pill>
         ) : r.method === METHOD.PRIVATE ? (
-          <Pill tone="orange">
+          <Pill tone={PAY_WAY_TONE.private}>
             私对私
             {r.payChannel && r.payChannel !== 1
               ? ` · ${PAY_CHANNEL_NAMES[r.payChannel]}`
               : ''}
           </Pill>
         ) : (
-          <Pill tone="gray">公司对公</Pill>
+          <Pill tone={PAY_WAY_TONE.public}>公司对公</Pill>
         ),
     },
     {

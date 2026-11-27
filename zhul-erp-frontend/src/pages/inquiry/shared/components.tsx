@@ -61,9 +61,11 @@ export const TaskStatusPill: React.FC<{
   );
 };
 
-/** 新 / 老客户是客户属性：中性标签（status-colors.md「老客户」归中性；ui-redesign S13） */
+/** 新 / 老客户是客户属性：属性色，新客户蓝、老客户紫（D75） */
 export const CustomerTypePill: React.FC<{ type: number }> = ({ type }) => (
-  <Pill tone="gray">{type === 2 ? '老客户' : '新客户'}</Pill>
+  <Pill tone={type === 2 ? 'purple' : 'blue'}>
+    {type === 2 ? '老客户' : '新客户'}
+  </Pill>
 );
 
 /** 货况、货期字典：下拉只含启用项，名称含停用项；码值 0 为未填 */

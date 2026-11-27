@@ -48,6 +48,7 @@ import {
   type Refund,
   type RefundTotals,
   refundApi,
+  refundMethodTone,
   refundRequestApi,
 } from './service';
 
@@ -318,11 +319,12 @@ const RefundPage: React.FC = () => {
       dataIndex: 'method',
       width: 130,
       render: (v: number, r) =>
+        // 去向一律标签、按去向取属性色，不再一种标签一种文字（D75）
         v === REFUND_TO_CREDIT ? (
-          <Pill tone="gray">转客户余额</Pill>
+          <Pill tone={refundMethodTone(v)}>转客户余额</Pill>
         ) : (
           <div>
-            {r.methodName}
+            <Pill tone={refundMethodTone(v)}>{r.methodName}</Pill>
             {r.payeeAccount && (
               <div style={{ fontSize: 12, color: palette.mute }}>
                 {r.payeeAccount}

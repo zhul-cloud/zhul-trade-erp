@@ -1,4 +1,6 @@
 import type { UploadRules } from '@/components/ChunkUploadList';
+import type { PillTone } from '@/components/Pill';
+import { attrTone } from '@/theme/palette';
 
 /** 询价协作的码值，与后端 InquiryConstants 一致 */
 
@@ -90,14 +92,12 @@ export const CHANNEL_OPTIONS = [
 export const channelLabel = (v?: number) =>
   CHANNEL_OPTIONS.find((o) => o.value === v)?.label ?? '—';
 
-export const conditionTone = (v?: number): Tone =>
-  v === 1
-    ? 'green'
-    : v === 4 || v === 5
-      ? 'orange'
-      : v === 6
-        ? 'violet'
-        : 'gray';
+/**
+ * 货况是报价行的属性：按码值顺序取属性色，同列不重复（D75）：全新原装蓝、99新紫、翻新洋红、二手靛、
+ * 拆机件紫红、国产替代褐；待确认（7）与未填灰。原来用绿 / 橙 / 信息蓝区分好坏，二手与拆机件同橙、99新与翻新同灰
+ */
+export const conditionTone = (v?: number): PillTone =>
+  !v || v === 7 ? 'gray' : attrTone(v - 1);
 
 export const RETURN_REASONS = [
   { value: 1, label: '型号存疑' },
