@@ -144,10 +144,12 @@ class SiteProductContractTest extends TenantContractSupport {
         assertEquals(one.getSlug(), two.getSlug(), "两个型号算出相同的链接");
         AtomicReference<Boolean> conflict = new AtomicReference<>();
         TenantContext.runAs(A, () -> conflict.set(products.slugConflict(siteId, two.getSlug(), two.getId())));
-        assertTrue(conflict.get(), "站内冲突");
+        assertFalse(conflict.get(), "都没发布过：不算站内冲突（同一批的重复由预览检查）");
+        TenantContext.runAs(A, () -> products.lockSlug(one));
+        TenantContext.runAs(A, () -> conflict.set(products.slugConflict(siteId, two.getSlug(), two.getId())));
+        assertTrue(conflict.get(), "站内已有已发布的商品");
 
         // 锁定后改型号，链接不变；没锁定的跟着变
-        TenantContext.runAs(A, () -> products.lockSlug(one));
         jdbc.update("update product set mpn_raw = 'FR-A840-11K' where id = ?", p1);
         jdbc.update("update product set mpn_raw = 'FR-A840-15K' where id = ?", p2);
         assertEquals("itwpbrand-fr-a800-fr-a840-7-5k", ensure(p1).getSlug());

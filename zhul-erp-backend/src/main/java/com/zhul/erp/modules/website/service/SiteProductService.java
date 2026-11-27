@@ -120,10 +120,13 @@ public class SiteProductService {
         return SiteSlug.of(brand == null ? "" : brand.getBrandName(), series == null ? "" : series.getSeriesName(), product.getMpnRaw());
     }
 
-    /** 同一站点里另有商品用了这个链接别名 */
+    /**
+     * 站点上已有别的商品用了这个链接别名：只比已锁定的（已发布或导入，确实在站点上）；
+     * 没发布过的别名会随资料变化，同一批里的重复由预览另外检查。
+     */
     public boolean slugConflict(Long siteId, String slug, Long selfId) {
         return !StringUtils.hasText(slug) || mapper.selectCount(new LambdaQueryWrapper<WebsiteProductDO>()
-                .eq(WebsiteProductDO::getSiteId, siteId).eq(WebsiteProductDO::getSlug, slug)
+                .eq(WebsiteProductDO::getSiteId, siteId).eq(WebsiteProductDO::getSlug, slug).eq(WebsiteProductDO::getSlugLocked, 1)
                 .ne(selfId != null, WebsiteProductDO::getId, selfId).isNull(WebsiteProductDO::getDeletedAt)) > 0;
     }
 
