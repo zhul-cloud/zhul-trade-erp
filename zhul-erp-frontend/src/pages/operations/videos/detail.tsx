@@ -1,26 +1,28 @@
-import {
-  ArrowRightOutlined,
-  CheckCircleOutlined,
-  CheckOutlined,
-  DeleteOutlined,
-  ExclamationCircleOutlined,
-  LoadingOutlined,
-  PictureOutlined,
-  PlusOutlined,
-  RollbackOutlined,
-  ThunderboltOutlined,
-} from '@ant-design/icons';
 import { history, Link, useAccess, useParams } from '@umijs/max';
 import { App, Button, Input, Modal, Select, Upload } from 'antd';
 import dayjs from 'dayjs';
+import {
+  ArrowRight,
+  Check,
+  CircleAlert,
+  CircleCheck,
+  Image as ImageIcon,
+  LoaderCircle,
+  Plus,
+  Trash2,
+  Undo2,
+  Zap,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { PageHeader } from '@/components/ListLayout';
 import {
   useOnReactivate,
   usePageTitle,
   useTabActive,
   useUnsavedGuard,
 } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { STATUS_TONE, Thumb, useTaskLinks } from './components';
@@ -90,6 +92,7 @@ const Outputs: React.FC<{
                 width: w,
                 height: h,
                 borderRadius: 12,
+                // lint-ui-ignore hardcoded-color: 视频播放区的黑底属于画面本身（上下留边），不随主题变
                 background: '#000',
                 objectFit: 'contain',
               }}
@@ -119,6 +122,7 @@ const Outputs: React.FC<{
 /** 运营管理 → 视频任务 → 详情：素材、脚本、生成结果与审核 */
 const VideoTaskDetailPage: React.FC = () => {
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { palette } = useAppTheme();
   const access = useAccess() as Record<string, boolean>;
   const canUpload = !!access[PERM_UPLOAD];
@@ -329,56 +333,46 @@ const VideoTaskDetailPage: React.FC = () => {
     }
   };
 
-  const factsTag = data.factsUnverified ? (
-    <Pill tone="orange">资料未核对</Pill>
-  ) : (
-    <span>资料已核对</span>
-  );
-
   return (
     <div>
-      <PageTitle
-        title={
-          <span
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}
-          >
-            <span style={{ fontSize: 14, color: palette.sub, fontWeight: 400 }}>
-              {data.brand}
-            </span>
-            <span>{data.model}</span>
+      <PageHeader
+        title={`${data.brand ?? ''} ${data.model ?? ''}`.trim()}
+        tags={
+          <>
             <Pill tone={STATUS_TONE[data.status]}>
               {data.statusName}
               {data.status === 2 && data.queuePosition
                 ? ` · 第 ${data.queuePosition} 位`
                 : ''}
             </Pill>
-          </span>
+            {data.factsUnverified && <Pill tone="orange">资料未核对</Pill>}
+          </>
         }
-        description={
-          <span
-            style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}
-          >
-            {[
-              data.productName,
-              data.category,
-              data.status === 2 && data.expectedAt
-                ? `预计 ${dayjs(data.expectedAt).format('MM-DD HH:mm')} 开始`
-                : undefined,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-            {factsTag}
-          </span>
-        }
-        actions={
-          <span style={{ display: 'inline-flex', gap: 8 }}>
+        sub={[
+          data.productName,
+          data.category,
+          data.status === 2 && data.expectedAt
+            ? `预计 ${dayjs(data.expectedAt).format('MM-DD HH:mm')} 开始`
+            : undefined,
+          data.factsUnverified ? undefined : '资料已核对',
+        ]
+          .filter(Boolean)
+          .join(' · ')}
+        // 页头操作：一个主按钮（加入队列 / 重新生成），其余为普通或文字按钮
+        extra={
+          <>
             <Link
               to={`/operations/media?keyword=${encodeURIComponent(data.model ?? '')}`}
             >
-              <Button icon={<PictureOutlined />} type="text">
+              <Button icon={<ImageIcon size="1em" />} type="text">
                 在素材库查看
               </Button>
             </Link>
+            {canReview && (
+              <Button icon={<ArrowRight size="1em" />} onClick={nextReview}>
+                下一个待审核
+              </Button>
+            )}
             {canUpload && data.status === 2 && (
               <Button
                 loading={busy === 'dequeue'}
@@ -398,12 +392,7 @@ const VideoTaskDetailPage: React.FC = () => {
                 {data.status === 5 ? '重新生成' : '加入队列'}
               </Button>
             )}
-            {canReview && (
-              <Button icon={<ArrowRightOutlined />} onClick={nextReview}>
-                下一个待审核
-              </Button>
-            )}
-          </span>
+          </>
         }
       />
 
@@ -428,7 +417,9 @@ const VideoTaskDetailPage: React.FC = () => {
           >
             {data.status === 3 ? (
               <div style={{ padding: '32px 0', textAlign: 'center' }}>
-                <LoadingOutlined
+                <LoaderCircle
+                  size="1em"
+                  className="zhul-spin"
                   style={{ fontSize: 24, color: palette.link }}
                 />
                 <div style={{ marginTop: 10 }}>
@@ -448,7 +439,7 @@ const VideoTaskDetailPage: React.FC = () => {
             )}
             {data.status === 6 && data.rejectReason && (
               <div style={{ marginTop: 12, color: palette.orange }}>
-                <ExclamationCircleOutlined /> 退回原因：{data.rejectReason}
+                <CircleAlert size="1em" /> 退回原因：{data.rejectReason}
               </div>
             )}
             {regenerating && (
@@ -475,7 +466,7 @@ const VideoTaskDetailPage: React.FC = () => {
                   <>
                     <Button
                       danger
-                      icon={<RollbackOutlined />}
+                      icon={<Undo2 size="1em" />}
                       onClick={() => {
                         setReason('');
                         setRejectOpen(true);
@@ -485,7 +476,7 @@ const VideoTaskDetailPage: React.FC = () => {
                     </Button>
                     <Button
                       type="primary"
-                      icon={<CheckOutlined />}
+                      icon={<Check size="1em" />}
                       loading={busy === 'approve'}
                       onClick={() =>
                         run(
@@ -557,8 +548,8 @@ const VideoTaskDetailPage: React.FC = () => {
                       fontSize: 11,
                       lineHeight: '18px',
                       textAlign: 'center',
-                      color: '#fff',
-                      background: m.used ? palette.link : 'rgba(0,0,0,.5)',
+                      color: m.used ? palette.onPrimary : '#fff',
+                      background: m.used ? palette.primary : palette.mute,
                     }}
                   >
                     {m.used ? usedIndex.get(m.attachmentId) : '—'}
@@ -581,7 +572,7 @@ const VideoTaskDetailPage: React.FC = () => {
                       size="small"
                       type="text"
                       aria-label="删除图片"
-                      icon={<DeleteOutlined />}
+                      icon={<Trash2 size="1em" />}
                       style={{
                         position: 'absolute',
                         top: 2,
@@ -590,11 +581,9 @@ const VideoTaskDetailPage: React.FC = () => {
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        modal.confirm({
+                        confirmDanger({
                           title: '删除这张图片？',
                           content: '同时从素材库移除。',
-                          okText: '删除',
-                          okButtonProps: { danger: true },
                           onOk: () =>
                             run(
                               'remove',
@@ -638,7 +627,11 @@ const VideoTaskDetailPage: React.FC = () => {
                       fontSize: 12,
                     }}
                   >
-                    {uploading ? <LoadingOutlined /> : <PlusOutlined />}
+                    {uploading ? (
+                      <LoaderCircle size="1em" className="zhul-spin" />
+                    ) : (
+                      <Plus size="1em" />
+                    )}
                     {uploading ? `上传中 ${uploading}` : '添加图片'}
                   </div>
                 </Upload>
@@ -659,7 +652,7 @@ const VideoTaskDetailPage: React.FC = () => {
                 <Button
                   type="link"
                   size="small"
-                  icon={<ThunderboltOutlined />}
+                  icon={<Zap size="1em" />}
                   loading={busy === 'generate' || data.scriptStatus === 1}
                   disabled={!used.length}
                   onClick={generate}
@@ -681,7 +674,7 @@ const VideoTaskDetailPage: React.FC = () => {
                   color: palette.orange,
                 }}
               >
-                <ExclamationCircleOutlined /> 商品资料还没核对，AI
+                <CircleAlert size="1em" /> 商品资料还没核对，AI
                 只写品牌、型号和产品类型；参数请自己核实后再补
               </div>
             )}
@@ -753,7 +746,7 @@ const VideoTaskDetailPage: React.FC = () => {
                       size="small"
                       type="text"
                       aria-label={`删除镜头 ${i + 1}`}
-                      icon={<DeleteOutlined />}
+                      icon={<Trash2 size="1em" />}
                       onClick={() =>
                         setDraft({
                           ...draft,
@@ -781,7 +774,7 @@ const VideoTaskDetailPage: React.FC = () => {
               <Button
                 type="dashed"
                 block
-                icon={<PlusOutlined />}
+                icon={<Plus size="1em" />}
                 style={{ marginTop: 8 }}
                 onClick={() =>
                   setDraft({
@@ -813,12 +806,12 @@ const VideoTaskDetailPage: React.FC = () => {
               {draft.shots.length ? (
                 totalOk ? (
                   <>
-                    <CheckCircleOutlined /> 估算总时长 {total} 秒（需要 15–20
+                    <CircleCheck size="1em" /> 估算总时长 {total} 秒（需要 15–20
                     秒）· {draft.shots.length} 个镜头
                   </>
                 ) : (
                   <>
-                    <ExclamationCircleOutlined />{' '}
+                    <CircleAlert size="1em" />{' '}
                     {draft.shots.length < LIMITS.minShots ||
                     draft.shots.length > LIMITS.maxShots
                       ? `镜头 ${draft.shots.length} 个，需要 4–8 个`
