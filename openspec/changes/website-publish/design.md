@@ -98,9 +98,12 @@
 | `website_release` | tenant_id、site_id、编号 WP…、状态（排队中 / 执行中 / 已完成 / 失败 / 部署失败）、发起人、开始和结束时间、提交号、警告 |
 | `website_release_item` | release_id、website_product_id、数据快照 JSON、上线链接 JSON、线上检查结果 |
 | `website_release_step` | release_id、步骤、状态、开始和结束时间、输出摘要（去掉凭据，最多 50 行） |
+| `website_site_job` | site_id、类型（导入 / 比对）、发给发布服务的任务号、状态、结果 JSON、差异确认接受记录 JSON（字段、原因、确认人、时间）、失败原因 |
 
+- 导入和比对是异步任务，结果要留到用户确认（导入预览、差异确认接受），所以单独存 `website_site_job`（实现时补充，2026-11-27）。
+- 子表也都带 tenant_id，回调时用 `TenantContext.runAs` 按所属公司写入。
 - 带 tenant_id 的表归为私有表。`website_site` 的网址唯一性校验需要跨租户，用 `TenantScope.platform` 显式查询。
-- 发品任务 `listing_task` 加 `site_id`（独立站任务必填），唯一键从「商品 + 平台」扩展为「商品 + 平台 + 站点」；新增状态值「发布中」「已上线待确认」，以及确认人和确认时间。
+- 发品任务 `listing_task` 加 `site_id`（独立站任务必填，其他平台为 0，不用 NULL，以免唯一键失效），唯一键从「商品 + 平台」扩展为「商品 + 平台 + 站点」；新增状态值 4「发布中」、5「已上线待确认」，以及最近的发布单、「内容有更新」标记、确认人和确认时间。发起前的状态记在 `website_release_item.prev_status`，失败时恢复。
 - 迁移时，现有的独立站任务（如果有）先挂到本公司的第一个站点；公司还没有站点时保持 `site_id` 为空，建好站点后由一个一次性任务补上。
 
 ### 5. 售价计算

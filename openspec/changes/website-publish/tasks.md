@@ -21,8 +21,8 @@
 
 ## 4. 数据与权限
 
-- [ ] 4.1 数据库迁移：`website_site`、`website_site_secret`、`website_category_map`、`website_product`、`website_release`、`website_release_item`、`website_release_step`；`listing_task` 加 `site_id`、新状态、确认字段，并调整唯一键；菜单「站点管理」，权限「修改站点」「发布到站点」；编号规则 `WP`。`TenantIsolationContractTest` 通过，迁移在本机现有数据上执行成功
-- [ ] 4.2 导航契约测试：「运营管理」最后是「站点管理」，`NavigationContractTest` 通过
+- [x] 4.1 数据库迁移：`website_site`、`website_site_secret`、`website_category_map`、`website_product`、`website_release`、`website_release_item`、`website_release_step`；`listing_task` 加 `site_id`、新状态、确认字段，并调整唯一键；菜单「站点管理」，权限「修改站点」「发布到站点」；编号规则 `WP`。`TenantIsolationContractTest` 通过，迁移在本机现有数据上执行成功
+- [x] 4.2 导航契约测试：「运营管理」最后是「站点管理」，`NavigationContractTest` 通过
 
 ## 5. 后端：站点
 

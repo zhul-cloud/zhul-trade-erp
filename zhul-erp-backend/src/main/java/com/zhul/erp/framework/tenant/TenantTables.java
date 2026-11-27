@@ -191,6 +191,15 @@ public final class TenantTables {
             Map.entry("product_video_material", Policy.PRIVATE),
             Map.entry("product_video_output", Policy.PRIVATE),
             Map.entry("product_video_log", Policy.PRIVATE),
+            // 独立站发布：按公司隔离；网址全平台唯一校验与发布队列走 TenantScope.platform，回调用 TenantContext.runAs
+            Map.entry("website_site", Policy.PRIVATE),
+            Map.entry("website_site_secret", Policy.PRIVATE),
+            Map.entry("website_category_map", Policy.PRIVATE),
+            Map.entry("website_product", Policy.PRIVATE),
+            Map.entry("website_site_job", Policy.PRIVATE),
+            Map.entry("website_release", Policy.PRIVATE),
+            Map.entry("website_release_item", Policy.PRIVATE),
+            Map.entry("website_release_step", Policy.PRIVATE),
             // AI：平台订阅设置供获授权的公司读取
             Map.entry("ai_task", Policy.PRIVATE),
             Map.entry("sys_ai_config", Policy.SHARED_READ),
