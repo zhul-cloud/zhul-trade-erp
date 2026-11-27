@@ -173,6 +173,7 @@ export const RechooseSelect: React.FC<{
   }, [categories, row]);
   return (
     <span
+      style={{ display: 'block' }}
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.stopPropagation()}
     >
@@ -180,7 +181,8 @@ export const RechooseSelect: React.FC<{
         autoFocus
         defaultOpen
         size="small"
-        style={{ width: 200 }}
+        // 撑满「AI 建议品类」单元格，不压到右边的列（UI-111）；下拉面板另设 280 宽
+        style={{ width: '100%' }}
         popupMatchSelectWidth={280}
         placeholder="搜索细分品类"
         aria-label={`改选 ${row.mpnDisplay} 的细分品类`}

@@ -817,7 +817,7 @@ const ProductListInner: React.FC = () => {
           {
             title: '品牌',
             dataIndex: 'brandName',
-            width: 150,
+            width: 130,
             render: (_: unknown, r: Product) => (
               <EllipsisText text={r.brandName} />
             ),
@@ -829,10 +829,10 @@ const ProductListInner: React.FC = () => {
       dataIndex: 'categoryName',
       width: 130,
       hidden: !refine,
-      // 单行省略；品类未细分时「其他」标橙
+      // 单行省略；品类未细分时「其他」用橙色标签提醒（规范「提醒不用纯彩字」，UI-111）
       render: (v, r) =>
         refine && r.categoryCode === 'other' ? (
-          <b style={{ color: palette.orange }}>{r.categoryNameZh || v}</b>
+          <Pill tone="orange">{r.categoryNameZh || v}</Pill>
         ) : (
           <EllipsisText text={r.categoryNameZh || v} />
         ),
@@ -842,7 +842,7 @@ const ProductListInner: React.FC = () => {
           {
             title: 'AI 建议品类',
             key: 'aiCategory',
-            width: 220,
+            width: 180,
             render: (_: unknown, r: Product) =>
               rechoose?.id === r.id ? (
                 <RechooseSelect
@@ -915,7 +915,7 @@ const ProductListInner: React.FC = () => {
           },
         ] as ColumnsType<Product>)),
     {
-      fixed: 'right',
+      // 不固定：只有操作列固定在右侧，固定列后面跟着不固定的列会叠在一起（UI-111）
       title: '维护方',
       key: 'owner',
       width: 72,
@@ -971,7 +971,7 @@ const ProductListInner: React.FC = () => {
             title: '操作',
             fixed: 'right',
             key: 'refineOp',
-            width: refineState === 'pending' ? 170 : 100,
+            width: refineState === 'pending' ? 150 : 100,
             render: (_: unknown, r: Product) => {
               const link = (
                 text: string,
@@ -1038,7 +1038,10 @@ const ProductListInner: React.FC = () => {
         ] as ColumnsType<Product>)
       : []),
   ];
-  const columnsSet = useColumnSettings('product-products', columns);
+  // 审核两档的询盘次数、建议 / 忽略时间是次要列，默认收进「列」设置（1366 宽默认列不超过 1043，UI-111）
+  const columnsSet = useColumnSettings('product-products', columns, {
+    hidden: ['询盘次数', '建议时间', '忽略时间'],
+  });
 
   const normalized = normalizeMpn(debounced);
   const hasCondition =
