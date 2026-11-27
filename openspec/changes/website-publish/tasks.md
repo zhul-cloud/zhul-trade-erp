@@ -4,10 +4,12 @@
 
 ## 2. 站点仓库适配（fouwell-website，单独提 PR）
 
-- [ ] 2.1 定义 `site-data.json` 第 1 版格式（文档放在 ERP 仓库 `docs/` 和站点仓库 `erp/README.md`），用一个样例文件跑格式校验
-- [ ] 2.2 `erp/export-existing.js`：把现有 148 个商品导出成第 1 版格式，素材路径以 `/` 开头，型号带 `/` 的商品正确导出；本机运行，抽查 5 个商品逐字段一致
-- [ ] 2.3 `erp/build.sh`：读取 `site-data.json`，生成 `data.js`、`photos.js`、`videos.js`、`i18n-ru.js` 中由 ERP 管理的部分，按顺序跑英文和俄文构建，改缓存版本号，写入发布单标记；素材同时支持完整链接（OSS）和以 `/` 开头的仓库路径；用 2.2 的导出结果回灌后构建，`git diff` 只有预期的差异
-- [ ] 2.4 `erp/verify.js`：Playwright 禁用缓存检查主图 naturalWidth、缩略图数量、视频区块、canonical，输出 JSON；故意弄坏一个图片路径时能检测出来
+> 2026-11-27：zhul-cloud/fouwell-website PR #1（`feat/erp-adapter`），未合并。格式说明在 `docs/00-总体架构/独立站站点数据约定.md`。
+
+- [x] 2.1 定义 `site-data.json` 第 1 版格式（文档放在 ERP 仓库 `docs/` 和站点仓库 `erp/README.md`），用一个样例文件跑格式校验
+- [x] 2.2 `erp/export-existing.js`：把现有 148 个商品导出成第 1 版格式，素材路径以 `/` 开头，型号带 `/` 的商品正确导出；本机运行，抽查 5 个商品逐字段一致
+- [x] 2.3 `erp/build.sh`：读取 `site-data.json`，生成 `data.js`、`photos.js`、`videos.js`、`i18n-ru.js` 中由 ERP 管理的部分，按顺序跑英文和俄文构建，改缓存版本号，写入发布单标记；素材同时支持完整链接（OSS）和以 `/` 开头的仓库路径；用 2.2 的导出结果回灌后构建，`git diff` 只有预期的差异
+- [x] 2.4 `erp/verify.js`：Playwright 禁用缓存检查主图 naturalWidth、缩略图数量、视频区块、canonical，输出 JSON；故意弄坏一个图片路径时能检测出来
 
 ## 3. 发布服务
 
