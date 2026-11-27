@@ -1,5 +1,7 @@
 package com.zhul.erp.modules.website.service;
 
+import org.springframework.context.ApplicationEventPublisher;
+import com.zhul.erp.modules.website.support.SiteContentChanged;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -56,6 +58,7 @@ public class SiteProductService {
     private static final BigDecimal MAX_PRICE = new BigDecimal("99999999.99");
 
     private final WebsiteProductMapper mapper;
+    private final ApplicationEventPublisher events;
     private final ProductMapper productMapper;
     private final ProductBrandMapper brandMapper;
     private final ProductSeriesMapper seriesMapper;
@@ -159,6 +162,7 @@ public class SiteProductService {
         wp.setManualPrice(price == null ? null : price.setScale(2, RoundingMode.HALF_UP));
         markErp(wp, "price");
         mapper.updateById(wp);
+        events.publishEvent(SiteContentChanged.product(wp.getProductId()));
         log.info("修改站点售价，websiteProductId={}，手工={}", id, wp.getManualPrice() != null);
         return wp;
     }
@@ -174,6 +178,7 @@ public class SiteProductService {
         wp.setSiteStatus(v);
         markErp(wp, "status");
         mapper.updateById(wp);
+        events.publishEvent(SiteContentChanged.product(wp.getProductId()));
         return wp;
     }
 

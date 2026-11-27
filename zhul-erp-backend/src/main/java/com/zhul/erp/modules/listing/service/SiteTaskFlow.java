@@ -82,7 +82,9 @@ public class SiteTaskFlow {
         update(taskId, w -> w.set(ListingTaskDO::getStatus, ListingConstants.STATUS_LIVE_UNCONFIRMED)
                 .set(ListingTaskDO::getListingUrl, listingUrl == null ? "" : listingUrl)
                 .set(ListingTaskDO::getPublishedBy, publishedBy)
-                .set(ListingTaskDO::getPublishedAt, now));
+                .set(ListingTaskDO::getPublishedAt, now)
+                // 刚按当前数据发布，快照就是最新的
+                .set(ListingTaskDO::getSiteOutdated, 0));
     }
 
     /** 发布单失败：发布中 → 发起前的状态（发布单号保留，详情据此显示失败原因） */

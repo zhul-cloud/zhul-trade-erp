@@ -1,5 +1,7 @@
 package com.zhul.erp.modules.website.service;
 
+import org.springframework.context.ApplicationEventPublisher;
+import com.zhul.erp.modules.website.support.SiteContentChanged;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -79,6 +81,7 @@ public class SiteDataService {
     private static final int FAQ_TEMPLATE = 1;
 
     private final SiteProductService siteProducts;
+    private final ApplicationEventPublisher events;
     private final SiteMediaService siteMedia;
     private final WebsiteSiteService sites;
     private final WebsiteProductMapper websiteProductMapper;
@@ -279,6 +282,7 @@ public class SiteDataService {
         all.addAll(groups);
         wp.setErpFields(json(new ArrayList<>(all)));
         websiteProductMapper.updateById(wp);
+        events.publishEvent(SiteContentChanged.product(wp.getProductId()));
         return wp;
     }
 

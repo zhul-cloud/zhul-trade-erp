@@ -175,6 +175,7 @@ public class SitePreviewService {
             vo.setFirstPublish(true);
         } else {
             vo.setChanges(changes(wp.getLastSnapshot(), data));
+            SiteOutdatedService.mark(taskMapper, task, !vo.getChanges().isEmpty());
         }
         return vo;
     }

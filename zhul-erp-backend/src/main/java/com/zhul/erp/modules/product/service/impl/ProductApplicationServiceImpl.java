@@ -1,5 +1,7 @@
 package com.zhul.erp.modules.product.service.impl;
 
+import com.zhul.erp.modules.website.support.SiteContentChanged;
+import org.springframework.context.ApplicationEventPublisher;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.modules.product.constants.ProductConstants;
@@ -29,6 +31,7 @@ import java.util.Objects;
 public class ProductApplicationServiceImpl implements ProductApplicationService {
 
     private final ProductApplicationMapper applicationMapper;
+    private final ApplicationEventPublisher events;
     private final ProductFinder productFinder;
     private final ProductWriteGuard productWriteGuard;
 
@@ -46,6 +49,8 @@ public class ProductApplicationServiceImpl implements ProductApplicationService 
     @Transactional(rollbackFor = Exception.class)
     public ApplicationVO create(Long productId, SaveApplicationRequest req) {
         productWriteGuard.require(productId);
+        // 独立站已发布商品按资料重新判断「内容有更新」（事务提交后）
+        events.publishEvent(SiteContentChanged.product(productId));
         productFinder.lockActive(productId);
         String title = TextRules.required(req.getTitle(), "应用场景标题", 64);
         String lang = LangRules.of(req.getLang());
@@ -68,6 +73,8 @@ public class ProductApplicationServiceImpl implements ProductApplicationService 
     @Transactional(rollbackFor = Exception.class)
     public ApplicationVO update(Long productId, Long itemId, SaveApplicationRequest req) {
         productWriteGuard.require(productId);
+        // 独立站已发布商品按资料重新判断「内容有更新」（事务提交后）
+        events.publishEvent(SiteContentChanged.product(productId));
         productFinder.lockActive(productId);
         ProductApplicationDO current = owned(productId, itemId);
         String title = TextRules.required(req.getTitle(), "应用场景标题", 64);
@@ -88,6 +95,8 @@ public class ProductApplicationServiceImpl implements ProductApplicationService 
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long productId, Long itemId) {
         productWriteGuard.require(productId);
+        // 独立站已发布商品按资料重新判断「内容有更新」（事务提交后）
+        events.publishEvent(SiteContentChanged.product(productId));
         productFinder.lockActive(productId);
         owned(productId, itemId);
         ProductApplicationDO change = new ProductApplicationDO();

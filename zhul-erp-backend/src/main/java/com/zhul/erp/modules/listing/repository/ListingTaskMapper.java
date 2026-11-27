@@ -22,7 +22,9 @@ public interface ListingTaskMapper extends BaseMapper<ListingTaskDO> {
             + "AND m.for_listing = 1 AND m.kind IN (1, 2) AND m.deleted_at IS NULL)";
 
     String NEED_MEDIA = "(l.status = 1 AND l.ref_model = '' AND NOT " + HAS_OWN + ")";
-    String UPDATED = "(l.status = 2 AND l.content_at IS NOT NULL AND " + CONTENT_AT + " &gt; l.content_at)";
+    /** 内容有更新：营销内容在发布后重新写入过；或独立站按上次发布快照比较有差异（SiteOutdatedService 写入 site_outdated） */
+    String UPDATED = "((l.status = 2 AND l.content_at IS NOT NULL AND " + CONTENT_AT + " &gt; l.content_at) "
+            + "OR (l.status IN (2, 5) AND l.site_outdated = 1))";
     String NEED_REPLACE = "(l.status = 2 AND l.ref_model != '' AND " + HAS_OWN + ")";
 
     String FROM = "FROM listing_task l LEFT JOIN product_content_task t ON t.tenant_id = l.tenant_id "

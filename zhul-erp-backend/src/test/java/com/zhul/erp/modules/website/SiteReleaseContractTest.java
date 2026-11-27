@@ -6,6 +6,8 @@ import com.zhul.erp.framework.tenant.TenantContext;
 import com.zhul.erp.modules.media.service.MediaIndexer;
 import com.zhul.erp.modules.website.service.SitePublisherClient;
 import com.zhul.erp.modules.website.service.SiteReleaseCallback;
+import com.zhul.erp.modules.website.service.SiteOutdatedJob;
+import com.zhul.erp.modules.website.service.SiteOutdatedService;
 import com.zhul.erp.modules.website.service.SiteReleaseJob;
 import com.zhul.erp.support.TenantContractSupport;
 import org.junit.jupiter.api.AfterEach;
@@ -35,6 +37,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -58,6 +61,10 @@ class SiteReleaseContractTest extends TenantContractSupport {
     private SiteReleaseCallback callbacks;
     @Autowired
     private LocalFileStorage local;
+    @Autowired
+    private SiteOutdatedService outdated;
+    @Autowired
+    private SiteOutdatedJob outdatedJob;
 
     private long brand;
     private long p1;
@@ -111,7 +118,7 @@ class SiteReleaseContractTest extends TenantContractSupport {
                 "website_product", "website_category_map", "website_site", "listing_task", "product_seo", "media_item", "biz_attachment")) {
             jdbc.update("delete from " + t + " where tenant_id = ?", A);
         }
-        for (String t : List.of("product_locale", "product_media")) {
+        for (String t : List.of("product_locale", "product_media", "product_specification")) {
             jdbc.update("delete from " + t + " where product_id in (select id from product where brand_id in "
                     + "(select id from product_brand where brand_name = ?))", BRAND);
         }
@@ -281,6 +288,86 @@ class SiteReleaseContractTest extends TenantContractSupport {
         assertEquals(1, taskStatus(t1));
         jdbc.update("update website_site set publish_mode = 2 where id = ?", siteId);
         fail(call(json(post("/api/v1/websites/" + siteId + "/releases"), write(Map.of("taskIds", List.of(t1)))), a));
+    }
+
+    // ================================================================ 7.3 内容有更新
+
+    @Test
+    void outdated_eachTrigger_marksAndClears() throws Exception {
+        long wp = published(t1);
+        assertFalse(recompute(t1), "刚发布：没有更新");
+        assertEquals(0, siteOutdated(t1));
+
+        // 营销内容重新写入
+        jdbc.update("update product_seo set geo_answer = 'Overview v2' where tenant_id = ? and product_id = ? and lang = 'en'", A, p1);
+        assertTrue(recompute(t1));
+        assertEquals(1, siteOutdated(t1));
+        jdbc.update("update product_seo set geo_answer = 'Overview' where tenant_id = ? and product_id = ? and lang = 'en'", A, p1);
+        assertFalse(recompute(t1), "改回去：标记清掉");
+        assertEquals(0, siteOutdated(t1));
+
+        // 商品资料（规格）
+        jdbc.update("insert into product_specification (tenant_id, product_id, lang, spec_label, spec_value) values (0, ?, 'en', 'Power', '1.5 kW')", p1);
+        assertTrue(recompute(t1));
+        jdbc.update("delete from product_specification where product_id = ?", p1);
+        assertFalse(recompute(t1));
+
+        // 用于发品的素材
+        jdbc.update("update media_item set for_listing = 0 where tenant_id = ? and model = 'RL-1'", A);
+        assertTrue(recompute(t1));
+        jdbc.update("update media_item set for_listing = 1 where tenant_id = ? and model = 'RL-1'", A);
+        assertFalse(recompute(t1));
+
+        // 售价（手工售价接口，事务提交后自动重算）
+        ok(call(json(put("/api/v1/websites/products/" + wp + "/price"), write(Map.of("price", 105))), a));
+        assertEquals(1, siteOutdated(t1));
+        JsonNode pv = ok(call(json(post("/api/v1/websites/" + siteId + "/preview"), write(Map.of("taskIds", List.of(t1)))), a)).get(0);
+        assertTrue(pv.path("changes").toString().contains("sell_price"));
+        call(json(put("/api/v1/websites/products/" + wp + "/price"), "{\"price\":null}"), a);
+        assertEquals(0, siteOutdated(t1));
+
+        // 站点设置：品类对照改了（接口，自动重算）
+        ok(call(json(put("/api/v1/websites/" + siteId + "/category-map"),
+                write(Map.of("items", List.of(Map.of("categoryId", CATEGORY, "siteCategory", "motors"))))), a));
+        assertEquals(1, siteOutdated(t1));
+    }
+
+    @Test
+    void outdated_listTab_dailyJob_clearedByRepublish() throws Exception {
+        published(t1);
+        jdbc.update("update product_seo set meta_description = 'Meta v2' where tenant_id = ? and product_id = ? and lang = 'ru'", A, p1);
+        assertEquals(0, siteOutdated(t1), "询价、汇率、直接改库这类变化不推送");
+        outdatedJob.run();
+        assertEquals(1, siteOutdated(t1));
+        JsonNode list = ok(call(json(post("/api/v1/listing-tasks/page"), write(Map.of("tab", "updated", "page", 1, "pageSize", 20))), a));
+        assertTrue(list.toString().contains("\"productId\":" + p1), "出现在「内容有更新」页签");
+
+        // 同步到站点：发布成功后标记清掉
+        long rid = release(t1);
+        callback(Map.of("jobId", releaseNo(rid) + "-1", "event", "done", "status", "success", "result", Map.of()));
+        assertEquals(5, taskStatus(t1));
+        assertEquals(0, siteOutdated(t1));
+        assertFalse(recompute(t1));
+    }
+
+    /** 发布并确认上线，返回站点商品 id */
+    private long published(long task) throws Exception {
+        long rid = release(task);
+        callback(Map.of("jobId", releaseNo(rid) + "-1", "event", "done", "status", "success", "result", Map.of()));
+        ok(call(json(post("/api/v1/listing-tasks/" + task + "/confirm-live"), "{\"purged\":true}"), a));
+        assertEquals(2, taskStatus(task));
+        return jdbc.queryForObject("select id from website_product where tenant_id = ? and listing_task_id = ?", Long.class, A, task);
+    }
+
+    /** 直接调用时按公司 A 的租户上下文 */
+    private boolean recompute(long task) {
+        java.util.concurrent.atomic.AtomicBoolean r = new java.util.concurrent.atomic.AtomicBoolean();
+        TenantContext.runAs(A, () -> r.set(outdated.recompute(task)));
+        return r.get();
+    }
+
+    private int siteOutdated(long task) {
+        return jdbc.queryForObject("select site_outdated from listing_task where id = ?", Integer.class, task);
     }
 
     // ================================================================ 工具

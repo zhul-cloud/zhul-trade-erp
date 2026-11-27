@@ -1,5 +1,7 @@
 package com.zhul.erp.modules.website.service;
 
+import org.springframework.context.ApplicationEventPublisher;
+import com.zhul.erp.modules.website.support.SiteContentChanged;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -77,6 +79,7 @@ public class WebsiteSiteService {
     private final SitePublisherClient publisher;
     private final ObjectMapper objectMapper;
     private final ListingTaskSync listingSync;
+    private final ApplicationEventPublisher events;
 
     // ================================================================ 查询
 
@@ -131,6 +134,8 @@ public class WebsiteSiteService {
             listingSync.syncAll(s.getTenantId());
         }
         log.info("修改站点，siteId={}", id);
+        // 非正品名单、链接规则等改了：这个站点已发布的商品重新判断「内容有更新」
+        events.publishEvent(SiteContentChanged.site(id));
         return toVO(get(id));
     }
 
@@ -421,6 +426,7 @@ public class WebsiteSiteService {
             }
         }
         log.info("保存品类对照，siteId={}，条数={}", siteId, wanted.size());
+        events.publishEvent(SiteContentChanged.site(siteId));
         return categoryMap(siteId);
     }
 

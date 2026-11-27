@@ -1,5 +1,7 @@
 package com.zhul.erp.modules.product.content.service;
 
+import org.springframework.context.ApplicationEventPublisher;
+import com.zhul.erp.modules.website.support.SiteContentChanged;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -100,6 +102,7 @@ public class ContentWriter {
     static final int FAQ_SOURCE_PENDING = 3;
 
     private final ProductFinder productFinder;
+    private final ApplicationEventPublisher events;
     private final ProductMapper productMapper;
     private final ProductSpecificationMapper specificationMapper;
     private final ProductApplicationMapper applicationMapper;
@@ -137,6 +140,8 @@ public class ContentWriter {
         ProductDO product = productFinder.lockActive(productId);
         ProductFactTaskDO fact = facts ? factTaskService.lockOrCreate(productId) : null;
         ProductContentTaskDO task = taskService.lockOrCreate(productId);
+        // 营销内容、资料写入后，独立站已发布商品重新判断「内容有更新」（事务提交后）
+        events.publishEvent(SiteContentChanged.product(productId));
 
         ProductContentImportDO imp = new ProductContentImportDO();
         imp.setTenantId(TenantContext.getTenantId());
