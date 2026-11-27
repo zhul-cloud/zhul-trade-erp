@@ -22,7 +22,6 @@ import {
   FilterField,
   MainCard,
   PageHeader,
-  SummaryBar,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -391,9 +390,7 @@ const OtherIncomePage: React.FC = () => {
             </Button>
           )
         }
-      />
-      <SummaryBar
-        items={[
+        summary={[
           {
             key: 'total',
             label: '合计',

@@ -11,7 +11,6 @@ import {
   MainCard,
   PageHeader,
   QuickFilters,
-  SummaryBar,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { Pill } from '@/pages/crm/opportunity/components';
@@ -310,9 +309,8 @@ const ReceivablesPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader />
-      <SummaryBar
-        items={[
+      <PageHeader
+        summary={[
           {
             key: 'total',
             label: '应收未收',

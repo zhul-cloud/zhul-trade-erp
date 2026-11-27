@@ -25,7 +25,6 @@ import {
   FilterField,
   MainCard,
   PageHeader,
-  SummaryBar,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -1033,9 +1032,7 @@ const ExpensePage: React.FC = () => {
             </Button>
           )
         }
-      />
-      <SummaryBar
-        items={[
+        summary={[
           {
             key: 'total',
             label: filters.range ? '所选期间费用' : '本月费用',

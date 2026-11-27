@@ -21,7 +21,17 @@ export function buildAntdTheme(
   const p = buildPalette(mode, preset);
   const light = mode === 'light';
   return {
-    algorithm: light ? antdTheme.defaultAlgorithm : antdTheme.darkAlgorithm,
+    // 深色算法会把主题色压暗一档（琥珀 #FDA92D → #DA9329），按钮、开关、分页都显得发灰；
+    // 参考站深浅两种模式主按钮都是原色，这里在深色算法后把主题色钉回原色（用户 2026-11-27 指出深色下琥珀「特别暗」）
+    algorithm: light
+      ? antdTheme.defaultAlgorithm
+      : [
+          antdTheme.darkAlgorithm,
+          (seed, map) => ({
+            ...(map ?? antdTheme.darkAlgorithm(seed)),
+            colorPrimary: p.primary,
+          }),
+        ],
     token: {
       colorPrimary: p.primary,
       colorLink: p.link,
@@ -66,9 +76,9 @@ export function buildAntdTheme(
         colorError: p.red,
         // 浅色下危险实底按钮照参考模板：原色 #FF5630 白字（3.2:1，按钮字加粗且有图标或明确动作词，D53），悬停加深到 #D0301F
         colorErrorHover: light ? '#D0301F' : p.redMain,
-        // 危险实底按钮的字：深色下底色是亮红（#FF6A47），白字只有 2.7:1，改深色字（6:1），同琥珀主按钮的做法
+        // 危险实底按钮的字：深色下底色是亮红（#FF6A47），白字只有 2.7:1，改深色字（6:1）
         dangerColor: light ? '#FFFFFF' : '#1A1A1A',
-        // 中文只用 400/600（Windows 微软雅黑没有 500）；琥珀主题主按钮用深色字
+        // 中文只用 400/600（Windows 微软雅黑没有 500）；主按钮字统一白色（D70）
         fontWeight: 400,
         primaryColor: p.onPrimary,
         primaryShadow: light ? BUTTON_SHADOW : 'none',

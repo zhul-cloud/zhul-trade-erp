@@ -21,7 +21,6 @@ import {
   MainCard,
   PageHeader,
   QuickFilters,
-  SummaryBar,
   type SummaryItem,
   ViewTabs,
 } from '@/components/ListLayout';
@@ -325,8 +324,8 @@ const CreditPage: React.FC = () => {
             </Button>
           )
         }
+        summary={s ? summaryItems(s) : undefined}
       />
-      {s && <SummaryBar items={summaryItems(s)} />}
       <ViewTabs
         activeKey={tab}
         onChange={(k) => setTab(k as 'accounts' | 'recon')}

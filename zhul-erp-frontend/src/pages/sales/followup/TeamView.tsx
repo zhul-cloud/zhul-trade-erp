@@ -1,10 +1,27 @@
 import type { TableColumnsType } from 'antd';
 import { Button, Segmented, Skeleton, Table, TreeSelect } from 'antd';
 import dayjs from 'dayjs';
+import {
+  ArrowRightLeft,
+  CircleDollarSign,
+  CirclePause,
+  FileCheck,
+  FileText,
+  Inbox,
+  MessageCircle,
+  Moon,
+  Phone,
+  Repeat,
+  Send,
+  Sparkles,
+  Star,
+  Truck,
+  UserPlus,
+} from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { HelpTip } from '@/components/ListLayout';
-import { MetricGrid, MetricTile } from '@/components/MetricCard';
+import { MetricGrid, MetricTile, TILE_FAMILIES } from '@/components/MetricCard';
 import { rowAlert } from '@/components/RowAlert';
 import { useWide } from '@/pages/inquiry/shared/components';
 import {
@@ -196,29 +213,35 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
     label: string;
     value: React.ReactNode;
     sub: string;
+    icon: React.ReactNode;
   }[] = [
     {
       label: '新商机',
+      icon: <Sparkles size={18} />,
       value: r.newOpportunities.value,
       sub: `${prevLabel} ${r.newOpportunities.prev}`,
     },
     {
       label: '发出报价',
+      icon: <FileText size={18} />,
       value: r.quotationsSent.value,
       sub: `${prevLabel} ${r.quotationsSent.prev}`,
     },
     {
       label: '发出 PI',
+      icon: <FileCheck size={18} />,
       value: r.pisSent.value,
       sub: `${prevLabel} ${r.pisSent.prev}`,
     },
     {
       label: '到账成交',
+      icon: <CircleDollarSign size={18} />,
       value: `${r.orders.count} 单`,
       sub: formatAmount(r.orders.amountCny ?? 0, 'CNY'),
     },
     {
       label: '按时送达',
+      icon: <Truck size={18} />,
       value: `${r.onTime} / ${r.delivered}`,
       sub: r.delivered
         ? `${r.delivered - r.onTime} 单晚到`
@@ -226,16 +249,19 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
     },
     {
       label: '获得评价',
+      icon: <Star size={18} />,
       value: r.reviewed,
       sub: `邀请 ${r.invited} · 婉拒 ${r.declined}`,
     },
     {
       label: '老客户成交',
+      icon: <Repeat size={18} />,
       value: `${r.repeat.count} 单`,
       sub: formatAmount(r.repeat.amountCny ?? 0, 'CNY'),
     },
     {
       label: '老客户按时联系',
+      icon: <Phone size={18} />,
       value:
         r.accountOnTimePercent != null ? `${r.accountOnTimePercent}%` : '—',
       sub: r.accountDue
@@ -244,26 +270,31 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
     },
     {
       label: '老客户新询盘',
+      icon: <Inbox size={18} />,
       value: r.accountInquiries.value,
       sub: `${prevLabel} ${r.accountInquiries.prev}`,
     },
     {
       label: '沉睡客户',
+      icon: <Moon size={18} />,
       value: r.dormant,
       sub: `本期激活 ${r.activated}`,
     },
     {
       label: '主动开发 · 新增对象',
+      icon: <UserPlus size={18} />,
       value: r.developNew,
       sub: '本期新建或加入',
     },
     {
       label: '首次触达',
+      icon: <Send size={18} />,
       value: r.developTouched,
       sub: '首次触达日在本期',
     },
     {
       label: '回复',
+      icon: <MessageCircle size={18} />,
       value: r.developReplied,
       sub:
         r.developReplyPercent != null
@@ -272,11 +303,13 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
     },
     {
       label: '转为商机',
+      icon: <ArrowRightLeft size={18} />,
       value: r.developConverted,
       sub: '进入商机成交',
     },
     {
       label: '停止开发',
+      icon: <CirclePause size={18} />,
       value: r.developStopped,
       sub: '可在客户详情重新开发',
     },
@@ -480,13 +513,16 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
             gap={12}
             style={{ marginBottom: ri === 2 ? 16 : 12 }}
           >
-            {/* 公共紧凑数字块：数值统一墨色，不按指标写死彩色（复审 9.1 第二轮） */}
+            {/* 公共紧凑数字块：数值统一墨色；图标块逐张换色（D73） */}
             {row.map((t) => (
               <MetricTile
                 key={t.label}
                 label={t.label}
                 value={t.value}
                 sub={t.sub}
+                icon={t.icon}
+                // 每张卡一种颜色，按位置依次取（D73，对比图 R32 方案 C）
+                family={TILE_FAMILIES[tiles.indexOf(t) % TILE_FAMILIES.length]}
               />
             ))}
           </MetricGrid>

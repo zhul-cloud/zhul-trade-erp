@@ -112,16 +112,11 @@ describe('设计令牌', () => {
     );
   });
 
-  it('主题色实底上的文字：每种主题色在浅色下都不低于 4.5:1（琥珀用深色字）', () => {
+  it('主题色实底上的文字：所有主题色都用白字（D70：琥珀也用白字，与参考站一致）', () => {
     for (const k of PRESET_ORDER) {
-      const p = buildPalette('light', k);
-      expect(contrast(p.onPrimary, p.primary)).toBeGreaterThanOrEqual(
-        k === 'amber' ? 4.5 : 3,
-      );
+      expect(buildPalette('light', k).onPrimary).toBe('#FFFFFF');
+      expect(buildPalette('dark', k).onPrimary).toBe('#FFFFFF');
     }
-    // 琥珀用同色相最深一档（D54，对比图 R17），不用偏蓝的近黑
-    expect(buildPalette('light', 'amber').onPrimary).toBe('#4A2E00');
-    expect(buildPalette('light', 'royal').onPrimary).toBe('#FFFFFF');
   });
 
   it('不认识的主题色回到默认琥珀，原型链上的键也不认', () => {

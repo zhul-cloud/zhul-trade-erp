@@ -58,20 +58,22 @@ describe('汇总行', () => {
     ).toBeTruthy();
   });
 
-  it('宽度够时副文字都显示；内容变短后重新测量，恢复显示', () => {
+  it('3 个及以上：栏宽够时副文字都显示；内容变短后重新测量，恢复显示（D69）', () => {
     let width = 500;
     const sw = jest
       .spyOn(Element.prototype, 'scrollWidth', 'get')
       .mockImplementation(() => width);
     const cw = jest
       .spyOn(Element.prototype, 'clientWidth', 'get')
-      .mockReturnValue(600);
+      .mockReturnValue(300);
     const items = (sub: string) => [
       { label: '进行中', value: 18, sub, subHideable: true },
       { label: '本月订单', value: 26 },
+      { label: '未指定采购员', value: 3 },
     ];
     try {
       const { rerender } = render(h(SummaryBar, { items: items('待采购 5') }));
+      expect(screen.getByRole('region', { name: '汇总' })).toBeTruthy();
       expect(screen.queryByText('待采购 5')).toBeNull();
       width = 200;
       rerender(h(SummaryBar, { items: items('待采购 4') }));
@@ -82,14 +84,14 @@ describe('汇总行', () => {
     }
   });
 
-  it('宽度不够时只隐藏可隐藏的副文字，整段隐藏', () => {
+  it('3 个及以上：栏宽不够时只隐藏可隐藏的副文字，整段隐藏', () => {
     // jsdom 把这两个属性定义在 Element.prototype 上；用 spyOn 才能在用例结束后还原
     const sw = jest
       .spyOn(Element.prototype, 'scrollWidth', 'get')
       .mockReturnValue(500);
     const cw = jest
       .spyOn(Element.prototype, 'clientWidth', 'get')
-      .mockReturnValue(600);
+      .mockReturnValue(300);
     try {
       render(
         h(SummaryBar, {
@@ -106,6 +108,7 @@ describe('汇总行', () => {
               sub: '待采购 5 · 已下单 7',
               subHideable: true,
             },
+            { label: '本月订单', value: 26 },
           ],
         }),
       );
@@ -117,6 +120,25 @@ describe('汇总行', () => {
       sw.mockRestore();
       cw.mockRestore();
     }
+  });
+
+  it('1–2 个：一行紧凑指标，不成白卡，副文字不隐藏', () => {
+    render(
+      h(SummaryBar, {
+        items: [
+          {
+            label: '待付款合计',
+            value: 1200,
+            currency: 'CNY',
+            sub: '3 张',
+            subHideable: true,
+          },
+        ],
+      }),
+    );
+    expect(screen.queryByRole('region', { name: '汇总' })).toBeNull();
+    expect(screen.getByText('CNY 1,200.00')).toBeTruthy();
+    expect(screen.getByText('3 张')).toBeTruthy();
   });
 });
 
@@ -273,6 +295,36 @@ describe('页头与分区', () => {
     ).toBeTruthy();
     expect(screen.getByRole('img', { name: '收入减实际成本' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '编辑' })).toBeTruthy();
+  });
+
+  it('页头指标 1–2 个写在标题同一行，3 个及以上在页头下方成白卡（D69）', () => {
+    const { unmount } = render(
+      h(PageHeader, {
+        title: '售后管理',
+        summary: [{ label: '本月结案', value: 0 }],
+      }),
+    );
+    const heading = screen.getByRole('heading', { level: 1 });
+    // 和标题同一行（同一个父元素里）
+    expect(heading.parentElement?.textContent).toContain('本月结案');
+    expect(screen.queryByRole('region', { name: '汇总' })).toBeNull();
+    unmount();
+    render(
+      h(PageHeader, {
+        title: '报价管理',
+        summary: [
+          { label: '本月成交', value: 1 },
+          { label: '本月平均毛利率', value: '—' },
+          { label: '本月低于红线', value: 0 },
+        ],
+      }),
+    );
+    expect(
+      screen.getByRole('heading', { level: 1 }).parentElement?.textContent,
+    ).not.toContain('本月成交');
+    expect(screen.getByRole('region', { name: '汇总' }).textContent).toContain(
+      '本月低于红线',
+    );
   });
 });
 

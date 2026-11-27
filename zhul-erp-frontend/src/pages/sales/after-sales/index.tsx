@@ -16,7 +16,6 @@ import {
   MainCard,
   PageHeader,
   QuickFilters,
-  SummaryBar,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -349,19 +348,19 @@ const AfterSalesPage: React.FC = () => {
             新建售后单
           </Button>
         }
+        summary={
+          counts
+            ? [
+                {
+                  key: 'closed',
+                  label: '本月结案',
+                  help: HELP.closedThisMonth,
+                  value: counts.closedThisMonth,
+                },
+              ]
+            : undefined
+        }
       />
-      {counts && (
-        <SummaryBar
-          items={[
-            {
-              key: 'closed',
-              label: '本月结案',
-              help: HELP.closedThisMonth,
-              value: counts.closedThisMonth,
-            },
-          ]}
-        />
-      )}
       <Form form={form} initialValues={defaults} component={false}>
         <FilterCard
           onSearch={searchNow}

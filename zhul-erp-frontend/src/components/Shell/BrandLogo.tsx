@@ -64,8 +64,8 @@ const drawDefaultIcon = (siteName?: string): string | undefined => {
   ctx.closePath();
   ctx.fillStyle = FAVICON_COLOR;
   ctx.fill();
-  // 默认 Logo 是琥珀底：白字只有 1.93:1，用深色字（与主按钮一致）
-  ctx.fillStyle = '#212B36';
+  // 默认 Logo 是琥珀底白字，与主按钮、public/logo.svg 一致（D70）
+  ctx.fillStyle = '#FFFFFF';
   ctx.font = `800 ${size * LOGO_FONT_RATIO}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

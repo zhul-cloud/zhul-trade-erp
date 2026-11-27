@@ -8,9 +8,17 @@ import {
   type TableColumnsType,
 } from 'antd';
 import dayjs from 'dayjs';
+import {
+  BadgeCheck,
+  CircleCheck,
+  GitFork,
+  PackageX,
+  Percent,
+  ShieldCheck,
+} from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
-import { MetricGrid, MetricTile } from '@/components/MetricCard';
+import { MetricGrid, MetricTile, TILE_FAMILIES } from '@/components/MetricCard';
 import { rowAlert } from '@/components/RowAlert';
 import { useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -283,35 +291,47 @@ const TeamView: React.FC<{
   return (
     <div>
       {head}
-      {/* 公共紧凑数字块，数值统一墨色（复审 9.1 第二轮）；固定 6 项用 MetricGrid */}
+      {/* 公共紧凑数字块，数值统一墨色；图标块逐张换色（D73）；固定 6 项用 MetricGrid */}
       <MetricGrid cols={6} min={150} gap={12}>
         <MetricTile
           label="无货"
+          icon={<PackageX size={18} />}
+          family={TILE_FAMILIES[0]}
           value={`${t.stockoutModels} 个型号`}
           sub={`${t.stockoutTimes} 次 · 上期 ${t.prevStockoutModels} 个型号`}
         />
         <MetricTile
           label="无货率"
+          icon={<Percent size={18} />}
+          family={TILE_FAMILIES[1]}
           value={rate(t.stockoutRate)}
           sub="无货型号 / 询过价的型号"
         />
         <MetricTile
           label="有效覆盖率"
+          icon={<ShieldCheck size={18} />}
+          family={TILE_FAMILIES[2]}
           value={rate(t.coverRate)}
           sub="可直接报价 / 矩阵内型号"
         />
         <MetricTile
           label="可报价率"
+          icon={<BadgeCheck size={18} />}
+          family={TILE_FAMILIES[3]}
           value={rate(t.quotableRate)}
           sub="可直接报价 + 需确认"
         />
         <MetricTile
           label="备用渠道率"
+          icon={<GitFork size={18} />}
+          family={TILE_FAMILIES[4]}
           value={rate(t.backupRate)}
           sub="有备选渠道 / 可报价型号"
         />
         <MetricTile
           label="补上的缺口"
+          icon={<CircleCheck size={18} />}
+          family={TILE_FAMILIES[5]}
           value={`${t.filledGaps} 个型号`}
           sub="由无渠道、未验证变为可报"
         />

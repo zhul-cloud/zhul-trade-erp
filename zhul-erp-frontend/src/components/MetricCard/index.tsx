@@ -395,17 +395,34 @@ export const MetricGrid: React.FC<{
 };
 
 /**
- * 紧凑数字块（复审 9.1 第二轮）：一组较多的统计数（如跟进页「团队」视图十几项）用它，比数字卡矮，不带图标块。
+ * 紧凑数字块（复审 9.1 第二轮）：一组较多的统计数（如跟进页「团队」视图十几项）用它，比数字卡矮；
+ * 传 icon 时名称前带 32 的图标块，颜色按 family（逐张换色见 TILE_FAMILIES，D73）。
  * 名称 13 次要色、数值 24/600 墨色（不按指标写死彩色，0 也不显示成告警）、副文字 12 次要色；
  * 白卡表面与数字卡一致（浅色阴影、深色描边）。放进 `MetricGrid` 排列。
  */
+/**
+ * 一组数字块逐张换色时的固定顺序（D73，对比图 R32 方案 C）：蓝、青、紫、粉、灰，按位置依次取，不随数据变。
+ */
+export const TILE_FAMILIES: MetricFamily[] = [
+  'blue',
+  'cyan',
+  'purple',
+  'gray',
+  'neutral',
+];
+
 export const MetricTile: React.FC<{
   label: React.ReactNode;
   value: React.ReactNode;
   sub?: React.ReactNode;
-}> = ({ label, value, sub }) => {
+  /** 名称前的图标（lucide，18）；传了才显示图标块 */
+  icon?: React.ReactNode;
+  /** 图标块颜色（数字卡色系），默认蓝 */
+  family?: MetricFamily;
+}> = ({ label, value, sub, icon, family = 'blue' }) => {
   const { palette, mode } = useAppTheme();
   const light = mode === 'light';
+  const [iconColor, iconSoft] = METRIC_FAMILY[mode][family];
   return (
     <div
       style={{
@@ -417,7 +434,45 @@ export const MetricTile: React.FC<{
         boxShadow: light ? CARD_SHADOW : 'none',
       }}
     >
-      <div style={{ fontSize: 13, color: palette.mute }}>{label}</div>
+      {icon ? (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            fontSize: 13,
+            color: palette.mute,
+            minWidth: 0,
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              width: 32,
+              height: 32,
+              flex: 'none',
+              borderRadius: 8,
+              display: 'grid',
+              placeItems: 'center',
+              background: iconSoft,
+              color: iconColor,
+            }}
+          >
+            {icon}
+          </span>
+          <span
+            style={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {label}
+          </span>
+        </div>
+      ) : (
+        <div style={{ fontSize: 13, color: palette.mute }}>{label}</div>
+      )}
       <div
         className="num"
         style={{

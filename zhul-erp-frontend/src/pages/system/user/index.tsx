@@ -41,7 +41,6 @@ import {
   FilterField,
   MainCard,
   PageHeader,
-  SummaryBar,
 } from '@/components/ListLayout';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { proAuditColumns } from '@/components/UserName';
@@ -480,9 +479,7 @@ const UserPage: React.FC = () => {
             </Button>
           )
         }
-      />
-      <SummaryBar
-        items={[
+        summary={[
           {
             key: 'total',
             label: '总用户数',

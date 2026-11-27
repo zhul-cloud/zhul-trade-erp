@@ -399,17 +399,19 @@ const OrderList: React.FC = () => {
             <Popover content={<GoodsLegend parts={g} total={g.total} />}>
               <span
                 style={{
-                  display: 'inline-flex',
+                  display: 'flex',
                   alignItems: 'center',
                   gap: 8,
+                  width: '100%',
                   height: 22,
                   fontSize: 12,
                   color: palette.mute,
                   fontVariantNumeric: 'tabular-nums',
+                  whiteSpace: 'nowrap',
                   cursor: 'default',
                 }}
               >
-                <GoodsBar parts={g} total={g.total} width={130} />
+                <GoodsBar parts={g} total={g.total} fill />
                 {g.shipped}/{g.total} 件
               </span>
             </Popover>

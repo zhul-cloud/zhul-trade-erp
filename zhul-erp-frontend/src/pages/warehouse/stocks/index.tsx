@@ -11,7 +11,6 @@ import {
   MainCard,
   PageHeader,
   QuickFilters,
-  SummaryBar,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -374,26 +373,28 @@ const StocksPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader help={HELP.page} />
-      {summary && (
-        <SummaryBar
-          items={[
-            {
-              key: 'amount',
-              label: '库存金额',
-              value: summary.amountCny ?? 0,
-              currency: 'CNY',
-              sub: `${summary.productCount ?? 0} 个商品 · ${summary.warehouseCount ?? 0} 个仓库`,
-            },
-            {
-              key: 'returnPending',
-              label: '退货待寄出',
-              help: HELP.returnPending,
-              value: `${summary.returnPending ?? 0} 件`,
-            },
-          ]}
-        />
-      )}
+      <PageHeader
+        help={HELP.page}
+        summary={
+          summary
+            ? [
+                {
+                  key: 'amount',
+                  label: '库存金额',
+                  value: summary.amountCny ?? 0,
+                  currency: 'CNY',
+                  sub: `${summary.productCount ?? 0} 个商品 · ${summary.warehouseCount ?? 0} 个仓库`,
+                },
+                {
+                  key: 'returnPending',
+                  label: '退货待寄出',
+                  help: HELP.returnPending,
+                  value: `${summary.returnPending ?? 0} 件`,
+                },
+              ]
+            : undefined
+        }
+      />
       <FilterCard
         form={form}
         initialValues={initial()}

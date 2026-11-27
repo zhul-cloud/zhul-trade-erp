@@ -16,7 +16,6 @@ import {
   MainCard,
   PageHeader,
   QuickFilters,
-  SummaryBar,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -321,27 +320,26 @@ const OpportunityPage: React.FC = () => {
             </Button>
           )
         }
+        summary={
+          summary
+            ? [
+                {
+                  key: 'week',
+                  label: '本周新增',
+                  help: HELP.weekNew,
+                  value: summary.weekNew,
+                  sub: `上周 ${summary.lastWeekNew}`,
+                },
+                {
+                  key: 'valid',
+                  label: '本月有效率',
+                  help: HELP.monthValid,
+                  value: rate(summary.monthValid, summary.monthNew),
+                },
+              ]
+            : undefined
+        }
       />
-      {summary && (
-        <SummaryBar
-          items={[
-            {
-              key: 'week',
-              label: '本周新增',
-              help: HELP.weekNew,
-              value: summary.weekNew,
-              sub: `上周 ${summary.lastWeekNew}`,
-            },
-            {
-              key: 'valid',
-              label: '本月有效率',
-              help: HELP.monthValid,
-              value: rate(summary.monthValid, summary.monthNew),
-            },
-          ]}
-        />
-      )}
-
       <Form<FilterState> form={form} component={false}>
         <FilterCard
           onSearch={search}
