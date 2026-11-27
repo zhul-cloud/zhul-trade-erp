@@ -3,6 +3,7 @@ package com.zhul.erp.modules.website.controller;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.zhul.erp.common.result.Result;
 import com.zhul.erp.common.result.ResultCode;
+import com.zhul.erp.modules.website.service.SiteImportService;
 import com.zhul.erp.modules.website.service.SitePublisherClient;
 import com.zhul.erp.modules.website.service.SiteReleaseCallback;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ public class SitePublisherCallbackController {
 
     private final SitePublisherClient client;
     private final SiteReleaseCallback releases;
+    private final SiteImportService imports;
 
     @PostMapping("/callback")
     public ResponseEntity<Result<Void>> callback(@RequestHeader(value = SitePublisherClient.TOKEN_HEADER, required = false) String token,
@@ -35,7 +37,7 @@ public class SitePublisherCallbackController {
             log.warn("独立站发布服务回调鉴权失败");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Result.fail(ResultCode.UNAUTHORIZED));
         }
-        if (!releases.handle(body)) {
+        if (!releases.handle(body) && !imports.handle(body)) {
             log.warn("没有找到回调对应的任务，jobId={}", body.path("jobId").asText(""));
         }
         return ResponseEntity.ok(Result.ok());

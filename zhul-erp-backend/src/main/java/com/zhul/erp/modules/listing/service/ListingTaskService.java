@@ -341,6 +341,12 @@ public class ListingTaskService {
         if (StringUtils.hasText(t.getRefModel())) {
             return new SiteMedia(media(t.getRefBrand(), t.getRefModel(), false), true);
         }
+        if (t.getId() == null) {
+            // 还没有任务的商品（导入预览时比较站点内容）：直接按商品的品牌、型号取
+            ProductDO p = productMapper.selectById(t.getProductId());
+            ProductBrandDO b = p == null || p.getBrandId() == null ? null : brandMapper.selectById(p.getBrandId());
+            return new SiteMedia(p == null ? List.of() : media(b == null ? "" : b.getBrandName(), p.getMpnRaw(), true), false);
+        }
         ListingTaskVO task = toVos(List.of(row(t))).get(0);
         return new SiteMedia(task.getModel() == null ? List.of() : media(task.getBrand(), task.getModel(), true), false);
     }
@@ -701,7 +707,7 @@ public class ListingTaskService {
         return o instanceof Number n ? n.intValue() == 1 : Boolean.TRUE.equals(o);
     }
 
-    static LocalDateTime time(Object o) {
+    public static LocalDateTime time(Object o) {
         if (o instanceof LocalDateTime t) {
             return t;
         }

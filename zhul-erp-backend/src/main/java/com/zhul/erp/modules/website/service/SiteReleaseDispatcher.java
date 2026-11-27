@@ -169,7 +169,7 @@ public class SiteReleaseDispatcher {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("jobId", r.getJobNo());
         body.put("type", "publish");
-        body.put("callbackUrl", callbackBase + "/api/v1/website-publisher/callback");
+        body.put("callbackUrl", callbackUrl());
         body.put("site", sites.publisherSite(site));
         Map<String, String> secrets = sites.publisherSecrets(site.getId());
         body.put("secrets", secrets);
@@ -201,6 +201,18 @@ public class SiteReleaseDispatcher {
             return body;
         }
         copyMedia(site, items);
+        Map<String, Object> siteData = siteData(site, r.getReleaseNo(), released);
+        body.put("siteData", siteData);
+        return body;
+    }
+
+    /** 发布服务回调地址（发布单与导入、比对共用） */
+    String callbackUrl() {
+        return callbackBase + "/api/v1/website-publisher/callback";
+    }
+
+    /** 站点数据文件（约定第 1 版）：released 为这次给出新数据的站点商品，其余按 catalog 的规则带上 */
+    Map<String, Object> siteData(WebsiteSiteDO site, String release, Map<Long, Map<String, Object>> released) {
         Map<String, Object> siteInfo = new LinkedHashMap<>();
         siteInfo.put("code", sites.publisherSite(site).get("code"));
         siteInfo.put("nonGenuineBrands", brandNames(sites.nonGenuineOf(site)));
@@ -208,10 +220,9 @@ public class SiteReleaseDispatcher {
         siteData.put("schemaVersion", 1);
         siteData.put("site", siteInfo);
         siteData.put("generatedAt", Instant.now().toString());
-        siteData.put("release", r.getReleaseNo());
+        siteData.put("release", release);
         siteData.put("products", catalog(site.getId(), released));
-        body.put("siteData", siteData);
-        return body;
+        return siteData;
     }
 
     /**

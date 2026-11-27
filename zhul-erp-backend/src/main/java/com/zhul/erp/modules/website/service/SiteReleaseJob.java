@@ -29,6 +29,7 @@ public class SiteReleaseJob {
     private final SiteReleaseDispatcher dispatcher;
     private final SiteReleaseCallback callback;
     private final SitePublisherClient client;
+    private final SiteImportService imports;
 
     @Scheduled(fixedDelay = 30_000L, initialDelay = 30_000L)
     public void tick() {
@@ -37,6 +38,7 @@ public class SiteReleaseJob {
         }
         TenantScope.platform(() -> {
             watchdog(LocalDateTime.now());
+            imports.watchdog(LocalDateTime.now());
             dispatchQueued();
         });
     }
