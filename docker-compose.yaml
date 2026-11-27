@@ -77,6 +77,8 @@ services:
       AI_ORCHESTRATOR_BASE_URL: ${AI_ORCHESTRATOR_BASE_URL:-http://ai-orchestrator:8899}
       VIDEO_GENERATOR_URL: ${VIDEO_GENERATOR_URL:-}
       VIDEO_TASK_CALLBACK_TOKEN: ${VIDEO_TASK_CALLBACK_TOKEN:-}
+      SITE_PUBLISHER_URL: ${SITE_PUBLISHER_URL:-}
+      SITE_PUBLISHER_TOKEN: ${SITE_PUBLISHER_TOKEN:-}
       AI_TASK_CALLBACK_BASE_URL: ${AI_TASK_CALLBACK_BASE_URL:-http://backend:8080}
       AI_TASK_MAX_MINUTES: ${AI_TASK_MAX_MINUTES:-180}
       SPRING_FLYWAY_LOCATIONS: ${FLYWAY_LOCATIONS:-classpath:db/migration}
@@ -161,6 +163,22 @@ services:
     cpus: 2
     mem_limit: 3g
 
+  site-publisher:
+    profiles: [app]
+    build:
+      context: ./scripts/site-publisher
+    image: zhul-erp-site-publisher:local
+    container_name: zhul-erp-site-publisher
+    restart: unless-stopped
+    environment:
+      SITE_PUBLISHER_TOKEN: ${SITE_PUBLISHER_TOKEN:-}
+    # 不映射宿主机端口：只供同一 Compose 网络里的后端调用（独立站发布，openspec website-publish）。
+    # 各站点仓库的克隆存在命名卷 site-publisher-work，下次增量拉取；构建和浏览器检查时才占资源
+    volumes:
+      - site-publisher-work:/work
+    cpus: 1.5
+    mem_limit: 1536m
+
 volumes:
   # 默认不持久化：tmpfs 类型，后端与 AI 编排服务共享；全部容器停止后内容清空。
   private-uploads:
@@ -171,3 +189,5 @@ volumes:
   # 个人订阅登录状态，普通 Docker 卷（不是 tmpfs）：首次挂载继承镜像中 /home/zhul 的属主 10001 与 0700 权限。
   # docker compose down -v 或 docker volume rm <项目名>_ai-orchestrator-home 会清除登录。
   ai-orchestrator-home:
+  # 发布服务的站点仓库克隆（普通卷，不是 tmpfs）；删掉只会让下次发布重新克隆
+  site-publisher-work:

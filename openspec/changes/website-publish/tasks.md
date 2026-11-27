@@ -13,9 +13,11 @@
 
 ## 3. 发布服务
 
-- [ ] 3.1 新建 `scripts/site-publisher/`（Node 20、git、rsync、ssh、Chromium）和服务封装，Compose 新增服务（不映射端口，`cpus: 1.5`、`mem_limit: 1.5g`，工作目录卷），`.env.example` 加 `SITE_PUBLISHER_URL`、`SITE_PUBLISHER_TOKEN`；本机镜像构建成功，`docker compose config` 通过
-- [ ] 3.2 实现检测连接、导入、比对、发布四种任务，按步骤回调进度；凭据写入临时文件（权限 600）后删除，日志里替换凭据；单元测试验证日志里没有凭据明文
-- [ ] 3.3 发布步骤：失败时 `git reset` 回到干净状态，部署失败可以从部署一步重试，推送失败下次补推，各步骤超时；在本机用一个测试仓库加本机 SSH 目标跑通成功、构建失败、部署失败三种情况
+> 2026-11-27：3.3 用本机裸仓库加 `test/fake-ssh.sh`（rsync 部署到本地目录）代替 SSH 目标，覆盖成功、构建失败、部署失败与重试；另在镜像里用真实 fouwell-website 仓库发布 2 个商品跑通 9 步（部署、推送都指向容器内临时目录）。
+
+- [x] 3.1 新建 `scripts/site-publisher/`（Node 20、git、rsync、ssh、Chromium）和服务封装，Compose 新增服务（不映射端口，`cpus: 1.5`、`mem_limit: 1.5g`，工作目录卷），`.env.example` 加 `SITE_PUBLISHER_URL`、`SITE_PUBLISHER_TOKEN`；本机镜像构建成功，`docker compose config` 通过
+- [x] 3.2 实现检测连接、导入、比对、发布四种任务，按步骤回调进度；凭据写入临时文件（权限 600）后删除，日志里替换凭据；单元测试验证日志里没有凭据明文
+- [x] 3.3 发布步骤：失败时 `git reset` 回到干净状态，部署失败可以从部署一步重试，推送失败下次补推，各步骤超时；在本机用一个测试仓库加本机 SSH 目标跑通成功、构建失败、部署失败三种情况
 
 ## 4. 数据与权限
 

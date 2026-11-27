@@ -112,6 +112,9 @@ jobs:
           - name: video-generator
             context: scripts/video-generator
             file: scripts/video-generator/Dockerfile
+          - name: site-publisher
+            context: scripts/site-publisher
+            file: scripts/site-publisher/Dockerfile
     steps:
       - uses: actions/checkout@v7
         with:

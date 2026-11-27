@@ -33,7 +33,7 @@ if (-not (Test-Path .env)) {
     Set-EnvValue 'AI_ORCHESTRATOR_MODE' 'stub'
     Write-Host '== 已生成 .env（开发配置：导入演示账号，AI 使用 stub 假数据）'
 }
-foreach ($key in 'JWT_SECRET', 'AES_KEY', 'AI_TASK_CALLBACK_TOKEN', 'VIDEO_TASK_CALLBACK_TOKEN') {
+foreach ($key in 'JWT_SECRET', 'AES_KEY', 'AI_TASK_CALLBACK_TOKEN', 'VIDEO_TASK_CALLBACK_TOKEN', 'SITE_PUBLISHER_TOKEN') {
     if (-not (Get-EnvValue $key)) {
         Set-EnvValue $key (New-Secret)
         Write-Host "== 已生成 $key"
