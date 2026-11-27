@@ -63,17 +63,19 @@
 | 文件 | 作用 |
 | --- | --- |
 | `erp/site-data.json` | ERP 每次发布全量写入，内容为 `{schemaVersion: 1, site, generatedAt, products: [...]}` |
-| `erp/assets/<slug>/...` | ERP 写入的图片和视频；在 `site-data.json` 里的路径以 `/erp/assets/...` 开头 |
 | `erp/build.sh` | 站点提供：读取 `site-data.json`，生成站点数据文件，运行全部构建，并改缓存版本号 |
 | `erp/verify.js` | 站点提供：输入链接列表和期望值，用 Playwright 禁用缓存检查，输出 JSON |
 | `erp/export-existing.js` | 站点提供：把现有商品按 `site-data.json` 的商品格式输出，供导入使用 |
+
+图片和视频不进站点仓库（见第 8 条）：`site-data.json` 里 ERP 管理的素材是 OSS 公开存储桶的完整链接（`https://…`），导入时沿用的旧素材仍是仓库里以 `/` 开头的路径，适配脚本两种都要支持。
 
 `site-data.json` 是全量的：包含站点上所有由 ERP 管理的商品，加上「只在站点上有」的商品（按原样）。这样站点的构建是幂等的，不依赖上一次的状态。
 
 **fouwell-website 的适配**（单独提 PR 到站点仓库）：
 - `build.sh` 把 ERP 数据转换成 `PRODUCTS`、`PRODUCT_PHOTOS`、`PRODUCT_VIDEOS`、`PRODUCT_SPEC_RU` / `PRODUCT_DEEP_RU` 等对象，替换掉原来由 llm-wiki 脚本生成的部分，再按顺序运行 `build-product-pages.js`、`build-hub-pages.js`、`build-product-pages-ru.js`、`build-hub-pages-ru.js` 和缓存版本号替换；
 - 型号带 `/` 的别名问题，在适配脚本里统一用 `model` 作为键，不再依赖目录名；
-- 原来的 llm-wiki 发布脚本保留，但在接管后停止使用。
+- 原来的 llm-wiki 发布脚本保留，但在接管后停止使用；
+- 仓库的 `.gitignore` 已忽略 `assets/products/`、`assets/videos/`、`assets/linkedin/` 下的新文件（2026-11-27），已在仓库里的旧素材继续保留。
 
 ### 3. 步骤顺序：先提交后部署，最后推送仓库
 
@@ -116,12 +118,22 @@
 
 ### 7. 导入与比对复用发布服务
 
-- **导入**：运行 `erp/export-existing.js`，得到现有商品，素材文件以仓库里的路径记录（不复制进 ERP 存储，仍放在仓库里）。`site-data.json` 引用这些已有路径。
+- **导入**：运行 `erp/export-existing.js`，得到现有商品，素材以仓库里的路径记录（不复制进 ERP 存储，也不搬到 OSS，仍放在仓库和 SiteGround 上）。`site-data.json` 引用这些已有路径。
 - **比对**：在临时工作区运行 `build.sh`，对比生成的数据文件与当前仓库版本的商品条目（解析 JS 对象后按字段比较），不部署、不提交。
 
 所以接管 fouwell.com 时不需要把 148 个商品的素材搬进 ERP；以后 ERP 素材库里有了「用于发品」的素材，导入后更新过的字段才改用 ERP 的素材。
 
-### 8. 发布单调度
+### 8. 素材放 OSS 公开存储桶，不进站点仓库（2026-11-27 用户决定）
+
+素材库里已经有一份图片和视频，再复制进站点仓库会让仓库越来越大（本机仓库已约 1.7 GB，推送 GitHub 经常中断），所以：
+
+- 发布时，后端把这个商品「用于发品」的素材（本公司素材在私有桶）复制到现有公开桶 `zhul-erp-prod-public`，键为 `website/{siteId}/{slug}/{素材id}.{扩展名}`；键固定，已存在就跳过，重复发布不重复上传。共享商品库的官方图片本来就在公开桶，直接用原地址。
+- `site-data.json` 只写链接，链接由 `FileStorageService.publicUrl` 在导出时生成；数据库里存键，不存链接。以后配了 `OSS_PUBLIC_DOMAIN`（自定义域名或 CDN），全站重新发布一次就全部换成新域名。
+- 复制到公开桶的文件不删除：素材取消「用于发品」后，下一次发布不再引用即可。
+- 本机 `STORAGE_TYPE=local` 时公开地址是 `/uploads/...`，只用于本机调试，站点上打不开；本地检查照样按链接加载。
+- **已知限制**（已实测）：生产桶在杭州、用默认域名。从马来西亚取一张 433 KB 的图约 0.5 秒；默认域名返回 `Content-Disposition: attachment`，网页里 `<img>`、`<video>` 正常显示，只有直接打开链接会下载。绑定 `media.fouwell.com` 这类自定义域名需要 ICP 备案，所以先不配；海外访问慢或搜索引擎图片收录有问题时，再开香港或新加坡的存储桶。
+
+### 9. 发布单调度
 
 - 后端定时任务每 30 秒检查一次：每个站点有排队的发布单、且没有执行中的，就提交给发布服务（同一时间只执行一张，用 Redisson 锁 `zhul:erp:lock:website:release:{siteId}`）。
 - 发布服务按步骤回调进度；后端用 `TenantContext.runAs` 处理回调。
@@ -134,6 +146,7 @@
 - [发布服务的 Chromium 镜像较大（约 1GB），占用内存] → 只在发布时启动浏览器，用完就关闭；内存限制 1.5G。
 - [凭据经过内网传给发布服务] → 只在 Compose 内网传输，用共享令牌鉴权，不落盘、日志脱敏；与现有凭据规范一致。
 - [两边同时修改：在 llm-wiki 里手工改了站点，又从 ERP 发布] → 接管后在 llm-wiki 的 `publish-to-website` 技能里注明停止使用；发布开始时先拉取最新代码，`site-data.json` 只覆盖 ERP 管理的条目；发现站点数据被人改过（与上次发布的提交不一致）时，在发布单里提示警告。
+- [素材在杭州 OSS、默认域名，海外加载偏慢，链接不是自己的域名] → 先接受（实测 0.5 秒一张图）；数据库存键不存链接，以后换存储桶或配 CDN 只需重新发布。
 - [生产服务器访问 GitHub 不稳定（本机经常出现 EOF 和 SSL 错误）] → 拉取和推送带重试（3 次，指数退避）；推送失败只算警告。
 
 ## Migration Plan
