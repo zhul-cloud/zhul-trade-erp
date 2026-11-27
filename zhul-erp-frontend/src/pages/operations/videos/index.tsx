@@ -385,6 +385,7 @@ const VideoTasksPage: React.FC = () => {
                 <Button
                   type="text"
                   icon={<Settings size={16} />}
+                  style={{ color: palette.link }}
                   onClick={() => setWindowEdit(true)}
                 >
                   生成设置

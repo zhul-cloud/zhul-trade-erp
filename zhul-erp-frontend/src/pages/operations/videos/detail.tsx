@@ -364,7 +364,11 @@ const VideoTaskDetailPage: React.FC = () => {
             <Link
               to={`/operations/media?keyword=${encodeURIComponent(data.model ?? '')}`}
             >
-              <Button icon={<ImageIcon size="1em" />} type="text">
+              <Button
+                icon={<ImageIcon size="1em" />}
+                type="text"
+                style={{ color: palette.link }}
+              >
                 在素材库查看
               </Button>
             </Link>
@@ -550,11 +554,15 @@ const VideoTaskDetailPage: React.FC = () => {
                       height: 18,
                       borderRadius: 4,
                       fontSize: 11,
-                      lineHeight: '18px',
+                      // 未选用多一圈 1px 边线，行高减 2 保持文字居中
+                      lineHeight: m.used ? '18px' : '16px',
                       textAlign: 'center',
                       // 未选用：卡片底配次要色字，浅色深色都看得清（白字配 mute 在深色只有约 2.6:1）
                       color: m.used ? palette.onPrimary : palette.sub,
                       background: m.used ? palette.primary : palette.card,
+                      // 白底商品图上卡片底色看不出边界，补一圈细线
+                      border: m.used ? undefined : `1px solid ${palette.hairline}`,
+                      boxSizing: 'border-box',
                     }}
                   >
                     {m.used ? usedIndex.get(m.attachmentId) : '—'}
