@@ -16,7 +16,7 @@ import {
   ViewTabs,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { useWide } from '@/pages/inquiry/shared/components';
+import { useSidePanel } from '@/components/SidePanel';
 import { categoryGroups } from '@/pages/supplier/productScope';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -107,7 +107,8 @@ const Chip: React.FC<{
 const SupplyFollowupPage: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
-  const wide = useWide();
+  const battle = useSidePanel('zhul_supply_followup_battle', '作战卡');
+  const [settingsSlot, setSettingsSlot] = useState<HTMLElement | null>(null);
   const { brands, tree, categories, tops } = useOptions();
   const [params] = useSearchParams();
   const users = useUsers();
@@ -872,64 +873,54 @@ const SupplyFollowupPage: React.FC = () => {
                     加入主动拓展
                   </Button>
                 )}
+                {battle.button}
               </div>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: wide
-                    ? 'minmax(0, 1fr) 320px'
-                    : 'minmax(0, 1fr)',
-                  gap: 16,
-                  alignItems: 'start',
-                }}
-              >
-                <Card style={{ padding: 0, overflow: 'hidden', minWidth: 0 }}>
-                  <DevTable
-                    page={devPage}
-                    loading={loading}
-                    focusKey={focusKey}
-                    canDev={canDev}
-                    canProject={canProject}
-                    canSeeSupplier={canSeeSupplier}
-                    onMore={() => loadList(page + 1)}
-                    onProject={(g) =>
-                      setProjectScope({
-                        brandId: g.brandId,
-                        categoryId: g.categoryId || undefined,
-                        dev: true,
-                      })
+              {/* 作战卡默认收起，工具栏右端按钮打开（D74，对比图 R33 方案 B） */}
+
+              <Card style={{ padding: 0, overflow: 'hidden', minWidth: 0 }}>
+                <DevTable
+                  page={devPage}
+                  loading={loading}
+                  focusKey={focusKey}
+                  canDev={canDev}
+                  canProject={canProject}
+                  canSeeSupplier={canSeeSupplier}
+                  onMore={() => loadList(page + 1)}
+                  onProject={(g) =>
+                    setProjectScope({
+                      brandId: g.brandId,
+                      categoryId: g.categoryId || undefined,
+                      dev: true,
+                    })
+                  }
+                  onRecord={(g, ids) =>
+                    setCandRecord({
+                      title: devTitle(g),
+                      candidates: g.candidates,
+                      checkedIds: ids,
+                    })
+                  }
+                  onCandidate={(g, supplier) => {
+                    if (g.projectTarget == null || !g.projectId) {
+                      message.info('先建开发任务，再把这家加为候选');
+                      if (canProject)
+                        setProjectScope({
+                          brandId: g.brandId,
+                          categoryId: g.categoryId || undefined,
+                          dev: true,
+                        });
+                      return;
                     }
-                    onRecord={(g, ids) =>
-                      setCandRecord({
-                        title: devTitle(g),
-                        candidates: g.candidates,
-                        checkedIds: ids,
-                      })
-                    }
-                    onCandidate={(g, supplier) => {
-                      if (g.projectTarget == null || !g.projectId) {
-                        message.info('先建开发任务，再把这家加为候选');
-                        if (canProject)
-                          setProjectScope({
-                            brandId: g.brandId,
-                            categoryId: g.categoryId || undefined,
-                            dev: true,
-                          });
-                        return;
-                      }
-                      setCandidate({
-                        projectId: g.projectId,
-                        title: devTitle(g),
-                        count: g.candidates.length,
-                        supplier,
-                      });
-                    }}
-                  />
-                </Card>
-                <div style={wide ? { position: 'sticky', top: 16 } : undefined}>
-                  <BattleCard stage={battleStage} />
-                </div>
-              </div>
+                    setCandidate({
+                      projectId: g.projectId,
+                      title: devTitle(g),
+                      count: g.candidates.length,
+                      supplier,
+                    });
+                  }}
+                />
+              </Card>
+              {battle.panel(<BattleCard bare stage={battleStage} />)}
             </>
           ) : (
             <>
@@ -983,74 +974,66 @@ const SupplyFollowupPage: React.FC = () => {
                     录入信号
                   </Button>
                 )}
+                {/* 待归类信号表的「列」按钮渲染到这里，不在表格上方单占一行（同客户跟进，D74） */}
+                <span ref={setSettingsSlot} style={{ display: 'contents' }} />
+                {battle.button}
               </div>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: wide
-                    ? 'minmax(0, 1fr) 320px'
-                    : 'minmax(0, 1fr)',
-                  gap: 16,
-                  alignItems: 'start',
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  {batchBar}
-                  <Card
-                    style={{
-                      padding: unclassifiedView ? 16 : 0,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {unclassifiedView ? (
-                      <SignalTable
-                        rows={signals.records}
-                        total={signals.total}
-                        page={page}
-                        pageSize={signalSize}
-                        loading={loading}
-                        picked={pickedSignals}
-                        canEdit={canEdit}
-                        onPick={setPickedSignals}
-                        onPage={(p, s) =>
-                          s === signalSize ? loadList(p) : setSignalSize(s)
-                        }
-                        onClassify={setClassify}
-                        onIgnore={setIgnore}
-                      />
-                    ) : (
-                      <GroupTable
-                        board={flow}
-                        page={groups}
-                        loading={loading}
-                        picked={picked}
-                        selectedId={selected?.id}
-                        canEdit={canEdit}
-                        canProject={canProject}
-                        onPick={pick}
-                        onSelect={setSelected}
-                        onRecord={(g: Group, ids?: number[]) =>
-                          setRecord({
-                            title: scopeName(g),
-                            demands: g.items,
-                            checkedIds: ids,
-                          })
-                        }
-                        onProject={(g) =>
-                          setProjectScope({
-                            brandId: g.brandId,
-                            categoryId: g.categoryId || undefined,
-                          })
-                        }
-                        onMore={() => loadList(page + 1)}
-                      />
-                    )}
-                  </Card>
-                </div>
-                <div style={wide ? { position: 'sticky', top: 16 } : undefined}>
-                  <BattleCard stage={battleStage} />
-                </div>
+
+              <div style={{ minWidth: 0 }}>
+                {batchBar}
+                <Card
+                  style={{
+                    padding: unclassifiedView ? 16 : 0,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {unclassifiedView ? (
+                    <SignalTable
+                      rows={signals.records}
+                      total={signals.total}
+                      page={page}
+                      pageSize={signalSize}
+                      loading={loading}
+                      picked={pickedSignals}
+                      canEdit={canEdit}
+                      onPick={setPickedSignals}
+                      onPage={(p, s) =>
+                        s === signalSize ? loadList(p) : setSignalSize(s)
+                      }
+                      onClassify={setClassify}
+                      onIgnore={setIgnore}
+                      settingsSlot={settingsSlot}
+                    />
+                  ) : (
+                    <GroupTable
+                      board={flow}
+                      page={groups}
+                      loading={loading}
+                      picked={picked}
+                      selectedId={selected?.id}
+                      canEdit={canEdit}
+                      canProject={canProject}
+                      onPick={pick}
+                      onSelect={setSelected}
+                      onRecord={(g: Group, ids?: number[]) =>
+                        setRecord({
+                          title: scopeName(g),
+                          demands: g.items,
+                          checkedIds: ids,
+                        })
+                      }
+                      onProject={(g) =>
+                        setProjectScope({
+                          brandId: g.brandId,
+                          categoryId: g.categoryId || undefined,
+                        })
+                      }
+                      onMore={() => loadList(page + 1)}
+                    />
+                  )}
+                </Card>
               </div>
+              {battle.panel(<BattleCard bare stage={battleStage} />)}
             </>
           )}
         </>

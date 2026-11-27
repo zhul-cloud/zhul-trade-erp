@@ -82,7 +82,7 @@ const Head: React.FC = () => {
       <span>开发任务</span>
       <span>最紧急的下一步</span>
       <span>负责人</span>
-      <span />
+      <span>操作</span>
     </div>
   );
 };
@@ -247,8 +247,9 @@ const GroupRow: React.FC<
       </Button>
     )
   ) : g.gap > 0 && canProject ? (
+    // 行内操作和「记处理」一样用文字按钮，每行一个实心主色按钮会抢走页头主操作的注意
     <Button
-      type="primary"
+      type="link"
       size="small"
       onClick={(e) => {
         e.stopPropagation();
@@ -467,7 +468,7 @@ export const DevTable: React.FC<
   const isOpen = (key: string) => toggled.has(key) !== (key === first);
   const gap = page.groups.reduce((n, g) => n + g.gap, 0);
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <div className="zhul-grid-table" style={{ overflowX: 'auto' }}>
       <div style={{ minWidth: 920 }}>
         <Head />
         {page.groups.length === 0 && !loading && (

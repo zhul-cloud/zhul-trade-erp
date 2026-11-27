@@ -325,7 +325,8 @@ const CoverageMatrixPage: React.FC = () => {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: `160px repeat(${cols}, minmax(170px, 1fr))`,
+                // 格子最宽 240：品类少时不被拉成整行长条（进度条只有几十像素，格子却上千宽）
+                gridTemplateColumns: `160px repeat(${cols}, minmax(170px, 240px))`,
                 minWidth: 160 + cols * 180,
               }}
             >

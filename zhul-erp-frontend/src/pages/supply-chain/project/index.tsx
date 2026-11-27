@@ -15,13 +15,13 @@ import dayjs from 'dayjs';
 import { Check, CircleX, Ellipsis, Lightbulb, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { DocLogCard, SectionTitle } from '@/components/DocFields/DocPage';
+import EllipsisText from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
 import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { useWide } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
-import { tableScrollX } from '@/utils/tableScroll';
 import {
   Card,
   CoverPill,
@@ -202,11 +202,12 @@ const ProjectDetailPage: React.FC = () => {
   const records = [...(p.records ?? []), ...(dev?.records ?? [])].sort((a, b) =>
     (b.time ?? '').localeCompare(a.time ?? ''),
   );
+  // 表格在详情页左栏（约 640–690 宽）：来源并到名称下一行，最近一次处理单行省略，列宽合计放得下，不横向滚动
   const candColumns: TableColumnsType<Candidate> = [
     {
       title: '候选供应商',
       key: 'name',
-      width: 200,
+      width: 180,
       render: (_, c) => (
         <span style={{ display: 'grid', gap: 2 }}>
           <span
@@ -215,22 +216,21 @@ const ProjectDetailPage: React.FC = () => {
             <b>{c.name ?? '—'}</b>
             {!c.supplierId && <Pill tone="orange">未关联</Pill>}
           </span>
-          <span style={{ fontSize: 12, color: palette.mute }}>
-            {[c.contactName, c.contactInfo].filter(Boolean).join(' · ') || '—'}
-          </span>
+          <EllipsisText
+            style={{ fontSize: 12, color: palette.mute }}
+            text={
+              [CAND_SRC_NAMES[c.source], c.contactName, c.contactInfo]
+                .filter(Boolean)
+                .join(' · ') || '—'
+            }
+          />
         </span>
       ),
     },
     {
-      title: '来源',
-      dataIndex: 'source',
-      width: 80,
-      render: (v: number) => CAND_SRC_NAMES[v],
-    },
-    {
       title: '阶段',
       key: 'stage',
-      width: 110,
+      width: 84,
       render: (_, c) => (
         <span style={{ display: 'grid', gap: 2, justifyItems: 'start' }}>
           <Pill tone={candidateTone(c.stage)}>{CAND_NAMES[c.stage]}</Pill>
@@ -252,7 +252,7 @@ const ProjectDetailPage: React.FC = () => {
       key: 'last',
       render: (_, c) => (
         <span style={{ display: 'grid', gap: 2 }}>
-          <span>{c.lastAction || '—'}</span>
+          <EllipsisText text={c.lastAction || '—'} />
           {c.lastActionAt && (
             <span style={{ fontSize: 12, color: palette.mute }}>
               {dayjs(c.lastActionAt).format('MM-DD')} ·{' '}
@@ -265,7 +265,7 @@ const ProjectDetailPage: React.FC = () => {
     {
       title: '下一步行动 · 日期',
       key: 'next',
-      width: 160,
+      width: 140,
       render: (_, c) =>
         c.stage === CAND.QUALIFIED ||
         c.stage === CAND.ABANDONED ||
@@ -284,10 +284,10 @@ const ProjectDetailPage: React.FC = () => {
       // lint-ui-ignore row-actions: 开发候选的处理队列（记处理、关联供应商库），保留文字按钮
       title: '操作',
       key: 'op',
-      width: 150,
+      width: 104,
       render: (_, c) =>
         canDev && (
-          <span style={{ display: 'inline-flex', gap: 8 }}>
+          <span style={{ display: 'grid', gap: 4, justifyItems: 'start' }}>
             <Button
               type="link"
               size="small"
@@ -317,17 +317,18 @@ const ProjectDetailPage: React.FC = () => {
         ),
     },
   ];
+  // 同在左栏：主渠道和最近证据并成一列，下一步占剩下的宽度，1366 宽也不横向滚动
   const columns: TableColumnsType<Demand> = [
     {
       title: '型号',
       key: 'model',
-      width: 220,
+      width: 150,
       render: (_, d) => <Link to={PATHS.demand(d.id)}>{modelName(d)}</Link>,
     },
     {
       title: '覆盖状态',
       key: 'cover',
-      width: 200,
+      width: 120,
       render: (_, d) => (
         <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
           <CoverPill status={d.coverageStatus || undefined} />
@@ -340,27 +341,27 @@ const ProjectDetailPage: React.FC = () => {
       ),
     },
     {
-      title: '主渠道',
-      dataIndex: 'primarySupplier',
-      width: 160,
-      render: (v?: string) => v || '—',
-    },
-    {
-      title: '最近证据',
+      title: '主渠道 · 最近证据',
       key: 'evidence',
-      width: 170,
-      render: (_, d) => <EvidenceText d={d} />,
+      width: 150,
+      render: (_, d) => (
+        <span style={{ display: 'grid', gap: 2 }}>
+          <EllipsisText text={d.primarySupplier || '—'} />
+          <span style={{ fontSize: 12 }}>
+            <EvidenceText d={d} />
+          </span>
+        </span>
+      ),
     },
     {
       title: '下一步行动 · 日期',
       key: 'next',
-      width: 240,
       render: (_, d) => <NextCell d={d} />,
     },
     {
       title: '负责人',
       dataIndex: 'ownerName',
-      width: 100,
+      width: 80,
       render: (v?: string) => v || '—',
     },
   ];
@@ -525,7 +526,7 @@ const ProjectDetailPage: React.FC = () => {
                 columns={columns}
                 dataSource={p.items ?? []}
                 pagination={false}
-                scroll={{ x: tableScrollX(columns) }}
+                scroll={{ x: 600 }}
               />
             </Card>
           )}
@@ -584,7 +585,7 @@ const ProjectDetailPage: React.FC = () => {
                   columns={candColumns}
                   dataSource={dev.candidates}
                   pagination={false}
-                  scroll={{ x: 760 }}
+                  scroll={{ x: 600 }}
                   locale={{
                     emptyText: tableEmpty(
                       '还没有候选，从线索供应商、搜索、展会或同行介绍里加',

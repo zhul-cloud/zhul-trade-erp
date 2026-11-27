@@ -272,6 +272,12 @@ export function useColumnSettings<C extends Col>(
 ): { columns: C[]; settings: React.ReactNode } {
   const { palette } = useAppTheme();
   const [state, setState] = useState<ColumnState>(() => load(id));
+  // 同一组件换了存储标识（如跟进页切板块）时重新读取，不把上一个板块的设置带过来
+  const [loadedId, setLoadedId] = useState(id);
+  if (loadedId !== id) {
+    setLoadedId(id);
+    setState(load(id));
+  }
   // 页面写的是列标识或列名，这里统一换成列标识（每次渲染列定义都是新数组，按内容比较避免重算）
   const want = new Set([...AUDIT_KEYS, ...(opts.hidden ?? [])]);
   const found = columns
@@ -289,6 +295,8 @@ export function useColumnSettings<C extends Col>(
     while (box && !box.querySelector('.ant-table')) box = box.parentElement;
     if (!box) return;
     const el = box;
+    // 量表格本身的宽度：「列」按钮可能放在卡片外（页头、筛选行），找到的容器比表格宽，会多补列
+    const table = el.querySelector<HTMLElement>('.ant-table-wrapper');
     const measure = () => {
       const cs = getComputedStyle(el);
       const pad =
@@ -300,8 +308,7 @@ export function useColumnSettings<C extends Col>(
         'th.ant-table-row-expand-icon-cell',
       );
       const w = Math.floor(
-        el.clientWidth -
-          pad -
+        (table?.clientWidth || el.clientWidth - pad) -
           (sel?.offsetWidth ?? 0) -
           (expand?.offsetWidth ?? 0),
       );
@@ -310,6 +317,7 @@ export function useColumnSettings<C extends Col>(
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
+    if (table) ro.observe(table);
     return () => ro.disconnect();
   });
   const arranged = useMemo(() => {

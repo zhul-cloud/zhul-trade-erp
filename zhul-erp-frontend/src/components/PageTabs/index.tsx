@@ -374,8 +374,9 @@ export const TabBar: React.FC<{ tree: MenuTree }> = ({ tree }) => {
                     padding: t.pinned ? '0 16px' : '0 8px 0 16px',
                     cursor: on ? 'default' : 'pointer',
                     fontSize: 14,
-                    // 中文只用 400/600：500 在 Windows 微软雅黑里显示成常规，和同一标签里的英文数字粗细不一（S11）
-                    fontWeight: 400,
+                    // 中文只用 400/600：500 在 Windows 微软雅黑里显示成常规，和同一标签里的英文数字粗细不一（S11）；
+                    // 当前标签 600，靠字重和底线区分，不只靠主题色（D72）
+                    fontWeight: on ? 600 : 400,
                     color: on ? palette.link : palette.sub,
                     boxSizing: 'border-box',
                     borderBottom: `2px solid ${on ? palette.link : 'transparent'}`,

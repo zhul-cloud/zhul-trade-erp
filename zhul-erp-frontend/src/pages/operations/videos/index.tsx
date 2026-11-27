@@ -20,7 +20,6 @@ import {
   MainCard,
   PageHeader,
   SelectionCount,
-  SummaryBar,
 } from '@/components/ListLayout';
 import { AlertLabel } from '@/components/MetricCard';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
@@ -411,10 +410,7 @@ const VideoTasksPage: React.FC = () => {
             </>
           )
         }
-      />
-      {/* 原「夜间生成」说明卡改为汇总行（列表页统一规范：页头下方一行指标，口径进帮助图标） */}
-      <SummaryBar
-        items={[
+        summary={[
           {
             key: 'window',
             label: '夜间生成',

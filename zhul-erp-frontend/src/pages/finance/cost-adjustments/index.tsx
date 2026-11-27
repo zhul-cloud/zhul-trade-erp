@@ -13,7 +13,6 @@ import {
   MainCard,
   PageHeader,
   QuickFilters,
-  SummaryBar,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -218,9 +217,9 @@ const CostAdjustmentsPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader help={HELP.page} />
-      <SummaryBar
-        items={[
+      <PageHeader
+        help={HELP.page}
+        summary={[
           {
             key: 'stock',
             label: `${monthLabel}在库调整`,

@@ -62,8 +62,9 @@ const globalCss = (
   html body [tabindex]:not(.ant-menu):focus-visible, html body .ant-btn:focus-visible,
   html body .ant-switch:focus-visible, html body .ant-checkbox-input:focus-visible + .ant-checkbox-inner,
   html body .ant-radio-input:focus-visible + .ant-radio-inner { ${focusImportant} }
-  /* 页签撑满顶栏、处在横向滚动容器里：焦点框向内画，不被裁掉 */
-  html body [role='tab']:focus-visible { ${focusInset} }
+  /* 页签撑满顶栏、处在横向滚动容器里：焦点框向内画，不被裁掉。
+     带 tabindex 的页签同时命中上面的 [tabindex] 规则，这里补 [tabindex] 使优先级相同、写在后面的生效 */
+  html body [role='tab']:focus-visible, html body [role='tab'][tabindex]:focus-visible { ${focusInset} }
   html { scroll-padding-top: 96px; }
   /* 输入类控件获得焦点：鼠标点进去也会出现，不用按钮那套粗焦点框（外加灰圈显得重），
      改为边框换主题色 + 3px 主题色淡光晕。带图标、清除按钮的输入框画在外层 affix-wrapper 上，
@@ -78,7 +79,16 @@ const globalCss = (
   .ant-input-clear-icon, .ant-select-clear { padding: 6px; margin: -6px; box-sizing: content-box; }
   /* 深色下主题原色当文字对比度不够，这几处文字改用链接色 */
   .ant-pro-query-filter-collapse-button,
-  .ant-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn { color: ${p.link}; }
+  .ant-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn { color: ${p.link}; font-weight: 600; }
+  /* 页签：没选中的用次要文字色，选中 600 字重，选中的不会比没选中的浅（照 R27 原型，D72） */
+  .ant-tabs .ant-tabs-tab .ant-tabs-tab-btn { color: ${p.sub}; }
+  .ant-tabs .ant-tabs-tab:not(.ant-tabs-tab-active):not(.ant-tabs-tab-disabled):hover .ant-tabs-tab-btn { color: ${p.ink}; }
+  /* 视图页签（D72，对比图 R31 方案 B）：页签栏是一条白卡；紧接着是搜索区时做它的卡头（搜索区找到它后加 data-attached） */
+  .zhul-view-tabs > .ant-tabs-nav { margin: 0 0 16px; padding: 0 20px; background: ${p.card}; border-radius: 10px; ${mode === 'light' ? `box-shadow: ${CARD_SHADOW};` : `border: 1px solid ${p.hairline};`} }
+  .zhul-view-tabs > .ant-tabs-nav::before { display: none; }
+  .zhul-view-tabs[data-attached] > .ant-tabs-nav { margin-bottom: 0; border-radius: 10px 10px 0 0; clip-path: inset(-32px -32px 0 -32px); ${mode === 'light' ? '' : 'border-bottom: none;'} }
+  .zhul-view-tabs[data-attached] > .ant-tabs-nav::before { display: block; border-bottom-color: ${p.hairline}; }
+  .zhul-view-tabs > .ant-tabs-nav .ant-tabs-tab { padding: 13px 0; }
   /* 状态标签：语义色 12% 浅底 + 语义色字，12px，高 24，圆角 4；antd 的颜色名归到语义色，不带颜色的为中性（见 antd.ts 的 Tag 令牌） */
   .ant-tag { font-size: 12px; line-height: 22px; border-radius: 4px; padding-inline: 8px; }
   html body .ant-tag.ant-tag-success, html body .ant-tag.ant-tag-green, html body .ant-tag.ant-tag-lime { ${tag(p.green, p.greenSoft)} }
@@ -148,8 +158,11 @@ const globalCss = (
   .zhul-link:active { color: ${link.active}; }
   /* 表格里的单号、来源单号与「查看」等文字链接（ui-redesign D23）：平时墨色，悬停主题色加下划线；单号列（首列或勾选列后一列）600。
      表格不再满屏主题色，也不和警告标签撞色；按钮（删除等）不受影响 */
-  .ant-table-tbody .zhul-link, .ant-table-tbody a:not(.ant-btn) { color: ${p.ink}; }
-  .ant-table-tbody .zhul-link:hover, .ant-table-tbody a:not(.ant-btn):hover {
+  /* 自己用 grid 画的表格（供应链跟进的分组表）根节点加 zhul-grid-table，同样适用 */
+  .ant-table-tbody .zhul-link, .ant-table-tbody a:not(.ant-btn),
+  .zhul-grid-table .zhul-link, .zhul-grid-table a:not(.ant-btn) { color: ${p.ink}; }
+  .ant-table-tbody .zhul-link:hover, .ant-table-tbody a:not(.ant-btn):hover,
+  .zhul-grid-table .zhul-link:hover, .zhul-grid-table a:not(.ant-btn):hover {
     color: ${link.hover}; text-decoration: underline; text-underline-offset: 3px;
   }
   .ant-table-tbody > tr > td:first-child .zhul-link, .ant-table-tbody > tr > td:first-child a:not(.ant-btn),

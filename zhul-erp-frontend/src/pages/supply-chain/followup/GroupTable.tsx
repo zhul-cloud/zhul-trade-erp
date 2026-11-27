@@ -12,6 +12,7 @@ import {
   LevelPill,
   NextCell,
   PriorityPill,
+  Terms,
 } from '../components';
 import {
   type Demand,
@@ -50,7 +51,7 @@ const Head: React.FC<{ cover: boolean }> = ({ cover }) => {
       <span>最急的下一步</span>
       <span>负责人</span>
       <span>{cover ? '专项' : '依据'}</span>
-      <span />
+      <span>操作</span>
     </div>
   );
 };
@@ -60,9 +61,7 @@ const signalsText = (d: Demand) =>
     d.cntStockout ? `无货 ${d.cntStockout} 次` : null,
     d.cntInquiry ? `询盘 ${d.cntInquiry} 次` : null,
     d.cntOrder ? `成交 ${d.cntOrder} 次` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ') || '—';
+  ].filter((t): t is string => !!t);
 
 const ItemRow: React.FC<{
   d: Demand;
@@ -98,7 +97,7 @@ const ItemRow: React.FC<{
       <Link
         to={PATHS.demand(d.id)}
         onClick={(e) => e.stopPropagation()}
-        style={{ paddingLeft: 24 }}
+        style={{ paddingLeft: 24, fontWeight: 600 }}
       >
         {modelName(d)}
       </Link>
@@ -111,7 +110,7 @@ const ItemRow: React.FC<{
           fontSize: 13,
         }}
       >
-        {signalsText(d)}
+        {signalsText(d).length ? <Terms items={signalsText(d)} /> : '—'}
       </span>
       <span
         style={{
@@ -368,7 +367,7 @@ export const GroupTable: React.FC<{
   // 第一组默认展开
   const isOpen = (key: string, i: number) => open.has(key) !== (i === 0);
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <div className="zhul-grid-table" style={{ overflowX: 'auto' }}>
       <div style={{ minWidth: 1040 }}>
         <Head cover={cover} />
         {page.groups.length === 0 && !loading && (

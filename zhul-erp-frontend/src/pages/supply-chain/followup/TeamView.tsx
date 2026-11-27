@@ -8,9 +8,17 @@ import {
   type TableColumnsType,
 } from 'antd';
 import dayjs from 'dayjs';
+import {
+  BadgeCheck,
+  CircleCheck,
+  GitFork,
+  PackageX,
+  Percent,
+  ShieldCheck,
+} from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
-import { MetricGrid, MetricTile } from '@/components/MetricCard';
+import { MetricGrid, MetricTile, TILE_FAMILIES } from '@/components/MetricCard';
 import { rowAlert } from '@/components/RowAlert';
 import { useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -283,35 +291,47 @@ const TeamView: React.FC<{
   return (
     <div>
       {head}
-      {/* 公共紧凑数字块，数值统一墨色（复审 9.1 第二轮）；固定 6 项用 MetricGrid */}
+      {/* 公共紧凑数字块，数值统一墨色；图标块逐张换色（D73）；固定 6 项用 MetricGrid */}
       <MetricGrid cols={6} min={150} gap={12}>
         <MetricTile
           label="无货"
+          icon={<PackageX size={18} />}
+          family={TILE_FAMILIES[0]}
           value={`${t.stockoutModels} 个型号`}
           sub={`${t.stockoutTimes} 次 · 上期 ${t.prevStockoutModels} 个型号`}
         />
         <MetricTile
           label="无货率"
+          icon={<Percent size={18} />}
+          family={TILE_FAMILIES[1]}
           value={rate(t.stockoutRate)}
           sub="无货型号 / 询过价的型号"
         />
         <MetricTile
           label="有效覆盖率"
+          icon={<ShieldCheck size={18} />}
+          family={TILE_FAMILIES[2]}
           value={rate(t.coverRate)}
           sub="可直接报价 / 矩阵内型号"
         />
         <MetricTile
           label="可报价率"
+          icon={<BadgeCheck size={18} />}
+          family={TILE_FAMILIES[3]}
           value={rate(t.quotableRate)}
           sub="可直接报价 + 需确认"
         />
         <MetricTile
           label="备用渠道率"
+          icon={<GitFork size={18} />}
+          family={TILE_FAMILIES[4]}
           value={rate(t.backupRate)}
           sub="有备选渠道 / 可报价型号"
         />
         <MetricTile
           label="补上的缺口"
+          icon={<CircleCheck size={18} />}
+          family={TILE_FAMILIES[5]}
           value={`${t.filledGaps} 个型号`}
           sub="由无渠道、未验证变为可报"
         />
@@ -410,50 +430,59 @@ const TeamView: React.FC<{
                 没有进行中的专项
               </div>
             )}
-            {t.projects.map((p) => (
-              <div key={p.id} style={{ marginTop: 16 }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    gap: 12,
-                  }}
-                >
-                  <span
+            {t.projects.map((p) => {
+              // 只开发供应商、没有型号的专项按合格家数算进度，不显示「已解决 0 / 0」
+              const dev = !p.total && p.supplierTarget != null;
+              const done = dev ? p.devQualified : p.solved;
+              const all = dev ? (p.supplierTarget ?? 0) : p.total;
+              return (
+                <div key={p.id} style={{ marginTop: 16 }}>
+                  <div
                     style={{
-                      display: 'inline-flex',
-                      gap: 8,
-                      alignItems: 'center',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      gap: 12,
                     }}
                   >
-                    <Link to={PATHS.project(p.id)} style={{ fontWeight: 600 }}>
-                      {p.name}
-                    </Link>
-                    {p.overdueDays > 0 && (
-                      <Pill tone="red">超期 {p.overdueDays} 天</Pill>
-                    )}
-                  </span>
-                  <span>
-                    已解决 {p.solved} / {p.total}
-                  </span>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        gap: 8,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Link
+                        to={PATHS.project(p.id)}
+                        className="zhul-link zhul-link-doc"
+                      >
+                        {p.name}
+                      </Link>
+                      {p.overdueDays > 0 && (
+                        <Pill tone="red">超期 {p.overdueDays} 天</Pill>
+                      )}
+                    </span>
+                    <span>
+                      {dev ? '合格' : '已解决'} {done} / {all}
+                    </span>
+                  </div>
+                  <Progress
+                    percent={all ? Math.round((done / all) * 100) : 0}
+                    showInfo={false}
+                    // 进度只用主题色（全站进度条规则）
+                    strokeColor={palette.chart}
+                    style={{ maxWidth: 560, margin: '4px 0' }}
+                  />
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: p.overdueDays > 0 ? palette.red : palette.mute,
+                    }}
+                  >
+                    {p.ownerName} · {dayjs(p.dueDate).format('MM-DD')} 截止
+                  </div>
                 </div>
-                <Progress
-                  percent={p.total ? Math.round((p.solved / p.total) * 100) : 0}
-                  showInfo={false}
-                  // 进度只用主题色（全站进度条规则）
-                  strokeColor={palette.chart}
-                  style={{ maxWidth: 560, margin: '4px 0' }}
-                />
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: p.overdueDays > 0 ? palette.red : palette.mute,
-                  }}
-                >
-                  {p.ownerName} · {dayjs(p.dueDate).format('MM-DD')} 截止
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </Card>
         </div>
         <Card style={{ padding: 20, alignSelf: 'start' }}>

@@ -20,7 +20,10 @@ interface Preset {
   darkSoft: string;
   /** 主题色作为图表第一个系列时，去掉色相最接近的那个系列色（CHART_SERIES 的序号） */
   chartDrop: number;
-  /** 原色实底上的文字：白字对比度不足 3:1 时用同色相最深一档（琥珀白字 1.93:1，深琥珀棕 #4A2E00 6.5:1；ui-redesign D24、D54） */
+  /**
+   * 原色实底上的文字，默认白字。琥珀也用白字（1.93:1，低于 WCAG），与其他主题色、参考站一致；
+   * 用户 2026-11-27 决定以主题统一为先，推翻 D54 的深琥珀棕（ui-redesign D70）
+   */
   onPrimary?: string;
 }
 
@@ -32,7 +35,6 @@ export const PRESETS: Record<PresetKey, Preset> = {
     darkLink: '#FDA92D',
     darkSoft: '#3E311D',
     chartDrop: 1,
-    onPrimary: '#4A2E00',
   },
   teal: {
     name: '青绿',

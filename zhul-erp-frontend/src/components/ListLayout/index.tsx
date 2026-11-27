@@ -195,7 +195,9 @@ export const PageHeader: React.FC<{
   tags?: React.ReactNode;
   sub?: React.ReactNode;
   extra?: React.ReactNode;
-}> = ({ title, help, tags, sub, extra }) => {
+  /** 列表页的汇总指标（D69）：1–2 个写在标题同一行右侧，3 个及以上在页头下方成一张白卡分栏 */
+  summary?: SummaryItem[];
+}> = ({ title, help, tags, sub, extra, summary }) => {
   const { palette, mode } = useAppTheme();
   const menu = useMenu();
   const { box, stuck } = useStuckHeader(!!sub);
@@ -286,6 +288,9 @@ export const PageHeader: React.FC<{
               </h1>
               {help && <HelpTip title={help} />}
               {tags}
+              {!on && summary && summary.length > 0 && summary.length <= 2 && (
+                <SummaryInline items={summary} style={{ marginLeft: 12 }} />
+              )}
             </div>
             {sub && (
               <div
@@ -320,6 +325,9 @@ export const PageHeader: React.FC<{
             </div>
           )}
         </div>
+        {!on && summary && summary.length >= 3 && (
+          <SummaryStrip items={summary} />
+        )}
       </div>
     </div>
   );
@@ -403,6 +411,8 @@ export interface SummaryItem {
   subHideable?: boolean;
 }
 
+const summaryKeyOf = (it: SummaryItem) => it.key ?? it.label;
+
 /** 用于判断内容是否变了（变了要重新测量副文字放不放得下） */
 const summaryKey = (items: SummaryItem[]) =>
   items
@@ -413,106 +423,205 @@ const summaryKey = (items: SummaryItem[]) =>
     )
     .join(';');
 
-const SUMMARY_GAP = 32;
+const summaryValue = (it: SummaryItem) =>
+  it.currency && (typeof it.value === 'number' || typeof it.value === 'string')
+    ? formatAmount(it.value, it.currency)
+    : it.value;
 
-/**
- * 汇总行：页头下方一行指标，每项「名称 + 数字」，可带一行副文字。
- * 宽度不够时，subHideable 的副文字整段隐藏（不截断）；隐藏后仍放不下就换行，不裁掉后面的指标。
- */
-export const SummaryBar: React.FC<{ items: SummaryItem[] }> = ({ items }) => {
+/** 指标名称：次要色，口径写在帮助图标里 */
+const SummaryLabel: React.FC<{ it: SummaryItem; size: number }> = ({
+  it,
+  size,
+}) => {
   const { palette } = useAppTheme();
-  const box = useRef<HTMLDivElement>(null);
-  const [hideSub, setHideSub] = useState(false);
-  const hideRef = useRef(hideSub);
-  hideRef.current = hideSub;
-  // 副文字都显示时，各项排成一行所需的宽度；隐藏后用它判断宽度够了没有
-  const full = useRef(0);
-  const key = summaryKey(items);
-
-  const measure = useCallback(() => {
-    const el = box.current;
-    if (!el) return;
-    if (!hideRef.current) {
-      const kids = Array.from(el.children) as HTMLElement[];
-      full.current =
-        kids.reduce((w, k) => w + k.scrollWidth, 0) +
-        SUMMARY_GAP * Math.max(0, kids.length - 1);
-    }
-    const tooWide = full.current > el.clientWidth + 1;
-    if (tooWide !== hideRef.current) setHideSub(tooWide);
-  }, []);
-
-  // 内容变了：先恢复显示副文字，再按新内容测量
-  useLayoutEffect(() => {
-    setHideSub(false);
-  }, [key]);
-  useLayoutEffect(() => {
-    measure();
-  }, [key, hideSub, measure]);
-  useEffect(() => {
-    const el = box.current;
-    if (!el || typeof ResizeObserver === 'undefined') return undefined;
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [measure]);
-
   return (
-    <div
-      ref={box}
+    <span
       style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'flex-end',
-        columnGap: SUMMARY_GAP,
-        rowGap: 8,
-        marginBottom: 16,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        fontSize: size,
+        color: palette.mute,
         whiteSpace: 'nowrap',
       }}
     >
+      {it.label}
+      {it.help && <HelpTip title={it.help} />}
+    </span>
+  );
+};
+
+/**
+ * 1–2 个指标：写在页头标题同一行右侧，不另占一行（D69，对比图 R29 方案 B）。
+ * 名称次要色 13、数字 15 加粗；副文字跟在数字后面。
+ */
+const SummaryInline: React.FC<{
+  items: SummaryItem[];
+  style?: React.CSSProperties;
+}> = ({ items, style }) => {
+  const { palette } = useAppTheme();
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        columnGap: 20,
+        rowGap: 4,
+        ...style,
+      }}
+    >
       {items.map((it) => (
-        <div
-          key={it.key ?? it.label}
-          style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+        <span
+          key={summaryKeyOf(it)}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
+          <SummaryLabel it={it} size={13} />
           <span
+            className="num"
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              fontSize: 12,
-              color: palette.mute,
+              fontSize: 15,
+              fontWeight: 600,
+              color: palette.ink,
+              whiteSpace: 'nowrap',
             }}
           >
-            {it.label}
-            {it.help && <HelpTip title={it.help} />}
+            {summaryValue(it)}
           </span>
-          <span
-            style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8 }}
-          >
+          {it.sub && (
             <span
               className="num"
-              style={{ fontSize: 18, fontWeight: 700, color: palette.ink }}
+              style={{
+                fontSize: 12,
+                color: palette.mute,
+                whiteSpace: 'nowrap',
+              }}
             >
-              {it.currency &&
-              (typeof it.value === 'number' || typeof it.value === 'string')
-                ? formatAmount(it.value, it.currency)
-                : it.value}
+              {it.sub}
             </span>
-            {it.sub && !(hideSub && it.subHideable) && (
-              <span
-                className="num"
-                style={{ fontSize: 12, color: palette.mute }}
-              >
-                {it.sub}
-              </span>
-            )}
-          </span>
-        </div>
+          )}
+        </span>
       ))}
     </div>
   );
 };
+
+/**
+ * 3 个及以上指标：一张白卡，等宽分栏、竖线分隔，副文字放在数值下面（D69，对比图 R29 方案 B）。
+ * 栏宽放不下时，subHideable 的副文字整段隐藏（不截断）；其余副文字换行。
+ */
+const SummaryStrip: React.FC<{ items: SummaryItem[] }> = ({ items }) => {
+  const { palette } = useAppTheme();
+  const cells = useRef(new Map<string, HTMLDivElement | null>());
+  const subs = useRef(new Map<string, HTMLSpanElement | null>());
+  // 副文字显示时测到的自然宽度；隐藏后用它判断栏宽够了没有
+  const need = useRef(new Map<string, number>());
+  const [hidden, setHidden] = useState<string[]>([]);
+
+  const measure = useCallback(() => {
+    const next: string[] = [];
+    for (const it of items) {
+      if (!it.sub || !it.subHideable) continue;
+      const k = summaryKeyOf(it);
+      const sub = subs.current.get(k);
+      if (sub) need.current.set(k, sub.scrollWidth);
+      const cell = cells.current.get(k);
+      if (cell && (need.current.get(k) ?? 0) > cell.clientWidth + 1)
+        next.push(k);
+    }
+    setHidden((prev) => (prev.join('|') === next.join('|') ? prev : next));
+  }, [items]);
+
+  // 内容变了：先恢复显示副文字、清掉旧的自然宽度，再按新内容测量
+  const key = summaryKey(items);
+  useLayoutEffect(() => {
+    need.current.clear();
+    setHidden([]);
+  }, [key]);
+  useLayoutEffect(() => {
+    measure();
+  }, [key, hidden, measure]);
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(measure);
+    for (const el of cells.current.values()) if (el) ro.observe(el);
+    return () => ro.disconnect();
+  }, [measure]);
+
+  return (
+    <Panel
+      as="section"
+      aria-label="汇总"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`,
+        padding: '14px 0',
+        marginBottom: 16,
+      }}
+    >
+      {items.map((it, i) => {
+        const k = summaryKeyOf(it);
+        return (
+          <div
+            key={k}
+            style={{
+              minWidth: 0,
+              padding: '0 20px',
+              borderLeft: i ? `1px solid ${palette.hairline}` : undefined,
+            }}
+          >
+            <div
+              ref={(el) => {
+                cells.current.set(k, el);
+              }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+            >
+              <SummaryLabel it={it} size={13} />
+              <span
+                className="num"
+                style={{
+                  fontSize: 20,
+                  fontWeight: 700,
+                  lineHeight: 1.25,
+                  color: palette.ink,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {summaryValue(it)}
+              </span>
+              {it.sub && !hidden.includes(k) && (
+                <span
+                  ref={(el) => {
+                    subs.current.set(k, el);
+                  }}
+                  className="num"
+                  style={{
+                    fontSize: 12,
+                    color: palette.mute,
+                    whiteSpace: it.subHideable ? 'nowrap' : 'normal',
+                  }}
+                >
+                  {it.sub}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </Panel>
+  );
+};
+
+/**
+ * 汇总行（D69，对比图 R29 方案 B）。列表页的页头指标优先写在 PageHeader 的 summary 里（1–2 个进标题行，3 个及以上在页头下方成白卡）；
+ * 页签、面板里的统计区用本组件：3 个及以上为白卡分栏，1–2 个为一行紧凑指标。
+ */
+export const SummaryBar: React.FC<{ items: SummaryItem[] }> = ({ items }) =>
+  items.length >= 3 ? (
+    <SummaryStrip items={items} />
+  ) : (
+    <SummaryInline items={items} style={{ marginBottom: 16 }} />
+  );
 
 /** 搜索条件区排成一行（line，默认）还是网格（grid，标签在上） */
 const FilterLayoutContext = React.createContext<'line' | 'grid'>('grid');
@@ -845,6 +954,7 @@ export const ViewTabs: React.FC<{
   const { palette } = useAppTheme();
   return (
     <Tabs
+      className="zhul-view-tabs"
       activeKey={activeKey}
       onChange={onChange}
       destroyOnHidden={destroyOnHidden}
@@ -923,6 +1033,43 @@ const useAutoChips = (id?: string) =>
     () => (id ? chipStore.get(id) : undefined),
     () => undefined,
   );
+
+/**
+ * 搜索区找紧挨在它前面的视图页签（D72，对比图 R31 方案 B）：自己是第一个子元素时往上一层再看，最多 6 层；
+ * 页签自带内容区时，跳过其他页签面板，找到页签栏。中间隔着别的元素（汇总、提示条）就不算。
+ */
+const findViewTabsAbove = (from: Element | null): Element | null => {
+  let cur: Element | null = from;
+  for (let level = 0; cur && level < 6; level += 1) {
+    let prev = cur.previousElementSibling;
+    while (prev?.classList.contains('ant-tabs-tabpane'))
+      prev = prev.previousElementSibling;
+    if (prev) {
+      if (prev.classList.contains('zhul-view-tabs')) return prev;
+      if (
+        prev.classList.contains('ant-tabs-nav') &&
+        prev.parentElement?.classList.contains('zhul-view-tabs')
+      )
+        return prev.parentElement;
+      return null;
+    }
+    cur = cur.parentElement;
+  }
+  return null;
+};
+
+/** 一组页签可能被多个搜索区（各页签面板里各一个）拼接：按引用计数，最后一个离开才去掉 data-attached */
+const attachCount = new WeakMap<Element, number>();
+const attachTabs = (tabs: Element, delta: 1 | -1) => {
+  const n = (attachCount.get(tabs) ?? 0) + delta;
+  if (n > 0) {
+    attachCount.set(tabs, n);
+    tabs.setAttribute('data-attached', '');
+  } else {
+    attachCount.delete(tabs);
+    tabs.removeAttribute('data-attached');
+  }
+};
 
 /**
  * 主卡找它上面的搜索条件区：同级的前面几个元素（或其中包含的），最多往上找 3 层；
@@ -1137,6 +1284,18 @@ export const FilterCard: React.FC<{
   const [open, setOpen] = useState(false);
   const moreId = useId();
   const filterId = useId();
+  // 紧挨在视图页签后面时，和页签拼成一张卡：页签做卡头（D72）
+  const [attached, setAttached] = useState(false);
+  // 每次渲染都重判：页签晚于搜索区出现、或中间后来插进提示条时跟着变（没有依赖数组是有意的）
+  useLayoutEffect(() => {
+    // useId 的值不含引号，放在带引号的属性选择器里不用转义（测试环境 jsdom 没有 CSS.escape）
+    const el = document.querySelector(`[data-zhul-filter="${filterId}"]`);
+    const tabs = findViewTabsAbove(el);
+    setAttached(!!tabs);
+    if (!tabs) return undefined;
+    attachTabs(tabs, 1);
+    return () => attachTabs(tabs, -1);
+  });
   const line = layout === 'line';
   const { snap, clear } = useMoreChips(filterId, more, open, onSearch);
   const search =
@@ -1195,7 +1354,17 @@ export const FilterCard: React.FC<{
   return (
     <FilterLayoutContext.Provider value={layout}>
       <Panel
-        style={{ marginBottom: 16, padding: line ? 16 : 20 }}
+        style={{
+          marginBottom: 16,
+          padding: line ? 16 : 20,
+          ...(attached && {
+            borderTopLeftRadius: 0,
+            borderTopRightRadius: 0,
+            borderTop: 'none',
+            // 上沿的阴影裁掉，接缝处不出现一道深线
+            clipPath: 'inset(0 -32px -32px -32px)',
+          }),
+        }}
         aria-label="搜索条件"
         data-zhul-filter={filterId}
         // 在文本框里回车查询时，记下这次查询用的「更多筛选」条件；下拉、日期里的回车只是选中选项，不算查询

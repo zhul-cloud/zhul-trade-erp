@@ -86,6 +86,18 @@ export const LevelPill: React.FC<{ value?: number }> = ({ value }) =>
   value ? <Pill tone="gray">{LEVEL_NAMES[value]}</Pill> : null;
 
 /** 四档分布的彩色条 + 「无渠道 2 · 未验证 0 · 需确认 3 · 可报 7」 */
+/** 「无渠道 1 · 未验证 0」这类并列项：列窄时按项换行，不在一项中间断开 */
+export const Terms: React.FC<{ items: string[] }> = ({ items }) => (
+  <>
+    {items.map((t, i) => (
+      <React.Fragment key={t}>
+        {i > 0 && ' · '}
+        <span style={{ whiteSpace: 'nowrap' }}>{t}</span>
+      </React.Fragment>
+    ))}
+  </>
+);
+
 export const CoverBar: React.FC<{
   coverage: Record<number, number>;
   width?: number | string;
@@ -124,8 +136,14 @@ export const CoverBar: React.FC<{
       </div>
       {legend && (
         <span style={{ fontSize: 12, color: palette.mute }}>
-          无渠道 {coverage[1] ?? 0} · 未验证 {coverage[2] ?? 0} · 需确认{' '}
-          {coverage[3] ?? 0} · 可报 {coverage[4] ?? 0}
+          <Terms
+            items={[
+              `无渠道 ${coverage[1] ?? 0}`,
+              `未验证 ${coverage[2] ?? 0}`,
+              `需确认 ${coverage[3] ?? 0}`,
+              `可报 ${coverage[4] ?? 0}`,
+            ]}
+          />
         </span>
       )}
     </div>

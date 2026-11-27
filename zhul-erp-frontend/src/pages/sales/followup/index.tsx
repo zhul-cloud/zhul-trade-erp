@@ -4,7 +4,7 @@ import { Pencil, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { PageHeader, ViewTabs } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { useWide } from '@/pages/inquiry/shared/components';
+import { useSidePanel } from '@/components/SidePanel';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { getUserOptions } from '@/services/zhul/users';
 import { AccountInquiryModal } from './AccountPanel';
@@ -61,7 +61,11 @@ const FollowupPage: React.FC = () => {
   const access = useAccess() as Record<string, boolean>;
   const canRecord = !!access[PERM_RECORD];
   const canTeam = !!access[PERM_TEAM];
-  const wide = useWide();
+  const battle = useSidePanel('zhul_followup_battle', '作战卡');
+  // 「列」按钮渲染到阶段导航那一行末尾（D74）
+  const [settingsSlot, setSettingsSlot] = useState<HTMLSpanElement | null>(
+    null,
+  );
 
   const [view, setView] = useState<'mine' | 'team'>('mine');
   /** 下方显示什么：今日待办（默认）或某个板块 */
@@ -389,16 +393,8 @@ const FollowupPage: React.FC = () => {
               tools={tools}
             />
           ) : (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: wide
-                  ? 'minmax(0, 1fr) 360px'
-                  : 'minmax(0, 1fr)',
-                gap: 16,
-                alignItems: 'start',
-              }}
-            >
+            <>
+              {/* 作战卡默认收起，表头右侧按钮打开，表格占满整行（D74，对比图 R33 方案 B） */}
               <Card style={{ padding: '16px 20px' }}>
                 <StageBar
                   boardNo={boardNo}
@@ -407,6 +403,30 @@ const FollowupPage: React.FC = () => {
                   onChange={setFilter}
                   blocker={blocker}
                   onBlocker={setBlocker}
+                  trailing={
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        gap: 8,
+                        marginLeft: 'auto',
+                      }}
+                    >
+                      {/* 新建放在右端，筛选留在左边（空状态提示「点右上角」） */}
+                      {boardNo === BOARD_DEVELOP && canRecord && (
+                        <Button
+                          icon={<Plus size="1em" />}
+                          onClick={() => setProspectOpen(true)}
+                        >
+                          新建开发对象
+                        </Button>
+                      )}
+                      <span
+                        ref={setSettingsSlot}
+                        style={{ display: 'contents' }}
+                      />
+                      {battle.button}
+                    </span>
+                  }
                   extra={
                     <>
                       {tools}
@@ -420,14 +440,6 @@ const FollowupPage: React.FC = () => {
                           showSearch={{ optionFilterProp: 'label' }}
                           options={countryOptions}
                         />
-                      )}
-                      {boardNo === BOARD_DEVELOP && canRecord && (
-                        <Button
-                          icon={<Plus size="1em" />}
-                          onClick={() => setProspectOpen(true)}
-                        >
-                          新建开发对象
-                        </Button>
                       )}
                     </>
                   }
@@ -461,19 +473,21 @@ const FollowupPage: React.FC = () => {
                   onMore={() => loadList(page + 1)}
                   onNewInquiry={setInquiryCustomer}
                   onConvert={setConvertItem}
+                  settingsSlot={settingsSlot}
                 />
               </Card>
-              <div style={wide ? { position: 'sticky', top: 16 } : undefined}>
+              {battle.panel(
                 <BattleCard
+                  bare
                   item={selected}
                   canRecord={canRecord}
                   onNewInquiry={setInquiryCustomer}
                   onChanged={refresh}
                   onConvert={setConvertItem}
                   onStop={(item) => setStop({ item })}
-                />
-              </div>
-            </div>
+                />,
+              )}
+            </>
           )}
         </>
       )}

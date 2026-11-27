@@ -117,7 +117,9 @@ export const GoodsBar: React.FC<{
   parts: Record<GoodsKey, number>;
   total: number;
   width?: number;
-}> = ({ parts, total, width = 160 }) => {
+  /** 撑满所在弹性容器的剩余宽度（列表单元格里与件数并排时用，件数变长进度条自动变短，不折行） */
+  fill?: boolean;
+}> = ({ parts, total, width = 160, fill }) => {
   const { palette } = useAppTheme();
   const colors = useGoodsColors();
   const keys = Object.keys(GOODS_LABELS) as GoodsKey[];
@@ -127,7 +129,7 @@ export const GoodsBar: React.FC<{
       aria-label={keys.map((k) => `${GOODS_LABELS[k]} ${parts[k]}`).join('、')}
       style={{
         display: 'flex',
-        width,
+        ...(fill ? { flex: '1 1 0', minWidth: 40 } : { width }),
         height: 6,
         borderRadius: 3,
         overflow: 'hidden',

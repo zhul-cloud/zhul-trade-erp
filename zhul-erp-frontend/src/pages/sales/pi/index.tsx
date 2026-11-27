@@ -27,7 +27,6 @@ import {
   MainCard,
   PageHeader,
   QuickFilters,
-  SummaryBar,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -494,36 +493,34 @@ const PiList: React.FC = () => {
             新建 PI
           </Button>
         }
+        summary={
+          stats
+            ? [
+                {
+                  key: 'received',
+                  label: '本月到账人民币',
+                  help: HELP.monthReceived,
+                  value: stats.monthReceivedCny,
+                  currency: 'CNY',
+                  sub:
+                    Number(stats.monthReceivedUsd) > 0
+                      ? `其中美元 ${formatAmount(stats.monthReceivedUsd, 'USD')}`
+                      : undefined,
+                },
+                {
+                  key: 'orders',
+                  label: '本月转订单',
+                  help: HELP.monthOrders,
+                  value: stats.monthOrderCount,
+                  sub:
+                    stats.monthOrderUnpaid > 0
+                      ? `凭水单先转、还未到账 ${stats.monthOrderUnpaid} 张`
+                      : undefined,
+                },
+              ]
+            : undefined
+        }
       />
-
-      {stats && (
-        <SummaryBar
-          items={[
-            {
-              key: 'received',
-              label: '本月到账人民币',
-              help: HELP.monthReceived,
-              value: stats.monthReceivedCny,
-              currency: 'CNY',
-              sub:
-                Number(stats.monthReceivedUsd) > 0
-                  ? `其中美元 ${formatAmount(stats.monthReceivedUsd, 'USD')}`
-                  : undefined,
-            },
-            {
-              key: 'orders',
-              label: '本月转订单',
-              help: HELP.monthOrders,
-              value: stats.monthOrderCount,
-              sub:
-                stats.monthOrderUnpaid > 0
-                  ? `凭水单先转、还未到账 ${stats.monthOrderUnpaid} 张`
-                  : undefined,
-            },
-          ]}
-        />
-      )}
-
       <Form
         form={form}
         initialValues={{ range: filters.range }}
