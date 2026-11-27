@@ -16,7 +16,7 @@ import {
   ViewTabs,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { useWide } from '@/pages/inquiry/shared/components';
+import { useSidePanel } from '@/components/SidePanel';
 import { categoryGroups } from '@/pages/supplier/productScope';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -107,7 +107,7 @@ const Chip: React.FC<{
 const SupplyFollowupPage: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
-  const wide = useWide();
+  const battle = useSidePanel('zhul_supply_followup_battle', '作战卡');
   const { brands, tree, categories, tops } = useOptions();
   const [params] = useSearchParams();
   const users = useUsers();
@@ -872,17 +872,10 @@ const SupplyFollowupPage: React.FC = () => {
                     加入主动拓展
                   </Button>
                 )}
+                {battle.button}
               </div>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: wide
-                    ? 'minmax(0, 1fr) 320px'
-                    : 'minmax(0, 1fr)',
-                  gap: 16,
-                  alignItems: 'start',
-                }}
-              >
+              {/* 作战卡默认收起，工具栏右端按钮打开（D74，对比图 R33 方案 B） */}
+              <>
                 <Card style={{ padding: 0, overflow: 'hidden', minWidth: 0 }}>
                   <DevTable
                     page={devPage}
@@ -926,10 +919,8 @@ const SupplyFollowupPage: React.FC = () => {
                     }}
                   />
                 </Card>
-                <div style={wide ? { position: 'sticky', top: 16 } : undefined}>
-                  <BattleCard stage={battleStage} />
-                </div>
-              </div>
+                {battle.panel(<BattleCard bare stage={battleStage} />)}
+              </>
             </>
           ) : (
             <>
@@ -983,17 +974,9 @@ const SupplyFollowupPage: React.FC = () => {
                     录入信号
                   </Button>
                 )}
+                {battle.button}
               </div>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: wide
-                    ? 'minmax(0, 1fr) 320px'
-                    : 'minmax(0, 1fr)',
-                  gap: 16,
-                  alignItems: 'start',
-                }}
-              >
+              <>
                 <div style={{ minWidth: 0 }}>
                   {batchBar}
                   <Card
@@ -1047,10 +1030,8 @@ const SupplyFollowupPage: React.FC = () => {
                     )}
                   </Card>
                 </div>
-                <div style={wide ? { position: 'sticky', top: 16 } : undefined}>
-                  <BattleCard stage={battleStage} />
-                </div>
-              </div>
+                {battle.panel(<BattleCard bare stage={battleStage} />)}
+              </>
             </>
           )}
         </>

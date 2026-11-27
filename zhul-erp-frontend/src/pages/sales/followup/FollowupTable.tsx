@@ -1,9 +1,19 @@
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Checkbox, Progress, Select, Space, Table } from 'antd';
+import {
+  App,
+  Button,
+  Checkbox,
+  Popover,
+  Progress,
+  Select,
+  Space,
+  Table,
+} from 'antd';
 import dayjs from 'dayjs';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Ellipsis } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { CustomerSubLine } from '@/components/DocFields';
 import { tableEmpty } from '@/components/EmptyState';
 import { Stars } from '@/pages/customer/profile/ui';
@@ -569,6 +579,8 @@ export const FollowupTable: React.FC<{
   onNewInquiry?: (customerId: number) => void;
   /** 主动开发「转为商机」 */
   onConvert?: (item: FollowupItem) => void;
+  /** 表格上方工具栏右端（如「作战卡」按钮，D74） */
+  toolbarRight?: React.ReactNode;
 }> = ({
   boardNo,
   filter,
@@ -592,6 +604,7 @@ export const FollowupTable: React.FC<{
   onMore,
   onNewInquiry,
   onConvert,
+  toolbarRight,
 }) => {
   const { palette } = useAppTheme();
   const { message } = App.useApp();
@@ -714,7 +727,7 @@ export const FollowupTable: React.FC<{
     // lint-ui-ignore row-actions: 客户跟进工作队列，保留按钮
     title: '操作',
     key: 'action',
-    width: 190,
+    width: 150,
     fixed: 'right',
     render: (_, r) =>
       filter.nurture ? (
@@ -741,67 +754,24 @@ export const FollowupTable: React.FC<{
               看售后单
             </Button>
           ) : (
+            // 操作列只露主操作，延后、已跟进等收进「…」（D74，对比图 R33 方案 B）
             <Space size={6}>
-              {r.suggestNurture && (sales || develop) ? (
+              {develop && r.stageCode === 'D7' ? (
                 <Button
                   size="small"
                   disabled={!canRecord}
-                  onClick={() => onNurture(r)}
+                  onClick={() => onConvert?.(r)}
                 >
-                  转培育
+                  转为商机
                 </Button>
-              ) : (
-                <SnoozeButton
-                  item={r}
-                  disabled={!canRecord}
-                  onDone={onChanged}
-                />
-              )}
-              <QuickButton
-                customerId={r.customerId}
-                items={[r]}
-                disabled={!canRecord}
-                onRecord={() => onRecord(r)}
-                onDone={onChanged}
-              />
-              {develop && r.stageCode === 'D7' ? (
-                <>
-                  <Button
-                    size="small"
-                    disabled={!canRecord}
-                    onClick={() => onConvert?.(r)}
-                  >
-                    转为商机
-                  </Button>
-                  <Button
-                    size="small"
-                    type="link"
-                    disabled={!canRecord}
-                    onClick={() => onRecord(r)}
-                    style={{ padding: 0 }}
-                  >
-                    记跟进
-                  </Button>
-                </>
               ) : account && r.accountNeed === 1 ? (
-                <>
-                  <Button
-                    size="small"
-                    disabled={!canRecord}
-                    onClick={() => onNewInquiry?.(r.customerId)}
-                  >
-                    建询盘
-                  </Button>
-                  <Button
-                    size="small"
-                    type="link"
-                    disabled={!canRecord}
-                    onClick={() => onRecord(r)}
-                    style={{ padding: 0 }}
-                  >
-                    记跟进
-                  </Button>
-                </>
+                <Button
+                  size="small"
+                  disabled={!canRecord}
+                  onClick={() => onNewInquiry?.(r.customerId)}
+                >
+                  建询盘
+                </Button>
               ) : (
                 <Button
                   size="small"
@@ -811,19 +781,65 @@ export const FollowupTable: React.FC<{
                   记跟进
                 </Button>
               )}
-              {sales &&
-                !r.suggestNurture &&
-                r.stageGroup === GROUP.AFTER_QUOTE && (
-                  <Button
-                    size="small"
-                    type="link"
-                    disabled={!canRecord}
-                    onClick={() => onNurture(r)}
-                    style={{ padding: 0 }}
+              <Popover
+                trigger="click"
+                placement="bottomRight"
+                content={
+                  <div
+                    style={{ display: 'grid', gap: 8, justifyItems: 'start' }}
                   >
-                    转培育
-                  </Button>
-                )}
+                    {r.suggestNurture && (sales || develop) ? (
+                      <Button
+                        size="small"
+                        disabled={!canRecord}
+                        onClick={() => onNurture(r)}
+                      >
+                        转培育
+                      </Button>
+                    ) : (
+                      <SnoozeButton
+                        item={r}
+                        disabled={!canRecord}
+                        onDone={onChanged}
+                      />
+                    )}
+                    <QuickButton
+                      customerId={r.customerId}
+                      items={[r]}
+                      disabled={!canRecord}
+                      onRecord={() => onRecord(r)}
+                      onDone={onChanged}
+                    />
+                    {((develop && r.stageCode === 'D7') ||
+                      (account && r.accountNeed === 1)) && (
+                      <Button
+                        size="small"
+                        disabled={!canRecord}
+                        onClick={() => onRecord(r)}
+                      >
+                        记跟进
+                      </Button>
+                    )}
+                    {sales &&
+                      !r.suggestNurture &&
+                      r.stageGroup === GROUP.AFTER_QUOTE && (
+                        <Button
+                          size="small"
+                          disabled={!canRecord}
+                          onClick={() => onNurture(r)}
+                        >
+                          转培育
+                        </Button>
+                      )}
+                  </div>
+                }
+              >
+                <Button
+                  size="small"
+                  icon={<Ellipsis size={16} />}
+                  aria-label="更多操作"
+                />
+              </Popover>
             </Space>
           )}
         </span>
@@ -832,7 +848,7 @@ export const FollowupTable: React.FC<{
   const nextCol: TableColumnsType<Row>[number] = {
     title: '下一步',
     key: 'next',
-    width: 260,
+    width: 240,
     render: (_, r) => <NextCell item={r} />,
   };
   const muted = { fontSize: 12, color: palette.mute };
@@ -898,7 +914,7 @@ export const FollowupTable: React.FC<{
       {
         title: '售后阶段',
         key: 'stage',
-        width: 220,
+        width: 180,
         render: (_, r) => (
           <div style={{ display: 'grid', gap: 4 }}>
             <span>
@@ -1053,7 +1069,7 @@ export const FollowupTable: React.FC<{
       {
         title: '开发阶段',
         key: 'stage',
-        width: 150,
+        width: 120,
         render: (_, r) => (
           <div style={{ display: 'grid', gap: 2 }}>
             <span>
@@ -1176,7 +1192,7 @@ export const FollowupTable: React.FC<{
       {
         title: '下一步',
         key: 'next',
-        width: 280,
+        width: 240,
         render: (_, r) => <NextCell item={r} />,
       },
       actionCol,
@@ -1238,7 +1254,7 @@ export const FollowupTable: React.FC<{
       {
         title: '下一步',
         key: 'next',
-        width: 280,
+        width: 240,
         render: (_, r) => <NextCell item={r} />,
       },
       actionCol,
@@ -1263,7 +1279,7 @@ export const FollowupTable: React.FC<{
       {
         title: '下一步',
         key: 'next',
-        width: 280,
+        width: 240,
         render: (_, r) => <NextCell item={r} />,
       },
       actionCol,
@@ -1313,27 +1329,9 @@ export const FollowupTable: React.FC<{
   const headActions = (g: CustomerGroup) => {
     const due = dueIds(g);
     return filter.nurture ? null : (
+      // 客户行同单据行：只露「记跟进」，延后、已跟进收进「…」（D74）
       <span onClick={(e) => e.stopPropagation()}>
         <Space size={6}>
-          <SnoozeButton
-            entries={[{ customerId: g.customerId, itemIds: due }]}
-            disabled={!canRecord || due.length === 0}
-            onDone={onChanged}
-          />
-          <QuickButton
-            customerId={g.customerId}
-            items={g.items}
-            disabled={!canRecord}
-            onRecord={() =>
-              onRecordTarget?.({
-                customerId: g.customerId,
-                customerName: g.customerName,
-                item: g.lead,
-                items: g.items,
-              })
-            }
-            onDone={onChanged}
-          />
           <Button
             size="small"
             disabled={!canRecord}
@@ -1348,6 +1346,39 @@ export const FollowupTable: React.FC<{
           >
             记跟进
           </Button>
+          <Popover
+            trigger="click"
+            placement="bottomRight"
+            content={
+              <div style={{ display: 'grid', gap: 8, justifyItems: 'start' }}>
+                <SnoozeButton
+                  entries={[{ customerId: g.customerId, itemIds: due }]}
+                  disabled={!canRecord || due.length === 0}
+                  onDone={onChanged}
+                />
+                <QuickButton
+                  customerId={g.customerId}
+                  items={g.items}
+                  disabled={!canRecord}
+                  onRecord={() =>
+                    onRecordTarget?.({
+                      customerId: g.customerId,
+                      customerName: g.customerName,
+                      item: g.lead,
+                      items: g.items,
+                    })
+                  }
+                  onDone={onChanged}
+                />
+              </div>
+            }
+          >
+            <Button
+              size="small"
+              icon={<Ellipsis size={16} />}
+              aria-label="更多操作"
+            />
+          </Popover>
         </Space>
       </span>
     );
@@ -1405,11 +1436,39 @@ export const FollowupTable: React.FC<{
         ) : null,
     });
 
+  // 次要列默认收进「列」设置，1366 宽默认列不横向滚动（D74，对比图 R33 方案 B）；各板块分别记住
+  const colSet = useColumnSettings(
+    `sales-followup-${boardNo}${filter.nurture ? '-nurture' : ''}`,
+    cols,
+    {
+      hidden: [
+        '价值',
+        '预计付款',
+        '上次跟进',
+        '预计送达',
+        '现在的情况（系统带出）',
+        '上次触达',
+        '签收',
+        '客户反馈',
+        '上次联系',
+        '采购规律（系统推测）',
+      ],
+    },
+  );
+
   return (
     <>
       {batchBar}
-      {groups && multi && (
-        <div style={{ textAlign: 'right', marginBottom: 4 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 8,
+        }}
+      >
+        {groups && multi && (
           <Button
             type="link"
             size="small"
@@ -1421,15 +1480,17 @@ export const FollowupTable: React.FC<{
           >
             {expandAll ? '全部收起' : '全部展开'}
           </Button>
-        </div>
-      )}
+        )}
+        {colSet.settings}
+        {toolbarRight}
+      </div>
       <Table<Row>
         rowKey="_key"
-        columns={cols}
+        columns={colSet.columns}
         dataSource={rows}
         loading={loading && rows.length === 0}
         pagination={false}
-        scroll={{ x: tableScrollX(cols) }}
+        scroll={{ x: tableScrollX(colSet.columns) }}
         expandable={
           boardNo === BOARD_FULFIL
             ? {

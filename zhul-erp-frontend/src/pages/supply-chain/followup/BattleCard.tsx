@@ -54,7 +54,21 @@ const Title: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 /** 右侧作战卡：当前阶段的目标、该做的事、怎样算做好、进入下一阶段的条件 */
-const BattleCard: React.FC<{ stage?: string }> = ({ stage }) => {
+/** 作战卡外框：放在抽屉里（bare）时不再套卡片，避免卡里套卡（D74） */
+const Box: React.FC<{ bare?: boolean; children: React.ReactNode }> = ({
+  bare,
+  children,
+}) =>
+  bare ? (
+    <div>{children}</div>
+  ) : (
+    <Card style={{ padding: 20 }}>{children}</Card>
+  );
+
+const BattleCard: React.FC<{ stage?: string; bare?: boolean }> = ({
+  stage,
+  bare,
+}) => {
   const { palette } = useAppTheme();
   const cards = useCards();
   const [done, setDone] = useState<string[]>([]);
@@ -62,16 +76,16 @@ const BattleCard: React.FC<{ stage?: string }> = ({ stage }) => {
   useEffect(() => setDone([]), [stage]);
   if (!cards)
     return (
-      <Card style={{ padding: 20 }}>
+      <Box bare={bare}>
         <Skeleton active paragraph={{ rows: 6 }} />
-      </Card>
+      </Box>
     );
   const card = cards[nodes[0]];
   if (!card) return null;
   const code =
     nodes.length > 1 ? `${nodes[0]}-${nodes[nodes.length - 1]}` : nodes[0];
   return (
-    <Card style={{ padding: 20 }}>
+    <Box bare={bare}>
       <b style={{ display: 'inline-flex', gap: 8, fontSize: 15 }}>
         <Compass size="1em" style={{ color: palette.link }} /> 作战卡
       </b>
@@ -142,7 +156,7 @@ const BattleCard: React.FC<{ stage?: string }> = ({ stage }) => {
           {card.autoHint}
         </div>
       )}
-    </Card>
+    </Box>
   );
 };
 
