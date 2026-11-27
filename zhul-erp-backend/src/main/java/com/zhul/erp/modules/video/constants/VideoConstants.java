@@ -68,7 +68,7 @@ public final class VideoConstants {
     public static final String AI_SKILL = "video-script";
     public static final String CONFIG_WINDOW = "video.queue.window";
     public static final String DEFAULT_WINDOW = "20:00-07:00";
-    public static final int TIMEOUT_MINUTES = 15;
+    public static final int TIMEOUT_MINUTES = 30;
     public static final int RETRY_MINUTES = 10;
     public static final int MAX_UNAVAILABLE = 3;
     public static final String DISPATCH_LOCK = "zhul:erp:lock:video:dispatch";

@@ -255,7 +255,7 @@ class VideoTaskContractTest extends TenantContractSupport {
         // 失败可以重新加入；生成中超过 15 分钟算超时
         ok(call(post(API + "/" + id + "/queue"), a));
         claim(id);
-        jdbc.update("update product_video_task set started_at = ? where id = ?", LocalDateTime.now().minusMinutes(16), id);
+        jdbc.update("update product_video_task set started_at = ? where id = ?", LocalDateTime.now().minusMinutes(31), id);
         VideoQueueJob job = job(VideoGeneratorClient.Outcome.ACCEPTED, new ArrayList<>());
         TenantScope.platform(() -> job.expire(LocalDateTime.now()));
         assertEquals("生成超时", ok(call(get(API + "/" + id), a)).path("failReason").asText());

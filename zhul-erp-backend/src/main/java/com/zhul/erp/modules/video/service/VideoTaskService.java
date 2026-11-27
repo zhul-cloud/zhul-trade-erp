@@ -87,7 +87,7 @@ public class VideoTaskService {
     private static final Map<Integer, String> OUTPUT_NAMES = Map.of(VideoConstants.OUTPUT_REVIEW, "待审核",
             VideoConstants.OUTPUT_APPROVED, "已通过", VideoConstants.OUTPUT_REPLACED, "已替换", VideoConstants.OUTPUT_REJECTED, "已退回");
     /** 还没有生成记录时，按每个任务 6 分钟估算预计开始时间 */
-    private static final long DEFAULT_MINUTES = 6;
+    private static final long DEFAULT_MINUTES = 13;
 
     static {
         TABS.put("all", null);
