@@ -18,6 +18,7 @@ import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { UserName } from '@/components/UserName';
 import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
+import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import { ReasonModal } from '../components';
@@ -39,6 +40,7 @@ import { readBizError } from '../service';
 
 /** 其他出库单详情（spec warehouse/inventory「其他出库」，原型 I6）：明细、库存流水、备注附件、作废 */
 const OtherOutboundDetail: React.FC = () => {
+  const { palette } = useAppTheme();
   const id = Number(useParams<{ id: string }>().id);
   const { message } = App.useApp();
   const access = useAccess() as Record<string, boolean>;
@@ -84,13 +86,15 @@ const OtherOutboundDetail: React.FC = () => {
       width: 200,
       render: (_, x) => <DocModelCell model={x.model} brand={x.brand} />,
     }),
-    { title: '批次', dataIndex: 'batchNo', width: 170 },
     {
-      title: '状态',
-      dataIndex: 'stockStatus',
-      width: 70,
-      render: (v: number, x) => (
-        <StockStatusPill status={v} name={x.stockStatusName} />
+      title: '批次 · 状态',
+      dataIndex: 'batchNo',
+      width: 170,
+      render: (v: string, x) => (
+        <div style={{ display: 'grid', gap: 2, justifyItems: 'start' }}>
+          <span>{v}</span>
+          <StockStatusPill status={x.stockStatus} name={x.stockStatusName} />
+        </div>
       ),
     },
     {
@@ -100,17 +104,19 @@ const OtherOutboundDetail: React.FC = () => {
       width: 70,
     },
     {
-      title: '单价（CNY）',
-      dataIndex: 'unitPriceCny',
-      width: 110,
-      render: (v: number) => Number(v).toFixed(6),
-    },
-    {
+      // 单价并到金额下，主栏 664 宽不横向滚动（UI-119）
       title: '金额（CNY）',
       align: 'right',
       dataIndex: 'amountCny',
-      width: 110,
-      render: (v: number) => formatMoney(v),
+      width: 120,
+      render: (v: number, x) => (
+        <div className="num">
+          <div>{formatMoney(v)}</div>
+          <div style={{ fontSize: 12, color: palette.mute }}>
+            单价 {Number(x.unitPriceCny).toFixed(6)}
+          </div>
+        </div>
+      ),
     },
   ];
 
@@ -129,12 +135,18 @@ const OtherOutboundDetail: React.FC = () => {
         <Pill tone={m.reversal ? 'gray' : 'red'}>{bizText(m)}</Pill>
       ),
     },
-    { title: '仓库', dataIndex: 'warehouseName', width: 130 },
     {
-      title: '批次',
+      title: '批次 · 仓库',
       dataIndex: 'batchNo',
       width: 170,
-      render: (v: string) => <BatchLink batchNo={v} />,
+      render: (v: string, m) => (
+        <div>
+          <BatchLink batchNo={v} />
+          <div style={{ fontSize: 12, color: palette.mute }}>
+            {m.warehouseName}
+          </div>
+        </div>
+      ),
     },
     {
       title: '数量',

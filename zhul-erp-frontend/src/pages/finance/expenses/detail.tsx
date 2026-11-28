@@ -3,6 +3,9 @@ import type { TableColumnsType } from 'antd';
 import { App, Button, Skeleton, Table } from 'antd';
 import { CircleX, Pencil } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import DocModelCell, {
+  docModelColumn,
+} from '@/components/DocFields/DocModelCell';
 import {
   DocColumns,
   DocLogCard,
@@ -123,13 +126,12 @@ const ExpenseDetail: React.FC = () => {
         <Link to={`/sales/orders/${a.soId}`}>{a.soNo ?? '—'}</Link>
       ),
     },
-    {
-      title: '品牌',
-      dataIndex: 'brand',
-      width: 120,
-      render: (v?: string) => v || '—',
-    },
-    { title: '型号', dataIndex: 'model', width: 200 },
+    docModelColumn<ExpenseAlloc>((a) => a, {
+      title: '型号',
+      dataIndex: 'model',
+      width: 220,
+      render: (_, a) => <DocModelCell model={a.model ?? '—'} brand={a.brand} />,
+    }),
     {
       title: `分摊金额（${c}）`,
       dataIndex: 'amount',

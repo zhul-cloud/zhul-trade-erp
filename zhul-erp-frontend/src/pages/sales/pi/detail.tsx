@@ -50,6 +50,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import BankAccountLabel from '@/components/BankAccountLabel';
 import {
   DescriptionInputs,
   MissingEnglishBanner,
@@ -1187,7 +1188,13 @@ const PiDetail: React.FC = () => {
             status={!draft.bankAccountId ? 'warning' : undefined}
             options={banks.map((b) => ({
               value: b.id,
-              label: `${b.currencyCode} · ${b.bankName} · ${b.accountNoMasked}${b.isDefault ? '（默认）' : ''}${b.accountType === 2 ? '（对私）' : ''}`,
+              label: (
+                <BankAccountLabel
+                  account={b}
+                  currency
+                  hint={b.isDefault ? '默认' : undefined}
+                />
+              ),
             }))}
             onChange={(x) => setDraft({ ...draft, bankAccountId: x ?? null })}
             aria-label="收款账户"

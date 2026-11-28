@@ -2,6 +2,7 @@ import { Link } from '@umijs/max';
 import { App, DatePicker, Input, Modal, Segmented, Select, Space } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
+import BankAccountLabel from '@/components/BankAccountLabel';
 import { Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 import {
@@ -235,7 +236,7 @@ export const PayModal: React.FC<{
             .filter((a) => (a.accountType === 2) === (method === 3))
             .map((a) => ({
               value: a.id,
-              label: `${a.bankName} · ${a.accountName} ${a.accountNoMasked}`,
+              label: <BankAccountLabel account={a} name />,
             }))}
         />
         <DatePicker
