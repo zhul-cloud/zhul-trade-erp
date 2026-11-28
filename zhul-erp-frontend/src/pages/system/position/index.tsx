@@ -304,6 +304,7 @@ const PositionPage: React.FC = () => {
         />
       </MainCard>
       <ModalForm
+        submitter={{ searchConfig: { submitText: '保存' } }}
         name="positionEdit"
         title={editRecord ? '编辑岗位' : '新增岗位'}
         width={480}

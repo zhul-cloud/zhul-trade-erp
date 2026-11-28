@@ -728,6 +728,7 @@ const DeptPage: React.FC = () => {
       </Modal>
 
       <ModalForm
+        submitter={{ searchConfig: { submitText: '保存' } }}
         name="deptEdit"
         title={isEdit ? '编辑部门' : '新增部门'}
         width={560}

@@ -379,6 +379,7 @@ const TenantPackagePage: React.FC = () => {
 
       {/* 新增 / 编辑套餐 */}
       <DrawerForm
+        submitter={{ searchConfig: { submitText: '保存' } }}
         name="packageEdit"
         title={editing ? `编辑套餐 — ${editing.name}` : '新增套餐'}
         width={720}

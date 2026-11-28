@@ -137,6 +137,20 @@ describe('lint:ui', () => {
     ).not.toContain('user-name:error');
   });
 
+  it('弹窗主按钮用默认「确定」报错，写了按钮文字放行', () => {
+    expect(rules('const a = <Modal title="改日期" onOk={go} />;')).toContain(
+      'ok-text:error',
+    );
+    expect(
+      rules('const a = <Modal title="改日期" onOk={go} okText="保存" />;'),
+    ).not.toContain('ok-text:error');
+    expect(
+      rules(
+        "const a = <ModalForm onFinish={go} submitter={{ searchConfig: { submitText: '保存' } }} />;",
+      ),
+    ).not.toContain('ok-text:error');
+  });
+
   it('属性标签用状态色报错，灰与属性色放行（D75）', () => {
     expect(rules('<Pill tone="orange">对私</Pill>')).toContain(
       'attr-tone:error',

@@ -545,6 +545,7 @@ const TenantListPage: React.FC = () => {
 
       {/* 新增 / 编辑租户 */}
       <DrawerForm
+        submitter={{ searchConfig: { submitText: '保存' } }}
         name="tenantEdit"
         title={editing ? `编辑租户 — ${editing.name}` : '新增租户'}
         width={600}

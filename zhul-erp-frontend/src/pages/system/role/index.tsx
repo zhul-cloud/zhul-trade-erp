@@ -631,6 +631,7 @@ const RolePage: React.FC = () => {
 
       {/* 新增 / 编辑角色 */}
       <DrawerForm
+        submitter={{ searchConfig: { submitText: '保存' } }}
         name="roleEdit"
         title={isEdit ? `编辑角色 - ${editingRole?.name ?? ''}` : '新增角色'}
         width={480}

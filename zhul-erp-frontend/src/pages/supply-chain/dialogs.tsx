@@ -1239,6 +1239,7 @@ export const PriorityModal: React.FC<{
   };
   return (
     <Modal
+      okText="保存"
       title="改优先级"
       open
       width={440}
@@ -1307,6 +1308,7 @@ export const NextModal: React.FC<{
   };
   return (
     <Modal
+      okText="保存"
       title="负责人与下一步"
       open
       width={480}
@@ -1362,6 +1364,7 @@ export const DeferModal: React.FC<{
   };
   return (
     <Modal
+      okText="保存"
       title={ids.length > 1 ? `延后 ${ids.length} 个型号` : '延后到哪天'}
       open
       width={360}
@@ -1436,6 +1439,7 @@ export const ProjectItemsModal: React.FC<{
   };
   return (
     <Modal
+      okText="保存"
       title="增减型号"
       open
       width={600}

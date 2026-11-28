@@ -194,6 +194,7 @@ export const SnoozeButton: React.FC<{
         </Button>
       </Dropdown>
       <Modal
+        okText="保存"
         title="延后到哪天"
         open={picking}
         width={360}
