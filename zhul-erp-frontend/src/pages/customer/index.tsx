@@ -1,4 +1,4 @@
-import { history, useAccess } from '@umijs/max';
+import { history, Link, useAccess } from '@umijs/max';
 import type { CheckboxProps, TableColumnsType, TableProps } from 'antd';
 import {
   App,
@@ -323,17 +323,23 @@ const CustomerListPage: React.FC = () => {
       title: '客户名称',
       dataIndex: 'name',
       width: 230,
+      // 客户名可点开详情（列表首列的名称都是入口，UI-118）；表格里平时墨色，悬停主题色下划线
       render: (_: string, r) => (
-        <span title={r.displayName}>
+        <Link
+          to={`${LIST_PATH}/${r.id}`}
+          className="zhul-link"
+          title={r.displayName}
+          style={{ display: 'block', minWidth: 0 }}
+        >
           {r.nameMissing && <Pill tone="orange">未填客户名称</Pill>}
           {stacked(r.displayName, r.nameCn, {
             fontWeight: 600,
-            color: palette.ink,
+            color: 'inherit',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
           })}
-        </span>
+        </Link>
       ),
     },
     {

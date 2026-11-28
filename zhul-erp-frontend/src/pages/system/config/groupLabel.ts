@@ -14,6 +14,7 @@ const GROUP_LABELS: Record<string, string> = {
   product: '商品',
   finance: '财务',
   inventory: '库存',
+  video: '视频',
   sys: '系统',
   basic: '基础',
   security: '安全',

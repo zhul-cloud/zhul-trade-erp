@@ -33,6 +33,7 @@ import {
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { proAuditColumns } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
+import { MONO_FONT } from '@/theme/fonts';
 import { APPEARANCE_IMAGE_KEYS } from '@/utils/appearance';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -274,7 +275,7 @@ const ConfigPage: React.FC = () => {
 
   const renderValue = (record: ConfigItem) => {
     if (record.isEncrypted === 1) {
-      return <span style={{ fontFamily: 'monospace' }}>****</span>;
+      return <span style={{ fontFamily: MONO_FONT }}>****</span>;
     }
     if (record.configType === 'BOOLEAN') {
       // 开关显示「开启 / 关闭」，不显示 true / false（S9）
@@ -283,7 +284,7 @@ const ConfigPage: React.FC = () => {
     return (
       <EllipsisText
         text={record.configValue}
-        style={{ fontFamily: 'monospace' }}
+        style={{ fontFamily: MONO_FONT }}
       />
     );
   };
@@ -304,7 +305,7 @@ const ConfigPage: React.FC = () => {
       render: (_, r) => (
         <EllipsisText
           text={r.configKey}
-          style={{ fontFamily: 'monospace', color: p.mute }}
+          style={{ fontFamily: MONO_FONT, color: p.mute }}
         />
       ),
     },
@@ -384,7 +385,7 @@ const ConfigPage: React.FC = () => {
           <ProFormTextArea
             name={name}
             label="配置值"
-            fieldProps={{ rows: 5, style: { fontFamily: 'monospace' } }}
+            fieldProps={{ rows: 5, style: { fontFamily: MONO_FONT } }}
             rules={[
               { required: true, message: '请输入配置值' },
               {
@@ -698,7 +699,7 @@ const InfoRow: React.FC<{ label: string; value: string; mono?: boolean }> = ({
           fontSize: 13,
           fontWeight: 600,
           color: p.ink,
-          fontFamily: mono ? 'monospace' : undefined,
+          fontFamily: mono ? MONO_FONT : undefined,
         }}
       >
         {value}
