@@ -241,12 +241,10 @@ const NewPiModal: React.FC<{
 
   const quotationBlock = (q: CandidateQuotation) => (
     <div
+      className="zhul-card"
       key={q.quotationId}
       style={{
         padding: 14,
-        borderRadius: 12,
-        border: `1px solid ${palette.hairline}`,
-        background: palette.card,
       }}
     >
       <div

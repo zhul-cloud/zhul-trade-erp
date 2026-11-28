@@ -296,15 +296,13 @@ const ContactsCard: React.FC<{
 
   return (
     <section
+      className="zhul-card"
       aria-label="联系人"
       style={{
         display: 'flex',
         flexDirection: 'column',
         gap: 12,
         padding: 20,
-        borderRadius: 16,
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

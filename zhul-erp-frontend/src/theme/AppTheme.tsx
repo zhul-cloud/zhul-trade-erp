@@ -136,6 +136,10 @@ const globalCss = (
   .ant-card .ant-card { border-color: ${p.hairline}; box-shadow: none; }`
       : `.ant-card { border-color: ${p.hairline}; box-shadow: none; }`
   }
+  /* 页面自己画的卡片（zhul-card，UI-118）：与 Panel 同一套令牌——圆角 10，浅色阴影、深色描边；
+     放在卡片、弹窗、抽屉里时不再加阴影，改细描边，不做成卡里套浮起的卡 */
+  .zhul-card { background: ${p.card}; border-radius: 10px; ${light ? `box-shadow: ${CARD_SHADOW}; border: none;` : `border: 1px solid ${p.hairline};`} }
+  .zhul-card .zhul-card, .ant-card .zhul-card, .ant-modal .zhul-card, .ant-drawer .zhul-card { box-shadow: none; border: 1px solid ${p.hairline}; }
   /* 深色弹出层：#222222 底加 1px #3A3A3A 边，和下面的卡片分开；提示气泡同样加边 */
   ${
     light

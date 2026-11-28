@@ -36,12 +36,10 @@ export const ParseProgressCard: React.FC<{
   const reading = current === 0;
   return (
     <div
+      className="zhul-card"
       style={{
         marginBottom: 16,
         padding: '16px 20px',
-        borderRadius: 12,
-        border: `1px solid ${palette.hairline}`,
-        background: palette.card,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

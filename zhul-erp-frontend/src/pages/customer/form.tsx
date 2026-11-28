@@ -501,11 +501,9 @@ const CustomerFormPage: React.FC = () => {
   if (loading) {
     body = (
       <div
+        className="zhul-card"
         style={{
-          background: palette.card,
-          borderRadius: 16,
           padding: 24,
-          border: `1px solid ${palette.hairline}`,
         }}
       >
         <Skeleton active paragraph={{ rows: 12 }} />

@@ -344,19 +344,13 @@ const DuplicatesTab: React.FC<{
   if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!groups)
     return (
-      <div style={{ padding: 24, background: palette.card, borderRadius: 16 }}>
+      <div className="zhul-card" style={{ padding: 24 }}>
         <Skeleton active paragraph={{ rows: 6 }} />
       </div>
     );
   if (groups.length === 0)
     return (
-      <div
-        style={{
-          background: palette.card,
-          borderRadius: 16,
-          border: `1px solid ${palette.hairline}`,
-        }}
-      >
+      <div className="zhul-card">
         <EmptyHint
           title="没有疑似重复的客户"
           description="名称加国家、邮箱、WhatsApp 或电话相同的客户会出现在这里。"
@@ -368,13 +362,11 @@ const DuplicatesTab: React.FC<{
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {groups.map((g, i) => (
         <section
+          className="zhul-card"
           key={g.groupKey}
           aria-label={`第 ${i + 1} 组`}
           style={{
             padding: '14px 20px',
-            borderRadius: 16,
-            background: palette.card,
-            border: `1px solid ${palette.hairline}`,
           }}
         >
           <div

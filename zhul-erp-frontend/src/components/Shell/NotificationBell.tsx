@@ -116,6 +116,7 @@ const Row: React.FC<{
   );
   return (
     <button
+      className="zhul-card"
       type="button"
       onClick={() => onOpen(item)}
       style={{
@@ -125,9 +126,6 @@ const Row: React.FC<{
         padding: 14,
         marginBottom: 10,
         textAlign: 'left',
-        border: `1px solid ${palette.hairline}`,
-        borderRadius: 12,
-        background: palette.card,
         cursor: item.link ? 'pointer' : 'default',
         opacity: settled ? 0.6 : 1,
       }}

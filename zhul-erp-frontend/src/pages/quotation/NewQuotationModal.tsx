@@ -951,14 +951,13 @@ const ModeCard: React.FC<{
       }}
     >
       <span
+        className="zhul-card"
         style={{
           width: 44,
           height: 44,
-          borderRadius: 12,
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: palette.card,
           color: active ? palette.link : palette.sub,
           fontSize: 20,
           flex: 'none',

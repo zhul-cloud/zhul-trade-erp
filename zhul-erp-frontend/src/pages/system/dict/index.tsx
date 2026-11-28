@@ -411,12 +411,10 @@ const DictPage: React.FC = () => {
     <>
       <PageHeader />
       <div
+        className="zhul-card"
         style={{
           display: 'flex',
-          background: p.card,
-          borderRadius: 12,
           overflow: 'hidden',
-          border: `1px solid ${p.hairline}`,
           minHeight: 640,
         }}
       >

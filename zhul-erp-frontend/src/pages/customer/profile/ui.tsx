@@ -72,7 +72,7 @@ export const GradeBadge: React.FC<{
         {GRADE_NAMES[value]}
       </span>
       {adjusted && (
-        <span style={{ fontSize: 11, color: palette.info }}>已调整</span>
+        <span style={{ fontSize: 12, color: palette.info }}>已调整</span>
       )}
     </span>
   );
@@ -167,12 +167,12 @@ export const SourceTag: React.FC<{
               `/customer/list/${customerId}/background/${source?.reportId}`,
             )
           }
-          style={{ fontSize: 11, color, whiteSpace: 'nowrap' }}
+          style={{ fontSize: 12, color, whiteSpace: 'nowrap' }}
         >
           {text}
         </button>
       ) : (
-        <span style={{ fontSize: 11, color, whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: 12, color, whiteSpace: 'nowrap' }}>
           {text}
         </span>
       )}
@@ -211,7 +211,7 @@ export const FieldRow: React.FC<{
       >
         {label}
         {!core && (
-          <span style={{ marginLeft: 4, fontSize: 10, color: palette.faint }}>
+          <span style={{ marginLeft: 4, fontSize: 12, color: palette.faint }}>
             选填
           </span>
         )}

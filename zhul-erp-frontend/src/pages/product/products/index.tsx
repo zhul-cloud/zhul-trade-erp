@@ -1067,6 +1067,7 @@ const ProductListInner: React.FC = () => {
       />
       {aiDone && (
         <div
+          className="zhul-card"
           role="status"
           style={{
             display: 'flex',
@@ -1074,9 +1075,6 @@ const ProductListInner: React.FC = () => {
             gap: 12,
             padding: '12px 16px',
             marginBottom: 16,
-            borderRadius: 12,
-            background: palette.card,
-            border: `1px solid ${palette.hairline}`,
           }}
         >
           <Check size="1em" style={{ color: palette.green }} />

@@ -361,10 +361,8 @@ export const PoolTab: React.FC<{ onCount?: (n: number) => void }> = ({
         <div style={{ color: palette.red }}>{error}</div>
       ) : (
         <div
+          className="zhul-card"
           style={{
-            background: palette.card,
-            borderRadius: 16,
-            border: `1px solid ${palette.hairline}`,
             overflow: 'hidden',
           }}
         >

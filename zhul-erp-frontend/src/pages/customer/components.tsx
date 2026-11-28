@@ -70,11 +70,9 @@ export const SectionCard: React.FC<{
   const id = `customer-section-${title}`;
   return (
     <section
+      className="zhul-card"
       aria-labelledby={id}
       style={{
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
-        borderRadius: 16,
         padding: '20px 24px',
         marginBottom: 20,
       }}

@@ -429,7 +429,7 @@ export const RfmModal: React.FC<{
                 <span className="num">
                   {formatAmount(v, 'USD')}
                   {r.currencyCode !== 'USD' && data.usdRate && (
-                    <div style={{ fontSize: 11, color: palette.mute }}>
+                    <div style={{ fontSize: 12, color: palette.mute }}>
                       {formatAmount(r.amountCny, 'CNY')} ÷ {data.usdRate}
                     </div>
                   )}
@@ -510,11 +510,9 @@ const GradeCard: React.FC<{
   const dealt = g.finalGrade > 0;
   return (
     <section
+      className="zhul-card"
       aria-label="经营等级"
       style={{
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
-        borderRadius: 16,
         padding: '14px 20px',
         marginBottom: 16,
       }}
