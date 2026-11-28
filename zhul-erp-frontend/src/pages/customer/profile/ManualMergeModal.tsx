@@ -1,10 +1,8 @@
-import {
-  CheckCircleFilled,
-  InfoCircleOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
 import { Button, Input, Modal, Skeleton } from 'antd';
+import { CircleCheck, Info, Search } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { HelpTip } from '@/components/ListLayout';
+import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
 import { liveRequests } from '@/utils/liveRequests';
 import { Pill } from '../components';
@@ -25,6 +23,8 @@ const ManualMergeModal: React.FC<{
   /** keepId：保留下来的客户（对调后可能不是当前客户） */
   onDone: (keepId: number) => void;
 }> = ({ open, customerId, onClose, onDone }) => {
+  // 国家按中文名显示（同 CountryText）；下拉选项是纯文字，用不了国旗组件
+  const { find: findCountry } = useCountries();
   const { palette } = useAppTheme();
   const [keyword, setKeyword] = useState('');
   const [data, setData] = useState<DupGroup>();
@@ -130,11 +130,11 @@ const ManualMergeModal: React.FC<{
               style={{
                 padding: 14,
                 borderRadius: 14,
-                border: `1px solid ${palette.accentLine}`,
+                border: `1px solid ${palette.primaryLine}`,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Pill tone="accent">当前客户</Pill>
+                <Pill tone="selected">当前客户</Pill>
                 <span
                   className="num"
                   style={{ fontSize: 12, color: palette.mute }}
@@ -156,8 +156,12 @@ const ManualMergeModal: React.FC<{
           <Input
             allowClear
             autoFocus
-            prefix={<SearchOutlined />}
-            placeholder="搜索客户名称、编号、联系人、邮箱、WhatsApp（至少 2 个字）"
+            prefix={<Search size="1em" />}
+            placeholder="客户名称、编号、联系人"
+            aria-label="搜索要合并的客户"
+            suffix={
+              <HelpTip title="可搜：客户名称、编号、联系人、邮箱、WhatsApp，至少输入 2 个字" />
+            }
             value={keyword}
             onChange={(e) => {
               setKeyword(e.target.value);
@@ -208,7 +212,7 @@ const ManualMergeModal: React.FC<{
                           i < candidates.length - 1
                             ? `1px solid ${palette.hairline}`
                             : 'none',
-                        background: sel ? palette.accentSoft : 'transparent',
+                        background: sel ? palette.primarySoft : 'transparent',
                         cursor: 'pointer',
                         textAlign: 'left',
                         color: palette.ink,
@@ -226,7 +230,7 @@ const ManualMergeModal: React.FC<{
                           lineHeight: 1,
                         }}
                       >
-                        {sel && <CheckCircleFilled />}
+                        {sel && <CircleCheck size="1em" />}
                       </span>
                       <span style={{ flex: 1, minWidth: 0 }}>
                         <span
@@ -250,7 +254,9 @@ const ManualMergeModal: React.FC<{
                         </span>
                         <span style={{ fontSize: 12, color: palette.mute }}>
                           {m.customerCode}
-                          {m.country ? ` · ${m.country}` : ''}
+                          {m.country
+                            ? ` · ${findCountry(m.country)?.nameZh ?? m.country}`
+                            : ''}
                         </span>
                       </span>
                       <span
@@ -274,8 +280,8 @@ const ManualMergeModal: React.FC<{
             </div>
           )}
           <div style={{ fontSize: 12, color: palette.mute }}>
-            <InfoCircleOutlined /> 只列出你数据范围内的客户，不含当前客户，最多
-            20 个。下一步先看合并预览，确认后才会合并。
+            <Info size="1em" /> 只列出你数据范围内的客户，不含当前客户，最多 20
+            个。下一步先看合并预览，确认后才会合并。
           </div>
         </div>
       </Modal>

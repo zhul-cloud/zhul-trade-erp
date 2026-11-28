@@ -1,9 +1,3 @@
-import {
-  ClockCircleOutlined,
-  EnvironmentOutlined,
-  PlusOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -14,11 +8,21 @@ import {
   InputNumber,
   Modal,
   Select,
-  Space,
   Table,
 } from 'antd';
+import { Clock, Pencil, Plus, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Card, PageTitle } from '@/pages/inquiry/shared/components';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { Card } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { CARRIERS } from '@/pages/purchase/shipments/ShipmentDrawer';
@@ -34,9 +38,9 @@ import { tableScrollX } from '@/utils/tableScroll';
 type Editing = Partial<TransitTime> & { open: true };
 
 const TransitTimes: React.FC = () => {
-  const pager = usePagination(50);
+  const pager = usePagination(20);
   const { palette } = useAppTheme();
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
   const access = useAccess();
   const canEdit = !!access['system:transit-time:edit'];
   const [carrier, setCarrier] = useState<string>();
@@ -77,8 +81,10 @@ const TransitTimes: React.FC = () => {
 
   const carriers = [...new Set(rows.map((r) => r.carrier))];
 
+  const confirmDanger = useConfirmDanger();
   const columns: TableColumnsType<TransitTime> = [
     {
+      fixed: 'left',
       title: '快递公司',
       dataIndex: 'carrier',
       width: 140,
@@ -108,56 +114,65 @@ const TransitTimes: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 110,
       fixed: 'right',
-      render: (_, r) =>
-        canEdit ? (
-          <Space size={12}>
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setEditing({ ...r, open: true })}
-            >
-              编辑
-            </button>
-            <button
-              type="button"
-              className="zhul-link"
-              style={{ color: palette.red }}
-              onClick={() =>
-                modal.confirm({
-                  title: `删除「${r.carrier} · ${r.originProvince || '默认'}」？`,
-                  content: '删除后按快递公司默认或默认运输天数估算。',
-                  okText: '删除',
-                  okButtonProps: { danger: true },
-                  onOk: async () => {
-                    try {
-                      await transitApi.remove(r.id);
-                      message.success('已删除');
-                      load();
-                    } catch (e) {
-                      message.error(readBizError(e).message);
-                    }
-                  },
-                })
-              }
-            >
-              删除
-            </button>
-          </Space>
-        ) : null,
+      // 编辑放行内，删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(2),
+      render: (_, r) => (
+        <RowActions
+          inline={[
+            canEdit && {
+              key: 'edit',
+              label: '编辑',
+              icon: <Pencil size={18} />,
+              onClick: () => setEditing({ ...r, open: true }),
+            },
+          ]}
+          more={[
+            canEdit && {
+              key: 'delete',
+              label: '删除',
+              icon: <Trash2 size={16} />,
+              danger: true,
+            },
+          ]}
+          onMore={() =>
+            confirmDanger({
+              title: `删除「${r.carrier} · ${r.originProvince || '默认'}」？`,
+              content: '删除后按快递公司默认或默认运输天数估算。',
+              onOk: async () => {
+                try {
+                  await transitApi.remove(r.id);
+                  message.success('已删除');
+                  load();
+                } catch (e) {
+                  message.error(readBizError(e).message);
+                }
+              },
+            })
+          }
+        />
+      ),
     },
   ];
+  const columnsSet = useColumnSettings('system-transit-times', columns);
 
   return (
     <div>
-      <PageTitle
-        description="货从供应商所在省份发到福州仓库要几天；登记发货时按这里估算预计到货日期。"
-        actions={
+      <PageHeader
+        help={
+          <>
+            货从供应商所在省份发到福州仓库要几天；登记发货时按这里估算预计到货日期。
+            <div style={{ marginTop: 4 }}>
+              估算顺序：① 快递公司 + 发货省份 → ② 快递公司默认 → ③
+              默认运输天数。发货省份取供应商资料的「地区」；线上店铺没有地址，按快递公司默认。
+            </div>
+          </>
+        }
+        extra={
           canEdit && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => setEditing({ open: true, days: 3 })}
             >
               新增规则
@@ -165,17 +180,11 @@ const TransitTimes: React.FC = () => {
           )
         }
       />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-          gap: 16,
-          marginBottom: 16,
-        }}
-      >
+      {/* 列表页骨架（UI-117）：设置卡 → 搜索区 → 主卡；估算顺序的长说明收进页头帮助 */}
+      <div style={{ maxWidth: 560, marginBottom: 16 }}>
         <Card style={{ padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <ClockCircleOutlined style={{ color: palette.link }} />
+            <Clock size="1em" style={{ color: palette.link }} />
             <b style={{ color: palette.ink }}>默认运输天数</b>
             <span style={{ flex: 1 }} />
             <InputNumber
@@ -210,70 +219,60 @@ const TransitTimes: React.FC = () => {
             快递公司没有任何规则、或发货单没填快递公司时使用
           </div>
         </Card>
-        <Card style={{ padding: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <EnvironmentOutlined style={{ color: palette.link }} />
-            <b style={{ color: palette.ink }}>估算顺序</b>
-          </div>
-          <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-            ① 快递公司 + 发货省份 → ② 快递公司默认 → ③
-            默认运输天数。发货省份取供应商资料的「地区」；线上店铺没有地址，按快递公司默认。
-          </div>
-        </Card>
       </div>
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          marginBottom: 16,
+      <FilterCard
+        onSearch={() =>
+          setQuery({ carrier, province: province.trim() || undefined })
+        }
+        onReset={() => {
+          setCarrier(undefined);
+          setProvince('');
+          setQuery({});
         }}
       >
-        <Select
-          allowClear
-          placeholder="全部快递公司"
-          value={carrier}
-          onChange={setCarrier}
-          options={carriers.map((c) => ({ value: c, label: c }))}
-          style={{ width: 160 }}
-          aria-label="快递公司"
-        />
-        <Input
-          allowClear
-          prefix={<SearchOutlined />}
-          value={province}
-          onChange={(e) => setProvince(e.target.value)}
-          onPressEnter={() =>
-            setQuery({ carrier, province: province.trim() || undefined })
-          }
-          placeholder="发货省份"
-          style={{ width: 200 }}
-          aria-label="发货省份"
-        />
-        <span style={{ flex: 1 }} />
-        <Button
-          type="primary"
-          onClick={() =>
-            setQuery({ carrier, province: province.trim() || undefined })
-          }
-        >
-          查询
-        </Button>
-      </div>
-      {error ? (
-        <ErrorHint message={error} onRetry={load} />
-      ) : (
-        <Table<TransitTime>
-          rowKey="id"
-          columns={columns}
-          dataSource={rows}
-          loading={loading}
-          scroll={{ x: tableScrollX(columns) }}
-          pagination={{ ...pager, showTotal: (t) => `共 ${t} 条` }}
-          locale={{ emptyText: '没有规则；估算时按默认运输天数' }}
-        />
-      )}
+        <FilterField label="快递公司">
+          <Select
+            allowClear
+            placeholder="全部"
+            value={carrier}
+            onChange={setCarrier}
+            options={carriers.map((c) => ({ value: c, label: c }))}
+            aria-label="快递公司"
+          />
+        </FilterField>
+        <FilterField label="发货省份">
+          <Input
+            allowClear
+            value={province}
+            onChange={(e) => setProvince(e.target.value)}
+            onPressEnter={() =>
+              setQuery({ carrier, province: province.trim() || undefined })
+            }
+            aria-label="发货省份"
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard
+        count={error ? undefined : rows.length}
+        loading={loading}
+        settings={columnsSet.settings}
+      >
+        {error ? (
+          <ErrorHint message={error} onRetry={load} />
+        ) : (
+          <Table<TransitTime>
+            rowKey="id"
+            columns={columnsSet.columns}
+            dataSource={rows}
+            loading={loading}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
+            pagination={pager}
+            locale={{
+              emptyText: tableEmpty('没有规则；估算时按默认运输天数', loading),
+            }}
+          />
+        )}
+      </MainCard>
       <RuleModal
         value={editing}
         onClose={() => setEditing(undefined)}

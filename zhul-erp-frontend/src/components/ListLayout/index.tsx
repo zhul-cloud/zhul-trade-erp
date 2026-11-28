@@ -1,20 +1,816 @@
-import { Button } from 'antd';
-import React from 'react';
-import { Card } from '@/pages/inquiry/shared/components';
+import {
+  Button,
+  Cascader,
+  DatePicker,
+  Dropdown,
+  Form,
+  Input,
+  InputNumber,
+  Popover,
+  Segmented,
+  Select,
+  Tabs,
+  Tooltip,
+  TreeSelect,
+} from 'antd';
+import dayjs from 'dayjs';
+import { Check, Ellipsis, Info, SlidersHorizontal, X } from 'lucide-react';
+import React, {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
+import { FilterResetContext } from '@/components/EmptyState';
 import { useAppTheme } from '@/theme/AppTheme';
+import { CARD_SHADOW } from '@/theme/palette';
+import { formatAmount } from '@/utils/format';
+import { useMenu } from '@/utils/menuName';
 
 /**
- * 单据列表骨架（openspec doc-list-unify，UI 规范「单据页统一规范 · 列表页骨架」）：
- * 搜索条件区（标签在上的网格，状态放这里的下拉）+ 主内容区（操作行、表格、分页）。
+ * 页面骨架（openspec ui-redesign 设计第 3 节，UI 规范「列表页统一规范」）：
+ * 页头 PageHeader → 汇总行 SummaryBar → 搜索条件区 FilterCard（含更多筛选、快捷筛选）→ 主内容区 MainCard；
+ * 详情页的分区用 Section，口径说明用 HelpTip。用法见 ui-design-patterns.md「骨架组件」。
  */
 
-/** 搜索条件区的一项：标签在上、输入在下；关键词占两格 */
+/** 卡片：圆角 10；浅色柔和阴影不加边框，深色加边框不用阴影 */
+export const Panel: React.FC<{
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+  as?: 'section' | 'div';
+  'aria-label'?: string;
+  'data-zhul-filter'?: string;
+  onKeyDownCapture?: React.KeyboardEventHandler<HTMLElement>;
+}> = ({ children, style, as = 'section', ...rest }) => {
+  const { palette, mode } = useAppTheme();
+  const Tag = as;
+  return (
+    <Tag
+      {...rest}
+      style={{
+        background: palette.card,
+        borderRadius: 10,
+        boxShadow: mode === 'light' ? CARD_SHADOW : 'none',
+        border: mode === 'light' ? 'none' : `1px solid ${palette.hairline}`,
+        ...style,
+      }}
+    >
+      {children}
+    </Tag>
+  );
+};
+
+/** 帮助图标：口径、匹配规则等背景知识；只在鼠标悬停时显示（按用户决定豁免可见焦点要求） */
+export const HelpTip: React.FC<{
+  title: React.ReactNode;
+  /** 读屏用的文字：title 不是纯文字时写上，否则读屏只能读到「说明」 */
+  label?: string;
+}> = ({ title, label }) => {
+  const { palette } = useAppTheme();
+  return (
+    <Tooltip title={title}>
+      <span
+        role="img"
+        aria-label={label ?? (typeof title === 'string' ? title : '说明')}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          color: palette.mute,
+          cursor: 'help',
+        }}
+      >
+        <Info size={14} />
+      </span>
+    </Tooltip>
+  );
+};
+
+/**
+ * 操作行左侧勾选后的「已选 N 条 · 取消选择」（ui-design-patterns「操作行」：勾选后结果数变为已选数，批量操作随勾选出现在右侧）。
+ * extra 放在已选数与取消选择之间，写勾选内容的补充说明（如出库单的客户 · 货代）。
+ */
+export const SelectionCount: React.FC<{
+  count: number;
+  /** 量词，默认「条」 */
+  unit?: string;
+  extra?: React.ReactNode;
+  onClear: () => void;
+}> = ({ count, unit = '条', extra, onClear }) => {
+  const { palette } = useAppTheme();
+  return (
+    <>
+      <b style={{ color: palette.ink }}>
+        已选 <span className="num">{count}</span> {unit}
+      </b>
+      {extra}
+      <button type="button" className="zhul-link" onClick={onClear}>
+        取消选择
+      </button>
+    </>
+  );
+};
+
+/** 表头文字 + 帮助图标；点帮助图标不触发表头排序（排序列另设 showSorterTooltip: { target: 'sorter-icon' }） */
+export const HeadHelp: React.FC<{ title: string; help: React.ReactNode }> = ({
+  title,
+  help,
+}) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+    {title}
+    {/* 只拦截冒泡：点帮助图标不排序；图标本身靠悬停 */}
+    <span onClick={(e) => e.stopPropagation()}>
+      <HelpTip title={help} />
+    </span>
+  </span>
+);
+
+/** 顶栏（吸顶，上边距 16 + 高 64）的下沿 */
+const TOP_BAR_BOTTOM = 80;
+/** 详情页头吸顶后的白卡高度，与顶栏之间留 8 */
+const STUCK_HEADER_HEIGHT = 56;
+/**
+ * 详情页头吸顶后的下沿：页面里另有吸顶元素（右侧汇总卡、长表格表头）时贴在它下面，
+ * 表格用 `sticky={STICKY_TABLE}`（ui-redesign S15、对比图 R24 方案 B）
+ */
+export const STUCK_HEADER_BOTTOM = TOP_BAR_BOTTOM + 8 + STUCK_HEADER_HEIGHT;
+/** 详情页长表格：表头贴在吸顶页头下面，横向滚动条贴在视口底部（不用滚到表格最下面才能左右拖） */
+export const STICKY_TABLE = {
+  offsetHeader: STUCK_HEADER_BOTTOM,
+  offsetScroll: 0,
+};
+
+/**
+ * 详情页头是否吸顶：页面超过两屏、页头滚到顶栏下面时为真。
+ * 只看本页头是否可见（标签页框架把不在前台的页面藏起来，藏起来时不算）
+ */
+const useStuckHeader = (enabled: boolean) => {
+  const box = useRef<HTMLDivElement>(null);
+  const [stuck, setStuck] = useState<number | null>(null);
+  useEffect(() => {
+    if (!enabled) return undefined;
+    // 页头在文档里的原始位置：没吸顶时随时更新；吸顶后它停在顶栏下，按这个位置和滚动距离判断何时放回
+    let natural = 0;
+    let height = 0;
+    let on = false;
+    const check = () => {
+      const b = box.current;
+      if (!b || b.offsetParent === null) return;
+      if (!on) {
+        natural = b.getBoundingClientRect().top + window.scrollY;
+        height = b.offsetHeight;
+      }
+      const long =
+        document.documentElement.scrollHeight > 2 * window.innerHeight;
+      // 原页头整个滚到顶栏下面（看不见）之后才吸顶
+      const next = long && natural + height - window.scrollY < TOP_BAR_BOTTOM;
+      if (next === on) return;
+      on = next;
+      // 吸顶时记下原来的高度，占位不变，下面的内容不跳
+      setStuck(next ? height : null);
+    };
+    check();
+    window.addEventListener('scroll', check, { passive: true });
+    window.addEventListener('resize', check);
+    return () => {
+      window.removeEventListener('scroll', check);
+      window.removeEventListener('resize', check);
+    };
+  }, [enabled]);
+  return { box, stuck };
+};
+
+/**
+ * 页头：左侧页面标题，右侧主操作（每个页头最多一个主按钮）。
+ * 列表页不用传 title：取当前页面在「菜单管理」里的名称。
+ * 详情页 title 为单号，tags 为状态标签（跟在单号后面，不算标题文字），sub 为标题下一行的副信息（客户 · 来源单号 · 负责人 · 创建时间）。
+ * 详情页（有 sub）超过两屏时，页头滚出屏幕后吸在顶栏下面，缩成 56 高的白卡：单号、状态、副信息（一行省略）和同一组操作
+ * （ui-redesign S15、对比图 R24 方案 B）。吸顶的是同一个页头，操作区不重复渲染，弹窗和按钮状态不受影响。
+ */
+export const PageHeader: React.FC<{
+  title?: React.ReactNode;
+  /** 页面口径或规则说明，放在标题旁的帮助图标里（页头不写说明文字） */
+  help?: React.ReactNode;
+  tags?: React.ReactNode;
+  sub?: React.ReactNode;
+  extra?: React.ReactNode;
+  /** 列表页的汇总指标（D69）：1–2 个写在标题同一行右侧，3 个及以上在页头下方成一张白卡分栏 */
+  summary?: SummaryItem[];
+}> = ({ title, help, tags, sub, extra, summary }) => {
+  const { palette, mode } = useAppTheme();
+  const menu = useMenu();
+  const { box, stuck } = useStuckHeader(!!sub);
+  const on = stuck !== null;
+  return (
+    <div
+      ref={box}
+      style={
+        on
+          ? {
+              // 吸顶：占位保持原高，白卡浮在上面；占位里白卡以外的部分不挡下面的点击
+              position: 'sticky',
+              top: TOP_BAR_BOTTOM,
+              zIndex: 18,
+              height: stuck,
+              marginBottom: 16,
+              pointerEvents: 'none',
+            }
+          : undefined
+      }
+    >
+      <div
+        style={
+          on
+            ? {
+                // 白卡上方 8 用页面底色挡住滚上来的内容
+                paddingTop: 8,
+                background: palette.canvas,
+                pointerEvents: 'auto',
+              }
+            : undefined
+        }
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: sub && !on ? 'flex-start' : 'center',
+            justifyContent: 'space-between',
+            gap: 16,
+            marginBottom: on ? 0 : sub ? 16 : 12,
+            minHeight: 36,
+            flexWrap: on ? 'nowrap' : 'wrap',
+            ...(on && {
+              height: STUCK_HEADER_HEIGHT,
+              padding: '0 20px',
+              borderRadius: 10,
+              background: palette.card,
+              boxShadow: mode === 'light' ? CARD_SHADOW : 'none',
+              border:
+                mode === 'light' ? 'none' : `1px solid ${palette.hairline}`,
+            }),
+          }}
+        >
+          <div
+            style={
+              on
+                ? {
+                    minWidth: 0,
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                  }
+                : { minWidth: 0 }
+            }
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                flexWrap: on ? 'nowrap' : 'wrap',
+                minHeight: 36,
+                flex: 'none',
+              }}
+            >
+              <h1
+                style={{
+                  margin: 0,
+                  fontSize: on ? 16 : 20,
+                  fontWeight: 600,
+                  color: palette.ink,
+                  minWidth: 0,
+                  whiteSpace: on ? 'nowrap' : undefined,
+                }}
+              >
+                {title ?? menu?.name}
+              </h1>
+              {help && <HelpTip title={help} />}
+              {tags}
+              {!on && summary && summary.length > 0 && summary.length <= 2 && (
+                <SummaryInline items={summary} style={{ marginLeft: 12 }} />
+              )}
+            </div>
+            {sub && (
+              <div
+                style={{
+                  marginTop: on ? 0 : 2,
+                  fontSize: 13,
+                  color: on ? palette.mute : palette.sub,
+                  ...(on && {
+                    minWidth: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }),
+                }}
+              >
+                {sub}
+              </div>
+            )}
+          </div>
+          {extra && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                minHeight: 36,
+                flexWrap: on ? 'nowrap' : 'wrap',
+                flex: on ? 'none' : undefined,
+              }}
+            >
+              {extra}
+            </div>
+          )}
+        </div>
+        {!on && summary && summary.length >= 3 && (
+          <SummaryStrip items={summary} />
+        )}
+      </div>
+    </div>
+  );
+};
+
+export interface MoreAction {
+  key: string;
+  label: string;
+  icon?: React.ReactNode;
+  danger?: boolean;
+  /** 有值时菜单项置灰，原因写在名称下一行（置灰项收不到悬停和焦点，不能用 Tooltip） */
+  disabledReason?: React.ReactNode;
+}
+
+/** 「更多」菜单项：危险操作排在后面，前面还有普通操作时用分隔线隔开（ui-design-patterns「详情页头」）；详情页头与表格操作列共用 */
+export const moreMenuItems = (list: MoreAction[]) => {
+  const firstDanger = list.findIndex((a) => a.danger);
+  return list.flatMap((a, i) => [
+    ...(i > 0 && i === firstDanger ? [{ type: 'divider' as const }] : []),
+    {
+      key: a.key,
+      icon: a.icon,
+      danger: a.danger,
+      disabled: !!a.disabledReason,
+      label: a.disabledReason ? (
+        <span>
+          {a.label}
+          <span style={{ display: 'block', fontSize: 12 }}>
+            {a.disabledReason}
+          </span>
+        </span>
+      ) : (
+        a.label
+      ),
+    },
+  ]);
+};
+
+/**
+ * 详情页头的「更多」菜单：撤回、冲销、作废等危险或少用的操作收在这里（每个页头最多一个主按钮）。
+ * 没有可显示的操作时不渲染。
+ */
+export const MoreActions: React.FC<{
+  /** 可直接写 `条件 && { ... }`，假值会被略过 */
+  items: (MoreAction | false | null | undefined | '' | 0)[];
+  onClick: (key: string) => void;
+}> = ({ items, onClick }) => {
+  const list = items.filter(Boolean) as MoreAction[];
+  if (list.length === 0) return null;
+  const menuItems = moreMenuItems(list);
+  return (
+    <Dropdown
+      trigger={['click']}
+      placement="bottomRight"
+      menu={{
+        items: menuItems,
+        onClick: ({ key }) => onClick(key),
+      }}
+    >
+      <Button
+        type="text"
+        shape="circle"
+        icon={<Ellipsis size={18} />}
+        aria-label="更多操作"
+      />
+    </Dropdown>
+  );
+};
+
+export interface SummaryItem {
+  key?: string;
+  label: string;
+  /** 口径从名称看不出时写在这里，名称旁显示帮助图标 */
+  help?: React.ReactNode;
+  value: React.ReactNode;
+  /** 金额的币种：有币种时数值按 formatAmount 显示（如「CNY 386,420.00」） */
+  currency?: string;
+  /** 数字后面的一行副文字 */
+  sub?: React.ReactNode;
+  /** 旧参数：3 个及以上指标的副文字已收进帮助图标（R35），不再需要按宽度隐藏；保留以兼容调用 */
+  subHideable?: boolean;
+}
+
+const summaryKeyOf = (it: SummaryItem) => it.key ?? it.label;
+
+const summaryValue = (it: SummaryItem) =>
+  it.currency && (typeof it.value === 'number' || typeof it.value === 'string')
+    ? formatAmount(it.value, it.currency)
+    : it.value;
+
+/** 指标名称：次要色，口径写在帮助图标里 */
+const SummaryLabel: React.FC<{ it: SummaryItem; size: number }> = ({
+  it,
+  size,
+}) => {
+  const { palette } = useAppTheme();
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        fontSize: size,
+        color: palette.mute,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {it.label}
+      {it.help && <HelpTip title={it.help} />}
+    </span>
+  );
+};
+
+/**
+ * 1–2 个指标：写在页头标题同一行右侧，不另占一行（D69，对比图 R29 方案 B）。
+ * 名称次要色 13、数字 15 加粗；副文字跟在数字后面。
+ */
+const SummaryInline: React.FC<{
+  items: SummaryItem[];
+  style?: React.CSSProperties;
+}> = ({ items, style }) => {
+  const { palette } = useAppTheme();
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        columnGap: 20,
+        rowGap: 4,
+        ...style,
+      }}
+    >
+      {items.map((it) => (
+        <span
+          key={summaryKeyOf(it)}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+        >
+          <SummaryLabel it={it} size={13} />
+          <span
+            className="num"
+            style={{
+              fontSize: 16,
+              fontWeight: 600,
+              color: palette.ink,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {summaryValue(it)}
+          </span>
+          {it.sub && (
+            <span
+              className="num"
+              style={{
+                fontSize: 12,
+                color: palette.mute,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {it.sub}
+            </span>
+          )}
+        </span>
+      ))}
+    </div>
+  );
+};
+
+/**
+ * 3 个及以上指标：一张白卡，等宽分栏、竖线分隔（D69）。每栏一行「名称 + 数值」，数值 16/600；
+ * 副文字和口径一起收进名称旁的帮助图标（对比图 R35 方案 B，UI-117）：卡高 52，1366×768 下列表首屏 5 行。
+ */
+const SummaryStrip: React.FC<{ items: SummaryItem[] }> = ({ items }) => {
+  const { palette } = useAppTheme();
+  return (
+    <Panel
+      as="section"
+      aria-label="汇总"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`,
+        padding: '14px 0',
+        marginBottom: 16,
+      }}
+    >
+      {items.map((it, i) => {
+        const tip =
+          it.help && it.sub ? (
+            <>
+              {it.help}
+              <div style={{ marginTop: 4 }}>{it.sub}</div>
+            </>
+          ) : (
+            (it.help ?? it.sub)
+          );
+        return (
+          <div
+            key={summaryKeyOf(it)}
+            style={{
+              minWidth: 0,
+              padding: '0 20px',
+              borderLeft: i ? `1px solid ${palette.hairline}` : undefined,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                minWidth: 0,
+                fontSize: 13,
+                color: palette.mute,
+              }}
+            >
+              <span
+                style={{
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {it.label}
+              </span>
+              {tip && (
+                <HelpTip
+                  title={tip}
+                  // 口径和副文字合在一起时，读屏也能读到两段
+                  label={
+                    [it.help, it.sub]
+                      .filter(
+                        (x) => typeof x === 'string' || typeof x === 'number',
+                      )
+                      .join('；') || undefined
+                  }
+                />
+              )}
+            </span>
+            <span
+              className="num"
+              style={{
+                flex: 'none',
+                fontSize: 16,
+                fontWeight: 600,
+                lineHeight: '24px',
+                color: palette.ink,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {summaryValue(it)}
+            </span>
+          </div>
+        );
+      })}
+    </Panel>
+  );
+};
+
+/**
+ * 汇总行（D69，对比图 R29 方案 B）。列表页的页头指标优先写在 PageHeader 的 summary 里（1–2 个进标题行，3 个及以上在页头下方成白卡）；
+ * 页签、面板里的统计区用本组件：3 个及以上为白卡分栏，1–2 个为一行紧凑指标。
+ */
+export const SummaryBar: React.FC<{ items: SummaryItem[] }> = ({ items }) =>
+  items.length >= 3 ? (
+    <SummaryStrip items={items} />
+  ) : (
+    <SummaryInline items={items} style={{ marginBottom: 16 }} />
+  );
+
+/** 搜索条件区排成一行（line，默认）还是网格（grid，标签在上） */
+const FilterLayoutContext = React.createContext<'line' | 'grid'>('grid');
+
+/** 支持 prefix 的 antd 输入控件：名称放进框内作前缀 */
+const PREFIXABLE = new Set<unknown>([
+  Select,
+  Input,
+  InputNumber,
+  DatePicker,
+  DatePicker.RangePicker,
+  Cascader,
+  TreeSelect,
+]);
+
+/** 穿过 Form.Item 找到真正的输入控件 */
+const controlOf = (node: React.ReactNode): React.ReactElement | undefined => {
+  if (!React.isValidElement(node)) return undefined;
+  if (node.type === Form.Item) {
+    return controlOf((node.props as { children?: React.ReactNode }).children);
+  }
+  return node;
+};
+
+/** 两段文字有没有相同的两个字以上（「主要联系人」和「联系人姓名」） */
+const overlaps = (a: string, b: string) => {
+  for (let i = 0; i + 2 <= a.length; i += 1) {
+    if (b.includes(a.slice(i, i + 2))) return true;
+  }
+  return false;
+};
+
+/**
+ * 文本框的提示在名称作前缀后：和名称重复（「客户编码 客户编码」）或写「全部」（看着像下拉）时去掉，
+ * 只留不重复的说明（如关键词的搜索范围、格式示例）。
+ */
+const textPlaceholder = (placeholder: unknown, label: string) =>
+  typeof placeholder === 'string' &&
+  (placeholder === '全部' || overlaps(placeholder, label))
+    ? undefined
+    : placeholder;
+
+/**
+ * 把名称作为前缀放进输入框（ui-redesign D22「订单状态 全部 ▾」）：穿过 Form.Item 找到控件；
+ * 控件不支持前缀时返回 undefined，由调用方把名称放在框外。
+ */
+const withPrefix = (
+  node: React.ReactNode,
+  prefix: React.ReactNode,
+  label = '',
+): React.ReactNode | undefined => {
+  if (!React.isValidElement(node)) return undefined;
+  if (node.type === Form.Item) {
+    const inner = withPrefix(
+      (node.props as { children?: React.ReactNode }).children,
+      prefix,
+      label,
+    );
+    return inner === undefined
+      ? undefined
+      : React.cloneElement(node, {}, inner);
+  }
+  // 自定义选择器（如供应商搜索）把 prefix 转给内部的 Select 时，加 filterPrefix 标记即可同样放名称
+  if (
+    !PREFIXABLE.has(node.type) &&
+    !(node.type as { filterPrefix?: boolean }).filterPrefix
+  )
+    return undefined;
+  const text = node.type === Input || node.type === Input.Search;
+  return React.cloneElement(
+    node as React.ReactElement<{
+      prefix?: React.ReactNode;
+      suffixIcon?: React.ReactNode;
+      placeholder?: unknown;
+    }>,
+    // 日期范围去掉日历图标：两个日期加箭头已看得出是日期，省出位置不截断日期
+    node.type === DatePicker.RangePicker
+      ? { prefix, suffixIcon: null }
+      : text
+        ? {
+            prefix,
+            placeholder: textPlaceholder(
+              (node.props as { placeholder?: unknown }).placeholder,
+              label,
+            ),
+          }
+        : { prefix },
+  );
+};
+
+/** 文本框内右侧放帮助图标（穿过 Form.Item）；不是文本框时返回 undefined */
+const withSuffix = (
+  node: React.ReactNode,
+  help: React.ReactNode,
+): React.ReactNode | undefined => {
+  if (!React.isValidElement(node)) return undefined;
+  if (node.type === Form.Item) {
+    const inner = withSuffix(
+      (node.props as { children?: React.ReactNode }).children,
+      help,
+    );
+    return inner === undefined
+      ? undefined
+      : React.cloneElement(node, {}, inner);
+  }
+  if (
+    node.type !== Input ||
+    (node.props as { suffix?: React.ReactNode }).suffix !== undefined
+  )
+    return undefined;
+  return React.cloneElement(
+    node as React.ReactElement<{ suffix?: React.ReactNode }>,
+    { suffix: <HelpTip title={help} /> },
+  );
+};
+
+/**
+ * 搜索条件区的一项。一行模式（默认）：名称放进输入框作前缀，关键词占两格；控件不支持前缀时名称在框左侧。
+ * 网格模式：名称在上、输入在下。名称旁可放帮助图标。
+ */
 export const FilterField: React.FC<{
   label: string;
-  span?: 1 | 2;
+  /** auto：按内容宽度（如统计期间的快捷期间加日期范围） */
+  span?: 1 | 2 | 'auto';
+  help?: React.ReactNode;
+  /** 输入框的 id：标签与它关联（没有 aria-label 的输入，如日期范围，靠它读出名称） */
+  htmlFor?: string;
   children: React.ReactNode;
-}> = ({ label, span = 1, children }) => {
+}> = ({ label, span = 1, help, htmlFor, children }) => {
   const { palette } = useAppTheme();
+  const layout = React.useContext(FilterLayoutContext);
+  const name = (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        fontSize: layout === 'line' ? 14 : 13,
+        fontWeight: 400,
+        color: layout === 'line' ? palette.mute : palette.sub,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {htmlFor ? <label htmlFor={htmlFor}>{label}</label> : label}
+      {help && <HelpTip title={help} />}
+    </span>
+  );
+  if (layout === 'line') {
+    // 日期范围放进名称后至少 300 宽，两个日期不截断；带时间（showTime）的两端各多 8 个字符，至少 440（UI-117）
+    const control = controlOf(children);
+    const range = control?.type === DatePicker.RangePicker;
+    const timed =
+      range && !!(control?.props as { showTime?: unknown }).showTime;
+    const min =
+      span === 'auto'
+        ? undefined
+        : timed
+          ? 440
+          : range
+            ? 300
+            : span === 2
+              ? 220
+              : 140;
+    // 控件自带前缀（关键词的搜索图标）：不放名称（提示文字已说明），帮助图标放在框右侧
+    const own =
+      (controlOf(children)?.props as { prefix?: React.ReactNode } | undefined)
+        ?.prefix !== undefined;
+    const prefixed = own
+      ? undefined
+      : withPrefix(
+          React.Children.only(children),
+          <span style={{ marginInlineEnd: 4 }}>{name}</span>,
+          label,
+        );
+    // 自带前缀的文本框（关键词）：帮助图标放进框内右侧，不夹在两个输入框之间
+    const withHelp =
+      own && help ? withSuffix(React.Children.only(children), help) : undefined;
+    return (
+      <div
+        style={{
+          // 关键词占两格（220–360），日期范围 300–360，其余 140–220；auto 按内容
+          // 能换行的弹性布局里，项目按基准宽度先换行、不会先收窄：基准取最小宽度，放得下就排一行再均分余量
+          flex: span === 'auto' ? '0 0 auto' : `1 1 ${min}px`,
+          minWidth: min,
+          maxWidth:
+            span === 'auto'
+              ? undefined
+              : timed
+                ? 480
+                : span === 2 || range
+                  ? 360
+                  : 220,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        {prefixed === undefined && !own && name}
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {prefixed ?? withHelp ?? children}
+        </div>
+        {own && help && withHelp === undefined && <HelpTip title={help} />}
+      </div>
+    );
+  }
   return (
     <div
       style={{
@@ -25,62 +821,865 @@ export const FilterField: React.FC<{
         minWidth: 0,
       }}
     >
-      <span style={{ fontSize: 12, color: palette.mute }}>{label}</span>
+      {name}
       {children}
     </div>
   );
 };
 
-/** 搜索条件区：筛选项网格，「重置」「查询」靠右 */
-export const FilterCard: React.FC<{
-  children: React.ReactNode;
-  onSearch: () => void;
-  onReset: () => void;
-}> = ({ children, onSearch, onReset }) => (
-  <Card style={{ marginBottom: 16, padding: 20 }}>
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
-        gap: 12,
-        alignItems: 'end',
-      }}
-    >
-      {children}
-      <div
-        style={{
-          gridColumn: '-2 / -1',
-          display: 'flex',
-          gap: 8,
-          justifyContent: 'flex-end',
-        }}
-      >
-        <Button onClick={onReset}>重置</Button>
-        <Button type="primary" onClick={onSearch}>
-          查询
-        </Button>
-      </div>
-    </div>
-  </Card>
-);
+export interface QuickFilterOption {
+  value: string;
+  label: React.ReactNode;
+  /**
+   * 数量：写在名称后，等宽加粗，各页不再自己拼「名称 · 数量」；为 0 或没有时不显示。
+   * 可以是复合值（如应收「CNY 1,200.00 · 3 张」）
+   */
+  count?: React.ReactNode;
+  /** 数量用错误色（逾期、缺货等需要处理的）：由调用方判断，数量为 0 时传 false */
+  danger?: boolean;
+}
 
-/** 主内容区：操作行（左：结果数或已选；右：主操作）+ 表格 */
-export const MainCard: React.FC<{
-  left?: React.ReactNode;
-  right?: React.ReactNode;
-  children: React.ReactNode;
-}> = ({ left, right, children }) => {
+/** 快捷筛选、单选选项共用的胶囊：未选中中性浅底，选中主题色浅底、加粗、前面加勾选 */
+const Chip: React.FC<
+  {
+    option: QuickFilterOption & { disabled?: boolean };
+    on: boolean;
+    onClick: () => void;
+  } & Pick<React.AriaAttributes, 'aria-pressed' | 'aria-checked'> & {
+      role?: string;
+    }
+> = ({ option: o, on, onClick, ...aria }) => {
   const { palette } = useAppTheme();
   return (
-    <Card style={{ padding: 16, minWidth: 0 }}>
-      {(left || right) && (
+    <button
+      type="button"
+      {...aria}
+      disabled={o.disabled}
+      onClick={onClick}
+      style={{
+        height: 28,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        padding: on ? '0 12px 0 8px' : '0 12px',
+        border: 0,
+        borderRadius: 999,
+        background: on ? palette.primarySoft : palette.neutralSoft,
+        color: palette.sub,
+        fontSize: 13,
+        fontWeight: on ? 600 : 400,
+        cursor: o.disabled ? 'not-allowed' : 'pointer',
+        opacity: o.disabled ? 0.5 : 1,
+      }}
+    >
+      {on && <Check size={14} aria-hidden style={{ color: palette.ink }} />}
+      {o.label}
+      {o.count != null && o.count !== 0 && o.count !== false && (
+        <>
+          {/* 读屏念「已逾期 3」而不是「已逾期3」 */}
+          <span className="zhul-sr-only"> </span>
+          <span
+            className="num"
+            style={{
+              marginLeft: 2,
+              fontWeight: 600,
+              color: o.danger ? palette.red : palette.ink,
+            }}
+          >
+            {o.count}
+          </span>
+        </>
+      )}
+    </button>
+  );
+};
+
+/**
+ * 单选选项（快捷日期、付款条件预设、分组切换等）：样式同快捷筛选，选中的再点不取消。
+ * 选中用主题色浅底，不用实底主按钮（一屏只有一个主按钮；主题色浅底只表示选中，D42）
+ */
+export const ChoiceChips: React.FC<{
+  options: (QuickFilterOption & { disabled?: boolean })[];
+  value?: string;
+  onChange: (value: string) => void;
+  label: string;
+  style?: React.CSSProperties;
+}> = ({ options, value, onChange, label, style }) => (
+  <div
+    role="radiogroup"
+    aria-label={label}
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      flexWrap: 'wrap',
+      minWidth: 0,
+      ...style,
+    }}
+  >
+    {options.map((o) => (
+      <Chip
+        key={o.value}
+        option={o}
+        on={value === o.value}
+        role="radio"
+        aria-checked={value === o.value}
+        onClick={() => onChange(o.value)}
+      />
+    ))}
+  </div>
+);
+
+/**
+ * 快捷筛选（参考站 Chips）：高 30、全圆角；未选中为中性浅底，选中为主题色浅底、主题色字、前面加勾选。
+ * 可多选，点一下选中、再点取消。
+ */
+export const QuickFilters: React.FC<{
+  options: QuickFilterOption[];
+  value: string[];
+  onChange: (value: string[]) => void;
+  label?: string;
+}> = ({ options, value, onChange, label = '快捷筛选' }) => {
+  const { palette } = useAppTheme();
+  return (
+    <fieldset
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        flexWrap: 'wrap',
+        border: 0,
+        margin: 0,
+        padding: 0,
+        minWidth: 0,
+      }}
+    >
+      <legend className="zhul-sr-only">{label}</legend>
+      <span
+        aria-hidden
+        className="zhul-quick-label"
+        style={{ fontSize: 13, color: palette.mute }}
+      >
+        {label}
+      </span>
+      {options.map((o) => {
+        const on = value.includes(o.value);
+        return (
+          <Chip
+            key={o.value}
+            option={o}
+            on={on}
+            aria-pressed={on}
+            onClick={() =>
+              onChange(
+                on ? value.filter((v) => v !== o.value) : [...value, o.value],
+              )
+            }
+          />
+        );
+      })}
+    </fieldset>
+  );
+};
+
+export interface ViewTabItem {
+  key: string;
+  label: string;
+  /** 数量：写成「名称 N」，为 0 或没有时只写名称；各页不再自己拼「名称 · N」或加徽标 */
+  count?: number;
+  children?: React.ReactNode;
+  forceRender?: boolean;
+}
+
+/**
+ * 视图页签（复审 S3，对比图 R27 方案 A）：看不同对象或视图（全部客户 / 公海客户、退款单 / 退款申请）时用，
+ * 放在页头下方。按状态过滤用搜索区的状态下拉，切换数据范围用 ScopeSwitch，同一批数据换分组用主卡右侧的分段。
+ */
+export const ViewTabs: React.FC<{
+  items: ViewTabItem[];
+  activeKey: string;
+  onChange: (key: string) => void;
+  /** 有 children 时，切走的页签是否卸载（默认 antd 行为：保留） */
+  destroyOnHidden?: boolean;
+}> = ({ items, activeKey, onChange, destroyOnHidden }) => {
+  const { palette } = useAppTheme();
+  return (
+    <Tabs
+      className="zhul-view-tabs"
+      activeKey={activeKey}
+      onChange={onChange}
+      destroyOnHidden={destroyOnHidden}
+      items={items.map((i) => ({
+        key: i.key,
+        forceRender: i.forceRender,
+        children: i.children,
+        label: (
+          <span>
+            {i.label}
+            {!!i.count && (
+              <>
+                {/* 读屏念「待确认 5」 */}
+                <span className="zhul-sr-only"> </span>
+                <span
+                  className="num"
+                  style={{
+                    marginLeft: 4,
+                    color: i.key === activeKey ? undefined : palette.mute,
+                  }}
+                >
+                  {i.count}
+                </span>
+              </>
+            )}
+          </span>
+        ),
+      }))}
+    />
+  );
+};
+
+export type Scope = 'mine' | 'all';
+
+/**
+ * 数据范围切换（复审 S3，R27 方案 A）：统一放页头右侧（PageHeader 的 extra，主按钮之前），统一叫「我的 / 全部」。
+ */
+export const ScopeSwitch: React.FC<{
+  value: Scope;
+  onChange: (value: Scope) => void;
+}> = ({ value, onChange }) => (
+  <Segmented<Scope>
+    value={value}
+    onChange={onChange}
+    aria-label="数据范围"
+    options={[
+      { value: 'mine', label: '我的' },
+      { value: 'all', label: '全部' },
+    ]}
+  />
+);
+
+/**
+ * 「更多筛选」里已生效条件的胶囊：搜索条件区算出来，交给紧挨着它下面的主卡显示。
+ * 按搜索条件区的实例区分（不按页面路径），同一页多个页签、同一路径开了两个标签时互不串。
+ */
+const chipStore = new Map<string, FilterChipItem[]>();
+/** 搜索区的「重置」，同样按实例登记：主卡里的「无结果」空状态用它给「清空筛选」（UI-117） */
+const resetStore = new Map<string, () => void>();
+const chipListeners = new Set<() => void>();
+const publishChips = (id: string, chips: FilterChipItem[]) => {
+  const prev = chipStore.get(id) ?? [];
+  const key = (list: FilterChipItem[]) =>
+    list.map((c) => `${c.key}=${String(c.label)}`).join('|');
+  if (key(prev) === key(chips)) return;
+  if (chips.length) chipStore.set(id, chips);
+  else chipStore.delete(id);
+  for (const l of chipListeners) l();
+};
+const useAutoChips = (id?: string) =>
+  useSyncExternalStore(
+    (l) => {
+      chipListeners.add(l);
+      return () => {
+        chipListeners.delete(l);
+      };
+    },
+    () => (id ? chipStore.get(id) : undefined),
+    () => undefined,
+  );
+
+/**
+ * 搜索区找紧挨在它前面的视图页签（D72，对比图 R31 方案 B）：自己是第一个子元素时往上一层再看，最多 6 层；
+ * 页签自带内容区时，跳过其他页签面板，找到页签栏。中间隔着别的元素（汇总、提示条）就不算。
+ */
+const findViewTabsAbove = (from: Element | null): Element | null => {
+  let cur: Element | null = from;
+  for (let level = 0; cur && level < 6; level += 1) {
+    let prev = cur.previousElementSibling;
+    while (prev?.classList.contains('ant-tabs-tabpane'))
+      prev = prev.previousElementSibling;
+    if (prev) {
+      if (prev.classList.contains('zhul-view-tabs')) return prev;
+      if (
+        prev.classList.contains('ant-tabs-nav') &&
+        prev.parentElement?.classList.contains('zhul-view-tabs')
+      )
+        return prev.parentElement;
+      return null;
+    }
+    cur = cur.parentElement;
+  }
+  return null;
+};
+
+/** 一组页签可能被多个搜索区（各页签面板里各一个）拼接：按引用计数，最后一个离开才去掉 data-attached */
+const attachCount = new WeakMap<Element, number>();
+const attachTabs = (tabs: Element, delta: 1 | -1) => {
+  const n = (attachCount.get(tabs) ?? 0) + delta;
+  if (n > 0) {
+    attachCount.set(tabs, n);
+    tabs.setAttribute('data-attached', '');
+  } else {
+    attachCount.delete(tabs);
+    tabs.removeAttribute('data-attached');
+  }
+};
+
+/**
+ * 主卡找它上面的搜索条件区：同级的前面几个元素（或其中包含的），最多往上找 3 层；
+ * 到页签面板就停，别的页签里的搜索条件区不算。
+ */
+const findFilterId = (from: Element | null): string | undefined => {
+  let cur: Element | null = from;
+  for (let level = 0; cur && level < 3; level += 1) {
+    for (
+      let sib = cur.previousElementSibling;
+      sib;
+      sib = sib.previousElementSibling
+    ) {
+      if (sib.classList.contains('ant-tabs')) continue;
+      const hit = sib.matches('[data-zhul-filter]')
+        ? sib
+        : sib.querySelector('[data-zhul-filter]');
+      if (hit) return hit.getAttribute('data-zhul-filter') ?? undefined;
+    }
+    if (cur.classList.contains('ant-tabs-tabpane')) return undefined;
+    cur = cur.parentElement;
+  }
+  return undefined;
+};
+
+interface MoreField {
+  label: string;
+  /** Form.Item 的字段名（受控于表单）；没有时值和 onChange 在控件自己身上 */
+  name?: unknown;
+  control: React.ReactElement;
+}
+
+/** 能显示成胶囊的控件；自定义控件（供应商选择、数量区间等）拿不到显示名称，不出胶囊 */
+const CHIP_CONTROLS = new Set<unknown>([
+  Select,
+  DatePicker,
+  DatePicker.RangePicker,
+  Input,
+  Input.Search,
+  InputNumber,
+  Cascader,
+  TreeSelect,
+]);
+const TEXT_INPUTS = new Set<unknown>([Input, Input.Search]);
+
+/** 找出「更多筛选」里的每一项：名称、表单字段名、控件 */
+const collectFields = (node: React.ReactNode, out: MoreField[] = []) => {
+  React.Children.forEach(node, (child) => {
+    if (!React.isValidElement(child)) return;
+    const props = child.props as {
+      label?: string;
+      children?: React.ReactNode;
+      name?: unknown;
+    };
+    if (child.type === FilterField) {
+      const inner = React.Children.toArray(props.children)[0];
+      const control = controlOf(inner);
+      if (!control) return;
+      const name =
+        React.isValidElement(inner) && inner.type === Form.Item
+          ? (inner.props as { name?: unknown }).name
+          : undefined;
+      out.push({ label: props.label ?? '', name, control });
+      return;
+    }
+    collectFields(props.children, out);
+  });
+  return out;
+};
+
+/** 条件值的显示文字：下拉取选项名称，日期按天，其余转文字；自定义控件、选项里找不到的值不显示胶囊 */
+const displayOf = (control: React.ReactElement, value: unknown): string => {
+  if (!CHIP_CONTROLS.has(control.type)) return '';
+  if (value === undefined || value === null || value === '') return '';
+  if (Array.isArray(value) && value.length === 0) return '';
+  const props = control.props as {
+    options?: { value?: unknown; label?: React.ReactNode }[];
+  };
+  const one = (v: unknown): string => {
+    if (dayjs.isDayjs(v)) return v.format('YYYY-MM-DD');
+    // 地址栏带来的值是字符串、选项是数字时也认
+    const opt =
+      props.options?.find((o) => o.value === v) ??
+      props.options?.find((o) => String(o.value) === String(v));
+    if (opt && typeof opt.label === 'string')
+      return opt.label.replace(/ · \d+$/, '');
+    if (props.options) return '';
+    if (typeof v === 'string' || typeof v === 'number') return String(v);
+    return '';
+  };
+  if (Array.isArray(value)) {
+    const parts = value.map(one);
+    if (parts.some((x) => !x)) return '';
+    return control.type === DatePicker.RangePicker
+      ? parts.join(' ~ ')
+      : parts.join('、');
+  }
+  return one(value);
+};
+
+type FormInstance = ReturnType<typeof Form.useFormInstance>;
+
+const fieldValue = (f: MoreField, form?: FormInstance) =>
+  f.name !== undefined && form
+    ? form.getFieldValue(f.name as string)
+    : (f.control.props as { value?: unknown }).value;
+
+/**
+ * 算出「更多筛选」里已生效条件的胶囊（S16）。只显示最近一次查询用的条件：
+ * 点「查询」、在条件里回车、打开页面时记下当时的值；在更多筛选里改了没查询，不出胶囊。
+ * 表单页去掉后清空字段并立即查询；受控页调控件的 onChange（文本框传空的输入事件），等页面用新值重渲染后再查询。
+ * 去掉时一律读最新一次渲染的控件和查询函数，不用旧闭包里的条件。
+ */
+const useMoreChips = (
+  id: string,
+  more: React.ReactNode,
+  open: boolean,
+  onSearch?: () => void,
+) => {
+  const form = Form.useFormInstance() as FormInstance | undefined;
+  const fields = more ? collectFields(more) : [];
+  // 订阅表单值：没有表单时传空，不会报警告
+  Form.useWatch([], form);
+  const latest = useRef({ fields, form, onSearch });
+  latest.current = { fields, form, onSearch };
+  const [applied, setApplied] = useState<Record<string, unknown>>({});
+  const snap = useCallback(
+    () =>
+      setApplied(
+        Object.fromEntries(
+          latest.current.fields.map((f) => [
+            f.label,
+            fieldValue(f, latest.current.form),
+          ]),
+        ),
+      ),
+    [],
+  );
+  const clear = useCallback(() => setApplied({}), []);
+  // 打开页面时地址栏、默认值带进来的条件算已生效
+  useEffect(snap, []);
+  const [pending, setPending] = useState(false);
+  useEffect(() => {
+    if (!pending) return;
+    setPending(false);
+    latest.current.onSearch?.();
+  }, [pending]);
+  const remove = useCallback((label: string) => {
+    const { fields: fs, form: fm, onSearch: search } = latest.current;
+    const f = fs.find((x) => x.label === label);
+    setApplied((a) => ({ ...a, [label]: undefined }));
+    if (!f) return;
+    if (f.name !== undefined && fm) {
+      fm.setFieldValue(f.name as string, undefined);
+      search?.();
+      return;
+    }
+    const change = (f.control.props as { onChange?: (v: unknown) => void })
+      .onChange;
+    change?.(
+      TEXT_INPUTS.has(f.control.type) ? { target: { value: '' } } : undefined,
+    );
+    setPending(true);
+  }, []);
+  const chips: FilterChipItem[] = open
+    ? []
+    : fields.flatMap((f) => {
+        const text = displayOf(f.control, applied[f.label]);
+        if (!text) return [];
+        return [
+          {
+            key: f.label,
+            label: `${f.label}：${text}`,
+            onRemove: () => remove(f.label),
+          },
+        ];
+      });
+  useEffect(() => {
+    publishChips(id, chips);
+  });
+  useEffect(() => () => publishChips(id, []), [id]);
+  return { snap, clear };
+};
+
+/**
+ * 搜索条件区（ui-redesign D22）：默认排成一行——常用条件的名称在输入框内作前缀，右侧「更多筛选」「重置」「查询」；
+ * 放不下时自动换行。more 为收起来的其余条件，按钮显示生效数量 moreCount；
+ * quick 为快捷筛选：应放到主卡操作行（MainCard 的 quick），这里只为还没迁的页面保留。
+ * 统计页的条件选了就生效，不传 onSearch、onReset，不显示「重置」「查询」。layout="grid" 为名称在上的网格（条件多、需要逐项说明的统计页）。
+ */
+export const FilterCard: React.FC<{
+  children: React.ReactNode;
+  onSearch?: () => void;
+  onReset?: () => void;
+  more?: React.ReactNode;
+  moreCount?: number;
+  quick?: React.ReactNode;
+  layout?: 'line' | 'grid';
+  /** 网格模式的最小列宽，默认 170 */
+  minColumn?: number;
+}> = ({
+  children,
+  onSearch,
+  onReset,
+  more,
+  moreCount = 0,
+  quick,
+  layout = 'line',
+  minColumn = 170,
+}) => {
+  const { palette } = useAppTheme();
+  const [open, setOpen] = useState(false);
+  const moreId = useId();
+  const filterId = useId();
+  // 紧挨在视图页签后面时，和页签拼成一张卡：页签做卡头（D72）
+  const [attached, setAttached] = useState(false);
+  // 每次渲染都重判：页签晚于搜索区出现、或中间后来插进提示条时跟着变（没有依赖数组是有意的）
+  useLayoutEffect(() => {
+    // useId 的值不含引号，放在带引号的属性选择器里不用转义（测试环境 jsdom 没有 CSS.escape）
+    const el = document.querySelector(`[data-zhul-filter="${filterId}"]`);
+    const tabs = findViewTabsAbove(el);
+    setAttached(!!tabs);
+    if (!tabs) return undefined;
+    attachTabs(tabs, 1);
+    return () => attachTabs(tabs, -1);
+  });
+  const line = layout === 'line';
+  const { snap, clear } = useMoreChips(filterId, more, open, onSearch);
+  const search =
+    onSearch &&
+    (() => {
+      snap();
+      onSearch();
+    });
+  const reset =
+    onReset &&
+    (() => {
+      clear();
+      onReset();
+    });
+  const resetRef = useRef(reset);
+  resetRef.current = reset;
+  const canReset = !!onReset;
+  useEffect(() => {
+    if (!canReset) return undefined;
+    resetStore.set(filterId, () => resetRef.current?.());
+    return () => {
+      resetStore.delete(filterId);
+    };
+  }, [filterId, canReset]);
+  const buttons = (
+    <div
+      style={{
+        flex: 'none',
+        display: 'flex',
+        gap: 8,
+        alignItems: 'center',
+        minHeight: 40,
+      }}
+    >
+      {more && (
+        // 视口不到 1400 时只显示图标和生效数量（1366 下四个常用条件也排一行），悬停和读屏仍是「更多筛选」
+        <Tooltip title="更多筛选" placement="bottom">
+          <Button
+            type="text"
+            aria-label={moreCount > 0 ? `更多筛选 · ${moreCount}` : '更多筛选'}
+            aria-expanded={open}
+            aria-controls={moreId}
+            icon={<SlidersHorizontal size={16} />}
+            onClick={() => setOpen((v) => !v)}
+            style={{ color: palette.link, paddingInline: 6 }}
+          >
+            <span className="zhul-more-text">更多筛选</span>
+            {moreCount > 0 && <span className="num"> · {moreCount}</span>}
+          </Button>
+        </Tooltip>
+      )}
+      {reset && <Button onClick={reset}>重置</Button>}
+      {search && (
+        <Button type="primary" onClick={search}>
+          查询
+        </Button>
+      )}
+    </div>
+  );
+  // 收起时只是隐藏，不卸载：条件里没受控的输入值不会丢
+  const moreFields = more && (
+    <div id={moreId} style={{ display: open ? 'contents' : 'none' }}>
+      {more}
+    </div>
+  );
+  return (
+    <FilterLayoutContext.Provider value={layout}>
+      <Panel
+        style={{
+          marginBottom: 16,
+          padding: line ? 16 : 20,
+          ...(attached && {
+            borderTopLeftRadius: 0,
+            borderTopRightRadius: 0,
+            borderTop: 'none',
+            // 上沿的阴影裁掉，接缝处不出现一道深线
+            clipPath: 'inset(0 -32px -32px -32px)',
+          }),
+        }}
+        aria-label="搜索条件"
+        data-zhul-filter={filterId}
+        // 在文本框里回车查询时，记下这次查询用的「更多筛选」条件；下拉、日期里的回车只是选中选项，不算查询
+        onKeyDownCapture={(e) => {
+          if (
+            e.key === 'Enter' &&
+            e.target instanceof HTMLInputElement &&
+            !e.target.closest('.ant-select, .ant-picker, .ant-cascader')
+          )
+            setTimeout(snap);
+        }}
+      >
+        {line ? (
+          // 按钮固定在第一行右侧；窄屏时只有条件换行
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <div
+              style={{
+                flex: 1,
+                minWidth: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                flexWrap: 'wrap',
+              }}
+            >
+              {children}
+              {moreFields}
+            </div>
+            {buttons}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
+            <div
+              style={{
+                flex: 1,
+                minWidth: 0,
+                display: 'grid',
+                gridTemplateColumns: `repeat(auto-fill, minmax(${minColumn}px, 1fr))`,
+                gap: 12,
+                alignItems: 'end',
+              }}
+            >
+              {children}
+              {moreFields}
+            </div>
+            {buttons}
+          </div>
+        )}
+        {quick && (
+          <div
+            style={{
+              marginTop: 16,
+              paddingTop: 16,
+              borderTop: `1px solid ${palette.hairline}`,
+            }}
+          >
+            {quick}
+          </div>
+        )}
+      </Panel>
+    </FilterLayoutContext.Provider>
+  );
+};
+
+/**
+ * 选了就生效的看板（没有「查询」按钮）用的「筛选」按钮：次要条件（品牌、品类、热度等）收进弹层，
+ * 工具栏保持一行（2026-11-25，供应链跟进各板块 1366 宽换两行）。按钮样式同搜索条件区的「更多筛选」，
+ * 显示生效数量；已生效的条件另用 FilterChip 显示在工具栏上，能直接去掉。
+ */
+export const FilterPopover: React.FC<{
+  /** 已生效的条件数 */
+  count: number;
+  /** label 为空时不显示名称行（如一组勾选项） */
+  items: { label: string; node: React.ReactNode }[];
+}> = ({ count, items }) => {
+  const { palette } = useAppTheme();
+  const [open, setOpen] = useState(false);
+  const panel = useRef<HTMLDivElement>(null);
+  // 打开后焦点进到第一个条件（弹层渲染在页面末尾，Tab 走不到）；等弹层渲染完再移
+  useEffect(() => {
+    if (!open) return;
+    let tries = 0;
+    let t = 0;
+    const go = () => {
+      const el = panel.current?.querySelector<HTMLElement>('input');
+      if (el) el.focus();
+      else if (tries++ < 10) t = window.setTimeout(go, 30);
+    };
+    t = window.setTimeout(go, 0);
+    return () => window.clearTimeout(t);
+  }, [open]);
+  return (
+    <Popover
+      trigger="click"
+      placement="bottomRight"
+      arrow={false}
+      open={open}
+      onOpenChange={setOpen}
+      content={
         <div
+          ref={panel}
+          role="dialog"
+          aria-label="筛选"
+          style={{ width: 240, display: 'grid', gap: 12 }}
+        >
+          {items.map((it) => (
+            <div key={it.label} style={{ display: 'grid', gap: 4 }}>
+              {it.label && (
+                <span style={{ fontSize: 12, color: palette.mute }}>
+                  {it.label}
+                </span>
+              )}
+              {it.node}
+            </div>
+          ))}
+        </div>
+      }
+    >
+      <Button
+        type="text"
+        aria-label={count > 0 ? `筛选 · ${count}` : '筛选'}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        icon={<SlidersHorizontal size={16} />}
+        style={{ color: palette.link, paddingInline: 6 }}
+      >
+        筛选
+        {count > 0 && <span className="num"> · {count}</span>}
+      </Button>
+    </Popover>
+  );
+};
+
+export interface FilterChipItem {
+  key: string;
+  /** 「品牌：西门子」 */
+  label: React.ReactNode;
+  onRemove: () => void;
+}
+
+/** 已生效的条件胶囊（「更多筛选」收起时显示在操作行，S16）：主题色浅底，点 × 去掉这个条件 */
+export const FilterChip: React.FC<{ item: FilterChipItem }> = ({ item }) => {
+  const { palette } = useAppTheme();
+  return (
+    <span
+      style={{
+        height: 28,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        padding: '0 4px 0 10px',
+        borderRadius: 14,
+        background: palette.primarySoft, // lint-ui-ignore primary-soft: 已生效的筛选条件胶囊，属于选中状态
+        color: palette.sub,
+        fontSize: 13,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {item.label}
+      <button
+        type="button"
+        aria-label={`去掉条件 ${typeof item.label === 'string' ? item.label : ''}`}
+        onClick={item.onRemove}
+        style={{
+          width: 20,
+          height: 20,
+          display: 'grid',
+          placeItems: 'center',
+          padding: 0,
+          border: 0,
+          borderRadius: '50%',
+          background: 'transparent',
+          color: palette.mute,
+          cursor: 'pointer',
+        }}
+      >
+        <X size={14} aria-hidden />
+      </button>
+    </span>
+  );
+};
+
+/**
+ * 主内容区：操作行（左：结果数或已选，后面是快捷筛选 quick 与已生效条件 chips；右：批量操作）+ 表格。
+ * 快捷筛选放在这里，不放搜索条件区（ui-redesign D22）。
+ * 结果数传 count（和 unit，默认「条」）：count 没有值、或第一次加载中且为 0 时不显示，不在转圈时闪「共 0 条」（S17）；
+ * 之后重新查询时保留上次的数，不让操作行跳动。
+ */
+export const MainCard: React.FC<{
+  count?: number;
+  unit?: string;
+  loading?: boolean;
+  left?: React.ReactNode;
+  right?: React.ReactNode;
+  quick?: React.ReactNode;
+  chips?: FilterChipItem[];
+  /** 列设置按钮（useColumnSettings 返回的 settings），放在工具栏最右 */
+  settings?: React.ReactNode;
+  /** 表格等内容；分组卡片放在主卡外面时（如采购需求按订单），主卡只剩操作行，可不传 */
+  children?: React.ReactNode;
+}> = ({
+  count,
+  unit = '条',
+  loading,
+  left: leftNode,
+  right,
+  quick,
+  chips: own,
+  settings,
+  children,
+}) => {
+  // 只在第一次加载、还没有结果时不显示「共 0 条」；之后重新查询保留上次的数，
+  // 否则结果为 0 时每查一次它就消失再出现，后面的快捷筛选跟着左右跳
+  const loaded = useRef(false);
+  if (!loading && count !== undefined) loaded.current = true;
+  const counted =
+    count === undefined || (loading && !count && !loaded.current)
+      ? undefined
+      : `共 ${count} ${unit}`;
+  const left =
+    counted && leftNode ? (
+      <>
+        {counted}
+        {leftNode}
+      </>
+    ) : (
+      (counted ?? leftNode)
+    );
+  const { palette } = useAppTheme();
+  const probe = useRef<HTMLSpanElement>(null);
+  const [filterId, setFilterId] = useState<string>();
+  useLayoutEffect(() => {
+    const id = findFilterId(probe.current?.parentElement ?? null);
+    if (id !== filterId) setFilterId(id);
+  });
+  const auto = useAutoChips(filterId);
+  const resetFilters = filterId ? resetStore.get(filterId) : undefined;
+  const chips = [...(own ?? []), ...(auto ?? [])];
+  const hasChips = chips.length > 0;
+  return (
+    <Panel style={{ padding: 16, minWidth: 0 }}>
+      <span ref={probe} hidden />
+      {(left || right || quick || hasChips || settings) && (
+        <div
+          className="zhul-toolbar"
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 10,
+            gap: 12,
             flexWrap: 'wrap',
-            marginBottom: 12,
+            minHeight: 32,
+            marginBottom: children ? 12 : 0,
             color: palette.sub,
             fontSize: 13,
           }}
@@ -89,17 +1688,94 @@ export const MainCard: React.FC<{
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 10,
+              gap: 12,
+              flexWrap: 'wrap',
               flex: 1,
               minWidth: 0,
             }}
           >
             {left}
+            {quick}
+            {chips.map((c) => (
+              <FilterChip key={c.key} item={c} />
+            ))}
           </div>
           {right}
+          {settings}
         </div>
       )}
+      <FilterResetContext.Provider value={resetFilters}>
+        {children}
+      </FilterResetContext.Provider>
+    </Panel>
+  );
+};
+
+/** 卡片标题（16/600，同 Section 标题）：给自己画卡片头部的组件用 */
+export const CardTitle: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const { palette } = useAppTheme();
+  return (
+    <h2
+      style={{ margin: 0, fontSize: 16, fontWeight: 600, color: palette.ink }}
+    >
       {children}
-    </Card>
+    </h2>
+  );
+};
+
+/** 详情页分区：卡片标题 16/600，可带帮助图标、标题旁计数（meta）和右侧操作；id 加在标题上，用于页内定位 */
+export const Section: React.FC<{
+  title: React.ReactNode;
+  help?: React.ReactNode;
+  /** 标题旁的一小段说明，如「4 个型号 · 23 件」 */
+  meta?: React.ReactNode;
+  extra?: React.ReactNode;
+  children: React.ReactNode;
+  id?: string;
+  style?: React.CSSProperties;
+}> = ({ title, help, meta, extra, children, id, style }) => {
+  const { palette } = useAppTheme();
+  return (
+    <Panel style={{ padding: '20px 24px', minWidth: 0, ...style }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 16,
+        }}
+      >
+        <h2
+          id={id}
+          style={{
+            margin: 0,
+            fontSize: 16,
+            fontWeight: 600,
+            color: palette.ink,
+          }}
+        >
+          {title}
+        </h2>
+        {help && <HelpTip title={help} />}
+        {meta && (
+          <span style={{ fontSize: 13, color: palette.mute }}>{meta}</span>
+        )}
+        {extra && (
+          <div
+            style={{
+              marginInlineStart: 'auto',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            {extra}
+          </div>
+        )}
+      </div>
+      {children}
+    </Panel>
   );
 };

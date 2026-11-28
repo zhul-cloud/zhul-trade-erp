@@ -1,4 +1,3 @@
-import { PlusOutlined, WarningOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   DrawerForm,
@@ -7,9 +6,27 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import { Alert, App, Badge, Button, Space, Tree } from 'antd';
+import { Alert, App, Badge, Button, Input, Select, Space, Tree } from 'antd';
+import {
+  Ban,
+  CircleCheck,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  TriangleAlert,
+} from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import EllipsisText from '@/components/EllipsisText';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { proAuditColumns } from '@/components/UserName';
 import {
   indexMenuTree,
   splitChecked,
@@ -18,8 +35,6 @@ import {
 import type { MenuItem } from '@/pages/system/menu/service';
 import { getMenuTree } from '@/pages/system/menu/service';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatDateTime } from '@/utils/format';
-import { useMenu } from '@/utils/menuName';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import type { SaveTenantPackagePayload, TenantPackageItem } from './service';
@@ -64,9 +79,9 @@ const toAntdTree = (list: MenuItem[]): any[] =>
   }));
 
 const TenantPackagePage: React.FC = () => {
-  const menu = useMenu();
   const pager = usePagination(20);
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess();
   const { palette } = useAppTheme();
   const actionRef = useRef<ActionType>(undefined);
@@ -124,17 +139,16 @@ const TenantPackagePage: React.FC = () => {
   // ---------- 启用 / 禁用 ----------
   const toggleStatus = (row: TenantPackageItem) => {
     const disabling = row.status === 1;
-    modal.confirm({
-      title: disabling ? '确认禁用套餐？' : '确认启用套餐？',
+    // 停用用公共危险确认（错误色按钮、默认焦点在取消），启用用普通确认
+    (disabling ? confirmDanger : modal.confirm)({
+      // 危险确认：标题写明对象、按钮写动作（2026-11-26 用户确认，待定 D）；后果说明原样保留
+      title: disabling ? `禁用「${row.name}」？` : `启用「${row.name}」？`,
       content: disabling
         ? row.tenantCount > 0
           ? `套餐「${row.name}」当前有 ${row.tenantCount} 个租户在使用。禁用后，该套餐不可被新租户选择，但已绑定的租户暂不受影响。`
           : `确认禁用套餐「${row.name}」吗？禁用后该套餐不可被新租户选择。`
         : `启用后，套餐「${row.name}」可被新租户选择使用。`,
-      okText: disabling ? '确认禁用' : '确认启用',
-      okButtonProps: disabling
-        ? { danger: true }
-        : { style: { background: palette.green, borderColor: palette.green } },
+      okText: disabling ? '禁用' : '启用',
       cancelText: '取消',
       onOk: async () => {
         await updatePackageStatus(row.id, disabling ? 0 : 1);
@@ -177,12 +191,9 @@ const TenantPackagePage: React.FC = () => {
       });
       return;
     }
-    modal.confirm({
-      title: '确认删除套餐？',
-      content: `确认删除套餐「${row.name}」吗？此操作不可恢复。`,
-      okText: '确认删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
+    confirmDanger({
+      title: `删除套餐「${row.name}」？`,
+      content: '此操作不可恢复。',
       onOk: async () => {
         await deletePackage(row.id);
         message.success('套餐已删除');
@@ -191,21 +202,19 @@ const TenantPackagePage: React.FC = () => {
     });
   };
 
+  /** 搜索条件：状态切换后立即查询，套餐名称点「查询」才生效 */
+  const [filters, setFilters] = useState<{ name?: string; status?: number }>(
+    {},
+  );
+  const [keyword, setKeyword] = useState('');
+  // 首次查询返回前没有总数，主卡不显示「共 0 条」
+  const [total, setTotal] = useState<number>();
+  const search = () =>
+    setFilters({ ...filters, name: keyword.trim() || undefined });
+
   const columns: ProColumns<TenantPackageItem>[] = [
     {
-      title: '套餐名称',
-      dataIndex: 'name',
-      hideInTable: true,
-      fieldProps: { placeholder: '请输入套餐名称' },
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      hideInTable: true,
-      valueType: 'select',
-      valueEnum: { 1: { text: '启用' }, 0: { text: '禁用' } },
-    },
-    {
+      fixed: 'left',
       title: '套餐名称',
       dataIndex: 'name',
       search: false,
@@ -247,116 +256,126 @@ const TenantPackagePage: React.FC = () => {
           <Badge status="error" text="禁用" />
         ),
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      search: false,
-      width: 170,
-      render: (_, r) => (
-        <span className="num">{formatDateTime(r.createTime)}</span>
-      ),
-    },
-    {
-      title: '创建人',
-      dataIndex: 'createBy',
-      search: false,
-      width: 150,
-      render: (_, r) => <EllipsisText text={r.createBy} />,
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      search: false,
-      width: 170,
-      render: (_, r) => (
-        <span className="num">{formatDateTime(r.updateTime)}</span>
-      ),
-    },
-    {
-      title: '更新人',
-      dataIndex: 'updateBy',
-      search: false,
-      width: 150,
-      render: (_, r) => <EllipsisText text={r.updateBy} />,
-    },
+    ...proAuditColumns<TenantPackageItem>(),
     {
       title: '操作',
       valueType: 'option',
       fixed: 'right',
-      width: 160,
-      render: (_, row) => [
-        access['tenant:package:edit'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="edit"
-            onClick={() => openEdit(row)}
-          >
-            编辑
-          </button>
-        ),
-        access['tenant:package:status'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="status"
-            style={{ color: row.status === 1 ? palette.red : palette.green }}
-            onClick={() => toggleStatus(row)}
-          >
-            {row.status === 1 ? '禁用' : '启用'}
-          </button>
-        ),
-        access['tenant:package:delete'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="delete"
-            style={{ color: palette.red }}
-            onClick={() => handleDelete(row)}
-          >
-            删除
-          </button>
-        ),
-      ],
+      // 编辑放行内；禁用、删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(2),
+      render: (_, row) => {
+        const enabled = row.status === 1;
+        return (
+          <RowActions
+            inline={[
+              access['tenant:package:edit'] && {
+                key: 'edit',
+                label: '编辑',
+                icon: <Pencil size={18} />,
+                onClick: () => openEdit(row),
+              },
+            ]}
+            more={[
+              access['tenant:package:status'] && {
+                key: 'status',
+                label: enabled ? '禁用' : '启用',
+                icon: enabled ? <Ban size={16} /> : <CircleCheck size={16} />,
+                danger: enabled,
+              },
+              access['tenant:package:delete'] && {
+                key: 'delete',
+                label: '删除',
+                icon: <Trash2 size={16} />,
+                danger: true,
+              },
+            ]}
+            onMore={(key) => {
+              if (key === 'status') toggleStatus(row);
+              if (key === 'delete') handleDelete(row);
+            }}
+          />
+        );
+      },
     },
   ];
+  const columnsSet = useColumnSettings('tenant-package', columns);
 
   const checkedCount = checkedKeys.length;
   const boundTenantCount = editing?.tenantCount ?? 0;
 
   return (
     <>
-      <ProTable<TenantPackageItem>
-        pagination={pager}
-        headerTitle={menu?.name}
-        rowKey="id"
-        actionRef={actionRef}
-        columns={columns}
-        scroll={{ x: tableScrollX(columns) }}
-        search={{ labelWidth: 'auto', defaultCollapsed: false }}
-        options={false}
-        request={async (params) => {
-          const res = await getPackageList({
-            current: params.current,
-            pageSize: params.pageSize,
-            name: params.name,
-            status: params.status,
-          });
-          return res;
-        }}
-        toolBarRender={() => [
+      <PageHeader
+        extra={
           access['tenant:package:add'] && (
             <Button
-              key="add"
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={openCreate}
             >
               新增套餐
             </Button>
-          ),
-        ]}
+          )
+        }
       />
+      <FilterCard
+        onSearch={search}
+        onReset={() => {
+          setKeyword('');
+          setFilters({});
+          // 条件清空时 ProTable 不会自动回到第 1 页
+          actionRef.current?.setPageInfo?.({ current: 1 });
+        }}
+      >
+        <FilterField label="套餐名称" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="套餐名称"
+            aria-label="套餐名称"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={search}
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select<number>
+            allowClear
+            placeholder="全部"
+            aria-label="状态"
+            value={filters.status}
+            // 状态下拉切换后立即查询
+            onChange={(v) => setFilters({ ...filters, status: v })}
+            options={[
+              { value: 1, label: '启用' },
+              { value: 0, label: '禁用' },
+            ]}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard settings={columnsSet.settings} count={total}>
+        <ProTable<TenantPackageItem>
+          pagination={pager}
+          rowKey="id"
+          actionRef={actionRef}
+          columns={columnsSet.columns}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
+          params={filters}
+          search={false}
+          options={false}
+          toolBarRender={false}
+          request={async (params) => {
+            const res = await getPackageList({
+              current: params.current,
+              pageSize: params.pageSize,
+              name: filters.name,
+              status: filters.status,
+            });
+            setTotal(res.total ?? 0);
+            return res;
+          }}
+        />
+      </MainCard>
 
       {/* 新增 / 编辑套餐 */}
       <DrawerForm
@@ -398,7 +417,7 @@ const TenantPackagePage: React.FC = () => {
           <Alert
             type="warning"
             showIcon
-            icon={<WarningOutlined />}
+            icon={<TriangleAlert size="1em" />}
             style={{ marginBottom: 16 }}
             title={`注意：此套餐已被 ${boundTenantCount} 个租户使用，修改菜单范围后，所有绑定租户的可见菜单将立即变更。`}
           />

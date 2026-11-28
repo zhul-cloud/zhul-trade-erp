@@ -19,8 +19,6 @@ jest.mock('@umijs/max', () => {
       R.createElement('a', { href: p.to }, p.children),
   };
 });
-// 销售跟进的样式文件在模块顶层写 JSX，测试环境用不到箭头，直接替换
-jest.mock('@/pages/sales/followup/FlowChain', () => ({ Arrow: () => null }));
 jest.mock('../components', () => ({
   ...jest.requireActual('../components'),
   useOptions: () => ({
@@ -169,7 +167,7 @@ it('UI-086：换筛选条件后清空勾选，批量栏不再作用于看不见�
   expect(await screen.findByText('已选 2 条')).toBeTruthy();
   // 切到「可直接报价」：列表里已经没有这两个型号
   api.groups.mockResolvedValue({ totalGroups: 0, totalModels: 0, groups: [] });
-  fireEvent.click(screen.getByRole('button', { name: /可直接报价/ }));
+  fireEvent.click(screen.getByRole('radio', { name: /可直接报价/ }));
   await waitFor(() => expect(lastCall(api.groups).stage).toBe('4'));
   await waitFor(() => expect(screen.queryByText(/已选 \d+ 条/)).toBeNull());
 });
@@ -182,8 +180,14 @@ it('UI-087：供应商开发板块显示并可清除带进来的二级品类', a
       expect.objectContaining({ brandId: 1, categoryId: 11 }),
     ),
   );
-  // 生效的二级品类在筛选栏里看得见
-  expect(await screen.findByTitle('品类A')).toBeTruthy();
+  // 生效的二级品类在工具栏上显示成胶囊，看得见、能去掉
+  expect(await screen.findByText('二级品类：品类A')).toBeTruthy();
+  fireEvent.click(
+    screen.getByRole('button', { name: '去掉条件 二级品类：品类A' }),
+  );
+  await waitFor(() =>
+    expect(lastCall(api.devGroups).categoryId).toBeUndefined(),
+  );
 });
 
 it('UI-089：团队视图近 90 天下钻带统计期，并清掉关键词与优先级', async () => {

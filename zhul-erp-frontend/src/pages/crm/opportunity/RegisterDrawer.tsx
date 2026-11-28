@@ -1,10 +1,3 @@
-import {
-  CloseOutlined,
-  EyeOutlined,
-  LoadingOutlined,
-  UploadOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import {
   App,
@@ -17,6 +10,7 @@ import {
   Upload,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Eye, LoaderCircle, TriangleAlert, UploadIcon, X } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -211,7 +205,7 @@ const RegisterDrawer: React.FC<{
         margin: '4px 0 14px',
       }}
     >
-      <span style={{ fontSize: 14, fontWeight: 700, color: palette.ink }}>
+      <span style={{ fontSize: 14, fontWeight: 600, color: palette.ink }}>
         {title}
       </span>
       {hint && (
@@ -261,7 +255,8 @@ const RegisterDrawer: React.FC<{
             border: `1px solid ${palette.orange}55`,
           }}
         >
-          <WarningOutlined
+          <TriangleAlert
+            size="1em"
             style={{ color: palette.orange, fontSize: 18, marginTop: 2 }}
           />
           <div style={{ flex: 1 }}>
@@ -457,7 +452,7 @@ const RegisterDrawer: React.FC<{
                       window.open(f.localUrl, '_blank', 'noopener')
                     }
                   >
-                    <EyeOutlined />
+                    <Eye size="1em" />
                   </button>
                   <button
                     type="button"
@@ -465,7 +460,7 @@ const RegisterDrawer: React.FC<{
                     style={iconButton}
                     onClick={() => remove(f)}
                   >
-                    <CloseOutlined />
+                    <X size="1em" />
                   </button>
                 </>
               }
@@ -492,11 +487,15 @@ const RegisterDrawer: React.FC<{
                 border: `1px dashed ${palette.control}`,
                 background: 'none',
                 color: palette.link,
-                fontWeight: 500,
+                fontWeight: 600,
                 cursor: 'pointer',
               }}
             >
-              {uploading > 0 ? <LoadingOutlined /> : <UploadOutlined />}
+              {uploading > 0 ? (
+                <LoaderCircle size="1em" className="zhul-spin" />
+              ) : (
+                <UploadIcon size="1em" />
+              )}
               {uploading > 0 ? '上传中' : '上传'}
             </button>
           </Upload>

@@ -1,67 +1,448 @@
 /**
- * 全站设计令牌（方案 D：信任蓝 + 中性灰，深色默认、浅色并存）。
- * 取值见 .claude/context/ui-design-patterns.md「V3 方案 D」一节，页面里需要直接取色时用它，
- * 不要散落十六进制。
+ * 全站设计令牌：中性灰阶加 6 种主题色预设（照 PrimeDash），浅色、深色各一套。
+ * 取值见 .claude/context/ui-design-patterns.md「设计令牌」与 openspec/changes/ui-redesign/design.md 第 2 节；
+ * 页面里需要直接取色时用 useAppTheme().palette，不要散落十六进制。
  */
 export type ThemeMode = 'dark' | 'light';
 
-export const PALETTE = {
-  dark: {
-    canvas: '#0B1220',
-    sidebar: '#0A101D',
-    card: '#111A2C',
-    inset: '#0D1524',
-    hairline: '#1E293B',
-    control: '#64748B',
-    ink: '#F8FAFC',
-    sub: '#CBD5E1',
-    mute: '#94A3B8',
-    link: '#60A5FA',
-    accentSoft: '#182B4C',
-    accentLine: '#234681',
-    hover: '#16233A',
-    green: '#4ADE80',
-    greenSoft: '#183236',
-    orange: '#FB923C',
-    orangeSoft: '#2D282E',
-    red: '#F87171',
-    redSoft: '#2D2434',
-    violet: '#A78BFA',
-    violetSoft: '#2A2450',
-    faint: '#64748B',
-    cyan: '#22D3EE',
+export type PresetKey = 'amber' | 'teal' | 'sky' | 'purple' | 'royal' | 'red';
+
+interface Preset {
+  /** 主题设置里显示的名字 */
+  name: string;
+  /** 原色：主按钮底色、浅色下的链接与选中文字、默认 Logo */
+  primary: string;
+  /** 浅色选中浅底：原色 12% 叠在白色上 */
+  lightSoft: string;
+  /** 深色链接与选中文字：在卡片、选中底、父级菜单底上都不低于 4.5:1 */
+  darkLink: string;
+  /** 深色选中底：原色 16% 叠在 #1A1A1A 上 */
+  darkSoft: string;
+  /** 主题色作为图表第一个系列时，去掉色相最接近的那个系列色（CHART_SERIES 的序号） */
+  chartDrop: number;
+  /**
+   * 原色实底上的文字，默认白字。琥珀也用白字（1.93:1，低于 WCAG），与其他主题色、参考站一致；
+   * 用户 2026-11-27 决定以主题统一为先，推翻 D54 的深琥珀棕（ui-redesign D70）
+   */
+  onPrimary?: string;
+}
+
+export const PRESETS: Record<PresetKey, Preset> = {
+  amber: {
+    name: '琥珀',
+    primary: '#FDA92D',
+    lightSoft: '#FFF5E6',
+    darkLink: '#FDA92D',
+    darkSoft: '#3E311D',
+    chartDrop: 1,
   },
+  teal: {
+    name: '青绿',
+    primary: '#0D9394',
+    lightSoft: '#E2F2F2',
+    darkLink: '#2FA2A3',
+    darkSoft: '#182D2E',
+    chartDrop: 2,
+  },
+  sky: {
+    name: '天蓝',
+    primary: '#078DEE',
+    lightSoft: '#E1F1FD',
+    darkLink: '#2098F0',
+    darkSoft: '#172C3C',
+    chartDrop: 0,
+  },
+  purple: {
+    name: '紫',
+    primary: '#7635DC',
+    lightSoft: '#EFE7FB',
+    darkLink: '#A77EE9',
+    darkSoft: '#291E39',
+    chartDrop: 3,
+  },
+  royal: {
+    name: '宝蓝',
+    primary: '#2065D1',
+    lightSoft: '#E4EDF9',
+    darkLink: '#5E94E6',
+    darkSoft: '#1B2637',
+    chartDrop: 0,
+  },
+  red: {
+    name: '红',
+    primary: '#FF3030',
+    lightSoft: '#FFE6E6',
+    darkLink: '#FF5959',
+    darkSoft: '#3F1E1E',
+    chartDrop: 1,
+  },
+};
+
+/** 主题设置里的排列顺序 */
+export const PRESET_ORDER: PresetKey[] = [
+  'amber',
+  'teal',
+  'sky',
+  'purple',
+  'royal',
+  'red',
+];
+
+export const DEFAULT_PRESET: PresetKey = 'amber';
+
+export const isPresetKey = (v: unknown): v is PresetKey =>
+  typeof v === 'string' && Object.hasOwn(PRESETS, v);
+
+/** 状态色原色（浅色、深色相同）：标签底、进度条、圆点、角标、图标底块等填充用 */
+const STATUS_MAIN = {
+  green: '#22C55E',
+  orange: '#FFAB00',
+  red: '#FF5630',
+  info: '#00B8D9',
+} as const;
+
+/**
+ * 中性灰阶与状态色。
+ * - green、orange、red、info 是文字色。浅色下曾用参考模板 dark 档（#118D57 等），一页里几处同时出现显得发沉压抑；
+ *   2026-11-24 用户看过对比图 R18 后决定浅色文字直接用原色（与图形同色，深色下同样用原色），接受绿对白底只有 2.3:1：
+ *   这些颜色只用于加粗的短标签、金额与提醒，旁边都有文字说明，不靠颜色单独传达。
+ *   橙保留 dark 档 #B76E00：原色 #FFAB00 与琥珀主题的链接色 #FDA92D 几乎同色，提醒文字会被当成链接（对比图 R19，用户 2026-11-24 选 B：只有橙文字保留 dark 档）。
+ * - 各自的 Soft 为原色叠在卡片色上：浅色、深色都是 16%（照参考模板）。
+ */
+const BASE = {
   light: {
-    canvas: '#F8FAFC',
+    /**
+     * 表面分层（ui-design-patterns「层级与表面」，D38）：页面底最深 → 卡内浅灰（head、inset、hover）居中 → 白卡最亮。
+     * 卡内浅灰不得等于或深于页面底，否则贴到卡边时像露出页面；参照 Ant Design 页面 #f5f5f5、卡片 #fff、表头 #fafafa
+     */
+    canvas: '#F4F6F8',
     sidebar: '#FFFFFF',
     card: '#FFFFFF',
-    inset: '#F1F5F9',
-    hairline: '#E2E8F0',
-    control: '#8492A6',
-    ink: '#0F172A',
-    sub: '#475569',
-    mute: '#64748B',
-    link: '#1D4ED8',
-    accentSoft: '#DBEAFE',
-    accentLine: '#93C5FD',
-    hover: '#F1F5F9',
-    green: '#15803D',
-    greenSoft: '#DCFCE7',
-    orange: '#C2410C',
-    orangeSoft: '#FFEDD5',
-    red: '#B91C1C',
-    redSoft: '#FEE2E2',
-    violet: '#6D28D9',
-    violetSoft: '#EDE9FE',
-    faint: '#94A3B8',
-    cyan: '#0E7490',
+    /** 下拉菜单、气泡卡片 */
+    elevated: '#FFFFFF',
+    elevatedLine: '#E5E8EB',
+    /** 中性浅底：指标格、分组块、凹底（比页面底浅） */
+    inset: '#F7F8FA',
+    /** 表头底色（比页面底浅） */
+    head: '#F9FAFB',
+    /** 直接放在页面底上的控件轨道（分段控件）：比页面底深一档 */
+    track: '#E9ECEF',
+    /** 展开的父级菜单底 */
+    navOn: '#EDEEEF',
+    hover: '#F6F7F8',
+    hairline: '#E5E8EB',
+    /** 输入框边框 */
+    control: '#D3D5D8',
+    /** 主文字 */
+    ink: '#212B36',
+    /** 正文 */
+    sub: '#3E4750',
+    /** 次要文字 */
+    mute: '#637381',
+    /** 只用于禁用和占位，不作正文 */
+    faint: '#919EAB',
+    green: '#22C55E',
+    greenSoft: '#DCF6E5',
+    orange: '#B76E00',
+    orangeSoft: '#FFF2D6',
+    red: '#FF5630',
+    redSoft: '#FFE4DE',
+    info: '#00B8D9',
+    infoSoft: '#D6F4F9',
+    neutralSoft: '#ECEEF0',
+    /** 中性标签文字：在中性浅底上不低于 4.5:1 */
+    neutral: '#56636F',
+  },
+  dark: {
+    canvas: '#0A0A0A',
+    sidebar: '#1A1A1A',
+    card: '#1A1A1A',
+    elevated: '#222222',
+    elevatedLine: '#3A3A3A',
+    inset: '#232323',
+    head: '#222222',
+    track: '#262626',
+    navOn: '#2C2C2C',
+    hover: '#222222',
+    hairline: '#2A2A2A',
+    control: '#4A4A4A',
+    ink: '#F5F5F5',
+    sub: '#E0E0E0',
+    mute: '#A0A0A0',
+    faint: '#6E6E6E',
+    green: '#22C55E',
+    greenSoft: '#1B3525',
+    orange: '#FFAB00',
+    orangeSoft: '#3F3116',
+    red: '#FF6A47',
+    redSoft: '#3F241E',
+    info: '#00B8D9',
+    infoSoft: '#163339',
+    neutralSoft: '#2F2F2F',
+    neutral: '#A0A0A0',
   },
 } as const;
 
-export type Palette = (typeof PALETTE)[ThemeMode];
+/** 前景色按 alpha 叠在背景色上，结果取整到 #RRGGBB */
+export function mix(fg: string, bg: string, alpha: number): string {
+  const ch = (hex: string, i: number) =>
+    parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+  const out = [0, 1, 2].map((i) =>
+    Math.round(ch(fg, i) * alpha + ch(bg, i) * (1 - alpha))
+      .toString(16)
+      .padStart(2, '0'),
+  );
+  return `#${out.join('')}`.toUpperCase();
+}
 
-export const PRIMARY_GRADIENT = 'linear-gradient(135deg, #2563EB, #4F46E5)';
-export const ACCENT_GRADIENT =
-  'linear-gradient(90deg, #BFDBFE, #60A5FA, #22D3EE)';
-export const LOGO_GRADIENT =
-  'linear-gradient(135deg, #3B82F6, #6366F1, #22D3EE)';
+/**
+ * 图表第一个系列跟主题色走（照 PrimeDash）：浅色用原色，深色用深色链接色。
+ * 琥珀原色在白底只有 1.93:1，用户 2026-11-22 看过对比图后仍选原色（深一档的琥珀显脏），
+ * 用到它的图表都在旁边或悬停提示里写数值，不只靠颜色传达。
+ */
+const chartPrimary = (mode: ThemeMode, pr: Preset) =>
+  mode === 'light' ? pr.primary : pr.darkLink;
+
+/** 相对亮度（WCAG） */
+const luminance = (hex: string) => {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+
+/** 彩色实底（头像、实底标记）上的字：白字不足 3:1 时用深色字，同 onPrimary 的做法 */
+export const textOn = (bg: string) =>
+  1.05 / (luminance(bg) + 0.05) >= 3 ? '#FFFFFF' : '#1C252E';
+
+/** 色相（0–360） */
+const hueOf = (hex: string) => {
+  const [r, g, b] = [1, 3, 5].map(
+    (i) => parseInt(hex.slice(i, i + 2), 16) / 255,
+  );
+  const max = Math.max(r, g, b);
+  const d = max - Math.min(r, g, b);
+  if (d === 0) return 0;
+  const h =
+    max === r
+      ? ((g - b) / d) % 6
+      : max === g
+        ? (b - r) / d + 2
+        : (r - g) / d + 4;
+  return (h * 60 + 360) % 360;
+};
+
+/** 浅色下状态文字撞主题链接色时改用的参考模板 dark 档（D53 补充，审核发现） */
+const STATUS_DARK = {
+  green: '#118D57',
+  red: '#B71D18',
+  info: '#006C9C',
+} as const;
+
+/**
+ * 浅色状态文字用原色（D53），但和当前主题的链接色色相相差不到 20° 时，提醒会被当成能点的链接，
+ * 这时该文字改用 dark 档（同 R19 橙色的处理）：红主题的错误红、青绿与天蓝主题的信息蓝
+ */
+const statusText = (link: string) => {
+  const near = (c: string) => {
+    const d = Math.abs(hueOf(c) - hueOf(link));
+    return Math.min(d, 360 - d) < 20;
+  };
+  return {
+    green: near(STATUS_MAIN.green) ? STATUS_DARK.green : STATUS_MAIN.green,
+    red: near(STATUS_MAIN.red) ? STATUS_DARK.red : STATUS_MAIN.red,
+    info: near(STATUS_MAIN.info) ? STATUS_DARK.info : STATUS_MAIN.info,
+  };
+};
+
+/** 由主题模式和主题色生成整套令牌 */
+export function buildPalette(
+  mode: ThemeMode,
+  preset: PresetKey = DEFAULT_PRESET,
+) {
+  const base = BASE[mode];
+  const pr = isPresetKey(preset) ? PRESETS[preset] : PRESETS[DEFAULT_PRESET];
+  const link = mode === 'light' ? pr.primary : pr.darkLink;
+  return {
+    ...base,
+    ...(mode === 'light' ? statusText(link) : {}),
+    greenMain: STATUS_MAIN.green,
+    orangeMain: STATUS_MAIN.orange,
+    redMain: STATUS_MAIN.red,
+    infoMain: STATUS_MAIN.info,
+    /** 主按钮底色 */
+    primary: pr.primary,
+    /** 主题色实底上的文字（主按钮、Logo 首字、实底标记） */
+    onPrimary: pr.onPrimary ?? '#FFFFFF',
+    /** 链接、单号、选中文字 */
+    link,
+    /** 选中浅底：选中的菜单子项、快捷筛选、当前标签 */
+    primarySoft: mode === 'light' ? pr.lightSoft : pr.darkSoft,
+    /** 选中描边：链接色 40% 叠在卡片上 */
+    primaryLine: mix(link, base.card, 0.4),
+    /** 图表第一个系列（柱、条、线），跟主题色走 */
+    chart: chartPrimary(mode, pr),
+    /**
+     * 图表色的浅色：同一内容只分两类、两类没有好坏之分时（本期 / 往期、漏斗终点 / 其余步骤），
+     * 另一类用它而不是灰色或另一种色相（2026-11-24 用户确认）。有风险的一类仍用状态色
+     */
+    chartSoft: mix(
+      chartPrimary(mode, pr),
+      base.card,
+      mode === 'light' ? 0.32 : 0.4,
+    ),
+  };
+}
+
+export type Palette = ReturnType<typeof buildPalette>;
+
+/**
+ * 图表系列色（对比图 R14，2026-11-24）：照参考模板用原色——蓝、橙红、青、紫、绿，第 6 个中性灰。
+ * 顺序经 dataviz 调色板校验（色盲可分、饱和度、正常视力相邻可分全部通过）；原来为了深浅底都 ≥3:1 压成的中间调
+ * （#2F9E99、#B87A14、#2E9A62）饱和度不足、相邻难分，显得发暗。原色对白底不到 3:1 的（青、绿），旁边都有文字或图例。
+ * 深色另配同色相、亮度落在深色校验范围内的一组（CHART_SERIES_DARK）。
+ */
+export const CHART_SERIES = [
+  '#1877F2',
+  '#FF5630',
+  '#00B8D9',
+  '#8E33FF',
+  '#22C55E',
+  '#919EAB',
+] as const;
+export const CHART_SERIES_DARK = [
+  '#1877F2',
+  '#E5482A',
+  '#00A3C2',
+  '#8E33FF',
+  '#1EAE53',
+  '#919EAB',
+] as const;
+/** 按明暗取系列色 */
+export const seriesFor = (mode: ThemeMode) =>
+  mode === 'light' ? CHART_SERIES : CHART_SERIES_DARK;
+
+/**
+ * 主题色作为第一个系列时的系列色：去掉色相最接近的一个，其余顺延。
+ * 第一个系列在深色下用深色链接色（原色在近黑底上可能不到 3:1，如紫 2.75）。
+ */
+export const chartSeries = (
+  mode: ThemeMode = 'light',
+  preset: PresetKey = DEFAULT_PRESET,
+): string[] => {
+  const pr = isPresetKey(preset) ? PRESETS[preset] : PRESETS[DEFAULT_PRESET];
+  return [
+    chartPrimary(mode, pr),
+    ...seriesFor(mode).filter((_, i) => i !== pr.chartDrop),
+  ];
+};
+
+/**
+ * 指标家族色（数字卡左上图标块，ui-redesign D2）：按指标的含义着色，不跟主题色——
+ * 蓝成交、紫利润、青收款、洋红支出；红橙只在告警时出现（用状态色）。[图标色, 浅底]
+ * 支出家族的键仍叫 gray（后端接口传的值），颜色是洋红 #F0468E：灰色像禁用，跟主题色又会在
+ * 紫、天蓝、宝蓝、青绿主题下和其他家族撞色（对比图 R20，2026-11-24 用户选 B，D58）
+ */
+// neutral：非金额指标（付款条件、发货进度、合同等）用中性灰图标块，只给前端用，后端看板不传（D67）
+export type MetricFamily = 'blue' | 'purple' | 'cyan' | 'gray' | 'neutral';
+export const METRIC_FAMILY: Record<
+  ThemeMode,
+  Record<MetricFamily, [string, string]>
+> = {
+  // 参考模板原色，浅底 16%（R14）；原来的「青」#1F7A76 近乎墨绿
+  light: {
+    blue: ['#1877F2', '#DAE9FD'],
+    purple: ['#8E33FF', '#EDDEFF'],
+    cyan: ['#00B8D9', '#D6F4F9'],
+    gray: ['#F0468E', '#FDE1ED'],
+    neutral: ['#637381', '#ECEEF0'],
+  },
+  dark: {
+    blue: ['#1877F2', '#1A293D'],
+    purple: ['#8E33FF', '#2D1E3F'],
+    cyan: ['#00B8D9', '#163339'],
+    gray: ['#F0468E', '#3C212D'],
+    neutral: ['#A0A0A0', '#2F2F2F'],
+  },
+};
+
+/**
+ * 属性标签色（ui-redesign D75，对比图 R34，2026-11-27 用户选「统一带标签、不同颜色区分」）：
+ * 只给取值固定的属性（付款方式、维护方、角色、货代类型等），同一列不同取值颜色不重复；
+ * 不用状态色（绿、橙、红、青有好坏含义），「没有值 / 未定 / 未设置」用中性灰。取值多的（客户角色 7 种）
+ * 按 ATTR_ORDER 依次取相近色补足（用户选定，已告知靛 / 蓝、紫红 / 紫相近）。文字加深到 4.5:1 以上。
+ * [文字色, 浅底]
+ */
+export type AttrTone =
+  | 'blue'
+  | 'purple'
+  | 'magenta'
+  | 'indigo'
+  | 'plum'
+  | 'brown'
+  | 'olive';
+export const ATTR_ORDER: AttrTone[] = [
+  'blue',
+  'purple',
+  'magenta',
+  'indigo',
+  'plum',
+  'brown',
+  'olive',
+];
+export const ATTR_TONE: Record<
+  ThemeMode,
+  Record<AttrTone, [string, string]>
+> = {
+  light: {
+    blue: ['#0C53B7', '#DAE9FD'],
+    purple: ['#6A1FC7', '#EDDEFF'],
+    magenta: ['#B71D63', '#FDE1ED'],
+    indigo: ['#3730A3', '#E0E7FF'],
+    plum: ['#86198F', '#FAE8FF'],
+    brown: ['#7C4A1E', '#F3E8DC'],
+    olive: ['#4D5A12', '#EEF2D6'],
+  },
+  dark: {
+    blue: ['#76B0F8', '#1A293D'],
+    purple: ['#C493FF', '#2D1E3F'],
+    magenta: ['#F78DB9', '#3C212D'],
+    indigo: ['#A5B4FC', '#23264A'],
+    plum: ['#F0ABFC', '#3A1D3F'],
+    brown: ['#D9A877', '#352A20'],
+    olive: ['#C5D27A', '#2C3018'],
+  },
+};
+
+/** 按取值在选项里的顺序取属性色：同一种属性全站同一个值同一种颜色，同列不重复（D75） */
+export const attrTone = (index: number): AttrTone =>
+  ATTR_ORDER[
+    ((index % ATTR_ORDER.length) + ATTR_ORDER.length) % ATTR_ORDER.length
+  ];
+
+/** 浅色卡片、侧栏、顶栏的柔和扩散阴影（ui-redesign D30）；深色不用阴影 */
+export const CARD_SHADOW =
+  '0 0 2px rgba(145,158,171,.2), 0 12px 24px -4px rgba(145,158,171,.12)';
+
+/** 可点击卡片悬停时加深阴影，不位移（ui-redesign D3） */
+export const CARD_SHADOW_HOVER =
+  '0 0 2px rgba(145,158,171,.2), 0 16px 32px -4px rgba(145,158,171,.2)';
+
+/** 主按钮的浮起阴影（贴边的薄阴影，按钮小，用扩散阴影会糊） */
+export const BUTTON_SHADOW =
+  '0 3px 1px -2px rgba(145,158,171,.2), 0 2px 2px rgba(145,158,171,.14), 0 1px 5px rgba(145,158,171,.12)';
+
+/** 浅色下拉菜单、气泡卡片的阴影 */
+export const POPUP_SHADOW = '0 8px 16px rgba(145,158,171,.24)';
+
+/**
+ * 横向滚动区边缘的内阴影：哪一侧还有内容，哪一侧显示（页签栏，ui-redesign S7、R22 方案 B；同 Ant Design Tabs）。
+ * 深色下卡片没有阴影，这里用更深的黑才看得出
+ */
+export const edgeShadow = (side: 'left' | 'right', light: boolean) => {
+  const x = (light ? 10 : 14) * (side === 'left' ? 1 : -1);
+  return light
+    ? `inset ${x}px 0 8px -8px rgba(145,158,171,.48)`
+    : `inset ${x}px 0 12px -8px rgba(0,0,0,1)`;
+};

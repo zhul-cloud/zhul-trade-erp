@@ -1,12 +1,3 @@
-import {
-  AppstoreOutlined,
-  BankOutlined,
-  InfoCircleOutlined,
-  LockOutlined,
-  PaperClipOutlined,
-  PhoneOutlined,
-  WalletOutlined,
-} from '@ant-design/icons';
 import { useAccess, useParams } from '@umijs/max';
 import {
   Alert,
@@ -22,9 +13,21 @@ import {
   Skeleton,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import {
+  Info,
+  Landmark,
+  LayoutGrid,
+  Lock,
+  Paperclip,
+  Phone,
+  Wallet,
+} from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
+import { UserName } from '@/components/UserName';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { termsTotal } from '@/pages/purchase/calc';
 import { PaymentTermsEditor } from '@/pages/purchase/components';
@@ -44,7 +47,7 @@ import {
   toAttachmentPayload,
   toAttachmentRows,
 } from './attachments';
-import { LIST_PATH, PageTitle, SectionCard } from './components';
+import { LIST_PATH, SectionCard } from './components';
 import {
   CREDIT_CODE_PATTERN,
   INDUSTRY_OPTIONS,
@@ -198,7 +201,8 @@ const PurchaserSelect: React.FC<{
 const SupplierFormPage: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
   const editing = !!id;
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess() as Record<string, boolean>;
   const { palette } = useAppTheme();
   const [form] = Form.useForm<FormState>();
@@ -261,9 +265,9 @@ const SupplierFormPage: React.FC = () => {
       leave();
       return;
     }
-    modal.confirm({
-      title: '确认离开？',
-      content: '当前填写内容将不会保存。',
+    confirmDanger({
+      title: '有未保存的修改',
+      content: '现在离开，填写的内容不会保存。',
       okText: '离开',
       cancelText: '继续编辑',
       onOk: leave,
@@ -324,7 +328,7 @@ const SupplierFormPage: React.FC = () => {
   if (!allowed) {
     return (
       <>
-        <PageTitle title={title} current={title} />
+        <PageHeader title={title} />
         <EmptyHint
           title="没有权限"
           description={`你的账号没有${editing ? '编辑' : '新增'}供应商的权限，请联系管理员开通。`}
@@ -339,18 +343,16 @@ const SupplierFormPage: React.FC = () => {
   if (loading) {
     body = (
       <div
+        className="zhul-card"
         style={{
-          background: palette.card,
-          borderRadius: 16,
           padding: 24,
-          border: `1px solid ${palette.hairline}`,
         }}
       >
         <Skeleton active paragraph={{ rows: 10 }} />
       </div>
     );
   } else if (loadError) {
-    body = <ErrorHint message={loadError} onRetry={loadRecord} />;
+    body = <ErrorHint page message={loadError} onRetry={loadRecord} />;
   } else if (editing && record === null) {
     body = (
       <EmptyHint
@@ -364,10 +366,7 @@ const SupplierFormPage: React.FC = () => {
 
   return (
     <div style={{ color: palette.ink }}>
-      <a className="zhul-skip" href="#supplier-main">
-        跳到主要内容
-      </a>
-      <PageTitle title={title} current={title} />
+      <PageHeader title={title} />
 
       {body ?? (
         <Form<FormState>
@@ -413,7 +412,7 @@ const SupplierFormPage: React.FC = () => {
             />
           )}
 
-          <SectionCard icon={<InfoCircleOutlined />} title="基本信息">
+          <SectionCard icon={<Info size="1em" />} title="基本信息">
             <div style={grid}>
               <Form.Item
                 label="供应商编码"
@@ -429,7 +428,8 @@ const SupplierFormPage: React.FC = () => {
                   readOnly
                   className="num"
                   suffix={
-                    <LockOutlined
+                    <Lock
+                      size="1em"
                       aria-label="只读"
                       style={{ color: palette.mute }}
                     />
@@ -467,11 +467,7 @@ const SupplierFormPage: React.FC = () => {
                   options={SUPPLIER_TYPE_SELECT_OPTIONS}
                 />
               </Form.Item>
-              <Form.Item
-                name="purchaserId"
-                label="所属采购员"
-                extra="选填，这家供应商由谁对接"
-              >
+              <Form.Item name="purchaserId" label="所属采购员">
                 <PurchaserSelect record={record} />
               </Form.Item>
               <Form.Item name="industry" label="所属行业">
@@ -496,7 +492,7 @@ const SupplierFormPage: React.FC = () => {
             </div>
           </SectionCard>
 
-          <SectionCard icon={<BankOutlined />} title="工商信息">
+          <SectionCard icon={<Landmark size="1em" />} title="工商信息">
             <div style={grid}>
               <Form.Item
                 name="creditCode"
@@ -543,7 +539,7 @@ const SupplierFormPage: React.FC = () => {
             </div>
           </SectionCard>
 
-          <SectionCard icon={<PhoneOutlined />} title="联系信息">
+          <SectionCard icon={<Phone size="1em" />} title="联系信息">
             <div style={grid}>
               <Form.Item
                 name="contactName"
@@ -601,7 +597,7 @@ const SupplierFormPage: React.FC = () => {
             </div>
           </SectionCard>
 
-          <SectionCard icon={<WalletOutlined />} title="结算信息">
+          <SectionCard icon={<Wallet size="1em" />} title="结算信息">
             <Form.Item name="accounts" noStyle>
               <AccountListEditor supplierName={supplierName ?? ''} />
             </Form.Item>
@@ -638,11 +634,11 @@ const SupplierFormPage: React.FC = () => {
             </div>
           </SectionCard>
 
-          <SectionCard icon={<AppstoreOutlined />} title="主营产品">
+          <SectionCard icon={<LayoutGrid size="1em" />} title="主营产品">
             <ProductScopeEditor />
           </SectionCard>
 
-          <SectionCard icon={<PaperClipOutlined />} title="附件">
+          <SectionCard icon={<Paperclip size="1em" />} title="附件">
             <Form.Item name="attachments" noStyle>
               <AttachmentEditor supplierId={editing ? Number(id) : undefined} />
             </Form.Item>
@@ -662,7 +658,7 @@ const SupplierFormPage: React.FC = () => {
               <span>
                 创建人{' '}
                 <span style={{ color: palette.ink }}>
-                  {record.createBy || '—'}
+                  <UserName value={record.createBy} />
                 </span>
               </span>
               <span>
@@ -674,7 +670,7 @@ const SupplierFormPage: React.FC = () => {
               <span>
                 最后修改人{' '}
                 <span style={{ color: palette.ink }}>
-                  {record.updateBy || '—'}
+                  <UserName value={record.updateBy} />
                 </span>
               </span>
               <span>

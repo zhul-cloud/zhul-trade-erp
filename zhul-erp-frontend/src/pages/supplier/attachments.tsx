@@ -1,15 +1,15 @@
-import {
-  CloseOutlined,
-  DownloadOutlined,
-  EyeOutlined,
-  FileImageOutlined,
-  FilePdfOutlined,
-  LoadingOutlined,
-  UploadOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { Link } from '@umijs/max';
 import { App, Upload } from 'antd';
+import {
+  Download,
+  Eye,
+  FileImage,
+  FileText,
+  LoaderCircle,
+  TriangleAlert,
+  UploadIcon,
+  X,
+} from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -130,18 +130,18 @@ const FileChip: React.FC<{
           flex: 'none',
           borderRadius: 8,
           fontSize: 16,
-          color: pdf ? palette.red : palette.link,
-          background: pdf ? palette.redSoft : palette.accentSoft,
+          color: palette.sub,
+          background: palette.neutralSoft,
         }}
       >
-        {pdf ? <FilePdfOutlined /> : <FileImageOutlined />}
+        {pdf ? <FileText size="1em" /> : <FileImage size="1em" />}
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           title={row.fileName}
           style={{
             fontSize: 12,
-            fontWeight: 500,
+            fontWeight: 400,
             color: palette.ink,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -153,7 +153,7 @@ const FileChip: React.FC<{
         <div
           title={meta}
           style={{
-            fontSize: 11,
+            fontSize: 12,
             color: palette.mute,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -291,7 +291,7 @@ export const AttachmentEditor: React.FC<{
                 flex: 'none',
                 lineHeight: '52px',
                 color: palette.ink,
-                fontWeight: 500,
+                fontWeight: 600,
               }}
             >
               {cat.label}
@@ -314,7 +314,7 @@ export const AttachmentEditor: React.FC<{
                             )
                           }
                         >
-                          <EyeOutlined />
+                          <Eye size="1em" />
                         </button>
                         <button
                           type="button"
@@ -322,7 +322,7 @@ export const AttachmentEditor: React.FC<{
                           style={iconButton}
                           onClick={() => remove(row)}
                         >
-                          <CloseOutlined />
+                          <X size="1em" />
                         </button>
                       </>
                     }
@@ -349,11 +349,15 @@ export const AttachmentEditor: React.FC<{
                       border: `1px dashed ${palette.control}`,
                       background: 'none',
                       color: palette.link,
-                      fontWeight: 500,
+                      fontWeight: 600,
                       cursor: 'pointer',
                     }}
                   >
-                    {busy ? <LoadingOutlined /> : <UploadOutlined />}
+                    {busy ? (
+                      <LoaderCircle size="1em" className="zhul-spin" />
+                    ) : (
+                      <UploadIcon size="1em" />
+                    )}
                     {busy ? '上传中' : '上传'}
                   </button>
                 </Upload>
@@ -402,7 +406,7 @@ export const AttachmentGroups: React.FC<{
             background: palette.orangeSoft,
           }}
         >
-          <WarningOutlined />
+          <TriangleAlert size="1em" />
           <span style={{ flex: 1 }}>
             还没有上传营业执照，建议补上，便于核验供应商资质。
           </span>
@@ -430,7 +434,7 @@ export const AttachmentGroups: React.FC<{
                 flex: 'none',
                 lineHeight: '52px',
                 color: palette.ink,
-                fontWeight: 500,
+                fontWeight: 600,
               }}
             >
               {cat.label}
@@ -452,7 +456,7 @@ export const AttachmentGroups: React.FC<{
                             previewAttachment(supplierId, row).catch(fail)
                           }
                         >
-                          <EyeOutlined />
+                          <Eye size="1em" />
                         </button>
                         <button
                           type="button"
@@ -462,7 +466,7 @@ export const AttachmentGroups: React.FC<{
                             downloadAttachment(supplierId, row).catch(fail)
                           }
                         >
-                          <DownloadOutlined />
+                          <Download size="1em" />
                         </button>
                       </>
                     }

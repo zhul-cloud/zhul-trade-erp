@@ -1,20 +1,3 @@
-import {
-  CalendarOutlined,
-  CarOutlined,
-  CheckOutlined,
-  DeleteOutlined,
-  FallOutlined,
-  FilePdfOutlined,
-  FileProtectOutlined,
-  HistoryOutlined,
-  PlusOutlined,
-  ShoppingOutlined,
-  StopOutlined,
-  UploadOutlined,
-  UserAddOutlined,
-  WalletOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { history, Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -22,6 +5,7 @@ import {
   App,
   Button,
   DatePicker,
+  Dropdown,
   Input,
   InputNumber,
   Modal,
@@ -34,15 +18,44 @@ import {
   Upload,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import {
+  Ban,
+  Calendar,
+  Car,
+  Check,
+  CircleX,
+  Ellipsis,
+  Eye,
+  FileLock,
+  FileText,
+  History,
+  Pencil,
+  Plus,
+  ShoppingBag,
+  Trash2,
+  TrendingDown,
+  TriangleAlert,
+  Truck,
+  UploadIcon,
+  UserPlus,
+  Wallet,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { CustomerCell } from '@/components/DocFields';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { CopyText } from '@/components/CopyText';
+import { CountryText } from '@/components/CountryText';
 import {
   CandidateTag,
   DocDescription,
 } from '@/components/DocFields/DocModelCell';
 import { RelatedDocsCard } from '@/components/DocFields/DocPage';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
+import { tableEmpty } from '@/components/EmptyState';
+import { HelpTip, PageHeader, STICKY_TABLE } from '@/components/ListLayout';
+import { MetricCard } from '@/components/MetricCard';
 import { usePageTitle, useUnsavedGuard } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { rowAlert } from '@/components/RowAlert';
 import {
   ACCEPT_PROOF,
   PayablePanel,
@@ -51,9 +64,10 @@ import {
 import {
   defaultPayMethod,
   PAY_METHOD,
-  PayMethodTag,
+  PAY_METHOD_NAMES,
 } from '@/pages/finance/payables/payMethod';
 import { SOURCE } from '@/pages/finance/payables/service';
+import { useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { PR_STATUS_TONE } from '@/pages/sales/after-sales/service';
@@ -69,8 +83,8 @@ import {
 } from '@/pages/warehouse/components';
 import { type Attachment, shipmentApi } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { attrTone } from '@/theme/palette';
 import { formatAmount } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   bargainOf,
@@ -92,9 +106,7 @@ import {
   Pill,
   PO_STATUS,
   PoStatusPill,
-  PurchasePageTitle,
   ShipProgressPill,
-  StatCard,
   sub,
 } from '../components';
 import { type PurchaseReturn, purchaseReturnApi } from '../returns/service';
@@ -205,9 +217,19 @@ const PurchaseOrderDetail: React.FC = () => {
   const poId = Number(id);
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess();
+  const wide = useWide();
   const [po, setPo] = useState<PurchaseOrder>();
-  usePageTitle(po?.poNo ? `采购订单 ${po.poNo}` : undefined, po?.poNo);
+  // 草稿还没编号：页签写「草稿采购订单 · 供应商」，几张草稿同时打开时分得清
+  usePageTitle(
+    po
+      ? po.poNo
+        ? `采购订单 ${po.poNo}`
+        : `草稿采购订单 · ${po.supplierName ?? ''}`
+      : undefined,
+    po ? (po.poNo ?? `草稿 · ${po.supplierName ?? ''}`) : undefined,
+  );
   // 历史迁移的采购单只读
   const canEdit = !!access['purchase:order:create'] && !po?.migrated;
   const canCancel = !!access['purchase:order:cancel'] && !po?.migrated;
@@ -319,7 +341,7 @@ const PurchaseOrderDetail: React.FC = () => {
     };
   }, [po, draft]);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!po || !draft || !preview) return <Skeleton active />;
 
   const setItem = (itemId: number, patch: Partial<Draft['items'][number]>) =>
@@ -390,11 +412,9 @@ const PurchaseOrderDetail: React.FC = () => {
     });
 
   const deleteDraft = () =>
-    modal.confirm({
+    confirmDanger({
       title: '删除这张草稿？',
       content: '各型号数量回到需求池。',
-      okText: '删除',
-      okButtonProps: { danger: true },
       onOk: async () => {
         try {
           await poApi.remove(poId);
@@ -410,7 +430,9 @@ const PurchaseOrderDetail: React.FC = () => {
     {
       title: '型号 · 品牌',
       dataIndex: 'model',
-      width: 200,
+      // 横向滚动时型号一直在左（R36 方案 C，D77）
+      fixed: 'left',
+      width: 240,
       render: (v: string, r) => (
         <div>
           <b>{v}</b>
@@ -421,9 +443,22 @@ const PurchaseOrderDetail: React.FC = () => {
             [r.brand, r.category].filter(Boolean).join(' · ') || '—',
           )}
           {r.modelUpdatedTo && (
-            <div style={{ color: palette.red, fontSize: 12, fontWeight: 500 }}>
-              <WarningOutlined style={{ marginRight: 4 }} />
-              真实型号已更新为 <b>{r.modelUpdatedTo}</b>，请与供应商核对
+            // 图标与文字并排，文字折行时图标不单独占一行（文案见 purchase-order 规范，标红保留）
+            <div
+              style={{
+                display: 'flex',
+                gap: 4,
+                alignItems: 'flex-start',
+                color: palette.red,
+                fontSize: 12,
+                fontWeight: 400,
+                lineHeight: 1.5,
+              }}
+            >
+              <TriangleAlert size="1em" style={{ marginTop: 3 }} />
+              <span>
+                真实型号已更新为 <b>{r.modelUpdatedTo}</b>，请与供应商核对
+              </span>
             </div>
           )}
           <ItemRemarkText text={r.itemRemark} alert={r.remarkAlert} />
@@ -435,37 +470,11 @@ const PurchaseOrderDetail: React.FC = () => {
       ),
     },
     {
-      title: '描述',
-      key: 'description',
-      width: 240,
-      render: (_, r) => <DocDescription text={r.description} />,
-    },
-    {
-      title: '来源单号',
-      dataIndex: 'soNo',
-      width: 160,
-      render: (v: string, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => history.push(PATHS.salesOrder(r.soId))}
-        >
-          {v}
-        </button>
-      ),
-    },
-    {
-      title: '客户',
-      key: 'customer',
-      width: 200,
-      render: (_, r) => (
-        <CustomerCell name={r.customerName} country={r.customerCountry} />
-      ),
-    },
-    {
       title: '数量',
       dataIndex: 'quantity',
       width: 100,
+      // 数字右对齐（S12）；编辑时是输入框，左对齐
+      align: editable ? undefined : 'right',
       render: (v: number, r) =>
         editable ? (
           <div>
@@ -489,52 +498,11 @@ const PurchaseOrderDetail: React.FC = () => {
           v
         ),
     },
-    ...(isDraft
-      ? []
-      : [
-          {
-            title: '已发',
-            dataIndex: 'shippedQty',
-            width: 80,
-            render: (v: number, r: PoItem) => (
-              <span
-                style={{ color: v >= r.quantity ? palette.ink : palette.sub }}
-              >
-                {v}
-              </span>
-            ),
-          },
-          {
-            title: '已入库（合格）',
-            dataIndex: 'receivedQty',
-            width: 120,
-            render: (v: number, r: PoItem) => (
-              <span
-                style={{
-                  color: v >= r.quantity && v > 0 ? palette.green : palette.sub,
-                }}
-              >
-                {v}
-              </span>
-            ),
-          },
-        ]),
-    {
-      title: '目标价',
-      dataIndex: 'targetPrice',
-      width: 110,
-      align: 'right',
-      render: (v?: number | null) =>
-        v == null ? (
-          <span style={{ fontSize: 12, color: palette.mute }}>没有目标价</span>
-        ) : (
-          formatAmount(v, 'CNY')
-        ),
-    },
     {
       title: `单价（${draft.currencyCode}）`,
       dataIndex: 'unitPrice',
       width: 160,
+      align: editable ? undefined : 'right',
       render: (v: number | null | undefined, r) =>
         editable ? (
           <InputNumber
@@ -555,20 +523,38 @@ const PurchaseOrderDetail: React.FC = () => {
           <b>{formatAmount(v, po.currencyCode)}</b>
         ),
     },
+    // 人民币计价时与单价相同，不显示（复审 P18）
+    ...(draft.currencyCode === 'CNY'
+      ? []
+      : [
+          {
+            title: '人民币单价',
+            key: 'net',
+            width: 120,
+            align: 'right' as const,
+            render: (_: unknown, r: PoItem) => {
+              const n = preview.lines.get(r.id)?.net;
+              return n == null ? '—' : formatAmount(n, 'CNY');
+            },
+          },
+        ]),
     {
-      title: '人民币单价',
-      key: 'net',
-      width: 120,
+      title: '目标价',
+      dataIndex: 'targetPrice',
+      width: 110,
       align: 'right',
-      render: (_, r) => {
-        const n = preview.lines.get(r.id)?.net;
-        return n == null ? '—' : formatAmount(n, 'CNY');
-      },
+      render: (v?: number | null) =>
+        v == null ? (
+          <span style={{ fontSize: 12, color: palette.mute }}>没有目标价</span>
+        ) : (
+          formatAmount(v, 'CNY')
+        ),
     },
     {
       title: '砍价',
       key: 'bargain',
       width: 130,
+      align: 'right',
       render: (_, r) => {
         const b = preview.lines.get(r.id)?.bargain;
         const qty = draft.items[r.id]?.quantity ?? r.quantity;
@@ -587,6 +573,81 @@ const PurchaseOrderDetail: React.FC = () => {
           />
         );
       },
+    },
+    ...(isDraft
+      ? []
+      : [
+          {
+            title: '已发',
+            dataIndex: 'shippedQty',
+            width: 80,
+            align: 'right' as const,
+            render: (v: number, r: PoItem) => (
+              <span
+                style={{ color: v >= r.quantity ? palette.ink : palette.sub }}
+              >
+                {v}
+              </span>
+            ),
+          },
+          {
+            title: '已入库（合格）',
+            dataIndex: 'receivedQty',
+            width: 120,
+            align: 'right' as const,
+            render: (v: number, r: PoItem) => (
+              <span
+                style={{
+                  color: v >= r.quantity && v > 0 ? palette.green : palette.sub,
+                }}
+              >
+                {v}
+              </span>
+            ),
+          },
+        ]),
+    {
+      // 来源单号与客户成对出现，合成两行一列（复审 P18、R26 方案 B）
+      title: '来源单号 · 客户',
+      dataIndex: 'soNo',
+      width: 200,
+      render: (v: string, r) => (
+        <div style={{ minWidth: 0 }}>
+          <CopyText text={v}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(PATHS.salesOrder(r.soId))}
+            >
+              {v}
+            </button>
+          </CopyText>
+          <div
+            title={r.customerName}
+            style={{
+              fontSize: 12,
+              color: palette.mute,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {r.customerName ?? '—'}
+            {r.customerCountry && (
+              <>
+                {' · '}
+                <CountryText value={r.customerCountry} />
+              </>
+            )}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: '描述',
+      key: 'description',
+      width: 240,
+      render: (_, r) => <DocDescription text={r.description} />,
     },
     ...(isDraft && editable
       ? [
@@ -609,7 +670,7 @@ const PurchaseOrderDetail: React.FC = () => {
                 <Button
                   type="text"
                   size="small"
-                  icon={<DeleteOutlined />}
+                  icon={<Trash2 size="1em" />}
                   aria-label={`移除 ${r.model}`}
                   onClick={() => removeItems([r.id])}
                 />
@@ -621,33 +682,75 @@ const PurchaseOrderDetail: React.FC = () => {
   ];
 
   const title = po.poNo ?? `草稿采购订单 · ${po.supplierName ?? ''}`;
+  const canConvert = po.shop && canEdit && po.status !== PO_STATUS.CANCELLED;
+  const convertShop = () =>
+    modal.confirm({
+      title: `把「${po.shopName}」转为供应商？`,
+      content:
+        '将新建供应商（已有同名供应商时直接使用），并把这家店的草稿、已下单采购订单和建议这家店的需求都改为指向它。',
+      okText: '转为供应商',
+      onOk: async () => {
+        try {
+          apply(await poApi.convertShop(poId));
+          message.success('已转为供应商');
+        } catch (e) {
+          message.error(readBizError(e).message);
+        }
+      },
+    });
+  /** 「更多」里的危险操作：删除草稿、取消采购订单 */
+  const moreItems = [
+    ...(isDraft && canCancel
+      ? [
+          {
+            key: 'delete',
+            icon: <Trash2 size={16} />,
+            label: '删除草稿',
+            danger: true,
+          },
+        ]
+      : []),
+    ...(po.status === PO_STATUS.ORDERED && canCancel && !editing
+      ? [
+          {
+            key: 'cancel',
+            icon: <CircleX size={16} />,
+            label: '取消采购订单',
+            danger: true,
+          },
+        ]
+      : []),
+  ];
   const contractDiff =
     draft.contractAmount == null
       ? null
       : round2(draft.contractAmount - preview.total);
 
+  // 右栏只放下单后的付款面板（草稿没有应付，整页单栏）；供应商合同放左栏指标卡下面，两栏高度接近
+  const hasSide = po.status !== PO_STATUS.DRAFT;
   return (
     <div>
-      <PurchasePageTitle
-        crumbs={[<MenuLink key="list" to={PATHS.orders} />, po.poNo ?? '草稿']}
-        title={
-          <span
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}
-          >
-            {title}
-            {po.shop && <Pill tone="orange">线上店铺</Pill>}
-            {po.payMethod != null && <PayMethodTag value={po.payMethod} />}
-            <MigratedPill migrated={po.migrated} />
-            <PoStatusPill status={po.status} />
-            <ShipProgressPill
-              code={po.shipProgress}
-              name={po.shipProgressName}
-            />
-          </span>
-        }
-        description={
+      <PageHeader
+        title={title}
+        // 页头只放一个流程状态（ui-redesign S14）：已下单后发货进度就是当前状态，代替「已下单」；线上店铺写说明行
+        tags={
           <>
+            <MigratedPill migrated={po.migrated} />
+            {po.status === PO_STATUS.ORDERED && po.shipProgress ? (
+              <ShipProgressPill
+                code={po.shipProgress}
+                name={po.shipProgressName}
+              />
+            ) : (
+              <PoStatusPill status={po.status} />
+            )}
+          </>
+        }
+        sub={
+          <>
+            {po.shop && '线上店铺 · '}
             {po.supplierName} · {po.purchaserName}
+            {po.payMethod != null && ` · ${PAY_METHOD_NAMES[po.payMethod]}付款`}
             {po.orderDate
               ? ` · ${po.orderDate} 下单${po.expectedShipDate ? ` · 预计 ${po.expectedShipDate} 发货` : ''}`
               : ` · ${dayjs(po.createTime).format('YYYY-MM-DD')} 创建 · 确认下单时分配编号`}
@@ -655,55 +758,81 @@ const PurchaseOrderDetail: React.FC = () => {
               ` · ${po.cancelledByName ?? ''} 取消：${po.cancelReason ?? ''}${po.cancelRefund === 1 ? '（会退款）' : po.cancelRefund === 2 ? '（不退款）' : ''}`}
           </>
         }
-        actions={
-          <Space>
-            {po.shop && canEdit && po.status !== PO_STATUS.CANCELLED && (
+        // 页头操作（照销售订单详情）：一个主按钮，其余为文字按钮，删除、取消收进「更多」
+        extra={
+          <>
+            {canConvert && (
               <Button
-                icon={<UserAddOutlined />}
-                onClick={() =>
-                  modal.confirm({
-                    title: `把「${po.shopName}」转为供应商？`,
-                    content:
-                      '将新建供应商（已有同名供应商时直接使用），并把这家店的草稿、已下单采购订单和建议这家店的需求都改为指向它。',
-                    okText: '转为供应商',
-                    onOk: async () => {
-                      try {
-                        apply(await poApi.convertShop(poId));
-                        message.success('已转为供应商');
-                      } catch (e) {
-                        message.error(readBizError(e).message);
-                      }
-                    },
-                  })
-                }
+                type="text"
+                icon={<UserPlus size={16} />}
+                style={{ color: palette.link }}
+                onClick={convertShop}
               >
                 转为供应商
               </Button>
             )}
-            {isDraft && canCancel && (
-              <Button danger icon={<DeleteOutlined />} onClick={deleteDraft}>
-                删除草稿
-              </Button>
-            )}
-            {po.status === PO_STATUS.ORDERED && canCancel && !editing && (
-              <Button
-                icon={<StopOutlined />}
-                onClick={() =>
-                  po.hasShipments
-                    ? message.warning('已有发货，请在到货差异里处理少发或退货')
-                    : setCancelOpen(true)
-                }
-              >
-                取消采购订单
-              </Button>
-            )}
             {po.status === PO_STATUS.ORDERED && canEdit && !editing && (
-              <Button onClick={() => setEditing(true)}>修改</Button>
+              <Button
+                type="text"
+                icon={<Pencil size={16} />}
+                style={{ color: palette.link }}
+                onClick={() => setEditing(true)}
+              >
+                修改
+              </Button>
+            )}
+            {po.status === PO_STATUS.ORDERED && editing && (
+              <Button
+                type="text"
+                onClick={() => {
+                  setDraft(toDraft(po));
+                  setEditing(false);
+                }}
+              >
+                放弃修改
+              </Button>
+            )}
+            {editable && (
+              <Button
+                type={isDraft ? 'default' : 'primary'}
+                loading={saving}
+                disabled={termsBad}
+                onClick={async () => {
+                  const p = await save();
+                  if (p && p.status === PO_STATUS.ORDERED) setEditing(false);
+                }}
+              >
+                {isDraft ? '保存草稿' : '保存修改'}
+              </Button>
+            )}
+            {moreItems.length > 0 && (
+              <Dropdown
+                trigger={['click']}
+                placement="bottomRight"
+                menu={{
+                  items: moreItems,
+                  onClick: ({ key }) =>
+                    key === 'delete'
+                      ? deleteDraft()
+                      : po.hasShipments
+                        ? message.warning(
+                            '已有发货，请在到货差异里处理少发或退货',
+                          )
+                        : setCancelOpen(true),
+                }}
+              >
+                <Button
+                  type="text"
+                  shape="circle"
+                  icon={<Ellipsis size={18} />}
+                  aria-label="更多操作"
+                />
+              </Dropdown>
             )}
             {po.status === PO_STATUS.ORDERED && canShip && !editing && (
               <Button
                 type="primary"
-                icon={<CarOutlined />}
+                icon={<Truck size={16} />}
                 disabled={po.items.every((i) => i.unshippedQty <= 0)}
                 title={
                   po.items.every((i) => i.unshippedQty <= 0)
@@ -715,216 +844,151 @@ const PurchaseOrderDetail: React.FC = () => {
                 登记发货
               </Button>
             )}
-            {po.status === PO_STATUS.ORDERED && editing && (
-              <Button
-                onClick={() => {
-                  setDraft(toDraft(po));
-                  setEditing(false);
-                }}
-              >
-                放弃修改
-              </Button>
-            )}
-            {editable && (
-              <Button
-                loading={saving}
-                disabled={termsBad}
-                onClick={async () => {
-                  const p = await save();
-                  if (p && p.status === PO_STATUS.ORDERED) setEditing(false);
-                }}
-              >
-                {isDraft ? '保存草稿' : '保存修改'}
-              </Button>
-            )}
             {isDraft && canEdit && (
               <Button
                 type="primary"
-                icon={<CheckOutlined />}
+                icon={<Check size={16} />}
                 disabled={termsBad}
                 onClick={() => setConfirmOpen(true)}
               >
                 确认下单
               </Button>
             )}
-          </Space>
+          </>
         }
       />
 
+      {/* 照销售订单：上半左栏放订单信息，右栏 340 放付款与合同；型号、发货与入库等宽表放下方通栏（复审 P9、R25 方案 B） */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gridTemplateColumns:
+            wide && hasSide ? 'minmax(0, 2.6fr) minmax(340px, 1fr)' : '1fr',
           gap: 16,
-          marginBottom: 16,
+          alignItems: 'start',
         }}
       >
-        <StatCard
-          icon={<WalletOutlined />}
-          color={palette.link}
-          label="合计"
-          value={formatAmount(preview.total, draft.currencyCode)}
-          hint={
-            preview.missing > 0
-              ? `${preview.missing} 行未填单价`
-              : `货款 ${formatAmount(preview.goods, draft.currencyCode)} ${preview.fees < 0 ? '− 优惠净额 ' : '+ 费用 '}${formatAmount(Math.abs(preview.fees), draft.currencyCode)}${preview.invoiceCost ? ` + 开票成本 ${formatAmount(preview.invoiceCost, draft.currencyCode)}` : ''}`
-          }
-          hintColor={preview.missing > 0 ? palette.orange : undefined}
-        />
-        <StatCard
-          icon={<FallOutlined />}
-          color={preview.bargain < 0 ? palette.red : palette.green}
-          label="砍价合计"
-          value={formatAmount(preview.bargain, 'CNY')}
-          hint={
-            preview.bargainRate == null
-              ? '填好单价后计算'
-              : `整体砍价率 ${preview.bargainRate.toFixed(2)}% · 目标金额 ${formatAmount(preview.target, 'CNY')}`
-          }
-          hintColor={preview.bargain < 0 ? palette.red : palette.green}
-        />
-        <StatCard
-          icon={<CalendarOutlined />}
-          color={palette.violet}
-          label="付款条件"
-          value={
-            draft.paymentTerms.length === 0
-              ? '未填'
-              : draft.paymentTerms.length === 1
-                ? '一次付清'
-                : draft.paymentTerms
-                    .map((t) => `${Number(t.percent)}%`)
-                    .join(' + ')
-          }
-          hint={po.paymentTermsText || '确认下单前须填写'}
-        />
-        {po.shipProgress ? (
-          <StatCard
-            icon={<CarOutlined />}
-            color={po.overdueDays ? palette.orange : palette.link}
-            label="发货进度"
-            value={`已发 ${po.shippedQty ?? 0} / ${po.totalQty ?? 0}`}
-            hint={shipHint(po)}
-            hintColor={po.overdueDays ? palette.orange : undefined}
-          />
-        ) : po.shop ? (
-          <StatCard
-            icon={<ShoppingOutlined />}
-            color={palette.orange}
-            label="采购对象"
-            value="线上店铺"
-            hint="不需要供应商档案；买得多了可以转为供应商"
-          />
-        ) : (
-          <StatCard
-            icon={<FileProtectOutlined />}
-            color={palette.orange}
-            label="供应商合同"
-            value={
-              po.attachments.length
-                ? `${po.attachments.length} 个文件`
-                : '未上传'
-            }
-            hint={
-              contractDiff
-                ? `合同金额与采购订单合计相差 ${formatAmount(Math.abs(contractDiff), draft.currencyCode)}`
-                : po.contractNo
-                  ? `合同编号 ${po.contractNo}`
-                  : '选填，货值低的可以不传'
-            }
-            hintColor={contractDiff ? palette.orange : undefined}
-          />
-        )}
-      </div>
-
-      {editable && (
-        <Card style={{ marginBottom: 16, padding: 20 }}>
+        <div style={{ minWidth: 0 }}>
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
+              // 两栏时左栏 2×2；单栏（草稿、窄屏）时照原样一行排开
+              gridTemplateColumns:
+                wide && hasSide
+                  ? 'repeat(2, minmax(0, 1fr))'
+                  : 'repeat(auto-fit, minmax(220px, 1fr))',
               gap: 16,
-              alignItems: 'end',
+              marginBottom: 16,
             }}
           >
-            <div>
-              <div
-                style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}
-              >
-                采购对象
-              </div>
-              <div style={{ color: palette.ink, lineHeight: '32px' }}>
-                {po.supplierName}
-                {po.shop && (
-                  <span style={{ color: palette.mute }}> · 线上店铺</span>
-                )}
-              </div>
-              {sub(
-                palette.mute,
-                isDraft
-                  ? '要换采购对象：在下面勾选型号点「改到其他供应商」，全选就是整单换'
-                  : '已下单的不能换采购对象，可以取消后重新下单',
-              )}
-            </div>
-            <div>
-              <div
-                style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}
-              >
-                币种
-              </div>
-              <Select
-                style={{ width: '100%' }}
-                value={draft.currencyCode}
-                options={['CNY', ...CURRENCIES.filter((c) => c !== 'CNY')].map(
-                  (c) => ({
-                    value: c,
-                    label: c,
-                  }),
-                )}
-                onChange={(v) =>
-                  setDraft((d) => (d ? { ...d, currencyCode: v } : d))
+            {/* 公共数字卡（C3）：金额卡按含义着色——合计归支出（洋红）、砍价归利润（紫）；付款条件、发货进度、采购对象、合同不是金额，用中性（D67）；要处理的情况改告警标签 */}
+            <MetricCard
+              icon={<Wallet size={20} />}
+              family="gray"
+              label="合计"
+              currency={draft.currencyCode}
+              value={amountText(preview.total, draft.currencyCode)}
+              alert={
+                preview.missing > 0
+                  ? { tone: 'warning', text: `${preview.missing} 行未填单价` }
+                  : undefined
+              }
+              hint={`货款 ${formatAmount(preview.goods, draft.currencyCode)} ${preview.fees < 0 ? '− 优惠净额 ' : '+ 费用 '}${formatAmount(Math.abs(preview.fees), draft.currencyCode)}${preview.invoiceCost ? ` + 开票成本 ${formatAmount(preview.invoiceCost, draft.currencyCode)}` : ''}`}
+            />
+            <MetricCard
+              icon={<TrendingDown size={20} />}
+              family="purple"
+              label="砍价合计"
+              currency="CNY"
+              value={amountText(preview.bargain, 'CNY')}
+              // 砍价金额按涨跌色，与列表、砍价统计一致（design.md 第 8 节）
+              toneBy={preview.bargain}
+              hint={
+                preview.bargainRate == null
+                  ? '填好单价后计算'
+                  : `整体砍价率 ${preview.bargainRate.toFixed(2)}% · 目标金额 ${formatAmount(preview.target, 'CNY')}`
+              }
+            />
+            <MetricCard
+              icon={<Calendar size={20} />}
+              family="neutral"
+              label="付款条件"
+              value={
+                draft.paymentTerms.length === 0
+                  ? '未填'
+                  : draft.paymentTerms.length === 1
+                    ? '一次付清'
+                    : draft.paymentTerms
+                        .map((t) => `${Number(t.percent)}%`)
+                        .join(' + ')
+              }
+              hint={po.paymentTermsText || '确认下单前须填写'}
+            />
+            {po.shipProgress ? (
+              <MetricCard
+                icon={<Car size={20} />}
+                family="neutral"
+                label="发货进度"
+                value={`已发 ${po.shippedQty ?? 0} / ${po.totalQty ?? 0}`}
+                // 逾期归错误色（status-colors.md「逾期 错误」，ui-redesign S5）
+                alert={
+                  po.overdueDays
+                    ? {
+                        tone: 'error',
+                        text: `逾期 ${po.overdueDays} 天 · 还有 ${(po.totalQty ?? 0) - (po.shippedQty ?? 0)} 件没发`,
+                      }
+                    : undefined
                 }
-                aria-label="币种"
-              />
-            </div>
-            <div>
-              <div
-                style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}
-              >
-                开票
-              </div>
-              <Segmented<string>
-                value={draft.invoiceRequired ? 'yes' : 'no'}
-                disabled={po.invoiceStatus === 2}
-                options={[
-                  { label: '不开票', value: 'no' },
-                  { label: '开票', value: 'yes' },
-                ]}
-                onChange={(v) => setInvoice({ invoiceRequired: v === 'yes' })}
-              />
-            </div>
-            <div>
-              <div
-                style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}
-              >
-                付款方式
-              </div>
-              <Segmented<number>
-                value={draft.payMethod}
-                options={[
-                  { label: '对公', value: PAY_METHOD.PUBLIC },
-                  { label: '对私', value: PAY_METHOD.PRIVATE },
-                ]}
-                onChange={(v) =>
-                  setDraft((d) =>
-                    d ? { ...d, payMethod: v, payMethodTouched: true } : d,
-                  )
+                hint={shipHint(po)}
+                bar={
+                  po.totalQty ? (po.shippedQty ?? 0) / po.totalQty : undefined
                 }
               />
-              {sub(palette.mute, '开票默认对公、不开票默认对私，可以改')}
-            </div>
-            {draft.invoiceRequired && (
-              <>
+            ) : po.shop ? (
+              <MetricCard
+                icon={<ShoppingBag size={20} />}
+                family="neutral"
+                label="采购对象"
+                value="线上店铺"
+                hint="不需要供应商档案；买得多了可以转为供应商"
+              />
+            ) : (
+              <MetricCard
+                icon={<FileLock size={20} />}
+                family="neutral"
+                label="供应商合同"
+                value={
+                  po.attachments.length
+                    ? `${po.attachments.length} 个文件`
+                    : '未上传'
+                }
+                alert={
+                  contractDiff
+                    ? {
+                        tone: 'warning',
+                        text: `与合计相差 ${formatAmount(Math.abs(contractDiff), draft.currencyCode)}`,
+                      }
+                    : undefined
+                }
+                hint={
+                  po.contractNo
+                    ? `合同编号 ${po.contractNo}`
+                    : '选填，货值低的可以不传'
+                }
+              />
+            )}
+          </div>
+
+          {editable && (
+            <Card style={{ marginBottom: 16, padding: 20 }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
+                  gap: 16,
+                  alignItems: 'end',
+                }}
+              >
                 <div>
                   <div
                     style={{
@@ -933,17 +997,45 @@ const PurchaseOrderDetail: React.FC = () => {
                       marginBottom: 6,
                     }}
                   >
-                    税点
+                    采购对象
                   </div>
-                  <InputNumber
-                    min={0}
-                    max={100}
-                    precision={2}
-                    value={draft.taxPoint}
-                    suffix="%"
+                  <div style={{ color: palette.ink, lineHeight: '32px' }}>
+                    {po.supplierName}
+                    {po.shop && (
+                      <span style={{ color: palette.mute }}> · 线上店铺</span>
+                    )}
+                  </div>
+                  {sub(
+                    palette.mute,
+                    isDraft
+                      ? '要换采购对象：在下面勾选型号点「改到其他供应商」，全选就是整单换'
+                      : '已下单的不能换采购对象，可以取消后重新下单',
+                  )}
+                </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: palette.sub,
+                      marginBottom: 6,
+                    }}
+                  >
+                    币种
+                  </div>
+                  <Select
                     style={{ width: '100%' }}
-                    onChange={(v) => setInvoice({ taxPoint: v ?? 0 })}
-                    aria-label="税点"
+                    value={draft.currencyCode}
+                    options={[
+                      'CNY',
+                      ...CURRENCIES.filter((c) => c !== 'CNY'),
+                    ].map((c) => ({
+                      value: c,
+                      label: c,
+                    }))}
+                    onChange={(v) =>
+                      setDraft((d) => (d ? { ...d, currencyCode: v } : d))
+                    }
+                    aria-label="币种"
                   />
                 </div>
                 <div>
@@ -954,17 +1046,18 @@ const PurchaseOrderDetail: React.FC = () => {
                       marginBottom: 6,
                     }}
                   >
-                    开票金额
+                    开票
                   </div>
-                  <InputNumber
-                    min={0}
-                    precision={2}
-                    value={draft.invoiceAmount}
-                    placeholder={`按货款 ${preview.goods.toFixed(2)}`}
-                    prefix={draft.currencyCode}
-                    style={{ width: '100%' }}
-                    onChange={(v) => setInvoice({ invoiceAmount: v })}
-                    aria-label="开票金额"
+                  <Segmented<string>
+                    value={draft.invoiceRequired ? 'yes' : 'no'}
+                    disabled={po.invoiceStatus === 2}
+                    options={[
+                      { label: '不开票', value: 'no' },
+                      { label: '开票', value: 'yes' },
+                    ]}
+                    onChange={(v) =>
+                      setInvoice({ invoiceRequired: v === 'yes' })
+                    }
                   />
                 </div>
                 <div>
@@ -975,65 +1068,194 @@ const PurchaseOrderDetail: React.FC = () => {
                       marginBottom: 6,
                     }}
                   >
-                    预计开票日期
+                    付款方式{' '}
+                    <HelpTip title="开票默认对公、不开票默认对私，可以改" />
+                  </div>
+                  <Segmented<number>
+                    value={draft.payMethod}
+                    options={[
+                      { label: '对公', value: PAY_METHOD.PUBLIC },
+                      { label: '对私', value: PAY_METHOD.PRIVATE },
+                    ]}
+                    onChange={(v) =>
+                      setDraft((d) =>
+                        d ? { ...d, payMethod: v, payMethodTouched: true } : d,
+                      )
+                    }
+                  />
+                </div>
+                {draft.invoiceRequired && (
+                  <>
+                    <div>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: palette.sub,
+                          marginBottom: 6,
+                        }}
+                      >
+                        税点
+                      </div>
+                      <InputNumber
+                        min={0}
+                        max={100}
+                        precision={2}
+                        value={draft.taxPoint}
+                        suffix="%"
+                        style={{ width: '100%' }}
+                        onChange={(v) => setInvoice({ taxPoint: v ?? 0 })}
+                        aria-label="税点"
+                      />
+                    </div>
+                    <div>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: palette.sub,
+                          marginBottom: 6,
+                        }}
+                      >
+                        开票金额
+                      </div>
+                      <InputNumber
+                        min={0}
+                        precision={2}
+                        value={draft.invoiceAmount}
+                        placeholder={`按货款 ${preview.goods.toFixed(2)}`}
+                        prefix={draft.currencyCode}
+                        style={{ width: '100%' }}
+                        onChange={(v) => setInvoice({ invoiceAmount: v })}
+                        aria-label="开票金额"
+                      />
+                    </div>
+                    <div>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: palette.sub,
+                          marginBottom: 6,
+                        }}
+                      >
+                        预计开票日期
+                      </div>
+                      <DatePicker
+                        style={{ width: '100%' }}
+                        value={
+                          draft.expectedInvoiceDate
+                            ? dayjs(draft.expectedInvoiceDate)
+                            : null
+                        }
+                        onChange={(d) =>
+                          setInvoice({
+                            expectedInvoiceDate: d
+                              ? d.format('YYYY-MM-DD')
+                              : null,
+                          })
+                        }
+                        aria-label="预计开票日期"
+                      />
+                    </div>
+                  </>
+                )}
+                <div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: palette.sub,
+                      marginBottom: 6,
+                    }}
+                  >
+                    预计发货日期
                   </div>
                   <DatePicker
                     style={{ width: '100%' }}
                     value={
-                      draft.expectedInvoiceDate
-                        ? dayjs(draft.expectedInvoiceDate)
+                      draft.expectedShipDate
+                        ? dayjs(draft.expectedShipDate)
                         : null
                     }
-                    onChange={(d) =>
-                      setInvoice({
-                        expectedInvoiceDate: d ? d.format('YYYY-MM-DD') : null,
-                      })
+                    allowClear={isDraft}
+                    disabledDate={(d) =>
+                      !!po.orderDate && d.isBefore(dayjs(po.orderDate), 'day')
                     }
-                    aria-label="预计开票日期"
+                    onChange={(d) =>
+                      setDraft((x) =>
+                        x
+                          ? {
+                              ...x,
+                              expectedShipDate: d
+                                ? d.format('YYYY-MM-DD')
+                                : null,
+                            }
+                          : x,
+                      )
+                    }
+                    placeholder={isDraft ? '下单时必填' : undefined}
+                    aria-label="预计发货日期"
                   />
                 </div>
-              </>
-            )}
-            <div>
-              <div
-                style={{ fontSize: 12, color: palette.sub, marginBottom: 6 }}
-              >
-                预计发货日期
               </div>
-              <DatePicker
-                style={{ width: '100%' }}
-                value={
-                  draft.expectedShipDate ? dayjs(draft.expectedShipDate) : null
+              {preview.rateUnknown && (
+                <Alert
+                  style={{ marginTop: 12 }}
+                  type="info"
+                  showIcon
+                  title={`${draft.currencyCode} 保存后按系统汇率换算人民币，砍价随之重算`}
+                />
+              )}
+            </Card>
+          )}
+
+          {editable && (
+            <Card style={{ padding: 20, marginBottom: 16 }}>
+              <b
+                style={{
+                  color: palette.ink,
+                  display: 'block',
+                  marginBottom: 12,
+                }}
+              >
+                <Calendar size="1em" /> 付款条件{' '}
+                <HelpTip title="默认取供应商的默认付款条件；确认下单后按它生成应付的付款计划，下单后修改会重新分期" />
+              </b>
+              <PaymentTermsEditor
+                value={draft.paymentTerms}
+                onChange={(terms) =>
+                  setDraft((d) => (d ? { ...d, paymentTerms: terms } : d))
                 }
-                allowClear={isDraft}
-                disabledDate={(d) =>
-                  !!po.orderDate && d.isBefore(dayjs(po.orderDate), 'day')
-                }
-                onChange={(d) =>
-                  setDraft((x) =>
-                    x
-                      ? {
-                          ...x,
-                          expectedShipDate: d ? d.format('YYYY-MM-DD') : null,
-                        }
-                      : x,
-                  )
-                }
-                placeholder={isDraft ? '下单时必填' : undefined}
-                aria-label="预计发货日期"
               />
-            </div>
-          </div>
-          {preview.rateUnknown && (
-            <Alert
-              style={{ marginTop: 12 }}
-              type="info"
-              showIcon
-              title={`${draft.currencyCode} 保存后按系统汇率换算人民币，砍价随之重算`}
+            </Card>
+          )}
+          {!po.shop && (
+            <ContractCard
+              po={po}
+              draft={draft}
+              editable={
+                editable || (canEdit && po.status !== PO_STATUS.CANCELLED)
+              }
+              fieldsEditable={editable}
+              contractDiff={contractDiff}
+              onDraft={(patch) => setDraft((d) => (d ? { ...d, ...patch } : d))}
+              onChanged={(p) => {
+                setPo(p);
+              }}
             />
           )}
-        </Card>
-      )}
+        </div>
+        {hasSide && (
+          <div style={{ minWidth: 0 }}>
+            {po.status !== PO_STATUS.DRAFT && (
+              <PayablePanel
+                key={`${po.id}-${po.status}-${po.totalAmount}-${po.expectedShipDate ?? ''}-${JSON.stringify(po.paymentTerms ?? [])}`}
+                sourceType={SOURCE.PO}
+                sourceId={po.id}
+                allowAdvance
+                compact
+              />
+            )}
+          </div>
+        )}
+      </div>
 
       <Card style={{ marginBottom: 16, padding: 20 }}>
         <div
@@ -1045,13 +1267,11 @@ const PurchaseOrderDetail: React.FC = () => {
             flexWrap: 'wrap',
           }}
         >
-          <b style={{ color: palette.ink, fontSize: 15 }}>
+          {/* 口径放帮助图标，不常显灰字（ui-redesign S10） */}
+          <b style={{ color: palette.ink, fontSize: 16 }}>
             型号（{po.items.length}）
           </b>
-          <span style={{ fontSize: 12, color: palette.mute }}>
-            人民币单价 = 单价 × 汇率；砍价 = (目标价 − 人民币单价) ×
-            数量；目标价为转订单时锁定的采购成本价；开票成本不参与砍价
-          </span>
+          <HelpTip title="人民币单价 = 单价 × 汇率；砍价 = (目标价 − 人民币单价) × 数量；目标价为转订单时锁定的采购成本价；开票成本不参与砍价" />
           <span style={{ flex: 1 }} />
           {isDraft && editable && picked.length > 0 && (
             <Space>
@@ -1124,10 +1344,10 @@ const PurchaseOrderDetail: React.FC = () => {
           dataSource={po.items}
           pagination={false}
           onRow={(r) =>
-            r.modelUpdatedTo || r.remarkAlert
-              ? { style: { background: palette.redSoft } }
-              : {}
+            r.modelUpdatedTo || r.remarkAlert ? rowAlert('error') : {}
           }
+          // 长单据：表头贴在吸顶页头下面，横向滚动条贴视口底部（S15、R24 方案 B）
+          sticky={STICKY_TABLE}
           scroll={{ x: tableScrollX(columns) }}
           rowSelection={
             isDraft && editable
@@ -1139,24 +1359,24 @@ const PurchaseOrderDetail: React.FC = () => {
           }
         />
         {po.salesRemarks?.length > 0 && (
-          <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
-            <b style={{ color: palette.ink }}>销售备注</b>
-            {po.salesRemarks.map((r) => (
+          <div style={{ marginTop: 14, display: 'grid' }}>
+            <b style={{ color: palette.ink, marginBottom: 4 }}>销售备注</b>
+            {po.salesRemarks.map((r, i) => (
               <div
                 key={r.soId}
                 style={{
                   display: 'flex',
                   gap: 14,
-                  padding: '10px 14px',
-                  borderRadius: 10,
-                  background: palette.inset,
+                  padding: '10px 0',
+                  borderTop:
+                    i > 0 ? `1px solid ${palette.hairline}` : undefined,
                 }}
               >
                 <div style={{ width: 170, flexShrink: 0 }}>
                   <button
                     type="button"
                     className="zhul-link"
-                    style={{ fontWeight: 700 }}
+                    style={{ fontWeight: 600 }}
                     onClick={() => history.push(PATHS.salesOrder(r.soId))}
                   >
                     {r.soNo}
@@ -1173,7 +1393,10 @@ const PurchaseOrderDetail: React.FC = () => {
           </div>
         )}
         <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
-          <b style={{ color: palette.ink }}>其他费用与优惠</b>
+          <b style={{ color: palette.ink }}>
+            其他费用与优惠{' '}
+            <HelpTip title="费用计入合计、优惠从合计中减去（填正数），都不参与砍价；优惠不能超过货款加费用" />
+          </b>
           {draft.fees.length === 0 && !editable && (
             <span style={{ color: palette.mute }}>无</span>
           )}
@@ -1248,7 +1471,7 @@ const PurchaseOrderDetail: React.FC = () => {
                 />
                 <Button
                   type="text"
-                  icon={<DeleteOutlined />}
+                  icon={<Trash2 size="1em" />}
                   aria-label="删除费用"
                   onClick={() =>
                     setDraft((d) =>
@@ -1279,7 +1502,7 @@ const PurchaseOrderDetail: React.FC = () => {
             <Button
               size="small"
               type="dashed"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               style={{ width: 120 }}
               onClick={() =>
                 setDraft((d) =>
@@ -1303,9 +1526,6 @@ const PurchaseOrderDetail: React.FC = () => {
               添加费用或优惠
             </Button>
           )}
-          <span style={{ fontSize: 12, color: palette.mute }}>
-            费用计入合计、优惠从合计中减去（填正数），都不参与砍价；优惠不能超过货款加费用
-          </span>
         </div>
       </Card>
 
@@ -1329,87 +1549,40 @@ const PurchaseOrderDetail: React.FC = () => {
         />
       )}
 
-      {po.status !== PO_STATUS.DRAFT && (
-        <PayablePanel
-          key={`${po.id}-${po.status}-${po.totalAmount}-${po.expectedShipDate ?? ''}-${JSON.stringify(po.paymentTerms ?? [])}`}
-          sourceType={SOURCE.PO}
-          sourceId={po.id}
-          allowAdvance
-        />
-      )}
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
-          gap: 16,
-        }}
-      >
-        <Card style={{ padding: 20 }}>
-          <b style={{ color: palette.ink, display: 'block', marginBottom: 12 }}>
-            <CalendarOutlined /> 付款条件
-          </b>
-          <PaymentTermsEditor
-            value={draft.paymentTerms}
-            disabled={!editable}
-            onChange={(terms) =>
-              setDraft((d) => (d ? { ...d, paymentTerms: terms } : d))
-            }
-          />
-          <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-            默认取供应商的默认付款条件；确认下单后按它生成应付的付款计划，下单后修改会重新分期。
-          </div>
-        </Card>
-        {!po.shop && (
-          <ContractCard
-            po={po}
-            draft={draft}
-            editable={
-              editable || (canEdit && po.status !== PO_STATUS.CANCELLED)
-            }
-            fieldsEditable={editable}
-            contractDiff={contractDiff}
-            onDraft={(patch) => setDraft((d) => (d ? { ...d, ...patch } : d))}
-            onChanged={(p) => {
-              setPo(p);
-            }}
-          />
-        )}
-        <Card style={{ padding: 20 }}>
-          <b style={{ color: palette.ink, display: 'block', marginBottom: 12 }}>
-            <HistoryOutlined /> 操作日志
-          </b>
-          <div
-            style={{
-              display: 'grid',
-              gap: 8,
-              maxHeight: 320,
-              overflow: 'auto',
-            }}
-          >
-            {po.logs.map((l, i) => (
-              <div
-                // biome-ignore lint/suspicious/noArrayIndexKey: 日志只追加，按位置展示
-                key={i}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '120px 56px 1fr',
-                  gap: 8,
-                  fontSize: 12,
-                }}
-              >
-                <span style={{ color: palette.mute }}>
-                  {dayjs(l.createTime).format('MM-DD HH:mm')}
-                </span>
-                <span style={{ color: palette.sub }}>{l.operatorName}</span>
-                <span style={{ color: palette.sub }}>
-                  <b>{l.action}</b> {l.content}
-                </span>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
+      <Card style={{ padding: 20 }}>
+        <b style={{ color: palette.ink, display: 'block', marginBottom: 12 }}>
+          <History size="1em" /> 操作日志
+        </b>
+        <div
+          style={{
+            display: 'grid',
+            gap: 8,
+            maxHeight: 320,
+            overflow: 'auto',
+          }}
+        >
+          {po.logs.map((l, i) => (
+            <div
+              // biome-ignore lint/suspicious/noArrayIndexKey: 日志只追加，按位置展示
+              key={i}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '120px 56px 1fr',
+                gap: 8,
+                fontSize: 12,
+              }}
+            >
+              <span style={{ color: palette.mute }}>
+                {dayjs(l.createTime).format('MM-DD HH:mm')}
+              </span>
+              <span style={{ color: palette.sub }}>{l.operatorName}</span>
+              <span style={{ color: palette.sub }}>
+                <b>{l.action}</b> {l.content}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Card>
 
       <ConfirmModal
         open={confirmOpen}
@@ -1511,6 +1684,10 @@ const PurchaseOrderDetail: React.FC = () => {
 
 // ---------------------------------------------------------------- 发货与入库
 
+/** 数字卡里的金额：币种代码由 MetricCard 弱化显示，这里只给数字 */
+const amountText = (v: number, currency: string) =>
+  formatAmount(v, currency).replace(/^[A-Z]{3}\s*/, '');
+
 const shipHint = (po: PurchaseOrder) => {
   const left = (po.totalQty ?? 0) - (po.shippedQty ?? 0);
   if (po.shipProgress === 'RECEIVED') return '全部合格入库';
@@ -1537,7 +1714,8 @@ const InvoicePanel: React.FC<{
   onChanged: (po: PurchaseOrder) => void;
 }> = ({ po, canEdit, onChanged }) => {
   const { palette } = useAppTheme();
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const [date, setDate] = useState<Dayjs>(dayjs());
   const [amount, setAmount] = useState<number | null>(
     po.invoiceAmountEffective ?? null,
@@ -1573,8 +1751,8 @@ const InvoicePanel: React.FC<{
 
   const revoke = () => {
     let reason = '';
-    modal.confirm({
-      title: '撤销已开票',
+    confirmDanger({
+      title: '撤销已开票？',
       content: (
         <Input.TextArea
           autoFocus
@@ -1586,7 +1764,6 @@ const InvoicePanel: React.FC<{
         />
       ),
       okText: '撤销',
-      okButtonProps: { danger: true },
       onOk: async () => {
         if (!reason.trim()) {
           message.error('请填写撤销原因');
@@ -1614,7 +1791,7 @@ const InvoicePanel: React.FC<{
           marginBottom: 12,
         }}
       >
-        <b style={{ color: palette.ink, fontSize: 15 }}>开票</b>
+        <b style={{ color: palette.ink, fontSize: 16 }}>开票</b>
         {done ? (
           <Pill tone="green">已开票 · {po.invoicedDate}</Pill>
         ) : (
@@ -1713,33 +1890,45 @@ const ShipmentsCard: React.FC<{
     const db = b.kind === 'ship' ? b.ref.shipDate : b.ref.receivedDate;
     return (db ?? '').localeCompare(da ?? '') || b.key.localeCompare(a.key);
   });
+  // 列宽按内容收窄，1366 宽下操作列不被挤出（合计 1016，复审 P18）
   const columns: TableColumnsType<FlowRow> = [
     {
       title: '单据',
       key: 'no',
-      width: 170,
+      width: 150,
       render: (_, r) =>
         r.kind === 'ship' ? (
-          <Link to={DOC_PATHS.shipment(r.ref.id)}>{r.ref.sdNo}</Link>
+          <Link
+            to={DOC_PATHS.shipment(r.ref.id)}
+            className="zhul-link zhul-link-doc"
+          >
+            {r.ref.sdNo}
+          </Link>
         ) : (
-          <Link to={DOC_PATHS.receipt(r.ref.id)}>{r.ref.grNo}</Link>
+          <Link
+            to={DOC_PATHS.receipt(r.ref.id)}
+            className="zhul-link zhul-link-doc"
+          >
+            {r.ref.grNo}
+          </Link>
         ),
     },
     {
       title: '类型',
       key: 'kind',
-      width: 120,
+      width: 100,
       render: (_, r) =>
+        // 发货、入库两类记录用属性色区分（D75）
         r.kind === 'ship' ? (
-          <Pill tone="accent">{r.ref.sourceName}</Pill>
+          <Pill tone={attrTone(0)}>{r.ref.sourceName}</Pill>
         ) : (
-          <Pill tone="violet">采购入库</Pill>
+          <Pill tone={attrTone(1)}>采购入库</Pill>
         ),
     },
     {
       title: '快递 · 单号',
       key: 'tracking',
-      width: 220,
+      width: 170,
       render: (_, r) =>
         r.kind === 'ship'
           ? trackingText(r.ref.carrier, r.ref.trackingNo)
@@ -1748,14 +1937,14 @@ const ShipmentsCard: React.FC<{
     {
       title: '日期',
       key: 'date',
-      width: 120,
+      width: 110,
       render: (_, r) =>
         (r.kind === 'ship' ? r.ref.shipDate : r.ref.receivedDate) ?? '—',
     },
     {
       title: '预计到货',
       key: 'eta',
-      width: 130,
+      width: 120,
       render: (_, r) =>
         r.kind === 'ship' && r.ref.expectedArrivalDate ? (
           <div>
@@ -1773,8 +1962,9 @@ const ShipmentsCard: React.FC<{
     },
     {
       title: '数量',
+      align: 'right' as const,
       key: 'qty',
-      width: 180,
+      width: 130,
       render: (_, r) =>
         r.kind === 'ship'
           ? `发货 ${r.ref.totalQuantity}`
@@ -1798,34 +1988,43 @@ const ShipmentsCard: React.FC<{
     {
       title: '操作',
       key: 'actions',
-      width: 150,
-      render: (_, r) =>
-        r.kind === 'ship' ? (
-          <Space size={12}>
-            <Link to={DOC_PATHS.shipment(r.ref.id)}>查看</Link>
-            {r.ref.status === 1 && canShip && (
-              <>
-                <button
-                  type="button"
-                  className="zhul-link"
-                  onClick={() => onEdit(r.ref.id)}
-                >
-                  修改
-                </button>
-                <button
-                  type="button"
-                  className="zhul-link"
-                  style={{ color: palette.red }}
-                  onClick={() => onVoid(r.ref)}
-                >
-                  作废
-                </button>
-              </>
-            )}
-          </Space>
-        ) : (
-          <Link to={DOC_PATHS.receipt(r.ref.id)}>查看</Link>
-        ),
+      // 查看、修改放行内，作废收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(3),
+      render: (_, r) => {
+        const editable = r.kind === 'ship' && r.ref.status === 1 && canShip;
+        return (
+          <RowActions
+            inline={[
+              {
+                key: 'view',
+                label: '查看',
+                icon: <Eye size={18} />,
+                onClick: () =>
+                  history.push(
+                    r.kind === 'ship'
+                      ? DOC_PATHS.shipment(r.ref.id)
+                      : DOC_PATHS.receipt(r.ref.id),
+                  ),
+              },
+              editable && {
+                key: 'edit',
+                label: '修改',
+                icon: <Pencil size={18} />,
+                onClick: () => onEdit(r.ref.id),
+              },
+            ]}
+            more={[
+              editable && {
+                key: 'void',
+                label: '作废',
+                icon: <Ban size={16} />,
+                danger: true,
+              },
+            ]}
+            onMore={() => r.kind === 'ship' && onVoid(r.ref)}
+          />
+        );
+      },
     },
   ];
   return (
@@ -1839,13 +2038,12 @@ const ShipmentsCard: React.FC<{
           flexWrap: 'wrap',
         }}
       >
-        <b style={{ color: palette.ink, fontSize: 15 }}>
-          <CarOutlined /> 发货与入库
+        {/* 放在弹性行里会被压到最小宽度，不折行，免得图标单独占一行 */}
+        <b style={{ color: palette.ink, fontSize: 16, whiteSpace: 'nowrap' }}>
+          <Car size="1em" /> 发货与入库{' '}
+          <HelpTip title="有发货后不能直接取消采购订单，少发、退货在到货差异里处理" />
         </b>
         <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 12, color: palette.mute }}>
-          有发货后不能直接取消采购订单，少发、退货在到货差异里处理
-        </span>
       </div>
       <Table<FlowRow>
         rowKey="key"
@@ -1854,7 +2052,13 @@ const ShipmentsCard: React.FC<{
         dataSource={rows}
         pagination={false}
         scroll={{ x: tableScrollX(columns) }}
-        locale={{ emptyText: '供应商还没发货；发货后点右上角「登记发货」' }}
+        locale={{
+          emptyText: tableEmpty(
+            '供应商还没发货；发货后点右上角「登记发货」',
+            undefined,
+            true,
+          ),
+        }}
       />
     </Card>
   );
@@ -1914,26 +2118,25 @@ const ContractCard: React.FC<{
   return (
     <Card style={{ padding: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-        <b style={{ color: palette.ink }}>
-          <FileProtectOutlined /> 供应商合同
+        <b style={{ color: palette.ink, whiteSpace: 'nowrap' }}>
+          <FileLock size="1em" /> 供应商合同
         </b>
         <span style={{ flex: 1 }} />
         <span style={{ fontSize: 12, color: palette.mute }}>选填</span>
       </div>
-      <div style={{ display: 'grid', gap: 8 }}>
-        {po.attachments.map((a) => (
+      <div style={{ display: 'grid' }}>
+        {po.attachments.map((a, i) => (
           <div
             key={a.id}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              padding: '8px 12px',
-              borderRadius: 10,
-              background: palette.inset,
+              padding: '8px 0',
+              borderTop: i > 0 ? `1px solid ${palette.hairline}` : undefined,
             }}
           >
-            <FilePdfOutlined style={{ color: palette.link }} />
+            <FileText size="1em" style={{ color: palette.mute }} />
             <span
               style={{
                 color: palette.ink,
@@ -1972,7 +2175,7 @@ const ContractCard: React.FC<{
               <Button
                 type="text"
                 size="small"
-                icon={<DeleteOutlined />}
+                icon={<Trash2 size="1em" />}
                 aria-label={`删除 ${a.fileName}`}
                 onClick={() =>
                   poApi
@@ -2005,7 +2208,7 @@ const ContractCard: React.FC<{
               return false;
             }}
           >
-            <Button icon={<UploadOutlined />} loading={uploading}>
+            <Button icon={<UploadIcon size="1em" />} loading={uploading}>
               上传合同（PDF、JPG、PNG，单个 10MB 内）
             </Button>
           </Upload>
@@ -2288,7 +2491,7 @@ export const CancelModal: React.FC<{
                     alignItems: 'flex-start',
                     border: `1px solid ${refund === o.value ? palette.link : palette.hairline}`,
                     background:
-                      refund === o.value ? palette.accentSoft : undefined,
+                      refund === o.value ? palette.primarySoft : undefined,
                   }}
                 >
                   <div style={{ fontWeight: 600, color: palette.ink }}>
@@ -2317,7 +2520,7 @@ export const CancelModal: React.FC<{
                   <div>
                     <Space size={6}>
                       <span style={{ fontWeight: 600 }}>{p.paymentNo}</span>
-                      <Pill tone={p.method === 2 ? 'orange' : 'accent'}>
+                      <Pill tone={p.method === 2 ? 'orange' : 'gray'}>
                         {METHOD_NAMES[p.method]}
                       </Pill>
                     </Space>

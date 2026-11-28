@@ -48,12 +48,6 @@ export const OO_TYPES = [
   { value: 3, label: '货代丢失', hint: '货代仓盘点少了', own: false },
   { value: 4, label: '货代损坏', hint: '货代仓里的货损坏', own: false },
 ];
-export const OO_TYPE_TONE: Record<number, 'red' | 'accent' | 'orange'> = {
-  1: 'red',
-  2: 'accent',
-  3: 'orange',
-  4: 'orange',
-};
 export const ooPath = (id: number) => `/warehouse/other-outbounds/${id}`;
 export const OO_DONE = 1;
 export const OO_VOID = 2;

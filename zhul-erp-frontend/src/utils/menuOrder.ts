@@ -1,4 +1,7 @@
+// lint-ui-ignore antd-icon: 后端菜单里存量的 antd 图标名，按名字兜底查找
 import * as AntdIcons from '@ant-design/icons';
+import type { LucideIcon } from 'lucide-react';
+import * as L from 'lucide-react';
 import React from 'react';
 
 interface BackendMenuNode {
@@ -30,14 +33,87 @@ function toPascalCase(raw: string): string {
 }
 
 /**
- * 「菜单管理」里 lightIcon 是自由文本（如 shopping / shopping-bag / fileText），
- * 不是受限枚举。这里按 antd 图标的命名规律（PascalCase + Outlined/Filled/TwoTone）
- * 去 @ant-design/icons 里找对应组件；找不到就不渲染图标，绝不把原始英文字符串
- * 直接显示出来——ProLayout 自带的 getIcon() 遇到普通字符串时就是这么处理的，
- * 这正是菜单名称前面冒出一截英文单词的原因。
+ * 菜单图标统一用 lucide 线性图标（外壳原型 F1；与参考站 PrimeDash 的 mdi outline 同一类：
+ * 20px、线宽 2、造型简洁）。「菜单管理」里存的是 antd 图标名，这里按名称换成对应的 lucide 图标；
+ * 键为去掉连字符、下划线后的小写名，兼容 file-text / fileText 两种写法。
+ */
+const LUCIDE_MENU_ICONS: Record<string, LucideIcon> = {
+  // 顶级分组（侧栏、收起后的图标栏里看得到的）
+  dashboard: L.LayoutDashboard,
+  solution: L.Briefcase,
+  shoppingcart: L.ShoppingCart,
+  deploymentunit: L.Network,
+  inbox: L.Warehouse,
+  global: L.Truck,
+  globe: L.Truck,
+  wallet: L.Wallet,
+  shopping: L.Package,
+  fund: L.Megaphone,
+  barchart: L.ChartColumn,
+  control: L.SlidersHorizontal,
+  setting: L.Settings,
+  cluster: L.Building2,
+  useradd: L.UserPlus,
+  mail: L.Mail,
+  filetext: L.FileText,
+  accountbook: L.NotebookText,
+  shop: L.Store,
+  // 其余在用的名称
+  apartment: L.Network,
+  appstore: L.LayoutGrid,
+  audit: L.FileCheck,
+  bank: L.Landmark,
+  bell: L.Bell,
+  book: L.Book,
+  camera: L.Camera,
+  car: L.Car,
+  carryout: L.CalendarCheck,
+  clockcircle: L.Clock,
+  container: L.Container,
+  database: L.Database,
+  export: L.ExternalLink,
+  fall: L.TrendingDown,
+  filedone: L.FileCheck,
+  fileexcel: L.FileSpreadsheet,
+  history: L.History,
+  idcard: L.IdCard,
+  import: L.Download,
+  lifebuoy: L.LifeBuoy,
+  linechart: L.ChartLine,
+  login: L.LogIn,
+  menu: L.Menu,
+  moneycollect: L.HandCoins,
+  number: L.Hash,
+  packageopen: L.PackageOpen,
+  percentage: L.Percent,
+  picture: L.Image,
+  piechart: L.ChartPie,
+  profile: L.ClipboardList,
+  robot: L.Bot,
+  rollback: L.Undo2,
+  schedule: L.CalendarClock,
+  send: L.Send,
+  swap: L.ArrowLeftRight,
+  tag: L.Tag,
+  team: L.Users,
+  tool: L.Wrench,
+  transaction: L.ArrowRightLeft,
+  undo: L.Undo2,
+  unorderedlist: L.List,
+  upload: L.Upload,
+  user: L.User,
+};
+
+/**
+ * 「菜单管理」里 lightIcon 是自由文本（如 shopping / shopping-bag / fileText），不是受限枚举。
+ * 先按上表换成 lucide 图标；表里没有的，再按 antd 图标的命名规律（PascalCase + Outlined/Filled/TwoTone）
+ * 去 @ant-design/icons 里找；都找不到就不渲染图标，绝不把原始英文字符串直接显示出来——
+ * ProLayout 自带的 getIcon() 遇到普通字符串时就是这么处理的，这正是菜单名称前面冒出一截英文单词的原因。
  */
 function resolveMenuIcon(raw?: string): React.ReactNode {
   if (!raw) return undefined;
+  const lucide = LUCIDE_MENU_ICONS[raw.replace(/[-_\s]/g, '').toLowerCase()];
+  if (lucide) return React.createElement(lucide, { size: 20, strokeWidth: 2 });
   const pascal = toPascalCase(raw);
   const candidates = [
     pascal,

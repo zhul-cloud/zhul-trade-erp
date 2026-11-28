@@ -1,15 +1,14 @@
-import {
-  ArrowRightOutlined,
-  InfoCircleOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, InputNumber, Modal, Skeleton, Table } from 'antd';
+import { ArrowRight, History, Info, Pencil, TriangleAlert } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
+import { PageHeader } from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { readBizError } from '@/pages/crm/opportunity/service';
-import { Card, PageTitle, useWide } from '@/pages/inquiry/shared/components';
+import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -115,11 +114,13 @@ const ExchangeRatePage: React.FC = () => {
       title: '1 外币 = 人民币',
       dataIndex: 'rate',
       width: 140,
+      // 汇率是数字列：右对齐、表格正文字号（UI-117）；未设置是要处理的状态，用标签
+      align: 'right',
       render: (v?: number) =>
         v == null ? (
-          <b style={{ color: palette.orange }}>未设置</b>
+          <Pill tone="orange">未设置</Pill>
         ) : (
-          <b style={{ ...num, fontSize: 16 }}>{fmt(v)}</b>
+          <b style={num}>{fmt(v)}</b>
         ),
     },
     {
@@ -155,37 +156,33 @@ const ExchangeRatePage: React.FC = () => {
       title: '操作',
       fixed: 'right',
       key: 'actions',
-      width: 130,
+      width: rowActionsWidth(2),
       render: (_, r) => (
-        <span style={{ display: 'inline-flex', gap: 12 }}>
-          {canEdit && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => openEdit(r)}
-            >
-              {r.rate == null ? '设置' : '修改'}
-            </button>
-          )}
-          {r.rate != null && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setLogCurrency(r.currencyCode)}
-            >
-              变更记录
-            </button>
-          )}
-        </span>
+        <RowActions
+          inline={[
+            canEdit && {
+              key: 'edit',
+              label: r.rate == null ? '设置' : '修改',
+              icon: <Pencil size={18} />,
+              onClick: () => openEdit(r),
+            },
+            r.rate != null && {
+              key: 'log',
+              label: '变更记录',
+              icon: <History size={18} />,
+              onClick: () => setLogCurrency(r.currencyCode),
+            },
+          ]}
+        />
       ),
     },
   ];
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
 
   return (
     <div>
-      <PageTitle description="全公司统一使用这里的汇率；报价单新建时取当前汇率并保存快照，单据上不能修改。" />
+      <PageHeader help="全公司统一使用这里的汇率；报价单新建时取当前汇率并保存快照，单据上不能修改" />
       <div
         style={{
           display: 'grid',
@@ -206,10 +203,11 @@ const ExchangeRatePage: React.FC = () => {
                 rowKey="currencyCode"
                 pagination={false}
                 dataSource={rows}
+                locale={{ emptyText: tableEmpty('还没有汇率') }}
                 onRow={(r) => ({
                   style:
                     r.currencyCode === logCurrency
-                      ? { background: palette.accentSoft }
+                      ? { background: palette.primarySoft } // lint-ui-ignore primary-soft: 正在查看记录的币种行，属于选中状态
                       : undefined,
                 })}
                 columns={rateColumns}
@@ -226,7 +224,7 @@ const ExchangeRatePage: React.FC = () => {
               fontSize: 13,
             }}
           >
-            <InfoCircleOutlined />{' '}
+            <Info size="1em" />{' '}
             汇率调整后：已发送的报价单不变；打开草稿报价单时会提示「系统汇率已更新」，业务员可一键按新汇率重算。
           </div>
         </div>
@@ -263,7 +261,8 @@ const ExchangeRatePage: React.FC = () => {
                     <span style={{ ...num, color: palette.mute }}>
                       {l.oldRate == null ? '—' : fmt(l.oldRate)}
                     </span>
-                    <ArrowRightOutlined
+                    <ArrowRight
+                      size="1em"
                       style={{ color: palette.mute, fontSize: 11 }}
                     />
                     <b style={{ ...num, color: palette.ink }}>
@@ -346,7 +345,8 @@ const ExchangeRatePage: React.FC = () => {
         open={!!editing && confirming}
         title={
           <span>
-            <WarningOutlined
+            <TriangleAlert
+              size="1em"
               style={{ color: palette.orange, marginRight: 8 }}
             />
             修改 {editing?.currencyCode} 汇率？
@@ -372,21 +372,21 @@ const ExchangeRatePage: React.FC = () => {
               style={{
                 ...num,
                 fontSize: 20,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: palette.sub,
               }}
             >
               {fmt(editing?.rate)}
             </div>
           </div>
-          <ArrowRightOutlined style={{ color: palette.mute }} />
+          <ArrowRight size="1em" style={{ color: palette.mute }} />
           <div>
             <div style={{ fontSize: 12, color: palette.mute }}>新汇率</div>
             <div
               style={{
                 ...num,
                 fontSize: 20,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: palette.ink,
               }}
             >

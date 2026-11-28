@@ -1,14 +1,20 @@
 import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Form, Input, Modal, Select, Table, Tag } from 'antd';
+import { Eye, UserRoundPlus } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { Callout } from '@/components/Callout';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { tableEmpty } from '@/components/EmptyState';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { auditColumns } from '@/components/UserName';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { LIST_PATH } from './components';
 import { type GradeSort, gradeColumns } from './gradeColumns';
@@ -135,17 +141,9 @@ export const PutIntoPoolModal: React.FC<{
           />
         </Form.Item>
       </Form>
-      <div
-        style={{
-          padding: '10px 12px',
-          borderRadius: 10,
-          background: palette.accentSoft,
-          fontSize: 12,
-          color: palette.sub,
-        }}
-      >
+      <Callout>
         放入后负责人清空，所有业务员都能看到并认领；已有单据归属不变。
-      </div>
+      </Callout>
     </Modal>
   );
 };
@@ -188,7 +186,7 @@ export const PoolTab: React.FC<{ onCount?: (n: number) => void }> = ({
   const [sort, setSort] = useState<GradeSort>({});
   const [draft, setDraft] = useState<CustomerPoolQuery>({});
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = usePageSize(10);
+  const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<CustomerListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -254,7 +252,7 @@ export const PoolTab: React.FC<{ onCount?: (n: number) => void }> = ({
           ? `${sourceLabel(r.sourceChannel)} · ${r.aliLevel}`
           : sourceLabel(r.sourceChannel) || '—',
     },
-    ...gradeColumns(palette, sort),
+    ...gradeColumns(sort),
     {
       title: '上一任负责人',
       dataIndex: 'lastOwnerName',
@@ -282,46 +280,33 @@ export const PoolTab: React.FC<{ onCount?: (n: number) => void }> = ({
         </div>
       ),
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      width: 160,
-      render: (v: string) => <span className="num">{formatDateTime(v)}</span>,
-    },
-    { title: '创建人', dataIndex: 'createBy', width: 90 },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      width: 160,
-      render: (v: string) => <span className="num">{formatDateTime(v)}</span>,
-    },
-    { title: '更新人', dataIndex: 'updateBy', width: 90 },
+    ...auditColumns<CustomerListItem>(),
     {
       title: '操作',
       key: 'actions',
-      width: 110,
+      width: rowActionsWidth(2),
       fixed: 'right',
       render: (_, r) => (
-        <div style={{ display: 'flex', gap: 12 }}>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(`${LIST_PATH}/${r.id}`)}
-          >
-            查看
-          </button>
-          <button
-            type="button"
-            className="zhul-link"
-            style={{ fontWeight: 600 }}
-            onClick={() => claim(r, load)}
-          >
-            认领
-          </button>
-        </div>
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(`${LIST_PATH}/${r.id}`),
+            },
+            {
+              key: 'claim',
+              label: '认领',
+              icon: <UserRoundPlus size={18} />,
+              onClick: () => claim(r, load),
+            },
+          ]}
+        />
       ),
     },
   ];
+  const columnsSet = useColumnSettings('customer-pool', columns);
 
   const search = () => {
     setQuery({ ...draft, keyword: draft.keyword?.trim() || undefined });
@@ -370,25 +355,24 @@ export const PoolTab: React.FC<{ onCount?: (n: number) => void }> = ({
         <Button type="primary" onClick={search}>
           查询
         </Button>
+        <div style={{ marginLeft: 'auto' }}>{columnsSet.settings}</div>
       </div>
       {error ? (
         <div style={{ color: palette.red }}>{error}</div>
       ) : (
         <div
+          className="zhul-card"
           style={{
-            background: palette.card,
-            borderRadius: 16,
-            border: `1px solid ${palette.hairline}`,
             overflow: 'hidden',
           }}
         >
           <Table<CustomerListItem>
             rowKey="id"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
-            locale={{ emptyText: '公海里还没有客户' }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
+            locale={{ emptyText: tableEmpty('公海里还没有客户', loading) }}
             // 经营等级、潜力等级可以排序；取消排序回到按放入时间倒序
             onChange={(_p, _f, sorter, extra) => {
               if (extra.action !== 'sort' || Array.isArray(sorter)) return;
@@ -403,10 +387,10 @@ export const PoolTab: React.FC<{ onCount?: (n: number) => void }> = ({
               setPage(1);
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
               showTotal: (t: number) => `共 ${t} 条`,
               onChange: (p: number, s: number) => {
                 setPage(p);

@@ -1,7 +1,8 @@
-import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { App, Button, Input } from 'antd';
 import dayjs from 'dayjs';
+import { Pencil, Plus } from 'lucide-react';
 import React, { useState } from 'react';
+import { useUserName } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
 
 /** 真实型号最多 128 字（与后端一致） */
@@ -108,9 +109,26 @@ export const ActualModelEditor: React.FC<{
   );
 };
 
-/** 「采购 王磊 · 11-18 10:20」这样的修改记录 */
-export const actualModelStamp = (by?: string, at?: string | null) =>
-  [by, at ? dayjs(at).format('MM-DD HH:mm') : ''].filter(Boolean).join(' · ');
+/**
+ * 「王磊 · 11-18 10:20」这样的修改记录：by 存的是登录账号，显示姓名（系统写入显示「系统」），
+ * 不露出账号或邮箱（原则 13，UI-117）
+ */
+export const ChangeStamp: React.FC<{
+  by?: string;
+  at?: string | null;
+  style?: React.CSSProperties;
+}> = ({ by, at, style }) => {
+  const { palette } = useAppTheme();
+  const name = useUserName(by);
+  const text = [by ? name : '', at ? dayjs(at).format('MM-DD HH:mm') : '']
+    .filter(Boolean)
+    .join(' · ');
+  return text ? (
+    <span style={{ color: palette.faint, fontWeight: 400, ...style }}>
+      {text}
+    </span>
+  ) : null;
+};
 
 /**
  * 询盘详情型号下面的真实型号一行：有真实型号时显示「真实型号：…」与修改记录、可改；
@@ -128,7 +146,7 @@ export const ActualModelLine: React.FC<{
   if (editing) {
     return (
       <>
-        <span style={{ color: palette.violet, fontSize: 12, fontWeight: 500 }}>
+        <span style={{ color: palette.info, fontSize: 12, fontWeight: 400 }}>
           真实型号
         </span>
         <ActualModelEditor
@@ -144,13 +162,12 @@ export const ActualModelLine: React.FC<{
     );
   }
   if (actualModel) {
-    const stamp = actualModelStamp(by, at);
     return (
       <span
         style={{
-          color: palette.violet,
+          color: palette.info,
           fontSize: 12,
-          fontWeight: 500,
+          fontWeight: 400,
           display: 'inline-flex',
           gap: 6,
           alignItems: 'center',
@@ -159,15 +176,14 @@ export const ActualModelLine: React.FC<{
       >
         真实型号：{actualModel}
         {editable && (
-          <EditOutlined
+          <Pencil
+            size="1em"
             aria-label="修改真实型号"
             style={{ color: palette.faint, cursor: 'pointer' }}
             onClick={() => setEditing(true)}
           />
         )}
-        {stamp && (
-          <span style={{ color: palette.faint, fontWeight: 400 }}>{stamp}</span>
-        )}
+        <ChangeStamp by={by} at={at} />
       </span>
     );
   }
@@ -176,7 +192,7 @@ export const ActualModelLine: React.FC<{
     <Button
       type="link"
       size="small"
-      icon={<PlusOutlined />}
+      icon={<Plus size="1em" />}
       onClick={() => setEditing(true)}
       style={{ padding: 0, height: 'auto', alignSelf: 'flex-start' }}
     >
@@ -191,16 +207,24 @@ export const ActualModelPencil: React.FC<{ onClick: () => void }> = ({
 }) => {
   const { palette } = useAppTheme();
   return (
-    <EditOutlined
+    // 原生按钮：键盘能操作，悬停显示名称
+    <button
+      type="button"
       aria-label="填写真实型号"
       title="填写真实型号"
+      onClick={onClick}
       style={{
-        color: palette.faint,
         marginLeft: 6,
+        padding: 0,
+        border: 'none',
+        background: 'none',
+        color: palette.faint,
         fontSize: 12,
         cursor: 'pointer',
+        lineHeight: 1,
       }}
-      onClick={onClick}
-    />
+    >
+      <Pencil size="1em" />
+    </button>
   );
 };

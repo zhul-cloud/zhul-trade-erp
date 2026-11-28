@@ -1,12 +1,14 @@
-import { WarningOutlined } from '@ant-design/icons';
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Skeleton, Table, Tooltip } from 'antd';
+import { TriangleAlert, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import DocModelCell, {
-  docBrandColumns,
+  docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import {
+  DocColumns,
   DocLogCard,
   InfoGrid,
   type RelatedDoc,
@@ -15,13 +17,10 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import EllipsisText from '@/components/EllipsisText';
+import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import {
-  Card,
-  PageTitle,
-  Pill,
-  useWide,
-} from '@/pages/inquiry/shared/components';
+import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
   RQ_STATUS_TONE,
@@ -34,8 +33,8 @@ import { PATHS } from '@/pages/sales/components';
 import { readBizError } from '@/pages/sales/service';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import RefundModal from './RefundModal';
 import { refundSourceRef } from './RequestsTab';
 import {
@@ -49,6 +48,7 @@ import {
 const RefundRequestDetail: React.FC = () => {
   const id = Number(useParams<{ id: string }>().id);
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { palette } = useAppTheme();
   const access = useAccess() as Record<string, boolean>;
   const wide = useWide();
@@ -81,7 +81,7 @@ const RefundRequestDetail: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
   useOnReactivate(load);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!q) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const canEdit = !!access['finance:refund:edit'];
@@ -98,44 +98,47 @@ const RefundRequestDetail: React.FC = () => {
   };
 
   const columns: TableColumnsType<RefundRequestItem> = [
-    { title: '#', key: 'no', width: 48, render: (_, __, i) => i + 1 },
-    ...docBrandColumns<RefundRequestItem>((x) => x),
     {
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 48,
+      render: (_, __, i) => i + 1,
+    },
+    docModelColumn<RefundRequestItem>((x) => x, {
       title: '型号',
       dataIndex: 'itemName',
       width: 200,
       render: (v: string, x) =>
         x.lineType === 1 ? <DocModelCell model={v} brand={x.brand} /> : v,
-    },
+    }),
     {
-      title: '项目',
-      dataIndex: 'lineType',
-      width: 90,
-      render: (v: number) => (v === 1 ? '退货型号' : '其他'),
-    },
-    {
-      title: '数量',
+      // 「项目」列去掉（型号格已能区分退货型号与其他费用），单价并到数量后，主栏 664 宽不横向滚动（UI-119）
+      title: `数量 × 单价（${cur}）`,
+      align: 'right',
       dataIndex: 'quantity',
-      width: 70,
-      render: (v?: number) => v ?? '—',
+      width: 140,
+      render: (v: number | undefined, x) =>
+        v == null ? (
+          '—'
+        ) : (
+          <span className="num">
+            {v} × {x.unitPrice == null ? '—' : formatMoney(x.unitPrice)}
+          </span>
+        ),
     },
     {
-      title: '成交单价',
-      dataIndex: 'unitPrice',
-      width: 120,
-      render: (v?: number) => (v == null ? '—' : formatAmount(v, cur)),
-    },
-    {
-      title: '金额',
+      title: `金额（${cur}）`,
+      align: 'right',
       dataIndex: 'amount',
       width: 120,
-      render: (v: number) => <b>{formatAmount(v, cur)}</b>,
+      render: (v: number) => <b>{formatMoney(v)}</b>,
     },
     {
       title: '说明',
       dataIndex: 'note',
-      width: 160,
-      render: (v?: string) => v || '—',
+      width: 108,
+      render: (v?: string) => (v ? <EllipsisText text={v} /> : '—'),
     },
   ];
 
@@ -175,7 +178,7 @@ const RefundRequestDetail: React.FC = () => {
       : []),
   ];
 
-  const main = (
+  const info = (
     <>
       {q.status === RQ_STATUS.PENDING_RECEIPT && (
         <div
@@ -188,7 +191,7 @@ const RefundRequestDetail: React.FC = () => {
             color: palette.orange,
           }}
         >
-          <WarningOutlined /> 仓库还没验收
+          <TriangleAlert size="1em" /> 仓库还没验收
           {th?.receipt ? ` ${th.receipt.no}` : '退货'}，验收后才能执行
         </div>
       )}
@@ -203,7 +206,7 @@ const RefundRequestDetail: React.FC = () => {
             color: palette.orange,
           }}
         >
-          <WarningOutlined /> {q.receivedHint}，执行前请核对退款金额
+          <TriangleAlert size="1em" /> {q.receivedHint}，执行前请核对退款金额
         </div>
       )}
       <InfoGrid
@@ -212,12 +215,24 @@ const RefundRequestDetail: React.FC = () => {
             label: '售后单',
             value:
               q.afterSalesId && q.asNo ? (
-                <Link to={PATHS.afterSales(q.afterSalesId)}>{q.asNo}</Link>
+                <Link
+                  to={PATHS.afterSales(q.afterSalesId)}
+                  className="zhul-link zhul-link-doc"
+                >
+                  {q.asNo}
+                </Link>
               ) : undefined,
           },
           {
             label: '销售订单',
-            value: <Link to={PATHS.order(q.soId)}>{q.soNo}</Link>,
+            value: (
+              <Link
+                to={PATHS.order(q.soId)}
+                className="zhul-link zhul-link-doc"
+              >
+                {q.soNo}
+              </Link>
+            ),
           },
           { label: '金额合计', value: formatAmount(q.amount, cur) },
           { label: '原因', value: q.reasonName },
@@ -250,6 +265,11 @@ const RefundRequestDetail: React.FC = () => {
           },
         ]}
       />
+    </>
+  );
+  // 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18）
+  const wideSections = (
+    <>
       <Card style={{ padding: 20, marginBottom: 16 }}>
         <SectionTitle extra={<b>合计 {formatAmount(q.amount, cur)}</b>}>
           明细
@@ -260,7 +280,7 @@ const RefundRequestDetail: React.FC = () => {
           pagination={false}
           columns={columns}
           dataSource={q.items ?? []}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(columns) }}
         />
       </Card>
       <DocFilesCard
@@ -278,17 +298,12 @@ const RefundRequestDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[<MenuLink key="list" to="/finance/refunds" />, q.requestNo]}
-        title={
-          <>
-            {q.requestNo}
-            <Pill tone={RQ_STATUS_TONE[q.status] ?? 'gray'}>
-              {q.statusName}
-            </Pill>
-          </>
+      <PageHeader
+        title={q.requestNo}
+        tags={
+          <Pill tone={RQ_STATUS_TONE[q.status] ?? 'gray'}>{q.statusName}</Pill>
         }
-        description={
+        sub={
           <>
             {q.customerName} ·{' '}
             <SourceNos mode="inline" refs={[refundSourceRef(q)]} /> ·{' '}
@@ -296,19 +311,66 @@ const RefundRequestDetail: React.FC = () => {
             {formatDateTime(q.createTime).slice(0, 16)} 创建
           </>
         }
-        actions={
+        extra={
           <>
-            {open && canApply && (
+            {/* 照原型 B1：文字按钮 → 更多 → 主按钮 */}
+            {q.status === RQ_STATUS.PENDING_APPROVAL && canApprove && (
               <Button
+                type="text"
+                style={{ color: palette.link }}
+                onClick={() => setDialog('rejectApproval')}
+              >
+                驳回
+              </Button>
+            )}
+            {q.status === RQ_STATUS.PENDING_FINANCE && canEdit && (
+              <Button
+                type="text"
+                style={{ color: palette.link }}
+                onClick={() => setDialog('reject')}
+              >
+                驳回
+              </Button>
+            )}
+            <MoreActions
+              items={[
+                open &&
+                  canApply && {
+                    key: 'withdraw',
+                    label: '撤回',
+                    icon: <Undo2 size={16} />,
+                    danger: true,
+                  },
+              ]}
+              onClick={() =>
+                confirmDanger({
+                  title: `撤回 ${q.requestNo}？`,
+                  content: '撤回后申请结束，需要时可以重新提出。',
+                  okText: '撤回',
+                  onOk: async () => {
+                    try {
+                      await refundRequestApi.withdraw(q.id);
+                      message.success('已撤回');
+                      load();
+                    } catch (e) {
+                      message.error(readBizError(e).message);
+                    }
+                  },
+                })
+              }
+            />
+            {q.status === RQ_STATUS.PENDING_APPROVAL && canApprove && (
+              <Button
+                type="primary"
                 onClick={() =>
                   modal.confirm({
-                    title: `撤回 ${q.requestNo}？`,
-                    content: '撤回后申请结束，需要时可以重新提出。',
-                    okText: '撤回',
+                    title: `通过 ${q.requestNo}？`,
+                    content: `${formatAmount(q.amount, cur)}，通过后交财务处理。`,
+                    okText: '通过',
                     onOk: async () => {
                       try {
-                        await refundRequestApi.withdraw(q.id);
-                        message.success('已撤回');
+                        await refundRequestApi.approve(q.id);
+                        message.success('已通过');
                         load();
                       } catch (e) {
                         message.error(readBizError(e).message);
@@ -317,80 +379,43 @@ const RefundRequestDetail: React.FC = () => {
                   })
                 }
               >
-                撤回
+                通过
               </Button>
-            )}
-            {q.status === RQ_STATUS.PENDING_APPROVAL && canApprove && (
-              <>
-                <Button onClick={() => setDialog('rejectApproval')}>
-                  驳回
-                </Button>
-                <Button
-                  type="primary"
-                  onClick={() =>
-                    modal.confirm({
-                      title: `通过 ${q.requestNo}？`,
-                      content: `${formatAmount(q.amount, cur)}，通过后交财务处理。`,
-                      okText: '通过',
-                      onOk: async () => {
-                        try {
-                          await refundRequestApi.approve(q.id);
-                          message.success('已通过');
-                          load();
-                        } catch (e) {
-                          message.error(readBizError(e).message);
-                        }
-                      },
-                    })
-                  }
-                >
-                  通过
-                </Button>
-              </>
             )}
             {(q.status === RQ_STATUS.PENDING_FINANCE ||
               q.status === RQ_STATUS.PENDING_RECEIPT) &&
               canEdit && (
-                <>
-                  {q.status === RQ_STATUS.PENDING_FINANCE && (
-                    <Button onClick={() => setDialog('reject')}>驳回</Button>
-                  )}
-                  <Tooltip
-                    title={
-                      q.status === RQ_STATUS.PENDING_RECEIPT
-                        ? '仓库验收后才能执行'
-                        : undefined
-                    }
+                <Tooltip
+                  title={
+                    q.status === RQ_STATUS.PENDING_RECEIPT
+                      ? '仓库验收后才能执行'
+                      : undefined
+                  }
+                >
+                  <Button
+                    type="primary"
+                    disabled={q.status === RQ_STATUS.PENDING_RECEIPT}
+                    onClick={() => setDialog('execute')}
                   >
-                    <Button
-                      type="primary"
-                      disabled={q.status === RQ_STATUS.PENDING_RECEIPT}
-                      onClick={() => setDialog('execute')}
-                    >
-                      执行
-                    </Button>
-                  </Tooltip>
-                </>
+                    执行
+                  </Button>
+                </Tooltip>
               )}
           </>
         }
       />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: wide
-            ? 'minmax(0, 2.6fr) minmax(340px, 1fr)'
-            : '1fr',
-          gap: 16,
-          alignItems: 'start',
-        }}
+      <DocColumns
+        wide={wide}
+        side={
+          <>
+            <RelatedDocsCard docs={related} />
+            <DocLogCard logs={q.logs} />
+          </>
+        }
       >
-        <div style={{ minWidth: 0 }}>{main}</div>
-        <div style={{ minWidth: 0 }}>
-          <RelatedDocsCard docs={related} />
-          <DocLogCard logs={q.logs} />
-        </div>
-      </div>
+        {info}
+        {wideSections}
+      </DocColumns>
       <RefundModal
         open={dialog === 'execute'}
         soId={q.soId}

@@ -1,19 +1,25 @@
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table, Tooltip } from 'antd';
+import { App, Button, Skeleton, Table } from 'antd';
+import { CircleX, Pencil } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import DocModelCell, {
+  docModelColumn,
+} from '@/components/DocFields/DocModelCell';
 import {
+  DocColumns,
   DocLogCard,
   InfoGrid,
   RelatedDocsCard,
   SectionTitle,
 } from '@/components/DocFields/DocPage';
 import { DocFilesCard } from '@/components/DocFiles';
+import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
+import { UserName } from '@/components/UserName';
 import {
   Card,
   MigratedPill,
-  PageTitle,
   Pill,
   useWide,
 } from '@/pages/inquiry/shared/components';
@@ -26,8 +32,8 @@ import {
 } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { UnitPill, useBusinessUnits } from '@/utils/businessUnit';
-import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import { PayStatusPill } from '../payables/components';
 import { METHOD } from '../payables/service';
 import {
@@ -72,7 +78,7 @@ const ExpenseDetail: React.FC = () => {
     if (!editing) load();
   });
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!e) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const c = e.currencyCode;
@@ -98,7 +104,10 @@ const ExpenseDetail: React.FC = () => {
     <span>
       员工垫付 · {e.advanceUserName ?? '—'} ·{' '}
       {e.reimbursementId ? (
-        <Link to={DOC_PATHS.reimbursement(e.reimbursementId)}>
+        <Link
+          className="zhul-link zhul-link-doc"
+          to={DOC_PATHS.reimbursement(e.reimbursementId)}
+        >
           {e.reimburseNo}
         </Link>
       ) : (
@@ -117,19 +126,18 @@ const ExpenseDetail: React.FC = () => {
         <Link to={`/sales/orders/${a.soId}`}>{a.soNo ?? '—'}</Link>
       ),
     },
+    docModelColumn<ExpenseAlloc>((a) => a, {
+      title: '型号',
+      dataIndex: 'model',
+      width: 220,
+      render: (_, a) => <DocModelCell model={a.model ?? '—'} brand={a.brand} />,
+    }),
     {
-      title: '品牌',
-      dataIndex: 'brand',
-      width: 120,
-      render: (v?: string) => v || '—',
-    },
-    { title: '型号', dataIndex: 'model', width: 200 },
-    {
-      title: '分摊金额',
+      title: `分摊金额（${c}）`,
       dataIndex: 'amount',
       width: 140,
       align: 'right',
-      render: (v: number) => <span style={num}>{formatAmount(v, c)}</span>,
+      render: (v: number) => <span style={num}>{formatMoney(v)}</span>,
     },
     ...(c === 'CNY'
       ? []
@@ -146,7 +154,7 @@ const ExpenseDetail: React.FC = () => {
         ]),
   ];
 
-  const main = (
+  const info = (
     <>
       <InfoGrid
         items={[
@@ -181,7 +189,10 @@ const ExpenseDetail: React.FC = () => {
           {
             label: '付款单',
             value: e.paymentId ? (
-              <Link to={DOC_PATHS.payment(e.paymentId)}>
+              <Link
+                className="zhul-link zhul-link-doc"
+                to={DOC_PATHS.payment(e.paymentId)}
+              >
                 {e.paymentNo} · {e.payDate}
               </Link>
             ) : undefined,
@@ -200,7 +211,12 @@ const ExpenseDetail: React.FC = () => {
           {
             label: '关联售后单',
             value: e.afterSalesId ? (
-              <Link to={`/sales/after-sales/${e.afterSalesId}`}>{e.asNo}</Link>
+              <Link
+                to={`/sales/after-sales/${e.afterSalesId}`}
+                className="zhul-link zhul-link-doc"
+              >
+                {e.asNo}
+              </Link>
             ) : undefined,
             hidden: !e.afterSalesId,
           },
@@ -211,6 +227,11 @@ const ExpenseDetail: React.FC = () => {
           },
         ]}
       />
+    </>
+  );
+  // 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18）
+  const wideSections = (
+    <>
       {e.allocations.length > 0 && (
         <Card style={{ padding: 20, marginBottom: 16 }}>
           <SectionTitle
@@ -228,7 +249,7 @@ const ExpenseDetail: React.FC = () => {
             pagination={false}
             columns={columns}
             dataSource={e.allocations}
-            scroll={{ x: 'max-content' }}
+            scroll={{ x: tableScrollX(columns) }}
           />
         </Card>
       )}
@@ -247,64 +268,74 @@ const ExpenseDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[<MenuLink key="list" to="/finance/expenses" />, e.expenseNo]}
-        title={
+      <PageHeader
+        title={e.expenseNo}
+        tags={
           <>
-            {e.expenseNo}
             <Pill tone={valid ? 'green' : 'mute'}>
               {valid ? '有效' : '已作废'}
             </Pill>
             {e.migrated && <MigratedPill migrated />}
           </>
         }
-        description={
+        sub={
           <>
             {e.payeeName || '—'}
             {firstSo && (
               <>
                 {' '}
                 · 来源单号{' '}
-                <Link to={`/sales/orders/${firstSo.soId}`}>{firstSo.soNo}</Link>
+                <Link
+                  to={`/sales/orders/${firstSo.soId}`}
+                  className="zhul-link zhul-link-doc"
+                >
+                  {firstSo.soNo}
+                </Link>
               </>
             )}{' '}
-            · {e.createBy ?? '—'} · {formatDateTime(e.createTime).slice(0, 16)}{' '}
-            创建
+            · <UserName value={e.createBy} /> ·{' '}
+            {formatDateTime(e.createTime).slice(0, 16)} 创建
           </>
         }
-        actions={
+        extra={
           canEdit && (
             <>
-              <Button onClick={() => setEditing(true)}>修改</Button>
-              <Tooltip title={voidBlocked}>
-                <Button
-                  danger
-                  disabled={!!voidBlocked}
-                  onClick={() => setVoiding(true)}
-                >
-                  作废
-                </Button>
-              </Tooltip>
+              <Button
+                type="text"
+                icon={<Pencil size={16} />}
+                style={{ color: palette.link }}
+                onClick={() => setEditing(true)}
+              >
+                修改
+              </Button>
+              <MoreActions
+                items={[
+                  {
+                    key: 'void',
+                    label: '作废',
+                    icon: <CircleX size={16} />,
+                    danger: true,
+                    disabledReason: voidBlocked || undefined,
+                  },
+                ]}
+                onClick={() => setVoiding(true)}
+              />
             </>
           )
         }
       />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: wide
-            ? 'minmax(0, 2.6fr) minmax(340px, 1fr)'
-            : '1fr',
-          gap: 16,
-          alignItems: 'start',
-        }}
+      <DocColumns
+        wide={wide}
+        side={
+          <>
+            <RelatedDocsCard docs={relatedRows(e.related)} />
+            <DocLogCard logs={e.logs} />
+          </>
+        }
       >
-        <div style={{ minWidth: 0 }}>{main}</div>
-        <div style={{ minWidth: 0 }}>
-          <RelatedDocsCard docs={relatedRows(e.related)} />
-          <DocLogCard logs={e.logs} />
-        </div>
-      </div>
+        {info}
+        {wideSections}
+      </DocColumns>
       <ExpenseDrawer
         open={editing}
         editing={e}

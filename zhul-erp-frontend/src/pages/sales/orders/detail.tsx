@@ -1,37 +1,50 @@
-import {
-  BankOutlined,
-  CheckCircleFilled,
-  CheckOutlined,
-  CustomerServiceOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  EllipsisOutlined,
-  FileTextOutlined,
-  InboxOutlined,
-  MinusCircleOutlined,
-  NodeIndexOutlined,
-  PaperClipOutlined,
-  PlusOutlined,
-  RollbackOutlined,
-  SendOutlined,
-  ShopOutlined,
-  StopOutlined,
-  SwapOutlined,
-  UploadOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
 import { history, Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Alert, App, Button, Dropdown, Skeleton, Table } from 'antd';
+import { Alert, App, Button, Dropdown, Skeleton, Table, Tooltip } from 'antd';
 import dayjs from 'dayjs';
+import {
+  ArrowLeftRight,
+  Ban,
+  Check,
+  ChevronDown,
+  CircleMinus,
+  ClipboardList,
+  Ellipsis,
+  FileText,
+  Headset,
+  Inbox,
+  Landmark,
+  MapPin,
+  Paperclip,
+  Pencil,
+  Plus,
+  Send,
+  Store,
+  Trash2,
+  TriangleAlert,
+  Undo2,
+  Upload,
+  User,
+  UserRound,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { CustomerSubLine } from '@/components/DocFields';
 import DocModelCell, {
   DocDescription,
-  docBrandColumns,
+  docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import { ItemRemarkLine } from '@/components/DocFields/ItemRemark';
 import SourceNos from '@/components/DocFields/SourceNos';
 import EllipsisText from '@/components/EllipsisText';
+import {
+  CardTitle,
+  HelpTip,
+  PageHeader,
+  Panel,
+  Section,
+  STICKY_TABLE,
+} from '@/components/ListLayout';
+import { MetricGrid } from '@/components/MetricCard';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
 import RefundModal from '@/pages/finance/refunds/RefundModal';
@@ -39,8 +52,8 @@ import { useWide } from '@/pages/inquiry/shared/components';
 import { useFilePreview } from '@/pages/inquiry/shared/FilePreview';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
+import { useDeltaColor } from '@/theme/delta';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   CreateAfterSalesModal,
@@ -60,11 +73,10 @@ import {
   MigratedPill,
   orderSourceRefs,
   PATHS,
+  PartyAddress,
   Pill,
-  partyAddress,
   RECEIPT_STATUS,
   ReceiptStatusPill,
-  SalesPageTitle,
 } from '../components';
 import CreditInfo from '../pi/CreditInfo';
 import { ConfirmReceiptModal, ReasonModal, SlipModal } from '../pi/dialogs';
@@ -134,6 +146,7 @@ const OrderDetail: React.FC = () => {
   const id = Number(idParam);
   const { message, modal } = App.useApp();
   const { palette } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
   const goodsColors = useGoodsColors();
   const access = useAccess();
   const wide = useWide();
@@ -186,7 +199,7 @@ const OrderDetail: React.FC = () => {
     [o],
   );
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!o) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const cur = o.currencyCode;
@@ -246,114 +259,201 @@ const OrderDetail: React.FC = () => {
 
   // ---------------------------------------------------------------- 跟单信息
 
-  const field = (label: string, value: React.ReactNode) => (
-    <div style={{ minWidth: 0 }}>
-      <div style={{ fontSize: 12, color: palette.mute, marginBottom: 4 }}>
-        {label}
-      </div>
+  // 订单头部的四张小卡：客户、订单信息、买方、收货人（原型 B1）
+  const infoCard = (
+    title: string,
+    icon: React.ReactNode,
+    children: React.ReactNode,
+  ) => (
+    <Panel
+      style={{
+        padding: 20,
+        minWidth: 0,
+      }}
+    >
       <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          marginBottom: 12,
+        }}
+      >
+        <h2
+          style={{
+            margin: 0,
+            fontSize: 16,
+            fontWeight: 600,
+            color: palette.ink,
+          }}
+        >
+          {title}
+        </h2>
+        <span
+          aria-hidden
+          style={{
+            width: 32,
+            height: 32,
+            flex: 'none',
+            borderRadius: '50%',
+            display: 'grid',
+            placeItems: 'center',
+            background: palette.neutralSoft,
+            color: palette.sub,
+          }}
+        >
+          {icon}
+        </span>
+      </div>
+      {children}
+    </Panel>
+  );
+
+  const infoRow = (label: string, value: React.ReactNode) => (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        minHeight: 30,
+        fontSize: 13,
+      }}
+    >
+      <span style={{ width: 72, flex: 'none', color: palette.mute }}>
+        {label}
+      </span>
+      <span
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: 6,
           flexWrap: 'wrap',
-          fontWeight: 600,
+          minWidth: 0,
           color: palette.ink,
         }}
       >
         {value}
-      </div>
+      </span>
     </div>
   );
+
+  const editBtn = (label: string, onClick: () => void) => (
+    <Button
+      type="text"
+      size="small"
+      icon={<Pencil size={14} />}
+      aria-label={label}
+      style={{ color: palette.link }}
+      onClick={onClick}
+    />
+  );
+
+  const partyCard = (title: string, icon: React.ReactNode, p?: Party | null) =>
+    infoCard(
+      title,
+      icon,
+      p ? (
+        <>
+          <div style={{ fontWeight: 600, color: palette.ink }}>{p.name}</div>
+          <PartyAddress
+            party={p}
+            style={{ fontSize: 13, color: palette.sub, marginTop: 4 }}
+          />
+        </>
+      ) : (
+        <div style={{ color: palette.mute, fontSize: 13 }}>—</div>
+      ),
+    );
 
   const futures = o.items.filter(
     (i) => i.quantity > 0 && i.stockType === STOCK.FUTURES,
   ).length;
   const info = (
-    <Card style={{ padding: 20, marginBottom: 16 }}>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
-          gap: 20,
-        }}
-      >
-        {field(
-          '销售日期',
-          <>
-            {o.salesDate ?? '—'}
-            {editable && (
-              <Button
-                type="text"
-                size="small"
-                icon={<EditOutlined />}
-                aria-label="修改销售日期"
-                onClick={() => setDialog('salesDate')}
-              />
-            )}
-          </>,
-        )}
-        {manual &&
-          field(
-            '约定付款日',
-            <>
-              {o.paymentDueDate ?? '—'}
-              {editable && (
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<EditOutlined />}
-                  aria-label="修改约定付款日"
-                  onClick={() => setDialog('paymentDueDate')}
-                />
-              )}
-              {o.overdueDays != null && (
-                <Pill tone="red">已逾期 {o.overdueDays} 天</Pill>
-              )}
-            </>,
-          )}
-        {field(
-          '客户',
-          <>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+        gap: 16,
+      }}
+    >
+      {infoCard(
+        '客户',
+        <User size={16} />,
+        <>
+          <div style={{ fontWeight: 600, color: palette.ink }}>
             {o.customerName}
-            {o.customerType && (
-              <Pill tone={o.customerType === 2 ? 'gray' : 'accent'}>
-                {o.customerType === 2 ? '老客户' : '新客户'}
-              </Pill>
-            )}
-          </>,
-        )}
-        {field(
-          '现货 / 期货',
+          </div>
+          <CustomerSubLine
+            type={o.customerType}
+            country={o.customerCountry}
+            contact={o.customerContact}
+            style={{ fontSize: 13, color: palette.sub, marginTop: 4 }}
+          />
+        </>,
+      )}
+      {!fee &&
+        infoCard(
+          '订单信息',
+          <ClipboardList size={16} />,
           <>
-            <StockPill type={o.stockType} />
-            {futures > 0 && (
-              <span
-                style={{ fontSize: 12, color: palette.mute, fontWeight: 400 }}
-              >
-                {futures} 个型号期货
-              </span>
+            {infoRow(
+              '销售日期',
+              <>
+                {o.salesDate ?? '—'}
+                {editable &&
+                  editBtn('修改销售日期', () => setDialog('salesDate'))}
+              </>,
+            )}
+            {manual &&
+              infoRow(
+                '约定付款日',
+                <>
+                  {o.paymentDueDate ?? '—'}
+                  {editable &&
+                    editBtn('修改约定付款日', () =>
+                      setDialog('paymentDueDate'),
+                    )}
+                  {o.overdueDays != null && (
+                    <Pill tone="red">已逾期 {o.overdueDays} 天</Pill>
+                  )}
+                </>,
+              )}
+            {infoRow(
+              '现货 / 期货',
+              <>
+                <StockPill type={o.stockType} />
+                {futures > 0 && (
+                  <span style={{ fontSize: 12, color: palette.mute }}>
+                    {futures} 个型号期货
+                  </span>
+                )}
+              </>,
+            )}
+            {infoRow(
+              '采购员',
+              o.purchasers.map((p) =>
+                p.userId ? (
+                  <span key={p.userId} style={{ whiteSpace: 'nowrap' }}>
+                    {p.name}
+                    <span style={{ fontSize: 12, color: palette.mute }}>
+                      {' '}
+                      {p.itemCount} 个型号
+                    </span>
+                  </span>
+                ) : (
+                  <Pill key={0} tone="orange">
+                    <TriangleAlert size={12} aria-hidden />
+                    未指定 {p.itemCount} 个型号
+                  </Pill>
+                ),
+              ),
             )}
           </>,
         )}
-        {field(
-          '采购员',
-          o.purchasers.map((p) => (
-            <span key={p.userId ?? 0} style={{ whiteSpace: 'nowrap' }}>
-              <span style={{ color: p.userId ? palette.ink : palette.orange }}>
-                {p.name ?? '未指定'}
-              </span>
-              <span
-                style={{ fontSize: 12, color: palette.mute, fontWeight: 400 }}
-              >
-                {' '}
-                {p.itemCount} 个型号
-              </span>
-            </span>
-          )),
-        )}
-      </div>
-    </Card>
+      {partyCard('买方（Bill To）', <FileText size={16} />, o.buyer)}
+      {partyCard('收货人（Consignee）', <MapPin size={16} />, o.consignee)}
+    </div>
   );
 
   // ---------------------------------------------------------------- 订单进度
@@ -391,101 +491,131 @@ const OrderDetail: React.FC = () => {
   for (const i of o.items.filter((x) => x.quantity > 0)) {
     counts.set(i.progressCode, (counts.get(i.progressCode) ?? 0) + 1);
   }
-  const rank = (code: string) => o.steps.findIndex((s) => s.code === code);
+  // 找不到的进度码（字典已删除）排在所有步骤之后，与后端 OrderProgress.rank 一致
+  const rank = (code: string) => {
+    const i = o.steps.findIndex((s) => s.code === code);
+    return i < 0 ? o.steps.length : i;
+  };
   const slowest = completed ? o.steps.length : rank(o.progressCode);
   const visibleSteps = [
     ...o.steps.filter((s) => s.enabled || counts.has(s.code)),
     { code: 'COMPLETED', name: '已完成', enabled: true },
   ];
+  // 步骤条（界面规范「步骤条」）：同一时刻只有一个当前步——订单状态，即进度最慢的型号所在步（P5）。
+  // 之前的步骤主题色实底加对勾；当前步实底加外圈；已有部分型号先走到的后续步骤只描边、写型号数，不算当前；未到的浅灰
+  // 多个型号分散在几步时，原来每一步都实底高亮，看不出订单停在哪一步
   const stepper = active && (
-    <Card style={{ padding: 20, marginBottom: 16 }}>
-      <div
+    <Section title="订单进度" help="订单状态取进度最慢的型号">
+      <ol
         style={{
           display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          marginBottom: 16,
+          alignItems: 'flex-start',
+          listStyle: 'none',
+          margin: 0,
+          padding: 0,
         }}
       >
-        <NodeIndexOutlined style={{ color: palette.link }} />
-        <b style={{ color: palette.ink }}>订单进度</b>
-        <ProgressPill code={o.progressCode} name={o.progressName} />
-        <span style={{ marginLeft: 'auto', fontSize: 12, color: palette.mute }}>
-          订单状态取进度最慢的型号
-          {o.trackable && canProgress ? '；勾选型号后可批量更新' : ''}
-        </span>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
         {visibleSteps.map((s, n) => {
-          const r = s.code === 'COMPLETED' ? o.steps.length : rank(s.code);
+          const r = s.code === 'COMPLETED' ? o.steps.length + 1 : rank(s.code);
           const count = counts.get(s.code) ?? 0;
           const reached = completed || r < slowest;
-          const current = !completed && count > 0;
-          const color = reached
-            ? palette.green
-            : current
-              ? palette.link
-              : palette.mute;
+          const current = !completed && r === slowest;
+          // 部分型号已走到这一步（订单整体还没到）
+          const ahead = !completed && r > slowest && count > 0;
+          const on = reached || current;
           return (
-            <React.Fragment key={s.code}>
+            <li
+              key={s.code}
+              aria-current={current ? 'step' : undefined}
+              aria-label={`${s.name}：${
+                reached
+                  ? '已完成'
+                  : current
+                    ? `当前${count ? `，${count} 个型号` : ''}`
+                    : ahead
+                      ? `${count} 个型号已到这一步`
+                      : '未开始'
+              }`}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+              }}
+            >
               {n > 0 && (
-                <div
+                <span
+                  aria-hidden
                   style={{
-                    flex: 1,
+                    position: 'absolute',
+                    top: 14,
+                    left: 'calc(-50% + 23px)',
+                    right: 'calc(50% + 23px)',
                     height: 2,
-                    marginTop: 10,
-                    background: reached ? palette.green : palette.hairline,
-                    minWidth: 12,
+                    borderRadius: 1,
+                    // 连到当前步为止都是主题色
+                    background: on ? palette.primary : palette.hairline,
                   }}
                 />
               )}
-              <div style={{ textAlign: 'center', minWidth: 64 }}>
-                <div style={{ color, fontSize: 18, lineHeight: '22px' }}>
-                  {reached ? (
-                    <CheckCircleFilled />
-                  ) : (
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        width: 14,
-                        height: 14,
-                        borderRadius: 7,
-                        border: `2px solid ${color}`,
-                      }}
-                    />
-                  )}
-                </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: current ? 700 : 500,
-                    color: reached || current ? palette.ink : palette.mute,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {s.name}
-                </div>
-                <div
-                  style={{ fontSize: 12, color: count ? color : palette.mute }}
-                >
-                  {count && !completed ? `${count} 个型号` : '—'}
-                </div>
-              </div>
-            </React.Fragment>
+              <span
+                aria-hidden
+                style={{
+                  boxSizing: 'border-box',
+                  width: 30,
+                  height: 30,
+                  borderRadius: '50%',
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  background: on
+                    ? palette.primary
+                    : ahead
+                      ? palette.card
+                      : palette.neutralSoft,
+                  color: on
+                    ? palette.onPrimary
+                    : ahead
+                      ? palette.link
+                      : palette.mute,
+                  border: ahead ? `2px solid ${palette.primary}` : undefined,
+                  // 当前步：外圈主题色浅环，和已完成区分
+                  boxShadow: current
+                    ? `0 0 0 4px ${palette.primarySoft}`
+                    : undefined,
+                }}
+              >
+                {reached ? <Check size={16} strokeWidth={3} /> : n + 1}
+              </span>
+              <span
+                style={{
+                  marginTop: 8,
+                  fontSize: 14,
+                  fontWeight: current ? 600 : 400,
+                  color: on || ahead ? palette.ink : palette.mute,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {s.name}
+              </span>
+              <span
+                style={{
+                  fontSize: 12,
+                  color: current || ahead ? palette.link : palette.mute,
+                }}
+              >
+                {(current || ahead) && count > 0 ? `${count} 个型号` : '—'}
+              </span>
+            </li>
           );
         })}
-      </div>
+      </ol>
       {goods.total > 0 && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            gap: 12,
-            marginTop: 18,
-            paddingTop: 16,
-            borderTop: `1px solid ${palette.hairline}`,
-          }}
-        >
+        <MetricGrid cols={6} min={100} gap={12} style={{ marginTop: 20 }}>
           {(
             [
               [
@@ -518,13 +648,15 @@ const OrderDetail: React.FC = () => {
             <div
               key={k}
               style={{
-                padding: '10px 14px',
-                borderRadius: 10,
+                padding: '10px 12px',
+                borderRadius: 8,
                 background: palette.inset,
+                minWidth: 0,
               }}
             >
               <div style={{ fontSize: 12, color: palette.sub }}>
                 <span
+                  aria-hidden
                   style={{
                     display: 'inline-block',
                     width: 8,
@@ -537,7 +669,12 @@ const OrderDetail: React.FC = () => {
                 {GOODS_LABELS[k]}
               </div>
               <div
-                style={{ fontSize: 20, fontWeight: 700, color: palette.ink }}
+                style={{
+                  ...num,
+                  fontSize: 20,
+                  fontWeight: 600,
+                  color: goods[k] ? palette.ink : palette.mute,
+                }}
               >
                 {goods[k]} 件
               </div>
@@ -554,17 +691,20 @@ const OrderDetail: React.FC = () => {
               </div>
             </div>
           ))}
-        </div>
+        </MetricGrid>
       )}
-    </Card>
+    </Section>
   );
 
-  // ---------------------------------------------------------------- 型号
-
   const columns: TableColumnsType<OrderItem> = [
-    { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
-    ...docBrandColumns<OrderItem>((r) => r),
     {
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 44,
+      render: (_, __, i) => i + 1,
+    },
+    docModelColumn<OrderItem>((r) => r, {
       title: '型号',
       key: 'model',
       width: 220,
@@ -613,13 +753,7 @@ const OrderDetail: React.FC = () => {
           />
         </DocModelCell>
       ),
-    },
-    {
-      title: '描述',
-      key: 'description',
-      width: 260,
-      render: (_, r) => <DocDescription text={r.description} />,
-    },
+    }),
     {
       title: '数量',
       dataIndex: 'quantity',
@@ -634,51 +768,48 @@ const OrderDetail: React.FC = () => {
       ),
     },
     {
-      title: '单价',
+      title: `单价（${cur}）`,
       key: 'price',
       width: 120,
       align: 'right',
-      render: (_, r) => (
-        <span style={num}>{formatAmount(r.unitPrice, cur)}</span>
-      ),
+      render: (_, r) => <span style={num}>{formatMoney(r.unitPrice)}</span>,
     },
     ...(replacement
       ? [
           {
-            title: '申报单价',
+            title: `申报单价（${cur}）`,
             key: 'declared',
             width: 120,
             align: 'right' as const,
             render: (_: unknown, r: OrderItem) => (
-              <b style={num}>{formatAmount(r.declaredPrice ?? 0, cur)}</b>
+              <b style={num}>{formatMoney(r.declaredPrice ?? 0)}</b>
             ),
           },
         ]
       : []),
     {
-      title: '小计',
+      title: `小计（${cur}）`,
       key: 'amount',
       width: 130,
       align: 'right',
-      render: (_, r) => <b style={num}>{formatAmount(r.amount, cur)}</b>,
+      render: (_, r) => <b style={num}>{formatMoney(r.amount)}</b>,
     },
     {
-      title: '现货 / 期货',
-      dataIndex: 'stockType',
-      width: 100,
-      render: (v: number) => <StockPill type={v} />,
-    },
-    {
-      title: '采购员',
-      dataIndex: 'purchaserName',
-      width: 110,
-      render: (v: string | null | undefined, r) =>
+      title: '进度',
+      dataIndex: 'progressCode',
+      width: 120,
+      render: (v: string, r) =>
         r.quantity === 0 ? (
-          <span style={{ color: palette.mute }}>—</span>
-        ) : r.purchaserNames?.length ? (
-          <EllipsisText text={r.purchaserNames.join('、')} />
+          <span style={{ fontSize: 12, color: palette.mute }}>不再跟进</span>
         ) : (
-          (v ?? <span style={{ color: palette.orange }}>未指定</span>)
+          <div>
+            {completed ? (
+              <ProgressPill code="COMPLETED" name={o.progressName} />
+            ) : (
+              <ProgressPill code={v} name={r.progressName} />
+            )}
+            <NotNeededNote qty={r.notNeededQty} reasons={r.notNeededReasons} />
+          </div>
         ),
     },
     {
@@ -765,6 +896,25 @@ const OrderDetail: React.FC = () => {
       },
     },
     {
+      title: '现货 / 期货',
+      dataIndex: 'stockType',
+      width: 100,
+      render: (v: number) => <StockPill type={v} />,
+    },
+    {
+      title: '采购员',
+      dataIndex: 'purchaserName',
+      width: 110,
+      render: (v: string | null | undefined, r) =>
+        r.quantity === 0 ? (
+          <span style={{ color: palette.mute }}>—</span>
+        ) : r.purchaserNames?.length ? (
+          <EllipsisText text={r.purchaserNames.join('、')} />
+        ) : (
+          (v ?? <span style={{ color: palette.orange }}>未指定</span>)
+        ),
+    },
+    {
       title: '采购订单 · 发货单',
       key: 'docs',
       width: 190,
@@ -795,54 +945,46 @@ const OrderDetail: React.FC = () => {
         ),
     },
     {
-      title: '进度',
-      dataIndex: 'progressCode',
-      width: 120,
-      render: (v: string, r) =>
-        r.quantity === 0 ? (
-          <span style={{ fontSize: 12, color: palette.mute }}>不再跟进</span>
-        ) : (
-          <div>
-            {completed ? (
-              <ProgressPill code="COMPLETED" name={o.progressName} />
-            ) : (
-              <ProgressPill code={v} name={r.progressName} />
-            )}
-            <NotNeededNote qty={r.notNeededQty} reasons={r.notNeededReasons} />
-          </div>
-        ),
+      title: '描述',
+      key: 'description',
+      width: 260,
+      render: (_, r) => <DocDescription text={r.description} />,
     },
   ];
 
+  // 勾选型号后，表格上方的批量操作条（原型 B1c）：主操作「更新进度」在最右
   const bulk = o.trackable && selected.length > 0 && (
     <div
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 10,
+        gap: 12,
         flexWrap: 'wrap',
-        padding: '10px 16px',
-        borderRadius: 12,
-        background: palette.accentSoft,
-        marginBottom: 10,
+        padding: '8px 12px 8px 16px',
+        borderRadius: 8,
+        background: palette.primarySoft, // lint-ui-ignore primary-soft: 批量操作条（已选 N 个型号），属于选中状态
+        marginBottom: 12,
       }}
     >
-      <CheckOutlined style={{ color: palette.link }} />
       <b style={{ color: palette.ink }}>已选 {selected.length} 个型号</b>
+      <button
+        type="button"
+        className="zhul-link"
+        onClick={() => setSelected([])}
+      >
+        取消选择
+      </button>
       <span style={{ marginLeft: 'auto' }} />
-      {canProgress && (
-        <Button
-          type="primary"
-          icon={<NodeIndexOutlined />}
-          onClick={() => setDialog('progress')}
-        >
-          更新进度
-        </Button>
-      )}
-      <Button icon={<UserOutlined />} onClick={() => setDialog('purchaser')}>
+      <Button
+        type="text"
+        icon={<UserRound size={16} />}
+        style={{ color: palette.link }}
+        onClick={() => setDialog('purchaser')}
+      >
         指定采购员
       </Button>
       <Dropdown
+        trigger={['click']}
         menu={{
           items: [
             { key: String(STOCK.SPOT), label: '改为现货' },
@@ -851,8 +993,19 @@ const OrderDetail: React.FC = () => {
           onClick: ({ key }) => changeStock(Number(key)),
         }}
       >
-        <Button icon={<SwapOutlined />}>改为现货 / 期货</Button>
+        <Button
+          type="text"
+          icon={<ArrowLeftRight size={16} />}
+          style={{ color: palette.link }}
+        >
+          现货 / 期货 <ChevronDown size={14} aria-hidden />
+        </Button>
       </Dropdown>
+      {canProgress && (
+        <Button type="primary" onClick={() => setDialog('progress')}>
+          更新进度
+        </Button>
+      )}
     </div>
   );
 
@@ -863,32 +1016,6 @@ const OrderDetail: React.FC = () => {
     !replacement &&
     o.piTotalAmount != null &&
     Number(o.piTotalAmount) !== Number(o.totalAmount);
-
-  const party = (title: string, p?: Party | null) => (
-    <div
-      style={{
-        padding: 14,
-        borderRadius: 12,
-        background: palette.inset,
-        border: `1px solid ${palette.hairline}`,
-        minWidth: 0,
-      }}
-    >
-      <div style={{ fontSize: 13, color: palette.sub, marginBottom: 6 }}>
-        {title}
-      </div>
-      {p ? (
-        <>
-          <div style={{ fontWeight: 600, color: palette.ink }}>{p.name}</div>
-          <div style={{ fontSize: 12, color: palette.sub }}>
-            {partyAddress(p)}
-          </div>
-        </>
-      ) : (
-        <div style={{ color: palette.mute, fontSize: 13 }}>—</div>
-      )}
-    </div>
-  );
 
   const line = (
     label: React.ReactNode,
@@ -912,110 +1039,208 @@ const OrderDetail: React.FC = () => {
     </div>
   );
 
+  /** 金额与条款的一行：左标签、右内容，行间细分隔线 */
+  const termRow = (
+    label: React.ReactNode,
+    value: React.ReactNode,
+    opts?: { amount?: boolean; color?: string },
+  ) => (
+    <div
+      key={typeof label === 'string' ? label : undefined}
+      style={{
+        display: 'flex',
+        justifyContent: opts?.amount ? 'space-between' : undefined,
+        gap: 16,
+        padding: '10px 0',
+        borderBottom: `1px solid ${palette.hairline}`,
+        fontSize: 13,
+      }}
+    >
+      <span style={{ width: 72, flex: 'none', color: palette.mute }}>
+        {label}
+      </span>
+      <span
+        style={{
+          ...(opts?.amount ? num : {}),
+          color: opts?.color ?? palette.ink,
+          minWidth: 0,
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+
+  // 另收的费用订单并入「金额」一栏（P5）：和合计放在一起看这笔生意一共收多少，不再单独一张卡
+  const feeOrderList = o.feeOrders ?? [];
+  const feeOrders = !replacement &&
+    (canFeeOrder || feeOrderList.length > 0) && (
+      <div style={{ marginTop: 16 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            paddingBottom: 6,
+            borderBottom: `1px solid ${palette.hairline}`,
+            fontSize: 13,
+          }}
+        >
+          <span style={{ color: palette.mute }}>另收费用订单</span>
+          <HelpTip title="已收齐款或已完成的订单，还要另收运费等费用时新建" />
+          {canFeeOrder && (
+            <Button
+              type="link"
+              size="small"
+              icon={<Plus size={14} />}
+              style={{ marginLeft: 'auto', paddingInline: 0 }}
+              aria-label="新建费用订单"
+              onClick={() => setDialog('feeOrder')}
+            >
+              新建
+            </Button>
+          )}
+        </div>
+        {feeOrderList.map((x) => (
+          <div
+            key={x.id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '8px 0',
+              borderBottom: `1px solid ${palette.hairline}`,
+              fontSize: 13,
+              opacity: x.status === 2 ? 0.6 : 1,
+            }}
+          >
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(`/sales/orders/${x.id}`)}
+            >
+              {x.soNo}
+            </button>
+            {x.status === 2 ? (
+              <Pill tone="gray">已取消</Pill>
+            ) : (
+              <ReceiptStatusPill status={x.receiptStatus} />
+            )}
+            <span
+              style={{
+                ...num,
+                marginLeft: 'auto',
+                color: palette.ink,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {formatAmount(x.totalAmount, x.currencyCode)}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+
+  const showTerms = !manual && !replacement;
   const terms = (
-    <Card style={{ padding: 20, marginTop: 16 }}>
+    <Section
+      title={showTerms ? '金额与条款' : '金额'}
+      style={{ marginTop: 16 }}
+      extra={
+        // 售后补发订单不收款，不能改费用（audit BUS-068）
+        access['sales:order:fee-edit'] &&
+        editable &&
+        !replacement &&
+        (completed ? (
+          <span style={{ fontSize: 12, color: palette.mute }}>
+            订单已完成，不能修改费用
+          </span>
+        ) : (
+          <Button
+            type="text"
+            icon={<Pencil size={16} />}
+            style={{ color: palette.link }}
+            onClick={() => setFeesOpen(true)}
+          >
+            修改费用
+          </Button>
+        ))
+      }
+    >
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-          gap: 12,
-          marginBottom: manual || replacement ? 0 : 12,
+          gridTemplateColumns:
+            showTerms && wide ? 'repeat(2, minmax(0, 1fr))' : '1fr',
+          gap: '0 48px',
         }}
       >
-        {party('买方（Bill To）', o.buyer)}
-        {party('收货人（Consignee）', o.consignee)}
-      </div>
-      {!manual && !replacement && (
+        {showTerms && (
+          <div>
+            {termRow('交期', o.deliveryTime || '—')}
+            {termRow('付款条件', o.paymentTerm || '—')}
+            {termRow(
+              '贸易术语',
+              [o.incoterm, o.incotermPlace].filter(Boolean).join(' ') || '—',
+            )}
+            {termRow('起运港', o.portOfShipment || '—')}
+          </div>
+        )}
         <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '6px 24px',
-            fontSize: 13,
-            color: palette.sub,
-          }}
+          style={
+            showTerms
+              ? undefined
+              : { width: '100%', maxWidth: 420, marginLeft: 'auto' }
+          }
         >
-          <span>交期：{o.deliveryTime || '—'}</span>
-          <span>付款条件：{o.paymentTerm || '—'}</span>
-          <span>
-            贸易术语：
-            {[o.incoterm, o.incotermPlace].filter(Boolean).join(' ') || '—'}
-          </span>
-          <span>起运港：{o.portOfShipment || '—'}</span>
-        </div>
-      )}
-      <div
-        style={{
-          borderTop: `1px solid ${palette.hairline}`,
-          marginTop: 14,
-          paddingTop: 14,
-          maxWidth: 420,
-          marginLeft: 'auto',
-        }}
-      >
-        {/* 售后补发订单不收款，不能改费用（audit BUS-068） */}
-        {access['sales:order:fee-edit'] && editable && !replacement && (
+          {!fee &&
+            termRow('小计', formatAmount(o.itemAmount, cur), { amount: true })}
+          {o.fees.map((f) =>
+            termRow(f.feeName, formatAmount(f.amount, cur), { amount: true }),
+          )}
+          {o.discountAmount > 0 &&
+            termRow('折扣', formatAmount(-o.discountAmount, cur), {
+              amount: true,
+              color: palette.orange,
+            })}
           <div
             style={{
               display: 'flex',
-              justifyContent: 'flex-end',
-              marginBottom: 6,
-              fontSize: 12,
-              color: palette.mute,
+              justifyContent: 'space-between',
+              alignItems: 'baseline',
+              gap: 12,
+              paddingTop: 12,
             }}
           >
-            {completed ? (
-              '订单已完成，不能修改费用'
-            ) : (
-              <Button
-                size="small"
-                icon={<EditOutlined />}
-                onClick={() => setFeesOpen(true)}
-              >
-                修改费用
-              </Button>
-            )}
+            <b style={{ fontSize: 16, color: palette.ink }}>
+              {(o.partialCancels?.length ?? 0) > 0
+                ? '订单合计（部分取消后）'
+                : '合计'}
+            </b>
+            <b style={{ ...num, fontSize: 20, color: palette.ink }}>
+              {formatAmount(o.totalAmount, cur)}
+            </b>
           </div>
-        )}
-        {!fee && line('小计', formatAmount(o.itemAmount, cur))}
-        {o.fees.map((f) => line(f.feeName, formatAmount(f.amount, cur)))}
-        {o.discountAmount > 0 &&
-          line('折扣', formatAmount(-o.discountAmount, cur), palette.orange)}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'baseline',
-            marginTop: 8,
-          }}
-        >
-          <b style={{ fontSize: 16, color: palette.ink }}>
-            {(o.partialCancels?.length ?? 0) > 0
-              ? '订单合计（部分取消后）'
-              : '合计'}
-          </b>
-          <b style={{ ...num, fontSize: 22, color: palette.ink }}>
-            {formatAmount(o.totalAmount, cur)}
-          </b>
+          {cur !== 'CNY' && (
+            <div
+              style={{ textAlign: 'right', fontSize: 12, color: palette.mute }}
+            >
+              ≈ {formatAmount(o.totalAmountCny, 'CNY')}（汇率{' '}
+              {Number(o.exchangeRate).toFixed(6)}）
+            </div>
+          )}
+          {piDiffers && (
+            <div
+              style={{ textAlign: 'right', fontSize: 12, color: palette.mute }}
+            >
+              PI 合计 {formatAmount(o.piTotalAmount ?? 0, cur)}（发给客户的 PI
+              不改）
+            </div>
+          )}
+          {feeOrders}
         </div>
-        {cur !== 'CNY' && (
-          <div
-            style={{ textAlign: 'right', fontSize: 12, color: palette.mute }}
-          >
-            ≈ {formatAmount(o.totalAmountCny, 'CNY')}（汇率{' '}
-            {Number(o.exchangeRate).toFixed(6)}）
-          </div>
-        )}
-        {piDiffers && (
-          <div
-            style={{ textAlign: 'right', fontSize: 12, color: palette.mute }}
-          >
-            PI 合计 {formatAmount(o.piTotalAmount ?? 0, cur)}（发给客户的 PI
-            不改）
-          </div>
-        )}
       </div>
-    </Card>
+    </Section>
   );
 
   // ---------------------------------------------------------------- 收款
@@ -1048,45 +1273,62 @@ const OrderDetail: React.FC = () => {
           marginBottom: 12,
         }}
       >
-        <b style={{ fontSize: 16, color: palette.ink }}>收款</b>
+        <CardTitle>收款</CardTitle>
+        <HelpTip
+          title={
+            fee
+              ? '费用订单：收款到账后订单自动完成，不走采购和出运'
+              : manual
+                ? '手动订单：没有 PI，收款直接登记在订单上'
+                : `收款登记在 PI ${o.piNo ?? ''} 上，这里只读显示`
+          }
+        />
         <ReceiptStatusPill status={o.receiptStatus} />
-        {!manual && o.piNo && (
+        {!manual && o.piNo && o.piId && (
           <span
             style={{ marginLeft: 'auto', fontSize: 12, color: palette.mute }}
           >
-            来自 {o.piNo}
+            来自{' '}
+            <Link
+              className="zhul-link zhul-link-doc"
+              to={PATHS.pi(o.piId)}
+              style={{ fontSize: 12 }}
+            >
+              {o.piNo}
+            </Link>
           </span>
         )}
       </div>
-      <div
-        style={{
-          padding: 14,
-          borderRadius: 12,
-          background: palette.inset,
-          marginBottom: 12,
-        }}
-      >
+      {/* 进度直接放在卡里，不包灰底；收款状态只在卡头出现一次（ui-redesign R8-2） */}
+      <div style={{ marginBottom: 14 }}>
         <div
           style={{
             display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: 13,
+            alignItems: 'baseline',
+            gap: 6,
+            flexWrap: 'wrap',
             marginBottom: 8,
           }}
         >
-          <b style={{ color: palette.ink }}>
-            已到账 {formatAmount(o.receivedAmount ?? 0, cur)} /{' '}
-            {formatAmount(o.totalAmount, cur)}
+          <span style={{ fontSize: 13, color: palette.sub }}>已到账</span>
+          <b style={{ ...num, fontSize: 20, color: palette.ink }}>
+            {formatAmount(o.receivedAmount ?? 0, cur)}
           </b>
+          <span style={{ ...num, fontSize: 13, color: palette.mute }}>
+            / {formatAmount(o.totalAmount, cur)}
+          </span>
         </div>
         <ReceiptProgress
           received={o.receivedAmount ?? 0}
           total={o.totalAmount}
           status={o.receiptStatus}
-          width={260}
+          width="100%"
+          hideStatus
         />
         {(o.remainingAmount ?? 0) > 0 && (
-          <div style={{ fontSize: 12, color: palette.orange, marginTop: 6 }}>
+          <div
+            style={{ ...num, fontSize: 12, color: palette.sub, marginTop: 4 }}
+          >
             剩余 {formatAmount(o.remainingAmount ?? 0, cur)}
           </div>
         )}
@@ -1097,33 +1339,6 @@ const OrderDetail: React.FC = () => {
           </div>
         )}
       </div>
-      {o.methodTotals.length > 0 && (
-        <div
-          style={{
-            padding: 14,
-            borderRadius: 12,
-            background: palette.inset,
-            marginBottom: 12,
-          }}
-        >
-          <div style={{ fontSize: 12, color: palette.mute, marginBottom: 8 }}>
-            按付款方式
-          </div>
-          {o.methodTotals.map((m) => (
-            <React.Fragment key={m.paymentMethod}>
-              {line(
-                <span>
-                  {m.paymentMethodName}{' '}
-                  <Pill tone={m.channel === 2 ? 'violet' : 'gray'}>
-                    {m.channel === 2 ? '线上' : '线下'}
-                  </Pill>
-                </span>,
-                formatAmount(m.amount, m.currencyCode),
-              )}
-            </React.Fragment>
-          ))}
-        </div>
-      )}
       {receivable && (canSlip || canConfirm || canPlatform || canClaim) && (
         <div
           style={{
@@ -1134,18 +1349,24 @@ const OrderDetail: React.FC = () => {
           }}
         >
           {canSlip && (
-            <Button icon={<UploadOutlined />} onClick={() => setDialog('slip')}>
+            <Button
+              icon={<Upload size="1em" />}
+              onClick={() => setDialog('slip')}
+            >
               上传水单
             </Button>
           )}
           {canClaim && (
-            <Button icon={<InboxOutlined />} onClick={() => setDialog('claim')}>
+            <Button
+              icon={<Inbox size="1em" />}
+              onClick={() => setDialog('claim')}
+            >
               认领到账
             </Button>
           )}
           {canPlatform && (
             <Button
-              icon={<ShopOutlined />}
+              icon={<Store size="1em" />}
               onClick={() => setDialog('platform')}
             >
               登记平台收款
@@ -1154,7 +1375,7 @@ const OrderDetail: React.FC = () => {
           {canConfirm && (
             <Button
               type="primary"
-              icon={<BankOutlined />}
+              icon={<Landmark size="1em" />}
               onClick={() => setDialog('confirm')}
             >
               登记到账
@@ -1162,13 +1383,37 @@ const OrderDetail: React.FC = () => {
           )}
         </div>
       )}
-      <div style={{ fontSize: 12, color: palette.mute, marginBottom: 12 }}>
-        {fee
-          ? '收款到账后订单自动完成，不走采购和出运'
-          : manual
-            ? '手动创建的订单没有 PI，收款直接登记在订单上'
-            : `收款登记在 PI ${o.piNo ?? ''} 上，这里只读显示`}
-      </div>
+      {o.methodTotals.length > 0 && (
+        <div
+          style={{
+            borderTop: `1px solid ${palette.hairline}`,
+            paddingTop: 12,
+            marginBottom: 12,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: palette.ink,
+              marginBottom: 8,
+            }}
+          >
+            按付款方式
+          </div>
+          {o.methodTotals.map((m) => (
+            <React.Fragment key={m.paymentMethod}>
+              {line(
+                <span>
+                  {m.paymentMethodName}{' '}
+                  <Pill tone="gray">{m.channel === 2 ? '线上' : '线下'}</Pill>
+                </span>,
+                formatAmount(m.amount, m.currencyCode),
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+      )}
       <CreditInfo
         credit={o.credit}
         currency={o.currencyCode}
@@ -1179,30 +1424,45 @@ const OrderDetail: React.FC = () => {
             : undefined
         }
       />
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 6,
+          borderTop: `1px solid ${palette.hairline}`,
+          paddingTop: 12,
+          fontSize: 13,
+        }}
+      >
+        <b style={{ color: palette.ink }}>收款记录</b>
+        <span style={{ color: palette.mute }}>{o.receipts.length}</span>
+      </div>
       {o.receipts.length === 0 ? (
-        <div style={{ color: palette.mute, fontSize: 13 }}>还没有收款记录</div>
+        <div style={{ color: palette.mute, fontSize: 13, marginTop: 6 }}>
+          还没有收款记录
+        </div>
       ) : (
-        <div style={{ display: 'grid', gap: 8 }}>
-          {[...o.receipts].reverse().map((r) => {
+        <div style={{ display: 'grid' }}>
+          {[...o.receipts].reverse().map((r, i) => {
             const slip = r.kind === KIND.SLIP;
             const voided = r.status === 2;
             return (
               <div
                 key={r.id}
                 style={{
-                  padding: '10px 12px',
-                  borderRadius: 12,
-                  border: `1px solid ${palette.hairline}`,
+                  padding: '10px 0',
+                  borderTop:
+                    i > 0 ? `1px solid ${palette.hairline}` : undefined,
                   opacity: voided ? 0.6 : 1,
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {slip ? (
-                    <FileTextOutlined style={{ color: palette.link }} />
+                    <FileText size="1em" style={{ color: palette.mute }} />
                   ) : r.platformOrderNo ? (
-                    <ShopOutlined style={{ color: palette.violet }} />
+                    <Store size="1em" style={{ color: palette.mute }} />
                   ) : (
-                    <BankOutlined style={{ color: palette.green }} />
+                    <Landmark size="1em" style={{ color: palette.mute }} />
                   )}
                   <b style={{ color: palette.ink }}>
                     {slip
@@ -1225,15 +1485,6 @@ const OrderDetail: React.FC = () => {
                       {r.receiptNo}
                     </button>
                   )}
-                  <b
-                    style={{
-                      ...num,
-                      color: palette.ink,
-                      textDecoration: voided ? 'line-through' : undefined,
-                    }}
-                  >
-                    {formatAmount(r.amount, cur)}
-                  </b>
                   {slip ? (
                     <Pill tone={r.matched ? 'green' : 'orange'}>
                       {r.matched ? '已到账' : '待到账'}
@@ -1241,20 +1492,33 @@ const OrderDetail: React.FC = () => {
                   ) : voided ? (
                     <Pill tone="mute">已作废</Pill>
                   ) : null}
-                  <span
+                  <b
                     style={{
+                      ...num,
                       marginLeft: 'auto',
-                      fontSize: 12,
-                      color: palette.mute,
+                      color: palette.ink,
+                      textDecoration: voided ? 'line-through' : undefined,
                     }}
                   >
-                    {r.receiptDate?.slice(5)}
-                  </span>
+                    {formatAmount(r.amount, cur)}
+                  </b>
                 </div>
-                <div style={{ fontSize: 12, color: palette.sub, marginTop: 4 }}>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: palette.mute,
+                    marginTop: 4,
+                    paddingLeft: 22,
+                  }}
+                >
+                  {r.receiptDate && (
+                    <span style={{ marginRight: 6 }}>
+                      {r.receiptDate.slice(5)} ·
+                    </span>
+                  )}
                   {r.channel === 2 && (
                     <span style={{ marginRight: 6 }}>
-                      <Pill tone="violet">线上</Pill>
+                      <Pill tone="gray">线上</Pill>
                     </span>
                   )}
                   {[
@@ -1274,20 +1538,31 @@ const OrderDetail: React.FC = () => {
                     .filter(Boolean)
                     .join(' · ')}
                 </div>
-                {slip &&
-                  r.files.map((f, i) => (
-                    <button
-                      type="button"
-                      className="zhul-link"
-                      key={f.fileKey}
-                      style={{ fontSize: 12, marginRight: 10 }}
-                      onClick={() => openSlip(r, i)}
-                    >
-                      <PaperClipOutlined /> {f.fileName}
-                    </button>
-                  ))}
+                {slip && r.files.length > 0 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 10,
+                      marginTop: 2,
+                      paddingLeft: 22,
+                    }}
+                  >
+                    {r.files.map((f, i) => (
+                      <button
+                        type="button"
+                        className="zhul-link"
+                        key={f.fileKey}
+                        style={{ fontSize: 12 }}
+                        onClick={() => openSlip(r, i)}
+                      >
+                        <Paperclip size="1em" /> {f.fileName}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {manual && r.voidable && (
-                  <div>
+                  <div style={{ paddingLeft: 22 }}>
                     <button
                       type="button"
                       className="zhul-link"
@@ -1317,7 +1592,7 @@ const OrderDetail: React.FC = () => {
             marginBottom: 12,
           }}
         >
-          <b style={{ fontSize: 16, color: palette.ink }}>收款</b>
+          <CardTitle>收款</CardTitle>
           <span style={{ marginLeft: 'auto' }}>
             <ReceiptStatusPill status={o.receiptStatus} />
           </span>
@@ -1337,7 +1612,7 @@ const OrderDetail: React.FC = () => {
               marginBottom: 12,
             }}
           >
-            <b style={{ fontSize: 16, color: palette.ink }}>成本</b>
+            <CardTitle>成本</CardTitle>
             <span style={{ marginLeft: 'auto' }}>
               <Pill tone="cyan">计入原订单</Pill>
             </span>
@@ -1369,71 +1644,6 @@ const OrderDetail: React.FC = () => {
     </>
   );
 
-  const feeOrdersCard = (
-    <Card style={{ padding: 20, marginTop: 16 }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          marginBottom: 12,
-        }}
-      >
-        <b style={{ fontSize: 16, color: palette.ink }}>费用订单</b>
-        {canFeeOrder && (
-          <Button
-            size="small"
-            icon={<PlusOutlined />}
-            style={{ marginLeft: 'auto' }}
-            onClick={() => setDialog('feeOrder')}
-          >
-            新建费用订单
-          </Button>
-        )}
-      </div>
-      {(o.feeOrders?.length ?? 0) === 0 ? (
-        <div style={{ fontSize: 12, color: palette.mute }}>
-          订单已收齐款或已完成，后来要另收运费等费用时，新建一张费用订单单独收款
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gap: 8 }}>
-          {o.feeOrders?.map((x) => (
-            <div
-              key={x.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '8px 12px',
-                borderRadius: 10,
-                background: palette.inset,
-                opacity: x.status === 2 ? 0.6 : 1,
-              }}
-            >
-              <button
-                type="button"
-                className="zhul-link"
-                onClick={() => history.push(`/sales/orders/${x.id}`)}
-              >
-                {x.soNo}
-              </button>
-              <span style={{ ...num, color: palette.ink }}>
-                {formatAmount(x.totalAmount, x.currencyCode)}
-              </span>
-              <span style={{ marginLeft: 'auto' }}>
-                {x.status === 2 ? (
-                  <Pill tone="gray">已取消</Pill>
-                ) : (
-                  <ReceiptStatusPill status={x.receiptStatus} />
-                )}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </Card>
-  );
-
   const m = o.margin;
   const marginCard = (
     <Card style={{ padding: 20, marginTop: 16 }}>
@@ -1445,7 +1655,14 @@ const OrderDetail: React.FC = () => {
           marginBottom: 12,
         }}
       >
-        <b style={{ fontSize: 16, color: palette.ink }}>订单毛利</b>
+        <CardTitle>订单毛利</CardTitle>
+        <HelpTip
+          title={
+            o.cost
+              ? '毛利 = 收入（毛额 × 结汇汇率）− 实际成本（含开票成本与收款手续费）；还没确定的部分按采购订单单价或采购成本价估算。采购成本与毛利只在系统内显示，不进任何导出单据'
+              : '已取消的订单按报价时的采购成本价计算。采购成本与毛利只在系统内显示，不进任何导出单据'
+          }
+        />
         {o.cost ? (
           o.cost.settled ? (
             <Pill tone="green">已结算</Pill>
@@ -1456,7 +1673,19 @@ const OrderDetail: React.FC = () => {
           m.estimated && <Pill tone="orange">预计</Pill>
         )}
       </div>
-      <div style={{ padding: 14, borderRadius: 12, background: palette.inset }}>
+      {o.cost && !o.cost.settled && (
+        <div
+          style={{
+            fontSize: 12,
+            color: palette.mute,
+            marginTop: -4,
+            marginBottom: 12,
+          }}
+        >
+          还差：{o.cost.pending.join(' · ')}
+        </div>
+      )}
+      <div style={{ padding: 14, borderRadius: 8, background: palette.inset }}>
         {line(
           '销售额',
           cur === 'CNY'
@@ -1486,18 +1715,11 @@ const OrderDetail: React.FC = () => {
             style={{
               ...num,
               fontSize: 20,
-              color: m.profitCny >= 0 ? palette.green : palette.red,
+              color: deltaOf(m.profitCny),
             }}
           >
             {formatAmount(m.profitCny, 'CNY')}
           </b>
-        </div>
-        <div style={{ fontSize: 12, color: palette.mute, marginTop: 6 }}>
-          {o.cost
-            ? o.cost.settled
-              ? '收入（毛额 × 结汇汇率）− 实际成本（含开票成本与收款手续费）'
-              : `还差：${o.cost.pending.join(' · ')}；还没确定的部分按采购订单单价或采购成本价估算`
-            : '已取消的订单按报价时的采购成本价计算'}
         </div>
       </div>
       {m.missingCostCount > 0 && (
@@ -1508,16 +1730,13 @@ const OrderDetail: React.FC = () => {
           title={`${m.missingCostCount} 个型号没有采购成本价，毛利不完整`}
         />
       )}
-      <div style={{ fontSize: 12, color: palette.mute, marginTop: 10 }}>
-        采购成本与毛利只在系统内显示，不进任何导出单据。
-      </div>
     </Card>
   );
 
   // ---------------------------------------------------------------- 页面
 
-  const main = (
-    <div style={{ minWidth: 0 }}>
+  const notices = (
+    <>
       {o.migrated && (
         <Alert
           type="warning"
@@ -1561,123 +1780,240 @@ const OrderDetail: React.FC = () => {
           title={`${fee ? '收款已到账' : '客户已收货'}，订单已完成（${formatDateTime(o.completedAt).slice(0, 16)}）`}
         />
       )}
-      {!fee && (
-        <>
-          {info}
-          {stepper}
-          {bulk}
-          <Table<OrderItem>
-            rowKey="id"
-            size="middle"
-            columns={columns}
-            dataSource={o.items}
-            pagination={false}
-            scroll={{ x: tableScrollX(columns) }}
-            rowSelection={
-              o.trackable
-                ? {
-                    selectedRowKeys: selected,
-                    onChange: (keys) => setSelected(keys as number[]),
-                    getCheckboxProps: (r) => ({ disabled: r.quantity === 0 }),
-                  }
-                : undefined
-            }
-          />
-          <div style={{ fontSize: 12, color: palette.mute, marginTop: 10 }}>
-            成交内容（型号、单价、费用）不能直接改：减少型号数量用「部分取消」，其他变更请取消订单（手动创建的订单，有「修改订单费用」权限的人可以改费用）；全部取消的型号保留显示，不再参与进度与货物状态。销售日期、
-            {manual ? '约定付款日、' : ''}进度、采购员、现货 /
-            期货可以随时改，改动写操作日志。
-          </div>
-          <PartialCancelRecords order={o} />
-        </>
-      )}
-      {afterSales.length > 0 && (
-        <Card style={{ padding: 20, marginTop: 16 }}>
+    </>
+  );
+
+  const liveItems = o.items.filter((i) => i.quantity > 0);
+  const itemsSection = !fee && (
+    <Section
+      title="型号明细"
+      help={`成交内容（型号、单价、费用）不能直接改：减少型号数量用「部分取消」，其他变更请取消订单（手动创建的订单，有「修改订单费用」权限的人可以改费用）。销售日期、${manual ? '约定付款日、' : ''}进度、采购员、现货 / 期货可以随时改，改动写操作日志`}
+      meta={`${liveItems.length} 个型号 · ${liveItems.reduce((n, i) => n + i.quantity, 0)} 件`}
+      style={{ marginTop: 16 }}
+    >
+      {bulk}
+      <Table<OrderItem>
+        rowKey="id"
+        size="middle"
+        columns={columns}
+        dataSource={o.items}
+        pagination={false}
+        // 长单据：表头贴在吸顶页头下面，横向滚动条贴视口底部（S15、R24 方案 B）
+        sticky={STICKY_TABLE}
+        scroll={{ x: tableScrollX(columns) }}
+        rowSelection={
+          o.trackable
+            ? {
+                selectedRowKeys: selected,
+                onChange: (keys) => setSelected(keys as number[]),
+                getCheckboxProps: (r) => ({ disabled: r.quantity === 0 }),
+              }
+            : undefined
+        }
+      />
+    </Section>
+  );
+
+  const afterSalesCard = afterSales.length > 0 && (
+    <Card
+      title="售后单"
+      extra={
+        <span style={{ fontSize: 12, color: palette.mute }}>
+          {afterSales.length} 张
+        </span>
+      }
+    >
+      <div style={{ display: 'grid', gap: 8 }}>
+        {afterSales.map((x) => (
           <div
+            key={x.id}
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
-              marginBottom: 12,
+              gap: 10,
+              padding: '8px 12px',
+              borderRadius: 8,
+              background: palette.inset,
             }}
           >
-            <CustomerServiceOutlined style={{ color: palette.link }} />
-            <b style={{ color: palette.ink }}>售后单</b>
-            <span
-              style={{ marginLeft: 'auto', fontSize: 12, color: palette.mute }}
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(`/sales/after-sales/${x.id}`)}
             >
-              {afterSales.length} 张
+              {x.asNo}
+            </button>
+            <Pill tone={LEVEL_TONE[x.levelCode] ?? 'gray'}>
+              {levelShort(x.levelCode, x.levelName)}
+            </Pill>
+            <span
+              style={{
+                fontSize: 12,
+                color: palette.sub,
+                flex: 1,
+                minWidth: 0,
+              }}
+            >
+              {[x.itemSummary, x.reasonName, x.solutionNames.join('、')]
+                .filter(Boolean)
+                .join(' · ')}
             </span>
+            <Pill tone={AS_STATUS_TONE[x.status] ?? 'gray'}>
+              {x.statusName}
+            </Pill>
           </div>
-          <div style={{ display: 'grid', gap: 8 }}>
-            {afterSales.map((x) => (
-              <div
-                key={x.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '8px 12px',
-                  borderRadius: 10,
-                  background: palette.inset,
-                }}
-              >
-                <button
-                  type="button"
-                  className="zhul-link"
-                  onClick={() => history.push(`/sales/after-sales/${x.id}`)}
-                >
-                  {x.asNo}
-                </button>
-                <Pill tone={LEVEL_TONE[x.levelCode] ?? 'gray'}>
-                  {levelShort(x.levelCode, x.levelName)}
-                </Pill>
-                <span
-                  style={{
-                    fontSize: 12,
-                    color: palette.sub,
-                    flex: 1,
-                    minWidth: 0,
-                  }}
-                >
-                  {[x.itemSummary, x.reasonName, x.solutionNames.join('、')]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </span>
-                <Pill tone={AS_STATUS_TONE[x.status] ?? 'gray'}>
-                  {x.statusName}
-                </Pill>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-      {terms}
-      <div style={{ marginTop: 16 }}>
-        <ChainCard type="order" id={o.id} reloadKey={o.status} />
+        ))}
       </div>
-    </div>
+    </Card>
+  );
+
+  // ---------------------------------------------------------------- 页头操作
+  // 原型 B1、B1c：主按钮只有「发货通知」；售后、客户已收货为文字按钮；退款、部分取消、取消、删除收进「更多」
+
+  const canRefundRequest =
+    !access['finance:refund:edit'] &&
+    !replacement &&
+    !!access.salesAfterSales &&
+    (o.receivedAmount ?? 0) > 0;
+  const canRefund =
+    !!access['finance:refund:edit'] &&
+    o.trackable &&
+    active &&
+    (o.receivedAmount ?? 0) > 0;
+  const tracking = !fee && (o.trackable || o.partialCancelable);
+  const moreItems = [
+    ...(tracking && canRefundRequest
+      ? [{ key: 'refundRequest', icon: <Undo2 size={16} />, label: '申请退款' }]
+      : []),
+    ...(tracking && canRefund
+      ? [{ key: 'refund', icon: <Undo2 size={16} />, label: '登记退款' }]
+      : []),
+    ...(tracking && o.partialCancelable
+      ? [
+          {
+            key: 'partialCancel',
+            icon: <CircleMinus size={16} />,
+            label: completed ? '部分取消（订单已完成，请走售后）' : '部分取消',
+            disabled: completed,
+          },
+        ]
+      : []),
+  ];
+  const dangerItems = [
+    ...((fee ? editable && !completed : tracking && o.trackable)
+      ? [
+          {
+            key: 'cancel',
+            icon: <Ban size={16} />,
+            label: '取消订单',
+            danger: true,
+          },
+        ]
+      : []),
+    ...(canDelete
+      ? [
+          {
+            key: 'delete',
+            icon: <Trash2 size={16} />,
+            label: '删除订单',
+            danger: true,
+          },
+        ]
+      : []),
+  ];
+  const menuItems = [
+    ...moreItems,
+    ...(moreItems.length && dangerItems.length
+      ? [{ type: 'divider' as const }]
+      : []),
+    ...dangerItems,
+  ];
+  const onMore = (key: string) => {
+    if (key === 'refundRequest') setDialog('refundRequest');
+    else if (key === 'refund') setRefundOpen(true);
+    else if (key === 'partialCancel') setDialog('partialCancel');
+    else if (key === 'cancel') setCancelOpen(true);
+    else if (key === 'delete') setDeleteOpen(true);
+  };
+
+  const headerActions = (
+    <>
+      {tracking && access.salesAfterSales && (
+        <Button
+          type="text"
+          icon={<Headset size={16} />}
+          style={{ color: palette.link }}
+          onClick={() => setDialog('afterSales')}
+        >
+          售后
+        </Button>
+      )}
+      {tracking && o.trackable && (
+        <Tooltip
+          title={o.completable ? undefined : '所有型号都出运后才能确认收货'}
+        >
+          {/* 置灰按钮收不到悬停和焦点，外包一层可聚焦的元素挂提示 */}
+          <span tabIndex={o.completable ? undefined : 0}>
+            <Button
+              type="text"
+              icon={<Check size={16} />}
+              disabled={!o.completable}
+              style={o.completable ? { color: palette.link } : undefined}
+              onClick={complete}
+            >
+              客户已收货
+            </Button>
+          </span>
+        </Tooltip>
+      )}
+      {menuItems.length > 0 && (
+        <Dropdown
+          trigger={['click']}
+          placement="bottomRight"
+          menu={{ items: menuItems, onClick: ({ key }) => onMore(key) }}
+        >
+          <Button
+            type="text"
+            shape="circle"
+            icon={<Ellipsis size={18} />}
+            aria-label="更多操作"
+          />
+        </Dropdown>
+      )}
+      {tracking && o.trackable && access['sales:order:ship-notice'] && (
+        <Button
+          type="primary"
+          icon={<Send size={16} />}
+          onClick={() => setDialog('notice')}
+        >
+          发货通知
+        </Button>
+      )}
+    </>
   );
 
   return (
     <div>
-      <SalesPageTitle
-        crumbs={[<MenuLink key="list" to={PATHS.orderList} />, o.soNo]}
-        title={
+      <PageHeader
+        title={o.soNo}
+        // 页头只放一个流程状态（ui-redesign S14）：收款状态在收款卡、现货 / 期货在订单信息卡；
+        // 售后补发、费用订单、先采购后收款是订单属性，写在说明行
+        tags={
           <>
-            {o.soNo}
             <MigratedPill migrated={o.migrated} />
             <ProgressPill code={o.progressCode} name={o.progressName} />
-            {!fee && <StockPill type={o.stockType} />}
-            <ReceiptStatusPill status={o.receiptStatus} />
-            {replacement && <Pill tone="violet">售后补发</Pill>}
-            {fee && <Pill tone="orange">费用订单</Pill>}
-            {o.payLater && <Pill tone="orange">先采购后收款</Pill>}
           </>
         }
-        description={
+        sub={
           <>
             {o.customerName} ·{' '}
+            {[
+              replacement && '售后补发',
+              fee && '费用订单',
+              o.payLater && '先采购后收款',
+            ]
+              .filter(Boolean)
+              .map((t) => `${t} · `)}
             <SourceNos
               mode="inline"
               refs={orderSourceRefs(o)}
@@ -1687,123 +2023,21 @@ const OrderDetail: React.FC = () => {
               <>
                 {' '}
                 · 原订单{' '}
-                <Link to={PATHS.order(o.originalSoId)}>{o.originalSoNo}</Link>
+                <Link
+                  to={PATHS.order(o.originalSoId)}
+                  className="zhul-link zhul-link-doc"
+                >
+                  {o.originalSoNo}
+                </Link>
               </>
             )}{' '}
             · {o.ownerName ?? '—'} · {formatDateTime(o.createTime).slice(0, 16)}{' '}
             创建
           </>
         }
-        actions={
-          <>
-            {fee
-              ? editable &&
-                !completed && (
-                  <Button
-                    danger
-                    icon={<StopOutlined />}
-                    onClick={() => setCancelOpen(true)}
-                  >
-                    取消订单
-                  </Button>
-                )
-              : (o.trackable || o.partialCancelable) && (
-                  <>
-                    {access.salesAfterSales && (
-                      <Button
-                        icon={<CustomerServiceOutlined />}
-                        onClick={() => setDialog('afterSales')}
-                      >
-                        售后
-                      </Button>
-                    )}
-                    {!access['finance:refund:edit'] &&
-                      !replacement &&
-                      access.salesAfterSales &&
-                      (o.receivedAmount ?? 0) > 0 && (
-                        <Button
-                          icon={<RollbackOutlined />}
-                          onClick={() => setDialog('refundRequest')}
-                        >
-                          申请退款
-                        </Button>
-                      )}
-                    {o.trackable && (
-                      <>
-                        {access['sales:order:ship-notice'] && (
-                          <Button
-                            type="primary"
-                            icon={<SendOutlined />}
-                            onClick={() => setDialog('notice')}
-                          >
-                            发货通知
-                          </Button>
-                        )}
-                        <Button
-                          icon={<CheckOutlined />}
-                          disabled={!o.completable}
-                          title={
-                            o.completable ? '' : '所有型号都出运后才能确认收货'
-                          }
-                          onClick={complete}
-                        >
-                          客户已收货
-                        </Button>
-                        {access['finance:refund:edit'] &&
-                          active &&
-                          (o.receivedAmount ?? 0) > 0 && (
-                            <Button
-                              icon={<RollbackOutlined />}
-                              onClick={() => setRefundOpen(true)}
-                            >
-                              登记退款
-                            </Button>
-                          )}
-                      </>
-                    )}
-                    {o.partialCancelable && (
-                      <Button
-                        icon={<MinusCircleOutlined />}
-                        disabled={completed}
-                        title={completed ? '订单已完成，请走售后' : ''}
-                        onClick={() => setDialog('partialCancel')}
-                      >
-                        部分取消
-                      </Button>
-                    )}
-                    {o.trackable && (
-                      <Button
-                        danger
-                        icon={<StopOutlined />}
-                        onClick={() => setCancelOpen(true)}
-                      >
-                        取消订单
-                      </Button>
-                    )}
-                  </>
-                )}
-            {canDelete && (
-              <Dropdown
-                trigger={['click']}
-                placement="bottomRight"
-                menu={{
-                  items: [
-                    {
-                      key: 'delete',
-                      danger: true,
-                      icon: <DeleteOutlined />,
-                      label: '删除订单',
-                    },
-                  ],
-                  onClick: () => setDeleteOpen(true),
-                }}
-              >
-                <Button icon={<EllipsisOutlined />} aria-label="更多操作" />
-              </Dropdown>
-            )}
-          </>
-        }
+        extra={headerActions}
       />
+      {notices}
       <div
         style={{
           display: 'grid',
@@ -1814,23 +2048,15 @@ const OrderDetail: React.FC = () => {
           alignItems: 'start',
         }}
       >
-        <div style={{ minWidth: 0 }}>
-          {main}
-          <OrderFilesCard
-            order={o}
-            canEdit={editable && !!access['sales:order:attachment']}
-            onChanged={load}
+        <div style={{ minWidth: 0, display: 'grid', gap: 16 }}>
+          {info}
+          {!fee && stepper}
+          <ChainCard
+            type="order"
+            id={o.id}
+            reloadKey={o.status}
+            style={{ marginBottom: 0 }}
           />
-          {o.cost && <OrderCostCard cost={o.cost} />}
-          <RefundModal
-            open={refundOpen}
-            soId={o.id}
-            onClose={() => setRefundOpen(false)}
-            onDone={load}
-          />
-          {!fee && (
-            <OrderOutbounds soId={o.id} version={version} onChanged={load} />
-          )}
         </div>
         <div style={{ minWidth: 0 }}>
           {replacement ? (
@@ -1838,12 +2064,47 @@ const OrderDetail: React.FC = () => {
           ) : (
             <>
               {receipts}
-              {(canFeeOrder || (o.feeOrders?.length ?? 0) > 0) && feeOrdersCard}
               {!fee && marginCard}
             </>
           )}
         </div>
       </div>
+      {itemsSection}
+      {(afterSales.length > 0 ||
+        (!fee && (o.partialCancels?.length ?? 0) > 0)) && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: wide
+              ? 'repeat(auto-fit, minmax(360px, 1fr))'
+              : '1fr',
+            gap: 16,
+            marginTop: 16,
+            alignItems: 'start',
+          }}
+        >
+          {afterSalesCard}
+          {!fee && <PartialCancelRecords order={o} style={{ marginTop: 0 }} />}
+        </div>
+      )}
+      {terms}
+      <div style={{ marginTop: 16 }}>
+        <OrderFilesCard
+          order={o}
+          canEdit={editable && !!access['sales:order:attachment']}
+          onChanged={load}
+        />
+        {o.cost && <OrderCostCard cost={o.cost} />}
+        {!fee && (
+          <OrderOutbounds soId={o.id} version={version} onChanged={load} />
+        )}
+      </div>
+      <RefundModal
+        open={refundOpen}
+        soId={o.id}
+        onClose={() => setRefundOpen(false)}
+        onDone={load}
+      />
 
       <CreateFeeOrderModal
         order={o}

@@ -1,21 +1,20 @@
-import {
-  CodeSandboxOutlined,
-  HomeOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
-import { Link, useAccess } from '@umijs/max';
+import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Form, Input, Modal, Select, Skeleton, Table } from 'antd';
+import { Box, Boxes, House, Pencil, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { tableEmpty } from '@/components/EmptyState';
+import { FilterField, MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import { WarehousePageTitle } from '../components';
-import { FilterCard } from '../inventoryParts';
+import { FilterCard, warehouseTypeTone } from '../inventoryParts';
 import { type InvWarehouse, WH_OWN, warehouseApi } from '../inventoryService';
 import { readBizError } from '../service';
 
@@ -23,13 +22,13 @@ const MODES = [
   {
     value: 'dropship',
     label: '无货源',
-    icon: <CodeSandboxOutlined />,
+    icon: <Box size="1em" />,
     hint: '货都是为订单采购的。交货代时库存不够，自动补一笔「系统外入库」，不拦业务。',
   },
   {
     value: 'stock',
     label: '库存模式',
-    icon: <HomeOutlined />,
+    icon: <House size="1em" />,
     hint: '有备货。交货代时库存不够，提示库存不足，不能交货代。',
   },
 ];
@@ -104,7 +103,7 @@ const ModeCard: React.FC<{ editable: boolean }> = ({ editable }) => {
                   padding: '12px 16px',
                   borderRadius: 12,
                   border: `1px solid ${on ? palette.link : palette.hairline}`,
-                  background: on ? palette.accentSoft : palette.inset,
+                  background: on ? palette.primarySoft : palette.inset,
                   cursor: editable && !on ? 'pointer' : 'default',
                   opacity: !editable && !on ? 0.6 : 1,
                 }}
@@ -209,8 +208,8 @@ const WarehousesPage: React.FC = () => {
       title: '类型',
       dataIndex: 'type',
       width: 90,
-      render: (v: number, r) => (
-        <Pill tone={v === WH_OWN ? 'accent' : 'violet'}>{r.typeName}</Pill>
+      render: (_: number, r) => (
+        <Pill tone={warehouseTypeTone(r.type)}>{r.typeName}</Pill>
       ),
     },
     {
@@ -246,39 +245,42 @@ const WarehousesPage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 140,
+      width: rowActionsWidth(2),
       fixed: 'right',
       render: (_, r) => (
-        <span style={{ display: 'inline-flex', gap: 12 }}>
-          {r.type === WH_OWN && editable && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => {
-                setRenaming(r);
-                setName(r.name);
-              }}
-            >
-              改名
-            </button>
-          )}
-          <Link
-            to={
-              r.type === WH_OWN
-                ? '/warehouse/stocks?warehouse=own'
-                : `/warehouse/stocks?warehouseId=${r.id}`
-            }
-          >
-            查看库存
-          </Link>
-        </span>
+        <RowActions
+          inline={[
+            r.type === WH_OWN &&
+              editable && {
+                key: 'rename',
+                label: '改名',
+                icon: <Pencil size={18} />,
+                onClick: () => {
+                  setRenaming(r);
+                  setName(r.name);
+                },
+              },
+            {
+              key: 'stock',
+              label: '查看库存',
+              icon: <Boxes size={18} />,
+              onClick: () =>
+                history.push(
+                  r.type === WH_OWN
+                    ? '/warehouse/stocks?warehouse=own'
+                    : `/warehouse/stocks?warehouseId=${r.id}`,
+                ),
+            },
+          ]}
+        />
       ),
     },
   ];
+  const columnsSet = useColumnSettings('warehouse-warehouses', columns);
 
   return (
     <div>
-      <WarehousePageTitle />
+      <PageHeader help="货代仓在新建货代时自动生成，名称跟着货代" />
       <ModeCard editable={editable} />
       <FilterCard
         form={form}
@@ -292,65 +294,69 @@ const WarehousesPage: React.FC = () => {
           setPage(1);
         }}
       >
-        <Form.Item
-          name="keyword"
-          label="关键词"
-          style={{ marginBottom: 0, gridColumn: 'span 2' }}
-        >
-          <Input
-            allowClear
-            prefix={<SearchOutlined />}
-            placeholder="仓库名称、编码"
-          />
-        </Form.Item>
-        <Form.Item name="type" label="类型" style={{ marginBottom: 0 }}>
-          <Select
-            allowClear
-            placeholder="全部"
-            options={[
-              { value: 1, label: '自有仓' },
-              { value: 2, label: '货代仓' },
-            ]}
-          />
-        </Form.Item>
-        <Form.Item name="status" label="状态" style={{ marginBottom: 0 }}>
-          <Select
-            allowClear
-            placeholder="全部"
-            options={[
-              { value: 1, label: '启用' },
-              { value: 0, label: '停用' },
-            ]}
-          />
-        </Form.Item>
+        <FilterField label="关键词" span={2}>
+          <Form.Item name="keyword" noStyle>
+            <Input
+              aria-label="关键词"
+              allowClear
+              prefix={<Search size="1em" />}
+              onPressEnter={() => form.submit()}
+              placeholder="仓库名称、编码"
+            />
+          </Form.Item>
+        </FilterField>
+        <FilterField label="类型">
+          <Form.Item name="type" noStyle>
+            <Select
+              aria-label="类型"
+              allowClear
+              placeholder="全部"
+              options={[
+                { value: 1, label: '自有仓' },
+                { value: 2, label: '货代仓' },
+              ]}
+            />
+          </Form.Item>
+        </FilterField>
+        <FilterField label="状态">
+          <Form.Item name="status" noStyle>
+            <Select
+              aria-label="状态"
+              allowClear
+              placeholder="全部"
+              options={[
+                { value: 1, label: '启用' },
+                { value: 0, label: '停用' },
+              ]}
+            />
+          </Form.Item>
+        </FilterField>
       </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 16 }}>
-          <div style={{ color: palette.sub, fontSize: 13, marginBottom: 12 }}>
-            货代仓在新建货代时自动生成，名称跟着货代
-          </div>
+        <MainCard
+          settings={columnsSet.settings}
+          left={list ? `共 ${rows.length} 条` : undefined}
+        >
           <Table<InvWarehouse>
             rowKey="id"
-            size="middle"
             loading={!list}
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
-            scroll={{ x: tableScrollX(columns) }}
-            locale={{ emptyText: '没有符合条件的仓库' }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
+            locale={{ emptyText: tableEmpty('没有符合条件的仓库', !list) }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
-              showSizeChanger: true,
-              showTotal: (t) => `共 ${t} 条`,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);
               },
             }}
           />
-        </Card>
+        </MainCard>
       )}
       <Modal
         open={!!renaming}

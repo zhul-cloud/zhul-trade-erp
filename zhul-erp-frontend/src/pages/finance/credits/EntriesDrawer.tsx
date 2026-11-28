@@ -1,7 +1,9 @@
-import { EditOutlined, SendOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
-import { App, Button, Drawer, Empty, Skeleton } from 'antd';
+import { App, Button, Drawer, Skeleton } from 'antd';
+import { Pencil, Send } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { EmptyState } from '@/components/EmptyState';
+import { UserName } from '@/components/UserName';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -70,7 +72,7 @@ const EntriesDrawer: React.FC<{
       }}
     >
       <div style={{ fontSize: 12, color: palette.mute }}>{label}</div>
-      <div style={{ ...num, fontSize: 16, fontWeight: 700, color }}>
+      <div style={{ ...num, fontSize: 16, fontWeight: 600, color }}>
         {value}
       </div>
     </div>
@@ -121,7 +123,7 @@ const EntriesDrawer: React.FC<{
               <Button
                 type="primary"
                 size="small"
-                icon={<SendOutlined />}
+                icon={<Send size="1em" />}
                 disabled={account.available <= 0}
                 onClick={() => onWithdraw?.(account)}
               >
@@ -129,7 +131,7 @@ const EntriesDrawer: React.FC<{
               </Button>
               <Button
                 size="small"
-                icon={<EditOutlined />}
+                icon={<Pencil size="1em" />}
                 onClick={() => onAdjust?.(account)}
               >
                 手工调整
@@ -140,7 +142,7 @@ const EntriesDrawer: React.FC<{
           {!rows ? (
             <Skeleton active />
           ) : rows.length === 0 ? (
-            <Empty description="还没有流水" />
+            <EmptyState compact title="还没有流水" />
           ) : (
             <div
               style={{
@@ -164,7 +166,9 @@ const EntriesDrawer: React.FC<{
                   >
                     <div style={{ fontSize: 12, color: palette.sub }}>
                       {e.createTime?.slice(5, 16).replace('T', ' ')}
-                      <div style={{ color: palette.mute }}>{e.createBy}</div>
+                      <div style={{ color: palette.mute }}>
+                        <UserName value={e.createBy} />
+                      </div>
                     </div>
                     <div style={{ minWidth: 0 }}>
                       <div
@@ -209,7 +213,7 @@ const EntriesDrawer: React.FC<{
                       <div
                         style={{
                           ...num,
-                          fontWeight: 700,
+                          fontWeight: 600,
                           color: e.amount > 0 ? palette.green : palette.ink,
                         }}
                       >

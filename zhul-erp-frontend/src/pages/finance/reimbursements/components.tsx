@@ -2,6 +2,7 @@ import { Link } from '@umijs/max';
 import { App, DatePicker, Input, Modal, Segmented, Select, Space } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
+import BankAccountLabel from '@/components/BankAccountLabel';
 import { Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 import {
@@ -12,6 +13,7 @@ import {
 import { AttachmentWall } from '@/pages/warehouse/components';
 import type { Attachment } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { attrTone } from '@/theme/palette';
 import { formatAmount } from '@/utils/format';
 import { ACCEPT_PROOF } from '../payables/components';
 import {
@@ -24,12 +26,13 @@ import {
 } from './service';
 
 export const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
+// 报销明细的来源是取值固定的属性：用属性色，不用状态色（D75）
 export const ITEM_TONE: Record<number, Tone> = {
-  1: 'accent',
-  2: 'violet',
-  3: 'orange',
-  4: 'cyan',
-  5: 'green',
+  1: attrTone(0),
+  2: attrTone(1),
+  3: attrTone(2),
+  4: attrTone(3),
+  5: attrTone(4),
 };
 export const STATUS_META: Record<number, { label: string; tone: Tone }> = {
   [BX_STATUS.PENDING]: { label: '待付款', tone: 'orange' },
@@ -44,11 +47,26 @@ export const sourceCell = (_: unknown, i: AdvanceItem) => (
     <Pill tone={ITEM_TONE[i.sourceType]}>{ITEM_NAMES[i.sourceType]}</Pill>{' '}
     {(i.sourceType === ITEM.PAYMENT || i.sourceType === ITEM.REFUND) &&
     i.sourceNo ? (
-      <Link to={`/finance/payments/${i.sourceId}`}>{i.sourceNo}</Link>
+      <Link
+        to={`/finance/payments/${i.sourceId}`}
+        className="zhul-link zhul-link-doc"
+      >
+        {i.sourceNo}
+      </Link>
     ) : i.sourceType === ITEM.EXPENSE && i.sourceNo ? (
-      <Link to={`/finance/expenses/${i.sourceId}`}>{i.sourceNo}</Link>
+      <Link
+        to={`/finance/expenses/${i.sourceId}`}
+        className="zhul-link zhul-link-doc"
+      >
+        {i.sourceNo}
+      </Link>
     ) : i.sourceType === ITEM.RETURN_FREIGHT && i.sourceNo ? (
-      <Link to={`/purchase/returns/${i.sourceId}`}>{i.sourceNo}</Link>
+      <Link
+        to={`/purchase/returns/${i.sourceId}`}
+        className="zhul-link zhul-link-doc"
+      >
+        {i.sourceNo}
+      </Link>
     ) : (
       i.sourceNo || '—'
     )}
@@ -218,7 +236,7 @@ export const PayModal: React.FC<{
             .filter((a) => (a.accountType === 2) === (method === 3))
             .map((a) => ({
               value: a.id,
-              label: `${a.bankName} · ${a.accountName} ${a.accountNoMasked}`,
+              label: <BankAccountLabel account={a} name />,
             }))}
         />
         <DatePicker

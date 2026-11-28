@@ -1,17 +1,18 @@
-import {
-  BellOutlined,
-  BulbOutlined,
-  CheckCircleOutlined,
-  CopyOutlined,
-  DownOutlined,
-  UpOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
 import { Button, Checkbox, Skeleton } from 'antd';
+import {
+  Bell,
+  ChevronDown,
+  ChevronUp,
+  CircleCheck,
+  Copy,
+  Lightbulb,
+  User,
+} from 'lucide-react';
 import React, { useState } from 'react';
+import { CountryText } from '@/components/CountryText';
+import { QuickFilters } from '@/components/ListLayout';
 import { useAppTheme } from '@/theme/AppTheme';
 import type { Picked, SelectAll } from './Batch';
-import { TODAY_COLOR } from './boardStyle';
 import {
   Card,
   CustomerLink,
@@ -43,8 +44,8 @@ const Reminder: React.FC<{ item: FollowupItem }> = ({ item }) => {
   const mine = item.nextActionSource === NEXT_USER;
   return (
     <div style={{ color: palette.ink, fontSize: 13 }}>
-      <span style={{ color: palette.orange, marginRight: 6 }}>
-        {mine ? <UserOutlined /> : <BellOutlined />}
+      <span style={{ color: palette.mute, marginRight: 6 }}>
+        {mine ? <User size="1em" /> : <Bell size="1em" />}
       </span>
       <span style={{ color: palette.sub }}>
         {mine ? '我定的下一步：' : '系统提醒：'}
@@ -57,8 +58,8 @@ const Reminder: React.FC<{ item: FollowupItem }> = ({ item }) => {
 const Sop: React.FC<{ item: FollowupItem }> = ({ item }) => {
   const { palette } = useAppTheme();
   return item.sopHint ? (
-    <div style={{ fontSize: 12, color: palette.link }}>
-      <BulbOutlined style={{ marginRight: 6 }} />
+    <div style={{ fontSize: 12, color: palette.mute }}>
+      <Lightbulb size="1em" style={{ marginRight: 6, color: palette.faint }} />
       SOP 建议：{item.sopHint}
     </div>
   ) : null;
@@ -70,7 +71,7 @@ const DueDocs: React.FC<{ items: FollowupItem[] }> = ({ items }) => {
   const [all, setAll] = useState(false);
   const shown = all ? items : items.slice(0, DOC_FOLD);
   return (
-    <div style={{ display: 'grid', gap: 6 }}>
+    <div style={{ display: 'grid' }}>
       {shown.map((i) => (
         <div
           key={i.id}
@@ -78,13 +79,12 @@ const DueDocs: React.FC<{ items: FollowupItem[] }> = ({ items }) => {
             display: 'flex',
             gap: 12,
             alignItems: 'center',
-            padding: '8px 12px',
-            borderRadius: 8,
-            background: palette.inset,
+            padding: '6px 0',
+            borderTop: `1px solid ${palette.hairline}`,
             fontSize: 13,
           }}
         >
-          <span style={{ color: palette.link, minWidth: 130 }}>
+          <span className="num" style={{ color: palette.ink, minWidth: 130 }}>
             {i.docNo ?? '—'}
           </span>
           <Pill tone="gray">
@@ -134,15 +134,14 @@ const DocToggle: React.FC<{
         all: 'unset',
         cursor: 'pointer',
         fontSize: 12,
-        padding: '1px 8px',
-        borderRadius: 6,
-        background: palette.inset,
-        color: palette.sub,
+        color: palette.mute,
+        whiteSpace: 'nowrap',
       }}
     >
-      <CopyOutlined /> {count} 张单据到期{' '}
+      <Copy size="1em" /> {count} 张单据到期{' '}
       <span style={{ color: palette.link }}>
-        {open ? '收起' : '展开'} {open ? <UpOutlined /> : <DownOutlined />}
+        {open ? '收起' : '展开'}{' '}
+        {open ? <ChevronUp size="1em" /> : <ChevronDown size="1em" />}
       </span>
     </button>
   );
@@ -179,7 +178,6 @@ const BoardActions: React.FC<{
       onDone={onChanged}
     />
     <Button
-      type="primary"
       size="small"
       disabled={!canRecord}
       onClick={() => onRecord(boardTarget(c, b))}
@@ -195,21 +193,33 @@ const tagOf = (b: TodayBoard) => ({
   stageName: b.stageName,
 });
 
-/** 一个客户一张卡片；在多个板块都有到期单据时每个板块一行 */
+/**
+ * 一个客户一段（R10 方案 B）：客户之间用分隔线，不再各包一张描边卡；逾期的客户左侧一条红色竖条。
+ * 首行是勾选、客户和到期情况，下面每个有到期单据的板块一行，板块行之间分隔线，不包灰底
+ */
 const TodayCard: React.FC<{
   c: TodayCustomer;
   section: Section | 'handled';
+  /** 段内第一个客户：上方不画分隔线 */
+  first: boolean;
   checked: boolean;
   canRecord: boolean;
   onCheck: (on: boolean) => void;
   onRecord: (t: RecordTarget) => void;
   onChanged: () => void;
-}> = ({ c, section, checked, canRecord, onCheck, onRecord, onChanged }) => {
+}> = ({
+  c,
+  section,
+  first,
+  checked,
+  canRecord,
+  onCheck,
+  onRecord,
+  onChanged,
+}) => {
   const { palette } = useAppTheme();
   const [open, setOpen] = useState<Record<number, boolean>>({});
-  const single = c.boards.length === 1 ? c.boards[0] : undefined;
-  const lead = single?.lead ?? c.boards[0]?.lead;
-  const overdue = section === 'overdue';
+  const lead = c.boards[0]?.lead;
   const toggle = (board: number) =>
     setOpen((o) => ({ ...o, [board]: !o[board] }));
   return (
@@ -217,28 +227,26 @@ const TodayCard: React.FC<{
       style={{
         position: 'relative',
         display: 'grid',
-        gap: 8,
-        padding: '12px 16px 12px 18px',
-        borderRadius: 12,
-        border: `1px solid ${checked ? palette.accentLine : palette.hairline}`,
-        background: palette.card,
+        padding: '12px 8px 4px 15px',
+        borderTop: first ? undefined : `1px solid ${palette.hairline}`,
+        // 勾选的客户：主题色浅底表示选中
+        background: checked ? palette.primarySoft : undefined,
       }}
     >
-      <span
-        style={{
-          position: 'absolute',
-          left: 8,
-          top: 12,
-          bottom: 12,
-          width: 3,
-          borderRadius: 2,
-          background: overdue
-            ? palette.red
-            : section === 'handled'
-              ? palette.green
-              : TODAY_COLOR,
-        }}
-      />
+      {section === 'overdue' && (
+        <span
+          aria-hidden
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 12,
+            bottom: 12,
+            width: 3,
+            borderRadius: 2,
+            background: palette.red,
+          }}
+        />
+      )}
       <div
         style={{
           display: 'flex',
@@ -251,94 +259,62 @@ const TodayCard: React.FC<{
           <Checkbox
             checked={checked}
             disabled={!canRecord}
+            aria-label={`选择 ${c.customerName}`}
             onChange={(e) => onCheck(e.target.checked)}
-          />
-        )}
-        {single && <StageTag item={tagOf(single)} withCode />}
-        {single && (
-          <StageAdjust
-            item={single.lead}
-            canRecord={canRecord}
-            onDone={onChanged}
           />
         )}
         <CustomerLink item={c} />
         <ValueCell item={c} />
         {c.country && (
-          <span style={{ fontSize: 12, color: palette.mute }}>{c.country}</span>
+          <span style={{ fontSize: 12, color: palette.mute }}>
+            <CountryText value={c.country} />
+          </span>
         )}
         {c.ownerName && (
           <span style={{ fontSize: 12, color: palette.mute }}>
             · {c.ownerName}
           </span>
         )}
-        {single && single.items.length > 1 && (
-          <DocToggle
-            count={single.items.length}
-            open={!!open[single.board]}
-            onToggle={() => toggle(single.board)}
-          />
-        )}
         {c.boards.some((b) => b.lead.manySnoozes) && (
           <Pill tone="orange">多次延后</Pill>
         )}
-        <span style={{ marginLeft: 'auto' }}>
+        <span style={{ marginLeft: 'auto', fontWeight: 600 }}>
           {lead && <DueText item={lead} />}
         </span>
       </div>
-      {single ? (
-        <>
+      {c.boards.map((b, i) => (
+        <div
+          key={b.board}
+          style={{
+            display: 'grid',
+            gap: 4,
+            marginLeft: section === 'handled' ? 0 : 24,
+            padding: '10px 0',
+            borderTop: i > 0 ? `1px solid ${palette.hairline}` : undefined,
+          }}
+        >
           <div
             style={{
               display: 'flex',
-              gap: 12,
-              alignItems: 'flex-end',
-            }}
-          >
-            <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 4 }}>
-              <Reminder item={single.lead} />
-              <Sop item={single.lead} />
-            </div>
-            <BoardActions
-              c={c}
-              b={single}
-              canRecord={canRecord}
-              onRecord={onRecord}
-              onChanged={onChanged}
-            />
-          </div>
-          {open[single.board] && <DueDocs items={single.items} />}
-        </>
-      ) : (
-        c.boards.map((b) => (
-          <div
-            key={b.board}
-            style={{
-              display: 'grid',
               gap: 8,
-              padding: '10px 12px',
-              borderRadius: 10,
-              background: palette.inset,
+              alignItems: 'center',
+              flexWrap: 'wrap',
             }}
           >
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <StageTag item={tagOf(b)} withCode />
-              <StageAdjust
-                item={b.lead}
-                canRecord={canRecord}
-                onDone={onChanged}
+            <StageTag item={tagOf(b)} withCode />
+            <StageAdjust
+              item={b.lead}
+              canRecord={canRecord}
+              onDone={onChanged}
+            />
+            {b.items.length > 1 && (
+              <DocToggle
+                count={b.items.length}
+                open={!!open[b.board]}
+                onToggle={() => toggle(b.board)}
               />
-              <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 4 }}>
-                <Reminder item={b.lead} />
-                <Sop item={b.lead} />
-              </div>
-              {b.items.length > 1 && (
-                <DocToggle
-                  count={b.items.length}
-                  open={!!open[b.board]}
-                  onToggle={() => toggle(b.board)}
-                />
-              )}
+            )}
+            <span style={{ marginLeft: 'auto' }}>
               <BoardActions
                 c={c}
                 b={b}
@@ -346,11 +322,13 @@ const TodayCard: React.FC<{
                 onRecord={onRecord}
                 onChanged={onChanged}
               />
-            </div>
-            {open[b.board] && <DueDocs items={b.items} />}
+            </span>
           </div>
-        ))
-      )}
+          <Reminder item={b.lead} />
+          <Sop item={b.lead} />
+          {open[b.board] && <DueDocs items={b.items} />}
+        </div>
+      ))}
     </div>
   );
 };
@@ -374,6 +352,8 @@ export const TodayList: React.FC<{
   onRecord: (t: RecordTarget) => void;
   onChanged: () => void;
   onBrowse: () => void;
+  /** 工具栏右侧：搜索、负责人（页面传入） */
+  tools?: React.ReactNode;
 }> = ({
   today,
   canRecord,
@@ -384,6 +364,7 @@ export const TodayList: React.FC<{
   onRecord,
   onChanged,
   onBrowse,
+  tools,
 }) => {
   const { palette } = useAppTheme();
   const [only, setOnly] = useState<Section>();
@@ -416,45 +397,22 @@ export const TodayList: React.FC<{
     indeterminate: pickedLoaded > 0 && pickedLoaded < loaded.length,
     onChange: (on) => onPickAll(on ? loaded.map(pickOfToday) : []),
   };
-  const card = (c: TodayCustomer, section: Section | 'handled') => (
+  const card = (
+    c: TodayCustomer,
+    section: Section | 'handled',
+    index: number,
+  ) => (
     <TodayCard
       key={c.customerId}
       c={c}
       section={section}
+      first={index === 0}
       checked={!!picked[c.customerId]}
       canRecord={canRecord}
       onCheck={(on) => onPick(pickOfToday(c), on)}
       onRecord={onRecord}
       onChanged={onChanged}
     />
-  );
-  const chip = (
-    key: Section | undefined,
-    label: string,
-    fg: string,
-    bg: string,
-  ) => (
-    <button
-      type="button"
-      key={label}
-      onClick={() => {
-        setOnly(key && only === key ? undefined : key);
-        setLimit(TODAY_PAGE);
-      }}
-      style={{
-        all: 'unset',
-        cursor: key ? 'pointer' : 'default',
-        padding: '4px 12px',
-        borderRadius: 8,
-        fontSize: 13,
-        fontWeight: key && only === key ? 600 : 400,
-        color: fg,
-        background: bg,
-        outline: key && only === key ? `1px solid ${fg}` : undefined,
-      }}
-    >
-      {label}
-    </button>
   );
   const handledBlock = handled.length > 0 && (
     <div style={{ marginTop: 16 }}>
@@ -476,16 +434,16 @@ export const TodayList: React.FC<{
           fontSize: 13,
         }}
       >
-        <CheckCircleOutlined style={{ color: palette.green }} />
+        <CircleCheck size="1em" style={{ color: palette.green }} />
         <span style={{ flex: 1 }}>今天已跟进 {handled.length}</span>
         <span style={{ color: palette.link }}>
           {showHandled ? '收起' : '展开'}{' '}
-          {showHandled ? <UpOutlined /> : <DownOutlined />}
+          {showHandled ? <ChevronUp size="1em" /> : <ChevronDown size="1em" />}
         </span>
       </button>
       {showHandled && (
-        <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
-          {handled.map((c) => card(c, 'handled'))}
+        <div style={{ marginTop: 10 }}>
+          {handled.map((c, i) => card(c, 'handled', i))}
         </div>
       )}
     </div>
@@ -493,7 +451,22 @@ export const TodayList: React.FC<{
   if (empty)
     return (
       <Card style={{ padding: '32px 20px', textAlign: 'center' }}>
-        <CheckCircleOutlined
+        {/* 没有待办时也能换负责人、搜索（主管看团队的待办） */}
+        {tools && (
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 8,
+              flexWrap: 'wrap',
+              margin: '-16px 0 16px',
+            }}
+          >
+            {tools}
+          </div>
+        )}
+        <CircleCheck
+          size="1em"
           style={{ fontSize: 28, color: palette.green, marginBottom: 8 }}
         />
         <div style={{ fontWeight: 600, color: palette.ink }}>
@@ -508,45 +481,71 @@ export const TodayList: React.FC<{
     );
   return (
     <Card style={{ padding: '16px 20px' }}>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {chip(
-          'overdue',
-          `已逾期 ${today.overdue.length}`,
-          palette.red,
-          palette.redSoft,
-        )}
-        {chip(
-          'today',
-          `今天 ${today.today.length}`,
-          palette.link,
-          palette.accentSoft,
-        )}
-        {chip(
-          undefined,
-          `本周还有 ${today.weekRemaining}`,
-          palette.sub,
-          palette.inset,
+      <div
+        className="zhul-toolbar"
+        style={{
+          display: 'flex',
+          gap: 8,
+          alignItems: 'center',
+          flexWrap: 'wrap',
+        }}
+      >
+        {/* 只看一段：单选，再点取消 */}
+        <QuickFilters
+          value={only ? [only] : []}
+          onChange={(v) => {
+            setOnly(v.at(-1) as Section | undefined);
+            setLimit(TODAY_PAGE);
+          }}
+          options={[
+            {
+              value: 'overdue',
+              label: '已逾期',
+              count: today.overdue.length,
+              danger: today.overdue.length > 0,
+            },
+            { value: 'today', label: '今天', count: today.today.length },
+          ]}
+        />
+        <span style={{ fontSize: 12, color: palette.mute }}>
+          本周还有 {today.weekRemaining}
+        </span>
+        {tools && (
+          <span
+            style={{
+              marginLeft: 'auto',
+              display: 'inline-flex',
+              gap: 8,
+              flexWrap: 'wrap',
+            }}
+          >
+            {tools}
+          </span>
         )}
       </div>
       {batchBar(selectAll)}
       {shown.map(
         (x) =>
           x.rows.length > 0 && (
-            <div key={x.key}>
+            <section key={x.key} aria-label={x.title}>
               <div
                 style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: x.key === 'overdue' ? palette.red : palette.link,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
                   margin: '16px 0 8px',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: palette.ink,
                 }}
               >
                 {x.title}
+                <Pill tone={x.key === 'overdue' ? 'red' : 'gray'}>
+                  {x.rows.length}
+                </Pill>
               </div>
-              <div style={{ display: 'grid', gap: 10 }}>
-                {x.rows.map((c) => card(c, x.key))}
-              </div>
-            </div>
+              <div>{x.rows.map((c, i) => card(c, x.key, i))}</div>
+            </section>
           ),
       )}
       {sections.every((x) => x.rows.length === 0) && (
@@ -560,7 +559,7 @@ export const TodayList: React.FC<{
             再加载 {Math.min(TODAY_PAGE, totalRows - shownRows)} 个
             <span style={{ color: palette.mute }}>
               {' '}
-              · 还有 {totalRows - shownRows} 个 <DownOutlined />
+              · 还有 {totalRows - shownRows} 个 <ChevronDown size="1em" />
             </span>
           </Button>
         </div>

@@ -39,7 +39,7 @@ export const ProgressCell: React.FC<{
         ))}
       </div>
       <span>
-        <Pill tone={warn ? 'orange' : 'accent'}>
+        <Pill tone={warn ? 'orange' : 'gray'}>
           {item.stageCode} {item.stageName}
         </Pill>
       </span>
@@ -88,7 +88,7 @@ export const PartsPanel: React.FC<{ item: FollowupItem }> = ({ item }) => {
   if (!data) return <Skeleton active paragraph={{ rows: 2 }} />;
   const th: React.CSSProperties = {
     textAlign: 'left',
-    fontWeight: 500,
+    fontWeight: 400,
     fontSize: 12,
     color: palette.mute,
     padding: '6px 10px',
@@ -149,7 +149,7 @@ export const PartsPanel: React.FC<{ item: FollowupItem }> = ({ item }) => {
                   <div style={sub}>{p.supplier}</div>
                 </td>
                 <td style={td}>
-                  <Pill tone="accent">
+                  <Pill tone="gray">
                     {p.stageCode} {p.stageName}
                   </Pill>
                 </td>

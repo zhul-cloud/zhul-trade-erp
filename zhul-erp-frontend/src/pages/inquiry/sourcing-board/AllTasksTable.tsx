@@ -1,12 +1,16 @@
 import { DatePicker, Select, Table, type TableColumnsType } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { tableEmpty } from '@/components/EmptyState';
+import { FilterField } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
+import { tableScrollX } from '@/utils/tableScroll';
 import { Card, Pill } from '../shared/components';
 import {
   type BoardHistoryRow,
@@ -91,6 +95,7 @@ const AllTasksTable: React.FC<{
 
   const columns: TableColumnsType<BoardHistoryRow> = [
     {
+      fixed: 'left',
       title: '任务编号',
       dataIndex: 'taskCode',
       width: 150,
@@ -142,6 +147,7 @@ const AllTasksTable: React.FC<{
     },
     ...auditColumns<BoardHistoryRow>(),
   ];
+  const columnsSet = useColumnSettings('sourcing-board-all', columns);
 
   return (
     <Card style={{ padding: 16 }}>
@@ -154,46 +160,48 @@ const AllTasksTable: React.FC<{
           alignItems: 'center',
         }}
       >
-        <DatePicker.RangePicker
-          value={range}
-          onChange={(v) =>
-            setRange(v?.[0] && v[1] ? [v[0], v[1]] : defaultRange())
-          }
-          allowClear={false}
-          aria-label="任务创建日期"
-        />
-        <Select
-          allowClear
-          placeholder="状态：全部"
-          style={{ width: 150 }}
-          value={state}
-          onChange={setState}
-          options={STATES}
-          aria-label="状态"
-        />
-        <span style={{ fontSize: 12, color: palette.mute }}>
-          按任务创建日期查询，默认最近 30 天；点一行查看任务详情
-        </span>
+        {/* 条件写法同搜索条件区：名称作前缀，口径进帮助图标（复审 9.1 第二轮） */}
+        <FilterField label="创建日期" help="按任务创建日期查询，默认最近 30 天">
+          <DatePicker.RangePicker
+            value={range}
+            onChange={(v) =>
+              setRange(v?.[0] && v[1] ? [v[0], v[1]] : defaultRange())
+            }
+            allowClear={false}
+            aria-label="任务创建日期"
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select
+            allowClear
+            placeholder="全部"
+            value={state}
+            onChange={setState}
+            options={STATES}
+            aria-label="状态"
+          />
+        </FilterField>
+        <div style={{ marginLeft: 'auto' }}>{columnsSet.settings}</div>
       </div>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
         <Table<BoardHistoryRow>
           rowKey="id"
-          size="middle"
           loading={loading}
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
-          scroll={{ x: 'max-content' }}
+          locale={{ emptyText: tableEmpty('没有符合条件的询价任务', loading) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           onRow={(r) => ({
             onClick: () => onOpen(r.id),
             style: { cursor: 'pointer' },
           })}
           pagination={{
+            ...PAGER_STYLE,
             current: page,
             pageSize,
             total,
-            showSizeChanger: true,
             showTotal: (t) => `共 ${t} 条`,
             onChange: (p, s) => {
               if (s !== pageSize) {

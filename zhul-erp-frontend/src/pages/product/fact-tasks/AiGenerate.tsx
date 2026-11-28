@@ -1,7 +1,8 @@
-import { CodeSandboxOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { App, Button, Modal } from 'antd';
 import dayjs from 'dayjs';
+import { Box, Zap } from 'lucide-react';
 import React, { useState } from 'react';
+import { UserName } from '@/components/UserName';
 import { Pill } from '@/pages/product/components/Pills';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -42,11 +43,11 @@ export const elapsed = (from?: string, now = dayjs()) => {
   return `${Math.floor(m / 60)} 小时 ${m % 60} 分`;
 };
 
-type Tone = 'gray' | 'accent' | 'green' | 'red' | 'violet';
+type Tone = 'gray' | 'accent' | 'green' | 'red' | 'violet' | 'orange';
 const META: Record<number, { label: string; tone: Tone }> = {
   [AI_STATUS.QUEUED]: { label: '排队中', tone: 'gray' },
   [AI_STATUS.RUNNING]: { label: '生成中', tone: 'violet' },
-  [AI_STATUS.PENDING]: { label: '待确认', tone: 'accent' },
+  [AI_STATUS.PENDING]: { label: '待确认', tone: 'orange' },
   [AI_STATUS.IMPORTED]: { label: '已导入', tone: 'green' },
   [AI_STATUS.FAILED]: { label: '失败', tone: 'red' },
   [AI_STATUS.CANCELLED]: { label: '已取消', tone: 'gray' },
@@ -91,7 +92,13 @@ export const AiCell: React.FC<{
       </>
     );
   } else if (job.status === AI_STATUS.IMPORTED) {
-    line = `${formatDateTime(job.confirmedAt)} · ${job.confirmedBy ?? ''}确认`;
+    // 确认人显示姓名，不露出账号（UI-118）
+    line = (
+      <>
+        {formatDateTime(job.confirmedAt)} · <UserName value={job.confirmedBy} />
+        确认
+      </>
+    );
   } else if (job.status === AI_STATUS.FAILED) {
     line = (
       <>
@@ -159,7 +166,7 @@ export const AiStartModal: React.FC<{
       destroyOnHidden
       title={
         <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-          <ThunderboltOutlined style={{ color: palette.violet }} />
+          <Zap size="1em" style={{ color: palette.info }} />
           AI 生成 {todo.length} 个商品
         </span>
       }
@@ -170,7 +177,7 @@ export const AiStartModal: React.FC<{
         <Button
           key="ok"
           type="primary"
-          icon={<ThunderboltOutlined />}
+          icon={<Zap size="1em" />}
           loading={starting}
           disabled={todo.length === 0}
           onClick={start}
@@ -201,7 +208,7 @@ export const AiStartModal: React.FC<{
               padding: '10px 12px',
             }}
           >
-            <CodeSandboxOutlined style={{ color: palette.mute }} />
+            <Box size="1em" style={{ color: palette.mute }} />
             <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 600, color: palette.ink }}>
                 {label(r)}

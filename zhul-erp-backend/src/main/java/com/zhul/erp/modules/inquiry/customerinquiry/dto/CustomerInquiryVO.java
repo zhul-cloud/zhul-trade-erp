@@ -45,6 +45,9 @@ public class CustomerInquiryVO {
     private Long opportunityId;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+    /** 创建人、更新人：列表页固定四列（创建时间、创建人、更新时间、更新人） */
+    private String createBy;
+    private String updateBy;
     /** 历史迁移的单据（只读） */
     private Boolean migrated;
 }

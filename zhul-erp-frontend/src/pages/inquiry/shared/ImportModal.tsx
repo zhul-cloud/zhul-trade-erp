@@ -1,11 +1,4 @@
 import {
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  CloudUploadOutlined,
-  ExclamationCircleOutlined,
-  FileExcelOutlined,
-} from '@ant-design/icons';
-import {
   App,
   Button,
   Checkbox,
@@ -15,6 +8,13 @@ import {
   Select,
   Upload,
 } from 'antd';
+import {
+  CircleAlert,
+  CircleCheck,
+  CircleX,
+  CloudUpload,
+  FileSpreadsheet,
+} from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useQuoteDicts } from './components';
@@ -211,7 +211,7 @@ const ImportModal: React.FC<{
             }}
           >
             <p style={{ fontSize: 24, color: palette.link, margin: 0 }}>
-              <CloudUploadOutlined />
+              <CloudUpload size="1em" />
             </p>
             <p style={{ margin: '4px 0 0', color: palette.sub }}>
               把填好的询价包拖到这里，或点击选择
@@ -234,7 +234,10 @@ const ImportModal: React.FC<{
                     background: palette.hover,
                   }}
                 >
-                  <FileExcelOutlined style={{ color: palette.green }} />
+                  <FileSpreadsheet
+                    size="1em"
+                    style={{ color: palette.green }}
+                  />
                   <span style={{ color: palette.ink }}>{f.name}</span>
                   <button
                     type="button"
@@ -269,11 +272,12 @@ const ImportModal: React.FC<{
                     cursor: 'pointer',
                     textAlign: 'left',
                     background:
-                      i === active ? palette.accentSoft : palette.inset,
-                    border: `1px solid ${i === active ? palette.accentLine : palette.hairline}`,
+                      i === active ? palette.primarySoft : palette.inset,
+                    border: `1px solid ${i === active ? palette.primaryLine : palette.hairline}`,
                   }}
                 >
-                  <FileExcelOutlined
+                  <FileSpreadsheet
+                    size="1em"
                     style={{ color: palette.green, fontSize: 18 }}
                   />
                   <span style={{ display: 'grid' }}>
@@ -356,22 +360,26 @@ const ImportModal: React.FC<{
                   >
                     <span style={{ paddingTop: 4 }}>
                       {bad ? (
-                        <ExclamationCircleOutlined
+                        <CircleAlert
+                          size="1em"
                           style={{ color: palette.orange }}
                         />
                       ) : (
-                        <CheckCircleOutlined style={{ color: palette.green }} />
+                        <CircleCheck
+                          size="1em"
+                          style={{ color: palette.green }}
+                        />
                       )}
                     </span>
                     <span style={{ display: 'grid' }}>
                       <span style={{ color: palette.ink }}>
                         {r.model || '（空）'}
                       </span>
-                      <span style={{ color: palette.mute, fontSize: 11 }}>
+                      <span style={{ color: palette.mute, fontSize: 12 }}>
                         {r.position}
                       </span>
                       {!r.itemId && (
-                        <span style={{ color: palette.orange, fontSize: 11 }}>
+                        <span style={{ color: palette.orange, fontSize: 12 }}>
                           型号不在这个任务里，只能忽略
                         </span>
                       )}
@@ -414,17 +422,17 @@ const ImportModal: React.FC<{
                         />
                       )}
                       {r.taxIncluded && (
-                        <span style={{ color: palette.mute, fontSize: 11 }}>
+                        <span style={{ color: palette.mute, fontSize: 12 }}>
                           含税 {r.taxRate ?? 13}%，按不含税价入库比价
                         </span>
                       )}
                       {r.problems.includes('税率不在可选值内') && (
-                        <span style={{ color: palette.orange, fontSize: 11 }}>
+                        <span style={{ color: palette.orange, fontSize: 12 }}>
                           原文「{r.rawPrice}」的税率不在可选值内
                         </span>
                       )}
                       {r.problems.includes('单价不是数字') && (
-                        <span style={{ color: palette.orange, fontSize: 11 }}>
+                        <span style={{ color: palette.orange, fontSize: 12 }}>
                           原文「{r.rawPrice}」不是数字，请改成数字
                         </span>
                       )}
@@ -441,7 +449,7 @@ const ImportModal: React.FC<{
                         }
                       />
                       {r.problems.includes('货况不在可选值内') && (
-                        <span style={{ color: palette.mute, fontSize: 11 }}>
+                        <span style={{ color: palette.mute, fontSize: 12 }}>
                           原文「{r.rawCondition}」，请重选
                         </span>
                       )}
@@ -458,7 +466,7 @@ const ImportModal: React.FC<{
                         }
                       />
                       {r.problems.includes('货期不在可选值内') && (
-                        <span style={{ color: palette.mute, fontSize: 11 }}>
+                        <span style={{ color: palette.mute, fontSize: 12 }}>
                           原文「{r.rawLeadTime}」，请重选
                         </span>
                       )}
@@ -487,7 +495,7 @@ const ImportModal: React.FC<{
               }}
             >
               <span style={{ fontWeight: 600 }}>
-                <CloseCircleOutlined /> 另有 {rejected.length} 个文件未入库：
+                <CircleX size="1em" /> 另有 {rejected.length} 个文件未入库：
               </span>
               {rejected.map((f) => (
                 <span key={f.fileName}>

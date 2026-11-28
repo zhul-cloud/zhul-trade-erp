@@ -63,8 +63,16 @@ const StatsRangeFilter: React.FC<{
   const [preset, setPreset] = useState<RangePreset>(() =>
     matchPreset(value, presets),
   );
+  // 快捷期间与日期范围排一行（搜索条件区一行，ui-redesign D22），放不下时换行
   return (
-    <>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        flexWrap: 'wrap',
+      }}
+    >
       <Segmented<RangePreset>
         value={preset}
         options={[...presets, 'custom' as const].map((p) => ({
@@ -87,7 +95,7 @@ const StatsRangeFilter: React.FC<{
           }
         }}
       />
-    </>
+    </div>
   );
 };
 

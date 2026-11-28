@@ -1,10 +1,5 @@
-import {
-  ArrowsAltOutlined,
-  DownOutlined,
-  RightOutlined,
-  ShrinkOutlined,
-} from '@ant-design/icons';
-import { Button, Checkbox, Pagination, Segmented } from 'antd';
+import { Button, Checkbox, Pagination } from 'antd';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import React, { useCallback, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { Pill } from './components';
@@ -47,20 +42,8 @@ export const useFold = () => {
   return { mode, isFolded, toggle, setAll };
 };
 
-export const FoldToggle: React.FC<{
-  mode: 'open' | 'fold';
-  onChange: (m: 'open' | 'fold') => void;
-}> = ({ mode, onChange }) => (
-  <Segmented
-    size="small"
-    value={mode}
-    onChange={(v) => onChange(v as 'open' | 'fold')}
-    options={[
-      { value: 'open', label: '全部展开', icon: <ArrowsAltOutlined /> },
-      { value: 'fold', label: '全部折叠', icon: <ShrinkOutlined /> },
-    ]}
-  />
-);
+/** 全部展开 / 全部折叠：已移到公共组件，这里保留导出 */
+export { FoldToggle } from '@/components/FoldToggle';
 
 /** 品牌组头：点击展开 / 收起；本页只有部分任务时写明全部页的总数 */
 export const BrandGroupHeader: React.FC<{
@@ -111,9 +94,15 @@ export const BrandGroupHeader: React.FC<{
         style={plain}
       >
         {folded ? (
-          <RightOutlined style={{ color: palette.mute, fontSize: 12 }} />
+          <ChevronRight
+            size="1em"
+            style={{ color: palette.mute, fontSize: 12 }}
+          />
         ) : (
-          <DownOutlined style={{ color: palette.mute, fontSize: 12 }} />
+          <ChevronDown
+            size="1em"
+            style={{ color: palette.mute, fontSize: 12 }}
+          />
         )}
       </button>
       {checkbox && (
@@ -130,7 +119,7 @@ export const BrandGroupHeader: React.FC<{
         onClick={onToggle}
         style={{ ...plain, flex: 1, minWidth: 0, textAlign: 'left' }}
       >
-        <span style={{ fontSize: 15, fontWeight: 700, color: palette.ink }}>
+        <span style={{ fontSize: 16, fontWeight: 600, color: palette.ink }}>
           {brand}
         </span>
         <Pill tone="gray">

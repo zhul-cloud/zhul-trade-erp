@@ -543,7 +543,7 @@ export const CandidateRecordModal: React.FC<{
       okText="保存"
       okButtonProps={{ loading: saving }}
     >
-      <b style={{ fontSize: 15 }}>{title}</b>
+      <b style={{ fontSize: 16 }}>{title}</b>
       <Label>这次处理涉及的候选</Label>
       <div style={{ display: 'grid', gap: 8 }}>
         {candidates.map((c) => (

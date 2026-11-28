@@ -1,9 +1,11 @@
-import { StarFilled } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { Tooltip } from 'antd';
 import dayjs from 'dayjs';
+import { Star } from 'lucide-react';
 import React from 'react';
+import { Pill } from '@/components/Pill';
 import { useAppTheme } from '@/theme/AppTheme';
+import { textOn } from '@/theme/palette';
 import { formatDateTime } from '@/utils/format';
 import { type FieldSource, GRADE_NAMES, SOURCE } from './service';
 
@@ -21,13 +23,18 @@ export const Stars: React.FC<{ value?: number }> = ({ value }) => {
         padding: '0 8px',
         borderRadius: 8,
         background: palette.orangeSoft,
-        color: '#FBBF24',
-        fontWeight: 700,
+        color: palette.orange,
+        fontWeight: 600,
         fontSize: 12,
         whiteSpace: 'nowrap',
       }}
     >
-      <StarFilled /> {value} / 5
+      <Star
+        size="1em"
+        fill="currentColor"
+        style={{ color: palette.orangeMain }}
+      />{' '}
+      {value} / 5
     </span>
   );
 };
@@ -39,12 +46,14 @@ export const GradeBadge: React.FC<{
   size?: 'small' | 'large';
 }> = ({ value, adjusted, size = 'small' }) => {
   const { palette } = useAppTheme();
-  if (!value) return <span style={{ color: palette.mute }}>未成交</span>;
+  // 没有等级也是标签：同一列不混用标签和文字（D75，UI-118）
+  if (!value) return <Pill tone="gray">未成交</Pill>;
+  // 等级有高低、无好坏：S、A 用主题色深浅，B、C 中性（2026-11-26 用户确认，复审 9.1 第二轮待定 B）；不用红色，以免读成风险
   const tone =
     value === 1
-      ? { fg: palette.red, bg: palette.redSoft }
+      ? { fg: textOn(palette.chart), bg: palette.chart }
       : value === 2
-        ? { fg: palette.link, bg: palette.accentSoft }
+        ? { fg: palette.ink, bg: palette.chartSoft }
         : { fg: palette.sub, bg: palette.inset };
   const box = size === 'large' ? 34 : 24;
   return (
@@ -56,8 +65,8 @@ export const GradeBadge: React.FC<{
           borderRadius: size === 'large' ? 10 : 8,
           display: 'inline-grid',
           placeItems: 'center',
-          fontWeight: 800,
-          fontSize: size === 'large' ? 18 : 12,
+          fontWeight: 600,
+          fontSize: size === 'large' ? 16 : 12,
           color: tone.fg,
           background: tone.bg,
         }}
@@ -65,7 +74,7 @@ export const GradeBadge: React.FC<{
         {GRADE_NAMES[value]}
       </span>
       {adjusted && (
-        <span style={{ fontSize: 11, color: palette.violet }}>已调整</span>
+        <span style={{ fontSize: 12, color: palette.info }}>已调整</span>
       )}
     </span>
   );
@@ -90,7 +99,8 @@ export const Progress5: React.FC<{ mask: number; width?: number }> = ({
             width: width / 5 - 3,
             height: 6,
             borderRadius: 3,
-            background: mask & (1 << i) ? palette.green : palette.hairline,
+            // 进度只用主题色（全站进度条规则），不换颜色
+            background: mask & (1 << i) ? palette.chart : palette.inset,
           }}
         />
       ))}
@@ -126,9 +136,9 @@ export const SourceTag: React.FC<{
             : `人工${source?.operatorName ? ` · ${source.operatorName}` : ''}`);
   const color =
     system || s === SOURCE.SYSTEM
-      ? palette.cyan
+      ? palette.info
       : s === SOURCE.REPORT
-        ? palette.violet
+        ? palette.info
         : s === SOURCE.FOLLOWUP
           ? palette.link
           : palette.mute;
@@ -159,12 +169,12 @@ export const SourceTag: React.FC<{
               `/customer/list/${customerId}/background/${source?.reportId}`,
             )
           }
-          style={{ fontSize: 11, color, whiteSpace: 'nowrap' }}
+          style={{ fontSize: 12, color, whiteSpace: 'nowrap' }}
         >
           {text}
         </button>
       ) : (
-        <span style={{ fontSize: 11, color, whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: 12, color, whiteSpace: 'nowrap' }}>
           {text}
         </span>
       )}
@@ -203,7 +213,7 @@ export const FieldRow: React.FC<{
       >
         {label}
         {!core && (
-          <span style={{ marginLeft: 4, fontSize: 10, color: palette.faint }}>
+          <span style={{ marginLeft: 4, fontSize: 12, color: palette.faint }}>
             选填
           </span>
         )}
@@ -213,7 +223,6 @@ export const FieldRow: React.FC<{
           flex: 1,
           minWidth: 0,
           fontSize: 13,
-          fontWeight: empty ? 400 : 500,
           color: empty ? (core ? palette.orange : palette.faint) : palette.ink,
           display: 'flex',
           flexWrap: 'wrap',
@@ -251,7 +260,7 @@ export const Chip: React.FC<{ children: React.ReactNode; count?: number }> = ({
       }}
     >
       {children}
-      {count != null && <span style={{ color: palette.cyan }}>{count}</span>}
+      {count != null && <span style={{ color: palette.info }}>{count}</span>}
     </span>
   );
 };

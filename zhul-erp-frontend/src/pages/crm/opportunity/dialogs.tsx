@@ -1,8 +1,3 @@
-import {
-  CloseOutlined,
-  LoadingOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import {
   App,
@@ -16,7 +11,9 @@ import {
   Upload,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { LoaderCircle, UploadIcon, X } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { Callout } from '@/components/Callout';
 import { useLevels } from '@/pages/inquiry/shared/components';
 import { LEVEL_DEFAULT } from '@/pages/inquiry/shared/constants';
 import { inquiryApi } from '@/pages/inquiry/shared/service';
@@ -147,16 +144,7 @@ export const CloseModal: React.FC<{
         style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}
       />
       {!invalid && recommend && (
-        <div
-          style={{
-            marginBottom: 16,
-            padding: '8px 12px',
-            borderRadius: 8,
-            fontSize: 12,
-            color: palette.link,
-            background: palette.accentSoft,
-          }}
-        >
+        <Callout tone="action" style={{ marginBottom: 16 }}>
           按最近跟进推荐：
           {recommend.reasons.map((r, i) => (
             <React.Fragment key={r}>
@@ -172,7 +160,7 @@ export const CloseModal: React.FC<{
           ))}
           {recommend.date &&
             `（${dayjs(recommend.date).format('MM-DD')} 卡点）`}
-        </div>
+        </Callout>
       )}
       <div style={{ marginBottom: 8 }}>
         说明 <span style={{ fontSize: 12, color: palette.mute }}>选填</span>
@@ -377,7 +365,7 @@ export const EditModal: React.FC<{
                 style={iconButton}
                 onClick={() => setFiles(files.filter((x) => x !== f))}
               >
-                <CloseOutlined />
+                <X size="1em" />
               </button>
             }
           />
@@ -406,7 +394,11 @@ export const EditModal: React.FC<{
               cursor: 'pointer',
             }}
           >
-            {uploading > 0 ? <LoadingOutlined /> : <UploadOutlined />}
+            {uploading > 0 ? (
+              <LoaderCircle size="1em" className="zhul-spin" />
+            ) : (
+              <UploadIcon size="1em" />
+            )}
             {uploading > 0 ? '上传中' : '上传'}
           </button>
         </Upload>

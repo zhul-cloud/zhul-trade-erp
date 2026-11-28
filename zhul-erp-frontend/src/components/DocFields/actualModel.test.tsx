@@ -58,17 +58,22 @@ it('真实型号行：点「+ 真实型号」行内编辑，点保存才提交�
   expect(onSave).toHaveBeenCalledWith('LC2D18B7C');
 });
 
-it('真实型号行：已有真实型号时显示修改记录；不可编辑时没有入口', () => {
+it('真实型号行：已有真实型号时显示修改记录（账号换成姓名）；不可编辑时没有入口', async () => {
+  // 修改人存的是登录账号，显示姓名，不露出邮箱（UI-117）
+  (jest.requireMock('@umijs/max').request as jest.Mock).mockResolvedValue({
+    data: { 'wanglei@example.com': '王磊' },
+  });
   wrap(
     React.createElement(ActualModelLine, {
       actualModel: 'AX32-30-10-80',
-      by: '王磊',
+      by: 'wanglei@example.com',
       at: '2026-11-18T10:20:00',
       editable: false,
       onSave: jest.fn(),
     }),
   );
   expect(screen.getByText(/真实型号：AX32-30-10-80/)).toBeTruthy();
-  expect(screen.getByText('王磊 · 11-18 10:20')).toBeTruthy();
+  expect(await screen.findByText('王磊 · 11-18 10:20')).toBeTruthy();
+  expect(screen.queryByText(/example\.com/)).toBeNull();
   expect(screen.queryByLabelText('修改真实型号')).toBeNull();
 });

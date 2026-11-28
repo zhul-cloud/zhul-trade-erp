@@ -1,4 +1,3 @@
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { request, useAccess } from '@umijs/max';
 import {
   Alert,
@@ -16,14 +15,16 @@ import {
   Table,
 } from 'antd';
 import dayjs from 'dayjs';
+import { Plus, Trash2 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ProductSelect } from '@/pages/product/components/ProductSelect';
+import { useCountries } from '@/pages/product/components/useCountries';
 import type { ProductOption } from '@/pages/product/service';
 import { CURRENCIES } from '@/pages/quotation/components';
 import type { Attachment } from '@/pages/warehouse/service';
 import { searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount } from '@/utils/format';
+import { formatAmount, formatMoney } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
 import { KIND, Pill, RECEIPT_STATUS, ReceiptStatusPill } from '../components';
 import {
@@ -43,12 +44,12 @@ import { ORDER_FILE_MAX, OrderFileList, OrderFileUpload } from './OrderFiles';
 
 export const STOCK = { SPOT: 1, FUTURES: 2 } as const;
 
-export const StockPill: React.FC<{ type?: number }> = ({ type }) =>
-  type === STOCK.FUTURES ? (
-    <Pill tone="orange">期货</Pill>
-  ) : (
-    <Pill tone="green">现货</Pill>
-  );
+/** 现货 / 期货是订单属性，不是流程状态：属性色，现货蓝、期货紫（D75） */
+export const StockPill: React.FC<{ type?: number }> = ({ type }) => (
+  <Pill tone={type === STOCK.FUTURES ? 'purple' : 'blue'}>
+    {type === STOCK.FUTURES ? '期货' : '现货'}
+  </Pill>
+);
 
 /** 本租户用户（采购员候选） */
 /** 采购员候选：本租户启用的用户，有采购或销售订单菜单即可取，不要求「用户」菜单权限 */
@@ -409,12 +410,18 @@ export const ReorderPickModal: React.FC<{
                   </div>
                 ),
               },
-              { title: '数量', dataIndex: 'quantity', width: 80 },
               {
-                title: '单价',
+                title: '数量',
+                align: 'right' as const,
+                dataIndex: 'quantity',
+                width: 80,
+              },
+              {
+                title: `单价（${draft.currencyCode}）`,
+                align: 'right',
                 dataIndex: 'unitPrice',
                 width: 120,
-                render: (v: number) => formatAmount(v, draft.currencyCode),
+                render: (v: number) => formatMoney(v),
               },
               {
                 title: '现货 / 期货',
@@ -448,6 +455,7 @@ export const CreateOrderDrawer: React.FC<{
 }> = ({ open, onClose, onDone, reorder }) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
+  const { zhOf } = useCountries();
   const access = useAccess() as Record<string, boolean>;
   const users = useUserOptions();
   const [customerId, setCustomerId] = useState<number>();
@@ -541,7 +549,9 @@ export const CreateOrderDrawer: React.FC<{
   ) =>
     list.map((c) => ({
       value: c.id,
-      label: [c.displayName || c.name, c.country].filter(Boolean).join(' · '),
+      label: [c.displayName || c.name, zhOf(c.country)]
+        .filter(Boolean)
+        .join(' · '),
     }));
 
   const patch = (key: number, v: Partial<Line>) =>
@@ -771,7 +781,7 @@ export const CreateOrderDrawer: React.FC<{
                         rel="noreferrer"
                         style={{ marginLeft: 4 }}
                       >
-                        <PlusOutlined /> 去商品档案新建
+                        <Plus size="1em" /> 去商品档案新建
                       </a>
                     </>
                   ) : (
@@ -863,7 +873,7 @@ export const CreateOrderDrawer: React.FC<{
             <Button
               type="text"
               size="small"
-              icon={<DeleteOutlined />}
+              icon={<Trash2 size="1em" />}
               disabled={lines.length === 1}
               onClick={() =>
                 setLines((ls) => ls.filter((x) => x.key !== l.key))
@@ -875,7 +885,7 @@ export const CreateOrderDrawer: React.FC<{
       </div>
       <Button
         type="link"
-        icon={<PlusOutlined />}
+        icon={<Plus size="1em" />}
         style={{ paddingLeft: 0, marginTop: 8 }}
         onClick={() => setLines((ls) => [...ls, newLine()])}
       >
@@ -1398,7 +1408,7 @@ export const NewOrderDrawer: React.FC<{
           borderRadius: 14,
           cursor: disabled ? 'not-allowed' : 'pointer',
           opacity: disabled ? 0.5 : 1,
-          background: on ? palette.accentSoft : palette.inset,
+          background: on ? palette.primarySoft : palette.inset,
           border: `1.5px solid ${on ? palette.link : palette.hairline}`,
         }}
       >
@@ -1475,7 +1485,7 @@ export const NewOrderDrawer: React.FC<{
           {steps.map((s, n) => (
             <React.Fragment key={s}>
               {n > 0 && <span style={{ color: palette.mute }}>›</span>}
-              <Pill tone={n + 1 === step ? 'accent' : 'gray'}>
+              <Pill tone={n + 1 === step ? 'selected' : 'gray'}>
                 {n + 1} {s}
               </Pill>
             </React.Fragment>
@@ -1570,7 +1580,7 @@ export const NewOrderDrawer: React.FC<{
                       padding: '12px 14px',
                       borderRadius: 12,
                       cursor: 'pointer',
-                      background: on ? palette.accentSoft : palette.inset,
+                      background: on ? palette.primarySoft : palette.inset,
                       border: `1.5px solid ${on ? palette.link : palette.hairline}`,
                     }}
                   >
@@ -1592,7 +1602,7 @@ export const NewOrderDrawer: React.FC<{
                       >
                         {formatAmount(p.totalAmount, p.currencyCode)}
                       </b>
-                      <div style={{ fontSize: 11, color: palette.mute }}>
+                      <div style={{ fontSize: 12, color: palette.mute }}>
                         合计
                       </div>
                     </div>
@@ -1681,7 +1691,7 @@ const FeeRowsEditor: React.FC<{
           <Button
             type="text"
             size="small"
-            icon={<DeleteOutlined />}
+            icon={<Trash2 size="1em" />}
             onClick={() => onChange(rows.filter((x) => x.key !== r.key))}
             aria-label="删除费用"
           />
@@ -1690,7 +1700,7 @@ const FeeRowsEditor: React.FC<{
       {rows.length < MAX_FEES && (
         <Button
           type="link"
-          icon={<PlusOutlined />}
+          icon={<Plus size="1em" />}
           style={{ paddingLeft: 0, width: 'fit-content' }}
           onClick={() =>
             onChange([...rows, { key: ++feeSeq, feeName: '', amount: null }])
@@ -1970,14 +1980,14 @@ export const CreateFeeOrderModal: React.FC<{
           marginTop: 12,
           padding: '12px 14px',
           borderRadius: 12,
-          background: palette.accentSoft,
+          background: palette.inset,
         }}
       >
         <span style={{ color: palette.sub }}>合计</span>
         <b
           style={{
             marginLeft: 'auto',
-            fontSize: 18,
+            fontSize: 16,
             color: palette.ink,
             fontVariantNumeric: 'tabular-nums',
           }}

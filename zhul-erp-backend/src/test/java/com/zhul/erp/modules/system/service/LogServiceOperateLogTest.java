@@ -8,6 +8,7 @@ import com.zhul.erp.modules.system.entity.SysLogDO;
 import com.zhul.erp.modules.system.repository.AccountAccessTokenMapper;
 import com.zhul.erp.modules.system.repository.AccountMapper;
 import com.zhul.erp.modules.system.repository.SysLogMapper;
+import com.zhul.erp.modules.system.repository.UserBasicMapper;
 import com.zhul.erp.modules.system.service.impl.LogServiceImpl;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,7 @@ class LogServiceOperateLogTest {
 
     @Mock private SysLogMapper sysLogMapper;
     @Mock private AccountMapper accountMapper;
+    @Mock private UserBasicMapper userBasicMapper;
     @Mock private AccountAccessTokenMapper accountAccessTokenMapper;
     @Mock private StringRedisTemplate redisTemplate;
     @Mock private AccountSessionService accountSessionService;
@@ -46,7 +48,7 @@ class LogServiceOperateLogTest {
 
     @Test
     void recordOperateLog_writesOperatorMenuOperationAndBeforeAfter() throws Exception {
-        LogServiceImpl service = new LogServiceImpl(sysLogMapper, accountMapper, accountAccessTokenMapper,
+        LogServiceImpl service = new LogServiceImpl(sysLogMapper, accountMapper, userBasicMapper, accountAccessTokenMapper,
                 objectMapper, redisTemplate, accountSessionService);
         TenantContext.setTenantId(7);
         SecurityContextHolder.getContext().setAuthentication(

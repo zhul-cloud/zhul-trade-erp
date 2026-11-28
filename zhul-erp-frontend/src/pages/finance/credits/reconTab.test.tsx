@@ -75,6 +75,9 @@ it('月度核对丢弃切换前迟到的响应', async () => {
   await act(async () => {
     fireEvent.click(await screen.findByTitle('RUB'));
   });
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: /查\s*询/ }));
+  });
   expect(await screen.findByText('RUB 客户')).toBeTruthy();
   await act(async () => {
     resolveUsd({ data: recon('USD 客户', 'USD') });

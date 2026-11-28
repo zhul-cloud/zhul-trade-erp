@@ -1,11 +1,4 @@
 import {
-  CheckOutlined,
-  FileTextOutlined,
-  InfoCircleOutlined,
-  PaperClipOutlined,
-  RocketOutlined,
-} from '@ant-design/icons';
-import {
   App,
   AutoComplete,
   Button,
@@ -19,6 +12,7 @@ import {
   Upload,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Check, FileText, Info, Paperclip, Rocket } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { showStockShortage } from '@/pages/warehouse/inventoryParts';
@@ -35,6 +29,7 @@ import {
 import {
   type BoxInput,
   type DirectRef,
+  FORWARDER_TONE,
   type Logistics,
   logisticsApi,
   type PendingGroup,
@@ -162,7 +157,7 @@ export const ConfirmDirectDrawer: React.FC<{
               color: problem ? palette.orange : palette.mute,
             }}
           >
-            <InfoCircleOutlined />{' '}
+            <Info size="1em" />{' '}
             {problem ||
               `按货代实收补采购入库单与销售出库单；体积重按货代系数 ${sh.volumeDivisor} 算`}
           </span>
@@ -170,7 +165,7 @@ export const ConfirmDirectDrawer: React.FC<{
           <Button onClick={onClose}>取消</Button>
           <Button
             type="primary"
-            icon={<CheckOutlined />}
+            icon={<Check size="1em" />}
             loading={busy}
             disabled={!!problem}
             onClick={submit}
@@ -295,8 +290,8 @@ export const DocsModal: React.FC<{
         display: 'flex',
         padding: '12px 14px',
         borderRadius: 10,
-        border: `1px solid ${mode === value ? palette.accentLine : palette.hairline}`,
-        background: mode === value ? palette.accentSoft : undefined,
+        border: `1px solid ${mode === value ? palette.primaryLine : palette.hairline}`,
+        background: mode === value ? palette.primarySoft : undefined,
         marginBottom: 10,
       }}
     >
@@ -313,7 +308,7 @@ export const DocsModal: React.FC<{
       destroyOnHidden
       title={
         <span>
-          <FileTextOutlined /> 生成 CI / PL
+          <FileText size="1em" /> 生成 CI / PL
         </span>
       }
       footer={
@@ -321,7 +316,7 @@ export const DocsModal: React.FC<{
           <Button onClick={onClose}>取消</Button>
           <Button
             type="primary"
-            icon={<FileTextOutlined />}
+            icon={<FileText size="1em" />}
             loading={busy}
             onClick={submit}
           >
@@ -360,7 +355,7 @@ export const DocsModal: React.FC<{
         aria-label="付款参考"
       />
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 14 }}>
-        <InfoCircleOutlined /> 用「业务设置 → 单据模板」里的默认 CI、PL 模版。CI
+        <Info size="1em" /> 用「业务设置 → 单据模板」里的默认 CI、PL 模版。CI
         取订单的型号、英文描述、HS 编码、单价与费用行；PL
         取装箱记录，箱的尺寸重量写在箱内第一行并合并单元格。重新生成时同一组订单编号不变。
       </div>
@@ -395,7 +390,7 @@ export const FaceSheets: React.FC<{
           key={a.id}
           style={{ display: 'flex', alignItems: 'center', gap: 8 }}
         >
-          <PaperClipOutlined style={{ color: palette.mute }} />
+          <Paperclip size="1em" style={{ color: palette.mute }} />
           <button type="button" className="zhul-link" onClick={() => open(a)}>
             {a.fileName}
           </button>
@@ -432,7 +427,11 @@ export const FaceSheets: React.FC<{
             return false;
           }}
         >
-          <Button size="small" icon={<PaperClipOutlined />} loading={busy > 0}>
+          <Button
+            size="small"
+            icon={<Paperclip size="1em" />}
+            loading={busy > 0}
+          >
             上传面单（PDF / 图片）
           </Button>
         </Upload>
@@ -523,7 +522,7 @@ export const ShipModal: React.FC<{
       destroyOnHidden
       title={
         <span>
-          <RocketOutlined /> {update ? '修改运单与运费' : '登记出运'} ·{' '}
+          <Rocket size="1em" /> {update ? '修改运单与运费' : '登记出运'} ·{' '}
           {sh.shNo}
         </span>
       }
@@ -532,7 +531,7 @@ export const ShipModal: React.FC<{
           <Button onClick={onClose}>取消</Button>
           <Button
             type="primary"
-            icon={<RocketOutlined />}
+            icon={<Rocket size="1em" />}
             loading={busy}
             disabled={
               !customer &&
@@ -586,7 +585,8 @@ export const ShipModal: React.FC<{
               borderRadius: 10,
               alignItems: 'flex-start',
               border: `1px solid ${customer === o.value ? palette.link : palette.hairline}`,
-              background: customer === o.value ? palette.accentSoft : undefined,
+              background:
+                customer === o.value ? palette.primarySoft : undefined,
             }}
           >
             <div style={{ fontWeight: 600, color: palette.ink }}>{o.title}</div>
@@ -605,7 +605,9 @@ export const ShipModal: React.FC<{
             marginBottom: 16,
           }}
         >
-          <Pill tone="violet">{sh.pickupLabel ?? '上门取件'}</Pill>
+          <Pill tone={FORWARDER_TONE.pickup}>
+            {sh.pickupLabel ?? '上门取件'}
+          </Pill>
           上门取件的货代只能交给客户的货代
         </div>
       )}
@@ -673,7 +675,7 @@ export const ShipModal: React.FC<{
       <Label>{customer ? '交接单 / 面单' : '面单'}</Label>
       <FaceSheets value={files} onChange={setFiles} />
       <div style={{ fontSize: 12, color: palette.mute, marginTop: 14 }}>
-        <InfoCircleOutlined />{' '}
+        <Info size="1em" />{' '}
         {pickup
           ? '客户用自己的快递账号约快递上门取件，没有运费，不进对账；确认后订单型号变「已出运」。'
           : customer

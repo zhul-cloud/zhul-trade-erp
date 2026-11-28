@@ -1,14 +1,3 @@
-import {
-  ArrowRightOutlined,
-  CheckCircleFilled,
-  CheckOutlined,
-  DownOutlined,
-  FormOutlined,
-  InboxOutlined,
-  RightOutlined,
-  SearchOutlined,
-  UnorderedListOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import {
   App,
@@ -22,6 +11,17 @@ import {
   Spin,
   Tag,
 } from 'antd';
+import {
+  ArrowRight,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  CircleCheck,
+  Inbox,
+  List,
+  Search,
+  SquarePen,
+} from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -35,6 +35,7 @@ import {
   Pill,
   useWide,
 } from '@/pages/inquiry/shared/components';
+import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
 import {
@@ -96,7 +97,7 @@ const Highlight: React.FC<{ text: string; keyword?: string }> = ({
       {text.slice(0, i)}
       <mark
         style={{
-          background: palette.accentSoft,
+          background: palette.primarySoft, // lint-ui-ignore primary-soft: 搜索命中高亮
           color: palette.link,
           padding: 0,
           borderRadius: 3,
@@ -243,7 +244,7 @@ const ByInquiryPanel: React.FC<{
       >
         <Input
           allowClear
-          prefix={<SearchOutlined />}
+          prefix={<Search size="1em" />}
           placeholder="搜索客户或询盘编号"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
@@ -272,7 +273,7 @@ const ByInquiryPanel: React.FC<{
             marginTop: 12,
             padding: '10px 14px',
             borderRadius: 12,
-            background: palette.accentSoft,
+            background: palette.primarySoft, // lint-ui-ignore primary-soft: 已选询盘的操作条，属于选中状态
             fontSize: 13,
           }}
         >
@@ -340,8 +341,8 @@ const ByInquiryPanel: React.FC<{
                 gap: 12,
                 padding: '12px 16px',
                 borderRadius: 12,
-                background: checked ? palette.accentSoft : palette.inset,
-                border: `1px solid ${checked ? palette.accentLine : palette.hairline}`,
+                background: checked ? palette.primarySoft : palette.inset,
+                border: `1px solid ${checked ? palette.primaryLine : palette.hairline}`,
                 cursor: disabled ? 'not-allowed' : 'pointer',
                 transition: 'background 150ms ease-out',
               };
@@ -463,7 +464,8 @@ const ByInquiryPanel: React.FC<{
                     }}
                     aria-label={`打开草稿 ${r.draftQuotationNo}`}
                   >
-                    <FormOutlined
+                    <SquarePen
+                      size="1em"
                       style={{ color: palette.orange, fontSize: 16 }}
                     />
                     {body}
@@ -524,7 +526,7 @@ const ItemRow: React.FC<{
         gap: 12,
         padding: '10px 12px',
         borderRadius: 10,
-        background: checked ? palette.accentSoft : 'transparent',
+        background: checked ? palette.primarySoft : 'transparent',
         cursor: disabled ? 'not-allowed' : 'pointer',
       }}
     >
@@ -565,7 +567,7 @@ const ItemRow: React.FC<{
             已在报价单 {item.draftQuotationNo} 草稿中
           </span>
         ) : item.quoted ? (
-          <span style={{ color: palette.violet }}>已报过价</span>
+          <span style={{ color: palette.info }}>已报过价</span>
         ) : item.noStock ? (
           <span style={{ color: palette.orange }}>无货，报价单上标明无货</span>
         ) : item.pendingAsNoStock ? (
@@ -584,6 +586,8 @@ export const PickItemsPanel: React.FC<{
   /** 追加型号时客户固定为报价单的客户 */
   lockCustomer?: boolean;
 }> = ({ customer, onCustomer, selected, onChange, lockCustomer }) => {
+  // 国家按中文名显示（同 CountryText）；下拉选项是纯文字，用不了国旗组件
+  const { find: findCountry } = useCountries();
   const { palette } = useAppTheme();
   const [customers, setCustomers] = useState<PickCustomer[]>([]);
   const [customerKw, setCustomerKw] = useState('');
@@ -700,7 +704,7 @@ export const PickItemsPanel: React.FC<{
         options={(lockCustomer && customer ? [customer] : customers).map(
           (c) => ({
             value: c.customerId,
-            label: `${c.customerName}${c.country ? ` · ${c.country}` : ''} · ${c.inquiryCount} 个询盘`,
+            label: `${c.customerName}${c.country ? ` · ${findCountry(c.country)?.nameZh ?? c.country}` : ''} · ${c.inquiryCount} 个询盘`,
           }),
         )}
         notFoundContent="你负责的询盘里没有匹配的客户"
@@ -720,7 +724,7 @@ export const PickItemsPanel: React.FC<{
         >
           <Input
             allowClear
-            prefix={<SearchOutlined />}
+            prefix={<Search size="1em" />}
             placeholder="搜索型号或询盘编号"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
@@ -817,7 +821,11 @@ export const PickItemsPanel: React.FC<{
                         padding: 4,
                       }}
                     >
-                      {open ? <DownOutlined /> : <RightOutlined />}
+                      {open ? (
+                        <ChevronDown size="1em" />
+                      ) : (
+                        <ChevronRight size="1em" />
+                      )}
                     </button>
                     <span style={{ color: palette.link, fontWeight: 600 }}>
                       <Highlight text={inq.inquiryCode} keyword={keyword} />
@@ -843,7 +851,7 @@ export const PickItemsPanel: React.FC<{
                       }}
                     >
                       {picked > 0 && (
-                        <Pill tone="accent">已选 {picked} 个</Pill>
+                        <Pill tone="selected">已选 {picked} 个</Pill>
                       )}
                       <span style={{ fontSize: 12, color: palette.mute }}>
                         已回价 {inq.pricedCount} / 共 {inq.itemCount} 个型号
@@ -884,8 +892,8 @@ export const PickItemsPanel: React.FC<{
                             setShowAll(new Set(showAll).add(inq.inquiryId))
                           }
                         >
-                          <DownOutlined /> 展开其余 {inq.items.length - 5}{' '}
-                          个型号
+                          <ChevronDown size="1em" /> 展开其余{' '}
+                          {inq.items.length - 5} 个型号
                         </button>
                       )}
                     </div>
@@ -937,20 +945,19 @@ const ModeCard: React.FC<{
         padding: 20,
         borderRadius: 14,
         cursor: 'pointer',
-        background: active ? palette.accentSoft : palette.inset,
+        background: active ? palette.primarySoft : palette.inset,
         border: `1.5px solid ${active ? palette.link : palette.hairline}`,
         transition: 'border-color 150ms ease-out, background 150ms ease-out',
       }}
     >
       <span
+        className="zhul-card"
         style={{
           width: 44,
           height: 44,
-          borderRadius: 12,
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: palette.card,
           color: active ? palette.link : palette.sub,
           fontSize: 20,
           flex: 'none',
@@ -963,7 +970,7 @@ const ModeCard: React.FC<{
           style={{
             display: 'block',
             fontSize: 16,
-            fontWeight: 700,
+            fontWeight: 600,
             color: palette.ink,
           }}
         >
@@ -989,7 +996,8 @@ const ModeCard: React.FC<{
               lineHeight: '24px',
             }}
           >
-            <CheckOutlined
+            <Check
+              size="1em"
               style={{
                 color: active ? palette.green : palette.mute,
                 marginRight: 8,
@@ -1038,13 +1046,13 @@ const BatchResult: React.FC<{
           fontWeight: 600,
         }}
       >
-        <CheckCircleFilled style={{ color: palette.green }} />
+        <CircleCheck size="1em" style={{ color: palette.green }} />
         已生成 {result.created.length} 张报价单
         {result.skipped.length > 0
           ? `，跳过 ${result.skipped.length} 个询盘`
           : ''}
         <span style={{ fontWeight: 400, fontSize: 12, color: palette.sub }}>
-          都是草稿，点击进入编辑后再发送
+          都是草稿，编辑后再发送
         </span>
       </div>
       <div
@@ -1095,7 +1103,8 @@ const BatchResult: React.FC<{
                 还有 {c.pendingCount} 个型号在询价，回价后可以再报
               </Pill>
             ) : null}
-            <RightOutlined
+            <ChevronRight
+              size="1em"
               style={{ marginLeft: 'auto', color: palette.mute }}
             />
           </button>
@@ -1255,12 +1264,12 @@ const NewQuotationModal: React.FC<{
                   {
                     value: 'inquiry',
                     label: '按询盘报价',
-                    icon: <InboxOutlined />,
+                    icon: <Inbox size="1em" />,
                   },
                   {
                     value: 'items',
                     label: '挑选型号报价',
-                    icon: <UnorderedListOutlined />,
+                    icon: <List size="1em" />,
                   },
                 ]}
               />
@@ -1289,7 +1298,7 @@ const NewQuotationModal: React.FC<{
               <Button onClick={onClose}>取消</Button>
               <Button
                 type="primary"
-                icon={<ArrowRightOutlined />}
+                icon={<ArrowRight size="1em" />}
                 onClick={() => setStep('pick')}
               >
                 下一步
@@ -1343,7 +1352,7 @@ const NewQuotationModal: React.FC<{
               <Button onClick={onClose}>取消</Button>
               <Button
                 type="primary"
-                icon={<ArrowRightOutlined />}
+                icon={<ArrowRight size="1em" />}
                 disabled={!summary || overLimit}
                 loading={submitting}
                 onClick={create}
@@ -1367,7 +1376,7 @@ const NewQuotationModal: React.FC<{
         <div style={{ display: 'grid', gap: 16 }}>
           <ModeCard
             active={mode === 'inquiry'}
-            icon={<InboxOutlined />}
+            icon={<Inbox size="1em" />}
             title="按询盘报价"
             description="从还没报价的询盘里选，带入询盘里全部已回价的型号。适合把待报价的询盘一个个报掉。"
             points={[
@@ -1379,7 +1388,7 @@ const NewQuotationModal: React.FC<{
           />
           <ModeCard
             active={mode === 'items'}
-            icon={<UnorderedListOutlined />}
+            icon={<List size="1em" />}
             title="挑选型号报价"
             description="先选客户，再从他的多个询盘里挑型号组合成一张报价单。适合客户只要其中几个型号，或要跨询盘合并。"
             points={[

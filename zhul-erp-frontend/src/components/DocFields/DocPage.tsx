@@ -1,6 +1,6 @@
-import { RightOutlined } from '@ant-design/icons';
 import { Link } from '@umijs/max';
 import { Button, Modal, Table } from 'antd';
+import { ChevronRight } from 'lucide-react';
 import React, { useState } from 'react';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
@@ -19,17 +19,26 @@ export const SectionTitle: React.FC<{
   const { palette } = useAppTheme();
   return (
     <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
-      <b style={{ color: palette.ink, fontSize: 15 }}>{children}</b>
+      <h2
+        style={{ margin: 0, fontSize: 16, fontWeight: 600, color: palette.ink }}
+      >
+        {children}
+      </h2>
       <span style={{ flex: 1 }} />
       {extra}
     </div>
   );
 };
 
-/** 基本信息：标签在上、值在下，自动换行成多列 */
+/** 基本信息：标签在上、值在下，自动换行成多列；full 的项占整行（内容长的，如出运详情的 CI / PL） */
 export const InfoGrid: React.FC<{
   title?: string;
-  items: { label: string; value?: React.ReactNode; hidden?: boolean }[];
+  items: {
+    label: string;
+    value?: React.ReactNode;
+    hidden?: boolean;
+    full?: boolean;
+  }[];
 }> = ({ title = '基本信息', items }) => {
   const { palette } = useAppTheme();
   return (
@@ -45,7 +54,10 @@ export const InfoGrid: React.FC<{
         {items
           .filter((i) => !i.hidden)
           .map((i) => (
-            <div key={i.label} style={{ minWidth: 0 }}>
+            <div
+              key={i.label}
+              style={{ minWidth: 0, gridColumn: i.full ? '1 / -1' : undefined }}
+            >
               <div style={{ color: palette.mute, fontSize: 12 }}>{i.label}</div>
               <div
                 style={{
@@ -108,8 +120,9 @@ export const RelatedDocsCard: React.FC<{
                   {d.label}
                 </span>
                 <span
+                  className="zhul-related-no"
                   style={{
-                    color: d.href ? palette.link : palette.ink,
+                    color: palette.ink,
                     fontWeight: 600,
                     whiteSpace: 'nowrap',
                   }}
@@ -122,14 +135,15 @@ export const RelatedDocsCard: React.FC<{
                   <Pill tone={d.tone ?? 'gray'}>{d.statusName}</Pill>
                 )}
                 {d.href && (
-                  <RightOutlined
+                  <ChevronRight
+                    size="1em"
                     style={{ color: palette.mute, fontSize: 11 }}
                   />
                 )}
               </div>
             );
             return d.href ? (
-              <Link key={key} to={d.href}>
+              <Link key={key} to={d.href} className="zhul-related-row">
                 {row}
               </Link>
             ) : (
@@ -357,3 +371,26 @@ export const ModelQtyCell: React.FC<{
     </div>
   );
 };
+
+/**
+ * 单据详情的两栏（D80，对比图 R39 方案 B）：主栏依次放基本信息、明细、备注与附件，侧栏放关联单据和操作日志，
+ * 两栏各自往下排，不再出现「上半两栏不等高、明细通栏在下」留下的空白。窄屏（不到 xl）单栏，侧栏排在主栏后面。
+ * 明细很宽的单据（销售订单、PI、报价、采购订单）仍是上半两栏 + 明细通栏，不用这个组件。
+ */
+export const DocColumns: React.FC<{
+  wide: boolean;
+  side: React.ReactNode;
+  children: React.ReactNode;
+}> = ({ wide, side, children }) => (
+  <div
+    style={{
+      display: 'grid',
+      gridTemplateColumns: wide ? 'minmax(0, 2.6fr) minmax(340px, 1fr)' : '1fr',
+      gap: 16,
+      alignItems: 'start',
+    }}
+  >
+    <div style={{ minWidth: 0 }}>{children}</div>
+    <div style={{ minWidth: 0 }}>{side}</div>
+  </div>
+);

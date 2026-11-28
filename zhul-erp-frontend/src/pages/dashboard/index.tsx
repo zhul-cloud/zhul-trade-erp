@@ -1,18 +1,16 @@
-import {
-  AppstoreOutlined,
-  FileTextOutlined,
-  MailOutlined,
-  ShoppingCartOutlined,
-} from '@ant-design/icons';
 import { history, useAccess, useModel } from '@umijs/max';
 import { Button, Segmented, Skeleton } from 'antd';
+import { FileText, Mail, ShoppingCart } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { EmptyState } from '@/components/EmptyState';
+import { PageHeader, Panel } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { readBizError } from '@/pages/crm/opportunity/service';
-import { Card, PageTitle, useWide } from '@/pages/inquiry/shared/components';
+import { Card, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
-import { MenuName, useMenu } from '@/utils/menuName';
+import { MenuName } from '@/utils/menuName';
+import { BoardContext, layoutRows, rowMinHeight } from './layout';
 import { type Workbench, workbenchApi } from './service';
 import { WIDGETS } from './widgets';
 
@@ -25,17 +23,17 @@ const SHORTCUTS: {
   {
     access: 'inquiryCustomerInquiry',
     path: '/inquiry/customer-inquiries',
-    icon: <MailOutlined />,
+    icon: <Mail size="1em" />,
   },
   {
     access: 'quotationList',
     path: '/quotation/quotations',
-    icon: <FileTextOutlined />,
+    icon: <FileText size="1em" />,
   },
   {
     access: 'inquiryMyTasks',
     path: '/inquiry/my-tasks',
-    icon: <ShoppingCartOutlined />,
+    icon: <ShoppingCart size="1em" />,
   },
 ];
 
@@ -73,8 +71,9 @@ const Dashboard: React.FC = () => {
   const wide = useWide();
   const access = useAccess() as Record<string, boolean>;
   const { initialState } = useModel('@@initialState');
-  const menu = useMenu();
-  const name = initialState?.currentUser?.name;
+  // 没填姓名的账号 name 是登录邮箱：不把邮箱当姓名显示，只问好（ui-redesign S9）
+  const rawName = initialState?.currentUser?.name;
+  const name = rawName && !rawName.includes('@') ? rawName : undefined;
   const user = initialState?.currentUser?.userid ?? name;
   const shortcuts = SHORTCUTS.filter((s) => access[s.access]);
   const [bench, setBench] = useState<Workbench>();
@@ -103,19 +102,13 @@ const Dashboard: React.FC = () => {
 
   const board = bench?.boards.find((b) => b.code === code) ?? bench?.boards[0];
   const widgets = (board?.widgets ?? []).filter((w) => WIDGETS[w.key]);
+  const keys = new Set(widgets.map((w) => w.key));
 
   return (
     <div>
-      <PageTitle
-        root={menu?.name}
-        crumbs={[]}
-        title={name ? `${greeting()}，${name}` : menu?.name}
-        description={
-          board && board.code !== 'general' && !board.fallback
-            ? `${board.name}看板：按你的数据范围显示，点击数字进入对应列表处理。`
-            : '按你的权限显示相关的业务数据。'
-        }
-        actions={
+      <PageHeader
+        title={name ? `${greeting()}，${name}` : greeting()}
+        extra={
           bench && bench.boards.length > 1 ? (
             <Segmented<string>
               value={board?.code}
@@ -144,7 +137,7 @@ const Dashboard: React.FC = () => {
               style={{
                 marginBottom: 16,
                 padding: '10px 14px',
-                borderRadius: 12,
+                borderRadius: 8,
                 background: palette.inset,
                 color: palette.mute,
                 fontSize: 13,
@@ -153,84 +146,64 @@ const Dashboard: React.FC = () => {
               {board.name}看板正在建设中，先显示通用卡片。
             </div>
           )}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: wide
-                ? 'repeat(2, minmax(0, 1fr))'
-                : 'minmax(0, 1fr)',
-              gap: 16,
-              // 同一行的卡片等高（默认拉伸），不按各自内容高度参差排列（audit UI-041）
-            }}
-          >
-            {widgets.map((w) => {
-              const Widget = WIDGETS[w.key];
-              return (
+          {/* 按行排列、同一行等高（规范「工作台」，ui-redesign D18）；行与行之间 24，同行组件之间 16 */}
+          <BoardContext.Provider value={keys}>
+            <div style={{ display: 'grid', gap: 24 }}>
+              {layoutRows(widgets).map((row) => (
                 <div
-                  key={w.key}
+                  key={row.map((w) => w.key).join(',')}
                   style={{
-                    minWidth: 0,
-                    ...(w.size === 'full' ? { gridColumn: '1 / -1' } : {}),
+                    display: 'grid',
+                    gridTemplateColumns: wide
+                      ? 'repeat(12, minmax(0, 1fr))'
+                      : 'minmax(0, 1fr)',
+                    gap: wide ? 16 : 24,
+                    alignItems: 'stretch',
+                    minHeight: wide ? rowMinHeight(row) : undefined,
                   }}
                 >
-                  <Widget />
+                  {row.map((w) => (
+                    <div
+                      key={w.key}
+                      style={{
+                        minWidth: 0,
+                        gridColumn: wide ? `span ${w.span}` : undefined,
+                      }}
+                    >
+                      {React.createElement(WIDGETS[w.key])}
+                    </div>
+                  ))}
                 </div>
-              );
-            })}
-          </div>
-        </>
-      ) : (
-        <Card style={{ padding: '48px 24px', textAlign: 'center' }}>
-          <span
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 14,
-              background: palette.accentSoft,
-              color: palette.link,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 22,
-            }}
-          >
-            <AppstoreOutlined />
-          </span>
-          <div
-            style={{
-              marginTop: 12,
-              fontSize: 16,
-              fontWeight: 700,
-              color: palette.ink,
-            }}
-          >
-            工作台暂时没有你的卡片
-          </div>
-          <div style={{ marginTop: 8, color: palette.mute, fontSize: 13 }}>
-            工作台按权限显示业务数据，你目前的权限还没有对应的卡片
-            {shortcuts.length > 0 ? '；可以从下面的常用入口开始。' : '。'}
-          </div>
-          {shortcuts.length > 0 && (
-            <div
-              style={{
-                display: 'flex',
-                gap: 10,
-                justifyContent: 'center',
-                marginTop: 20,
-              }}
-            >
-              {shortcuts.map((s) => (
-                <Button
-                  key={s.path}
-                  icon={s.icon}
-                  onClick={() => history.push(s.path)}
-                >
-                  <MenuName path={s.path} />
-                </Button>
               ))}
             </div>
-          )}
-        </Card>
+          </BoardContext.Provider>
+        </>
+      ) : (
+        <Panel>
+          <EmptyState
+            title="工作台暂时没有你的卡片"
+            description={`工作台按权限显示业务数据，你目前的权限还没有对应的卡片${
+              shortcuts.length > 0 ? '；可以从下面的常用入口开始' : ''
+            }`}
+            action={
+              shortcuts.length > 0 && (
+                <div
+                  style={{ display: 'flex', gap: 10, justifyContent: 'center' }}
+                >
+                  {shortcuts.map((s) => (
+                    <Button
+                      key={s.path}
+                      icon={s.icon}
+                      onClick={() => history.push(s.path)}
+                    >
+                      <MenuName path={s.path} />
+                    </Button>
+                  ))}
+                </div>
+              )
+            }
+          />
+        </Panel>
       )}
     </div>
   );

@@ -1,19 +1,4 @@
 import {
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  EnterOutlined,
-  ExclamationCircleOutlined,
-  ExportOutlined,
-  HolderOutlined,
-  InfoCircleOutlined,
-  KeyOutlined,
-  LockOutlined,
-  ReloadOutlined,
-  RightOutlined,
-  RobotOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
-import {
   DndContext,
   type DragEndEvent,
   KeyboardSensor,
@@ -46,10 +31,27 @@ import {
   Switch,
   Typography,
 } from 'antd';
+import {
+  Bot,
+  ChevronRight,
+  CircleAlert,
+  CircleCheck,
+  Clock,
+  CornerDownLeft,
+  ExternalLink,
+  GripVertical,
+  Info,
+  KeyRound,
+  Lock,
+  RotateCw,
+  TriangleAlert,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { PageHeader } from '@/components/ListLayout';
+import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import type { Palette } from '@/theme/palette';
+import { POPUP_SHADOW } from '@/theme/palette';
 import {
   type AiFormValues,
   type CardDraft,
@@ -246,8 +248,8 @@ const ConnectionCard: React.FC<{
           border: `${selected ? 1.5 : 1}px solid ${
             selected ? palette.link : palette.hairline
           }`,
-          background: selected ? palette.accentSoft : palette.card,
-          boxShadow: isDragging ? '0 8px 24px -4px rgba(0,0,0,0.16)' : 'none',
+          background: selected ? palette.primarySoft : palette.card,
+          boxShadow: isDragging ? POPUP_SHADOW : 'none',
           transition: 'background 200ms ease-out, border-color 200ms ease-out',
         }}
       >
@@ -298,7 +300,7 @@ const ConnectionCard: React.FC<{
               touchAction: 'none',
             }}
           >
-            <HolderOutlined />
+            <GripVertical size="1em" />
           </button>
           <span
             style={{
@@ -327,7 +329,7 @@ const ConnectionCard: React.FC<{
               style={{
                 display: 'block',
                 fontSize: 14,
-                fontWeight: 500,
+                fontWeight: 600,
                 color: off ? palette.mute : palette.ink,
               }}
             >
@@ -580,14 +582,14 @@ const AiSettingsPage: React.FC = () => {
   if (loadError) {
     return (
       <>
-        <PageTitle title="AI 设置" />
+        <PageHeader title="AI 设置" />
         <Card>
           <Result
             status="warning"
             title="AI 设置加载失败"
             subTitle="请检查网络后重试"
             extra={
-              <Button icon={<ReloadOutlined />} onClick={() => load()}>
+              <Button icon={<RotateCw size="1em" />} onClick={() => load()}>
                 重试
               </Button>
             }
@@ -599,7 +601,7 @@ const AiSettingsPage: React.FC = () => {
   if (!config) {
     return (
       <>
-        <PageTitle title="AI 设置" />
+        <PageHeader title="AI 设置" />
         <Card>
           <Skeleton active paragraph={{ rows: 2 }} />
         </Card>
@@ -638,21 +640,21 @@ const AiSettingsPage: React.FC = () => {
     { icon: React.ReactNode; fg: string; bg: string }
   > = {
     ok: {
-      icon: <CheckCircleOutlined />,
+      icon: <CircleCheck size="1em" />,
       fg: palette.green,
       bg: palette.greenSoft,
     },
     warn: {
-      icon: <WarningOutlined />,
+      icon: <TriangleAlert size="1em" />,
       fg: palette.orange,
       bg: palette.orangeSoft,
     },
     bad: {
-      icon: <ExclamationCircleOutlined />,
+      icon: <CircleAlert size="1em" />,
       fg: palette.red,
       bg: palette.redSoft,
     },
-    idle: { icon: <RobotOutlined />, fg: palette.mute, bg: palette.inset },
+    idle: { icon: <Bot size="1em" />, fg: palette.mute, bg: palette.inset },
   };
   const toneIcon = TONE_ICON[summary.tone];
   const chainColor = (c: AiConnection) => {
@@ -682,7 +684,7 @@ const AiSettingsPage: React.FC = () => {
           {toneIcon.icon}
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: palette.ink }}>
+          <div style={{ fontSize: 16, fontWeight: 600, color: palette.ink }}>
             {summary.title}
           </div>
           <div style={{ marginTop: 6, fontSize: 13, color: palette.mute }}>
@@ -704,7 +706,8 @@ const AiSettingsPage: React.FC = () => {
                 return (
                   <React.Fragment key={connKey(c)}>
                     {i > 0 && (
-                      <RightOutlined
+                      <ChevronRight
+                        size="1em"
                         style={{ fontSize: 10, color: palette.faint }}
                       />
                     )}
@@ -767,7 +770,7 @@ const AiSettingsPage: React.FC = () => {
             rel="noreferrer"
           >
             去 {PROVIDER_META[c.provider].consoleName} 控制台创建{' '}
-            <ExportOutlined />
+            <ExternalLink size="1em" />
           </a>
         </span>
       }
@@ -777,7 +780,7 @@ const AiSettingsPage: React.FC = () => {
         autoComplete="off"
         spellCheck={false}
         autoFocus={editingKey === connKey(c)}
-        prefix={<KeyOutlined style={{ color: palette.faint }} />}
+        prefix={<KeyRound size="1em" style={{ color: palette.faint }} />}
         placeholder={`粘贴 ${PROVIDER_META[c.provider].name} 的 API Key`}
         suffix={
           c.hasKey && (
@@ -853,7 +856,7 @@ const AiSettingsPage: React.FC = () => {
             color: palette.orange,
           }}
         >
-          <ClockCircleOutlined style={{ marginTop: 3 }} />
+          <Clock size="1em" style={{ marginTop: 3 }} />
           {`${reasonLabel(c.pausedReason)}，${hm(c.pausedUntil)} 自动恢复；${
             c.mode === 'api'
               ? c.pausedReason === 'auth'
@@ -991,7 +994,7 @@ const AiSettingsPage: React.FC = () => {
                 {o.value}
                 <span style={{ display: 'inline-flex', gap: 4 }}>
                   {o.tags.map((t) => (
-                    <Pill key={t} tone={t === '推荐' ? 'accent' : 'gray'}>
+                    <Pill key={t} tone="gray">
                       {t}
                     </Pill>
                   ))}
@@ -1038,7 +1041,7 @@ const AiSettingsPage: React.FC = () => {
                   borderTop: `1px solid ${palette.hairline}`,
                 }}
               >
-                <EnterOutlined /> 列表里没有的模型可直接输入名称
+                <CornerDownLeft size="1em" /> 列表里没有的模型可直接输入名称
               </div>
             </>
           )}
@@ -1065,7 +1068,7 @@ const AiSettingsPage: React.FC = () => {
           color: palette.sub,
         }}
       >
-        <ClockCircleOutlined style={{ color: palette.orange, marginTop: 3 }} />
+        <Clock size="1em" style={{ color: palette.orange, marginTop: 3 }} />
         <div>
           <div style={{ fontWeight: 600, color: palette.orange }}>
             暂停中 · {reasonLabel(sel.pausedReason)}
@@ -1095,7 +1098,7 @@ const AiSettingsPage: React.FC = () => {
       {sel?.settingsReadonly && (
         <span style={{ marginLeft: 'auto' }}>
           <Pill tone="gray">
-            <LockOutlined /> 由平台设置
+            <Lock size="1em" /> 由平台设置
           </Pill>
         </span>
       )}
@@ -1136,7 +1139,7 @@ const AiSettingsPage: React.FC = () => {
           >
             <div>
               <div
-                style={{ fontSize: 13, fontWeight: 500, color: palette.ink }}
+                style={{ fontSize: 13, fontWeight: 600, color: palette.ink }}
               >
                 {k}
               </div>
@@ -1148,7 +1151,7 @@ const AiSettingsPage: React.FC = () => {
                 </div>
               )}
             </div>
-            <span style={{ fontSize: 14, fontWeight: 500, color: palette.ink }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: palette.ink }}>
               {v}
             </span>
           </div>
@@ -1189,7 +1192,7 @@ const AiSettingsPage: React.FC = () => {
         }}
       >
         <div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: palette.ink }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: palette.ink }}>
             每次解析最多搜索
           </div>
           <div style={{ fontSize: 12, color: palette.mute, marginTop: 4 }}>
@@ -1233,7 +1236,7 @@ const AiSettingsPage: React.FC = () => {
         borderRadius: 12,
         background: palette.card,
         border: `1px solid ${palette.hairline}`,
-        boxShadow: '0 8px 24px -4px rgba(0,0,0,0.16)',
+        boxShadow: POPUP_SHADOW,
         animation: 'ai-save-bar-in 200ms ease-out',
       }}
     >
@@ -1251,7 +1254,7 @@ const AiSettingsPage: React.FC = () => {
           color: palette.ink,
         }}
       >
-        <InfoCircleOutlined style={{ color: palette.link }} />
+        <Info size="1em" style={{ color: palette.link }} />
         {saveHint}
       </span>
       <span style={{ display: 'inline-flex', gap: 8 }}>
@@ -1267,9 +1270,9 @@ const AiSettingsPage: React.FC = () => {
 
   return (
     <>
-      <PageTitle
+      <PageHeader
         title="AI 设置"
-        description="询盘解析、型号描述翻译、联系人名音译使用的 AI 服务。"
+        help="询盘解析、型号描述翻译、联系人名音译使用的 AI 服务"
       />
       {statusCard}
       <Form

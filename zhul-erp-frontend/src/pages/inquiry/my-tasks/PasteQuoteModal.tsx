@@ -1,13 +1,4 @@
 import {
-  ArrowLeftOutlined,
-  CheckOutlined,
-  InfoCircleOutlined,
-  LoadingOutlined,
-  RobotOutlined,
-  ScanOutlined,
-  SnippetsOutlined,
-} from '@ant-design/icons';
-import {
   App,
   Button,
   Checkbox,
@@ -18,8 +9,20 @@ import {
   Table,
   type TableColumnsType,
 } from 'antd';
+import {
+  ArrowLeft,
+  Bot,
+  Check,
+  ClipboardList,
+  Info,
+  LoaderCircle,
+  ScanLine,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
+import { rowAlert } from '@/components/RowAlert';
 import { useAppTheme } from '@/theme/AppTheme';
+import { tableScrollX } from '@/utils/tableScroll';
 import { Pill, useQuoteDicts } from '../shared/components';
 import {
   CHANNEL_OPTIONS,
@@ -48,14 +51,14 @@ import SupplierSelect from './SupplierSelect';
 
 const POLL_MS = 2000;
 
-const banner = (bg: string, border: string): React.CSSProperties => ({
+const banner = (bg: string, border?: string): React.CSSProperties => ({
   display: 'flex',
   alignItems: 'center',
   gap: 10,
   padding: '10px 14px',
   borderRadius: 10,
   background: bg,
-  border: `1px solid ${border}`,
+  border: border ? `1px solid ${border}` : undefined,
 });
 
 /** 预览行：识别结果 + 采购的修改 */
@@ -390,6 +393,121 @@ const PasteQuoteModal: React.FC<{
     .filter((i) => !i.locked)
     .map((i) => ({ value: i.id, label: i.model }));
 
+  const pasteColumns: TableColumnsType<Row> = [
+    {
+      title: '原文',
+      dataIndex: 'raw',
+      width: 240,
+      render: (v: string) => (
+        <span style={{ fontSize: 12, color: palette.sub }}>{v}</span>
+      ),
+    },
+    {
+      title: '对应型号',
+      key: 'model',
+      width: 200,
+      render: (_, r) => (
+        <Select
+          value={r.itemId ?? undefined}
+          allowClear
+          placeholder="选择任务型号"
+          options={modelOptions}
+          status={!r.itemId ? 'warning' : undefined}
+          onChange={(v?: number) => patch(r.key, { itemId: v ?? null })}
+          style={{ width: 180 }}
+          aria-label={`${r.raw} 对应型号`}
+        />
+      ),
+    },
+    {
+      title: '单价（CNY）',
+      key: 'price',
+      width: 120,
+      render: (_, r) => (
+        <InputNumber
+          value={r.unitPrice ?? null}
+          min={0}
+          precision={2}
+          placeholder="填单价"
+          status={r.unitPrice == null ? 'error' : undefined}
+          onChange={(v) =>
+            patch(r.key, {
+              unitPrice: v === null ? null : Number(v),
+            })
+          }
+          style={{ width: 106 }}
+          aria-label={`${r.raw} 单价`}
+        />
+      ),
+    },
+    {
+      title: '含税',
+      key: 'tax',
+      width: 60,
+      render: (_, r) => (
+        <Checkbox
+          checked={r.taxIncluded}
+          onChange={(e) => patch(r.key, { taxIncluded: e.target.checked })}
+          aria-label={`${r.raw} 含税`}
+        />
+      ),
+    },
+    {
+      title: '货况',
+      key: 'cond',
+      width: 130,
+      render: (_, r) => (
+        <Select
+          value={r.itemCondition || undefined}
+          options={conditionOptions}
+          onChange={(v: number) => patch(r.key, { itemCondition: v })}
+          style={{ width: 118 }}
+          aria-label={`${r.raw} 货况`}
+        />
+      ),
+    },
+    {
+      title: '货期',
+      key: 'lead',
+      width: 120,
+      render: (_, r) => (
+        <Select
+          value={r.leadTime || undefined}
+          allowClear
+          placeholder="—"
+          options={leadTimeOptions}
+          onChange={(v?: number) => patch(r.key, { leadTime: v ?? 0 })}
+          style={{ width: 108 }}
+          aria-label={`${r.raw} 货期`}
+        />
+      ),
+    },
+    {
+      title: '状态',
+      key: 'status',
+      width: 130,
+      render: (_, r) =>
+        r.locked ? (
+          <Pill tone="violet">已报给客户，不能改</Pill>
+        ) : ready(r) ? (
+          <span
+            style={{
+              display: 'inline-flex',
+              gap: 4,
+              flexWrap: 'wrap',
+            }}
+          >
+            <Pill tone="green">将填入</Pill>
+            {dupModels.has(r.itemId) && <Pill tone="orange">同型号多行</Pill>}
+          </span>
+        ) : (
+          <Pill tone={!r.itemId ? 'orange' : 'red'}>
+            {!r.itemId ? '未匹配' : '缺单价'}
+          </Pill>
+        ),
+    },
+  ];
+
   return (
     <Modal
       open={open}
@@ -398,7 +516,7 @@ const PasteQuoteModal: React.FC<{
       destroyOnHidden
       title={
         <span>
-          {rows ? <ScanOutlined /> : <SnippetsOutlined />}{' '}
+          {rows ? <ScanLine size="1em" /> : <ClipboardList size="1em" />}{' '}
           {rows
             ? aiMode
               ? '粘贴报价 · 核对后填入'
@@ -413,7 +531,7 @@ const PasteQuoteModal: React.FC<{
               <Button onClick={onClose}>取消</Button>
             ) : (
               <Button
-                icon={<ArrowLeftOutlined />}
+                icon={<ArrowLeft size="1em" />}
                 onClick={() => setRows(null)}
               >
                 返回修改原文
@@ -421,7 +539,7 @@ const PasteQuoteModal: React.FC<{
             )}
             <Button
               type="primary"
-              icon={<CheckOutlined />}
+              icon={<Check size="1em" />}
               disabled={fillable.length === 0}
               onClick={fill}
             >
@@ -448,7 +566,7 @@ const PasteQuoteModal: React.FC<{
             </Button>
             <Button
               type="primary"
-              icon={<RobotOutlined />}
+              icon={<Bot size="1em" />}
               disabled={!canParse || !!aiRun || busy}
               onClick={parseAi}
             >
@@ -460,7 +578,7 @@ const PasteQuoteModal: React.FC<{
             <Button onClick={onClose}>取消</Button>
             <Button
               type="primary"
-              icon={<ScanOutlined />}
+              icon={<ScanLine size="1em" />}
               loading={busy}
               disabled={!canParse}
               onClick={parse}
@@ -546,9 +664,13 @@ const PasteQuoteModal: React.FC<{
             </div>
           </div>
           {aiRun && (
-            <div style={banner(palette.accentSoft, palette.accentLine)}>
-              <LoadingOutlined style={{ color: palette.link }} />
-              <span style={{ color: palette.link, flex: 1 }}>
+            <div style={banner(palette.inset)}>
+              <LoaderCircle
+                size="1em"
+                className="zhul-spin"
+                style={{ color: palette.link }}
+              />
+              <span style={{ color: palette.ink, flex: 1 }}>
                 AI 识别中 · 已用 {elapsed} 秒
               </span>
               <Button type="link" size="small" onClick={cancelAi}>
@@ -558,7 +680,7 @@ const PasteQuoteModal: React.FC<{
           )}
           {aiError && !aiRun && (
             <div style={banner(palette.redSoft, palette.red)}>
-              <InfoCircleOutlined style={{ color: palette.red }} />
+              <Info size="1em" style={{ color: palette.red }} />
               <span style={{ color: palette.ink, flex: 1 }}>
                 {aiError}，可以重试或点「按规则识别」
               </span>
@@ -582,7 +704,7 @@ const PasteQuoteModal: React.FC<{
                 flexWrap: 'wrap',
               }}
             >
-              <Pill tone="accent">AI 识别</Pill>
+              <Pill tone="gray">AI 识别</Pill>
               <span style={{ color: palette.sub }}>
                 {source} · 原文 {lineCount(text)} 行
               </span>
@@ -627,7 +749,7 @@ const PasteQuoteModal: React.FC<{
                 fontSize: 12,
               }}
             >
-              <InfoCircleOutlined /> 整段说明「{common}
+              <Info size="1em" /> 整段说明「{common}
               」：已套用到没写明含税、货况、货期的行，原文写进每行备注。
             </div>
           )}
@@ -636,147 +758,25 @@ const PasteQuoteModal: React.FC<{
             size="small"
             pagination={false}
             dataSource={rows}
-            scroll={{ x: 'max-content', y: 420 }}
+            scroll={{
+              x: tableScrollX(aiMode ? aiColumns : pasteColumns),
+              y: 420,
+            }}
             locale={{
-              emptyText: aiMode
-                ? '原文里没有找到这个任务的型号'
-                : '没有认出带型号或价格的行',
+              emptyText: tableEmpty(
+                aiMode
+                  ? '原文里没有找到这个任务的型号'
+                  : '没有认出带型号或价格的行',
+                undefined,
+                true,
+              ),
             }}
             onRow={(r) =>
               aiMode && r.confidence === 'CHECK' && !r.locked
-                ? { style: { background: palette.orangeSoft } }
+                ? rowAlert('warning')
                 : {}
             }
-            columns={
-              aiMode
-                ? aiColumns
-                : [
-                    {
-                      title: '原文',
-                      dataIndex: 'raw',
-                      width: 240,
-                      render: (v: string) => (
-                        <span style={{ fontSize: 12, color: palette.sub }}>
-                          {v}
-                        </span>
-                      ),
-                    },
-                    {
-                      title: '对应型号',
-                      key: 'model',
-                      width: 200,
-                      render: (_, r) => (
-                        <Select
-                          value={r.itemId ?? undefined}
-                          allowClear
-                          placeholder="选择任务型号"
-                          options={modelOptions}
-                          status={!r.itemId ? 'warning' : undefined}
-                          onChange={(v?: number) =>
-                            patch(r.key, { itemId: v ?? null })
-                          }
-                          style={{ width: 180 }}
-                          aria-label={`${r.raw} 对应型号`}
-                        />
-                      ),
-                    },
-                    {
-                      title: '单价（CNY）',
-                      key: 'price',
-                      width: 120,
-                      render: (_, r) => (
-                        <InputNumber
-                          value={r.unitPrice ?? null}
-                          min={0}
-                          precision={2}
-                          placeholder="填单价"
-                          status={r.unitPrice == null ? 'error' : undefined}
-                          onChange={(v) =>
-                            patch(r.key, {
-                              unitPrice: v === null ? null : Number(v),
-                            })
-                          }
-                          style={{ width: 106 }}
-                          aria-label={`${r.raw} 单价`}
-                        />
-                      ),
-                    },
-                    {
-                      title: '含税',
-                      key: 'tax',
-                      width: 60,
-                      render: (_, r) => (
-                        <Checkbox
-                          checked={r.taxIncluded}
-                          onChange={(e) =>
-                            patch(r.key, { taxIncluded: e.target.checked })
-                          }
-                          aria-label={`${r.raw} 含税`}
-                        />
-                      ),
-                    },
-                    {
-                      title: '货况',
-                      key: 'cond',
-                      width: 130,
-                      render: (_, r) => (
-                        <Select
-                          value={r.itemCondition || undefined}
-                          options={conditionOptions}
-                          onChange={(v: number) =>
-                            patch(r.key, { itemCondition: v })
-                          }
-                          style={{ width: 118 }}
-                          aria-label={`${r.raw} 货况`}
-                        />
-                      ),
-                    },
-                    {
-                      title: '货期',
-                      key: 'lead',
-                      width: 120,
-                      render: (_, r) => (
-                        <Select
-                          value={r.leadTime || undefined}
-                          allowClear
-                          placeholder="—"
-                          options={leadTimeOptions}
-                          onChange={(v?: number) =>
-                            patch(r.key, { leadTime: v ?? 0 })
-                          }
-                          style={{ width: 108 }}
-                          aria-label={`${r.raw} 货期`}
-                        />
-                      ),
-                    },
-                    {
-                      title: '状态',
-                      key: 'status',
-                      width: 130,
-                      render: (_, r) =>
-                        r.locked ? (
-                          <Pill tone="violet">已报给客户，不能改</Pill>
-                        ) : ready(r) ? (
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              gap: 4,
-                              flexWrap: 'wrap',
-                            }}
-                          >
-                            <Pill tone="green">将填入</Pill>
-                            {dupModels.has(r.itemId) && (
-                              <Pill tone="orange">同型号多行</Pill>
-                            )}
-                          </span>
-                        ) : (
-                          <Pill tone={!r.itemId ? 'orange' : 'red'}>
-                            {!r.itemId ? '未匹配' : '缺单价'}
-                          </Pill>
-                        ),
-                    },
-                  ]
-            }
+            columns={aiMode ? aiColumns : pasteColumns}
           />
           {aiMode && others.length > 0 && (
             <div style={{ display: 'grid', gap: 8 }}>
@@ -831,7 +831,7 @@ const PasteQuoteModal: React.FC<{
           )}
           {!aiMode && (
             <div style={{ fontSize: 12, color: palette.mute }}>
-              <InfoCircleOutlined />{' '}
+              <Info size="1em" />{' '}
               同一渠道、同一店铺已有的草稿会被覆盖，其余追加；填入后不会自动保存，核对后点「保存草稿」或「提交回价」。
             </div>
           )}

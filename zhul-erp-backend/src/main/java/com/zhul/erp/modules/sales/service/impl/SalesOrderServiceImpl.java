@@ -1607,6 +1607,8 @@ public class SalesOrderServiceImpl implements SalesOrderService {
         vo.setCustomerId(o.getCustomerId());
         vo.setBusinessUnitId(o.getBusinessUnitId());
         vo.setCustomerName(InquiryLookups.customerName(customer));
+        vo.setCustomerCountry(customer == null ? null : customer.getCountry());
+        vo.setCustomerContact(InquiryLookups.contactName(customer));
         vo.setOwnerId(o.getOwnerId());
         vo.setOwnerName(users.get(o.getOwnerId()));
         vo.setCurrencyCode(o.getCurrencyCode());

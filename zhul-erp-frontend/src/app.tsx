@@ -1,8 +1,10 @@
 import type { Settings as LayoutSettings } from '@ant-design/pro-components';
 import type { RequestConfig, RunTimeLayoutConfig } from '@umijs/max';
 import { history, Link, request as umiRequest, useModel } from '@umijs/max';
+import { Button } from 'antd';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import React from 'react';
 
 // Initialize dayjs plugins globally
@@ -14,15 +16,20 @@ import {
   LangDropdown,
   OfflineBanner,
 } from '@/components';
+import { EmptyState } from '@/components/EmptyState';
+import { Panel } from '@/components/ListLayout';
 import PageTabs from '@/components/PageTabs';
 import { tabsActions } from '@/components/PageTabs/store';
 import PasteToUpload from '@/components/PasteToUpload';
 import {
   AppLogo,
   NotificationBell,
-  SidebarUser,
-  ThemeToggle,
+  ShellStyle,
+  SiderPeek,
+  SkipLink,
+  ThemeSettings,
   TopBar,
+  UserMenu,
 } from '@/components/Shell';
 import { SiteFavicon } from '@/components/Shell/BrandLogo';
 import { getMenuTree, type MenuItem } from '@/pages/system/menu/service';
@@ -30,7 +37,7 @@ import type { CurrentUser } from '@/services/zhul/auth';
 import { type AppearanceInfo, getAppearance } from '@/services/zhul/public';
 import { AppThemeSync, useAppTheme } from '@/theme/AppTheme';
 import { buildShellSettings } from '@/theme/shell';
-import { getThemeMode } from '@/theme/store';
+import { getThemeMode, getThemePreset } from '@/theme/store';
 import { firstMenuPath, toProLayoutMenu } from '@/utils/menuOrder';
 import { normalizePath } from '@/utils/tokenStore';
 import defaultSettings from '../config/defaultSettings';
@@ -38,9 +45,9 @@ import { errorConfig } from './requestErrorConfig';
 
 /** 主题切换时把外壳令牌（侧栏、顶栏、内容区）同步进 initialState.settings，ProLayout 从那里读 */
 const ShellThemeSync: React.FC = () => {
-  const { mode } = useAppTheme();
+  const { mode, preset } = useAppTheme();
   const { setInitialState } = useModel('@@initialState');
-  // setInitialState 的引用会随 initialState 变化，依赖它会死循环，只在 mode 变化时同步
+  // setInitialState 的引用会随 initialState 变化，依赖它会死循环，只在主题变化时同步
   const setterRef = React.useRef(setInitialState);
   setterRef.current = setInitialState;
   React.useEffect(() => {
@@ -48,10 +55,10 @@ const ShellThemeSync: React.FC = () => {
       ...s,
       settings: {
         ...s?.settings,
-        ...buildShellSettings(mode),
+        ...buildShellSettings(mode, preset),
       } as Partial<LayoutSettings>,
     }));
-  }, [mode]);
+  }, [mode, preset]);
   return null;
 };
 
@@ -59,7 +66,7 @@ const ShellThemeSync: React.FC = () => {
 const initialShellSettings = () =>
   ({
     ...defaultSettings,
-    ...buildShellSettings(getThemeMode()),
+    ...buildShellSettings(getThemeMode(), getThemePreset()),
   }) as Partial<LayoutSettings>;
 const loginPath = '/login';
 const publicPaths = [
@@ -83,7 +90,6 @@ export async function getInitialState(): Promise<{
   fetchUserInfo?: () => Promise<
     (CurrentUser & { permissions?: string[]; tenantName?: string }) | undefined
   >;
-  settingDrawerOpen?: boolean;
   // 侧边栏的顺序/名称/图标/层级全部来自「菜单管理」的原始树，而不是 routes.ts 里
   // 写死的书写顺序/英文 name——由 layout 里的 menu.request 直接转成 ProLayout 菜单数据
   menuTree?: MenuItem[];
@@ -91,6 +97,8 @@ export async function getInitialState(): Promise<{
   appearance?: AppearanceInfo;
   /** 侧边栏是否收起：顶栏左侧的按钮切换（audit UI-041） */
   collapsed?: boolean;
+  /** 收起侧栏时鼠标移上去临时浮出展开（SiderPeek） */
+  siderPeek?: boolean;
 }> {
   const fetchUserInfo = async () => {
     try {
@@ -139,14 +147,12 @@ export async function getInitialState(): Promise<{
       menuTree,
       appearance: await appearancePromise,
       settings: initialShellSettings(),
-      settingDrawerOpen: false,
     };
   }
   return {
     fetchUserInfo,
     appearance: await appearancePromise,
     settings: initialShellSettings(),
-    settingDrawerOpen: false,
   };
 }
 
@@ -160,16 +166,24 @@ const homePath = (initialState?: {
   return firstMenuPath(toProLayoutMenu(initialState?.menuTree ?? [], allowed));
 };
 
+/** 侧栏占位宽度：卡片宽 244 + 左边距 16；收起后图标栏 64 + 16 */
+const SIDER_WIDTH = 260;
+const SIDER_COLLAPSED_WIDTH = 80;
+
 // ProLayout 支持的api https://procomponents.ant.design/components/layout
 export const layout: RunTimeLayoutConfig = ({
   initialState,
   setInitialState,
 }) => {
   return {
-    siderWidth: 240,
-    // 收起按钮放在顶栏左侧（TopBar）；ProLayout 自带的浮动圆钮压在侧栏边线和顶栏上，不用
-    collapsed: initialState?.collapsed,
-    onCollapse: (collapsed) => setInitialState((s) => ({ ...s, collapsed })),
+    // 侧栏是悬浮卡片（外壳原型 F1）：宽 244，左侧留 16 的边距，所以占位 260；收起后图标栏 64，占位 80
+    siderWidth: SIDER_WIDTH,
+    // 收起按钮在侧栏 Logo 右侧（AppLogo）；ProLayout 自带的浮动圆钮压在侧栏边线上，不用
+    // 收起后鼠标移上去浮出展开：按展开渲染，占位宽度保持收起时的宽度
+    collapsed: !!initialState?.collapsed && !initialState?.siderPeek,
+    onCollapse: (collapsed) =>
+      setInitialState((s) => ({ ...s, collapsed, siderPeek: false })),
+    menuRender: (_props, dom) => <SiderPeek>{dom}</SiderPeek>,
     collapsedButtonRender: false,
     // 侧边栏菜单树完全由「菜单管理」的数据 + 当前用户的有效权限决定，不再从 umi 由
     // routes.ts 派生出的 menuData 上打补丁（那棵树里混着重定向占位节点，容易把只用
@@ -185,7 +199,14 @@ export const layout: RunTimeLayoutConfig = ({
       const allowed = new Set(initialState?.currentUser?.permissions ?? []);
       return toProLayoutMenu(initialState?.menuTree ?? [], allowed);
     },
-    menu: { locale: false },
+    menu: { locale: false, collapsedWidth: SIDER_COLLAPSED_WIDTH },
+    // 菜单组的箭头：收起时向右、展开时向下（外壳原型 F1）
+    menuProps: {
+      // 收起时不弹出子菜单：鼠标移上去整个侧栏会浮出展开
+      triggerSubMenuAction: 'click',
+      expandIcon: ({ isOpen }: { isOpen?: boolean }) =>
+        isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />,
+    },
     menuItemRender: (item, dom) => {
       if (item.path) {
         return (
@@ -218,11 +239,15 @@ export const layout: RunTimeLayoutConfig = ({
       }
       return dom;
     },
-    // 当前用户卡放在侧栏底部（menuFooterRender），顶栏不再重复放头像
+    // 侧栏顶部：Logo、站点名、公司名和收起按钮；当前用户在顶栏右端的头像菜单里
+    // 点侧栏顶部（Logo、站点名）切到首页标签；ProLayout 默认跳到 /，会多开一个标签
+    onMenuHeaderClick: () => {
+      const home = homePath(initialState);
+      if (home) tabsActions.openMenu(home);
+    },
     menuHeaderRender: (_logo, _title, props) => (
       <AppLogo collapsed={props?.collapsed} />
     ),
-    menuFooterRender: (props) => <SidebarUser collapsed={props?.collapsed} />,
     footerRender: () => <Footer />,
     onPageChange: () => {
       const { location } = history;
@@ -254,33 +279,52 @@ export const layout: RunTimeLayoutConfig = ({
     // Replace ProLayout's default ErrorBoundary with our offline-aware version,
     // so chunk load errors show friendly messages instead of "Something went wrong."
     ErrorBoundary,
-    // 自定义 403 页面
-    // unAccessible: <div>unAccessible</div>,
+    // 没有页面权限：用公共空状态的「无权限」，不用 antd Result 的默认插画（UI-117，检查表 #20）
+    unAccessible: (
+      <Panel style={{ padding: 24 }}>
+        <EmptyState
+          kind="forbidden"
+          title="没有这个页面的权限"
+          description="需要管理员给你的角色开通这个页面"
+          action={
+            <Link to="/">
+              <Button>回到首页</Button>
+            </Link>
+          }
+        />
+      </Panel>
+    ),
     // 增加一个 loading 的状态
     childrenRender: (children) => (
       <>
         <ShellThemeSync />
+        <ShellStyle />
         <PasteToUpload />
         <SiteFavicon
           siteName={initialState?.appearance?.siteName}
           logoUrl={initialState?.appearance?.logoUrl}
         />
+        <SkipLink target="main-content" />
         <TopBar>
-          <NotificationBell />
-          <ThemeToggle />
+          <ThemeSettings />
           <LangDropdown />
+          <NotificationBell />
+          <UserMenu />
         </TopBar>
-        {initialState?.currentUser ? (
-          <PageTabs
-            userKey={String(initialState.currentUser.userid ?? '')}
-            homePath={homePath(initialState)}
-            canOpen={(p) =>
-              (initialState.currentUser?.permissions ?? []).includes(p)
-            }
-          />
-        ) : (
-          children
-        )}
+        {/* 内容区：「跳到主要内容」的目标；antd 的 Layout.Content 已是 <main>，这里用 div */}
+        <div id="main-content" tabIndex={-1} style={{ outline: 'none' }}>
+          {initialState?.currentUser ? (
+            <PageTabs
+              userKey={String(initialState.currentUser.userid ?? '')}
+              homePath={homePath(initialState)}
+              canOpen={(p) =>
+                (initialState.currentUser?.permissions ?? []).includes(p)
+              }
+            />
+          ) : (
+            children
+          )}
+        </div>
       </>
     ),
     ...initialState?.settings,

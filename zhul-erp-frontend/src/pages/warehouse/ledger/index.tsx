@@ -1,28 +1,26 @@
-import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { history, Link, useLocation } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import {
-  App,
-  Button,
-  DatePicker,
-  Form,
-  Input,
-  Segmented,
-  Select,
-  Table,
-} from 'antd';
+import { App, Button, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Download, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterField,
+  HelpTip,
+  MainCard,
+  PageHeader,
+  ViewTabs,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { SignedMoney } from '@/pages/finance/costingParts';
-import { Card, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { categoryApi } from '@/pages/product/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import { WarehousePageTitle } from '../components';
 import { FilterCard, ModelCell, useWarehouses } from '../inventoryParts';
 import {
   type CategoryLedger,
@@ -253,17 +251,20 @@ const LedgerPage: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle
-        actions={
-          <Segmented<View>
-            value={view}
-            onChange={(v) => switchView(v)}
-            options={[
-              { label: '类目账', value: 'category' },
-              { label: '明细账', value: 'detail' },
-            ]}
-          />
+      <PageHeader
+        help={
+          view === 'category'
+            ? '按单据的业务日期归月；点品类查看它的明细账'
+            : `按单据的业务日期归月；期末金额 = 期初 + 入库 − 出库 + 成本调整${filters.warehouseId ? '' : '（全部仓库不含仓库之间的调拨）'}；点数量查看对应流水`
         }
+      />
+      <ViewTabs
+        activeKey={view}
+        onChange={(k) => switchView(k as View)}
+        items={[
+          { key: 'category', label: '类目账' },
+          { key: 'detail', label: '明细账' },
+        ]}
       />
       <FilterCard
         form={form}
@@ -277,84 +278,77 @@ const LedgerPage: React.FC = () => {
           setPage(1);
         }}
       >
-        <Form.Item name="month" label="月份" style={{ marginBottom: 0 }}>
-          <DatePicker
-            picker="month"
-            allowClear={false}
-            style={{ width: '100%' }}
-            disabledDate={(d) => d.isAfter(dayjs(), 'month')}
-          />
-        </Form.Item>
-        <Form.Item name="warehouseId" label="仓库" style={{ marginBottom: 0 }}>
-          <Select
-            allowClear
-            placeholder="全部仓库"
-            options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
-          />
-        </Form.Item>
-        {view === 'detail' && (
-          <Form.Item
-            name="categoryId"
-            label="一级品类"
-            style={{ marginBottom: 0 }}
-          >
-            <Select
-              allowClear
-              showSearch={{ optionFilterProp: 'label' }}
-              placeholder="全部品类"
-              options={categories}
+        <FilterField label="月份">
+          <Form.Item name="month" noStyle>
+            <DatePicker
+              aria-label="月份"
+              picker="month"
+              allowClear={false}
+              style={{ width: '100%' }}
+              disabledDate={(d) => d.isAfter(dayjs(), 'month')}
             />
           </Form.Item>
+        </FilterField>
+        <FilterField label="仓库">
+          <Form.Item name="warehouseId" noStyle>
+            <Select
+              aria-label="仓库"
+              allowClear
+              placeholder="全部仓库"
+              options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
+            />
+          </Form.Item>
+        </FilterField>
+        {view === 'detail' && (
+          <FilterField label="一级品类">
+            <Form.Item name="categoryId" noStyle>
+              <Select
+                aria-label="一级品类"
+                allowClear
+                showSearch={{ optionFilterProp: 'label' }}
+                placeholder="全部品类"
+                options={categories}
+              />
+            </Form.Item>
+          </FilterField>
         )}
         {view === 'detail' && (
-          <Form.Item name="keyword" label="关键词" style={{ marginBottom: 0 }}>
-            <Input
-              allowClear
-              prefix={<SearchOutlined />}
-              placeholder="型号、品牌"
-            />
-          </Form.Item>
+          <FilterField label="关键词">
+            <Form.Item name="keyword" noStyle>
+              <Input
+                aria-label="关键词"
+                allowClear
+                prefix={<Search size="1em" />}
+                onPressEnter={() => form.submit()}
+                placeholder="型号、品牌"
+              />
+            </Form.Item>
+          </FilterField>
         )}
       </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 16 }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 12,
-              gap: 12,
-              flexWrap: 'wrap',
-            }}
-          >
-            {period?.status === 1 ? (
-              <span style={{ color: palette.sub, fontSize: 13 }}>
-                <Pill tone="green">已结账</Pill> {period.closedByName}{' '}
-                {formatDateTime(period.closedAt).slice(0, 16)}{' '}
-                结账，显示结账时的快照；之后的成本调整记在当前未结账月份
-              </span>
-            ) : view === 'category' ? (
-              <span>
-                {period && <Pill tone="orange">{period.month} 未结账</Pill>}
+        <MainCard
+          left={
+            period?.status === 1 ? (
+              <span
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                <Pill tone="green">已结账</Pill>
+                {period.closedByName}{' '}
+                {formatDateTime(period.closedAt).slice(0, 16)} 结账
+                <HelpTip title="显示结账时的快照；之后的成本调整记在当前未结账月份" />
               </span>
             ) : (
-              <span style={{ color: palette.sub, fontSize: 13 }}>
-                按单据的业务日期归月；期末金额 = 期初 + 入库 − 出库 + 成本调整
-                {filters.warehouseId ? '' : '（全部仓库不含仓库之间的调拨）'}
-                ；点数量查看对应流水
-                {period && (
-                  <>
-                    {' '}
-                    <Pill tone="orange">{period.month} 未结账</Pill>
-                  </>
-                )}
-              </span>
-            )}
+              period && <Pill tone="orange">{period.month} 未结账</Pill>
+            )
+          }
+          right={
             <Button
-              icon={<DownloadOutlined />}
+              type="text"
+              icon={<Download size="1em" />}
+              style={{ color: palette.link }}
               loading={exporting}
               disabled={
                 view === 'category' ? !catLedger?.rows.length : total === 0
@@ -380,7 +374,8 @@ const LedgerPage: React.FC = () => {
             >
               导出 Excel
             </Button>
-          </div>
+          }
+        >
           {view === 'category' ? (
             <CategoryLedgerTable
               data={catLedger}
@@ -391,15 +386,17 @@ const LedgerPage: React.FC = () => {
           ) : (
             <Table<LedgerRow>
               rowKey={(r) => r.productId}
-              size="middle"
               loading={loading}
               columns={columns}
               dataSource={rows}
               scroll={{ x: tableScrollX(columns) }}
               locale={{
-                emptyText: filters.warehouseId
-                  ? `${warehouses.find((w) => w.id === filters.warehouseId)?.name ?? '该仓库'} 在 ${query.month} 没有库存往来`
-                  : '这个月没有库存',
+                emptyText: tableEmpty(
+                  filters.warehouseId
+                    ? `${warehouses.find((w) => w.id === filters.warehouseId)?.name ?? '该仓库'} 在 ${query.month} 没有库存往来`
+                    : '这个月没有库存',
+                  loading,
+                ),
               }}
               summary={() =>
                 rows.length > 0 ? (
@@ -436,10 +433,10 @@ const LedgerPage: React.FC = () => {
                 ) : null
               }
               pagination={{
+                ...PAGER_STYLE,
                 current: page,
                 pageSize,
                 total,
-                showSizeChanger: true,
                 showTotal: (t) => `共 ${t} 条`,
                 onChange: (p, s) => {
                   setPage(p);
@@ -448,7 +445,7 @@ const LedgerPage: React.FC = () => {
               }}
             />
           )}
-        </Card>
+        </MainCard>
       )}
     </div>
   );

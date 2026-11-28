@@ -1,5 +1,5 @@
-import { RobotOutlined, SwapOutlined } from '@ant-design/icons';
 import { Select } from 'antd';
+import { ArrowLeftRight, Bot } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { Pill } from '../components/Pills';
 import type {
@@ -68,15 +68,13 @@ export const RefineTabs: React.FC<{
   const { palette } = useProductTheme();
   return (
     <div
+      className="zhul-card"
       role="tablist"
       aria-label="品类未细分"
       style={{
         display: 'inline-flex',
         gap: 4,
         padding: 4,
-        borderRadius: 12,
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
       }}
     >
       {TABS.map((t) => {
@@ -92,8 +90,8 @@ export const RefineTabs: React.FC<{
               height: 30,
               padding: '0 14px',
               borderRadius: 8,
-              border: `1px solid ${on ? '#2563EB' : 'transparent'}`,
-              background: on ? palette.accentSoft : 'transparent',
+              border: `1px solid ${on ? palette.primaryLine : 'transparent'}`,
+              background: on ? palette.primarySoft : 'transparent',
               color: on ? palette.ink : palette.sub,
               fontWeight: on ? 600 : 400,
               fontSize: 13,
@@ -125,12 +123,12 @@ export const AiSuggestion: React.FC<{ row: Product }> = ({ row }) => {
   return (
     <div style={{ display: 'grid', gap: 4, justifyItems: 'start' }}>
       <span style={{ fontWeight: 600, color: palette.ink }}>
-        <RobotOutlined style={{ color: '#8B5CF6', marginRight: 6 }} />
+        <Bot size="1em" style={{ color: palette.link, marginRight: 6 }} />
         {row.aiCategoryName}
       </span>
       {row.aiCategoryCross && (
         <Pill tone="orange">
-          <SwapOutlined /> 改一级品类
+          <ArrowLeftRight size="1em" /> 改一级品类
         </Pill>
       )}
     </div>
@@ -173,6 +171,7 @@ export const RechooseSelect: React.FC<{
   }, [categories, row]);
   return (
     <span
+      style={{ display: 'block' }}
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.stopPropagation()}
     >
@@ -180,7 +179,8 @@ export const RechooseSelect: React.FC<{
         autoFocus
         defaultOpen
         size="small"
-        style={{ width: 200 }}
+        // 撑满「AI 建议品类」单元格，不压到右边的列（UI-111）；下拉面板另设 280 宽
+        style={{ width: '100%' }}
         popupMatchSelectWidth={280}
         placeholder="搜索细分品类"
         aria-label={`改选 ${row.mpnDisplay} 的细分品类`}

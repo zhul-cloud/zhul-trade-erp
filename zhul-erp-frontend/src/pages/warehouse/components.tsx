@@ -1,14 +1,14 @@
-import {
-  CloseOutlined,
-  FilePdfOutlined,
-  LoadingOutlined,
-  PictureOutlined,
-  PlayCircleOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
 import { App, Checkbox, Input, Modal, Spin, Upload } from 'antd';
+import {
+  CirclePlay,
+  FileText,
+  Image,
+  LoaderCircle,
+  Plus,
+  X,
+} from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Card, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 import {
   AS_STATUS_TONE,
@@ -32,10 +32,6 @@ export const WAREHOUSE_PATHS = {
   order: (id: number) => `/purchase/orders/${id}`,
   salesOrder: (id: number) => `/sales/orders/${id}`,
 };
-
-export const WarehousePageTitle: React.FC<
-  Omit<React.ComponentProps<typeof PageTitle>, 'root'>
-> = (props) => <PageTitle {...props} />;
 
 // ---------------------------------------------------------------- 状态
 
@@ -375,13 +371,13 @@ export const MediaTile: React.FC<{
         {!thumb && (
           <span style={{ display: 'grid', placeItems: 'center', gap: 2 }}>
             {video ? (
-              <PlayCircleOutlined style={{ fontSize: 22 }} />
+              <CirclePlay size="1em" style={{ fontSize: 22 }} />
             ) : file ? (
-              <FilePdfOutlined style={{ fontSize: 22 }} />
+              <FileText size="1em" style={{ fontSize: 22 }} />
             ) : (
-              <PictureOutlined style={{ fontSize: 20 }} />
+              <Image size="1em" style={{ fontSize: 20 }} />
             )}
-            {label && <span style={{ fontSize: 11 }}>{label}</span>}
+            {label && <span style={{ fontSize: 12 }}>{label}</span>}
           </span>
         )}
       </button>
@@ -395,7 +391,7 @@ export const MediaTile: React.FC<{
               bottom: 4,
               padding: '0 4px',
               borderRadius: 4,
-              fontSize: 10,
+              fontSize: 12,
               lineHeight: '16px',
               color: '#fff',
               background:
@@ -434,7 +430,7 @@ export const MediaTile: React.FC<{
             padding: 0,
           }}
         >
-          <CloseOutlined />
+          <X size="1em" />
         </button>
       )}
     </div>
@@ -559,7 +555,11 @@ export const UploadTile: React.FC<{
               : { display: 'grid', placeItems: 'center', gap: 2 }
           }
         >
-          {busy > 0 ? <LoadingOutlined /> : <PlusOutlined />}
+          {busy > 0 ? (
+            <LoaderCircle size="1em" className="zhul-spin" />
+          ) : (
+            <Plus size="1em" />
+          )}
           {label && (busy > 0 ? `上传中 ${busy}` : label)}
         </span>
       </button>
@@ -620,12 +620,12 @@ export const AttachmentCount: React.FC<{
       <span style={{ color: palette.link, whiteSpace: 'nowrap' }}>
         {img > 0 && (
           <>
-            <PictureOutlined /> {img}{' '}
+            <Image size="1em" /> {img}{' '}
           </>
         )}
         {vid > 0 && (
           <>
-            <PlayCircleOutlined /> {vid}
+            <CirclePlay size="1em" /> {vid}
           </>
         )}
       </span>
@@ -633,7 +633,7 @@ export const AttachmentCount: React.FC<{
   }
   return count ? (
     <span style={{ color: palette.link }}>
-      <PictureOutlined /> {count}
+      <Image size="1em" /> {count}
     </span>
   ) : (
     <span style={{ color: palette.mute }}>—</span>

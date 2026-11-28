@@ -1,4 +1,3 @@
-import { CloseOutlined, CloudUploadOutlined } from '@ant-design/icons';
 import {
   Alert,
   App,
@@ -12,6 +11,7 @@ import {
   Upload,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { CloudUpload, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import ChunkUploadList, { useChunkUploads } from '@/components/ChunkUploadList';
 import { formatSize, Pill } from '@/pages/crm/opportunity/components';
@@ -185,7 +185,7 @@ const EditInquiryModal: React.FC<{
         type="text"
         size="small"
         aria-label={`删除 ${name}`}
-        icon={<CloseOutlined />}
+        icon={<X size="1em" />}
         style={{ marginLeft: 'auto' }}
         onClick={remove}
       />
@@ -291,7 +291,7 @@ const EditInquiryModal: React.FC<{
               beforeUpload={beforeUpload}
             >
               <span style={{ color: palette.sub }}>
-                <CloudUploadOutlined style={{ color: palette.link }} />{' '}
+                <CloudUpload size="1em" style={{ color: palette.link }} />{' '}
                 上传附件（单个不超过 500MB，合计不超过 2GB）
               </span>
             </Upload.Dragger>

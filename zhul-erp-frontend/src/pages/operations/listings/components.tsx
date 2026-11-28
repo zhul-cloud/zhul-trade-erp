@@ -13,7 +13,7 @@ export const TABS: {
   {
     key: 'pending',
     label: '待发布',
-    tone: 'accent',
+    tone: 'orange',
     empty:
       '没有待发布的商品；资料核对、某个平台的营销内容写完后，会自动生成这个平台的发品任务',
   },

@@ -40,6 +40,10 @@ public class QuotationListVO {
     private Long ownerId;
     private String ownerName;
     private LocalDateTime createTime;
+    /** 创建人、更新时间、更新人：列表页固定四列（创建时间、创建人、更新时间、更新人） */
+    private String createBy;
+    private LocalDateTime updateTime;
+    private String updateBy;
     private LocalDateTime sentAt;
     /** 当前版本号 */
     private Integer currentVersionNo;

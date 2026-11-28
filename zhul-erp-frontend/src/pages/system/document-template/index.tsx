@@ -1,13 +1,5 @@
 // biome-ignore-all lint/suspicious/noTemplateCurlyInString: 占位符说明里的 ${…} 是给管理员看的模版占位符，不是模板字符串
-import {
-  BookOutlined,
-  CloseCircleOutlined,
-  DownloadOutlined,
-  FileExcelOutlined,
-  InfoCircleOutlined,
-  StarOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
+
 import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -18,19 +10,27 @@ import {
   Input,
   Modal,
   Skeleton,
-  Space,
   Table,
-  Tooltip,
 } from 'antd';
+import {
+  Ban,
+  Book,
+  CircleCheck,
+  CircleX,
+  Download,
+  Eye,
+  FileOutput,
+  FileSpreadsheet,
+  Info,
+  Star,
+  Upload,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
+import { PageHeader } from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { readBizError } from '@/pages/crm/opportunity/service';
-import {
-  Card,
-  PageTitle,
-  Pill,
-  useWide,
-} from '@/pages/inquiry/shared/components';
+import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -271,7 +271,7 @@ const DocumentTemplatePage: React.FC = () => {
     const old = versions?.find((x) => x.isDefault);
     modal.confirm({
       title: `把 V${v.versionNo} 设为默认版本？`,
-      icon: <StarOutlined style={{ color: palette.orange }} />,
+      icon: <Star size="1em" style={{ color: palette.orange }} />,
       content: `设为默认后，所有业务员导出的${current?.name.split(' ')[0] ?? '单据'}都使用 V${v.versionNo}${old ? `（原默认 V${old.versionNo}）` : ''}。本次切换会记入操作日志。建议先「预览导出」确认效果。`,
       okText: '设为默认',
       onOk: async () => {
@@ -323,7 +323,7 @@ const DocumentTemplatePage: React.FC = () => {
       width: 84,
       render: (_, v) =>
         v.isDefault ? (
-          <Pill tone="green" dot>
+          <Pill tone="gray" dot>
             默认
           </Pill>
         ) : !v.enabled ? (
@@ -379,77 +379,79 @@ const DocumentTemplatePage: React.FC = () => {
       title: '操作',
       fixed: 'right',
       key: 'a',
-      width: 240,
+      // 预览导出、下载（文本模板为查看）放行内；设为默认、停用收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(canEdit ? 3 : 2),
       render: (_, v) => (
-        <Space size={12}>
-          {current?.generatable ? (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => preview(v)}
-            >
-              预览导出
-            </button>
-          ) : (
-            <Tooltip title="生成功能随发货模块上线，暂时只能下载模版查看">
-              <span style={{ color: palette.mute }}>预览导出</span>
-            </Tooltip>
-          )}
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() =>
-              isText
-                ? setTextPreview(v.content ?? '')
-                : templateApi
-                    .download(v.id)
-                    .catch((e) => message.error(e.message))
-            }
-          >
-            {isText ? '查看' : '下载'}
-          </button>
-          {canEdit && !v.isDefault && v.enabled && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setDefault(v)}
-            >
-              设为默认
-            </button>
-          )}
-          {canEdit && !v.isDefault && (
-            <button
-              type="button"
-              className="zhul-link"
-              style={{
-                color: v.enabled ? palette.sub : palette.link,
-              }}
-              onClick={() => toggle(v)}
-            >
-              {v.enabled ? '停用' : '启用'}
-            </button>
-          )}
-        </Space>
+        <RowActions
+          inline={[
+            {
+              key: 'preview',
+              label: '预览导出',
+              icon: <FileOutput size={18} />,
+              onClick: () => preview(v),
+              disabledReason: current?.generatable
+                ? undefined
+                : '生成功能随发货模块上线，暂时只能下载模版查看',
+            },
+            {
+              key: 'download',
+              label: isText ? '查看' : '下载',
+              icon: isText ? <Eye size={18} /> : <Download size={18} />,
+              onClick: () =>
+                isText
+                  ? setTextPreview(v.content ?? '')
+                  : templateApi
+                      .download(v.id)
+                      .catch((e) => message.error(e.message)),
+            },
+          ]}
+          more={[
+            canEdit &&
+              !v.isDefault &&
+              v.enabled && {
+                key: 'default',
+                label: '设为默认',
+                icon: <Star size={16} />,
+              },
+            canEdit &&
+              !v.isDefault && {
+                key: 'toggle',
+                label: v.enabled ? '停用' : '启用',
+                icon: v.enabled ? <Ban size={16} /> : <CircleCheck size={16} />,
+              },
+          ]}
+          onMore={(key) => {
+            if (key === 'default') setDefault(v);
+            if (key === 'toggle') toggle(v);
+          }}
+        />
       ),
     },
   ];
 
-  if (error) return <ErrorHint message={error} onRetry={refresh} />;
+  if (error) return <ErrorHint page message={error} onRetry={refresh} />;
 
   const builtin = versions?.find((v) => v.builtin);
 
   return (
     <div>
-      <PageTitle
-        description="报价单、PI、CI、PL 与文字报价统一管理；每类单据只有一个默认版本，所有业务员导出都用它。"
-        actions={
+      <PageHeader
+        help="报价单、PI、CI、PL 与文字报价统一管理；每类单据只有一个默认版本，所有业务员导出都用它"
+        extra={
           <>
-            <Button icon={<BookOutlined />} onClick={() => setHelpOpen(true)}>
+            <Button
+              type="text"
+              icon={<Book size="1em" />}
+              style={{ color: palette.link }}
+              onClick={() => setHelpOpen(true)}
+            >
               占位符说明
             </Button>
             {!isText && builtin && (
               <Button
-                icon={<DownloadOutlined />}
+                type="text"
+                icon={<Download size="1em" />}
+                style={{ color: palette.link }}
                 onClick={() =>
                   templateApi
                     .download(builtin.id)
@@ -462,7 +464,7 @@ const DocumentTemplatePage: React.FC = () => {
             {canEdit && (
               <Button
                 type="primary"
-                icon={<UploadOutlined />}
+                icon={<Upload size="1em" />}
                 onClick={openUpload}
               >
                 {isText ? '编辑新版本' : '上传新版本'}
@@ -493,8 +495,8 @@ const DocumentTemplatePage: React.FC = () => {
                   cursor: 'pointer',
                   padding: '14px 16px',
                   borderRadius: 14,
-                  background: active ? palette.accentSoft : palette.card,
-                  border: `1px solid ${active ? palette.accentLine : palette.hairline}`,
+                  background: active ? palette.primarySoft : palette.card,
+                  border: `1px solid ${active ? palette.primaryLine : palette.hairline}`,
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
@@ -533,11 +535,6 @@ const DocumentTemplatePage: React.FC = () => {
                 rowKey="id"
                 pagination={false}
                 dataSource={versions}
-                onRow={(v) =>
-                  v.isDefault
-                    ? { style: { background: palette.accentSoft } }
-                    : {}
-                }
                 columns={versionColumns}
               />
             )}
@@ -552,7 +549,7 @@ const DocumentTemplatePage: React.FC = () => {
               fontSize: 13,
             }}
           >
-            <InfoCircleOutlined />{' '}
+            <Info size="1em" />{' '}
             版本保存后不能修改，要调整就上传新版本；设为默认前可以先「预览导出」用示例数据看效果。默认版本不能停用。
           </div>
         </div>
@@ -622,7 +619,8 @@ const DocumentTemplatePage: React.FC = () => {
                 border: `1px dashed ${palette.control}`,
               }}
             >
-              <FileExcelOutlined
+              <FileSpreadsheet
+                size="1em"
                 style={{ fontSize: 20, color: palette.green }}
               />
               <span style={{ flex: 1 }}>
@@ -652,7 +650,7 @@ const DocumentTemplatePage: React.FC = () => {
             style={{ marginTop: 12 }}
             type="error"
             showIcon
-            icon={<CloseCircleOutlined />}
+            icon={<CircleX size="1em" />}
             title={problems[0]}
             description={
               problems.length > 1

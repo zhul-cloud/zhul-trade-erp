@@ -1,5 +1,6 @@
 import { request } from '@umijs/max';
 import type { Attachment, DocLog, DocRef } from '@/pages/warehouse/service';
+import { attrTone } from '@/theme/palette';
 import type { FileRef } from '../payables/service';
 
 const BASE = '/api/v1/finance/refunds';
@@ -21,6 +22,12 @@ export const REFUND_METHODS = [
   { value: 2, label: '银行汇款' },
   { value: 3, label: '转客户余额' },
 ];
+
+/** 退款去向的属性色：按 REFUND_METHODS 顺序取，同列不重复（D75） */
+export const refundMethodTone = (method?: number) => {
+  const i = REFUND_METHODS.findIndex((m) => m.value === method);
+  return i < 0 ? ('gray' as const) : attrTone(i);
+};
 
 /** 退款单类型：售后退款冲减订单利润，余额提现不影响利润 */
 export const REFUND_TYPE_AFTER_SALES = 1;

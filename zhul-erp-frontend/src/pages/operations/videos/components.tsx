@@ -1,6 +1,7 @@
-import { PictureOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { Image as ImageIcon, Play } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { AlertLabel } from '@/components/MetricCard';
 import { Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 import type { FileLink } from '@/pages/operations/media/service';
@@ -28,7 +29,7 @@ export const TABS: { key: VideoTab; label: string; empty: string }[] = [
 
 export const STATUS_TONE: Record<VideoStatus, Tone> = {
   1: 'gray',
-  2: 'violet',
+  2: 'info',
   3: 'accent',
   4: 'orange',
   5: 'green',
@@ -40,20 +41,20 @@ export const STATUS_TONE: Record<VideoStatus, Tone> = {
 export const StatusCell: React.FC<{ task: VideoTask }> = ({ task: t }) => {
   const { palette } = useAppTheme();
   let note: React.ReactNode = null;
-  let noteColor: string = palette.mute;
+  let warn = false;
   if (t.status === 2 && t.expectedAt) {
     note = `预计 ${dayjs(t.expectedAt).format('HH:mm')} 开始`;
   } else if (t.status === 3) {
     note = '生成中，约几分钟';
   } else if (t.status === 6 && t.rejectReason) {
+    // 退回、失败的原因：状态标签已是错误色，原因用次要色文字，不再一层彩字
     note = t.rejectReason;
-    noteColor = palette.orange;
   } else if (t.status === 7 && t.failReason) {
     note = t.failReason;
-    noteColor = palette.red;
   } else if (t.status === 1 && t.usedCount < 4) {
+    // 要处理的提醒做成带图标的浅底标签（规范「警告不用纯文字」）
     note = `选用 ${t.usedCount} 张，至少要 4 张`;
-    noteColor = palette.orange;
+    warn = true;
   }
   return (
     <div>
@@ -61,18 +62,23 @@ export const StatusCell: React.FC<{ task: VideoTask }> = ({ task: t }) => {
         {t.statusName}
         {t.status === 2 && t.queuePosition ? ` · 第 ${t.queuePosition} 位` : ''}
       </Pill>
-      {note && (
-        <div
-          style={{
-            fontSize: 12,
-            color: noteColor,
-            marginTop: 4,
-            maxWidth: 220,
-          }}
-        >
-          {note}
-        </div>
-      )}
+      {note &&
+        (warn ? (
+          <div style={{ marginTop: 4 }}>
+            <AlertLabel tone="warning">{note}</AlertLabel>
+          </div>
+        ) : (
+          <div
+            style={{
+              fontSize: 12,
+              color: palette.sub,
+              marginTop: 4,
+              maxWidth: 220,
+            }}
+          >
+            {note}
+          </div>
+        ))}
     </div>
   );
 };
@@ -145,17 +151,25 @@ export const Thumb: React.FC<{
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
         />
       ) : (
-        <PictureOutlined style={{ color: palette.mute }} />
+        <ImageIcon size={Math.min(w, h) / 2} style={{ color: palette.mute }} />
       )}
       {video && (
-        <PlayCircleOutlined
+        // 播放标记：卡片底色小圆配正文色图标，照片深浅都看得清，不用写死白色和阴影
+        <span
+          aria-hidden
           style={{
             position: 'absolute',
-            fontSize: Math.min(w, h) / 2.4,
-            color: '#fff',
-            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.5))',
+            width: Math.min(w, h) * 0.6,
+            height: Math.min(w, h) * 0.6,
+            borderRadius: '50%',
+            display: 'grid',
+            placeItems: 'center',
+            background: palette.card,
+            color: palette.ink,
           }}
-        />
+        >
+          <Play size={Math.min(w, h) * 0.32} fill="currentColor" />
+        </span>
       )}
     </span>
   );

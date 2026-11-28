@@ -27,7 +27,17 @@ export function isAuthPath(pathname: string) {
   );
 }
 
+/** 登录、退出时要清空的按账号缓存（如人名缓存：同名账号可能在不同租户） */
+const authListeners = new Set<() => void>();
+export function onAuthChange(fn: () => void) {
+  authListeners.add(fn);
+}
+const authChanged = () => {
+  for (const fn of authListeners) fn();
+};
+
 export function setToken(token: string, rememberMe: boolean) {
+  authChanged();
   if (rememberMe) {
     localStorage.setItem(LOCAL_KEY, token);
     sessionStorage.removeItem(SESSION_KEY);
@@ -42,6 +52,7 @@ export function getToken(): string | null {
 }
 
 export function clearToken() {
+  authChanged();
   sessionStorage.removeItem(SESSION_KEY);
   localStorage.removeItem(LOCAL_KEY);
 }

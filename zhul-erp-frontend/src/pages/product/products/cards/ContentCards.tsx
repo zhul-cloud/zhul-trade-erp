@@ -1,4 +1,3 @@
-import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import {
   App,
   Button,
@@ -11,6 +10,7 @@ import {
   Space,
   Switch,
 } from 'antd';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { EmptyHint } from '../../components/EmptyHint';
 import { Pill } from '../../components/Pills';
@@ -72,7 +72,7 @@ const RowActions: React.FC<{
       size="small"
       type="text"
       aria-label={`编辑${label}`}
-      icon={<EditOutlined />}
+      icon={<Pencil size="1em" />}
       onClick={onEdit}
     />
     <Popconfirm
@@ -87,7 +87,7 @@ const RowActions: React.FC<{
         type="text"
         danger
         aria-label={`删除${label}`}
-        icon={<DeleteOutlined />}
+        icon={<Trash2 size="1em" />}
       />
     </Popconfirm>
   </Space>
@@ -124,7 +124,7 @@ export const DocumentCard: React.FC<Common> = ({
       done={done}
       actions={
         !readOnly && (
-          <Button icon={<PlusOutlined />} onClick={() => open('new')}>
+          <Button icon={<Plus size="1em" />} onClick={() => open('new')}>
             添加
           </Button>
         )
@@ -158,7 +158,7 @@ export const DocumentCard: React.FC<Common> = ({
                 borderTop: `1px solid ${palette.hairline}`,
               }}
             >
-              <Pill tone="accent">{DOCUMENT_TYPES[d.documentType]}</Pill>
+              <Pill tone="gray">{DOCUMENT_TYPES[d.documentType]}</Pill>
               <a
                 href={d.fileUrl}
                 target="_blank"
@@ -301,7 +301,7 @@ export const ApplicationCard: React.FC<Common> = ({
       actions={
         <Space size={8}>
           {!readOnly && (
-            <Button icon={<PlusOutlined />} onClick={() => open('new')}>
+            <Button icon={<Plus size="1em" />} onClick={() => open('new')}>
               添加
             </Button>
           )}
@@ -468,7 +468,7 @@ export const FaqCard: React.FC<
       done={done}
       actions={
         !readOnly && (
-          <Button icon={<PlusOutlined />} onClick={() => open('new')}>
+          <Button icon={<Plus size="1em" />} onClick={() => open('new')}>
             添加
           </Button>
         )

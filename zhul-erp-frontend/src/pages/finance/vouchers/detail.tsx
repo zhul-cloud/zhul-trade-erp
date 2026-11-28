@@ -1,22 +1,17 @@
-import {
-  DownloadOutlined,
-  ExclamationCircleOutlined,
-  FileAddOutlined,
-  InfoCircleOutlined,
-  SettingOutlined,
-} from '@ant-design/icons';
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Alert, App, Button, Segmented, Skeleton, Table } from 'antd';
+import { CircleAlert, Download, FilePlus, Info, Settings } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { docHref } from '@/pages/warehouse/inventoryService';
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
 import {
   AccountDrawer,
   CategoryPill,
@@ -31,8 +26,7 @@ import {
   voucherApi,
 } from './service';
 
-const yuan = (v?: number) =>
-  `¥${formatAmount(v ?? 0, 'CNY').replace(/^CNY\s/, '')}`;
+const yuan = (v?: number) => formatAmount(v ?? 0, 'CNY');
 const plain = (v?: number) => formatAmount(v ?? 0, 'CNY').replace(/^CNY\s/, '');
 
 /** 期初 + 凭证里库存商品净额 + 不生成凭证的变动 = 期末（ui-design-patterns「汇总数字按算式排」） */
@@ -70,7 +64,7 @@ const ReconTiles: React.FC<{ d: VoucherMonthDetail }> = ({ d }) => {
               <div
                 style={{
                   fontSize: 20,
-                  fontWeight: i === items.length - 1 ? 700 : 600,
+                  fontWeight: 600,
                   marginTop: 4,
                   fontVariantNumeric: 'tabular-nums',
                   whiteSpace: 'nowrap',
@@ -114,7 +108,7 @@ const ReconTiles: React.FC<{ d: VoucherMonthDetail }> = ({ d }) => {
       </div>
       {d.returnInAmount !== 0 && (
         <div style={{ marginTop: 8, fontSize: 12, color: palette.mute }}>
-          <InfoCircleOutlined style={{ marginRight: 6 }} />
+          <Info size="1em" style={{ marginRight: 6 }} />
           库存月结的本月销售成本 {yuan(d.periodCogsAmount)} 不扣退货入库{' '}
           {yuan(d.returnInAmount)}
         </div>
@@ -142,7 +136,7 @@ const Entries: React.FC<{ v: Voucher }> = ({ v }) => {
           </>
         ) : (
           <Pill tone="orange">
-            <ExclamationCircleOutlined /> 未设置科目
+            <CircleAlert size="1em" /> 未设置科目
           </Pill>
         ),
     },
@@ -226,7 +220,7 @@ const VoucherMonthPage: React.FC = () => {
     load,
   );
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!d) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const exported = (d.exportCount ?? 0) > 0;
@@ -253,7 +247,11 @@ const VoucherMonthPage: React.FC = () => {
           <span>
             <span style={red(v.debitTotal)}>{v.action}</span>{' '}
             {href ? (
-              <Link to={href} onClick={(e) => e.stopPropagation()}>
+              <Link
+                className="zhul-link zhul-link-doc"
+                to={href}
+                onClick={(e) => e.stopPropagation()}
+              >
                 {v.sourceDocNo}
               </Link>
             ) : (
@@ -279,19 +277,16 @@ const VoucherMonthPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[<MenuLink key="list" to="/finance/vouchers" />, month]}
-        title={
-          <>
-            {month} 业务凭证
-            {d.generated && (
-              <Pill tone={exported ? 'green' : 'accent'}>
-                {exported ? '已导出' : '未导出'}
-              </Pill>
-            )}
-          </>
+      <PageHeader
+        title={`${month} 业务凭证`}
+        tags={
+          d.generated && (
+            <Pill tone={exported ? 'green' : 'orange'}>
+              {exported ? '已导出' : '未导出'}
+            </Pill>
+          )
         }
-        description={
+        sub={
           d.generated
             ? [
                 `${d.generatedByName ?? ''} ${formatDateTime(d.generatedAt).slice(0, 16)} 生成`,
@@ -305,10 +300,12 @@ const VoucherMonthPage: React.FC = () => {
                 .join(' · ')
             : '上线前结账的月份，还没有凭证'
         }
-        actions={
+        extra={
           <>
             <Button
-              icon={<SettingOutlined />}
+              type="text"
+              icon={<Settings size="1em" />}
+              style={{ color: palette.link }}
               onClick={() => setAccountsOpen(true)}
             >
               科目设置
@@ -316,7 +313,7 @@ const VoucherMonthPage: React.FC = () => {
             {canExport && d.generated && (
               <Button
                 type="primary"
-                icon={<DownloadOutlined />}
+                icon={<Download size="1em" />}
                 loading={exporting === month}
                 onClick={() => exportMonth(month, exported)}
               >
@@ -326,7 +323,7 @@ const VoucherMonthPage: React.FC = () => {
             {canExport && !d.generated && (
               <Button
                 type="primary"
-                icon={<FileAddOutlined />}
+                icon={<FilePlus size="1em" />}
                 loading={generating}
                 onClick={async () => {
                   setGenerating(true);
@@ -394,7 +391,7 @@ const VoucherMonthPage: React.FC = () => {
               expandRowByClick: true,
               expandedRowRender: (v) => <Entries v={v} />,
             }}
-            locale={{ emptyText: '这个类别没有凭证' }}
+            locale={{ emptyText: tableEmpty('这个类别没有凭证') }}
           />
         </Card>
       )}

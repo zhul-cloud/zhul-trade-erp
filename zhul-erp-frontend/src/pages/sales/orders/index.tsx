@@ -1,22 +1,35 @@
-import {
-  ClockCircleOutlined,
-  CopyOutlined,
-  FallOutlined,
-  FileDoneOutlined,
-  PlusOutlined,
-  SearchOutlined,
-  WalletOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, DatePicker, Form, Input, Select, Table } from 'antd';
+import {
+  App,
+  Button,
+  DatePicker,
+  Form,
+  Input,
+  Popover,
+  Select,
+  Table,
+} from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { CopyPlus, Eye, Plus, Search, TriangleAlert } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  HeadHelp,
+  MainCard,
+  PageHeader,
+  QuickFilters,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import {
   ModalTitle,
   PagedModelsModal,
@@ -27,19 +40,19 @@ import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { getUserOptions } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useDeltaColor } from '@/theme/delta';
+import { MONO_FONT } from '@/theme/fonts';
 import { useBusinessUnits } from '@/utils/businessUnit';
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
-  Card,
   MigratedPill,
   orderSourceRefs,
   PATHS,
   Pill,
   RECEIPT_META,
-  SalesPageTitle,
 } from '../components';
 import {
   allOrderModels,
@@ -55,10 +68,15 @@ import {
   NewOrderDrawer,
   ReorderPickModal,
   STOCK,
-  StockPill,
   useUserOptions,
 } from './dialogs';
-import { GoodsBar, goodsText, ProgressPill, ReceiptProgress } from './parts';
+import {
+  GoodsBar,
+  GoodsLegend,
+  ProgressPill,
+  ReceiptProgress,
+  useGoodsColors,
+} from './parts';
 
 interface Filters {
   keyword?: string;
@@ -80,6 +98,33 @@ interface Filters {
 
 /** 收款状态筛选里的「先采购后收款未收款」 */
 const PAY_LATER_OPEN = -1;
+
+/** 快捷筛选「毛利为负」 */
+const QUICK_LOSS = 'loss';
+
+/** 收在「更多筛选」里的条件 */
+const MORE_KEYS = [
+  'source',
+  'stockType',
+  'customerType',
+  'currencyCode',
+  'ownerId',
+  'businessUnitId',
+  'purchaserId',
+] as const;
+
+/** 帮助文字：help-texts.md「销售订单列表」，关键词范围以 search-scope.md 为准 */
+export const HELP = {
+  keyword:
+    '可搜：订单编号、PI 编号（不带前缀也能搜到）、客户名称或简称、型号。包含匹配，整段文字一起匹配',
+  salesDate: '默认最近 3 个月，清空后看全部',
+  profit: '毛利 = 收入（毛额 × 结汇汇率）− 实际成本',
+  receipt: '收款进度 = 已到账（毛额）÷ 合计',
+  progress: '订单状态取所有型号中最靠前的进度',
+  inProgress: '未完成的有效订单；费用订单只计入合计，不分阶段',
+  monthCount: '按销售日期统计本月的有效订单，不含售后补发',
+  unassigned: '进行中的订单里，有型号还没指定采购员的订单数',
+} as const;
 
 /**
  * 默认最近 3 个月（清空日期看全部）；从销售统计跳转时用 URL 带的销售日期、业务员、事业部。
@@ -109,6 +154,8 @@ export const initial = (): Filters => {
 
 const OrderList: React.FC = () => {
   const { palette } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
+  const goodsColors = useGoodsColors();
   const { message } = App.useApp();
   const access = useAccess();
   const [form] = Form.useForm<Filters>();
@@ -220,13 +267,15 @@ const OrderList: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(PATHS.order(r.id))}
-          >
-            {v}
-          </button>
+          <CopyText text={v}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(PATHS.order(r.id))}
+            >
+              {v}
+            </button>
+          </CopyText>
           {r.migrated && (
             <div style={{ marginTop: 4 }}>
               <MigratedPill migrated />
@@ -234,7 +283,7 @@ const OrderList: React.FC = () => {
           )}
           {r.source === 3 && (
             <div style={{ marginTop: 4 }}>
-              <Pill tone="violet">售后补发</Pill>
+              <Pill tone="gray">售后补发</Pill>
             </div>
           )}
           {r.source === 4 && (
@@ -242,7 +291,16 @@ const OrderList: React.FC = () => {
               <Pill tone="orange">费用订单</Pill>
             </div>
           )}
-          {sub(r.salesDate ?? '—')}
+          {/* 现货 / 期货是属性，并进日期这一行，不再单占一列（D40，列顺序方案 B） */}
+          {sub(
+            [
+              r.salesDate ?? '—',
+              r.stockType != null &&
+                (r.stockType === STOCK.FUTURES ? '期货' : '现货'),
+            ]
+              .filter(Boolean)
+              .join(' · '),
+          )}
           {r.originalSoNo && sub(`原订单 ${r.originalSoNo}`)}
           {(r.feeOrderCount ?? 0) > 0 && (
             <div style={{ fontSize: 12, color: palette.orange }}>
@@ -255,7 +313,7 @@ const OrderList: React.FC = () => {
     {
       title: '客户',
       dataIndex: 'customerName',
-      width: 240,
+      width: 190,
       render: (v: string, r) => (
         <CustomerCell
           name={v}
@@ -266,10 +324,140 @@ const OrderList: React.FC = () => {
       ),
     },
     {
-      title: '现货/期货',
-      dataIndex: 'stockType',
-      width: 100,
-      render: (v: number) => <StockPill type={v} />,
+      title: <HeadHelp title="订单状态" help={HELP.progress} />,
+      dataIndex: 'progressCode',
+      width: 110,
+      render: (v: string, r) => (
+        <div>
+          <ProgressPill code={v} name={r.progressName} />
+          {r.cancelReason && sub(r.cancelReason)}
+        </div>
+      ),
+    },
+    {
+      title: '合计',
+      dataIndex: 'totalAmount',
+      width: 140,
+      align: 'right',
+      render: (v: number, r) => (
+        <b style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {formatAmount(v, r.currencyCode)}
+        </b>
+      ),
+    },
+    {
+      title: <HeadHelp title="收款进度" help={HELP.receipt} />,
+      key: 'receipt',
+      width: 150,
+      render: (_, r) => (
+        <div>
+          <ReceiptProgress
+            received={r.receivedAmount ?? 0}
+            total={r.totalAmount}
+            status={r.receiptStatus}
+          />
+          {r.payLater && (
+            <span style={{ display: 'inline-block', marginTop: 4 }}>
+              <Pill tone="orange">先采购后收款</Pill>
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: '货物',
+      key: 'goods',
+      width: 180,
+      render: (_, r) => {
+        const g = r.goods;
+        if (!g || g.total === 0)
+          return (
+            <span style={{ fontSize: 12, color: palette.mute }}>
+              {r.status === 2 ? '—' : '系统外采购'}
+            </span>
+          );
+        // 两行（2026-11-24 用户选定对比图方案 B，D21 行高）：第一行进度条 +「已出运 / 总件数」，悬停看各段件数；
+        // 第二行一句提醒。提示文字前的小圆点用所指那一段的颜色；「还有型号没下采购订单」用警告色文字加图标，不用标签（标签 24 高会撑高行）
+        const hint =
+          g.shipped >= g.total
+            ? { text: '全部出运', color: goodsColors.shipped }
+            : g.shipped + g.handed >= g.total
+              ? { text: '全部交货代，等出运', color: goodsColors.handed }
+              : g.received >= g.total
+                ? {
+                    text: '货已到齐，可以发货通知',
+                    color: goodsColors.inWarehouse,
+                  }
+                : g.inTransit > 0 && g.earliestArrival
+                  ? {
+                      text: `在途最早 ${dayjs(g.earliestArrival).format('MM-DD')} 到`,
+                      color: goodsColors.inTransit,
+                    }
+                  : undefined;
+        return (
+          <div style={{ display: 'grid', justifyItems: 'start' }}>
+            <Popover content={<GoodsLegend parts={g} total={g.total} />}>
+              <span
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  width: '100%',
+                  height: 22,
+                  fontSize: 12,
+                  color: palette.mute,
+                  fontVariantNumeric: 'tabular-nums',
+                  whiteSpace: 'nowrap',
+                  cursor: 'default',
+                }}
+              >
+                <GoodsBar parts={g} total={g.total} fill />
+                {g.shipped}/{g.total} 件
+              </span>
+            </Popover>
+            {hint ? (
+              // 文字用次要灰，前面的小圆点用所指那一段的颜色（图表系列色当文字对比度不足 4.5:1）
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 12,
+                  color: palette.sub,
+                }}
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    width: 6,
+                    height: 6,
+                    flex: 'none',
+                    borderRadius: 3,
+                    background: hint.color,
+                  }}
+                />
+                {hint.text}
+              </span>
+            ) : (
+              g.pendingPurchase > 0 && (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: palette.orange,
+                  }}
+                >
+                  <TriangleAlert size={12} aria-hidden />
+                  还有型号没下采购订单
+                </span>
+              )
+            )}
+          </div>
+        );
+      },
     },
     {
       title: '型号 · 数量',
@@ -277,10 +465,7 @@ const OrderList: React.FC = () => {
       width: 190,
       render: (_, r) => (
         <div>
-          <EllipsisText
-            text={r.firstModel}
-            style={{ fontFamily: 'monospace' }}
-          />
+          <EllipsisText text={r.firstModel} style={{ fontFamily: MONO_FONT }} />
           {sub(
             r.itemCount > 1 ? (
               <>
@@ -313,22 +498,13 @@ const OrderList: React.FC = () => {
       render: (_, r) => <TagList values={r.categories} label="品类" />,
     },
     {
-      title: '合计',
-      dataIndex: 'totalAmount',
-      width: 150,
-      align: 'right',
-      render: (v: number, r) => (
-        <b style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {formatAmount(v, r.currencyCode)}
-        </b>
-      ),
-    },
-    {
-      title: '毛利',
+      title: <HeadHelp title="毛利" help={HELP.profit} />,
       key: 'profit',
       width: 150,
       align: 'right',
       sorter: true,
+      // 排序提示只挂在排序图标上，不和表头的帮助提示同时弹出
+      showSorterTooltip: { target: 'sorter-icon' },
       sortOrder: sort.field === 'profit' ? sort.order : null,
       render: (_, r) =>
         r.profit == null ? (
@@ -338,7 +514,7 @@ const OrderList: React.FC = () => {
             <b
               style={{
                 fontVariantNumeric: 'tabular-nums',
-                color: r.profit >= 0 ? palette.green : palette.red,
+                color: deltaOf(r.profit),
               }}
             >
               {formatAmount(r.profit, 'CNY')}
@@ -350,74 +526,6 @@ const OrderList: React.FC = () => {
         ),
     },
     {
-      title: '收款进度',
-      key: 'receipt',
-      width: 180,
-      render: (_, r) => (
-        <div>
-          <ReceiptProgress
-            received={r.receivedAmount ?? 0}
-            total={r.totalAmount}
-            status={r.receiptStatus}
-          />
-          {r.payLater && (
-            <span style={{ display: 'inline-block', marginTop: 4 }}>
-              <Pill tone="orange">先采购后收款</Pill>
-            </span>
-          )}
-        </div>
-      ),
-    },
-    {
-      title: '订单状态',
-      dataIndex: 'progressCode',
-      width: 130,
-      render: (v: string, r) => (
-        <div>
-          <ProgressPill code={v} name={r.progressName} />
-          {r.cancelReason && sub(r.cancelReason)}
-        </div>
-      ),
-    },
-    {
-      title: '货物',
-      key: 'goods',
-      width: 230,
-      render: (_, r) => {
-        const g = r.goods;
-        if (!g || g.total === 0)
-          return (
-            <span style={{ fontSize: 12, color: palette.mute }}>
-              {r.status === 2 ? '—' : '系统外采购'}
-            </span>
-          );
-        const hint =
-          g.shipped >= g.total
-            ? { text: '全部出运', color: palette.green }
-            : g.shipped + g.handed >= g.total
-              ? { text: '全部交货代，等出运', color: palette.cyan }
-              : g.received >= g.total
-                ? { text: '货已到齐，可以发货通知', color: palette.green }
-                : g.inTransit > 0 && g.earliestArrival
-                  ? {
-                      text: `在途最早 ${dayjs(g.earliestArrival).format('MM-DD')} 到`,
-                      color: palette.link,
-                    }
-                  : g.pendingPurchase > 0
-                    ? { text: '还有型号没下采购订单', color: palette.orange }
-                    : undefined;
-        return (
-          <div style={{ display: 'grid', gap: 4 }}>
-            <GoodsBar parts={g} total={g.total} />
-            <span style={{ fontSize: 12, color: palette.sub }}>
-              {goodsText(g)} / {g.total} 件
-            </span>
-            {hint && sub(hint.text, hint.color)}
-          </div>
-        );
-      },
-    },
-    {
       title: '采购员',
       key: 'purchasers',
       width: 140,
@@ -425,10 +533,13 @@ const OrderList: React.FC = () => {
         <div>
           {r.purchaserNames.length > 0 ? r.purchaserNames.join('、') : null}
           {r.unassignedCount > 0 && (
-            <div style={{ fontSize: 12, color: palette.orange }}>
-              {r.purchaserNames.length > 0
-                ? `${r.unassignedCount} 个型号未指定`
-                : '未指定'}
+            <div style={{ marginTop: 4 }}>
+              <Pill tone="orange">
+                <TriangleAlert size={12} aria-hidden />
+                {r.purchaserNames.length > 0
+                  ? `${r.unassignedCount} 个型号未指定`
+                  : '未指定'}
+              </Pill>
             </div>
           )}
         </div>
@@ -452,58 +563,41 @@ const OrderList: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: canManual ? 150 : 70,
+      width: rowActionsWidth(canManual ? 2 : 1),
       fixed: 'right',
       render: (_, r) => (
-        <span style={{ display: 'inline-flex', gap: 12 }}>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(PATHS.order(r.id))}
-          >
-            查看
-          </button>
-          {/* 再下一单：复制这张订单的内容新建手动订单；费用订单没有型号，不提供 */}
-          {canManual && r.source !== 4 && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setReorderPick(r.id)}
-            >
-              <CopyOutlined /> 再下一单
-            </button>
-          )}
-        </span>
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(PATHS.order(r.id)),
+            },
+            // 再下一单：复制这张订单的内容新建手动订单；费用订单没有型号，不提供
+            canManual &&
+              r.source !== 4 && {
+                key: 'reorder',
+                label: '再下一单',
+                icon: <CopyPlus size={18} />,
+                onClick: () => setReorderPick(r.id),
+              },
+          ]}
+        />
       ),
     },
   ];
-
-  const stat = (
-    icon: React.ReactNode,
-    color: string,
-    label: string,
-    value: React.ReactNode,
-    hint: React.ReactNode,
-  ) => (
-    <Card style={{ padding: 18 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ color, fontSize: 16 }}>{icon}</span>
-        <span style={{ color: palette.sub, fontSize: 13 }}>{label}</span>
-      </div>
-      <div
-        style={{
-          fontSize: 24,
-          fontWeight: 700,
-          color: palette.ink,
-          margin: '6px 0 2px',
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
-        {value}
-      </div>
-      <div style={{ fontSize: 12, color: palette.mute }}>{hint}</div>
-    </Card>
-  );
+  const cols = useColumnSettings('sales-orders', columns, {
+    hidden: [
+      'qty',
+      'brands',
+      'categories',
+      'profit',
+      'purchasers',
+      'source',
+      'ownerName',
+    ],
+  });
 
   const applyFilters = (f: Filters) => {
     form.setFieldsValue({ ...f });
@@ -511,15 +605,42 @@ const OrderList: React.FC = () => {
     setPage(1);
   };
 
+  /** 按表单当前的条件查询（快捷筛选不在表单里，沿用当前选择） */
+  const search = () =>
+    applyFilters({ ...form.getFieldsValue(), lossOnly: filters.lossOnly });
+
+  const moreCount = MORE_KEYS.filter(
+    (k) => filters[k] != null && filters[k] !== '',
+  ).length;
+
+  /** 搜索条件里的下拉：标签在上，读屏名称与标签相同 */
+  const select = (
+    name: keyof Filters,
+    label: string,
+    options: { value: string | number; label: string }[],
+    extra?: React.ComponentProps<typeof Select>,
+  ) => (
+    <FilterField label={label}>
+      <Form.Item name={name} noStyle>
+        <Select
+          allowClear
+          placeholder="全部"
+          aria-label={label}
+          options={options}
+          {...extra}
+        />
+      </Form.Item>
+    </FilterField>
+  );
+
   return (
     <div>
-      <SalesPageTitle
-        description="客户付款后的订单：由 PI 转成或手动创建；按型号跟进采购与发货进度。"
-        actions={
+      <PageHeader
+        extra={
           (canFromPi || canManual) && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size={18} />}
               onClick={() => setNewOpen(true)}
             >
               新建销售订单
@@ -529,300 +650,203 @@ const OrderList: React.FC = () => {
       />
 
       {stats && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: 16,
-            marginBottom: 16,
-          }}
-        >
-          {stat(
-            <FileDoneOutlined />,
-            palette.link,
-            '本月订单',
-            stats.monthCount,
-            `按销售日期 · ${dayjs().month() + 1} 月`,
-          )}
-          {stat(
-            <ClockCircleOutlined />,
-            palette.orange,
-            '进行中',
-            stats.inProgressCount,
-            stats.progressCounts.length
-              ? stats.progressCounts
-                  .map((c) => `${c.name} ${c.count}`)
-                  .join(' · ')
-              : '没有进行中的订单',
-          )}
-          {stat(
-            <WalletOutlined />,
-            palette.green,
-            '本月实收人民币',
-            formatAmount(stats.monthNetCny, 'CNY'),
-            `线上 ${formatAmount(stats.monthOnlineCny, 'CNY')} · 线下 ${formatAmount(stats.monthOfflineCny, 'CNY')}`,
-          )}
-          {stat(
-            <WarningOutlined />,
-            stats.unassignedCount > 0 ? palette.red : palette.mute,
-            '未指定采购员',
-            stats.unassignedCount,
-            stats.unassignedCount > 0
-              ? '有型号没有采购员，点开订单指定'
-              : '所有进行中的型号都有采购员',
-          )}
-        </div>
+        <SummaryBar
+          items={[
+            {
+              key: 'net',
+              label: '本月实收人民币',
+              value: stats.monthNetCny,
+              currency: 'CNY',
+              sub: `线上 ${formatAmount(stats.monthOnlineCny, 'CNY')} · 线下 ${formatAmount(stats.monthOfflineCny, 'CNY')}`,
+            },
+            {
+              key: 'progress',
+              label: '进行中',
+              help: HELP.inProgress,
+              value: stats.inProgressCount,
+              // 各阶段数量在「订单状态」下拉里也能看到，宽度不够时可以隐藏
+              sub: stats.progressCounts.length
+                ? stats.progressCounts
+                    .map((c) => `${c.name} ${c.count}`)
+                    .join(' · ')
+                : undefined,
+              subHideable: true,
+            },
+            {
+              key: 'month',
+              label: '本月订单',
+              help: HELP.monthCount,
+              value: stats.monthCount,
+            },
+            {
+              key: 'unassigned',
+              label: '未指定采购员',
+              help: HELP.unassigned,
+              value: stats.unassignedCount,
+            },
+          ]}
+        />
       )}
 
-      <Card style={{ marginBottom: 16, padding: 20 }}>
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={initial()}
-          onFinish={(v) => applyFilters({ ...v, lossOnly: filters.lossOnly })}
+      <Form form={form} initialValues={initial()} component={false}>
+        <FilterCard
+          onSearch={search}
+          onReset={() => {
+            form.resetFields();
+            applyFilters(initial());
+          }}
+          moreCount={moreCount}
+          // 列宽 110：1366 宽时关键词、状态、日期、收款状态四项排一行（原型 A3）
+          minColumn={110}
+          more={
+            <>
+              {select('source', '来源', [
+                { value: 1, label: 'PI 生成' },
+                { value: 2, label: '手动建单' },
+                { value: 3, label: '售后补发' },
+                { value: 4, label: '费用订单' },
+              ])}
+              {select('stockType', '现货 / 期货', [
+                { value: STOCK.SPOT, label: '现货' },
+                { value: STOCK.FUTURES, label: '期货' },
+              ])}
+              {select('customerType', '新 / 老客户', [
+                { value: 1, label: '新客户' },
+                { value: 2, label: '老客户' },
+              ])}
+              {select(
+                'currencyCode',
+                '币种',
+                CURRENCIES.map((c) => ({ value: c, label: c })),
+              )}
+              {select('ownerId', '业务员', owners, {
+                showSearch: { optionFilterProp: 'label' },
+              })}
+              {bu.enabled &&
+                select(
+                  'businessUnitId',
+                  '事业部',
+                  bu.units.map((u) => ({ value: u.id, label: u.name })),
+                )}
+              {select('purchaserId', '采购员', users, {
+                showSearch: { optionFilterProp: 'label' },
+              })}
+            </>
+          }
         >
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-              gap: 12,
-              alignItems: 'end',
-            }}
-          >
-            <Form.Item
-              name="keyword"
-              label="关键词"
-              style={{ marginBottom: 0, gridColumn: 'span 2' }}
-            >
+          <FilterField label="关键词" span={2} help={HELP.keyword}>
+            <Form.Item name="keyword" noStyle>
               <Input
                 allowClear
-                prefix={<SearchOutlined />}
-                placeholder="订单编号、PI 编号、客户、型号"
+                prefix={<Search size={16} />}
+                placeholder="订单编号、客户、型号"
+                aria-label="关键词"
+                onPressEnter={search}
               />
             </Form.Item>
-            <Form.Item
-              name="range"
-              label="销售日期"
-              style={{ marginBottom: 0, gridColumn: 'span 2' }}
-            >
-              <DatePicker.RangePicker style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item
-              name="progressCode"
-              label="订单状态"
-              style={{ marginBottom: 0 }}
-            >
-              <Select
-                allowClear
-                placeholder="全部"
-                options={[
-                  ...(stats?.progressCounts ?? []).map((c) => ({
-                    value: c.code,
-                    label: c.name,
-                  })),
-                  { value: 'COMPLETED', label: '已完成' },
-                  { value: 'CANCELLED', label: '已取消' },
-                ]}
-              />
-            </Form.Item>
-            <Form.Item
-              name="receiptStatus"
-              label="收款状态"
-              style={{ marginBottom: 0 }}
-            >
-              <Select
-                allowClear
-                placeholder="全部"
-                options={[
-                  ...Object.entries(RECEIPT_META).map(([k, v]) => ({
-                    value: Number(k),
-                    label: v.label,
-                  })),
-                  { value: PAY_LATER_OPEN, label: '先采购后收款未收款' },
-                ]}
-              />
-            </Form.Item>
-            <Form.Item name="source" label="来源" style={{ marginBottom: 0 }}>
-              <Select
-                allowClear
-                placeholder="全部"
-                options={[
-                  { value: 1, label: 'PI 生成' },
-                  { value: 2, label: '手动建单' },
-                  { value: 3, label: '售后补发' },
-                  { value: 4, label: '费用订单' },
-                ]}
-              />
-            </Form.Item>
-            <Form.Item
-              name="stockType"
-              label="现货 / 期货"
-              style={{ marginBottom: 0 }}
-            >
-              <Select
-                allowClear
-                placeholder="全部"
-                options={[
-                  { value: STOCK.SPOT, label: '现货' },
-                  { value: STOCK.FUTURES, label: '期货' },
-                ]}
-              />
-            </Form.Item>
-            <Form.Item
-              name="customerType"
-              label="新 / 老客户"
-              style={{ marginBottom: 0 }}
-            >
-              <Select
-                allowClear
-                placeholder="全部"
-                options={[
-                  { value: 1, label: '新客户' },
-                  { value: 2, label: '老客户' },
-                ]}
-              />
-            </Form.Item>
-            <Form.Item
-              name="currencyCode"
-              label="币种"
-              style={{ marginBottom: 0 }}
-            >
-              <Select
-                allowClear
-                placeholder="全部"
-                options={CURRENCIES.map((c) => ({ value: c, label: c }))}
-              />
-            </Form.Item>
-            <Form.Item
-              name="ownerId"
-              label="业务员"
-              style={{ marginBottom: 0 }}
-            >
-              <Select
-                allowClear
-                placeholder="全部"
-                options={owners}
-                showSearch={{ optionFilterProp: 'label' }}
-              />
-            </Form.Item>
-            {bu.enabled && (
-              <Form.Item
-                name="businessUnitId"
-                label="事业部"
-                style={{ marginBottom: 0 }}
-              >
-                <Select
-                  allowClear
-                  placeholder="全部"
-                  options={bu.units.map((u) => ({
-                    value: u.id,
-                    label: u.name,
-                  }))}
-                />
-              </Form.Item>
-            )}
-            <Form.Item
-              name="purchaserId"
-              label="采购员"
-              style={{ marginBottom: 0 }}
-            >
-              <Select
-                allowClear
-                placeholder="全部"
-                options={users}
-                showSearch={{ optionFilterProp: 'label' }}
-              />
-            </Form.Item>
-            <div
-              style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}
-            >
-              <Button
-                onClick={() => {
-                  form.resetFields();
-                  applyFilters(initial());
-                }}
-              >
-                重置
-              </Button>
-              <Button type="primary" htmlType="submit">
-                查询
-              </Button>
-            </div>
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              marginTop: 12,
-            }}
+          </FilterField>
+          {select(
+            'progressCode',
+            '订单状态',
+            [
+              ...(stats?.progressCounts ?? []).map((c) => ({
+                value: c.code,
+                label: c.count ? `${c.name} · ${c.count}` : c.name,
+              })),
+              { value: 'COMPLETED', label: '已完成' },
+              { value: 'CANCELLED', label: '已取消' },
+            ],
+            // 切换状态立即查询（doc-list-unify 状态下拉的写法）
+            { onChange: () => search(), listHeight: 320 },
+          )}
+          <FilterField
+            label="销售日期"
+            span={2}
+            help={HELP.salesDate}
+            htmlFor="so-sales-date"
           >
-            <span style={{ fontSize: 12, color: palette.mute }}>快捷筛选</span>
-            <Button
-              size="small"
-              danger={!!filters.lossOnly}
-              type={filters.lossOnly ? 'primary' : 'default'}
-              icon={<FallOutlined />}
-              onClick={() => {
-                setFilters((f) => ({ ...f, lossOnly: !f.lossOnly }));
-                setPage(1);
-              }}
-              aria-pressed={!!filters.lossOnly}
-            >
-              毛利为负
-            </Button>
-          </div>
-        </Form>
-      </Card>
+            <Form.Item name="range" noStyle>
+              <DatePicker.RangePicker
+                id={{ start: 'so-sales-date' }}
+                style={{ width: '100%' }}
+              />
+            </Form.Item>
+          </FilterField>
+          {select('receiptStatus', '收款状态', [
+            ...Object.entries(RECEIPT_META).map(([k, v]) => ({
+              value: Number(k),
+              label: v.label,
+            })),
+            { value: PAY_LATER_OPEN, label: '先采购后收款未收款' },
+          ])}
+        </FilterCard>
+      </Form>
 
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : !loading && rows.length === 0 && noFilter ? (
-        <Card>
+        <MainCard>
           <EmptyHint
             title="还没有销售订单"
             description="客户付款后按 PI 创建订单（也可以在 PI 上点「转成订单」），或手动创建订单"
             actionText={canFromPi || canManual ? '新建销售订单' : undefined}
             onAction={() => setNewOpen(true)}
           />
-        </Card>
+        </MainCard>
       ) : (
-        <Table<OrderListItem>
-          rowKey="id"
-          columns={columns}
-          dataSource={rows}
+        <MainCard
+          count={total}
           loading={loading}
-          scroll={{ x: tableScrollX(columns) }}
-          locale={{ emptyText: '没有符合条件的订单，换个筛选条件试试' }}
-          onChange={(_, __, sorter, extra) => {
-            // 翻页也会触发 onChange：只处理排序，否则会把页码重置回 1
-            if (extra.action !== 'sort') return;
-            const s = Array.isArray(sorter) ? sorter[0] : sorter;
-            setSort({
-              field: s?.columnKey as string | undefined,
-              order: s?.order ?? undefined,
-            });
-            setPage(1);
-          }}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
-            onChange: (p, s) => {
-              setPage(p);
-              setPageSize(s);
-            },
-          }}
-        />
+          settings={cols.settings}
+          quick={
+            <QuickFilters
+              options={[{ value: QUICK_LOSS, label: '毛利为负' }]}
+              value={filters.lossOnly ? [QUICK_LOSS] : []}
+              onChange={(v) => {
+                setFilters((f) => ({
+                  ...f,
+                  lossOnly: v.includes(QUICK_LOSS) || undefined,
+                }));
+                setPage(1);
+              }}
+            />
+          }
+        >
+          <Table<OrderListItem>
+            rowKey="id"
+            columns={cols.columns}
+            dataSource={rows}
+            loading={loading}
+            scroll={{ x: tableScrollX(cols.columns) }}
+            locale={{
+              emptyText: tableEmpty(
+                '没有符合条件的订单，换个筛选条件试试',
+                loading,
+              ),
+            }}
+            onChange={(_, __, sorter, extra) => {
+              // 翻页也会触发 onChange：只处理排序，否则会把页码重置回 1
+              if (extra.action !== 'sort') return;
+              const s = Array.isArray(sorter) ? sorter[0] : sorter;
+              setSort({
+                field: s?.columnKey as string | undefined,
+                order: s?.order ?? undefined,
+              });
+              setPage(1);
+            }}
+            pagination={{
+              ...PAGER_STYLE,
+              current: page,
+              pageSize,
+              total,
+              onChange: (p, s) => {
+                setPage(p);
+                setPageSize(s);
+              },
+            }}
+          />
+        </MainCard>
       )}
-      <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
-        默认列出最近 3
-        个月销售的订单（清空销售日期看全部），按销售日期倒序；毛利 = 收入（毛额
-        × 结汇汇率）− 实际成本，点表头可按毛利排序；收款进度 = 已到账（毛额）÷
-        合计；订单状态取所有型号中最靠前的进度。
-      </div>
       <PagedModelsModal
         openId={viewing?.id}
         showPrice

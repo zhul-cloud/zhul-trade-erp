@@ -1,22 +1,25 @@
-import {
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  RightOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
-import { Alert, Button, Skeleton } from 'antd';
+import { Tag } from 'antd';
+import { CircleCheck } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CountryFlag } from '@/components/CountryText';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, Pill } from '@/pages/inquiry/shared/components';
+import { useCountries } from '@/pages/product/components/useCountries';
 import { type OverduePis, piApi, readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
+import { MoreLink, WidgetCard } from './widgets/WidgetCard';
 
-const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
+/** M 档卡片放得下的明细条数（摘要 + 3 行 × 56），其余点「查看全部」 */
+const SHOWN = 3;
 
-/** 工作台 · 过期未收款的 PI：已发送、未付款且过了有效期；「查看全部」进入带筛选的 PI 列表，数字与列表一致 */
+/**
+ * 工作台 · 过期未收款的 PI（工作台原型 H3）：顶部摘要（张数 28/600 错误色 + 各币种合计），
+ * 下面最急的几张（PI 号、国旗 + 客户、合计、已过期天数）；「查看全部」进入带筛选的 PI 列表，数字与列表一致。
+ */
 const OverduePiCard: React.FC = () => {
   const { palette } = useAppTheme();
+  const { find } = useCountries();
   const [data, setData] = useState<OverduePis>();
   const [error, setError] = useState('');
 
@@ -35,142 +38,141 @@ const OverduePiCard: React.FC = () => {
   }, [load]);
 
   // 从其他页面返回时重新取数（audit UI-055）
-
   useOnReactivate(load);
 
-  const viewAll = () => history.push('/sales/pi?expired=1');
-
   return (
-    <Card style={{ padding: 20 }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          marginBottom: 12,
-        }}
-      >
-        <span
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 10,
-            background: palette.redSoft,
-            color: palette.red,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <ClockCircleOutlined />
-        </span>
-        <b style={{ color: palette.ink, fontSize: 15 }}>过期未收款的 PI</b>
-        {data && data.count > 0 && (
-          <Button
-            type="link"
-            size="small"
-            style={{ marginLeft: 'auto' }}
-            onClick={viewAll}
-          >
-            查看全部 <RightOutlined />
-          </Button>
-        )}
-      </div>
-      {error ? (
-        <Alert
-          type="error"
-          showIcon
-          title={`过期 PI 加载失败：${error}`}
-          action={
-            <Button size="small" onClick={load}>
-              重试
-            </Button>
-          }
-        />
-      ) : !data ? (
-        <Skeleton active paragraph={{ rows: 3 }} />
-      ) : data.count === 0 ? (
+    <WidgetCard
+      title="过期未收款的 PI"
+      extra={
+        data &&
+        data.count > SHOWN && (
+          <MoreLink onClick={() => history.push('/sales/pi?expired=1')}>
+            查看全部 {data.count}
+          </MoreLink>
+        )
+      }
+      loading={!data}
+      error={error}
+      onRetry={load}
+    >
+      {data && data.count === 0 ? (
         <div
           style={{
+            flex: 1,
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'center',
             gap: 8,
             color: palette.sub,
-            padding: '8px 0',
           }}
         >
-          <CheckCircleOutlined style={{ color: palette.green }} />
+          <CircleCheck
+            size={16}
+            aria-hidden
+            style={{ color: palette.greenMain }}
+          />
           没有过期未收款的 PI
         </div>
       ) : (
-        <>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'baseline',
-              gap: 8,
-              marginBottom: 12,
-            }}
-          >
-            <span
+        data && (
+          <>
+            <div
+              className="num"
               style={{
-                ...num,
-                fontSize: 28,
-                fontWeight: 700,
-                color: palette.ink,
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: 8,
+                paddingBottom: 12,
               }}
             >
-              {data.count}
-            </span>
-            <span style={{ color: palette.mute, fontSize: 13 }}>
-              张 · 合计{' '}
-              {data.totals
-                .map((t) => formatAmount(t.amount, t.currencyCode))
-                .join('、')}
-            </span>
-          </div>
-          <div style={{ display: 'grid', gap: 8 }}>
-            {data.top.map((p) => (
-              <button
-                type="button"
-                key={p.id}
-                onClick={() => history.push(`/sales/pi/${p.id}`)}
-                style={{
-                  all: 'unset',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '10px 12px',
-                  borderRadius: 10,
-                  background: palette.inset,
-                  border: `1px solid ${palette.hairline}`,
-                }}
+              <span
+                style={{ fontSize: 28, fontWeight: 600, color: palette.red }}
               >
-                <span style={{ minWidth: 0, flex: 1 }}>
+                {data.count}
+              </span>
+              <span style={{ color: palette.mute, fontSize: 13 }}>
+                张 · 合计{' '}
+                {data.totals
+                  .map((t) => formatAmount(t.amount, t.currencyCode))
+                  .join('、')}
+              </span>
+            </div>
+            {data.top.slice(0, SHOWN).map((p) => {
+              const c = find(p.customerCountry);
+              return (
+                <button
+                  type="button"
+                  key={p.id}
+                  className="zhul-row-hover"
+                  onClick={() => history.push(`/sales/pi/${p.id}`)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    minHeight: 56,
+                    padding: '0 8px',
+                    margin: '0 -8px',
+                    border: 'none',
+                    borderTop: `1px solid ${palette.hairline}`,
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    font: 'inherit',
+                  }}
+                >
                   <span
                     style={{
-                      display: 'block',
-                      color: palette.link,
-                      fontWeight: 600,
+                      flex: 1,
+                      minWidth: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
                     }}
                   >
-                    {p.piNo}
+                    <span
+                      className="num"
+                      style={{ fontWeight: 600, color: palette.ink }}
+                    >
+                      {p.piNo}
+                    </span>
+                    <span
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        minWidth: 0,
+                        fontSize: 12,
+                        color: palette.mute,
+                      }}
+                    >
+                      <CountryFlag code={c?.code} />
+                      <span
+                        style={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {p.customerName}
+                      </span>
+                    </span>
                   </span>
-                  <span style={{ fontSize: 12, color: palette.mute }}>
-                    {p.customerName}
+                  <span
+                    className="num"
+                    style={{ fontWeight: 600, color: palette.ink }}
+                  >
+                    {formatAmount(p.totalAmount, p.currencyCode)}
                   </span>
-                </span>
-                <span style={{ ...num, color: palette.sub, fontSize: 13 }}>
-                  {formatAmount(p.totalAmount, p.currencyCode)}
-                </span>
-                <Pill tone="red">已过期 {p.expiredDays} 天</Pill>
-              </button>
-            ))}
-          </div>
-        </>
+                  <Tag color="error" style={{ marginInlineEnd: 0 }}>
+                    已过期 {p.expiredDays} 天
+                  </Tag>
+                </button>
+              );
+            })}
+          </>
+        )
       )}
-    </Card>
+    </WidgetCard>
   );
 };
 

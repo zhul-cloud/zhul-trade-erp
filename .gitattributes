@@ -5,3 +5,6 @@ scripts/ai-orchestrator/docker-entrypoint.sh text eol=lf
 scripts/docker-dev.sh text eol=lf
 # Windows PowerShell 5.1 needs CRLF and a UTF-8 BOM for Chinese text.
 scripts/docker-dev.ps1 text eol=crlf
+# Impeccable skill launcher for Windows cmd keeps CRLF (upstream file).
+zhul-erp-frontend/.claude/skills/impeccable/scripts/impeccable.cmd text eol=crlf
+zhul-erp-frontend/.agents/skills/impeccable/scripts/impeccable.cmd text eol=crlf

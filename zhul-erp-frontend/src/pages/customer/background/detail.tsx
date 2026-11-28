@@ -1,16 +1,19 @@
-import {
-  DashboardOutlined,
-  DeleteOutlined,
-  DownloadOutlined,
-  FileTextOutlined,
-  LoadingOutlined,
-  PaperClipOutlined,
-} from '@ant-design/icons';
 import XMarkdown from '@ant-design/x-markdown';
 import { useAccess, useParams } from '@umijs/max';
 import '@ant-design/x-markdown/es/XMarkdown/index.css';
-import { App, Button, Skeleton } from 'antd';
+import { App, Button, Dropdown, Skeleton } from 'antd';
+import {
+  Download,
+  Ellipsis,
+  FileText,
+  Gauge,
+  LoaderCircle,
+  Paperclip,
+  Trash2,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { PageHeader } from '@/components/ListLayout';
 import {
   useOnReactivate,
   usePageTitle,
@@ -20,7 +23,7 @@ import { tabsActions } from '@/components/PageTabs/store';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
-import { LIST_PATH, PageTitle } from '../components';
+import { LIST_PATH } from '../components';
 import { customerApi, readBizError } from '../service';
 import { ConclusionBox } from './components';
 import Suggestions from './Suggestions';
@@ -32,20 +35,19 @@ import {
   STATUS,
 } from './service';
 
+/** 卡片：标题照详情页 Section（16/600）；icon 参数保留，ui-redesign 起不再显示 */
 const Card: React.FC<{
   icon?: React.ReactNode;
   title?: React.ReactNode;
   children: React.ReactNode;
   style?: React.CSSProperties;
-}> = ({ icon, title, children, style }) => {
+}> = ({ title, children, style }) => {
   const { palette } = useAppTheme();
   return (
     <section
+      className="zhul-card"
       style={{
         padding: 20,
-        borderRadius: 16,
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
         display: 'flex',
         flexDirection: 'column',
         gap: 12,
@@ -57,15 +59,11 @@ const Card: React.FC<{
         <h2
           style={{
             margin: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            fontSize: 14,
+            fontSize: 16,
             fontWeight: 600,
             color: palette.ink,
           }}
         >
-          <span style={{ color: palette.link }}>{icon}</span>
           {title}
         </h2>
       )}
@@ -79,7 +77,8 @@ const BackgroundReportPage: React.FC = () => {
   const { id, reportId } = useParams<{ id: string; reportId: string }>();
   const customerId = Number(id);
   const access = useAccess() as Record<string, boolean>;
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { palette } = useAppTheme();
   const [report, setReport] = useState<BackgroundReportDetail | null>();
   usePageTitle(
@@ -146,12 +145,10 @@ const BackgroundReportPage: React.FC = () => {
       .catch((e) => message.error(readBizError(e).message));
 
   const remove = (r: BackgroundReportDetail) =>
-    modal.confirm({
+    confirmDanger({
       title: `删除报告 ${r.reportNo}？`,
       content:
         '删除后报告不再显示；已经采纳进档案的字段保留，来源显示「背调 编号（已删除）」。',
-      okText: '删除',
-      okButtonProps: { danger: true },
       onOk: () =>
         backgroundApi
           .remove(customerId, r.id)
@@ -165,10 +162,10 @@ const BackgroundReportPage: React.FC = () => {
   let body: React.ReactNode;
   let actions: React.ReactNode = null;
   if (error) {
-    body = <ErrorHint message={error} onRetry={load} />;
+    body = <ErrorHint page message={error} onRetry={load} />;
   } else if (report === undefined) {
     body = (
-      <div style={{ background: palette.card, borderRadius: 16, padding: 24 }}>
+      <div className="zhul-card" style={{ padding: 24 }}>
         <Skeleton active paragraph={{ rows: 10 }} />
       </div>
     );
@@ -183,52 +180,81 @@ const BackgroundReportPage: React.FC = () => {
     );
   } else {
     const r = report;
+    // 页头操作（照销售订单详情）：下载、导出为文字按钮，删除收进「更多」
     actions = (
       <>
-        {r.canDelete && (
-          <Button danger icon={<DeleteOutlined />} onClick={() => remove(r)}>
-            删除
-          </Button>
-        )}
         {r.uploadFileName && (
-          <Button icon={<PaperClipOutlined />} onClick={() => download(r)}>
+          <Button
+            type="text"
+            icon={<Paperclip size={16} />}
+            style={{ color: palette.link }}
+            onClick={() => download(r)}
+          >
             下载原件
           </Button>
         )}
         {r.status === STATUS.DONE && (
           <Button
-            icon={<DownloadOutlined />}
+            type="text"
+            icon={<Download size={16} />}
+            style={{ color: palette.link }}
             loading={exporting}
             onClick={() => exportPdf(r)}
           >
             导出 PDF
           </Button>
         )}
+        {r.canDelete && (
+          <Dropdown
+            trigger={['click']}
+            placement="bottomRight"
+            menu={{
+              items: [
+                {
+                  key: 'delete',
+                  icon: <Trash2 size={16} />,
+                  label: '删除',
+                  danger: true,
+                },
+              ],
+              onClick: () => remove(r),
+            }}
+          >
+            <Button
+              type="text"
+              shape="circle"
+              icon={<Ellipsis size={18} />}
+              aria-label="更多操作"
+            />
+          </Dropdown>
+        )}
       </>
     );
     if (r.status !== STATUS.DONE) {
       body = (
         <div
+          className="zhul-card"
           style={{
             padding: 40,
-            borderRadius: 16,
             textAlign: 'center',
-            background: palette.card,
-            border: `1px solid ${palette.hairline}`,
             color: running ? palette.sub : palette.red,
           }}
         >
           {running ? (
             <>
-              <LoadingOutlined style={{ fontSize: 24, color: palette.link }} />
-              <div style={{ marginTop: 12, fontSize: 15 }}>
+              <LoaderCircle
+                size="1em"
+                className="zhul-spin"
+                style={{ fontSize: 24, color: palette.link }}
+              />
+              <div style={{ marginTop: 12, fontSize: 16 }}>
                 {r.source === SOURCE_AI
                   ? '正在联网背调，大约需要 3–5 分钟，完成后自动刷新'
                   : '正在从报告里提取结论和字段建议，约 1 分钟'}
               </div>
             </>
           ) : (
-            <div style={{ fontSize: 15 }}>
+            <div style={{ fontSize: 16 }}>
               背调失败：{r.failReason || '原因未知'}。可以回到客户重新发起。
             </div>
           )}
@@ -256,7 +282,7 @@ const BackgroundReportPage: React.FC = () => {
               <ConclusionBox report={r} />
             </div>
             <Card
-              icon={<DashboardOutlined />}
+              icon={<Gauge size="1em" />}
               title="本次用量"
               style={{ flex: '0 0 320px', maxWidth: '100%' }}
             >
@@ -292,7 +318,7 @@ const BackgroundReportPage: React.FC = () => {
             }}
           >
             <Card
-              icon={<FileTextOutlined />}
+              icon={<FileText size="1em" />}
               title={
                 <>
                   报告正文
@@ -324,7 +350,7 @@ const BackgroundReportPage: React.FC = () => {
                 </XMarkdown>
               </div>
               <style>{`
-                .bg-report-body h1,.bg-report-body h2,.bg-report-body h3{font-size:14px;font-weight:700;margin:14px 0 6px;color:${palette.ink}}
+                .bg-report-body h1,.bg-report-body h2,.bg-report-body h3{font-size:14px;font-weight:600;margin:14px 0 6px;color:${palette.ink}}
                 .bg-report-body p{margin:6px 0}
                 .bg-report-body ul,.bg-report-body ol{margin:4px 0;padding-left:20px;list-style:disc}
                 .bg-report-body ol{list-style:decimal}
@@ -357,12 +383,12 @@ const BackgroundReportPage: React.FC = () => {
 
   return (
     <div style={{ color: palette.ink }}>
-      <PageTitle
+      <PageHeader
         title={report?.reportNo ?? '背调报告'}
-        current={customerName || '背调报告'}
-        description={
+        sub={
           report
             ? [
+                customerName,
                 report.source === SOURCE_AI ? 'AI 背调' : '上传',
                 report.requestedByName,
                 formatDateTime(report.createTime).slice(0, 16),
@@ -373,7 +399,7 @@ const BackgroundReportPage: React.FC = () => {
                 .join(' · ')
             : undefined
         }
-        actions={actions}
+        extra={actions}
       />
       {body}
     </div>

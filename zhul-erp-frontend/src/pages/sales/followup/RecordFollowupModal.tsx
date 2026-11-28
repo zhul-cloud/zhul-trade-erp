@@ -1,11 +1,4 @@
 import {
-  BulbOutlined,
-  HourglassOutlined,
-  LoadingOutlined,
-  RobotOutlined,
-  ThunderboltOutlined,
-} from '@ant-design/icons';
-import {
   Alert,
   App,
   Button,
@@ -19,7 +12,10 @@ import {
   Tag,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Bot, Hourglass, Lightbulb, LoaderCircle, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { Callout } from '@/components/Callout';
+import { ChoiceChips } from '@/components/ListLayout';
 import { customerApi } from '@/pages/customer/service';
 import { CreateAfterSalesModal } from '@/pages/sales/after-sales/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -611,7 +607,7 @@ const RecordFollowupModal: React.FC<{
     fontSize: 13,
     borderRadius: 14,
     borderColor: active ? palette.link : palette.hairline,
-    background: active ? palette.accentSoft : 'transparent',
+    background: active ? palette.primarySoft : 'transparent',
     color: active ? palette.link : palette.sub,
   });
 
@@ -782,7 +778,7 @@ const RecordFollowupModal: React.FC<{
           {raw && (
             <Button
               size="small"
-              icon={<RobotOutlined />}
+              icon={<Bot size="1em" />}
               loading={aiState === 'running'}
               disabled={!customerId}
               onClick={() => runAi(raw)}
@@ -802,7 +798,8 @@ const RecordFollowupModal: React.FC<{
         </div>
         {aiState === 'running' && (
           <div style={{ marginTop: 8, fontSize: 12, color: palette.sub }}>
-            <LoadingOutlined /> AI 正在整理，通常 10–20 秒；也可以先手工填写
+            <LoaderCircle size="1em" className="zhul-spin" /> AI 正在整理，通常
+            10–20 秒；也可以先手工填写
           </div>
         )}
         {aiState === 'failed' && aiHint && (
@@ -819,13 +816,11 @@ const RecordFollowupModal: React.FC<{
               marginTop: 10,
               padding: '10px 12px',
               borderRadius: 10,
-              background: palette.violetSoft,
+              background: palette.infoSoft,
             }}
           >
-            <div
-              style={{ fontSize: 12, color: palette.violet, marginBottom: 4 }}
-            >
-              <RobotOutlined /> AI 摘要（可修改）
+            <div style={{ fontSize: 12, color: palette.info, marginBottom: 4 }}>
+              <Bot size="1em" /> AI 摘要（可修改）
               {truncated && '　· 原文过长，只整理了最后 20,000 字'}
             </div>
             <Input.TextArea
@@ -938,25 +933,30 @@ const RecordFollowupModal: React.FC<{
         )}
         {!nextError && vague && (
           <div style={{ fontSize: 12, color: palette.orange, marginTop: 4 }}>
-            <BulbOutlined />{' '}
+            <Lightbulb size="1em" />{' '}
             写清楚要做什么、要客户给什么，例如：发替代型号对比，问客户能否接受
           </div>
         )}
 
         <SectionLabel required>什么时候</SectionLabel>
         <Space wrap>
-          {dateShortcuts.map((d) => (
-            <Button
-              key={d.label}
-              size="small"
-              type={nextDate?.isSame(d.value, 'day') ? 'primary' : 'default'}
-              onClick={() => pickDate(d.value)}
-            >
-              {d.label}
-            </Button>
-          ))}
+          <ChoiceChips
+            label="什么时候"
+            options={dateShortcuts.map((d) => ({
+              value: d.label,
+              label: d.label,
+            }))}
+            value={
+              dateShortcuts.find((d) => nextDate?.isSame(d.value, 'day'))?.label
+            }
+            onChange={(v) => {
+              const d = dateShortcuts.find((x) => x.label === v);
+              if (d) pickDate(d.value);
+            }}
+          />
           <DatePicker
             size="small"
+            style={{ height: 28 }}
             value={nextDate}
             placeholder="选日期"
             onChange={pickDate}
@@ -964,39 +964,30 @@ const RecordFollowupModal: React.FC<{
           />
           {nextDate?.isSame(suggest.date, 'day') && suggest.reason && (
             <span style={{ fontSize: 12, color: palette.link }}>
-              <ThunderboltOutlined /> 推荐：{suggest.reason}
+              <Zap size="1em" /> 推荐：{suggest.reason}
             </span>
           )}
         </Space>
         {nurtureItem && nextDate && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              marginTop: 10,
-              padding: '8px 12px',
-              borderRadius: 10,
-              fontSize: 12,
-              color: palette.link,
-              background: palette.accentSoft,
-            }}
+          <Callout
+            tone="action"
+            icon={<Hourglass size="1em" />}
+            style={{ marginTop: 10 }}
+            extra={
+              <Button
+                type="link"
+                size="small"
+                style={{ padding: 0 }}
+                onClick={() =>
+                  onNurture?.(nurtureItem, nextDate.diff(today, 'day'))
+                }
+              >
+                改为转培育
+              </Button>
+            }
           >
-            <HourglassOutlined />
-            <span style={{ flex: 1 }}>
-              隔这么久再跟，可以直接转培育，不占用待办和阶段停留
-            </span>
-            <Button
-              type="link"
-              size="small"
-              style={{ padding: 0 }}
-              onClick={() =>
-                onNurture?.(nurtureItem, nextDate.diff(today, 'day'))
-              }
-            >
-              改为转培育
-            </Button>
-          </div>
+            隔这么久再跟，可以直接转培育，不占用待办和阶段停留
+          </Callout>
         )}
 
         <SectionLabel>方式</SectionLabel>

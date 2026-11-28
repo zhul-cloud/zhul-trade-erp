@@ -1,21 +1,17 @@
 import {
-  CheckCircleFilled,
-  InfoCircleOutlined,
-  SearchOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
-import {
   Alert,
   App,
   Button,
   Checkbox,
-  Empty,
   Input,
   InputNumber,
   Modal,
   Skeleton,
 } from 'antd';
+import { CircleCheck, Info, Search, TriangleAlert } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { EmptyState } from '@/components/EmptyState';
+import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
@@ -73,8 +69,8 @@ const QuotationLines: React.FC<{
               alignItems: 'center',
               padding: '8px 10px',
               borderRadius: 10,
-              background: checked ? palette.accentSoft : palette.inset,
-              border: `1px solid ${checked ? palette.accentLine : palette.hairline}`,
+              background: checked ? palette.primarySoft : palette.inset,
+              border: `1px solid ${checked ? palette.primaryLine : palette.hairline}`,
             }}
           >
             <Checkbox
@@ -147,6 +143,7 @@ const NewPiModal: React.FC<{
 }> = ({ open, quotationId, onClose, onCreated }) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
+  const { zhOf } = useCountries();
   const [customers, setCustomers] = useState<CandidateCustomer[]>();
   const [keyword, setKeyword] = useState('');
   const [customer, setCustomer] = useState<CandidateCustomer>();
@@ -244,12 +241,10 @@ const NewPiModal: React.FC<{
 
   const quotationBlock = (q: CandidateQuotation) => (
     <div
+      className="zhul-card"
       key={q.quotationId}
       style={{
         padding: 14,
-        borderRadius: 12,
-        border: `1px solid ${palette.hairline}`,
-        background: palette.card,
       }}
     >
       <div
@@ -261,7 +256,7 @@ const NewPiModal: React.FC<{
         }}
       >
         <b style={{ color: palette.ink }}>{q.quotationNo}</b>
-        <Pill tone={q.status === 6 ? 'green' : 'accent'} dot>
+        <Pill tone={q.status === 6 ? 'green' : 'info'} dot>
           {q.statusName}
         </Pill>
         <span style={{ fontSize: 12, color: palette.mute }}>
@@ -274,7 +269,7 @@ const NewPiModal: React.FC<{
       <QuotationLines q={q} picked={picked} onChange={setPicked} />
       {quotationId && q.fees.length > 0 && (
         <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-          <InfoCircleOutlined /> 一并带入费用：
+          <Info size="1em" /> 一并带入费用：
           {q.fees
             .map(
               (f) => `${f.feeName} ${formatAmount(f.amount, q.currencyCode)}`,
@@ -347,7 +342,7 @@ const NewPiModal: React.FC<{
           <div style={{ display: 'grid', gap: 8, alignContent: 'start' }}>
             <Input
               allowClear
-              prefix={<SearchOutlined />}
+              prefix={<Search size="1em" />}
               placeholder="搜索客户"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
@@ -366,10 +361,7 @@ const NewPiModal: React.FC<{
               {!customers ? (
                 <Skeleton active paragraph={{ rows: 5 }} />
               ) : shownCustomers.length === 0 ? (
-                <Empty
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description="没有可开 PI 的报价单"
-                />
+                <EmptyState compact title="没有可开 PI 的报价单" />
               ) : (
                 shownCustomers.map((c) => {
                   const active = customer?.customerId === c.customerId;
@@ -383,8 +375,10 @@ const NewPiModal: React.FC<{
                         cursor: 'pointer',
                         padding: '10px 12px',
                         borderRadius: 10,
-                        background: active ? palette.accentSoft : palette.inset,
-                        border: `1px solid ${active ? palette.accentLine : palette.hairline}`,
+                        background: active
+                          ? palette.primarySoft
+                          : palette.inset,
+                        border: `1px solid ${active ? palette.primaryLine : palette.hairline}`,
                       }}
                     >
                       <div
@@ -397,11 +391,14 @@ const NewPiModal: React.FC<{
                       >
                         {c.customerName}
                         {active && (
-                          <CheckCircleFilled style={{ color: palette.link }} />
+                          <CircleCheck
+                            size="1em"
+                            style={{ color: palette.link }}
+                          />
                         )}
                       </div>
                       <div style={{ fontSize: 12, color: palette.mute }}>
-                        {[c.country, `${c.quotationCount} 张报价单`]
+                        {[zhOf(c.country), `${c.quotationCount} 张报价单`]
                           .filter(Boolean)
                           .join(' · ')}
                       </div>
@@ -424,15 +421,12 @@ const NewPiModal: React.FC<{
               <Alert
                 type="warning"
                 showIcon
-                icon={<WarningOutlined />}
+                icon={<TriangleAlert size="1em" />}
                 title={`所选报价单币种不同（${currencies.join('、')}），请分开开 PI`}
               />
             )}
             {!customer ? (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="先在左边选一个客户"
-              />
+              <EmptyState compact title="先在左边选一个客户" />
             ) : !quotations ? (
               <Skeleton active paragraph={{ rows: 8 }} />
             ) : (

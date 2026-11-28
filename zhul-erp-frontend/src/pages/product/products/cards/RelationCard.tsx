@@ -1,4 +1,3 @@
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import {
   App,
@@ -12,7 +11,9 @@ import {
   Space,
   Table,
 } from 'antd';
+import { Plus, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { EmptyHint } from '../../components/EmptyHint';
 import { Pill } from '../../components/Pills';
@@ -156,7 +157,8 @@ export const RelationCard: React.FC<{
   done?: boolean;
   onChanged: () => void;
 }> = ({ productId, readOnly, done, onChanged }) => {
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { palette } = useProductTheme();
   const [items, setItems] = useState<Relationship[]>([]);
   const [error, setError] = useState<string>();
@@ -185,12 +187,9 @@ export const RelationCard: React.FC<{
   };
 
   const remove = (r: Relationship) =>
-    modal.confirm({
+    confirmDanger({
       title: `删除与 ${r.relatedMpn} 的关系？`,
       content: '只删除这一条；如果之前同时创建了反向关系，它会保留。',
-      okText: '删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
       onOk: async () => {
         await relationshipApi.remove(productId, r.id);
         message.success('已删除');
@@ -206,7 +205,7 @@ export const RelationCard: React.FC<{
       actions={
         <Space size={8}>
           {!readOnly && (
-            <Button icon={<PlusOutlined />} onClick={() => setOpen(true)}>
+            <Button icon={<Plus size="1em" />} onClick={() => setOpen(true)}>
               添加关系
             </Button>
           )}
@@ -254,7 +253,7 @@ export const RelationCard: React.FC<{
               title: '目录',
               render: (_, r) =>
                 r.relatedProductId ? (
-                  <Pill tone="accent">{r.relatedBrandName ?? '目录内'}</Pill>
+                  <Pill tone="gray">{r.relatedBrandName ?? '目录内'}</Pill>
                 ) : (
                   <Pill tone="gray">目录外</Pill>
                 ),
@@ -262,7 +261,7 @@ export const RelationCard: React.FC<{
             {
               title: '关系类型',
               render: (_, r) => (
-                <Pill tone="accent">
+                <Pill tone="gray">
                   {RELATIONSHIP_TYPES[r.relationshipType]?.text}
                 </Pill>
               ),
@@ -299,7 +298,7 @@ export const RelationCard: React.FC<{
                         aria-label={`删除与 ${r.relatedMpn} 的关系`}
                         danger
                         type="text"
-                        icon={<DeleteOutlined />}
+                        icon={<Trash2 size="1em" />}
                         onClick={() => remove(r)}
                       />
                     ),

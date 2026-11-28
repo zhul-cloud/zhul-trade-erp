@@ -1,43 +1,45 @@
-import {
-  CarOutlined,
-  FallOutlined,
-  FileTextOutlined,
-  SearchOutlined,
-  ShoppingCartOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import type { TableColumnsType, TableProps } from 'antd';
-import { Button, DatePicker, Form, Input, Select, Table } from 'antd';
+import { DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Eye, Pencil, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import SourceNos from '@/components/DocFields/SourceNos';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  QuickFilters,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { PayStatusPill } from '@/pages/finance/payables/components';
 import { PAY_STATUS } from '@/pages/finance/payables/service';
 import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
-import { StockPill, useUserOptions } from '@/pages/sales/orders/dialogs';
+import { STOCK, useUserOptions } from '@/pages/sales/orders/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   auditColumns,
   BargainText,
-  Card,
   MigratedPill,
   PATHS,
   Pill,
   PO_STATUS,
   PoStatusPill,
-  PurchasePageTitle,
   SHIP_PROGRESS,
   ShipProgressPill,
   SourceCell,
-  StatCard,
   SupplierPicker,
   sub,
 } from '../components';
@@ -62,6 +64,25 @@ interface Filters {
 }
 
 type Sort = { field?: string; order?: 'ascend' | 'descend' };
+
+/** 帮助文字：help-texts.md「采购订单」，口径取自 PurchaseOrderServiceImpl.stats() */
+export const HELP = {
+  page: '向供应商下的单：记录实际采购价、开票、付款条件与供应商合同；砍价 = 目标价 − 人民币采购价，开票成本不计入砍价',
+  keyword: '可搜：采购订单编号、店铺名称、供应商名称或简称、销售订单编号、型号',
+  orderDate: '默认最近 3 个月；草稿还没有下单日期，按创建时间算',
+  bargain: '本月已下单的采购订单砍价合计；砍价率按目标金额加权',
+  pendingShip: '已下单、供应商还有没发的（未发货和部分发货）',
+  staleDrafts: '放了 3 天以上还没确认下单的草稿',
+  orderCancelled:
+    '来源销售订单已取消、采购订单已下单的；请决定取消采购订单或保留货物',
+} as const;
+
+/** 快捷筛选：逾期未发 */
+const QUICK_OVERDUE = 'overdue';
+
+/** 下拉选项后面带数量（stat-cards.md：状态并入下拉） */
+const withCount = (label: string, n?: number) =>
+  n ? `${label} · ${n}` : label;
 
 const PurchaseOrderList: React.FC = () => {
   const { palette } = useAppTheme();
@@ -144,13 +165,16 @@ const PurchaseOrderList: React.FC = () => {
       fixed: 'left',
       render: (v: string | undefined, r) => (
         <div>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => history.push(PATHS.order(r.id))}
-          >
-            {v ?? '草稿'}
-          </button>
+          <CopyText text={v}>
+            <button
+              type="button"
+              className="zhul-link"
+              onClick={() => history.push(PATHS.order(r.id))}
+            >
+              {/* 草稿确认下单后才编号；名称与详情页标题一致 */}
+              {v ?? '草稿采购订单'}
+            </button>
+          </CopyText>
           {r.migrated && (
             <div style={{ marginTop: 4 }}>
               <MigratedPill migrated />
@@ -161,15 +185,19 @@ const PurchaseOrderList: React.FC = () => {
                 r.staleDays ? palette.orange : palette.mute,
                 `${dayjs(r.createTime).format('MM-DD')} 创建${r.staleDays ? ` · 已放 ${r.staleDays} 天` : ''}`,
               )
-            : sub(palette.mute, r.orderDate ?? '—')}
+            : sub(
+                palette.mute,
+                // 现货 / 期货并进日期这一行（D40，列顺序方案 B）
+                [
+                  r.orderDate ?? '—',
+                  r.stockType != null &&
+                    (r.stockType === STOCK.FUTURES ? '期货' : '现货'),
+                ]
+                  .filter(Boolean)
+                  .join(' · '),
+              )}
         </div>
       ),
-    },
-    {
-      title: '现货 / 期货',
-      dataIndex: 'stockType',
-      width: 100,
-      render: (v?: number) => <StockPill type={v} />,
     },
     {
       title: '采购对象',
@@ -180,6 +208,101 @@ const PurchaseOrderList: React.FC = () => {
           <SourceCell shopName={r.shopName} channelName={v?.split(' · ')[0]} />
         ) : (
           <SourceCell supplierName={v} />
+        ),
+    },
+    {
+      title: '状态 · 发货进度',
+      dataIndex: 'status',
+      width: 190,
+      render: (v: number, r) => (
+        <div>
+          <span style={{ display: 'inline-flex', gap: 6 }}>
+            <PoStatusPill status={v} />
+            <ShipProgressPill code={r.shipProgress} name={r.shipProgressName} />
+          </span>
+          {r.cancelReason && sub(palette.mute, r.cancelReason)}
+          {r.shipProgress === 'SHIPPED' &&
+            sub(
+              palette.mute,
+              r.earliestArrival
+                ? `在途，预计 ${dayjs(r.earliestArrival).format('MM-DD')} 到`
+                : '在途',
+            )}
+          {(r.shipProgress === 'UNSHIPPED' || r.shipProgress === 'PARTIAL') &&
+            sub(
+              palette.mute,
+              `已发 ${r.shippedQty ?? 0} / ${r.totalQty ?? 0} 件`,
+            )}
+        </div>
+      ),
+    },
+    {
+      title: '合计',
+      dataIndex: 'totalAmount',
+      width: 150,
+      align: 'right',
+      sorter: true,
+      sortOrder: sortOf('totalAmount'),
+      render: (v: number, r) =>
+        r.missingPriceCount > 0 ? (
+          <span style={{ color: palette.orange, fontSize: 12 }}>
+            {r.missingPriceCount} 行未填单价
+          </span>
+        ) : (
+          <b style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {formatAmount(v, r.currencyCode)}
+          </b>
+        ),
+    },
+    {
+      title: '付款',
+      key: 'pay',
+      width: 170,
+      render: (_, r) =>
+        r.payStatus === undefined ? (
+          <span style={{ color: palette.mute }}>—</span>
+        ) : (
+          <div>
+            <PayStatusPill status={r.payStatus} />
+            {r.payStatus === PAY_STATUS.PARTIAL && (
+              <div style={{ fontSize: 12, color: palette.sub }}>
+                {formatAmount(r.paidAmount, r.currencyCode)} /{' '}
+                {formatAmount(r.payableAmount, r.currencyCode)}
+              </div>
+            )}
+            {!!r.creditAmount && r.creditAmount > 0 && (
+              <div style={{ fontSize: 12, color: palette.orange }}>
+                欠款 {formatAmount(r.creditAmount, r.currencyCode)}
+              </div>
+            )}
+          </div>
+        ),
+    },
+    {
+      title: '预计发货日期',
+      dataIndex: 'expectedShipDate',
+      width: 130,
+      render: (v: string | null | undefined, r) =>
+        v ? (
+          <div>
+            <span style={{ color: r.overdueDays ? palette.red : undefined }}>
+              {v}
+            </span>
+            {/* 逾期用错误色小字（status-colors.md「逾期 错误」），不用标签（标签 24 高会撑高行，D21） */}
+            {r.overdueDays ? (
+              <div
+                style={{
+                  fontSize: 12,
+                  lineHeight: '18px',
+                  color: palette.red,
+                }}
+              >
+                已过 {r.overdueDays} 天
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <span style={{ color: palette.mute }}>—</span>
         ),
     },
     {
@@ -215,24 +338,6 @@ const PurchaseOrderList: React.FC = () => {
       render: (_, r) => <TagList values={r.categories ?? []} label="品类" />,
     },
     {
-      title: '合计',
-      dataIndex: 'totalAmount',
-      width: 150,
-      align: 'right',
-      sorter: true,
-      sortOrder: sortOf('totalAmount'),
-      render: (v: number, r) =>
-        r.missingPriceCount > 0 ? (
-          <span style={{ color: palette.orange, fontSize: 12 }}>
-            {r.missingPriceCount} 行未填单价
-          </span>
-        ) : (
-          <b style={{ fontVariantNumeric: 'tabular-nums' }}>
-            {formatAmount(v, r.currencyCode)}
-          </b>
-        ),
-    },
-    {
       title: '砍价',
       dataIndex: 'bargainAmount',
       width: 130,
@@ -243,37 +348,6 @@ const PurchaseOrderList: React.FC = () => {
           <span style={{ color: palette.mute }}>—</span>
         ) : (
           <BargainText amount={v} rate={r.bargainRate} />
-        ),
-    },
-    {
-      title: '付款条件',
-      dataIndex: 'paymentTermsText',
-      width: 170,
-      render: (v?: string) =>
-        v || <span style={{ color: palette.mute }}>未填</span>,
-    },
-    {
-      title: '付款',
-      key: 'pay',
-      width: 170,
-      render: (_, r) =>
-        r.payStatus === undefined ? (
-          <span style={{ color: palette.mute }}>—</span>
-        ) : (
-          <div>
-            <PayStatusPill status={r.payStatus} />
-            {r.payStatus === PAY_STATUS.PARTIAL && (
-              <div style={{ fontSize: 12, color: palette.sub }}>
-                {formatAmount(r.paidAmount, r.currencyCode)} /{' '}
-                {formatAmount(r.payableAmount, r.currencyCode)}
-              </div>
-            )}
-            {!!r.creditAmount && r.creditAmount > 0 && (
-              <div style={{ fontSize: 12, color: palette.orange }}>
-                欠款 {formatAmount(r.creditAmount, r.currencyCode)}
-              </div>
-            )}
-          </div>
         ),
     },
     {
@@ -300,24 +374,11 @@ const PurchaseOrderList: React.FC = () => {
         ),
     },
     {
-      title: '预计发货日期',
-      dataIndex: 'expectedShipDate',
-      width: 130,
-      render: (v: string | null | undefined, r) =>
-        v ? (
-          <div>
-            <span style={{ color: r.overdueDays ? palette.orange : undefined }}>
-              {v}
-            </span>
-            {r.overdueDays ? (
-              <div>
-                <Pill tone="orange">已过 {r.overdueDays} 天</Pill>
-              </div>
-            ) : null}
-          </div>
-        ) : (
-          <span style={{ color: palette.mute }}>—</span>
-        ),
+      title: '付款条件',
+      dataIndex: 'paymentTermsText',
+      width: 170,
+      render: (v?: string) =>
+        v || <span style={{ color: palette.mute }}>未填</span>,
     },
     {
       title: '来源单号',
@@ -341,49 +402,42 @@ const PurchaseOrderList: React.FC = () => {
       width: 90,
       render: ellipsisRender,
     },
-    {
-      title: '状态 · 发货进度',
-      dataIndex: 'status',
-      width: 190,
-      render: (v: number, r) => (
-        <div>
-          <span style={{ display: 'inline-flex', gap: 6 }}>
-            <PoStatusPill status={v} />
-            <ShipProgressPill code={r.shipProgress} name={r.shipProgressName} />
-          </span>
-          {r.cancelReason && sub(palette.mute, r.cancelReason)}
-          {r.shipProgress === 'SHIPPED' &&
-            sub(
-              palette.mute,
-              r.earliestArrival
-                ? `在途，预计 ${dayjs(r.earliestArrival).format('MM-DD')} 到`
-                : '在途',
-            )}
-          {(r.shipProgress === 'UNSHIPPED' || r.shipProgress === 'PARTIAL') &&
-            sub(
-              palette.mute,
-              `已发 ${r.shippedQty ?? 0} / ${r.totalQty ?? 0} 件`,
-            )}
-        </div>
-      ),
-    },
     ...auditColumns<PoListItem>(),
     {
       title: '操作',
       key: 'actions',
-      width: 70,
+      width: rowActionsWidth(1),
       fixed: 'right',
-      render: (_, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => history.push(PATHS.order(r.id))}
-        >
-          {r.status === PO_STATUS.DRAFT ? '编辑' : '查看'}
-        </button>
-      ),
+      render: (_, r) => {
+        const draft = r.status === PO_STATUS.DRAFT;
+        return (
+          <RowActions
+            inline={[
+              {
+                key: 'view',
+                label: draft ? '编辑' : '查看',
+                icon: draft ? <Pencil size={18} /> : <Eye size={18} />,
+                onClick: () => history.push(PATHS.order(r.id)),
+              },
+            ]}
+          />
+        );
+      },
     },
   ];
+  const columnsSet = useColumnSettings('purchase-orders', columns, {
+    hidden: [
+      '预计发货日期',
+      '型号 · 数量',
+      '品牌',
+      '品类',
+      '砍价',
+      '开票',
+      '付款条件',
+      '来源单号',
+      '采购员',
+    ],
+  });
 
   const onTableChange: TableProps<PoListItem>['onChange'] = (
     _p,
@@ -406,265 +460,240 @@ const PurchaseOrderList: React.FC = () => {
     setPage(1);
   };
 
+  /** 搜索条件里的下拉：标签在上，读屏名称与标签相同 */
+  const select = (
+    name: keyof Filters,
+    label: string,
+    options: { value: string | number; label: string }[],
+    extra?: React.ComponentProps<typeof Select>,
+  ) => (
+    <FilterField label={label}>
+      <Form.Item name={name} noStyle>
+        <Select
+          allowClear
+          placeholder="全部"
+          aria-label={label}
+          options={options}
+          {...extra}
+        />
+      </Form.Item>
+    </FilterField>
+  );
+  const search = () => applyFilters(form.getFieldsValue());
+  const moreCount = [
+    filters.payStatus,
+    filters.invoiceStatus,
+    filters.supplierId,
+    filters.purchaserId,
+    filters.stockType,
+  ].filter((v) => v != null && v !== '').length;
+
   return (
     <div>
-      <PurchasePageTitle description="向供应商下的单：记录实际采购价、开票、付款条件与供应商合同；砍价 = 目标价 − 人民币采购价，开票成本不计入砍价。" />
-
+      <PageHeader help={HELP.page} />
       {stats && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: 16,
-            marginBottom: 16,
-          }}
-        >
-          <StatCard
-            icon={<ShoppingCartOutlined />}
-            color={palette.link}
-            label="本月已下单"
-            value={formatAmount(stats.monthOrderedCny, 'CNY')}
-            hint={`共 ${stats.monthOrderedCount} 张采购订单`}
-          />
-          <StatCard
-            icon={<FallOutlined />}
-            color={palette.green}
-            label="本月砍价合计"
-            value={formatAmount(stats.monthBargain, 'CNY')}
-            hint={
-              stats.monthBargainRate == null
-                ? '本月还没有可比较的采购订单'
-                : `整体砍价率 ${stats.monthBargainRate.toFixed(2)}%（按目标金额加权）`
-            }
-            hintColor={palette.green}
-          />
-          <button
-            type="button"
-            onClick={() =>
-              applyFilters({
-                status: undefined,
-                shipProgress: stats.overdueShip > 0 ? 'OVERDUE' : 'UNSHIPPED',
-              })
-            }
-            aria-label="筛出要催发货的采购订单"
-            style={{
-              all: 'unset',
-              cursor: 'pointer',
-              display: 'block',
-            }}
-          >
-            <StatCard
-              icon={<CarOutlined />}
-              color={stats.overdueShip > 0 ? palette.orange : palette.link}
-              label="待发货"
-              value={`${stats.pendingShip} 张`}
-              hint={
-                stats.overdueShip > 0
-                  ? `其中 ${stats.overdueShip} 张已过预计发货日期，点击筛出来催货`
-                  : '已下单、供应商还有没发的'
-              }
-              hintColor={stats.overdueShip > 0 ? palette.orange : undefined}
-            />
-          </button>
-          <StatCard
-            icon={<FileTextOutlined />}
-            color={palette.violet}
-            label="草稿"
-            value={stats.drafts}
-            hint={
-              stats.staleDrafts > 0
-                ? `${stats.staleDrafts} 张已放超过 3 天`
-                : '确认下单后订单型号才会变为「已下单」'
-            }
-            hintColor={stats.staleDrafts > 0 ? palette.orange : undefined}
-          />
-          <StatCard
-            icon={<WarningOutlined />}
-            color={stats.orderCancelled > 0 ? palette.red : palette.mute}
-            label="来源订单已取消"
-            value={stats.orderCancelled}
-            hint={
-              stats.orderCancelled > 0
-                ? '请决定取消采购订单或保留货物'
-                : '没有需要处理的采购订单'
-            }
-            hintColor={stats.orderCancelled > 0 ? palette.red : undefined}
-          />
-        </div>
+        <SummaryBar
+          items={[
+            {
+              key: 'ordered',
+              label: '本月已下单',
+              value: stats.monthOrderedCny,
+              currency: 'CNY',
+              sub: `${stats.monthOrderedCount} 张`,
+            },
+            {
+              key: 'bargain',
+              label: '本月砍价合计',
+              help: HELP.bargain,
+              value: stats.monthBargain,
+              currency: 'CNY',
+              sub:
+                stats.monthBargainRate == null
+                  ? undefined
+                  : `砍价率 ${stats.monthBargainRate.toFixed(2)}%`,
+            },
+            {
+              key: 'pending',
+              label: '待发货',
+              help: HELP.pendingShip,
+              value: `${stats.pendingShip} 张`,
+            },
+            {
+              key: 'stale',
+              label: '久放草稿',
+              help: HELP.staleDrafts,
+              value: stats.staleDrafts,
+            },
+            {
+              key: 'cancelled',
+              label: '来源订单已取消',
+              help: HELP.orderCancelled,
+              value: stats.orderCancelled,
+            },
+          ]}
+        />
       )}
 
-      <Card style={{ marginBottom: 16, padding: 20 }}>
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={defaults}
-          onFinish={applyFilters}
+      <Form form={form} initialValues={defaults} component={false}>
+        <FilterCard
+          onSearch={search}
+          onReset={() => {
+            form.resetFields();
+            applyFilters(defaults);
+          }}
+          minColumn={130}
+          moreCount={moreCount}
+          more={
+            <>
+              {select('payStatus', '付款', [
+                { value: 'UNPAID', label: '未付' },
+                { value: 'PARTIAL', label: '部分付款' },
+                { value: 'PAID', label: '已付清' },
+                { value: 'CREDIT', label: '有欠款' },
+              ])}
+              {select('invoiceStatus', '开票', [
+                { value: 'NONE', label: '不开票' },
+                { value: 'PENDING', label: '待开票' },
+                { value: 'DONE', label: '已开票' },
+                { value: 'OVERDUE', label: '开票逾期' },
+              ])}
+              <FilterField label="供应商">
+                <Form.Item name="supplierId" noStyle>
+                  <SupplierPicker
+                    aria-label="供应商"
+                    placeholder="全部"
+                    onChange={(v) => form.setFieldValue('supplierId', v)}
+                  />
+                </Form.Item>
+              </FilterField>
+              {select('purchaserId', '采购员', users, {
+                showSearch: { optionFilterProp: 'label' },
+              })}
+              {select('stockType', '现货 / 期货', [
+                { value: 1, label: '现货' },
+                { value: 2, label: '期货' },
+              ])}
+            </>
+          }
         >
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-              gap: 12,
-              alignItems: 'end',
-            }}
-          >
-            <Form.Item
-              name="keyword"
-              label="关键词"
-              style={{ marginBottom: 0, gridColumn: 'span 2' }}
-            >
+          <FilterField label="关键词" span={2} help={HELP.keyword}>
+            <Form.Item name="keyword" noStyle>
               <Input
                 allowClear
-                prefix={<SearchOutlined />}
-                placeholder="采购订单编号、供应商或店铺、型号、订单编号"
+                prefix={<Search size={16} />}
+                placeholder="采购订单编号、供应商或店铺、型号"
+                aria-label="关键词"
+                onPressEnter={search}
               />
             </Form.Item>
-            <Form.Item name="status" label="状态" style={{ marginBottom: 0 }}>
-              <Select
-                allowClear
-                placeholder="全部"
-                options={[
-                  { value: PO_STATUS.DRAFT, label: '草稿' },
-                  { value: PO_STATUS.ORDERED, label: '已下单' },
-                  { value: PO_STATUS.CANCELLED, label: '已取消' },
-                ]}
+          </FilterField>
+          {select(
+            'status',
+            '状态',
+            [
+              {
+                value: PO_STATUS.DRAFT,
+                label: withCount('草稿', stats?.drafts),
+              },
+              { value: PO_STATUS.ORDERED, label: '已下单' },
+              { value: PO_STATUS.CANCELLED, label: '已取消' },
+            ],
+            // 切换状态立即查询（doc-list-unify 状态下拉的写法）
+            { onChange: () => search() },
+          )}
+          <FilterField
+            label="下单日期"
+            span={2}
+            help={HELP.orderDate}
+            htmlFor="po-order-date"
+          >
+            <Form.Item name="range" noStyle>
+              <DatePicker.RangePicker
+                id={{ start: 'po-order-date' }}
+                style={{ width: '100%' }}
               />
             </Form.Item>
-            <Form.Item
-              name="shipProgress"
-              label="发货进度"
-              style={{ marginBottom: 0 }}
-            >
-              <Select allowClear placeholder="全部" options={SHIP_PROGRESS} />
-            </Form.Item>
-            <Form.Item
-              name="payStatus"
-              label="付款"
-              style={{ marginBottom: 0 }}
-            >
-              <Select
-                allowClear
-                placeholder="全部"
-                style={{ minWidth: 120 }}
-                options={[
-                  { value: 'UNPAID', label: '未付' },
-                  { value: 'PARTIAL', label: '部分付款' },
-                  { value: 'PAID', label: '已付清' },
-                  { value: 'CREDIT', label: '有欠款' },
-                ]}
-              />
-            </Form.Item>
-            <Form.Item
-              name="invoiceStatus"
-              label="开票"
-              style={{ marginBottom: 0 }}
-            >
-              <Select
-                allowClear
-                placeholder="全部"
-                style={{ minWidth: 120 }}
-                options={[
-                  { value: 'NONE', label: '不开票' },
-                  { value: 'PENDING', label: '待开票' },
-                  { value: 'DONE', label: '已开票' },
-                  { value: 'OVERDUE', label: '开票逾期' },
-                ]}
-              />
-            </Form.Item>
-            <Form.Item
-              name="supplierId"
-              label="供应商"
-              style={{ marginBottom: 0 }}
-            >
-              <SupplierPicker
-                placeholder="全部"
-                onChange={(v) => form.setFieldValue('supplierId', v)}
-              />
-            </Form.Item>
-            <Form.Item
-              name="purchaserId"
-              label="采购员"
-              style={{ marginBottom: 0 }}
-            >
-              <Select
-                allowClear
-                placeholder="全部"
-                options={users}
-                showSearch={{ optionFilterProp: 'label' }}
-              />
-            </Form.Item>
-            <Form.Item
-              name="stockType"
-              label="现货 / 期货"
-              style={{ marginBottom: 0 }}
-            >
-              <Select
-                allowClear
-                placeholder="全部"
-                options={[
-                  { value: 1, label: '现货' },
-                  { value: 2, label: '期货' },
-                ]}
-              />
-            </Form.Item>
-            <Form.Item
-              name="range"
-              label="下单日期"
-              style={{ marginBottom: 0, gridColumn: 'span 2' }}
-            >
-              <DatePicker.RangePicker style={{ width: '100%' }} />
-            </Form.Item>
-            <div
-              style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}
-            >
-              <Button
-                onClick={() => {
-                  form.resetFields();
-                  applyFilters(defaults);
-                }}
-              >
-                重置
-              </Button>
-              <Button type="primary" htmlType="submit">
-                查询
-              </Button>
-            </div>
-          </div>
-        </Form>
-      </Card>
+          </FilterField>
+          {select('shipProgress', '发货进度', SHIP_PROGRESS)}
+        </FilterCard>
+      </Form>
 
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : !loading && rows.length === 0 && noFilter ? (
-        <Card>
+        <MainCard>
           <EmptyHint
             title="还没有采购订单"
             description="销售订单生成后会自动排入草稿采购订单，也可以在采购需求里勾选生成"
             actionText="去采购需求"
             onAction={() => history.push(PATHS.requirements)}
           />
-        </Card>
+        </MainCard>
       ) : (
-        <Table<PoListItem>
-          rowKey="id"
-          columns={columns}
-          dataSource={rows}
+        <MainCard
+          settings={columnsSet.settings}
+          count={total}
           loading={loading}
-          scroll={{ x: tableScrollX(columns) }}
-          onChange={onTableChange}
-          locale={{ emptyText: '没有符合条件的采购订单，换个筛选条件试试' }}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
-            onChange: (p, s) => {
-              setPage(p);
-              setPageSize(s);
-            },
-          }}
-        />
+          quick={
+            <QuickFilters
+              options={[
+                {
+                  value: QUICK_OVERDUE,
+                  label: '逾期未发',
+                  count: stats?.overdueShip,
+                  danger: (stats?.overdueShip ?? 0) > 0,
+                },
+              ]}
+              value={filters.shipProgress === 'OVERDUE' ? [QUICK_OVERDUE] : []}
+              onChange={(v) => {
+                if (v.includes(QUICK_OVERDUE)) {
+                  // 同原统计卡：筛逾期未发时只按这一个条件（统计不分日期），方便催货；
+                  // 其他条件在搜索条件卡片里一并清空，显示的和实际查询一致
+                  applyFilters({
+                    keyword: undefined,
+                    status: undefined,
+                    payStatus: undefined,
+                    invoiceStatus: undefined,
+                    supplierId: undefined,
+                    purchaserId: undefined,
+                    stockType: undefined,
+                    range: null,
+                    shipProgress: 'OVERDUE',
+                  });
+                } else {
+                  // 取消后回到默认视图（最近 3 个月）
+                  form.resetFields();
+                  applyFilters(defaults);
+                }
+              }}
+            />
+          }
+        >
+          <Table<PoListItem>
+            rowKey="id"
+            columns={columnsSet.columns}
+            dataSource={rows}
+            loading={loading}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
+            onChange={onTableChange}
+            locale={{
+              emptyText: tableEmpty(
+                '没有符合条件的采购订单，换个筛选条件试试',
+                loading,
+              ),
+            }}
+            pagination={{
+              ...PAGER_STYLE,
+              current: page,
+              pageSize,
+              total,
+              onChange: (p, s) => {
+                setPage(p);
+                setPageSize(s);
+              },
+            }}
+          />
+        </MainCard>
       )}
     </div>
   );

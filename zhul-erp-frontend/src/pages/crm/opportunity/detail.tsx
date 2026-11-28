@@ -1,21 +1,27 @@
-import {
-  ArrowRightOutlined,
-  CheckCircleFilled,
-  CloseCircleOutlined,
-  DownloadOutlined,
-  DownOutlined,
-  EditOutlined,
-  FileAddOutlined,
-  RollbackOutlined,
-  StopOutlined,
-  TrophyOutlined,
-} from '@ant-design/icons';
 import { history, useAccess, useParams } from '@umijs/max';
 import { Alert, App, Button, Dropdown, Skeleton } from 'antd';
+import {
+  ArrowRight,
+  Ban,
+  ChevronDown,
+  CircleCheck,
+  CircleX,
+  Download,
+  Ellipsis,
+  FilePlus,
+  Pencil,
+  Trash2,
+  Trophy,
+  Undo2,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { CountryText } from '@/components/CountryText';
+import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle } from '@/components/PageTabs/hooks';
 import { StatusPill } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
+import { useCountries } from '@/pages/product/components/useCountries';
 import RecordFollowupModal from '@/pages/sales/followup/RecordFollowupModal';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
@@ -26,7 +32,6 @@ import {
   fileMeta,
   iconButton,
   MigratedPill,
-  PageTitle,
   Pill,
   PreviewButton,
   StagePill,
@@ -50,6 +55,8 @@ const OpportunityDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
+  const { zhOf } = useCountries();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess() as Record<string, boolean>;
   const canEdit = !!access['crm:opportunity:edit'];
   const canRecord = !!access['crm:followup:record'];
@@ -108,7 +115,7 @@ const OpportunityDetailPage: React.FC = () => {
   if (loading && detail === undefined) {
     return (
       <>
-        <PageTitle title="商机详情" current="商机详情" />
+        <PageHeader title="商机详情" />
         <Card>
           <Skeleton active paragraph={{ rows: 8 }} />
         </Card>
@@ -118,7 +125,7 @@ const OpportunityDetailPage: React.FC = () => {
   if (error) {
     return (
       <>
-        <PageTitle title="商机详情" current="商机详情" />
+        <PageHeader title="商机详情" />
         <ErrorHint message={error} onRetry={load} />
       </>
     );
@@ -126,7 +133,7 @@ const OpportunityDetailPage: React.FC = () => {
   if (!detail) {
     return (
       <>
-        <PageTitle title="商机详情" current="商机详情" />
+        <PageHeader title="商机详情" />
         <EmptyHint
           title="商机不存在"
           description="它可能已被删除，或不在你的数据权限范围内。"
@@ -181,7 +188,7 @@ const OpportunityDetailPage: React.FC = () => {
       });
       return;
     }
-    modal.confirm({
+    confirmDanger({
       title: '删除这条商机？',
       content: (
         <>
@@ -191,8 +198,6 @@ const OpportunityDetailPage: React.FC = () => {
           删除后商机从列表和统计里消失，客户档案保留；可以联系管理员恢复。只是不再跟进的话，建议用「结束商机」标为流失或无效，记录会保留在统计里。
         </>
       ),
-      okText: '删除',
-      okButtonProps: { danger: true },
       cancelText: '再想想',
       onOk: async () => {
         try {
@@ -221,7 +226,7 @@ const OpportunityDetailPage: React.FC = () => {
           {inValidStage ? (
             <Button
               danger
-              icon={<CloseCircleOutlined />}
+              icon={<CircleX size="1em" />}
               disabled={busy}
               onClick={() => setCloseKind('LOST')}
             >
@@ -229,7 +234,7 @@ const OpportunityDetailPage: React.FC = () => {
             </Button>
           ) : (
             <Button
-              icon={<StopOutlined />}
+              icon={<Ban size="1em" />}
               disabled={busy}
               onClick={() => setCloseKind('INVALID')}
             >
@@ -247,12 +252,12 @@ const OpportunityDetailPage: React.FC = () => {
             }}
           >
             <Button disabled={busy}>
-              调整阶段 <DownOutlined />
+              调整阶段 <ChevronDown size="1em" />
             </Button>
           </Dropdown>
           {next && (
             <Button
-              icon={<ArrowRightOutlined />}
+              icon={<ArrowRight size="1em" />}
               loading={busy}
               onClick={() =>
                 run(
@@ -267,7 +272,7 @@ const OpportunityDetailPage: React.FC = () => {
           {canRecord && (
             <Button
               type="primary"
-              icon={<EditOutlined />}
+              icon={<Pencil size="1em" />}
               onClick={() => setRecording(true)}
             >
               记一次跟进
@@ -276,7 +281,7 @@ const OpportunityDetailPage: React.FC = () => {
         </>
       ) : (
         <Button
-          icon={<RollbackOutlined />}
+          icon={<Undo2 size="1em" />}
           loading={busy}
           onClick={() => run(() => opportunityApi.reopen(d.id), '已重新打开')}
         >
@@ -294,7 +299,7 @@ const OpportunityDetailPage: React.FC = () => {
       <div
         style={{
           color: mute || !value ? palette.mute : palette.ink,
-          fontWeight: 500,
+          fontWeight: 600,
           wordBreak: 'break-all',
         }}
       >
@@ -305,19 +310,10 @@ const OpportunityDetailPage: React.FC = () => {
 
   return (
     <div style={{ color: palette.ink }}>
-      <PageTitle
-        title={d.customerName}
-        current={d.opportunityCode}
-        description={
-          <div
-            style={{
-              display: 'flex',
-              gap: 10,
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              marginTop: 4,
-            }}
-          >
+      <PageHeader
+        title={d.opportunityCode}
+        tags={
+          <>
             <StagePill
               code={d.stageCode}
               name={d.stageName}
@@ -330,27 +326,50 @@ const OpportunityDetailPage: React.FC = () => {
             </Pill>
             {d.customerNameMissing && <Pill tone="orange">未填客户名称</Pill>}
             <MigratedPill migrated={d.migrated} />
-            <span style={{ color: palette.mute }}>
-              首次接触 {d.firstContactDate} · 负责人 {d.ownerName || '未分配'} ·{' '}
-              {d.country}
-            </span>
-          </div>
+          </>
         }
-        actions={
+        sub={`${d.customerName} · 首次接触 ${d.firstContactDate} · 负责人 ${d.ownerName || '未分配'}${d.country ? ` · ${zhOf(d.country)}` : ''}`}
+        extra={
           <>
-            {canDelete && (
-              <Button disabled={busy} onClick={askDelete}>
-                删除
-              </Button>
-            )}
             {canEdit && (
-              <Button icon={<EditOutlined />} onClick={() => setEditing(true)}>
+              <Button
+                type="text"
+                icon={<Pencil size={16} />}
+                style={{ color: palette.link }}
+                onClick={() => setEditing(true)}
+              >
                 编辑
               </Button>
             )}
+            {canDelete && (
+              <Dropdown
+                trigger={['click']}
+                placement="bottomRight"
+                disabled={busy}
+                menu={{
+                  items: [
+                    {
+                      key: 'delete',
+                      icon: <Trash2 size={16} />,
+                      label: '删除',
+                      danger: true,
+                    },
+                  ],
+                  onClick: askDelete,
+                }}
+              >
+                <Button
+                  type="text"
+                  shape="circle"
+                  icon={<Ellipsis size={18} />}
+                  aria-label="更多操作"
+                />
+              </Dropdown>
+            )}
             {isActive && (
               <Button
-                icon={<FileAddOutlined />}
+                type="primary"
+                icon={<FilePlus size={16} />}
                 onClick={() => setCreatingInquiry(true)}
               >
                 创建询盘单
@@ -401,15 +420,15 @@ const OpportunityDetailPage: React.FC = () => {
                 style={{
                   padding: '12px 14px',
                   borderRadius: 12,
-                  background: cur ? palette.accentSoft : palette.inset,
-                  border: `1px solid ${cur ? palette.accentLine : palette.hairline}`,
+                  background: cur ? palette.primarySoft : palette.inset,
+                  border: `1px solid ${cur ? palette.primaryLine : palette.hairline}`,
                   opacity: !isActive && !cur && !done ? 0.6 : 1,
                 }}
               >
                 <div
                   style={{
                     fontSize: 12,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     color: cur
                       ? palette.link
                       : done
@@ -417,12 +436,14 @@ const OpportunityDetailPage: React.FC = () => {
                         : palette.mute,
                   }}
                 >
-                  {done && <CheckCircleFilled style={{ marginRight: 6 }} />}
+                  {done && (
+                    <CircleCheck size="1em" style={{ marginRight: 6 }} />
+                  )}
                   {s.code}
                 </div>
                 <div
                   style={{
-                    fontWeight: cur ? 700 : 500,
+                    fontWeight: cur ? 600 : 400,
                     color: cur
                       ? palette.ink
                       : done
@@ -447,7 +468,7 @@ const OpportunityDetailPage: React.FC = () => {
               background: palette.greenSoft,
             }}
           >
-            <TrophyOutlined style={{ color: palette.green }} />{' '}
+            <Trophy size="1em" style={{ color: palette.green }} />{' '}
             <b style={{ color: palette.green }}>
               收款到账后系统自动赢单，不用手动标记。
             </b>{' '}
@@ -496,7 +517,7 @@ const OpportunityDetailPage: React.FC = () => {
                   : d.customerName,
                 d.customerNameMissing,
               )}
-              {kv('国家/地区', d.country)}
+              {kv('国家/地区', d.country && <CountryText value={d.country} />)}
               {kv('WhatsApp', d.whatsapp)}
               {kv('邮箱', d.email)}
               {kv('联系电话', d.phone)}
@@ -557,7 +578,7 @@ const OpportunityDetailPage: React.FC = () => {
                             }
                           }}
                         >
-                          <DownloadOutlined />
+                          <Download size="1em" />
                         </button>
                       </>
                     }

@@ -1,23 +1,3 @@
-import {
-  CheckCircleOutlined,
-  CopyOutlined,
-  DeleteOutlined,
-  DownloadOutlined,
-  DownOutlined,
-  EditOutlined,
-  EyeInvisibleOutlined,
-  EyeOutlined,
-  FileDoneOutlined,
-  HistoryOutlined,
-  LockOutlined,
-  MessageOutlined,
-  PlusOutlined,
-  RollbackOutlined,
-  SendOutlined,
-  StopOutlined,
-  ThunderboltOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { history, useAccess, useParams, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -35,6 +15,28 @@ import {
   Tooltip,
 } from 'antd';
 import dayjs from 'dayjs';
+import {
+  Ban,
+  ChevronDown,
+  CircleCheck,
+  CircleX,
+  Copy,
+  Download,
+  Ellipsis,
+  Eye,
+  EyeOff,
+  FileCheck,
+  History,
+  Lock,
+  MessageSquareText,
+  Pencil,
+  Plus,
+  Send,
+  Trash2,
+  TriangleAlert,
+  Undo2,
+  Zap,
+} from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -48,6 +50,7 @@ import {
   needsEnglish,
   useDescriptionTranslation,
 } from '@/components/BilingualDescription';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import {
   DictTextInput,
   IncotermInput,
@@ -58,12 +61,21 @@ import {
   ActualModelPencil,
 } from '@/components/DocFields/ActualModel';
 import DocModelCell, {
-  docBrandColumns,
+  docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
+import {
+  CardTitle,
+  HelpTip,
+  PageHeader,
+  Panel,
+  STICKY_TABLE,
+  STUCK_HEADER_BOTTOM,
+} from '@/components/ListLayout';
 import { usePageTitle, useTabDirty } from '@/components/PageTabs/hooks';
+import { rowAlert } from '@/components/RowAlert';
 import { type DiffRow, VersionPanel } from '@/components/VersionPanel';
 import {
   ConditionPill,
@@ -75,9 +87,9 @@ import { ChainCard, PATHS as SALES_PATHS } from '@/pages/sales/components';
 import NewPiModal from '@/pages/sales/pi/NewPiModal';
 import { type PiListItem, piApi } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useDeltaColor } from '@/theme/delta';
 import { DICT_WARRANTY } from '@/utils/dict';
-import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   calcLine,
@@ -95,7 +107,6 @@ import {
   CURRENCIES,
   PATHS,
   Pill,
-  QuotationPageTitle,
   QuotationStatusPill,
   STATUS,
 } from './components';
@@ -208,7 +219,14 @@ const PreviewPanel: React.FC<{
 }> = ({ state, onCollapse }) => {
   const { palette } = useAppTheme();
   return (
-    <Card style={{ position: 'sticky', top: 80, padding: 20 }}>
+    <Card
+      style={{
+        position: 'sticky',
+        // 详情页头吸顶后贴在它下面（S15）
+        top: STUCK_HEADER_BOTTOM + 16,
+        padding: 20,
+      }}
+    >
       <div
         style={{
           display: 'flex',
@@ -234,7 +252,7 @@ const PreviewPanel: React.FC<{
         <Button
           size="small"
           type="text"
-          icon={<EyeInvisibleOutlined />}
+          icon={<EyeOff size="1em" />}
           onClick={onCollapse}
         >
           收起预览
@@ -359,7 +377,9 @@ const QuotationDetail: React.FC = () => {
     ? Number(search.get('version'))
     : undefined;
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { palette } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
   const wide = useWide();
   const { leadTimeOptions } = useQuoteDicts();
   const [q, setQ] = useState<Quotation>();
@@ -676,7 +696,7 @@ const QuotationDetail: React.FC = () => {
     }
   };
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!q || !draft) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const revising = editable && q.status === STATUS.SENT;
@@ -732,6 +752,7 @@ const QuotationDetail: React.FC = () => {
       ),
     });
     setStrategyOpen(false);
+    // lint-ui-ignore filler-maybe: 只改了草稿，提醒还要保存
     message.success(`已按报价策略更新 ${prices.size} 个型号的售价，保存后生效`);
   };
   // 缺英文描述：导出会退回中文，可一键生成
@@ -1127,16 +1148,23 @@ const QuotationDetail: React.FC = () => {
     src && { ...src, brand: brandText(src) };
 
   const editColumns: TableColumnsType<SaveQuotationItem> = [
-    { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
-    ...(compact
-      ? []
-      : docBrandColumns<SaveQuotationItem>((d) => metaOf(itemById.get(d.id)))),
     {
-      title: '型号',
-      key: 'model',
-      width: compact ? 170 : 220,
-      render: (_, d) => modelCell(itemById.get(d.id) as QuotationItem, d),
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 44,
+      render: (_, __, i) => i + 1,
     },
+    docModelColumn<SaveQuotationItem>(
+      (d) => metaOf(itemById.get(d.id)),
+      {
+        title: '型号',
+        key: 'model',
+        width: compact ? 170 : 220,
+        render: (_, d) => modelCell(itemById.get(d.id) as QuotationItem, d),
+      },
+      !compact,
+    ),
     ...(compact
       ? []
       : ([
@@ -1293,7 +1321,7 @@ const QuotationDetail: React.FC = () => {
               <div
                 style={{
                   fontSize: 12,
-                  color: r.netProfit < 0 ? palette.red : palette.green,
+                  color: deltaOf(r.netProfit),
                 }}
               >
                 {formatAmount(r.netProfit, currency)}
@@ -1304,7 +1332,7 @@ const QuotationDetail: React.FC = () => {
       },
     },
     {
-      title: '净利润',
+      title: `净利润（${currency}）`,
       key: 'profit',
       width: 130,
       align: 'right',
@@ -1313,10 +1341,10 @@ const QuotationDetail: React.FC = () => {
         const r = results.get(d.id) as LineResult;
         if (r.netProfit == null)
           return <span style={{ color: palette.mute }}>—</span>;
-        const color = r.netProfit < 0 ? palette.red : palette.green;
+        const color = deltaOf(r.netProfit);
         return (
           <div style={{ ...num, color }}>
-            {formatAmount(r.netProfit, currency)}
+            {formatMoney(r.netProfit)}
             {currency !== 'CNY' && (
               <div style={{ fontSize: 12, color: palette.mute }}>
                 {formatAmount(r.netProfitCny, 'CNY')}
@@ -1335,7 +1363,7 @@ const QuotationDetail: React.FC = () => {
           <Button
             size="small"
             type="text"
-            icon={<DeleteOutlined />}
+            icon={<Trash2 size="1em" />}
             aria-label="删除型号行"
             onClick={() => removeItem(d.id)}
           />
@@ -1345,29 +1373,19 @@ const QuotationDetail: React.FC = () => {
   ];
 
   const viewColumns: TableColumnsType<QuotationItem> = [
-    { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
-    ...docBrandColumns<QuotationItem>(metaOf),
     {
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 44,
+      render: (_, __, i) => i + 1,
+    },
+    docModelColumn<QuotationItem>(metaOf, {
       title: '型号',
       key: 'model',
       width: 220,
       render: (_, r) => modelCell(r),
-    },
-    {
-      title: '描述',
-      width: 240,
-      render: ellipsisRender,
-      dataIndex: 'description',
-      ellipsis: true,
-    },
-    {
-      title: '货况',
-      key: 'cond',
-      width: 110,
-      render: (_, r) => <ConditionPill value={r.itemCondition} />,
-    },
-    { title: '货期', dataIndex: 'leadTimeName', width: 100 },
-    { title: '质保', dataIndex: 'warranty', width: 90 },
+    }),
     { title: '数量', dataIndex: 'quantity', width: 70, align: 'right' },
     {
       title: '单价',
@@ -1433,6 +1451,21 @@ const QuotationDetail: React.FC = () => {
           <span style={num}>{formatAmount(r.netProfit, q.currencyCode)}</span>
         ),
     },
+    {
+      title: '货况',
+      key: 'cond',
+      width: 110,
+      render: (_, r) => <ConditionPill value={r.itemCondition} />,
+    },
+    { title: '货期', dataIndex: 'leadTimeName', width: 100 },
+    { title: '质保', dataIndex: 'warranty', width: 90 },
+    {
+      title: '描述',
+      width: 240,
+      render: ellipsisRender,
+      dataIndex: 'description',
+      ellipsis: true,
+    },
   ];
 
   // ---------------------------------------------------------------- 顶部操作
@@ -1447,11 +1480,55 @@ const QuotationDetail: React.FC = () => {
     onClick: ({ key }: { key: string }) => markSent(Number(key)),
   };
 
+  // 页头操作（照销售订单详情 B1）：每个页头一个主按钮；常用的次要操作为文字按钮；放弃版本、作废、标为未成交收进「更多」
+  const textBtn = (
+    label: React.ReactNode,
+    icon: React.ReactNode,
+    onClick: () => void,
+  ) => (
+    <Button
+      type="text"
+      icon={icon}
+      style={{ color: palette.link }}
+      onClick={onClick}
+    >
+      {label}
+    </Button>
+  );
+  const moreMenu = (
+    items: {
+      key: string;
+      label: string;
+      icon: React.ReactNode;
+      danger?: boolean;
+      onClick: () => void;
+    }[],
+  ) =>
+    items.length > 0 && (
+      <Dropdown
+        trigger={['click']}
+        placement="bottomRight"
+        menu={{
+          items: items.map(({ onClick: _, ...it }) => it),
+          onClick: ({ key }) => items.find((x) => x.key === key)?.onClick(),
+        }}
+      >
+        <Button
+          type="text"
+          shape="circle"
+          icon={<Ellipsis size={18} />}
+          aria-label="更多操作"
+        />
+      </Dropdown>
+    );
+
   const actions = editable ? (
     <>
       {wide && (
         <Button
-          icon={previewOpen ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+          type="text"
+          style={{ color: palette.link }}
+          icon={previewOpen ? <EyeOff size={16} /> : <Eye size={16} />}
           onClick={() => {
             setPreviewOpen(!previewOpen);
             savePreviewPref(!previewOpen);
@@ -1460,41 +1537,13 @@ const QuotationDetail: React.FC = () => {
           {previewOpen ? '收起预览' : '显示预览'}
         </Button>
       )}
-      {revising && (
-        <Button
-          icon={<RollbackOutlined />}
-          onClick={() =>
-            modal.confirm({
-              title: `放弃 Rev.${q.editingVersionNo}？`,
-              content: `放弃后回到 Rev.${q.currentVersionNo}，这次的修改不保留。`,
-              okText: '放弃',
-              okButtonProps: { danger: true },
-              onOk: () =>
-                act(() => quotationApi.abandon(q.id), '已放弃这个版本'),
-            })
-          }
-        >
-          放弃这个版本
-        </Button>
-      )}
-      <Button
-        icon={<ThunderboltOutlined />}
-        onClick={() => setStrategyOpen(true)}
-      >
-        报价策略
-      </Button>
-      <Button
-        icon={<MessageOutlined />}
-        onClick={async () => (await ensureSaved()) && setTextOpen(true)}
-      >
-        文字报价
-      </Button>
-      <Button
-        icon={<DownloadOutlined />}
-        onClick={async () => (await ensureSaved()) && setExportOpen(true)}
-      >
-        导出
-      </Button>
+      {textBtn('报价策略', <Zap size={16} />, () => setStrategyOpen(true))}
+      {textBtn('文字报价', <MessageSquareText size={16} />, async () => {
+        if (await ensureSaved()) setTextOpen(true);
+      })}
+      {textBtn('导出', <Download size={16} />, async () => {
+        if (await ensureSaved()) setExportOpen(true);
+      })}
       <Button
         loading={saving}
         disabled={!dirty}
@@ -1502,63 +1551,76 @@ const QuotationDetail: React.FC = () => {
       >
         {dirty ? '保存' : '已保存'}
       </Button>
+      {revising &&
+        moreMenu([
+          {
+            key: 'abandon',
+            label: '放弃这个版本',
+            icon: <Undo2 size={16} />,
+            danger: true,
+            onClick: () =>
+              confirmDanger({
+                title: `放弃 Rev.${q.editingVersionNo}？`,
+                content: `放弃后回到 Rev.${q.currentVersionNo}，这次的修改不保留。`,
+                okText: '放弃',
+                onOk: () =>
+                  act(() => quotationApi.abandon(q.id), '已放弃这个版本'),
+              }),
+          },
+        ])}
       <Dropdown menu={sentMenu} trigger={['click']}>
-        <Button type="primary" icon={<SendOutlined />}>
+        <Button type="primary" icon={<Send size={16} />}>
           {revising ? `发送 Rev.${q.editingVersionNo}` : '标为已发送'}{' '}
-          <DownOutlined />
+          <ChevronDown size={14} aria-hidden />
         </Button>
       </Dropdown>
     </>
   ) : (
     <>
-      <Button icon={<MessageOutlined />} onClick={() => setTextOpen(true)}>
-        文字报价
-      </Button>
-      <Button icon={<DownloadOutlined />} onClick={() => setExportOpen(true)}>
-        导出
-      </Button>
-      <Button icon={<CopyOutlined />} onClick={copyAsNew}>
-        复制为新报价单
-      </Button>
-      {historical && (
-        <Button onClick={() => showVersion()}>
-          回到 Rev.{q.editingVersionNo ?? q.currentVersionNo}
-        </Button>
+      {textBtn('文字报价', <MessageSquareText size={16} />, () =>
+        setTextOpen(true),
       )}
-      {q.status === STATUS.SENT && !historical && (
-        <Button icon={<EditOutlined />} onClick={revise}>
-          修改（出新版本）
-        </Button>
-      )}
-      {q.status === STATUS.SENT && !historical && (
-        <>
-          <Button
-            icon={<StopOutlined />}
-            onClick={() =>
-              modal.confirm({
+      {textBtn('导出', <Download size={16} />, () => setExportOpen(true))}
+      {textBtn('复制为新报价单', <Copy size={16} />, copyAsNew)}
+      {q.status === STATUS.SENT &&
+        !historical &&
+        textBtn('修改（出新版本）', <Pencil size={16} />, revise)}
+      {q.status === STATUS.SENT &&
+        !historical &&
+        moreMenu([
+          {
+            key: 'lost',
+            label: '标为未成交',
+            icon: <CircleX size={16} />,
+            onClick: () => setLostOpen(true),
+          },
+          {
+            key: 'void',
+            label: '作废',
+            icon: <Ban size={16} />,
+            danger: true,
+            onClick: () =>
+              confirmDanger({
                 title: '作废这张报价单？',
                 content:
                   '作废后不能恢复；如果只是价格要调整，用「复制为新报价单」更合适。',
                 okText: '作废',
-                okButtonProps: { danger: true },
                 onOk: () =>
                   act(() => quotationApi.voidQuotation(q.id), '报价单已作废'),
-              })
-            }
-          >
-            作废
-          </Button>
-          <Button danger onClick={() => setLostOpen(true)}>
-            标为未成交
-          </Button>
-        </>
+              }),
+          },
+        ])}
+      {historical && (
+        <Button type="primary" onClick={() => showVersion()}>
+          回到 Rev.{q.editingVersionNo ?? q.currentVersionNo}
+        </Button>
       )}
       {(q.status === STATUS.SENT || q.status === STATUS.PARTIAL) &&
         !historical &&
         access.salesPi && (
           <Button
             type="primary"
-            icon={<FileDoneOutlined />}
+            icon={<FileCheck size={16} />}
             onClick={() => setPiOpen(true)}
           >
             {q.status === STATUS.PARTIAL ? '就未成交的型号开 PI' : '开 PI'}
@@ -1598,7 +1660,7 @@ const QuotationDetail: React.FC = () => {
             }}
           >
             {q.customerName}
-            {q.customerType === 2 && <Pill tone="violet">老客户</Pill>}
+            {q.customerType === 2 && <Pill tone="purple">老客户</Pill>}
           </div>
         </div>
         <div>
@@ -1632,7 +1694,7 @@ const QuotationDetail: React.FC = () => {
           <Input
             value={Number(rate).toFixed(6)}
             readOnly
-            prefix={<LockOutlined />}
+            prefix={<Lock size="1em" />}
             suffix={
               <span style={{ color: palette.mute, fontSize: 12 }}>
                 系统汇率
@@ -1733,7 +1795,7 @@ const QuotationDetail: React.FC = () => {
         <Alert
           type="warning"
           showIcon
-          icon={<WarningOutlined />}
+          icon={<TriangleAlert size="1em" />}
           title={`系统汇率已更新为 ${Number(q.systemRate).toFixed(6)}（原 ${Number(q.exchangeRate).toFixed(6)}），这张草稿仍按 ${Number(q.exchangeRate).toFixed(6)} 计算`}
           action={
             <Button size="small" onClick={recalc}>
@@ -1746,7 +1808,7 @@ const QuotationDetail: React.FC = () => {
         <Alert
           type="info"
           showIcon
-          icon={<HistoryOutlined />}
+          icon={<History size="1em" />}
           title={`老客户：SOP 建议参考历史成交毛利率（${
             q.returningCustomerMargins && q.returningCustomerMargins.length > 0
               ? `近 ${q.returningCustomerMargins.length} 次：${q.returningCustomerMargins.map((m) => formatMargin(m)).join('、')}`
@@ -1769,52 +1831,30 @@ const QuotationDetail: React.FC = () => {
             }
           />
         )}
-      {!editable && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            padding: '12px 16px',
-            borderRadius: 12,
-            background: palette.inset,
-            border: `1px solid ${palette.hairline}`,
-            color: palette.sub,
-            fontSize: 13,
-          }}
-        >
-          <LockOutlined />
-          <b style={{ color: palette.ink }}>
-            {historical
-              ? `Rev.${q.versionNo} · 历史版本`
-              : `${q.statusName} · 内容已锁定`}
-          </b>
-          {q.sendLogs.length > 0 && (
-            <span>
-              发送记录：
-              {q.sendLogs
-                .map(
-                  (s) =>
-                    `${dayjs(s.sentAt).format('MM-DD HH:mm')} ${s.channelName}${q.versions.length > 1 && s.versionNo ? `（Rev.${s.versionNo}）` : ''}`,
-                )
-                .join(' · ')}
-            </span>
-          )}
-          {q.status === STATUS.LOST && q.lostReasonName && (
-            <span style={{ color: palette.orange }}>
-              未成交原因：{q.lostReasonName}
-              {q.lostNote ? `（${q.lostNote}）` : ''}
-            </span>
-          )}
-          <span style={{ marginLeft: 'auto', color: palette.mute }}>
-            {q.status === STATUS.SENT && !q.activePiNo
-              ? '需要改价？点「修改（出新版本）」，编号不变'
-              : q.status === STATUS.SENT || q.status === STATUS.PARTIAL
-                ? '客户付款后由 PI 转成订单，报价单会自动变为成交'
-                : '需要改价？点「复制为新报价单」生成新草稿'}
-          </span>
+    </div>
+  );
+
+  // 只读是正常状态：页头右侧中性胶囊加帮助图标，不用整条横幅（规范 R8-4，UI-117）；发送记录与下一步放进说明
+  const lockTip = !editable && (
+    <div style={{ display: 'grid', gap: 4 }}>
+      {q.sendLogs.length > 0 && (
+        <div>
+          发送记录：
+          {q.sendLogs
+            .map(
+              (s) =>
+                `${dayjs(s.sentAt).format('MM-DD HH:mm')} ${s.channelName}${q.versions.length > 1 && s.versionNo ? `（Rev.${s.versionNo}）` : ''}`,
+            )
+            .join(' · ')}
         </div>
       )}
+      <div>
+        {q.status === STATUS.SENT && !q.activePiNo
+          ? '需要改价？点「修改（出新版本）」，编号不变'
+          : q.status === STATUS.SENT || q.status === STATUS.PARTIAL
+            ? '客户付款后由 PI 转成订单，报价单会自动变为成交'
+            : '需要改价？点「复制为新报价单」生成新草稿'}
+      </div>
     </div>
   );
 
@@ -1823,29 +1863,32 @@ const QuotationDetail: React.FC = () => {
   ).length;
 
   const itemsCard = (
-    <div>
+    <Panel style={{ padding: '20px 24px', minWidth: 0 }}>
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 12,
-          margin: '0 0 10px',
+          gap: 8,
+          margin: '0 0 16px',
         }}
       >
-        <b style={{ fontSize: 16, color: palette.ink }}>
-          型号（{editable ? draft.items.length : q.items.length}）
-        </b>
-        <span style={{ fontSize: 12, color: palette.mute }}>
-          {editable
-            ? compact
-              ? '预览展开时为紧凑列；货况货期、质保、描述点型号行前的展开按钮查看与编辑'
-              : '每行可按毛利率或按加价定价，也可直接改外币售价；采购成本价、毛利率、净利润不会出现在发给客户的文件里'
-            : '采购成本价、毛利率、净利润只在系统内显示'}
+        <CardTitle>型号明细</CardTitle>
+        <HelpTip
+          title={
+            editable
+              ? compact
+                ? '预览展开时为紧凑列；货况货期、质保、描述点型号行前的展开按钮查看与编辑'
+                : '每行可按毛利率或按加价定价，也可直接改外币售价；采购成本价、毛利率、净利润不会出现在发给客户的文件里'
+              : '采购成本价、毛利率、净利润只在系统内显示'
+          }
+        />
+        <span style={{ fontSize: 13, color: palette.mute }}>
+          {editable ? draft.items.length : q.items.length} 个型号
         </span>
         {editable && (
           <Button
             style={{ marginLeft: 'auto' }}
-            icon={<PlusOutlined />}
+            icon={<Plus size="1em" />}
             onClick={async () => (await ensureSaved()) && setAddOpen(true)}
           >
             从询盘添加型号
@@ -1883,7 +1926,7 @@ const QuotationDetail: React.FC = () => {
             gap: 10,
             padding: '10px 16px',
             borderRadius: 12,
-            background: palette.accentSoft,
+            background: palette.primarySoft, // lint-ui-ignore primary-soft: 批量操作条（已选 N 个型号），属于选中状态
             marginBottom: 10,
           }}
         >
@@ -1894,7 +1937,7 @@ const QuotationDetail: React.FC = () => {
           <span style={{ marginLeft: 'auto' }} />
           <Button
             type="primary"
-            icon={<ThunderboltOutlined />}
+            icon={<Zap size="1em" />}
             onClick={() => setStrategyOpen(true)}
           >
             报价策略
@@ -1914,6 +1957,8 @@ const QuotationDetail: React.FC = () => {
           columns={editColumns}
           dataSource={draft.items}
           pagination={false}
+          // 长单据：表头贴在吸顶页头下面，横向滚动条贴视口底部（S15、R24 方案 B）
+          sticky={STICKY_TABLE}
           scroll={{ x: tableScrollX(editColumns) }}
           rowClassName={() => ''}
           onRow={(d) => {
@@ -1923,7 +1968,7 @@ const QuotationDetail: React.FC = () => {
               src?.floorMargin != null &&
               r?.marginRate != null &&
               r.marginRate < src.floorMargin;
-            return below ? { style: { background: palette.redSoft } } : {};
+            return below ? rowAlert('error') : {};
           }}
           expandable={{
             expandedRowRender: (d) => (
@@ -2000,10 +2045,12 @@ const QuotationDetail: React.FC = () => {
           columns={viewColumns}
           dataSource={q.items}
           pagination={false}
+          // 长单据：表头贴在吸顶页头下面，横向滚动条贴视口底部（S15、R24 方案 B）
+          sticky={STICKY_TABLE}
           scroll={{ x: tableScrollX(viewColumns) }}
         />
       )}
-    </div>
+    </Panel>
   );
 
   const feesCard = (
@@ -2016,10 +2063,8 @@ const QuotationDetail: React.FC = () => {
           marginBottom: 12,
         }}
       >
-        <b style={{ color: palette.ink }}>费用</b>
-        <span style={{ fontSize: 12, color: palette.mute }}>
-          运费、手续费不计入毛利率与净利润
-        </span>
+        <CardTitle>费用</CardTitle>
+        <HelpTip title="运费、手续费不计入毛利率与净利润" />
         {editable && (
           <button
             type="button"
@@ -2032,7 +2077,7 @@ const QuotationDetail: React.FC = () => {
               ])
             }
           >
-            <PlusOutlined /> 加费用行
+            <Plus size="1em" /> 加费用行
           </button>
         )}
       </div>
@@ -2063,7 +2108,7 @@ const QuotationDetail: React.FC = () => {
                 style={{ flex: 1 }}
                 value={f.feeName}
                 maxLength={64}
-                placeholder="费用名称，如 Shipping Cost、Bank Charge"
+                placeholder="费用名称，如 Shipping Cost"
                 onChange={(e) =>
                   setFees(
                     fees.map((x) =>
@@ -2090,7 +2135,7 @@ const QuotationDetail: React.FC = () => {
               />
               <Button
                 type="text"
-                icon={<DeleteOutlined />}
+                icon={<Trash2 size="1em" />}
                 aria-label="删除费用行"
                 onClick={() => setFees(fees.filter((x) => x.key !== f.key))}
               />
@@ -2148,7 +2193,7 @@ const QuotationDetail: React.FC = () => {
           margin: '10px 0 2px',
         }}
       >
-        <b style={{ fontSize: 16, color: palette.ink }}>合计</b>
+        <CardTitle>合计</CardTitle>
         <b style={{ ...num, fontSize: 24, color: palette.ink }}>
           {formatAmount(t.totalAmount, currency)}
         </b>
@@ -2176,9 +2221,7 @@ const QuotationDetail: React.FC = () => {
             ? '—'
             : `${formatAmount(t.netProfit, currency)}${currency !== 'CNY' ? ` / ${formatAmount(t.netProfitCny, 'CNY')}` : ''}`
         }
-        color={
-          t.netProfit != null && t.netProfit < 0 ? palette.red : palette.green
-        }
+        color={deltaOf(t.netProfit)}
       />
       <Row
         label="合计毛利率"
@@ -2222,10 +2265,8 @@ const QuotationDetail: React.FC = () => {
               marginBottom: 12,
             }}
           >
-            <b style={{ color: palette.ink, fontSize: 16 }}>PI 与订单</b>
-            <span style={{ fontSize: 12, color: palette.mute }}>
-              由这张报价单开出的 PI；订单取消后报价单回到「已发送」
-            </span>
+            <CardTitle>PI 与订单</CardTitle>
+            <HelpTip title="由这张报价单开出的 PI；订单取消后报价单回到「已发送」" />
           </div>
           <div style={{ display: 'grid', gap: 8 }}>
             {pis.map((p) => (
@@ -2295,27 +2336,35 @@ const QuotationDetail: React.FC = () => {
 
   return (
     <div>
-      <QuotationPageTitle
-        crumbs={[<MenuLink key="list" to={PATHS.list} />, q.quotationNo]}
-        title={
+      <PageHeader
+        title={q.quotationNo}
+        tags={
           <>
-            {q.quotationNo}
             <QuotationStatusPill status={q.status} />
             {q.editingVersionNo ? (
               <Pill tone="orange">正在修改 Rev.{q.editingVersionNo}</Pill>
             ) : q.currentVersionNo > 1 ? (
-              <Pill tone="accent">Rev.{q.currentVersionNo}</Pill>
+              <Pill tone="gray">Rev.{q.currentVersionNo}</Pill>
             ) : null}
             {dirty && (
-              <span
-                style={{ fontSize: 12, fontWeight: 400, color: palette.orange }}
-              >
+              <span style={{ fontSize: 12, color: palette.orange }}>
                 有未保存的修改
+              </span>
+            )}
+            {lockTip && (
+              <span
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              >
+                <Pill tone="gray">
+                  <Lock size="1em" />
+                  {historical ? `Rev.${q.versionNo} · 历史版本` : '内容已锁定'}
+                </Pill>
+                <HelpTip title={lockTip} label="锁定说明" />
               </span>
             )}
           </>
         }
-        description={
+        sub={
           <>
             {q.customerName} ·{' '}
             <SourceNos
@@ -2325,10 +2374,11 @@ const QuotationDetail: React.FC = () => {
                 href: `/inquiry/customer-inquiries/${x.id}`,
               }))}
             />{' '}
-            · {q.ownerName ?? '—'} {formatDateTime(q.createTime).slice(0, 16)}{' '}
+            · {q.ownerName ?? '—'} · {formatDateTime(q.createTime).slice(0, 16)}{' '}
             创建
             {q.copiedFromNo && (
-              <span style={{ marginLeft: 8 }}>
+              <>
+                {' '}
                 · 复制自{' '}
                 <button
                   type="button"
@@ -2339,11 +2389,18 @@ const QuotationDetail: React.FC = () => {
                 >
                   {q.copiedFromNo}
                 </button>
+              </>
+            )}
+            {q.status === STATUS.LOST && q.lostReasonName && (
+              <span style={{ color: palette.orange }}>
+                {' '}
+                · 未成交原因：{q.lostReasonName}
+                {q.lostNote ? `（${q.lostNote}）` : ''}
               </span>
             )}
           </>
         }
-        actions={actions}
+        extra={actions}
       />
 
       {compact ? (
@@ -2440,7 +2497,7 @@ const QuotationDetail: React.FC = () => {
       />
       {q.status === STATUS.WON && (
         <div style={{ marginTop: 16, color: palette.green, fontSize: 13 }}>
-          <CheckCircleOutlined /> 已成交 ·{' '}
+          <CircleCheck size="1em" /> 已成交 ·{' '}
           {q.closedAt ? formatDateTime(q.closedAt) : ''}
         </div>
       )}

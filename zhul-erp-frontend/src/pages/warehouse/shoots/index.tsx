@@ -1,23 +1,23 @@
-import { InfoCircleOutlined, SearchOutlined } from '@ant-design/icons';
 import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import {
-  App,
-  Button,
-  Drawer,
-  Input,
-  Segmented,
-  Skeleton,
-  Space,
-  Table,
-} from 'antd';
+import { App, Button, Drawer, Input, Select, Skeleton, Table } from 'antd';
+import { Camera, Eye, Info, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import MediaDrawer from '@/pages/operations/media/MediaDrawer';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   ACCEPT_IMAGE,
@@ -29,7 +29,6 @@ import {
   sub,
   UploadTile,
   usePreview,
-  WarehousePageTitle,
 } from '../components';
 import {
   readBizError,
@@ -38,6 +37,12 @@ import {
   type ShootTask,
   shootApi,
 } from '../service';
+
+/** 帮助文字：help-texts.md「实拍任务」，关键词范围以 search-scope.md 为准 */
+export const HELP = {
+  page: '还没有营销图的型号到货后，拍 6 张带公司 Logo 摆台的营销图就完成；每个型号拍一次，拍好的图进素材库，以后同型号一直可以用（验货照片和视频在验收入库时上传）。这里只负责拍摄，运营在「运营管理 → 素材库」里挑选发品用的图片',
+  keyword: '可搜：型号、品牌、采购入库单号、销售订单编号',
+} as const;
 
 const NEED_PHOTOS = 6;
 
@@ -116,7 +121,14 @@ const Shoots: React.FC = () => {
       width: 180,
       render: (_, r) => (
         <div>
-          {r.grNo && <Link to={DOC_PATHS.receipt(r.receiptId)}>{r.grNo}</Link>}
+          {r.grNo && (
+            <Link
+              to={DOC_PATHS.receipt(r.receiptId)}
+              className="zhul-link zhul-link-doc"
+            >
+              {r.grNo}
+            </Link>
+          )}
           {r.soNo && sub(palette.mute, r.soNo)}
         </div>
       ),
@@ -166,21 +178,26 @@ const Shoots: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 110,
+      width: rowActionsWidth(1),
       fixed: 'right',
-      render: (_, r) => (
-        <Space size={12}>
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() => setOpen(r.id)}
-          >
-            {r.status === 1 && canEdit ? '拍摄' : '查看'}
-          </button>
-        </Space>
-      ),
+      render: (_, r) => {
+        const shoot = r.status === 1 && canEdit;
+        return (
+          <RowActions
+            inline={[
+              {
+                key: 'open',
+                label: shoot ? '拍摄' : '查看',
+                icon: shoot ? <Camera size={18} /> : <Eye size={18} />,
+                onClick: () => setOpen(r.id),
+              },
+            ]}
+          />
+        );
+      },
     },
   ];
+  const columnsSet = useColumnSettings('warehouse-shoots', columns);
 
   const apply = () => {
     setQuery(keyword.trim() || undefined);
@@ -189,76 +206,83 @@ const Shoots: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle description="还没有营销图的型号到货后，拍 6 张带公司 Logo 摆台的营销图就完成；每个型号拍一次，拍好的图进素材库，以后同型号一直可以用。验货照片和视频在验收入库时上传。" />
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          marginBottom: 16,
+      <PageHeader help={HELP.page} />
+      <FilterCard
+        onSearch={apply}
+        onReset={() => {
+          // 重置回默认视图：待拍摄
+          setKeyword('');
+          setQuery(undefined);
+          setStatus(1);
+          setPage(1);
         }}
+        minColumn={130}
       >
-        <Segmented<number | 'all'>
-          value={status}
-          onChange={(v) => {
-            setStatus(v);
-            setPage(1);
-          }}
-          options={[
-            { value: 1, label: pending ? `待拍摄 · ${pending}` : '待拍摄' },
-            { value: 2, label: '已完成' },
-            { value: 3, label: '已跳过' },
-            { value: 'all', label: '全部' },
-          ]}
-        />
-        <Input
-          allowClear
-          prefix={<SearchOutlined />}
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          onPressEnter={apply}
-          placeholder="型号、品牌、采购入库单号、订单号"
-          style={{ width: 300 }}
-          aria-label="关键词"
-        />
-        <span style={{ flex: 1 }} />
-        <Button type="primary" onClick={apply}>
-          查询
-        </Button>
-      </div>
+        <FilterField label="关键词" span={2} help={HELP.keyword}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={apply}
+            placeholder="型号、品牌、采购入库单号"
+            aria-label="关键词"
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select<number>
+            allowClear
+            placeholder="全部"
+            value={status === 'all' ? undefined : status}
+            onChange={(v) => {
+              // 切换状态立即查询（doc-list-unify 状态下拉的写法）
+              setStatus(v ?? 'all');
+              setPage(1);
+            }}
+            options={[
+              { value: 1, label: pending ? `待拍摄 · ${pending}` : '待拍摄' },
+              { value: 2, label: '已完成' },
+              { value: 3, label: '已跳过' },
+            ]}
+            aria-label="状态"
+          />
+        </FilterField>
+      </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Table<ShootTask>
-          rowKey="id"
-          columns={columns}
-          dataSource={rows}
+        <MainCard
+          settings={columnsSet.settings}
+          count={total}
           loading={loading}
-          scroll={{ x: tableScrollX(columns) }}
-          locale={{
-            emptyText:
-              status === 1
-                ? '没有待拍摄的任务；验收入库后合格的型号会出现在这里'
-                : '没有符合条件的实拍任务',
-          }}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
-            onChange: (p, s) => {
-              setPage(p);
-              setPageSize(s);
-            },
-          }}
-        />
+        >
+          <Table<ShootTask>
+            rowKey="id"
+            columns={columnsSet.columns}
+            dataSource={rows}
+            loading={loading}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
+            locale={{
+              emptyText: tableEmpty(
+                status === 1
+                  ? '没有待拍摄的任务；验收入库后合格的型号会出现在这里'
+                  : '没有符合条件的实拍任务',
+                loading,
+              ),
+            }}
+            pagination={{
+              ...PAGER_STYLE,
+              current: page,
+              pageSize,
+              total,
+              onChange: (p, s) => {
+                setPage(p);
+                setPageSize(s);
+              },
+            }}
+          />
+        </MainCard>
       )}
-      <div style={{ fontSize: 12, color: palette.mute, marginTop: 8 }}>
-        <InfoCircleOutlined /> 这里只负责拍摄；拍好的营销图在「运营管理 →
-        素材库」里，运营从中挑选用于发品的图片。
-      </div>
       <ShootDrawer
         id={open}
         canEdit={canEdit}
@@ -391,6 +415,7 @@ const ShootDrawer: React.FC<{
               <Button onClick={() => setShowMedia(true)}>这个型号的素材</Button>
             )}
             <Button
+              // lint-ui-ignore choice-primary: 拍摄完成后「关闭」就是这一步的主操作，不是选中态
               type={t.status === 2 ? 'primary' : 'default'}
               onClick={onClose}
             >
@@ -472,7 +497,7 @@ const ShootDrawer: React.FC<{
               color: palette.mute,
             }}
           >
-            <InfoCircleOutlined /> 拍 6 张带公司 Logo
+            <Info size="1em" /> 拍 6 张带公司 Logo
             摆台的营销图，够了任务自动完成。图片归到「{t.brand} {t.model}
             」名下，进素材库「营销实拍」，以后同型号到货不再需要拍。
           </div>

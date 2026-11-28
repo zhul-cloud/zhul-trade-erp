@@ -38,12 +38,30 @@ export const usePageSize = (
   return [size, update];
 };
 
-/** 给 Table / ProTable 的 pagination 用：受控的每页条数，切换后记住 */
-export const usePagination = (fallback: number, scope = '') => {
+/**
+ * 分页的统一外观（规范「组件标准 · 分页」）：「每页 20 条」、页码多时显示跳页、分页里不重复总数。
+ * 自己管理页码的列表写 `pagination={{ ...PAGER_STYLE, current, pageSize, total, onChange }}`，放在最前面，页面自己的设置可覆盖。
+ */
+export const PAGER_STYLE = {
+  showSizeChanger: { prefix: '每页' },
+  showQuickJumper: true,
+  // 总数只写在主卡左上角：ProTable 没传 showTotal 时会自己加「第 1-20 条/总共 N 条」，这里明确不显示
+  showTotal: () => null,
+  locale: { items_per_page: '条' },
+} as const;
+
+/**
+ * 列表分页（公共组件，规范「组件标准 · 分页」，ui-redesign D11、D12）：给 Table / ProTable 的 pagination 用。
+ * 默认每页 20 条，可选 10/20/50/100，切换后按页面记住；页码出现省略号（页数多）时才显示「跳至 __ 页」（全局样式控制）。
+ * 每页条数下拉显示「每页 20 条」；传入 total 时，不超过 10 条（只有一页，也用不上切换条数）不显示分页。
+ * 总数写在主卡左上角，这里不再重复；没有主卡的子表才自己传 showTotal。
+ */
+export const usePagination = (fallback = 20, scope = '', total?: number) => {
   const [pageSize, setPageSize] = usePageSize(fallback, scope);
   return {
+    ...PAGER_STYLE,
     pageSize,
-    showSizeChanger: true,
+    hideOnSinglePage: total !== undefined && total <= 10,
     onChange: (_: number, size: number) => setPageSize(size),
   };
 };

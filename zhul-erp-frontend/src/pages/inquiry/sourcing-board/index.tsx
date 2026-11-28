@@ -1,19 +1,3 @@
-import {
-  AlertOutlined,
-  ApartmentOutlined,
-  ClockCircleOutlined,
-  CloseOutlined,
-  DownloadOutlined,
-  EllipsisOutlined,
-  InboxOutlined,
-  OrderedListOutlined,
-  SafetyCertificateOutlined,
-  SettingOutlined,
-  ThunderboltOutlined,
-  UploadOutlined,
-  UserAddOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import {
   App,
@@ -22,13 +6,34 @@ import {
   Dropdown,
   Input,
   Modal,
-  Segmented,
   Select,
   Skeleton,
   Tooltip,
 } from 'antd';
 import dayjs from 'dayjs';
+import {
+  Clock,
+  Download,
+  Ellipsis,
+  ListOrdered,
+  Search,
+  Settings,
+  ShieldCheck,
+  Upload,
+  User,
+  UserPlus,
+  Zap,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  FilterCard,
+  FilterField,
+  HelpTip,
+  PageHeader,
+  QuickFilters,
+  SummaryBar,
+  ViewTabs,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -44,9 +49,7 @@ import {
   Card,
   CustomerBrief,
   LevelPill,
-  PageTitle,
   Pill,
-  Stat,
   TaskStatusPill,
   useWide,
 } from '../shared/components';
@@ -76,6 +79,14 @@ const REVIEW = 5;
 const DEFERRED = 8;
 /** 全部：全部询价任务（含已报价、已关闭），只在前端使用，走 /all 接口 */
 const ALL = 9;
+
+/** 帮助文字：help-texts.md「询价分配」，关键词范围以 search-scope.md 为准 */
+export const HELP = {
+  page: '把待分配的询价任务交给合适的采购；推荐依据近 180 天的品牌熟悉度和当前负载。上方汇总按全部任务统计，页签数字随搜索变化',
+  keyword:
+    '可搜：任务编号、品牌、品类、询盘编号、型号（确认型号、原始型号，忽略大小写和符号）',
+  review: '兼职提交的回价审核后才给业务员看',
+} as const;
 
 const TAB_HINT: Record<number, string> = {
   [REVIEW]:
@@ -188,7 +199,7 @@ const SourcingBoardPage: React.FC = () => {
             style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}
           >
             {p.name}
-            {p.partTime && <Pill tone="violet">兼职</Pill>}
+            {p.partTime && <Pill tone="purple">兼职</Pill>}
             <span style={{ color: palette.mute, fontSize: 12 }}>
               进行中 {p.activeTasks}
             </span>
@@ -214,24 +225,28 @@ const SourcingBoardPage: React.FC = () => {
     }
   };
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
 
   const s = board?.stats;
   return (
     <div>
-      <PageTitle
-        description="把待分配的询价任务交给合适的采购；推荐依据近 180 天的品牌熟悉度和当前负载。"
-        actions={
+      <PageHeader
+        help={HELP.page}
+        extra={
           <>
             <Button
-              icon={<SettingOutlined />}
+              type="text"
+              icon={<Settings size={16} />}
+              style={{ color: palette.link }}
               onClick={() => history.push(PATHS.rules)}
             >
               分配规则
             </Button>
             {canProxy && (
               <Button
-                icon={<UploadOutlined />}
+                type="text"
+                icon={<Upload size={16} />}
+                style={{ color: palette.link }}
                 onClick={() => setImportOpen(true)}
               >
                 导入询价结果
@@ -244,78 +259,115 @@ const SourcingBoardPage: React.FC = () => {
         <Skeleton active paragraph={{ rows: 8 }} />
       ) : (
         <>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-              gap: 16,
-              marginBottom: 16,
+          {/* 原四张统计卡（stat-cards.md）：按全部任务统计，改为汇总行；页签数字随搜索变化 */}
+          <SummaryBar
+            items={[
+              {
+                key: 'unassigned',
+                label: '待分配',
+                value: s.unassigned,
+                sub: s.unassigned
+                  ? `最久已等 ${formatMinutes(s.longestWaitingMinutes)}${s.deferred ? ` · 另有 ${s.deferred} 个已延后` : ''}`
+                  : s.deferred
+                    ? `另有 ${s.deferred} 个已延后`
+                    : undefined,
+              },
+              {
+                key: 'sourcing',
+                label: '询价中',
+                value: s.sourcing,
+                sub: s.multiAssigned
+                  ? `其中 ${s.multiAssigned} 个多人比价`
+                  : undefined,
+              },
+              {
+                key: 'timeout',
+                label: '超时',
+                help: `时限：紧急 ${s.urgentTimeoutHours} 小时 · 普通 ${s.timeoutHours} 小时`,
+                value: s.timeout,
+              },
+              {
+                key: 'review',
+                label: '待审核',
+                help: HELP.review,
+                value: s.pendingReview ?? 0,
+                sub: s.pendingReview
+                  ? `兼职回价 ${s.pendingReviewItems ?? 0} 个型号 · 最久已等 ${formatMinutes(s.longestReviewMinutes)}`
+                  : undefined,
+              },
+            ]}
+          />
+
+          {/* 任务队列：各队列的操作不同，用视图页签（复审 S3） */}
+          <ViewTabs
+            activeKey={String(tab)}
+            onChange={(k) => {
+              setTab(Number(k));
+              setDeferredView(false);
+              setPage(1);
+            }}
+            items={[
+              {
+                key: String(UNASSIGNED),
+                label: '待分配',
+                count: board.tabs?.unassigned ?? s.unassigned,
+              },
+              {
+                key: String(SOURCING),
+                label: '询价中',
+                count: board.tabs?.sourcing ?? s.sourcing,
+              },
+              {
+                key: String(REVIEW),
+                label: '待审核',
+                count: board.tabs?.review ?? s.pendingReview,
+              },
+              {
+                key: String(DONE),
+                label: '已回价',
+                count: board.tabs?.done ?? s.done,
+              },
+              { key: String(ALL), label: '全部' },
+            ]}
+          />
+          {/* 搜索区用公共 FilterCard，紧接视图页签拼成一张卡（D72，UI-117） */}
+          <FilterCard
+            onSearch={() => setSearch(keyword.trim())}
+            onReset={() => {
+              setKeyword('');
+              setSearch('');
+              setPurchaserId(undefined);
             }}
           >
-            <Stat
-              icon={<InboxOutlined />}
-              color={palette.orange}
-              soft={palette.orangeSoft}
-              label="待分配"
-              value={s.unassigned}
-              hint={
-                <span
-                  style={{
-                    color:
-                      s.longestWaitingMinutes > 120
-                        ? palette.orange
-                        : palette.mute,
-                  }}
-                >
-                  {s.unassigned
-                    ? `最久已等 ${formatMinutes(s.longestWaitingMinutes)}`
-                    : '都分配完了'}
-                  {s.deferred ? ` · 另有 ${s.deferred} 个已延后` : ''}
-                </span>
-              }
-            />
-            <Stat
-              icon={<ApartmentOutlined />}
-              color={palette.link}
-              soft={palette.accentSoft}
-              label="询价中"
-              value={s.sourcing}
-              hint={
-                <span style={{ color: palette.mute }}>
-                  {s.multiAssigned
-                    ? `其中 ${s.multiAssigned} 个多人比价`
-                    : '采购正在问价'}
-                </span>
-              }
-            />
-            <Stat
-              icon={<AlertOutlined />}
-              color={palette.red}
-              soft={palette.redSoft}
-              label="超时"
-              value={s.timeout}
-              hint={
-                <span style={{ color: palette.red }}>
-                  紧急 {s.urgentTimeoutHours} 小时 · 普通 {s.timeoutHours} 小时
-                </span>
-              }
-            />
-            <Stat
-              icon={<SafetyCertificateOutlined />}
-              color={palette.link}
-              soft={palette.accentSoft}
-              label="待审核"
-              value={s.pendingReview ?? 0}
-              hint={
-                <span style={{ color: palette.mute }}>
-                  {s.pendingReview
-                    ? `兼职回价 ${s.pendingReviewItems ?? 0} 个型号 · 最久已等 ${formatMinutes(s.longestReviewMinutes)}`
-                    : '兼职提交的回价审核后才给业务员看'}
-                </span>
-              }
-            />
-          </div>
-
+            <FilterField label="关键词" span={2} help={HELP.keyword}>
+              <Input
+                allowClear
+                prefix={<Search size={16} />}
+                placeholder="任务编号、询盘编号、型号"
+                value={keyword}
+                onChange={(e) => {
+                  setKeyword(e.target.value);
+                  if (!e.target.value) setSearch('');
+                }}
+                onPressEnter={() => setSearch(keyword.trim())}
+                aria-label="搜索询价任务"
+              />
+            </FilterField>
+            <FilterField label="采购员">
+              <Select
+                allowClear
+                showSearch={{ optionFilterProp: 'label' }}
+                placeholder="全部"
+                value={purchaserId}
+                onChange={setPurchaserId}
+                options={(board?.purchasers ?? []).map((p) => ({
+                  value: p.id,
+                  label: p.name,
+                }))}
+                aria-label="按采购员筛选"
+              />
+            </FilterField>
+          </FilterCard>
           <div
             style={{
               display: 'grid',
@@ -327,101 +379,25 @@ const SourcingBoardPage: React.FC = () => {
             }}
           >
             <div style={{ display: 'grid', gap: 12 }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  flexWrap: 'wrap',
-                }}
-              >
-                <Input.Search
-                  allowClear
-                  placeholder="搜任务编号、询盘单号、品牌、型号"
-                  style={{ width: 320 }}
-                  value={keyword}
-                  onChange={(e) => {
-                    setKeyword(e.target.value);
-                    if (!e.target.value) setSearch('');
-                  }}
-                  onSearch={(v) => setSearch(v.trim())}
-                  aria-label="搜索询价任务"
-                />
-                <Select
-                  allowClear
-                  showSearch={{ optionFilterProp: 'label' }}
-                  placeholder="采购员：全部"
-                  style={{ width: 180 }}
-                  value={purchaserId}
-                  onChange={setPurchaserId}
-                  options={(board?.purchasers ?? []).map((p) => ({
-                    value: p.id,
-                    label: p.name,
-                  }))}
-                  aria-label="按采购员筛选"
-                />
-                {(search || purchaserId) && (
-                  <span style={{ color: palette.mute, fontSize: 12 }}>
-                    页签数字按搜索条件统计；顶部卡片仍是全部任务
-                  </span>
-                )}
-              </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <Segmented
-                  value={tab}
-                  onChange={(v) => {
-                    setTab(v as number);
-                    setDeferredView(false);
-                    setPage(1);
-                  }}
-                  options={[
-                    {
-                      value: UNASSIGNED,
-                      label: `待分配 ${board.tabs?.unassigned ?? s.unassigned}`,
-                    },
-                    {
-                      value: SOURCING,
-                      label: `询价中 ${board.tabs?.sourcing ?? s.sourcing}`,
-                    },
-                    {
-                      value: REVIEW,
-                      label: `待审核 ${board.tabs?.review ?? s.pendingReview ?? 0}`,
-                    },
-                    {
-                      value: DONE,
-                      label: `已回价 ${board.tabs?.done ?? s.done ?? 0}`,
-                    },
-                    { value: ALL, label: '全部' },
-                  ]}
-                />
                 {tab === UNASSIGNED && (
-                  <Button
-                    size="small"
-                    type={showDeferred ? 'primary' : 'default'}
-                    ghost={showDeferred}
-                    icon={<ClockCircleOutlined />}
-                    onClick={() => {
-                      setDeferredView(!showDeferred);
+                  <QuickFilters
+                    label="延后的任务"
+                    options={[
+                      {
+                        value: 'deferred',
+                        label: '已延后',
+                        count: board.tabs?.deferred ?? s.deferred ?? 0,
+                      },
+                    ]}
+                    value={showDeferred ? ['deferred'] : []}
+                    onChange={(v) => {
+                      setDeferredView(v.length > 0);
                       setPage(1);
                     }}
-                    aria-pressed={showDeferred}
-                  >
-                    已延后 {board.tabs?.deferred ?? s.deferred ?? 0}
-                    {showDeferred && <CloseOutlined style={{ fontSize: 10 }} />}
-                  </Button>
+                  />
                 )}
-                {TAB_HINT[tab] && (
-                  <span
-                    style={{
-                      color: palette.mute,
-                      fontSize: 12,
-                      flex: 1,
-                      minWidth: 0,
-                    }}
-                  >
-                    {TAB_HINT[tab]}
-                  </span>
-                )}
+                {TAB_HINT[tab] && <HelpTip title={TAB_HINT[tab]} />}
                 <span style={{ marginLeft: 'auto' }} />
                 {tab !== REVIEW && tab !== ALL && !showDeferred && (
                   <FoldToggle mode={fold.mode} onChange={fold.setAll} />
@@ -449,8 +425,8 @@ const SourcingBoardPage: React.FC = () => {
                       gap: 10,
                       padding: '12px 16px',
                       borderRadius: 12,
-                      background: palette.accentSoft,
-                      border: `1px solid ${palette.accentLine}`,
+                      background: palette.primarySoft, // lint-ui-ignore primary-soft: 批量操作条（已选 N 项），属于选中状态
+                      border: `1px solid ${palette.primaryLine}`,
                     }}
                   >
                     <span style={{ color: palette.ink, fontWeight: 600 }}>
@@ -469,7 +445,7 @@ const SourcingBoardPage: React.FC = () => {
                       <Button
                         type="primary"
                         size="small"
-                        icon={<ThunderboltOutlined />}
+                        icon={<Zap size="1em" />}
                         loading={busy}
                         onClick={() =>
                           run(
@@ -489,13 +465,13 @@ const SourcingBoardPage: React.FC = () => {
                         )}
                         trigger={['click']}
                       >
-                        <Button size="small" icon={<UserAddOutlined />}>
+                        <Button size="small" icon={<UserPlus size="1em" />}>
                           分配给…
                         </Button>
                       </Dropdown>
                       <Button
                         size="small"
-                        icon={<OrderedListOutlined />}
+                        icon={<ListOrdered size="1em" />}
                         onClick={openRulePreview}
                         loading={busy}
                       >
@@ -503,7 +479,7 @@ const SourcingBoardPage: React.FC = () => {
                       </Button>
                       <Button
                         size="small"
-                        icon={<ClockCircleOutlined />}
+                        icon={<Clock size="1em" />}
                         onClick={() =>
                           setDeferTarget({ kind: 'tasks', taskIds: selected })
                         }
@@ -513,7 +489,7 @@ const SourcingBoardPage: React.FC = () => {
                       {canProxy && (
                         <Button
                           size="small"
-                          icon={<DownloadOutlined />}
+                          icon={<Download size="1em" />}
                           onClick={() =>
                             boardApi
                               .downloadPackage(selected)
@@ -719,7 +695,10 @@ const SourcingBoardPage: React.FC = () => {
                                 fontSize: 12,
                               }}
                             >
-                              <UserOutlined style={{ color: palette.mute }} />
+                              <User
+                                size="1em"
+                                style={{ color: palette.mute }}
+                              />
                               业务员 {t.salesName || '—'}
                             </span>
                             <CustomerBrief
@@ -783,7 +762,8 @@ const SourcingBoardPage: React.FC = () => {
                                     fontWeight: 600,
                                   }}
                                 >
-                                  <ThunderboltOutlined
+                                  <Zap
+                                    size="1em"
                                     style={{ color: palette.link }}
                                   />{' '}
                                   推荐 {t.recommendedName ?? '—'}
@@ -863,12 +843,12 @@ const SourcingBoardPage: React.FC = () => {
                                         items: [
                                           {
                                             key: 'task',
-                                            icon: <ClockCircleOutlined />,
+                                            icon: <Clock size="1em" />,
                                             label: '延后这个任务',
                                           },
                                           {
                                             key: 'inquiry',
-                                            icon: <ClockCircleOutlined />,
+                                            icon: <Clock size="1em" />,
                                             label: '延后整张询盘',
                                           },
                                         ],
@@ -889,7 +869,7 @@ const SourcingBoardPage: React.FC = () => {
                                     >
                                       <Button
                                         size="small"
-                                        icon={<EllipsisOutlined />}
+                                        icon={<Ellipsis size="1em" />}
                                         aria-label="更多操作"
                                       />
                                     </Dropdown>
@@ -1000,7 +980,7 @@ const SourcingBoardPage: React.FC = () => {
                           borderRadius: 12,
                           background:
                             dragOver === p.id
-                              ? palette.accentSoft
+                              ? palette.primarySoft
                               : palette.inset,
                           border: `1px ${dragOver === p.id ? 'dashed' : 'solid'} ${dragOver === p.id ? palette.link : 'transparent'}`,
                           transition: 'background 150ms ease-out',
@@ -1011,11 +991,12 @@ const SourcingBoardPage: React.FC = () => {
                             width: 30,
                             height: 30,
                             borderRadius: 15,
+                            // lint-ui-ignore primary-soft: 采购员头像，规范 D42 的头像例外
                             background: p.partTime
-                              ? palette.violetSoft
-                              : palette.accentSoft,
-                            color: p.partTime ? palette.violet : palette.link,
-                            fontWeight: 700,
+                              ? palette.infoSoft
+                              : palette.primarySoft,
+                            color: p.partTime ? palette.info : palette.link,
+                            fontWeight: 600,
                             display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -1034,7 +1015,7 @@ const SourcingBoardPage: React.FC = () => {
                             }}
                           >
                             {p.name}
-                            {p.partTime && <Pill tone="violet">兼职</Pill>}
+                            {p.partTime && <Pill tone="purple">兼职</Pill>}
                           </span>
                           <span
                             style={{
@@ -1202,7 +1183,7 @@ const ReviewList: React.FC<{
           background: palette.inset,
         }}
       >
-        <span style={{ fontSize: 15, fontWeight: 700, color: palette.ink }}>
+        <span style={{ fontSize: 16, fontWeight: 600, color: palette.ink }}>
           兼职回价待审核
         </span>
         <Pill tone="gray">
@@ -1256,16 +1237,16 @@ const ReviewList: React.FC<{
                 fontSize: 12,
               }}
             >
-              <UserOutlined style={{ color: palette.mute }} />
+              <User size="1em" style={{ color: palette.mute }} />
               {(t.reviewBuyerNames ?? []).join('、') || '—'}
-              <Pill tone="violet">兼职</Pill>
+              <Pill tone="purple">兼职</Pill>
             </span>
           </div>
           <div style={{ display: 'grid', gap: 2 }}>
             <span style={{ color: palette.mute, fontSize: 12 }}>
               待审核型号
             </span>
-            <b style={{ color: palette.ink, fontSize: 15 }}>
+            <b style={{ color: palette.ink, fontSize: 16 }}>
               {t.reviewItemCount ?? 0} / {t.itemCount}
             </b>
             <span style={{ color: palette.mute, fontSize: 12 }}>
@@ -1293,7 +1274,7 @@ const ReviewList: React.FC<{
           <Button
             type="primary"
             ghost
-            icon={<SafetyCertificateOutlined />}
+            icon={<ShieldCheck size="1em" />}
             onClick={() => onOpen(t.id)}
           >
             去审核

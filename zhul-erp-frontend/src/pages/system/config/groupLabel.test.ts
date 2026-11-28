@@ -3,6 +3,7 @@ import { GROUP_OPTIONS, groupLabel } from './groupLabel';
 describe('groupLabel', () => {
   it('内置配置的英文代码显示为 2 个字的中文名', () => {
     for (const code of [
+      'customer',
       'inquiry',
       'quotation',
       'document',
@@ -11,6 +12,7 @@ describe('groupLabel', () => {
       'supply',
       'product',
       'finance',
+      'inventory',
       'sys',
     ]) {
       expect(Array.from(groupLabel(code))).toHaveLength(2);

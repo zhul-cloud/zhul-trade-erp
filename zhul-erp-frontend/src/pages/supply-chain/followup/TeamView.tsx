@@ -8,7 +8,19 @@ import {
   type TableColumnsType,
 } from 'antd';
 import dayjs from 'dayjs';
+import {
+  BadgeCheck,
+  CircleCheck,
+  GitFork,
+  PackageX,
+  Percent,
+  ShieldCheck,
+} from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
+import { MetricGrid, MetricTile, TILE_FAMILIES } from '@/components/MetricCard';
+import { rowAlert } from '@/components/RowAlert';
+import { useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { liveRequests } from '@/utils/liveRequests';
@@ -46,31 +58,6 @@ export interface TeamJump {
   /** 无货统计期（30 / 90 天），与团队视图一致 */
   days?: number;
 }
-
-const Kpi: React.FC<{
-  label: string;
-  value: React.ReactNode;
-  sub: string;
-  color?: string;
-}> = ({ label, value, sub, color }) => {
-  const { palette } = useAppTheme();
-  return (
-    <Card style={{ padding: '16px 20px' }}>
-      <div style={{ fontSize: 13, color: palette.sub }}>{label}</div>
-      <div
-        style={{
-          fontSize: 28,
-          fontWeight: 700,
-          color: color ?? palette.ink,
-          margin: '4px 0',
-        }}
-      >
-        {value}
-      </div>
-      <div style={{ fontSize: 12, color: palette.mute }}>{sub}</div>
-    </Card>
-  );
-};
 
 const RankList: React.FC<{
   title: string;
@@ -168,6 +155,7 @@ const TeamView: React.FC<{
   onProject: (scope: { brandId: number; categoryId?: number }) => void;
 }> = ({ canProject, onJump, onProject }) => {
   const { palette } = useAppTheme();
+  const wide = useWide();
   const [period, setPeriod] = useState(30);
   const [team, setTeam] = useState<Team>();
   const [error, setError] = useState('');
@@ -212,11 +200,21 @@ const TeamView: React.FC<{
       </>
     );
   const t = team;
+  const ellipsis: React.CSSProperties = {
+    display: 'block',
+    minWidth: 0,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  };
+  /** 逾期 3 个及以上或多次延后 2 个及以上：需要关注 */
+  const attention = (r: Team['owners'][number]) =>
+    r.overdue >= 3 || r.multiDefer >= 2;
   const ownerColumns: TableColumnsType<Team['owners'][number]> = [
     {
       title: '负责人',
       key: 'name',
-      width: 140,
+      width: 96,
       render: (_, r) => (
         <div style={{ display: 'grid' }}>
           {/* 没有负责人的行没有对应的筛选，不做成链接，避免跳到「全部负责人」（audit UI-089） */}
@@ -224,35 +222,46 @@ const TeamView: React.FC<{
             <Button
               type="link"
               size="small"
-              style={{ padding: 0, justifyContent: 'flex-start' }}
+              title={r.ownerName ?? '未指定负责人'}
+              // 网格子项默认按内容算最小宽度，加 minWidth: 0 省略号才生效
+              style={{
+                padding: 0,
+                justifyContent: 'flex-start',
+                maxWidth: '100%',
+                minWidth: 0,
+              }}
               onClick={() => onJump({ ownerId: r.ownerId })}
             >
-              {r.ownerName ?? '未指定负责人'}
+              {/* 列宽 96：名字长时单行省略，悬停看全名，不撑宽表格 */}
+              <span style={ellipsis}>{r.ownerName ?? '未指定负责人'}</span>
             </Button>
           ) : (
-            <span>{r.ownerName ?? '未指定负责人'}</span>
+            <span style={ellipsis} title={r.ownerName ?? '未指定负责人'}>
+              {r.ownerName ?? '未指定负责人'}
+            </span>
           )}
-          {(r.overdue >= 3 || r.multiDefer >= 2) && (
-            <span style={{ fontSize: 12, color: palette.orange }}>
-              需要关注
+          {/* 需要关注的行左侧有色条（rowAlert），原因写成状态标签，与客户跟进一致 */}
+          {attention(r) && (
+            <span>
+              <Pill tone="orange">需要关注</Pill>
             </span>
           )}
         </div>
       ),
     },
-    { title: '名下型号', dataIndex: 'models', width: 90 },
-    { title: '无渠道', dataIndex: 'noChannel', width: 90 },
-    { title: '未验证', dataIndex: 'lead', width: 90 },
-    { title: '需确认', dataIndex: 'confirm', width: 90 },
+    { title: '名下型号', dataIndex: 'models', width: 72 },
+    { title: '无渠道', dataIndex: 'noChannel', width: 56 },
+    { title: '未验证', dataIndex: 'lead', width: 56 },
+    { title: '需确认', dataIndex: 'confirm', width: 56 },
     {
       title: '今天要跟',
-      width: 90,
+      width: 72,
       dataIndex: 'dueToday',
       render: (v, r) => (r.ownerId ? v : '—'),
     },
     {
       title: '逾期',
-      width: 90,
+      width: 56,
       dataIndex: 'overdue',
       render: (v: number, r) =>
         r.ownerId ? (
@@ -263,7 +272,7 @@ const TeamView: React.FC<{
     },
     {
       title: '多次延后',
-      width: 90,
+      width: 72,
       dataIndex: 'multiDefer',
       render: (v: number, r) =>
         r.ownerId ? (
@@ -274,7 +283,7 @@ const TeamView: React.FC<{
     },
     {
       title: '本周记处理',
-      width: 100,
+      width: 88,
       dataIndex: 'records',
       render: (v, r) => (r.ownerId ? v : '—'),
     },
@@ -282,46 +291,51 @@ const TeamView: React.FC<{
   return (
     <div>
       {head}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
-          gap: 12,
-        }}
-      >
-        <Kpi
+      {/* 公共紧凑数字块，数值统一墨色；图标块逐张换色（D73）；固定 6 项用 MetricGrid */}
+      <MetricGrid cols={6} min={150} gap={12}>
+        <MetricTile
           label="无货"
+          icon={<PackageX size={18} />}
+          family={TILE_FAMILIES[0]}
           value={`${t.stockoutModels} 个型号`}
           sub={`${t.stockoutTimes} 次 · 上期 ${t.prevStockoutModels} 个型号`}
-          color={t.stockoutModels ? palette.red : undefined}
         />
-        <Kpi
+        <MetricTile
           label="无货率"
+          icon={<Percent size={18} />}
+          family={TILE_FAMILIES[1]}
           value={rate(t.stockoutRate)}
           sub="无货型号 / 询过价的型号"
         />
-        <Kpi
+        <MetricTile
           label="有效覆盖率"
+          icon={<ShieldCheck size={18} />}
+          family={TILE_FAMILIES[2]}
           value={rate(t.coverRate)}
           sub="可直接报价 / 矩阵内型号"
         />
-        <Kpi
+        <MetricTile
           label="可报价率"
+          icon={<BadgeCheck size={18} />}
+          family={TILE_FAMILIES[3]}
           value={rate(t.quotableRate)}
           sub="可直接报价 + 需确认"
         />
-        <Kpi
+        <MetricTile
           label="备用渠道率"
+          icon={<GitFork size={18} />}
+          family={TILE_FAMILIES[4]}
           value={rate(t.backupRate)}
           sub="有备选渠道 / 可报价型号"
         />
-        <Kpi
+        <MetricTile
           label="补上的缺口"
+          icon={<CircleCheck size={18} />}
+          family={TILE_FAMILIES[5]}
           value={`${t.filledGaps} 个型号`}
           sub="由无渠道、未验证变为可报"
-          color={t.filledGaps ? palette.green : undefined}
         />
-      </div>
+      </MetricGrid>
 
       <Card style={{ padding: 20, marginTop: 16 }}>
         <div
@@ -334,7 +348,7 @@ const TeamView: React.FC<{
           <span>
             <b style={{ fontSize: 16 }}>无货集中在哪</b>
             <span style={{ color: palette.mute, marginLeft: 8 }}>
-              近 {t.days} 天 · 点名称查看型号
+              近 {t.days} 天
             </span>
           </span>
           <Link to={`${PATHS.coverage}?mode=stockout`}>
@@ -344,14 +358,17 @@ const TeamView: React.FC<{
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            // 固定三栏（品牌、品类、原因），窄屏一栏
+            gridTemplateColumns: wide
+              ? 'repeat(3, minmax(0, 1fr))'
+              : 'minmax(0, 1fr)',
             gap: 24,
           }}
         >
           <RankList
             title="按品牌"
             rows={t.byBrand}
-            color={palette.red}
+            color={palette.chart}
             onJump={(r) => onJump({ brandId: r.brandId, days: t.days })}
             onProject={
               canProject
@@ -362,13 +379,13 @@ const TeamView: React.FC<{
           <RankList
             title="按品类"
             rows={t.byCategory}
-            color={palette.red}
+            color={palette.chart}
             onJump={(r) => onJump({ categoryId: r.categoryId, days: t.days })}
           />
           <RankList
             title="无货原因"
             rows={t.reasons}
-            color={palette.orange}
+            color={palette.chart}
             reason
           />
         </div>
@@ -392,10 +409,13 @@ const TeamView: React.FC<{
               pagination={false}
               dataSource={t.owners}
               locale={{
-                emptyText: '还没有指定负责人的型号，可在型号详情里指定',
+                emptyText: tableEmpty(
+                  '还没有指定负责人的型号，可在型号详情里指定',
+                ),
               }}
               scroll={{ x: tableScrollX(ownerColumns) }}
               columns={ownerColumns}
+              onRow={(r) => rowAlert(attention(r) ? 'warning' : undefined)}
             />
           </Card>
           <Card style={{ padding: 20 }}>
@@ -410,49 +430,59 @@ const TeamView: React.FC<{
                 没有进行中的专项
               </div>
             )}
-            {t.projects.map((p) => (
-              <div key={p.id} style={{ marginTop: 16 }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    gap: 12,
-                  }}
-                >
-                  <span
+            {t.projects.map((p) => {
+              // 只开发供应商、没有型号的专项按合格家数算进度，不显示「已解决 0 / 0」
+              const dev = !p.total && p.supplierTarget != null;
+              const done = dev ? p.devQualified : p.solved;
+              const all = dev ? (p.supplierTarget ?? 0) : p.total;
+              return (
+                <div key={p.id} style={{ marginTop: 16 }}>
+                  <div
                     style={{
-                      display: 'inline-flex',
-                      gap: 8,
-                      alignItems: 'center',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      gap: 12,
                     }}
                   >
-                    <Link to={PATHS.project(p.id)} style={{ fontWeight: 600 }}>
-                      {p.name}
-                    </Link>
-                    {p.overdueDays > 0 && (
-                      <Pill tone="red">超期 {p.overdueDays} 天</Pill>
-                    )}
-                  </span>
-                  <span>
-                    已解决 {p.solved} / {p.total}
-                  </span>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        gap: 8,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Link
+                        to={PATHS.project(p.id)}
+                        className="zhul-link zhul-link-doc"
+                      >
+                        {p.name}
+                      </Link>
+                      {p.overdueDays > 0 && (
+                        <Pill tone="red">超期 {p.overdueDays} 天</Pill>
+                      )}
+                    </span>
+                    <span>
+                      {dev ? '合格' : '已解决'} {done} / {all}
+                    </span>
+                  </div>
+                  <Progress
+                    percent={all ? Math.round((done / all) * 100) : 0}
+                    showInfo={false}
+                    // 进度只用主题色（全站进度条规则）
+                    strokeColor={palette.chart}
+                    style={{ maxWidth: 560, margin: '4px 0' }}
+                  />
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: p.overdueDays > 0 ? palette.red : palette.mute,
+                    }}
+                  >
+                    {p.ownerName} · {dayjs(p.dueDate).format('MM-DD')} 截止
+                  </div>
                 </div>
-                <Progress
-                  percent={p.total ? Math.round((p.solved / p.total) * 100) : 0}
-                  showInfo={false}
-                  strokeColor={palette.green}
-                  style={{ maxWidth: 560, margin: '4px 0' }}
-                />
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: p.overdueDays > 0 ? palette.red : palette.mute,
-                  }}
-                >
-                  {p.ownerName} · {dayjs(p.dueDate).format('MM-DD')} 截止
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </Card>
         </div>
         <Card style={{ padding: 20, alignSelf: 'start' }}>

@@ -102,11 +102,13 @@ it('AI 解析跑完不关掉正在审核的抽屉（audit UI-062）', async () =
   expect(localStorage.getItem(AI_FILL_KEY)).toBeNull();
 }, 10000);
 
-it('AI 解析跑完按当前页签刷新，不按发起时的旧页签（audit UI-083）', async () => {
+it('AI 解析跑完按当前状态刷新，不按发起时的旧状态（audit UI-083）', async () => {
   startJob();
   (candidateApi.aiFillStatus as jest.Mock).mockResolvedValue(done);
   render(page());
-  fireEvent.click(await screen.findByText(/^已建档/));
+  // 状态在搜索区的下拉里（复审 S3）
+  fireEvent.mouseDown(await screen.findByRole('combobox', { name: '状态' }));
+  fireEvent.click((await screen.findAllByTitle(/^已建档/))[0]);
   await waitFor(() => expect(lastPageQuery()).toMatchObject({ status: 2 }));
   await waitFor(() => expect(candidateApi.counts).toHaveBeenCalledTimes(2), {
     timeout: 5000,
@@ -126,7 +128,7 @@ it('查询进度遇到网络错误继续跟踪，跑完照常刷新（audit UI-0
   expect(candidateApi.aiFillStatus).toHaveBeenCalledTimes(2);
 }, 12000);
 
-it('从其他页面返回时页签计数一起刷新（audit UI-055）', async () => {
+it('从其他页面返回时状态计数一起刷新（audit UI-055）', async () => {
   const { rerender } = render(page(true));
   await screen.findByRole('button', { name: '审核' });
   await waitFor(() => expect(candidateApi.counts).toHaveBeenCalledTimes(1));

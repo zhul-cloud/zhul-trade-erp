@@ -1,6 +1,6 @@
-import { EditOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { history, useSearchParams } from '@umijs/max';
-import { App, Button, Input, Segmented, Select } from 'antd';
+import { App, Button, Checkbox, Input, type InputRef, Select } from 'antd';
+import { Pencil, Plus, Search } from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -8,8 +8,16 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import {
+  ChoiceChips,
+  FilterChip,
+  type FilterChipItem,
+  FilterPopover,
+  PageHeader,
+  ViewTabs,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { PageTitle, useWide } from '@/pages/inquiry/shared/components';
+import { useSidePanel } from '@/components/SidePanel';
 import { categoryGroups } from '@/pages/supplier/productScope';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -83,24 +91,11 @@ interface RecordTarget {
   checkedIds?: number[];
 }
 
-const Chip: React.FC<{
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}> = ({ active, onClick, children }) => (
-  <Button
-    type={active ? 'primary' : 'default'}
-    ghost={active}
-    onClick={onClick}
-  >
-    {children}
-  </Button>
-);
-
 const SupplyFollowupPage: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
-  const wide = useWide();
+  const battle = useSidePanel('zhul_supply_followup_battle', '作战卡');
+  const [settingsSlot, setSettingsSlot] = useState<HTMLElement | null>(null);
   const { brands, tree, categories, tops } = useOptions();
   const [params] = useSearchParams();
   const users = useUsers();
@@ -110,6 +105,14 @@ const SupplyFollowupPage: React.FC = () => {
   const [owner, setOwner] = useState('me');
   /** 自己名下没有需求时默认看全部，只判断一次 */
   const ownerChecked = useRef(false);
+  /** 今日待办里搜索后切到供应覆盖：切过去后让新位置的搜索框接着获得焦点 */
+  const searchRef = useRef<InputRef>(null);
+  const refocusSearch = useRef(false);
+  useEffect(() => {
+    if (!refocusSearch.current || flow === 'today') return;
+    refocusSearch.current = false;
+    searchRef.current?.focus();
+  }, [flow]);
   const [overview, setOverview] = useState<Overview>();
   const [overviewError, setOverviewError] = useState('');
   const [today, setToday] = useState<Today>();
@@ -443,7 +446,7 @@ const SupplyFollowupPage: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         gap: 12,
-        background: palette.accentSoft,
+        background: palette.primarySoft, // lint-ui-ignore primary-soft: 批量操作条（已选 N 条），属于选中状态
       }}
     >
       <b style={{ flex: 1 }}>
@@ -496,80 +499,304 @@ const SupplyFollowupPage: React.FC = () => {
     </Card>
   );
 
+  // 搜索、负责人放在列表工具栏（与客户跟进同一写法，R10 方案 B），页头只留视图切换和主按钮
+  const search = (
+    <Input
+      ref={searchRef}
+      allowClear
+      prefix={<Search size="1em" />}
+      placeholder={flow === 'dev' ? '搜索品牌、品类' : '搜索型号'}
+      aria-label={flow === 'dev' ? '搜索品牌、品类' : '搜索型号'}
+      style={{ width: 200 }}
+      value={keywordInput}
+      onChange={(e) => setKeywordInput(e.target.value)}
+      onPressEnter={(e) => {
+        setKeyword(e.currentTarget.value);
+        // 在今日待办里搜索时切到供应覆盖；搜索框换了位置，切过去后接着获得焦点
+        if (flow === 'today') {
+          refocusSearch.current = true;
+          switchFlow('cover');
+        }
+      }}
+      onClear={() => setKeyword('')}
+    />
+  );
+  const tools = (
+    <>
+      {search}
+      {canTeam && (
+        <Select
+          style={{ width: 160 }}
+          aria-label="负责人"
+          value={owner}
+          onChange={setOwner}
+          showSearch={{ optionFilterProp: 'label' }}
+          options={[
+            { value: 'me', label: '负责人：我' },
+            { value: 'all', label: '负责人：全部' },
+            ...users.map((u) => ({
+              value: String(u.value),
+              label: `负责人：${u.label}`,
+            })),
+          ]}
+        />
+      )}
+    </>
+  );
+
+  // 选项里找名称（分组的品类选项也找得到），给已生效条件的胶囊用
+  const nameOf = (opts: readonly unknown[] | undefined, v: unknown): string => {
+    for (const o of (opts ?? []) as {
+      value?: unknown;
+      label?: unknown;
+      options?: unknown[];
+    }[]) {
+      if (o.options) {
+        const n = nameOf(o.options, v);
+        if (n) return n;
+      } else if (o.value === v) return String(o.label);
+    }
+    return '';
+  };
+  // 次要条件收进「筛选」弹层，工具栏保持一行；已生效的条件显示成胶囊，能直接去掉（UI-087：带进来的品类要看得见、能清掉）
+  const brandSel = (
+    <Select
+      allowClear
+      style={{ width: '100%' }}
+      placeholder="全部品牌"
+      aria-label="品牌"
+      showSearch={{ optionFilterProp: 'label' }}
+      value={brandId}
+      onChange={setBrandId}
+      options={brands}
+    />
+  );
+  const devFilters = [
+    {
+      label: '只看',
+      node: (
+        <Checkbox
+          checked={expansionOnly}
+          onChange={(e) => setExpansionOnly(e.target.checked)}
+        >
+          主动拓展
+        </Checkbox>
+      ),
+    },
+    { label: '品牌', node: brandSel },
+    {
+      label: '一级品类',
+      node: (
+        <Select
+          allowClear
+          style={{ width: '100%' }}
+          placeholder="全部一级品类"
+          aria-label="一级品类"
+          showSearch={{ optionFilterProp: 'label' }}
+          value={parentCategoryId}
+          onChange={(v) => {
+            setParentCategoryId(v);
+            setCategoryId(undefined);
+          }}
+          options={tops}
+        />
+      ),
+    },
+    {
+      label: '二级品类',
+      node: (
+        <Select
+          allowClear
+          style={{ width: '100%' }}
+          placeholder="全部二级品类"
+          aria-label="二级品类"
+          showSearch={{ optionFilterProp: 'label' }}
+          value={categoryId}
+          onChange={setCategoryId}
+          options={
+            parentCategoryId
+              ? categoryGroups(tree.filter((t) => t.id === parentCategoryId))
+              : categories
+          }
+        />
+      ),
+    },
+    {
+      label: '热度',
+      node: (
+        <Select
+          allowClear
+          style={{ width: '100%' }}
+          placeholder="全部热度"
+          aria-label="热度"
+          value={heat}
+          onChange={setHeat}
+          options={[3, 2, 1].map((k) => ({ value: k, label: HEAT_NAMES[k] }))}
+        />
+      ),
+    },
+  ];
+  const devChipsOn: FilterChipItem[] = [
+    expansionOnly && {
+      key: 'expansion',
+      label: '主动拓展',
+      onRemove: () => setExpansionOnly(false),
+    },
+    brandId !== undefined && {
+      key: 'brand',
+      label: `品牌：${nameOf(brands, brandId)}`,
+      onRemove: () => setBrandId(undefined),
+    },
+    parentCategoryId !== undefined && {
+      key: 'parent',
+      label: `一级品类：${nameOf(tops, parentCategoryId)}`,
+      onRemove: () => {
+        setParentCategoryId(undefined);
+        setCategoryId(undefined);
+      },
+    },
+    categoryId !== undefined && {
+      key: 'category',
+      label: `二级品类：${nameOf(categories, categoryId)}`,
+      onRemove: () => setCategoryId(undefined),
+    },
+    heat !== undefined && {
+      key: 'heat',
+      label: `热度：${HEAT_NAMES[heat]}`,
+      onRemove: () => setHeat(undefined),
+    },
+  ].filter(Boolean) as FilterChipItem[];
+  const coverToggles = flow === 'cover' && {
+    label: '只看',
+    node: (
+      <div style={{ display: 'grid', gap: 6 }}>
+        <Checkbox
+          checked={stockout}
+          onChange={(e) => {
+            setStockout(e.target.checked);
+            setStockoutDays(30);
+          }}
+        >
+          近 30 天无货 · {o?.stockoutOpen ?? 0}
+        </Checkbox>
+        <Checkbox
+          checked={pending}
+          onChange={(e) => setPending(e.target.checked)}
+        >
+          待确认 · {o?.pending ?? 0}
+        </Checkbox>
+        <Checkbox
+          checked={single}
+          onChange={(e) => setSingle(e.target.checked)}
+        >
+          单一渠道 · {o?.single ?? 0}
+        </Checkbox>
+      </div>
+    ),
+  };
+  const boardFilters = [
+    ...(coverToggles ? [coverToggles] : []),
+    { label: '品牌', node: brandSel },
+    {
+      label: '品类',
+      node: (
+        <Select
+          allowClear
+          style={{ width: '100%' }}
+          placeholder="全部品类"
+          aria-label="品类"
+          showSearch={{ optionFilterProp: 'label' }}
+          value={categoryId}
+          onChange={setCategoryId}
+          options={categories}
+        />
+      ),
+    },
+    {
+      label: '优先级',
+      node: (
+        <Select
+          allowClear
+          style={{ width: '100%' }}
+          placeholder="全部优先级"
+          aria-label="优先级"
+          value={priority}
+          onChange={setPriority}
+          options={[3, 2, 1].map((k) => ({
+            value: k,
+            label: PRIORITY_NAMES[k],
+          }))}
+        />
+      ),
+    },
+  ];
+  const boardChipsOn: FilterChipItem[] = [
+    flow === 'cover' &&
+      stockout && {
+        key: 'stockout',
+        label: `近 ${stockoutDays} 天无货`,
+        onRemove: () => {
+          setStockout(false);
+          setStockoutDays(30);
+        },
+      },
+    flow === 'cover' &&
+      pending && {
+        key: 'pending',
+        label: '待确认',
+        onRemove: () => setPending(false),
+      },
+    flow === 'cover' &&
+      single && {
+        key: 'single',
+        label: '单一渠道',
+        onRemove: () => setSingle(false),
+      },
+    brandId !== undefined && {
+      key: 'brand',
+      label: `品牌：${nameOf(brands, brandId)}`,
+      onRemove: () => setBrandId(undefined),
+    },
+    categoryId !== undefined && {
+      key: 'category',
+      label: `品类：${nameOf(categories, categoryId)}`,
+      onRemove: () => setCategoryId(undefined),
+    },
+    priority !== undefined && {
+      key: 'priority',
+      label: `优先级：${PRIORITY_NAMES[priority]}`,
+      onRemove: () => setPriority(undefined),
+    },
+  ].filter(Boolean) as FilterChipItem[];
+
   return (
     <div>
-      <PageTitle
-        actions={
-          <>
-            {canTeam && (
-              <Segmented
-                value={view}
-                onChange={(v) => setView(v as 'mine' | 'team')}
-                options={[
-                  { value: 'mine', label: '我的' },
-                  { value: 'team', label: '团队' },
-                ]}
-              />
-            )}
-            {view === 'mine' && (
-              <Input
-                allowClear
-                prefix={<SearchOutlined />}
-                placeholder={flow === 'dev' ? '搜索品牌、品类' : '搜索型号'}
-                style={{ width: 220 }}
-                value={keywordInput}
-                onChange={(e) => setKeywordInput(e.target.value)}
-                onPressEnter={(e) => {
-                  setKeyword(e.currentTarget.value);
-                  if (flow === 'today') switchFlow('cover');
-                }}
-                onClear={() => setKeyword('')}
-              />
-            )}
-            {view === 'mine' && canTeam && (
-              <Select
-                style={{ width: 160 }}
-                value={owner}
-                onChange={setOwner}
-                showSearch={{ optionFilterProp: 'label' }}
-                options={[
-                  { value: 'me', label: '负责人：我' },
-                  { value: 'all', label: '负责人：全部' },
-                  ...users.map((u) => ({
-                    value: String(u.value),
-                    label: `负责人：${u.label}`,
-                  })),
-                ]}
-              />
-            )}
-            {view === 'mine' && flow === 'intel' && canEdit && (
-              <Button
-                icon={<PlusOutlined />}
-                onClick={() => setSignalOpen(true)}
-              >
-                录入信号
-              </Button>
-            )}
-            {view === 'mine' && flow === 'dev' && canDev && (
-              <Button
-                icon={<PlusOutlined />}
-                onClick={() => setExpansion(null)}
-              >
-                加入主动拓展
-              </Button>
-            )}
-            {view === 'mine' && canEdit && flow !== 'dev' && (
-              <Button
-                type="primary"
-                icon={<EditOutlined />}
-                onClick={() => setRecord({ demands: pickedDemands })}
-              >
-                记一次处理
-              </Button>
-            )}
-          </>
+      <PageHeader
+        extra={
+          view === 'mine' &&
+          canEdit &&
+          flow !== 'dev' && (
+            <Button
+              type="primary"
+              icon={<Pencil size="1em" />}
+              onClick={() => setRecord({ demands: pickedDemands })}
+            >
+              记一次处理
+            </Button>
+          )
         }
       />
+      {/* 团队是另一张统计视图（不是同一列表看更多人），用视图页签（复审 S3） */}
+      {canTeam && (
+        <ViewTabs
+          activeKey={view}
+          onChange={(k) => setView(k as 'mine' | 'team')}
+          items={[
+            { key: 'mine', label: '我的' },
+            { key: 'team', label: '团队' },
+          ]}
+        />
+      )}
       {view === 'team' ? (
         <TeamView
           canProject={canProject}
@@ -597,6 +824,8 @@ const SupplyFollowupPage: React.FC = () => {
               onDefer={(c) => setDefer(c.items.map((d) => d.id))}
               onBrowse={() => switchFlow('cover')}
               onDev={openDev}
+              // 只放搜索：今日待办固定看自己的（后端 /today 按当前用户取数），负责人对它不起作用
+              tools={search}
             />
           ) : flow === 'dev' ? (
             <>
@@ -608,128 +837,78 @@ const SupplyFollowupPage: React.FC = () => {
                   marginBottom: 12,
                 }}
               >
-                {devChips.map(([k, label, n]) => (
-                  <Chip
-                    key={k}
-                    active={devStage === k}
-                    onClick={() => setDevStage(k)}
-                  >
-                    {label} <span style={{ opacity: 0.7 }}>{n}</span>
-                  </Chip>
+                <ChoiceChips
+                  label="开发阶段"
+                  options={devChips.map(([k, label, n]) => ({
+                    value: k,
+                    label,
+                    count: n,
+                  }))}
+                  value={devStage}
+                  onChange={setDevStage}
+                />
+                {devChipsOn.map((c) => (
+                  <FilterChip key={c.key} item={c} />
                 ))}
                 <span style={{ flex: 1 }} />
-                <Chip
-                  active={expansionOnly}
-                  onClick={() => setExpansionOnly((v) => !v)}
-                >
-                  主动拓展
-                </Chip>
-                <Select
-                  allowClear
-                  style={{ width: 150 }}
-                  placeholder="品牌"
-                  showSearch={{ optionFilterProp: 'label' }}
-                  value={brandId}
-                  onChange={setBrandId}
-                  options={brands}
-                />
-                <Select
-                  allowClear
-                  style={{ width: 150 }}
-                  placeholder="一级品类"
-                  showSearch={{ optionFilterProp: 'label' }}
-                  value={parentCategoryId}
-                  onChange={(v) => {
-                    setParentCategoryId(v);
-                    setCategoryId(undefined);
-                  }}
-                  options={tops}
-                />
-                {/* 从其他板块、待办或矩阵带进来的二级品类要看得见、能清掉（audit UI-087） */}
-                <Select
-                  allowClear
-                  style={{ width: 150 }}
-                  placeholder="二级品类"
-                  showSearch={{ optionFilterProp: 'label' }}
-                  value={categoryId}
-                  onChange={setCategoryId}
-                  options={
-                    parentCategoryId
-                      ? categoryGroups(
-                          tree.filter((t) => t.id === parentCategoryId),
-                        )
-                      : categories
+                {tools}
+                <FilterPopover count={devChipsOn.length} items={devFilters} />
+                {canDev && (
+                  <Button
+                    icon={<Plus size="1em" />}
+                    onClick={() => setExpansion(null)}
+                  >
+                    加入主动拓展
+                  </Button>
+                )}
+                {battle.button}
+              </div>
+              {/* 作战卡默认收起，工具栏右端按钮打开（D74，对比图 R33 方案 B） */}
+
+              <Card style={{ padding: 0, overflow: 'hidden', minWidth: 0 }}>
+                <DevTable
+                  page={devPage}
+                  loading={loading}
+                  focusKey={focusKey}
+                  canDev={canDev}
+                  canProject={canProject}
+                  canSeeSupplier={canSeeSupplier}
+                  onMore={() => loadList(page + 1)}
+                  onProject={(g) =>
+                    setProjectScope({
+                      brandId: g.brandId,
+                      categoryId: g.categoryId || undefined,
+                      dev: true,
+                    })
                   }
-                />
-                <Select
-                  allowClear
-                  style={{ width: 110 }}
-                  placeholder="热度"
-                  value={heat}
-                  onChange={setHeat}
-                  options={[3, 2, 1].map((k) => ({
-                    value: k,
-                    label: HEAT_NAMES[k],
-                  }))}
-                />
-              </div>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: wide
-                    ? 'minmax(0, 1fr) 320px'
-                    : 'minmax(0, 1fr)',
-                  gap: 16,
-                  alignItems: 'start',
-                }}
-              >
-                <Card style={{ padding: 0, overflow: 'hidden', minWidth: 0 }}>
-                  <DevTable
-                    page={devPage}
-                    loading={loading}
-                    focusKey={focusKey}
-                    canDev={canDev}
-                    canProject={canProject}
-                    canSeeSupplier={canSeeSupplier}
-                    onMore={() => loadList(page + 1)}
-                    onProject={(g) =>
-                      setProjectScope({
-                        brandId: g.brandId,
-                        categoryId: g.categoryId || undefined,
-                        dev: true,
-                      })
+                  onRecord={(g, ids) =>
+                    setCandRecord({
+                      title: devTitle(g),
+                      candidates: g.candidates,
+                      checkedIds: ids,
+                    })
+                  }
+                  onCandidate={(g, supplier) => {
+                    if (g.projectTarget == null || !g.projectId) {
+                      message.info('先建开发任务，再把这家加为候选');
+                      if (canProject)
+                        setProjectScope({
+                          brandId: g.brandId,
+                          categoryId: g.categoryId || undefined,
+                          dev: true,
+                        });
+                      return;
                     }
-                    onRecord={(g, ids) =>
-                      setCandRecord({
-                        title: devTitle(g),
-                        candidates: g.candidates,
-                        checkedIds: ids,
-                      })
-                    }
-                    onCandidate={(g, supplier) => {
-                      if (g.projectTarget == null || !g.projectId) {
-                        message.info('先建开发任务，再把这家加为候选');
-                        if (canProject)
-                          setProjectScope({
-                            brandId: g.brandId,
-                            categoryId: g.categoryId || undefined,
-                            dev: true,
-                          });
-                        return;
-                      }
-                      setCandidate({
-                        projectId: g.projectId,
-                        title: devTitle(g),
-                        count: g.candidates.length,
-                        supplier,
-                      });
-                    }}
-                  />
-                </Card>
-                <div style={wide ? { position: 'sticky', top: 16 } : undefined}>
-                  <BattleCard stage={battleStage} />
-                </div>
-              </div>
+                    setCandidate({
+                      projectId: g.projectId,
+                      title: devTitle(g),
+                      count: g.candidates.length,
+                      supplier,
+                    });
+                  }}
+                />
+              </Card>
+              {battle.panel(<BattleCard bare stage={battleStage} />)}
             </>
           ) : (
             <>
@@ -741,41 +920,19 @@ const SupplyFollowupPage: React.FC = () => {
                   marginBottom: 12,
                 }}
               >
-                {(flow === 'cover' ? coverChips : intelChips).map(
-                  ([k, label, n]) => (
-                    <Chip
-                      key={label}
-                      active={stage === k}
-                      onClick={() => setStage(k)}
-                    >
-                      {label} <span style={{ opacity: 0.7 }}>{n}</span>
-                    </Chip>
-                  ),
-                )}
+                <ChoiceChips
+                  label={flow === 'cover' ? '覆盖状态' : '信号状态'}
+                  options={(flow === 'cover' ? coverChips : intelChips).map(
+                    ([k, label, n]) => ({ value: k ?? '', label, count: n }),
+                  )}
+                  value={stage ?? ''}
+                  onChange={(k) => setStage(k || undefined)}
+                />
+                {!unclassifiedView &&
+                  boardChipsOn.map((c) => <FilterChip key={c.key} item={c} />)}
                 <span style={{ flex: 1 }} />
-                {flow === 'cover' && (
-                  <>
-                    <Chip
-                      active={stockout}
-                      onClick={() => {
-                        setStockout((v) => !v);
-                        setStockoutDays(30);
-                      }}
-                    >
-                      近 {stockoutDays} 天无货{' '}
-                      {stockoutDays === 30 ? (o?.stockoutOpen ?? 0) : ''}
-                    </Chip>
-                    <Chip
-                      active={pending}
-                      onClick={() => setPending((v) => !v)}
-                    >
-                      待确认 {o?.pending ?? 0}
-                    </Chip>
-                    <Chip active={single} onClick={() => setSingle((v) => !v)}>
-                      单一渠道 {o?.single ?? 0}
-                    </Chip>
-                  </>
-                )}
+                {/* 待归类的信号接口不按关键词、负责人筛选，不放这两个控件 */}
+                {!unclassifiedView && tools}
                 {unclassifiedView ? (
                   <Select
                     allowClear
@@ -789,106 +946,79 @@ const SupplyFollowupPage: React.FC = () => {
                     }))}
                   />
                 ) : (
-                  <>
-                    <Select
-                      allowClear
-                      style={{ width: 150 }}
-                      placeholder="品牌"
-                      showSearch={{ optionFilterProp: 'label' }}
-                      value={brandId}
-                      onChange={setBrandId}
-                      options={brands}
-                    />
-                    <Select
-                      allowClear
-                      style={{ width: 150 }}
-                      placeholder="品类"
-                      showSearch={{ optionFilterProp: 'label' }}
-                      value={categoryId}
-                      onChange={setCategoryId}
-                      options={categories}
-                    />
-                    <Select
-                      allowClear
-                      style={{ width: 110 }}
-                      placeholder="优先级"
-                      value={priority}
-                      onChange={setPriority}
-                      options={[3, 2, 1].map((k) => ({
-                        value: k,
-                        label: PRIORITY_NAMES[k],
-                      }))}
-                    />
-                  </>
+                  <FilterPopover
+                    count={boardChipsOn.length}
+                    items={boardFilters}
+                  />
                 )}
-              </div>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: wide
-                    ? 'minmax(0, 1fr) 320px'
-                    : 'minmax(0, 1fr)',
-                  gap: 16,
-                  alignItems: 'start',
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  {batchBar}
-                  <Card
-                    style={{
-                      padding: unclassifiedView ? 16 : 0,
-                      overflow: 'hidden',
-                    }}
+                {flow === 'intel' && canEdit && (
+                  <Button
+                    icon={<Plus size="1em" />}
+                    onClick={() => setSignalOpen(true)}
                   >
-                    {unclassifiedView ? (
-                      <SignalTable
-                        rows={signals.records}
-                        total={signals.total}
-                        page={page}
-                        pageSize={signalSize}
-                        loading={loading}
-                        picked={pickedSignals}
-                        canEdit={canEdit}
-                        onPick={setPickedSignals}
-                        onPage={(p, s) =>
-                          s === signalSize ? loadList(p) : setSignalSize(s)
-                        }
-                        onClassify={setClassify}
-                        onIgnore={setIgnore}
-                      />
-                    ) : (
-                      <GroupTable
-                        board={flow}
-                        page={groups}
-                        loading={loading}
-                        picked={picked}
-                        selectedId={selected?.id}
-                        canEdit={canEdit}
-                        canProject={canProject}
-                        onPick={pick}
-                        onSelect={setSelected}
-                        onRecord={(g: Group, ids?: number[]) =>
-                          setRecord({
-                            title: scopeName(g),
-                            demands: g.items,
-                            checkedIds: ids,
-                          })
-                        }
-                        onProject={(g) =>
-                          setProjectScope({
-                            brandId: g.brandId,
-                            categoryId: g.categoryId || undefined,
-                          })
-                        }
-                        onMore={() => loadList(page + 1)}
-                      />
-                    )}
-                  </Card>
-                </div>
-                <div style={wide ? { position: 'sticky', top: 16 } : undefined}>
-                  <BattleCard stage={battleStage} />
-                </div>
+                    录入信号
+                  </Button>
+                )}
+                {/* 待归类信号表的「列」按钮渲染到这里，不在表格上方单占一行（同客户跟进，D74） */}
+                <span ref={setSettingsSlot} style={{ display: 'contents' }} />
+                {battle.button}
               </div>
+
+              <div style={{ minWidth: 0 }}>
+                {batchBar}
+                <Card
+                  style={{
+                    padding: unclassifiedView ? 16 : 0,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {unclassifiedView ? (
+                    <SignalTable
+                      rows={signals.records}
+                      total={signals.total}
+                      page={page}
+                      pageSize={signalSize}
+                      loading={loading}
+                      picked={pickedSignals}
+                      canEdit={canEdit}
+                      onPick={setPickedSignals}
+                      onPage={(p, s) =>
+                        s === signalSize ? loadList(p) : setSignalSize(s)
+                      }
+                      onClassify={setClassify}
+                      onIgnore={setIgnore}
+                      settingsSlot={settingsSlot}
+                    />
+                  ) : (
+                    <GroupTable
+                      board={flow}
+                      page={groups}
+                      loading={loading}
+                      picked={picked}
+                      selectedId={selected?.id}
+                      canEdit={canEdit}
+                      canProject={canProject}
+                      onPick={pick}
+                      onSelect={setSelected}
+                      onRecord={(g: Group, ids?: number[]) =>
+                        setRecord({
+                          title: scopeName(g),
+                          demands: g.items,
+                          checkedIds: ids,
+                        })
+                      }
+                      onProject={(g) =>
+                        setProjectScope({
+                          brandId: g.brandId,
+                          categoryId: g.categoryId || undefined,
+                        })
+                      }
+                      onMore={() => loadList(page + 1)}
+                    />
+                  )}
+                </Card>
+              </div>
+              {battle.panel(<BattleCard bare stage={battleStage} />)}
             </>
           )}
         </>

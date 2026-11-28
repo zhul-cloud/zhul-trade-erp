@@ -1,8 +1,10 @@
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Skeleton, Table } from 'antd';
+import { CircleX, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  DocColumns,
   DocLogCard,
   InfoGrid,
   RelatedDocsCard,
@@ -10,8 +12,9 @@ import {
 } from '@/components/DocFields/DocPage';
 import { DocFilesCard } from '@/components/DocFiles';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, useWide } from '@/pages/inquiry/shared/components';
+import { Card, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/sales/service';
 import {
@@ -21,7 +24,7 @@ import {
 } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
+import { tableScrollX } from '@/utils/tableScroll';
 import { ProofLinks } from '../payables/components';
 import { keyOf, num, PayModal, StatusPill, sourceCell } from './components';
 import {
@@ -59,24 +62,31 @@ const ReimbursementDetail: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
   useOnReactivate(load);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!bx) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const paid = bx.status === BX_STATUS.PAID;
   const columns: TableColumnsType<AdvanceItem> = [
     { title: '#', key: 'i', width: 48, render: (_, __, i) => i + 1 },
-    { title: '来源单号', key: 'source', width: 230, render: sourceCell },
+    {
+      // 日期并到来源单号下，主栏 664 宽不横向滚动（UI-119）
+      title: '来源单号 · 日期',
+      key: 'source',
+      width: 220,
+      render: (v, i) => (
+        <div>
+          {sourceCell(v, i)}
+          <div style={{ fontSize: 12, color: palette.mute }}>
+            {i.occurDate || '—'}
+          </div>
+        </div>
+      ),
+    },
     {
       title: '说明',
       dataIndex: 'description',
-      width: 260,
+      width: 180,
       render: ellipsisRender,
-    },
-    {
-      title: '日期',
-      dataIndex: 'occurDate',
-      width: 110,
-      render: (v?: string) => v || '—',
     },
     {
       title: '金额',
@@ -92,12 +102,12 @@ const ReimbursementDetail: React.FC = () => {
     {
       title: '截图',
       key: 'proofs',
-      width: 90,
+      width: 80,
       render: (_, i) => <ProofLinks files={i.proofs} />,
     },
   ];
 
-  const main = (
+  const info = (
     <>
       <InfoGrid
         items={[
@@ -125,7 +135,12 @@ const ReimbursementDetail: React.FC = () => {
           {
             label: '付款单',
             value: bx.paymentId ? (
-              <Link to={DOC_PATHS.payment(bx.paymentId)}>{bx.paymentNo}</Link>
+              <Link
+                to={DOC_PATHS.payment(bx.paymentId)}
+                className="zhul-link zhul-link-doc"
+              >
+                {bx.paymentNo}
+              </Link>
             ) : (
               bx.paymentNo
             ),
@@ -144,6 +159,11 @@ const ReimbursementDetail: React.FC = () => {
           },
         ]}
       />
+    </>
+  );
+  // 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18）
+  const wideSections = (
+    <>
       <Card style={{ padding: 20, marginBottom: 16 }}>
         <SectionTitle
           extra={
@@ -160,7 +180,7 @@ const ReimbursementDetail: React.FC = () => {
           pagination={false}
           columns={columns}
           dataSource={bx.lines}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(columns) }}
         />
       </Card>
       <DocFilesCard
@@ -178,33 +198,36 @@ const ReimbursementDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[
-          <MenuLink key="list" to="/finance/reimbursements" />,
-          bx.reimburseNo,
-        ]}
-        title={
-          <>
-            {bx.reimburseNo}
-            <StatusPill status={bx.status} />
-          </>
-        }
-        description={
+      <PageHeader
+        title={bx.reimburseNo}
+        tags={<StatusPill status={bx.status} />}
+        sub={
           <>
             {bx.applicantName} · {bx.lineCount} 项 ·{' '}
             {formatDateTime(bx.submittedAt).slice(0, 16)} 提交
           </>
         }
-        actions={
+        extra={
           <>
-            {bx.canWithdraw && (
-              <Button onClick={() => setReason('withdraw')}>撤回</Button>
-            )}
-            {canPay && paid && (
-              <Button danger onClick={() => setReason('unpay')}>
-                撤销已付
-              </Button>
-            )}
+            {/* 撤回、撤销已付都会退回上一步，收进「更多」 */}
+            <MoreActions
+              items={[
+                bx.canWithdraw && {
+                  key: 'withdraw',
+                  label: '撤回',
+                  icon: <Undo2 size={16} />,
+                  danger: true,
+                },
+                canPay &&
+                  paid && {
+                    key: 'unpay',
+                    label: '撤销已付',
+                    icon: <CircleX size={16} />,
+                    danger: true,
+                  },
+              ]}
+              onClick={(k) => setReason(k as 'withdraw' | 'unpay')}
+            />
             {canPay && bx.status === BX_STATUS.PENDING && (
               <Button type="primary" onClick={() => setPaying(true)}>
                 登记已付
@@ -213,22 +236,18 @@ const ReimbursementDetail: React.FC = () => {
           </>
         }
       />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: wide
-            ? 'minmax(0, 2.6fr) minmax(340px, 1fr)'
-            : '1fr',
-          gap: 16,
-          alignItems: 'start',
-        }}
+      <DocColumns
+        wide={wide}
+        side={
+          <>
+            <RelatedDocsCard docs={relatedRows(bx.related)} />
+            <DocLogCard logs={bx.logs} />
+          </>
+        }
       >
-        <div style={{ minWidth: 0 }}>{main}</div>
-        <div style={{ minWidth: 0 }}>
-          <RelatedDocsCard docs={relatedRows(bx.related)} />
-          <DocLogCard logs={bx.logs} />
-        </div>
-      </div>
+        {info}
+        {wideSections}
+      </DocColumns>
       <PayModal
         targets={paying ? [bx] : undefined}
         onClose={() => setPaying(false)}

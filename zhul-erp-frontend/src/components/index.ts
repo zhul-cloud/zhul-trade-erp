@@ -6,8 +6,7 @@
  * 布局组件
  */
 import Footer from './Footer';
-import { LangDropdown, VersionDropdown } from './RightContent';
-import { AvatarDropdown } from './RightContent/AvatarDropdown';
+import { LangDropdown } from './RightContent';
 
 /**
  * 业务组件
@@ -16,4 +15,4 @@ export { default as AuthLayout } from './AuthLayout';
 export { default as ErrorBoundary } from './ErrorBoundary';
 export { default as OfflineBanner } from './OfflineBanner';
 
-export { AvatarDropdown, Footer, LangDropdown, VersionDropdown };
+export { Footer, LangDropdown };

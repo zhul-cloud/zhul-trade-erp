@@ -1,14 +1,22 @@
 import { useSearchParams } from '@umijs/max';
-import { Segmented, Skeleton, Table } from 'antd';
+import { Segmented, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import React, { useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  CardTitle,
+  FilterCard,
+  FilterField,
+  HelpTip,
+  MainCard,
+  SummaryBar,
+} from '@/components/ListLayout';
 import StatsRangeFilter, {
   presetRange,
   type RangePreset,
 } from '@/components/StatsRangeFilter';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
-import { Card } from './components';
 import {
   type OpportunityStats,
   opportunityApi,
@@ -27,10 +35,20 @@ const PRESETS: RangePreset[] = [
   'halfYear',
 ];
 
+/** 帮助文字：help-texts.md「商机统计」 */
+const HELP = {
+  valid: '曾进入 S3 及以后的商机，之后输单仍计入有效；有效率 = 有效 ÷ 新增',
+  table: '按首次接触日期归属；数据范围随你的数据权限',
+};
+
 /** 有效率：一位小数；新增为 0 时显示「—」 */
 export const rate = (valid: number, total: number) =>
   total ? `${((valid / total) * 100).toFixed(1)}%` : '—';
 
+/**
+ * 商机统计（统计页规则，ui-redesign P1）：统计期间放搜索条件区，五个数字放汇总行（不用大卡、不按好坏上色），
+ * 口径放帮助图标；没有数据时只在表格里显示一个空状态，构成图不再单独写一句
+ */
 const StatsPanel: React.FC = () => {
   const { palette } = useAppTheme();
   // 从工作台商机统计卡片点「查看完整统计」时带 ?preset=，沿用卡片上选的区间
@@ -68,152 +86,105 @@ const StatsPanel: React.FC = () => {
   }, [range, groupBy]);
 
   const sum = data?.summary;
-  const kpis: {
-    label: string;
-    value: number | undefined;
-    color: string;
-    hint?: string;
-  }[] = [
-    { label: '新增商机', value: sum?.total, color: palette.ink },
-    {
-      label: '无效',
-      value: sum?.invalid,
-      color: palette.mute,
-      hint: sum?.total ? `占 ${rate(sum.invalid, sum.total)}` : undefined,
-    },
-    {
-      label: '有效（进入过 S3）',
-      value: sum?.valid,
-      color: palette.link,
-      hint: sum ? `有效率 ${rate(sum.valid, sum.total)}` : undefined,
-    },
-    { label: '赢单', value: sum?.won, color: palette.green },
-    { label: '输单', value: sum?.lost, color: palette.red },
-  ];
+  const rows = data?.rows ?? [];
   const firstCol =
     groupBy === 'channel'
       ? '来源渠道'
       : groupBy === 'owner'
         ? '业务员'
         : '日期';
-  const max = Math.max(1, ...(data?.rows ?? []).map((r) => r.total));
+  const max = Math.max(1, ...rows.map((r) => r.total));
+  const legend: [string, string][] = [
+    ['有效', palette.chart],
+    ['跟进中（未到 S3）', palette.primaryLine],
+    ['无效', palette.control],
+  ];
 
   return (
-    <div style={{ display: 'grid', gap: 20 }}>
-      <div
-        style={{
-          display: 'flex',
-          gap: 16,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-        }}
-      >
-        <StatsRangeFilter value={range} onChange={setRange} presets={PRESETS} />
-        <span style={{ flex: 1 }} />
-        <span style={{ color: palette.mute }}>分组</span>
-        <Segmented<GroupBy>
-          value={groupBy}
-          onChange={setGroupBy}
-          options={[
-            { value: 'channel', label: '按渠道' },
-            { value: 'owner', label: '按业务员' },
-            { value: 'date', label: '按日期' },
-          ]}
-        />
-      </div>
-
+    <div>
+      {/* 统计期间选了就生效 */}
+      <FilterCard>
+        <FilterField label="统计期间" span="auto">
+          <StatsRangeFilter
+            value={range}
+            onChange={setRange}
+            presets={PRESETS}
+          />
+        </FilterField>
+      </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
         <>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(5, 1fr)',
-              gap: 16,
-            }}
-          >
-            {kpis.map((k) => (
-              <Card key={k.label} style={{ padding: 20 }}>
-                <div style={{ color: palette.mute }}>{k.label}</div>
-                {loading ? (
-                  <Skeleton
-                    active
-                    paragraph={false}
-                    style={{ marginTop: 12 }}
-                  />
-                ) : (
+          {sum && (
+            <SummaryBar
+              items={[
+                { key: 'total', label: '新增商机', value: sum.total },
+                {
+                  key: 'invalid',
+                  label: '无效',
+                  value: sum.invalid,
+                  sub: sum.total
+                    ? `占 ${rate(sum.invalid, sum.total)}`
+                    : undefined,
+                },
+                {
+                  key: 'valid',
+                  label: '有效',
+                  help: HELP.valid,
+                  value: sum.valid,
+                  sub: `有效率 ${rate(sum.valid, sum.total)}`,
+                },
+                { key: 'won', label: '赢单', value: sum.won },
+                { key: 'lost', label: '输单', value: sum.lost },
+              ]}
+            />
+          )}
+          {groupBy !== 'date' && rows.length > 0 && (
+            // 两张主卡之间留卡片间距 16
+            <div style={{ marginBottom: 16 }}>
+              <MainCard
+                left={
+                  <CardTitle>
+                    {groupBy === 'channel'
+                      ? '各渠道新增构成'
+                      : '各业务员新增构成'}
+                  </CardTitle>
+                }
+                right={
                   <div
-                    className="num"
                     style={{
-                      fontSize: 30,
-                      fontWeight: 700,
-                      color: k.color,
-                      marginTop: 8,
+                      display: 'flex',
+                      gap: 16,
+                      fontSize: 12,
+                      color: palette.mute,
                     }}
                   >
-                    {k.value ?? 0}
-                  </div>
-                )}
-                <div
-                  style={{ fontSize: 12, color: palette.mute, minHeight: 18 }}
-                >
-                  {k.hint}
-                </div>
-              </Card>
-            ))}
-          </div>
-
-          {groupBy !== 'date' && (
-            <Card
-              title={
-                groupBy === 'channel' ? '各渠道新增构成' : '各业务员新增构成'
-              }
-              extra={
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: 16,
-                    fontSize: 12,
-                    color: palette.mute,
-                  }}
-                >
-                  {[
-                    ['有效', palette.link],
-                    ['跟进中（未到 S3）', palette.accentLine],
-                    ['无效', palette.control],
-                  ].map(([n, c]) => (
-                    <span
-                      key={n}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                      }}
-                    >
+                    {legend.map(([n, c]) => (
                       <span
+                        key={n}
                         style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: 3,
-                          background: c,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
                         }}
-                      />
-                      {n}
-                    </span>
-                  ))}
-                </div>
-              }
-            >
-              {loading ? (
-                <Skeleton active />
-              ) : !data?.rows.length ? (
-                <div style={{ color: palette.mute, padding: '12px 0' }}>
-                  这段时间没有新增商机。
-                </div>
-              ) : (
+                      >
+                        <span
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: 3,
+                            background: c,
+                          }}
+                        />
+                        {n}
+                      </span>
+                    ))}
+                  </div>
+                }
+              >
                 <div style={{ display: 'grid', gap: 12 }}>
-                  {data.rows.map((r) => {
+                  {rows.map((r) => {
                     const doing = Math.max(0, r.total - r.valid - r.invalid);
                     const seg = (n: number, color: string) =>
                       n > 0 && (
@@ -248,8 +219,8 @@ const StatsPanel: React.FC = () => {
                           }}
                           title={`有效 ${r.valid}，跟进中 ${doing}，无效 ${r.invalid}`}
                         >
-                          {seg(r.valid, palette.link)}
-                          {seg(doing, palette.accentLine)}
+                          {seg(r.valid, palette.chart)}
+                          {seg(doing, palette.primaryLine)}
                           {seg(r.invalid, palette.control)}
                         </div>
                         <span
@@ -257,7 +228,7 @@ const StatsPanel: React.FC = () => {
                           style={{
                             width: 40,
                             textAlign: 'right',
-                            fontWeight: 700,
+                            fontWeight: 600,
                             color: palette.ink,
                           }}
                         >
@@ -267,67 +238,77 @@ const StatsPanel: React.FC = () => {
                     );
                   })}
                 </div>
-              )}
-            </Card>
+              </MainCard>
+            </div>
           )}
-
-          <Table<StatRow>
-            rowKey="key"
-            loading={loading}
-            pagination={false}
-            dataSource={data?.rows ?? []}
-            locale={{ emptyText: '这段时间没有新增商机' }}
-            columns={[
-              { title: firstCol, dataIndex: 'label' },
-              { title: '新增', dataIndex: 'total', align: 'right' },
-              { title: '无效', dataIndex: 'invalid', align: 'right' },
-              { title: '有效', dataIndex: 'valid', align: 'right' },
-              {
-                title: '有效率',
-                key: 'rate',
-                align: 'right',
-                render: (_, r) => (
-                  <span style={{ color: palette.link }}>
-                    {rate(r.valid, r.total)}
-                  </span>
-                ),
-              },
-              { title: '赢单', dataIndex: 'won', align: 'right' },
-              { title: '输单', dataIndex: 'lost', align: 'right' },
-            ]}
-            summary={() =>
-              sum && data?.rows.length ? (
-                <Table.Summary.Row style={{ fontWeight: 600 }}>
-                  <Table.Summary.Cell index={0}>合计</Table.Summary.Cell>
-                  <Table.Summary.Cell index={1} align="right">
-                    {sum.total}
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={2} align="right">
-                    {sum.invalid}
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={3} align="right">
-                    {sum.valid}
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={4} align="right">
-                    <span style={{ color: palette.link }}>
-                      {rate(sum.valid, sum.total)}
-                    </span>
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={5} align="right">
-                    {sum.won}
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={6} align="right">
-                    {sum.lost}
-                  </Table.Summary.Cell>
-                </Table.Summary.Row>
-              ) : null
+          <MainCard
+            left={
+              <>
+                <span>分组</span>
+                <HelpTip title={HELP.table} />
+              </>
             }
-          />
-          <div style={{ fontSize: 12, color: palette.mute }}>
-            统计按首次接触日期归属；有效 = 曾进入 S3
-            及以后（之后输单仍计入有效）；有效率 = 有效 ÷
-            新增。数据范围随你的数据权限。
-          </div>
+            right={
+              <Segmented<GroupBy>
+                value={groupBy}
+                onChange={setGroupBy}
+                options={[
+                  { value: 'channel', label: '按渠道' },
+                  { value: 'owner', label: '按业务员' },
+                  { value: 'date', label: '按日期' },
+                ]}
+              />
+            }
+          >
+            <Table<StatRow>
+              rowKey="key"
+              loading={loading}
+              pagination={false}
+              dataSource={rows}
+              locale={{
+                emptyText: tableEmpty('这段时间没有新增商机', loading),
+              }}
+              columns={[
+                { title: firstCol, dataIndex: 'label' },
+                { title: '新增', dataIndex: 'total', align: 'right' },
+                { title: '无效', dataIndex: 'invalid', align: 'right' },
+                { title: '有效', dataIndex: 'valid', align: 'right' },
+                {
+                  title: '有效率',
+                  key: 'rate',
+                  align: 'right',
+                  render: (_, r) => rate(r.valid, r.total),
+                },
+                { title: '赢单', dataIndex: 'won', align: 'right' },
+                { title: '输单', dataIndex: 'lost', align: 'right' },
+              ]}
+              summary={() =>
+                sum && rows.length ? (
+                  <Table.Summary.Row style={{ fontWeight: 600 }}>
+                    <Table.Summary.Cell index={0}>合计</Table.Summary.Cell>
+                    <Table.Summary.Cell index={1} align="right">
+                      {sum.total}
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={2} align="right">
+                      {sum.invalid}
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={3} align="right">
+                      {sum.valid}
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={4} align="right">
+                      {rate(sum.valid, sum.total)}
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={5} align="right">
+                      {sum.won}
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={6} align="right">
+                      {sum.lost}
+                    </Table.Summary.Cell>
+                  </Table.Summary.Row>
+                ) : null
+              }
+            />
+          </MainCard>
         </>
       )}
     </div>

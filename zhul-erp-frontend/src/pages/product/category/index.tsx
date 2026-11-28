@@ -1,4 +1,3 @@
-import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   ModalForm,
@@ -10,17 +9,37 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import { App, Button, Tooltip } from 'antd';
+import { App, Button, Input, Select } from 'antd';
+import {
+  Ban,
+  CircleCheck,
+  FolderPlus,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from 'lucide-react';
 import React, { useRef, useState } from 'react';
-import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import EllipsisText from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { proAuditColumns } from '@/components/UserName';
+import { MONO_FONT } from '@/theme/fonts';
 import { useIndustryOptions } from '@/utils/dict';
-import { formatDateTime } from '@/utils/format';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { Pill } from '../components/Pills';
 import { DESCRIPTION_MAX } from '../constants';
 import { type Category, categoryApi, readBizError } from '../service';
-import { PageHeader, ProductThemeProvider } from '../theme';
+import { ProductThemeProvider } from '../theme';
 import TariffModal from './TariffModal';
 
 const TWO_LINES: React.CSSProperties = {
@@ -34,6 +53,7 @@ const TWO_LINES: React.CSSProperties = {
 const CategoryPage: React.FC = () => {
   const pager = usePagination(20);
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess();
   const actionRef = useRef<ActionType>(undefined);
   const [editing, setEditing] = useState<Category | null>(null);
@@ -52,7 +72,8 @@ const CategoryPage: React.FC = () => {
 
   const toggleStatus = (row: Category) => {
     const disabling = row.status === 1;
-    modal.confirm({
+    // 停用用公共危险确认（错误色按钮、默认焦点在取消），启用用普通确认
+    (disabling ? confirmDanger : modal.confirm)({
       title: disabling
         ? `停用「${row.categoryName}」？`
         : `启用「${row.categoryName}」？`,
@@ -70,14 +91,11 @@ const CategoryPage: React.FC = () => {
   };
 
   const remove = (row: Category) => {
-    modal.confirm({
+    confirmDanger({
       title: `删除「${row.categoryName}」？`,
       content: row.parentId
         ? '删除后细分品类不再出现，同编码的品类也不能重新创建。被供应商主营产品使用的细分品类不能删除，可改为停用。'
         : '删除后品类不再出现在列表中，同编码的品类也不能重新创建。',
-      okText: '删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
       onOk: async () => {
         try {
           await categoryApi.remove(row.id);
@@ -92,40 +110,21 @@ const CategoryPage: React.FC = () => {
 
   const { options: industryOptions, labelOf: industryLabel } =
     useIndustryOptions();
+  /** 搜索条件：状态切换后立即查询，关键词、行业点「查询」才生效 */
+  const [filters, setFilters] = useState<{
+    keyword?: string;
+    industry?: string;
+    status?: number;
+  }>({});
+  const [keyword, setKeyword] = useState('');
+  const [draftIndustry, setDraftIndustry] = useState<string>();
+  // 首次查询返回前没有总数，主卡不显示「共 0 条」
+  const [total, setTotal] = useState<number>();
 
   const columns: ProColumns<Category>[] = [
     {
-      title: '行业',
-      dataIndex: 'industryFilter',
-      hideInTable: true,
-      valueType: 'select',
-      fieldProps: { options: industryOptions, placeholder: '全部行业' },
-    },
-    {
-      title: '编码或名称',
-      dataIndex: 'keyword',
-      hideInTable: true,
-      fieldProps: { placeholder: '输入品类编码或名称' },
-    },
-    {
-      title: '状态',
-      dataIndex: 'statusFilter',
-      hideInTable: true,
-      valueType: 'select',
-      valueEnum: { 1: { text: '启用' }, 0: { text: '停用' } },
-    },
-    {
-      title: '品类编码',
-      dataIndex: 'categoryCode',
-      search: false,
-      width: 200,
-      render: (_, r) => (
-        <code style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
-          {r.categoryCode}
-        </code>
-      ),
-    },
-    {
+      fixed: 'left',
+      // 名称在前、编码在后（ui-redesign S9：编码是次要信息）
       title: '品类名称',
       dataIndex: 'categoryName',
       search: false,
@@ -148,15 +147,25 @@ const CategoryPage: React.FC = () => {
         ),
     },
     {
+      title: '品类编码',
+      dataIndex: 'categoryCode',
+      search: false,
+      width: 200,
+      render: (_, r) => (
+        <code style={{ fontFamily: MONO_FONT }}>{r.categoryCode}</code>
+      ),
+    },
+    {
       title: '层级',
       dataIndex: 'parentId',
       search: false,
       width: 90,
       render: (_, r) =>
+        // 层级是属性：一级蓝、细分紫（D75）
         r.parentId ? (
-          <Pill tone="gray">细分品类</Pill>
+          <Pill tone="purple">细分品类</Pill>
         ) : (
-          <Pill tone="accent">一级品类</Pill>
+          <Pill tone="blue">一级品类</Pill>
         ),
     },
     {
@@ -222,7 +231,7 @@ const CategoryPage: React.FC = () => {
         r.parentId ? (
           <span style={{ opacity: 0.55 }}>跟随上级</span>
         ) : (
-          <Pill tone="accent">{industryLabel(r.industryCode)}</Pill>
+          <Pill tone="gray">{industryLabel(r.industryCode)}</Pill>
         ),
     },
     {
@@ -267,38 +276,7 @@ const CategoryPage: React.FC = () => {
           <Pill tone="gray">已停用</Pill>
         ),
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      search: false,
-      width: 160,
-      render: (_, r) => (
-        <span className="num">{formatDateTime(r.createTime)}</span>
-      ),
-    },
-    {
-      title: '创建人',
-      dataIndex: 'createBy',
-      search: false,
-      width: 150,
-      render: ellipsisRender,
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      search: false,
-      width: 160,
-      render: (_, r) => (
-        <span className="num">{formatDateTime(r.updateTime)}</span>
-      ),
-    },
-    {
-      title: '更新人',
-      dataIndex: 'updateBy',
-      search: false,
-      width: 150,
-      render: ellipsisRender,
-    },
+    ...proAuditColumns<Category>(),
     {
       title: '操作',
       hideInTable:
@@ -307,86 +285,76 @@ const CategoryPage: React.FC = () => {
         !access['product:category:delete'],
       fixed: 'right',
       valueType: 'option',
-      width: 210,
-      render: (_, row) => [
-        access['product:category:add'] && !row.parentId && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="sub"
-            onClick={() => openForm(null, row.id)}
-          >
-            + 细分品类
-          </button>
-        ),
-        access['product:category:edit'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="edit"
-            onClick={() => openForm(row)}
-          >
-            编辑
-          </button>
-        ),
-        access['product:category:edit'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="status"
-            onClick={() => toggleStatus(row)}
-          >
-            {row.status === 1 ? '停用' : '启用'}
-          </button>
-        ),
-        access['product:category:delete'] &&
-          ((row.children?.length ?? 0) > 0 ? (
-            <Tooltip key="delete" title="下面还有细分品类，请先删除或移走">
-              <span
-                aria-disabled="true"
-                style={{ opacity: 0.6, cursor: 'not-allowed' }}
-              >
-                删除
-              </span>
-            </Tooltip>
-          ) : row.productCount > 0 ? (
-            <Tooltip
-              key="delete"
-              title={`已有 ${row.productCount} 个商品使用，请先停用`}
-            >
-              <span
-                aria-disabled="true"
-                style={{ opacity: 0.6, cursor: 'not-allowed' }}
-              >
-                删除
-              </span>
-            </Tooltip>
-          ) : (
-            <button
-              type="button"
-              className="zhul-link"
-              key="delete"
-              onClick={() => remove(row)}
-            >
-              删除
-            </button>
-          )),
-      ],
+      // 编辑、加细分品类放行内；停用/启用、删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(3),
+      render: (_, row) => {
+        const canEdit = !!access['product:category:edit'];
+        const canDelete = !!access['product:category:delete'];
+        return (
+          <RowActions
+            inline={[
+              canEdit && {
+                key: 'edit',
+                label: '编辑',
+                icon: <Pencil size={18} />,
+                onClick: () => openForm(row),
+              },
+              access['product:category:add'] &&
+                !row.parentId && {
+                  key: 'sub',
+                  label: '添加细分品类',
+                  icon: <FolderPlus size={18} />,
+                  onClick: () => openForm(null, row.id),
+                },
+            ]}
+            more={[
+              canEdit && {
+                key: 'status',
+                label: row.status === 1 ? '停用' : '启用',
+                icon:
+                  row.status === 1 ? (
+                    <Ban size={16} />
+                  ) : (
+                    <CircleCheck size={16} />
+                  ),
+              },
+              canDelete && {
+                key: 'delete',
+                label: '删除',
+                icon: <Trash2 size={16} />,
+                danger: true,
+                disabledReason:
+                  (row.children?.length ?? 0) > 0
+                    ? '下面还有细分品类，请先删除或移走'
+                    : row.productCount > 0
+                      ? `已有 ${row.productCount} 个商品使用，请先停用`
+                      : undefined,
+              },
+            ]}
+            onMore={(key) => {
+              if (key === 'status') toggleStatus(row);
+              if (key === 'delete') remove(row);
+            }}
+          />
+        );
+      },
     },
   ];
+  const columnsSet = useColumnSettings('product-category', columns, {
+    hidden: ['目的国关税参考', '中文简介', '排序'],
+  });
 
   const locked = !!editing && editing.productCount > 0;
 
   return (
     <ProductThemeProvider>
       <PageHeader
-        eyebrow="PRODUCT MASTER"
-        description="一级品类用于商品和独立站，编码有商品后不能再改；细分品类用于供应商主营产品和询盘单匹配。"
-        actions={
+        help="一级品类用于商品和独立站，编码有商品后不能再改；细分品类用于供应商主营产品和询盘单匹配"
+        extra={
           access['product:category:add'] && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => openForm(null)}
             >
               新增品类
@@ -394,46 +362,104 @@ const CategoryPage: React.FC = () => {
           )
         }
       />
-      <ProTable<Category>
-        rowKey="id"
-        actionRef={actionRef}
-        columns={columns}
-        search={{ labelWidth: 'auto', defaultCollapsed: false }}
-        options={false}
-        request={async (params) => {
-          const tree = await categoryApi.tree(
-            (params.industryFilter as string) || undefined,
-          );
-          setTopLevels(tree);
-          // 两级品类数量不大，一次取回整棵树在前端筛选：命中细分品类时保留它的一级品类
-          const keyword = (params.keyword ?? '').trim().toLowerCase();
-          const status =
-            params.statusFilter === undefined
-              ? undefined
-              : Number(params.statusFilter);
-          const hit = (c: Category) =>
-            (!keyword ||
-              [c.categoryCode, c.categoryName, c.categoryNameZh].some((v) =>
-                (v ?? '').toLowerCase().includes(keyword),
-              )) &&
-            (status === undefined || c.status === status);
-          const data: Category[] = [];
-          for (const top of tree) {
-            const children = (top.children ?? []).filter(hit);
-            if (!hit(top) && !children.length) continue;
-            // children 为空时去掉该键，避免一级品类出现空的展开按钮
-            const { children: _, ...rest } = top;
-            data.push(children.length ? { ...rest, children } : rest);
-          }
-          return { data, total: data.length, success: true };
+      <FilterCard
+        onSearch={() =>
+          setFilters({
+            ...filters,
+            keyword: keyword.trim(),
+            industry: draftIndustry,
+          })
+        }
+        onReset={() => {
+          setKeyword('');
+          setDraftIndustry(undefined);
+          setFilters({});
         }}
-        expandable={{ defaultExpandAllRows: false }}
-        scroll={{ x: tableScrollX(columns) }}
-        pagination={{ ...pager, showTotal: (t) => `共 ${t} 条记录` }}
-        locale={{
-          emptyText: '还没有品类。先新增一个，新建商品时才能选择品类。',
-        }}
-      />
+      >
+        <FilterField label="关键词" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="品类编码或名称"
+            aria-label="关键词"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={() =>
+              setFilters({
+                ...filters,
+                keyword: keyword.trim(),
+                industry: draftIndustry,
+              })
+            }
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select
+            allowClear
+            placeholder="全部"
+            aria-label="状态"
+            value={filters.status}
+            // 状态下拉切换后立即查询
+            onChange={(v) => setFilters({ ...filters, status: v })}
+            options={[
+              { value: 1, label: '启用' },
+              { value: 0, label: '停用' },
+            ]}
+          />
+        </FilterField>
+        <FilterField label="行业">
+          <Select
+            allowClear
+            placeholder="全部"
+            aria-label="行业"
+            value={draftIndustry}
+            onChange={setDraftIndustry}
+            options={industryOptions}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard settings={columnsSet.settings} count={total} unit="个一级品类">
+        <ProTable<Category>
+          rowKey="id"
+          actionRef={actionRef}
+          columns={columnsSet.columns}
+          search={false}
+          options={false}
+          toolBarRender={false}
+          params={filters}
+          request={async () => {
+            const tree = await categoryApi.tree(filters.industry || undefined);
+            setTopLevels(tree);
+            // 两级品类数量不大，一次取回整棵树在前端筛选：命中细分品类时保留它的一级品类
+            const keyword = (filters.keyword ?? '').toLowerCase();
+            const status = filters.status;
+            const hit = (c: Category) =>
+              (!keyword ||
+                [c.categoryCode, c.categoryName, c.categoryNameZh].some((v) =>
+                  (v ?? '').toLowerCase().includes(keyword),
+                )) &&
+              (status === undefined || c.status === status);
+            const data: Category[] = [];
+            for (const top of tree) {
+              const children = (top.children ?? []).filter(hit);
+              if (!hit(top) && !children.length) continue;
+              // children 为空时去掉该键，避免一级品类出现空的展开按钮
+              const { children: _, ...rest } = top;
+              data.push(children.length ? { ...rest, children } : rest);
+            }
+            setTotal(data.length);
+            return { data, total: data.length, success: true };
+          }}
+          expandable={{ defaultExpandAllRows: false }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
+          pagination={pager}
+          locale={{
+            emptyText: tableEmpty(
+              '还没有品类。先新增一个，新建商品时才能选择品类。',
+            ),
+          }}
+        />
+      </MainCard>
       <ModalForm<{
         categoryCode: string;
         categoryName: string;

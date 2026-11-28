@@ -1,4 +1,3 @@
-import { LockOutlined } from '@ant-design/icons';
 import { useAccess, useParams, useSearchParams } from '@umijs/max';
 import {
   Alert,
@@ -10,10 +9,10 @@ import {
   Modal,
   Select,
   Skeleton,
-  Space,
   Switch,
 } from 'antd';
 import dayjs from 'dayjs';
+import { Lock } from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -21,8 +20,12 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { HelpTip, PageHeader } from '@/components/ListLayout';
 import { usePageTitle, useTabDirty } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
+import { MONO_FONT } from '@/theme/fonts';
+import { POPUP_SHADOW } from '@/theme/palette';
 import { CompletenessBar } from '../components/CompletenessBar';
 import { ErrorHint } from '../components/EmptyHint';
 import { LifecyclePill, Pill } from '../components/Pills';
@@ -81,7 +84,7 @@ const GroupTitle: React.FC<{
         margin: '8px 0 14px',
       }}
     >
-      <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{title}</h2>
+      <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{title}</h2>
       {tag}
       <span style={{ fontSize: 13, color: palette.sub }}>{desc}</span>
     </div>
@@ -224,7 +227,7 @@ const Sidebar: React.FC<{
       {platform && (
         <div style={panel(palette)}>
           <h2 style={{ margin: '0 0 8px', fontSize: 16 }}>被引用</h2>
-          <div className="num" style={{ fontSize: 24, fontWeight: 700 }}>
+          <div className="num" style={{ fontSize: 24, fontWeight: 600 }}>
             {product.usageCount ?? 0} 处
           </div>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: palette.sub }}>
@@ -251,7 +254,7 @@ const Sidebar: React.FC<{
         )}
         {row(
           '归一化型号',
-          <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+          <span style={{ fontFamily: MONO_FONT }}>
             {product.mpnNormalized}
           </span>,
         )}
@@ -262,6 +265,7 @@ const Sidebar: React.FC<{
 
 const DetailInner: React.FC = () => {
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { palette } = useProductTheme();
   const access = useAccess();
   // 设为官方素材后让「图片与视频」重新取数
@@ -270,10 +274,9 @@ const DetailInner: React.FC = () => {
   const [search] = useSearchParams();
   const id = Number(params.id);
   const [product, setProduct] = useState<Product>();
-  usePageTitle(
-    product ? `商品 ${product.mpnDisplay}` : undefined,
-    product?.mpnDisplay,
-  );
+  // 展示型号为空时退回原始型号，标题、标签名都不留空（ui-redesign R8-4）
+  const model = product ? product.mpnDisplay || product.mpnRaw : undefined;
+  usePageTitle(model ? `商品 ${model}` : undefined, model);
   // 维护方：平台账号，或商品属于本租户（后端按归属算出 editable）；修改还需「编辑商品」按钮权限
   const maintainer = !!product?.editable;
   const canEdit = maintainer && !!access['product:product:edit'];
@@ -351,7 +354,8 @@ const DetailInner: React.FC = () => {
   const toggleStatus = () => {
     if (!product) return;
     const disabling = product.status === 1;
-    modal.confirm({
+    // 停用用公共危险确认（错误色按钮、默认焦点在取消），启用用普通确认
+    (disabling ? confirmDanger : modal.confirm)({
       title: disabling
         ? `停用「${product.mpnDisplay}」？`
         : `启用「${product.mpnDisplay}」？`,
@@ -389,94 +393,78 @@ const DetailInner: React.FC = () => {
 
   return (
     <UnsavedContext.Provider value={registry}>
-      <div
-        style={{
-          ...panel(palette),
-          display: 'flex',
-          gap: 20,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 260 }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              flexWrap: 'wrap',
-            }}
-          >
-            <h1
-              id="product-main"
-              tabIndex={-1}
-              style={{ margin: 0, fontSize: 28, fontWeight: 700 }}
-            >
-              {product.mpnDisplay}
-            </h1>
+      {/* 页头和其他详情页一样直接放在页面上（公共 PageHeader），不包卡；只读是正常状态，用中性胶囊 + 帮助图标，不占整条警告（ui-redesign R8-4） */}
+      <PageHeader
+        title={
+          <span id="product-main" tabIndex={-1} style={{ outline: 'none' }}>
+            {model}
+          </span>
+        }
+        tags={
+          <>
             <LifecyclePill value={product.lifecycleStatus} />
             {maintainer && (
               <Pill tone={product.status === 1 ? 'green' : 'gray'}>
                 {product.status === 1 ? '启用' : '已停用'}
               </Pill>
             )}
-            {!canEdit && (
-              <Pill tone="gray">
-                <LockOutlined style={{ marginRight: 4 }} />
-                只读
-              </Pill>
-            )}
-          </div>
-          <div style={{ color: palette.sub, marginTop: 6 }}>
+          </>
+        }
+        sub={
+          <>
             {[product.brandName, product.categoryName, product.seriesName]
               .filter(Boolean)
               .join(' · ')}
             {product.productName ? ` · ${product.productName}` : ''}
-          </div>
-        </div>
-        <Space>
-          {canEdit && (
-            <>
-              <Button onClick={toggleStatus}>
-                {product.status === 1 ? '停用' : '启用'}
-              </Button>
-              <Dropdown
-                menu={{
-                  items: [
-                    {
-                      key: 'delete',
-                      danger: true,
-                      label: '删除商品…',
-                      onClick: () => setDeleteOpen(true),
-                    },
-                  ],
-                }}
-                trigger={['click']}
-              >
-                <Button aria-label="更多操作">更多</Button>
-              </Dropdown>
-            </>
-          )}
-        </Space>
-      </div>
-
-      {!maintainer && (
-        <Alert
-          style={{ marginBottom: 20, borderRadius: 12 }}
-          type="warning"
-          showIcon
-          title={`该商品由${product.ownerTenantId ? '其他公司' : '平台'}维护，只能查看`}
-          description="可以在报价、订单中正常使用它；需要补充规格、资料时，可通过资料包确认写入。"
-        />
-      )}
-      {maintainer && usage > 0 && (
-        <Alert
-          style={{ marginBottom: 20, borderRadius: 12 }}
-          type="info"
-          showIcon
-          title={`已被 ${usage} 处引用：品牌和型号已锁定，其余信息都可以改`}
-        />
-      )}
+          </>
+        }
+        extra={
+          <>
+            {!maintainer ? (
+              <Pill tone="gray">
+                <Lock size="1em" />
+                {product.ownerTenantId ? '其他公司' : '平台'}维护 · 只读
+                <HelpTip title="可以在报价、订单中正常使用它；需要补充规格、资料时，可通过资料包确认写入。" />
+              </Pill>
+            ) : (
+              !canEdit && (
+                <Pill tone="gray">
+                  <Lock size="1em" />
+                  只读
+                </Pill>
+              )
+            )}
+            {maintainer && usage > 0 && (
+              <Pill tone="gray">
+                已被 {usage} 处引用
+                <HelpTip title="品牌和型号已锁定，其余信息都可以改" />
+              </Pill>
+            )}
+            {canEdit && (
+              <>
+                <Button onClick={toggleStatus}>
+                  {product.status === 1 ? '停用' : '启用'}
+                </Button>
+                <Dropdown
+                  menu={{
+                    items: [
+                      {
+                        key: 'delete',
+                        danger: true,
+                        label: '删除商品…',
+                        onClick: () => setDeleteOpen(true),
+                      },
+                    ],
+                  }}
+                  trigger={['click']}
+                >
+                  <Button aria-label="更多操作">更多</Button>
+                </Dropdown>
+              </>
+            )}
+          </>
+        }
+      />
       {(product.warnings ?? []).map((w) => (
         <Alert
           key={w}
@@ -514,13 +502,11 @@ const DetailInner: React.FC = () => {
                 </h2>
                 <span
                   className="num"
+                  // 主角数字用字阶上限 28（检查表 #6，UI-117）
                   style={{
-                    fontSize: 32,
-                    fontWeight: 800,
-                    background:
-                      'linear-gradient(90deg,#BFDBFE,#60A5FA,#22D3EE)',
-                    WebkitBackgroundClip: 'text',
-                    color: 'transparent',
+                    fontSize: 28,
+                    fontWeight: 600,
+                    color: palette.ink,
                   }}
                 >
                   {c.done} / {c.total} 项
@@ -548,24 +534,14 @@ const DetailInner: React.FC = () => {
                     if (!m) return null;
                     return (
                       <li key={key}>
-                        <button
-                          type="button"
+                        {/* 是操作（跳到对应卡片），用描边圆角按钮，不用主题色浅底胶囊（D42） */}
+                        <Button
+                          shape="round"
                           onClick={() => scrollToCard(m.anchor)}
-                          style={{
-                            height: 36,
-                            padding: '0 14px',
-                            borderRadius: 18,
-                            border: `1px solid ${palette.accentLine}`,
-                            background: palette.accentSoft,
-                            color: palette.link,
-                            cursor: 'pointer',
-                            fontSize: 13,
-                            fontWeight: 600,
-                          }}
                         >
                           补 {m.label} · 约{' '}
                           <span className="num">{m.minutes}</span> 分钟
-                        </button>
+                        </Button>
                       </li>
                     );
                   })}
@@ -576,7 +552,7 @@ const DetailInner: React.FC = () => {
 
           <GroupTitle
             title="商品资料"
-            tag={<Pill tone="accent">共享</Pill>}
+            tag={<Pill tone="gray">共享</Pill>}
             desc="中文 · 所有公司共用一份 · AI 先补，采购、业务、仓库持续回填"
           />
           <FactsStatusBar
@@ -652,10 +628,10 @@ const DetailInner: React.FC = () => {
             gap: 16,
             padding: '12px 20px',
             borderRadius: 16,
-            background: '#0A101D',
-            color: '#F8FAFC',
-            boxShadow: '0 24px 60px -12px rgba(0,0,0,0.6)',
-            border: '1px solid #234681',
+            background: palette.elevated,
+            color: palette.ink,
+            boxShadow: POPUP_SHADOW,
+            border: `1px solid ${palette.elevatedLine}`,
           }}
         >
           <span>有 {unsavedCount} 张卡片的修改还没保存</span>

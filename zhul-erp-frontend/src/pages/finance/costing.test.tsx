@@ -94,7 +94,7 @@ it('成本调整列表：月份合计卡片，只看有销售成本调整，来�
   );
   mount(CostAdjustments);
   expect(await screen.findByText('CA20261205001')).toBeTruthy();
-  expect(screen.getByText('+¥1,284.06')).toBeTruthy();
+  expect(screen.getByText('CNY +1,284.06')).toBeTruthy();
   expect(
     screen.getByText('外币付款 9 · 采购订单费用 3 · 折价接收 2'),
   ).toBeTruthy();
@@ -102,7 +102,7 @@ it('成本调整列表：月份合计卡片，只看有销售成本调整，来�
     screen.getByText('FK20261205003').closest('a')?.getAttribute('href'),
   ).toBe('/finance/payments/3');
   await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: '只看有销售成本调整' }));
+    fireEvent.click(screen.getByRole('button', { name: /只看有销售成本调整/ }));
   });
   await waitFor(() =>
     expect(
@@ -212,7 +212,9 @@ it('库存月结：没有按钮权限只能查看', async () => {
   expect(await screen.findByText('2026-12')).toBeTruthy();
   expect(screen.queryByRole('button', { name: '结账' })).toBeNull();
   expect(screen.queryByRole('button', { name: '反结账' })).toBeNull();
-  expect(screen.getAllByText('查看')).toHaveLength(2);
+  // 操作列为图标按钮（ui-redesign S6），每行一个「查看」，没有「更多」
+  expect(screen.getAllByRole('button', { name: '查看' })).toHaveLength(2);
+  expect(screen.queryByRole('button', { name: '更多' })).toBeNull();
   // 汇总按算式排：表头带 + − =
   for (const t of [
     '+ 本月入库',
@@ -269,8 +271,11 @@ it('库存月结：反结账必须填原因', async () => {
   );
   mount(Periods);
   await screen.findByText('2026-11');
+  // 反结账收在「更多」里（ui-redesign S6）
+  fireEvent.click(screen.getAllByRole('button', { name: '更多' })[0]);
+  const item = await screen.findByRole('menuitem', { name: /反结账/ });
   await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: '反结账' }));
+    fireEvent.click(item);
   });
   const ok = await screen.findByRole('button', { name: '确认反结账' });
   expect(ok.hasAttribute('disabled')).toBe(true);
@@ -302,8 +307,11 @@ it('库存月结：凭证已导出的月份反结账时提示去 T+ 删除', asy
   );
   mount(Periods);
   await screen.findByText('2026-11');
+  // 反结账收在「更多」里（ui-redesign S6）
+  fireEvent.click(screen.getAllByRole('button', { name: '更多' })[0]);
+  const item = await screen.findByRole('menuitem', { name: /反结账/ });
   await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: '反结账' }));
+    fireEvent.click(item);
   });
   expect(await screen.findByText(/请在 T\+ 里删除它们/)).toBeTruthy();
 });

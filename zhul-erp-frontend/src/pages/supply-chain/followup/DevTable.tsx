@@ -1,8 +1,9 @@
-import { DownOutlined, PlusOutlined, RightOutlined } from '@ant-design/icons';
 import { Link } from '@umijs/max';
-import { Button, Empty, Skeleton } from 'antd';
+import { Button, Skeleton } from 'antd';
 import dayjs from 'dayjs';
+import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import React, { useState } from 'react';
+import { EmptyState } from '@/components/EmptyState';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DueText, HeatPill, Pill } from '../components';
 import { candidateTone, evidenceText, otherQualified } from '../rules';
@@ -43,8 +44,9 @@ export const QualifiedDots: React.FC<{
                 width: 8,
                 height: 8,
                 borderRadius: 4,
-                background: i < qualified ? palette.green : 'transparent',
-                border: `1px solid ${i < qualified ? palette.green : palette.mute}`,
+                // 已达标的家数：跟主题色（数量，不是状态）
+                background: i < qualified ? palette.chart : 'transparent',
+                border: `1px solid ${i < qualified ? palette.chart : palette.mute}`,
               }}
             />
           ))}
@@ -80,7 +82,7 @@ const Head: React.FC = () => {
       <span>开发任务</span>
       <span>最紧急的下一步</span>
       <span>负责人</span>
-      <span />
+      <span>操作</span>
     </div>
   );
 };
@@ -245,8 +247,9 @@ const GroupRow: React.FC<
       </Button>
     )
   ) : g.gap > 0 && canProject ? (
+    // 行内操作和「记处理」一样用文字按钮，每行一个实心主色按钮会抢走页头主操作的注意
     <Button
-      type="primary"
+      type="link"
       size="small"
       onClick={(e) => {
         e.stopPropagation();
@@ -275,9 +278,9 @@ const GroupRow: React.FC<
         }}
       >
         {open ? (
-          <DownOutlined style={{ fontSize: 11 }} />
+          <ChevronDown size="1em" style={{ fontSize: 11 }} />
         ) : (
-          <RightOutlined style={{ fontSize: 11 }} />
+          <ChevronRight size="1em" style={{ fontSize: 11 }} />
         )}
         <span style={{ display: 'grid', gap: 2 }}>
           <b>{scopeName(g)}</b>
@@ -373,7 +376,7 @@ const GroupRow: React.FC<
                   <Button
                     type="link"
                     size="small"
-                    icon={<PlusOutlined />}
+                    icon={<Plus size="1em" />}
                     style={{ padding: 0 }}
                     onClick={() => onCandidate(g)}
                   >
@@ -465,11 +468,11 @@ export const DevTable: React.FC<
   const isOpen = (key: string) => toggled.has(key) !== (key === first);
   const gap = page.groups.reduce((n, g) => n + g.gap, 0);
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <div className="zhul-grid-table" style={{ overflowX: 'auto' }}>
       <div style={{ minWidth: 920 }}>
         <Head />
         {page.groups.length === 0 && !loading && (
-          <Empty style={{ padding: 40 }} description="没有符合条件的品牌品类" />
+          <EmptyState title="没有符合条件的品牌品类" />
         )}
         {page.groups.map((g) => (
           <GroupRow

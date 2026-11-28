@@ -1,14 +1,8 @@
 import {
-  InfoCircleOutlined,
-  PaperClipOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
-import {
   Alert,
   App,
   Button,
   DatePicker,
-  Empty,
   Input,
   InputNumber,
   Modal,
@@ -17,7 +11,9 @@ import {
   Skeleton,
 } from 'antd';
 import dayjs from 'dayjs';
+import { Info, Paperclip, TriangleAlert } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { EmptyState } from '@/components/EmptyState';
 import { useFilePreview } from '@/pages/inquiry/shared/FilePreview';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePaymentMethods } from '@/utils/dict';
@@ -57,15 +53,22 @@ export const PaymentMethodSelect: React.FC<{
   );
 };
 
+/** 外币收款的人民币怎么算（人民币收款不用说明）；登记到账弹窗放进帮助图标，其他弹窗用 FxEstimateHint 常显 */
+export const fxEstimateText = (currency: string) =>
+  currency === 'CNY'
+    ? undefined
+    : '人民币先按最近一次结汇的汇率估算，标「未结汇」；结汇后由财务在「结汇管理」登记结汇单，系统按先进先出确定实际人民币。';
+
 /** 外币到账的人民币说明：登记时按最近一次结汇的汇率估算，结汇后由财务的结汇单确定 */
 export const FxEstimateHint: React.FC<{ currency: string }> = ({
   currency,
 }) => {
   const { palette } = useAppTheme();
-  if (currency === 'CNY') return null;
+  const text = fxEstimateText(currency);
+  if (!text) return null;
   return (
     <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
-      人民币先按最近一次结汇的汇率估算，标「未结汇」；结汇后由财务在「结汇管理」登记结汇单，系统按先进先出确定实际人民币。
+      {text}
     </div>
   );
 };
@@ -238,7 +241,7 @@ export const PlatformReceiptModal = <T extends ReceiptResult>({
         </div>
         <div>
           <div style={{ ...label, color: palette.sub }}>实收</div>
-          <b style={{ ...num, fontSize: 18, color: palette.ink }}>
+          <b style={{ ...num, fontSize: 16, color: palette.ink }}>
             {formatAmount(Math.max(net, 0), cur)}
           </b>
         </div>
@@ -246,7 +249,8 @@ export const PlatformReceiptModal = <T extends ReceiptResult>({
       <FxEstimateHint currency={cur} />
       {after < 0 && amount != null && (
         <div style={{ marginTop: 12, fontSize: 13, color: palette.orange }}>
-          <WarningOutlined /> 多收 {formatAmount(-after, cur)}，将记为预收
+          <TriangleAlert size="1em" /> 多收 {formatAmount(-after, cur)}
+          ，将记为预收
         </div>
       )}
       <div style={{ marginTop: 12 }}>
@@ -366,7 +370,7 @@ export const ClaimReceiptModal = <T extends ReceiptResult>({
       {!rows ? (
         <Skeleton active paragraph={{ rows: 3 }} />
       ) : rows.length === 0 ? (
-        <Empty description={`没有未认领的 ${cur} 到账`} />
+        <EmptyState compact title={`没有未认领的 ${cur} 到账`} />
       ) : (
         <Radio.Group
           value={selected}
@@ -382,8 +386,8 @@ export const ClaimReceiptModal = <T extends ReceiptResult>({
                 borderRadius: 12,
                 margin: 0,
                 background:
-                  selected === r.id ? palette.accentSoft : palette.inset,
-                border: `1px solid ${selected === r.id ? palette.accentLine : palette.hairline}`,
+                  selected === r.id ? palette.primarySoft : palette.inset,
+                border: `1px solid ${selected === r.id ? palette.primaryLine : palette.hairline}`,
               }}
             >
               <b style={{ ...num, color: palette.ink }}>
@@ -427,7 +431,7 @@ export const ClaimReceiptModal = <T extends ReceiptResult>({
                         );
                       }}
                     >
-                      <PaperClipOutlined /> {name}
+                      <Paperclip size="1em" /> {name}
                     </button>
                   ))}
                 </div>
@@ -462,7 +466,7 @@ export const ClaimReceiptModal = <T extends ReceiptResult>({
         />
       )}
       <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
-        <InfoCircleOutlined /> 认领后按正常到账计入
+        <Info size="1em" /> 认领后按正常到账计入
         PI；认领错了请总经理在「收款管理」取消认领。
       </div>
       {preview.node}

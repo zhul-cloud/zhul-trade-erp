@@ -1,12 +1,12 @@
-import {
-  DownloadOutlined,
-  FileExcelOutlined,
-  FilePdfOutlined,
-  LeftOutlined,
-  PictureOutlined,
-  RightOutlined,
-} from '@ant-design/icons';
 import { App, Button, Modal, Spin } from 'antd';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  FileSpreadsheet,
+  FileText,
+  Image,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { downloadFile, fileUrl } from '@/utils/fileLink';
@@ -65,11 +65,14 @@ export const FileTile: React.FC<{
   const thumb = useSigned(kind === 'image' ? endpoint : undefined);
   const icon =
     kind === 'pdf' ? (
-      <FilePdfOutlined style={{ fontSize: 24, color: palette.red }} />
+      <FileText size="1em" style={{ fontSize: 24, color: palette.red }} />
     ) : kind === 'sheet' ? (
-      <FileExcelOutlined style={{ fontSize: 24, color: palette.green }} />
+      <FileSpreadsheet
+        size="1em"
+        style={{ fontSize: 24, color: palette.green }}
+      />
     ) : (
-      <PictureOutlined style={{ fontSize: 20, color: palette.mute }} />
+      <Image size="1em" style={{ fontSize: 20, color: palette.mute }} />
     );
   return (
     <div style={{ width, display: 'grid', gap: 6 }}>
@@ -187,7 +190,9 @@ export const useFilePreview = () => {
       return (
         <Button
           shape="circle"
-          icon={step < 0 ? <LeftOutlined /> : <RightOutlined />}
+          icon={
+            step < 0 ? <ChevronLeft size="1em" /> : <ChevronRight size="1em" />
+          }
           aria-label={step < 0 ? '上一张' : '下一张'}
           disabled={disabled}
           onClick={() => go(step)}
@@ -224,7 +229,7 @@ export const useFilePreview = () => {
               Esc 关闭
             </span>
             <Button
-              icon={<DownloadOutlined />}
+              icon={<Download size="1em" />}
               onClick={() =>
                 downloadFile(state.endpointOf(current)).catch(() =>
                   message.error('下载失败，请稍后再试'),
