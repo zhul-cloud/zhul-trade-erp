@@ -132,7 +132,7 @@ class WorkbenchContractTest extends TenantContractSupport {
                 100100, 100102, 100103, 100107, 100108, 100109, 100112, 100113, 100114, 100116, 100117};
         Map<String, List<String>> expected = Map.of(
                 "boss", List.of("revenue-trend", "biz-overview", "cash", "risk-alerts", "sales-funnel", "rankings", "sales-compare"),
-                "sales_lead", List.of("team-performance", "follow-ups", "opportunity-stats", "sales-compare", "quote-conversion"),
+                "sales_lead", List.of("team-performance", "follow-ups", "quote-conversion", "sales-compare", "opportunity-stats"),
                 "sales", List.of("my-todo", "overdue-pi", "my-performance", "quote-progress", "my-opportunities"),
                 "purchase_lead", List.of("sourcing-overview", "buyer-efficiency", "purchase-execution", "bargain-result", "payables"),
                 "ops_lead", List.of("content-pipeline", "platform-progress", "media-overview", "monthly-output"));

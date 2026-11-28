@@ -31,6 +31,29 @@ const LAYOUT: Record<string, Size | ((keys: Set<string>) => Size)> = {
   'my-performance': { span: 12, tier: 'S' },
   'quote-progress': { span: 5, tier: 'S' },
   'my-opportunities': { span: 7, tier: 'S' },
+  // 老板、业务负责人共用：业务员对比整行
+  'sales-compare': { span: 12, tier: 'M' },
+  // 业务负责人（原型 I1，UI-108）：团队业绩一行 → 要跟进 | 报价转化 → 业务员对比 → 商机统计（高度随内容）
+  'team-performance': { span: 12, tier: 'S' },
+  'follow-ups': { span: 6, tier: 'M' },
+  'quote-conversion': { span: 6, tier: 'M' },
+  'opportunity-stats': { span: 12 },
+  // 采购负责人（原型 I2）：询价概况一行 → 采购员效率 | 采购执行 → 砍价成果 | 应付
+  'sourcing-overview': { span: 12, tier: 'S' },
+  'buyer-efficiency': { span: 6, tier: 'M' },
+  'purchase-execution': { span: 6, tier: 'M' },
+  'bargain-result': { span: 6, tier: 'S' },
+  payables: { span: 6, tier: 'S' },
+  // 运营负责人（原型 I3）：内容流水线一行 → 平台发品进度 | 素材概况 → 本月产出一行
+  'content-pipeline': { span: 12, tier: 'M' },
+  'platform-progress': { span: 6, tier: 'M' },
+  'media-overview': { span: 6, tier: 'M' },
+  'monthly-output': { span: 12, tier: 'S' },
+  // 采购员（原型 I4）：我的询价一行 → 回价统计 | 近 30 天回价 → 我的采购一行
+  'my-inquiry': { span: 12, tier: 'M' },
+  'quote-stats': { span: 4, tier: 'M' },
+  'quote-trend': { span: 8, tier: 'M' },
+  'my-purchase': { span: 12, tier: 'S' },
 };
 
 export interface BoardWidget {

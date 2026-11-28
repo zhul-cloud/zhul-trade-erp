@@ -1,11 +1,11 @@
 import { history } from '@umijs/max';
-import { Tooltip } from 'antd';
 import {
   AlarmClock,
   BadgeCheck,
   CalendarClock,
   CalendarX,
   Camera,
+  ChevronRight,
   CircleCheck,
   CircleDollarSign,
   Clock,
@@ -23,6 +23,7 @@ import {
   LayoutGrid,
   Package,
   Percent,
+  PiggyBank,
   ReceiptText,
   Rocket,
   Send,
@@ -44,6 +45,7 @@ import type { MetricFamily } from '@/theme/palette';
 import { formatAmount } from '@/utils/format';
 import { MenuName } from '@/utils/menuName';
 import { useBoardKeys } from '../layout';
+import TrendBars from './TrendBars';
 import {
   Metric,
   MoreLink,
@@ -194,7 +196,11 @@ const Delta: React.FC<{ m: MetricData }> = ({ m }) => {
   );
 };
 
-export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
+export const BlockView: React.FC<{
+  block: Block;
+  /** 漏斗横排成流程（整行的流水线，UI-108） */
+  flow?: boolean;
+}> = ({ block: b, flow }) => {
   const { palette } = useAppTheme();
   const tone = useTone();
   const title = b.title && (
@@ -360,69 +366,53 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
     }
     case 'bars': {
       const bars = b.bars as BarsData;
-      const max = Math.max(1, ...bars.values.map(Number));
+      const values = bars.values.map(Number);
       // 图表只亮一处（ui-redesign D31）：按时间的亮本期（最后一根），其余亮最大的一根
-      const lit =
-        (bars.highlightLast ?? true)
-          ? bars.values.length - 1
-          : bars.values
-              .map(Number)
-              .indexOf(Math.max(...bars.values.map(Number)));
+      const byTime = bars.highlightLast ?? true;
+      const lit = byTime
+        ? values.length - 1
+        : values.indexOf(Math.max(...values));
+      const short = (v: number) =>
+        bars.format === 'money'
+          ? v >= 10000
+            ? `${Number((v / 10000).toFixed(1)).toLocaleString('zh-CN')}万`
+            : Math.round(v).toLocaleString('zh-CN')
+          : bars.format === 'percent'
+            ? `${Number(v.toFixed(1))}%`
+            : Math.round(v).toLocaleString('zh-CN');
       return (
-        // 卡片保持自身高度（工作台瀑布流），柱状图区固定 160 高，柱子按百分比
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
+        // 与老板主角卡同一画法（UI-108）：按时间的先写本期数值，柱图撑满卡片剩余高度，底部一句结论
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
           {title}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'flex-end',
-              gap: 6,
-              height: 160,
-            }}
-          >
-            {bars.values.map((v, i) => {
-              const last = i === lit;
-              return (
-                <Tooltip
-                  key={bars.labels[i]}
-                  title={`${bars.labels[i]} · ${fmt(Number(v), bars.format)}`}
-                >
-                  <span
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      height: Number(v) ? `${(Number(v) / max) * 100}%` : 3,
-                      borderRadius: '4px 4px 0 0',
-                      // 图表只亮一处（ui-redesign D31）：本期用图表色，往期用图表色的浅色（两类只用主题色深浅区分）
-                      background: !Number(v)
-                        ? palette.hairline
-                        : last
-                          ? palette.chart
-                          : palette.chartSoft,
-                    }}
-                  />
-                </Tooltip>
-              );
-            })}
-          </div>
-          <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-            {bars.labels.map((l) => (
-              <span
-                key={l}
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  textAlign: 'center',
-                  fontSize: 12,
-                  color: palette.mute,
-                }}
-              >
-                {l}
-              </span>
-            ))}
-          </div>
+          {byTime && values.length > 0 && (
+            <div
+              className="num"
+              style={{
+                fontSize: 28,
+                fontWeight: 600,
+                lineHeight: '35px',
+                color: palette.ink,
+                marginBottom: 12,
+              }}
+            >
+              {fmt(values[values.length - 1], bars.format)}
+            </div>
+          )}
+          <TrendBars
+            name={b.title ?? '趋势'}
+            labels={bars.labels}
+            values={values}
+            lit={lit}
+            short={short}
+            full={(v) => fmt(v, bars.format)}
+            emptyText={b.text ?? '还没有数据'}
+            minHeight={140}
+          />
           {b.text && (
-            <div style={{ marginTop: 10, fontSize: 12, color: palette.mute }}>
+            <div
+              className="num"
+              style={{ marginTop: 8, fontSize: 13, color: palette.mute }}
+            >
               {b.text}
             </div>
           )}
@@ -430,8 +420,19 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
       );
     }
     case 'funnel':
-      return <Funnel steps={b.steps ?? []} />;
-    case 'progress':
+      return flow ? (
+        <FlowSteps steps={b.steps ?? []} />
+      ) : (
+        <Funnel steps={b.steps ?? []} />
+      );
+    case 'progress': {
+      // 进度类用主题色深浅（规范「配色」，UI-108）：第一段（已完成）主题色、第二段浅主题色、其余中性灰，完成也不换绿色
+      const partColor = (i: number) =>
+        i === 0
+          ? palette.chart
+          : i === 1
+            ? palette.chartSoft
+            : palette.hairline;
       return (
         <div style={{ display: 'grid', gap: 14 }}>
           {(b.progress ?? []).map((p) => {
@@ -450,7 +451,7 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
                   <b style={{ color: palette.ink, fontSize: 13, flex: 1 }}>
                     {p.label}
                   </b>
-                  {p.parts.map((x) => (
+                  {p.parts.map((x, i) => (
                     <span
                       key={x.label}
                       style={{ fontSize: 12, color: palette.mute }}
@@ -462,7 +463,7 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
                           height: 8,
                           borderRadius: 4,
                           marginRight: 4,
-                          background: tone(x.tone)[0],
+                          background: partColor(i),
                         }}
                       />
                       {x.label} {x.value}
@@ -478,13 +479,13 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
                     background: palette.inset,
                   }}
                 >
-                  {p.parts.map((x) =>
+                  {p.parts.map((x, i) =>
                     Number(x.value) > 0 ? (
                       <span
                         key={x.label}
                         style={{
                           width: `${(Number(x.value) / total) * 100}%`,
-                          background: tone(x.tone)[0],
+                          background: partColor(i),
                         }}
                       />
                     ) : null,
@@ -495,6 +496,7 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
           })}
         </div>
       );
+    }
     case 'note':
       return (
         <div style={{ fontSize: 13, color: palette.mute }}>
@@ -533,6 +535,85 @@ export const BlockView: React.FC<{ block: Block }> = ({ block: b }) => {
 
 /** 漏斗（工作台原型 H1）：每级两行——名称、数量与「→ 比例」，下面 8 高细条；只有最后一级用图表色，其余中性；
  * 比例是本级 ÷ 上一级，各级是本月各自新增的数量，超过 100% 时不显示（ui-redesign D16）；底部一句结论 */
+/**
+ * 横排流程（内容流水线，原型 I3）：各阶段一格（卡内凹格），名称、数量 24/600、4 高细条（按最大一格缩放），
+ * 只亮最后一格（D31），格间箭头；有链接的格做成按钮
+ */
+const FlowSteps: React.FC<{ steps: NonNullable<Block['steps']> }> = ({
+  steps,
+}) => {
+  const { palette } = useAppTheme();
+  const max = Math.max(1, ...steps.map((x) => Number(x.value)));
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      {steps.map((x, i) => {
+        const Cell = x.link ? 'button' : 'div';
+        const last = i === steps.length - 1;
+        return (
+          <React.Fragment key={x.label}>
+            {i > 0 && (
+              <ChevronRight
+                size={16}
+                aria-hidden
+                style={{ flex: 'none', color: palette.faint }}
+              />
+            )}
+            <Cell
+              {...(x.link
+                ? { type: 'button' as const, onClick: () => go(x.link) }
+                : {})}
+              className={x.link ? 'zhul-row-hover' : undefined}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                display: 'grid',
+                gap: 6,
+                padding: '14px 16px',
+                border: 'none',
+                borderRadius: 8,
+                background: palette.inset,
+                textAlign: 'left',
+                font: 'inherit',
+                cursor: x.link ? 'pointer' : 'default',
+              }}
+            >
+              <span style={{ fontSize: 13, color: palette.sub }}>
+                {x.label}
+              </span>
+              <span
+                className="num"
+                style={{ fontSize: 24, fontWeight: 600, color: palette.ink }}
+              >
+                {fmt(x.value, 'count')}
+              </span>
+              <span
+                style={{
+                  height: 4,
+                  borderRadius: 2,
+                  background: palette.hairline,
+                  overflow: 'hidden',
+                }}
+              >
+                <span
+                  style={{
+                    display: 'block',
+                    height: 4,
+                    width: Number(x.value)
+                      ? `${Math.max(4, (Number(x.value) / max) * 100)}%`
+                      : 0,
+                    borderRadius: 2,
+                    background: last ? palette.chart : palette.chartSoft,
+                  }}
+                />
+              </span>
+            </Cell>
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+};
+
 const Funnel: React.FC<{ steps: NonNullable<Block['steps']> }> = ({
   steps,
 }) => {
@@ -631,6 +712,16 @@ export const CARD_ICONS: Record<string, React.ElementType> = {
   trophy: Trophy,
   inbox: Inbox,
   'file-text': FileText,
+  // 采购负责人、运营负责人（UI-108）
+  'alarm-clock': AlarmClock,
+  'file-search': FileSearch,
+  'piggy-bank': PiggyBank,
+  image: Image,
+  camera: Camera,
+  clock: Clock,
+  'layout-grid': LayoutGrid,
+  'file-check': FileCheck,
+  rocket: Rocket,
 };
 export const FAMILIES: MetricFamily[] = ['blue', 'purple', 'cyan', 'gray'];
 const metricMeta = (m: MetricData): [React.ElementType, MetricFamily] => {
@@ -726,6 +817,8 @@ export const blockWidget = (opts: {
   omit?: { label: string; whenBoardHas: string };
   /** 待办列表：标题行右侧写「共 N 件」，卡片左右内边距收窄（行自带内边距） */
   todos?: boolean;
+  /** 漏斗横排成流程（内容流水线占整行时） */
+  flow?: boolean;
 }): React.FC => {
   const BlockWidget: React.FC = () => {
     const keys = useBoardKeys();
@@ -802,7 +895,7 @@ export const blockWidget = (opts: {
         >
           {blocks.map((b, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: 块按顺序固定
-            <BlockView key={i} block={b} />
+            <BlockView key={i} block={b} flow={opts.flow} />
           ))}
         </div>
       </WidgetCard>

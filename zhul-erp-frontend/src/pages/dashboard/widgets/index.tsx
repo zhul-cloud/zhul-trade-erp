@@ -53,7 +53,11 @@ export const WIDGETS: Record<string, React.FC> = {
     help: '按你的数据范围统计，口径同销售统计',
     more: { link: '/sales/stats' },
   }),
-  'follow-ups': blockWidget({ key: 'follow-ups', title: '待跟进' }),
+  'follow-ups': blockWidget({
+    key: 'follow-ups',
+    title: '待跟进',
+    todos: true,
+  }),
   'sales-compare': blockWidget({
     key: 'sales-compare',
     title: '业务员对比',
@@ -83,6 +87,7 @@ export const WIDGETS: Record<string, React.FC> = {
   'purchase-execution': blockWidget({
     key: 'purchase-execution',
     title: '采购执行',
+    todos: true,
   }),
   'bargain-result': blockWidget({
     key: 'bargain-result',
@@ -100,16 +105,19 @@ export const WIDGETS: Record<string, React.FC> = {
     key: 'content-pipeline',
     title: '内容流水线',
     period: '本公司 · 当前',
+    flow: true,
   }),
   'platform-progress': blockWidget({
     key: 'platform-progress',
     title: '平台发布进度',
     help: '按发品任务统计',
   }),
+  // 半行放 4 张：排成 2×2（原型 I3）
   'media-overview': blockWidget({
     key: 'media-overview',
     title: '素材',
     more: { link: '/operations/media' },
+    group: { cols: () => 2 },
   }),
   'monthly-output': blockWidget({ key: 'monthly-output', title: '本月产出' }),
   // 老板

@@ -169,6 +169,60 @@ it('老板看板：有主角卡时经营概览半宽，没有趋势权限时经�
   ).toEqual([['biz-overview:12'], ['cash:6', 'risk-alerts:6']]);
 });
 
+/** UI-108：其他岗位看板按原型 I1–I4 装行（模板顺序见后端 V1.5.65 与 WorkbenchContractTest） */
+it('业务负责人、采购负责人、运营负责人、采购员看板按原型装行', () => {
+  const rowsOf = (keys: string[]) =>
+    layoutRows(keys.map((key) => ({ key }))).map((r) =>
+      r.map((w) => `${w.key}:${w.span}`),
+    );
+  expect(
+    rowsOf([
+      'team-performance',
+      'follow-ups',
+      'quote-conversion',
+      'sales-compare',
+      'opportunity-stats',
+    ]),
+  ).toEqual([
+    ['team-performance:12'],
+    ['follow-ups:6', 'quote-conversion:6'],
+    ['sales-compare:12'],
+    ['opportunity-stats:12'],
+  ]);
+  expect(
+    rowsOf([
+      'sourcing-overview',
+      'buyer-efficiency',
+      'purchase-execution',
+      'bargain-result',
+      'payables',
+    ]),
+  ).toEqual([
+    ['sourcing-overview:12'],
+    ['buyer-efficiency:6', 'purchase-execution:6'],
+    ['bargain-result:6', 'payables:6'],
+  ]);
+  expect(
+    rowsOf([
+      'content-pipeline',
+      'platform-progress',
+      'media-overview',
+      'monthly-output',
+    ]),
+  ).toEqual([
+    ['content-pipeline:12'],
+    ['platform-progress:6', 'media-overview:6'],
+    ['monthly-output:12'],
+  ]);
+  expect(
+    rowsOf(['my-inquiry', 'quote-stats', 'quote-trend', 'my-purchase']),
+  ).toEqual([
+    ['my-inquiry:12'],
+    ['quote-stats:4', 'quote-trend:8'],
+    ['my-purchase:12'],
+  ]);
+});
+
 it('落单的组件补满整行，不留空洞', () => {
   // 没有风险提醒权限时，资金单独一行占满
   expect(
