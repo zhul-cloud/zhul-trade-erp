@@ -1009,6 +1009,7 @@ const WebsiteDetailPage: React.FC = () => {
               disabled={readOnly}
               maxTagCount="responsive"
               aria-label="品牌范围"
+              style={{ width: '100%' }}
             />
           </Field>
           <Field label="品类（含下级）">
@@ -1025,6 +1026,7 @@ const WebsiteDetailPage: React.FC = () => {
               disabled={readOnly}
               maxTagCount="responsive"
               aria-label="品类范围"
+              style={{ width: '100%' }}
             />
           </Field>
         </Row>
@@ -1039,6 +1041,7 @@ const WebsiteDetailPage: React.FC = () => {
             placeholder="没有"
             disabled={readOnly}
             aria-label="非正品品牌"
+            style={{ width: '100%' }}
           />
         </Field>
       </Section>

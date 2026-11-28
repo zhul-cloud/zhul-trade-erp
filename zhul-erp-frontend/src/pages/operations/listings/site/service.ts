@@ -179,7 +179,10 @@ export const STEPS: { key: string; name: string; hint: string }[] = [
   { key: 'push', name: '推送仓库', hint: '把提交推送到站点仓库' },
   { key: 'indexnow', name: '推送收录', hint: 'IndexNow：Bing、Yandex' },
 ];
+/** 发布单交给发布服务就被拒绝时，后端记的失败步骤是 submit，不在 STEPS 里 */
 export const stepName = (key?: string) =>
-  STEPS.find((s) => s.key === key)?.name ?? key ?? '';
+  key === 'submit'
+    ? '提交给发布服务'
+    : (STEPS.find((s) => s.key === key)?.name ?? key ?? '');
 
 export const LANG_LABEL: Record<string, string> = { en: 'EN', ru: 'RU' };
