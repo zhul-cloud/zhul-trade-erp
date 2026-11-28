@@ -957,33 +957,51 @@ const PiDetail: React.FC = () => {
     (a.address ?? '') === (b.address ?? '') &&
     (a.country ?? '') === (b.country ?? '');
 
-  const partyCard = (type: 1 | 3) => {
+  /** standalone：只读时作页面上的独立卡片（照销售订单 2×2 信息卡，UI-118）；编辑时是表头卡里的凹格 */
+  const partyCard = (type: 1 | 3, standalone = false) => {
     const p = type === 3 ? draft.buyer : draft.consignee;
     const sameAsBuyer = type === 1 && !!p && samePartyAs(p, draft.buyer);
     const isNew = p && !p.partyId && !sameAsBuyer;
     const saveFlag =
       type === 3 ? draft.saveBuyerToCustomer : draft.saveConsigneeToCustomer;
+    const label =
+      type === 3 ? '买方（发票抬头 Bill To）' : '收货人（Consignee）';
     return (
       <div
-        style={{
-          padding: 14,
-          borderRadius: 12,
-          background: palette.inset,
-          border: `1px solid ${palette.hairline}`,
-          minWidth: 0,
-        }}
+        className={standalone ? 'zhul-card' : undefined}
+        style={
+          standalone
+            ? { padding: 20, minWidth: 0 }
+            : {
+                padding: 14,
+                borderRadius: 8,
+                background: palette.inset,
+                minWidth: 0,
+              }
+        }
       >
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 8,
-            marginBottom: 6,
+            marginBottom: standalone ? 12 : 6,
           }}
         >
-          <span style={{ fontSize: 13, color: palette.sub }}>
-            {type === 3 ? '买方（发票抬头 Bill To）' : '收货人（Consignee）'}
-          </span>
+          {standalone ? (
+            <h2
+              style={{
+                margin: 0,
+                fontSize: 16,
+                fontWeight: 600,
+                color: palette.ink,
+              }}
+            >
+              {label}
+            </h2>
+          ) : (
+            <span style={{ fontSize: 13, color: palette.sub }}>{label}</span>
+          )}
           {isNew && <Pill tone="orange">本次新填</Pill>}
           {sameAsBuyer && <Pill tone="gray">同买方</Pill>}
           {editable && (
@@ -1208,55 +1226,82 @@ const PiDetail: React.FC = () => {
   );
 
   // 只读时的买方 / 收货人 / 条款
+  // 只读表头（照销售订单，UI-118）：买方、收货人两张独立卡并排，下面「PI 信息」卡按「名称 / 值」网格排，不再卡里套卡
+  const infoItem = (label: string, value: React.ReactNode) => (
+    <div key={label} style={{ minWidth: 0 }}>
+      <div style={{ fontSize: 12, color: palette.mute }}>{label}</div>
+      <div
+        style={{ marginTop: 2, color: palette.ink, wordBreak: 'break-word' }}
+      >
+        {value}
+      </div>
+    </div>
+  );
   const readonlyHeader = (
-    <Card style={{ marginBottom: 16, padding: 20 }}>
+    <>
       <div
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-          gap: 12,
-          marginBottom: 12,
+          gap: 16,
+          marginBottom: 16,
         }}
       >
-        {partyCard(3)}
-        {partyCard(1)}
+        {partyCard(3, true)}
+        {partyCard(1, true)}
       </div>
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '6px 24px',
-          fontSize: 13,
-          color: palette.sub,
-        }}
-      >
-        <span>交期：{v.deliveryTime || '—'}</span>
-        <span>付款条件：{v.paymentTerm || '—'}</span>
-        <span>
-          贸易术语：
-          {[v.incoterm, v.incotermPlace].filter(Boolean).join(' ') || '—'}
-        </span>
-        <span>起运港：{v.portOfShipment || '—'}</span>
-        <span>
-          有效期至：{v.validUntil || '—'}
-          {pi.expired && v.versionNo === pi.currentVersionNo && (
-            <span style={{ marginLeft: 6 }}>
-              <Pill tone="red">已过期 {pi.expiredDays} 天</Pill>
-            </span>
+      <Card style={{ marginBottom: 16, padding: 20 }}>
+        <h2
+          style={{
+            margin: '0 0 12px',
+            fontSize: 16,
+            fontWeight: 600,
+            color: palette.ink,
+          }}
+        >
+          PI 信息
+        </h2>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+            gap: '14px 24px',
+          }}
+        >
+          {infoItem('交期', v.deliveryTime || '—')}
+          {infoItem('付款条件', v.paymentTerm || '—')}
+          {infoItem(
+            '贸易术语',
+            [v.incoterm, v.incotermPlace].filter(Boolean).join(' ') || '—',
           )}
-        </span>
-        <span>
-          收款账户：
-          {v.bankAccount
-            ? `${v.bankAccount.bankName} ****${v.bankAccount.accountNo.slice(-4)}`
-            : '—'}
-        </span>
-        <span>
-          汇率：{cur} {Number(rate).toFixed(6)}
-        </span>
-        {v.remark && <span>备注：{v.remark}</span>}
-      </div>
-    </Card>
+          {infoItem('起运港', v.portOfShipment || '—')}
+          {infoItem(
+            '有效期至',
+            <>
+              {v.validUntil || '—'}
+              {pi.expired && v.versionNo === pi.currentVersionNo && (
+                <span style={{ marginLeft: 6 }}>
+                  <Pill tone="red">已过期 {pi.expiredDays} 天</Pill>
+                </span>
+              )}
+            </>,
+          )}
+          {infoItem(
+            '收款账户',
+            v.bankAccount
+              ? `${v.bankAccount.bankName} ****${v.bankAccount.accountNo.slice(-4)}`
+              : '—',
+          )}
+          {infoItem(
+            '汇率',
+            <span className="num">
+              {cur} {Number(rate).toFixed(6)}
+            </span>,
+          )}
+          {v.remark && infoItem('备注', v.remark)}
+        </div>
+      </Card>
+    </>
   );
 
   // ---------------------------------------------------------------- 型号
