@@ -140,6 +140,9 @@ const globalCss = (
      放在卡片、弹窗、抽屉里时不再加阴影，改细描边，不做成卡里套浮起的卡 */
   .zhul-card { background: ${p.card}; border-radius: 10px; ${light ? `box-shadow: ${CARD_SHADOW}; border: none;` : `border: 1px solid ${p.hairline};`} }
   .zhul-card .zhul-card, .ant-card .zhul-card, .ant-modal .zhul-card, .ant-drawer .zhul-card { box-shadow: none; border: 1px solid ${p.hairline}; }
+  /* 矩阵、热力表的可点格子（覆盖矩阵，R38 方案 B）：白底，悬停浅灰，不整格铺色 */
+  .zhul-matrix-cell { transition: background .15s; }
+  .zhul-matrix-cell:hover, .zhul-matrix-cell:focus-visible { background: ${p.inset}; }
   /* 深色弹出层：#222222 底加 1px #3A3A3A 边，和下面的卡片分开；提示气泡同样加边 */
   ${
     light
