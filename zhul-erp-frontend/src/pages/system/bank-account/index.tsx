@@ -11,7 +11,7 @@ import {
   Skeleton,
   Table,
 } from 'antd';
-import { Ban, CircleCheck, Info, Pencil, Plus } from 'lucide-react';
+import { Ban, CircleCheck, Info, Pencil, Plus, Star } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
@@ -391,25 +391,8 @@ const BankAccountPage: React.FC = () => {
       title: '默认',
       key: 'default',
       width: 100,
-      render: (_, r) =>
-        r.isDefault ? (
-          <Pill tone="gray">默认</Pill>
-        ) : canEdit && r.enabled && r.accountType !== ACCOUNT_TYPE.PRIVATE ? (
-          <button
-            type="button"
-            className="zhul-link"
-            onClick={() =>
-              run(
-                () => bankAccountApi.setDefault(r.id),
-                `已设为 ${r.currencyCode} 默认账户`,
-              )
-            }
-          >
-            设为默认
-          </button>
-        ) : (
-          '—'
-        ),
+      // 这一列只显示状态；「设为默认」是操作，放进行尾「更多」（同一列不混用标签和文字，UI-118）
+      render: (_, r) => (r.isDefault ? <Pill tone="gray">默认</Pill> : '—'),
     },
     {
       title: '状态',
@@ -442,6 +425,17 @@ const BankAccountPage: React.FC = () => {
             },
           ]}
           more={[
+            ...(!r.isDefault &&
+            r.enabled &&
+            r.accountType !== ACCOUNT_TYPE.PRIVATE
+              ? [
+                  {
+                    key: 'default',
+                    label: '设为默认',
+                    icon: <Star size={16} />,
+                  },
+                ]
+              : []),
             r.enabled
               ? {
                   key: 'off',
@@ -452,6 +446,11 @@ const BankAccountPage: React.FC = () => {
               : { key: 'on', label: '启用', icon: <CircleCheck size={16} /> },
           ]}
           onMore={(key) => {
+            if (key === 'default')
+              run(
+                () => bankAccountApi.setDefault(r.id),
+                `已设为 ${r.currencyCode} 默认账户`,
+              );
             if (key === 'off')
               confirmDanger({
                 title: `停用 ${r.bankName}？`,
