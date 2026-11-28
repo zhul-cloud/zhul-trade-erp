@@ -41,6 +41,8 @@ zhul:
     callback-token: ${AI_TASK_CALLBACK_TOKEN}
   video:
     callback-token: ${VIDEO_TASK_CALLBACK_TOKEN}
+  website:
+    publisher-token: ${SITE_PUBLISHER_TOKEN}
 
 logging:
   level:

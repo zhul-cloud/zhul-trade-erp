@@ -125,6 +125,11 @@ zhul:
     generator-url: ${VIDEO_GENERATOR_URL:}
     # 生成服务回调与下载素材时携带的共享密钥（请求头 X-Video-Token）
     callback-token: ${VIDEO_TASK_CALLBACK_TOKEN:zhul-erp-video-callback-secret}
+  website:
+    # 独立站发布服务地址（scripts/site-publisher，Compose 内网）；为空时不能检测连接、导入和发布
+    publisher-url: ${SITE_PUBLISHER_URL:}
+    # 后端与发布服务之间的共享令牌（请求头 X-Publisher-Token），提交任务与回调都校验
+    publisher-token: ${SITE_PUBLISHER_TOKEN:zhul-erp-site-publisher-secret}
   ai-task:
     # AI 编排服务地址（本次不实现该服务本身，本地联调可指向 scripts/ai-orchestrator-stub）
     orchestrator-base-url: ${AI_ORCHESTRATOR_BASE_URL:http://localhost:8899}

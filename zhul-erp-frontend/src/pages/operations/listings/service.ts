@@ -19,6 +19,7 @@ export const PERM_EDIT = 'operations:listing:edit';
 
 export type ListingTab =
   | 'pending'
+  | 'unconfirmed'
   | 'updated'
   | 'replace'
   | 'published'
@@ -34,8 +35,10 @@ export interface ListingTask {
   category?: string;
   platform: MarketingPlatform;
   platformLabel: string;
-  /** 1-待发布、2-已发布、3-已取消 */
-  status: 1 | 2 | 3;
+  /** 独立站任务的站点，其他平台为 0 */
+  siteId?: number;
+  /** 1-待发布、2-已发布、3-已取消、4-发布中、5-已上线待确认（后两个只用于自动发布的独立站） */
+  status: 1 | 2 | 3 | 4 | 5;
   statusName: string;
   cancelReason?: string;
   /** 素材待补、内容有更新、待替换素材 */
@@ -53,6 +56,10 @@ export interface ListingTask {
   note?: string;
   publishedBy?: string;
   publishedAt?: string;
+  /** 最近一张独立站发布单 */
+  releaseId?: number;
+  confirmedBy?: string;
+  confirmedAt?: string;
   syncedBy?: string;
   syncedAt?: string;
   replacedBy?: string;
@@ -98,6 +105,18 @@ export interface ListingDetail {
   ownMedia: MediaItem[];
   /** 选了参考素材时，参考型号的可发客户图片和视频 */
   referenceMedia: MediaItem[];
+  /** 独立站任务的站点信息（其他平台为空） */
+  site?: ListingSite | null;
+}
+
+export interface ListingSite {
+  siteId: number;
+  name: string;
+  autoPublish: boolean;
+  needPurge: boolean;
+  purgeNote?: string;
+  /** 语言代码 → 上线链接 */
+  liveUrls: Record<string, string>;
 }
 
 export interface PublishBody {

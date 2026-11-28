@@ -1,6 +1,6 @@
 import { history, Link } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Input, Select, Table } from 'antd';
+import { Button, Input, Select, Table } from 'antd';
 import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
@@ -10,6 +10,7 @@ import {
   FilterField,
   MainCard,
   PageHeader,
+  SelectionCount,
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
@@ -24,6 +25,7 @@ import {
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
+import { usePermission } from '@/utils/permission';
 import { tableScrollX } from '@/utils/tableScroll';
 import { PlatformTaskChip, TABS } from './components';
 import {
@@ -33,10 +35,18 @@ import {
   listingApi,
   readBizError,
 } from './service';
+import { BatchPreviewModal } from './site/BatchPreviewModal';
+import { ReleaseDrawer } from './site/ReleaseDrawer';
+import {
+  PERM_PUBLISH,
+  type PublishTarget,
+  sitePublishApi,
+  TASK_PUBLISHING,
+} from './site/service';
 
 /** 帮助文字：help-texts.md「发品任务」 */
 export const HELP = {
-  page: '一个商品一行，汇总各平台的发品状态。商品资料核对、某个平台的营销内容写完后自动生成这个平台的发品任务；进详情按平台复制内容、下载素材，到平台上发布后回填链接。流程：资料已核 + 平台营销写完 → 待发布 → 已发布。没有发品素材时先在素材库勾选「用于发品」，或在任务里选择参考素材；发布后营销内容重新导入，会提醒同步',
+  page: '一个商品一行，汇总各平台的发品状态。商品资料核对、某个平台的营销内容写完后自动生成这个平台的发品任务；进详情按平台复制内容、下载素材，到平台上发布后回填链接。流程：资料已核 + 平台营销写完 → 待发布 → 已发布。没有发品素材时先在素材库勾选「用于发品」，或在任务里选择参考素材；发布后营销内容重新导入，会提醒同步。独立站每个站点一个任务；「已取消」表示商品不在这个站点的商品范围内或站点已停用',
 } as const;
 
 /** 运营管理 → 发品任务：商品 × 平台，复制内容和素材到平台发布后回填链接 */
@@ -56,6 +66,36 @@ const ListingTasksPage: React.FC = () => {
   const [error, setError] = useState<string>();
   const [brands, setBrands] = useState<BrandOption[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const { hasPerm } = usePermission();
+  const canPublish = hasPerm(PERM_PUBLISH);
+  const [targets, setTargets] = useState<PublishTarget[]>([]);
+  const [targetId, setTargetId] = useState<number>();
+  const [selected, setSelected] = useState<ListingProduct[]>([]);
+  const [previewing, setPreviewing] = useState(false);
+  const [releaseId, setReleaseId] = useState<number>();
+  const target = targets.find((t) => t.id === targetId);
+  const selecting = canPublish && targets.length > 0 && selected.length > 0;
+
+  useEffect(() => {
+    if (!canPublish) return;
+    sitePublishApi
+      .targets()
+      .then((list) => {
+        setTargets(list);
+        setTargetId(list[0]?.id);
+      })
+      .catch(() => setTargets([]));
+  }, [canPublish]);
+
+  /** 商品在目标站点上可以发布的任务（没取消、不在发布中） */
+  const siteTask = (r: ListingProduct) =>
+    r.tasks.find(
+      (t) =>
+        t.platform === 'site' &&
+        t.siteId === targetId &&
+        t.status !== 3 &&
+        t.status !== TASK_PUBLISHING,
+    );
 
   useEffect(() => {
     brandApi
@@ -263,11 +303,64 @@ const ListingTasksPage: React.FC = () => {
       ) : (
         <MainCard
           settings={columnsSet.settings}
-          count={total}
+          count={selecting ? undefined : total}
           loading={loading}
+          left={
+            selecting ? (
+              <SelectionCount
+                count={selected.length}
+                unit="个商品"
+                onClear={() => setSelected([])}
+                extra={
+                  <>
+                    <span style={{ color: palette.sub }}>发布到</span>
+                    <Select
+                      value={targetId}
+                      onChange={(v) => {
+                        setTargetId(v);
+                        setSelected([]);
+                      }}
+                      options={targets.map((t) => ({
+                        value: t.id,
+                        label: `独立站 · ${t.name}`,
+                      }))}
+                      style={{ width: 200 }}
+                      aria-label="发布到"
+                    />
+                  </>
+                }
+              />
+            ) : undefined
+          }
+          right={
+            selecting && (
+              <Button
+                type="primary"
+                icon={<Eye size="1em" />}
+                onClick={() => setPreviewing(true)}
+              >
+                发布预览
+              </Button>
+            )
+          }
         >
           <Table<ListingProduct>
             rowKey="productId"
+            rowSelection={
+              canPublish && targets.length > 0
+                ? {
+                    preserveSelectedRowKeys: true,
+                    selectedRowKeys: selected.map((r) => r.productId),
+                    onChange: (_, rs) => setSelected(rs.filter(Boolean)),
+                    getCheckboxProps: (r) => ({
+                      disabled: !siteTask(r),
+                      title: siteTask(r)
+                        ? undefined
+                        : `没有可以发布到 ${target?.name ?? '站点'} 的任务`,
+                    }),
+                  }
+                : undefined
+            }
             columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
@@ -291,6 +384,25 @@ const ListingTasksPage: React.FC = () => {
           />
         </MainCard>
       )}
+      <BatchPreviewModal
+        site={previewing ? target : undefined}
+        taskIds={selected
+          .map((r) => siteTask(r)?.id)
+          .filter((id): id is number => !!id)}
+        onClose={() => setPreviewing(false)}
+        onReleased={(id) => {
+          setPreviewing(false);
+          setSelected([]);
+          setReleaseId(id);
+          load();
+        }}
+      />
+      <ReleaseDrawer
+        releaseId={releaseId}
+        siteName={target?.name}
+        onClose={() => setReleaseId(undefined)}
+        onChanged={load}
+      />
     </div>
   );
 };

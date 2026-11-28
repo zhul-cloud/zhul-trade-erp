@@ -1,5 +1,7 @@
 package com.zhul.erp.modules.product.service.impl;
 
+import com.zhul.erp.modules.website.support.SiteContentChanged;
+import org.springframework.context.ApplicationEventPublisher;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.framework.security.PermissionChecker;
@@ -36,6 +38,7 @@ public class ProductFaqServiceImpl implements ProductFaqService {
     private static final int ANSWER_MAX = 5000;
 
     private final ProductFaqMapper faqMapper;
+    private final ApplicationEventPublisher events;
     private final ProductFinder productFinder;
     private final PlatformScopeGuard platformScopeGuard;
     private final ProductWriteGuard productWriteGuard;
@@ -67,6 +70,8 @@ public class ProductFaqServiceImpl implements ProductFaqService {
     @Transactional(rollbackFor = Exception.class)
     public FaqVO create(Long productId, SaveFaqRequest req) {
         productWriteGuard.require(productId);
+        // 独立站已发布商品按资料重新判断「内容有更新」（事务提交后）
+        events.publishEvent(SiteContentChanged.product(productId));
         productFinder.lockActive(productId);
         String question = TextRules.required(req.getQuestion(), "问题", 256);
         String answer = TextRules.required(req.getAnswer(), "答案", ANSWER_MAX);
@@ -87,6 +92,8 @@ public class ProductFaqServiceImpl implements ProductFaqService {
     @Transactional(rollbackFor = Exception.class)
     public FaqVO update(Long productId, Long itemId, SaveFaqRequest req) {
         productWriteGuard.require(productId);
+        // 独立站已发布商品按资料重新判断「内容有更新」（事务提交后）
+        events.publishEvent(SiteContentChanged.product(productId));
         productFinder.lockActive(productId);
         ProductFaqDO current = owned(productId, itemId);
         String question = TextRules.required(req.getQuestion(), "问题", 256);
@@ -107,6 +114,8 @@ public class ProductFaqServiceImpl implements ProductFaqService {
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long productId, Long itemId) {
         productWriteGuard.require(productId);
+        // 独立站已发布商品按资料重新判断「内容有更新」（事务提交后）
+        events.publishEvent(SiteContentChanged.product(productId));
         productFinder.lockActive(productId);
         owned(productId, itemId);
         ProductFaqDO change = new ProductFaqDO();
@@ -122,6 +131,8 @@ public class ProductFaqServiceImpl implements ProductFaqService {
             platformScopeGuard.requirePlatform();
         }
         productFinder.lockActive(productId);
+        // 独立站已发布商品按资料重新判断「内容有更新」（事务提交后）
+        events.publishEvent(SiteContentChanged.product(productId));
         ProductFaqDO current = owned(productId, itemId);
         if (!Objects.equals(current.getSource(), SOURCE_PENDING)) {
             throw BizException.of(ProductErrorCodes.FAQ_NOT_PENDING, "该 FAQ 不是待审核状态，无需审核");
@@ -142,6 +153,8 @@ public class ProductFaqServiceImpl implements ProductFaqService {
             platformScopeGuard.requirePlatform();
         }
         productFinder.lockActive(productId);
+        // 独立站已发布商品按资料重新判断「内容有更新」（事务提交后）
+        events.publishEvent(SiteContentChanged.product(productId));
         int count = 0;
         for (ProductFaqDO row : activeRows(productId)) {
             if (Objects.equals(row.getSource(), SOURCE_PENDING)) {

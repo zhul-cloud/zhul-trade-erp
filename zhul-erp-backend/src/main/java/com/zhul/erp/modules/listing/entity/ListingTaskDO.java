@@ -20,6 +20,8 @@ public class ListingTaskDO {
     private Long productId;
     /** 平台编码，见 MarketingPlatform */
     private String platform;
+    /** 独立站任务的站点 id（website_site.id）；其他平台为 0，公司还没有站点时的旧独立站任务也为 0 */
+    private Long siteId;
     /** 型号归并键，关联素材库 */
     private String assetKey;
     /** 1-待发布、2-已发布、3-已取消 */
@@ -35,6 +37,12 @@ public class ListingTaskDO {
     private String note;
     private String publishedBy;
     private LocalDateTime publishedAt;
+    /** 最近一张独立站发布单 id */
+    private Long releaseId;
+    /** 独立站内容有更新：0-否、1-是 */
+    private Integer siteOutdated;
+    private String confirmedBy;
+    private LocalDateTime confirmedAt;
     /** 发布或上次同步时该平台营销内容的写入时间 */
     private LocalDateTime contentAt;
     private String syncedBy;

@@ -17,6 +17,8 @@ import com.zhul.erp.modules.listing.dto.PublishRequest;
 import com.zhul.erp.modules.listing.dto.ReferenceRequest;
 import com.zhul.erp.modules.listing.entity.ListingTaskDO;
 import com.zhul.erp.modules.listing.repository.ListingTaskMapper;
+import com.zhul.erp.modules.website.entity.WebsiteSiteDO;
+import com.zhul.erp.modules.website.repository.WebsiteSiteMapper;
 import com.zhul.erp.modules.listing.repository.ListingTaskRow;
 import com.zhul.erp.modules.media.dto.MediaDetailVO;
 import com.zhul.erp.modules.media.dto.MediaItemVO;
@@ -75,9 +77,9 @@ import java.util.zip.ZipOutputStream;
 @RequiredArgsConstructor
 public class ListingTaskService {
 
-    private static final List<String> TABS = List.of("pending", "updated", "replace", "published", "cancelled", "all");
-    private static final String[] STATUS_NAMES = {"", "待发布", "已发布", "已取消"};
-    private static final Map<String, String> PRODUCT_STATUS_NAMES = Map.of("pending", "待发布", "updated", "内容有更新",
+    private static final List<String> TABS = List.of("pending", "unconfirmed", "updated", "replace", "published", "cancelled", "all");
+    private static final String[] STATUS_NAMES = {"", "待发布", "已发布", "已取消", "发布中", "已上线待确认"};
+    private static final Map<String, String> PRODUCT_STATUS_NAMES = Map.of("pending", "待发布", "unconfirmed", "待确认上线", "updated", "内容有更新",
             "replace", "待替换素材", "published", "已发布", "cancelled", "已取消");
     private static final Pattern URL = Pattern.compile("^https?://\\S+$", Pattern.CASE_INSENSITIVE);
 
@@ -90,6 +92,8 @@ public class ListingTaskService {
     private final MediaReferenceService mediaReferences;
     private final ContentTaskService contentTasks;
     private final FileStorageService files;
+    private final WebsiteSiteMapper siteMapper;
+    private final SiteTaskFlow siteTasks;
 
     // ================================================================ 列表
 
@@ -137,7 +141,8 @@ public class ListingTaskService {
             return out;
         }
         List<ListingTaskRow> rows = new ArrayList<>(taskMapper.rowsOfProducts(TenantContext.getTenantId(), productIds));
-        rows.sort(Comparator.comparing((ListingTaskRow r) -> platformOrder(r.getPlatform())));
+        rows.sort(Comparator.comparing((ListingTaskRow r) -> platformOrder(r.getPlatform()))
+                .thenComparing(r -> r.getSiteId() == null ? 0L : r.getSiteId()));
         for (ListingTaskVO t : toVos(rows)) {
             ListingProductVO p = out.computeIfAbsent(t.getProductId(), id -> {
                 ListingProductVO v = new ListingProductVO();
@@ -162,12 +167,15 @@ public class ListingTaskService {
         return out;
     }
 
-    /** 商品状态：待发布 → 内容有更新 → 待替换素材 → 已发布 → 已取消，取第一个满足的 */
+    /** 商品状态：待发布（含发布中）→ 待确认上线 → 内容有更新 → 待替换素材 → 已发布 → 已取消，取第一个满足的 */
     private static void summarize(ListingProductVO p) {
         List<ListingTaskVO> ts = p.getTasks();
         String status;
-        if (ts.stream().anyMatch(t -> t.getStatus() == ListingConstants.STATUS_PENDING)) {
+        if (ts.stream().anyMatch(t -> t.getStatus() == ListingConstants.STATUS_PENDING
+                || t.getStatus() == ListingConstants.STATUS_PUBLISHING)) {
             status = "pending";
+        } else if (ts.stream().anyMatch(t -> t.getStatus() == ListingConstants.STATUS_LIVE_UNCONFIRMED)) {
+            status = "unconfirmed";
         } else if (ts.stream().anyMatch(t -> Boolean.TRUE.equals(t.getContentUpdated()))) {
             status = "updated";
         } else if (ts.stream().anyMatch(t -> Boolean.TRUE.equals(t.getNeedReplace()))) {
@@ -214,10 +222,16 @@ public class ListingTaskService {
                 ProductBrandDO::getId, ProductBrandDO::getBrandName);
         Map<Long, String> categories = names(products.values().stream().map(ProductDO::getCategoryId), categoryMapper::selectBatchIds,
                 ProductCategoryDO::getId, c -> StringUtils.hasText(c.getCategoryNameZh()) ? c.getCategoryNameZh() : c.getCategoryName());
+        Map<Long, String> siteNames = names(rows.stream().map(ListingTaskDO::getSiteId).filter(id -> id != null && id > 0),
+                siteMapper::selectBatchIds, WebsiteSiteDO::getId, WebsiteSiteDO::getName);
         Map<String, int[]> counts = mediaCounts(rows.stream().map(ListingTaskDO::getAssetKey).collect(Collectors.toSet()));
         List<ListingTaskVO> out = new ArrayList<>(rows.size());
         for (ListingTaskRow r : rows) {
             ListingTaskVO vo = base(r, products.get(r.getProductId()), brands, categories);
+            String siteName = siteNames.get(r.getSiteId());
+            if (siteName != null) {
+                vo.setPlatformLabel(vo.getPlatformLabel() + " · " + siteName);
+            }
             vo.setNeedMedia(Boolean.TRUE.equals(r.getNeedMedia()));
             vo.setContentUpdated(Boolean.TRUE.equals(r.getContentUpdated()));
             vo.setNeedReplace(Boolean.TRUE.equals(r.getNeedReplace()));
@@ -268,6 +282,7 @@ public class ListingTaskService {
             vo.setCategory(categories.get(p.getCategoryId()));
         }
         vo.setPlatform(t.getPlatform());
+        vo.setSiteId(t.getSiteId() == null ? 0L : t.getSiteId());
         MarketingPlatform platform = MarketingPlatform.of(t.getPlatform());
         vo.setPlatformLabel(platform == null ? t.getPlatform() : platform.label());
         vo.setStatus(t.getStatus());
@@ -282,6 +297,9 @@ public class ListingTaskService {
         vo.setNote(blankToNull(t.getNote()));
         vo.setPublishedBy(blankToNull(t.getPublishedBy()));
         vo.setPublishedAt(t.getPublishedAt());
+        vo.setReleaseId(t.getReleaseId() == null || t.getReleaseId() == 0 ? null : t.getReleaseId());
+        vo.setConfirmedBy(blankToNull(t.getConfirmedBy()));
+        vo.setConfirmedAt(t.getConfirmedAt());
         vo.setSyncedBy(blankToNull(t.getSyncedBy()));
         vo.setSyncedAt(t.getSyncedAt());
         vo.setReplacedBy(blankToNull(t.getReplacedBy()));
@@ -305,6 +323,7 @@ public class ListingTaskService {
         ListingTaskVO task = toVos(List.of(row(t))).get(0);
         vo.setTask(task);
         vo.setContent(contentTasks.productContent(t.getProductId()));
+        vo.setSite(siteTasks.siteInfo(t));
         if (task.getModel() != null) {
             vo.setOwnMedia(media(task.getBrand(), task.getModel(), true));
         }
@@ -312,6 +331,27 @@ public class ListingTaskService {
             vo.setReferenceMedia(media(t.getRefBrand(), t.getRefModel(), false));
         }
         return vo;
+    }
+
+    /**
+     * 发布到独立站用的图片和视频：任务选了参考素材时用参考型号可发客户的，否则用本型号用于发品的（与详情页显示一致）。
+     * reference 为 true 表示用的是参考素材。
+     */
+    public SiteMedia siteMedia(ListingTaskDO t) {
+        if (StringUtils.hasText(t.getRefModel())) {
+            return new SiteMedia(media(t.getRefBrand(), t.getRefModel(), false), true);
+        }
+        if (t.getId() == null) {
+            // 还没有任务的商品（导入预览时比较站点内容）：直接按商品的品牌、型号取
+            ProductDO p = productMapper.selectById(t.getProductId());
+            ProductBrandDO b = p == null || p.getBrandId() == null ? null : brandMapper.selectById(p.getBrandId());
+            return new SiteMedia(p == null ? List.of() : media(b == null ? "" : b.getBrandName(), p.getMpnRaw(), true), false);
+        }
+        ListingTaskVO task = toVos(List.of(row(t))).get(0);
+        return new SiteMedia(task.getModel() == null ? List.of() : media(task.getBrand(), task.getModel(), true), false);
+    }
+
+    public record SiteMedia(List<MediaItemVO> items, boolean reference) {
     }
 
     /** 一个型号的图片和视频：本型号取用于发品的，参考型号取可发客户的 */
@@ -525,8 +565,10 @@ public class ListingTaskService {
     @Transactional(rollbackFor = Exception.class)
     public ListingTaskDetailVO publish(Long id, PublishRequest req) {
         ListingTaskDO t = lock(id);
+        requireManualSite(t, "这个站点通过一键发布上线");
         if (t.getStatus() != ListingConstants.STATUS_PENDING) {
-            throw new BizException(t.getStatus() == ListingConstants.STATUS_PUBLISHED ? "任务已发布" : "任务已取消，不能发布");
+            throw new BizException(t.getStatus() == ListingConstants.STATUS_PUBLISHED ? "任务已发布"
+                    : t.getStatus() == ListingConstants.STATUS_CANCELLED ? "任务已取消，不能发布" : "任务正在发布或等待确认上线");
         }
         Map<String, Object> flags = taskMapper.flags(id);
         if (bool(flags.get("need_media"))) {
@@ -576,7 +618,7 @@ public class ListingTaskService {
 
     @Transactional(rollbackFor = Exception.class)
     public ListingTaskDetailVO markSynced(Long id) {
-        lock(id);
+        requireManualSite(lock(id), "这个站点通过「同步到站点」更新");
         Map<String, Object> flags = taskMapper.flags(id);
         if (!bool(flags.get("content_updated"))) {
             throw new BizException("没有需要同步的更新");
@@ -608,6 +650,13 @@ public class ListingTaskService {
                 .set(ListingTaskDO::getUpdateTime, now)
                 .set(ListingTaskDO::getUpdateBy, user));
         return detail(id);
+    }
+
+    /** 「自动发布」站点的独立站任务只能经一键发布改变发布状态 */
+    private void requireManualSite(ListingTaskDO t, String message) {
+        if (siteTasks.autoPublish(t)) {
+            throw new BizException(message);
+        }
     }
 
     // ================================================================ 工具
@@ -658,7 +707,7 @@ public class ListingTaskService {
         return o instanceof Number n ? n.intValue() == 1 : Boolean.TRUE.equals(o);
     }
 
-    private static LocalDateTime time(Object o) {
+    public static LocalDateTime time(Object o) {
         if (o instanceof LocalDateTime t) {
             return t;
         }

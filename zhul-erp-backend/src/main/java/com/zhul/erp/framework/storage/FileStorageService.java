@@ -203,6 +203,27 @@ public class FileStorageService {
         }
     }
 
+    /**
+     * 把私有文件复制到当前存储方式的公开桶（如独立站发布的素材），公开桶里已有同一文件键时跳过。
+     * 返回公开文件所在的存储方式；是否新复制由 copied 标出。
+     */
+    public PublicCopy copyToPublic(String storage, String key, String publicKey) {
+        FileStorage target = storages.current();
+        if (target.size(true, publicKey) >= 0) {
+            return new PublicCopy(target.code(), publicKey, false);
+        }
+        Path tmp = download(storage, key);
+        try {
+            target.put(true, publicKey, tmp, UploadRules.contentTypeOf(UploadRules.extOf(publicKey)));
+            return new PublicCopy(target.code(), publicKey, true);
+        } finally {
+            deleteTemp(tmp);
+        }
+    }
+
+    public record PublicCopy(String storage, String key, boolean copied) {
+    }
+
     /** 实拍素材挂到任务后移到「品牌 / 型号」目录（同一存储内），返回新文件键 */
     public String moveToModel(String storage, String key, int tenantId, String brand, String model) {
         String newKey = StorageKeys.modelKey(StorageArea.MEDIA, tenantId, brand, model, UploadRules.extOf(key));

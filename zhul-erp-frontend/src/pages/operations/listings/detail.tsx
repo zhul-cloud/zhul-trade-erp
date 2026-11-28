@@ -5,7 +5,7 @@ import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
-import { PlatformTaskChip, TABS } from './components';
+import { PlatformTaskChip, TABS, taskState } from './components';
 import ListingPanel from './ListingPanel';
 import { type ListingProduct, listingApi, readBizError } from './service';
 
@@ -39,9 +39,11 @@ const ListingProductDetail: React.FC = () => {
   if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!data) return <div style={{ color: palette.sub }}>正在加载…</div>;
 
-  // 默认打开第一个待发布的平台；地址里带 platform 时打开那个平台
+  // 默认打开第一个待发布的平台；地址里带 task（独立站每个站点一个任务）或 platform 时打开那个
+  const wantedTask = Number(search.get('task'));
   const wanted = search.get('platform');
   const current =
+    data.tasks.find((t) => t.id === wantedTask) ??
     data.tasks.find((t) => t.platform === wanted) ??
     data.tasks.find((t) => t.status === 1) ??
     data.tasks[0];
@@ -76,13 +78,13 @@ const ListingProductDetail: React.FC = () => {
         }
         extra={<Link to={`/operations/products/${productId}`}>去营销任务</Link>}
       />
-      {/* 每个平台一份内容，用页签切换（原来的分段按钮） */}
+      {/* 每个平台一份内容，用页签切换；独立站每个站点一个任务 */}
       <ViewTabs
-        activeKey={current?.platform ?? ''}
-        onChange={(p) => setSearch({ platform: p }, { replace: true })}
+        activeKey={current ? String(current.id) : ''}
+        onChange={(id) => setSearch({ task: id }, { replace: true })}
         items={data.tasks.map((t) => ({
-          key: t.platform,
-          label: t.platformLabel,
+          key: String(t.id),
+          label: `${t.platformLabel} · ${taskState(t)[1]}`,
         }))}
       />
       {current && (

@@ -9,8 +9,8 @@ set -euo pipefail
 APP_DIR=/opt/zhul-trade-erp
 REPO=zhul-cloud/zhul-trade-erp
 REGISTRY=ghcr.io/zhul-cloud
-SERVICES=(backend frontend ai-orchestrator video-generator)
-CONTAINERS=(zhul-erp-mysql zhul-erp-redis zhul-erp-backend zhul-erp-frontend zhul-erp-ai-orchestrator zhul-erp-video-generator)
+SERVICES=(backend frontend ai-orchestrator video-generator site-publisher)
+CONTAINERS=(zhul-erp-mysql zhul-erp-redis zhul-erp-backend zhul-erp-frontend zhul-erp-ai-orchestrator zhul-erp-video-generator zhul-erp-site-publisher)
 HEALTH_TIMEOUT=600
 KEEP_VERSIONS=2
 PULL_ATTEMPTS=3

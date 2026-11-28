@@ -89,7 +89,10 @@ public class OpsWidgets {
                 WidgetData.Progress row = new WidgetData.Progress();
                 row.setLabel(p.label());
                 row.getParts().add(part("已发布", c.get(ListingConstants.STATUS_PUBLISHED), "green"));
-                row.getParts().add(part("待发布", c.get(ListingConstants.STATUS_PENDING), "blue"));
+                row.getParts().add(part("待确认上线", c.get(ListingConstants.STATUS_LIVE_UNCONFIRMED), "orange"));
+                // 发布中算待发布（与发品任务列表一致）
+                row.getParts().add(part("待发布", c.getOrDefault(ListingConstants.STATUS_PENDING, 0L)
+                        + c.getOrDefault(ListingConstants.STATUS_PUBLISHING, 0L), "blue"));
                 row.getParts().add(part("已取消", c.get(ListingConstants.STATUS_CANCELLED), "gray"));
                 return row;
             }).toList());

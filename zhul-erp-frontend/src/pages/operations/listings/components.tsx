@@ -18,6 +18,12 @@ export const TABS: {
       '没有待发布的商品；资料核对、某个平台的营销内容写完后，会自动生成这个平台的发品任务',
   },
   {
+    key: 'unconfirmed',
+    label: '待确认上线',
+    tone: 'cyan',
+    empty: '没有待确认上线的商品；自动发布到独立站后，在这里确认线上页面',
+  },
+  {
     key: 'updated',
     label: '内容有更新',
     tone: 'orange',
@@ -43,25 +49,45 @@ export const TABS: {
   },
 ];
 
-export type Tone = 'gray' | 'accent' | 'orange' | 'violet' | 'green' | 'mute';
+export type Tone =
+  | 'gray'
+  | 'accent'
+  | 'cyan'
+  | 'orange'
+  | 'violet'
+  | 'green'
+  | 'mute';
+
+/** 一个任务的状态与提醒：列表标签、详情页平台切换共用 */
+export const taskState = (task: ListingTask): [Tone, string] =>
+  task.status === 1
+    ? task.needMedia
+      ? ['orange', '素材待补']
+      : ['accent', '待发布']
+    : task.status === 4
+      ? ['cyan', '发布中']
+      : task.status === 5
+        ? ['cyan', '已上线待确认']
+        : task.status === 2
+          ? task.contentUpdated
+            ? ['orange', '内容有更新']
+            : task.needReplace
+              ? ['violet', '待替换素材']
+              : ['green', '已发布']
+          : ['mute', '已取消'];
+
+/** 平台简称；独立站带站点名（「独立站 · 站点名」） */
+export const platformShort = (task: ListingTask) =>
+  task.platform === 'site'
+    ? task.platformLabel
+    : (PLATFORM_META[task.platform]?.short ?? task.platformLabel);
 
 /** 各平台标签：平台简称 + 这个平台的状态或提醒 */
 export const PlatformTaskChip: React.FC<{ task: ListingTask }> = ({ task }) => {
-  const [tone, text]: [Tone, string] =
-    task.status === 1
-      ? task.needMedia
-        ? ['orange', '素材待补']
-        : ['accent', '待发布']
-      : task.status === 2
-        ? task.contentUpdated
-          ? ['orange', '内容有更新']
-          : task.needReplace
-            ? ['violet', '待替换素材']
-            : ['green', '已发布']
-        : ['mute', '已取消'];
+  const [tone, text] = taskState(task);
   return (
     <Pill tone={tone}>
-      {PLATFORM_META[task.platform]?.short ?? task.platformLabel} {text}
+      {platformShort(task)} {text}
     </Pill>
   );
 };
