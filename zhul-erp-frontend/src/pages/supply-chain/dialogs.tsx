@@ -236,7 +236,7 @@ export const RecordModal: React.FC<{
       destroyOnHidden
     >
       {title && (
-        <div style={{ fontSize: 18, fontWeight: 600, marginTop: 8 }}>
+        <div style={{ fontSize: 16, fontWeight: 600, marginTop: 8 }}>
           {title}
         </div>
       )}
@@ -415,7 +415,7 @@ export const CoverageModal: React.FC<{
         </Button>,
       ]}
     >
-      <div style={{ fontSize: 18, fontWeight: 600, marginTop: 8 }}>
+      <div style={{ fontSize: 16, fontWeight: 600, marginTop: 8 }}>
         {modelName(d)}
       </div>
       <div style={{ color: palette.mute }}>

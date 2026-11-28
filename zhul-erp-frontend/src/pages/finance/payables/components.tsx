@@ -28,6 +28,7 @@ import React, {
 } from 'react';
 import { EmptyState, tableEmpty } from '@/components/EmptyState';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { UserName } from '@/components/UserName';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 import { ReceiptProgress } from '@/pages/sales/orders/parts';
@@ -38,7 +39,6 @@ import {
 } from '@/pages/sales/service';
 import { AttachmentWall, usePreview } from '@/pages/warehouse/components';
 import type { Attachment } from '@/pages/warehouse/service';
-import { UserName } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
 import { attrTone } from '@/theme/palette';
 import { formatAmount, formatMoney } from '@/utils/format';
@@ -236,7 +236,7 @@ export const PayeeAccountPicker: React.FC<{
                 <b>{a.accountName}</b>
                 {a.defaultAccount && <Pill tone="gray">默认</Pill>}
               </div>
-              <div style={{ fontSize: 12.5, color: palette.sub }}>
+              <div style={{ fontSize: 13, color: palette.sub }}>
                 {a.bankName}
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

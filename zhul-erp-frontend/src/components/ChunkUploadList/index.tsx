@@ -300,6 +300,7 @@ export const ChunkUploadList: React.FC<{
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {/* lint-ui-ignore font-scale: lead 是文件类型 / 状态图标 */}
               <span style={{ color: tone, fontSize: 18 }}>{lead}</span>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div

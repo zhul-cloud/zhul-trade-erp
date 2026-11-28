@@ -241,7 +241,7 @@ export const PlatformReceiptModal = <T extends ReceiptResult>({
         </div>
         <div>
           <div style={{ ...label, color: palette.sub }}>实收</div>
-          <b style={{ ...num, fontSize: 18, color: palette.ink }}>
+          <b style={{ ...num, fontSize: 16, color: palette.ink }}>
             {formatAmount(Math.max(net, 0), cur)}
           </b>
         </div>

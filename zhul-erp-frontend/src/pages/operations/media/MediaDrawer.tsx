@@ -159,7 +159,7 @@ export const MediaGrid: React.FC<{
                       bottom: 6,
                       padding: '0 4px',
                       borderRadius: 4,
-                      fontSize: 10,
+                      fontSize: 12,
                       lineHeight: '16px',
                       color:
                         i.processingStatus === 1 ? palette.onPrimary : '#fff',

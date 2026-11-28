@@ -153,7 +153,7 @@ const FileChip: React.FC<{
         <div
           title={meta}
           style={{
-            fontSize: 11,
+            fontSize: 12,
             color: palette.mute,
             overflow: 'hidden',
             textOverflow: 'ellipsis',

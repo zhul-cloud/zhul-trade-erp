@@ -628,7 +628,7 @@ const KeywordLibrary: React.FC<{ keywords: PlatformContent['keywords'] }> = ({
               <div style={{ fontSize: 12, fontWeight: 600, color: fg }}>
                 {name}
               </div>
-              <div style={{ fontSize: 11, color: palette.mute }}>
+              <div style={{ fontSize: 12, color: palette.mute }}>
                 {words.length} 个
               </div>
             </div>

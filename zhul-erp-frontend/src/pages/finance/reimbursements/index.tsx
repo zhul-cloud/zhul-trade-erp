@@ -536,7 +536,7 @@ const PendingTab: React.FC<{
             {chosenPeople > 1 &&
               `（${chosenPeople} 人，将生成 ${chosenPeople} 张报销单）`}
             ，合计{' '}
-            <b style={{ ...num, fontSize: 18 }}>{formatAmount(total, 'CNY')}</b>
+            <b style={{ ...num, fontSize: 16 }}>{formatAmount(total, 'CNY')}</b>
           </span>
           {missing > 0 && (
             <span style={{ color: palette.orange, fontSize: 12 }}>

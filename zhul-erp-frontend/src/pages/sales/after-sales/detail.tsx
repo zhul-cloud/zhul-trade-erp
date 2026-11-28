@@ -627,7 +627,7 @@ const AfterSalesDetail: React.FC = () => {
         <span style={{ color: palette.sub }}>
           已发生（退款 + 费用 + 退回运费）
         </span>
-        <b style={{ fontSize: 18, color: palette.ink }}>
+        <b style={{ fontSize: 16, color: palette.ink }}>
           {formatAmount(
             Number(a.refundCny ?? 0) +
               Number(a.expenseCny ?? 0) +

@@ -132,7 +132,7 @@ const LocalTimeCard: React.FC<{ timezone: string }> = ({ timezone }) => {
             <span
               className="num"
               style={{
-                fontSize: 40,
+                fontSize: 28,
                 fontWeight: 600,
                 color: palette.ink,
                 lineHeight: 1,

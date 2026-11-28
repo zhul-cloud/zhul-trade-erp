@@ -13,6 +13,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { CircleAlert, CircleCheck, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { Callout } from '@/components/Callout';
+import { ChoiceChips } from '@/components/ListLayout';
 import { useAppTheme } from '@/theme/AppTheme';
 import { BOARD_LABEL, Card, fmtDate, iso, SnoozeButton } from './components';
 import { adjustSuggest, dateShortcuts, suggestOf } from './nextDate';
@@ -421,18 +422,20 @@ export const BatchFollowupModal: React.FC<{
         )}
         {label('什么时候', true)}
         <Space wrap>
-          {shortcuts.map((d) => (
-            <Button
-              key={d.label}
-              size="small"
-              type={nextDate?.isSame(d.value, 'day') ? 'primary' : 'default'}
-              onClick={() => pickDate(d.value)}
-            >
-              {d.label}
-            </Button>
-          ))}
+          <ChoiceChips
+            label="什么时候"
+            options={shortcuts.map((d) => ({ value: d.label, label: d.label }))}
+            value={
+              shortcuts.find((d) => nextDate?.isSame(d.value, 'day'))?.label
+            }
+            onChange={(v) => {
+              const d = shortcuts.find((x) => x.label === v);
+              if (d) pickDate(d.value);
+            }}
+          />
           <DatePicker
             size="small"
+            style={{ height: 28 }}
             value={nextDate}
             placeholder="选日期"
             onChange={pickDate}

@@ -277,59 +277,69 @@ const ShipmentDetail: React.FC = () => {
     </span>
   );
 
+  // 主栏 664 宽：出库单并到箱内型号下、毛净重并到尺寸下，不横向滚动（详情主栏不横滚，UI-117 第 8 批）
   const boxColumns: TableColumnsType<BoxRow> = [
+    { title: '箱号', dataIndex: 'boxNo', width: 56 },
     {
-      title: '销售出库单',
+      title: '箱内型号 · 出库单',
       key: 'src',
-      width: 160,
+      width: 220,
       render: (_, r) => (
         <div>
-          {r.obs.map((o, i) => (
-            <React.Fragment key={o.id}>
-              {i > 0 && '、'}
-              <Link
-                to={DOC_PATHS.outbound(o.id)}
-                className="zhul-link zhul-link-doc"
+          <div style={{ color: palette.ink }}>{r.items}</div>
+          <div style={{ fontSize: 12 }}>
+            {r.obs.map((o, i) => (
+              <React.Fragment key={o.id}>
+                {i > 0 && '、'}
+                <Link
+                  to={DOC_PATHS.outbound(o.id)}
+                  className="zhul-link zhul-link-doc"
+                >
+                  {o.obNo}
+                </Link>
+              </React.Fragment>
+            ))}
+            {r.direct && (
+              <span
+                style={{
+                  marginLeft: 6,
+                  fontSize: 12,
+                  color: palette.info,
+                }}
               >
-                {o.obNo}
-              </Link>
-            </React.Fragment>
-          ))}
-          {r.direct && (
-            <span
-              style={{
-                marginLeft: 6,
-                fontSize: 12,
-                color: palette.info,
-              }}
-            >
-              直发
-            </span>
-          )}
+                直发
+              </span>
+            )}
+          </div>
         </div>
       ),
     },
-    { title: '箱号', dataIndex: 'boxNo', width: 60 },
-    { title: '尺寸 cm', dataIndex: 'dims', width: 110 },
     {
-      title: '毛重 · 净重',
+      title: '尺寸 cm · 毛净重 kg',
       key: 'w',
-      width: 120,
-      render: (_, r) =>
-        `${Number(r.gross).toFixed(2)}${r.net ? ` · ${Number(r.net).toFixed(2)}` : ''}`,
+      width: 150,
+      render: (_, r) => (
+        <div className="num">
+          <div>{r.dims}</div>
+          <div style={{ fontSize: 12, color: palette.mute }}>
+            {Number(r.gross).toFixed(2)}
+            {r.net ? ` · ${Number(r.net).toFixed(2)}` : ''}
+          </div>
+        </div>
+      ),
     },
     {
-      title: '计费重',
+      title: '计费重 kg',
+      align: 'right',
       dataIndex: 'chargeable',
-      width: 90,
-      render: (v: number) => <b>{Number(v).toFixed(2)}</b>,
+      width: 96,
+      render: (v: number) => <b className="num">{Number(v).toFixed(2)}</b>,
     },
-    { title: '箱内型号', width: 220, dataIndex: 'items' },
     {
-      title: '国际运费分摊',
+      title: '运费分摊',
       align: 'right',
       dataIndex: 'freight',
-      width: 130,
+      width: 120,
       render: (v?: number) =>
         v === undefined ? '—' : <b>{formatAmount(v, 'CNY')}</b>,
     },

@@ -158,7 +158,7 @@ const DeferModal: React.FC<{
                   <span key={label} style={{ display: 'grid' }}>
                     <b
                       style={{
-                        fontSize: 22,
+                        fontSize: 20,
                         color: i === 2 ? palette.mute : palette.ink,
                       }}
                     >

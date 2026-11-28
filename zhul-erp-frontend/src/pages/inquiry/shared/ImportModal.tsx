@@ -375,11 +375,11 @@ const ImportModal: React.FC<{
                       <span style={{ color: palette.ink }}>
                         {r.model || '（空）'}
                       </span>
-                      <span style={{ color: palette.mute, fontSize: 11 }}>
+                      <span style={{ color: palette.mute, fontSize: 12 }}>
                         {r.position}
                       </span>
                       {!r.itemId && (
-                        <span style={{ color: palette.orange, fontSize: 11 }}>
+                        <span style={{ color: palette.orange, fontSize: 12 }}>
                           型号不在这个任务里，只能忽略
                         </span>
                       )}
@@ -422,17 +422,17 @@ const ImportModal: React.FC<{
                         />
                       )}
                       {r.taxIncluded && (
-                        <span style={{ color: palette.mute, fontSize: 11 }}>
+                        <span style={{ color: palette.mute, fontSize: 12 }}>
                           含税 {r.taxRate ?? 13}%，按不含税价入库比价
                         </span>
                       )}
                       {r.problems.includes('税率不在可选值内') && (
-                        <span style={{ color: palette.orange, fontSize: 11 }}>
+                        <span style={{ color: palette.orange, fontSize: 12 }}>
                           原文「{r.rawPrice}」的税率不在可选值内
                         </span>
                       )}
                       {r.problems.includes('单价不是数字') && (
-                        <span style={{ color: palette.orange, fontSize: 11 }}>
+                        <span style={{ color: palette.orange, fontSize: 12 }}>
                           原文「{r.rawPrice}」不是数字，请改成数字
                         </span>
                       )}
@@ -449,7 +449,7 @@ const ImportModal: React.FC<{
                         }
                       />
                       {r.problems.includes('货况不在可选值内') && (
-                        <span style={{ color: palette.mute, fontSize: 11 }}>
+                        <span style={{ color: palette.mute, fontSize: 12 }}>
                           原文「{r.rawCondition}」，请重选
                         </span>
                       )}
@@ -466,7 +466,7 @@ const ImportModal: React.FC<{
                         }
                       />
                       {r.problems.includes('货期不在可选值内') && (
-                        <span style={{ color: palette.mute, fontSize: 11 }}>
+                        <span style={{ color: palette.mute, fontSize: 12 }}>
                           原文「{r.rawLeadTime}」，请重选
                         </span>
                       )}

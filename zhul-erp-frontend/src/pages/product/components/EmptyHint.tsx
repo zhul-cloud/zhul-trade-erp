@@ -1,6 +1,6 @@
 import { Button } from 'antd';
 import React from 'react';
-import { EmptyState, type EmptyKind } from '@/components/EmptyState';
+import { type EmptyKind, EmptyState } from '@/components/EmptyState';
 import { Panel } from '@/components/ListLayout';
 
 /**
@@ -51,7 +51,11 @@ export const EmptyHint: React.FC<{
  */
 const classify = (message: string): EmptyKind => {
   if (/无权|没有权限|权限不足/.test(message)) return 'forbidden';
-  if (/不存在|已删除|找不到|还没|尚未|未结账|未开始/.test(message))
+  if (
+    /不存在|已删除|找不到|还没|尚未|未结账|未开始|^(这个|该).{0,8}没有/.test(
+      message,
+    )
+  )
     return 'empty';
   return 'error';
 };

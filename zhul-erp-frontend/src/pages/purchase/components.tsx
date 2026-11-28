@@ -2,6 +2,7 @@ import { Button, Input, InputNumber, Segmented, Select, Space } from 'antd';
 import { CircleAlert, Plus, ShoppingBag, Store, Trash2 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
+import { ChoiceChips } from '@/components/ListLayout';
 import { Card, MigratedPill, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
 import { forwarderApi } from '@/pages/logistics/service';
@@ -229,27 +230,19 @@ export const PaymentTermsEditor: React.FC<{
   const total = termsTotal(value);
   return (
     <div style={{ display: 'grid', gap: 10 }}>
-      <Space wrap>
-        {(
+      <ChoiceChips
+        label="付款条件"
+        options={(
           [
             ['prepay', '全额预付'],
             ['cod', '货到付款'],
             ['credit', '先采后付'],
             ['custom', '自定义分期'],
           ] as [Preset, string][]
-        ).map(([k, label]) => (
-          <Button
-            key={k}
-            size="small"
-            type={preset === k ? 'primary' : 'default'}
-            ghost={preset === k}
-            disabled={disabled}
-            onClick={() => choose(k)}
-          >
-            {label}
-          </Button>
-        ))}
-      </Space>
+        ).map(([k, label]) => ({ value: k, label, disabled }))}
+        value={preset}
+        onChange={(k) => choose(k as Preset)}
+      />
       {preset === 'credit' && (
         <Space>
           <span style={{ color: palette.sub }}>入库后</span>

@@ -15,6 +15,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Bot, Hourglass, Lightbulb, LoaderCircle, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { Callout } from '@/components/Callout';
+import { ChoiceChips } from '@/components/ListLayout';
 import { customerApi } from '@/pages/customer/service';
 import { CreateAfterSalesModal } from '@/pages/sales/after-sales/dialogs';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -939,18 +940,23 @@ const RecordFollowupModal: React.FC<{
 
         <SectionLabel required>什么时候</SectionLabel>
         <Space wrap>
-          {dateShortcuts.map((d) => (
-            <Button
-              key={d.label}
-              size="small"
-              type={nextDate?.isSame(d.value, 'day') ? 'primary' : 'default'}
-              onClick={() => pickDate(d.value)}
-            >
-              {d.label}
-            </Button>
-          ))}
+          <ChoiceChips
+            label="什么时候"
+            options={dateShortcuts.map((d) => ({
+              value: d.label,
+              label: d.label,
+            }))}
+            value={
+              dateShortcuts.find((d) => nextDate?.isSame(d.value, 'day'))?.label
+            }
+            onChange={(v) => {
+              const d = dateShortcuts.find((x) => x.label === v);
+              if (d) pickDate(d.value);
+            }}
+          />
           <DatePicker
             size="small"
+            style={{ height: 28 }}
             value={nextDate}
             placeholder="选日期"
             onChange={pickDate}

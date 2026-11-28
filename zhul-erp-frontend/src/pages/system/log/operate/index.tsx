@@ -15,7 +15,6 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Download, Eye, Search } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { ellipsisRender } from '@/components/EllipsisText';
-import { UserName } from '@/components/UserName';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
@@ -24,6 +23,7 @@ import {
   PageHeader,
 } from '@/components/ListLayout';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { UserName } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -79,7 +79,7 @@ function renderJsonPanel(value: unknown, emptyText: string) {
         borderRadius: 8,
         padding: '12px 14px',
         fontFamily: 'monospace',
-        fontSize: 12.5,
+        fontSize: 12,
         lineHeight: 1.6,
       }}
     >
@@ -434,7 +434,7 @@ const OperateLogPage: React.FC = () => {
                     borderRadius: 8,
                     padding: '12px 14px',
                     fontFamily: 'monospace',
-                    fontSize: 12.5,
+                    fontSize: 12,
                     whiteSpace: 'pre-wrap',
                     wordBreak: 'break-all',
                   }}
