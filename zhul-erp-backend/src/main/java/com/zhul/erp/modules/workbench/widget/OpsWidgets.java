@@ -65,10 +65,12 @@ public class OpsWidgets {
             funnel.setType("funnel");
             funnel.setSteps(steps);
             return W.of(funnel, W.metrics(
-                    W.link(W.tone(W.metric("其中素材待补", needMedia, "count", "待发布但没有发品素材的商品"),
-                            needMedia > 0 ? "orange" : null), LISTINGS),
-                    W.link(W.metric("内容有更新", listed.get("updated"), "count", "已发布后营销内容又导入过"), LISTINGS),
-                    W.link(W.metric("待替换素材", listed.get("replace"), "count", "用参考素材发布、本型号已有素材"), LISTINGS)));
+                    W.look(W.link(W.tone(W.metric("其中素材待补", needMedia, "count", "待发布但没有发品素材的商品"),
+                            needMedia > 0 ? "orange" : null), LISTINGS), "image", "gray"),
+                    W.look(W.link(W.metric("内容有更新", listed.get("updated"), "count", "已发布后营销内容又导入过"), LISTINGS),
+                            "file-text", "blue"),
+                    W.look(W.link(W.metric("待替换素材", listed.get("replace"), "count", "用参考素材发布、本型号已有素材"), LISTINGS),
+                            "image", "gray")));
         });
     }
 
@@ -115,10 +117,10 @@ public class OpsWidgets {
                     .isNull(MediaItemDO::getDeletedAt));
             Long pendingCandidates = candidates.counts().get("pending");
             return W.of(W.metrics(
-                    W.link(W.metric("缺营销实拍的型号", noMarketing, "count", "有素材但还没有营销实拍"), MEDIA),
-                    W.link(W.metric("待拍摄任务", pendingShoots, "count", "到货后自动生成"), "/warehouse/shoots"),
-                    W.metric("本月新增营销实拍", newMarketing, "count", null),
-                    W.link(W.metric("待审核商品候选", pendingCandidates, "count", "等待建档"), CANDIDATES)));
+                    W.look(W.link(W.metric("缺营销实拍的型号", noMarketing, "count", "有素材但还没有营销实拍"), MEDIA), "camera", "blue"),
+                    W.look(W.link(W.metric("待拍摄任务", pendingShoots, "count", "到货后自动生成"), "/warehouse/shoots"), "clock", "blue"),
+                    W.look(W.metric("本月新增营销实拍", newMarketing, "count", null), "image", "cyan"),
+                    W.look(W.link(W.metric("待审核商品候选", pendingCandidates, "count", "等待建档"), CANDIDATES), "layout-grid", "gray")));
         });
     }
 
@@ -143,9 +145,9 @@ public class OpsWidgets {
                     .ge(ListingTaskDO::getPublishedAt, month)
                     .isNull(ListingTaskDO::getDeletedAt));
             return W.of(W.metrics(
-                    W.metric("资料核对", verified, "count", "个商品（所有公司共用）"),
-                    W.metric("营销写入", written, "count", "个商品"),
-                    W.metric("发品", published, "count", "个商品 × 平台")));
+                    W.look(W.metric("资料核对", verified, "count", "个商品（所有公司共用）"), "file-check", "blue"),
+                    W.look(W.metric("营销写入", written, "count", "个商品"), "file-text", "purple"),
+                    W.look(W.metric("发品", published, "count", "个商品 × 平台"), "rocket", "cyan")));
         });
     }
 

@@ -101,6 +101,13 @@ describe('lint:ui', () => {
     );
   });
 
+  it('银行账户拼成一串报错（改用 BankAccountLabel）', () => {
+    expect(
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: 被检查的源码文本
+      rules('const o = { label: `${a.bankName} ${a.accountNoMasked}` };'),
+    ).toContain('bank-label:error');
+  });
+
   it('属性标签用状态色报错，灰与属性色放行（D75）', () => {
     expect(rules('<Pill tone="orange">对私</Pill>')).toContain(
       'attr-tone:error',

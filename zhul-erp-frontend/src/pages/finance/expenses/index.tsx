@@ -17,6 +17,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import { Eye, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import BankAccountLabel from '@/components/BankAccountLabel';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
@@ -556,7 +557,7 @@ export const ExpenseDrawer: React.FC<{
                   placeholder="选择对私账户"
                   options={currencyPrivate.map((a) => ({
                     value: a.id,
-                    label: `${a.bankName} · ${a.accountName} ${a.accountNoMasked}（对私）`,
+                    label: <BankAccountLabel account={a} name />,
                   }))}
                   notFoundContent={`没有对私的 ${currency} 账户，请先在「收款账户」里添加`}
                 />

@@ -22,6 +22,7 @@ import {
   UploadIcon,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import BankAccountLabel from '@/components/BankAccountLabel';
 import { CopyText } from '@/components/CopyText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
@@ -251,7 +252,16 @@ const RegisterModal: React.FC<{
             }
             options={banks.map((b) => ({
               value: b.id,
-              label: `${b.bankName} ${b.accountNoMasked}${b.accountType === 2 ? '（对私）' : ''}${bu.enabled ? ` · ${bu.units.find((u) => u.id === b.businessUnitId)?.name ?? ''}` : ''}`,
+              label: (
+                <BankAccountLabel
+                  account={b}
+                  hint={
+                    bu.enabled
+                      ? bu.units.find((u) => u.id === b.businessUnitId)?.name
+                      : undefined
+                  }
+                />
+              ),
             }))}
             aria-label="收款账户"
           />

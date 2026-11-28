@@ -1,5 +1,5 @@
 import { history } from '@umijs/max';
-import { Button, Tooltip } from 'antd';
+import { Button } from 'antd';
 import dayjs from 'dayjs';
 import {
   ChevronRight,
@@ -15,6 +15,7 @@ import { formatMinutes, PATHS } from '@/pages/inquiry/shared/constants';
 import type { MyTask } from '@/pages/inquiry/shared/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import type { MyPurchase, QuoteBoard } from '../service';
+import TrendBars from './TrendBars';
 import { Metric, TodoItem, useWidgetData, WidgetCard } from './WidgetCard';
 
 const TaskRow: React.FC<{ task: MyTask }> = ({ task: t }) => {
@@ -188,12 +189,11 @@ export const QuoteStatsWidget: React.FC = () => {
   );
 };
 
-/** 近 30 天每天回价的型号数：柱高按当期最大值缩放，悬停看具体数字 */
+/** 近 30 天每天回价的型号数：公共趋势柱图，只亮今天，悬停看具体数字 */
 export const QuoteTrendWidget: React.FC = () => {
   const { palette } = useAppTheme();
   const { data, error, reload } = useWidgetData<QuoteBoard>('quote-trend');
   const trend = data?.trend ?? [];
-  const max = Math.max(1, ...trend.map((d) => d.items));
   const total = trend.reduce((sum, d) => sum + d.items, 0);
   return (
     <WidgetCard
@@ -208,38 +208,20 @@ export const QuoteTrendWidget: React.FC = () => {
       error={error}
       onRetry={reload}
     >
-      <div
-        style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 150 }}
-      >
-        {trend.map((d) => (
-          <Tooltip
-            key={d.date}
-            title={`${dayjs(d.date).format('M月D日')} · ${d.items} 个型号`}
-          >
-            <span
-              style={{
-                flex: 1,
-                minWidth: 0,
-                height: d.items ? `${(d.items / max) * 100}%` : 3,
-                borderRadius: 4,
-                background: d.items ? palette.chart : palette.hairline,
-                transition: 'height 200ms ease-out',
-              }}
-            />
-          </Tooltip>
-        ))}
-      </div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          color: palette.mute,
-          fontSize: 12,
-          marginTop: 8,
-        }}
-      >
-        <span>{trend[0] ? dayjs(trend[0].date).format('M月D日') : ''}</span>
-        <span>今天</span>
+      {/* 与老板主角卡同一画法（UI-108）：往期浅色、只亮今天，横轴只写首尾 */}
+      <div style={{ flex: 1, display: 'flex' }}>
+        <TrendBars
+          name="近 30 天每天回价的型号数"
+          labels={trend.map((d, i) =>
+            i === trend.length - 1 ? '今天' : dayjs(d.date).format('M月D日'),
+          )}
+          values={trend.map((d) => d.items)}
+          short={(v) => String(Math.round(v))}
+          full={(v) => `${v} 个型号`}
+          emptyText="近 30 天还没有回价"
+          ends
+          minHeight={150}
+        />
       </div>
     </WidgetCard>
   );

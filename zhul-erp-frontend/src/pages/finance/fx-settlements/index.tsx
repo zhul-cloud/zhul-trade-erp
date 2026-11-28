@@ -15,6 +15,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import { Eye, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import BankAccountLabel from '@/components/BankAccountLabel';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import { CopyText } from '@/components/CopyText';
 import { EmptyState, tableEmpty } from '@/components/EmptyState';
@@ -337,7 +338,7 @@ const RegisterModal: React.FC<{
                 style={{ width: '100%' }}
                 options={accounts.map((a) => ({
                   value: a.id,
-                  label: `${a.bankName} · ${a.accountName} ${a.accountNoMasked}${a.accountType === 2 ? '（对私）' : ''}`,
+                  label: <BankAccountLabel account={a} name />,
                 }))}
               />
             </div>
