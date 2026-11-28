@@ -108,6 +108,35 @@ describe('lint:ui', () => {
     ).toContain('bank-label:error');
   });
 
+  it('数量、金额类列没写右对齐报错，写了或文字列放行', () => {
+    expect(
+      rules("const c = [{ title: '数量', dataIndex: 'totalQty', width: 80 }];"),
+    ).toContain('num-align:error');
+    expect(
+      rules(
+        "const c = [{ title: '金额', align: 'right' as const, dataIndex: 'amountCny' }];",
+      ),
+    ).not.toContain('num-align:error');
+    expect(
+      rules("const c = [{ title: '客户', dataIndex: 'customerName' }];"),
+    ).not.toContain('num-align:error');
+  });
+
+  it('直接显示账号字段报错，经 UserName 或只作比较放行', () => {
+    expect(rules('const a = <span>{r.confirmedBy} 已确认</span>;')).toContain(
+      'user-name:error',
+    );
+    expect(
+      rules('const a = <span title={`$' + '{r.markedBy} 标记`}>x</span>;'),
+    ).toContain('user-name:error');
+    expect(
+      rules('const a = <span><UserName value={r.confirmedBy} /></span>;'),
+    ).not.toContain('user-name:error');
+    expect(
+      rules("const a = <span>{r.createBy === me ? '我' : '别人'}</span>;"),
+    ).not.toContain('user-name:error');
+  });
+
   it('属性标签用状态色报错，灰与属性色放行（D75）', () => {
     expect(rules('<Pill tone="orange">对私</Pill>')).toContain(
       'attr-tone:error',

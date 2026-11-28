@@ -19,6 +19,7 @@ import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { CountryText } from '@/components/CountryText';
 import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle } from '@/components/PageTabs/hooks';
+import { UserName } from '@/components/UserName';
 import { StatusPill } from '@/pages/inquiry/shared/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useCountries } from '@/pages/product/components/useCountries';
@@ -694,7 +695,8 @@ const OpportunityDetailPage: React.FC = () => {
                         marginTop: 2,
                       }}
                     >
-                      {l.operator} · {formatDateTime(l.createTime)}
+                      <UserName value={l.operator} /> ·{' '}
+                      {formatDateTime(l.createTime)}
                     </div>
                     {(l.reasonLabel || l.note) && (
                       <div

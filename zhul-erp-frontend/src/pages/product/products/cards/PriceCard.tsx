@@ -146,7 +146,12 @@ export const PriceCard: React.FC<{
         <span className="num">{formatAmount(v, 'USD')}</span>
       ),
     },
-    { title: '来源原价', dataIndex: 'sourcePrice', width: 120 },
+    {
+      title: '来源原价',
+      align: 'right' as const,
+      dataIndex: 'sourcePrice',
+      width: 120,
+    },
     {
       title: '来源链接',
       width: 220,

@@ -254,6 +254,7 @@ export const CategoryMapModal: React.FC<{
               },
               {
                 title: '商品数',
+                align: 'right' as const,
                 dataIndex: 'productCount',
                 width: 80,
                 render: (v: number) => (

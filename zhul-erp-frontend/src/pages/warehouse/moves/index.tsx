@@ -195,6 +195,7 @@ const MovesPage: React.FC = () => {
     },
     {
       title: '单价（CNY）',
+      align: 'right' as const,
       dataIndex: 'unitPriceCny',
       width: 110,
       render: (v: number) => Number(v ?? 0).toFixed(6),

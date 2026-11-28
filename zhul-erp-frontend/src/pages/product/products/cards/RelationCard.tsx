@@ -15,6 +15,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { UserName } from '@/components/UserName';
 import { EmptyHint } from '../../components/EmptyHint';
 import { Pill } from '../../components/Pills';
 import { ProductSelect } from '../../components/ProductSelect';
@@ -275,9 +276,12 @@ export const RelationCard: React.FC<{
                   }}
                 >
                   {CONFIDENCE[r.confidence]}
-                  {r.confidence === 1 && r.verifiedBy
-                    ? ` · ${r.verifiedBy}`
-                    : ''}
+                  {r.confidence === 1 && r.verifiedBy && (
+                    <>
+                      {' · '}
+                      <UserName value={r.verifiedBy} />
+                    </>
+                  )}
                 </span>
               ),
             },

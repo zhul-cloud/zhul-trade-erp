@@ -48,6 +48,7 @@ interface Decision {
   voids: Record<number, string>;
 }
 
+// lint-ui-ignore user-name: quotedBy 是采购员 ID，只用来拼 key，不显示
 const keyOf = (it: ReviewItem) => `${it.itemId}|${it.quotedBy}`;
 
 /** 默认：全部勾选；只有一条有价记录时默认选它为推荐 */

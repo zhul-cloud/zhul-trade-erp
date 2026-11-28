@@ -36,13 +36,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import EllipsisText from '@/components/EllipsisText';
-import { Pill } from '@/components/Pill';
 import {
   FilterCard,
   FilterField,
   MainCard,
   PageHeader,
 } from '@/components/ListLayout';
+import { Pill } from '@/components/Pill';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { proAuditColumns } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -89,7 +89,7 @@ const UserPage: React.FC = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [resetPwdOpen, setResetPwdOpen] = useState(false);
-  const [resetPwdUserId, setResetPwdUserId] = useState<number | null>(null);
+  const [resetPwdUser, setResetPwdUser] = useState<UserItem | null>(null);
   const [pwdForm] = Form.useForm();
   const [stats, setStats] = useState<UserStats | null>(null);
   /** 搜索条件：状态切换后立即查询，姓名、部门点「查询」才生效 */
@@ -174,10 +174,10 @@ const UserPage: React.FC = () => {
   };
 
   const handleResetPwd = async (): Promise<void> => {
-    if (resetPwdUserId === null) return;
+    if (resetPwdUser === null) return;
     const { newPassword } = await pwdForm.validateFields();
     try {
-      await resetPassword(resetPwdUserId, newPassword as string);
+      await resetPassword(resetPwdUser.id, newPassword as string);
       message.success('密码已重置');
       setResetPwdOpen(false);
       pwdForm.resetFields();
@@ -422,7 +422,7 @@ const UserPage: React.FC = () => {
             ]}
             onMore={(key) => {
               if (key === 'resetPwd') {
-                setResetPwdUserId(record.id);
+                setResetPwdUser(record);
                 setResetPwdOpen(true);
               }
               if (key === 'status') {
@@ -603,9 +603,10 @@ const UserPage: React.FC = () => {
 
       {/* 重置密码 */}
       <Modal
-        title="重置密码"
+        title={`重置「${resetPwdUser?.name || resetPwdUser?.username || ''}」的密码`}
         open={resetPwdOpen}
         onOk={handleResetPwd}
+        okText="重置密码"
         onCancel={() => {
           setResetPwdOpen(false);
           pwdForm.resetFields();

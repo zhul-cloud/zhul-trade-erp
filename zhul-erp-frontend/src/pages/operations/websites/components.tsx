@@ -1,5 +1,6 @@
 import { Drawer, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
+import { UserName } from '@/components/UserName';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -101,14 +102,20 @@ export const ReleasesDrawer: React.FC<{
                 </Pill>
               ),
             },
-            { title: '商品数', dataIndex: 'itemCount', width: 80 },
+            {
+              title: '商品数',
+              align: 'right' as const,
+              dataIndex: 'itemCount',
+              width: 80,
+            },
             {
               title: '发起',
               key: 'by',
               width: 220,
               render: (_, r) => (
                 <span style={{ color: palette.sub }}>
-                  {r.createBy} · {formatDateTime(r.createTime)}
+                  <UserName value={r.createBy} /> ·{' '}
+                  {formatDateTime(r.createTime)}
                 </span>
               ),
             },

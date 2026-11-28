@@ -98,7 +98,12 @@ const ReturnReceiptDetail: React.FC = () => {
       width: 200,
       render: (_, x) => <DocModelCell model={x.model} brand={x.brand} />,
     }),
-    { title: '退货', dataIndex: 'quantity', width: 70 },
+    {
+      title: '退货',
+      align: 'right' as const,
+      dataIndex: 'quantity',
+      width: 70,
+    },
     {
       title: '实收',
       align: 'right' as const,
@@ -113,7 +118,12 @@ const ReturnReceiptDetail: React.FC = () => {
       width: 70,
       render: (v) => v ?? '—',
     },
-    { title: '已处理', dataIndex: 'disposedQty', width: 80 },
+    {
+      title: '已处理',
+      align: 'right' as const,
+      dataIndex: 'disposedQty',
+      width: 80,
+    },
     {
       title: '去向',
       key: 'disp',

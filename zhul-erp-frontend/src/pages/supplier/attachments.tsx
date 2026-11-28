@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { useUserName } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import {
@@ -98,11 +99,12 @@ const FileChip: React.FC<{
   const { palette } = useAppTheme();
   const pdf = row.contentType === 'application/pdf';
   const type = pdf ? 'PDF' : row.contentType === 'image/png' ? 'PNG' : 'JPG';
+  const uploader = useUserName(row.createBy);
   const meta = [
     type,
     formatSize(row.fileSize),
     row.id
-      ? `${row.createBy ?? ''} ${formatDateTime(row.createTime).slice(5, 10)} 上传`
+      ? `${uploader} ${formatDateTime(row.createTime).slice(5, 10)} 上传`
       : '待保存',
   ].join(' · ');
   return (

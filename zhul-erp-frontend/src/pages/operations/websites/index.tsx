@@ -13,6 +13,7 @@ import {
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { UserName } from '@/components/UserName';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
@@ -74,7 +75,8 @@ const LastReleaseCell: React.FC<{ site: Site }> = ({ site: s }) => {
         <Pill tone={RELEASE_TONE[r.status] ?? 'gray'}>{r.statusName}</Pill>
       </span>
       <Sub>
-        {r.createBy} · {formatDateTime(r.createTime)} · {r.itemCount} 个商品
+        <UserName value={r.createBy} /> · {formatDateTime(r.createTime)} ·{' '}
+        {r.itemCount} 个商品
       </Sub>
     </div>
   );

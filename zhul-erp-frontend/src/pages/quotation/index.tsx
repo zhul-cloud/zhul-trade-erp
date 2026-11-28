@@ -269,6 +269,7 @@ const QuotationList: React.FC = () => {
       render: (v?: string) => formatDateTime(v),
     },
     // 型号与总数量分两列（同询盘列表）：主规范要求两者都能排序，合成一列会丢掉一种排序
+    // lint-ui-ignore num-align: 格子里是首个型号带件数，按型号列左对齐
     {
       title: '型号',
       dataIndex: 'itemCount',

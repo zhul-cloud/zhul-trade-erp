@@ -105,6 +105,7 @@ const VouchersPage: React.FC = () => {
       width: 110,
       render: (v: number, r) => (r.generated ? <ReconPill diff={v} /> : dash),
     },
+    // lint-ui-ignore num-align: 格子里是导出状态标签，不是数字
     {
       title: '导出状态',
       dataIndex: 'exportCount',

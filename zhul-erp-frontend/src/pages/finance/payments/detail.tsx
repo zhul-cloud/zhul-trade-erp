@@ -185,7 +185,17 @@ const PaymentDetail: React.FC = () => {
           },
           {
             label: '作废',
-            value: `${p.voidReason ?? ''}${p.voidBy ? ` · ${p.voidBy}` : ''}`,
+            value: (
+              <>
+                {p.voidReason ?? ''}
+                {p.voidBy && (
+                  <>
+                    {' · '}
+                    <UserName value={p.voidBy} />
+                  </>
+                )}
+              </>
+            ),
             hidden: valid,
           },
         ]}

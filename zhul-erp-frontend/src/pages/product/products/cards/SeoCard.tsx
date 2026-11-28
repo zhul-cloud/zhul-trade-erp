@@ -16,6 +16,7 @@ import {
 import dayjs from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { useUserName } from '@/components/UserName';
 import { tableScrollX } from '@/utils/tableScroll';
 import { LangSwitch } from '../../components/LangSwitch';
 import { Pill } from '../../components/Pills';
@@ -91,6 +92,20 @@ const writtenAt = (p: PlatformProgress, platform: MarketingPlatform) =>
 
 type ChipState = 'done' | 'todo' | 'skip';
 
+/** 标为不发布的平台：悬停看谁、什么时候标的（人名经公共 useUserName 显示） */
+const SkipChip: React.FC<{
+  label: string;
+  platform: string;
+  by?: string | null;
+  at: string;
+}> = ({ label, platform, by, at }) => (
+  <Chip
+    label={label}
+    state="skip"
+    title={`${platform}不发布 · ${useUserName(by)} ${at}`}
+  />
+);
+
 const Chip: React.FC<{ label: string; state: ChipState; title: string }> = ({
   label,
   state,
@@ -143,11 +158,12 @@ export const PlatformChips: React.FC<{
         const skip = progress.skips?.[platform];
         if (skip) {
           return [
-            <Chip
+            <SkipChip
               key={platform}
               label={meta.short}
-              state="skip"
-              title={`${meta.label}不发布 · ${skip.markedBy ?? ''} ${fmt(skip.markedAt)}`}
+              platform={meta.label}
+              by={skip.markedBy}
+              at={fmt(skip.markedAt)}
             />,
           ];
         }
@@ -1028,8 +1044,10 @@ export const PlatformPanel: React.FC<{
   const skip = d.skips?.[p];
   const at = writtenAt(d, p);
   const pc = d.platformContents?.[p];
+  const markedName = useUserName(skip?.markedBy);
+  const confirmedName = useUserName(pc?.confirmedBy);
   const text = skip
-    ? `${dayjs(skip.markedAt).format('YYYY-MM-DD HH:mm')} ${skip.markedBy ?? ''} 标为不发布，不计进度；已写入的内容保留`
+    ? `${dayjs(skip.markedAt).format('YYYY-MM-DD HH:mm')} ${markedName} 标为不发布，不计进度；已写入的内容保留`
     : p === 'site'
       ? at
         ? '英文、俄文都已写入'
@@ -1037,7 +1055,7 @@ export const PlatformPanel: React.FC<{
           ? '英文已写入，俄文还没写入'
           : '还没写入'
       : at
-        ? `${dayjs(at).format('YYYY-MM-DD HH:mm')}${pc?.confirmedBy ? ` · ${pc.confirmedBy}` : ''} 写入`
+        ? `${dayjs(at).format('YYYY-MM-DD HH:mm')}${confirmedName ? ` · ${confirmedName}` : ''} 写入`
         : '还没写入';
   return (
     <>

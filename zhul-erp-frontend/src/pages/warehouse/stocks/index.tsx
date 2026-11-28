@@ -141,6 +141,7 @@ const BatchRows: React.FC<{
     },
     {
       title: '单价（CNY）',
+      align: 'right' as const,
       dataIndex: 'unitPriceCny',
       width: 110,
       render: (v: number) => Number(v).toFixed(6),
@@ -283,6 +284,7 @@ const StocksPage: React.FC = () => {
     },
     {
       title: '合格结存',
+      align: 'right' as const,
       dataIndex: 'good',
       width: 90,
       render: (v: number) => <b>{v}</b>,
@@ -296,12 +298,14 @@ const StocksPage: React.FC = () => {
     },
     {
       title: '订单预占',
+      align: 'right' as const,
       dataIndex: 'orderReserved',
       width: 90,
       render: (v: number) => num(v),
     },
     {
       title: '退货待寄出',
+      align: 'right' as const,
       dataIndex: 'returnReserved',
       width: 100,
       render: (v: number) => num(v, palette.orange),
@@ -310,6 +314,7 @@ const StocksPage: React.FC = () => {
       title: (
         <HeadHelp title="可用" help="没有预占给订单，可以报废、转样品或退回" />
       ),
+      align: 'right' as const,
       dataIndex: 'available',
       width: 90,
       render: (v: number) => num(v, palette.green),

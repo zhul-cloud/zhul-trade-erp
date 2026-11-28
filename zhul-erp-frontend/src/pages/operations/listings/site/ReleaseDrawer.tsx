@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTabActive } from '@/components/PageTabs/hooks';
+import { UserName } from '@/components/UserName';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -559,13 +560,13 @@ export const ReleaseDrawer: React.FC<{
             >
               <ListOrdered size="1em" /> 同一站点后面还有 {queue.length}{' '}
               张发布单排队（
-              {queue
-                .slice(0, 3)
-                .map(
-                  (q) =>
-                    `${q.releaseNo} · ${q.createBy ?? ''} · ${q.itemCount} 个商品`,
-                )
-                .join('；')}
+              {queue.slice(0, 3).map((q, i) => (
+                <React.Fragment key={q.releaseNo}>
+                  {i > 0 && '；'}
+                  {q.releaseNo} · <UserName value={q.createBy} /> ·{' '}
+                  {q.itemCount} 个商品
+                </React.Fragment>
+              ))}
               ），这张结束后自动开始
             </div>
           )}

@@ -646,7 +646,12 @@ const _ListTab: React.FC<{ refreshSignal: number }> = ({ refreshSignal }) => {
       width: 170,
       render: (v: string) => formatDateTime(v),
     },
-    { title: '项数', dataIndex: 'lineCount', width: 70 },
+    {
+      title: '项数',
+      align: 'right' as const,
+      dataIndex: 'lineCount',
+      width: 70,
+    },
     {
       title: '合计（CNY）',
       dataIndex: 'totalAmount',
