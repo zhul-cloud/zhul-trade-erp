@@ -45,6 +45,9 @@ export const ShellStyle: React.FC = () => {
     width: 40px !important; margin: 4px auto !important; padding: 0 !important; display: flex; justify-content: center; align-items: center;
   }
   .ant-pro-sider.ant-layout-sider-collapsed .ant-menu-submenu-selected > .ant-menu-submenu-title { background: ${p.primarySoft} !important; }
+  /* 收起时只留图标：菜单组的展开箭头（app.tsx 的 expandIcon）不显示，否则挤偏图标、伸出 40 宽的按钮被截一半 */
+  .ant-pro-sider.ant-layout-sider-collapsed .ant-menu-submenu-title > svg,
+  .ant-pro-sider.ant-layout-sider-collapsed .ant-menu-submenu-arrow { display: none !important; }
   /* 浮出展开：ProLayout 按展开渲染，占位仍是收起时的宽度，侧栏浮在内容上 */
   [data-sider-peek='true'] > div:first-child {
     width: 80px !important; min-width: 80px !important; max-width: 80px !important; flex: 0 0 80px !important;
