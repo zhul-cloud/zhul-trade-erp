@@ -197,7 +197,7 @@ it('私对私只列对私账户，没传凭证不能保存', async () => {
     fireEvent.click(screen.getByText('私对私'));
   });
   expect(
-    await screen.findByText('招商银行 · 张总 ****1234（对私）'),
+    await screen.findByTitle('招商银行 · 张总 · ****1234（对私）'),
   ).toBeTruthy();
   expect(screen.queryByText(/工商银行/)).toBeNull();
   fireEvent.change(screen.getByRole('textbox', { name: '对方户名' }), {

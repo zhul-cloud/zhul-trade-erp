@@ -19,6 +19,7 @@ import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/sales/service';
 import { ReasonModal, relatedRows } from '@/pages/warehouse/components';
+import { useAppTheme } from '@/theme/AppTheme';
 import { UnitPill, useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -31,6 +32,7 @@ const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
 
 /** 结汇单详情（change finance-ap-fx-docs）：有效时只改备注与附件，录错作废重登 */
 const FxSettlementDetail: React.FC = () => {
+  const { palette } = useAppTheme();
   const id = Number(useParams<{ id: string }>().id);
   const { message } = App.useApp();
   const access = useAccess() as Record<string, boolean>;
@@ -71,46 +73,56 @@ const FxSettlementDetail: React.FC = () => {
   const columns: TableColumnsType<Allocation> = [
     { title: '#', key: 'i', width: 48, render: (_, __, i) => i + 1 },
     {
-      title: '收款单号',
+      // 到账日期、收款单结汇状态并到收款单号下，人民币并到外币下，主栏 664 宽不横向滚动（UI-119）
+      title: '收款单号 · 到账日期',
       key: 'no',
-      width: 150,
-      render: (_, a) =>
-        a.receipt?.receiptNo ? (
-          <Link
-            className="zhul-link zhul-link-doc"
-            to={`/finance/receipts/${a.receipt.id}`}
+      width: 170,
+      render: (_, a) => (
+        <div style={{ display: 'grid', gap: 2, justifyItems: 'start' }}>
+          {a.receipt?.receiptNo ? (
+            <Link
+              className="zhul-link zhul-link-doc"
+              to={`/finance/receipts/${a.receipt.id}`}
+            >
+              {a.receipt.receiptNo}
+            </Link>
+          ) : (
+            '—'
+          )}
+          <span
+            style={{
+              display: 'inline-flex',
+              gap: 6,
+              alignItems: 'center',
+              fontSize: 12,
+              color: palette.mute,
+            }}
           >
-            {a.receipt.receiptNo}
-          </Link>
-        ) : (
-          '—'
-        ),
-    },
-    {
-      title: '到账日期',
-      key: 'd',
-      width: 110,
-      render: (_, a) => a.receipt?.receiptDate,
+            {a.receipt?.receiptDate}
+            <SettlePill status={a.receipt?.settleStatus} />
+          </span>
+        </div>
+      ),
     },
     {
       title: '来源单号 · 客户',
       key: 'pi',
-      width: 220,
+      width: 186,
       render: (_, a) => (a.receipt ? <ReceiptWho r={a.receipt} /> : '—'),
     },
     {
-      title: `分摊外币（${cur}）`,
+      title: `分摊（${cur} · CNY）`,
       dataIndex: 'amount',
-      width: 130,
+      width: 140,
       align: 'right',
-      render: (v: number) => <span style={num}>{formatMoney(v)}</span>,
-    },
-    {
-      title: '分摊人民币',
-      dataIndex: 'amountCny',
-      width: 130,
-      align: 'right',
-      render: (v: number) => <span style={num}>{formatMoney(v)}</span>,
+      render: (v: number, a) => (
+        <div style={num}>
+          <div>{formatMoney(v)}</div>
+          <div style={{ fontSize: 12, color: palette.mute }}>
+            {formatMoney(a.amountCny)}
+          </div>
+        </div>
+      ),
     },
     ...(hasFee
       ? [
@@ -125,12 +137,6 @@ const FxSettlementDetail: React.FC = () => {
           },
         ]
       : []),
-    {
-      title: '收款单结汇',
-      key: 's',
-      width: 110,
-      render: (_, a) => <SettlePill status={a.receipt?.settleStatus} />,
-    },
   ];
 
   const info = (

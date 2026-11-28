@@ -17,6 +17,7 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import EllipsisText from '@/components/EllipsisText';
 import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
@@ -112,24 +113,19 @@ const RefundRequestDetail: React.FC = () => {
         x.lineType === 1 ? <DocModelCell model={v} brand={x.brand} /> : v,
     }),
     {
-      title: '项目',
-      dataIndex: 'lineType',
-      width: 90,
-      render: (v: number) => (v === 1 ? '退货型号' : '其他'),
-    },
-    {
-      title: '数量',
-      align: 'right' as const,
-      dataIndex: 'quantity',
-      width: 70,
-      render: (v?: number) => v ?? '—',
-    },
-    {
-      title: `成交单价（${cur}）`,
+      // 「项目」列去掉（型号格已能区分退货型号与其他费用），单价并到数量后，主栏 664 宽不横向滚动（UI-119）
+      title: `数量 × 单价（${cur}）`,
       align: 'right',
-      dataIndex: 'unitPrice',
-      width: 120,
-      render: (v?: number) => (v == null ? '—' : formatMoney(v)),
+      dataIndex: 'quantity',
+      width: 140,
+      render: (v: number | undefined, x) =>
+        v == null ? (
+          '—'
+        ) : (
+          <span className="num">
+            {v} × {x.unitPrice == null ? '—' : formatMoney(x.unitPrice)}
+          </span>
+        ),
     },
     {
       title: `金额（${cur}）`,
@@ -141,8 +137,8 @@ const RefundRequestDetail: React.FC = () => {
     {
       title: '说明',
       dataIndex: 'note',
-      width: 160,
-      render: (v?: string) => v || '—',
+      width: 108,
+      render: (v?: string) => (v ? <EllipsisText text={v} /> : '—'),
     },
   ];
 

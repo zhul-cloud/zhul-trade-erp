@@ -31,6 +31,7 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import BankAccountLabel from '@/components/BankAccountLabel';
 import { EmptyState } from '@/components/EmptyState';
 import { HelpTip } from '@/components/ListLayout';
 import { useCountries } from '@/pages/product/components/useCountries';
@@ -813,15 +814,15 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
     ? banks.filter((b) => b.businessUnitId !== pi?.businessUnitId)
     : [];
   const otherChosen = otherBanks.some((b) => b.id === bankId);
-  const bankOption = (b: BankOption, unit?: boolean) => {
-    const text = `${b.bankName} ${b.accountNoMasked}${b.accountType === 2 ? '（对私）' : ''}`;
-    return {
-      value: b.id,
-      label: unit ? `${text} · ${unitName(b.businessUnitId)}` : text,
-      text,
-      hint: unit ? unitName(b.businessUnitId) : b.isDefault ? '默认' : '',
-    };
-  };
+  const bankOption = (b: BankOption, unit?: boolean) => ({
+    value: b.id,
+    label: (
+      <BankAccountLabel
+        account={b}
+        hint={unit ? unitName(b.businessUnitId) : b.isDefault ? '默认' : ''}
+      />
+    ),
+  });
   const bankOptions: SelectProps['options'] =
     showOther || otherChosen
       ? [
@@ -1073,16 +1074,7 @@ export const ConfirmReceiptModal = <T extends ReceiptResult>({
             value={bankId}
             onChange={setBankId}
             options={bankOptions}
-            optionRender={(o) => (
-              <div style={{ display: 'flex', gap: 8 }}>
-                <span style={{ flex: 1, minWidth: 0 }}>{o.data.text}</span>
-                {o.data.hint && (
-                  <span style={{ fontSize: 12, color: palette.mute }}>
-                    {o.data.hint}
-                  </span>
-                )}
-              </div>
-            )}
+            popupMatchSelectWidth={320}
             popupRender={(menu) => (
               <>
                 {menu}

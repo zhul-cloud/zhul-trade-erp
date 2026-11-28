@@ -10,6 +10,7 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import { CircleAlert, CircleCheck } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import BankAccountLabel from '@/components/BankAccountLabel';
 import { Pill } from '@/pages/inquiry/shared/components';
 import {
   type BankOption,
@@ -306,7 +307,7 @@ export const BatchPayModal: React.FC<{
                     style={{ width: '100%' }}
                     options={own.map((a) => ({
                       value: a.id,
-                      label: `${a.bankName} · ${a.accountName} ${a.accountNoMasked}`,
+                      label: <BankAccountLabel account={a} name />,
                     }))}
                     notFoundContent={`没有${method === METHOD.PRIVATE ? '对私' : '对公'}的 ${g.currency} 账户，请先在「收款账户」里添加`}
                   />

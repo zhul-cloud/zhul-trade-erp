@@ -26,6 +26,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import BankAccountLabel from '@/components/BankAccountLabel';
 import { EmptyState, tableEmpty } from '@/components/EmptyState';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { UserName } from '@/components/UserName';
@@ -812,7 +813,7 @@ export const RegisterPaymentDrawer: React.FC<{
                 placeholder={`选择 ${currency} 账户`}
                 options={currencyAccounts.map((a) => ({
                   value: a.id,
-                  label: `${a.bankName} · ${a.accountName} ${a.accountNoMasked}`,
+                  label: <BankAccountLabel account={a} name />,
                 }))}
                 notFoundContent={`没有${method === METHOD.PRIVATE ? `对私${wallet ? `银行卡或${PAY_CHANNEL_NAMES[channel]}` : ''}` : '对公'}的 ${currency} 账户，请先在「收款账户」里添加`}
               />
@@ -1145,7 +1146,7 @@ export const RefundModal: React.FC<{
             onChange={setAccountId}
             options={accounts.map((a) => ({
               value: a.id,
-              label: `${a.bankName} · ${a.accountName} ${a.accountNoMasked}`,
+              label: <BankAccountLabel account={a} name />,
             }))}
           />
         </Field>

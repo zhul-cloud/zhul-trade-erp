@@ -68,18 +68,25 @@ const ReimbursementDetail: React.FC = () => {
   const paid = bx.status === BX_STATUS.PAID;
   const columns: TableColumnsType<AdvanceItem> = [
     { title: '#', key: 'i', width: 48, render: (_, __, i) => i + 1 },
-    { title: '来源单号', key: 'source', width: 230, render: sourceCell },
+    {
+      // 日期并到来源单号下，主栏 664 宽不横向滚动（UI-119）
+      title: '来源单号 · 日期',
+      key: 'source',
+      width: 220,
+      render: (v, i) => (
+        <div>
+          {sourceCell(v, i)}
+          <div style={{ fontSize: 12, color: palette.mute }}>
+            {i.occurDate || '—'}
+          </div>
+        </div>
+      ),
+    },
     {
       title: '说明',
       dataIndex: 'description',
-      width: 260,
+      width: 180,
       render: ellipsisRender,
-    },
-    {
-      title: '日期',
-      dataIndex: 'occurDate',
-      width: 110,
-      render: (v?: string) => v || '—',
     },
     {
       title: '金额',
@@ -95,7 +102,7 @@ const ReimbursementDetail: React.FC = () => {
     {
       title: '截图',
       key: 'proofs',
-      width: 90,
+      width: 80,
       render: (_, i) => <ProofLinks files={i.proofs} />,
     },
   ];

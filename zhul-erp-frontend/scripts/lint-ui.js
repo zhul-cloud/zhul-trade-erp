@@ -39,6 +39,7 @@ const RULE_NAMES = new Set([
   'cjk-weight',
   'font-scale',
   'choice-primary',
+  'bank-label',
   'glow',
   'hardcoded-color',
   'old-header',
@@ -218,6 +219,13 @@ const LINE_RULES = [
     message:
       '选中态不用实底或描边主按钮（一屏只有一个主按钮，主题色浅底才表示选中，D42）：单选选项用 ChoiceChips，开关式筛选用 QuickFilters；按状态切成主操作的写 lint-ui-ignore choice-primary 说明',
     re: /\btype=\{[^}]*\?\s*'primary'\s*:/,
+  },
+  {
+    id: 'bank-label',
+    level: 'error',
+    message:
+      '银行账户选项用公共 BankAccountLabel：整串拼接时长银行名会把账号尾号挤出去、或压在右侧的「默认」「事业部」提示上（UI-107）',
+    re: /\$\{\w+\.accountNoMasked\}/,
   },
   {
     id: 'scroll-max-content',
