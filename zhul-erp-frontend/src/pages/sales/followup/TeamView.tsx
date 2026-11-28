@@ -661,7 +661,7 @@ const TeamView: React.FC<{ onJump: (j: TeamJump) => void }> = ({ onJump }) => {
                       </div>
                       <div
                         style={{
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: 600,
                           color: palette.ink,
                         }}

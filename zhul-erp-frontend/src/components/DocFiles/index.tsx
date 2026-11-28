@@ -10,6 +10,7 @@ import {
   UploadIcon,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { ChoiceChips } from '@/components/ListLayout';
 import { useUnsavedGuard } from '@/components/PageTabs/hooks';
 import { Card } from '@/pages/inquiry/shared/components';
 import { MediaTile } from '@/pages/warehouse/components';
@@ -89,19 +90,12 @@ const ExcelView: React.FC<{ url: string; name: string }> = ({ url, name }) => {
   return (
     <div style={{ display: 'grid', gap: 12 }}>
       {sheets.length > 1 && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {sheets.map((s, i) => (
-            <Button
-              key={s.name}
-              size="small"
-              type={i === active ? 'primary' : 'text'}
-              ghost={i === active}
-              onClick={() => setActive(i)}
-            >
-              {s.name}
-            </Button>
-          ))}
-        </div>
+        <ChoiceChips
+          label="工作表"
+          options={sheets.map((s, i) => ({ value: String(i), label: s.name }))}
+          value={String(active)}
+          onChange={(v) => setActive(Number(v))}
+        />
       )}
       <div style={{ overflow: 'auto', maxHeight: '62vh', borderRadius: 8 }}>
         <table

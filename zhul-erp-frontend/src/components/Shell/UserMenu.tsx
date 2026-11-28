@@ -157,6 +157,7 @@ export const UserMenu: React.FC = () => {
               background: palette.primarySoft, // lint-ui-ignore primary-soft: 头像，规范「头像：主题色浅底加首字」
               color: palette.link,
               fontWeight: 600,
+              fontSize: 16, // antd 按尺寸一半取 18，不在字阶里
             }}
           >
             {initial}

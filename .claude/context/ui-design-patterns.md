@@ -340,6 +340,7 @@ import {
 | `FilterField` | `label`、`span`、`help` | 搜索条件的一项。一行模式下名称自动放进输入框作前缀（穿过 `Form.Item` 找到 antd 的 Select、Input、InputNumber、DatePicker、RangePicker、Cascader、TreeSelect；其他控件名称放在框左侧）；控件自带前缀（关键词的搜索图标）时不放名称，帮助图标放框右侧。关键词 `span={2}`（220–360），日期范围至少 300（去掉日历图标，两个日期不截断），其余 140–220，统计期间这类组合控件 `span="auto"` 按内容宽度；放得下就排一行（弹性布局按最小宽度排，余量均分），1366 宽下常用的 4 个条件也排一行（视口不到 1400 时「更多筛选」只显示图标和生效数量）；仍放不下时次要条件收进 `more`。完整搜索范围写在 `help`（以 `search-scope.md` 为准） |
 | `ViewTabs` | `items`（`key`、`label`、`count`、`children`、`forceRender`）、`activeKey`、`onChange` | 页面级视图页签（下划线），放页头下方；数量传 `count`，自动写成「名称 N」，当前页签的数字跟随主题色、其余为次要文字色。页签栏是一条白卡（高 48）；紧接着是搜索区 `FilterCard` 时自动拼成一张卡、页签做卡头（D72，对比图 R31 方案 B），中间隔着汇总、提示条等就各自成卡。用途见「切换控件按用途分四种」 |
 | `ScopeSwitch` | `value`（`'mine' \| 'all'`）、`onChange` | 数据范围切换，灰轨分段「我的 / 全部」，放 `PageHeader` 的 `extra`，主按钮之前 |
+| `ChoiceChips` | `options`、`value`、`onChange`、`label` | 单选选项（快捷日期、付款条件预设、阶段切换、工作表切换），样式同快捷筛选，选中的再点不取消；读屏按单选组念。不用 `Button type=primary/ghost` 表示选中（UI-117 第 8 批：跟进弹窗的日期选中用实底主按钮，一个弹窗两个主按钮） |
 | `QuickFilters` | `options`、`value`、`onChange`、`label` | 快捷筛选，多选，点一下选中、再点取消；前提是接口已有对应筛选。数量写在选项的 `count`（名称后等宽加粗，不写「·」），需要处理的数量（逾期、缺货）加 `danger`，不为 0 时用错误色；各页不再自己拼「名称 · 数量」 |
 | `MainCard` | `left`、`right`、`quick`、`chips` | 主内容区：操作行（左侧结果数或「已选 N 张」，后面是快捷筛选 `quick`（不写「快捷筛选」字样）与已生效条件胶囊：「更多筛选」收起时，`FilterCard` 自动把里面已生效的条件（表单字段或受控控件的值，下拉显示选项名称、日期按天）做成「品牌：西门子 ×」交给同一页的主卡，点 × 去掉条件并重新查询，页面不用另写；不在「更多筛选」里的条件（如从别的页面带来的「只看某商品」）用 `chips`（`{ key, label, onRemove }`）自己传；右侧批量操作）+ 表格 |
 | `SelectionCount` | `count`、`unit`、`extra`、`onClear` | 操作行左侧勾选后的「已选 N 条 · 取消选择」，传给 `MainCard` 的 `left`（不在主卡里的工具栏也用它）；批量操作只在勾选后渲染，不做「没勾选时置灰」 |
@@ -402,7 +403,8 @@ import {
 | `row-actions` | 错误 | 表格「操作」列没用 `RowActions`：审批、审核、工作队列、要显示进度的长操作等例外，在列上写 `lint-ui-ignore row-actions: 原因` |
 | `attr-tone` | 错误 | 类别、属性标签（客户指定、老客户、现货、默认等）用了状态色（绿、橙、红、青、信息蓝、主题色）：改属性色或 `gray`；同一列不同取值颜色不重复靠评审看（D75） |
 | `antd-empty` | 错误 | 用了 antd 的 `Empty`：改公共 `EmptyState`（小地方 `compact`） |
-| `font-scale` | 错误 | 写了 15 或 17 号字：不在字阶里，标题、强调数字用 16；图标尺寸等其他越界取值靠评审 |
+| `font-scale` | 错误 | 文字字号不在字阶里：15、17 任何写法都报；JSX `style` 里的其他越界字号（10、11、18、22、12.5 等）也报，10、11 改 12，18 改 16，22 改 20。图标靠 `fontSize` 定大小不算：自闭合的图标组件、只包着图标的容器（含 `*icon` 变量、两边都是图标的条件式、`aria-hidden`）放行，分不清的写例外（UI-117 第 8 批：原规则只管 15、17，全站还有 36 处 10/11/18/22 号字没被拦住） |
+| `choice-primary` | 错误 | `type={条件 ? 'primary' : …}`：用主按钮（实底或描边）表示选中。一屏只有一个主按钮，选中用主题色浅底：单选选项用 `ChoiceChips`，开关式筛选用 `QuickFilters`；按状态变成主操作的（如完成后的「关闭」）写例外 |
 | `cjk-weight` | 错误 | 写了 500、700、800、900 或 `bold` 字重（含三元表达式和样式字符串）：中文只用 400/600，Windows 微软雅黑只有常规和粗体，500 显示成常规、700 与 600 看不出差别；`<b>`、`<strong>` 全局兜底 600、`<dt>` 兜底 400（AppTheme）；字母 Logo 等写例外 |
 | `primary-soft` | 错误 | 写死了 `background` / `backgroundColor: …primarySoft`；条件写法按语法树查（换行写的也查得到）：浅底只能在「是」分支，条件须是 `on`、`active`、`checked`、`selected`、`current` 等选中态或比较、调用（`mode === v`、`picked(id)`），选中分支里再嵌套的三元继承选中态；按类别区分（`user ? …`）、取反（`!active`、`!picked(id)`）、不等比较（`!==`）、写在「否」分支、写在非选中的嵌套三元里都报；以 `!` 开头（双重取反 `!!x` 按 `x` 算）或含 `!==` 的条件一律报，即使同时含 `===`；已知限制：其余含 `===` 的条件一律放过（`mode === v` 是选中，`kind === 'ai'` 按类别上色也会被放过），`a && palette.primarySoft` 与模板字符串不查，这几种靠评审人工看：说明文字改 `Callout`，数字、汇总块改 `inset`，属性改 `neutralSoft`；选中、批量操作条、搜索命中、头像、返回条写例外（D42） |
 | `antd-icon` | 错误 | 用了 `@ant-design/icons`：改 lucide-react（尺寸 `size="1em"` 跟随字号，转圈加 `zhul-spin`）；品牌标识等 lucide 没有的写例外 |

@@ -60,6 +60,47 @@ describe('lint:ui', () => {
     );
   });
 
+  it('文字字号不在字阶里报错，图标放行', () => {
+    expect(rules('<b style={{ fontSize: 22 }}>{total}</b>')).toContain(
+      'font-scale:error',
+    );
+    expect(rules('<span style={{ fontSize: 11 }}>说明</span>')).toContain(
+      'font-scale:error',
+    );
+    expect(rules('<X size="1em" style={{ fontSize: 10 }} />')).not.toContain(
+      'font-scale:error',
+    );
+    expect(
+      rules('<span style={{ fontSize: 18 }}>\n  <Zap size="1em" />\n</span>'),
+    ).not.toContain('font-scale:error');
+    expect(
+      rules('<i style={{ fontSize: 18 }}>{ok && <Check size="1em" />}</i>'),
+    ).not.toContain('font-scale:error');
+    expect(rules('<b style={{ fontSize: 20 }}>{total}</b>')).not.toContain(
+      'font-scale:error',
+    );
+    expect(
+      rules(
+        '<i style={{ fontSize: 18 }}>{on ? <A size="1em" /> : <B size="1em" />}</i>',
+      ),
+    ).not.toContain('font-scale:error');
+    expect(rules('<i style={{ fontSize: 22 }}>{o.icon}</i>')).not.toContain(
+      'font-scale:error',
+    );
+    expect(rules('<b style={{ fontSize: 12.5 }}>{name}</b>')).toContain(
+      'font-scale:error',
+    );
+  });
+
+  it('选中态用主按钮报错（改用 ChoiceChips / QuickFilters）', () => {
+    expect(
+      rules("<Button type={on ? 'primary' : 'default'}>明天</Button>"),
+    ).toContain('choice-primary:error');
+    expect(rules('<Button type="primary">保存</Button>')).not.toContain(
+      'choice-primary:error',
+    );
+  });
+
   it('属性标签用状态色报错，灰与属性色放行（D75）', () => {
     expect(rules('<Pill tone="orange">对私</Pill>')).toContain(
       'attr-tone:error',

@@ -173,7 +173,7 @@ export const PayeeQrPanel: React.FC<{
               应付{' '}
               <b
                 style={{
-                  fontSize: 22,
+                  fontSize: 20,
                   color: palette.ink,
                   fontVariantNumeric: 'tabular-nums',
                 }}

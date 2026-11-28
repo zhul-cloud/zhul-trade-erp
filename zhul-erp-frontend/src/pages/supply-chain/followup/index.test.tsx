@@ -167,7 +167,7 @@ it('UI-086：换筛选条件后清空勾选，批量栏不再作用于看不见�
   expect(await screen.findByText('已选 2 条')).toBeTruthy();
   // 切到「可直接报价」：列表里已经没有这两个型号
   api.groups.mockResolvedValue({ totalGroups: 0, totalModels: 0, groups: [] });
-  fireEvent.click(screen.getByRole('button', { name: /可直接报价/ }));
+  fireEvent.click(screen.getByRole('radio', { name: /可直接报价/ }));
   await waitFor(() => expect(lastCall(api.groups).stage).toBe('4'));
   await waitFor(() => expect(screen.queryByText(/已选 \d+ 条/)).toBeNull());
 });

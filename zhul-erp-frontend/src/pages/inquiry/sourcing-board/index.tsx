@@ -22,7 +22,6 @@ import {
   Upload,
   User,
   UserPlus,
-  X,
   Zap,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -31,6 +30,7 @@ import {
   FilterField,
   HelpTip,
   PageHeader,
+  QuickFilters,
   SummaryBar,
   ViewTabs,
 } from '@/components/ListLayout';
@@ -381,20 +381,21 @@ const SourcingBoardPage: React.FC = () => {
             <div style={{ display: 'grid', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 {tab === UNASSIGNED && (
-                  <Button
-                    size="small"
-                    type={showDeferred ? 'primary' : 'default'}
-                    ghost={showDeferred}
-                    icon={<Clock size="1em" />}
-                    onClick={() => {
-                      setDeferredView(!showDeferred);
+                  <QuickFilters
+                    label="延后的任务"
+                    options={[
+                      {
+                        value: 'deferred',
+                        label: '已延后',
+                        count: board.tabs?.deferred ?? s.deferred ?? 0,
+                      },
+                    ]}
+                    value={showDeferred ? ['deferred'] : []}
+                    onChange={(v) => {
+                      setDeferredView(v.length > 0);
                       setPage(1);
                     }}
-                    aria-pressed={showDeferred}
-                  >
-                    已延后 {board.tabs?.deferred ?? s.deferred ?? 0}
-                    {showDeferred && <X size="1em" style={{ fontSize: 10 }} />}
-                  </Button>
+                  />
                 )}
                 {TAB_HINT[tab] && <HelpTip title={TAB_HINT[tab]} />}
                 <span style={{ marginLeft: 'auto' }} />

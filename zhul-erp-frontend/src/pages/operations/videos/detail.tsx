@@ -553,7 +553,7 @@ const VideoTaskDetailPage: React.FC = () => {
                       minWidth: 18,
                       height: 18,
                       borderRadius: 4,
-                      fontSize: 11,
+                      fontSize: 12,
                       // 未选用多一圈 1px 边线，行高减 2 保持文字居中
                       lineHeight: m.used ? '18px' : '16px',
                       textAlign: 'center',
@@ -575,7 +575,7 @@ const VideoTaskDetailPage: React.FC = () => {
                         position: 'absolute',
                         bottom: 6,
                         left: 6,
-                        fontSize: 11,
+                        fontSize: 12,
                         color: '#fff',
                       }}
                     >

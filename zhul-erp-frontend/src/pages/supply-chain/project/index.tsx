@@ -317,12 +317,12 @@ const ProjectDetailPage: React.FC = () => {
         ),
     },
   ];
-  // 同在左栏：主渠道和最近证据并成一列，下一步占剩下的宽度，1366 宽也不横向滚动
+  // 同在左栏：主渠道和最近证据并成一列，下一步占剩下的宽度（固定布局，各列宽度才生效），1366 宽也不横向滚动
   const columns: TableColumnsType<Demand> = [
     {
       title: '型号',
       key: 'model',
-      width: 150,
+      width: 140,
       render: (_, d) => <Link to={PATHS.demand(d.id)}>{modelName(d)}</Link>,
     },
     {
@@ -343,7 +343,7 @@ const ProjectDetailPage: React.FC = () => {
     {
       title: '主渠道 · 最近证据',
       key: 'evidence',
-      width: 150,
+      width: 140,
       render: (_, d) => (
         <span style={{ display: 'grid', gap: 2 }}>
           <EllipsisText text={d.primarySupplier || '—'} />
@@ -361,7 +361,7 @@ const ProjectDetailPage: React.FC = () => {
     {
       title: '负责人',
       dataIndex: 'ownerName',
-      width: 80,
+      width: 72,
       render: (v?: string) => v || '—',
     },
   ];
@@ -526,6 +526,7 @@ const ProjectDetailPage: React.FC = () => {
                 columns={columns}
                 dataSource={p.items ?? []}
                 pagination={false}
+                tableLayout="fixed"
                 scroll={{ x: 600 }}
               />
             </Card>
@@ -585,6 +586,7 @@ const ProjectDetailPage: React.FC = () => {
                   columns={candColumns}
                   dataSource={dev.candidates}
                   pagination={false}
+                  tableLayout="fixed"
                   scroll={{ x: 600 }}
                   locale={{
                     emptyText: tableEmpty(

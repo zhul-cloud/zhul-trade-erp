@@ -1217,7 +1217,7 @@ const OrderDetail: React.FC = () => {
                 ? '订单合计（部分取消后）'
                 : '合计'}
             </b>
-            <b style={{ ...num, fontSize: 22, color: palette.ink }}>
+            <b style={{ ...num, fontSize: 20, color: palette.ink }}>
               {formatAmount(o.totalAmount, cur)}
             </b>
           </div>

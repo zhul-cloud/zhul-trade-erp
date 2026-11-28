@@ -1602,7 +1602,7 @@ export const NewOrderDrawer: React.FC<{
                       >
                         {formatAmount(p.totalAmount, p.currencyCode)}
                       </b>
-                      <div style={{ fontSize: 11, color: palette.mute }}>
+                      <div style={{ fontSize: 12, color: palette.mute }}>
                         合计
                       </div>
                     </div>
@@ -1987,7 +1987,7 @@ export const CreateFeeOrderModal: React.FC<{
         <b
           style={{
             marginLeft: 'auto',
-            fontSize: 18,
+            fontSize: 16,
             color: palette.ink,
             fontVariantNumeric: 'tabular-nums',
           }}

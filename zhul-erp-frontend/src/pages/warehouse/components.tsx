@@ -377,7 +377,7 @@ export const MediaTile: React.FC<{
             ) : (
               <Image size="1em" style={{ fontSize: 20 }} />
             )}
-            {label && <span style={{ fontSize: 11 }}>{label}</span>}
+            {label && <span style={{ fontSize: 12 }}>{label}</span>}
           </span>
         )}
       </button>
@@ -391,7 +391,7 @@ export const MediaTile: React.FC<{
               bottom: 4,
               padding: '0 4px',
               borderRadius: 4,
-              fontSize: 10,
+              fontSize: 12,
               lineHeight: '16px',
               color: '#fff',
               background:

@@ -62,7 +62,7 @@ export const PeriodTiles: React.FC<{ p: Period }> = ({ p }) => {
               <div style={{ fontSize: 12, color: palette.sub }}>{label}</div>
               <div
                 style={{
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: 600,
                   color: palette.ink,
                   marginTop: 4,

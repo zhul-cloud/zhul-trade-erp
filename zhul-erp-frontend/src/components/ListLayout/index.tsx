@@ -839,6 +839,97 @@ export interface QuickFilterOption {
   danger?: boolean;
 }
 
+/** 快捷筛选、单选选项共用的胶囊：未选中中性浅底，选中主题色浅底、加粗、前面加勾选 */
+const Chip: React.FC<
+  {
+    option: QuickFilterOption & { disabled?: boolean };
+    on: boolean;
+    onClick: () => void;
+  } & Pick<React.AriaAttributes, 'aria-pressed' | 'aria-checked'> & {
+      role?: string;
+    }
+> = ({ option: o, on, onClick, ...aria }) => {
+  const { palette } = useAppTheme();
+  return (
+    <button
+      type="button"
+      {...aria}
+      disabled={o.disabled}
+      onClick={onClick}
+      style={{
+        height: 28,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        padding: on ? '0 12px 0 8px' : '0 12px',
+        border: 0,
+        borderRadius: 999,
+        background: on ? palette.primarySoft : palette.neutralSoft,
+        color: palette.sub,
+        fontSize: 13,
+        fontWeight: on ? 600 : 400,
+        cursor: o.disabled ? 'not-allowed' : 'pointer',
+        opacity: o.disabled ? 0.5 : 1,
+      }}
+    >
+      {on && <Check size={14} aria-hidden style={{ color: palette.ink }} />}
+      {o.label}
+      {o.count != null && o.count !== 0 && o.count !== false && (
+        <>
+          {/* 读屏念「已逾期 3」而不是「已逾期3」 */}
+          <span className="zhul-sr-only"> </span>
+          <span
+            className="num"
+            style={{
+              marginLeft: 2,
+              fontWeight: 600,
+              color: o.danger ? palette.red : palette.ink,
+            }}
+          >
+            {o.count}
+          </span>
+        </>
+      )}
+    </button>
+  );
+};
+
+/**
+ * 单选选项（快捷日期、付款条件预设、分组切换等）：样式同快捷筛选，选中的再点不取消。
+ * 选中用主题色浅底，不用实底主按钮（一屏只有一个主按钮；主题色浅底只表示选中，D42）
+ */
+export const ChoiceChips: React.FC<{
+  options: (QuickFilterOption & { disabled?: boolean })[];
+  value?: string;
+  onChange: (value: string) => void;
+  label: string;
+  style?: React.CSSProperties;
+}> = ({ options, value, onChange, label, style }) => (
+  <div
+    role="radiogroup"
+    aria-label={label}
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      flexWrap: 'wrap',
+      minWidth: 0,
+      ...style,
+    }}
+  >
+    {options.map((o) => (
+      <Chip
+        key={o.value}
+        option={o}
+        on={value === o.value}
+        role="radio"
+        aria-checked={value === o.value}
+        onClick={() => onChange(o.value)}
+      />
+    ))}
+  </div>
+);
+
 /**
  * 快捷筛选（参考站 Chips）：高 30、全圆角；未选中为中性浅底，选中为主题色浅底、主题色字、前面加勾选。
  * 可多选，点一下选中、再点取消。
@@ -874,51 +965,17 @@ export const QuickFilters: React.FC<{
       {options.map((o) => {
         const on = value.includes(o.value);
         return (
-          <button
+          <Chip
             key={o.value}
-            type="button"
+            option={o}
+            on={on}
             aria-pressed={on}
             onClick={() =>
               onChange(
                 on ? value.filter((v) => v !== o.value) : [...value, o.value],
               )
             }
-            style={{
-              height: 28,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              padding: on ? '0 12px 0 8px' : '0 12px',
-              border: 0,
-              borderRadius: 999,
-              background: on ? palette.primarySoft : palette.neutralSoft,
-              color: palette.sub,
-              fontSize: 13,
-              fontWeight: on ? 600 : 400,
-              cursor: 'pointer',
-            }}
-          >
-            {on && (
-              <Check size={14} aria-hidden style={{ color: palette.ink }} />
-            )}
-            {o.label}
-            {o.count != null && o.count !== 0 && o.count !== false && (
-              <>
-                {/* 读屏念「已逾期 3」而不是「已逾期3」 */}
-                <span className="zhul-sr-only"> </span>
-                <span
-                  className="num"
-                  style={{
-                    marginLeft: 2,
-                    fontWeight: 600,
-                    color: o.danger ? palette.red : palette.ink,
-                  }}
-                >
-                  {o.count}
-                </span>
-              </>
-            )}
-          </button>
+          />
         );
       })}
     </fieldset>

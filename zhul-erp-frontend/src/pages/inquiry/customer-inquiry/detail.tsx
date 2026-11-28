@@ -26,7 +26,10 @@ import {
 import React, { useEffect, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { ActualModelLine } from '@/components/DocFields/ActualModel';
-import DocModelCell, { productHref } from '@/components/DocFields/DocModelCell';
+import DocModelCell, {
+  docModelColumn,
+  productHref,
+} from '@/components/DocFields/DocModelCell';
 import { ItemRemarkLine } from '@/components/DocFields/ItemRemark';
 import { tableEmpty } from '@/components/EmptyState';
 import { HelpTip, PageHeader } from '@/components/ListLayout';
@@ -49,6 +52,7 @@ import { describeFailovers } from '@/pages/system/ai-settings/aiConfig';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   Card,
   DeadlineText,
@@ -264,34 +268,9 @@ const CustomerInquiryDetailPage: React.FC = () => {
     });
   };
 
-  // 同品牌、同一级品类（与询价任务同口径）的第一行才显示品牌；品类在组内变化时也显示（各行是自己的细分品类）
-  const firstOfGroup = new Set<number>();
-  const showCategory = new Set<number>();
-  detail.items.forEach((it, i) => {
-    const prev = detail.items[i - 1];
-    const first = !prev || prev.groupKey !== it.groupKey;
-    if (first) firstOfGroup.add(it.id);
-    if (first || prev.category !== it.category) showCategory.add(it.id);
-  });
-
   const actualEditable = inq.status !== STATUS.CANCELLED && !inq.migrated;
   const columns: TableColumnsType<InquiryItem> = [
-    {
-      title: '品牌',
-      dataIndex: 'brand',
-      width: 120,
-      render: (v, r) =>
-        firstOfGroup.has(r.id) ? (
-          <span style={{ color: palette.ink, fontWeight: 600 }}>{v}</span>
-        ) : null,
-    },
-    {
-      title: '品类',
-      dataIndex: 'category',
-      width: 100,
-      render: (v, r) => (showCategory.has(r.id) ? v || '—' : null),
-    },
-    {
+    docModelColumn<InquiryItem>((r) => r, {
       title: '型号',
       width: 260,
       render: (_, r) => (
@@ -378,7 +357,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
           />
         </DocModelCell>
       ),
-    },
+    }),
     {
       title: '数量',
       align: 'right' as const,
@@ -959,7 +938,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
           <Table<InquiryItem>
             rowKey="id"
             size="middle"
-            scroll={{ x: canSeeShop ? 1560 : 1340 }}
+            scroll={{ x: tableScrollX(columns) }}
             columns={columns}
             dataSource={detail.items}
             pagination={false}

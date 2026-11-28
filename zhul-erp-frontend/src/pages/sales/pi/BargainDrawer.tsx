@@ -229,7 +229,7 @@ const BargainDrawer: React.FC<{
             <span style={{ color: palette.mute }}>→</span>
           </>
         )}
-        <b style={{ ...num, fontSize: 18, color }}>{after}</b>
+        <b style={{ ...num, fontSize: 16, color }}>{after}</b>
       </div>
       {hint && <div style={{ fontSize: 12, marginTop: 4 }}>{hint}</div>}
     </div>
@@ -407,7 +407,7 @@ const BargainDrawer: React.FC<{
                   <div
                     style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}
                   >
-                    <b style={{ ...num, fontSize: 22, color: palette.green }}>
+                    <b style={{ ...num, fontSize: 20, color: palette.green }}>
                       {formatAmount(max, cur)}
                     </b>
                     <b style={{ ...num, color: palette.green }}>

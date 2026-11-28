@@ -342,7 +342,7 @@ export const TodayView: React.FC<{
             size="1em"
             style={{ fontSize: 28, color: palette.green }}
           />
-          <div style={{ fontSize: 18, fontWeight: 600, margin: '12px 0 6px' }}>
+          <div style={{ fontSize: 16, fontWeight: 600, margin: '12px 0 6px' }}>
             今天的都处理完了
           </div>
           <div style={{ color: palette.sub }}>

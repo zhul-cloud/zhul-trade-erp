@@ -684,7 +684,7 @@ const AiSettingsPage: React.FC = () => {
           {toneIcon.icon}
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: palette.ink }}>
+          <div style={{ fontSize: 16, fontWeight: 600, color: palette.ink }}>
             {summary.title}
           </div>
           <div style={{ marginTop: 6, fontSize: 13, color: palette.mute }}>

@@ -84,7 +84,7 @@ const GroupTitle: React.FC<{
         margin: '8px 0 14px',
       }}
     >
-      <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{title}</h2>
+      <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{title}</h2>
       {tag}
       <span style={{ fontSize: 13, color: palette.sub }}>{desc}</span>
     </div>

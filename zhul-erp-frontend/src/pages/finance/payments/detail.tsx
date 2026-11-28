@@ -91,23 +91,23 @@ const PaymentDetail: React.FC = () => {
   const sum = (k: 'amount' | 'amountCny') =>
     p.allocations.reduce((n, a) => n + Number(a[k] ?? 0), 0);
 
-  const columns: TableColumnsType<Allocation> = [
+  const allColumns: (TableColumnsType<Allocation>[number] | false)[] = [
     { title: '#', key: 'no', width: 48, render: (_, __, i) => i + 1 },
     {
-      title: '应付单号',
+      // 来源单号并到第二行，主栏 664 宽不横向滚动（UI-117 第 8 批）
+      title: '应付单号 · 来源单号',
       dataIndex: 'payableNo',
-      width: 150,
+      width: 170,
       render: (v: string, a) => (
-        <CopyText text={v}>
-          <Link to={DOC_PATHS.payable(a.payableId)}>{v}</Link>
-        </CopyText>
+        <div>
+          <CopyText text={v}>
+            <Link to={DOC_PATHS.payable(a.payableId)}>{v}</Link>
+          </CopyText>
+          <div style={{ fontSize: 12, color: palette.mute }}>
+            {a.sourceNo || '—'}
+          </div>
+        </div>
       ),
-    },
-    {
-      title: '来源单号',
-      dataIndex: 'sourceNo',
-      width: 160,
-      render: (v?: string) => v || '—',
     },
     {
       title: '来源',
@@ -132,7 +132,8 @@ const PaymentDetail: React.FC = () => {
       align: 'right',
       render: (v: number) => <span style={num}>{formatMoney(v)}</span>,
     },
-    {
+    // 人民币付款时与核销金额相同，只在外币付款时显示
+    cur !== 'CNY' && {
       title: '核销人民币',
       dataIndex: 'amountCny',
       width: 130,
@@ -142,6 +143,7 @@ const PaymentDetail: React.FC = () => {
       ),
     },
   ];
+  const columns = allColumns.filter(Boolean) as TableColumnsType<Allocation>;
 
   const info = (
     <>
@@ -198,8 +200,8 @@ const PaymentDetail: React.FC = () => {
           extra={
             p.allocations.length > 1 && (
               <b style={num}>
-                合计 {formatAmount(sum('amount'), cur)} ·{' '}
-                {formatAmount(sum('amountCny'), 'CNY')}
+                合计 {formatAmount(sum('amount'), cur)}
+                {cur !== 'CNY' && ` · ${formatAmount(sum('amountCny'), 'CNY')}`}
               </b>
             )
           }

@@ -38,6 +38,7 @@ const RULE_NAMES = new Set([
   'gradient',
   'cjk-weight',
   'font-scale',
+  'choice-primary',
   'glow',
   'hardcoded-color',
   'old-header',
@@ -212,6 +213,13 @@ const LINE_RULES = [
     re: /\bfontSize:\s*(15|17)\b|font-size:\s*(15|17)px/,
   },
   {
+    id: 'choice-primary',
+    level: 'error',
+    message:
+      '选中态不用实底或描边主按钮（一屏只有一个主按钮，主题色浅底才表示选中，D42）：单选选项用 ChoiceChips，开关式筛选用 QuickFilters；按状态切成主操作的写 lint-ui-ignore choice-primary 说明',
+    re: /\btype=\{[^}]*\?\s*'primary'\s*:/,
+  },
+  {
     id: 'scroll-max-content',
     level: 'error',
     message:
@@ -251,7 +259,10 @@ const LINE_RULES = [
   },
 ];
 
+const FONT_SCALE = new Set([12, 13, 14, 16, 20, 24, 28]);
 const MSG = {
+  fontScale:
+    '文字字号只用 12、13、14、16、20、24（看板主角数字 28）：10、11 改 12，18 改 16，22 改 20（检查表 #6）；图标靠 fontSize 定大小不算，分不清的写 lint-ui-ignore font-scale 说明',
   progressColor:
     '进度条只用主题色（palette.chart），程度用深浅表示，完成时也不换成绿色或别的颜色（2026-11-24 用户确认）；多色图表、状态标签不用 Progress',
   columnSettings:
@@ -455,6 +466,54 @@ function checkSource(src, rel) {
     ) {
       push('old-header', 'error', MSG.header, lineOf(n.getStart(sf)));
     }
+  });
+
+  // 文字字号要在字阶里：JSX style 里的 fontSize 只用 FONT_SCALE（15、17 由按行规则管）。
+  // 图标靠 fontSize 定大小，不算：自闭合元素（<X size="1em" style=…/>）、只包着图标的容器放行；
+  // 子元素是表达式、分不清是图标还是文字的，写 lint-ui-ignore font-scale 说明（UI-117 第 8 批）
+  walk(sf, (n) => {
+    if (!ts.isJsxAttribute(n) || n.name.getText(sf) !== 'style') return;
+    const obj = n.initializer?.expression;
+    if (!obj || !ts.isObjectLiteralExpression(obj)) return;
+    const fs = obj.properties.find(
+      (x) =>
+        ts.isPropertyAssignment(x) &&
+        x.name.getText(sf) === 'fontSize' &&
+        ts.isNumericLiteral(x.initializer),
+    );
+    if (!fs) return;
+    const size = Number(fs.initializer.text);
+    if (FONT_SCALE.has(size) || size === 15 || size === 17) return;
+    const opening = n.parent.parent;
+    if (ts.isJsxSelfClosingElement(opening)) return;
+    const el = opening.parent;
+    if (
+      opening.attributes.properties.some(
+        (a) => ts.isJsxAttribute(a) && a.name.getText(sf) === 'aria-hidden',
+      )
+    )
+      return;
+    // 图标：大写开头的自闭合组件、名字以 icon 结尾的变量、两边都是图标的条件式
+    const isIcon = (e) => {
+      if (!e) return false;
+      if (ts.isParenthesizedExpression(e)) return isIcon(e.expression);
+      if (ts.isJsxSelfClosingElement(e)) return /^[A-Z]/.test(tagName(e));
+      if (ts.isIdentifier(e) || ts.isPropertyAccessExpression(e))
+        return /icon$/i.test(e.getText(sf));
+      if (ts.isConditionalExpression(e))
+        return isIcon(e.whenTrue) && isIcon(e.whenFalse);
+      if (ts.isBinaryExpression(e)) return isIcon(e.right);
+      return false;
+    };
+    const onlyIcons =
+      ts.isJsxElement(el) &&
+      el.children.every(
+        (c) =>
+          (ts.isJsxText(c) && !c.text.trim()) ||
+          (ts.isJsxExpression(c) ? isIcon(c.expression) : isIcon(c)),
+      );
+    if (onlyIcons) return;
+    push('font-scale', 'error', MSG.fontScale, lineOf(fs.getStart(sf)));
   });
 
   // 表格操作列：title 为「操作」的列用 RowActions（审批、工作队列等例外写 lint-ui-ignore 并说明）

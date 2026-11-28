@@ -415,6 +415,7 @@ const ShootDrawer: React.FC<{
               <Button onClick={() => setShowMedia(true)}>这个型号的素材</Button>
             )}
             <Button
+              // lint-ui-ignore choice-primary: 拍摄完成后「关闭」就是这一步的主操作，不是选中态
               type={t.status === 2 ? 'primary' : 'default'}
               onClick={onClose}
             >

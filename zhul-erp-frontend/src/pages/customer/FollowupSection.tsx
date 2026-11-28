@@ -725,7 +725,7 @@ export const FollowupChainCard: React.FC<{ data?: CustomerFollowup }> = ({
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 600,
                 color: active
                   ? palette.onPrimary

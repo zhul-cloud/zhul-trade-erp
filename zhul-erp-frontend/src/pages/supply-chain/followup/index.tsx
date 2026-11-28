@@ -9,6 +9,7 @@ import React, {
   useState,
 } from 'react';
 import {
+  ChoiceChips,
   FilterChip,
   type FilterChipItem,
   FilterPopover,
@@ -89,20 +90,6 @@ interface RecordTarget {
   demands?: Demand[];
   checkedIds?: number[];
 }
-
-const Chip: React.FC<{
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}> = ({ active, onClick, children }) => (
-  <Button
-    type={active ? 'primary' : 'default'}
-    ghost={active}
-    onClick={onClick}
-  >
-    {children}
-  </Button>
-);
 
 const SupplyFollowupPage: React.FC = () => {
   const { message } = App.useApp();
@@ -850,15 +837,16 @@ const SupplyFollowupPage: React.FC = () => {
                   marginBottom: 12,
                 }}
               >
-                {devChips.map(([k, label, n]) => (
-                  <Chip
-                    key={k}
-                    active={devStage === k}
-                    onClick={() => setDevStage(k)}
-                  >
-                    {label} <span style={{ opacity: 0.7 }}>{n}</span>
-                  </Chip>
-                ))}
+                <ChoiceChips
+                  label="开发阶段"
+                  options={devChips.map(([k, label, n]) => ({
+                    value: k,
+                    label,
+                    count: n,
+                  }))}
+                  value={devStage}
+                  onChange={setDevStage}
+                />
                 {devChipsOn.map((c) => (
                   <FilterChip key={c.key} item={c} />
                 ))}
@@ -932,17 +920,14 @@ const SupplyFollowupPage: React.FC = () => {
                   marginBottom: 12,
                 }}
               >
-                {(flow === 'cover' ? coverChips : intelChips).map(
-                  ([k, label, n]) => (
-                    <Chip
-                      key={label}
-                      active={stage === k}
-                      onClick={() => setStage(k)}
-                    >
-                      {label} <span style={{ opacity: 0.7 }}>{n}</span>
-                    </Chip>
-                  ),
-                )}
+                <ChoiceChips
+                  label={flow === 'cover' ? '覆盖状态' : '信号状态'}
+                  options={(flow === 'cover' ? coverChips : intelChips).map(
+                    ([k, label, n]) => ({ value: k ?? '', label, count: n }),
+                  )}
+                  value={stage ?? ''}
+                  onChange={(k) => setStage(k || undefined)}
+                />
                 {!unclassifiedView &&
                   boardChipsOn.map((c) => <FilterChip key={c.key} item={c} />)}
                 <span style={{ flex: 1 }} />

@@ -305,7 +305,7 @@ const NoStockPanel: React.FC = () => {
                     background: last ? palette.chart : palette.mute,
                   }}
                 />
-                <span style={{ ...num, fontSize: 11, color: palette.mute }}>
+                <span style={{ ...num, fontSize: 12, color: palette.mute }}>
                   {x.label}
                 </span>
               </div>
