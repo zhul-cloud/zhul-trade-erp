@@ -131,6 +131,32 @@ class MediaLibraryContractTest extends TenantContractSupport {
     }
 
     @Test
+    void noBrand_matchesByUniqueModelOnly() throws Exception {
+        loginAsAdmin("it_media_admin");
+        String admin = token("it_media_admin", T);
+        long other = jdbc.queryForObject("select id from product_brand where brand_name = 'ITMediaOther'", Long.class);
+        long unique = product("ITNB-ONE-1", series, category, brand);
+        product("ITNB-DUP-1", series, category, brand);
+        product("ITNB-DUP-1", null, category, other);
+        item("ITNB-ONE-1", 4, 1, 0, "");
+        item("ITNB-DUP-1", 4, 1, 0, "");
+
+        // 没填品牌：型号在共享商品库里唯一 → 带出商品名、品类；两个品牌同型号 → 不猜
+        JsonNode one = ok(call(json(post(API + "/models/page"), "{\"keyword\":\"ITNB-ONE-1\"}"), admin)).path("records").get(0);
+        assertEquals("ITMediaBrand ITNB-ONE-1", one.path("productName").asText());
+        assertEquals("PLC", one.path("category").asText());
+        JsonNode dup = ok(call(json(post(API + "/models/page"), "{\"keyword\":\"ITNB-DUP-1\"}"), admin)).path("records").get(0);
+        assertTrue(dup.path("productName").isMissingNode());
+        assertTrue(dup.path("category").isMissingNode());
+
+        // 详情同样按唯一型号关联（与列表一致）
+        assertEquals(unique, ok(call(get(API + "/models/detail").param("brand", "").param("model", "itnb-one-1"), admin))
+                .path("productId").asLong());
+        assertTrue(ok(call(get(API + "/models/detail").param("brand", "").param("model", "ITNB-DUP-1"), admin))
+                .path("productId").isMissingNode());
+    }
+
+    @Test
     void references_fallBackByLevel_sortedByHeat() throws Exception {
         loginAsAdmin("it_media_admin");
         String admin = token("it_media_admin", T);
@@ -170,8 +196,8 @@ class MediaLibraryContractTest extends TenantContractSupport {
     // ---------------------------------------------------------------- 准备数据
 
     private long product(String mpn, Long seriesId, long categoryId, long brandId) {
-        jdbc.update("insert into product (tenant_id, brand_id, category_id, series_id, mpn_raw, mpn_normalized, product_name) values (0, ?, ?, ?, ?, ?, ?)",
-                brandId, categoryId, seriesId, mpn, mpn.replace("-", "").toLowerCase(), BRAND + " " + mpn);
+        jdbc.update("insert into product (tenant_id, brand_id, brand_key, category_id, series_id, mpn_raw, mpn_normalized, product_name) "
+                + "values (0, ?, ?, ?, ?, ?, ?, ?)", brandId, "#" + brandId, categoryId, seriesId, mpn, mpn.replace("-", "").toLowerCase(), BRAND + " " + mpn);
         return jdbc.queryForObject("select id from product where brand_id = ? and mpn_raw = ?", Long.class, brandId, mpn);
     }
 
