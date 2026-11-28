@@ -19,25 +19,16 @@ import { formatAmount } from '@/utils/format';
 import { MenuName } from '@/utils/menuName';
 import type { Block } from './BlockWidget';
 import { fmt } from './BlockWidget';
+import TrendBars from './TrendBars';
 import { MoreLink, useWidgetData, WidgetCard } from './WidgetCard';
 
 const go = (link?: string | null) => link && history.push(link);
-
-/** 刻度取整：1、2、2.5、5 乘 10 的幂 */
-const niceMax = (v: number) => {
-  if (v <= 0) return 1;
-  const p = 10 ** Math.floor(Math.log10(v));
-  const n = v / p;
-  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p;
-};
 
 /** 柱图上的短金额：一万以上写「41.3万」 */
 const short = (v: number) =>
   v >= 10000
     ? `${Number((v / 10000).toFixed(1)).toLocaleString('zh-CN')}万`
     : Math.round(v).toLocaleString('zh-CN');
-
-const PLOT_TOP = 18;
 
 /**
  * 主角卡 · 本月成交额（工作台原型 H1、ui-redesign D28）：28/600 大数字与涨跌胶囊；近 12 个月柱图带虚线网格与刻度，
@@ -54,9 +45,6 @@ export const RevenueHeroWidget: React.FC = () => {
   const labels = barsBlock?.bars?.labels ?? [];
   const values = (barsBlock?.bars?.values ?? []).map(Number);
   const current = Number(metric?.value ?? values[values.length - 1] ?? 0);
-  const top = niceMax(Math.max(0, ...values));
-  // 近 12 个月都没有成交：只留 0 基线，柱区写一句说明（新公司第一眼看到的就是这里）
-  const empty = values.length > 0 && values.every((v) => v <= 0);
   const [cnyPrefix, cnyValue] = [
     'CNY',
     formatAmount(current, 'CNY').replace(/^CNY\s*/, ''),
@@ -96,172 +84,15 @@ export const RevenueHeroWidget: React.FC = () => {
           <DeltaPill value={metric.delta} text={`${Math.abs(metric.delta)}%`} />
         </div>
       )}
-      <div
-        role="img"
-        aria-label={`近 12 个月成交额：${labels
-          .map((l, i) => `${l} ${short(values[i] ?? 0)}`)
-          .join('，')}`}
-        style={{ flex: 1, minHeight: 120, display: 'flex', marginTop: 16 }}
-      >
-        {/* 纵轴刻度：文字中线对准网格线 */}
-        <div
-          aria-hidden
-          style={{ width: 40, flex: 'none', position: 'relative' }}
-        >
-          {(empty
-            ? [['0', 'calc(100% - 24px)']]
-            : [
-                [short(top), `${PLOT_TOP}px`],
-                [
-                  short(top / 2),
-                  `calc(${PLOT_TOP}px + (100% - ${PLOT_TOP + 24}px) / 2)`,
-                ],
-                ['0', 'calc(100% - 24px)'],
-              ]
-          ).map(([t, y]) => (
-            <span
-              key={y}
-              className="num"
-              style={{
-                position: 'absolute',
-                top: y,
-                left: 0,
-                transform: 'translateY(-50%)',
-                fontSize: 12,
-                color: palette.mute,
-              }}
-            >
-              {t}
-            </span>
-          ))}
-        </div>
-        <div
-          aria-hidden
-          style={{
-            flex: 1,
-            minWidth: 0,
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          <div style={{ flex: 1, position: 'relative' }}>
-            {empty && (
-              <span
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  display: 'grid',
-                  placeItems: 'center',
-                  fontSize: 13,
-                  color: palette.mute,
-                }}
-              >
-                近 12 个月还没有成交
-              </span>
-            )}
-            {(empty
-              ? []
-              : [
-                  `${PLOT_TOP}px`,
-                  `calc(${PLOT_TOP}px + (100% - ${PLOT_TOP}px) / 2)`,
-                ]
-            ).map((y) => (
-              <span
-                key={y}
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  top: y,
-                  borderTop: `1px dashed ${palette.hairline}`,
-                }}
-              />
-            ))}
-            <span
-              style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                bottom: 0,
-                borderTop: `1px solid ${palette.hairline}`,
-              }}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                top: PLOT_TOP,
-                bottom: 0,
-                display: 'flex',
-              }}
-            >
-              {values.map((v, i) => {
-                const last = i === values.length - 1;
-                const pct = (v / top) * 100;
-                return (
-                  <Tooltip
-                    key={labels[i]}
-                    title={`${labels[i]} · ${fmt(v, 'money')}`}
-                  >
-                    <span
-                      style={{
-                        flex: 1,
-                        position: 'relative',
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'flex-end',
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: '50%',
-                          // 0 画 2px 中性短柱：表示 0，不是缺数据
-                          height: v > 0 ? `${pct}%` : 2,
-                          borderRadius: v > 0 ? '4px 4px 0 0' : 0,
-                          background:
-                            last && v > 0 ? palette.chart : palette.chartSoft,
-                        }}
-                      />
-                      {last && v > 0 && (
-                        <span
-                          className="num"
-                          style={{
-                            position: 'absolute',
-                            bottom: `calc(${pct}% + 2px)`,
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: palette.ink,
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {short(v)}
-                        </span>
-                      )}
-                    </span>
-                  </Tooltip>
-                );
-              })}
-            </div>
-          </div>
-          <div style={{ display: 'flex', height: 24, alignItems: 'center' }}>
-            {labels.map((l, i) => (
-              <span
-                key={l}
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  textAlign: 'center',
-                  fontSize: 12,
-                  fontWeight: i === labels.length - 1 ? 600 : 400,
-                  color: i === labels.length - 1 ? palette.ink : palette.mute,
-                }}
-              >
-                {l}
-              </span>
-            ))}
-          </div>
-        </div>
+      <div style={{ flex: 1, display: 'flex', marginTop: 16 }}>
+        <TrendBars
+          name="近 12 个月成交额"
+          labels={labels}
+          values={values}
+          short={short}
+          full={(v) => fmt(v, 'money')}
+          emptyText="近 12 个月还没有成交"
+        />
       </div>
       {barsBlock?.text && (
         <div

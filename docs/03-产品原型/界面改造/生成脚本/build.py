@@ -18,7 +18,9 @@ NAMES = {'A1 ': 'A1-销售订单列表-浅色-1440', 'A2 ': 'A2-销售订单列�
          'F1 ': 'F1-外壳-浅色', 'F2 ': 'F2-外壳-深色', 'F1b': 'F1b-收起侧栏与主题设置-浅色', 'F2b': 'F2b-收起侧栏与主题设置-深色', 'F1d': 'F1d-外壳状态-浅色',
          'G1 ': 'G1-公共组件-浅色', 'G2 ': 'G2-公共组件-深色',
          'H1 ': 'H1-工作台-老板-浅色', 'H2 ': 'H2-工作台-老板-深色', 'H3 ': 'H3-工作台-业务员-浅色',
-         'H1b': 'H1b-风险提醒两种状态-浅色', 'H4 ': 'H4-工作台-业务员-深色'}
+         'H1b': 'H1b-风险提醒两种状态-浅色', 'H4 ': 'H4-工作台-业务员-深色',
+         'I1 ': 'I1-工作台-业务负责人-浅色', 'I2 ': 'I2-工作台-采购负责人-浅色', 'I3 ': 'I3-工作台-运营负责人-浅色',
+         'I4 ': 'I4-工作台-采购员-浅色', 'I5 ': 'I5-工作台-采购负责人-深色'}
 
 
 def op(*args, retries=4):
@@ -78,7 +80,7 @@ def main():
         if not os.path.getsize(out):
             sys.exit('导出为空：' + f)
     for f in os.listdir(D):
-        if f.endswith('.png') and f[:1] in 'ABCDEFGH':
+        if f.endswith('.png') and f[:1] in 'ABCDEFGHI':
             os.remove(os.path.join(D, f))
     for f in os.listdir(TMP):
         shutil.move(os.path.join(TMP, f), os.path.join(D, f))

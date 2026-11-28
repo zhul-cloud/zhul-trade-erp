@@ -39,13 +39,13 @@ public class PurchaseLeadWidgets {
             BoardStatsVO s = tasks.board(null, 1, 1).getStats();
             long wait = s.getLongestWaitingMinutes() == null ? 0 : s.getLongestWaitingMinutes();
             return W.of(W.metrics(
-                    W.link(W.tone(W.metric("待分配的任务", s.getUnassigned(), "count",
+                    W.look(W.link(W.tone(W.metric("待分配的任务", s.getUnassigned(), "count",
                             wait > 0 ? "最早的已等 " + wait / 60 + " 小时 " + wait % 60 + " 分" : "没有在等分配的任务"),
-                            wait >= 60 ? "orange" : null), BOARD),
-                    W.link(W.tone(W.metric("超时未回价", s.getTimeout(), "count", "询价中 " + s.getSourcing() + " 个任务"),
-                            W.num(s.getTimeout()).signum() > 0 ? "red" : null), BOARD),
-                    W.link(W.metric("待审核兼职回价", s.getPendingReviewItems(), "count",
-                            "来自 " + s.getPendingReview() + " 个任务"), BOARD)));
+                            wait >= 60 ? "orange" : null), BOARD), "inbox", "blue"),
+                    W.look(W.link(W.tone(W.metric("超时未回价", s.getTimeout(), "count", "询价中 " + s.getSourcing() + " 个任务"),
+                            W.num(s.getTimeout()).signum() > 0 ? "red" : null), BOARD), "alarm-clock", "gray"),
+                    W.look(W.link(W.metric("待审核兼职回价", s.getPendingReviewItems(), "count",
+                            "来自 " + s.getPendingReview() + " 个任务"), BOARD), "file-search", "blue")));
         });
     }
 
@@ -104,9 +104,9 @@ public class PurchaseLeadWidgets {
         return W.widget("bargain-result", List.of(PurchaserWidgets.ORDERS, BARGAIN), () -> {
             PurchaseOrderStatsVO s = orders.stats();
             return W.of(W.metrics(
-                    W.link(W.metric("本月砍价节省", s.getMonthBargain(), "money", "本月下单 " + W.num(s.getMonthOrderedCount()).longValue()
-                            + " 张"), BARGAIN),
-                    W.metric("砍价率", s.getMonthBargainRate(), "percent", "下单价比首次报价低的比例")));
+                    W.look(W.link(W.metric("本月砍价节省", s.getMonthBargain(), "money", "本月下单 " + W.num(s.getMonthOrderedCount()).longValue()
+                            + " 张"), BARGAIN), "piggy-bank", "cyan"),
+                    W.look(W.metric("砍价率", s.getMonthBargainRate(), "percent", "下单价比首次报价低的比例"), "percent", "purple")));
         });
     }
 
@@ -115,9 +115,10 @@ public class PurchaseLeadWidgets {
         return W.widget("payables", List.of(PAYABLES), () -> {
             PayableStatsVO s = payables.stats();
             return W.of(W.metrics(
-                    W.link(W.metric("本月到期应付", s.getMonthDue(), "money", "共 " + s.getMonthDueCount() + " 笔"), PAYABLES),
-                    W.link(W.tone(W.metric("已逾期", s.getOverdue(), "money", "共 " + s.getOverdueCount() + " 笔"),
-                            s.getOverdueCount() > 0 ? "red" : null), PAYABLES)));
+                    W.look(W.link(W.metric("本月到期应付", s.getMonthDue(), "money", "共 " + s.getMonthDueCount() + " 笔"), PAYABLES),
+                            "calendar-clock", "gray"),
+                    W.look(W.link(W.tone(W.metric("已逾期", s.getOverdue(), "money", "共 " + s.getOverdueCount() + " 笔"),
+                            s.getOverdueCount() > 0 ? "red" : null), PAYABLES), "calendar-x", "gray")));
         });
     }
 }

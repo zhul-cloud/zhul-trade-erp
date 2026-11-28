@@ -515,8 +515,246 @@ function riskStates(T, name) {
   riskCard(T, { '过期未收款 PI': 2, '超期未到货': 1 })(row, TIER.S, 'fill_container');
 }
 
+// ———————— I 其他岗位看板（UI-108）：业务负责人、采购负责人、运营负责人、采购员
+// 组件与口径取自 workbench/widget/SalesWidgets、PurchaseLeadWidgets、OpsWidgets、PurchaserWidgets 与 dashboard/widgets/purchaser.tsx；
+// 按模板顺序装行（高度档不同就换行，落单补满整行），栏数与高度档登记到 layout.ts。数据为示意。
+
+// 公共柱图（与老板主角卡同一画法）：往期浅灰、只亮最新一根并在柱顶写数，虚线网格与左侧刻度，没有数的期画 2px 短柱
+function barChart(T, p, w, PH, labels, vals, max, ticks, topText, opts) {
+  const { tx, box } = kit(T); opts = opts || {};
+  const PW = w - 40;
+  const ch = box(p, { width: 'fill_container', layout: 'horizontal' });
+  const ya = box(ch, { width: 40, height: PH + 18, layout: 'none' });
+  ticks.forEach(([t, f]) => I(ya, { type: 'text', name: 'fill=' + T.sub, x: 0, y: 18 + PH * (1 - f) - 8, width: 34, content: t, fontSize: 12, fontFamily: NUM, fill: solid(T.sub) }));
+  const pc = box(ch, { width: PW, layout: 'vertical' });
+  const plot = box(pc, { width: PW, height: PH + 18, layout: 'none' });
+  for (const [, f] of ticks) I(plot, { type: 'frame', x: 0, y: Math.round(18 + PH * (1 - f)), width: PW, height: 1, fill: solid(T.grid) });
+  const n = vals.length; const slot = PW / n; const bw = Math.max(4, Math.round(slot * (n > 12 ? 0.6 : 0.5)));
+  vals.forEach((v, i) => {
+    const x = Math.round(i * slot + (slot - bw) / 2); const last = i === n - 1;
+    if (!v) { I(plot, { type: 'frame', x, y: 18 + PH - 2, width: bw, height: 2, fill: solid(T.chartMuted) }); return; }
+    const bh = Math.max(2, Math.round(v / max * PH));
+    I(plot, { type: 'frame', x, y: 18 + PH - bh, width: bw, height: bh, cornerRadius: n > 12 ? [2, 2, 0, 0] : [4, 4, 0, 0], fill: solid(last ? P : T.chartMuted) });
+    if (last) I(plot, { type: 'text', name: 'fill=' + T.ink, x: Math.round(i * slot) - 24 + Math.round(slot / 2), y: 18 + PH - bh - 18, width: 48, content: topText, fontSize: 12, fontWeight: 600, fontFamily: NUM, textAlign: 'center', fill: solid(T.ink) });
+  });
+  const xa = box(pc, { width: PW, height: 22, layout: 'horizontal', alignItems: 'center' });
+  if (opts.ends) { tx(xa, labels[0], { fontSize: 12, fill: solid(T.sub), width: 'fill_container' }); tx(xa, labels[labels.length - 1], { fontSize: 12, fontWeight: 600, fill: solid(T.ink) }); return; }
+  labels.forEach((m, i) => { const s = box(xa, { width: 'fill_container', layout: 'horizontal', justifyContent: 'center' }); tx(s, m, { fontSize: 12, fontWeight: i === n - 1 ? 600 : 400, fill: solid(i === n - 1 ? T.ink : T.sub) }); });
+}
+
+// 待办行（同业务员「我的待办」）：图标块 + 名称两行 + 数量 20/600（要处理的用错误色）+ 箭头
+function todoRows(T, b, items, rowH) {
+  const K = kit(T); const { tx, box, icon } = K;
+  const tone = { info: T.st.info, ok: T.st.ok, blue: T.fam.blue, err: T.st.err, warn: T.st.warn, purple: T.fam.purple };
+  items.forEach(([ic, tn, t, d, n, alert]) => {
+    const r = box(b, { width: 'fill_container', height: rowH || 52, layout: 'horizontal', gap: 12, alignItems: 'center', padding: [0, 8], cornerRadius: 8 });
+    K.iconBlock(r, ic, tone[tn]);
+    const tc = box(r, { width: 'fill_container', layout: 'vertical', gap: 2 }); tx(tc, t, { fontWeight: 600, fill: solid(T.ink) }); tx(tc, d, { fontSize: 12, fill: solid(T.sub) });
+    tx(r, String(n), { fontSize: 20, fontWeight: 600, fontFamily: NUM, fill: solid(alert && n ? T.st.err[0] : T.ink) });
+    icon(r, 'chevron-right', 16, T.faint, false);
+  });
+}
+
+// 小表：表头 12 次要色、行高 44、数字列右对齐等宽；首列可带首字头像；最后一列可整列加粗
+function miniTable(T, b, cols, rows, o) {
+  const { tx, box, hr } = kit(T); o = o || {};
+  const head = box(b, { width: 'fill_container', height: 32, layout: 'horizontal', alignItems: 'center', gap: 12, padding: [0, 8], cornerRadius: 6, fill: solid(T.tonal) });
+  cols.forEach(([t, cw, al]) => { const c = box(head, { width: cw || 'fill_container', layout: 'horizontal', justifyContent: al === 'r' ? 'end' : 'start' }); tx(c, t, { fontSize: 12, fill: solid(T.sub) }); });
+  rows.forEach((row, ri) => {
+    if (ri) hr(b);
+    const r = box(b, { width: 'fill_container', height: o.rowH || 44, layout: 'horizontal', alignItems: 'center', gap: 12, padding: [0, 8] });
+    cols.forEach(([, cw, al], ci) => {
+      const c = box(r, { width: cw || 'fill_container', layout: 'horizontal', gap: 8, alignItems: 'center', justifyContent: al === 'r' ? 'end' : 'start' });
+      const v = row[ci];
+      if (ci === 0 && o.avatar) { const a = box(c, { width: 24, height: 24, cornerRadius: 12, layout: 'horizontal', justifyContent: 'center', alignItems: 'center', fill: solid(T.tonal) }); tx(a, String(v)[0], { fontSize: 12, fontWeight: 600, fill: solid(T.sub) }); }
+      if (Array.isArray(v)) { const s = box(c, { layout: 'vertical', gap: 2 }); tx(s, v[0], { fontSize: 13, fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) }); tx(s, v[1], { fontSize: 12, fill: solid(T.sub) }); return; }
+      tx(c, String(v), { fontSize: 13, fontWeight: ci === 0 || (o.bold && o.bold.includes(ci)) ? 600 : 400, fontFamily: NUM, fill: solid(v === '—' ? T.faint : (o.alertCol === ci && v !== '0' ? T.st.err[0] : T.ink)) });
+    });
+  });
+}
+
+// 卡内凹格指标（多块混排的卡里用，不套卡）：名称 12 次要色 + 数值 20/600；要处理的加状态色数值与小标签
+function insetStats(T, b, items) {
+  const { tx, box, label } = kit(T);
+  const r = box(b, { width: 'fill_container', layout: 'horizontal', gap: 12 });
+  items.forEach(([l, v, hint, alert]) => {
+    const c = box(r, { width: 'fill_container', layout: 'vertical', gap: 4, padding: [12, 14], cornerRadius: 8, fill: solid(T.tonal) });
+    tx(c, l, { fontSize: 12, fill: solid(T.sub) });
+    const vr = box(c, { layout: 'horizontal', gap: 8, alignItems: 'center' });
+    tx(vr, v, { fontSize: 20, fontWeight: 600, fontFamily: NUM, fill: solid(alert ? T.st[alert][0] : T.ink) });
+    if (hint) alert ? label(vr, hint, T.st[alert]) : tx(vr, hint, { fontSize: 12, fill: solid(T.sub) });
+  });
+}
+
+// 业务负责人：团队业绩（一行 5 张）→ 要跟进 | 报价转化 → 业务员对比 → 商机统计（随内容）
+function salesLeadBoard(T, name) {
+  const K = kit(T); const { tx, box, sp } = K;
+  const follow = wCard(T, '要跟进', { note: '共 7 件', inset: 1 }, (b) => {
+    todoRows(T, b, [['hourglass', 'warn', '回价后超过 24 小时未报价', '最久的 IQ1118AM 已等 31 小时', 4, 1], ['file-clock', 'err', '过期未收款 PI', '已过有效期仍未收到款', 2, 1], ['alarm-clock', 'err', '售后逾期', '最久的 AS20261128001 逾期 6 小时', 1, 1]], 44);
+    sp(b, 4);
+    const th = box(b, { width: 'fill_container', layout: 'horizontal', padding: [0, 8, 6, 8] }); tx(th, '等待最久的', { fontSize: 12, fontWeight: 600, fill: solid(T.sub) });
+    miniTable(T, b, [['询盘 · 客户'], ['业务员', 80], ['已等待', 70, 'r']], [['IQ1118AM · PRIME CONTROLS', 'Kevin', '31 小时'], ['IQ1120BC · Nordic Automation', '林熙', '27 小时']], { rowH: 32 });
+  });
+  const conv = wCard(T, '报价转化', { sub: '近 6 个月 · 报价转 PI 的比例', help: 1, more: '经营统计' }, (b, w) => {
+    const vr = box(b, { layout: 'horizontal', gap: 8, alignItems: 'end' });
+    tx(vr, '42.9%', { fontSize: 28, fontWeight: 600, fontFamily: NUM, lineHeight: 1.25, fill: solid(T.ink) });
+    const s = box(vr, { layout: 'vertical', padding: [0, 0, 4, 0] }); tx(s, '本月 · 报价 14、转 PI 6', { fontSize: 13, fontFamily: NUM, fill: solid(T.sub) });
+    sp(b, 12);
+    barChart(T, b, w - 40, 130, ['6月', '7月', '8月', '9月', '10月', '11月'], [31.2, 35.0, 28.6, 38.1, 33.3, 42.9], 50, [['50%', 1], ['25%', 0.5], ['0', 0]], '42.9%');
+  });
+  const compare = wCard(T, '业务员对比', { sub: '本月 · 按成交额', more: '经营统计' }, (b) => {
+    miniTable(T, b, [['业务员'], ['询盘', 90, 'r'], ['报价', 90, 'r'], ['成交额', 170, 'r'], ['毛利率', 110, 'r'], ['询盘→成交', 110, 'r']],
+      [['林熙', '12', '18', 'CNY 186,420.00', '24.10%', '41.7%'], ['Kevin', '9', '14', 'CNY 132,800.00', '21.65%', '33.3%'], ['Lily', '8', '11', 'CNY 61,240.00', '19.80%', '25.0%'], ['周宁', '5', '6', 'CNY 22,600.00', '27.30%', '20.0%'], ['陈默', '4', '3', 'CNY 9,800.00', '18.20%', '—']], { avatar: 1, bold: [3] });
+  });
+  const opp = (row, h, w) => {
+    const g = box(row, { width: w, layout: 'vertical', gap: 12 });
+    wHead(T, g, '商机统计', { sub: '本月', more: '商机管理' });
+    const c = K.card(g, { width: 'fill_container', layout: 'vertical', gap: 16, padding: [20, 20] });
+    insetStats(T, c, [['新增', '12'], ['有效', '8', '有效率 66.7%'], ['赢单', '2'], ['无效', '2', '占新增 16.7%']]);
+    const tb = box(c, { width: 'fill_container', layout: 'vertical' });
+    miniTable(T, tb, [['负责人'], ['新增', 110, 'r'], ['有效', 110, 'r'], ['赢单', 110, 'r'], ['有效率', 110, 'r']],
+      [['林熙', '5', '4', '1', '80.0%'], ['Kevin', '4', '2', '1', '50.0%'], ['Lily', '3', '2', '0', '66.7%']], { avatar: 1, bold: [4] });
+  };
+  dash(T, name, 1460, [
+    { h: TIER.S, items: [[wGroup(T, '团队业绩', { sub: '本月 · 人民币', help: 1 }, [
+      ['新增询盘', '38', 'inbox', 'blue', { link: 1, delta: '+12.0%' }],
+      ['报价单', '52', 'file-text', 'blue', { delta: '+8.3%' }],
+      ['成交额', 'CNY 412,860.00', 'handshake', 'blue', { link: 1, delta: '+9.6%' }],
+      ['毛利率', '21.30%', 'percent', 'purple', { delta: MINUS + '0.8 个百分点' }],
+      ['实收回款', 'CNY 386,420.00', 'hand-coins', 'cyan', { delta: MINUS + '4.3%' }]]), 12]] },
+    { h: TIER.M, items: [[follow, 6], [conv, 6]] },
+    { h: TIER.M, items: [[compare, 12]] },
+    { h: 'fit_content', items: [[opp, 12]] },
+  ], '上午好，林熙');
+}
+
+// 采购负责人：询价概况（整行 3 张）→ 采购执行 | 采购员效率 → 砍价成果 | 应付
+function purchaseLeadBoard(T, name) {
+  const exec = wCard(T, '采购执行', { note: '共 23 件', inset: 1 }, (b) => {
+    todoRows(T, b, [['inbox', 'info', '待下单的采购需求', '销售订单已确认，还没全部下单', 6], ['send', 'purple', '待供应商发货', '已下单、还有未发数量，其中逾期未发 2', 9], ['truck', 'ok', '在途', '供应商已发货，还没到仓', 5], ['clock', 'err', '超期未到货', '在途且已过预计到货日期', 2, 1], ['triangle-alert', 'warn', '到货差异待处理', '少发、错发、不良', 1, 1]], 50);
+  });
+  const eff = wCard(T, '采购员效率', { sub: '本月', more: '询价统计' }, (b) => {
+    miniTable(T, b, [['采购员'], ['型号', 56, 'r'], ['有价', 56, 'r'], ['无货', 56, 'r'], ['待回价', 64, 'r'], ['有价率', 72, 'r']],
+      [['王磊', '86', '64', '12', '10', '74.4%'], ['李娜', '72', '58', '8', '6', '80.6%'], ['赵强', '41', '27', '9', '5', '65.9%'], ['兼职 · 小周', '18', '11', '4', '3', '61.1%'], ['孙悦', '9', '4', '1', '4', '44.4%']], { avatar: 1, bold: [5] });
+  });
+  dash(T, name, 1000, [
+    { h: TIER.S, items: [[wGroup(T, '询价概况', { sub: '截至今天', more: '询价分配' }, [
+      ['待分配的任务', '6', 'inbox', 'blue', { link: 1, hint: '最早的已等 5 小时' }],
+      ['超时未回价', '3', 'alarm-clock', 'gray', { link: 1, alert: 'err', alertText: '询价中 24 个任务' }],
+      ['待审核兼职回价', '5', 'file-search', 'blue', { link: 1, hint: '来自 2 位兼职' }]]), 12]] },
+    { h: TIER.M, items: [[exec, 6], [eff, 6]] },
+    { h: TIER.S, items: [
+      [wGroup(T, '砍价成果', { sub: '本月' }, [
+        ['本月砍价节省', 'CNY 12,380.00', 'piggy-bank', 'cyan', { link: 1, hint: '本月下单 28 张' }],
+        ['砍价率', '6.20%', 'percent', 'purple', { hint: '下单价比首次报价低的比例' }]]), 6],
+      [wGroup(T, '应付', { sub: '截至今天' }, [
+        ['本月到期应付', 'CNY 86,400.00', 'calendar-clock', 'gray', { link: 1, hint: '共 7 笔' }],
+        ['已逾期', 'CNY 19,000.00', 'calendar-x', 'gray', { link: 1, alert: 'err', alertText: '共 2 笔' }]]), 6]] },
+  ], '上午好，李娜');
+}
+
+// 运营负责人：内容流水线（整行）→ 平台发品进度 | 素材概况 → 本月产出（整行 3 张）
+function opsLeadBoard(T, name) {
+  const K = kit(T); const { tx, box, icon, sp } = K;
+  const pipe = wCard(T, '内容流水线', { sub: '所有商品', help: 1, more: '资料任务' }, (b, w) => {
+    const steps = [['资料待补', 18], ['资料待核', 9], ['营销待生成', 14], ['发品待发布', 22], ['全部发完', 136]];
+    const r = box(b, { width: 'fill_container', layout: 'horizontal', gap: 8, alignItems: 'center' });
+    steps.forEach(([l, v], i) => {
+      if (i) icon(r, 'chevron-right', 16, T.faint, false);
+      const last = i === steps.length - 1;
+      const c = box(r, { width: 'fill_container', layout: 'vertical', gap: 6, padding: [14, 16], cornerRadius: 8, fill: solid(T.tonal) });
+      const hr2 = box(c, { width: 'fill_container', layout: 'horizontal', gap: 6, alignItems: 'center' });
+      tx(hr2, l, { fontSize: 13, fill: solid(T.body), width: 'fill_container' });
+      tx(c, String(v), { fontSize: 24, fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) });
+      const track = box(c, { width: 'fill_container', height: 4, cornerRadius: 2, fill: solid(T.chartMuted), layout: 'horizontal', clipContent: true });
+      I(track, { type: 'frame', width: Math.max(4, Math.round(150 * Math.min(1, v / 40))), height: 4, cornerRadius: 2, fill: solid(last ? P : T.barMuted) });
+    });
+    sp(b, 16);
+    insetStats(T, b, [['其中素材待补', '7', '待发布但没有发品素材', 'warn'], ['内容有更新', '4', '已发布后营销内容又导入过'], ['待替换素材', '3', '用参考素材发布、本型号已有素材']]);
+    box(b, { width: 1, height: 'fill_container' });
+    tx(b, '待发布 22 个，其中 7 个还没有发品素材', { fontSize: 13, fill: solid(T.sub) });
+  });
+  const plat = wCard(T, '平台发品进度', { more: '发品任务' }, (b, w) => {
+    const lg = box(b, { layout: 'horizontal', gap: 16, alignItems: 'center' });
+    // 进度类用主题色深浅（规范「配色」）：已发布主题色、待发布浅主题色、已取消中性灰
+    const SOFT = T.key === 'light' ? '#FDD9A0' : '#6B4E22';
+    [['已发布', P], ['待发布', SOFT], ['已取消', T.chartMuted]].forEach(([l, c]) => { const it = box(lg, { layout: 'horizontal', gap: 6, alignItems: 'center' }); I(it, { type: 'ellipse', width: 8, height: 8, fill: solid(c) }); tx(it, l, { fontSize: 12, fill: solid(T.sub) }); });
+    sp(b, 12);
+    const BW = w - 40;
+    [['阿里国际站', 86, 12, 3], ['中国制造网', 54, 8, 1], ['亚马逊', 21, 14, 0], ['独立站', 9, 2, 0]].forEach(([nm, a, p2, c], i) => {
+      if (i) sp(b, 14);
+      const t = a + p2 + c;
+      const r1 = box(b, { width: 'fill_container', layout: 'horizontal', alignItems: 'center', gap: 8 });
+      tx(r1, nm, { fontSize: 13, fill: solid(T.body), width: 'fill_container' });
+      tx(r1, '已发布 ' + a + ' / ' + t, { fontSize: 13, fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) });
+      sp(b, 6);
+      const bar = box(b, { width: BW, height: 8, layout: 'horizontal', gap: 2 });
+      [[a, P], [p2, SOFT], [c, T.chartMuted]].forEach(([v, col], k) => { if (v) I(bar, { type: 'frame', width: Math.max(6, Math.round((BW - 4) * v / 101)), height: 8, cornerRadius: k === 0 ? [4, 0, 0, 4] : 0, fill: solid(col) }); });
+    });
+  });
+  dash(T, name, 1200, [
+    { h: TIER.M, items: [[pipe, 12]] },
+    { h: TIER.M, items: [[plat, 6], [wGroup(T, '素材概况', { more: '素材管理' }, [
+      ['缺营销实拍的型号', '32', 'camera', 'blue', { link: 1, hint: '有素材但还没有营销实拍' }],
+      ['待拍摄任务', '6', 'clock', 'blue', { link: 1, hint: '到货后自动生成' }],
+      ['本月新增营销实拍', '18', 'image', 'cyan', { hint: '' }],
+      ['待审核商品候选', '11', 'layout-grid', 'gray', { link: 1, hint: '等待建档' }]], 2), 6]] },
+    { h: TIER.S, items: [[wGroup(T, '本月产出', { sub: '本月' }, [
+      ['资料核对', '64', 'file-check', 'blue', { hint: '个商品（所有公司共用）' }],
+      ['营销写入', '41', 'file-text', 'purple', { hint: '个商品' }],
+      ['发品', '57', 'rocket', 'cyan', { hint: '个商品 × 平台' }]]), 12]] },
+  ], '下午好，周宁');
+}
+
+// 采购员：我的询价（整行：凹格 3 项 + 任务列表）→ 回价统计 | 近 30 天回价 → 我的采购（整行 5 张）
+function purchaserBoard(T, name) {
+  const K = kit(T); const { tx, box, hr, label, sp } = K;
+  const mine = wCard(T, '我的询价', { more: '我的询价' }, (b) => {
+    insetStats(T, b, [['待处理任务', '8', '共 23 个型号'], ['今天到期', '2', '要在 18:00 前回价', 'err'], ['被退回待补', '1', '采购负责人退回']]);
+    sp(b, 12);
+    [['IT20261128004', 'Müller Automation · 6 个型号', '今天 18:00 截止', 'err'], ['IT20261128002', 'PRIME CONTROLS · 3 个型号', '今天 18:00 截止', 'err'], ['IT20261127009', 'Nordic Automation · 9 个型号', '明天截止', null], ['IT20261126011', 'Kraft Systems GmbH · 5 个型号', '12-01 截止', null]].forEach(([no, d, due, tn], i) => {
+      if (i) hr(b);
+      const r = box(b, { width: 'fill_container', height: 44, layout: 'horizontal', gap: 12, alignItems: 'center', padding: [0, 8] });
+      tx(r, no, { fontSize: 13, fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) });
+      tx(r, d, { fontSize: 13, fill: solid(T.body), width: 'fill_container' });
+      tn ? label(r, due, T.st[tn]) : tx(r, due, { fontSize: 12, fill: solid(T.sub) });
+    });
+  });
+  const stat = wCard(T, '回价统计', {}, (b) => {
+    [['本月回价型号', '128', '较上月 +16'], ['本月完成任务', '31', '平均每个任务 4.1 个型号'], ['累计回价型号', '2,416', '入职以来']].forEach(([l, v, h], i) => {
+      if (i) hr(b);
+      const r = box(b, { width: 'fill_container', height: 'fill_container', layout: 'horizontal', alignItems: 'center', gap: 8 });
+      const lc = box(r, { width: 'fill_container', layout: 'vertical', gap: 2 }); tx(lc, l, { fontSize: 13, fill: solid(T.body) }); tx(lc, h, { fontSize: 12, fill: solid(T.sub) });
+      tx(r, v, { fontSize: 20, fontWeight: 600, fontFamily: NUM, fill: solid(T.ink) });
+    });
+  });
+  const trend = wCard(T, '近 30 天回价', { sub: '每天回价的型号数', note: '合计 142 个型号' }, (b, w) => {
+    const vals = [3, 5, 0, 0, 6, 4, 7, 2, 5, 0, 0, 8, 6, 4, 5, 7, 0, 0, 9, 3, 6, 4, 5, 0, 0, 7, 8, 6, 5, 9];
+    barChart(T, b, w - 40, 196, ['10月30日', '今天'], vals, 10, [['10', 1], ['5', 0.5], ['0', 0]], '9', { ends: 1 });
+  });
+  dash(T, name, 1080, [
+    { h: TIER.M, items: [[mine, 12]] },
+    { h: TIER.M, items: [[stat, 4], [trend, 8]] },
+    // 我的采购：整行一张卡，待办三列（1366 下五张数字卡的名称放不下，实现时改为待办网格，UI-108）
+    { h: TIER.S, items: [[wCard(T, '我的采购', { note: '共 16 件', inset: 1, more: '采购订单' }, (b) => {
+      const g = box(b, { width: 'fill_container', layout: 'vertical', gap: 0 });
+      const items = [['inbox', 'info', '待下单的采购需求', '销售订单已确认，还没全部下单', 4, 1], ['send', 'blue', '待供应商发货', '已下单，其中 1 张已过预计发货日期', 6], ['file-text', 'purple', '草稿采购订单', '还没确认下单', 2], ['truck', 'ok', '在途', '供应商已发货，还没到仓', 3], ['triangle-alert', 'err', '到货差异待处理', '少发、错发、不良', 1, 1]];
+      for (const part of [items.slice(0, 3), items.slice(3)]) {
+        const r = box(g, { width: 'fill_container', layout: 'horizontal', gap: 24 });
+        for (const it of part) { const c = box(r, { width: 'fill_container', layout: 'vertical' }); todoRows(T, c, [it], 52); }
+        if (part.length < 3) box(r, { width: 'fill_container', height: 1 });
+      }
+    }), 12]] },
+  ], '上午好，王磊');
+}
+
 bossBoard(LIGHT, 'H1 工作台 · 老板 · 浅色');
 bossBoard(DARK, 'H2 工作台 · 老板 · 深色');
 riskStates(LIGHT, 'H1b 风险提醒两种状态 · 浅色');
 salesBoard(LIGHT, 'H3 工作台 · 业务员 · 浅色');
 salesBoard(DARK, 'H4 工作台 · 业务员 · 深色');
+salesLeadBoard(LIGHT, 'I1 工作台 · 业务负责人 · 浅色');
+purchaseLeadBoard(LIGHT, 'I2 工作台 · 采购负责人 · 浅色');
+opsLeadBoard(LIGHT, 'I3 工作台 · 运营负责人 · 浅色');
+purchaserBoard(LIGHT, 'I4 工作台 · 采购员 · 浅色');
+purchaseLeadBoard(DARK, 'I5 工作台 · 采购负责人 · 深色');
