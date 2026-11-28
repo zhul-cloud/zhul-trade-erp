@@ -21,6 +21,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { UserName } from '@/components/UserName';
 import { Pill } from '@/pages/inquiry/shared/components';
 import {
   type FetchUrls,
@@ -763,11 +764,22 @@ const ListingPanel: React.FC<{
               )}
               <div style={{ color: palette.sub }}>
                 {t.platformItemId && `平台商品编号 ${t.platformItemId} · `}
-                {t.publishedBy} 发布于 {formatDateTime(t.publishedAt)}
-                {t.syncedAt &&
-                  ` · ${t.syncedBy} ${formatDateTime(t.syncedAt)} 同步`}
-                {t.replacedAt &&
-                  ` · ${t.replacedBy} ${formatDateTime(t.replacedAt)} 替换素材`}
+                <UserName value={t.publishedBy} /> 发布于{' '}
+                {formatDateTime(t.publishedAt)}
+                {t.syncedAt && (
+                  <>
+                    {' · '}
+                    <UserName value={t.syncedBy} /> {formatDateTime(t.syncedAt)}{' '}
+                    同步
+                  </>
+                )}
+                {t.replacedAt && (
+                  <>
+                    {' · '}
+                    <UserName value={t.replacedBy} />{' '}
+                    {formatDateTime(t.replacedAt)} 替换素材
+                  </>
+                )}
               </div>
               {t.note && (
                 <div style={{ color: palette.mute }}>备注：{t.note}</div>

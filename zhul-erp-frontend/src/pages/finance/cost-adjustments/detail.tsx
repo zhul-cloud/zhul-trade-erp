@@ -96,12 +96,14 @@ const CostAdjustDetail: React.FC = () => {
     },
     {
       title: '原单位成本',
+      align: 'right' as const,
       dataIndex: 'oldUnitCost',
       width: 120,
       render: unit,
     },
     {
       title: '新单位成本',
+      align: 'right' as const,
       dataIndex: 'newUnitCost',
       width: 120,
       render: (v: number) => <b>{unit(v)}</b>,
@@ -120,12 +122,14 @@ const CostAdjustDetail: React.FC = () => {
     },
     {
       title: '采购费用',
+      align: 'right' as const,
       dataIndex: 'diffFee',
       width: 110,
       render: (v: number) => <UnitDiff value={v} />,
     },
     {
       title: '质量索赔',
+      align: 'right' as const,
       dataIndex: 'diffClaim',
       width: 110,
       render: (v: number) => <UnitDiff value={v} />,
@@ -138,6 +142,7 @@ const CostAdjustDetail: React.FC = () => {
     },
     {
       title: '调整金额',
+      align: 'right' as const,
       dataIndex: 'amountCny',
       width: 110,
       render: (v: number) => <SignedMoney value={v} />,
@@ -194,6 +199,7 @@ const CostAdjustDetail: React.FC = () => {
     },
     {
       title: '调整金额',
+      align: 'right' as const,
       dataIndex: 'amountCny',
       width: 120,
       render: (v: number) => <SignedMoney value={v} />,

@@ -168,7 +168,17 @@ const FxSettlementDetail: React.FC = () => {
           },
           {
             label: '作废',
-            value: `${s.voidReason ?? ''}${s.voidedBy ? ` · ${s.voidedBy}` : ''}`,
+            value: (
+              <>
+                {s.voidReason ?? ''}
+                {s.voidedBy && (
+                  <>
+                    {' · '}
+                    <UserName value={s.voidedBy} />
+                  </>
+                )}
+              </>
+            ),
             hidden: valid,
           },
         ]}

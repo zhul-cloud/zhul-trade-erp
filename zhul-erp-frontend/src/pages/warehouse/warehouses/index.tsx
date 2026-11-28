@@ -229,6 +229,7 @@ const WarehousesPage: React.FC = () => {
     },
     {
       title: '在库件数',
+      align: 'right' as const,
       dataIndex: 'onHand',
       width: 90,
       render: (v: number) => <b>{v}</b>,

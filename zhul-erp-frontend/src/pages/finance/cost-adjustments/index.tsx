@@ -158,18 +158,21 @@ const CostAdjustmentsPage: React.FC = () => {
     },
     {
       title: '在库调整',
+      align: 'right' as const,
       dataIndex: 'stockAmount',
       width: 110,
       render: (v: number) => <SignedMoney value={v} />,
     },
     {
       title: '销售成本调整',
+      align: 'right' as const,
       dataIndex: 'cogsAmount',
       width: 120,
       render: (v: number) => <SignedMoney value={v} />,
     },
     {
       title: '其他出库调整',
+      align: 'right' as const,
       dataIndex: 'otherAmount',
       width: 120,
       render: (v: number) => <SignedMoney value={v} />,

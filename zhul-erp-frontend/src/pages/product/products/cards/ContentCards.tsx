@@ -12,6 +12,7 @@ import {
 } from 'antd';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { UserName } from '@/components/UserName';
 import { EmptyHint } from '../../components/EmptyHint';
 import { Pill } from '../../components/Pills';
 import {
@@ -576,7 +577,7 @@ export const FaqCard: React.FC<
                   <div
                     style={{ marginTop: 8, fontSize: 12, color: palette.mute }}
                   >
-                    {f.reviewedBy} 已确认
+                    <UserName value={f.reviewedBy} /> 已确认
                     {f.reviewedAt
                       ? ` · ${f.reviewedAt.replace('T', ' ').slice(0, 16)}`
                       : ''}

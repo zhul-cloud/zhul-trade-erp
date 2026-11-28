@@ -64,6 +64,8 @@ const RULE_NAMES = new Set([
   'page-tabs',
   'scope-switch',
   'currency-symbol',
+  'num-align',
+  'user-name',
 ]);
 
 /**
@@ -279,6 +281,10 @@ const MSG = {
     '列表行里的启用 / 停用开关用公共 StatusSwitch（小号、跟主题色、读屏文字、不触发整行点击、值没变不回调，D48）',
   rowActions:
     '操作列用 RowActions（行内最多 2 个图标，其余收进「更多」，列宽 rowActionsWidth）；审批、工作队列等例外用 lint-ui-ignore row-actions 写明原因',
+  numAlign:
+    '数量、金额、单价、笔数等数字列要右对齐（align 写 right，规范「对齐出秩序」）；格子里放的不是单个数字（如型号带件数、状态标签）的写 lint-ui-ignore num-align 说明',
+  userName:
+    '创建人、确认人、操作人等字段存的是登录账号，显示时用公共 UserName / useUserName 换成姓名（ui-redesign C7）；不是用来显示的（拼 key 等）写 lint-ui-ignore user-name 说明',
   color: '页面里不写死颜色，用 useAppTheme().palette 的令牌',
   header:
     '旧页头与面包屑：改用 ListLayout 的 PageHeader（不带说明文字），不显示面包屑',
@@ -536,6 +542,59 @@ function checkSource(src, rel) {
     const render = prop('render');
     if (render && !render.initializer.getText(sf).includes('RowActions')) {
       push('row-actions', 'error', MSG.rowActions, lineOf(title.getStart(sf)));
+    }
+  });
+
+  // 数字列右对齐：dataIndex 名是数量、金额、单价、笔数类（…Qty、…Amount、…Price、…Count、…Total 等）的列要写 align
+  const NUM_INDEX =
+    /(qty|Qty|quantity|Quantity|amount|Amount|Cny|Count|total|Total|price|Price|cost|Cost|fee|Fee)$/;
+  walk(sf, (n) => {
+    if (!ts.isObjectLiteralExpression(n)) return;
+    const prop = (k) =>
+      n.properties.find(
+        (x) => ts.isPropertyAssignment(x) && x.name.getText() === k,
+      );
+    const di = prop('dataIndex');
+    if (!prop('title') || !di || prop('align')) return;
+    const name = stringOf(di.initializer);
+    if (name && NUM_INDEX.test(name))
+      push('num-align', 'error', MSG.numAlign, lineOf(n.getStart(sf)));
+  });
+
+  // 账号字段（…By、operator）直接显示：要经 UserName / useUserName 换成姓名。
+  // 只看 JSX 子节点、title 属性、模板字符串里的值；作比较、作条件、传给 value / by 属性或 useUserName 的不算
+  const ACCOUNT_FIELD = /^([a-z]+By|operator)$/;
+  walk(sf, (n) => {
+    if (!ts.isPropertyAccessExpression(n) || !ACCOUNT_FIELD.test(n.name.text))
+      return;
+    let c = n;
+    while (c.parent) {
+      const p = c.parent;
+      if (
+        (ts.isJsxAttribute(p) && /^(value|by)$/.test(p.name.getText(sf))) ||
+        (ts.isCallExpression(p) &&
+          /useUserName/.test(p.expression.getText(sf))) ||
+        (ts.isBinaryExpression(p) &&
+          (/^[!=]==?$/.test(p.operatorToken.getText(sf)) ||
+            (p.operatorToken.getText(sf) === '&&' && p.left === c))) ||
+        (ts.isConditionalExpression(p) && p.condition === c) ||
+        ts.isBlock(p) ||
+        ts.isSourceFile(p) ||
+        ts.isCallExpression(p)
+      )
+        return;
+      const shown =
+        ts.isTemplateSpan(p) ||
+        (ts.isJsxExpression(p) &&
+          (ts.isJsxElement(p.parent) ||
+            ts.isJsxFragment(p.parent) ||
+            (ts.isJsxAttribute(p.parent) &&
+              p.parent.name.getText(sf) === 'title')));
+      if (shown) {
+        push('user-name', 'error', MSG.userName, lineOf(n.getStart(sf)));
+        return;
+      }
+      c = p;
     }
   });
 

@@ -30,6 +30,7 @@ import {
   useTabActive,
   useUnsavedGuard,
 } from '@/components/PageTabs/hooks';
+import { UserName } from '@/components/UserName';
 import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
@@ -484,7 +485,8 @@ const TakeoverCard: React.FC<{
         </>
       ) : (
         <div style={{ fontSize: 13, color: palette.sub }}>
-          {site.takeoverBy} 于 {formatDateTime(site.takeoverAt)} 开始以 ERP 为准
+          <UserName value={site.takeoverBy} /> 于{' '}
+          {formatDateTime(site.takeoverAt)} 开始以 ERP 为准
         </div>
       )}
     </Section>

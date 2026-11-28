@@ -422,6 +422,7 @@ const CustomerInquiryPage: React.FC = () => {
       sortDirections: ['descend', 'ascend'],
       sortOrder: sortOrderOf('level'),
     },
+    // lint-ui-ignore num-align: 格子里是首个型号带件数，按型号列左对齐
     {
       title: <HeadHelp title="型号" help={HELP.models} />,
       dataIndex: 'totalItemCount',

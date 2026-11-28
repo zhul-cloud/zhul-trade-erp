@@ -202,44 +202,63 @@ const LedgerPage: React.FC = () => {
     },
     {
       title: '期初数量',
+      align: 'right' as const,
       dataIndex: 'openingQty',
       width: 90,
       render: (v: number, r) => movesLink(r, v, true),
     },
     {
       title: '期初金额',
+      align: 'right' as const,
       dataIndex: 'openingAmount',
       width: 120,
       render: money,
     },
     {
       title: '本月入库',
+      align: 'right' as const,
       dataIndex: 'inQty',
       width: 90,
       render: (v: number, r) => movesLink(r, v),
     },
-    { title: '入库金额', dataIndex: 'inAmount', width: 120, render: money },
+    {
+      title: '入库金额',
+      align: 'right' as const,
+      dataIndex: 'inAmount',
+      width: 120,
+      render: money,
+    },
     {
       title: '本月出库',
+      align: 'right' as const,
       dataIndex: 'outQty',
       width: 90,
       render: (v: number, r) => movesLink(r, v),
     },
-    { title: '出库金额', dataIndex: 'outAmount', width: 120, render: money },
+    {
+      title: '出库金额',
+      align: 'right' as const,
+      dataIndex: 'outAmount',
+      width: 120,
+      render: money,
+    },
     {
       title: '成本调整',
+      align: 'right' as const,
       dataIndex: 'adjustAmount',
       width: 110,
       render: (v: number) => <SignedMoney value={v} />,
     },
     {
       title: '期末数量',
+      align: 'right' as const,
       dataIndex: 'closingQty',
       width: 90,
       render: (v: number) => <b>{v}</b>,
     },
     {
       title: '期末金额',
+      align: 'right' as const,
       dataIndex: 'closingAmount',
       width: 120,
       render: money,
@@ -417,7 +436,7 @@ const LedgerPage: React.FC = () => {
                         ['closingAmount', true],
                       ] as const
                     ).map(([k, isMoney], i) => (
-                      <Table.Summary.Cell key={k} index={i + 1}>
+                      <Table.Summary.Cell key={k} index={i + 1} align="right">
                         <b>
                           {k === 'adjustAmount' ? (
                             <SignedMoney value={sum(k)} />

@@ -9,6 +9,7 @@ import {
   Rocket,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { UserName } from '@/components/UserName';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -521,7 +522,9 @@ const SitePanel: React.FC<{
             </div>
             {t.confirmedAt && (
               <div style={{ fontSize: 12, color: palette.mute }}>
-                确认上线：{t.confirmedBy} · {formatDateTime(t.confirmedAt)}
+                确认上线：
+                <UserName value={t.confirmedBy} /> ·{' '}
+                {formatDateTime(t.confirmedAt)}
                 {site.needPurge && ' · 已清缓存'}
               </div>
             )}

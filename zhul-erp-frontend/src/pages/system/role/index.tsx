@@ -436,6 +436,7 @@ const RolePage: React.FC = () => {
     },
     {
       title: '关联用户',
+      align: 'right' as const,
       dataIndex: 'userCount',
       width: 100,
       search: false,

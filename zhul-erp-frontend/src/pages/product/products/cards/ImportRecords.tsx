@@ -8,6 +8,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { tableEmpty } from '@/components/EmptyState';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { UserName } from '@/components/UserName';
 import { EmptyHint } from '../../components/EmptyHint';
 import { Pill } from '../../components/Pills';
 import {
@@ -111,7 +112,9 @@ export const ImportPreviewDrawer: React.FC<{
             )}
           </Space>
           <div style={{ fontSize: 12, color: palette.sub, marginBottom: 12 }}>
-            确认：{r.mine ? r.confirmedBy : '其他公司'} · {fmt(r.confirmedAt)}
+            确认：
+            {r.mine ? <UserName value={r.confirmedBy} /> : '其他公司'} ·{' '}
+            {fmt(r.confirmedAt)}
           </div>
           {r.summary && (
             <div
@@ -251,7 +254,7 @@ export const ImportRecordList: React.FC<{
       render: (_, r) => (
         <div>
           <div style={{ color: r.mine ? palette.ink : palette.sub }}>
-            {r.mine ? r.confirmedBy : '其他公司'}
+            {r.mine ? <UserName value={r.confirmedBy} /> : '其他公司'}
           </div>
           <div style={{ fontSize: 12, color: palette.sub }}>
             {fmt(r.confirmedAt)}

@@ -22,6 +22,7 @@ import {
   useTabActive,
   useUnsavedGuard,
 } from '@/components/PageTabs/hooks';
+import { UserName } from '@/components/UserName';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -889,7 +890,6 @@ const VideoTaskDetailPage: React.FC = () => {
                       {dayjs(l.time).format('MM-DD HH:mm')}
                     </span>
                     <span
-                      title={l.operator}
                       style={{
                         color: palette.sub,
                         overflow: 'hidden',
@@ -897,7 +897,7 @@ const VideoTaskDetailPage: React.FC = () => {
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {l.operator}
+                      <UserName value={l.operator} />
                     </span>
                     <span>
                       {l.actionName}

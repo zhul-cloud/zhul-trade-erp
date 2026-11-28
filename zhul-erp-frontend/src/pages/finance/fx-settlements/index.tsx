@@ -571,7 +571,12 @@ const FxSettlementPage: React.FC = () => {
       width: 180,
       ellipsis: true,
     },
-    { title: '分摊笔数', dataIndex: 'allocationCount', width: 90 },
+    {
+      title: '分摊笔数',
+      align: 'right' as const,
+      dataIndex: 'allocationCount',
+      width: 90,
+    },
     {
       title: '状态',
       dataIndex: 'status',

@@ -216,6 +216,7 @@ const ProfitStatsPage: React.FC = () => {
     },
     {
       title: '未结算',
+      align: 'right' as const,
       key: 'unsettled',
       width: 80,
       render: (_, g) =>

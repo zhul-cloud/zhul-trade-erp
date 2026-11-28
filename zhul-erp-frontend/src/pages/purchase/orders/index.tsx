@@ -305,6 +305,7 @@ const PurchaseOrderList: React.FC = () => {
           <span style={{ color: palette.mute }}>—</span>
         ),
     },
+    // lint-ui-ignore num-align: 格子里是首个型号带总数量，按型号列左对齐
     {
       // 型号、品牌、品类按单据页统一规范显示（audit UI-098）
       title: '型号 · 数量',
@@ -339,6 +340,7 @@ const PurchaseOrderList: React.FC = () => {
     },
     {
       title: '砍价',
+      align: 'right' as const,
       dataIndex: 'bargainAmount',
       width: 130,
       sorter: true,

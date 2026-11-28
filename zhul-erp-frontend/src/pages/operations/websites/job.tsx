@@ -22,6 +22,7 @@ import {
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '@/components/ListLayout';
 import { usePageTitle, useTabActive } from '@/components/PageTabs/hooks';
+import { UserName } from '@/components/UserName';
 import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -275,6 +276,7 @@ const ImportView: React.FC<{
     },
     {
       title: '售价',
+      align: 'right' as const,
       dataIndex: 'sellPrice',
       width: 90,
       render: (v?: number | null) =>
@@ -918,7 +920,12 @@ const CompareView: React.FC<{
     footer = (
       <Footer
         tone="mute"
-        text={`${site.takeoverBy ?? ''} 于 ${formatDateTime(site.takeoverAt)} 开始以 ERP 为准`}
+        text={
+          <>
+            <UserName value={site.takeoverBy} /> 于{' '}
+            {formatDateTime(site.takeoverAt)} 开始以 ERP 为准
+          </>
+        }
       />
     );
   } else if (latestId && latestId !== job.id) {

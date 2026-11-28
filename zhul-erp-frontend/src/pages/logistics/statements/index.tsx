@@ -563,24 +563,28 @@ const Statements: React.FC = () => {
     },
     {
       title: '出运单',
+      align: 'right' as const,
       dataIndex: 'shipmentCount',
       width: 80,
       render: (v: number) => `${v} 票`,
     },
     {
       title: '我们登记',
+      align: 'right' as const,
       dataIndex: 'ourTotal',
       width: 130,
       render: (v: number) => money(v),
     },
     {
       title: '对账合计',
+      align: 'right' as const,
       dataIndex: 'statementTotal',
       width: 130,
       render: (v: number) => money(v),
     },
     {
       title: '差额',
+      align: 'right' as const,
       dataIndex: 'diffTotal',
       width: 150,
       render: (v: number, r) =>

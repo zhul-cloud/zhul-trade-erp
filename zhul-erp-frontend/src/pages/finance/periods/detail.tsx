@@ -104,39 +104,71 @@ const LedgerTab: React.FC<{ month: string }> = ({ month }) => {
   const t = usePaged<LedgerRow>(fetch);
   const columns: TableColumnsType<LedgerRow> = [
     {
-      title: '品牌 · 型号',
+      title: '型号 · 品牌',
       dataIndex: 'model',
       width: 220,
+      fixed: 'left' as const,
       render: (_, r) => (
         <ModelCell model={r.model} brand={r.brand} category={r.category} />
       ),
     },
-    { title: '期初数量', dataIndex: 'openingQty', width: 90 },
+    {
+      title: '期初数量',
+      align: 'right' as const,
+      dataIndex: 'openingQty',
+      width: 90,
+    },
     {
       title: '期初金额',
       dataIndex: 'openingAmount',
+      align: 'right' as const,
       width: 120,
       render: plain,
     },
-    { title: '本月入库', dataIndex: 'inQty', width: 90 },
-    { title: '入库金额', dataIndex: 'inAmount', width: 120, render: plain },
-    { title: '本月出库', dataIndex: 'outQty', width: 90 },
-    { title: '出库金额', dataIndex: 'outAmount', width: 120, render: plain },
+    {
+      title: '本月入库',
+      align: 'right' as const,
+      dataIndex: 'inQty',
+      width: 90,
+    },
+    {
+      title: '入库金额',
+      align: 'right' as const,
+      dataIndex: 'inAmount',
+      width: 120,
+      render: plain,
+    },
+    {
+      title: '本月出库',
+      align: 'right' as const,
+      dataIndex: 'outQty',
+      width: 90,
+    },
+    {
+      title: '出库金额',
+      align: 'right' as const,
+      dataIndex: 'outAmount',
+      width: 120,
+      render: plain,
+    },
     {
       title: '成本调整',
       dataIndex: 'adjustAmount',
+      align: 'right' as const,
       width: 110,
       render: (v: number) => <SignedMoney value={v} />,
     },
     {
       title: '期末数量',
       dataIndex: 'closingQty',
+      align: 'right' as const,
       width: 90,
       render: (v: number) => <b>{v}</b>,
     },
     {
       title: '期末金额',
       dataIndex: 'closingAmount',
+      align: 'right' as const,
       width: 120,
       render: plain,
     },
@@ -200,6 +232,7 @@ const CogsTab: React.FC<{ month: string }> = ({ month }) => {
       title: '订单号',
       dataIndex: 'soNo',
       width: 150,
+      fixed: 'left' as const,
       render: (v: string, r) =>
         r.soId ? <Link to={`/sales/orders/${r.soId}`}>{v}</Link> : v || '—',
     },
@@ -242,18 +275,38 @@ const CogsTab: React.FC<{ month: string }> = ({ month }) => {
       dataIndex: 'quantity',
       width: 70,
     },
-    { title: '货款', dataIndex: 'amountGoods', width: 110, render: plain },
-    { title: '开票', dataIndex: 'amountInvoice', width: 100, render: plain },
-    { title: '采购费用', dataIndex: 'amountFee', width: 100, render: plain },
+    {
+      title: '货款',
+      align: 'right' as const,
+      dataIndex: 'amountGoods',
+      width: 110,
+      render: plain,
+    },
+    {
+      title: '开票',
+      align: 'right' as const,
+      dataIndex: 'amountInvoice',
+      width: 100,
+      render: plain,
+    },
+    {
+      title: '采购费用',
+      align: 'right' as const,
+      dataIndex: 'amountFee',
+      width: 100,
+      render: plain,
+    },
     {
       title: '质量索赔',
       dataIndex: 'amountClaim',
+      align: 'right' as const,
       width: 100,
       render: (v: number) => <SignedMoney value={v} />,
     },
     {
       title: '销售成本',
       dataIndex: 'amountCny',
+      align: 'right' as const,
       width: 120,
       render: (v: number) => <b>{plain(v)}</b>,
     },
@@ -301,7 +354,7 @@ const CogsTab: React.FC<{ month: string }> = ({ month }) => {
               <Table.Summary.Cell index={0} colSpan={4}>
                 <b>{t.total > t.rows.length ? '本页合计' : '合计'}</b>
               </Table.Summary.Cell>
-              <Table.Summary.Cell index={4}>
+              <Table.Summary.Cell index={4} align="right">
                 <b>{sum('quantity')}</b>
               </Table.Summary.Cell>
               {(
@@ -313,7 +366,7 @@ const CogsTab: React.FC<{ month: string }> = ({ month }) => {
                   'amountCny',
                 ] as const
               ).map((k, i) => (
-                <Table.Summary.Cell key={k} index={i + 5}>
+                <Table.Summary.Cell key={k} index={i + 5} align="right">
                   <b>
                     {k === 'amountClaim' ? (
                       <SignedMoney value={sum(k)} />
@@ -354,6 +407,7 @@ const AdjustTab: React.FC<{ month: string }> = ({ month }) => {
       title: '调整单号',
       dataIndex: 'adjustNo',
       width: 160,
+      fixed: 'left' as const,
       render: (v: string, r) => (
         <CopyText text={v}>
           <Link to={caPath(r.id)}>{v}</Link>
@@ -380,18 +434,21 @@ const AdjustTab: React.FC<{ month: string }> = ({ month }) => {
     {
       title: '在库调整',
       dataIndex: 'stockAmount',
+      align: 'right' as const,
       width: 110,
       render: (v: number) => <SignedMoney value={v} />,
     },
     {
       title: '销售成本调整',
       dataIndex: 'cogsAmount',
+      align: 'right' as const,
       width: 120,
       render: (v: number) => <SignedMoney value={v} />,
     },
     {
       title: '其他出库调整',
       dataIndex: 'otherAmount',
+      align: 'right' as const,
       width: 120,
       render: (v: number) => <SignedMoney value={v} />,
     },
