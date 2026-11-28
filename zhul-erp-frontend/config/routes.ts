@@ -156,6 +156,27 @@ export default [
         component: './operations/listings/detail',
       },
       {
+        // 站点管理：独立站的发布配置、检测连接、品类对照、导入与接管
+        path: '/operations/websites',
+        name: 'websites',
+        icon: 'global',
+        access: 'operationsWebsites',
+        component: './operations/websites',
+      },
+      {
+        // 导入预览、一致性比对
+        path: '/operations/websites/jobs/:jobId',
+        hideInMenu: true,
+        access: 'operationsWebsites',
+        component: './operations/websites/job',
+      },
+      {
+        path: '/operations/websites/:id',
+        hideInMenu: true,
+        access: 'operationsWebsites',
+        component: './operations/websites/detail',
+      },
+      {
         // 素材库：按型号汇总各环节的图片、视频与资料，全公司共用
         path: '/operations/media',
         name: 'media',

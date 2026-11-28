@@ -1,5 +1,7 @@
 package com.zhul.erp.modules.product.service.impl;
 
+import com.zhul.erp.modules.website.support.SiteContentChanged;
+import org.springframework.context.ApplicationEventPublisher;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
@@ -33,6 +35,7 @@ public class ProductSpecificationServiceImpl implements ProductSpecificationServ
     private static final Pattern KEY_PATTERN = Pattern.compile("^[a-z][a-z0-9_]*$");
 
     private final ProductSpecificationMapper specificationMapper;
+    private final ApplicationEventPublisher events;
     private final ProductFinder productFinder;
     private final ProductWriteGuard productWriteGuard;
 
@@ -46,6 +49,8 @@ public class ProductSpecificationServiceImpl implements ProductSpecificationServ
     @Transactional(rollbackFor = Exception.class)
     public List<SpecificationVO> replace(Long productId, SaveSpecificationsRequest req) {
         productWriteGuard.require(productId);
+        // 独立站已发布商品按资料重新判断「内容有更新」（事务提交后）
+        events.publishEvent(SiteContentChanged.product(productId));
         // 锁商品行，让同一商品的并发整体替换串行执行
         productFinder.lockActive(productId);
 

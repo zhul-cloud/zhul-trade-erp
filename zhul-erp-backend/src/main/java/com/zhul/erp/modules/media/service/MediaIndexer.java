@@ -1,5 +1,7 @@
 package com.zhul.erp.modules.media.service;
 
+import org.springframework.context.ApplicationEventPublisher;
+import com.zhul.erp.modules.website.support.SiteContentChanged;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
@@ -50,6 +52,7 @@ public class MediaIndexer {
             AttachmentService.PACKING, MediaCategory.PACKING);
 
     private final MediaItemMapper itemMapper;
+    private final ApplicationEventPublisher events;
     private final BizAttachmentMapper attachmentMapper;
     private final BizAttachmentModelMapper tagMapper;
     private final CustomerInquiryAttachmentMapper inquiryAttachmentMapper;
@@ -168,6 +171,7 @@ public class MediaIndexer {
                 .map(a -> new Desired(a.getId(), key(brand, model), brand.trim(), model.trim(), MediaCategory.MARKETING, 1))
                 .toList();
         sync(tenantId, MediaCategory.BIZ_ATTACHMENT, all.stream().map(BizAttachmentDO::getId).toList(), desired);
+        events.publishEvent(SiteContentChanged.assets(key(brand, model)));
     }
 
     /**
@@ -183,6 +187,7 @@ public class MediaIndexer {
                         .map(a -> new Desired(a.getId(), k, brand.trim(), model.trim(), MediaCategory.IMAGE_ASSET, 1)).toList());
         sync(tenantId, MediaCategory.BIZ_ATTACHMENT, outputAttachments,
                 approvedVideos.stream().map(id -> new Desired(id, k, brand.trim(), model.trim(), MediaCategory.VIDEO_ASSET, 2)).toList());
+        events.publishEvent(SiteContentChanged.assets(k));
     }
 
     /** 询价回价：图片归回价型号的「供方实拍」（PDF 报价单不算素材） */

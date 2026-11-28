@@ -41,6 +41,8 @@ public class SecurityConfig {
         "/api/v1/ai-tasks/*/callback",
         // 视频生成服务取图与回调：同样不走 JWT，用 X-Video-Token 共享密钥校验（见 VideoGeneratorController）
         "/api/v1/video-generator/**",
+        // 独立站发布服务回调：用 X-Publisher-Token 共享密钥校验（见 SitePublisherCallbackController）
+        "/api/v1/website-publisher/callback",
         "/doc.html",
         "/webjars/**",
         "/v3/api-docs/**",

@@ -1,0 +1,9 @@
+{
+  "name": "zhul-erp-site-publisher",
+  "private": true,
+  "description": "Publishes ERP site data to static site repos: pull, build, check, commit, deploy, push, IndexNow.",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/*.test.js"
+  }
+}

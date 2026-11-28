@@ -35,3 +35,8 @@ services:
     build: !reset null
     image: zhul-erp-video-generator:prod
     pull_policy: never
+
+  site-publisher:
+    build: !reset null
+    image: zhul-erp-site-publisher:prod
+    pull_policy: never

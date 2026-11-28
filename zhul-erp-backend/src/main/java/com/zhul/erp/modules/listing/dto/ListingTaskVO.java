@@ -14,8 +14,11 @@ public class ListingTaskVO {
     private String productName;
     private String category;
     private String platform;
+    /** 平台名；独立站为「独立站 · 站点名」 */
     private String platformLabel;
-    /** 1-待发布、2-已发布、3-已取消 */
+    /** 独立站任务的站点，其他平台为 0 */
+    private Long siteId;
+    /** 1-待发布、2-已发布、3-已取消、4-发布中、5-已上线待确认 */
     private Integer status;
     private String statusName;
     private String cancelReason;
@@ -36,6 +39,10 @@ public class ListingTaskVO {
     private String note;
     private String publishedBy;
     private LocalDateTime publishedAt;
+    /** 最近一张独立站发布单 */
+    private Long releaseId;
+    private String confirmedBy;
+    private LocalDateTime confirmedAt;
     private String syncedBy;
     private LocalDateTime syncedAt;
     private String replacedBy;

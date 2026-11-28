@@ -45,6 +45,7 @@ import {
   type PublishBody,
   readBizError,
 } from './service';
+import SitePanel from './site/SitePanel';
 
 /** 复制到剪贴板：优先用剪贴板接口，不可用时退回选中文本复制 */
 const copyText = async (text: string) => {
@@ -523,7 +524,15 @@ const Banner: React.FC<{
 export const StatusPills: React.FC<{ task: ListingTask }> = ({ task }) => (
   <>
     <Pill
-      tone={task.status === 1 ? 'orange' : task.status === 2 ? 'green' : 'mute'}
+      tone={
+        task.status === 1
+          ? 'orange'
+          : task.status === 2
+            ? 'green'
+            : task.status === 3
+              ? 'mute'
+              : 'cyan'
+      }
       dot
     >
       {task.statusName}
@@ -602,6 +611,29 @@ const ListingPanel: React.FC<{
     const c = data.content.platformContents?.[t.platform];
     return t.platform === 'social' ? socialSections(c) : marketSections(c);
   };
+
+  // 自动发布的独立站：发布预览、一键发布、确认上线
+  if (data?.site?.autoPublish && t)
+    return (
+      <SitePanel
+        detail={data}
+        site={data.site}
+        header={
+          <>
+            <span style={{ fontSize: 16, fontWeight: 600, color: palette.ink }}>
+              {t.platformLabel}
+            </span>
+            <StatusPills task={t} />
+          </>
+        }
+        reload={load}
+        onDetail={(d) => {
+          setData(d);
+          onChanged();
+        }}
+        onChanged={onChanged}
+      />
+    );
 
   return (
     <div>

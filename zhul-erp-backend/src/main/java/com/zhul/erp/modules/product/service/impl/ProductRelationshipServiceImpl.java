@@ -1,5 +1,7 @@
 package com.zhul.erp.modules.product.service.impl;
 
+import com.zhul.erp.modules.website.support.SiteContentChanged;
+import org.springframework.context.ApplicationEventPublisher;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zhul.erp.common.exception.BizException;
@@ -45,6 +47,7 @@ public class ProductRelationshipServiceImpl implements ProductRelationshipServic
     private static final int MPN_MAX = 128;
 
     private final ProductRelationshipMapper relationshipMapper;
+    private final ApplicationEventPublisher events;
     private final ProductMapper productMapper;
     private final ProductBrandMapper brandMapper;
     private final ProductFinder productFinder;
@@ -79,6 +82,8 @@ public class ProductRelationshipServiceImpl implements ProductRelationshipServic
     @Transactional(rollbackFor = Exception.class)
     public RelationshipVO create(Long productId, SaveRelationshipRequest req) {
         productWriteGuard.require(productId);
+        // 独立站已发布商品按资料重新判断「内容有更新」（事务提交后）
+        events.publishEvent(SiteContentChanged.product(productId));
         ProductDO self = productFinder.active(productId);
         Resolved in = resolve(self, req, null);
         boolean reverse = Boolean.TRUE.equals(req.getCreateReverse()) && RelationshipType.isSymmetric(in.type());
@@ -113,6 +118,8 @@ public class ProductRelationshipServiceImpl implements ProductRelationshipServic
     @Transactional(rollbackFor = Exception.class)
     public RelationshipVO update(Long productId, Long relationshipId, SaveRelationshipRequest req) {
         productWriteGuard.require(productId);
+        // 独立站已发布商品按资料重新判断「内容有更新」（事务提交后）
+        events.publishEvent(SiteContentChanged.product(productId));
         ProductDO self = productFinder.lockActive(productId);
         ProductRelationshipDO current = ownedRow(productId, relationshipId);
         Resolved in = resolve(self, req, current);
@@ -163,6 +170,8 @@ public class ProductRelationshipServiceImpl implements ProductRelationshipServic
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long productId, Long relationshipId) {
         productWriteGuard.require(productId);
+        // 独立站已发布商品按资料重新判断「内容有更新」（事务提交后）
+        events.publishEvent(SiteContentChanged.product(productId));
         productFinder.lockActive(productId);
         ownedRow(productId, relationshipId);
         ProductRelationshipDO change = new ProductRelationshipDO();

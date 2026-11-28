@@ -1,5 +1,7 @@
 package com.zhul.erp.modules.media.service;
 
+import org.springframework.context.ApplicationEventPublisher;
+import com.zhul.erp.modules.website.support.SiteContentChanged;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhul.erp.common.exception.BizException;
 import com.zhul.erp.common.result.PageResult;
@@ -79,6 +81,7 @@ public class MediaLibraryService {
     private static final String OFFICIAL_DOC = MediaCategory.PRODUCT_DOCUMENT_TABLE;
 
     private final MediaItemMapper itemMapper;
+    private final ApplicationEventPublisher events;
     private final BizAttachmentMapper attachmentMapper;
     private final CustomerInquiryAttachmentMapper inquiryAttachmentMapper;
     private final CustomerInquiryMapper inquiryMapper;
@@ -362,6 +365,7 @@ public class MediaLibraryService {
         upd.setFlagBy(me == null ? 0L : me);
         upd.setFlagTime(LocalDateTime.now());
         itemMapper.updateById(upd);
+        events.publishEvent(SiteContentChanged.assets(item.getAssetKey()));
         MediaItemDO saved = itemMapper.selectById(item.getId());
         return base(saved);
     }
@@ -449,6 +453,21 @@ public class MediaLibraryService {
         if (!Objects.equals(item.getCanSend(), 1)) {
             throw new BizException("仅内部的素材不能下载");
         }
+        return fileOf(item);
+    }
+
+    /** 标了「用于发品」的素材文件位置（发布到独立站用，不要求可发客户） */
+    public FileSource listingSource(Long itemId) {
+        MediaRef ref = new MediaRef();
+        ref.setItemId(itemId);
+        MediaItemDO item = locate(ref, false);
+        if (!Objects.equals(item.getForListing(), 1)) {
+            throw new BizException("素材没有标「用于发品」");
+        }
+        return fileOf(item);
+    }
+
+    private FileSource fileOf(MediaItemDO item) {
         if (MediaCategory.BIZ_ATTACHMENT.equals(item.getSourceTable())) {
             BizAttachmentDO a = attachmentMapper.selectById(item.getSourceId());
             if (a == null || a.getDeletedAt() != null) {
@@ -557,6 +576,7 @@ public class MediaLibraryService {
         upd.setId(i.getId());
         upd.setDeletedAt(LocalDateTime.now());
         itemMapper.updateById(upd);
+        events.publishEvent(SiteContentChanged.assets(i.getAssetKey()));
     }
 
     // ================================================================ 工具
