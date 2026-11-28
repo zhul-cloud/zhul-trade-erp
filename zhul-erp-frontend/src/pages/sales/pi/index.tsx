@@ -12,7 +12,7 @@ import {
   Tooltip,
 } from 'antd';
 import type { Dayjs } from 'dayjs';
-import { Eye, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Eye, Plus, Search, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useColumnSettings } from '@/components/ColumnSettings';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
@@ -401,27 +401,21 @@ const PiList: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      // 草稿：编辑在行内、删除收进「更多」；其余只有查看，图标在同一位置（ui-redesign S6）
+      // 行内只有查看（草稿在详情里编辑），草稿的删除收进「更多」（ui-redesign S6）
       width: rowActionsWidth(2),
       fixed: 'right',
       render: (_, r) => {
         const draft = r.status === PI_STATUS.DRAFT;
         return (
           <RowActions
+            // 草稿也是打开详情（详情里可编辑）：图标、文字每行一致（UI-118）
             inline={[
-              draft
-                ? {
-                    key: 'edit',
-                    label: '编辑',
-                    icon: <Pencil size={18} />,
-                    onClick: () => history.push(PATHS.pi(r.id)),
-                  }
-                : {
-                    key: 'view',
-                    label: '查看',
-                    icon: <Eye size={18} />,
-                    onClick: () => history.push(PATHS.pi(r.id)),
-                  },
+              {
+                key: 'view',
+                label: '查看',
+                icon: <Eye size={18} />,
+                onClick: () => history.push(PATHS.pi(r.id)),
+              },
             ]}
             more={[
               draft && {

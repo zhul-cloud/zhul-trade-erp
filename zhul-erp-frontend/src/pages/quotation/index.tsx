@@ -14,7 +14,6 @@ import type { Dayjs } from 'dayjs';
 import {
   Eye,
   MessageSquareText,
-  Pencil,
   Plus,
   Search,
   SlidersHorizontal,
@@ -349,8 +348,9 @@ const QuotationList: React.FC = () => {
             inline={[
               {
                 key: 'open',
-                label: draft ? '编辑' : '查看',
-                icon: draft ? <Pencil size={18} /> : <Eye size={18} />,
+                // 草稿也是打开详情（详情里可编辑）：图标、文字每行一致，不因状态换位（UI-118）
+                label: '查看',
+                icon: <Eye size={18} />,
                 onClick: () => history.push(PATHS.detail(r.id)),
               },
               {

@@ -34,38 +34,42 @@ type Drill = { ownerId?: number; priority?: number; stockoutDays?: number };
 
 const CoverCell: React.FC<{ c: Cell; drill: Drill }> = ({ c, drill }) => {
   const { palette } = useAppTheme();
-  const colors = useCoverColors();
-  const tint = colors[c.worst] ?? palette.hairline;
+  // R38 方案 B（D79）：格子白底、悬停浅灰；「N 个需求」+ 状态色堆叠条 + 最要紧的缺口点名，不再整格铺色
+  const gap =
+    c.coverage[1] > 0
+      ? { text: `无渠道 ${c.coverage[1]}`, color: palette.red, weight: 600 }
+      : c.coverage[3] > 0
+        ? { text: `需确认 ${c.coverage[3]}`, color: palette.orange, weight: 400 }
+        : c.coverage[2] > 0
+          ? { text: `未验证 ${c.coverage[2]}`, color: palette.info, weight: 400 }
+          : { text: `可报价 ${c.coverage[4] ?? 0}`, color: palette.mute, weight: 400 };
   return (
     <Link
       to={PATHS.models(c.brandId, c.categoryId, drill)}
+      className="zhul-matrix-cell"
       style={{
         display: 'grid',
-        gap: 8,
+        gap: 6,
         padding: '10px 14px',
-        borderRadius: 10,
+        borderRadius: 8,
         color: palette.ink,
-        background: `color-mix(in srgb, ${tint} 12%, ${palette.card})`,
-        border: c.worst === 1 ? `1px solid color-mix(in srgb, ${tint} 45%, transparent)` : '1px solid transparent',
       }}
     >
-      <span style={{ display: 'inline-flex', gap: 8, alignItems: 'baseline' }}>
-        <b style={{ fontSize: 20 }}>{c.total}</b>
-        <span style={{ fontSize: 12, color: palette.sub, letterSpacing: 1 }}>
-          {[4, 3, 2, 1].map((k) => c.coverage[k] ?? 0).join('/')}
-        </span>
+      <span style={{ display: 'inline-flex', gap: 6, alignItems: 'baseline' }}>
+        <b className="num" style={{ fontSize: 20 }}>{c.total}</b>
+        <span style={{ fontSize: 12, color: palette.mute }}>个需求</span>
       </span>
-      <CoverBar coverage={c.coverage} width={140} legend={false} />
-      {c.projectId && (
-        <span style={{ fontSize: 12, color: palette.info }}>专项中</span>
-      )}
+      <CoverBar coverage={c.coverage} width={160} legend={false} />
+      <span style={{ fontSize: 12 }}>
+        <span style={{ color: gap.color, fontWeight: gap.weight }}>{gap.text}</span>
+        {c.projectId && <span style={{ color: palette.info }}> · 专项中</span>}
+      </span>
     </Link>
   );
 };
 
 const StockoutCell: React.FC<{ c: Cell; max: number; drill: Drill }> = ({ c, max, drill }) => {
   const { palette } = useAppTheme();
-  const pct = Math.round(10 + (c.stockoutTimes / max) * 30);
   return (
     <Link
       to={PATHS.models(c.brandId, c.categoryId, drill)}
@@ -73,10 +77,10 @@ const StockoutCell: React.FC<{ c: Cell; max: number; drill: Drill }> = ({ c, max
         display: 'grid',
         gap: 4,
         padding: '10px 14px',
-        borderRadius: 10,
+        borderRadius: 8,
         color: palette.ink,
-        background: `color-mix(in srgb, ${palette.red} ${pct}%, ${palette.card})`,
       }}
+      className="zhul-matrix-cell"
     >
       <span>
         <b style={{ fontSize: 20 }}>{c.stockoutModels}</b>
@@ -101,12 +105,10 @@ const SupplierCell: React.FC<{ c: Cell }> = ({ c }) => {
         display: 'grid',
         gap: 4,
         padding: '10px 14px',
-        borderRadius: 10,
+        borderRadius: 8,
         color: palette.ink,
-        background: `color-mix(in srgb, ${tint} ${c.gap >= 2 ? 14 : 10}%, ${palette.card})`,
-        // 缺 2 家及以上加描边，与缺 1 家区分开
-        border: `1px solid ${c.gap >= 2 ? `color-mix(in srgb, ${tint} 45%, transparent)` : 'transparent'}`,
       }}
+      className="zhul-matrix-cell"
     >
       <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
         <b style={{ fontSize: 20 }}>
@@ -115,7 +117,7 @@ const SupplierCell: React.FC<{ c: Cell }> = ({ c }) => {
         <HeatPill value={c.heat} />
       </span>
       <span style={{ fontSize: 12, color: palette.sub }}>
-        <span style={{ color: tint }}>{c.gap > 0 ? `缺 ${c.gap} 家` : '已达标'}</span>
+        <span style={{ color: tint, fontWeight: c.gap >= 2 ? 600 : 400 }}>{c.gap > 0 ? `缺 ${c.gap} 家` : '已达标'}</span>
         {c.leads > 0 && ` · 线索 ${c.leads}`}
         {c.devProjectId && <span style={{ color: palette.info }}> · 开发中</span>}
       </span>

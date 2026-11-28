@@ -371,7 +371,7 @@ import {
 | 创建、更新两列 | `auditColumns()`、`AuditCell`（同上） | 列表的「创建」「更新」两列（各 120，默认收进列设置）：人名 13 号正文色（「系统」次要色）在上、短时间 12 号在下，悬停看「姓名 · 完整时间」。`pages/purchase/components` 里旧的四列 `auditColumns` 第 4 批删掉 |
 | 行内提醒 | `rowAlert(tone, props)`（`src/components/RowAlert`） | `onRow={(r) => rowAlert(r.overdue ? 'error' : undefined, { onClick })}`：首格左侧 3px 色条，原有的行属性一起传入；原因写成状态标签，不整行铺底色 |
 | 流程链路 | `FlowStrip`（`src/components/FlowStrip`） | `title`、`loop`（标题行右侧回环说明）、`lead`（入口卡，如今日待办）、`steps`、`active`、`onSelect`；每项 `name`、`icon`、`step`、`value`（不传为「即将上线」）、`unit`、`badge`、`sub`。规则见「层级与表面」流程链路一条 |
-| 状态开关 | `StatusSwitch`（`src/components/StatusSwitch`） | 列表行里的启用 / 停用开关：`checked`、`name`（读屏用）、`offText`（默认「停用」）、`disabled`、`loading`、`onChange`。一律小号 28×16、跟主题色，点开关不触发整行点击。默认 44×24 的开关放在表格行里比数据还抢眼（2026-11-24 用户指出「好丑」）；小号四周留白足够，满足 24×24 目标尺寸的间距例外。表单、设置页里的开关仍用默认大小 |
+| 状态开关 | `StatusSwitch`（`src/components/StatusSwitch`） | 列表行里的启用 / 停用开关：`checked`、`name`（读屏用）、`offText`（默认「停用」）、`disabled`、`loading`、`onChange`。一律小号 28×16、跟主题色（检查表 #9「表格里不放主题色」的例外，D78 用户对比 R37 后选择保留），点开关不触发整行点击。默认 44×24 的开关放在表格行里比数据还抢眼（2026-11-24 用户指出「好丑」）；小号四周留白足够，满足 24×24 目标尺寸的间距例外。表单、设置页里的开关仍用默认大小 |
 | 说明框 | `Callout`（`src/components/Callout`） | `<Callout>说明文字</Callout>`：中性浅底、无边框、左侧信息图标（`icon` 可换、传 `null` 不显示），`extra` 放右侧操作；需要用户处理的提示用 `tone="action"`（图标主题色），状态提示传 `role="status"`。警告、报错仍用 antd `Alert`（「提示条」）。不再用主题色浅底写说明（D42） |
 | 数字卡 | `MetricCard`、`MetricGroup` | 随工作台（第 3 批）实现，见「组件标准 · 数字卡」 |
 | 紧凑数字块 | `MetricTile`（`src/components/MetricCard`） | `label`、`value`、`sub`，可选 `icon`、`family`：一组较多的统计数（如跟进页「团队」视图十几项）用它，比数字卡矮；数值统一墨色 24/600，不按指标写死彩色，0 也不显示成告警色。团队视图每张卡带 32 的图标块，颜色按位置依次取 `TILE_FAMILIES`（蓝、青、紫、粉、灰，D73，对比图 R32 方案 C）。放进 `MetricGrid` |
