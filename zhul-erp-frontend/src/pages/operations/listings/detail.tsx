@@ -6,7 +6,7 @@ import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { MenuLink, MenuName } from '@/utils/menuName';
-import { PlatformTaskChip, TABS } from './components';
+import { PlatformTaskChip, TABS, taskState } from './components';
 import ListingPanel from './ListingPanel';
 import { type ListingProduct, listingApi, readBizError } from './service';
 
@@ -40,9 +40,11 @@ const ListingProductDetail: React.FC = () => {
   if (error) return <ErrorHint message={error} onRetry={load} />;
   if (!data) return <div style={{ color: palette.sub }}>正在加载…</div>;
 
-  // 默认打开第一个待发布的平台；地址里带 platform 时打开那个平台
+  // 默认打开第一个待发布的平台；地址里带 task（独立站每个站点一个任务）或 platform 时打开那个
+  const wantedTask = Number(search.get('task'));
   const wanted = search.get('platform');
   const current =
+    data.tasks.find((t) => t.id === wantedTask) ??
     data.tasks.find((t) => t.platform === wanted) ??
     data.tasks.find((t) => t.status === 1) ??
     data.tasks[0];
@@ -97,13 +99,13 @@ const ListingProductDetail: React.FC = () => {
           ))}
         </div>
       </Card>
-      <Segmented<string>
-        value={current?.platform}
-        onChange={(p) => setSearch({ platform: p }, { replace: true })}
+      <Segmented<number>
+        value={current?.id}
+        onChange={(id) => setSearch({ task: String(id) }, { replace: true })}
         style={{ marginBottom: 16 }}
         options={data.tasks.map((t) => ({
-          value: t.platform,
-          label: t.platformLabel,
+          value: t.id,
+          label: `${t.platformLabel} · ${taskState(t)[1]}`,
         }))}
       />
       {current && (

@@ -200,8 +200,11 @@ public class SitePreviewService {
         return out;
     }
 
-    /** 数字按数值比较（246.10 与 246.1 相同） */
+    /** 数字按数值比较（246.10 与 246.1 相同）；没有、null、空字符串都算空 */
     private static boolean same(JsonNode a, JsonNode b) {
+        if (blank(a) && blank(b)) {
+            return true;
+        }
         if (a.isNumber() && b.isNumber()) {
             return a.decimalValue().compareTo(b.decimalValue()) == 0;
         }
@@ -257,6 +260,10 @@ public class SitePreviewService {
         p.setRate(r.rate());
         p.setRateDate(r.rateDate());
         return p;
+    }
+
+    private static boolean blank(JsonNode n) {
+        return n.isMissingNode() || n.isNull() || (n.isTextual() && n.asText().isEmpty());
     }
 
     private static String conflict(String slug) {

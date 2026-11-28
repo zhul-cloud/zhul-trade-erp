@@ -146,9 +146,14 @@ class SiteReleaseContractTest extends TenantContractSupport {
         }
         assertEquals(2, inCategory, "品类对照显示站点范围内的商品数");
 
+        JsonNode targets = ok(call(get("/api/v1/websites/publish-targets"), a));
+        assertTrue(targets.toString().contains("\"id\":" + siteId), "发布到：自动发布、以 ERP 为准的站点");
+
         JsonNode r = ok(call(json(post("/api/v1/websites/" + siteId + "/releases"), write(Map.of("taskIds", List.of(t1)))), a));
         String no = r.path("releaseNo").asText();
         assertTrue(no.startsWith("WP"));
+        JsonNode ofTask = ok(call(get("/api/v1/websites/releases?taskId=" + t1), a));
+        assertEquals(no, ofTask.get(0).path("releaseNo").asText(), "发品任务的发布记录");
         assertEquals("执行中", r.path("statusName").asText());
         assertEquals(4, taskStatus(t1));
 

@@ -10,6 +10,7 @@ import com.zhul.erp.modules.website.service.SiteDataService;
 import com.zhul.erp.modules.website.service.SitePreviewService;
 import com.zhul.erp.modules.website.service.SiteReleaseDispatcher;
 import com.zhul.erp.modules.website.service.SiteReleaseService;
+import com.zhul.erp.modules.website.service.WebsiteSiteService;
 import com.zhul.erp.modules.website.service.SiteProductService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
@@ -44,6 +46,7 @@ public class WebsitePublishController {
     private final SiteDataService siteData;
     private final SiteReleaseService releases;
     private final SiteReleaseDispatcher dispatcher;
+    private final WebsiteSiteService sites;
 
     public record PreviewRequest(List<Long> taskIds) {
     }
@@ -67,6 +70,20 @@ public class WebsitePublishController {
         WebsiteReleaseDO r = releases.create(siteId, req.taskIds());
         kick(siteId);
         return Result.ok(releases.toVO(releases.get(r.getId()), false));
+    }
+
+    /** 发品任务页「发布到」的站点：启用、自动发布、已经以 ERP 为准 */
+    @GetMapping("/publish-targets")
+    @PreAuthorize(PUBLISH)
+    public Result<List<Map<String, Object>>> publishTargets() {
+        return Result.ok(sites.publishTargets());
+    }
+
+    /** 包含某个发品任务的发布单 */
+    @GetMapping("/releases")
+    @PreAuthorize(VIEW_RELEASE)
+    public Result<List<ReleaseVO>> releasesOfTask(@RequestParam Long taskId) {
+        return Result.ok(releases.listByTask(taskId).stream().map(r -> releases.toVO(r, false)).toList());
     }
 
     @GetMapping("/{siteId}/releases")

@@ -97,6 +97,20 @@ public class WebsiteSiteService {
         return toVO(get(id));
     }
 
+    /** 可以从发品任务发布的站点：启用、自动发布、已经以 ERP 为准；只给 id 和名称（发品任务页「发布到」用） */
+    public List<Map<String, Object>> publishTargets() {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (WebsiteSiteDO s : siteMapper.selectList(new LambdaQueryWrapper<WebsiteSiteDO>()
+                .select(WebsiteSiteDO::getId, WebsiteSiteDO::getName)
+                .eq(WebsiteSiteDO::getStatus, WebsiteConstants.STATUS_ENABLED)
+                .eq(WebsiteSiteDO::getPublishMode, WebsiteConstants.MODE_AUTO)
+                .eq(WebsiteSiteDO::getTakeoverStatus, WebsiteConstants.TAKEOVER_DONE)
+                .isNull(WebsiteSiteDO::getDeletedAt).orderByAsc(WebsiteSiteDO::getId))) {
+            out.add(Map.of("id", s.getId(), "name", s.getName()));
+        }
+        return out;
+    }
+
     /** 本公司的站点；其他公司的或已删除的视为不存在（租户拦截器已限定本公司） */
     public WebsiteSiteDO get(Long id) {
         WebsiteSiteDO s = id == null ? null : siteMapper.selectById(id);

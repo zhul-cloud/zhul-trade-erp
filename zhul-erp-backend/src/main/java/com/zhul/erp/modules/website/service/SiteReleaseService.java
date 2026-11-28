@@ -120,6 +120,19 @@ public class SiteReleaseService {
                 .orderByDesc(WebsiteReleaseDO::getId).last("LIMIT 200"));
     }
 
+    /** 包含某个发品任务的发布单（最近在前） */
+    public List<WebsiteReleaseDO> listByTask(Long taskId) {
+        List<Long> ids = itemMapper.selectList(new LambdaQueryWrapper<WebsiteReleaseItemDO>()
+                        .select(WebsiteReleaseItemDO::getReleaseId).eq(WebsiteReleaseItemDO::getListingTaskId, taskId))
+                .stream().map(WebsiteReleaseItemDO::getReleaseId).distinct().toList();
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return releaseMapper.selectList(new LambdaQueryWrapper<WebsiteReleaseDO>()
+                .in(WebsiteReleaseDO::getId, ids).isNull(WebsiteReleaseDO::getDeletedAt)
+                .orderByDesc(WebsiteReleaseDO::getId).last("LIMIT 50"));
+    }
+
     public List<WebsiteReleaseItemDO> items(Long releaseId) {
         return itemMapper.selectList(new LambdaQueryWrapper<WebsiteReleaseItemDO>()
                 .eq(WebsiteReleaseItemDO::getReleaseId, releaseId).orderByAsc(WebsiteReleaseItemDO::getId));
