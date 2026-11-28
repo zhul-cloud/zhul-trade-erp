@@ -164,6 +164,13 @@ export default [
         component: './operations/websites',
       },
       {
+        // 导入预览、一致性比对
+        path: '/operations/websites/jobs/:jobId',
+        hideInMenu: true,
+        access: 'operationsWebsites',
+        component: './operations/websites/job',
+      },
+      {
         path: '/operations/websites/:id',
         hideInMenu: true,
         access: 'operationsWebsites',

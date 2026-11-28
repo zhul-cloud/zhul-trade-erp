@@ -11,7 +11,7 @@ import {
   RightOutlined,
   SwapOutlined,
 } from '@ant-design/icons';
-import { history, useAccess, useModel, useParams } from '@umijs/max';
+import { history, Link, useAccess, useModel, useParams } from '@umijs/max';
 import {
   App,
   Button,
@@ -48,6 +48,7 @@ import { MONO, ModePill, StatusPill, TakeoverPill } from './components';
 import {
   type CategoryMapRow,
   type CheckItem,
+  jobPath,
   LANGUAGES,
   languageLabel,
   liveUrl,
@@ -390,11 +391,10 @@ const TakeoverCard: React.FC<{
   const start = async (kind: 'import' | 'compare') => {
     setActing(kind);
     try {
-      await (kind === 'import'
+      const j = await (kind === 'import'
         ? siteApi.startImport(site.id)
         : siteApi.startCompare(site.id));
-      message.success(kind === 'import' ? '已开始读取站点商品' : '已开始比对');
-      load();
+      history.push(jobPath(j.id));
     } catch (e) {
       message.error(readBizError(e).message);
     } finally {
@@ -419,14 +419,19 @@ const TakeoverCard: React.FC<{
       },
     });
 
-  const line = (label: string, text?: string, warn?: boolean) => (
+  const line = (label: string, j?: SiteJob, warn?: boolean) => (
     <div style={{ display: 'flex', gap: 12, fontSize: 13, marginBottom: 8 }}>
       <span style={{ color: palette.mute, width: 72, flexShrink: 0 }}>
         {label}
       </span>
-      <span style={{ color: warn ? palette.orange : palette.ink }}>
-        {text ?? '还没有'}
+      <span style={{ flex: 1, color: warn ? palette.orange : palette.ink }}>
+        {jobText(j, site) ?? '还没有'}
       </span>
+      {j && (
+        <Link to={jobPath(j.id)} style={{ flexShrink: 0 }}>
+          查看
+        </Link>
+      )}
     </div>
   );
 
@@ -437,10 +442,10 @@ const TakeoverCard: React.FC<{
           <div style={{ fontSize: 12, color: palette.mute, marginBottom: 12 }}>
             开始以 ERP 为准之前不能从 ERP 发布
           </div>
-          {line('已导入', jobText(imp, site), imp?.status === 3)}
+          {line('已导入', imp, imp?.status === 3)}
           {line(
             '一致性比对',
-            jobText(cmp, site),
+            cmp,
             cmp?.status === 3 || (cmp?.status === 2 && !!cmp.pending),
           )}
           {canEdit && (

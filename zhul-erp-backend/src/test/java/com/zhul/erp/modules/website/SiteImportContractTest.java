@@ -109,6 +109,7 @@ class SiteImportContractTest extends TenantContractSupport {
         assertEquals(1, r.path("matched").size());
         assertEquals(p1, r.path("matched").get(0).path("productId").asLong());
         assertEquals(1, r.path("matched").get(0).path("photos").asInt());
+        assertEquals(BRAND + " IM-1", r.path("matched").get(0).path("name").asText(), "已匹配带商品名称");
         assertTrue(r.path("matched").get(0).path("diffFields").toString().contains("overview"), "站点内容与 ERP 不同的字段");
         assertEquals("X-9", r.path("unmatched").get(0).path("model").asText());
         assertTrue(r.path("siteOnlyFields").toString().contains("authenticity_note"));
@@ -180,6 +181,8 @@ class SiteImportContractTest extends TenantContractSupport {
                 Map.of("model", "IM-1", "field", "spec", "site", "A", "erp", "B"))));
         JsonNode c = ok(call(get("/api/v1/websites/jobs/" + cmp.path("id").asLong()), a));
         assertEquals(2, c.path("pending").asInt());
+        assertEquals(BRAND, c.path("result").path("brands").path("IM-1").asText(), "差异行显示品牌：取商品档案");
+        assertEquals(BRAND, c.path("result").path("brands").path("X-9").asText(), "只在站点上有：取导入时站点上的品牌");
         err = fail(call(post("/api/v1/websites/" + siteId + "/takeover"), a));
         assertEquals("还有 2 条差异没有确认", err.path("message").asText());
         JsonNode summary = ok(call(get("/api/v1/websites/" + siteId), a)).path("summary");

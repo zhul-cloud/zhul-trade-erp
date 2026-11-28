@@ -137,6 +137,63 @@ export interface CategoryMapRow {
   children: CategoryMapRow[];
 }
 
+/** 一致性比对的一条差异：型号 + 字段 */
+export interface DiffKey {
+  model: string;
+  field: string;
+}
+
+export interface Diff extends DiffKey {
+  site: unknown;
+  erp: unknown;
+}
+
+export interface AcceptRecord extends DiffKey {
+  reason: string;
+  by: string;
+  at: string;
+}
+
+/** 导入：已匹配的一个商品 */
+export interface ImportMatched {
+  productId: number;
+  brand: string;
+  model: string;
+  name?: string;
+  slug: string;
+  sellPrice?: number | null;
+  photos: number;
+  videos: number;
+  diffFields: string[];
+}
+
+/** 站点上的原始商品条目（未匹配的原样保存） */
+export type SiteEntry = Record<string, unknown> & {
+  brand?: string;
+  model?: string;
+  slug?: string;
+};
+
+export interface ImportResult {
+  commit?: string;
+  warnings?: string[] | null;
+  total: number;
+  matched: ImportMatched[];
+  unmatched: SiteEntry[];
+  siteOnlyFields: string[];
+  missing: { productId: number; brand: string; model: string }[];
+}
+
+export interface CompareResult {
+  commit?: string;
+  same: number;
+  differences: Diff[];
+  onlyOnSite: string[];
+  onlyInErp: string[];
+  /** 型号 → 品牌 */
+  brands?: Record<string, string>;
+}
+
 export interface SiteJob {
   id: number;
   siteId: number;
@@ -151,8 +208,9 @@ export interface SiteJob {
   endedAt?: string;
   createBy?: string;
   createTime?: string;
-  /** 发布服务返回的 JSON，按任务类型取字段 */
+  /** 导入为 ImportResult，比对为 CompareResult；列表不带 */
   result?: any;
+  accepted?: AcceptRecord[] | null;
   pending?: number;
 }
 
@@ -184,7 +242,42 @@ export const siteApi = {
   startImport: (id: number) => send<SiteJob>('POST', `${API}/${id}/import`),
   startCompare: (id: number) => send<SiteJob>('POST', `${API}/${id}/compare`),
   takeover: (id: number) => send<Site>('POST', `${API}/${id}/takeover`),
+  confirmImport: (jobId: number) =>
+    send<SiteJob>('POST', `${API}/jobs/${jobId}/confirm-import`),
+  /** items 为空表示全部差异 */
+  accept: (jobId: number, items: DiffKey[], reason: string) =>
+    send<SiteJob>('POST', `${API}/jobs/${jobId}/accept`, { items, reason }),
 };
+
+export const jobPath = (jobId: number) => `${WEBSITE_PATH}/jobs/${jobId}`;
+
+/** 站点数据字段的中文名；没有列出的显示字段代码 */
+const FIELD_LABELS: Record<string, string> = {
+  brand: '品牌',
+  model: '型号',
+  series: '系列',
+  cat: '站点品类',
+  slug: '链接别名',
+  spec: '一句话规格',
+  overview: '英文描述',
+  meta_description: '英文摘要',
+  overview_ru: '俄文描述',
+  meta_description_ru: '俄文摘要',
+  spec_ru: '俄文规格',
+  specs: '规格参数',
+  applications: '应用场景',
+  faq: 'FAQ',
+  compatibility: '型号关系',
+  deep_ru: '俄文详细内容',
+  photo: '主图',
+  photos: '图片',
+  videos: '视频',
+  sell_price: '售价',
+  sell_price_currency: '售价币种',
+  price_source: '售价来源',
+  status: '站点状态',
+};
+export const fieldLabel = (f: string) => FIELD_LABELS[f] ?? f;
 
 /** 上线链接：网址 + 语言前缀 + 地址模板 */
 export const liveUrl = (url: string, prefix: string, template: string) =>

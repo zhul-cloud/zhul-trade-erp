@@ -199,7 +199,7 @@ public class SiteImportService {
                 return;
             }
             JsonNode result = body.path("result");
-            Object stored = IMPORT.equals(found.getJobType()) ? analyzeImport(found.getSiteId(), result) : compareResult(result);
+            Object stored = IMPORT.equals(found.getJobType()) ? analyzeImport(found.getSiteId(), result) : compareResult(found.getSiteId(), result);
             finish(found.getId(), JOB_DONE, stored, "");
             log.info("站点任务完成，jobNo={}", jobId);
         });
@@ -259,6 +259,7 @@ public class SiteImportService {
             m.put("productId", p.getId());
             m.put("brand", sp.get("brand"));
             m.put("model", sp.get("model"));
+            m.put("name", p.getProductName());
             m.put("slug", sp.get("slug"));
             m.put("sellPrice", sp.get("sell_price"));
             m.put("photos", sp.get("photos") instanceof List<?> l ? l.size() : 0);
@@ -335,13 +336,35 @@ public class SiteImportService {
         return out;
     }
 
-    private static Map<String, Object> compareResult(JsonNode result) {
+    private Map<String, Object> compareResult(Long siteId, JsonNode result) {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("commit", result.path("commit").asText(""));
         out.put("same", result.path("same").asInt());
         out.put("differences", result.path("differences"));
         out.put("onlyOnSite", result.path("onlyOnSite"));
         out.put("onlyInErp", result.path("onlyInErp"));
+        out.put("brands", brandsByModel(siteId));
+        return out;
+    }
+
+    /** 型号 → 品牌（比对结果只有型号，页面上要显示品牌）：站点商品取商品档案，没匹配上的取最近确认的导入 */
+    private Map<String, String> brandsByModel(Long siteId) {
+        Map<String, String> out = new HashMap<>();
+        WebsiteSiteJobDO imp = latestConfirmed(siteId);
+        if (imp != null) {
+            tree(imp.getResult()).path("unmatched")
+                    .forEach(u -> out.put(u.path("model").asText(""), u.path("brand").asText("")));
+        }
+        List<Long> ids = websiteProductMapper.selectList(new LambdaQueryWrapper<WebsiteProductDO>()
+                        .select(WebsiteProductDO::getProductId).eq(WebsiteProductDO::getSiteId, siteId)
+                        .isNull(WebsiteProductDO::getDeletedAt))
+                .stream().map(WebsiteProductDO::getProductId).toList();
+        if (!ids.isEmpty()) {
+            for (ProductDO p : productMapper.selectList(new LambdaQueryWrapper<ProductDO>()
+                    .select(ProductDO::getId, ProductDO::getBrandId, ProductDO::getMpnRaw).in(ProductDO::getId, ids))) {
+                out.put(p.getMpnRaw(), brandName(p));
+            }
+        }
         return out;
     }
 
