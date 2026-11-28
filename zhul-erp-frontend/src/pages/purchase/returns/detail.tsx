@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
-  docBrandColumns,
+  docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import {
   DocLogCard,
@@ -108,14 +108,19 @@ const PurchaseReturnDetail: React.FC = () => {
   };
 
   const columns: TableColumnsType<PurchaseReturnItem> = [
-    { title: '#', key: 'no', width: 48, render: (_, __, i) => i + 1 },
-    ...docBrandColumns<PurchaseReturnItem>((x) => x),
     {
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 48,
+      render: (_, __, i) => i + 1,
+    },
+    docModelColumn<PurchaseReturnItem>((x) => x, {
       title: '型号',
       dataIndex: 'model',
       width: 200,
       render: (_, x) => <DocModelCell model={x.model} brand={x.brand} />,
-    },
+    }),
     {
       title: '数量',
       align: 'right' as const,

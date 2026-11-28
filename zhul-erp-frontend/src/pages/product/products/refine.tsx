@@ -68,15 +68,13 @@ export const RefineTabs: React.FC<{
   const { palette } = useProductTheme();
   return (
     <div
+      className="zhul-card"
       role="tablist"
       aria-label="品类未细分"
       style={{
         display: 'inline-flex',
         gap: 4,
         padding: 4,
-        borderRadius: 12,
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
       }}
     >
       {TABS.map((t) => {

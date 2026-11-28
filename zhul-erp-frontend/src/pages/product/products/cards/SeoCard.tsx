@@ -985,15 +985,13 @@ export const OperationsSummary: React.FC<{
   if (!data) return null;
   return (
     <div
+      className="zhul-card"
       style={{
         display: 'flex',
         alignItems: 'center',
         gap: 12,
         flexWrap: 'wrap',
         padding: '14px 18px',
-        borderRadius: 16,
-        border: `1px solid ${palette.hairline}`,
-        background: palette.card,
         marginBottom: 20,
       }}
     >

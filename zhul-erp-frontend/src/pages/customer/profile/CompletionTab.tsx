@@ -248,6 +248,7 @@ const Queue: React.FC<{
   const { palette } = useAppTheme();
   return (
     <aside
+      className="zhul-card"
       aria-label="待补全的客户"
       style={{
         flex: '0 0 340px',
@@ -257,9 +258,6 @@ const Queue: React.FC<{
         position: 'sticky',
         top: 16,
         padding: 16,
-        borderRadius: 16,
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
         display: 'flex',
         flexDirection: 'column',
         gap: 6,
@@ -553,14 +551,12 @@ const Wizard: React.FC<{
 
   return (
     <section
+      className="zhul-card"
       aria-label={`补全 ${w.name}`}
       style={{
         flex: '1 1 440px',
         minWidth: 0,
         padding: 20,
-        borderRadius: 16,
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
         display: 'flex',
         flexDirection: 'column',
         gap: 14,
@@ -600,7 +596,7 @@ const Wizard: React.FC<{
         >
           <span
             className="num"
-            style={{ fontSize: 18, fontWeight: 600, color: palette.orange }}
+            style={{ fontSize: 16, fontWeight: 600, color: palette.ink }}
           >
             {w.done} / 5
           </span>
@@ -788,11 +784,10 @@ const Wizard: React.FC<{
         >
           {s4.items.map((i) => (
             <div
+              className="zhul-card"
               key={valueKey(i)}
               style={{
                 padding: 12,
-                borderRadius: 12,
-                background: palette.card,
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 8,
@@ -1032,7 +1027,7 @@ const CompletionTab: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ background: palette.card, borderRadius: 16, padding: 24 }}>
+      <div className="zhul-card" style={{ padding: 24 }}>
         <Skeleton active paragraph={{ rows: 10 }} />
       </div>
     );
@@ -1110,10 +1105,9 @@ const CompletionTab: React.FC = () => {
           />
         ) : (
           <div
+            className="zhul-card"
             style={{
               flex: '1 1 440px',
-              background: palette.card,
-              borderRadius: 16,
               padding: 24,
             }}
           >

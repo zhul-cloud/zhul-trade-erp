@@ -70,15 +70,12 @@ export const CardShell: React.FC<{
   actions?: React.ReactNode;
   children: React.ReactNode;
 }> = ({ id, title, done, actions, children }) => {
-  const { palette } = useProductTheme();
   return (
     <section
+      className="zhul-card"
       id={id}
       aria-labelledby={`${id}-title`}
       style={{
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
-        borderRadius: 16,
         padding: 24,
         marginBottom: 20,
         scrollMarginTop: 24,

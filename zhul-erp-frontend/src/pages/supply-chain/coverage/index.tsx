@@ -1,7 +1,7 @@
 import { history, Link, useAccess } from '@umijs/max';
 import { Select, Skeleton, Switch } from 'antd';
 import { EmptyState } from '@/components/EmptyState';
-import { PageHeader, ViewTabs } from '@/components/ListLayout';
+import { FilterCard, FilterField, HelpTip, PageHeader, ViewTabs } from '@/components/ListLayout';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -57,7 +57,7 @@ const CoverCell: React.FC<{ c: Cell; drill: Drill }> = ({ c, drill }) => {
       </span>
       <CoverBar coverage={c.coverage} width={140} legend={false} />
       {c.projectId && (
-        <span style={{ fontSize: 12, color: palette.link }}>专项中</span>
+        <span style={{ fontSize: 12, color: palette.info }}>专项中</span>
       )}
     </Link>
   );
@@ -84,7 +84,7 @@ const StockoutCell: React.FC<{ c: Cell; max: number; drill: Drill }> = ({ c, max
       </span>
       <span style={{ fontSize: 12, color: palette.red }}>
         {c.stockoutTimes} 次
-        {c.projectId && <span style={{ color: palette.link }}> · 专项中</span>}
+        {c.projectId && <span style={{ color: palette.info }}> · 专项中</span>}
       </span>
     </Link>
   );
@@ -117,7 +117,7 @@ const SupplierCell: React.FC<{ c: Cell }> = ({ c }) => {
       <span style={{ fontSize: 12, color: palette.sub }}>
         <span style={{ color: tint }}>{c.gap > 0 ? `缺 ${c.gap} 家` : '已达标'}</span>
         {c.leads > 0 && ` · 线索 ${c.leads}`}
-        {c.devProjectId && <span style={{ color: palette.link }}> · 开发中</span>}
+        {c.devProjectId && <span style={{ color: palette.info }}> · 开发中</span>}
       </span>
     </Link>
   );
@@ -238,57 +238,61 @@ const CoverageMatrixPage: React.FC = () => {
           { key: 'supplier', label: '按供应商' },
         ]}
       />
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
-        <Select
-          allowClear
-          style={{ width: 200 }}
-          placeholder="一级品类"
-          value={parent}
-          onChange={setParent}
-          options={tops}
-        />
-        <Select
-          allowClear
-          style={{ width: 170 }}
-          placeholder="品牌"
-          showSearch={{ optionFilterProp: 'label' }}
-          value={brandId}
-          onChange={setBrandId}
-          options={brands}
-        />
-        {stock ? (
-          <Select style={{ width: 130 }} value={period} onChange={setPeriod} options={PERIODS} />
-        ) : sup ? (
+      {/* 搜索区用公共 FilterCard（选了就生效，没有查询按钮），紧接视图页签拼成一张卡（UI-117） */}
+      <FilterCard>
+        <FilterField label="一级品类">
+          <Select allowClear placeholder="全部" value={parent} onChange={setParent} options={tops} />
+        </FilterField>
+        <FilterField label="品牌">
           <Select
             allowClear
-            style={{ width: 130 }}
-            placeholder="热度"
-            value={priority}
-            onChange={setPriority}
-            options={[3, 2, 1].map((k) => ({ value: k, label: HEAT_NAMES[k] }))}
+            placeholder="全部"
+            showSearch={{ optionFilterProp: 'label' }}
+            value={brandId}
+            onChange={setBrandId}
+            options={brands}
           />
-        ) : (
-          <>
+        </FilterField>
+        {stock ? (
+          <FilterField label="时间">
+            <Select value={period} onChange={setPeriod} options={PERIODS} />
+          </FilterField>
+        ) : sup ? (
+          <FilterField label="热度">
             <Select
               allowClear
-              style={{ width: 130 }}
-              placeholder="优先级"
+              placeholder="全部"
               value={priority}
               onChange={setPriority}
-              options={[3, 2, 1].map((k) => ({ value: k, label: PRIORITY_NAMES[k] }))}
+              options={[3, 2, 1].map((k) => ({ value: k, label: HEAT_NAMES[k] }))}
             />
-            <Select
-              allowClear
-              style={{ width: 150 }}
-              placeholder="负责人"
-              showSearch={{ optionFilterProp: 'label' }}
-              value={ownerId}
-              onChange={setOwnerId}
-              options={users}
-            />
+          </FilterField>
+        ) : (
+          <>
+            <FilterField label="优先级">
+              <Select
+                allowClear
+                placeholder="全部"
+                value={priority}
+                onChange={setPriority}
+                options={[3, 2, 1].map((k) => ({ value: k, label: PRIORITY_NAMES[k] }))}
+              />
+            </FilterField>
+            <FilterField label="负责人">
+              <Select
+                allowClear
+                placeholder="全部"
+                showSearch={{ optionFilterProp: 'label' }}
+                value={ownerId}
+                onChange={setOwnerId}
+                options={users}
+              />
+            </FilterField>
           </>
         )}
-        <span style={{ flex: 1 }} />
+      </FilterCard>
+      {/* 汇总与「只看有缺口」放在矩阵卡上方一行；口径说明收进帮助图标 */}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', margin: '16px 0 12px' }}>
         {stock ? (
           <b>
             共 {totals[0]} 个型号 · {totals[1]} 次
@@ -304,6 +308,15 @@ const CoverageMatrixPage: React.FC = () => {
             只看有缺口
           </span>
         )}
+        <HelpTip
+          title={
+            stock
+              ? '点格子查看无货的型号；在格子下方可以直接建专项。'
+              : sup
+                ? `格子里是近 ${data?.days ?? 90} 天有报价或下单的合格供应商数 / 按热度要求的家数。点格子到供应商开发清单处理。`
+                : '格子里的数字是已进入矩阵的需求数，后面依次是可直接报价 / 需确认 / 有线索未验证 / 无渠道的数量；颜色取其中最差的一档。点格子查看型号。'
+          }
+        />
       </div>
       <Card style={{ overflow: 'hidden' }}>
         {error ? (
@@ -427,13 +440,6 @@ const CoverageMatrixPage: React.FC = () => {
           </div>
         )}
       </Card>
-      <div style={{ marginTop: 12, fontSize: 13, color: palette.mute }}>
-        {stock
-          ? '点格子查看无货的型号；在格子下方可以直接建专项。'
-          : sup
-            ? `格子里是近 ${data?.days ?? 90} 天有报价或下单的合格供应商数 / 按热度要求的家数。点格子到供应商开发清单处理。`
-            : '格子里的数字是已进入矩阵的需求数，后面依次是可直接报价 / 需确认 / 有线索未验证 / 无渠道的数量；颜色取其中最差的一档。点格子查看型号。'}
-      </div>
       <ProjectModal
         scope={projectScope}
         onClose={() => setProjectScope(undefined)}

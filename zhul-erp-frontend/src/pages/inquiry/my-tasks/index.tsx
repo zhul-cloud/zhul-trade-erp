@@ -23,6 +23,7 @@ import {
   ExternalLink,
   Flame,
   Plus,
+  Search,
   Send,
   Star,
   Trash2,
@@ -33,7 +34,12 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { ChangeStamp } from '@/components/DocFields/ActualModel';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
-import { HelpTip, PageHeader, ViewTabs } from '@/components/ListLayout';
+import {
+  FilterCard,
+  FilterField,
+  PageHeader,
+  ViewTabs,
+} from '@/components/ListLayout';
 import { useTabDirty } from '@/components/PageTabs/hooks';
 import { ProofLinks } from '@/pages/finance/payables/components';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -870,11 +876,55 @@ const MyTasksPage: React.FC = () => {
           { key: 'done', label: '已回价', count: counts.done },
         ]}
       />
+      {/* 搜索区用公共 FilterCard，紧接视图页签拼成一张卡（D72，UI-117） */}
+      {view !== 'sales' && (
+        <FilterCard
+          onSearch={() =>
+            leave(() => {
+              setSearch(keyword.trim());
+              setDoneLimit(LOAD_STEP);
+            })
+          }
+          onReset={() =>
+            leave(() => {
+              setKeyword('');
+              setSearch('');
+              setDoneLimit(LOAD_STEP);
+            })
+          }
+        >
+          <FilterField label="关键词" span={2} help={HELP.keyword}>
+            <Input
+              allowClear
+              prefix={<Search size={16} />}
+              placeholder="任务编号、询盘编号、型号"
+              aria-label="搜索询价任务"
+              value={keyword}
+              onChange={(e) => {
+                setKeyword(e.target.value);
+                if (!e.target.value) {
+                  leave(() => {
+                    setSearch('');
+                    setDoneLimit(LOAD_STEP);
+                  });
+                }
+              }}
+              onPressEnter={() =>
+                leave(() => {
+                  setSearch(keyword.trim());
+                  setDoneLimit(LOAD_STEP);
+                })
+              }
+            />
+          </FilterField>
+        </FilterCard>
+      )}
       <div
         style={{
           display: 'grid',
+          // 没有任务时右边没有详情，空状态占整行，不挤在 340 的左栏里（UI-117）
           gridTemplateColumns:
-            wide && view !== 'sales'
+            wide && view !== 'sales' && (tasks?.length ?? 0) > 0
               ? '340px minmax(0, 1fr)'
               : 'minmax(0, 1fr)',
           gap: 20,
@@ -882,32 +932,6 @@ const MyTasksPage: React.FC = () => {
         }}
       >
         <div style={{ display: 'grid', gap: 10 }}>
-          {view !== 'sales' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Input.Search
-                allowClear
-                placeholder="任务编号、询盘编号、型号"
-                aria-label="搜索询价任务"
-                value={keyword}
-                onChange={(e) => {
-                  setKeyword(e.target.value);
-                  if (!e.target.value) {
-                    leave(() => {
-                      setSearch('');
-                      setDoneLimit(LOAD_STEP);
-                    });
-                  }
-                }}
-                onSearch={(v) =>
-                  leave(() => {
-                    setSearch(v.trim());
-                    setDoneLimit(LOAD_STEP);
-                  })
-                }
-              />
-              <HelpTip title={HELP.keyword} />
-            </div>
-          )}
           {view === 'sales' ? (
             <SalesPending
               onChanged={loadList}

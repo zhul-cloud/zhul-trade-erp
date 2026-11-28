@@ -176,14 +176,12 @@ const SideCard: React.FC<{ title: string; children: React.ReactNode }> = ({
   const { palette } = useAppTheme();
   return (
     <section
+      className="zhul-card"
       style={{
         display: 'flex',
         flexDirection: 'column',
         gap: 14,
         padding: 20,
-        borderRadius: 16,
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
       }}
     >
       <h2
@@ -266,10 +264,10 @@ const CreditCard: React.FC<{ customerId: number; customerName: string }> = ({
           </div>
           <div
             style={{
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: 600,
               fontVariantNumeric: 'tabular-nums',
-              color: a.available > 0 ? palette.green : palette.mute,
+              color: a.available > 0 ? palette.ink : palette.mute,
             }}
           >
             {formatAmount(a.available, a.currencyCode)}
@@ -387,11 +385,9 @@ const CustomerDetailPage: React.FC = () => {
   if (loading) {
     body = (
       <div
+        className="zhul-card"
         style={{
-          background: palette.card,
-          borderRadius: 16,
           padding: 24,
-          border: `1px solid ${palette.hairline}`,
         }}
       >
         <Skeleton active paragraph={{ rows: 12 }} />
@@ -496,10 +492,12 @@ const CustomerDetailPage: React.FC = () => {
     ) : (
       <>
         {/* 照原型 B1：文字按钮 → 更多 → 主按钮 */}
+        {/* 「补全档案」只在有缺项时出现，和「编辑」（基本资料）分开叫，不再两个「编辑」（UI-118） */}
         {canEdit &&
           profile &&
-          textBtn('编辑档案', <SquarePen size={16} />, () =>
-            setEditModule(profile.completeness.missing[0]?.module ?? 1),
+          profile.completeness.missing.length > 0 &&
+          textBtn('补全档案', <SquarePen size={16} />, () =>
+            setEditModule(profile.completeness.missing[0].module),
           )}
         {canEdit &&
           canBackground &&

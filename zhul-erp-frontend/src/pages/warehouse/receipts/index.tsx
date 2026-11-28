@@ -7,7 +7,7 @@ import { useColumnSettings } from '@/components/ColumnSettings';
 import { CopyText } from '@/components/CopyText';
 import { ModelQtyCell } from '@/components/DocFields/DocPage';
 import SourceNos, { useUrlFilter } from '@/components/DocFields/SourceNos';
-import { ellipsisRender } from '@/components/EllipsisText';
+import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
 import {
   FilterCard,
@@ -127,8 +127,12 @@ const Receipts: React.FC = () => {
       dataIndex: 'supplierName',
       width: 150,
       render: (v: string, r) => (
-        <div>
-          <b style={{ color: palette.ink }}>{v || '—'}</b>
+        // 长名称单行省略、悬停看全文，不折行把行撑高（UI-118）
+        <div style={{ minWidth: 0 }}>
+          <EllipsisText
+            text={v}
+            style={{ fontWeight: 600, color: palette.ink }}
+          />
           {sub(palette.mute, r.shop ? '平台店铺' : '供应商')}
         </div>
       ),
@@ -256,7 +260,12 @@ const Receipts: React.FC = () => {
       title: '采购对象',
       dataIndex: 'supplierName',
       width: 150,
-      render: (v?: string) => <b style={{ color: palette.ink }}>{v || '—'}</b>,
+      render: (v?: string) => (
+        <EllipsisText
+          text={v}
+          style={{ fontWeight: 600, color: palette.ink }}
+        />
+      ),
     },
     {
       title: '状态',

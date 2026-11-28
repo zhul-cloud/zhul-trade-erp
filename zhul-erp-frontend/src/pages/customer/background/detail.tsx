@@ -45,11 +45,9 @@ const Card: React.FC<{
   const { palette } = useAppTheme();
   return (
     <section
+      className="zhul-card"
       style={{
         padding: 20,
-        borderRadius: 16,
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
         display: 'flex',
         flexDirection: 'column',
         gap: 12,
@@ -167,7 +165,7 @@ const BackgroundReportPage: React.FC = () => {
     body = <ErrorHint page message={error} onRetry={load} />;
   } else if (report === undefined) {
     body = (
-      <div style={{ background: palette.card, borderRadius: 16, padding: 24 }}>
+      <div className="zhul-card" style={{ padding: 24 }}>
         <Skeleton active paragraph={{ rows: 10 }} />
       </div>
     );
@@ -235,12 +233,10 @@ const BackgroundReportPage: React.FC = () => {
     if (r.status !== STATUS.DONE) {
       body = (
         <div
+          className="zhul-card"
           style={{
             padding: 40,
-            borderRadius: 16,
             textAlign: 'center',
-            background: palette.card,
-            border: `1px solid ${palette.hairline}`,
             color: running ? palette.sub : palette.red,
           }}
         >

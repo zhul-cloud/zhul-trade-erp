@@ -3,7 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { Skeleton, Table } from 'antd';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
-  docBrandColumns,
+  docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import {
   DocLogCard,
@@ -82,13 +82,12 @@ const CostAdjustDetail: React.FC = () => {
   const sourceHref = docHref(r.sourceDocType, r.sourceDocId);
 
   const batchColumns: TableColumnsType<CostAdjustBatch> = [
-    ...docBrandColumns<CostAdjustBatch>((x) => x),
-    {
+    docModelColumn<CostAdjustBatch>((x) => x, {
       title: '型号',
       dataIndex: 'model',
       width: 200,
       render: (_, x) => <DocModelCell model={x.model} brand={x.brand} />,
-    },
+    }),
     {
       title: '批次',
       dataIndex: 'batchNo',

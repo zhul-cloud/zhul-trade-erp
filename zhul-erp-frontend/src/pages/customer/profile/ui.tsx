@@ -3,6 +3,7 @@ import { Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import { Star } from 'lucide-react';
 import React from 'react';
+import { Pill } from '@/components/Pill';
 import { useAppTheme } from '@/theme/AppTheme';
 import { textOn } from '@/theme/palette';
 import { formatDateTime } from '@/utils/format';
@@ -45,7 +46,8 @@ export const GradeBadge: React.FC<{
   size?: 'small' | 'large';
 }> = ({ value, adjusted, size = 'small' }) => {
   const { palette } = useAppTheme();
-  if (!value) return <span style={{ color: palette.mute }}>未成交</span>;
+  // 没有等级也是标签：同一列不混用标签和文字（D75，UI-118）
+  if (!value) return <Pill tone="gray">未成交</Pill>;
   // 等级有高低、无好坏：S、A 用主题色深浅，B、C 中性（2026-11-26 用户确认，复审 9.1 第二轮待定 B）；不用红色，以免读成风险
   const tone =
     value === 1
@@ -64,7 +66,7 @@ export const GradeBadge: React.FC<{
           display: 'inline-grid',
           placeItems: 'center',
           fontWeight: 600,
-          fontSize: size === 'large' ? 18 : 12,
+          fontSize: size === 'large' ? 16 : 12,
           color: tone.fg,
           background: tone.bg,
         }}
@@ -72,7 +74,7 @@ export const GradeBadge: React.FC<{
         {GRADE_NAMES[value]}
       </span>
       {adjusted && (
-        <span style={{ fontSize: 11, color: palette.info }}>已调整</span>
+        <span style={{ fontSize: 12, color: palette.info }}>已调整</span>
       )}
     </span>
   );
@@ -167,12 +169,12 @@ export const SourceTag: React.FC<{
               `/customer/list/${customerId}/background/${source?.reportId}`,
             )
           }
-          style={{ fontSize: 11, color, whiteSpace: 'nowrap' }}
+          style={{ fontSize: 12, color, whiteSpace: 'nowrap' }}
         >
           {text}
         </button>
       ) : (
-        <span style={{ fontSize: 11, color, whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: 12, color, whiteSpace: 'nowrap' }}>
           {text}
         </span>
       )}
@@ -211,7 +213,7 @@ export const FieldRow: React.FC<{
       >
         {label}
         {!core && (
-          <span style={{ marginLeft: 4, fontSize: 10, color: palette.faint }}>
+          <span style={{ marginLeft: 4, fontSize: 12, color: palette.faint }}>
             选填
           </span>
         )}

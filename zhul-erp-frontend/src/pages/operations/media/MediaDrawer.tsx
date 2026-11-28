@@ -104,12 +104,10 @@ export const MediaGrid: React.FC<{
         const thumb = i.kind === 1 ? previews[key] : undefined;
         return (
           <div
+            className="zhul-card"
             key={key}
             style={{
-              border: `1px solid ${palette.hairline}`,
-              borderRadius: 12,
               overflow: 'hidden',
-              background: palette.card,
               display: 'flex',
               flexDirection: 'column',
             }}

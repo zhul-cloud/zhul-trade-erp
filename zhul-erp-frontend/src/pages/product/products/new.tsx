@@ -783,12 +783,10 @@ const WizardInner: React.FC = () => {
               {dupCard}
               {dup.kind === 'none' && similar.length > 0 && (
                 <div
+                  className="zhul-card"
                   style={{
                     marginTop: 16,
                     padding: 16,
-                    borderRadius: 14,
-                    background: palette.card,
-                    border: `1px solid ${palette.hairline}`,
                   }}
                 >
                   <div style={{ fontWeight: 600, marginBottom: 8 }}>
@@ -1140,15 +1138,13 @@ const WizardInner: React.FC = () => {
               </Form>
               {['物流信息', '海关信息', '平台参考价'].map((t) => (
                 <div
+                  className="zhul-card"
                   key={t}
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',
                     padding: '14px 16px',
                     marginBottom: 8,
-                    borderRadius: 12,
-                    background: palette.card,
-                    border: `1px solid ${palette.hairline}`,
                     color: palette.sub,
                   }}
                 >
@@ -1206,12 +1202,10 @@ const WizardInner: React.FC = () => {
                   if (!m) return null;
                   return (
                     <div
+                      className="zhul-card"
                       key={k}
                       style={{
                         padding: 16,
-                        borderRadius: 14,
-                        background: palette.card,
-                        border: `1px solid ${palette.hairline}`,
                       }}
                     >
                       <div style={{ fontWeight: 600 }}>补 {m.label}</div>
@@ -1264,13 +1258,11 @@ const WizardInner: React.FC = () => {
             style={{ flex: '0 0 340px', maxWidth: '100%' }}
           >
             <div
+              className="zhul-card"
               style={{
                 position: 'sticky',
                 top: 24,
                 padding: 24,
-                borderRadius: 16,
-                background: palette.card,
-                border: `1px solid ${palette.hairline}`,
               }}
             >
               <div

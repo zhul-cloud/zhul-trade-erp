@@ -28,6 +28,7 @@ import {
 } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { UserName } from '@/components/UserName';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { Pill } from '@/pages/product/components/Pills';
 import { auditColumns } from '@/pages/purchase/components';
@@ -323,7 +324,7 @@ export const TaskList: React.FC<{ entry: PackageType }> = ({ entry }) => {
         </div>
         <div style={{ fontSize: 12, color: palette.mute }}>
           {formatDateTime(at)} ·{' '}
-          {verified ? t.factVerifiedBy : t.factImportedBy}
+          <UserName value={verified ? t.factVerifiedBy : t.factImportedBy} />
         </div>
       </div>
     );

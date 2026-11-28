@@ -63,7 +63,7 @@ import {
   PreviewPages,
 } from '@/components/DocFields';
 import DocModelCell, {
-  docBrandColumns,
+  docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import SourceNos from '@/components/DocFields/SourceNos';
@@ -957,33 +957,51 @@ const PiDetail: React.FC = () => {
     (a.address ?? '') === (b.address ?? '') &&
     (a.country ?? '') === (b.country ?? '');
 
-  const partyCard = (type: 1 | 3) => {
+  /** standalone：只读时作页面上的独立卡片（照销售订单 2×2 信息卡，UI-118）；编辑时是表头卡里的凹格 */
+  const partyCard = (type: 1 | 3, standalone = false) => {
     const p = type === 3 ? draft.buyer : draft.consignee;
     const sameAsBuyer = type === 1 && !!p && samePartyAs(p, draft.buyer);
     const isNew = p && !p.partyId && !sameAsBuyer;
     const saveFlag =
       type === 3 ? draft.saveBuyerToCustomer : draft.saveConsigneeToCustomer;
+    const label =
+      type === 3 ? '买方（发票抬头 Bill To）' : '收货人（Consignee）';
     return (
       <div
-        style={{
-          padding: 14,
-          borderRadius: 12,
-          background: palette.inset,
-          border: `1px solid ${palette.hairline}`,
-          minWidth: 0,
-        }}
+        className={standalone ? 'zhul-card' : undefined}
+        style={
+          standalone
+            ? { padding: 20, minWidth: 0 }
+            : {
+                padding: 14,
+                borderRadius: 8,
+                background: palette.inset,
+                minWidth: 0,
+              }
+        }
       >
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 8,
-            marginBottom: 6,
+            marginBottom: standalone ? 12 : 6,
           }}
         >
-          <span style={{ fontSize: 13, color: palette.sub }}>
-            {type === 3 ? '买方（发票抬头 Bill To）' : '收货人（Consignee）'}
-          </span>
+          {standalone ? (
+            <h2
+              style={{
+                margin: 0,
+                fontSize: 16,
+                fontWeight: 600,
+                color: palette.ink,
+              }}
+            >
+              {label}
+            </h2>
+          ) : (
+            <span style={{ fontSize: 13, color: palette.sub }}>{label}</span>
+          )}
           {isNew && <Pill tone="orange">本次新填</Pill>}
           {sameAsBuyer && <Pill tone="gray">同买方</Pill>}
           {editable && (
@@ -1208,55 +1226,82 @@ const PiDetail: React.FC = () => {
   );
 
   // 只读时的买方 / 收货人 / 条款
+  // 只读表头（照销售订单，UI-118）：买方、收货人两张独立卡并排，下面「PI 信息」卡按「名称 / 值」网格排，不再卡里套卡
+  const infoItem = (label: string, value: React.ReactNode) => (
+    <div key={label} style={{ minWidth: 0 }}>
+      <div style={{ fontSize: 12, color: palette.mute }}>{label}</div>
+      <div
+        style={{ marginTop: 2, color: palette.ink, wordBreak: 'break-word' }}
+      >
+        {value}
+      </div>
+    </div>
+  );
   const readonlyHeader = (
-    <Card style={{ marginBottom: 16, padding: 20 }}>
+    <>
       <div
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-          gap: 12,
-          marginBottom: 12,
+          gap: 16,
+          marginBottom: 16,
         }}
       >
-        {partyCard(3)}
-        {partyCard(1)}
+        {partyCard(3, true)}
+        {partyCard(1, true)}
       </div>
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '6px 24px',
-          fontSize: 13,
-          color: palette.sub,
-        }}
-      >
-        <span>交期：{v.deliveryTime || '—'}</span>
-        <span>付款条件：{v.paymentTerm || '—'}</span>
-        <span>
-          贸易术语：
-          {[v.incoterm, v.incotermPlace].filter(Boolean).join(' ') || '—'}
-        </span>
-        <span>起运港：{v.portOfShipment || '—'}</span>
-        <span>
-          有效期至：{v.validUntil || '—'}
-          {pi.expired && v.versionNo === pi.currentVersionNo && (
-            <span style={{ marginLeft: 6 }}>
-              <Pill tone="red">已过期 {pi.expiredDays} 天</Pill>
-            </span>
+      <Card style={{ marginBottom: 16, padding: 20 }}>
+        <h2
+          style={{
+            margin: '0 0 12px',
+            fontSize: 16,
+            fontWeight: 600,
+            color: palette.ink,
+          }}
+        >
+          PI 信息
+        </h2>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+            gap: '14px 24px',
+          }}
+        >
+          {infoItem('交期', v.deliveryTime || '—')}
+          {infoItem('付款条件', v.paymentTerm || '—')}
+          {infoItem(
+            '贸易术语',
+            [v.incoterm, v.incotermPlace].filter(Boolean).join(' ') || '—',
           )}
-        </span>
-        <span>
-          收款账户：
-          {v.bankAccount
-            ? `${v.bankAccount.bankName} ****${v.bankAccount.accountNo.slice(-4)}`
-            : '—'}
-        </span>
-        <span>
-          汇率：{cur} {Number(rate).toFixed(6)}
-        </span>
-        {v.remark && <span>备注：{v.remark}</span>}
-      </div>
-    </Card>
+          {infoItem('起运港', v.portOfShipment || '—')}
+          {infoItem(
+            '有效期至',
+            <>
+              {v.validUntil || '—'}
+              {pi.expired && v.versionNo === pi.currentVersionNo && (
+                <span style={{ marginLeft: 6 }}>
+                  <Pill tone="red">已过期 {pi.expiredDays} 天</Pill>
+                </span>
+              )}
+            </>,
+          )}
+          {infoItem(
+            '收款账户',
+            v.bankAccount
+              ? `${v.bankAccount.bankName} ****${v.bankAccount.accountNo.slice(-4)}`
+              : '—',
+          )}
+          {infoItem(
+            '汇率',
+            <span className="num">
+              {cur} {Number(rate).toFixed(6)}
+            </span>,
+          )}
+          {v.remark && infoItem('备注', v.remark)}
+        </div>
+      </Card>
+    </>
   );
 
   // ---------------------------------------------------------------- 型号
@@ -1336,16 +1381,23 @@ const PiDetail: React.FC = () => {
     r.marginRate < src.floorMargin;
 
   const editColumns: TableColumnsType<SavePi['items'][number]> = [
-    { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
-    ...(compact
-      ? []
-      : docBrandColumns<SavePi['items'][number]>((d) => itemById.get(d.id))),
     {
-      title: '型号',
-      key: 'model',
-      width: compact ? 180 : 220,
-      render: (_, d) => modelCell(itemById.get(d.id) as PiItem, d),
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 44,
+      render: (_, __, i) => i + 1,
     },
+    docModelColumn<SavePi['items'][number]>(
+      (d) => itemById.get(d.id),
+      {
+        title: '型号',
+        key: 'model',
+        width: compact ? 180 : 220,
+        render: (_, d) => modelCell(itemById.get(d.id) as PiItem, d),
+      },
+      !compact,
+    ),
     {
       title: '数量',
       key: 'qty',
@@ -1511,14 +1563,19 @@ const PiDetail: React.FC = () => {
   ];
 
   const viewColumns: TableColumnsType<PiItem> = [
-    { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
-    ...docBrandColumns<PiItem>((r) => r),
     {
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 44,
+      render: (_, __, i) => i + 1,
+    },
+    docModelColumn<PiItem>((r) => r, {
       title: '型号',
       key: 'model',
       width: 220,
       render: (_, r) => modelCell(r),
-    },
+    }),
     { title: '数量', dataIndex: 'quantity', width: 70, align: 'right' },
     {
       title: `单价（${cur}）`,
@@ -2452,6 +2509,41 @@ const PiDetail: React.FC = () => {
 
   // ---------------------------------------------------------------- 横幅与预览
 
+  // 只读是正常状态：页头右侧中性胶囊加帮助图标，不用整条横幅（规范 R8-4，UI-117）
+  const lockTip = !editable && !historical && !revising && (
+    <div style={{ display: 'grid', gap: 4 }}>
+      {pi.status === PI_STATUS.CLOSED && (
+        <div>
+          {pi.closedByName ?? '—'}{' '}
+          {pi.closedAt ? formatDateTime(pi.closedAt).slice(0, 16) : ''} 关闭
+          {pi.closeNote ? `：${pi.closeNote}` : ''}
+        </div>
+      )}
+      {pi.sendLogs.length > 0 && (
+        <div>
+          发送记录：
+          {pi.sendLogs
+            .map(
+              (s) =>
+                `${dayjs(s.sentAt).format('MM-DD HH:mm')} ${s.channelName}`,
+            )
+            .join(' · ')}
+        </div>
+      )}
+      <div>
+        {pi.status === PI_STATUS.CLOSED
+          ? '客户回头付款时点「重新打开」'
+          : pi.status === PI_STATUS.CONVERTED
+            ? '已转成订单；需要修改请先取消订单'
+            : pi.status === PI_STATUS.SENT
+              ? pi.receiptStatus === RECEIPT_STATUS.NONE
+                ? '客户还没付款时转订单需选「先采购后收款」'
+                : '有水单或到账即可转成订单'
+              : ''}
+      </div>
+    </div>
+  );
+
   const banner = historical ? (
     <Alert
       type="info"
@@ -2467,59 +2559,7 @@ const PiDetail: React.FC = () => {
       style={{ marginBottom: 16 }}
       title={`你正在修改已发送的 PI：发送前客户看到的仍是 Rev.${pi.currentVersionNo}；发送后 Rev.${pi.editingVersionNo} 成为当前版本，PI 编号不变，导出的单据上不显示版本号`}
     />
-  ) : !editable ? (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '12px 16px',
-        borderRadius: 12,
-        background: palette.inset,
-        border: `1px solid ${palette.hairline}`,
-        color: palette.sub,
-        fontSize: 13,
-        marginBottom: 16,
-        flexWrap: 'wrap',
-      }}
-    >
-      <Lock size="1em" />
-      <b style={{ color: palette.ink }}>
-        {pi.status === PI_STATUS.CLOSED
-          ? `已关闭 · ${pi.closeReasonName ?? ''}`
-          : `${pi.statusName} · 内容已锁定`}
-      </b>
-      {pi.status === PI_STATUS.CLOSED && (
-        <span>
-          {pi.closeNote ? `说明：${pi.closeNote} · ` : ''}
-          {pi.closedByName ?? '—'}{' '}
-          {pi.closedAt ? formatDateTime(pi.closedAt).slice(0, 16) : ''} 关闭
-        </span>
-      )}
-      {pi.sendLogs.length > 0 && (
-        <span>
-          发送记录：
-          {pi.sendLogs
-            .map(
-              (s) =>
-                `${dayjs(s.sentAt).format('MM-DD HH:mm')} ${s.channelName}`,
-            )
-            .join(' · ')}
-        </span>
-      )}
-      <span style={{ marginLeft: 'auto', color: palette.mute }}>
-        {pi.status === PI_STATUS.CLOSED
-          ? '客户回头付款时点「重新打开」'
-          : pi.status === PI_STATUS.CONVERTED
-            ? '已转成订单；需要修改请先取消订单'
-            : pi.status === PI_STATUS.SENT
-              ? pi.receiptStatus === RECEIPT_STATUS.NONE
-                ? '客户还没付款时转订单需选「先采购后收款」'
-                : '有水单或到账即可转成订单'
-              : ''}
-      </span>
-    </div>
-  ) : (
+  ) : !editable ? null : (
     !pi.hasBankAccount && (
       <Alert
         type="warning"
@@ -2648,6 +2688,19 @@ const PiDetail: React.FC = () => {
             {dirty && (
               <span style={{ fontSize: 12, color: palette.orange }}>
                 有未保存的修改
+              </span>
+            )}
+            {lockTip && (
+              <span
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              >
+                <Pill tone="gray">
+                  <Lock size="1em" />
+                  {pi.status === PI_STATUS.CLOSED && pi.closeReasonName
+                    ? `关闭原因：${pi.closeReasonName}`
+                    : '内容已锁定'}
+                </Pill>
+                <HelpTip title={lockTip} label="锁定说明" />
               </span>
             )}
           </>

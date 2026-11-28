@@ -166,6 +166,10 @@ const DeptPage: React.FC = () => {
     () => flatList.find((d) => d.id === selectedId) ?? null,
     [flatList, selectedId],
   );
+  // 主从两栏进入页面默认选中第一项（规范「主从两栏」，UI-117）；选中的被删掉后也回到第一项
+  useEffect(() => {
+    if (flatList.length > 0 && !selectedDept) setSelectedId(flatList[0].id);
+  }, [flatList, selectedDept]);
   /** 选中部门所在的事业部（自身或最近的上级），以及下级里是否已有事业部（事业部不能嵌套） */
   const unitInfo = useMemo(() => {
     if (!selectedDept) return { unit: null as DeptItem | null, nested: false };
@@ -419,13 +423,11 @@ const DeptPage: React.FC = () => {
     <>
       <PageHeader />
       <div
+        className="zhul-card"
         style={{
           display: 'flex',
           gap: 0,
-          background: p.card,
-          borderRadius: 12,
           overflow: 'hidden',
-          border: `1px solid ${p.hairline}`,
           minHeight: 640,
         }}
       >
@@ -562,10 +564,10 @@ const DeptPage: React.FC = () => {
           {selectedDept ? (
             <div
               style={{
+                // 卡内凹格：浅灰底、不加描边，不做成卡里套卡（层级不超过三层，UI-117）
                 marginTop: 16,
                 background: p.inset,
-                border: `1px solid ${p.hairline}`,
-                borderRadius: 12,
+                borderRadius: 8,
                 padding: 20,
                 display: 'flex',
                 alignItems: 'center',
@@ -612,12 +614,12 @@ const DeptPage: React.FC = () => {
             <EmptyState title="请选择左侧部门查看详情" />
           )}
           {bu.enabled && (
+            // 卡内分区：上方一条分隔线，不再套描边子卡（UI-117）
             <div
               style={{
-                marginTop: 16,
-                border: `1px solid ${p.hairline}`,
-                borderRadius: 12,
-                padding: 20,
+                marginTop: 24,
+                borderTop: `1px solid ${p.hairline}`,
+                paddingTop: 20,
               }}
             >
               <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>

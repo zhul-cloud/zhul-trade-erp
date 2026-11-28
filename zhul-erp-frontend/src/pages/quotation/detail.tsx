@@ -61,7 +61,7 @@ import {
   ActualModelPencil,
 } from '@/components/DocFields/ActualModel';
 import DocModelCell, {
-  docBrandColumns,
+  docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import SourceNos from '@/components/DocFields/SourceNos';
@@ -1148,16 +1148,23 @@ const QuotationDetail: React.FC = () => {
     src && { ...src, brand: brandText(src) };
 
   const editColumns: TableColumnsType<SaveQuotationItem> = [
-    { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
-    ...(compact
-      ? []
-      : docBrandColumns<SaveQuotationItem>((d) => metaOf(itemById.get(d.id)))),
     {
-      title: '型号',
-      key: 'model',
-      width: compact ? 170 : 220,
-      render: (_, d) => modelCell(itemById.get(d.id) as QuotationItem, d),
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 44,
+      render: (_, __, i) => i + 1,
     },
+    docModelColumn<SaveQuotationItem>(
+      (d) => metaOf(itemById.get(d.id)),
+      {
+        title: '型号',
+        key: 'model',
+        width: compact ? 170 : 220,
+        render: (_, d) => modelCell(itemById.get(d.id) as QuotationItem, d),
+      },
+      !compact,
+    ),
     ...(compact
       ? []
       : ([
@@ -1366,14 +1373,19 @@ const QuotationDetail: React.FC = () => {
   ];
 
   const viewColumns: TableColumnsType<QuotationItem> = [
-    { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
-    ...docBrandColumns<QuotationItem>(metaOf),
     {
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 44,
+      render: (_, __, i) => i + 1,
+    },
+    docModelColumn<QuotationItem>(metaOf, {
       title: '型号',
       key: 'model',
       width: 220,
       render: (_, r) => modelCell(r),
-    },
+    }),
     { title: '数量', dataIndex: 'quantity', width: 70, align: 'right' },
     {
       title: '单价',
@@ -1819,52 +1831,30 @@ const QuotationDetail: React.FC = () => {
             }
           />
         )}
-      {!editable && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            padding: '12px 16px',
-            borderRadius: 12,
-            background: palette.inset,
-            border: `1px solid ${palette.hairline}`,
-            color: palette.sub,
-            fontSize: 13,
-          }}
-        >
-          <Lock size="1em" />
-          <b style={{ color: palette.ink }}>
-            {historical
-              ? `Rev.${q.versionNo} · 历史版本`
-              : `${q.statusName} · 内容已锁定`}
-          </b>
-          {q.sendLogs.length > 0 && (
-            <span>
-              发送记录：
-              {q.sendLogs
-                .map(
-                  (s) =>
-                    `${dayjs(s.sentAt).format('MM-DD HH:mm')} ${s.channelName}${q.versions.length > 1 && s.versionNo ? `（Rev.${s.versionNo}）` : ''}`,
-                )
-                .join(' · ')}
-            </span>
-          )}
-          {q.status === STATUS.LOST && q.lostReasonName && (
-            <span style={{ color: palette.orange }}>
-              未成交原因：{q.lostReasonName}
-              {q.lostNote ? `（${q.lostNote}）` : ''}
-            </span>
-          )}
-          <span style={{ marginLeft: 'auto', color: palette.mute }}>
-            {q.status === STATUS.SENT && !q.activePiNo
-              ? '需要改价？点「修改（出新版本）」，编号不变'
-              : q.status === STATUS.SENT || q.status === STATUS.PARTIAL
-                ? '客户付款后由 PI 转成订单，报价单会自动变为成交'
-                : '需要改价？点「复制为新报价单」生成新草稿'}
-          </span>
+    </div>
+  );
+
+  // 只读是正常状态：页头右侧中性胶囊加帮助图标，不用整条横幅（规范 R8-4，UI-117）；发送记录与下一步放进说明
+  const lockTip = !editable && (
+    <div style={{ display: 'grid', gap: 4 }}>
+      {q.sendLogs.length > 0 && (
+        <div>
+          发送记录：
+          {q.sendLogs
+            .map(
+              (s) =>
+                `${dayjs(s.sentAt).format('MM-DD HH:mm')} ${s.channelName}${q.versions.length > 1 && s.versionNo ? `（Rev.${s.versionNo}）` : ''}`,
+            )
+            .join(' · ')}
         </div>
       )}
+      <div>
+        {q.status === STATUS.SENT && !q.activePiNo
+          ? '需要改价？点「修改（出新版本）」，编号不变'
+          : q.status === STATUS.SENT || q.status === STATUS.PARTIAL
+            ? '客户付款后由 PI 转成订单，报价单会自动变为成交'
+            : '需要改价？点「复制为新报价单」生成新草稿'}
+      </div>
     </div>
   );
 
@@ -2361,6 +2351,17 @@ const QuotationDetail: React.FC = () => {
                 有未保存的修改
               </span>
             )}
+            {lockTip && (
+              <span
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              >
+                <Pill tone="gray">
+                  <Lock size="1em" />
+                  {historical ? `Rev.${q.versionNo} · 历史版本` : '内容已锁定'}
+                </Pill>
+                <HelpTip title={lockTip} label="锁定说明" />
+              </span>
+            )}
           </>
         }
         sub={
@@ -2389,6 +2390,13 @@ const QuotationDetail: React.FC = () => {
                   {q.copiedFromNo}
                 </button>
               </>
+            )}
+            {q.status === STATUS.LOST && q.lostReasonName && (
+              <span style={{ color: palette.orange }}>
+                {' '}
+                · 未成交原因：{q.lostReasonName}
+                {q.lostNote ? `（${q.lostNote}）` : ''}
+              </span>
             )}
           </>
         }

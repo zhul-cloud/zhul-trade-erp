@@ -630,11 +630,9 @@ export const FollowupSection: React.FC<{
 
   return (
     <section
+      className="zhul-card"
       aria-label="跟进"
       style={{
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
-        borderRadius: 16,
         padding: collapsed ? '14px 24px' : 24,
         marginBottom: 20,
       }}
@@ -683,14 +681,12 @@ const SideCard: React.FC<{ title: string; children: React.ReactNode }> = ({
   const { palette } = useAppTheme();
   return (
     <section
+      className="zhul-card"
       style={{
         display: 'flex',
         flexDirection: 'column',
         gap: 12,
         padding: 20,
-        borderRadius: 16,
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
       }}
     >
       <h2

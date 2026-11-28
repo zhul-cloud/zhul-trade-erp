@@ -56,11 +56,9 @@ const ModuleCard: React.FC<{
   const done = !missing || missing.length === 0;
   return (
     <section
+      className="zhul-card"
       aria-label={MODULE_NAMES[no - 1]}
       style={{
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
-        borderRadius: 16,
         padding: '16px 20px',
         marginBottom: 16,
       }}

@@ -2,6 +2,7 @@ import { App, Button, Modal } from 'antd';
 import dayjs from 'dayjs';
 import { Box, Zap } from 'lucide-react';
 import React, { useState } from 'react';
+import { UserName } from '@/components/UserName';
 import { Pill } from '@/pages/product/components/Pills';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -91,7 +92,13 @@ export const AiCell: React.FC<{
       </>
     );
   } else if (job.status === AI_STATUS.IMPORTED) {
-    line = `${formatDateTime(job.confirmedAt)} · ${job.confirmedBy ?? ''}确认`;
+    // 确认人显示姓名，不露出账号（UI-118）
+    line = (
+      <>
+        {formatDateTime(job.confirmedAt)} · <UserName value={job.confirmedBy} />
+        确认
+      </>
+    );
   } else if (job.status === AI_STATUS.FAILED) {
     line = (
       <>

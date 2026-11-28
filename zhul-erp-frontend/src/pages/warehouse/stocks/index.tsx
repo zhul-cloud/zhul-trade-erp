@@ -326,7 +326,8 @@ const StocksPage: React.FC = () => {
       title: '库存金额（CNY）',
       align: 'right',
       dataIndex: 'amountCny',
-      width: 120,
+      // 140：表头「库存金额（CNY）」一行放得下，不把表头撑成两行（UI-118）
+      width: 140,
       render: (v: number) => formatMoney(v),
     },
     {

@@ -164,7 +164,7 @@ export const ConclusionBox: React.FC<{
       </div>
       {rows.map(([k, label]) => (
         <div key={k}>
-          <div style={{ fontSize: 11, color: palette.mute, marginBottom: 2 }}>
+          <div style={{ fontSize: 12, color: palette.mute, marginBottom: 2 }}>
             {label}
           </div>
           <div
@@ -240,15 +240,13 @@ export const BackgroundCard: React.FC<{
     history.push(reportPath(customerId, r.id));
   return (
     <section
+      className="zhul-card"
       aria-label="背调报告"
       style={{
         display: 'flex',
         flexDirection: 'column',
         gap: 12,
         padding: 20,
-        borderRadius: 16,
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

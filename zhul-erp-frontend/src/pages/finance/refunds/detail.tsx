@@ -4,7 +4,7 @@ import { App, Skeleton, Table } from 'antd';
 import { CircleX } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
-  docBrandColumns,
+  docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import {
   DocLogCard,
@@ -77,14 +77,13 @@ const RefundDetail: React.FC = () => {
       width: 48,
       render: (_, __, i) => i + 1,
     },
-    ...docBrandColumns<RefundRequestItem>((x) => x),
-    {
+    docModelColumn<RefundRequestItem>((x) => x, {
       title: '型号 / 项目',
       dataIndex: 'itemName',
       width: 220,
       render: (v: string, x) =>
         x.lineType === 1 ? <DocModelCell model={v} brand={x.brand} /> : v,
-    },
+    }),
     {
       title: '数量',
       align: 'right' as const,

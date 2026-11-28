@@ -51,11 +51,9 @@ export const SectionCard: React.FC<{
   const id = `supplier-section-${title}`;
   return (
     <section
+      className="zhul-card"
       aria-labelledby={id}
       style={{
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
-        borderRadius: 16,
         padding: 24,
         marginBottom: 20,
       }}

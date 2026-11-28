@@ -4,7 +4,7 @@ import { App, Button, Dropdown, Skeleton, Table } from 'antd';
 import { CircleX, Ellipsis, PackageCheck, Pencil } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
-  docBrandColumns,
+  docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import {
   DocLogCard,
@@ -78,14 +78,19 @@ const ShipmentDetailPage: React.FC = () => {
   const totalQty = s.items.reduce((n, i) => n + i.quantity, 0);
 
   const columns: TableColumnsType<ShipmentItem> = [
-    { title: '#', key: 'no', width: 48, render: (_, __, i) => i + 1 },
-    ...docBrandColumns<ShipmentItem>((x) => x),
     {
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 48,
+      render: (_, __, i) => i + 1,
+    },
+    docModelColumn<ShipmentItem>((x) => x, {
       title: '型号',
       dataIndex: 'model',
       width: 220,
       render: (_, x) => <DocModelCell model={x.model} brand={x.brand} />,
-    },
+    }),
     {
       title: '订单数量',
       align: 'right' as const,

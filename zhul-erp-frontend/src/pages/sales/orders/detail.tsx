@@ -31,7 +31,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CustomerSubLine } from '@/components/DocFields';
 import DocModelCell, {
   DocDescription,
-  docBrandColumns,
+  docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import { ItemRemarkLine } from '@/components/DocFields/ItemRemark';
 import SourceNos from '@/components/DocFields/SourceNos';
@@ -697,9 +697,14 @@ const OrderDetail: React.FC = () => {
   );
 
   const columns: TableColumnsType<OrderItem> = [
-    { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
-    ...docBrandColumns<OrderItem>((r) => r),
     {
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 44,
+      render: (_, __, i) => i + 1,
+    },
+    docModelColumn<OrderItem>((r) => r, {
       title: '型号',
       key: 'model',
       width: 220,
@@ -748,7 +753,7 @@ const OrderDetail: React.FC = () => {
           />
         </DocModelCell>
       ),
-    },
+    }),
     {
       title: '数量',
       dataIndex: 'quantity',

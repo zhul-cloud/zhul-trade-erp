@@ -4,7 +4,7 @@ import { App, Button, Dropdown, Skeleton, Table } from 'antd';
 import { CircleX, Ellipsis } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
-  docBrandColumns,
+  docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import {
   DocLogCard,
@@ -75,14 +75,19 @@ const ReceiptDetailPage: React.FC = () => {
     d.items.reduce((n, i) => n + (i[k] ?? 0), 0);
 
   const columns: TableColumnsType<ReceiptItem> = [
-    { title: '#', key: 'no', width: 48, render: (_, __, i) => i + 1 },
-    ...docBrandColumns<ReceiptItem>((x) => x),
     {
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 48,
+      render: (_, __, i) => i + 1,
+    },
+    docModelColumn<ReceiptItem>((x) => x, {
       title: '型号',
       dataIndex: 'model',
       width: 220,
       render: (_, x) => <DocModelCell model={x.model} brand={x.brand} />,
-    },
+    }),
     {
       title: '发货',
       align: 'right' as const,
