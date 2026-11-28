@@ -1,5 +1,5 @@
-import { Button, Checkbox, Pagination, Segmented } from 'antd';
-import { ChevronDown, ChevronRight, Maximize2, Minimize2 } from 'lucide-react';
+import { Button, Checkbox, Pagination } from 'antd';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import React, { useCallback, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { Pill } from './components';
@@ -42,20 +42,8 @@ export const useFold = () => {
   return { mode, isFolded, toggle, setAll };
 };
 
-export const FoldToggle: React.FC<{
-  mode: 'open' | 'fold';
-  onChange: (m: 'open' | 'fold') => void;
-}> = ({ mode, onChange }) => (
-  <Segmented
-    size="small"
-    value={mode}
-    onChange={(v) => onChange(v as 'open' | 'fold')}
-    options={[
-      { value: 'open', label: '全部展开', icon: <Maximize2 size="1em" /> },
-      { value: 'fold', label: '全部折叠', icon: <Minimize2 size="1em" /> },
-    ]}
-  />
-);
+/** 全部展开 / 全部折叠：已移到公共组件，这里保留导出 */
+export { FoldToggle } from '@/components/FoldToggle';
 
 /** 品牌组头：点击展开 / 收起；本页只有部分任务时写明全部页的总数 */
 export const BrandGroupHeader: React.FC<{

@@ -2452,6 +2452,41 @@ const PiDetail: React.FC = () => {
 
   // ---------------------------------------------------------------- 横幅与预览
 
+  // 只读是正常状态：页头右侧中性胶囊加帮助图标，不用整条横幅（规范 R8-4，UI-117）
+  const lockTip = !editable && !historical && !revising && (
+    <div style={{ display: 'grid', gap: 4 }}>
+      {pi.status === PI_STATUS.CLOSED && (
+        <div>
+          {pi.closedByName ?? '—'}{' '}
+          {pi.closedAt ? formatDateTime(pi.closedAt).slice(0, 16) : ''} 关闭
+          {pi.closeNote ? `：${pi.closeNote}` : ''}
+        </div>
+      )}
+      {pi.sendLogs.length > 0 && (
+        <div>
+          发送记录：
+          {pi.sendLogs
+            .map(
+              (s) =>
+                `${dayjs(s.sentAt).format('MM-DD HH:mm')} ${s.channelName}`,
+            )
+            .join(' · ')}
+        </div>
+      )}
+      <div>
+        {pi.status === PI_STATUS.CLOSED
+          ? '客户回头付款时点「重新打开」'
+          : pi.status === PI_STATUS.CONVERTED
+            ? '已转成订单；需要修改请先取消订单'
+            : pi.status === PI_STATUS.SENT
+              ? pi.receiptStatus === RECEIPT_STATUS.NONE
+                ? '客户还没付款时转订单需选「先采购后收款」'
+                : '有水单或到账即可转成订单'
+              : ''}
+      </div>
+    </div>
+  );
+
   const banner = historical ? (
     <Alert
       type="info"
@@ -2467,59 +2502,7 @@ const PiDetail: React.FC = () => {
       style={{ marginBottom: 16 }}
       title={`你正在修改已发送的 PI：发送前客户看到的仍是 Rev.${pi.currentVersionNo}；发送后 Rev.${pi.editingVersionNo} 成为当前版本，PI 编号不变，导出的单据上不显示版本号`}
     />
-  ) : !editable ? (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '12px 16px',
-        borderRadius: 12,
-        background: palette.inset,
-        border: `1px solid ${palette.hairline}`,
-        color: palette.sub,
-        fontSize: 13,
-        marginBottom: 16,
-        flexWrap: 'wrap',
-      }}
-    >
-      <Lock size="1em" />
-      <b style={{ color: palette.ink }}>
-        {pi.status === PI_STATUS.CLOSED
-          ? `已关闭 · ${pi.closeReasonName ?? ''}`
-          : `${pi.statusName} · 内容已锁定`}
-      </b>
-      {pi.status === PI_STATUS.CLOSED && (
-        <span>
-          {pi.closeNote ? `说明：${pi.closeNote} · ` : ''}
-          {pi.closedByName ?? '—'}{' '}
-          {pi.closedAt ? formatDateTime(pi.closedAt).slice(0, 16) : ''} 关闭
-        </span>
-      )}
-      {pi.sendLogs.length > 0 && (
-        <span>
-          发送记录：
-          {pi.sendLogs
-            .map(
-              (s) =>
-                `${dayjs(s.sentAt).format('MM-DD HH:mm')} ${s.channelName}`,
-            )
-            .join(' · ')}
-        </span>
-      )}
-      <span style={{ marginLeft: 'auto', color: palette.mute }}>
-        {pi.status === PI_STATUS.CLOSED
-          ? '客户回头付款时点「重新打开」'
-          : pi.status === PI_STATUS.CONVERTED
-            ? '已转成订单；需要修改请先取消订单'
-            : pi.status === PI_STATUS.SENT
-              ? pi.receiptStatus === RECEIPT_STATUS.NONE
-                ? '客户还没付款时转订单需选「先采购后收款」'
-                : '有水单或到账即可转成订单'
-              : ''}
-      </span>
-    </div>
-  ) : (
+  ) : !editable ? null : (
     !pi.hasBankAccount && (
       <Alert
         type="warning"
@@ -2648,6 +2631,19 @@ const PiDetail: React.FC = () => {
             {dirty && (
               <span style={{ fontSize: 12, color: palette.orange }}>
                 有未保存的修改
+              </span>
+            )}
+            {lockTip && (
+              <span
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              >
+                <Pill tone="gray">
+                  <Lock size="1em" />
+                  {pi.status === PI_STATUS.CLOSED && pi.closeReasonName
+                    ? `关闭原因：${pi.closeReasonName}`
+                    : '内容已锁定'}
+                </Pill>
+                <HelpTip title={lockTip} label="锁定说明" />
               </span>
             )}
           </>

@@ -41,6 +41,7 @@ import { CustomerCell } from '@/components/DocFields';
 import { DescRemarkCell } from '@/components/DocFields/ItemRemark';
 import EllipsisText, { ellipsisRender } from '@/components/EllipsisText';
 import { tableEmpty } from '@/components/EmptyState';
+import { FoldToggle } from '@/components/FoldToggle';
 import {
   FilterCard,
   FilterField,
@@ -818,19 +819,20 @@ const RequirementList: React.FC = () => {
           ) : (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               {view === 'order' && (
-                <>
-                  <Button type="link" onClick={() => setCollapsed(new Set())}>
-                    展开全部
-                  </Button>
-                  <Button
-                    type="link"
-                    onClick={() =>
-                      setCollapsed(new Set(orders.map((o) => o.soId)))
-                    }
-                  >
-                    折叠全部
-                  </Button>
-                </>
+                <FoldToggle
+                  mode={
+                    orders.length > 0 && collapsed.size >= orders.length
+                      ? 'fold'
+                      : 'open'
+                  }
+                  onChange={(m) =>
+                    setCollapsed(
+                      m === 'fold'
+                        ? new Set(orders.map((o) => o.soId))
+                        : new Set(),
+                    )
+                  }
+                />
               )}
               <Segmented
                 value={view}

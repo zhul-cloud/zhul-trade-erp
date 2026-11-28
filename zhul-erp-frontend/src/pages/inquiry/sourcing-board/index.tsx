@@ -16,6 +16,7 @@ import {
   Download,
   Ellipsis,
   ListOrdered,
+  Search,
   Settings,
   ShieldCheck,
   Upload,
@@ -26,6 +27,8 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  FilterCard,
+  FilterField,
   HelpTip,
   PageHeader,
   SummaryBar,
@@ -327,6 +330,44 @@ const SourcingBoardPage: React.FC = () => {
               { key: String(ALL), label: '全部' },
             ]}
           />
+          {/* 搜索区用公共 FilterCard，紧接视图页签拼成一张卡（D72，UI-117） */}
+          <FilterCard
+            onSearch={() => setSearch(keyword.trim())}
+            onReset={() => {
+              setKeyword('');
+              setSearch('');
+              setPurchaserId(undefined);
+            }}
+          >
+            <FilterField label="关键词" span={2} help={HELP.keyword}>
+              <Input
+                allowClear
+                prefix={<Search size={16} />}
+                placeholder="任务编号、询盘编号、型号"
+                value={keyword}
+                onChange={(e) => {
+                  setKeyword(e.target.value);
+                  if (!e.target.value) setSearch('');
+                }}
+                onPressEnter={() => setSearch(keyword.trim())}
+                aria-label="搜索询价任务"
+              />
+            </FilterField>
+            <FilterField label="采购员">
+              <Select
+                allowClear
+                showSearch={{ optionFilterProp: 'label' }}
+                placeholder="全部"
+                value={purchaserId}
+                onChange={setPurchaserId}
+                options={(board?.purchasers ?? []).map((p) => ({
+                  value: p.id,
+                  label: p.name,
+                }))}
+                aria-label="按采购员筛选"
+              />
+            </FilterField>
+          </FilterCard>
           <div
             style={{
               display: 'grid',
@@ -338,41 +379,6 @@ const SourcingBoardPage: React.FC = () => {
             }}
           >
             <div style={{ display: 'grid', gap: 12 }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  flexWrap: 'wrap',
-                }}
-              >
-                <Input.Search
-                  allowClear
-                  placeholder="任务编号、询盘编号、型号"
-                  style={{ width: 320 }}
-                  value={keyword}
-                  onChange={(e) => {
-                    setKeyword(e.target.value);
-                    if (!e.target.value) setSearch('');
-                  }}
-                  onSearch={(v) => setSearch(v.trim())}
-                  aria-label="搜索询价任务"
-                />
-                <HelpTip title={HELP.keyword} />
-                <Select
-                  allowClear
-                  showSearch={{ optionFilterProp: 'label' }}
-                  placeholder="采购员：全部"
-                  style={{ width: 180 }}
-                  value={purchaserId}
-                  onChange={setPurchaserId}
-                  options={(board?.purchasers ?? []).map((p) => ({
-                    value: p.id,
-                    label: p.name,
-                  }))}
-                  aria-label="按采购员筛选"
-                />
-              </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 {tab === UNASSIGNED && (
                   <Button
