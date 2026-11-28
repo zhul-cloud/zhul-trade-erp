@@ -575,6 +575,7 @@ const DictPage: React.FC = () => {
 
       {/* 新增/编辑字典类型 */}
       <ModalForm
+        submitter={{ searchConfig: { submitText: '保存' } }}
         name="dictTypeEdit"
         title={typeDrawerMode === 'edit' ? '编辑字典类型' : '新增字典类型'}
         width={480}
@@ -650,6 +651,7 @@ const DictPage: React.FC = () => {
 
       {/* 新增/编辑字典项 */}
       <ModalForm
+        submitter={{ searchConfig: { submitText: '保存' } }}
         name="dictItemEdit"
         title={itemDrawerMode === 'edit' ? '编辑字典项' : '新增字典项'}
         width={520}

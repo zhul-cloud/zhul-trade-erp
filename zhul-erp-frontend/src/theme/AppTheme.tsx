@@ -92,6 +92,8 @@ const globalCss = (
   .zhul-view-tabs[data-attached] > .ant-tabs-nav { margin-bottom: 0; border-radius: 10px 10px 0 0; clip-path: inset(-32px -32px 0 -32px); ${mode === 'light' ? '' : 'border-bottom: none;'} }
   .zhul-view-tabs[data-attached] > .ant-tabs-nav::before { display: block; border-bottom-color: ${p.hairline}; }
   .zhul-view-tabs > .ant-tabs-nav .ant-tabs-tab { padding: 13px 0; }
+  /* 滚动条细条化（评审 S2）：Windows 默认是两端带箭头的粗灰条；滑块浅灰、轨道透明，深色主题随令牌变深 */
+  * { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, ${p.faint} 60%, transparent) transparent; }
   /* 状态标签：语义色 12% 浅底 + 语义色字，12px，高 24，圆角 4；antd 的颜色名归到语义色，不带颜色的为中性（见 antd.ts 的 Tag 令牌） */
   .ant-tag { font-size: 12px; line-height: 22px; border-radius: 4px; padding-inline: 8px; }
   html body .ant-tag.ant-tag-success, html body .ant-tag.ant-tag-green, html body .ant-tag.ant-tag-lime { ${tag(p.green, p.greenSoft)} }

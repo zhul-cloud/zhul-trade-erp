@@ -1154,6 +1154,7 @@ export const SalesDateModal: React.FC<{
   if (!order) return null;
   return (
     <Modal
+      okText="保存"
       open={open}
       onCancel={onClose}
       width={400}

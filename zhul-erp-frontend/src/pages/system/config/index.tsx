@@ -509,6 +509,7 @@ const ConfigPage: React.FC = () => {
 
       {/* 编辑配置值 */}
       <ModalForm
+        submitter={{ searchConfig: { submitText: '保存' } }}
         name="configEdit"
         title="编辑配置"
         width={520}
@@ -590,6 +591,7 @@ const ConfigPage: React.FC = () => {
 
       {/* 新增自定义配置 */}
       <ModalForm
+        submitter={{ searchConfig: { submitText: '保存' } }}
         name="configCreate"
         title="新增自定义配置"
         width={520}

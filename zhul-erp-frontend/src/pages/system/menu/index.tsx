@@ -750,6 +750,7 @@ const MenuPage: React.FC = () => {
       </MainCard>
 
       <DrawerForm
+        submitter={{ searchConfig: { submitText: '保存' } }}
         name="menuEdit"
         title={
           isEdit ? `编辑资源节点 - ${editingNode?.name ?? ''}` : '新增资源节点'

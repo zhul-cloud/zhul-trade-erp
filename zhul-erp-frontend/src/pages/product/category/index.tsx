@@ -471,6 +471,7 @@ const CategoryPage: React.FC = () => {
         industryCode?: string;
         hsCode?: string;
       }>
+        submitter={{ searchConfig: { submitText: '保存' } }}
         name="categoryEdit"
         title={
           editing

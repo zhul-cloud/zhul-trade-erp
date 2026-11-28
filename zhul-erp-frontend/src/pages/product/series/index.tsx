@@ -298,6 +298,7 @@ const SeriesPage: React.FC = () => {
         />
       </MainCard>
       <ModalForm<{ brandId: number; seriesName: string; description?: string }>
+        submitter={{ searchConfig: { submitText: '保存' } }}
         name="seriesEdit"
         title={editing ? '编辑系列' : '新增系列'}
         open={open}

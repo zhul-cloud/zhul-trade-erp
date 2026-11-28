@@ -66,6 +66,7 @@ const RULE_NAMES = new Set([
   'currency-symbol',
   'num-align',
   'user-name',
+  'ok-text',
 ]);
 
 /**
@@ -285,6 +286,8 @@ const MSG = {
     '数量、金额、单价、笔数等数字列要右对齐（align 写 right，规范「对齐出秩序」）；格子里放的不是单个数字（如型号带件数、状态标签）的写 lint-ui-ignore num-align 说明',
   userName:
     '创建人、确认人、操作人等字段存的是登录账号，显示时用公共 UserName / useUserName 换成姓名（ui-redesign C7）；不是用来显示的（拼 key 等）写 lint-ui-ignore user-name 说明',
+  okText:
+    '弹窗的主按钮写动作（新增、编辑一律「保存」，危险操作写「删除」「作废」等），不用 antd 默认的「确定」：Modal 写 okText，ModalForm / DrawerForm 写 submitter.searchConfig.submitText',
   color: '页面里不写死颜色，用 useAppTheme().palette 的令牌',
   header:
     '旧页头与面包屑：改用 ListLayout 的 PageHeader（不带说明文字），不显示面包屑',
@@ -596,6 +599,27 @@ function checkSource(src, rel) {
       }
       c = p;
     }
+  });
+
+  // 弹窗主按钮不用默认「确定」：有提交（onOk / onFinish）又没写按钮文字、也没自定义底栏的 Modal、ModalForm、DrawerForm
+  walk(sf, (n) => {
+    const el = ts.isJsxElement(n)
+      ? n.openingElement
+      : ts.isJsxSelfClosingElement(n)
+        ? n
+        : null;
+    if (!el || !/^(Modal|ModalForm|DrawerForm)$/.test(tagName(el))) return;
+    const attr = (k) =>
+      el.attributes.properties.find(
+        (a) => ts.isJsxAttribute(a) && a.name.getText(sf) === k,
+      );
+    if (!attr('onOk') && !attr('onFinish')) return;
+    if (attr('okText') || attr('footer')) return;
+    const sub = attr('submitter');
+    if (sub && /submitText|render|false/.test(sub.getText(sf))) return;
+    const mp = attr('modalProps') || attr('drawerProps');
+    if (mp && /okText/.test(mp.getText(sf))) return;
+    push('ok-text', 'error', MSG.okText, lineOf(el.getStart(sf)));
   });
 
   // 表格列里直接写 antd Switch：改用 StatusSwitch（列对象 = 有 render，且有 title、dataIndex 或 key）

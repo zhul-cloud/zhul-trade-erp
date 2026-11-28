@@ -563,6 +563,7 @@ const UserPage: React.FC = () => {
 
       {/* 新增用户 */}
       <ModalForm
+        submitter={{ searchConfig: { submitText: '保存' } }}
         name="userCreate"
         title="新增用户"
         width={640}
@@ -577,6 +578,7 @@ const UserPage: React.FC = () => {
 
       {/* 编辑用户 */}
       <ModalForm
+        submitter={{ searchConfig: { submitText: '保存' } }}
         name="userEdit"
         title="编辑用户"
         width={640}

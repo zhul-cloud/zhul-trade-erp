@@ -506,6 +506,7 @@ const BrandPage: React.FC = () => {
         aliases?: string[];
         industryCodes?: string[];
       }>
+        submitter={{ searchConfig: { submitText: '保存' } }}
         name="brandEdit"
         title={editing ? '编辑品牌' : creatingFrom ? '新建为品牌' : '新增品牌'}
         open={open}
