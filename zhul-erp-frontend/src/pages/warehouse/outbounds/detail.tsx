@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
-  docBrandColumns,
+  docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import {
   DocLogCard,
@@ -115,9 +115,14 @@ const OutboundDetailPage: React.FC = () => {
   };
 
   const columns: TableColumnsType<Item> = [
-    { title: '#', key: 'no', width: 48, render: (_, __, i) => i + 1 },
-    ...docBrandColumns<Item>((x) => x),
     {
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 48,
+      render: (_, __, i) => i + 1,
+    },
+    docModelColumn<Item>((x) => x, {
       title: '型号',
       dataIndex: 'model',
       // 1366 下左栏约 664：各列合计 648，不横向滚动（UI-117）
@@ -130,7 +135,7 @@ const OutboundDetailPage: React.FC = () => {
           candidate={x.productCandidate}
         />
       ),
-    },
+    }),
     {
       title: '数量',
       align: 'right' as const,

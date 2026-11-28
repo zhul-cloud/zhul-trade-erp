@@ -63,7 +63,7 @@ import {
   PreviewPages,
 } from '@/components/DocFields';
 import DocModelCell, {
-  docBrandColumns,
+  docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import SourceNos from '@/components/DocFields/SourceNos';
@@ -1336,16 +1336,23 @@ const PiDetail: React.FC = () => {
     r.marginRate < src.floorMargin;
 
   const editColumns: TableColumnsType<SavePi['items'][number]> = [
-    { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
-    ...(compact
-      ? []
-      : docBrandColumns<SavePi['items'][number]>((d) => itemById.get(d.id))),
     {
-      title: '型号',
-      key: 'model',
-      width: compact ? 180 : 220,
-      render: (_, d) => modelCell(itemById.get(d.id) as PiItem, d),
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 44,
+      render: (_, __, i) => i + 1,
     },
+    docModelColumn<SavePi['items'][number]>(
+      (d) => itemById.get(d.id),
+      {
+        title: '型号',
+        key: 'model',
+        width: compact ? 180 : 220,
+        render: (_, d) => modelCell(itemById.get(d.id) as PiItem, d),
+      },
+      !compact,
+    ),
     {
       title: '数量',
       key: 'qty',
@@ -1511,14 +1518,19 @@ const PiDetail: React.FC = () => {
   ];
 
   const viewColumns: TableColumnsType<PiItem> = [
-    { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
-    ...docBrandColumns<PiItem>((r) => r),
     {
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 44,
+      render: (_, __, i) => i + 1,
+    },
+    docModelColumn<PiItem>((r) => r, {
       title: '型号',
       key: 'model',
       width: 220,
       render: (_, r) => modelCell(r),
-    },
+    }),
     { title: '数量', dataIndex: 'quantity', width: 70, align: 'right' },
     {
       title: `单价（${cur}）`,

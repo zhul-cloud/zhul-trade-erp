@@ -5,7 +5,7 @@ import { TriangleAlert, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useConfirmDanger } from '@/components/ConfirmDanger';
 import DocModelCell, {
-  docBrandColumns,
+  docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import {
   DocLogCard,
@@ -96,15 +96,20 @@ const RefundRequestDetail: React.FC = () => {
   };
 
   const columns: TableColumnsType<RefundRequestItem> = [
-    { title: '#', key: 'no', width: 48, render: (_, __, i) => i + 1 },
-    ...docBrandColumns<RefundRequestItem>((x) => x),
     {
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 48,
+      render: (_, __, i) => i + 1,
+    },
+    docModelColumn<RefundRequestItem>((x) => x, {
       title: '型号',
       dataIndex: 'itemName',
       width: 200,
       render: (v: string, x) =>
         x.lineType === 1 ? <DocModelCell model={v} brand={x.brand} /> : v,
-    },
+    }),
     {
       title: '项目',
       dataIndex: 'lineType',

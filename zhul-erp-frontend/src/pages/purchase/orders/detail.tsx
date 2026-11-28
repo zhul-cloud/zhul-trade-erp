@@ -430,7 +430,9 @@ const PurchaseOrderDetail: React.FC = () => {
     {
       title: '型号 · 品牌',
       dataIndex: 'model',
-      width: 200,
+      // 横向滚动时型号一直在左（R36 方案 C，D77）
+      fixed: 'left',
+      width: 240,
       render: (v: string, r) => (
         <div>
           <b>{v}</b>

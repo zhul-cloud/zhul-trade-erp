@@ -61,7 +61,7 @@ import {
   ActualModelPencil,
 } from '@/components/DocFields/ActualModel';
 import DocModelCell, {
-  docBrandColumns,
+  docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import { ItemRemarkText } from '@/components/DocFields/ItemRemark';
 import SourceNos from '@/components/DocFields/SourceNos';
@@ -1148,16 +1148,23 @@ const QuotationDetail: React.FC = () => {
     src && { ...src, brand: brandText(src) };
 
   const editColumns: TableColumnsType<SaveQuotationItem> = [
-    { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
-    ...(compact
-      ? []
-      : docBrandColumns<SaveQuotationItem>((d) => metaOf(itemById.get(d.id)))),
     {
-      title: '型号',
-      key: 'model',
-      width: compact ? 170 : 220,
-      render: (_, d) => modelCell(itemById.get(d.id) as QuotationItem, d),
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 44,
+      render: (_, __, i) => i + 1,
     },
+    docModelColumn<SaveQuotationItem>(
+      (d) => metaOf(itemById.get(d.id)),
+      {
+        title: '型号',
+        key: 'model',
+        width: compact ? 170 : 220,
+        render: (_, d) => modelCell(itemById.get(d.id) as QuotationItem, d),
+      },
+      !compact,
+    ),
     ...(compact
       ? []
       : ([
@@ -1366,14 +1373,19 @@ const QuotationDetail: React.FC = () => {
   ];
 
   const viewColumns: TableColumnsType<QuotationItem> = [
-    { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
-    ...docBrandColumns<QuotationItem>(metaOf),
     {
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 44,
+      render: (_, __, i) => i + 1,
+    },
+    docModelColumn<QuotationItem>(metaOf, {
       title: '型号',
       key: 'model',
       width: 220,
       render: (_, r) => modelCell(r),
-    },
+    }),
     { title: '数量', dataIndex: 'quantity', width: 70, align: 'right' },
     {
       title: '单价',

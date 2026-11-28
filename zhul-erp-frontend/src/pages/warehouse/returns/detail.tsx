@@ -4,7 +4,7 @@ import { App, Button, Dropdown, Skeleton, Table } from 'antd';
 import { Ellipsis, RotateCcw } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
-  docBrandColumns,
+  docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import {
   DocLogCard,
@@ -91,13 +91,12 @@ const ReturnReceiptDetail: React.FC = () => {
       width: 48,
       render: (_, __, i) => i + 1,
     },
-    ...docBrandColumns<ReturnReceiptItem>((x) => x),
-    {
+    docModelColumn<ReturnReceiptItem>((x) => x, {
       title: '型号',
       dataIndex: 'model',
       width: 200,
       render: (_, x) => <DocModelCell model={x.model} brand={x.brand} />,
-    },
+    }),
     { title: '退货', dataIndex: 'quantity', width: 70 },
     {
       title: '实收',

@@ -4,7 +4,7 @@ import { App, Button, Dropdown, Skeleton, Table } from 'antd';
 import { CircleX, Ellipsis } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
-  docBrandColumns,
+  docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import {
   DocLogCard,
@@ -71,14 +71,19 @@ const OtherOutboundDetail: React.FC = () => {
   const sourceHref = docHref(r.sourceDocType, r.sourceDocId);
 
   const itemColumns: TableColumnsType<OtherOutboundItem> = [
-    { title: '#', key: 'no', width: 48, render: (_, __, i) => i + 1 },
-    ...docBrandColumns<OtherOutboundItem>((x) => x),
     {
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 48,
+      render: (_, __, i) => i + 1,
+    },
+    docModelColumn<OtherOutboundItem>((x) => x, {
       title: '型号',
       dataIndex: 'model',
       width: 200,
       render: (_, x) => <DocModelCell model={x.model} brand={x.brand} />,
-    },
+    }),
     { title: '批次', dataIndex: 'batchNo', width: 170 },
     {
       title: '状态',

@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
-  docBrandColumns,
+  docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import {
   DocLogCard,
@@ -208,9 +208,14 @@ const ShipmentDetail: React.FC = () => {
   ];
   const docCount = (sh.outbounds ?? []).length + waiting.length;
   const itemColumns: TableColumnsType<ItemRow> = [
-    { title: '#', key: 'no', width: 44, render: (_, __, i) => i + 1 },
-    ...docBrandColumns<ItemRow>((x) => x),
     {
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 44,
+      render: (_, __, i) => i + 1,
+    },
+    docModelColumn<ItemRow>((x) => x, {
       title: '型号',
       dataIndex: 'model',
       width: 220,
@@ -224,7 +229,7 @@ const ShipmentDetail: React.FC = () => {
           )}
         </div>
       ),
-    },
+    }),
     {
       title: '数量',
       align: 'right' as const,
