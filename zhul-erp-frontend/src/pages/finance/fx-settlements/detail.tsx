@@ -4,6 +4,7 @@ import { App, Skeleton, Table } from 'antd';
 import { CircleX } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  DocColumns,
   DocLogCard,
   InfoGrid,
   RelatedDocsCard,
@@ -246,23 +247,18 @@ const FxSettlementDetail: React.FC = () => {
           )
         }
       />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: wide
-            ? 'minmax(0, 2.6fr) minmax(340px, 1fr)'
-            : '1fr',
-          gap: 16,
-          alignItems: 'start',
-        }}
+      <DocColumns
+        wide={wide}
+        side={
+          <>
+            <RelatedDocsCard docs={relatedRows(s.related)} />
+            <DocLogCard logs={s.logs} />
+          </>
+        }
       >
-        <div style={{ minWidth: 0 }}>{info}</div>
-        <div style={{ minWidth: 0 }}>
-          <RelatedDocsCard docs={relatedRows(s.related)} />
-          <DocLogCard logs={s.logs} />
-        </div>
-      </div>
-      {wideSections}
+        {info}
+        {wideSections}
+      </DocColumns>
       <ReasonModal
         open={voiding}
         title={`作废 ${s.settleNo}`}

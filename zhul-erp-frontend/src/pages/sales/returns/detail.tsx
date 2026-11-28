@@ -7,6 +7,7 @@ import DocModelCell, {
   docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import {
+  DocColumns,
   DocLogCard,
   InfoGrid,
   RelatedDocsCard,
@@ -327,20 +328,10 @@ const SalesReturnDetail: React.FC = () => {
           </>
         }
       />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: wide
-            ? 'minmax(0, 2.6fr) minmax(340px, 1fr)'
-            : '1fr',
-          gap: 16,
-          alignItems: 'start',
-        }}
-      >
-        <div style={{ minWidth: 0 }}>{info}</div>
-        <div style={{ minWidth: 0 }}>{side}</div>
-      </div>
-      {wideSections}
+      <DocColumns wide={wide} side={<>{side}</>}>
+        {info}
+        {wideSections}
+      </DocColumns>
       <ConfirmReturnModal
         data={dialog === 'confirm' ? r : undefined}
         onClose={() => setDialog(undefined)}

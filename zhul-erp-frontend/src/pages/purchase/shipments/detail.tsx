@@ -7,6 +7,7 @@ import DocModelCell, {
   docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import {
+  DocColumns,
   DocLogCard,
   InfoGrid,
   RelatedDocsCard,
@@ -180,92 +181,86 @@ const ShipmentDetailPage: React.FC = () => {
           )
         }
       />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: wide
-            ? 'minmax(0, 2.6fr) minmax(340px, 1fr)'
-            : '1fr',
-          gap: 16,
-          alignItems: 'start',
-        }}
+      <DocColumns
+        wide={wide}
+        side={
+          <>
+            <RelatedDocsCard docs={relatedRows(d.related)} />
+            <DocLogCard logs={d.logs} />
+          </>
+        }
       >
-        <div style={{ minWidth: 0 }}>
-          <InfoGrid
-            items={[
-              {
-                label: '采购订单',
-                value: (
-                  <Link
-                    to={WAREHOUSE_PATHS.order(s.poId)}
-                    className="zhul-link zhul-link-doc"
-                  >
-                    {s.poNo}
-                  </Link>
-                ),
-              },
-              {
-                label: '快递 · 单号',
-                value: trackingText(s.carrier, s.trackingNo),
-              },
-              { label: '发货日期', value: s.shipDate },
-              {
-                label: '预计到货',
-                value: inTransit ? (
-                  <ArrivalCell
-                    date={s.expectedArrivalDate}
-                    overdue={s.arrivalOverdue}
-                  />
-                ) : (
-                  s.expectedArrivalDate
-                ),
-              },
-              { label: '登记来源', value: s.sourceName },
-              { label: '直发货代', value: s.directForwarderName },
-              { label: '作废原因', value: s.voidReason, hidden: !voided },
-            ]}
-          />
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <RelatedDocsCard docs={relatedRows(d.related)} />
-          <DocLogCard logs={d.logs} />
-        </div>
-      </div>
-      {/* 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18） */}
-      <Card style={{ padding: 20, marginBottom: 16 }}>
-        <SectionTitle>
-          明细
-          <span
-            style={{
-              color: palette.mute,
-              fontSize: 13,
-              fontWeight: 400,
-              marginLeft: 8,
-            }}
-          >
-            {s.items.length} 个型号 · {totalQty} 件
-          </span>
-        </SectionTitle>
-        <Table<ShipmentItem>
-          rowKey="id"
-          size="middle"
-          pagination={false}
-          columns={columns}
-          dataSource={s.items}
-          scroll={{ x: tableScrollX(columns) }}
+        <InfoGrid
+          items={[
+            {
+              label: '采购订单',
+              value: (
+                <Link
+                  to={WAREHOUSE_PATHS.order(s.poId)}
+                  className="zhul-link zhul-link-doc"
+                >
+                  {s.poNo}
+                </Link>
+              ),
+            },
+            {
+              label: '快递 · 单号',
+              value: trackingText(s.carrier, s.trackingNo),
+            },
+            { label: '发货日期', value: s.shipDate },
+            {
+              label: '预计到货',
+              value: inTransit ? (
+                <ArrivalCell
+                  date={s.expectedArrivalDate}
+                  overdue={s.arrivalOverdue}
+                />
+              ) : (
+                s.expectedArrivalDate
+              ),
+            },
+            { label: '登记来源', value: s.sourceName },
+            { label: '直发货代', value: s.directForwarderName },
+            { label: '作废原因', value: s.voidReason, hidden: !voided },
+          ]}
         />
-      </Card>
-      <DocFilesCard
-        ownerType="SHIPMENT"
-        files={d.attachments}
-        remark={s.note}
-        editable={!voided && !!access.purchaseShipments}
-        filesEditable={inTransit && canShip}
-        onAttach={(ids) => shipmentApi.attach(s.id, ids)}
-        onRemove={(fid) => shipmentApi.removeAttachment(s.id, fid)}
-        onRemark={(text) => shipmentApi.remark(s.id, text)}
-        onChanged={load}
-      />
+
+        {/* 明细放主栏（D80，R39 方案 B） */}
+        <Card style={{ padding: 20, marginBottom: 16 }}>
+          <SectionTitle>
+            明细
+            <span
+              style={{
+                color: palette.mute,
+                fontSize: 13,
+                fontWeight: 400,
+                marginLeft: 8,
+              }}
+            >
+              {s.items.length} 个型号 · {totalQty} 件
+            </span>
+          </SectionTitle>
+          <Table<ShipmentItem>
+            rowKey="id"
+            size="middle"
+            pagination={false}
+            columns={columns}
+            dataSource={s.items}
+            scroll={{ x: tableScrollX(columns) }}
+          />
+        </Card>
+        <DocFilesCard
+          ownerType="SHIPMENT"
+          files={d.attachments}
+          remark={s.note}
+          editable={!voided && !!access.purchaseShipments}
+          filesEditable={inTransit && canShip}
+          onAttach={(ids) => shipmentApi.attach(s.id, ids)}
+          onRemove={(fid) => shipmentApi.removeAttachment(s.id, fid)}
+          onRemark={(text) => shipmentApi.remark(s.id, text)}
+          onChanged={load}
+        />
+      </DocColumns>
       <ShipmentDrawer
         open={dialog === 'edit'}
         shipmentId={s.id}

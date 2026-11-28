@@ -371,3 +371,26 @@ export const ModelQtyCell: React.FC<{
     </div>
   );
 };
+
+/**
+ * 单据详情的两栏（D80，对比图 R39 方案 B）：主栏依次放基本信息、明细、备注与附件，侧栏放关联单据和操作日志，
+ * 两栏各自往下排，不再出现「上半两栏不等高、明细通栏在下」留下的空白。窄屏（不到 xl）单栏，侧栏排在主栏后面。
+ * 明细很宽的单据（销售订单、PI、报价、采购订单）仍是上半两栏 + 明细通栏，不用这个组件。
+ */
+export const DocColumns: React.FC<{
+  wide: boolean;
+  side: React.ReactNode;
+  children: React.ReactNode;
+}> = ({ wide, side, children }) => (
+  <div
+    style={{
+      display: 'grid',
+      gridTemplateColumns: wide ? 'minmax(0, 2.6fr) minmax(340px, 1fr)' : '1fr',
+      gap: 16,
+      alignItems: 'start',
+    }}
+  >
+    <div style={{ minWidth: 0 }}>{children}</div>
+    <div style={{ minWidth: 0 }}>{side}</div>
+  </div>
+);

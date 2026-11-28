@@ -4,6 +4,7 @@ import { App, Button, Skeleton, Table } from 'antd';
 import { CircleX, Pencil } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  DocColumns,
   DocLogCard,
   InfoGrid,
   RelatedDocsCard,
@@ -321,23 +322,18 @@ const ExpenseDetail: React.FC = () => {
           )
         }
       />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: wide
-            ? 'minmax(0, 2.6fr) minmax(340px, 1fr)'
-            : '1fr',
-          gap: 16,
-          alignItems: 'start',
-        }}
+      <DocColumns
+        wide={wide}
+        side={
+          <>
+            <RelatedDocsCard docs={relatedRows(e.related)} />
+            <DocLogCard logs={e.logs} />
+          </>
+        }
       >
-        <div style={{ minWidth: 0 }}>{info}</div>
-        <div style={{ minWidth: 0 }}>
-          <RelatedDocsCard docs={relatedRows(e.related)} />
-          <DocLogCard logs={e.logs} />
-        </div>
-      </div>
-      {wideSections}
+        {info}
+        {wideSections}
+      </DocColumns>
       <ExpenseDrawer
         open={editing}
         editing={e}
