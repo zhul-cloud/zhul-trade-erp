@@ -21,16 +21,6 @@ export const INDUSTRY_OPTIONS = [
   { value: 6, label: '其他' },
 ];
 
-/** 类型标签配色，按原型：生产商蓝、经销商青、服务商橙、代理商绿，其他和未设置灰 */
-export type SupplierTypeTone = 'accent' | 'cyan' | 'orange' | 'green' | 'gray';
-export const SUPPLIER_TYPE_TONE: Record<number, SupplierTypeTone> = {
-  1: 'accent',
-  2: 'cyan',
-  3: 'orange',
-  4: 'green',
-  5: 'gray',
-};
-
 export const labelOf = (
   options: { value: number; label: string }[],
   value?: number,

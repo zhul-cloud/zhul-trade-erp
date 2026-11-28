@@ -152,14 +152,14 @@
 | 操作人 | operator_name | 120px | 左对齐 | — | 直接显示姓名 |
 | 操作模块 | menu | 140px | 左对齐 | — | 超长文字省略（ellipsis），hover 显示 Tooltip |
 | 操作名称 | operation | 160px | 左对齐 | — | 超长省略，hover 显示 Tooltip |
-| 操作结果 | result | 100px | 居中 | — | Tag 组件：成功=绿色（#52c41a），失败=红色（#ff4d4f） |
+| 操作结果 | result | 100px | 居中 | — | Tag 组件：成功=成功色，失败=错误色 |
 | IP地址 | ip | 140px | 左对齐 | — | 显示原始 IP，不解析地理位置 |
 | 操作时间 | operate_time | 180px | 左对齐 | — | 按登录用户时区格式化，格式：YYYY-MM-DD HH:mm:ss |
-| 操作 | — | 80px | 居中 | 右 | 蓝色链接式文字按钮【详情】 |
+| 操作 | — | 80px | 居中 | 右 | 链接式文字按钮【详情】（主题色） |
 
 **表格其他规格：**
 - 默认排序：operate_time 降序（最新在前），不支持前端自定义列排序
-- 行 hover：背景色 #f5f7fa
+- 行 hover：背景色见界面规范
 - 无 checkbox，不支持批量选择
 - 空数据：显示 Ant Design Empty 组件，文案「暂无操作日志数据」
 - 分页：默认 20 条/页，可选 20 / 50 / 100，显示总数「共 XXX 条」
@@ -203,10 +203,10 @@
 |------|----------|
 | 弹窗尺寸 | 宽度 800px；高度自适应，最大 80vh，内容区超出时内部滚动 |
 | 标题 | 「操作详情」，右上角关闭图标 |
-| 基本信息区 | Descriptions 组件，2列布局，label 字体色 #888，value 字体色 #333 |
+| 基本信息区 | Descriptions 组件，2列布局，label 次要文字色，value 正文色 |
 | 操作结果 | Tag 组件，样式同列表页 |
 | JSON 对比区 | 左右两栏等宽（各 50%），中间 1px 分割线，小标题「操作前（Before）」/「操作后（After）」 |
-| JSON 渲染 | 只读模式，格式化缩进（2空格），代码块背景 #f8f8f8，字体 monospace 14px；单栏 max-height: 400px，overflow-y: auto |
+| JSON 渲染 | 只读模式，格式化缩进（2空格），代码块背景为中性浅底，字体 monospace 14px；单栏 max-height: 400px，overflow-y: auto |
 | 新增操作（before=null） | 左栏居中灰色文字：「新增操作，无操作前数据」 |
 | 删除操作（after=null） | 右栏居中灰色文字：「删除操作，无操作后数据」 |
 | content 整体为 null | JSON 区域替换为居中灰色文字：「该操作无详细内容记录」 |

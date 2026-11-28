@@ -96,7 +96,7 @@ const DeferModal: React.FC<{
     borderRadius: 10,
     cursor: 'pointer',
     border: `1px solid ${active ? palette.link : palette.hairline}`,
-    background: active ? palette.accentSoft : 'transparent',
+    background: active ? palette.primarySoft : 'transparent',
     color: active ? palette.link : palette.ink,
     font: 'inherit',
   });
@@ -158,7 +158,7 @@ const DeferModal: React.FC<{
                   <span key={label} style={{ display: 'grid' }}>
                     <b
                       style={{
-                        fontSize: 22,
+                        fontSize: 20,
                         color: i === 2 ? palette.mute : palette.ink,
                       }}
                     >

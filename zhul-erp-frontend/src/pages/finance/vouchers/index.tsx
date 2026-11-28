@@ -1,14 +1,17 @@
-import { FileAddOutlined, SettingOutlined } from '@ant-design/icons';
 import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Button, Space, Table } from 'antd';
+import { FilePlus, Settings } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
+import { MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
+import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { AccountDrawer, ReconPill, useVoucherExport } from './parts';
 import { type VoucherMonth, voucherApi, voucherPath } from './service';
@@ -19,6 +22,7 @@ const VouchersPage: React.FC = () => {
   const { message } = App.useApp();
   const access = useAccess() as Record<string, boolean>;
   const [rows, setRows] = useState<VoucherMonth[]>([]);
+  const pager = usePagination(20, '', rows.length);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [generating, setGenerating] = useState<string>();
@@ -111,7 +115,7 @@ const VouchersPage: React.FC = () => {
         ) : v > 0 ? (
           <Pill tone="green">{v > 1 ? `已导出 ${v} 次` : '已导出'}</Pill>
         ) : (
-          <Pill tone="accent">未导出</Pill>
+          <Pill tone="orange">未导出</Pill>
         ),
     },
     {
@@ -127,6 +131,7 @@ const VouchersPage: React.FC = () => {
       render: (v?: string) => (v ? formatDateTime(v).slice(0, 16) : dash),
     },
     {
+      // lint-ui-ignore row-actions: 生成凭证要显示进度，保留按钮
       title: '操作',
       key: 'op',
       width: 140,
@@ -136,7 +141,7 @@ const VouchersPage: React.FC = () => {
           canExport && (
             <Button
               size="small"
-              icon={<FileAddOutlined />}
+              icon={<FilePlus size="1em" />}
               loading={generating === r.month}
               onClick={() => generate(r.month)}
             >
@@ -163,10 +168,12 @@ const VouchersPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        actions={
+      <PageHeader
+        extra={
           <Button
-            icon={<SettingOutlined />}
+            type="text"
+            icon={<Settings size="1em" />}
+            style={{ color: palette.link }}
             onClick={() => setAccountsOpen(true)}
           >
             科目设置
@@ -176,24 +183,22 @@ const VouchersPage: React.FC = () => {
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 16 }}>
+        <MainCard count={rows.length} loading={loading}>
           <Table<VoucherMonth>
             rowKey="month"
-            size="middle"
             loading={loading}
             columns={columns}
             dataSource={rows}
             scroll={{ x: tableScrollX(columns) }}
             locale={{
-              emptyText: '还没有已结账的月份，库存月结结账后自动生成凭证',
+              emptyText: tableEmpty(
+                '还没有已结账的月份，库存月结结账后自动生成凭证',
+                loading,
+              ),
             }}
-            pagination={
-              rows.length > 20
-                ? { pageSize: 20, showTotal: (t) => `共 ${t} 条` }
-                : false
-            }
+            pagination={pager}
           />
-        </Card>
+        </MainCard>
       )}
       <AccountDrawer
         open={accountsOpen}

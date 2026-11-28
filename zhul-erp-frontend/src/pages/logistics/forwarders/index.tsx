@@ -1,4 +1,3 @@
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -14,9 +13,23 @@ import {
   Skeleton,
   Table,
 } from 'antd';
+import { Ban, CircleCheck, Info, Pencil, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import EllipsisText from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  ViewTabs,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { Pill } from '@/pages/inquiry/shared/components';
+import { useCountries } from '@/pages/product/components/useCountries';
 import { auditColumns } from '@/pages/purchase/components';
 import {
   AccountListEditor,
@@ -26,10 +39,11 @@ import {
 } from '@/pages/supplier/accounts';
 import { searchCustomers } from '@/services/zhul/masterdata';
 import { useAppTheme } from '@/theme/AppTheme';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   CARRIERS,
+  FORWARDER_TONE,
   type ForwarderQuery,
   type ForwarderRow,
   forwarderApi,
@@ -61,6 +75,8 @@ const CustomerSelect: React.FC<{
   onChange?: (v?: number) => void;
   initialLabel?: string | null;
 }> = ({ value, onChange, initialLabel }) => {
+  // 国家按中文名显示（同 CountryText）；下拉选项是纯文字，用不了国旗组件
+  const { find: findCountry } = useCountries();
   const [options, setOptions] = useState<{ value: number; label: string }[]>(
     [],
   );
@@ -73,7 +89,9 @@ const CustomerSelect: React.FC<{
           setOptions(
             list.map((c) => ({
               value: c.id,
-              label: c.country ? `${c.name} · ${c.country}` : c.name,
+              label: c.country
+                ? `${c.name} · ${findCountry(c.country)?.nameZh ?? c.country}`
+                : c.name,
             })),
           ),
         )
@@ -258,11 +276,10 @@ export const ForwarderDrawer: React.FC<{
               <Form.Item
                 name="handoverMode"
                 label="交接方式"
-                extra={
-                  handover === HANDOVER.PICKUP
-                    ? '客户用自己的快递账号约快递上门取货'
-                    : undefined
-                }
+                tooltip={{
+                  title: '上门取件：客户用自己的快递账号约快递上门取货',
+                  icon: <Info size={14} />,
+                }}
               >
                 <Segmented<number>
                   options={[
@@ -355,13 +372,15 @@ type Tab = 'all' | 'company' | 'customer';
 
 const ForwarderPage: React.FC = () => {
   const { palette } = useAppTheme();
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess() as Record<string, boolean>;
   const canAdd = !!access['logistics:forwarder:add'];
   const canEdit = !!access['logistics:forwarder:edit'];
   const canStatus = !!access['logistics:forwarder:status'];
   const [tab, setTab] = useState<Tab>('all');
   const [keyword, setKeyword] = useState('');
+  const [kw, setKw] = useState('');
   const [status, setStatus] = useState<number | undefined>(1);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
@@ -422,7 +441,7 @@ const ForwarderPage: React.FC = () => {
       apply();
       return;
     }
-    modal.confirm({
+    confirmDanger({
       title: `停用「${r.name}」？`,
       content: '停用后发货通知、出运单里不能再选它，已有单据不受影响。',
       okText: '停用',
@@ -463,19 +482,30 @@ const ForwarderPage: React.FC = () => {
       width: 240,
       render: (_, r) =>
         r.customerId ? (
-          <span
-            style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}
-          >
-            <Pill tone="violet">客户指定</Pill>
-            <span style={{ color: palette.link }}>{r.customerName ?? '—'}</span>
+          // 两行：标签 + 客户名单行省略；上门取件作第二行小字，不挤进右边一列、行高不超过两行（UI-117）
+          <div style={{ display: 'grid', minWidth: 0 }}>
+            <span
+              style={{
+                display: 'flex',
+                gap: 6,
+                alignItems: 'center',
+                minWidth: 0,
+              }}
+            >
+              <Pill tone={FORWARDER_TONE.customer}>客户指定</Pill>
+              <EllipsisText
+                text={r.customerName}
+                style={{ color: palette.ink, minWidth: 0 }}
+              />
+            </span>
             {r.handoverMode === HANDOVER.PICKUP && (
-              <Pill tone="violet">
+              <span style={{ fontSize: 12, color: palette.sub }}>
                 {['上门取件', r.courierCarrier].filter(Boolean).join(' · ')}
-              </Pill>
+              </span>
             )}
-          </span>
+          </div>
         ) : (
-          <Pill tone="gray">公司货代</Pill>
+          <Pill tone={FORWARDER_TONE.company}>公司货代</Pill>
         ),
     },
     {
@@ -519,41 +549,51 @@ const ForwarderPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 120,
+      // 编辑放行内，停用、启用收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(2),
       fixed: 'right',
       render: (_, r) => (
-        <div style={{ display: 'flex', gap: 12 }}>
-          {canEdit && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => setDrawer({ open: true, id: r.id })}
-            >
-              编辑
-            </button>
-          )}
-          {canStatus && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => toggle(r)}
-            >
-              {r.status === 1 ? '停用' : '启用'}
-            </button>
-          )}
-        </div>
+        <RowActions
+          inline={[
+            canEdit && {
+              key: 'edit',
+              label: '编辑',
+              icon: <Pencil size={18} />,
+              onClick: () => setDrawer({ open: true, id: r.id }),
+            },
+          ]}
+          more={[
+            canStatus &&
+              (r.status === 1
+                ? {
+                    key: 'status',
+                    label: '停用',
+                    icon: <Ban size={16} />,
+                    danger: true,
+                  }
+                : {
+                    key: 'status',
+                    label: '启用',
+                    icon: <CircleCheck size={16} />,
+                  }),
+          ]}
+          onMore={() => toggle(r)}
+        />
       ),
     },
   ];
+  const columnsSet = useColumnSettings('logistics-forwarders', columns, {
+    hidden: ['体积系数'],
+  });
 
   return (
     <div>
-      <PageTitle
-        actions={
+      <PageHeader
+        extra={
           canAdd && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => setDrawer({ open: true })}
             >
               新建货代
@@ -561,88 +601,88 @@ const ForwarderPage: React.FC = () => {
           )
         }
       />
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          marginBottom: 16,
-          flexWrap: 'wrap',
-          alignItems: 'center',
+      <ViewTabs
+        activeKey={tab}
+        onChange={(k) => {
+          setTab(k as Tab);
+          setPage(1);
         }}
+        items={[
+          { key: 'all', label: '全部', count: counts?.all },
+          { key: 'company', label: '公司货代', count: counts?.company },
+          { key: 'customer', label: '客户指定', count: counts?.customer },
+        ]}
+      />
+      <FilterCard
+        onSearch={() => {
+          setKeyword(kw.trim());
+          setPage(1);
+        }}
+        onReset={() => {
+          setKw('');
+          setKeyword('');
+          // 回到默认视图：只看启用
+          setStatus(1);
+          setPage(1);
+        }}
+        minColumn={130}
       >
-        <Segmented<Tab>
-          value={tab}
-          onChange={(v) => {
-            setTab(v);
-            setPage(1);
-          }}
-          options={[
-            { value: 'all', label: `全部${counts ? ` ${counts.all}` : ''}` },
-            {
-              value: 'company',
-              label: `公司货代${counts ? ` ${counts.company}` : ''}`,
-            },
-            {
-              value: 'customer',
-              label: `客户指定${counts ? ` ${counts.customer}` : ''}`,
-            },
-          ]}
-        />
-        <span style={{ flex: 1 }} />
-        <Input
-          allowClear
-          prefix={<SearchOutlined />}
-          placeholder="名称、简称、联系人"
-          aria-label="搜索货代"
-          style={{ width: 260 }}
-          onPressEnter={(e) => {
-            setKeyword((e.target as HTMLInputElement).value);
-            setPage(1);
-          }}
-          onChange={(e) => {
-            if (!e.target.value) {
-              setKeyword('');
+        <FilterField
+          label="关键词"
+          span={2}
+          help="可搜：名称、简称、联系人、联系电话"
+        >
+          <Input
+            allowClear
+            prefix={<Search size="1em" />}
+            placeholder="名称、简称、联系人"
+            aria-label="关键词"
+            value={kw}
+            onChange={(e) => setKw(e.target.value)}
+            onPressEnter={() => {
+              setKeyword(kw.trim());
               setPage(1);
-            }
-          }}
-        />
-        <Select
-          allowClear
-          aria-label="状态"
-          placeholder="全部状态"
-          style={{ width: 130 }}
-          value={status}
-          onChange={(v?: number) => {
-            setStatus(v);
-            setPage(1);
-          }}
-          options={[
-            { value: 1, label: '启用' },
-            { value: 0, label: '停用' },
-          ]}
-        />
-      </div>
-      <Card style={{ padding: 0 }}>
+            }}
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select
+            allowClear
+            aria-label="状态"
+            placeholder="全部"
+            value={status}
+            onChange={(v?: number) => {
+              // 切换状态立即查询（doc-list-unify 状态下拉的写法）
+              setStatus(v);
+              setPage(1);
+            }}
+            options={[
+              { value: 1, label: '启用' },
+              { value: 0, label: '停用' },
+            ]}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard settings={columnsSet.settings} count={total} loading={loading}>
         <Table<ForwarderRow>
           rowKey="id"
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: tableScrollX(columns) }}
-          locale={{ emptyText: '还没有货代' }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
+          locale={{ emptyText: tableEmpty('还没有货代', loading) }}
           pagination={{
+            ...PAGER_STYLE,
             current: page,
             pageSize,
             total,
-            showSizeChanger: true,
-            showTotal: (t: number) => `共 ${t} 条`,
             onChange: (p: number, s: number) => {
               setPage(p);
               setPageSize(s);
             },
           }}
         />
-      </Card>
+      </MainCard>
       <ForwarderDrawer
         open={drawer.open}
         id={drawer.id}

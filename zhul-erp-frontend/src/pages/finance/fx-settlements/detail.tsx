@@ -1,27 +1,27 @@
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table, Tooltip } from 'antd';
+import { App, Skeleton, Table } from 'antd';
+import { CircleX } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  DocColumns,
   DocLogCard,
   InfoGrid,
   RelatedDocsCard,
   SectionTitle,
 } from '@/components/DocFields/DocPage';
 import { DocFilesCard } from '@/components/DocFiles';
+import { tableEmpty } from '@/components/EmptyState';
+import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import {
-  Card,
-  PageTitle,
-  Pill,
-  useWide,
-} from '@/pages/inquiry/shared/components';
+import { UserName } from '@/components/UserName';
+import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/sales/service';
 import { ReasonModal, relatedRows } from '@/pages/warehouse/components';
 import { UnitPill, useBusinessUnits } from '@/utils/businessUnit';
-import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import { ReceiptWho, SettlePill } from './components';
 import { type FxSettlement, fxApi } from './service';
 
@@ -55,7 +55,7 @@ const FxSettlementDetail: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
   useOnReactivate(load);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!s) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const cur = s.currencyCode;
@@ -76,7 +76,10 @@ const FxSettlementDetail: React.FC = () => {
       width: 150,
       render: (_, a) =>
         a.receipt?.receiptNo ? (
-          <Link to={`/finance/receipts/${a.receipt.id}`}>
+          <Link
+            className="zhul-link zhul-link-doc"
+            to={`/finance/receipts/${a.receipt.id}`}
+          >
             {a.receipt.receiptNo}
           </Link>
         ) : (
@@ -96,18 +99,18 @@ const FxSettlementDetail: React.FC = () => {
       render: (_, a) => (a.receipt ? <ReceiptWho r={a.receipt} /> : '—'),
     },
     {
-      title: '分摊外币',
+      title: `分摊外币（${cur}）`,
       dataIndex: 'amount',
       width: 130,
       align: 'right',
-      render: (v: number) => <span style={num}>{formatAmount(v, cur)}</span>,
+      render: (v: number) => <span style={num}>{formatMoney(v)}</span>,
     },
     {
       title: '分摊人民币',
       dataIndex: 'amountCny',
       width: 130,
       align: 'right',
-      render: (v: number) => <span style={num}>{formatAmount(v, 'CNY')}</span>,
+      render: (v: number) => <span style={num}>{formatMoney(v)}</span>,
     },
     ...(hasFee
       ? [
@@ -130,7 +133,7 @@ const FxSettlementDetail: React.FC = () => {
     },
   ];
 
-  const main = (
+  const info = (
     <>
       <InfoGrid
         items={[
@@ -164,6 +167,11 @@ const FxSettlementDetail: React.FC = () => {
           },
         ]}
       />
+    </>
+  );
+  // 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18）
+  const wideSections = (
+    <>
       <Card style={{ padding: 20, marginBottom: 16 }}>
         <SectionTitle
           extra={
@@ -184,8 +192,8 @@ const FxSettlementDetail: React.FC = () => {
           pagination={false}
           columns={columns}
           dataSource={allocations}
-          scroll={{ x: 'max-content' }}
-          locale={{ emptyText: '没有分摊' }}
+          scroll={{ x: tableScrollX(columns) }}
+          locale={{ emptyText: tableEmpty('没有分摊', undefined, true) }}
         />
       </Card>
       <DocFilesCard
@@ -203,61 +211,54 @@ const FxSettlementDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[
-          <MenuLink key="list" to="/finance/fx-settlements" />,
-          s.settleNo,
-        ]}
-        title={
-          <>
-            {s.settleNo}
-            <Pill tone={valid ? 'green' : 'mute'}>
-              {valid ? '有效' : '已作废'}
-            </Pill>
-          </>
+      <PageHeader
+        title={s.settleNo}
+        tags={
+          <Pill tone={valid ? 'green' : 'mute'}>
+            {valid ? '有效' : '已作废'}
+          </Pill>
         }
-        description={
+        sub={
           <>
             {bu.enabled && (
               <>
                 <UnitPill info={bu} id={s.businessUnitId} /> ·{' '}
               </>
             )}
-            {s.bankAccountName ?? '—'} · {s.createBy ?? '—'} ·{' '}
+            {s.bankAccountName ?? '—'} · <UserName value={s.createBy} /> ·{' '}
             {formatDateTime(s.createTime).slice(0, 16)} 创建
           </>
         }
-        actions={
+        extra={
           valid &&
           !!access['finance:fx:settle'] && (
-            <Tooltip title={blocked}>
-              <Button
-                danger
-                disabled={!!blocked}
-                onClick={() => setVoiding(true)}
-              >
-                作废
-              </Button>
-            </Tooltip>
+            <MoreActions
+              items={[
+                {
+                  key: 'void',
+                  label: '作废',
+                  icon: <CircleX size={16} />,
+                  danger: true,
+                  disabledReason: blocked || undefined,
+                },
+              ]}
+              onClick={() => setVoiding(true)}
+            />
           )
         }
       />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: wide
-            ? 'minmax(0, 2.6fr) minmax(340px, 1fr)'
-            : '1fr',
-          gap: 16,
-          alignItems: 'start',
-        }}
+      <DocColumns
+        wide={wide}
+        side={
+          <>
+            <RelatedDocsCard docs={relatedRows(s.related)} />
+            <DocLogCard logs={s.logs} />
+          </>
+        }
       >
-        <div style={{ minWidth: 0 }}>{main}</div>
-        <div style={{ minWidth: 0 }}>
-          <RelatedDocsCard docs={relatedRows(s.related)} />
-          <DocLogCard logs={s.logs} />
-        </div>
-      </div>
+        {info}
+        {wideSections}
+      </DocColumns>
       <ReasonModal
         open={voiding}
         title={`作废 ${s.settleNo}`}

@@ -37,6 +37,18 @@ export const formatAmount = (
 };
 
 /**
+ * 只有数字的金额（两位小数、千分位，不带币种）：整表或整列是同一币种、币种已写在表头或卡片标题旁时用，
+ * 窄列不再因为「CNY 」前缀折行（ui-redesign S12）；空值显示「—」。
+ */
+export const formatMoney = (
+  value: number | string | null | undefined,
+): string => {
+  if (value === null || value === undefined || value === '') return '—';
+  const n = Number(value);
+  return Number.isFinite(n) ? amountFormatter.format(n) : '—';
+};
+
+/**
  * Format a datetime as yyyy-MM-dd HH:mm:ss.
  * Unified display format for create_time / update_time across all list pages.
  */

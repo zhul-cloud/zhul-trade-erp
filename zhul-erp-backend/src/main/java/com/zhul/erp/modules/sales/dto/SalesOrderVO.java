@@ -63,6 +63,9 @@ public class SalesOrderVO {
     /** 所属事业部（跟随 PI 或客户） */
     private Integer businessUnitId;
     private String customerName;
+    /** 客户国家 / 地区（系统国家清单英文名）与主联系人，详情页客户卡用 */
+    private String customerCountry;
+    private String customerContact;
     private Long ownerId;
     private String ownerName;
     private String currencyCode;

@@ -1,12 +1,3 @@
-import {
-  CheckOutlined,
-  CloseOutlined,
-  EditOutlined,
-  MergeCellsOutlined,
-  PlusOutlined,
-  RobotOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
 import { Link, useAccess, useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -15,23 +6,36 @@ import {
   Drawer,
   Input,
   Modal,
+  Popover,
   Radio,
-  Segmented,
   Select,
   Skeleton,
   Spin,
   Table,
 } from 'antd';
+import { Bot, Check, Merge, Pencil, Plus, Search, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import EllipsisText from '@/components/EllipsisText';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  HelpTip,
+  MainCard,
+  PageHeader,
+  SelectionCount,
+  ViewTabs,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { UserName } from '@/components/UserName';
+import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { groupedCategoryOptions } from '@/pages/product/components/categoryOptions';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { LIFECYCLE_OPTIONS } from '../constants';
 import {
@@ -88,7 +92,7 @@ const writeAiJob = (job: AiFill | null) => {
 /** AI 写入的品类、品牌标记 */
 const AiTag: React.FC<{ text?: string }> = ({ text = 'AI 建议' }) => (
   <Pill tone="violet">
-    <RobotOutlined /> {text}
+    <Bot size="1em" /> {text}
   </Pill>
 );
 
@@ -103,12 +107,23 @@ const aiSummary = (j: AiFill) => {
     : `AI 解析品类完成：填了 ${j.filled ?? 0} 个${skipped}${unchanged}`;
 };
 
-/** 1-4 为候选状态；5 为「待关联单据」 */
-type Tab = 1 | 2 | 3 | 4 | 5;
+/** 候选状态（搜索区「状态」下拉） */
+type Status = 1 | 2 | 3 | 4;
+/** 视图页签：候选审核、待关联单据（复审 S3：状态进下拉，不同视图用页签） */
+type View = 'list' | 'unlinked';
 type TabCounts = Awaited<ReturnType<typeof candidateApi.counts>>;
 
-/** 页签上的数字按当前筛选条件统计，和筛选后的列表一致 */
-const TABS: { value: Tab; label: string; key: keyof TabCounts }[] = [
+/** 帮助文字：help-texts.md「商品候选」，关键词范围以 search-scope.md 为准 */
+export const HELP = {
+  page: '询盘、成交带进来的新型号，以及上传商品文件添加的型号，先在这里审核，通过后才进入商品库；被问得多、成交过的优先审核',
+  keyword: '可搜：型号（忽略空格、连字符和大小写）、品牌文字、商品名称、订货号',
+  pending:
+    '按可信度从高到低、再按更新时间倒序；批量通过只处理品牌与品类都已确定的候选（生命周期按采购核实自动填写），其余跳过并提示',
+  done: '按可信度从高到低、再按更新时间倒序',
+} as const;
+
+/** 状态下拉里的数字按当前筛选条件统计，和筛选后的列表一致 */
+const STATUSES: { value: Status; label: string; key: keyof TabCounts }[] = [
   { value: 1, label: '待审核', key: 'pending' },
   { value: 2, label: '已建档', key: 'archived' },
   { value: 3, label: '已并入', key: 'merged' },
@@ -127,8 +142,8 @@ export const LevelDots: React.FC<{ level: number; name: string }> = ({
   name,
 }) => {
   const { palette } = useAppTheme();
-  const color =
-    level >= 3 ? palette.green : level === 2 ? palette.link : palette.orange;
+  // 可信度是程度：点亮几个点表示高低，统一用图表主题色；文字不着色（进度类规则，UI-117）
+  const color = palette.chart;
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
       <span style={{ display: 'inline-flex', gap: 3 }}>
@@ -144,7 +159,7 @@ export const LevelDots: React.FC<{ level: number; name: string }> = ({
           />
         ))}
       </span>
-      <span style={{ fontSize: 12, color }}>{name}</span>
+      <span style={{ fontSize: 12, color: palette.sub }}>{name}</span>
     </span>
   );
 };
@@ -166,55 +181,172 @@ const Heat: React.FC<{ c: Candidate }> = ({ c }) => {
   );
 };
 
-const SOURCE_TONE: Record<number, 'green' | 'accent' | 'violet' | 'gray'> = {
-  1: 'gray',
-  2: 'violet',
-  3: 'accent',
-  4: 'green',
+type Source = NonNullable<Candidate['sources']>[number];
+
+/** 一条来源：类型（次要色文字，类型是类别不着色，ui-redesign S13）+ 询盘号 / 订单号 */
+const SourceLine: React.FC<{ s: Source }> = ({ s }) => {
+  const { palette } = useAppTheme();
+  return (
+    <span style={{ whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: 12, color: palette.sub }}>
+        {s.sourceTypeName}
+      </span>{' '}
+      {s.soId ? (
+        <Link
+          to={`/sales/orders/${s.soId}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {s.soNo}
+        </Link>
+      ) : s.customerInquiryId ? (
+        <Link
+          to={`/inquiry/customer-inquiries/${s.customerInquiryId}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {s.inquiryCode}
+        </Link>
+      ) : null}
+    </span>
+  );
 };
 
-/** 列表里的来源：类型 + 询盘号 / 订单号，最近 3 条 */
+/**
+ * 列表里的来源（两行，2026-11-24 用户选定方案 B，D21 行高）：第一行最新一条，
+ * 第二行「等 N 条来源」悬停列出最近几条与其余条数、其他公司次数；只有其他公司的来源时第二行写次数
+ */
 const SourceCell: React.FC<{ c: Candidate }> = ({ c }) => {
   const { palette } = useAppTheme();
   const list = c.sources ?? [];
   if (!list.length && !c.otherSourceCount) {
     return <span style={{ color: palette.mute }}>—</span>;
   }
-  const more = (c.mineSourceCount ?? list.length) - list.length;
+  const mine = c.mineSourceCount ?? list.length;
+  const more = mine - list.length;
+  const total = mine + (c.otherSourceCount ?? 0);
+  const tail = [
+    more > 0 ? `还有 ${more} 条` : '',
+    c.otherSourceCount ? `其他公司 ${c.otherSourceCount} 次` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
   return (
-    <div style={{ display: 'grid', gap: 3, fontSize: 12 }}>
-      {list.map((s, i) => (
-        <span
-          // biome-ignore lint/suspicious/noArrayIndexKey: 来源没有对外的 id
-          key={i}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+    <div style={{ minWidth: 0 }}>
+      <div
+        style={{
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {list[0] ? (
+          <SourceLine s={list[0]} />
+        ) : (
+          <span style={{ color: palette.mute }}>本公司无</span>
+        )}
+      </div>
+      {!list.length && c.otherSourceCount ? (
+        <div style={{ fontSize: 12, lineHeight: '18px', color: palette.mute }}>
+          其他公司 {c.otherSourceCount} 次
+        </div>
+      ) : null}
+      {list.length > 0 && total > 1 && (
+        <Popover
+          title={`来源（${total}）`}
+          content={
+            <div style={{ display: 'grid', gap: 6 }}>
+              {list.map((s, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: 来源没有对外的 id
+                <SourceLine key={i} s={s} />
+              ))}
+              {tail && (
+                <span style={{ fontSize: 12, color: palette.mute }}>
+                  {tail}
+                </span>
+              )}
+            </div>
+          }
         >
-          <Pill tone={SOURCE_TONE[s.sourceType] ?? 'gray'}>
-            {s.sourceTypeName}
-          </Pill>
-          {s.soId ? (
-            <Link
-              to={`/sales/orders/${s.soId}`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {s.soNo}
-            </Link>
-          ) : s.customerInquiryId ? (
-            <Link
-              to={`/inquiry/customer-inquiries/${s.customerInquiryId}`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {s.inquiryCode}
-            </Link>
-          ) : null}
-        </span>
-      ))}
-      {(more > 0 || !!c.otherSourceCount) && (
-        <span style={{ color: palette.mute }}>
-          {more > 0 ? `还有 ${more} 条` : ''}
-          {more > 0 && c.otherSourceCount ? ' · ' : ''}
-          {c.otherSourceCount ? `其他公司 ${c.otherSourceCount} 次` : ''}
-        </span>
+          <div
+            style={{
+              fontSize: 12,
+              lineHeight: '18px',
+              color: palette.mute,
+              cursor: 'default',
+              width: 'fit-content',
+            }}
+          >
+            等 {total} 条来源
+          </div>
+        </Popover>
+      )}
+    </div>
+  );
+};
+
+/**
+ * 被单据引用：显示最要紧的一类（沿业务链越往后越要紧），其余「等 N 类」悬停看全部。
+ * 键名与后端 DocumentProductTables 的标签一致；售后、退货等旁支不作主类，不在表里时取第一类
+ */
+const REF_PRIORITY = [
+  '销售出库',
+  '采购入库',
+  '供应商发货',
+  '采购订单',
+  '采购需求',
+  '销售订单',
+  'PI',
+  '报价',
+  '询盘型号',
+];
+const RefCell: React.FC<{ c: Candidate }> = ({ c }) => {
+  const { palette } = useAppTheme();
+  const entries = Object.entries(c.references ?? {});
+  if (!entries.length) return <span style={{ color: palette.mute }}>—</span>;
+  const lead =
+    REF_PRIORITY.map((k) => entries.find(([t]) => t === k)).find(Boolean) ??
+    entries[0];
+  const head = (
+    <span style={{ color: palette.ink, whiteSpace: 'nowrap' }}>
+      {lead[0]} {lead[1]}
+      {entries.length > 1 && (
+        <span style={{ color: palette.sub }}> 等 {entries.length} 类</span>
+      )}
+    </span>
+  );
+  return (
+    <div style={{ minWidth: 0 }}>
+      {entries.length > 1 ? (
+        <Popover
+          title={`被单据引用（${entries.length} 类）`}
+          content={
+            <div style={{ display: 'grid', gap: 4, fontSize: 12 }}>
+              {entries.map(([t, n]) => (
+                <div
+                  key={t}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    gap: 24,
+                  }}
+                >
+                  <span style={{ color: palette.sub }}>{t}</span>
+                  <span style={{ color: palette.ink }}>{n}</span>
+                </div>
+              ))}
+            </div>
+          }
+        >
+          {head}
+        </Popover>
+      ) : (
+        head
+      )}
+      {c.usedByOrders && (
+        <div
+          style={{ fontSize: 12, lineHeight: '18px', color: palette.orange }}
+        >
+          已成交，不能驳回
+        </div>
       )}
     </div>
   );
@@ -417,7 +549,7 @@ export const ReviewDrawer: React.FC<{
           editable && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Button
-                icon={<CloseOutlined />}
+                icon={<X size="1em" />}
                 disabled={!!c?.usedByOrders}
                 title={c?.usedByOrders ? '已成交，不能驳回' : undefined}
                 onClick={() => setRejecting(true)}
@@ -425,7 +557,7 @@ export const ReviewDrawer: React.FC<{
                 驳回
               </Button>
               <Button
-                icon={<MergeCellsOutlined />}
+                icon={<Merge size="1em" />}
                 onClick={() => setMerging(true)}
               >
                 并入已有商品
@@ -443,7 +575,7 @@ export const ReviewDrawer: React.FC<{
               <Button onClick={onClose}>取消</Button>
               <Button
                 type="primary"
-                icon={<CheckOutlined />}
+                icon={<Check size="1em" />}
                 loading={busy}
                 disabled={!!finalProblem}
                 onClick={() => c && approve(c)}
@@ -851,6 +983,7 @@ export const ReviewDrawer: React.FC<{
                   </Pill>
                   {s.customerInquiryId && (
                     <Link
+                      className="zhul-link zhul-link-doc"
                       to={`/inquiry/customer-inquiries/${s.customerInquiryId}`}
                     >
                       {s.inquiryCode}
@@ -862,12 +995,22 @@ export const ReviewDrawer: React.FC<{
                     </span>
                   )}
                   {s.soId && (
-                    <Link to={`/sales/orders/${s.soId}`}>{s.soNo}</Link>
+                    <Link
+                      to={`/sales/orders/${s.soId}`}
+                      className="zhul-link zhul-link-doc"
+                    >
+                      {s.soNo}
+                    </Link>
                   )}
                   {s.fileName && (
                     <span style={{ color: palette.sub }}>
                       {s.fileName}
-                      {s.createBy ? ` · ${s.createBy}` : ''}
+                      {s.createBy && (
+                        <>
+                          {' · '}
+                          <UserName value={s.createBy} />
+                        </>
+                      )}
                     </span>
                   )}
                   <span style={{ flex: 1 }} />
@@ -1120,7 +1263,8 @@ const Candidates: React.FC = () => {
   const { message, modal } = App.useApp();
   const access = useAccess();
   const canReview = !!access['product:candidate:review'];
-  const [tab, setTab] = useState<Tab>(1);
+  const [view, setView] = useState<View>('list');
+  const [status, setStatus] = useState<Status>(1);
   const [counts, setCounts] = useState<TabCounts>();
   const [importOpen, setImportOpen] = useState(false);
   const [search] = useSearchParams();
@@ -1148,14 +1292,14 @@ const Candidates: React.FC = () => {
   const [editing, setEditing] = useState(false);
 
   const load = useCallback(async () => {
-    if (tab === 5) return;
+    if (view === 'unlinked') return;
     setLoading(true);
     setError(undefined);
     try {
       const res = await candidateApi.page({
         page,
         pageSize,
-        status: tab,
+        status,
         ...query,
       });
       setRows(res.records);
@@ -1165,7 +1309,7 @@ const Candidates: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, tab, query]);
+  }, [page, pageSize, view, status, query]);
 
   const [unlinkedCount, setUnlinkedCount] = useState<number>();
   const refreshCount = useCallback(() => {
@@ -1344,48 +1488,69 @@ const Candidates: React.FC = () => {
 
   const brandCell = (c: Candidate) =>
     c.brandId ? (
-      <div>
-        <b style={{ color: palette.ink }}>
-          {c.brandName} · {c.mpnRaw}
-        </b>
-        <div style={{ fontSize: 12, color: palette.mute }}>
-          {c.aiBrand === 1 && (
+      // 两行都单行省略、悬停看全文，长型号不折行撑高（D21）
+      <div style={{ minWidth: 0 }}>
+        <EllipsisText
+          text={`${c.brandName} · ${c.mpnRaw}`}
+          style={{ color: palette.ink, fontWeight: 600 }}
+        />
+        {/* 第二行同样单行省略，截断时悬停看全文（订货号、商品编号不会丢） */}
+        <EllipsisText
+          style={{ fontSize: 12, lineHeight: '18px', color: palette.mute }}
+          text={
             <>
-              <AiTag /> {c.brandText ? `原文「${c.brandText}」 ` : ''}
+              {c.aiBrand === 1 && (
+                <>
+                  <AiTag /> {c.brandText ? `原文「${c.brandText}」 ` : ''}
+                </>
+              )}
+              {c.aiBrand === 2 && (
+                <>
+                  <AiTag
+                    text={
+                      c.aiBrandName
+                        ? `AI 未识别：${c.aiBrandName}`
+                        : 'AI 未识别'
+                    }
+                  />{' '}
+                </>
+              )}
+              {c.originalModel
+                ? `回填自「${c.originalModel}」`
+                : c.aiBrand
+                  ? ''
+                  : '品牌 ✓'}
+              {c.orderCode ? ` · 订货号 ${c.orderCode}` : ''}
+              {c.status === 1 && c.productId
+                ? ` · 商品编号 ${c.productId}`
+                : ''}
             </>
-          )}
-          {c.aiBrand === 2 && (
-            <>
-              <AiTag
-                text={
-                  c.aiBrandName ? `AI 未识别：${c.aiBrandName}` : 'AI 未识别'
-                }
-              />{' '}
-            </>
-          )}
-          {c.originalModel
-            ? `回填自「${c.originalModel}」`
-            : c.aiBrand
-              ? ''
-              : '品牌 ✓'}
-          {c.orderCode ? ` · 订货号 ${c.orderCode}` : ''}
-          {c.status === 1 && c.productId ? ` · 商品编号 ${c.productId}` : ''}
-        </div>
+          }
+        />
       </div>
     ) : (
-      <div>
-        <b style={{ color: palette.orange }}>
-          待确认品牌：{c.brandText || '（空）'} · {c.mpnRaw}
-        </b>
-        <div style={{ fontSize: 12, color: palette.mute }}>
-          {c.aiBrand === 2 && c.aiBrandName ? (
-            <AiTag text={`AI 未识别：${c.aiBrandName}`} />
-          ) : (
-            '品牌未识别'
-          )}
-          {c.orderCode ? ` · 订货号 ${c.orderCode}` : ''}
-          {c.status === 1 && c.productId ? ` · 商品编号 ${c.productId}` : ''}
-        </div>
+      <div style={{ minWidth: 0 }}>
+        <EllipsisText
+          text={`待确认品牌：${c.brandText || '（空）'} · ${c.mpnRaw}`}
+          style={{ color: palette.orange, fontWeight: 600 }}
+        />
+        {/* 第二行同样单行省略，截断时悬停看全文（订货号、商品编号不会丢） */}
+        <EllipsisText
+          style={{ fontSize: 12, lineHeight: '18px', color: palette.mute }}
+          text={
+            <>
+              {c.aiBrand === 2 && c.aiBrandName ? (
+                <AiTag text={`AI 未识别：${c.aiBrandName}`} />
+              ) : (
+                '品牌未识别'
+              )}
+              {c.orderCode ? ` · 订货号 ${c.orderCode}` : ''}
+              {c.status === 1 && c.productId
+                ? ` · 商品编号 ${c.productId}`
+                : ''}
+            </>
+          }
+        />
       </div>
     );
 
@@ -1398,7 +1563,7 @@ const Candidates: React.FC = () => {
       render: (_, c) => brandCell(c),
     },
     {
-      title: tab === 1 ? '品类（建议）' : '品类',
+      title: status === 1 ? '品类（建议）' : '品类',
       key: 'category',
       width: 130,
       render: (_, c) =>
@@ -1437,27 +1602,13 @@ const Candidates: React.FC = () => {
       width: 100,
       render: (_, c) => <Heat c={c} />,
     },
-    ...(tab === 1
+    ...(status === 1
       ? [
           {
             title: '被单据引用',
             key: 'refs',
             width: 190,
-            render: (_: unknown, c: Candidate) =>
-              refText(c.references) ? (
-                <div style={{ fontSize: 12 }}>
-                  <div style={{ color: palette.ink }}>
-                    {refText(c.references)}
-                  </div>
-                  {c.usedByOrders && (
-                    <div style={{ color: palette.orange }}>
-                      已成交，不能驳回
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <span style={{ color: palette.mute }}>—</span>
-              ),
+            render: (_: unknown, c: Candidate) => <RefCell c={c} />,
           },
         ]
       : [
@@ -1486,6 +1637,7 @@ const Candidates: React.FC = () => {
         ]),
     ...auditColumns<Candidate>(),
     {
+      // lint-ui-ignore row-actions: 候选商品审核队列，保留文字按钮
       title: '操作',
       key: 'actions',
       width: 90,
@@ -1496,11 +1648,14 @@ const Candidates: React.FC = () => {
           className="zhul-link"
           onClick={() => setViewing(c.id)}
         >
-          {tab === 1 && canReview ? '审核' : '查看'}
+          {status === 1 && canReview ? '审核' : '查看'}
         </button>
       ),
     },
   ];
+  const columnsSet = useColumnSettings('product-candidates', columns, {
+    hidden: ['被单据引用', '来源'],
+  });
 
   const apply = () => {
     setQuery({
@@ -1514,158 +1669,129 @@ const Candidates: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        description="询盘、成交带进来的新型号，以及上传商品文件添加的型号，先在这里审核，通过后才进入商品库；被问得多、成交过的优先审核。"
-        actions={
-          <>
-            <Button icon={<PlusOutlined />} onClick={() => setImportOpen(true)}>
-              添加候选
-            </Button>
-            {tab === 1 &&
-              canReview &&
-              (['category', 'brand'] as AiFillMode[]).map((mode) => (
-                <Button
-                  key={mode}
-                  icon={<RobotOutlined />}
-                  disabled={!aiJob && selected.length === 0}
-                  loading={aiJob?.mode === mode}
-                  onClick={() => (aiJob ? undefined : aiFill(mode))}
-                  title={
-                    aiJob
-                      ? '上一次 AI 解析跑完后才能再提交'
-                      : `勾选候选后由 AI 补全${AI_MODE_NAME[mode]}，每次最多 ${AI_FILL_MAX} 条`
-                  }
-                >
-                  {aiJob?.mode === mode
-                    ? `AI 解析${AI_MODE_NAME[mode]}中…`
-                    : `AI 解析${AI_MODE_NAME[mode]}${selected.length ? ` · ${selected.length}` : ''}`}
-                </Button>
-              ))}
-            {tab === 1 && canReview && (
-              <Button
-                icon={<EditOutlined />}
-                disabled={selected.length === 0}
-                onClick={() =>
-                  selected.length > BATCH_EDIT_MAX
-                    ? message.warning(
-                        `每次最多 ${BATCH_EDIT_MAX} 条，已选 ${selected.length} 条`,
-                      )
-                    : setEditing(true)
-                }
-              >
-                批量修改{selected.length ? ` · ${selected.length}` : ''}
-              </Button>
-            )}
-            {tab === 1 && canReview && (
-              <Button
-                type="primary"
-                icon={<CheckOutlined />}
-                disabled={selected.length === 0}
-                loading={busy}
-                onClick={batch}
-              >
-                批量通过{selected.length ? ` · ${selected.length}` : ''}
-              </Button>
-            )}
-          </>
+      <PageHeader
+        help={HELP.page}
+        extra={
+          <Button
+            type="primary"
+            icon={<Plus size="1em" />}
+            onClick={() => setImportOpen(true)}
+          >
+            添加候选
+          </Button>
         }
       />
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          marginBottom: 16,
-        }}
-      >
-        <Segmented<Tab>
-          value={tab}
-          onChange={(t) => {
-            setTab(t);
+      {/* 待关联单据是另一类内容，用页签；候选状态放搜索区的状态下拉（复审 S3），待审核的列和操作随状态变 */}
+      {canReview && (
+        <ViewTabs
+          activeKey={view}
+          onChange={(k) => {
+            setView(k as View);
             setPage(1);
             setSelected([]);
           }}
-          options={[
-            ...TABS.map((t) => {
-              const n = counts?.[t.key];
-              return {
-                value: t.value,
-                label: n === undefined ? t.label : `${t.label} · ${n}`,
-              };
-            }),
-            ...(canReview
-              ? [
-                  {
-                    value: 5 as Tab,
-                    label:
-                      unlinkedCount === undefined
-                        ? '待关联单据'
-                        : `待关联单据 · ${unlinkedCount}`,
-                  },
-                ]
-              : []),
+          items={[
+            { key: 'list', label: '候选审核' },
+            { key: 'unlinked', label: '待关联单据', count: unlinkedCount },
           ]}
         />
-        {tab !== 5 && (
-          <>
+      )}
+      {view === 'list' && (
+        <FilterCard
+          onSearch={apply}
+          onReset={() => {
+            setStatus(1);
+            setSelected([]);
+            setKeyword('');
+            setLevel(undefined);
+            setBrandState(undefined);
+            setCategoryState(undefined);
+            setQuery({});
+            setPage(1);
+          }}
+          moreCount={
+            [query.brandState, query.categoryState].filter((v) => v != null)
+              .length
+          }
+          more={
+            <>
+              <FilterField label="品牌">
+                <Select
+                  allowClear
+                  value={brandState}
+                  onChange={setBrandState}
+                  placeholder="全部"
+                  options={[
+                    { value: 1, label: '品牌已确认' },
+                    { value: 2, label: '待确认品牌' },
+                    { value: 3, label: 'AI 未识别（Others）' },
+                  ]}
+                  aria-label="品牌"
+                />
+              </FilterField>
+              <FilterField label="品类">
+                <Select
+                  allowClear
+                  value={categoryState}
+                  onChange={setCategoryState}
+                  placeholder="全部"
+                  options={[
+                    { value: 1, label: '已选品类' },
+                    { value: 2, label: '未选品类' },
+                  ]}
+                  aria-label="品类"
+                />
+              </FilterField>
+            </>
+          }
+        >
+          <FilterField label="关键词" span={2} help={HELP.keyword}>
             <Input
               allowClear
-              prefix={<SearchOutlined />}
+              prefix={<Search size={16} />}
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               onPressEnter={apply}
-              placeholder="品牌、型号、名称"
-              style={{ width: 260 }}
+              placeholder="型号、品牌、商品名称"
               aria-label="关键词"
             />
+          </FilterField>
+          <FilterField label="状态">
+            <Select<Status>
+              value={status}
+              onChange={(v) => {
+                setStatus(v);
+                setPage(1);
+                setSelected([]);
+              }}
+              options={STATUSES.map((t) => {
+                const n = counts?.[t.key];
+                return {
+                  value: t.value,
+                  label: n ? `${t.label} · ${n}` : t.label,
+                };
+              })}
+              aria-label="状态"
+            />
+          </FilterField>
+          <FilterField label="可信度">
             <Select
               allowClear
               value={level}
               onChange={setLevel}
-              placeholder="全部可信度"
+              placeholder="全部"
               options={[
                 { value: 3, label: '已成交' },
                 { value: 2, label: '采购问到有货' },
                 { value: 1, label: '询盘出现' },
               ]}
-              style={{ width: 150 }}
               aria-label="可信度"
             />
-            <Select
-              allowClear
-              value={brandState}
-              onChange={setBrandState}
-              placeholder="全部品牌"
-              options={[
-                { value: 1, label: '品牌已确认' },
-                { value: 2, label: '待确认品牌' },
-                { value: 3, label: 'AI 未识别（Others）' },
-              ]}
-              style={{ width: 170 }}
-              aria-label="品牌"
-            />
-            <Select
-              allowClear
-              value={categoryState}
-              onChange={setCategoryState}
-              placeholder="全部品类"
-              options={[
-                { value: 1, label: '已选品类' },
-                { value: 2, label: '未选品类' },
-              ]}
-              style={{ width: 150 }}
-              aria-label="品类"
-            />
-            <span style={{ flex: 1 }} />
-            <Button type="primary" onClick={apply}>
-              查询
-            </Button>
-          </>
-        )}
-      </div>
-      {tab === 5 && <UnlinkedPanel onChanged={refreshCount} />}
-      {tab !== 5 && aiJob?.taskId && (
+          </FilterField>
+        </FilterCard>
+      )}
+      {view === 'unlinked' && <UnlinkedPanel onChanged={refreshCount} />}
+      {view === 'list' && aiJob?.taskId && (
         <Card style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <Spin size="small" />
@@ -1680,10 +1806,10 @@ const Candidates: React.FC = () => {
           </div>
         </Card>
       )}
-      {tab !== 5 && aiDone && (
+      {view === 'list' && aiDone && (
         <Card style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <CheckOutlined style={{ color: palette.green }} />
+            <Check size="1em" style={{ color: palette.green }} />
             <span style={{ display: 'grid', gap: 2 }}>
               <b style={{ color: palette.ink }}>{aiSummary(aiDone)}</b>
               <span style={{ color: palette.mute, fontSize: 12 }}>
@@ -1709,25 +1835,90 @@ const Candidates: React.FC = () => {
             <Button
               type="text"
               size="small"
-              icon={<CloseOutlined />}
+              icon={<X size="1em" />}
               onClick={() => setAiDone(null)}
               aria-label="关闭结果提示"
             />
           </div>
         </Card>
       )}
-      {tab === 5 ? null : error ? (
+      {view === 'unlinked' ? null : error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 0 }}>
+        <MainCard
+          settings={columnsSet.settings}
+          left={
+            status === 1 && canReview && selected.length > 0 ? (
+              <SelectionCount
+                count={selected.length}
+                onClear={() => setSelected([])}
+              />
+            ) : (
+              <>
+                {`共 ${total} 条`}
+                <HelpTip title={status === 1 ? HELP.pending : HELP.done} />
+              </>
+            )
+          }
+          right={
+            status === 1 &&
+            canReview && (
+              <>
+                {(selected.length > 0 || aiJob) &&
+                  (['category', 'brand'] as AiFillMode[]).map((mode) => (
+                    <Button
+                      key={mode}
+                      icon={<Bot size="1em" />}
+                      disabled={!aiJob && selected.length === 0}
+                      loading={aiJob?.mode === mode}
+                      onClick={() => (aiJob ? undefined : aiFill(mode))}
+                      title={
+                        aiJob
+                          ? '上一次 AI 解析跑完后才能再提交'
+                          : `勾选候选后由 AI 补全${AI_MODE_NAME[mode]}，每次最多 ${AI_FILL_MAX} 条`
+                      }
+                    >
+                      {aiJob?.mode === mode
+                        ? `AI 解析${AI_MODE_NAME[mode]}中…`
+                        : `AI 解析${AI_MODE_NAME[mode]}`}
+                    </Button>
+                  ))}
+                {selected.length > 0 && (
+                  <>
+                    <Button
+                      icon={<Pencil size="1em" />}
+                      onClick={() =>
+                        selected.length > BATCH_EDIT_MAX
+                          ? message.warning(
+                              `每次最多 ${BATCH_EDIT_MAX} 条，已选 ${selected.length} 条`,
+                            )
+                          : setEditing(true)
+                      }
+                    >
+                      批量修改
+                    </Button>
+                    <Button
+                      type="primary"
+                      icon={<Check size="1em" />}
+                      loading={busy}
+                      onClick={batch}
+                    >
+                      批量通过
+                    </Button>
+                  </>
+                )}
+              </>
+            )
+          }
+        >
           <Table<Candidate>
             rowKey="id"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             rowSelection={
-              tab === 1 && canReview
+              status === 1 && canReview
                 ? {
                     selectedRowKeys: selected.map((c) => c.id),
                     onChange: (_, rs) => setSelected(rs),
@@ -1735,37 +1926,26 @@ const Candidates: React.FC = () => {
                 : undefined
             }
             locale={{
-              emptyText:
-                tab === 1
+              emptyText: tableEmpty(
+                status === 1
                   ? '没有待审核的候选；确认询盘后，商品库里没有的型号会出现在这里'
                   : '没有记录',
+                loading,
+              ),
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
-              showTotal: (t: number) => `共 ${t} 条`,
               onChange: (p: number, s: number) => {
                 setPage(p);
                 setPageSize(s);
               },
             }}
           />
-        </Card>
+        </MainCard>
       )}
-      <div
-        style={{
-          fontSize: 12,
-          color: palette.mute,
-          marginTop: 8,
-          display: tab === 5 ? 'none' : undefined,
-        }}
-      >
-        {tab === 1
-          ? '按可信度从高到低、再按更新时间倒序；批量通过只处理品牌与品类都已确定的候选（生命周期按采购核实自动填写），其余跳过并提示'
-          : '按可信度从高到低、再按更新时间倒序'}
-      </div>
       <ReviewDrawer
         id={viewing}
         canReview={canReview}

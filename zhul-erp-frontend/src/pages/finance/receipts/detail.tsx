@@ -1,9 +1,11 @@
-import { PaperClipOutlined } from '@ant-design/icons';
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table, Tooltip } from 'antd';
+import { App, Skeleton, Table } from 'antd';
+import { CircleX, Paperclip, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CopyText } from '@/components/CopyText';
 import {
+  DocColumns,
   DocLogCard,
   InfoGrid,
   RelatedDocsCard,
@@ -11,13 +13,10 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { tableEmpty } from '@/components/EmptyState';
+import { MoreActions, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
-import {
-  Card,
-  PageTitle,
-  Pill,
-  useWide,
-} from '@/pages/inquiry/shared/components';
+import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { useFilePreview } from '@/pages/inquiry/shared/FilePreview';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { PATHS } from '@/pages/sales/components';
@@ -29,8 +28,8 @@ import {
 } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { UnitPill, useBusinessUnits } from '@/utils/businessUnit';
-import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
 import { ledgerApi, type ReceiptDoc, receiptDocApi } from './service';
 import { MethodCell } from './UnclaimedTab';
 
@@ -75,7 +74,7 @@ const ReceiptDocDetail: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
   useOnReactivate(load);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!d) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const r = d.receipt;
@@ -136,16 +135,18 @@ const ReceiptDocDetail: React.FC = () => {
       dataIndex: 'settleNo',
       width: 160,
       render: (v: string, s) => (
-        <Link to={DOC_PATHS.fxSettlement(s.settlementId)}>{v}</Link>
+        <CopyText text={v}>
+          <Link to={DOC_PATHS.fxSettlement(s.settlementId)}>{v}</Link>
+        </CopyText>
       ),
     },
     { title: '结汇日期', dataIndex: 'settleDate', width: 110 },
     {
-      title: '分摊金额',
+      title: `分摊金额（${cur}）`,
       dataIndex: 'amount',
       width: 130,
       align: 'right',
-      render: (v: number) => <span style={num}>{formatAmount(v, cur)}</span>,
+      render: (v: number) => <span style={num}>{formatMoney(v)}</span>,
     },
     {
       title: '结汇汇率',
@@ -159,11 +160,11 @@ const ReceiptDocDetail: React.FC = () => {
       dataIndex: 'amountCny',
       width: 130,
       align: 'right',
-      render: (v: number) => <span style={num}>{formatAmount(v, 'CNY')}</span>,
+      render: (v: number) => <span style={num}>{formatMoney(v)}</span>,
     },
   ];
 
-  const main = (
+  const info = (
     <>
       <InfoGrid
         items={[
@@ -196,6 +197,11 @@ const ReceiptDocDetail: React.FC = () => {
           { label: '作废原因', value: r.voidReason, hidden: valid },
         ]}
       />
+    </>
+  );
+  // 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18）
+  const wideSections = (
+    <>
       <Card style={{ padding: 20, marginBottom: 16 }}>
         <SectionTitle>金额构成</SectionTitle>
         <div style={{ display: 'grid', gap: 10 }}>
@@ -235,8 +241,8 @@ const ReceiptDocDetail: React.FC = () => {
               pagination={false}
               columns={settleColumns}
               dataSource={d.settlements}
-              scroll={{ x: 'max-content' }}
-              locale={{ emptyText: '还没有结汇' }}
+              scroll={{ x: tableScrollX(settleColumns) }}
+              locale={{ emptyText: tableEmpty('还没有结汇', undefined, true) }}
             />
           </div>
         )}
@@ -263,7 +269,7 @@ const ReceiptDocDetail: React.FC = () => {
                   )
                 }
               >
-                <PaperClipOutlined /> {f.fileName}
+                <Paperclip size="1em" /> {f.fileName}
                 <span style={{ color: palette.mute, marginLeft: 8 }}>
                   {f.source === 'SLIP' ? '水单' : '到账凭证'}
                 </span>
@@ -287,24 +293,18 @@ const ReceiptDocDetail: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[
-          <MenuLink key="list" to="/finance/receipts" />,
-          r.receiptNo ?? '',
-        ]}
-        title={
-          <>
-            {r.receiptNo}
-            {valid ? (
-              <Pill tone={claimed ? 'green' : 'orange'}>
-                {claimed ? '有效' : '未认领'}
-              </Pill>
-            ) : (
-              <Pill tone="mute">已作废</Pill>
-            )}
-          </>
+      <PageHeader
+        title={r.receiptNo}
+        tags={
+          valid ? (
+            <Pill tone={claimed ? 'green' : 'orange'}>
+              {claimed ? '有效' : '未认领'}
+            </Pill>
+          ) : (
+            <Pill tone="mute">已作废</Pill>
+          )
         }
-        description={
+        sub={
           <>
             {claimed ? (r.customerName ?? '—') : (r.payer ?? '—')} ·{' '}
             {sourceRef ? <SourceNos mode="inline" refs={[sourceRef]} /> : '—'} ·{' '}
@@ -312,48 +312,46 @@ const ReceiptDocDetail: React.FC = () => {
             {formatDateTime(r.createTime).slice(0, 16)} 创建
           </>
         }
-        actions={
+        // 取消认领、作废都会回退到账，收进「更多」；已结汇的不能作废，原因写在菜单项里
+        extra={
           valid &&
           canOperate && (
-            <>
-              {claimed && r.claimedByName && !d.settlements.length && (
-                <Button onClick={() => setDialog('unclaim')}>取消认领</Button>
-              )}
-              <Tooltip
-                title={
-                  d.settlements.length
+            <MoreActions
+              items={[
+                claimed &&
+                  r.claimedByName &&
+                  !d.settlements.length && {
+                    key: 'unclaim',
+                    label: '取消认领',
+                    icon: <Undo2 size={16} />,
+                  },
+                {
+                  key: 'void',
+                  label: '作废',
+                  icon: <CircleX size={16} />,
+                  danger: true,
+                  disabledReason: d.settlements.length
                     ? `已结汇，请先作废结汇单 ${settledJh}`
-                    : undefined
-                }
-              >
-                <Button
-                  danger
-                  disabled={!!d.settlements.length}
-                  onClick={() => setDialog('void')}
-                >
-                  作废
-                </Button>
-              </Tooltip>
-            </>
+                    : undefined,
+                },
+              ]}
+              onClick={(k) => setDialog(k as 'unclaim' | 'void')}
+            />
           )
         }
       />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: wide
-            ? 'minmax(0, 2.6fr) minmax(340px, 1fr)'
-            : '1fr',
-          gap: 16,
-          alignItems: 'start',
-        }}
+      <DocColumns
+        wide={wide}
+        side={
+          <>
+            <RelatedDocsCard docs={relatedRows(d.related)} />
+            <DocLogCard logs={d.logs} />
+          </>
+        }
       >
-        <div style={{ minWidth: 0 }}>{main}</div>
-        <div style={{ minWidth: 0 }}>
-          <RelatedDocsCard docs={relatedRows(d.related)} />
-          <DocLogCard logs={d.logs} />
-        </div>
-      </div>
+        {info}
+        {wideSections}
+      </DocColumns>
       <ReasonModal
         open={!!dialog}
         title={

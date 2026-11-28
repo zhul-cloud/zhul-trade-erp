@@ -1,5 +1,5 @@
-import { InfoCircleOutlined, SearchOutlined } from '@ant-design/icons';
 import { App, AutoComplete, Checkbox, Input, Modal, Table } from 'antd';
+import { Info, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -168,11 +168,11 @@ export const CategoryMapModal: React.FC<{
             }}
           >
             <span>
-              <InfoCircleOutlined />{' '}
+              <Info size="1em" />{' '}
               按二级品类设置；二级没有单独设置时沿用一级品类的对照
             </span>
             <span>
-              <InfoCircleOutlined />{' '}
+              <Info size="1em" />{' '}
               站点品类是站点自己的品类代码，可以在下拉里新增；修改后，受影响的已发布商品标「内容有更新」
             </span>
           </div>
@@ -186,7 +186,7 @@ export const CategoryMapModal: React.FC<{
           >
             <Input
               allowClear
-              prefix={<SearchOutlined />}
+              prefix={<Search size="1em" />}
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               placeholder="搜索品类"

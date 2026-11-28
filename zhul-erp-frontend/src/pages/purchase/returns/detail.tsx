@@ -1,11 +1,20 @@
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table } from 'antd';
+import { App, Button, Dropdown, Skeleton, Table } from 'antd';
+import {
+  CircleCheck,
+  CircleX,
+  Ellipsis,
+  Pencil,
+  RotateCcw,
+  Send,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
-  docBrandColumns,
+  docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import {
+  DocColumns,
   DocLogCard,
   InfoGrid,
   type RelatedDoc,
@@ -14,6 +23,7 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import {
   PAY_STATUS,
@@ -27,9 +37,10 @@ import { PR_STATUS_TONE } from '@/pages/sales/after-sales/service';
 import { PATHS as SALES_PATHS } from '@/pages/sales/components';
 import { readBizError } from '@/pages/sales/service';
 import { AttachmentWall, ReasonModal } from '@/pages/warehouse/components';
+import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
-import { PATHS, PurchasePageTitle } from '../components';
+import { tableScrollX } from '@/utils/tableScroll';
+import { PATHS } from '../components';
 import { CompleteModal, QuantityModal, ShipModal } from './dialogs';
 import {
   creditsPayable,
@@ -52,6 +63,7 @@ type Dialog = 'ship' | 'complete' | 'qty' | 'reopen' | 'void';
 
 /** 采购退货单详情（spec purchase/purchase-return）：寄出、完成、重新打开、作废 */
 const PurchaseReturnDetail: React.FC = () => {
+  const { palette } = useAppTheme();
   const id = Number(useParams<{ id: string }>().id);
   const { message } = App.useApp();
   const access = useAccess() as Record<string, boolean>;
@@ -83,7 +95,7 @@ const PurchaseReturnDetail: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
   useOnReactivate(load);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!p) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const canEdit = !!access['purchase:purchase-return:edit'];
@@ -97,15 +109,25 @@ const PurchaseReturnDetail: React.FC = () => {
   };
 
   const columns: TableColumnsType<PurchaseReturnItem> = [
-    { title: '#', key: 'no', width: 48, render: (_, __, i) => i + 1 },
-    ...docBrandColumns<PurchaseReturnItem>((x) => x),
     {
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 48,
+      render: (_, __, i) => i + 1,
+    },
+    docModelColumn<PurchaseReturnItem>((x) => x, {
       title: '型号',
       dataIndex: 'model',
       width: 200,
       render: (_, x) => <DocModelCell model={x.model} brand={x.brand} />,
+    }),
+    {
+      title: '数量',
+      align: 'right' as const,
+      dataIndex: 'quantity',
+      width: 80,
     },
-    { title: '数量', dataIndex: 'quantity', width: 80 },
     ...(fromStock
       ? [
           {
@@ -136,7 +158,7 @@ const PurchaseReturnDetail: React.FC = () => {
       ? '公司支付'
       : undefined;
 
-  const main = (
+  const info = (
     <>
       <InfoGrid
         items={[
@@ -144,14 +166,24 @@ const PurchaseReturnDetail: React.FC = () => {
             label: '采购订单',
             value:
               p.poNo && p.poId ? (
-                <Link to={PATHS.order(p.poId)}>{p.poNo}</Link>
+                <Link
+                  to={PATHS.order(p.poId)}
+                  className="zhul-link zhul-link-doc"
+                >
+                  {p.poNo}
+                </Link>
               ) : undefined,
           },
           {
             label: '销售订单',
             value:
               p.soNo && p.soId ? (
-                <Link to={SALES_PATHS.order(p.soId)}>{p.soNo}</Link>
+                <Link
+                  to={SALES_PATHS.order(p.soId)}
+                  className="zhul-link zhul-link-doc"
+                >
+                  {p.soNo}
+                </Link>
               ) : undefined,
             hidden: !afterSales,
           },
@@ -159,7 +191,10 @@ const PurchaseReturnDetail: React.FC = () => {
             label: '售后单',
             value:
               p.asNo && p.afterSalesId ? (
-                <Link to={SALES_PATHS.afterSales(p.afterSalesId)}>
+                <Link
+                  className="zhul-link zhul-link-doc"
+                  to={SALES_PATHS.afterSales(p.afterSalesId)}
+                >
                   {p.asNo}
                 </Link>
               ) : undefined,
@@ -200,6 +235,11 @@ const PurchaseReturnDetail: React.FC = () => {
           { label: '作废原因', value: p.voidReason, hidden: !voided },
         ]}
       />
+    </>
+  );
+  // 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18）
+  const wideSections = (
+    <>
       {(p.freightProofs ?? []).length > 0 && (
         <Card style={{ padding: 20, marginBottom: 16 }}>
           <SectionTitle>运费截图</SectionTitle>
@@ -217,7 +257,7 @@ const PurchaseReturnDetail: React.FC = () => {
           pagination={false}
           columns={columns}
           dataSource={p.items}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(columns) }}
         />
       </Card>
       <DocFilesCard
@@ -258,71 +298,105 @@ const PurchaseReturnDetail: React.FC = () => {
 
   return (
     <div>
-      <PurchasePageTitle
-        crumbs={[
-          <MenuLink key="list" to={SALES_PATHS.purchaseReturnList} />,
-          p.returnNo,
-        ]}
-        title={
+      <PageHeader
+        title={p.returnNo}
+        tags={
           <>
-            {p.returnNo}
+            {/* 页头只放一个流程状态；属性写在说明行（ui-redesign S14） */}
             <Pill tone={PR_STATUS_TONE[p.status] ?? 'gray'}>
               {p.statusName}
             </Pill>
-            <span style={{ fontSize: 13, fontWeight: 400 }}>
-              {p.sourceTypeName}
-            </span>
           </>
         }
-        description={
+        sub={
           <>
-            {p.supplierName ?? '—'} · <SourceNos mode="inline" refs={[src]} /> ·{' '}
-            {p.ownerName ?? '—'} · {formatDateTime(p.createTime).slice(0, 16)}{' '}
-            创建
+            {p.sourceTypeName} · {p.supplierName ?? '—'} ·{' '}
+            <SourceNos mode="inline" refs={[src]} /> · {p.ownerName ?? '—'} ·{' '}
+            {formatDateTime(p.createTime).slice(0, 16)} 创建
           </>
         }
-        actions={
+        // 页头操作（照销售订单详情）：一个主按钮，改数量、重新打开为文字按钮，作废收进「更多」
+        extra={
           canEdit && (
             <>
-              {p.status === PR_STATUS.PENDING && (
-                <Button onClick={() => setDialog('void')}>作废</Button>
-              )}
               {p.status === PR_STATUS.PENDING && afterSales && (
-                <Button onClick={() => setDialog('qty')}>改数量</Button>
+                <Button
+                  type="text"
+                  icon={<Pencil size={16} />}
+                  style={{ color: palette.link }}
+                  onClick={() => setDialog('qty')}
+                >
+                  改数量
+                </Button>
+              )}
+              {p.status === PR_STATUS.DONE && !p.migrated && (
+                <Button
+                  type="text"
+                  icon={<RotateCcw size={16} />}
+                  style={{ color: palette.link }}
+                  onClick={() => setDialog('reopen')}
+                >
+                  重新打开
+                </Button>
               )}
               {p.status === PR_STATUS.PENDING && (
-                <Button type="primary" onClick={() => setDialog('ship')}>
+                <Dropdown
+                  trigger={['click']}
+                  placement="bottomRight"
+                  menu={{
+                    items: [
+                      {
+                        key: 'void',
+                        icon: <CircleX size={16} />,
+                        label: '作废',
+                        danger: true,
+                      },
+                    ],
+                    onClick: () => setDialog('void'),
+                  }}
+                >
+                  <Button
+                    type="text"
+                    shape="circle"
+                    icon={<Ellipsis size={18} />}
+                    aria-label="更多操作"
+                  />
+                </Dropdown>
+              )}
+              {p.status === PR_STATUS.PENDING && (
+                <Button
+                  type="primary"
+                  icon={<Send size={16} />}
+                  onClick={() => setDialog('ship')}
+                >
                   寄出
                 </Button>
               )}
               {p.status === PR_STATUS.SHIPPED && (
-                <Button type="primary" onClick={() => setDialog('complete')}>
+                <Button
+                  type="primary"
+                  icon={<CircleCheck size={16} />}
+                  onClick={() => setDialog('complete')}
+                >
                   完成
                 </Button>
-              )}
-              {p.status === PR_STATUS.DONE && !p.migrated && (
-                <Button onClick={() => setDialog('reopen')}>重新打开</Button>
               )}
             </>
           )
         }
       />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: wide
-            ? 'minmax(0, 2.6fr) minmax(340px, 1fr)'
-            : '1fr',
-          gap: 16,
-          alignItems: 'start',
-        }}
+      <DocColumns
+        wide={wide}
+        side={
+          <>
+            <RelatedDocsCard docs={related} />
+            <DocLogCard logs={p.logs} />
+          </>
+        }
       >
-        <div style={{ minWidth: 0 }}>{main}</div>
-        <div style={{ minWidth: 0 }}>
-          <RelatedDocsCard docs={related} />
-          <DocLogCard logs={p.logs} />
-        </div>
-      </div>
+        {info}
+        {wideSections}
+      </DocColumns>
       <ShipModal
         data={dialog === 'ship' ? p : undefined}
         onClose={() => setDialog(undefined)}

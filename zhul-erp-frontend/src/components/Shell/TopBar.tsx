@@ -1,23 +1,23 @@
-import {
-  BankOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-} from '@ant-design/icons';
 import { useModel } from '@umijs/max';
 import React from 'react';
+import { TabBar } from '@/components/PageTabs';
 import { useAppTheme } from '@/theme/AppTheme';
+import { CARD_SHADOW } from '@/theme/palette';
+
+type MenuTree = React.ComponentProps<typeof TabBar>['tree'];
 
 /**
- * 内容区顶部的 60 高透明顶栏：左侧是侧边栏收起按钮和当前登录账号所属租户，右侧放主题切换、文档、版本、语言。
- * ProLayout 的 side 布局桌面端不渲染 Header，所以顶栏放在 childrenRender 里，吸顶。
+ * 顶栏（外壳原型 F1）：悬浮卡片，高 64，左侧是标签页，右侧放主题设置、语言、通知、头像（children）。
+ * ProLayout 的 side 布局桌面端不渲染 Header，所以顶栏放在 childrenRender 里吸顶；
+ * 上方 16 的间距用页面底色填满，滚动时内容不会从顶栏上方露出来。
  */
 export const TopBar: React.FC<{ children?: React.ReactNode }> = ({
   children,
 }) => {
-  const { palette } = useAppTheme();
-  const { initialState, setInitialState } = useModel('@@initialState');
-  const tenantName = initialState?.currentUser?.tenantName;
-  const collapsed = !!initialState?.collapsed;
+  const { palette, mode } = useAppTheme();
+  const { initialState } = useModel('@@initialState');
+  const tree = (initialState?.menuTree ?? []) as MenuTree;
+  const light = mode === 'light';
 
   return (
     <div
@@ -25,63 +25,40 @@ export const TopBar: React.FC<{ children?: React.ReactNode }> = ({
         position: 'sticky',
         top: 0,
         zIndex: 20,
-        height: 60,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'flex-start',
-        gap: 4,
-        // 抵消内容区 28 的内边距，让顶栏通栏贴边
-        margin: '-28px -28px 20px',
-        padding: '0 28px',
-        color: palette.sub,
+        paddingTop: 16,
+        marginBottom: 16,
         background: palette.canvas,
-        borderBottom: `1px solid ${palette.hairline}`,
       }}
     >
-      <button
-        type="button"
-        aria-label={collapsed ? '展开侧边栏' : '收起侧边栏'}
-        title={collapsed ? '展开侧边栏' : '收起侧边栏'}
-        onClick={() =>
-          setInitialState((s) => ({ ...s, collapsed: !collapsed }))
-        }
+      <div
         style={{
-          width: 32,
-          height: 32,
-          marginLeft: -6,
-          marginRight: 6,
-          border: 0,
-          borderRadius: 8,
-          display: 'grid',
-          placeItems: 'center',
-          fontSize: 16,
-          color: palette.sub,
-          background: 'transparent',
-          cursor: 'pointer',
+          height: 64,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '0 16px',
+          borderRadius: 10,
+          background: palette.card,
+          boxShadow: light ? CARD_SHADOW : 'none',
+          border: light ? 'none' : `1px solid ${palette.hairline}`,
         }}
       >
-        {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-      </button>
-      {tenantName && (
+        {initialState?.currentUser ? (
+          <TabBar tree={tree} />
+        ) : (
+          <span style={{ flex: 1 }} />
+        )}
         <div
           style={{
+            flex: 'none',
             display: 'flex',
             alignItems: 'center',
-            gap: 6,
-            padding: '5px 12px',
-            borderRadius: 8,
-            fontSize: 13,
-            color: palette.sub,
-            background: palette.inset,
-            border: `1px solid ${palette.hairline}`,
+            gap: 8,
           }}
         >
-          <BankOutlined style={{ color: palette.mute }} />
-          <span>{tenantName}</span>
+          {children}
         </div>
-      )}
-      <span style={{ flex: 1 }} />
-      {children}
+      </div>
     </div>
   );
 };

@@ -153,7 +153,7 @@ public class InventoryWarehouses {
             c.setConfigType("STRING");
             c.setIsBuiltin(0);
             c.setIsEncrypted(0);
-            c.setConfigGroup("库存");
+            c.setConfigGroup("inventory");
             c.setRemark("");
             sysConfigMapper.insert(c);
         } else {

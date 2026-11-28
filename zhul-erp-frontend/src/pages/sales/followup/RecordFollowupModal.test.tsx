@@ -99,9 +99,9 @@ it('整理期间手填的下一步不被覆盖', async () => {
 it('整理期间手选的日期不被覆盖', async () => {
   show();
   await startAi();
-  const pick = screen.getByRole('button', { name: '3 个月后' });
+  const pick = screen.getByRole('radio', { name: '3 个月后' });
   fireEvent.click(pick);
-  expect(pick.className).toContain('ant-btn-primary');
+  expect(pick.getAttribute('aria-checked')).toBe('true');
   await finishAi();
   expect(followupApi.extractResult).toHaveBeenCalled();
   expect(
@@ -111,7 +111,9 @@ it('整理期间手选的日期不被覆盖', async () => {
       ) as HTMLInputElement
     ).value,
   ).toBe(AI_NEXT);
-  expect(screen.getByRole('button', { name: '3 个月后' }).className).toContain(
-    'ant-btn-primary',
-  );
+  expect(
+    screen
+      .getByRole('radio', { name: '3 个月后' })
+      .getAttribute('aria-checked'),
+  ).toBe('true');
 });

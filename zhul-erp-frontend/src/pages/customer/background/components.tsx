@@ -1,18 +1,18 @@
-import {
-  CloseOutlined,
-  CloudUploadOutlined,
-  DownOutlined,
-  FilePdfOutlined,
-  FireOutlined,
-  InfoCircleOutlined,
-  LoadingOutlined,
-  ThunderboltOutlined,
-  UploadOutlined,
-  UpOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { App, Button, Input, Modal, Segmented, Upload } from 'antd';
+import {
+  ChevronDown,
+  ChevronUp,
+  CloudUpload,
+  FileText,
+  FileUp,
+  Flame,
+  LoaderCircle,
+  Sparkles,
+  X,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Callout } from '@/components/Callout';
 import { useTabActive } from '@/components/PageTabs/hooks';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -80,8 +80,8 @@ export const SourcePill: React.FC<{ source: number }> = ({ source }) => {
         borderRadius: 6,
         fontSize: 12,
         fontWeight: 600,
-        color: ai ? palette.violet : palette.sub,
-        background: ai ? palette.violetSoft : palette.inset,
+        color: ai ? palette.info : palette.sub,
+        background: ai ? palette.infoSoft : palette.inset,
         whiteSpace: 'nowrap',
       }}
     >
@@ -135,11 +135,11 @@ export const ConclusionBox: React.FC<{
           gap: '4px 10px',
         }}
       >
-        <FireOutlined style={{ color: fg }} />
+        <Flame size="1em" style={{ color: fg }} />
         <span
           style={{
             fontSize: compact ? 16 : 17,
-            fontWeight: 700,
+            fontWeight: 600,
             color: fg,
             whiteSpace: 'nowrap',
           }}
@@ -164,7 +164,7 @@ export const ConclusionBox: React.FC<{
       </div>
       {rows.map(([k, label]) => (
         <div key={k}>
-          <div style={{ fontSize: 11, color: palette.mute, marginBottom: 2 }}>
+          <div style={{ fontSize: 12, color: palette.mute, marginBottom: 2 }}>
             {label}
           </div>
           <div
@@ -240,19 +240,17 @@ export const BackgroundCard: React.FC<{
     history.push(reportPath(customerId, r.id));
   return (
     <section
+      className="zhul-card"
       aria-label="背调报告"
       style={{
         display: 'flex',
         flexDirection: 'column',
         gap: 12,
         padding: 20,
-        borderRadius: 16,
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <FilePdfOutlined style={{ color: palette.link }} />
+        <FileText size="1em" style={{ color: palette.link }} />
         <h2
           style={{
             margin: 0,
@@ -325,7 +323,11 @@ export const BackgroundCard: React.FC<{
                     onClick={() => setCheckOpen(!checkOpen)}
                   >
                     {checkOpen ? '收起' : '展开'}{' '}
-                    {checkOpen ? <UpOutlined /> : <DownOutlined />}
+                    {checkOpen ? (
+                      <ChevronUp size="1em" />
+                    ) : (
+                      <ChevronDown size="1em" />
+                    )}
                   </button>
                 )}
               </div>
@@ -395,7 +397,7 @@ const ReportRow: React.FC<{ report: BackgroundReport; onOpen: () => void }> = ({
       <SourcePill source={r.source} />
       {r.status === STATUS.RUNNING && (
         <span style={{ color: palette.link, fontWeight: 600 }}>
-          <LoadingOutlined /> 背调中…
+          <LoaderCircle size="1em" className="zhul-spin" /> 背调中…
         </span>
       )}
       {r.status === STATUS.FAILED && (
@@ -441,8 +443,19 @@ export const BackgroundActions: React.FC<{
   precheck: PrecheckState;
   /** 能编辑客户时传入，检查窗口里显示「去补充」 */
   onFix?: (target: string) => void;
-}> = ({ customerId, customerName, running, onStarted, precheck, onFix }) => {
+  /** 放在「上传报告」和「AI 背调」之间，页头用来放「更多」（原型 B1：文字按钮 → 更多 → 主按钮） */
+  beforePrimary?: React.ReactNode;
+}> = ({
+  customerId,
+  customerName,
+  running,
+  onStarted,
+  precheck,
+  onFix,
+  beforePrimary,
+}) => {
   const { message } = App.useApp();
+  const { palette } = useAppTheme();
   const [starting, setStarting] = useState(false);
   const [checking, setChecking] = useState(false);
   const { open: checkOpen, setOpen: setCheckOpen } = precheck;
@@ -483,13 +496,19 @@ export const BackgroundActions: React.FC<{
 
   return (
     <>
-      <Button icon={<UploadOutlined />} onClick={() => setUploadOpen(true)}>
+      <Button
+        type="text"
+        icon={<FileUp size={16} />}
+        style={{ color: palette.link }}
+        onClick={() => setUploadOpen(true)}
+      >
         上传报告
       </Button>
+      {beforePrimary}
       <Button
         type="primary"
-        icon={running ? <LoadingOutlined /> : <ThunderboltOutlined />}
-        loading={checking || (starting && !checkOpen)}
+        icon={<Sparkles size={18} />}
+        loading={running || checking || (starting && !checkOpen)}
         disabled={running}
         onClick={check}
       >
@@ -563,7 +582,7 @@ const RecentModal: React.FC<{
     >
       {d && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: palette.ink }}>
+          <div style={{ fontSize: 16, fontWeight: 600, color: palette.ink }}>
             这个客户 {ago}由 {d.requestedByName} 背调过（{conclusion}）。
           </div>
           <div style={{ fontSize: 13, color: palette.sub }}>
@@ -693,7 +712,7 @@ const UploadModal: React.FC<{
               }}
             >
               <p className="ant-upload-drag-icon">
-                <CloudUploadOutlined />
+                <CloudUpload size="1em" />
               </p>
               <p className="ant-upload-text">把背调 PDF 拖到这里，或点击选择</p>
               <p className="ant-upload-hint">
@@ -712,7 +731,7 @@ const UploadModal: React.FC<{
                   fontSize: 13,
                 }}
               >
-                <FilePdfOutlined style={{ color: palette.red }} />
+                <FileText size="1em" style={{ color: palette.red }} />
                 <span
                   style={{
                     fontWeight: 600,
@@ -729,7 +748,7 @@ const UploadModal: React.FC<{
                   type="text"
                   size="small"
                   aria-label="移除文件"
-                  icon={<CloseOutlined />}
+                  icon={<X size="1em" />}
                   onClick={() => setFile(undefined)}
                   style={{ marginLeft: 'auto' }}
                 />
@@ -751,25 +770,12 @@ const UploadModal: React.FC<{
             {error}
           </div>
         )}
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            padding: '12px 16px',
-            borderRadius: 12,
-            background: palette.accentSoft,
-          }}
-        >
-          <InfoCircleOutlined style={{ color: palette.link, marginTop: 3 }} />
-          <div style={{ fontSize: 13, lineHeight: 1.6 }}>
-            <div style={{ fontWeight: 600, color: palette.link }}>
-              AI 只从报告里提取核心结论和字段建议，不联网
-            </div>
-            <div style={{ color: palette.sub }}>
-              比一键 AI 背调便宜得多；原 PDF 会保存在报告上，可以下载。
-            </div>
+        <Callout>
+          <div style={{ fontWeight: 600, color: palette.ink }}>
+            AI 只从报告里提取核心结论和字段建议，不联网
           </div>
-        </div>
+          比一键 AI 背调便宜得多；原 PDF 会保存在报告上，可以下载。
+        </Callout>
       </div>
     </Modal>
   );

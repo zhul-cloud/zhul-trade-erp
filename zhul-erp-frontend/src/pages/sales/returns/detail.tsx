@@ -1,11 +1,13 @@
 import { Link, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table } from 'antd';
+import { App, Button, Dropdown, Skeleton, Table } from 'antd';
+import { CircleX, Ellipsis, Pencil } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
-  docBrandColumns,
+  docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import {
+  DocColumns,
   DocLogCard,
   InfoGrid,
   RelatedDocsCard,
@@ -13,6 +15,7 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
 import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -28,9 +31,9 @@ import {
 } from '@/pages/sales/after-sales/service';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
-import { PATHS, SalesPageTitle } from '../components';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
+import { PATHS } from '../components';
 import { readBizError } from '../service';
 import { ConfirmReturnModal, EditReturnModal, lineRefund } from './dialogs';
 
@@ -61,7 +64,7 @@ const SalesReturnDetail: React.FC = () => {
     if (!dialog) load();
   });
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!r) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const refund = r.handling === HANDLING.REFUND;
@@ -82,53 +85,74 @@ const SalesReturnDetail: React.FC = () => {
   };
 
   const columns: TableColumnsType<SalesReturnItem> = [
-    { title: '#', key: 'no', width: 48, render: (_, __, i) => i + 1 },
-    ...docBrandColumns<SalesReturnItem>((x) => x),
     {
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 48,
+      render: (_, __, i) => i + 1,
+    },
+    docModelColumn<SalesReturnItem>((x) => x, {
       title: '型号',
       dataIndex: 'model',
       width: 200,
       render: (_, x) => <DocModelCell model={x.model} brand={x.brand} />,
-    },
-    { title: '退货数量', dataIndex: 'quantity', width: 90 },
+    }),
     {
-      title: '成交单价',
+      title: '退货数量',
+      align: 'right' as const,
+      dataIndex: 'quantity',
+      width: 90,
+    },
+    {
+      title: `成交单价（${cur}）`,
+      align: 'right',
       dataIndex: 'unitPrice',
       width: 120,
-      render: (v?: number) => (v == null ? '—' : formatAmount(v, cur)),
+      render: (v?: number) => (v == null ? '—' : formatMoney(v)),
     },
     ...(refund && r.status === TH_STATUS.CONFIRMING
       ? [
           {
-            title: '预计退款',
+            title: `预计退款（${cur}）`,
+            align: 'right' as const,
             key: 'refund',
             width: 120,
             render: (_: unknown, x: SalesReturnItem) =>
-              formatAmount(lineRefund(x.quantity, x.unitPrice), cur),
+              formatMoney(lineRefund(x.quantity, x.unitPrice)),
           },
         ]
       : []),
     {
       title: '实收',
+      align: 'right' as const,
       dataIndex: 'receivedQty',
       width: 70,
       render: (v?: number | null) => v ?? '—',
     },
     {
       title: '合格',
+      align: 'right' as const,
       dataIndex: 'qualifiedQty',
       width: 70,
       render: (v?: number | null) => v ?? '—',
     },
   ];
 
-  const main = (
+  const info = (
     <>
       <InfoGrid
         items={[
           {
             label: '销售订单',
-            value: <Link to={PATHS.order(r.soId)}>{r.soNo}</Link>,
+            value: (
+              <Link
+                to={PATHS.order(r.soId)}
+                className="zhul-link zhul-link-doc"
+              >
+                {r.soNo}
+              </Link>
+            ),
           },
           { label: '处理方式', value: r.handlingName },
           {
@@ -165,6 +189,11 @@ const SalesReturnDetail: React.FC = () => {
           { label: '作废原因', value: r.voidReason, hidden: !voided },
         ]}
       />
+    </>
+  );
+  // 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18）
+  const wideSections = (
+    <>
       <Card style={{ padding: 20, marginBottom: 16 }}>
         <SectionTitle>明细</SectionTitle>
         <Table<SalesReturnItem>
@@ -173,7 +202,7 @@ const SalesReturnDetail: React.FC = () => {
           pagination={false}
           columns={columns}
           dataSource={r.items}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(columns) }}
         />
       </Card>
       <DocFilesCard
@@ -233,25 +262,19 @@ const SalesReturnDetail: React.FC = () => {
 
   return (
     <div>
-      <SalesPageTitle
-        crumbs={[
-          <MenuLink key="list" to={PATHS.salesReturnList} />,
-          r.returnNo,
-        ]}
-        title={
+      <PageHeader
+        title={r.returnNo}
+        tags={
           <>
-            {r.returnNo}
+            {/* 页头只放一个流程状态；属性写在说明行（ui-redesign S14） */}
             <Pill tone={TH_STATUS_TONE[r.status] ?? 'gray'}>
               {r.statusName}
             </Pill>
-            <span style={{ fontSize: 13, fontWeight: 400 }}>
-              {r.handlingName}
-            </span>
           </>
         }
-        description={
+        sub={
           <>
-            {r.customerName} ·{' '}
+            {r.handlingName} · {r.customerName} ·{' '}
             <SourceNos
               mode="inline"
               refs={[{ no: r.asNo, href: PATHS.afterSales(r.afterSalesId) }]}
@@ -260,16 +283,42 @@ const SalesReturnDetail: React.FC = () => {
             创建
           </>
         }
-        actions={
+        // 页头操作（照销售订单详情）：一个主按钮，修改、补填快递为文字按钮，作废收进「更多」
+        extra={
           <>
             {(r.status === TH_STATUS.CONFIRMING || receiptPending) && (
-              <Button onClick={() => setDialog('void')}>作废</Button>
+              <Button
+                type="text"
+                icon={<Pencil size={16} />}
+                style={{ color: palette.link }}
+                onClick={() => setDialog('edit')}
+              >
+                {receiptPending ? '补填快递' : '修改'}
+              </Button>
             )}
-            {r.status === TH_STATUS.CONFIRMING && (
-              <Button onClick={() => setDialog('edit')}>修改</Button>
-            )}
-            {receiptPending && (
-              <Button onClick={() => setDialog('edit')}>补填快递</Button>
+            {(r.status === TH_STATUS.CONFIRMING || receiptPending) && (
+              <Dropdown
+                trigger={['click']}
+                placement="bottomRight"
+                menu={{
+                  items: [
+                    {
+                      key: 'void',
+                      icon: <CircleX size={16} />,
+                      label: '作废',
+                      danger: true,
+                    },
+                  ],
+                  onClick: () => setDialog('void'),
+                }}
+              >
+                <Button
+                  type="text"
+                  shape="circle"
+                  icon={<Ellipsis size={18} />}
+                  aria-label="更多操作"
+                />
+              </Dropdown>
             )}
             {r.status === TH_STATUS.CONFIRMING && (
               <Button type="primary" onClick={() => setDialog('confirm')}>
@@ -279,19 +328,10 @@ const SalesReturnDetail: React.FC = () => {
           </>
         }
       />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: wide
-            ? 'minmax(0, 2.6fr) minmax(340px, 1fr)'
-            : '1fr',
-          gap: 16,
-          alignItems: 'start',
-        }}
-      >
-        <div style={{ minWidth: 0 }}>{main}</div>
-        <div style={{ minWidth: 0 }}>{side}</div>
-      </div>
+      <DocColumns wide={wide} side={<>{side}</>}>
+        {info}
+        {wideSections}
+      </DocColumns>
       <ConfirmReturnModal
         data={dialog === 'confirm' ? r : undefined}
         onClose={() => setDialog(undefined)}

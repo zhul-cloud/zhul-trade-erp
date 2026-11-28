@@ -1,18 +1,3 @@
-import {
-  AppstoreOutlined,
-  CopyOutlined,
-  EditOutlined,
-  EyeOutlined,
-  FolderOutlined,
-  LinkOutlined,
-  MenuOutlined,
-  PlusOutlined,
-  SafetyCertificateOutlined,
-  SearchOutlined,
-  SettingOutlined,
-  ThunderboltOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import type { ProColumns } from '@ant-design/pro-components';
 import {
   DrawerForm,
@@ -27,11 +12,33 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import { App, Button, Card, Input, Popconfirm, Space, Tag } from 'antd';
+import { App, Button, Input, Space, Tag } from 'antd';
+import {
+  Ban,
+  CircleCheck,
+  Copy,
+  Eye,
+  Folder,
+  LayoutGrid,
+  Link,
+  Menu,
+  Pencil,
+  Plus,
+  Search,
+  Settings,
+  ShieldCheck,
+  Trash2,
+  Zap,
+} from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ellipsisRender } from '@/components/EllipsisText';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { MainCard, PageHeader, SummaryBar } from '@/components/ListLayout';
+import { Pill } from '@/components/Pill';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { proAuditColumns } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatDateTime } from '@/utils/format';
+import { type AttrTone, attrTone } from '@/theme/palette';
 import { tableScrollX } from '@/utils/tableScroll';
 import type { MenuItem } from './service';
 import {
@@ -46,11 +53,11 @@ import {
 
 const typeMap: Record<
   number,
-  { text: string; color: string; icon: React.ReactNode }
+  { text: string; color: AttrTone; icon: React.ReactNode }
 > = {
-  1: { text: '目录', color: 'blue', icon: <FolderOutlined /> },
-  2: { text: '菜单', color: 'green', icon: <MenuOutlined /> },
-  3: { text: '按钮', color: 'orange', icon: <ThunderboltOutlined /> },
+  1: { text: '目录', color: attrTone(0), icon: <Folder size="1em" /> },
+  2: { text: '菜单', color: attrTone(1), icon: <Menu size="1em" /> },
+  3: { text: '按钮', color: attrTone(2), icon: <Zap size="1em" /> },
 };
 
 const MICRO_APP_OPTIONS = [
@@ -359,10 +366,9 @@ const MenuPage: React.FC = () => {
       return;
     }
     if (check.referencedRoles.length > 0) {
-      modal.confirm({
-        title: '删除确认',
+      confirmDanger({
+        title: `删除节点「${record.name}」？`,
         width: 480,
-        icon: <WarningOutlined style={{ color: p.orange }} />,
         content: (
           <div>
             <div style={{ marginBottom: 12 }}>
@@ -384,23 +390,20 @@ const MenuPage: React.FC = () => {
             </div>
           </div>
         ),
-        okText: '确认删除',
-        okButtonProps: { danger: true },
-        cancelText: '取消',
         onOk: () => doDelete(record.id),
       });
       return;
     }
-    modal.confirm({
-      title: '确认删除',
-      content: `确认删除节点「${record.name}」？`,
-      okButtonProps: { danger: true },
+    confirmDanger({
+      title: `删除节点「${record.name}」？`,
       onOk: () => doDelete(record.id),
     });
   };
 
+  const confirmDanger = useConfirmDanger();
   const columns: ProColumns<MenuItem>[] = [
     {
+      fixed: 'left',
       title: '菜单名称',
       dataIndex: 'name',
       width: 240,
@@ -427,7 +430,7 @@ const MenuPage: React.FC = () => {
             message.success('已复制');
           }}
         >
-          {record.code} <CopyOutlined style={{ fontSize: 12 }} />
+          {record.code} <Copy size="1em" style={{ fontSize: 12 }} />
         </span>
       ),
     },
@@ -436,7 +439,9 @@ const MenuPage: React.FC = () => {
       dataIndex: 'type',
       width: 80,
       render: (_, r) => (
-        <Tag color={typeMap[r.type]?.color}>{typeMap[r.type]?.text}</Tag>
+        <Pill tone={typeMap[r.type]?.color ?? 'gray'}>
+          {typeMap[r.type]?.text}
+        </Pill>
       ),
     },
     {
@@ -470,7 +475,7 @@ const MenuPage: React.FC = () => {
           >
             {record.sort}
             {canEdit && (
-              <EditOutlined style={{ fontSize: 12, color: p.mute }} />
+              <Pencil size="1em" style={{ fontSize: 12, color: p.mute }} />
             )}
           </Space>
         ),
@@ -491,126 +496,76 @@ const MenuPage: React.FC = () => {
       width: 70,
       render: (_, r) => (r.type === 3 ? '--' : r.isHidden === 1 ? '是' : '否'),
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      width: 160,
-      render: (_, r) => formatDateTime(r.createTime),
-    },
-    {
-      title: '创建人',
-      dataIndex: 'createBy',
-      width: 150,
-      render: ellipsisRender,
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      width: 160,
-      render: (_, r) => formatDateTime(r.updateTime),
-    },
-    {
-      title: '更新人',
-      dataIndex: 'updateBy',
-      width: 150,
-      render: ellipsisRender,
-    },
+    ...proAuditColumns<MenuItem>(),
     {
       title: '操作',
       fixed: 'right',
       valueType: 'option',
-      width: 220,
-      render: (_, record) => (
-        <Space size={12}>
-          {record.type !== 3 && canAdd && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => openCreateChild(record)}
-            >
-              +子节点
-            </button>
-          )}
-          {canEdit && (
-            <button
-              type="button"
-              className="zhul-link"
-              onClick={() => openEdit(record)}
-            >
-              编辑
-            </button>
-          )}
-          {canEdit && (
-            <Popconfirm
-              title={
-                record.status === 1 ? '确认禁用该节点？' : '确认启用该节点？'
+      // 编辑、加子节点放行内；启用/禁用、删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(3),
+      render: (_, record) => {
+        const enabled = record.status === 1;
+        const children = countDescendants(record);
+        return (
+          <RowActions
+            inline={[
+              canEdit && {
+                key: 'edit',
+                label: '编辑',
+                icon: <Pencil size={18} />,
+                onClick: () => openEdit(record),
+              },
+              record.type !== 3 &&
+                canAdd && {
+                  key: 'child',
+                  label: '添加子节点',
+                  icon: <Plus size={18} />,
+                  onClick: () => openCreateChild(record),
+                },
+            ]}
+            more={[
+              canEdit && {
+                key: 'status',
+                label: enabled ? '禁用' : '启用',
+                icon: enabled ? <Ban size={16} /> : <CircleCheck size={16} />,
+                danger: enabled,
+              },
+              canDelete && {
+                key: 'delete',
+                label: '删除',
+                icon: <Trash2 size={16} />,
+                danger: true,
+              },
+            ]}
+            onMore={(key) => {
+              if (key === 'status') {
+                if (enabled) {
+                  confirmDanger({
+                    title: `禁用节点「${record.name}」？`,
+                    content:
+                      children > 0
+                        ? `下级 ${children} 个子节点将同步禁用`
+                        : undefined,
+                    okText: '禁用',
+                    onOk: () => handleToggleStatus(record),
+                  });
+                } else {
+                  handleToggleStatus(record);
+                }
               }
-              description={
-                record.status === 1 && countDescendants(record) > 0
-                  ? `下级 ${countDescendants(record)} 个子节点将同步禁用`
-                  : undefined
-              }
-              onConfirm={() => handleToggleStatus(record)}
-            >
-              <a style={{ color: record.status === 1 ? p.red : p.green }}>
-                {record.status === 1 ? '禁用' : '启用'}
-              </a>
-            </Popconfirm>
-          )}
-          {canDelete && (
-            <button
-              type="button"
-              className="zhul-link"
-              style={{ color: p.red }}
-              onClick={() => handleDeleteClick(record)}
-            >
-              删除
-            </button>
-          )}
-        </Space>
-      ),
+              if (key === 'delete') handleDeleteClick(record);
+            }}
+          />
+        );
+      },
     },
   ];
-
-  const statCards = [
-    {
-      icon: <AppstoreOutlined />,
-      color: p.link,
-      bg: p.accentSoft,
-      label: '节点总数',
-      value: stats.total,
-      hint: '3 级树形结构',
-    },
-    {
-      icon: <FolderOutlined />,
-      color: p.link,
-      bg: p.accentSoft,
-      label: '目录',
-      value: stats.dir,
-      hint: '第一级节点',
-    },
-    {
-      icon: <MenuOutlined />,
-      color: p.green,
-      bg: p.greenSoft,
-      label: '菜单',
-      value: stats.menu,
-      hint: '对应前端页面',
-    },
-    {
-      icon: <ThunderboltOutlined />,
-      color: p.orange,
-      bg: p.orangeSoft,
-      label: '按钮',
-      value: stats.button,
-      hint: '页面操作权限点',
-    },
-  ];
+  const columnsSet = useColumnSettings('system-menu', columns);
 
   const renderSections = (t: number) => (
     <>
       {t === 2 && (
-        <ProForm.Group title={groupTitle(<LinkOutlined />, '路由配置')}>
+        <ProForm.Group title={groupTitle(<Link size="1em" />, '路由配置')}>
           <ProFormText
             name="path"
             label="路由路径"
@@ -637,7 +592,7 @@ const MenuPage: React.FC = () => {
         </ProForm.Group>
       )}
       {(t === 1 || t === 2) && (
-        <ProForm.Group title={groupTitle(<EyeOutlined />, '显示配置')}>
+        <ProForm.Group title={groupTitle(<Eye size="1em" />, '显示配置')}>
           <ProFormText
             name="lightIcon"
             label="图标（浅色）"
@@ -678,7 +633,7 @@ const MenuPage: React.FC = () => {
       )}
       {t === 3 && (
         <ProForm.Group
-          title={groupTitle(<SafetyCertificateOutlined />, '权限标识')}
+          title={groupTitle(<ShieldCheck size="1em" />, '权限标识')}
         >
           <ProFormText
             name="permission"
@@ -690,7 +645,7 @@ const MenuPage: React.FC = () => {
           />
         </ProForm.Group>
       )}
-      <ProForm.Group title={groupTitle(<SettingOutlined />, '基础配置')}>
+      <ProForm.Group title={groupTitle(<Settings size="1em" />, '基础配置')}>
         <ProFormDigit
           name="sort"
           label="排序号"
@@ -710,83 +665,78 @@ const MenuPage: React.FC = () => {
 
   return (
     <>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 16,
-          marginBottom: 16,
-        }}
-      >
-        {statCards.map((s) => (
-          <Card key={s.label} styles={{ body: { padding: 20 } }}>
-            <Space align="center">
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: s.bg,
-                  color: s.color,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 18,
-                }}
-              >
-                {s.icon}
-              </div>
-              <span style={{ color: p.mute }}>{s.label}</span>
-            </Space>
-            <div style={{ fontSize: 28, fontWeight: 700, marginTop: 12 }}>
-              {s.value}
-            </div>
-            <div style={{ fontSize: 12, color: p.green, marginTop: 4 }}>
-              {s.hint}
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      <Card style={{ marginBottom: 16 }} styles={{ body: { padding: 16 } }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <Space size={12}>
-            <Button onClick={() => setExpandedKeys(flattenIds(displayTree))}>
-              展开全部
-            </Button>
-            <Button onClick={() => setExpandedKeys([])}>折叠全部</Button>
-            <Input
-              placeholder="搜索菜单名称"
-              prefix={<SearchOutlined />}
-              allowClear
-              style={{ width: 280 }}
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-            />
-          </Space>
-          {canAdd && (
+      <PageHeader
+        extra={
+          canAdd && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={openCreateTop}
             >
               新增顶级目录
             </Button>
-          )}
-        </div>
-      </Card>
-
-      <Card>
+          )
+        }
+      />
+      <SummaryBar
+        items={[
+          {
+            key: 'total',
+            label: '节点总数',
+            value: stats.total,
+            sub: '3 级树形结构',
+          },
+          { key: 'dir', label: '目录', help: '第一级节点', value: stats.dir },
+          {
+            key: 'menu',
+            label: '菜单',
+            help: '对应前端页面',
+            value: stats.menu,
+          },
+          {
+            key: 'button',
+            label: '按钮',
+            help: '页面操作权限点',
+            value: stats.button,
+          },
+        ]}
+      />
+      <MainCard
+        settings={columnsSet.settings}
+        left={
+          <Input
+            placeholder="搜索菜单名称"
+            prefix={<Search size={16} />}
+            allowClear
+            aria-label="搜索菜单名称"
+            style={{ width: 280 }}
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+          />
+        }
+        right={
+          <>
+            <Button
+              type="text"
+              style={{ color: p.link }}
+              onClick={() => setExpandedKeys(flattenIds(displayTree))}
+            >
+              展开全部
+            </Button>
+            <Button
+              type="text"
+              style={{ color: p.link }}
+              onClick={() => setExpandedKeys([])}
+            >
+              折叠全部
+            </Button>
+          </>
+        }
+      >
         <ProTable<MenuItem>
-          scroll={{ x: tableScrollX(columns) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           rowKey="id"
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={displayTree}
           search={false}
           options={false}
@@ -797,7 +747,7 @@ const MenuPage: React.FC = () => {
             onExpandedRowsChange: (keys) => setExpandedKeys(keys as number[]),
           }}
         />
-      </Card>
+      </MainCard>
 
       <DrawerForm
         name="menuEdit"
@@ -830,13 +780,15 @@ const MenuPage: React.FC = () => {
         }
         drawerProps={{ destroyOnHidden: true }}
       >
-        <ProForm.Group title={groupTitle(<AppstoreOutlined />, '节点信息')}>
+        <ProForm.Group
+          title={groupTitle(<LayoutGrid size="1em" />, '节点信息')}
+        >
           {isEdit || lockType ? (
             <div style={{ marginBottom: 24, width: '100%' }}>
               <div style={{ fontSize: 13, marginBottom: 8 }}>资源类型</div>
-              <Tag color={typeMap[fixedType]?.color}>
+              <Pill tone={typeMap[fixedType]?.color ?? 'gray'}>
                 {typeMap[fixedType]?.text}
-              </Tag>
+              </Pill>
             </div>
           ) : (
             <ProFormRadio.Group

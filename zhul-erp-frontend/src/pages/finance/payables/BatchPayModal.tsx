@@ -1,8 +1,4 @@
 import {
-  CheckCircleOutlined,
-  ExclamationCircleOutlined,
-} from '@ant-design/icons';
-import {
   App,
   Button,
   DatePicker,
@@ -12,6 +8,7 @@ import {
   Select,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { CircleAlert, CircleCheck } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import {
@@ -27,7 +24,7 @@ import { liveRequests } from '@/utils/liveRequests';
 import { amountTotals, type Group, groupPayables } from './batch';
 import { ACCEPT_PROOF, Field, newKey, PayeeAccountPicker } from './components';
 import { DueNowHint } from './dueNow';
-import { methodMismatch, suggestMethod } from './payMethod';
+import { MethodHint, methodMismatch, suggestMethod } from './payMethod';
 import { METHOD, type Payable, type PayeeAccount, paymentApi } from './service';
 
 interface GroupInput {
@@ -231,19 +228,11 @@ export const BatchPayModal: React.FC<{
               ]}
             />
             {suggestion.mixed ? (
-              <div
-                style={{ fontSize: 12, color: palette.orange, marginTop: 6 }}
-              >
+              <MethodHint tone="warn">
                 所选应付单付款方式不一致，请确认付款方式
-              </div>
+              </MethodHint>
             ) : (
-              mismatch && (
-                <div
-                  style={{ fontSize: 12, color: palette.orange, marginTop: 6 }}
-                >
-                  {mismatch}
-                </div>
-              )
+              mismatch && <MethodHint tone="warn">{mismatch}</MethodHint>
             )}
           </Field>
           <div style={{ flex: 1, textAlign: 'right' }}>
@@ -270,11 +259,11 @@ export const BatchPayModal: React.FC<{
                 padding: '14px 16px',
                 borderRadius: 12,
                 background: palette.inset,
-                border: `1px solid ${problem ? palette.accentLine : palette.hairline}`,
+                border: `1px solid ${problem ? palette.primaryLine : palette.hairline}`,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <b style={{ fontSize: 15 }}>{g.payeeName}</b>
+                <b style={{ fontSize: 16 }}>{g.payeeName}</b>
                 <Pill tone="cyan">{g.currency}</Pill>
                 <span style={{ fontSize: 12, color: palette.mute }}>
                   {g.rows.length} 张应付
@@ -282,11 +271,11 @@ export const BatchPayModal: React.FC<{
                 <span style={{ flex: 1 }} />
                 {problem ? (
                   <span style={{ fontSize: 12, color: palette.orange }}>
-                    <ExclamationCircleOutlined /> {problem}
+                    <CircleAlert size="1em" /> {problem}
                   </span>
                 ) : (
                   <span style={{ fontSize: 12, color: palette.green }}>
-                    <CheckCircleOutlined /> 已填好
+                    <CircleCheck size="1em" /> 已填好
                   </span>
                 )}
               </div>

@@ -1,14 +1,19 @@
-import {
-  InfoCircleOutlined,
-  PlusOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
 import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Button, Input, Select, Table } from 'antd';
+import { Eye, History, Plus, Search, Settings, Waypoints } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -97,6 +102,10 @@ const TakeoverCell: React.FC<{ site: Site }> = ({ site: s }) => {
     </div>
   );
 };
+
+/** 页头帮助：原来表格下方的两条说明 */
+const HELP =
+  '网址在全平台唯一；令牌、私钥、IndexNow 密钥加密保存，只显示是否已配置和末四位。停用的站点不能发布；已发布的商品留在站点上';
 
 const WebsitesPage: React.FC = () => {
   const access = useAccess() as Record<string, boolean>;
@@ -201,41 +210,50 @@ const WebsitesPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 170,
+      width: rowActionsWidth(3),
       fixed: 'right',
       render: (_, s) => (
-        <span style={{ display: 'inline-flex', gap: 12 }}>
-          <Link to={`/operations/websites/${s.id}`}>
-            {canEdit ? '配置' : '查看'}
-          </Link>
-          {canEdit &&
-            s.publishMode === MODE_AUTO &&
-            s.takeoverStatus === TAKEOVER_PENDING && (
-              <Link to={`/operations/websites/${s.id}#takeover`}>接管</Link>
-            )}
-          {s.summary?.lastRelease && (
-            <Button
-              type="link"
-              size="small"
-              style={{ padding: 0 }}
-              onClick={() => setReleasesOf(s)}
-            >
-              发布记录
-            </Button>
-          )}
-        </span>
+        <RowActions
+          inline={[
+            {
+              key: 'open',
+              label: canEdit ? '配置' : '查看',
+              icon: canEdit ? <Settings size={18} /> : <Eye size={18} />,
+              onClick: () => history.push(`/operations/websites/${s.id}`),
+            },
+            !!s.summary?.lastRelease && {
+              key: 'releases',
+              label: '发布记录',
+              icon: <History size={18} />,
+              onClick: () => setReleasesOf(s),
+            },
+          ]}
+          more={[
+            canEdit &&
+              s.publishMode === MODE_AUTO &&
+              s.takeoverStatus === TAKEOVER_PENDING && {
+                key: 'takeover',
+                label: '接管',
+                icon: <Waypoints size="1em" />,
+              },
+          ]}
+          onMore={() => history.push(`/operations/websites/${s.id}#takeover`)}
+        />
       ),
     },
   ];
 
+  const columnsSet = useColumnSettings('operations-websites', columns);
+
   return (
     <div>
-      <PageTitle
-        actions={
+      <PageHeader
+        help={HELP}
+        extra={
           canEdit && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => history.push('/operations/websites/new')}
             >
               新建站点
@@ -243,79 +261,62 @@ const WebsitesPage: React.FC = () => {
           )
         }
       />
+      <FilterCard
+        onReset={() => {
+          setKeyword('');
+          setStatus(undefined);
+        }}
+      >
+        <FilterField label="关键词" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            placeholder="站点名称、网址"
+            aria-label="关键词"
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select
+            allowClear
+            value={status}
+            onChange={setStatus}
+            placeholder="全部"
+            options={[
+              { value: 1, label: '启用' },
+              { value: 0, label: '停用' },
+            ]}
+            aria-label="状态"
+          />
+        </FilterField>
+      </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 18 }}>
-          <div
-            style={{
-              display: 'flex',
-              gap: 12,
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              marginBottom: 12,
-            }}
-          >
-            <Input
-              allowClear
-              prefix={<SearchOutlined />}
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              placeholder="搜索站点名称、网址"
-              style={{ width: 260 }}
-              aria-label="关键词"
-            />
-            <Select
-              allowClear
-              value={status}
-              onChange={setStatus}
-              placeholder="全部状态"
-              options={[
-                { value: 1, label: '启用' },
-                { value: 0, label: '停用' },
-              ]}
-              style={{ width: 140 }}
-              aria-label="状态"
-            />
-            <span style={{ flex: 1 }} />
-            <span style={{ color: palette.mute, fontSize: 13 }}>
-              共 {shown.length} 个站点
-            </span>
-          </div>
+        <MainCard
+          settings={columnsSet.settings}
+          count={shown.length}
+          unit="个站点"
+          loading={loading}
+        >
           <Table<Site>
             rowKey="id"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={shown}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             pagination={false}
             locale={{
-              emptyText: rows.length
-                ? '没有符合条件的站点'
-                : '还没有站点，点「新建站点」添加',
+              emptyText: tableEmpty(
+                rows.length
+                  ? '没有符合条件的站点'
+                  : '还没有站点，点「新建站点」添加',
+                loading,
+              ),
             }}
           />
-          <div
-            style={{
-              marginTop: 14,
-              padding: '10px 14px',
-              borderRadius: 10,
-              background: palette.inset,
-              color: palette.mute,
-              fontSize: 12,
-              display: 'grid',
-              gap: 4,
-            }}
-          >
-            <span>
-              <InfoCircleOutlined /> 网址在全平台唯一；令牌、私钥、IndexNow
-              密钥加密保存，只显示是否已配置和末四位
-            </span>
-            <span>
-              <InfoCircleOutlined /> 停用的站点不能发布；已发布的商品留在站点上
-            </span>
-          </div>
-        </Card>
+        </MainCard>
       )}
       <ReleasesDrawer
         site={releasesOf}

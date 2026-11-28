@@ -1,12 +1,5 @@
 import {
-  CopyOutlined,
-  EnvironmentOutlined,
-  FileTextOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
-import {
   App,
-  Breadcrumb,
   Button,
   Checkbox,
   Drawer,
@@ -17,11 +10,15 @@ import {
   Select,
   Switch,
 } from 'antd';
+import { Copy, FileText, MapPin, User } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { Callout } from '@/components/Callout';
+import { HelpTip } from '@/components/ListLayout';
+import { Pill } from '@/components/Pill';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
+import { attrTone } from '@/theme/palette';
 import { useBusinessUnits } from '@/utils/businessUnit';
-import { MenuLink, useMenu } from '@/utils/menuName';
 import {
   CJK_PATTERN,
   ENGLISH_ONLY_MESSAGE,
@@ -29,8 +26,6 @@ import {
   PARTY_TYPES,
   PHONE_PATTERN,
   ROLE_OPTIONS,
-  ROLE_TONE,
-  type Tone,
 } from './constants';
 import {
   type AssignableOwners,
@@ -41,46 +36,18 @@ import {
 
 export const LIST_PATH = '/customer/list';
 
-export const Pill: React.FC<{ tone: Tone; children: React.ReactNode }> = ({
-  tone,
-  children,
-}) => {
-  const { palette } = useAppTheme();
-  const colors: Record<Tone, { fg: string; bg: string }> = {
-    accent: { fg: palette.link, bg: palette.accentSoft },
-    cyan: { fg: palette.cyan, bg: palette.inset },
-    orange: { fg: palette.orange, bg: palette.orangeSoft },
-    green: { fg: palette.green, bg: palette.greenSoft },
-    violet: { fg: palette.violet, bg: palette.violetSoft },
-    gray: { fg: palette.sub, bg: palette.inset },
-  };
-  const c = colors[tone];
+/** 状态标签统一用公共组件（规范「状态标签」） */
+export { Pill };
+
+/** 客户角色；0 为询盘快速创建尚未补全的客户。属性色按 ROLE_OPTIONS 顺序取，同列不重复，未设置灰（D75） */
+export const RolePill: React.FC<{ value?: number }> = ({ value }) => {
+  const i = ROLE_OPTIONS.findIndex((o) => o.value === value);
   return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        height: 24,
-        padding: '0 10px',
-        borderRadius: 12,
-        fontSize: 12,
-        fontWeight: 600,
-        color: c.fg,
-        background: c.bg,
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {children}
-    </span>
+    <Pill tone={i < 0 ? 'gray' : attrTone(i)}>
+      {labelOf(ROLE_OPTIONS, value) ?? '未设置'}
+    </Pill>
   );
 };
-
-/** 客户角色；0 为询盘快速创建尚未补全的客户 */
-export const RolePill: React.FC<{ value?: number }> = ({ value }) => (
-  <Pill tone={ROLE_TONE[value ?? 0] ?? 'gray'}>
-    {labelOf(ROLE_OPTIONS, value) ?? '未设置'}
-  </Pill>
-);
 
 export const StatusPill: React.FC<{ status?: number }> = ({ status }) => (
   <Pill tone={status === 1 ? 'green' : 'gray'}>
@@ -88,85 +55,25 @@ export const StatusPill: React.FC<{ status?: number }> = ({ status }) => (
   </Pill>
 );
 
-/** 面包屑 + 标题 + 右侧操作；分组、页面名称取「菜单管理」（列表页不用传标题），详情页传 current */
-export const PageTitle: React.FC<{
-  title?: React.ReactNode;
-  current?: string;
-  description?: React.ReactNode;
-  actions?: React.ReactNode;
-}> = ({ title, current, description, actions }) => {
-  const { palette } = useAppTheme();
-  const page = useMenu();
-  const list = useMenu(LIST_PATH);
-  const items = current
-    ? [
-        { title: list?.group },
-        { title: <MenuLink to={LIST_PATH} /> },
-        { title: current },
-      ]
-    : [{ title: page?.group }, { title: page?.name }];
-  return (
-    <header
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-end',
-        gap: 16,
-        marginBottom: 20,
-        flexWrap: 'wrap',
-      }}
-    >
-      <div style={{ minWidth: 0 }}>
-        <Breadcrumb items={items} style={{ fontSize: 13 }} />
-        <h1
-          id="customer-main"
-          tabIndex={-1}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            flexWrap: 'wrap',
-            fontSize: 28,
-            fontWeight: 700,
-            margin: '8px 0 0',
-            color: palette.ink,
-          }}
-        >
-          {title ?? page?.name}
-        </h1>
-        {description && (
-          <p style={{ margin: '6px 0 0', color: palette.sub, fontSize: 14 }}>
-            {description}
-          </p>
-        )}
-      </div>
-      {actions && (
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          {actions}
-        </div>
-      )}
-    </header>
-  );
-};
-
-/** 分组卡片：图标 + 标题（右侧可放操作），下方是内容 */
+/**
+ * 分组卡片：标题（右侧可放操作），下方是内容；标题照详情页 Section（16/600），说明放进帮助图标。
+ * icon 保留参数以免改动调用处，ui-redesign 起不再显示（卡片标题不带图标）
+ */
 export const SectionCard: React.FC<{
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   title: string;
   extra?: React.ReactNode;
   description?: string;
   children: React.ReactNode;
-}> = ({ icon, title, extra, description, children }) => {
+}> = ({ title, extra, description, children }) => {
   const { palette } = useAppTheme();
   const id = `customer-section-${title}`;
   return (
     <section
+      className="zhul-card"
       aria-labelledby={id}
       style={{
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
-        borderRadius: 16,
-        padding: 24,
+        padding: '20px 24px',
         marginBottom: 20,
       }}
     >
@@ -178,29 +85,23 @@ export const SectionCard: React.FC<{
           gap: 12,
         }}
       >
-        <h2
-          id={id}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            margin: 0,
-            fontSize: 16,
-            fontWeight: 600,
-            color: palette.ink,
-          }}
-        >
-          <span style={{ color: palette.link, fontSize: 15 }}>{icon}</span>
-          {title}
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h2
+            id={id}
+            style={{
+              margin: 0,
+              fontSize: 16,
+              fontWeight: 600,
+              color: palette.ink,
+            }}
+          >
+            {title}
+          </h2>
+          {description && <HelpTip title={description} />}
+        </div>
         {extra}
       </div>
-      {description && (
-        <p style={{ margin: '6px 0 0', fontSize: 12, color: palette.mute }}>
-          {description}
-        </p>
-      )}
-      <div style={{ marginTop: 20 }}>{children}</div>
+      <div style={{ marginTop: 16 }}>{children}</div>
     </section>
   );
 };
@@ -257,7 +158,7 @@ export const PartyCard: React.FC<{
         padding: 16,
         borderRadius: 12,
         background: palette.inset,
-        border: `1px solid ${party.defaultParty ? palette.accentLine : palette.hairline}`,
+        border: `1px solid ${party.defaultParty ? palette.primaryLine : palette.hairline}`,
       }}
     >
       <div
@@ -280,7 +181,7 @@ export const PartyCard: React.FC<{
           >
             {party.companyName}
           </span>
-          {party.defaultParty && <Pill tone="accent">默认</Pill>}
+          {party.defaultParty && <Pill tone="gray">默认</Pill>}
         </div>
         <div style={{ display: 'flex', gap: 12, fontSize: 12, flexShrink: 0 }}>
           {onSetDefault && !party.defaultParty && (
@@ -305,9 +206,9 @@ export const PartyCard: React.FC<{
           )}
         </div>
       </div>
-      {line(<EnvironmentOutlined />, address)}
-      {contact && line(<UserOutlined />, contact)}
-      {extra && line(<FileTextOutlined />, extra)}
+      {line(<MapPin size="1em" />, address)}
+      {contact && line(<User size="1em" />, contact)}
+      {extra && line(<FileText size="1em" />, extra)}
     </div>
   );
 };
@@ -453,12 +354,7 @@ export const PartyDrawer: React.FC<{
         </div>
       }
     >
-      <Form
-        form={form}
-        name="party"
-        layout="vertical"
-        validateTrigger="onBlur"
-      >
+      <Form form={form} name="party" layout="vertical" validateTrigger="onBlur">
         <Form.Item name="partyType" label="类型" rules={[{ required: true }]}>
           <Segmented
             block
@@ -470,7 +366,7 @@ export const PartyDrawer: React.FC<{
         </Form.Item>
         <Button
           type="link"
-          icon={<CopyOutlined />}
+          icon={<Copy size="1em" />}
           style={{ padding: 0, marginBottom: 16 }}
           onClick={() => form.setFieldsValue(registration())}
         >
@@ -714,17 +610,9 @@ export const TransferModal: React.FC<{
           />
         </Form.Item>
       </Form>
-      <div
-        style={{
-          padding: '10px 12px',
-          borderRadius: 10,
-          background: palette.accentSoft,
-          fontSize: 12,
-          color: palette.sub,
-        }}
-      >
+      <Callout>
         转移记录（原负责人、新负责人、操作人、时间、原因）会写入操作日志。
-      </div>
+      </Callout>
     </Modal>
   );
 };

@@ -1,10 +1,13 @@
-import { WarningOutlined } from '@ant-design/icons';
 import { Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Tag, Tooltip } from 'antd';
+import { TriangleAlert } from 'lucide-react';
 import React from 'react';
 import ViewMediaLink from '@/pages/operations/media/ViewMediaLink';
 import { useAppTheme } from '@/theme/AppTheme';
+
+/** 型号列给型号格的「品牌 · 品类」：docModelColumn 按行提供，DocModelCell 显示在型号下面（R36 方案 C） */
+const DocBrandContext = React.createContext<DocItemMeta | undefined>(undefined);
 
 /** 商品档案详情地址；从哪里点进来，由标签页的返回入口负责回去 */
 export const productHref = (productId: number) =>
@@ -66,6 +69,7 @@ const DocModelCell: React.FC<{
   children,
 }) => {
   const { palette } = useAppTheme();
+  const meta = React.useContext(DocBrandContext);
   const access = useAccess() as Record<string, boolean>;
   const linkable = !!productId && !candidate && !!access.productList;
   const tone = updatedTone === 'red' ? palette.red : palette.orange;
@@ -82,14 +86,19 @@ const DocModelCell: React.FC<{
         {candidate && <CandidateTag productId={productId} />}
         {suffix}
       </span>
+      {meta && (meta.brand || meta.category) && (
+        <span style={{ color: palette.mute, fontSize: 12 }}>
+          {[meta.brand, meta.category].filter(Boolean).join(' · ')}
+        </span>
+      )}
       {customerModel && (
         <span style={{ color: palette.mute, fontSize: 12 }}>
           客户型号：{customerModel}
         </span>
       )}
       {updatedTo && (
-        <span style={{ color: tone, fontSize: 12, fontWeight: 500 }}>
-          <WarningOutlined style={{ marginRight: 4 }} />
+        <span style={{ color: tone, fontSize: 12, fontWeight: 400 }}>
+          <TriangleAlert size="1em" style={{ marginRight: 4 }} />
           真实型号已更新为 <b>{updatedTo}</b>
           {updatedTail}
         </span>
@@ -137,27 +146,33 @@ export interface DocItemMeta {
   category?: string;
 }
 
-const BrandText: React.FC<{ text?: string }> = ({ text }) => {
-  const { palette } = useAppTheme();
-  return (
-    <span style={{ fontWeight: 600, color: palette.ink }}>{text || '—'}</span>
-  );
-};
-
-/** 单据明细的品牌、品类两列（放在型号列之前），每行都显示 */
-export const docBrandColumns = <T,>(
+/**
+ * 单据明细的型号列（R36 方案 C，D77）：品牌、品类不再单独两列，并到型号格第二行「品牌 · 品类」；
+ * 型号列固定在左（序号列也要固定），表格横向滚动时一直看得到是哪个型号。
+ * enabled 为 false（如编辑时的紧凑模式）原样返回。
+ */
+export const docModelColumn = <T,>(
   get: (r: T) => DocItemMeta | undefined,
-): TableColumnsType<T> => [
-  {
-    title: '品牌',
-    key: 'brand',
-    width: 110,
-    render: (_, r) => <BrandText text={get(r)?.brand} />,
-  },
-  {
-    title: '品类',
-    key: 'category',
-    width: 110,
-    render: (_, r) => get(r)?.category || '—',
-  },
-];
+  col: TableColumnsType<T>[number],
+  enabled = true,
+): TableColumnsType<T>[number] => {
+  if (!enabled) return col;
+  // 明细表的列只用到 render 返回节点，这里按节点处理
+  const c = col as Omit<TableColumnsType<T>[number], 'render'> & {
+    render?: (v: unknown, r: T, i: number) => React.ReactNode;
+  };
+  return {
+    ...c,
+    title:
+      typeof c.title === 'string'
+        ? c.title.replace(/^型号/, '型号 · 品牌')
+        : c.title,
+    fixed: 'left',
+    width: Math.max(typeof c.width === 'number' ? c.width : 0, 240),
+    render: (v: unknown, r: T, i: number) => (
+      <DocBrandContext.Provider value={get(r)}>
+        {c.render ? c.render(v, r, i) : ((v as React.ReactNode) ?? null)}
+      </DocBrandContext.Provider>
+    ),
+  } as TableColumnsType<T>[number];
+};

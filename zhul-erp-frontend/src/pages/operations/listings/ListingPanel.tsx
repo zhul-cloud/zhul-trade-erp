@@ -1,14 +1,3 @@
-import {
-  CheckOutlined,
-  CopyOutlined,
-  DownloadOutlined,
-  EditOutlined,
-  ExportOutlined,
-  MinusOutlined,
-  PictureOutlined,
-  PlusOutlined,
-  SyncOutlined,
-} from '@ant-design/icons';
 import { Link, useAccess } from '@umijs/max';
 import {
   App,
@@ -20,6 +9,17 @@ import {
   Skeleton,
   Tooltip,
 } from 'antd';
+import {
+  Check,
+  Copy,
+  Download,
+  ExternalLink,
+  Image,
+  Minus,
+  Pencil,
+  Plus,
+  RefreshCw,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import {
@@ -168,7 +168,7 @@ const CopySections: React.FC<{ sections: Section[] }> = ({ sections }) => {
             </span>
             <Button
               size="small"
-              icon={<CopyOutlined />}
+              icon={<Copy size="1em" />}
               onClick={async () => {
                 if (await copyText(s.text as string)) {
                   message.success('已复制');
@@ -234,7 +234,7 @@ const MediaBlock: React.FC<{
         {extra}
         <Button
           size="small"
-          icon={<DownloadOutlined />}
+          icon={<Download size="1em" />}
           loading={downloading}
           onClick={async () => {
             setDownloading(true);
@@ -365,7 +365,7 @@ const ReferencePicker: React.FC<{
                   <Button
                     size="small"
                     type="text"
-                    icon={open ? <MinusOutlined /> : <PlusOutlined />}
+                    icon={open ? <Minus size="1em" /> : <Plus size="1em" />}
                     aria-label={open ? '收起' : '展开预览'}
                     onClick={() => setExpanded(open ? undefined : key)}
                   />
@@ -526,7 +526,7 @@ export const StatusPills: React.FC<{ task: ListingTask }> = ({ task }) => (
     <Pill
       tone={
         task.status === 1
-          ? 'accent'
+          ? 'orange'
           : task.status === 2
             ? 'green'
             : task.status === 3
@@ -664,7 +664,7 @@ const ListingPanel: React.FC<{
               >
                 <Button
                   type="primary"
-                  icon={<CheckOutlined />}
+                  icon={<Check size="1em" />}
                   disabled={t.needMedia}
                   onClick={() => setPublishMode('publish')}
                 >
@@ -674,7 +674,7 @@ const ListingPanel: React.FC<{
             ) : (
               t.status === 2 && (
                 <Button
-                  icon={<EditOutlined />}
+                  icon={<Pencil size="1em" />}
                   onClick={() => setPublishMode('record')}
                 >
                   修改发布记录
@@ -702,7 +702,7 @@ const ListingPanel: React.FC<{
                 canEdit && (
                   <Button
                     size="small"
-                    icon={<SyncOutlined />}
+                    icon={<RefreshCw size="1em" />}
                     loading={busy === 'sync'}
                     onClick={() =>
                       act('sync', () => listingApi.markSynced(t.id))
@@ -758,7 +758,7 @@ const ListingPanel: React.FC<{
                   rel="noopener noreferrer"
                   style={{ wordBreak: 'break-all' }}
                 >
-                  <ExportOutlined /> {t.listingUrl}
+                  <ExternalLink size="1em" /> {t.listingUrl}
                 </a>
               )}
               <div style={{ color: palette.sub }}>
@@ -776,8 +776,8 @@ const ListingPanel: React.FC<{
           )}
 
           <section style={{ display: 'grid', gap: 12 }}>
-            <div style={{ fontSize: 15, fontWeight: 600, color: palette.ink }}>
-              <PictureOutlined /> 发品素材
+            <div style={{ fontSize: 16, fontWeight: 600, color: palette.ink }}>
+              <Image size="1em" /> 发品素材
             </div>
             {showRef && (
               <MediaBlock
@@ -857,13 +857,13 @@ const ListingPanel: React.FC<{
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span
                 style={{
-                  fontSize: 15,
+                  fontSize: 16,
                   fontWeight: 600,
                   color: palette.ink,
                   flex: 1,
                 }}
               >
-                <CopyOutlined /> 复制助手
+                <Copy size="1em" /> 复制助手
               </span>
               {t.platform === 'site' && (
                 <Segmented<'en' | 'ru'>

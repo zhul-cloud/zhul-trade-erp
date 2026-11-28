@@ -1,17 +1,20 @@
-import { CloseOutlined, SearchOutlined } from '@ant-design/icons';
 import { history, Link, useLocation } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Button, Checkbox, DatePicker, Form, Input, Select, Table } from 'antd';
+import { Checkbox, DatePicker, Form, Input, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
+import { tableEmpty } from '@/components/EmptyState';
+import { FilterField, MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount, formatDateTime } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { formatDateTime, formatMoney } from '@/utils/format';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
-import { WarehousePageTitle } from '../components';
 import {
   bizText,
   FilterCard,
@@ -128,7 +131,7 @@ const MovesPage: React.FC = () => {
     {
       title: '业务类型',
       dataIndex: 'bizName',
-      width: 150,
+      width: 130,
       render: (_: string, r) => (
         <b style={{ color: palette.ink }}>{bizText(r)}</b>
       ),
@@ -149,7 +152,13 @@ const MovesPage: React.FC = () => {
         const href = docHref(r.docType, r.docId);
         return (
           <div>
-            {href ? <Link to={href}>{v}</Link> : v || '—'}
+            {href ? (
+              <CopyText text={v}>
+                <Link to={href}>{v}</Link>
+              </CopyText>
+            ) : (
+              v || '—'
+            )}
             {r.targetNo && (
               <div style={{ fontSize: 12, color: palette.mute }}>
                 {r.targetType === 1 ? '订单' : '退货单'} {r.targetNo}
@@ -179,21 +188,23 @@ const MovesPage: React.FC = () => {
     },
     {
       title: '数量',
+      align: 'right' as const,
       dataIndex: 'quantity',
       width: 70,
       render: (v: number) => <SignedQty value={v} />,
     },
     {
-      title: '单价（¥）',
+      title: '单价（CNY）',
       dataIndex: 'unitPriceCny',
       width: 110,
       render: (v: number) => Number(v ?? 0).toFixed(6),
     },
     {
-      title: '金额（¥）',
+      title: '金额（CNY）',
+      align: 'right',
       dataIndex: 'amountCny',
       width: 120,
-      render: (v: number) => formatAmount(v, 'CNY'),
+      render: (v: number) => formatMoney(v),
     },
     {
       title: '操作人',
@@ -202,6 +213,10 @@ const MovesPage: React.FC = () => {
       render: (v?: string) => v || '系统',
     },
   ];
+  // 1366 宽默认列放得下（列表页统一规范第 2 条）：次要列默认收进「列」，宽屏自动补回
+  const columnsSet = useColumnSettings('warehouse-moves', columns, {
+    hidden: ['操作类型', '批次', '单价（CNY）', '操作人'],
+  });
 
   const apply = (f: Filters) => {
     setFilters(f);
@@ -210,7 +225,7 @@ const MovesPage: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle />
+      <PageHeader help="流水只增不改；作废、冲销会生成一笔反向流水" />
       <FilterCard
         form={form}
         initialValues={initial()}
@@ -221,77 +236,82 @@ const MovesPage: React.FC = () => {
           apply({ range: [dayjs().startOf('month'), dayjs()] });
           form.setFieldsValue({ range: [dayjs().startOf('month'), dayjs()] });
         }}
-        extra={
-          productId ? (
-            <div style={{ marginTop: 12 }}>
-              <Button
-                size="small"
-                icon={<CloseOutlined />}
-                iconPlacement="end"
-                onClick={() => {
-                  setProductId(undefined);
-                  setPage(1);
-                }}
-              >
-                只看 {urlModel || '这个商品'}
-              </Button>
-            </div>
-          ) : null
+        moreCount={filters.bizType ? 1 : 0}
+        more={
+          <FilterField label="业务类型">
+            <Form.Item name="bizType" noStyle>
+              <Select
+                aria-label="业务类型"
+                allowClear
+                placeholder="全部"
+                options={BIZ_OPTIONS}
+              />
+            </Form.Item>
+          </FilterField>
         }
       >
-        <Form.Item
-          name="range"
-          label="时间"
-          style={{ marginBottom: 0, gridColumn: 'span 2' }}
-        >
-          <DatePicker.RangePicker style={{ width: '100%' }} />
-        </Form.Item>
-        <Form.Item
-          name="keyword"
-          label="关键词"
-          style={{ marginBottom: 0, gridColumn: 'span 2' }}
-        >
-          <Input
-            allowClear
-            prefix={<SearchOutlined />}
-            placeholder="型号、单号、批次号"
-          />
-        </Form.Item>
-        <Form.Item name="warehouseId" label="仓库" style={{ marginBottom: 0 }}>
-          <Select
-            allowClear
-            placeholder="全部仓库"
-            options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
-          />
-        </Form.Item>
-        <Form.Item name="opType" label="操作类型" style={{ marginBottom: 0 }}>
-          <Select
-            allowClear
-            placeholder="全部"
-            options={OP_OPTIONS.filter((o) => withReservation || o.value < 7)}
-          />
-        </Form.Item>
-        <Form.Item name="bizType" label="业务类型" style={{ marginBottom: 0 }}>
-          <Select allowClear placeholder="全部" options={BIZ_OPTIONS} />
-        </Form.Item>
+        <FilterField label="时间" span={2} htmlFor="wh-move-range">
+          <Form.Item name="range" noStyle>
+            <DatePicker.RangePicker
+              id={{ start: 'wh-move-range' }}
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+        </FilterField>
+        <FilterField label="关键词" span={2}>
+          <Form.Item name="keyword" noStyle>
+            <Input
+              aria-label="关键词"
+              allowClear
+              prefix={<Search size="1em" />}
+              onPressEnter={() => form.submit()}
+              placeholder="型号、单号、批次号"
+            />
+          </Form.Item>
+        </FilterField>
+        <FilterField label="仓库">
+          <Form.Item name="warehouseId" noStyle>
+            <Select
+              aria-label="仓库"
+              allowClear
+              placeholder="全部仓库"
+              options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
+            />
+          </Form.Item>
+        </FilterField>
+        <FilterField label="操作类型">
+          <Form.Item name="opType" noStyle>
+            <Select
+              aria-label="操作类型"
+              allowClear
+              placeholder="全部"
+              options={OP_OPTIONS.filter((o) => withReservation || o.value < 7)}
+            />
+          </Form.Item>
+        </FilterField>
       </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 16 }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 12,
-              gap: 12,
-              flexWrap: 'wrap',
-            }}
-          >
-            <span style={{ color: palette.sub, fontSize: 13 }}>
-              流水只增不改；作废、冲销会生成一笔反向流水
-            </span>
+        <MainCard
+          count={total}
+          loading={loading}
+          settings={columnsSet.settings}
+          chips={
+            productId
+              ? [
+                  {
+                    key: 'product',
+                    label: `只看 ${urlModel || '这个商品'}`,
+                    onRemove: () => {
+                      setProductId(undefined);
+                      setPage(1);
+                    },
+                  },
+                ]
+              : undefined
+          }
+          right={
             <Checkbox
               checked={withReservation}
               onChange={(e) => {
@@ -301,28 +321,27 @@ const MovesPage: React.FC = () => {
             >
               含预占变动
             </Checkbox>
-          </div>
+          }
+        >
           <Table<InvMove>
             rowKey="id"
-            size="middle"
             loading={loading}
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
-            scroll={{ x: tableScrollX(columns) }}
-            locale={{ emptyText: '没有符合条件的流水' }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
+            locale={{ emptyText: tableEmpty('没有符合条件的流水', loading) }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
-              showTotal: (t) => `共 ${t} 条`,
               onChange: (p, s) => {
                 setPage(p);
                 setPageSize(s);
               },
             }}
           />
-        </Card>
+        </MainCard>
       )}
     </div>
   );

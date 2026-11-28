@@ -1,16 +1,14 @@
-import {
-  CheckCircleFilled,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  CloseCircleFilled,
-  CopyOutlined,
-  ExclamationCircleFilled,
-  ExclamationCircleOutlined,
-  LoadingOutlined,
-  OrderedListOutlined,
-  RedoOutlined,
-} from '@ant-design/icons';
 import { App, Button, Drawer, Skeleton } from 'antd';
+import {
+  CircleAlert,
+  CircleCheck,
+  CircleX,
+  Clock,
+  Copy,
+  ListOrdered,
+  LoaderCircle,
+  RotateCw,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTabActive } from '@/components/PageTabs/hooks';
 import { Pill } from '@/pages/inquiry/shared/components';
@@ -68,15 +66,21 @@ const StepIcon: React.FC<{ status?: number; index: number }> = ({
   const { palette } = useAppTheme();
   const size = { fontSize: 22 };
   if (status === 2)
-    return <CheckCircleFilled style={{ ...size, color: palette.green }} />;
+    return <CircleCheck size="1em" style={{ ...size, color: palette.green }} />;
   if (status === 3)
-    return <CloseCircleFilled style={{ ...size, color: palette.red }} />;
+    return <CircleX size="1em" style={{ ...size, color: palette.red }} />;
   if (status === 4)
     return (
-      <ExclamationCircleFilled style={{ ...size, color: palette.orange }} />
+      <CircleAlert size="1em" style={{ ...size, color: palette.orange }} />
     );
   if (status === 1)
-    return <LoadingOutlined style={{ ...size, color: palette.link }} />;
+    return (
+      <LoaderCircle
+        size="1em"
+        className="zhul-spin"
+        style={{ ...size, color: palette.link }}
+      />
+    );
   return (
     <span
       style={{
@@ -87,7 +91,7 @@ const StepIcon: React.FC<{ status?: number; index: number }> = ({
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: 11,
+        fontSize: 12,
         color: palette.mute,
       }}
     >
@@ -239,7 +243,9 @@ export const ReleaseDrawer: React.FC<{
             }}
           >
             <Pill tone={RELEASE_TONE[r.status] ?? 'gray'}>
-              {running && r.status === RELEASE_RUNNING && <LoadingOutlined />}{' '}
+              {running && r.status === RELEASE_RUNNING && (
+                <LoaderCircle size="1em" className="zhul-spin" />
+              )}{' '}
               {r.statusName}
             </Pill>
             {[
@@ -265,7 +271,7 @@ export const ReleaseDrawer: React.FC<{
                 fontSize: 13,
               }}
             >
-              <CloseCircleFilled />{' '}
+              <CircleX size="1em" />{' '}
               {failedIndex > 0
                 ? `第 ${failedIndex} 步「${stepName(r.failedStep)}」失败：`
                 : '失败：'}
@@ -288,7 +294,7 @@ export const ReleaseDrawer: React.FC<{
             >
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 600, color: palette.orange }}>
-                  <ExclamationCircleOutlined />{' '}
+                  <CircleAlert size="1em" />{' '}
                   部署失败：线上可能只更新了一部分，请重试
                 </div>
                 <div
@@ -306,7 +312,7 @@ export const ReleaseDrawer: React.FC<{
               {canPublish && (
                 <Button
                   type="primary"
-                  icon={<RedoOutlined />}
+                  icon={<RotateCw size="1em" />}
                   loading={retrying}
                   onClick={retry}
                 >
@@ -326,7 +332,7 @@ export const ReleaseDrawer: React.FC<{
                 color: palette.sub,
               }}
             >
-              <ClockCircleOutlined />{' '}
+              <Clock size="1em" />{' '}
               排队中：同一站点同一时间只执行一张发布单，前面的结束后自动开始
             </div>
           )}
@@ -417,7 +423,7 @@ export const ReleaseDrawer: React.FC<{
                 <Button
                   type="text"
                   size="small"
-                  icon={<CopyOutlined />}
+                  icon={<Copy size="1em" />}
                   onClick={() => copy(failedStep.output ?? '')}
                 >
                   复制
@@ -456,7 +462,7 @@ export const ReleaseDrawer: React.FC<{
             >
               {r.warnings.map((w) => (
                 <div key={w}>
-                  <ExclamationCircleOutlined /> {w}
+                  <CircleAlert size="1em" /> {w}
                 </div>
               ))}
             </div>
@@ -521,17 +527,17 @@ export const ReleaseDrawer: React.FC<{
                     >
                       {ok ? (
                         <>
-                          <CheckCircleOutlined /> 线上检查通过
+                          <CircleCheck size="1em" /> 线上检查通过
                         </>
                       ) : bad ? (
                         <>
-                          <ExclamationCircleOutlined /> 没通过
+                          <CircleAlert size="1em" /> 没通过
                         </>
                       ) : r.status === RELEASE_FAILED ? (
                         '没有上线'
                       ) : (
                         <>
-                          <ClockCircleOutlined /> 待检查
+                          <Clock size="1em" /> 待检查
                         </>
                       )}
                     </span>
@@ -551,7 +557,7 @@ export const ReleaseDrawer: React.FC<{
                 color: palette.sub,
               }}
             >
-              <OrderedListOutlined /> 同一站点后面还有 {queue.length}{' '}
+              <ListOrdered size="1em" /> 同一站点后面还有 {queue.length}{' '}
               张发布单排队（
               {queue
                 .slice(0, 3)

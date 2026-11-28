@@ -1,9 +1,10 @@
-import { LockOutlined } from '@ant-design/icons';
 import { request } from '@umijs/max';
 import { Segmented, Select } from 'antd';
+import { Lock } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Pill } from '@/pages/crm/opportunity/components';
 import { useAppTheme } from '@/theme/AppTheme';
+import { attrTone } from '@/theme/palette';
 
 /**
  * 事业部（spec system/business-unit）：公司没有设置事业部时 enabled 为 false，各页面不显示事业部字段与筛选。
@@ -66,8 +67,6 @@ export const useBusinessUnits = (): [BusinessUnitInfo, () => void] => {
   return [info, () => load(true)];
 };
 
-const TONES = ['accent', 'violet', 'cyan', 'green', 'orange'] as const;
-
 /** 所属事业部标签；id 为空显示「公共」 */
 export const UnitPill: React.FC<{
   info: BusinessUnitInfo;
@@ -78,7 +77,8 @@ export const UnitPill: React.FC<{
   }
   const index = info.units.findIndex((u) => u.id === id);
   const name = index >= 0 ? info.units[index].name : '—';
-  return <Pill tone={TONES[Math.max(index, 0) % TONES.length]}>{name}</Pill>;
+  // 事业部是取值固定的属性：按事业部顺序取属性色，同一事业部全站同色（D75）
+  return <Pill tone={attrTone(Math.max(index, 0))}>{name}</Pill>;
 };
 
 /** 「公共」在下拉里的取值（提交时转成空） */
@@ -181,7 +181,7 @@ export const StatsUnitSwitch: React.FC<{
           fontWeight: 600,
         }}
       >
-        <LockOutlined style={{ color: palette.mute }} />
+        <Lock size="1em" style={{ color: palette.mute }} />
         {allowed[0].name}
       </span>
     );

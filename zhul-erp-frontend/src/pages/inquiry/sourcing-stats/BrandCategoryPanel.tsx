@@ -1,12 +1,18 @@
-import { InboxOutlined } from '@ant-design/icons';
 import type { TableColumnsType } from 'antd';
 import { App, DatePicker, Segmented, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { DeltaText } from '@/theme/delta';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   type BrandCategoryRow,
@@ -48,18 +54,28 @@ const periodText = (period: StatsPeriod, d: Dayjs) => {
   }
 };
 
-/** 较上期：差值保留 digits 位，unit 为单位 */
-const delta = (
-  prefix: string,
+const rate = (v?: number | null) => (v == null ? '—' : `${v}%`);
+const hours = (v?: number | null) => (v == null ? '—' : `${v} 小时`);
+
+/** 较上期的差值（保留 digits 位）；持平或缺数据时为空 */
+const diff = (
   cur: number | null | undefined,
   prev: number | null | undefined,
   digits: number,
-  unit = '',
-) => {
-  if (cur == null || prev == null) return undefined;
-  const d = Number((cur - prev).toFixed(digits));
+) =>
+  cur == null || prev == null ? null : Number((cur - prev).toFixed(digits));
+
+/** 型号数、有价率：按方向着色并配上下箭头（ui-design-patterns「涨跌颜色」） */
+const delta = (prefix: string, d: number | null, digits: number, unit = '') => {
+  if (d == null) return undefined;
   if (d === 0) return `${prefix}持平`;
-  return `${prefix} ${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(digits)}${unit}`;
+  return (
+    <DeltaText value={d}>
+      {prefix} {d > 0 ? '+' : '−'}
+      {Math.abs(d).toFixed(digits)}
+      {unit}
+    </DeltaText>
+  );
 };
 
 /**
@@ -100,47 +116,14 @@ const BrandCategoryPanel: React.FC = () => {
   const unit = meta.label === '日' ? '天' : meta.label;
   const t = data?.totals;
   const p = data?.previous;
+  // 回价时长变长是变差，不用涨跌色，只写文字
+  const hoursDiff = diff(t?.avgHours, p?.avgHours, 1);
 
-  const stat = (
-    label: string,
-    value: string,
-    note?: string,
-    color?: string,
-  ) => (
-    <div
-      style={{
-        flex: '1 1 200px',
-        padding: '16px 18px',
-        borderRadius: 14,
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
-      }}
-    >
-      <div style={{ fontSize: 13, color: palette.sub }}>{label}</div>
-      <div
-        style={{
-          ...num,
-          fontSize: 22,
-          fontWeight: 800,
-          color: color ?? palette.ink,
-          marginTop: 4,
-        }}
-      >
-        {value}
-      </div>
-      <div style={{ fontSize: 12, color: palette.mute, marginTop: 2 }}>
-        {note ?? ' '}
-      </div>
-    </div>
-  );
-
-  const count = (v: number, color?: string) => (
-    <span style={{ ...num, color: v ? (color ?? palette.ink) : palette.mute }}>
+  const count = (v: number) => (
+    <span style={{ ...num, color: v ? undefined : palette.mute }}>
       {v || '—'}
     </span>
   );
-  const rate = (v?: number | null) => (v == null ? '—' : `${v}%`);
-  const hours = (v?: number | null) => (v == null ? '—' : `${v} 小时`);
 
   const columns: TableColumnsType<BrandCategoryRow> = [
     {
@@ -158,7 +141,7 @@ const BrandCategoryPanel: React.FC = () => {
       align: 'right',
       defaultSortOrder: 'descend',
       sorter: (a, b) => a.items - b.items,
-      render: (v: number) => count(v),
+      render: count,
     },
     {
       title: '有价',
@@ -166,7 +149,7 @@ const BrandCategoryPanel: React.FC = () => {
       width: 90,
       align: 'right',
       sorter: (a, b) => a.priced - b.priced,
-      render: (v: number) => count(v),
+      render: count,
     },
     {
       title: '无货',
@@ -174,11 +157,7 @@ const BrandCategoryPanel: React.FC = () => {
       width: 90,
       align: 'right',
       sorter: (a, b) => a.noStock - b.noStock,
-      render: (v: number) => (
-        <b style={{ ...num, color: v ? palette.orange : palette.mute }}>
-          {v || '—'}
-        </b>
-      ),
+      render: count,
     },
     {
       title: '待回价',
@@ -186,7 +165,7 @@ const BrandCategoryPanel: React.FC = () => {
       width: 90,
       align: 'right',
       sorter: (a, b) => a.pending - b.pending,
-      render: (v: number) => count(v, palette.orange),
+      render: count,
     },
     {
       title: '有价率',
@@ -212,7 +191,7 @@ const BrandCategoryPanel: React.FC = () => {
                 display: 'block',
                 width: `${Math.min(100, v ?? 0)}%`,
                 height: '100%',
-                background: palette.green,
+                background: palette.chart,
               }}
             />
           </span>
@@ -237,62 +216,74 @@ const BrandCategoryPanel: React.FC = () => {
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          flexWrap: 'wrap',
-          marginBottom: 16,
-        }}
-      >
-        <Segmented
-          value={period}
-          onChange={(v) => setPeriod(v as StatsPeriod)}
-          options={PERIODS.map(({ value, label }) => ({ value, label }))}
-        />
-        <DatePicker
-          picker={PICKER[period]}
-          value={day}
-          allowClear={false}
-          onChange={(d) => d && setDay(d)}
-          format={(d) => periodText(period, d)}
-          style={{ width: 240 }}
-          aria-label="选择统计期间"
-        />
-      </div>
-      <div
-        style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}
-      >
-        {stat(
-          '询价型号',
-          String(t?.items ?? 0),
-          delta(meta.prev, t?.items, p?.items, 0),
-        )}
-        {stat(
-          '有价',
-          String(t?.priced ?? 0),
-          `无货 ${t?.noStock ?? 0} · 待回价 ${t?.pending ?? 0}`,
-          palette.green,
-        )}
-        {stat(
-          '有价率',
-          rate(t?.pricedRate),
-          t?.pricedRate == null
-            ? `这${unit}没有询价型号`
-            : delta(meta.prev, t.pricedRate, p?.pricedRate, 2, ' 个百分点'),
-        )}
-        {stat(
-          '平均回价时长',
-          hours(t?.avgHours),
-          t?.avgHours == null
-            ? `这${unit}没有回价`
-            : delta(meta.prev, t.avgHours, p?.avgHours, 1, ' 小时'),
-        )}
-      </div>
-      <Card style={{ padding: 20 }}>
-        <div style={{ marginBottom: 12 }}>
+      {/* 统计条件选了就生效 */}
+      <FilterCard>
+        <FilterField label="周期" span={2}>
+          <Segmented
+            value={period}
+            onChange={(v) => setPeriod(v as StatsPeriod)}
+            options={PERIODS.map(({ value, label }) => ({ value, label }))}
+          />
+        </FilterField>
+        <FilterField label="期间" span={2}>
+          <DatePicker
+            picker={PICKER[period]}
+            value={day}
+            allowClear={false}
+            onChange={(d) => d && setDay(d)}
+            format={(d) => periodText(period, d)}
+            style={{ width: 240 }}
+            aria-label="选择统计期间"
+          />
+        </FilterField>
+      </FilterCard>
+      <SummaryBar
+        items={[
+          {
+            key: 'items',
+            label: '询价型号',
+            value: t?.items ?? 0,
+            sub: delta(meta.prev, diff(t?.items, p?.items, 0), 0),
+          },
+          {
+            key: 'priced',
+            label: '有价',
+            value: t?.priced ?? 0,
+            sub: `无货 ${t?.noStock ?? 0} · 待回价 ${t?.pending ?? 0}`,
+          },
+          {
+            key: 'rate',
+            label: '有价率',
+            help: '有价 ÷ 询价型号；型号按询盘日期归入当期',
+            value: rate(t?.pricedRate),
+            sub:
+              t?.pricedRate == null
+                ? `这${unit}没有询价型号`
+                : delta(
+                    meta.prev,
+                    diff(t.pricedRate, p?.pricedRate, 2),
+                    2,
+                    ' 个百分点',
+                  ),
+          },
+          {
+            key: 'hours',
+            label: '平均回价时长',
+            help: '任务首次分配到这个型号第一条回价，只算已回价的型号',
+            value: hours(t?.avgHours),
+            sub:
+              t?.avgHours == null
+                ? `这${unit}没有回价`
+                : hoursDiff == null
+                  ? undefined
+                  : hoursDiff === 0
+                    ? `${meta.prev}持平`
+                    : `${meta.prev} ${hoursDiff > 0 ? '+' : '−'}${Math.abs(hoursDiff).toFixed(1)} 小时`,
+          },
+        ]}
+      />
+      <MainCard
+        left={
           <Segmented
             value={by}
             onChange={(v) => setBy(v as 'brand' | 'category')}
@@ -301,7 +292,8 @@ const BrandCategoryPanel: React.FC = () => {
               { value: 'category', label: '品类（一级）' },
             ]}
           />
-        </div>
+        }
+      >
         <Table<BrandCategoryRow>
           key={by}
           rowKey="key"
@@ -313,24 +305,10 @@ const BrandCategoryPanel: React.FC = () => {
           showSorterTooltip={false}
           scroll={{ x: tableScrollX(columns) }}
           locale={{
-            emptyText: (
-              <div style={{ padding: '32px 0' }}>
-                <InboxOutlined style={{ fontSize: 28, color: palette.mute }} />
-                <div style={{ marginTop: 8, color: palette.sub }}>
-                  这{unit}没有进入询价的型号
-                </div>
-                <div style={{ fontSize: 12, color: palette.mute }}>
-                  换一{unit === '天' ? '天' : '期'}看看，或切换统计周期
-                </div>
-              </div>
-            ),
+            emptyText: tableEmpty(`这${unit}没有进入询价的型号`, loading),
           }}
         />
-        <div style={{ color: palette.mute, fontSize: 12, marginTop: 8 }}>
-          按询盘日期归入当期；有价率 = 有价 ÷ 询价型号；平均回价时长 =
-          任务首次分配到这个型号第一条回价，只算已回价的型号。
-        </div>
-      </Card>
+      </MainCard>
     </div>
   );
 };

@@ -1,14 +1,12 @@
 import { history } from '@umijs/max';
 import { Skeleton } from 'antd';
 import React, { useEffect, useState } from 'react';
+import { CountryFlag } from '@/components/CountryText';
 import type { SourceRef } from '@/components/DocFields/SourceNos';
-import {
-  Card,
-  MigratedPill,
-  PageTitle,
-  Pill,
-} from '@/pages/inquiry/shared/components';
+import { CardTitle, HelpTip } from '@/components/ListLayout';
+import { Card, MigratedPill, Pill } from '@/pages/inquiry/shared/components';
 import type { Tone } from '@/pages/inquiry/shared/constants';
+import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
 import { type Chain, type ChainNode, chainApi } from './service';
 
@@ -24,7 +22,7 @@ export const PI_STATUS = {
 
 export const PI_STATUS_META: Record<number, { label: string; tone: Tone }> = {
   1: { label: '草稿', tone: 'gray' },
-  2: { label: '已发送', tone: 'accent' },
+  2: { label: '已发送', tone: 'info' },
   3: { label: '已转订单', tone: 'green' },
   4: { label: '已作废', tone: 'mute' },
   5: { label: '已关闭', tone: 'mute' },
@@ -40,7 +38,7 @@ export const RECEIPT_STATUS = {
 export const RECEIPT_META: Record<number, { label: string; tone: Tone }> = {
   1: { label: '未付款', tone: 'gray' },
   2: { label: '待到账', tone: 'orange' },
-  3: { label: '部分到账', tone: 'accent' },
+  3: { label: '部分到账', tone: 'info' },
   4: { label: '已到账', tone: 'green' },
   5: { label: '无需收款', tone: 'gray' },
 };
@@ -123,11 +121,7 @@ const StatusPill: React.FC<{
     label: '—',
     tone: 'gray' as const,
   };
-  return (
-    <Pill tone={m.tone} dot>
-      {m.label}
-    </Pill>
-  );
+  return <Pill tone={m.tone}>{m.label}</Pill>;
 };
 
 export const PiStatusPill: React.FC<{ status: number }> = ({ status }) => (
@@ -141,11 +135,6 @@ export const ReceiptStatusPill: React.FC<{ status?: number }> = ({
 export const OrderStatusPill: React.FC<{ status: number }> = ({ status }) => (
   <StatusPill meta={ORDER_META} status={status} />
 );
-
-/** 面包屑「销售管理 / …」（按页面路径取分组） */
-export const SalesPageTitle: React.FC<
-  Omit<React.ComponentProps<typeof PageTitle>, 'root'>
-> = (props) => <PageTitle {...props} />;
 
 /** 买方 / 收货人的一行地址 */
 export const partyAddress = (p?: {
@@ -163,6 +152,27 @@ export const partyAddress = (p?: {
     }
   }
   return parts.filter(Boolean).join(', ');
+};
+
+/** 买方、收货人地址：前面加国家的国旗（对齐第一行，规范「组件标准 · 国家」），地址照单据原文显示 */
+export const PartyAddress: React.FC<{
+  party?: Parameters<typeof partyAddress>[0];
+  style?: React.CSSProperties;
+}> = ({ party, style }) => {
+  const { find } = useCountries();
+  const code = party?.country ? find(party.country)?.code : undefined;
+  return (
+    <div
+      style={{ display: 'flex', gap: 6, alignItems: 'flex-start', ...style }}
+    >
+      {code && (
+        <span style={{ height: '1lh', display: 'flex', alignItems: 'center' }}>
+          <CountryFlag code={code} />
+        </span>
+      )}
+      <span style={{ minWidth: 0 }}>{partyAddress(party)}</span>
+    </div>
+  );
 };
 
 // ---------------------------------------------------------------- 来源 / 去向链路
@@ -184,7 +194,9 @@ export const ChainCard: React.FC<{
   id: number;
   /** 变化时重新加载（如转订单、取消订单之后） */
   reloadKey?: unknown;
-}> = ({ type, id, reloadKey }) => {
+  /** 放在网格里时由网格管间距，传 { marginBottom: 0 } */
+  style?: React.CSSProperties;
+}> = ({ type, id, reloadKey, style }) => {
   const { palette } = useAppTheme();
   const [chain, setChain] = useState<Chain>();
   const [failed, setFailed] = useState(false);
@@ -212,8 +224,8 @@ export const ChainCard: React.FC<{
         padding: '4px 10px',
         borderRadius: 8,
         fontSize: 13,
-        background: n.current ? palette.accentSoft : palette.inset,
-        border: `1px solid ${n.current ? palette.accentLine : palette.hairline}`,
+        background: n.current ? palette.primarySoft : palette.inset,
+        border: `1px solid ${n.current ? palette.primaryLine : palette.hairline}`,
         color: n.current ? palette.ink : palette.link,
         fontWeight: n.current ? 600 : 400,
       }}
@@ -223,19 +235,17 @@ export const ChainCard: React.FC<{
     </button>
   );
   return (
-    <Card style={{ padding: '14px 20px', marginBottom: 16 }}>
+    <Card style={{ padding: 24, marginBottom: 16, ...style }}>
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: 8,
-          marginBottom: 10,
+          marginBottom: 16,
         }}
       >
-        <b style={{ color: palette.ink }}>来源 / 去向</b>
-        <span style={{ fontSize: 12, color: palette.mute }}>
-          型号从询盘到订单经过的单据，点击可跳转
-        </span>
+        <CardTitle>来源 / 去向</CardTitle>
+        <HelpTip title="型号从询盘到订单经过的单据" />
       </div>
       {!chain ? (
         <Skeleton active paragraph={{ rows: 1 }} title={false} />
@@ -249,7 +259,11 @@ export const ChainCard: React.FC<{
           }}
         >
           {STAGES.map((s, i) => (
-            <React.Fragment key={s.key}>
+            // 箭头和后一个单据一起换行，不留在行尾
+            <div
+              key={s.key}
+              style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}
+            >
               {i > 0 && (
                 <span style={{ color: palette.mute, paddingTop: 22 }}>→</span>
               )}
@@ -271,7 +285,7 @@ export const ChainCard: React.FC<{
                   chain[s.key].map((n) => node(n, s.path))
                 )}
               </div>
-            </React.Fragment>
+            </div>
           ))}
         </div>
       )}

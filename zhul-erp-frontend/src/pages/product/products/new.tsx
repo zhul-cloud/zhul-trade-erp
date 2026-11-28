@@ -1,12 +1,6 @@
-import {
-  CheckCircleFilled,
-  CloseOutlined,
-  MoonOutlined,
-  SunOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
 import { history, useModel, useSearchParams } from '@umijs/max';
 import { App, Button, Form, Input, Modal, Select } from 'antd';
+import { CircleCheck, Moon, Sun, Upload, X } from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -16,6 +10,7 @@ import React, {
 } from 'react';
 import { useUnsavedGuard } from '@/components/PageTabs/hooks';
 import { tabsActions } from '@/components/PageTabs/store';
+import { MONO_FONT } from '@/theme/fonts';
 import { CompletenessBar } from '../components/CompletenessBar';
 import { BrandMark, LifecyclePill, Pill } from '../components/Pills';
 import {
@@ -446,9 +441,9 @@ const WizardInner: React.FC = () => {
     height: 36,
     padding: '0 16px',
     borderRadius: 18,
-    border: `1px solid ${palette.control}`,
-    background: active ? '#2563EB' : 'transparent',
-    color: active ? '#FFFFFF' : palette.ink,
+    border: `1px solid ${active ? palette.primaryLine : palette.control}`,
+    background: active ? palette.primarySoft : 'transparent',
+    color: active ? palette.link : palette.ink,
     cursor: 'pointer',
   });
   const previewSeries = seriesList.find((s) => s.id === draft.seriesId);
@@ -462,7 +457,7 @@ const WizardInner: React.FC = () => {
 
   const bigChoice = (active: boolean): React.CSSProperties => ({
     border: `2px solid ${active ? palette.link : palette.control}`,
-    background: active ? palette.accentSoft : palette.card,
+    background: active ? palette.primarySoft : palette.card,
     borderRadius: 16,
     padding: 16,
     cursor: 'pointer',
@@ -480,7 +475,7 @@ const WizardInner: React.FC = () => {
       <h2
         id="wizard-question"
         tabIndex={-1}
-        style={{ fontSize: 32, fontWeight: 700, margin: 0 }}
+        style={{ fontSize: 24, fontWeight: 600, margin: 0 }}
       >
         {text}
       </h2>
@@ -563,7 +558,7 @@ const WizardInner: React.FC = () => {
     <div
       style={{
         minHeight: '100vh',
-        background: `radial-gradient(1200px 600px at 20% -10%, #0F2A5C 0%, #0B1638 45%, ${palette.canvas} 100%)`,
+        background: palette.canvas,
         paddingBottom: 96,
       }}
     >
@@ -575,16 +570,16 @@ const WizardInner: React.FC = () => {
           gap: 16,
           padding: '16px clamp(12px, 3vw, 32px)',
           borderBottom: `1px solid ${palette.hairline}`,
-          background: '#0A101D',
+          background: palette.card,
           flexWrap: 'wrap',
         }}
       >
         <Button
           type="text"
           aria-label="关闭并退出新建"
-          icon={<CloseOutlined />}
+          icon={<X size="1em" />}
           onClick={close}
-          style={{ color: '#F8FAFC' }}
+          style={{ color: palette.sub }}
         />
         <ol
           aria-label="新建进度"
@@ -610,9 +605,9 @@ const WizardInner: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
-                  color: state === 'todo' ? '#94A3B8' : '#F8FAFC',
+                  color: state === 'todo' ? palette.mute : palette.ink,
                   fontSize: 14,
-                  fontWeight: state === 'current' ? 700 : 500,
+                  fontWeight: state === 'current' ? 600 : 400,
                 }}
               >
                 <span
@@ -624,13 +619,15 @@ const WizardInner: React.FC = () => {
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    background: state === 'done' ? '#2563EB' : 'transparent',
+                    background:
+                      state === 'done' ? palette.primarySoft : 'transparent',
+                    color: state === 'todo' ? palette.mute : palette.link,
                     border:
                       state === 'current'
-                        ? '2px solid #60A5FA'
+                        ? `2px solid ${palette.link}`
                         : state === 'done'
                           ? 'none'
-                          : '1px solid #64748B',
+                          : `1px solid ${palette.control}`,
                     fontSize: 13,
                   }}
                 >
@@ -648,19 +645,23 @@ const WizardInner: React.FC = () => {
                 {n < STEPS.length && !narrow && (
                   <span
                     aria-hidden="true"
-                    style={{ width: 24, height: 1, background: '#334155' }}
+                    style={{
+                      width: 24,
+                      height: 1,
+                      background: palette.hairline,
+                    }}
                   />
                 )}
               </li>
             );
           })}
         </ol>
-        <span style={{ color: '#94A3B8', fontSize: 13 }} role="status">
+        <span style={{ color: palette.mute, fontSize: 13 }} role="status">
           {created ? '商品已创建' : '草稿已自动保存'}
         </span>
         <Button
           aria-label={mode === 'dark' ? '切换到浅色主题' : '切换到深色主题'}
-          icon={mode === 'dark' ? <SunOutlined /> : <MoonOutlined />}
+          icon={mode === 'dark' ? <Sun size="1em" /> : <Moon size="1em" />}
           onClick={toggle}
         />
       </header>
@@ -782,12 +783,10 @@ const WizardInner: React.FC = () => {
               {dupCard}
               {dup.kind === 'none' && similar.length > 0 && (
                 <div
+                  className="zhul-card"
                   style={{
                     marginTop: 16,
                     padding: 16,
-                    borderRadius: 14,
-                    background: palette.card,
-                    border: `1px solid ${palette.hairline}`,
                   }}
                 >
                   <div style={{ fontWeight: 600, marginBottom: 8 }}>
@@ -911,9 +910,7 @@ const WizardInner: React.FC = () => {
                       height: 36,
                       padding: '0 16px',
                       borderRadius: 18,
-                      border: `1px solid ${palette.control}`,
-                      background: !draft.seriesId ? '#2563EB' : 'transparent',
-                      color: !draft.seriesId ? '#FFFFFF' : palette.ink,
+                      ...subChoice(!draft.seriesId),
                       cursor: 'pointer',
                     }}
                   >
@@ -932,11 +929,7 @@ const WizardInner: React.FC = () => {
                         height: 36,
                         padding: '0 16px',
                         borderRadius: 18,
-                        border: `1px solid ${palette.control}`,
-                        background:
-                          draft.seriesId === s.id ? '#2563EB' : 'transparent',
-                        color:
-                          draft.seriesId === s.id ? '#FFFFFF' : palette.ink,
+                        ...subChoice(draft.seriesId === s.id),
                         cursor: 'pointer',
                       }}
                     >
@@ -1039,7 +1032,7 @@ const WizardInner: React.FC = () => {
                   <Button
                     size="large"
                     type="primary"
-                    icon={<UploadOutlined />}
+                    icon={<Upload size="1em" />}
                     onClick={() => setUploadOpen(true)}
                   >
                     选择图片
@@ -1089,13 +1082,13 @@ const WizardInner: React.FC = () => {
                             width: 120,
                             height: 90,
                             borderRadius: 10,
-                            background: '#0B1220',
+                            background: palette.inset,
                           }}
                         />
                       )}
                       {m.isMain === 1 && (
                         <span style={{ position: 'absolute', top: 4, left: 4 }}>
-                          <Pill tone="accent">主图</Pill>
+                          <Pill tone="gray">主图</Pill>
                         </span>
                       )}
                     </li>
@@ -1145,15 +1138,13 @@ const WizardInner: React.FC = () => {
               </Form>
               {['物流信息', '海关信息', '平台参考价'].map((t) => (
                 <div
+                  className="zhul-card"
                   key={t}
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',
                     padding: '14px 16px',
                     marginBottom: 8,
-                    borderRadius: 12,
-                    background: palette.card,
-                    border: `1px solid ${palette.hairline}`,
                     color: palette.sub,
                   }}
                 >
@@ -1167,14 +1158,15 @@ const WizardInner: React.FC = () => {
           {step === 5 && product && (
             <div>
               <div style={{ textAlign: 'center', marginBottom: 32 }}>
-                <CheckCircleFilled
+                <CircleCheck
+                  size="1em"
                   style={{ fontSize: 64, color: palette.green }}
                   aria-hidden="true"
                 />
                 <h2
                   id="wizard-question"
                   tabIndex={-1}
-                  style={{ fontSize: 32, margin: '12px 0 4px' }}
+                  style={{ fontSize: 24, margin: '12px 0 4px' }}
                 >
                   {product.mpnDisplay} 已创建
                 </h2>
@@ -1210,12 +1202,10 @@ const WizardInner: React.FC = () => {
                   if (!m) return null;
                   return (
                     <div
+                      className="zhul-card"
                       key={k}
                       style={{
                         padding: 16,
-                        borderRadius: 14,
-                        background: palette.card,
-                        border: `1px solid ${palette.hairline}`,
                       }}
                     >
                       <div style={{ fontWeight: 600 }}>补 {m.label}</div>
@@ -1268,18 +1258,16 @@ const WizardInner: React.FC = () => {
             style={{ flex: '0 0 340px', maxWidth: '100%' }}
           >
             <div
+              className="zhul-card"
               style={{
                 position: 'sticky',
                 top: 24,
                 padding: 24,
-                borderRadius: 16,
-                background: palette.card,
-                border: `1px solid ${palette.hairline}`,
               }}
             >
               <div
                 style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontFamily: MONO_FONT,
                   fontSize: 12,
                   letterSpacing: 2,
                   color: palette.link,
@@ -1294,7 +1282,7 @@ const WizardInner: React.FC = () => {
                   <div
                     style={{
                       fontSize: 20,
-                      fontWeight: 700,
+                      fontWeight: 600,
                       wordBreak: 'break-all',
                     }}
                   >
@@ -1334,7 +1322,7 @@ const WizardInner: React.FC = () => {
             bottom: 0,
             zIndex: 10,
             padding: '14px clamp(12px, 3vw, 32px)',
-            background: '#0A101D',
+            background: palette.card,
             borderTop: `1px solid ${palette.hairline}`,
             display: 'flex',
             justifyContent: 'space-between',
@@ -1346,11 +1334,7 @@ const WizardInner: React.FC = () => {
             {step === 2 && <Button onClick={() => setStep(1)}>上一步</Button>}
             {step === 4 && <Button onClick={() => setStep(3)}>上一步</Button>}
             {step === 3 && (
-              <Button
-                onClick={() => setStep(4)}
-                type="link"
-                style={{ color: '#93C5FD' }}
-              >
+              <Button onClick={() => setStep(4)} type="link">
                 跳过这一步
               </Button>
             )}

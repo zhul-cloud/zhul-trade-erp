@@ -1,8 +1,9 @@
 import { history, Link, useAccess } from '@umijs/max';
-import { Empty, Segmented, Select, Skeleton, Switch } from 'antd';
+import { Select, Skeleton, Switch } from 'antd';
+import { EmptyState } from '@/components/EmptyState';
+import { FilterCard, FilterField, HelpTip, PageHeader, ViewTabs } from '@/components/ListLayout';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { PageTitle } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { Card, CoverBar, HeatPill, useCoverColors, useOptions, useUsers } from '../components';
 import { ProjectModal } from '../dialogs';
@@ -33,38 +34,42 @@ type Drill = { ownerId?: number; priority?: number; stockoutDays?: number };
 
 const CoverCell: React.FC<{ c: Cell; drill: Drill }> = ({ c, drill }) => {
   const { palette } = useAppTheme();
-  const colors = useCoverColors();
-  const tint = colors[c.worst] ?? palette.hairline;
+  // R38 方案 B（D79）：格子白底、悬停浅灰；「N 个需求」+ 状态色堆叠条 + 最要紧的缺口点名，不再整格铺色
+  const gap =
+    c.coverage[1] > 0
+      ? { text: `无渠道 ${c.coverage[1]}`, color: palette.red, weight: 600 }
+      : c.coverage[3] > 0
+        ? { text: `需确认 ${c.coverage[3]}`, color: palette.orange, weight: 400 }
+        : c.coverage[2] > 0
+          ? { text: `未验证 ${c.coverage[2]}`, color: palette.info, weight: 400 }
+          : { text: `可报价 ${c.coverage[4] ?? 0}`, color: palette.mute, weight: 400 };
   return (
     <Link
       to={PATHS.models(c.brandId, c.categoryId, drill)}
+      className="zhul-matrix-cell"
       style={{
         display: 'grid',
-        gap: 8,
+        gap: 6,
         padding: '10px 14px',
-        borderRadius: 10,
+        borderRadius: 8,
         color: palette.ink,
-        background: `color-mix(in srgb, ${tint} 12%, ${palette.card})`,
-        border: c.worst === 1 ? `1px solid color-mix(in srgb, ${tint} 45%, transparent)` : '1px solid transparent',
       }}
     >
-      <span style={{ display: 'inline-flex', gap: 8, alignItems: 'baseline' }}>
-        <b style={{ fontSize: 20 }}>{c.total}</b>
-        <span style={{ fontSize: 12, color: palette.sub, letterSpacing: 1 }}>
-          {[4, 3, 2, 1].map((k) => c.coverage[k] ?? 0).join('/')}
-        </span>
+      <span style={{ display: 'inline-flex', gap: 6, alignItems: 'baseline' }}>
+        <b className="num" style={{ fontSize: 20 }}>{c.total}</b>
+        <span style={{ fontSize: 12, color: palette.mute }}>个需求</span>
       </span>
-      <CoverBar coverage={c.coverage} width={140} legend={false} />
-      {c.projectId && (
-        <span style={{ fontSize: 12, color: palette.link }}>专项中</span>
-      )}
+      <CoverBar coverage={c.coverage} width={160} legend={false} />
+      <span style={{ fontSize: 12 }}>
+        <span style={{ color: gap.color, fontWeight: gap.weight }}>{gap.text}</span>
+        {c.projectId && <span style={{ color: palette.info }}> · 专项中</span>}
+      </span>
     </Link>
   );
 };
 
 const StockoutCell: React.FC<{ c: Cell; max: number; drill: Drill }> = ({ c, max, drill }) => {
   const { palette } = useAppTheme();
-  const pct = Math.round(10 + (c.stockoutTimes / max) * 30);
   return (
     <Link
       to={PATHS.models(c.brandId, c.categoryId, drill)}
@@ -72,10 +77,10 @@ const StockoutCell: React.FC<{ c: Cell; max: number; drill: Drill }> = ({ c, max
         display: 'grid',
         gap: 4,
         padding: '10px 14px',
-        borderRadius: 10,
+        borderRadius: 8,
         color: palette.ink,
-        background: `color-mix(in srgb, ${palette.red} ${pct}%, ${palette.card})`,
       }}
+      className="zhul-matrix-cell"
     >
       <span>
         <b style={{ fontSize: 20 }}>{c.stockoutModels}</b>
@@ -83,7 +88,7 @@ const StockoutCell: React.FC<{ c: Cell; max: number; drill: Drill }> = ({ c, max
       </span>
       <span style={{ fontSize: 12, color: palette.red }}>
         {c.stockoutTimes} 次
-        {c.projectId && <span style={{ color: palette.link }}> · 专项中</span>}
+        {c.projectId && <span style={{ color: palette.info }}> · 专项中</span>}
       </span>
     </Link>
   );
@@ -100,12 +105,10 @@ const SupplierCell: React.FC<{ c: Cell }> = ({ c }) => {
         display: 'grid',
         gap: 4,
         padding: '10px 14px',
-        borderRadius: 10,
+        borderRadius: 8,
         color: palette.ink,
-        background: `color-mix(in srgb, ${tint} ${c.gap >= 2 ? 14 : 10}%, ${palette.card})`,
-        // 缺 2 家及以上加描边，与缺 1 家区分开
-        border: `1px solid ${c.gap >= 2 ? `color-mix(in srgb, ${tint} 45%, transparent)` : 'transparent'}`,
       }}
+      className="zhul-matrix-cell"
     >
       <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
         <b style={{ fontSize: 20 }}>
@@ -114,9 +117,9 @@ const SupplierCell: React.FC<{ c: Cell }> = ({ c }) => {
         <HeatPill value={c.heat} />
       </span>
       <span style={{ fontSize: 12, color: palette.sub }}>
-        <span style={{ color: tint }}>{c.gap > 0 ? `缺 ${c.gap} 家` : '已达标'}</span>
+        <span style={{ color: tint, fontWeight: c.gap >= 2 ? 600 : 400 }}>{c.gap > 0 ? `缺 ${c.gap} 家` : '已达标'}</span>
         {c.leads > 0 && ` · 线索 ${c.leads}`}
-        {c.devProjectId && <span style={{ color: palette.link }}> · 开发中</span>}
+        {c.devProjectId && <span style={{ color: palette.info }}> · 开发中</span>}
       </span>
     </Link>
   );
@@ -194,25 +197,9 @@ const CoverageMatrixPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        title={
-          <span style={{ display: 'inline-flex', gap: 16, alignItems: 'center' }}>
-            覆盖矩阵
-            <Segmented
-              value={mode}
-              onChange={(v) => {
-                setMode(v as Mode);
-                setPriority(undefined);
-              }}
-              options={[
-                { value: 'cover', label: '按覆盖状态' },
-                { value: 'stockout', label: '按无货' },
-                { value: 'supplier', label: '按供应商' },
-              ]}
-            />
-          </span>
-        }
-        actions={
+      <PageHeader
+        title="覆盖矩阵"
+        extra={
           stock ? (
             <span style={{ color: palette.mute, fontSize: 13 }}>颜色越深，无货次数越多</span>
           ) : sup ? (
@@ -240,57 +227,74 @@ const CoverageMatrixPage: React.FC = () => {
           )
         }
       />
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
-        <Select
-          allowClear
-          style={{ width: 200 }}
-          placeholder="一级品类"
-          value={parent}
-          onChange={setParent}
-          options={tops}
-        />
-        <Select
-          allowClear
-          style={{ width: 170 }}
-          placeholder="品牌"
-          showSearch={{ optionFilterProp: 'label' }}
-          value={brandId}
-          onChange={setBrandId}
-          options={brands}
-        />
-        {stock ? (
-          <Select style={{ width: 130 }} value={period} onChange={setPeriod} options={PERIODS} />
-        ) : sup ? (
+      {/* 三张不同的矩阵（图例、筛选不同），用视图页签（复审 S3） */}
+      <ViewTabs
+        activeKey={mode}
+        onChange={(k) => {
+          setMode(k as Mode);
+          setPriority(undefined);
+        }}
+        items={[
+          { key: 'cover', label: '按覆盖状态' },
+          { key: 'stockout', label: '按无货' },
+          { key: 'supplier', label: '按供应商' },
+        ]}
+      />
+      {/* 搜索区用公共 FilterCard（选了就生效，没有查询按钮），紧接视图页签拼成一张卡（UI-117） */}
+      <FilterCard>
+        <FilterField label="一级品类">
+          <Select allowClear placeholder="全部" value={parent} onChange={setParent} options={tops} />
+        </FilterField>
+        <FilterField label="品牌">
           <Select
             allowClear
-            style={{ width: 130 }}
-            placeholder="热度"
-            value={priority}
-            onChange={setPriority}
-            options={[3, 2, 1].map((k) => ({ value: k, label: HEAT_NAMES[k] }))}
+            placeholder="全部"
+            showSearch={{ optionFilterProp: 'label' }}
+            value={brandId}
+            onChange={setBrandId}
+            options={brands}
           />
-        ) : (
-          <>
+        </FilterField>
+        {stock ? (
+          <FilterField label="时间">
+            <Select value={period} onChange={setPeriod} options={PERIODS} />
+          </FilterField>
+        ) : sup ? (
+          <FilterField label="热度">
             <Select
               allowClear
-              style={{ width: 130 }}
-              placeholder="优先级"
+              placeholder="全部"
               value={priority}
               onChange={setPriority}
-              options={[3, 2, 1].map((k) => ({ value: k, label: PRIORITY_NAMES[k] }))}
+              options={[3, 2, 1].map((k) => ({ value: k, label: HEAT_NAMES[k] }))}
             />
-            <Select
-              allowClear
-              style={{ width: 150 }}
-              placeholder="负责人"
-              showSearch={{ optionFilterProp: 'label' }}
-              value={ownerId}
-              onChange={setOwnerId}
-              options={users}
-            />
+          </FilterField>
+        ) : (
+          <>
+            <FilterField label="优先级">
+              <Select
+                allowClear
+                placeholder="全部"
+                value={priority}
+                onChange={setPriority}
+                options={[3, 2, 1].map((k) => ({ value: k, label: PRIORITY_NAMES[k] }))}
+              />
+            </FilterField>
+            <FilterField label="负责人">
+              <Select
+                allowClear
+                placeholder="全部"
+                showSearch={{ optionFilterProp: 'label' }}
+                value={ownerId}
+                onChange={setOwnerId}
+                options={users}
+              />
+            </FilterField>
           </>
         )}
-        <span style={{ flex: 1 }} />
+      </FilterCard>
+      {/* 汇总与「只看有缺口」放在矩阵卡上方一行；口径说明收进帮助图标 */}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', margin: '16px 0 12px' }}>
         {stock ? (
           <b>
             共 {totals[0]} 个型号 · {totals[1]} 次
@@ -306,31 +310,38 @@ const CoverageMatrixPage: React.FC = () => {
             只看有缺口
           </span>
         )}
+        <HelpTip
+          title={
+            stock
+              ? '点格子查看无货的型号；在格子下方可以直接建专项。'
+              : sup
+                ? `格子里是近 ${data?.days ?? 90} 天有报价或下单的合格供应商数 / 按热度要求的家数。点格子到供应商开发清单处理。`
+                : '格子里的数字是已进入矩阵的需求数，后面依次是可直接报价 / 需确认 / 有线索未验证 / 无渠道的数量；颜色取其中最差的一档。点格子查看型号。'
+          }
+        />
       </div>
       <Card style={{ overflow: 'hidden' }}>
         {error ? (
-          <Empty style={{ padding: 40 }} description={error} />
+          <EmptyState kind="error" title={error} />
         ) : !data ? (
           <div style={{ padding: 20 }}>
             <Skeleton active paragraph={{ rows: 8 }} />
           </div>
         ) : data.brands.length === 0 ? (
-          <Empty
-            style={{ padding: 40 }}
-            description={
+          <EmptyState title={
               stock
                 ? `近 ${data.days} 天没有无货记录`
                 : sup
                   ? '还没有需要开发供应商的品牌品类'
                   : '没有进入覆盖矩阵的型号'
-            }
-          />
+            } />
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: `160px repeat(${cols}, minmax(170px, 1fr))`,
+                // 格子最宽 240：品类少时不被拉成整行长条（进度条只有几十像素，格子却上千宽）
+                gridTemplateColumns: `160px repeat(${cols}, minmax(170px, 240px))`,
                 minWidth: 160 + cols * 180,
               }}
             >
@@ -431,13 +442,6 @@ const CoverageMatrixPage: React.FC = () => {
           </div>
         )}
       </Card>
-      <div style={{ marginTop: 12, fontSize: 13, color: palette.mute }}>
-        {stock
-          ? '点格子查看无货的型号；在格子下方可以直接建专项。'
-          : sup
-            ? `格子里是近 ${data?.days ?? 90} 天有报价或下单的合格供应商数 / 按热度要求的家数。点格子到供应商开发清单处理。`
-            : '格子里的数字是已进入矩阵的需求数，后面依次是可直接报价 / 需确认 / 有线索未验证 / 无渠道的数量；颜色取其中最差的一档。点格子查看型号。'}
-      </div>
       <ProjectModal
         scope={projectScope}
         onClose={() => setProjectScope(undefined)}

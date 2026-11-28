@@ -4,8 +4,9 @@ import { App, Button, Modal, Table, Tooltip } from 'antd';
 import React, { useEffect, useState } from 'react';
 import EllipsisText from '@/components/EllipsisText';
 import { useAppTheme } from '@/theme/AppTheme';
+import { MONO_FONT } from '@/theme/fonts';
 import { formatAmount } from '@/utils/format';
-import { Pill } from '../shared/components';
+import { PAGER_STYLE } from '@/utils/pageSize';
 import { PATHS } from '../shared/constants';
 import {
   type CustomerInquiry,
@@ -13,7 +14,10 @@ import {
   readBizError,
 } from '../shared/service';
 
-/** 品牌、品类：显示前两个，其余收成「+N」，鼠标移上去看全部 */
+/**
+ * 品牌、品类：纯文字显示前两个（「西门子、AB」，销售订单原型 A1），其余收成「+N」，鼠标移上去看全部。
+ * 品牌、品类是属性不是状态，不用标签。
+ */
 export const TagList: React.FC<{ values?: string[]; label: string }> = ({
   values,
   label,
@@ -21,13 +25,19 @@ export const TagList: React.FC<{ values?: string[]; label: string }> = ({
   const { palette } = useAppTheme();
   if (!values?.length) return <span style={{ color: palette.mute }}>—</span>;
   const rest = values.length - 2;
+  // 单行：前两个放不下时省略、悬停看全文，「+N」始终露出；不折行撑高（D21 行高）
   return (
-    <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
-      {values.slice(0, 2).map((v) => (
-        <Pill key={v} tone="gray">
-          {v}
-        </Pill>
-      ))}
+    <span
+      style={{
+        display: 'flex',
+        alignItems: 'baseline',
+        minWidth: 0,
+        color: palette.ink,
+      }}
+    >
+      <span style={{ minWidth: 0 }}>
+        <EllipsisText text={values.slice(0, 2).join('、')} />
+      </span>
       {rest > 0 && (
         <Tooltip
           title={
@@ -39,8 +49,15 @@ export const TagList: React.FC<{ values?: string[]; label: string }> = ({
             </div>
           }
         >
-          <span style={{ cursor: 'default' }}>
-            <Pill tone="accent">+{rest}</Pill>
+          <span
+            style={{
+              flex: 'none',
+              marginLeft: 6,
+              color: palette.link,
+              cursor: 'default',
+            }}
+          >
+            +{rest}
           </span>
         </Tooltip>
       )}
@@ -80,7 +97,7 @@ export const FirstModelCell: React.FC<{
   if (!model) return <span style={{ color: palette.mute }}>—</span>;
   return (
     <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-      <EllipsisText text={model} style={{ fontFamily: 'monospace' }} />
+      <EllipsisText text={model} style={{ fontFamily: MONO_FONT }} />
       {count > 1 && (
         <span style={{ fontSize: 12, color: palette.mute }}>
           共 {count} 个型号 ·{' '}
@@ -224,6 +241,7 @@ export const PagedModelsModal: React.FC<{
     },
     {
       title: '数量',
+      align: 'right' as const,
       key: 'qty',
       width: 80,
       render: (_, r) =>
@@ -233,6 +251,7 @@ export const PagedModelsModal: React.FC<{
       ? [
           {
             title: '单价',
+            align: 'right' as const,
             key: 'price',
             width: 110,
             render: (_: unknown, r: Row) =>
@@ -280,11 +299,11 @@ export const PagedModelsModal: React.FC<{
         dataSource={rows}
         scroll={{ y: 420 }}
         pagination={{
+          ...PAGER_STYLE,
           current: page,
           pageSize,
           total,
           size: 'small',
-          showSizeChanger: true,
           pageSizeOptions: [20, 50, 100],
           hideOnSinglePage: total <= PAGE_SIZE,
           showTotal: (t, [from, to]) => `第 ${from}–${to} 个，共 ${t} 个`,

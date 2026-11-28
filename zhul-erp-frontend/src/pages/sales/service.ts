@@ -345,6 +345,9 @@ export interface PiListItem {
   ownerId: number;
   ownerName?: string;
   createTime: string;
+  createBy?: string;
+  updateTime?: string;
+  updateBy?: string;
   sentAt?: string;
   validUntil?: string;
   expired?: boolean;
@@ -739,6 +742,9 @@ export interface Order {
   overdueDays?: number;
   /** 1-新客户、2-老客户 */
   customerType?: number;
+  /** 客户国家（英文名）与主联系人：详情客户卡用（ui-redesign D14） */
+  customerCountry?: string;
+  customerContact?: string;
   /** 1-现货、2-期货 */
   stockType: number;
   progressCode: string;

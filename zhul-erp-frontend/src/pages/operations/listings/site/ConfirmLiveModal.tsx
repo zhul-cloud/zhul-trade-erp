@@ -1,12 +1,12 @@
-import {
-  CheckCircleOutlined,
-  CheckOutlined,
-  ClearOutlined,
-  ClockCircleOutlined,
-  ExclamationCircleOutlined,
-  ExportOutlined,
-} from '@ant-design/icons';
 import { App, Button, Checkbox, Modal } from 'antd';
+import {
+  Check,
+  CircleAlert,
+  CircleCheck,
+  Clock,
+  Eraser,
+  ExternalLink,
+} from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -86,7 +86,7 @@ export const ConfirmLiveModal: React.FC<{
           <Button onClick={onClose}>取消</Button>
           <Button
             type="primary"
-            icon={<CheckOutlined />}
+            icon={<Check size="1em" />}
             loading={saving}
             onClick={confirm}
           >
@@ -151,15 +151,15 @@ export const ConfirmLiveModal: React.FC<{
                 >
                   {!c ? (
                     <>
-                      <ClockCircleOutlined /> 没有检查结果
+                      <Clock size="1em" /> 没有检查结果
                     </>
                   ) : c.ok ? (
                     <>
-                      <CheckCircleOutlined /> 线上检查通过
+                      <CircleCheck size="1em" /> 线上检查通过
                     </>
                   ) : (
                     <>
-                      <ExclamationCircleOutlined /> 没通过
+                      <CircleAlert size="1em" /> 没通过
                     </>
                   )}
                 </span>
@@ -169,7 +169,7 @@ export const ConfirmLiveModal: React.FC<{
                   rel="noopener noreferrer"
                   aria-label="打开页面"
                 >
-                  <ExportOutlined />
+                  <ExternalLink size="1em" />
                 </a>
               </div>
             );
@@ -180,13 +180,13 @@ export const ConfirmLiveModal: React.FC<{
                 style={{
                   padding: '12px 14px',
                   borderRadius: 10,
-                  border: `1px solid ${palette.accentLine}`,
-                  background: palette.accentSoft,
+                  border: `1px solid ${palette.hairline}`,
+                  background: palette.inset,
                   fontSize: 13,
                 }}
               >
                 <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                  <ClearOutlined /> 这个站点发布后要人工清缓存
+                  <Eraser size="1em" /> 这个站点发布后要人工清缓存
                 </div>
                 <div style={{ color: palette.sub, whiteSpace: 'pre-wrap' }}>
                   {site.purgeNote || '按站点的缓存设置清理页面缓存'}
@@ -200,7 +200,7 @@ export const ConfirmLiveModal: React.FC<{
               </Checkbox>
               {tried && !purged && (
                 <div style={{ fontSize: 12, color: palette.red }}>
-                  <ExclamationCircleOutlined />{' '}
+                  <CircleAlert size="1em" />{' '}
                   请先按说明清理站点缓存，再勾选「已清缓存」
                 </div>
               )}

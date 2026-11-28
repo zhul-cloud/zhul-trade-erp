@@ -1319,6 +1319,9 @@ public class PiServiceImpl implements PiService {
             vo.setOwnerId(p.getOwnerId());
             vo.setOwnerName(users.get(p.getOwnerId()));
             vo.setCreateTime(p.getCreateTime());
+            vo.setCreateBy(p.getCreateBy());
+            vo.setUpdateTime(p.getUpdateTime());
+            vo.setUpdateBy(p.getUpdateBy());
             vo.setSentAt(p.getSentAt());
             vo.setValidUntil(p.getValidUntil());
             Long days = expiredDays(p);

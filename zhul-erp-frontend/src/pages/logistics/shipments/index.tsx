@@ -1,25 +1,31 @@
-import { InboxOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Checkbox, Input, Select, Table } from 'antd';
+import { App, Button, Checkbox, DatePicker, Input, Select, Table } from 'antd';
+import type { Dayjs } from 'dayjs';
+import { Eye, Inbox, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { ellipsisRender } from '@/components/EllipsisText';
-import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
+import { tableEmpty } from '@/components/EmptyState';
 import {
-  Card,
-  MigratedPill,
-  PageTitle,
-  Pill,
-} from '@/pages/inquiry/shared/components';
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
+import { useOnReactivate } from '@/components/PageTabs/hooks';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { TagList } from '@/pages/inquiry/customer-inquiry/ModelCells';
+import { Card, MigratedPill, Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { auditColumns } from '@/pages/purchase/components';
 import { DOC_PATHS } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   groupIds,
@@ -29,6 +35,7 @@ import {
   ShStatusPill,
 } from '../components';
 import {
+  FORWARDER_TONE,
   type Forwarder,
   forwarderApi,
   type Logistics,
@@ -116,7 +123,7 @@ const PendingPanel: React.FC<{ canEdit: boolean; version: number }> = ({
           marginBottom: 12,
         }}
       >
-        <InboxOutlined style={{ color: palette.link }} />
+        <Inbox size="1em" style={{ color: palette.link }} />
         <b style={{ color: palette.ink }}>
           待出运的货（已交货代，还没放进出运单）
         </b>
@@ -172,13 +179,13 @@ const PendingPanel: React.FC<{ canEdit: boolean; version: number }> = ({
                   type={g.customerType}
                   contact={g.customerContact}
                 />
-                <Pill tone="accent">{g.forwarderName}</Pill>
+                <Pill tone="gray">{g.forwarderName}</Pill>
                 <span style={{ flex: 1 }} />
                 {canEdit && (
                   <Button
                     type="primary"
                     size="small"
-                    icon={<PlusOutlined />}
+                    icon={<Plus size="1em" />}
                     disabled={n === 0}
                     loading={busy === key}
                     onClick={() => create(g)}
@@ -268,7 +275,11 @@ const Shipments: React.FC = () => {
     keyword?: string;
     forwarderId?: number;
     status?: number;
+    shippedFrom?: string;
+    shippedTo?: string;
   }>({});
+  /** 出运日期（规范 logistics/shipment「出运单页」的筛选项），点「查询」生效 */
+  const [shipped, setShipped] = useState<[Dayjs, Dayjs] | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = usePageSize(20);
   const [rows, setRows] = useState<Logistics[]>([]);
@@ -314,7 +325,9 @@ const Shipments: React.FC = () => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <Link to={DOC_PATHS.logistics(r.id)}>{v}</Link>
+          <CopyText text={v}>
+            <Link to={DOC_PATHS.logistics(r.id)}>{v}</Link>
+          </CopyText>
           {sub(palette.mute, r.shippedDate ?? '—')}
           {r.migrated && (
             <div style={{ marginTop: 4 }}>
@@ -336,6 +349,96 @@ const Shipments: React.FC = () => {
           contact={r.customerContact}
         />
       ),
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 90,
+      render: (v: number, r) => (
+        <ShStatusPill value={v}>{r.statusName}</ShStatusPill>
+      ),
+    },
+    {
+      title: '运费',
+      align: 'right',
+      dataIndex: 'freight',
+      width: 110,
+      render: (v: number | null | undefined, r) =>
+        v === null || v === undefined ? (
+          '—'
+        ) : (
+          <div>
+            {formatAmount(v, 'CNY')}
+            {r.customerForwarder && sub(palette.mute, '送货运费')}
+          </div>
+        ),
+    },
+    {
+      title: '对账',
+      dataIndex: 'reconciled',
+      width: 80,
+      render: (v: boolean, r) =>
+        r.status !== 2 ? (
+          '—'
+        ) : r.customerForwarder ? (
+          <span style={{ color: palette.mute }}>不对账</span>
+        ) : v ? (
+          <Pill tone="green">已对账</Pill>
+        ) : (
+          <Pill tone="gray">未对账</Pill>
+        ),
+    },
+    {
+      title: '货代',
+      dataIndex: 'forwarderName',
+      width: 130,
+      render: (v: string, r) => (
+        <div>
+          {ellipsisRender(v)}
+          {r.customerForwarder && (
+            <div>
+              <Pill
+                tone={
+                  r.pickup ? FORWARDER_TONE.pickup : FORWARDER_TONE.customer
+                }
+              >
+                {r.pickup ? '上门取件' : '客户指定'}
+              </Pill>
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: '箱数 · 计费重',
+      key: 'boxes',
+      width: 130,
+      render: (_, r) =>
+        r.boxCount ? (
+          `${r.boxCount} 箱 · ${kg(r.chargeableWeight)}`
+        ) : (
+          <span style={{ color: palette.mute }}>—</span>
+        ),
+    },
+    {
+      title: '运单号',
+      key: 'waybill',
+      width: 150,
+      render: (_, r) =>
+        r.waybillNo ? (
+          <div>
+            <b style={{ color: palette.ink }}>{r.carrier}</b>
+            {sub(palette.mute, r.waybillNo)}
+          </div>
+        ) : (
+          <span style={{ color: palette.mute }}>
+            {r.customerForwarder && r.status === 2
+              ? r.pickup
+                ? '客户安排取件'
+                : '客户安排'
+              : '—'}
+          </span>
+        ),
     },
     {
       title: '型号 · 数量',
@@ -378,91 +481,6 @@ const Shipments: React.FC = () => {
       render: (v?: string[]) => <TagList values={v} label="品类" />,
     },
     {
-      title: '货代',
-      dataIndex: 'forwarderName',
-      width: 130,
-      render: (v: string, r) => (
-        <div>
-          {ellipsisRender(v)}
-          {r.customerForwarder && (
-            <div style={{ marginTop: 4 }}>
-              <Pill tone={r.pickup ? 'violet' : 'orange'}>
-                {r.pickup ? '上门取件' : '客户指定'}
-              </Pill>
-            </div>
-          )}
-        </div>
-      ),
-    },
-    {
-      title: '箱数 · 计费重',
-      key: 'boxes',
-      width: 130,
-      render: (_, r) =>
-        r.boxCount ? (
-          `${r.boxCount} 箱 · ${kg(r.chargeableWeight)}`
-        ) : (
-          <span style={{ color: palette.mute }}>—</span>
-        ),
-    },
-    {
-      title: '运单号',
-      key: 'waybill',
-      width: 150,
-      render: (_, r) =>
-        r.waybillNo ? (
-          <div>
-            <b style={{ color: palette.ink }}>{r.carrier}</b>
-            {sub(palette.mute, r.waybillNo)}
-          </div>
-        ) : (
-          <span style={{ color: palette.mute }}>
-            {r.customerForwarder && r.status === 2
-              ? r.pickup
-                ? '客户安排取件'
-                : '客户安排'
-              : '—'}
-          </span>
-        ),
-    },
-    {
-      title: '运费',
-      dataIndex: 'freight',
-      width: 110,
-      render: (v: number | null | undefined, r) =>
-        v === null || v === undefined ? (
-          '—'
-        ) : (
-          <div>
-            {formatAmount(v, 'CNY')}
-            {r.customerForwarder && sub(palette.mute, '送货运费')}
-          </div>
-        ),
-    },
-    {
-      title: '对账',
-      dataIndex: 'reconciled',
-      width: 80,
-      render: (v: boolean, r) =>
-        r.status !== 2 ? (
-          '—'
-        ) : r.customerForwarder ? (
-          <span style={{ color: palette.mute }}>不对账</span>
-        ) : v ? (
-          <Pill tone="green">已对账</Pill>
-        ) : (
-          <Pill tone="gray">未对账</Pill>
-        ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      width: 90,
-      render: (v: number, r) => (
-        <ShStatusPill value={v}>{r.statusName}</ShStatusPill>
-      ),
-    },
-    {
       title: '来源单号',
       key: 'outbounds',
       width: 160,
@@ -487,95 +505,143 @@ const Shipments: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 70,
+      width: rowActionsWidth(1),
       fixed: 'right',
-      render: (_, r) => <Link to={DOC_PATHS.logistics(r.id)}>查看</Link>,
+      render: (_, r) => (
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(DOC_PATHS.logistics(r.id)),
+            },
+          ]}
+        />
+      ),
     },
   ];
+  const columnsSet = useColumnSettings('logistics-shipments', columns, {
+    hidden: ['箱数 · 计费重', '运单号', '品牌', '品类', '来源单号', '业务员'],
+  });
 
   const apply = () => {
-    setQuery({ keyword: keyword.trim() || undefined, forwarderId, status });
+    setQuery({
+      keyword: keyword.trim() || undefined,
+      forwarderId,
+      status,
+      shippedFrom: shipped?.[0].format('YYYY-MM-DD'),
+      shippedTo: shipped?.[1].format('YYYY-MM-DD'),
+    });
     setPage(1);
     setVersion((v) => v + 1);
   };
 
   return (
     <div>
-      <PageTitle description="同一客户、同一货代的货合成一票：生成 CI/PL，货代申报后登记运单号、面单和运费。" />
+      <PageHeader help="同一客户、同一货代的货合成一票：生成 CI/PL，货代申报后登记运单号、面单和运费" />
       <PendingPanel canEdit={canEdit} version={version} />
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          marginBottom: 16,
+      <FilterCard
+        onSearch={apply}
+        onReset={() => {
+          setKeyword('');
+          setForwarderId(undefined);
+          setStatus(undefined);
+          setShipped(null);
+          setQuery({});
+          setPage(1);
+          setVersion((v) => v + 1);
         }}
+        minColumn={130}
+        moreCount={query.shippedFrom ? 1 : 0}
+        more={
+          <FilterField label="出运日期" span={2}>
+            <DatePicker.RangePicker
+              style={{ width: '100%' }}
+              aria-label="出运日期"
+              value={shipped}
+              onChange={(v) => setShipped(v?.[0] && v[1] ? [v[0], v[1]] : null)}
+            />
+          </FilterField>
+        }
       >
-        <Input
-          allowClear
-          prefix={<SearchOutlined />}
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          onPressEnter={apply}
-          placeholder="出运单号、订单号、运单号、客户"
-          style={{ width: 300 }}
-          aria-label="关键词"
-        />
-        <Select
-          allowClear
-          value={forwarderId}
-          onChange={setForwarderId}
-          placeholder="全部货代"
-          options={forwarders.map((f) => ({ value: f.id, label: f.name }))}
-          style={{ width: 160 }}
-          aria-label="货代"
-        />
-        <Select
-          allowClear
-          value={status}
-          onChange={setStatus}
-          placeholder="全部状态"
-          options={[
-            { value: 1, label: '待出运' },
-            { value: 2, label: '已出运' },
-            { value: 3, label: '已作废' },
-          ]}
-          style={{ width: 130 }}
-          aria-label="状态"
-        />
-        <span style={{ flex: 1 }} />
-        <Button type="primary" onClick={apply}>
-          查询
-        </Button>
-      </div>
+        <FilterField
+          label="关键词"
+          span={2}
+          help="可搜：出运单号、运单号、销售订单编号、客户名称"
+        >
+          <Input
+            allowClear
+            prefix={<Search size="1em" />}
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={apply}
+            placeholder="出运单号、运单号、订单编号"
+            aria-label="关键词"
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select
+            allowClear
+            value={status}
+            onChange={(v) => {
+              // 切换状态立即查询（doc-list-unify 状态下拉的写法）
+              setStatus(v);
+              setQuery((q) => ({ ...q, status: v }));
+              setPage(1);
+            }}
+            placeholder="全部"
+            options={[
+              { value: 1, label: '待出运' },
+              { value: 2, label: '已出运' },
+              { value: 3, label: '已作废' },
+            ]}
+            aria-label="状态"
+          />
+        </FilterField>
+        <FilterField label="货代">
+          <Select
+            allowClear
+            value={forwarderId}
+            onChange={setForwarderId}
+            placeholder="全部"
+            options={forwarders.map((f) => ({ value: f.id, label: f.name }))}
+            aria-label="货代"
+          />
+        </FilterField>
+      </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 0 }}>
+        <MainCard
+          settings={columnsSet.settings}
+          count={total}
+          loading={loading}
+        >
           <Table<Logistics>
             rowKey="id"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             locale={{
-              emptyText:
+              emptyText: tableEmpty(
                 '还没有出运单；货交到货代后，在上面「待出运的货」里新建',
+                loading,
+              ),
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
-              showTotal: (t: number) => `共 ${t} 条`,
               onChange: (p: number, s: number) => {
                 setPage(p);
                 setPageSize(s);
               },
             }}
           />
-        </Card>
+        </MainCard>
       )}
     </div>
   );

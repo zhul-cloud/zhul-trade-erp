@@ -1,4 +1,3 @@
-import { PlusOutlined } from '@ant-design/icons';
 import { history, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -6,19 +5,32 @@ import {
   Button,
   Checkbox,
   DatePicker,
-  Empty,
   Input,
   InputNumber,
   Modal,
   Select,
   Space,
   Table,
-  Tabs,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { Eye, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
+import { EmptyState, tableEmpty } from '@/components/EmptyState';
+import {
+  CardTitle,
+  FilterCard,
+  FilterField,
+  HelpTip,
+  MainCard,
+  PageHeader,
+  SummaryBar,
+  ViewTabs,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import {
   type BankOption,
@@ -34,9 +46,9 @@ import {
   useBusinessUnits,
 } from '@/utils/businessUnit';
 import { recentRange } from '@/utils/dateRange';
-import { formatAmount } from '@/utils/format';
+import { formatAmount, formatMoney } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { settleCny, settleRate } from './calc';
 import { ReceiptWho, SettlePill } from './components';
@@ -182,7 +194,7 @@ const RegisterModal: React.FC<{
       destroyOnHidden
     >
       {pending.length === 0 ? (
-        <Empty description="没有待结汇的外币到账" />
+        <EmptyState title="没有待结汇的外币到账" />
       ) : (
         <Space orientation="vertical" size={14} style={{ width: '100%' }}>
           <div
@@ -411,6 +423,12 @@ const RegisterModal: React.FC<{
   );
 };
 
+/** 帮助文字：help-texts.md「结汇管理」 */
+export const HELP = {
+  page: '外币到账攒一批结汇；按到账日期先进先出分摊到每笔到账，还没结汇的按最近一次结汇汇率估算人民币',
+  pending: '按先进先出顺序，下一次结汇从最上面开始',
+} as const;
+
 /** 财务管理 → 结汇单：外币到账攒一批结汇，按先进先出分摊到每笔到账 */
 const FxSettlementPage: React.FC = () => {
   const { message } = App.useApp();
@@ -429,6 +447,13 @@ const FxSettlementPage: React.FC = () => {
   // 结汇日期默认最近 3 个月，清空看全部
   const [range, setRange] = useState<[Dayjs, Dayjs] | null>(recentRange);
   const [includeVoid, setIncludeVoid] = useState(false);
+  /** 搜索区里还没点「查询」的条件 */
+  const [draft, setDraft] = useState(() => ({
+    unit: undefined as number | undefined,
+    currency: undefined as string | undefined,
+    range: recentRange() as [Dayjs, Dayjs] | null,
+    includeVoid: false,
+  }));
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
 
@@ -476,16 +501,18 @@ const FxSettlementPage: React.FC = () => {
       width: 150,
       fixed: 'left',
       render: (v: string, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => open(r.id)}
-          style={{
-            textDecoration: r.status === 2 ? 'line-through' : undefined,
-          }}
-        >
-          {v}
-        </button>
+        <CopyText text={v}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => open(r.id)}
+            style={{
+              textDecoration: r.status === 2 ? 'line-through' : undefined,
+            }}
+          >
+            {v}
+          </button>
+        </CopyText>
       ),
     },
     { title: '结汇日期', dataIndex: 'settleDate', width: 110 },
@@ -528,7 +555,7 @@ const FxSettlementPage: React.FC = () => {
       dataIndex: 'amountCny',
       width: 130,
       align: 'right',
-      render: (v: number) => <b style={num}>{formatAmount(v, 'CNY')}</b>,
+      render: (v: number) => <b style={num}>{formatMoney(v)}</b>,
     },
     {
       title: '汇率',
@@ -566,15 +593,25 @@ const FxSettlementPage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 70,
+      width: rowActionsWidth(1),
       fixed: 'right',
       render: (_, r) => (
-        <button type="button" className="zhul-link" onClick={() => open(r.id)}>
-          查看
-        </button>
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => open(r.id),
+            },
+          ]}
+        />
       ),
     },
   ];
+  const columnsSet = useColumnSettings('finance-fx-settlements', columns, {
+    hidden: ['手续费', '分摊笔数', '所属事业部'],
+  });
 
   const pendingColumns: TableColumnsType<ReceiptRow> = [
     { title: '到账日期', dataIndex: 'receiptDate', width: 110 },
@@ -626,50 +663,15 @@ const FxSettlementPage: React.FC = () => {
     },
   ];
 
-  const stat = (
-    label: string,
-    value: React.ReactNode,
-    sub?: string,
-    color?: string,
-  ) => (
-    <div
-      style={{
-        flex: '1 1 220px',
-        padding: '16px 18px',
-        borderRadius: 14,
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
-      }}
-    >
-      <div style={{ fontSize: 13, color: palette.sub }}>{label}</div>
-      <div
-        style={{
-          ...num,
-          fontSize: 22,
-          fontWeight: 800,
-          color: color ?? palette.ink,
-          marginTop: 4,
-        }}
-      >
-        {value}
-      </div>
-      {sub && (
-        <div style={{ fontSize: 12, color: palette.mute, marginTop: 2 }}>
-          {sub}
-        </div>
-      )}
-    </div>
-  );
-
   return (
     <div>
-      <PageTitle
-        description="外币到账攒一批结汇；按到账日期先进先出分摊到每笔到账，还没结汇的按最近一次结汇汇率估算人民币。"
-        actions={
+      <PageHeader
+        help={HELP.page}
+        extra={
           canSettle && (
             <Button
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={() => setRegistering(true)}
             >
               登记结汇单
@@ -677,7 +679,7 @@ const FxSettlementPage: React.FC = () => {
           )
         }
       />
-      <Tabs
+      <ViewTabs
         activeKey={tab}
         onChange={setTab}
         items={[
@@ -685,90 +687,130 @@ const FxSettlementPage: React.FC = () => {
             key: 'list',
             label: '结汇单列表',
             children: (
-              <Card>
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: 10,
-                    flexWrap: 'wrap',
-                    marginBottom: 14,
-                    alignItems: 'center',
+              <>
+                <FilterCard
+                  onSearch={() => {
+                    setUnitFilter(draft.unit);
+                    setCurrency(draft.currency);
+                    setRange(draft.range);
+                    setIncludeVoid(draft.includeVoid);
+                    setPage(1);
                   }}
+                  onReset={() => {
+                    const d = {
+                      unit: undefined,
+                      currency: undefined,
+                      range: recentRange(),
+                      includeVoid: false,
+                    };
+                    setDraft(d);
+                    setUnitFilter(undefined);
+                    setCurrency(undefined);
+                    setRange(d.range);
+                    setIncludeVoid(false);
+                    setPage(1);
+                  }}
+                  moreCount={
+                    [
+                      bu.enabled ? unitFilter : undefined,
+                      includeVoid || undefined,
+                    ].filter((v) => v != null).length
+                  }
+                  more={
+                    <>
+                      {bu.enabled && (
+                        <FilterField label="所属事业部">
+                          <Select
+                            allowClear
+                            placeholder="全部"
+                            aria-label="所属事业部"
+                            value={draft.unit}
+                            onChange={(v) => setDraft({ ...draft, unit: v })}
+                            options={unitFilterOptions(bu, false)}
+                          />
+                        </FilterField>
+                      )}
+                      <FilterField label="已作废">
+                        <Checkbox
+                          checked={draft.includeVoid}
+                          onChange={(e) =>
+                            setDraft({
+                              ...draft,
+                              includeVoid: e.target.checked,
+                            })
+                          }
+                        >
+                          一并显示
+                        </Checkbox>
+                      </FilterField>
+                    </>
+                  }
                 >
-                  {bu.enabled && (
+                  <FilterField label="结汇日期" span={2}>
+                    <DatePicker.RangePicker
+                      style={{ width: '100%' }}
+                      aria-label="结汇日期"
+                      value={draft.range}
+                      onChange={(v) =>
+                        setDraft({
+                          ...draft,
+                          range: v?.[0] && v[1] ? [v[0], v[1]] : null,
+                        })
+                      }
+                    />
+                  </FilterField>
+                  <FilterField label="币种">
                     <Select
                       allowClear
-                      placeholder="所属事业部"
-                      style={{ width: 170 }}
-                      value={unitFilter}
-                      onChange={(v) => {
-                        setUnitFilter(v);
-                        setPage(1);
-                      }}
-                      options={unitFilterOptions(bu, false)}
+                      placeholder="全部"
+                      aria-label="币种"
+                      value={draft.currency}
+                      onChange={(v) => setDraft({ ...draft, currency: v })}
+                      options={['USD', 'EUR', 'GBP', 'RUB'].map((c) => ({
+                        value: c,
+                        label: c,
+                      }))}
                     />
-                  )}
-                  <Select
-                    allowClear
-                    placeholder="币种"
-                    style={{ width: 110 }}
-                    value={currency}
-                    onChange={(v) => {
-                      setCurrency(v);
-                      setPage(1);
-                    }}
-                    options={['USD', 'EUR', 'GBP', 'RUB'].map((c) => ({
-                      value: c,
-                      label: c,
-                    }))}
-                  />
-                  <DatePicker.RangePicker
-                    value={range}
-                    onChange={(v) => {
-                      setRange(v?.[0] && v[1] ? [v[0], v[1]] : null);
-                      setPage(1);
-                    }}
-                  />
-                  <Checkbox
-                    checked={includeVoid}
-                    onChange={(e) => {
-                      // 切换是否含作废记录：和其他筛选一样回到第 1 页，免得停在越界的空页（UI-031）
-                      setIncludeVoid(e.target.checked);
-                      setPage(1);
-                    }}
-                  >
-                    显示已作废
-                  </Checkbox>
-                </div>
-                <Table<FxSettlement>
-                  rowKey="id"
+                  </FilterField>
+                </FilterCard>
+                <MainCard
+                  settings={columnsSet.settings}
+                  count={total}
                   loading={loading}
-                  columns={columns}
-                  dataSource={rows}
-                  scroll={{ x: tableScrollX(columns) }}
-                  pagination={{
-                    current: page,
-                    pageSize,
-                    total,
-                    showSizeChanger: true,
-                    showTotal: (t) => `共 ${t} 条`,
-                    onChange: (p, s) => {
-                      setPage(p);
-                      setPageSize(s);
-                    },
-                  }}
-                />
-              </Card>
+                >
+                  <Table<FxSettlement>
+                    rowKey="id"
+                    loading={loading}
+                    columns={columnsSet.columns}
+                    dataSource={rows}
+                    locale={{
+                      emptyText: tableEmpty('没有符合条件的结汇单', loading),
+                    }}
+                    scroll={{ x: tableScrollX(columnsSet.columns) }}
+                    pagination={{
+                      ...PAGER_STYLE,
+                      current: page,
+                      pageSize,
+                      total,
+                      onChange: (p, s) => {
+                        setPage(p);
+                        setPageSize(s);
+                      },
+                    }}
+                  />
+                </MainCard>
+              </>
             ),
           },
           {
             key: 'pending',
-            label: `待结汇${pendingCount ? ` ${pendingCount}` : ''}`,
+            label: '待结汇',
+            count: pendingCount,
             children:
               pending.length === 0 ? (
-                <Card>
-                  <Empty description="外币到账都已结汇" />
-                </Card>
+                <MainCard>
+                  <EmptyState title="外币到账都已结汇" />
+                </MainCard>
               ) : (
                 <Space
                   orientation="vertical"
@@ -777,45 +819,39 @@ const FxSettlementPage: React.FC = () => {
                 >
                   {pending.map((p) => (
                     <div key={`${p.businessUnitId ?? ''}-${p.currencyCode}`}>
-                      <div
-                        style={{
-                          display: 'flex',
-                          gap: 14,
-                          flexWrap: 'wrap',
-                          marginBottom: 14,
-                        }}
+                      {/* 每个「事业部 + 币种」一组：原三张统计卡改为该组的汇总行，紧跟该组的到账表格 */}
+                      <SummaryBar
+                        items={[
+                          {
+                            key: 'balance',
+                            label: `${bu.enabled ? `${bu.units.find((u) => u.id === p.businessUnitId)?.name ?? ''} · ` : ''}${p.currencyCode} 待结汇余额`,
+                            value: p.balance,
+                            currency: p.currencyCode,
+                            sub: `${p.receipts.length} 笔`,
+                          },
+                          {
+                            key: 'rate',
+                            label: '估算汇率',
+                            value: Number(p.estimateRate).toFixed(6),
+                            sub: p.latestSettleNo
+                              ? `最近一次结汇 ${p.latestSettleDate} ${p.latestSettleNo}`
+                              : '还没有结汇单，按系统汇率',
+                          },
+                          {
+                            key: 'cny',
+                            label: '估算人民币',
+                            value: `≈ ${formatAmount(p.estimateCny, 'CNY')}`,
+                          },
+                        ]}
+                      />
+                      <MainCard
+                        left={
+                          <>
+                            <CardTitle>待结汇的到账</CardTitle>
+                            <HelpTip title={HELP.pending} />
+                          </>
+                        }
                       >
-                        {stat(
-                          `${bu.enabled ? `${bu.units.find((u) => u.id === p.businessUnitId)?.name ?? ''} · ` : ''}${p.currencyCode} 待结汇余额`,
-                          formatAmount(p.balance, p.currencyCode),
-                          `${p.receipts.length} 笔`,
-                          palette.orange,
-                        )}
-                        {stat(
-                          '估算汇率',
-                          Number(p.estimateRate).toFixed(6),
-                          p.latestSettleNo
-                            ? `最近一次结汇 ${p.latestSettleDate} ${p.latestSettleNo}`
-                            : '还没有结汇单，按系统汇率',
-                        )}
-                        {stat(
-                          '估算人民币',
-                          `≈ ${formatAmount(p.estimateCny, 'CNY')}`,
-                        )}
-                      </div>
-                      <Card>
-                        <div style={{ marginBottom: 10 }}>
-                          <b style={{ color: palette.ink }}>待结汇的到账</b>
-                          <span
-                            style={{
-                              marginLeft: 10,
-                              fontSize: 12,
-                              color: palette.mute,
-                            }}
-                          >
-                            按先进先出顺序，下一次结汇从最上面开始
-                          </span>
-                        </div>
                         <Table<ReceiptRow>
                           rowKey="id"
                           size="middle"
@@ -824,7 +860,7 @@ const FxSettlementPage: React.FC = () => {
                           pagination={false}
                           scroll={{ x: tableScrollX(pendingColumns) }}
                         />
-                      </Card>
+                      </MainCard>
                     </div>
                   ))}
                 </Space>

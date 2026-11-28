@@ -1,12 +1,23 @@
-import { SearchOutlined } from '@ant-design/icons';
 import { history, Link } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Checkbox, DatePicker, Input, Select, Table } from 'antd';
+import { App, Checkbox, DatePicker, Input, Popover, Select, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
+import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
 import SourceNos from '@/components/DocFields/SourceNos';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import { CURRENCIES } from '@/pages/quotation/components';
 import { readBizError } from '@/pages/sales/service';
@@ -14,8 +25,9 @@ import { DOC_PATHS } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { recentRange } from '@/utils/dateRange';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
+import { PAY_WAY_TONE } from '../payables/payMethod';
 import { PAY_CHANNEL_NAMES } from '../payables/payQr';
 import {
   METHOD,
@@ -36,6 +48,12 @@ interface Filters {
   kind?: number;
   showVoid: boolean;
 }
+
+/** 帮助文字：help-texts.md「付款管理」，关键词范围以 search-scope.md 为准 */
+export const HELP = {
+  page: '公司对公、私对私由财务登记，员工垫付由付款的员工本人登记（进入待报销）；供应商退款也在这里。登记错了由登记人或财务在详情里作废，应付随之恢复',
+  reimburse: '不计入付款合计',
+} as const;
 
 const initial = (): Filters => ({
   keyword: '',
@@ -100,31 +118,6 @@ const PaymentRecords: React.FC = () => {
     setPage(1);
   };
 
-  const card = (label: string, value: number, tone: string) => (
-    <div
-      style={{
-        flex: '1 1 200px',
-        padding: '16px 18px',
-        borderRadius: 14,
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
-      }}
-    >
-      <div style={{ fontSize: 13, color: palette.sub }}>{label}</div>
-      <div
-        style={{
-          ...num,
-          fontSize: 22,
-          fontWeight: 800,
-          color: tone,
-          marginTop: 4,
-        }}
-      >
-        {formatAmount(value, 'CNY')}
-      </div>
-    </div>
-  );
-
   const columns: TableColumnsType<Payment> = [
     {
       title: '付款单号',
@@ -132,33 +125,21 @@ const PaymentRecords: React.FC = () => {
       width: 150,
       fixed: 'left',
       render: (v: string, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          style={{
-            whiteSpace: 'nowrap',
-            textDecoration: r.voided ? 'line-through' : undefined,
-          }}
-          onClick={() => history.push(DOC_PATHS.payment(r.id))}
-        >
-          {v}
-        </button>
+        <CopyText text={v}>
+          <button
+            type="button"
+            className="zhul-link"
+            style={{
+              whiteSpace: 'nowrap',
+              textDecoration: r.voided ? 'line-through' : undefined,
+            }}
+            onClick={() => history.push(DOC_PATHS.payment(r.id))}
+          >
+            {v}
+          </button>
+        </CopyText>
       ),
     },
-    {
-      title: '类型',
-      dataIndex: 'kind',
-      width: 110,
-      render: (v: number) =>
-        v === 2 ? (
-          <Pill tone="orange">退款</Pill>
-        ) : v === 3 ? (
-          <Pill tone="cyan">报销付款</Pill>
-        ) : (
-          <Pill tone="gray">付款</Pill>
-        ),
-    },
-    { title: '付款日期', dataIndex: 'payDate', width: 110 },
     {
       title: '收款方',
       key: 'payee',
@@ -175,36 +156,20 @@ const PaymentRecords: React.FC = () => {
       ),
     },
     {
-      title: '付款方式',
-      key: 'method',
-      width: 110,
+      title: '状态',
+      key: 'status',
+      width: 140,
       render: (_, r) =>
-        r.kind === 2 ? (
-          '—'
-        ) : r.method === METHOD.ADVANCE ? (
-          <Pill tone="violet">员工垫付</Pill>
-        ) : r.method === METHOD.PRIVATE ? (
-          <Pill tone="orange">
-            私对私
-            {r.payChannel && r.payChannel !== 1
-              ? ` · ${PAY_CHANNEL_NAMES[r.payChannel]}`
-              : ''}
-          </Pill>
+        r.voided ? (
+          <div>
+            <Pill tone="mute">已作废</Pill>
+            <div style={{ fontSize: 12, color: palette.mute }}>
+              {r.voidReason}
+            </div>
+          </div>
         ) : (
-          <Pill tone="accent">公司对公</Pill>
+          <Pill tone="green">有效</Pill>
         ),
-    },
-    {
-      title: '账户 / 垫付人',
-      key: 'who',
-      width: 220,
-      ellipsis: true,
-      render: (_, r) =>
-        (r.method === METHOD.ADVANCE && r.kind === 1
-          ? r.advanceUser
-          : r.method === METHOD.PRIVATE
-            ? r.payerAccount
-            : r.accountName) || '—',
     },
     {
       title: '金额',
@@ -238,42 +203,105 @@ const PaymentRecords: React.FC = () => {
         </span>
       ),
     },
+    { title: '付款日期', dataIndex: 'payDate', width: 110 },
     {
       title: '核销的应付单',
       key: 'alloc',
-      width: 220,
-      render: (_, r) => (
-        <div style={{ fontSize: 12 }}>
-          {r.allocations.map((a) => (
-            <div
-              key={`${a.payableId}-${a.fromCredit}-${a.creditPayableNo ?? ''}`}
+      width: 300,
+      // 多张时只显示第一张，第二行「等 N 张」悬停列出全部（与来源单号同一写法），行高不随张数增长（D21）
+      render: (_, r) => {
+        const line = (a: (typeof r.allocations)[number]) => (
+          <div
+            key={`${a.payableId}-${a.fromCredit}-${a.creditPayableNo ?? ''}`}
+            style={{
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            <Link
+              to={DOC_PATHS.payable(a.payableId)}
+              className="zhul-link zhul-link-doc"
             >
-              <Link to={DOC_PATHS.payable(a.payableId)}>{a.payableNo}</Link>{' '}
-              <span style={{ color: palette.mute }}>{a.sourceNo}</span>{' '}
-              {formatAmount(a.amount, r.currencyCode)}
-              {a.fromCredit === 1 && (
-                <span style={{ color: palette.orange }}> 抵扣</span>
-              )}
-            </div>
-          ))}
-        </div>
-      ),
+              {a.payableNo}
+            </Link>{' '}
+            <span style={{ color: palette.mute }}>{a.sourceNo}</span>{' '}
+            {formatAmount(a.amount, r.currencyCode)}
+            {a.fromCredit === 1 && (
+              <span style={{ color: palette.orange }}> 抵扣</span>
+            )}
+          </div>
+        );
+        const [first, ...rest] = r.allocations;
+        if (!first) return <span style={{ color: palette.mute }}>—</span>;
+        return (
+          <div style={{ fontSize: 12 }}>
+            {line(first)}
+            {rest.length > 0 && (
+              <Popover
+                title={`核销的应付单（${r.allocations.length}）`}
+                content={
+                  <div
+                    style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+                  >
+                    {r.allocations.map(line)}
+                  </div>
+                }
+              >
+                <span style={{ color: palette.sub, cursor: 'default' }}>
+                  等 {r.allocations.length} 张
+                </span>
+              </Popover>
+            )}
+          </div>
+        );
+      },
     },
     {
-      title: '状态',
-      key: 'status',
-      width: 140,
-      render: (_, r) =>
-        r.voided ? (
-          <div>
-            <Pill tone="mute">已作废</Pill>
-            <div style={{ fontSize: 12, color: palette.mute }}>
-              {r.voidReason}
-            </div>
-          </div>
+      title: '类型',
+      dataIndex: 'kind',
+      width: 110,
+      // 类型是属性：属性色，不用状态色，同列不重复（D75）
+      render: (v: number) =>
+        v === 2 ? (
+          <Pill tone="purple">退款</Pill>
+        ) : v === 3 ? (
+          <Pill tone="magenta">报销付款</Pill>
         ) : (
-          <Pill tone="green">有效</Pill>
+          <Pill tone="blue">付款</Pill>
         ),
+    },
+    {
+      title: '付款方式',
+      key: 'method',
+      width: 110,
+      render: (_, r) =>
+        r.kind === 2 ? (
+          '—'
+        ) : r.method === METHOD.ADVANCE ? (
+          <Pill tone={PAY_WAY_TONE.advance}>员工垫付</Pill>
+        ) : r.method === METHOD.PRIVATE ? (
+          <Pill tone={PAY_WAY_TONE.private}>
+            私对私
+            {r.payChannel && r.payChannel !== 1
+              ? ` · ${PAY_CHANNEL_NAMES[r.payChannel]}`
+              : ''}
+          </Pill>
+        ) : (
+          <Pill tone={PAY_WAY_TONE.public}>公司对公</Pill>
+        ),
+    },
+    {
+      title: '账户 / 垫付人',
+      key: 'who',
+      width: 220,
+      ellipsis: true,
+      render: (_, r) =>
+        (r.method === METHOD.ADVANCE && r.kind === 1
+          ? r.advanceUser
+          : r.method === METHOD.PRIVATE
+            ? r.payerAccount
+            : r.accountName) || '—',
     },
     {
       title: '来源单号',
@@ -291,126 +319,190 @@ const PaymentRecords: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 80,
+      width: rowActionsWidth(1),
       fixed: 'right',
       render: (_, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => history.push(DOC_PATHS.payment(r.id))}
-        >
-          查看
-        </button>
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(DOC_PATHS.payment(r.id)),
+            },
+          ]}
+        />
       ),
     },
   ];
+  const columnsSet = useColumnSettings('finance-payments', columns, {
+    hidden: ['核销的应付单', '类型', '付款方式', '账户 / 垫付人', '来源单号'],
+  });
 
   return (
     <div>
-      <PageTitle description="公司对公、私对私由财务登记，员工垫付由付款的员工本人登记（进入待报销）；供应商退款也在这里。登记错了由登记人或财务在详情里作废，应付随之恢复。" />
-      <div
-        style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}
+      <PageHeader help={HELP.page} />
+      <SummaryBar
+        items={[
+          {
+            key: 'total',
+            label: '付款合计',
+            value: stats?.total ?? 0,
+            currency: 'CNY',
+          },
+          {
+            key: 'company',
+            label: '公司对公',
+            value: stats?.company ?? 0,
+            currency: 'CNY',
+          },
+          {
+            key: 'advance',
+            label: '员工垫付',
+            value: stats?.advance ?? 0,
+            currency: 'CNY',
+          },
+          {
+            key: 'personal',
+            label: '私对私',
+            value: stats?.personal ?? 0,
+            currency: 'CNY',
+          },
+          {
+            key: 'reimburse',
+            label: '报销付款',
+            help: HELP.reimburse,
+            value: stats?.reimburse ?? 0,
+            currency: 'CNY',
+          },
+        ]}
+      />
+      <FilterCard
+        onSearch={() => apply({})}
+        onReset={() => {
+          const f = initial();
+          setDraft(f);
+          setFilters(f);
+          setPage(1);
+        }}
+        moreCount={
+          [
+            filters.advanceUser.trim() || undefined,
+            filters.kind,
+            filters.currencyCode,
+            filters.showVoid || undefined,
+          ].filter((v) => v != null).length
+        }
+        more={
+          <>
+            <FilterField label="垫付人账号">
+              <Input
+                allowClear
+                placeholder="账号"
+                aria-label="垫付人账号"
+                value={draft.advanceUser}
+                onChange={(e) =>
+                  setDraft({ ...draft, advanceUser: e.target.value })
+                }
+                onPressEnter={() => apply({})}
+              />
+            </FilterField>
+            <FilterField label="类型">
+              <Select
+                allowClear
+                placeholder="全部"
+                aria-label="类型"
+                value={draft.kind}
+                onChange={(v) => setDraft({ ...draft, kind: v })}
+                options={[
+                  { value: 1, label: '付款' },
+                  { value: 2, label: '退款' },
+                  { value: 3, label: '报销付款' },
+                ]}
+              />
+            </FilterField>
+            <FilterField label="币种">
+              <Select
+                allowClear
+                placeholder="全部"
+                aria-label="币种"
+                value={draft.currencyCode}
+                onChange={(v) => setDraft({ ...draft, currencyCode: v })}
+                options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+              />
+            </FilterField>
+            <FilterField label="已作废">
+              <Checkbox
+                checked={draft.showVoid}
+                onChange={(e) =>
+                  setDraft({ ...draft, showVoid: e.target.checked })
+                }
+              >
+                一并显示
+              </Checkbox>
+            </FilterField>
+          </>
+        }
       >
-        {card('付款合计（人民币）', stats?.total ?? 0, palette.ink)}
-        {card('公司对公', stats?.company ?? 0, palette.link)}
-        {card('员工垫付', stats?.advance ?? 0, palette.orange)}
-        {card('私对私', stats?.personal ?? 0, palette.violet)}
-        {card('报销付款（不计入合计）', stats?.reimburse ?? 0, palette.sub)}
-      </div>
-      <Card>
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            flexWrap: 'wrap',
-            marginBottom: 14,
-            alignItems: 'center',
-          }}
-        >
+        <FilterField label="关键词" span={2}>
           <Input
             allowClear
-            prefix={<SearchOutlined />}
-            placeholder="编号、收款方"
-            style={{ width: 200 }}
+            prefix={<Search size={16} />}
+            placeholder="付款单号、收款方"
+            aria-label="关键词"
             value={draft.keyword}
             onChange={(e) => setDraft({ ...draft, keyword: e.target.value })}
             onPressEnter={() => apply({})}
           />
+        </FilterField>
+        <FilterField label="付款日期" span={2}>
           <DatePicker.RangePicker
+            style={{ width: '100%' }}
+            aria-label="付款日期"
             value={draft.range}
             onChange={(v) =>
-              apply({ range: v?.[0] && v[1] ? [v[0], v[1]] : null })
+              setDraft({
+                ...draft,
+                range: v?.[0] && v[1] ? [v[0], v[1]] : null,
+              })
             }
           />
+        </FilterField>
+        <FilterField label="付款方式">
           <Select
             allowClear
-            placeholder="付款方式"
-            style={{ width: 120 }}
+            placeholder="全部"
+            aria-label="付款方式"
             value={draft.method}
-            onChange={(v) => apply({ method: v })}
+            onChange={(v) => setDraft({ ...draft, method: v })}
             options={[
               { value: METHOD.COMPANY, label: '公司对公' },
               { value: METHOD.ADVANCE, label: '员工垫付' },
               { value: METHOD.PRIVATE, label: '私对私' },
             ]}
           />
-          <Input
-            allowClear
-            placeholder="垫付人账号"
-            style={{ width: 140 }}
-            value={draft.advanceUser}
-            onChange={(e) =>
-              setDraft({ ...draft, advanceUser: e.target.value })
-            }
-            onPressEnter={() => apply({})}
-          />
-          <Select
-            allowClear
-            placeholder="类型"
-            style={{ width: 100 }}
-            value={draft.kind}
-            onChange={(v) => apply({ kind: v })}
-            options={[
-              { value: 1, label: '付款' },
-              { value: 2, label: '退款' },
-              { value: 3, label: '报销付款' },
-            ]}
-          />
-          <Select
-            allowClear
-            placeholder="币种"
-            style={{ width: 100 }}
-            value={draft.currencyCode}
-            onChange={(v) => apply({ currencyCode: v })}
-            options={CURRENCIES.map((c) => ({ value: c, label: c }))}
-          />
-          <Checkbox
-            checked={draft.showVoid}
-            onChange={(e) => apply({ showVoid: e.target.checked })}
-          >
-            显示已作废
-          </Checkbox>
-          <Button onClick={() => apply({})}>查询</Button>
-        </div>
+        </FilterField>
+      </FilterCard>
+      <MainCard settings={columnsSet.settings} count={total} loading={loading}>
         <Table<Payment>
           rowKey="id"
           loading={loading}
-          columns={columns}
+          columns={columnsSet.columns}
           dataSource={rows}
-          scroll={{ x: tableScrollX(columns) }}
+          locale={{ emptyText: tableEmpty('没有符合条件的付款单', loading) }}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
           pagination={{
+            ...PAGER_STYLE,
             current: page,
             pageSize,
             total,
-            showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
             onChange: (p, s) => {
               setPage(p);
               setPageSize(s);
             },
           }}
         />
-      </Card>
+      </MainCard>
     </div>
   );
 };

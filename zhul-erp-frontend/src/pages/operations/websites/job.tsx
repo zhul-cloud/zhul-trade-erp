@@ -1,12 +1,3 @@
-import {
-  CheckOutlined,
-  DownloadOutlined,
-  ExclamationCircleOutlined,
-  FlagOutlined,
-  InfoCircleOutlined,
-  LoadingOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons';
 import { history, Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -19,14 +10,19 @@ import {
   Tabs,
   Tooltip,
 } from 'antd';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { usePageTitle, useTabActive } from '@/components/PageTabs/hooks';
 import {
-  Card,
-  PageTitle,
-  Pill,
-  useWide,
-} from '@/pages/inquiry/shared/components';
+  Check,
+  CircleAlert,
+  Download,
+  Flag,
+  Info,
+  LoaderCircle,
+  RefreshCw,
+} from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { PageHeader } from '@/components/ListLayout';
+import { usePageTitle, useTabActive } from '@/components/PageTabs/hooks';
+import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
@@ -114,8 +110,8 @@ const Stat: React.FC<{
       <div style={{ fontSize: 13, color: palette.sub }}>{label}</div>
       <div
         style={{
-          fontSize: 26,
-          fontWeight: 700,
+          fontSize: 24,
+          fontWeight: 600,
           marginTop: 4,
           color: color ?? palette.ink,
           fontVariantNumeric: 'tabular-nums',
@@ -182,21 +178,17 @@ const Footer: React.FC<{
           flexWrap: 'wrap',
           padding: '12px 18px',
           borderRadius: 14,
-          border: `1px solid ${tone === 'warn' ? palette.orange : tone === 'info' ? palette.accentLine : palette.hairline}`,
+          border: `1px solid ${tone === 'warn' ? palette.orange : tone === 'info' ? palette.primaryLine : palette.hairline}`,
           background:
             tone === 'warn'
               ? palette.orangeSoft
               : tone === 'info'
-                ? palette.accentSoft
+                ? palette.primarySoft
                 : palette.card,
         }}
       >
         <span style={{ flex: 1, minWidth: 240, fontSize: 13, color }}>
-          {tone === 'warn' ? (
-            <ExclamationCircleOutlined />
-          ) : (
-            <InfoCircleOutlined />
-          )}{' '}
+          {tone === 'warn' ? <CircleAlert size="1em" /> : <Info size="1em" />}{' '}
           {text}
         </span>
         {actions && (
@@ -462,7 +454,7 @@ const ImportView: React.FC<{
             <Button
               type="link"
               style={{ padding: 0 }}
-              icon={<DownloadOutlined />}
+              icon={<Download size="1em" />}
               onClick={download}
             >
               下载清单
@@ -478,7 +470,7 @@ const ImportView: React.FC<{
         </div>
         {unmatched.length === 0 ? (
           <div style={{ fontSize: 13, color: palette.green }}>
-            <CheckOutlined /> 全部匹配
+            <Check size="1em" /> 全部匹配
           </div>
         ) : (
           <div style={{ display: 'grid', gap: 6, fontSize: 13 }}>
@@ -571,7 +563,7 @@ const ImportView: React.FC<{
             </Button>
             <Button
               type="primary"
-              icon={<CheckOutlined />}
+              icon={<Check size="1em" />}
               loading={saving}
               disabled={r.matched.length === 0}
               onClick={confirm}
@@ -617,6 +609,7 @@ const ImportView: React.FC<{
         }}
       >
         <Card style={{ padding: '8px 20px 20px' }}>
+          {/* lint-ui-ignore page-tabs: 卡片里的分区页签 */}
           <Tabs items={tabs} />
         </Card>
         {side}
@@ -754,7 +747,7 @@ const CompareView: React.FC<{
             {a ? (
               <>
                 <span style={{ color: palette.green, fontWeight: 600 }}>
-                  <CheckOutlined /> 已接受
+                  <Check size="1em" /> 已接受
                 </span>
                 <div
                   style={{ fontSize: 12, color: palette.mute, marginTop: 2 }}
@@ -840,8 +833,9 @@ const CompareView: React.FC<{
                 marginBottom: 12,
                 borderRadius: 12,
                 border: `1px solid ${selected.length ? palette.link : palette.hairline}`,
+                // lint-ui-ignore primary-soft: 勾选后的批量操作条
                 background: selected.length
-                  ? palette.accentSoft
+                  ? palette.primarySoft
                   : palette.inset,
               }}
             >
@@ -942,7 +936,7 @@ const CompareView: React.FC<{
           tone="warn"
           text={`还有 ${pending} 条差异没有确认。差异全部确认后才能开始以 ERP 为准；之后不能退回接管中`}
           actions={
-            <Button icon={<FlagOutlined />} disabled>
+            <Button icon={<Flag size="1em" />} disabled>
               开始以 ERP 为准
             </Button>
           }
@@ -952,7 +946,11 @@ const CompareView: React.FC<{
           tone="info"
           text="差异都已确认。开始以 ERP 为准后，这个站点的商品都从 ERP 发布，不能退回接管中"
           actions={
-            <Button type="primary" icon={<FlagOutlined />} onClick={takeover}>
+            <Button
+              type="primary"
+              icon={<Flag size="1em" />}
+              onClick={takeover}
+            >
               开始以 ERP 为准
             </Button>
           }
@@ -985,6 +983,7 @@ const CompareView: React.FC<{
         )}
       </StatRow>
       <Card style={{ padding: '8px 20px 20px' }}>
+        {/* lint-ui-ignore page-tabs: 卡片里的分区页签 */}
         <Tabs items={tabs} />
       </Card>
       {footer}
@@ -1152,7 +1151,11 @@ const SiteJobPage: React.FC = () => {
   else if (job.status === RUNNING)
     body = (
       <Card style={{ padding: 48, textAlign: 'center' }}>
-        <LoadingOutlined style={{ fontSize: 28, color: palette.link }} />
+        <LoaderCircle
+          size="1em"
+          className="zhul-spin"
+          style={{ fontSize: 28, color: palette.link }}
+        />
         <div style={{ fontSize: 16, fontWeight: 600, marginTop: 14 }}>
           {isImport ? '正在读取站点商品…' : '正在比对…'}
         </div>
@@ -1168,7 +1171,7 @@ const SiteJobPage: React.FC = () => {
     body = (
       <Card style={{ padding: 32 }}>
         <div style={{ fontSize: 16, fontWeight: 600, color: palette.red }}>
-          <ExclamationCircleOutlined /> {isImport ? '读取失败' : '比对失败'}
+          <CircleAlert size="1em" /> {isImport ? '读取失败' : '比对失败'}
         </div>
         <div style={{ fontSize: 13, color: palette.sub, marginTop: 8 }}>
           {job.error || '发布服务没有返回原因'}
@@ -1209,27 +1212,16 @@ const SiteJobPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={[
-          '站点管理',
-          site ? (
-            <Link key="site" to={`${WEBSITE_PATH}/${site.id}`}>
-              {site.name}
-            </Link>
-          ) : (
-            ''
-          ),
-          title,
-        ]}
+      <PageHeader
         title={title}
-        description={description}
-        actions={
+        sub={description}
+        extra={
           canEdit &&
           pendingTakeover &&
           job &&
           !running && (
             <Button
-              icon={<ReloadOutlined />}
+              icon={<RefreshCw size="1em" />}
               loading={starting}
               onClick={rerun}
             >

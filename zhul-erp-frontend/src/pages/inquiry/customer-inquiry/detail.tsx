@@ -1,26 +1,38 @@
-import {
-  CopyOutlined,
-  ExclamationCircleOutlined,
-  FileTextOutlined,
-  RightOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
 import { history, Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
   Alert,
   App,
   Button,
+  Dropdown,
   Select,
   Skeleton,
   Space,
   Table,
   Tooltip,
 } from 'antd';
+import {
+  ChevronRight,
+  CircleAlert,
+  CircleX,
+  Copy,
+  Ellipsis,
+  FileText,
+  Pencil,
+  Plus,
+  Trash2,
+  User,
+} from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { ActualModelLine } from '@/components/DocFields/ActualModel';
-import DocModelCell, { productHref } from '@/components/DocFields/DocModelCell';
+import DocModelCell, {
+  docModelColumn,
+  productHref,
+} from '@/components/DocFields/DocModelCell';
 import { ItemRemarkLine } from '@/components/DocFields/ItemRemark';
+import { tableEmpty } from '@/components/EmptyState';
+import { HelpTip, PageHeader } from '@/components/ListLayout';
 import {
   useOnReactivate,
   usePageTitle,
@@ -40,14 +52,12 @@ import { describeFailovers } from '@/pages/system/ai-settings/aiConfig';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
+import { tableScrollX } from '@/utils/tableScroll';
 import {
   Card,
-  CustomerTypePill,
   DeadlineText,
   LevelPill,
   MigratedPill,
-  PageTitle,
   Pill,
   PriceSummary,
   Progress,
@@ -108,6 +118,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
   const inquiryId = Number(id);
   const { palette } = useAppTheme();
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const [detail, setDetail] = useState<InquiryDetail | null>(null);
   usePageTitle(
     detail ? `询盘单 ${detail.inquiry.inquiryCode}` : undefined,
@@ -206,7 +217,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
     }
   };
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!detail) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const inq = detail.inquiry;
@@ -237,7 +248,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
       });
       return;
     }
-    modal.confirm({
+    confirmDanger({
       title: '删除这条询盘？',
       content: (
         <>
@@ -247,8 +258,6 @@ const CustomerInquiryDetailPage: React.FC = () => {
           删除后询盘从列表里消失，询价任务一并删除；可以联系管理员恢复。只是不打算跟进了，建议用「取消询盘」，记录会保留在统计里。
         </>
       ),
-      okText: '删除',
-      okButtonProps: { danger: true },
       cancelText: '再想想',
       onOk: () =>
         run(
@@ -259,34 +268,9 @@ const CustomerInquiryDetailPage: React.FC = () => {
     });
   };
 
-  // 同品牌、同一级品类（与询价任务同口径）的第一行才显示品牌；品类在组内变化时也显示（各行是自己的细分品类）
-  const firstOfGroup = new Set<number>();
-  const showCategory = new Set<number>();
-  detail.items.forEach((it, i) => {
-    const prev = detail.items[i - 1];
-    const first = !prev || prev.groupKey !== it.groupKey;
-    if (first) firstOfGroup.add(it.id);
-    if (first || prev.category !== it.category) showCategory.add(it.id);
-  });
-
   const actualEditable = inq.status !== STATUS.CANCELLED && !inq.migrated;
   const columns: TableColumnsType<InquiryItem> = [
-    {
-      title: '品牌',
-      dataIndex: 'brand',
-      width: 120,
-      render: (v, r) =>
-        firstOfGroup.has(r.id) ? (
-          <span style={{ color: palette.ink, fontWeight: 600 }}>{v}</span>
-        ) : null,
-    },
-    {
-      title: '品类',
-      dataIndex: 'category',
-      width: 100,
-      render: (v, r) => (showCategory.has(r.id) ? v || '—' : null),
-    },
-    {
+    docModelColumn<InquiryItem>((r) => r, {
       title: '型号',
       width: 260,
       render: (_, r) => (
@@ -373,44 +357,12 @@ const CustomerInquiryDetailPage: React.FC = () => {
           />
         </DocModelCell>
       ),
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      width: 320,
-      // 描述可能很长（AI 解析出的规格说明）：自动换行，最多显示 4 行，超出部分悬停看全文
-      render: (v?: string) =>
-        v ? (
-          <Tooltip title={v} placement="topLeft">
-            <span
-              style={{
-                color: palette.sub,
-                lineHeight: 1.6,
-                whiteSpace: 'normal',
-                overflowWrap: 'anywhere',
-                display: '-webkit-box',
-                WebkitLineClamp: 4,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-              }}
-            >
-              {v}
-            </span>
-          </Tooltip>
-        ) : (
-          <span style={{ color: palette.mute }}>—</span>
-        ),
-    },
+    }),
     {
       title: '数量',
+      align: 'right' as const,
       width: 80,
       render: (_, r) => `${r.quantity} ${r.unit || ''}`,
-    },
-    {
-      title: '任务',
-      dataIndex: 'taskCode',
-      width: 64,
-      render: (v?: string) => (v ? v.slice(13) : '—'),
     },
     {
       title: '回价',
@@ -489,6 +441,12 @@ const CustomerInquiryDetailPage: React.FC = () => {
         );
       },
     },
+    {
+      title: '任务',
+      dataIndex: 'taskCode',
+      width: 64,
+      render: (v?: string) => (v ? v.slice(13) : '—'),
+    },
     ...(canSeeShop
       ? [
           {
@@ -529,7 +487,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
                     <Button
                       type="link"
                       size="small"
-                      icon={<CopyOutlined />}
+                      icon={<Copy size="1em" />}
                       style={{ padding: 0, height: 'auto' }}
                       onClick={() => copyShop(q.shopName as string)}
                     >
@@ -566,54 +524,126 @@ const CustomerInquiryDetailPage: React.FC = () => {
           <span style={{ color: palette.mute }}>—</span>
         ),
     },
+    {
+      title: '描述',
+      dataIndex: 'description',
+      width: 320,
+      // 描述可能很长（AI 解析出的规格说明）：自动换行，最多显示 4 行，超出部分悬停看全文
+      render: (v?: string) =>
+        v ? (
+          <Tooltip title={v} placement="topLeft">
+            <span
+              style={{
+                color: palette.sub,
+                lineHeight: 1.6,
+                whiteSpace: 'normal',
+                overflowWrap: 'anywhere',
+                display: '-webkit-box',
+                WebkitLineClamp: 4,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }}
+            >
+              {v}
+            </span>
+          </Tooltip>
+        ) : (
+          <span style={{ color: palette.mute }}>—</span>
+        ),
+    },
   ];
+
+  // 页头操作（照销售订单详情 B1）：每个状态一个主按钮；常用的次要操作为文字按钮；删除、取消收进「更多」
+  const textBtn = (
+    label: React.ReactNode,
+    onClick: () => void,
+    icon?: React.ReactNode,
+  ) => (
+    <Button
+      type="text"
+      icon={icon}
+      disabled={busy}
+      style={{ color: busy ? undefined : palette.link }}
+      onClick={onClick}
+    >
+      {label}
+    </Button>
+  );
 
   return (
     <div>
-      <PageTitle
-        crumbs={[<MenuLink key="l" to={PATHS.inquiries} />, inq.inquiryCode]}
-        title={inq.customerName}
-        actions={
+      <PageHeader
+        title={inq.inquiryCode}
+        tags={
           <>
-            {canDelete && !inq.migrated && (
-              <Button disabled={busy} onClick={askDelete}>
-                删除
-              </Button>
-            )}
-            {cancellable && (
-              <Button
+            <StatusPill status={inq.status} />
+            {inq.urgent && <Pill tone="red">紧急</Pill>}
+            <MigratedPill migrated={inq.migrated} />
+          </>
+        }
+        sub={`${inq.customerName} · ${inq.customerType === 2 ? '老客户' : '新客户'} · 询盘日期 ${inq.inquiryDate}`}
+        extra={
+          <>
+            {inq.status !== STATUS.CANCELLED &&
+              !inq.migrated &&
+              textBtn('修改', () => setEditOpen(true), <Pencil size={16} />)}
+            {((canDelete && !inq.migrated) || cancellable) && (
+              <Dropdown
+                trigger={['click']}
+                placement="bottomRight"
                 disabled={busy}
-                onClick={() =>
-                  modal.confirm({
-                    title: '取消这条询盘？',
-                    content:
-                      '还没回价的询价任务会一并取消，从采购的待办里消失；已问到的价格仍保留在询价记录里。',
-                    okText: '取消询盘',
-                    okButtonProps: { danger: true },
-                    cancelText: '再想想',
-                    onOk: () =>
-                      run(() => inquiryApi.cancel(inquiryId), '询盘已取消'),
-                  })
-                }
+                menu={{
+                  items: [
+                    ...(cancellable
+                      ? [
+                          {
+                            key: 'cancel',
+                            icon: <CircleX size={16} />,
+                            label: '取消询盘',
+                          },
+                        ]
+                      : []),
+                    ...(canDelete && !inq.migrated
+                      ? [
+                          {
+                            key: 'delete',
+                            icon: <Trash2 size={16} />,
+                            label: '删除',
+                            danger: true,
+                          },
+                        ]
+                      : []),
+                  ],
+                  onClick: ({ key }) =>
+                    key === 'delete'
+                      ? askDelete()
+                      : confirmDanger({
+                          title: '取消这条询盘？',
+                          content:
+                            '还没回价的询价任务会一并取消，从采购的待办里消失；已问到的价格仍保留在询价记录里。',
+                          okText: '取消询盘',
+                          cancelText: '再想想',
+                          onOk: () =>
+                            run(
+                              () => inquiryApi.cancel(inquiryId),
+                              '询盘已取消',
+                            ),
+                        }),
+                }}
               >
-                取消询盘
-              </Button>
-            )}
-            {inq.status !== STATUS.CANCELLED && !inq.migrated && (
-              <Button disabled={busy} onClick={() => setEditOpen(true)}>
-                修改
-              </Button>
+                <Button
+                  type="text"
+                  shape="circle"
+                  icon={<Ellipsis size={18} />}
+                  aria-label="更多操作"
+                />
+              </Dropdown>
             )}
             {inq.status === STATUS.PENDING_PARSE && (
               <>
-                <Button
-                  disabled={busy}
-                  onClick={() =>
-                    history.push(`${PATHS.inquiries}/${inquiryId}/confirm`)
-                  }
-                >
-                  手动录入
-                </Button>
+                {textBtn('手动录入', () =>
+                  history.push(`${PATHS.inquiries}/${inquiryId}/confirm`),
+                )}
                 <Button
                   type="primary"
                   disabled={busy}
@@ -630,14 +660,9 @@ const CustomerInquiryDetailPage: React.FC = () => {
             )}
             {inq.status === STATUS.PARSE_FAILED && (
               <>
-                <Button
-                  disabled={busy}
-                  onClick={() =>
-                    history.push(`${PATHS.inquiries}/${inquiryId}/confirm`)
-                  }
-                >
-                  改为手动录入
-                </Button>
+                {textBtn('改为手动录入', () =>
+                  history.push(`${PATHS.inquiries}/${inquiryId}/confirm`),
+                )}
                 <Button
                   type="primary"
                   disabled={busy}
@@ -665,10 +690,11 @@ const CustomerInquiryDetailPage: React.FC = () => {
             {!detail.openAppend &&
               (
                 [STATUS.SOURCING, STATUS.READY, STATUS.QUOTED] as number[]
-              ).includes(inq.status) && (
-                <Button disabled={busy} onClick={() => setAppendOpen(true)}>
-                  追加型号
-                </Button>
+              ).includes(inq.status) &&
+              textBtn(
+                '追加型号',
+                () => setAppendOpen(true),
+                <Plus size={16} />,
               )}
             {canQuote &&
               inq.status >= STATUS.SOURCING &&
@@ -682,7 +708,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
                 >
                   <Button
                     type="primary"
-                    icon={<FileTextOutlined />}
+                    icon={<FileText size="1em" />}
                     disabled={busy || detail.items.length === 0}
                     onClick={() => goQuote()}
                   >
@@ -703,12 +729,6 @@ const CustomerInquiryDetailPage: React.FC = () => {
             flexWrap: 'wrap',
           }}
         >
-          <span style={{ display: 'inline-flex', gap: 8 }}>
-            <StatusPill status={inq.status} />
-            {inq.urgent && <Pill tone="red">紧急</Pill>}
-            <CustomerTypePill type={inq.customerType} />
-            <MigratedPill migrated={inq.migrated} />
-          </span>
           <Meta
             label={`${new Set(detail.items.map((i) => i.brandKey)).size} 个品牌`}
           >
@@ -744,7 +764,10 @@ const CustomerInquiryDetailPage: React.FC = () => {
           {detail.remark && <Meta label="备注">{detail.remark}</Meta>}
           {detail.opportunityCode && (
             <Meta label={`来源商机 · ${detail.opportunityStageName ?? ''}`}>
-              <Link to={`/crm/opportunities/${inq.opportunityId}`}>
+              <Link
+                className="zhul-link zhul-link-doc"
+                to={`/crm/opportunities/${inq.opportunityId}`}
+              >
                 {detail.opportunityCode}
               </Link>
             </Meta>
@@ -760,7 +783,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
                 width={200}
               />
               {quotedCount > 0 && (
-                <span style={{ color: palette.violet, fontSize: 12 }}>
+                <span style={{ color: palette.info, fontSize: 12 }}>
                   已报出 {quotedCount}/{inq.totalItemCount}
                 </span>
               )}
@@ -773,7 +796,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
         <Alert
           type="warning"
           showIcon
-          icon={<ExclamationCircleOutlined />}
+          icon={<CircleAlert size="1em" />}
           style={{ marginBottom: 16 }}
           title="采购以「型号存疑」退回了询价任务，请核实型号后告知采购负责人重新分配"
           description={detail.tasks
@@ -814,7 +837,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
           )}
           action={
             <Link to="/system/ai-settings">
-              查看 AI 设置 <RightOutlined />
+              查看 AI 设置 <ChevronRight size="1em" />
             </Link>
           }
         />
@@ -891,28 +914,42 @@ const CustomerInquiryDetailPage: React.FC = () => {
             minWidth: 0,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <h2 style={{ margin: 0, fontSize: 16, color: palette.ink }}>
+          {/* 分组标题落在页面底上：离上方卡片 24，与右栏「报价单」对齐（S18） */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginTop: 8,
+            }}
+          >
+            <h2
+              style={{
+                margin: 0,
+                fontSize: 16,
+                fontWeight: 600,
+                color: palette.ink,
+              }}
+            >
               型号明细
             </h2>
-            <span
-              style={{ marginLeft: 'auto', color: palette.mute, fontSize: 12 }}
-            >
-              同品牌、同品类的型号排在一起
-            </span>
+            <HelpTip title="同品牌、同品类的型号排在一起" />
           </div>
           <Table<InquiryItem>
             rowKey="id"
             size="middle"
-            scroll={{ x: canSeeShop ? 1560 : 1340 }}
+            scroll={{ x: tableScrollX(columns) }}
             columns={columns}
             dataSource={detail.items}
             pagination={false}
             locale={{
-              emptyText:
+              emptyText: tableEmpty(
                 inq.status <= STATUS.PARSE_FAILED
                   ? '确认型号后显示'
                   : '没有型号',
+                undefined,
+                true,
+              ),
             }}
           />
           <Card title="原始内容">
@@ -965,7 +1002,16 @@ const CustomerInquiryDetailPage: React.FC = () => {
         <div style={{ display: 'grid', gap: 12 }}>
           {canQuote && inq.status >= STATUS.SOURCING && (
             <>
-              <h2 style={{ margin: 0, fontSize: 16, color: palette.ink }}>
+              <h2
+                style={{
+                  margin: 0,
+                  // 落在页面底上的分组标题离上方卡片 24（16 + 8），比卡片间距大一档（S18）
+                  marginTop: 8,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: palette.ink,
+                }}
+              >
                 报价单
               </h2>
               {!quotations ? (
@@ -984,8 +1030,11 @@ const CustomerInquiryDetailPage: React.FC = () => {
                     <div
                       style={{ display: 'flex', alignItems: 'center', gap: 8 }}
                     >
-                      <Link to={QUOTATION_PATHS.detail(qt.id)}>
-                        <b>{qt.quotationNo}</b>
+                      <Link
+                        className="zhul-link zhul-link-doc"
+                        to={QUOTATION_PATHS.detail(qt.id)}
+                      >
+                        {qt.quotationNo}
                       </Link>
                       <span style={{ marginLeft: 'auto' }}>
                         <QuotationStatusPill status={qt.status} />
@@ -1030,7 +1079,14 @@ const CustomerInquiryDetailPage: React.FC = () => {
               )}
             </>
           )}
-          <h2 style={{ margin: 0, fontSize: 16, color: palette.ink }}>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: 16,
+              fontWeight: 600,
+              color: palette.ink,
+            }}
+          >
             询价任务
           </h2>
           {detail.tasks.length === 0 && (
@@ -1049,7 +1105,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
                   {t.taskCode}
                 </span>
                 <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-                  {t.selfSourcing && <Pill tone="violet">业务员自询</Pill>}
+                  {t.selfSourcing && <Pill tone="gray">业务员自询</Pill>}
                   <TaskStatusPill status={t.status} timeout={t.timeout} />
                   {t.deferUntil && (
                     <Tooltip title={t.deferReason || undefined}>
@@ -1071,7 +1127,7 @@ const CustomerInquiryDetailPage: React.FC = () => {
                   fontSize: 12,
                 }}
               >
-                <UserOutlined />
+                <User size="1em" />
                 {t.assigneeNames.length
                   ? t.assigneeNames.join(' + ')
                   : '待分配'}

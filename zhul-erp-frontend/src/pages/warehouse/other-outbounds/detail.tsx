@@ -1,10 +1,10 @@
-import { StopOutlined } from '@ant-design/icons';
 import { Link, useAccess, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Skeleton, Table } from 'antd';
+import { App, Button, Dropdown, Skeleton, Table } from 'antd';
+import { CircleX, Ellipsis } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import DocModelCell, {
-  docBrandColumns,
+  docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import {
   DocLogCard,
@@ -13,12 +13,14 @@ import {
 } from '@/components/DocFields/DocPage';
 import SourceNos from '@/components/DocFields/SourceNos';
 import { DocFilesCard } from '@/components/DocFiles';
+import { PageHeader } from '@/components/ListLayout';
 import { useOnReactivate, usePageTitle } from '@/components/PageTabs/hooks';
+import { UserName } from '@/components/UserName';
 import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
-import { formatAmount, formatDateTime } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
-import { ReasonModal, WarehousePageTitle } from '../components';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
+import { tableScrollX } from '@/utils/tableScroll';
+import { ReasonModal } from '../components';
 import {
   BatchLink,
   bizText,
@@ -29,7 +31,6 @@ import {
   docHref,
   type InvMove,
   OO_DONE,
-  OO_TYPE_TONE,
   type OtherOutbound,
   type OtherOutboundItem,
   otherOutboundApi,
@@ -61,7 +62,7 @@ const OtherOutboundDetail: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
   useOnReactivate(load);
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!r) return <Skeleton active paragraph={{ rows: 12 }} />;
 
   const done = r.status === OO_DONE;
@@ -70,14 +71,19 @@ const OtherOutboundDetail: React.FC = () => {
   const sourceHref = docHref(r.sourceDocType, r.sourceDocId);
 
   const itemColumns: TableColumnsType<OtherOutboundItem> = [
-    { title: '#', key: 'no', width: 48, render: (_, __, i) => i + 1 },
-    ...docBrandColumns<OtherOutboundItem>((x) => x),
     {
+      title: '#',
+      fixed: 'left' as const,
+      key: 'no',
+      width: 48,
+      render: (_, __, i) => i + 1,
+    },
+    docModelColumn<OtherOutboundItem>((x) => x, {
       title: '型号',
       dataIndex: 'model',
       width: 200,
       render: (_, x) => <DocModelCell model={x.model} brand={x.brand} />,
-    },
+    }),
     { title: '批次', dataIndex: 'batchNo', width: 170 },
     {
       title: '状态',
@@ -87,18 +93,24 @@ const OtherOutboundDetail: React.FC = () => {
         <StockStatusPill status={v} name={x.stockStatusName} />
       ),
     },
-    { title: '数量', dataIndex: 'quantity', width: 70 },
     {
-      title: '单价（¥）',
+      title: '数量',
+      align: 'right' as const,
+      dataIndex: 'quantity',
+      width: 70,
+    },
+    {
+      title: '单价（CNY）',
       dataIndex: 'unitPriceCny',
       width: 110,
       render: (v: number) => Number(v).toFixed(6),
     },
     {
-      title: '金额（¥）',
+      title: '金额（CNY）',
+      align: 'right',
       dataIndex: 'amountCny',
       width: 110,
-      render: (v: number) => formatAmount(v, 'CNY'),
+      render: (v: number) => formatMoney(v),
     },
   ];
 
@@ -126,15 +138,17 @@ const OtherOutboundDetail: React.FC = () => {
     },
     {
       title: '数量',
+      align: 'right' as const,
       dataIndex: 'quantity',
       width: 70,
       render: (v: number) => <SignedQty value={v} />,
     },
     {
-      title: '金额（¥）',
+      title: '金额（CNY）',
+      align: 'right',
       dataIndex: 'amountCny',
       width: 120,
-      render: (v: number) => formatAmount(v, 'CNY'),
+      render: (v: number) => formatMoney(v),
     },
   ];
 
@@ -149,7 +163,9 @@ const OtherOutboundDetail: React.FC = () => {
             label: '来源单号',
             value: r.sourceDocNo ? (
               sourceHref ? (
-                <Link to={sourceHref}>{r.sourceDocNo}</Link>
+                <Link to={sourceHref} className="zhul-link zhul-link-doc">
+                  {r.sourceDocNo}
+                </Link>
               ) : (
                 r.sourceDocNo
               )
@@ -170,7 +186,7 @@ const OtherOutboundDetail: React.FC = () => {
           pagination={false}
           columns={itemColumns}
           dataSource={r.items}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(itemColumns) }}
         />
       </Card>
       <Card style={{ padding: 20, marginBottom: 16 }}>
@@ -181,7 +197,7 @@ const OtherOutboundDetail: React.FC = () => {
           pagination={false}
           columns={moveColumns}
           dataSource={r.moves}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: tableScrollX(moveColumns) }}
         />
       </Card>
     </>
@@ -205,23 +221,18 @@ const OtherOutboundDetail: React.FC = () => {
 
   return (
     <div>
-      <WarehousePageTitle
-        crumbs={[
-          <MenuLink key="list" to="/warehouse/other-outbounds" />,
-          r.outboundNo,
-        ]}
-        title={
+      <PageHeader
+        title={r.outboundNo}
+        tags={
           <>
-            {r.outboundNo}
+            {/* 页头只放一个流程状态；属性写在说明行（ui-redesign S14） */}
             <Pill tone={done ? 'green' : 'mute'}>{r.statusName}</Pill>
           </>
         }
-        description={
+        sub={
           <>
-            <Pill tone={OO_TYPE_TONE[r.outboundType] ?? 'gray'}>
-              {r.outboundTypeName}
-            </Pill>{' '}
-            {r.warehouseName} · {r.outboundDate} 出库 · {r.createBy ?? '—'} 创建
+            {r.outboundTypeName} · {r.warehouseName} · {r.outboundDate} 出库 ·{' '}
+            <UserName value={r.createBy} /> 创建
             {r.sourceDocNo && (
               <>
                 {' · '}
@@ -233,21 +244,44 @@ const OtherOutboundDetail: React.FC = () => {
             )}
           </>
         }
-        actions={
+        // 作废属危险操作，收进「更多」；报废生成的不能单独作废，菜单项置灰并说明
+        extra={
           done &&
           canVoid && (
-            <Button
-              icon={<StopOutlined />}
-              disabled={!r.voidable}
-              title={
-                r.voidable
-                  ? undefined
-                  : `由退货入库单 ${r.sourceDocNo ?? ''} 报废生成，不能单独作废`
-              }
-              onClick={() => setVoiding(true)}
+            <Dropdown
+              trigger={['click']}
+              placement="bottomRight"
+              menu={{
+                items: [
+                  {
+                    key: 'void',
+                    icon: <CircleX size={16} />,
+                    // 不能作废时把原因写在菜单项里（置灰项收不到悬停和焦点）
+                    label: r.voidable ? (
+                      '作废'
+                    ) : (
+                      <span>
+                        作废
+                        <span style={{ display: 'block', fontSize: 12 }}>
+                          由退货入库单 {r.sourceDocNo ?? ''}{' '}
+                          报废生成，不能单独作废
+                        </span>
+                      </span>
+                    ),
+                    danger: true,
+                    disabled: !r.voidable,
+                  },
+                ],
+                onClick: () => setVoiding(true),
+              }}
             >
-              作废
-            </Button>
+              <Button
+                type="text"
+                shape="circle"
+                icon={<Ellipsis size={18} />}
+                aria-label="更多操作"
+              />
+            </Dropdown>
           )
         }
       />

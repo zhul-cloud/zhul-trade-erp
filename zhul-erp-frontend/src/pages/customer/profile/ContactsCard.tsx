@@ -1,6 +1,7 @@
-import { PlusOutlined, TeamOutlined } from '@ant-design/icons';
 import { App, Button, Checkbox, Form, Input, Modal, Radio } from 'antd';
+import { Plus, Users } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useDictOptions } from '@/utils/dict';
 import { Pill } from '../components';
@@ -62,7 +63,8 @@ export const ContactModal: React.FC<{
   onClose: () => void;
   onDone: () => void;
 }> = ({ open, customerId, customerName, contact, first, onClose, onDone }) => {
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { palette } = useAppTheme();
   const d = useContactDicts();
   const [form] = Form.useForm<ContactPayload>();
@@ -98,12 +100,9 @@ export const ContactModal: React.FC<{
 
   const remove = () => {
     if (!contact) return;
-    modal.confirm({
+    confirmDanger({
       title: `删除联系人 ${contact.name}？`,
       content: '删除后不再显示，已有单据上的联系人信息不受影响。',
-      okText: '删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
       onOk: async () => {
         try {
           await profileApi.removeContact(customerId, contact.id);
@@ -288,7 +287,7 @@ const ContactsCard: React.FC<{
 
   const tag = (
     text: string,
-    tone: 'accent' | 'gray' | 'orange' | 'violet' | 'green' | 'cyan' = 'gray',
+    tone: 'gray' | 'orange' | 'violet' | 'green' | 'cyan' = 'gray',
   ) => (
     <Pill key={text} tone={tone}>
       {text}
@@ -297,19 +296,17 @@ const ContactsCard: React.FC<{
 
   return (
     <section
+      className="zhul-card"
       aria-label="联系人"
       style={{
         display: 'flex',
         flexDirection: 'column',
         gap: 12,
         padding: 20,
-        borderRadius: 16,
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <TeamOutlined style={{ color: palette.link }} />
+        <Users size="1em" style={{ color: palette.link }} />
         <h2
           style={{
             margin: 0,
@@ -325,7 +322,7 @@ const ContactsCard: React.FC<{
         {canEdit && (
           <Button
             size="small"
-            icon={<PlusOutlined />}
+            icon={<Plus size="1em" />}
             style={{ marginLeft: 'auto' }}
             onClick={() => setEditing('new')}
           >
@@ -362,7 +359,7 @@ const ContactsCard: React.FC<{
           >
             <b style={{ color: palette.ink }}>{c.name}</b>
             {c.nameCn && <span style={{ color: palette.sub }}>{c.nameCn}</span>}
-            {c.primary && tag('主联系人', 'accent')}
+            {c.primary && tag('主联系人')}
             {!!c.jobRole && tag(d.job.labelOf(c.jobRole))}
             {canEdit && (
               <button

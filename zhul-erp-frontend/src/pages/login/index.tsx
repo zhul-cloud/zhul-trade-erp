@@ -1,6 +1,6 @@
-import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { Helmet, history, useModel } from '@umijs/max';
 import { Alert, App, Button, Checkbox, Form, Input } from 'antd';
+import { Lock, User } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { AuthLayout } from '@/components';
 import { usePageTitle } from '@/components/Shell/BrandLogo';
@@ -155,7 +155,7 @@ const LoginPage: React.FC = () => {
           <Input
             ref={usernameRef}
             size="large"
-            prefix={<UserOutlined />}
+            prefix={<User size="1em" />}
             placeholder="请输入用户名"
             maxLength={50}
             autoComplete="username"
@@ -172,7 +172,7 @@ const LoginPage: React.FC = () => {
         >
           <Input.Password
             size="large"
-            prefix={<LockOutlined />}
+            prefix={<Lock size="1em" />}
             placeholder="请输入密码"
             maxLength={32}
             autoComplete="current-password"

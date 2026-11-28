@@ -1,10 +1,4 @@
 import {
-  BankOutlined,
-  MinusCircleOutlined,
-  PlusOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
-import {
   ModalForm,
   ProFormDigit,
   ProFormRadio,
@@ -18,16 +12,19 @@ import {
   App,
   Button,
   DatePicker,
-  Empty,
   Input,
   InputNumber,
   Modal,
   Space,
-  Tag,
   Tree,
 } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { CircleMinus, Plus, Search } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { EmptyState } from '@/components/EmptyState';
+import { PageHeader } from '@/components/ListLayout';
+import { Pill } from '@/components/Pill';
 import { readBizError } from '@/pages/crm/opportunity/service';
 import { getUserOptions } from '@/services/zhul/users';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -113,31 +110,8 @@ const toAntdTree = (list: DeptItem[]): any[] =>
         >
           {item.name}
         </span>
-        {item.isBusinessUnit === 1 && (
-          <Tag
-            color="purple"
-            style={{
-              marginInlineEnd: 0,
-              fontSize: 11,
-              lineHeight: '16px',
-              padding: '0 5px',
-            }}
-          >
-            事业部
-          </Tag>
-        )}
-        {item.status === 0 && (
-          <Tag
-            style={{
-              marginInlineEnd: 0,
-              fontSize: 11,
-              lineHeight: '16px',
-              padding: '0 5px',
-            }}
-          >
-            禁用
-          </Tag>
-        )}
+        {item.isBusinessUnit === 1 && <Pill tone="gray">事业部</Pill>}
+        {item.status === 0 && <Pill tone="mute">禁用</Pill>}
       </Space>
     ),
     children: item.children ? toAntdTree(item.children) : undefined,
@@ -157,6 +131,7 @@ const toTreeSelectData = (list: DeptItem[], excludeIds: number[]): any[] =>
 const DeptPage: React.FC = () => {
   const { palette: p } = useAppTheme();
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess();
 
   const [treeData, setTreeData] = useState<DeptItem[]>([]);
@@ -191,6 +166,10 @@ const DeptPage: React.FC = () => {
     () => flatList.find((d) => d.id === selectedId) ?? null,
     [flatList, selectedId],
   );
+  // 主从两栏进入页面默认选中第一项（规范「主从两栏」，UI-117）；选中的被删掉后也回到第一项
+  useEffect(() => {
+    if (flatList.length > 0 && !selectedDept) setSelectedId(flatList[0].id);
+  }, [flatList, selectedDept]);
   /** 选中部门所在的事业部（自身或最近的上级），以及下级里是否已有事业部（事业部不能嵌套） */
   const unitInfo = useMemo(() => {
     if (!selectedDept) return { unit: null as DeptItem | null, nested: false };
@@ -336,9 +315,10 @@ const DeptPage: React.FC = () => {
     if (newStatus === 0) {
       const check = await getDeptDeleteCheck(selectedDept.id);
       if (check.userCount > 0) {
-        modal.confirm({
-          title: '禁用确认',
-          content: `该部门下存在 ${check.userCount} 名关联用户，禁用后这些用户的部门信息将不可通过该部门筛选，请确认。`,
+        confirmDanger({
+          title: `禁用「${selectedDept.name}」？`,
+          content: `该部门下有 ${check.userCount} 名用户，禁用后不能再按这个部门筛选这些用户。`,
+          okText: '禁用',
           onOk: doToggle,
         });
         return;
@@ -372,11 +352,9 @@ const DeptPage: React.FC = () => {
       );
       return;
     }
-    modal.confirm({
-      title: '确认删除',
-      content: `确认删除部门「${selectedDept.name}」？此操作不可撤销。`,
-      okButtonProps: { danger: true },
-      okText: '确认删除',
+    confirmDanger({
+      title: `删除部门「${selectedDept.name}」？`,
+      content: '此操作不可撤销。',
       onOk: doDelete,
     });
   };
@@ -443,14 +421,13 @@ const DeptPage: React.FC = () => {
 
   return (
     <>
+      <PageHeader />
       <div
+        className="zhul-card"
         style={{
           display: 'flex',
           gap: 0,
-          background: p.card,
-          borderRadius: 12,
           overflow: 'hidden',
-          border: `1px solid ${p.hairline}`,
           minHeight: 640,
         }}
       >
@@ -465,16 +442,16 @@ const DeptPage: React.FC = () => {
         >
           <Input
             placeholder="搜索部门名称"
-            prefix={<SearchOutlined />}
+            prefix={<Search size="1em" />}
             allowClear
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             style={{ marginBottom: 12 }}
           />
           {!loading && treeData.length === 0 ? (
-            <Empty description="暂无部门数据" style={{ marginTop: 40 }} />
+            <EmptyState title="暂无部门数据" />
           ) : !loading && displayTree.length === 0 ? (
-            <Empty description="未找到相关部门" style={{ marginTop: 40 }} />
+            <EmptyState kind="noResult" title="未找到相关部门" />
           ) : (
             <Tree
               treeData={antdTreeData}
@@ -498,19 +475,19 @@ const DeptPage: React.FC = () => {
               marginBottom: 16,
             }}
           >
-            <span style={{ fontSize: 16, fontWeight: 700 }}>
+            <span style={{ fontSize: 16, fontWeight: 600 }}>
               {selectedDept ? selectedDept.name : '部门详情'}
             </span>
             <Space size={10}>
               {canAdd && (
-                <Button icon={<PlusOutlined />} onClick={openCreateTop}>
+                <Button icon={<Plus size="1em" />} onClick={openCreateTop}>
                   新增顶级部门
                 </Button>
               )}
               {selectedDept && canAdd && (
                 <Button
                   type="primary"
-                  icon={<PlusOutlined />}
+                  icon={<Plus size="1em" />}
                   onClick={openCreateChild}
                 >
                   新增子部门
@@ -521,7 +498,7 @@ const DeptPage: React.FC = () => {
               )}
               {selectedDept && canEdit && (
                 <Button
-                  icon={<MinusCircleOutlined />}
+                  icon={<CircleMinus size="1em" />}
                   onClick={handleToggleStatus}
                 >
                   {selectedDept.status === 1 ? '禁用' : '启用'}
@@ -587,10 +564,10 @@ const DeptPage: React.FC = () => {
           {selectedDept ? (
             <div
               style={{
+                // 卡内凹格：浅灰底、不加描边，不做成卡里套卡（层级不超过三层，UI-117）
                 marginTop: 16,
                 background: p.inset,
-                border: `1px solid ${p.hairline}`,
-                borderRadius: 12,
+                borderRadius: 8,
                 padding: 20,
                 display: 'flex',
                 alignItems: 'center',
@@ -602,12 +579,10 @@ const DeptPage: React.FC = () => {
                 <div style={{ fontSize: 12, color: p.mute, marginBottom: 5 }}>
                   独立核算
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 500, color: p.ink }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: p.ink }}>
                   {selectedDept.isBusinessUnit === 1 ? (
                     <Space size={8}>
-                      <Tag color="purple" style={{ marginInlineEnd: 0 }}>
-                        事业部
-                      </Tag>
+                      <Pill tone="gray">事业部</Pill>
                       {selectedDept.buStartMonth} 起核算
                     </Space>
                   ) : unitInfo.unit ? (
@@ -636,22 +611,18 @@ const DeptPage: React.FC = () => {
                 )}
             </div>
           ) : (
-            <Empty
-              image={<BankOutlined style={{ fontSize: 48, color: p.faint }} />}
-              description="请选择左侧部门查看详情"
-              style={{ marginTop: 80 }}
-            />
+            <EmptyState title="请选择左侧部门查看详情" />
           )}
           {bu.enabled && (
+            // 卡内分区：上方一条分隔线，不再套描边子卡（UI-117）
             <div
               style={{
-                marginTop: 16,
-                border: `1px solid ${p.hairline}`,
-                borderRadius: 12,
-                padding: 20,
+                marginTop: 24,
+                borderTop: `1px solid ${p.hairline}`,
+                paddingTop: 20,
               }}
             >
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>
+              <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
                 核算设置
               </div>
               <div
@@ -724,7 +695,7 @@ const DeptPage: React.FC = () => {
         okButtonProps={{ disabled: !markMonth }}
         destroyOnHidden
       >
-        <div style={{ marginBottom: 8, fontWeight: 500 }}>
+        <div style={{ marginBottom: 8, fontWeight: 600 }}>
           {selectedDept?.name}
         </div>
         <div style={{ fontSize: 12, color: p.mute, marginBottom: 6 }}>
@@ -887,7 +858,7 @@ const Field: React.FC<{ label: string; value: string; dot?: string }> = ({
       <div
         style={{
           fontSize: 14,
-          fontWeight: 500,
+          fontWeight: 600,
           color: p.ink,
           display: 'flex',
           alignItems: 'center',

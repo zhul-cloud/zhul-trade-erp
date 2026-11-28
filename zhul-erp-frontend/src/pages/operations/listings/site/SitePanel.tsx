@@ -1,13 +1,13 @@
-import {
-  CheckOutlined,
-  CloudUploadOutlined,
-  ExportOutlined,
-  EyeOutlined,
-  LoadingOutlined,
-  RocketOutlined,
-  SyncOutlined,
-} from '@ant-design/icons';
 import { App, Button, Skeleton, Table, Tooltip } from 'antd';
+import {
+  Check,
+  CloudUpload,
+  ExternalLink,
+  Eye,
+  LoaderCircle,
+  RefreshCw,
+  Rocket,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -60,7 +60,7 @@ const Section: React.FC<{
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span
-          style={{ flex: 1, fontSize: 15, fontWeight: 600, color: palette.ink }}
+          style={{ flex: 1, fontSize: 16, fontWeight: 600, color: palette.ink }}
         >
           {title}
         </span>
@@ -141,7 +141,7 @@ const PublishPreview: React.FC<{
           </span>
           <Button
             type="primary"
-            icon={<RocketOutlined />}
+            icon={<Rocket size="1em" />}
             disabled={!p.publishable}
             loading={publishing}
             onClick={onPublish}
@@ -327,7 +327,7 @@ const SitePanel: React.FC<{
             ? palette.inset
             : tone === 'orange'
               ? palette.orangeSoft
-              : palette.accentSoft,
+              : palette.infoSoft,
         fontSize: 13,
         color:
           tone === 'mute'
@@ -358,7 +358,7 @@ const SitePanel: React.FC<{
           hasPerm('operations:listing:edit') && (
             <Button
               type="primary"
-              icon={<CheckOutlined />}
+              icon={<Check size="1em" />}
               onClick={() => setConfirming(true)}
             >
               确认上线
@@ -366,7 +366,7 @@ const SitePanel: React.FC<{
           )}
         {t.status === TASK_PUBLISHING && t.releaseId && (
           <Button
-            icon={<LoadingOutlined />}
+            icon={<LoaderCircle size="1em" className="zhul-spin" />}
             onClick={() => setDrawer(t.releaseId)}
           >
             查看进度
@@ -392,8 +392,8 @@ const SitePanel: React.FC<{
           : banner(
               'cyan',
               <>
-                <LoadingOutlined /> 发布单 {current?.releaseNo ?? ''} 正在发布到{' '}
-                {site.name}
+                <LoaderCircle size="1em" className="zhul-spin" /> 发布单{' '}
+                {current?.releaseNo ?? ''} 正在发布到 {site.name}
                 ，完成后到这里确认上线
               </>,
             ))}
@@ -426,14 +426,14 @@ const SitePanel: React.FC<{
         <Section
           title={
             <>
-              <SyncOutlined style={{ color: palette.violet }} />{' '}
+              <RefreshCw size="1em" style={{ color: palette.info }} />{' '}
               内容在发布后更新过
             </>
           }
           extra={
             <>
               <Button
-                icon={<EyeOutlined />}
+                icon={<Eye size="1em" />}
                 onClick={() => setShowAll((v) => !v)}
               >
                 {showAll ? '收起预览' : '预览全部'}
@@ -448,7 +448,7 @@ const SitePanel: React.FC<{
                 >
                   <Button
                     type="primary"
-                    icon={<CloudUploadOutlined />}
+                    icon={<CloudUpload size="1em" />}
                     disabled={!preview.publishable}
                     loading={publishing}
                     onClick={sync}
@@ -514,7 +514,7 @@ const SitePanel: React.FC<{
                     rel="noopener noreferrer"
                     aria-label="打开页面"
                   >
-                    <ExportOutlined />
+                    <ExternalLink size="1em" />
                   </a>
                 </div>
               ))}

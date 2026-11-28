@@ -1,10 +1,11 @@
-import { InfoCircleOutlined, LockOutlined } from '@ant-design/icons';
 import { App, Modal, Skeleton } from 'antd';
 import dayjs from 'dayjs';
+import { Info, Lock } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useDeltaColor } from '@/theme/delta';
 import { formatAmount } from '@/utils/format';
 import { SignedMoney } from '../costingParts';
 import { type Period, periodApi } from '../costingService';
@@ -25,6 +26,8 @@ export const signedCny = (v?: number) => {
  */
 export const PeriodTiles: React.FC<{ p: Period }> = ({ p }) => {
   const { palette } = useAppTheme();
+  // 在库成本调整按个人涨跌色设置着色，与 SignedMoney 一致（D65）
+  const { of: deltaOf } = useDeltaColor();
   const items: [string, string, React.CSSProperties?][] = [
     ['期初库存金额', formatAmount(p.openingAmount, 'CNY')],
     ['本月入库', formatAmount(p.inAmount, 'CNY')],
@@ -32,9 +35,7 @@ export const PeriodTiles: React.FC<{ p: Period }> = ({ p }) => {
     [
       '在库成本调整',
       signedCny(p.stockAdjustAmount),
-      p.stockAdjustAmount
-        ? { color: p.stockAdjustAmount > 0 ? palette.green : palette.red }
-        : undefined,
+      p.stockAdjustAmount ? { color: deltaOf(p.stockAdjustAmount) } : undefined,
     ],
     ['期末库存金额', formatAmount(p.closingAmount, 'CNY')],
   ];
@@ -61,8 +62,8 @@ export const PeriodTiles: React.FC<{ p: Period }> = ({ p }) => {
               <div style={{ fontSize: 12, color: palette.sub }}>{label}</div>
               <div
                 style={{
-                  fontSize: 18,
-                  fontWeight: i === items.length - 1 ? 700 : 600,
+                  fontSize: 16,
+                  fontWeight: 600,
                   color: palette.ink,
                   marginTop: 4,
                   fontVariantNumeric: 'tabular-nums',
@@ -134,12 +135,12 @@ export const CloseModal: React.FC<{
       open={!!month}
       title={
         <>
-          <LockOutlined style={{ color: palette.link, marginRight: 8 }} />
+          <Lock size="1em" style={{ color: palette.link, marginRight: 8 }} />
           结账 {month}
         </>
       }
       okText="确认结账"
-      okButtonProps={{ loading: busy, disabled: !p, icon: <LockOutlined /> }}
+      okButtonProps={{ loading: busy, disabled: !p, icon: <Lock size="1em" /> }}
       onCancel={onClose}
       onOk={async () => {
         if (!month) return;
@@ -186,7 +187,8 @@ export const CloseModal: React.FC<{
                     fontSize: 13,
                   }}
                 >
-                  <InfoCircleOutlined
+                  <Info
+                    size="1em"
                     style={{ color: palette.orange, marginTop: 3 }}
                   />
                   {r}

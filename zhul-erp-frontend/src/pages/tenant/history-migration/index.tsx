@@ -1,24 +1,27 @@
-import { InboxOutlined } from '@ant-design/icons';
-import { history, useSearchParams } from '@umijs/max';
+import { useSearchParams } from '@umijs/max';
 import {
   Alert,
   App,
   Button,
   Drawer,
-  Empty,
   Segmented,
   Space,
   Table,
   Upload,
 } from 'antd';
 import dayjs from 'dayjs';
+import { Eye, Inbox, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { EmptyState, tableEmpty } from '@/components/EmptyState';
+import { PageHeader } from '@/components/ListLayout';
 import {
   useOnReactivate,
   usePageTitle,
   useTabActive,
 } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatDateTime } from '@/utils/format';
 import {
@@ -58,7 +61,7 @@ const StatusPill: React.FC<{ b: MigrationBatch }> = ({ b }) => {
   switch (b.status) {
     case 1:
       return (
-        <Pill tone="accent" dot>
+        <Pill tone="info" dot>
           运行中
         </Pill>
       );
@@ -80,6 +83,7 @@ const duration = (b: MigrationBatch) => {
 
 const HistoryMigrationPage: React.FC = () => {
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { palette } = useAppTheme();
   const [search] = useSearchParams();
   const tenantId = Number(search.get('tenantId'));
@@ -144,12 +148,11 @@ const HistoryMigrationPage: React.FC = () => {
   };
 
   const rollback = (b: MigrationBatch) =>
-    modal.confirm({
+    confirmDanger({
       title: `回滚批次 ${b.batchNo}？`,
       content:
         '这个批次写入的数据都会作废（软删除），图片移出素材库。迁移建的员工账号保留。回滚后可以重新执行。',
       okText: '回滚',
-      okButtonProps: { danger: true },
       onOk: async () => {
         await rollbackBatch(b.id);
         message.success('已开始回滚');
@@ -185,7 +188,7 @@ const HistoryMigrationPage: React.FC = () => {
   usePageTitle(tenantName ? `历史迁移：${tenantName}` : '历史迁移');
 
   if (!tenantId) {
-    return <Empty description="请从租户列表进入" />;
+    return <EmptyState title="请从租户列表进入" />;
   }
 
   const verifyText = (b: MigrationBatch) => {
@@ -202,21 +205,9 @@ const HistoryMigrationPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        root="租户管理"
-        crumbs={[
-          <button
-            type="button"
-            className="zhul-link"
-            key="list"
-            onClick={() => history.push('/tenant/list')}
-          >
-            租户列表
-          </button>,
-          '历史迁移',
-        ]}
+      <PageHeader
         title={`历史迁移：${tenantName}`}
-        description="把飞书旧系统的数据导入这个租户。先干跑核对数量，再正式执行；正式执行完自动与旧报表核对，出问题可以按批次回滚。"
+        help="把飞书旧系统的数据导入这个租户。先干跑核对数量，再正式执行；正式执行完自动与旧报表核对，出问题可以按批次回滚"
       />
 
       <Card title="迁移包" style={{ marginBottom: 16 }}>
@@ -236,7 +227,7 @@ const HistoryMigrationPage: React.FC = () => {
           }}
         >
           <p className="ant-upload-drag-icon">
-            <InboxOutlined />
+            <Inbox size="1em" />
           </p>
           <p className="ant-upload-text">
             {uploading ? '正在上传…' : '点击或拖入迁移包（pack.js 打出的 zip）'}
@@ -297,7 +288,7 @@ const HistoryMigrationPage: React.FC = () => {
           loading={loading}
           dataSource={batches}
           pagination={false}
-          locale={{ emptyText: '还没有执行过' }}
+          locale={{ emptyText: tableEmpty('还没有执行过', loading) }}
           columns={[
             {
               title: '批次',
@@ -336,29 +327,29 @@ const HistoryMigrationPage: React.FC = () => {
             {
               title: '操作',
               key: 'op',
-              width: 130,
+              width: rowActionsWidth(2),
               render: (_, b) => (
-                <Space>
-                  <button
-                    type="button"
-                    className="zhul-link"
-                    onClick={() => openDetail(b)}
-                  >
-                    详情
-                  </button>
-                  {b.runMode === 2 &&
-                    (b.status === 2 || b.status === 3) &&
-                    !b.rollingBack && (
-                      <button
-                        type="button"
-                        className="zhul-link"
-                        style={{ color: palette.red }}
-                        onClick={() => rollback(b)}
-                      >
-                        回滚
-                      </button>
-                    )}
-                </Space>
+                <RowActions
+                  inline={[
+                    {
+                      key: 'view',
+                      label: '详情',
+                      icon: <Eye size={18} />,
+                      onClick: () => openDetail(b),
+                    },
+                  ]}
+                  more={[
+                    b.runMode === 2 &&
+                      (b.status === 2 || b.status === 3) &&
+                      !b.rollingBack && {
+                        key: 'rollback',
+                        label: '回滚',
+                        icon: <Undo2 size={16} />,
+                        danger: true,
+                      },
+                  ]}
+                  onMore={() => rollback(b)}
+                />
               ),
             },
           ]}
@@ -413,7 +404,7 @@ const HistoryMigrationPage: React.FC = () => {
                   rowKey={(r) => `${r.report}|${r.scope}|${r.metric}`}
                   dataSource={verifyRows}
                   pagination={{ pageSize: 20, showSizeChanger: false }}
-                  locale={{ emptyText: '没有' }}
+                  locale={{ emptyText: tableEmpty('没有', undefined, true) }}
                   columns={[
                     { title: '报表', dataIndex: 'report', width: 110 },
                     { title: '范围', dataIndex: 'scope' },

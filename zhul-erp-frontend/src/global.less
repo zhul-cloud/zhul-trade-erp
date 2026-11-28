@@ -1,53 +1,10 @@
-@font-face {
-  font-family: "AlibabaSans";
-  font-style: normal;
-  font-weight: 300;
-  font-display: swap;
-  src: url("//mdn.alipayobjects.com/huamei_iwk9zp/afts/file/A*1GSgSYDD_aIAAAAAQsAAAAgAegCCAQ/AlibabaSans-Light.woff2")
-    format("woff2");
-}
-@font-face {
-  font-family: "AlibabaSans";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("//mdn.alipayobjects.com/huamei_iwk9zp/afts/file/A*2zEUQqnPNesAAAAAQtAAAAgAegCCAQ/AlibabaSans-Regular.woff2")
-    format("woff2");
-}
-@font-face {
-  font-family: "AlibabaSans";
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url("//mdn.alipayobjects.com/huamei_iwk9zp/afts/file/A*E_cxRbMlZqUAAAAAQuAAAAgAegCCAQ/AlibabaSans-Medium.woff2")
-    format("woff2");
-}
-@font-face {
-  font-family: "AlibabaSans";
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("//mdn.alipayobjects.com/huamei_iwk9zp/afts/file/A*E_cxRbMlZqUAAAAAQuAAAAgAegCCAQ/AlibabaSans-Bold.woff2")
-    format("woff2");
-}
-@font-face {
-  font-family: "AlibabaSans";
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("//mdn.alipayobjects.com/huamei_iwk9zp/afts/file/A*E_cxRbMlZqUAAAAAQuAAAAgAegCCAQ/AlibabaSans-Heavy.woff2")
-    format("woff2");
-}
-
 html,
 body,
 #root {
   height: 100%;
   margin: 0;
   padding: 0;
-  font-family:
-    AlibabaSans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans',
-    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  // 字体见 src/theme/fonts.ts 的 SANS_FONT，由 AppTheme 的全局样式设置（Public Sans 随前端打包，不从外网加载）
 }
 
 .colorWeak {
@@ -68,6 +25,54 @@ canvas {
 // 表格自成层叠上下文：列多时固定列的 z-index 会超过顶栏（20）与标签栏（19），滚动时盖住它们
 .ant-table-wrapper {
   isolation: isolate;
+}
+
+// 列表加载（ui-redesign S17、对比图 R23）：
+// 重新查询保留旧数据变淡加转圈（antd 默认），转圈和变淡都延迟 300ms，快的请求不闪；
+// 首次加载（表里还没有行）画骨架行（EmptyState 的 TableSkeleton），同样 300ms 后出现，不再叠转圈、不变淡
+.ant-table-wrapper > .ant-spin-spinning {
+  > .ant-spin-section {
+    animation: zhul-delay-show 0s linear 0.3s both;
+  }
+  > .ant-spin-container,
+  > .ant-spin-container::after {
+    transition-delay: 0.3s;
+  }
+  &:has(.zhul-table-skeleton) {
+    > .ant-spin-section {
+      display: none;
+    }
+    > .ant-spin-container {
+      opacity: 1;
+      &::after {
+        opacity: 0;
+      }
+    }
+  }
+}
+.zhul-table-skeleton {
+  animation: zhul-delay-show 0s linear 0.3s both;
+  .zhul-skeleton-bar {
+    animation: zhul-skeleton-pulse 1.4s ease-in-out 0.3s infinite;
+  }
+}
+@keyframes zhul-delay-show {
+  from {
+    visibility: hidden;
+  }
+  to {
+    visibility: visible;
+  }
+}
+@keyframes zhul-skeleton-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zhul-table-skeleton .zhul-skeleton-bar {
+    animation: none;
+  }
 }
 
 ul,

@@ -1,15 +1,15 @@
-import {
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  EditOutlined,
-  ExclamationCircleOutlined,
-  ExportOutlined,
-  LockOutlined,
-  PictureOutlined,
-  PlayCircleOutlined,
-} from '@ant-design/icons';
 import { Link } from '@umijs/max';
 import { App, Button, InputNumber, Modal, Segmented } from 'antd';
+import {
+  CircleAlert,
+  CircleCheck,
+  CirclePlay,
+  CircleX,
+  ExternalLink,
+  ImageIcon,
+  Lock,
+  Pencil,
+} from 'lucide-react';
 import React, { useState } from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { fieldLabel } from '@/pages/operations/websites/service';
@@ -102,7 +102,8 @@ export const MediaStrip: React.FC<{ p: Preview; size?: number }> = ({
           rel="noopener noreferrer"
           style={box}
         >
-          <PictureOutlined
+          <ImageIcon
+            size="1em"
             style={{
               position: 'absolute',
               inset: 0,
@@ -135,7 +136,7 @@ export const MediaStrip: React.FC<{ p: Preview; size?: number }> = ({
                 left: 4,
                 padding: '0 6px',
                 borderRadius: 6,
-                fontSize: 11,
+                fontSize: 12,
                 color: '#fff',
                 background: palette.link,
               }}
@@ -161,7 +162,7 @@ export const MediaStrip: React.FC<{ p: Preview; size?: number }> = ({
             fontSize: 26,
           }}
         >
-          <PlayCircleOutlined />
+          <CirclePlay size="1em" />
         </a>
       ))}
     </div>
@@ -262,7 +263,7 @@ export const Checks: React.FC<{ p: Preview }> = ({ p }) => {
   if (!p.blockers.length && !p.warnings.length)
     return (
       <div style={{ color: palette.green, fontSize: 13 }}>
-        <CheckCircleOutlined /> 检查通过
+        <CircleCheck size="1em" /> 检查通过
       </div>
     );
   const row = (icon: React.ReactNode, text: string, color: string) => (
@@ -289,10 +290,10 @@ export const Checks: React.FC<{ p: Preview }> = ({ p }) => {
               阻断 {p.blockers.length} · 处理后才能发布
             </span>
             <Link to={`/operations/products/${p.productId}`}>
-              <ExportOutlined /> 去营销任务
+              <ExternalLink size="1em" /> 去营销任务
             </Link>
           </div>
-          {p.blockers.map((b) => row(<CloseCircleOutlined />, b, palette.red))}
+          {p.blockers.map((b) => row(<CircleX size="1em" />, b, palette.red))}
         </>
       )}
       {p.warnings.length > 0 && (
@@ -301,7 +302,7 @@ export const Checks: React.FC<{ p: Preview }> = ({ p }) => {
             提醒 {p.warnings.length} · 可以照样发布
           </div>
           {p.warnings.map((w) =>
-            row(<ExclamationCircleOutlined />, w, palette.orange),
+            row(<CircleAlert size="1em" />, w, palette.orange),
           )}
         </>
       )}
@@ -416,7 +417,7 @@ export const SiteDataCard: React.FC<{
             <Button
               type="link"
               size="small"
-              icon={<EditOutlined />}
+              icon={<Pencil size="1em" />}
               style={{ paddingInline: 0 }}
               onClick={() => {
                 setPrice(manual ? (pr?.amount ?? null) : null);
@@ -471,7 +472,7 @@ export const SiteDataCard: React.FC<{
         <span style={value}>{p.slug}</span>
         {!p.firstPublish && (
           <span style={{ fontSize: 12, color: palette.mute }}>
-            <LockOutlined /> 发布后锁定
+            <Lock size="1em" /> 发布后锁定
           </span>
         )}
       </div>

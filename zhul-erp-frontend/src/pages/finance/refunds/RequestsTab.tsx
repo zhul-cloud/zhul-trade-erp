@@ -1,11 +1,16 @@
 import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { App, Button, Input, Segmented, Space, Table } from 'antd';
+import { App, Button, Input, Select, Space, Table } from 'antd';
+import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
-import { CustomerSub } from '@/components/DocFields';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { CopyText } from '@/components/CopyText';
+import { CustomerCell } from '@/components/DocFields';
 import SourceNos from '@/components/DocFields/SourceNos';
+import { tableEmpty } from '@/components/EmptyState';
+import { FilterCard, FilterField, MainCard } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { auditColumns } from '@/pages/purchase/components';
 import { RQ_STATUS_TONE } from '@/pages/sales/after-sales/service';
 import { PATHS } from '@/pages/sales/components';
@@ -13,16 +18,15 @@ import { readBizError } from '@/pages/sales/service';
 import { ReasonModal } from '@/pages/warehouse/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import RefundModal from './RefundModal';
-import { type RefundRequest, RQ_STATUS, refundRequestApi } from './service';
-
-const METHOD_TONE: Record<number, 'violet' | 'gray' | 'accent'> = {
-  1: 'violet',
-  2: 'gray',
-  3: 'accent',
-};
+import {
+  type RefundRequest,
+  RQ_STATUS,
+  refundMethodTone,
+  refundRequestApi,
+} from './service';
 
 /** 来源单号：退货退款是销售退货单，其他是售后单（都没有时为空） */
 export const refundSourceRef = (r: RefundRequest) =>
@@ -31,6 +35,13 @@ export const refundSourceRef = (r: RefundRequest) =>
     : r.afterSalesId
       ? { no: r.asNo, href: PATHS.afterSales(r.afterSalesId) }
       : {};
+
+/** 帮助文字：关键词范围以 search-scope.md「退款申请」为准 */
+const KEYWORD_HELP = '可搜：申请号、退货单号、订单编号、售后单号';
+
+/** 下拉选项后面带数量（stat-cards.md：状态并入下拉） */
+const withCount = (label: string, n?: number) =>
+  n ? `${label} · ${n}` : label;
 
 /** 退款管理 → 退款申请（spec finance/refund-request）：审批（开关打开时）、执行、驳回 */
 const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
@@ -98,28 +109,31 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
 
   const showApproval =
     !!counts && (counts.approvalRequired > 0 || counts.pendingApproval > 0);
-  const tabs = [
+  const statusOptions = [
     {
-      value: RQ_STATUS.PENDING_RECEIPT as number | 'all',
-      label: `待验收 ${counts?.pendingReceipt ?? 0}`,
+      value: RQ_STATUS.PENDING_RECEIPT,
+      label: withCount('待验收', counts?.pendingReceipt),
     },
     ...(showApproval
       ? [
           {
-            value: RQ_STATUS.PENDING_APPROVAL as number | 'all',
-            label: `待审批 ${counts?.pendingApproval ?? 0}`,
+            value: RQ_STATUS.PENDING_APPROVAL,
+            label: withCount('待审批', counts?.pendingApproval),
           },
         ]
       : []),
     {
       value: RQ_STATUS.PENDING_FINANCE,
-      label: `待财务处理 ${counts?.pendingFinance ?? 0}`,
+      label: withCount('待财务处理', counts?.pendingFinance),
     },
     { value: RQ_STATUS.EXECUTED, label: '已执行' },
     { value: RQ_STATUS.REJECTED, label: '已驳回' },
     { value: RQ_STATUS.WITHDRAWN, label: '已撤回' },
-    { value: 'all' as const, label: '全部' },
   ];
+  const search = () => {
+    setQuery(keyword.trim());
+    setPage(1);
+  };
 
   const sub = (t?: React.ReactNode) =>
     t ? <div style={{ fontSize: 12, color: palette.mute }}>{t}</div> : null;
@@ -132,7 +146,9 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
       fixed: 'left',
       render: (v: string, r) => (
         <div>
-          <Link to={PATHS.refundRequest(r.id)}>{v}</Link>
+          <CopyText text={v}>
+            <Link to={PATHS.refundRequest(r.id)}>{v}</Link>
+          </CopyText>
           {r.refundNo && sub(`退款单 ${r.refundNo}`)}
         </div>
       ),
@@ -148,13 +164,15 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
       dataIndex: 'soNo',
       width: 150,
       render: (v: string, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => history.push(`/sales/orders/${r.soId}`)}
-        >
-          {v}
-        </button>
+        <CopyText text={v}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(`/sales/orders/${r.soId}`)}
+          >
+            {v}
+          </button>
+        </CopyText>
       ),
     },
     {
@@ -162,17 +180,11 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
       dataIndex: 'customerName',
       width: 180,
       render: (v: string, r) => (
-        <div>
-          {v}
-          {(r.customerCountry || r.customerContact) && (
-            <div style={{ fontSize: 12, color: palette.mute }}>
-              <CustomerSub
-                country={r.customerCountry}
-                contact={r.customerContact}
-              />
-            </div>
-          )}
-        </div>
+        <CustomerCell
+          name={v}
+          country={r.customerCountry}
+          contact={r.customerContact}
+        />
       ),
     },
     {
@@ -192,7 +204,7 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
       dataIndex: 'methodName',
       width: 130,
       render: (v: string, r) => (
-        <Pill tone={METHOD_TONE[r.method] ?? 'gray'}>{v}</Pill>
+        <Pill tone={refundMethodTone(r.method)}>{v}</Pill>
       ),
     },
     {
@@ -221,6 +233,7 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
     },
     ...auditColumns<RefundRequest>(),
     {
+      // lint-ui-ignore row-actions: 审批列表，通过、驳回保留文字按钮
       title: '操作',
       key: 'op',
       width: 170,
@@ -284,66 +297,77 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
       ),
     },
   ];
+  const columnsSet = useColumnSettings('finance-refunds-requests', columns, {
+    hidden: ['来源单号', '销售订单', '申请人'],
+  });
 
   return (
-    <Card style={{ padding: 16 }}>
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          marginBottom: 12,
+    <>
+      <FilterCard
+        onSearch={search}
+        onReset={() => {
+          // 重置回默认视图：待财务处理
+          setKeyword('');
+          setQuery('');
+          setStatus(RQ_STATUS.PENDING_FINANCE);
+          setPage(1);
         }}
       >
-        <Segmented<number | 'all'>
-          value={status}
-          onChange={(v) => {
-            setStatus(v);
-            setPage(1);
+        <FilterField label="关键词" span={2} help={KEYWORD_HELP}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="申请号、退货单号、订单编号"
+            aria-label="关键词"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={search}
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select<number>
+            allowClear
+            placeholder="全部"
+            aria-label="状态"
+            value={status === 'all' ? undefined : status}
+            // 状态下拉切换后立即查询
+            onChange={(v) => {
+              setStatus(v ?? 'all');
+              setPage(1);
+            }}
+            options={statusOptions}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard settings={columnsSet.settings} count={total} loading={loading}>
+        <Table<RefundRequest>
+          rowKey="id"
+          loading={loading}
+          columns={columnsSet.columns}
+          dataSource={rows}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
+          locale={{
+            emptyText: tableEmpty(
+              status === RQ_STATUS.PENDING_RECEIPT
+                ? '没有待验收的退款申请；退货退款没勾选「先退款」时，仓库验收前在这里'
+                : status === RQ_STATUS.PENDING_FINANCE
+                  ? '没有待处理的退款申请；业务员在售后单或订单详情提出'
+                  : '没有符合条件的退款申请',
+              loading,
+            ),
           }}
-          options={tabs}
-        />
-        <Input.Search
-          allowClear
-          placeholder="申请号、退货单号、售后单号、订单号"
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          onSearch={(v) => {
-            setQuery(v.trim());
-            setPage(1);
+          pagination={{
+            ...PAGER_STYLE,
+            current: page,
+            pageSize,
+            total,
+            onChange: (p, s) => {
+              setPage(p);
+              setPageSize(s);
+            },
           }}
-          style={{ width: 260 }}
-          aria-label="关键词"
         />
-      </div>
-      <Table<RefundRequest>
-        rowKey="id"
-        size="middle"
-        loading={loading}
-        columns={columns}
-        dataSource={rows}
-        scroll={{ x: tableScrollX(columns) }}
-        locale={{
-          emptyText:
-            status === RQ_STATUS.PENDING_RECEIPT
-              ? '没有待验收的退款申请；退货退款没勾选「先退款」时，仓库验收前在这里'
-              : status === RQ_STATUS.PENDING_FINANCE
-                ? '没有待处理的退款申请；业务员在售后单或订单详情提出'
-                : '没有符合条件的退款申请',
-        }}
-        pagination={{
-          current: page,
-          pageSize,
-          total,
-          showSizeChanger: true,
-          showTotal: (t) => `共 ${t} 条`,
-          onChange: (p, s) => {
-            setPage(p);
-            setPageSize(s);
-          },
-        }}
-      />
+      </MainCard>
       <RefundModal
         open={!!executing}
         soId={executing?.soId}
@@ -380,7 +404,7 @@ const RequestsTab: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
           done();
         }}
       />
-    </Card>
+    </>
   );
 };
 

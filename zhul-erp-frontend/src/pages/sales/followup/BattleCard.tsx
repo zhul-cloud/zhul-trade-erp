@@ -1,7 +1,7 @@
-import { CopyOutlined, RobotOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { Alert, App, Button, Checkbox, Input, Skeleton } from 'antd';
 import dayjs from 'dayjs';
+import { Bot, Copy } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useAppTheme } from '@/theme/AppTheme';
 import { formatAmount } from '@/utils/format';
@@ -61,6 +61,17 @@ const Title: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 /** 作战卡：跟随选中行显示所在阶段的 SOP（K2、K3 右栏；客户经营见 K14） */
+/** 作战卡外框：放在抽屉里（bare）时不再套卡片，避免卡里套卡（D74） */
+const Box: React.FC<{ bare?: boolean; children: React.ReactNode }> = ({
+  bare,
+  children,
+}) =>
+  bare ? (
+    <div>{children}</div>
+  ) : (
+    <Card style={{ padding: 20 }}>{children}</Card>
+  );
+
 const BattleCard: React.FC<{
   item?: FollowupItem;
   canRecord?: boolean;
@@ -69,7 +80,10 @@ const BattleCard: React.FC<{
   /** 主动开发：转为商机、停止开发 */
   onConvert?: (item: FollowupItem) => void;
   onStop?: (item: FollowupItem) => void;
+  /** 放在抽屉里：不套卡片外框 */
+  bare?: boolean;
 }> = ({
+  bare,
   item,
   canRecord = false,
   onNewInquiry,
@@ -140,21 +154,21 @@ const BattleCard: React.FC<{
 
   if (!item)
     return (
-      <Card style={{ padding: 20 }}>
+      <Box bare={bare}>
         <span style={{ color: palette.mute }}>选中一行查看作战卡</span>
-      </Card>
+      </Box>
     );
   if (failed)
     return (
-      <Card style={{ padding: 20 }}>
+      <Box bare={bare}>
         <span style={{ color: palette.mute }}>作战卡加载失败，请刷新重试</span>
-      </Card>
+      </Box>
     );
   if (!sop)
     return (
-      <Card style={{ padding: 20 }}>
+      <Box bare={bare}>
         <Skeleton active />
-      </Card>
+      </Box>
     );
 
   const isPi = item.stageGroup === GROUP.AFTER_PI;
@@ -224,7 +238,7 @@ const BattleCard: React.FC<{
   };
 
   return (
-    <Card style={{ padding: 20 }}>
+    <Box bare={bare}>
       <div
         style={{
           display: 'flex',
@@ -233,7 +247,7 @@ const BattleCard: React.FC<{
           flexWrap: 'wrap',
         }}
       >
-        <span style={{ fontWeight: 700, fontSize: 16, color: palette.ink }}>
+        <span style={{ fontWeight: 600, fontSize: 16, color: palette.ink }}>
           作战卡 · {sop.stageCode} {sop.name}
         </span>
         <StageAdjust
@@ -361,7 +375,7 @@ const BattleCard: React.FC<{
         />
         <Button
           style={{ marginTop: 8 }}
-          icon={<RobotOutlined />}
+          icon={<Bot size="1em" />}
           loading={replying}
           onClick={writeReply}
           block
@@ -394,7 +408,7 @@ const BattleCard: React.FC<{
             <Button
               size="small"
               type="link"
-              icon={<CopyOutlined />}
+              icon={<Copy size="1em" />}
               onClick={copy}
               style={{ paddingLeft: 0 }}
             >
@@ -464,7 +478,7 @@ const BattleCard: React.FC<{
           )}
         </>
       )}
-    </Card>
+    </Box>
   );
 };
 

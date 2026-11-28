@@ -1,9 +1,12 @@
 import { Button, Table, type TableColumnsType } from 'antd';
 import dayjs from 'dayjs';
 import React from 'react';
+import { createPortal } from 'react-dom';
+import { useColumnSettings } from '@/components/ColumnSettings';
 import { ellipsisRender } from '@/components/EllipsisText';
+import { auditColumns } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatDateTime } from '@/utils/format';
+import { PAGER_STYLE } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { Pill } from '../components';
 import { type Signal, SRC, SRC_NAMES } from '../service';
@@ -47,6 +50,8 @@ export const SignalTable: React.FC<{
   onPage: (p: number, size: number) => void;
   onClassify: (s: Signal[]) => void;
   onIgnore: (s: Signal[]) => void;
+  /** 「列」按钮渲染到的位置（工具栏右端）；没有时放在表格上方 */
+  settingsSlot?: HTMLElement | null;
 }> = ({
   rows,
   total,
@@ -59,10 +64,12 @@ export const SignalTable: React.FC<{
   onPage,
   onClassify,
   onIgnore,
+  settingsSlot,
 }) => {
   const { palette } = useAppTheme();
   const columns: TableColumnsType<Signal> = [
     {
+      fixed: 'left',
       title: '来源',
       dataIndex: 'sourceType',
       width: 120,
@@ -119,31 +126,9 @@ export const SignalTable: React.FC<{
       render: (v?: string) => v || '—',
     },
     // 列表固定的四列（audit UI-093）
+    ...auditColumns<Signal>(),
     {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      width: 170,
-      render: (v?: string) => formatDateTime(v),
-    },
-    {
-      title: '创建人',
-      dataIndex: 'createBy',
-      width: 90,
-      render: (v?: string) => v || '—',
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      width: 170,
-      render: (v?: string) => formatDateTime(v),
-    },
-    {
-      title: '更新人',
-      dataIndex: 'updateBy',
-      width: 90,
-      render: (v?: string) => v || '—',
-    },
-    {
+      // lint-ui-ignore row-actions: 供应链跟进工作队列，保留按钮
       title: '操作',
       key: 'op',
       width: 120,
@@ -161,28 +146,48 @@ export const SignalTable: React.FC<{
         ),
     },
   ];
+  const columnsSet = useColumnSettings('supply-chain-signals', columns, {
+    hidden: ['来源单号'],
+  });
   return (
-    <Table<Signal>
-      rowKey="id"
-      size="middle"
-      loading={loading}
-      columns={columns}
-      dataSource={rows}
-      tableLayout="fixed"
-      scroll={{ x: tableScrollX(columns) }}
-      rowSelection={
-        canEdit
-          ? { selectedRowKeys: picked, onChange: (k) => onPick(k as number[]) }
-          : undefined
-      }
-      pagination={{
-        current: page,
-        pageSize,
-        total,
-        showSizeChanger: true,
-        showTotal: (t) => `共 ${t} 条`,
-        onChange: (p, s) => onPage(s === pageSize ? p : 1, s),
-      }}
-    />
+    <>
+      {settingsSlot ? (
+        createPortal(columnsSet.settings, settingsSlot)
+      ) : (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            marginBottom: 12,
+          }}
+        >
+          {columnsSet.settings}
+        </div>
+      )}
+      <Table<Signal>
+        rowKey="id"
+        loading={loading}
+        columns={columnsSet.columns}
+        dataSource={rows}
+        tableLayout="fixed"
+        scroll={{ x: tableScrollX(columnsSet.columns) }}
+        rowSelection={
+          canEdit
+            ? {
+                selectedRowKeys: picked,
+                onChange: (k) => onPick(k as number[]),
+              }
+            : undefined
+        }
+        pagination={{
+          ...PAGER_STYLE,
+          current: page,
+          pageSize,
+          total,
+          showTotal: (t) => `共 ${t} 条`,
+          onChange: (p, s) => onPage(s === pageSize ? p : 1, s),
+        }}
+      />
+    </>
   );
 };

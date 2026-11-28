@@ -1,14 +1,3 @@
-import {
-  ApartmentOutlined,
-  CheckOutlined,
-  DatabaseOutlined,
-  DeleteOutlined,
-  InfoCircleOutlined,
-  PlusOutlined,
-  RobotOutlined,
-  SyncOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
 import { history, useParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -22,22 +11,32 @@ import {
   Skeleton,
   Table,
 } from 'antd';
+import {
+  Check,
+  Database,
+  Info,
+  Network,
+  Plus,
+  RefreshCw,
+  Sparkles,
+  Trash2,
+  TriangleAlert,
+} from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import BrandCategoryPicker from '@/components/BrandCategoryPicker';
+import { CardTitle, HelpTip, PageHeader } from '@/components/ListLayout';
 import { usePageTitle } from '@/components/PageTabs/hooks';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { type CategoryOption, categoryApi } from '@/pages/product/service';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_SOURCE_CHANNEL, useDictOptions } from '@/utils/dict';
 import { formatAmount } from '@/utils/format';
-import { MenuLink } from '@/utils/menuName';
 import { tableScrollX } from '@/utils/tableScroll';
 import {
   AgeText,
   Card,
   ConditionPill,
   LeadTimeText,
-  PageTitle,
   Pill,
   SupplierText,
   TaxHint,
@@ -525,7 +524,7 @@ const ConfirmPage: React.FC = () => {
           )}
           {r.confidence >= CONFIDENCE.PENDING_VERIFY && (
             <Pill tone="orange">
-              <WarningOutlined /> 待核实
+              <TriangleAlert size="1em" /> 待核实
               {r.originalModel ? ` · 原文 ${r.originalModel}` : ''}
             </Pill>
           )}
@@ -612,7 +611,7 @@ const ConfirmPage: React.FC = () => {
         if (r.matching)
           return (
             <span style={{ color: palette.mute }}>
-              <SyncOutlined spin /> 正在查询价记录…
+              <RefreshCw size="1em" className="zhul-spin" /> 正在查询价记录…
             </span>
           );
         const same = r.match?.sameBrand ?? [];
@@ -699,7 +698,7 @@ const ConfirmPage: React.FC = () => {
           type="text"
           size="small"
           aria-label="删除这一行"
-          icon={<DeleteOutlined />}
+          icon={<Trash2 size="1em" />}
           onClick={() => setRows((prev) => prev.filter((x) => x.key !== r.key))}
         />
       ),
@@ -712,7 +711,7 @@ const ConfirmPage: React.FC = () => {
     return (
       <div style={{ display: 'grid', gap: 10, padding: '4px 8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <DatabaseOutlined style={{ color: palette.cyan }} />
+          <Database size="1em" style={{ color: palette.info }} />
           <span style={{ fontWeight: 600, color: palette.ink }}>
             询价记录里 {r.brand} {r.confirmedModel}{' '}
             的价格（同品牌、型号写法不同也会归到一起）
@@ -724,7 +723,7 @@ const ConfirmPage: React.FC = () => {
           </span>
           <Button
             size="small"
-            icon={<SyncOutlined />}
+            icon={<RefreshCw size="1em" />}
             disabled={!r.reuseQuoteId}
             onClick={() => patch(r.key, { reuseQuoteId: null })}
           >
@@ -744,8 +743,8 @@ const ConfirmPage: React.FC = () => {
                 padding: '8px 12px',
                 borderRadius: 10,
                 background:
-                  r.reuseQuoteId === q.id ? palette.accentSoft : 'transparent',
-                border: `1px solid ${r.reuseQuoteId === q.id ? palette.accentLine : 'transparent'}`,
+                  r.reuseQuoteId === q.id ? palette.primarySoft : 'transparent',
+                border: `1px solid ${r.reuseQuoteId === q.id ? palette.primaryLine : 'transparent'}`,
               }}
             >
               <span
@@ -801,7 +800,7 @@ const ConfirmPage: React.FC = () => {
               fontSize: 12,
             }}
           >
-            <InfoCircleOutlined />
+            <Info size="1em" />
             其他品牌也有同型号记录（仅作参考，不默认复用）：
             {others
               .slice(0, 3)
@@ -820,7 +819,7 @@ const ConfirmPage: React.FC = () => {
     return <Skeleton active paragraph={{ rows: 10 }} />;
   }
   if (error || !draft) {
-    return <ErrorHint message={error || '加载失败'} onRetry={load} />;
+    return <ErrorHint page message={error || '加载失败'} onRetry={load} />;
   }
   // 待确认：确认 AI 解析结果；待解析 / 解析失败：手动录入（不改状态，确认时才离开原状态）
   const editable = [
@@ -861,8 +860,7 @@ const ConfirmPage: React.FC = () => {
     });
   return (
     <div>
-      <PageTitle
-        crumbs={[<MenuLink key="list" to={PATHS.inquiries} />, inq.inquiryCode]}
+      <PageHeader
         title={
           appendId
             ? manual
@@ -872,20 +870,29 @@ const ConfirmPage: React.FC = () => {
               ? '手动录入型号'
               : '确认解析结果'
         }
-        description={`${inq.customerName} · ${sourceLabel(inq.source)} · ${inq.inquiryDate}${inq.urgent ? ' · 紧急' : ''}`}
-        actions={
+        sub={`${inq.inquiryCode} · ${inq.customerName} · ${sourceLabel(inq.source)} · ${inq.inquiryDate}${inq.urgent ? ' · 紧急' : ''}`}
+        extra={
           <>
             <Button
+              type="text"
+              style={{ color: palette.link }}
               onClick={() => history.push(`${PATHS.inquiries}/${inquiryId}`)}
             >
               {manual ? '稍后再录入' : '稍后再确认'}
             </Button>
-            <Button icon={<RobotOutlined />} onClick={reparse}>
+            <Button
+              type="text"
+              style={{ color: palette.link }}
+              icon={<Sparkles size={16} />}
+              onClick={reparse}
+            >
               {manual ? '改用 AI 解析' : '重新解析'}
             </Button>
             {reused.length > 0 && (
               <Button
-                icon={<SyncOutlined />}
+                type="text"
+                style={{ color: palette.link }}
+                icon={<RefreshCw size={16} />}
                 onClick={() =>
                   setRows((prev) =>
                     prev.map((x) => ({ ...x, reuseQuoteId: null })),
@@ -897,7 +904,7 @@ const ConfirmPage: React.FC = () => {
             )}
             <Button
               type="primary"
-              icon={<CheckOutlined />}
+              icon={<Check size="1em" />}
               loading={saving}
               onClick={confirm}
             >
@@ -916,7 +923,7 @@ const ConfirmPage: React.FC = () => {
               marginBottom: 12,
             }}
           >
-            <b style={{ color: palette.ink }}>铭牌图片</b>
+            <CardTitle>铭牌图片</CardTitle>
             <Pill tone="green">
               已对应 {plates.filter((p) => owners.has(p.id)).length}
             </Pill>
@@ -925,11 +932,7 @@ const ConfirmPage: React.FC = () => {
                 未对应 {plates.filter((p) => !owners.has(p.id)).length}
               </Pill>
             )}
-            <span
-              style={{ marginLeft: 'auto', fontSize: 12, color: palette.mute }}
-            >
-              点图片预览；改对应的行用图片下面的下拉。删掉某行时，对应这行的图变为未对应
-            </span>
+            <HelpTip title="点图片预览；改对应的行用图片下面的下拉。删掉某行时，对应这行的图变为未对应" />
           </div>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             {plates.map((f) => {
@@ -982,12 +985,12 @@ const ConfirmPage: React.FC = () => {
         <Pill tone="gray">共 {rows.length} 个型号</Pill>
         <Pill tone="gray">{brands.size} 个品牌</Pill>
         <Pill tone="cyan">
-          <DatabaseOutlined /> {reused.length} 个复用历史价
+          <Database size="1em" /> {reused.length} 个复用历史价
         </Pill>
         <Pill tone="orange">{pending.length} 个待询价</Pill>
         {verifyCount > 0 && (
           <Pill tone="orange">
-            <WarningOutlined /> {verifyCount} 个待核实
+            <TriangleAlert size="1em" /> {verifyCount} 个待核实
           </Pill>
         )}
         <Button
@@ -1002,7 +1005,7 @@ const ConfirmPage: React.FC = () => {
         </Button>
         <Button
           size="small"
-          icon={<PlusOutlined />}
+          icon={<Plus size="1em" />}
           onClick={() => setRows((prev) => [...prev, emptyRow()])}
         >
           手动加一行
@@ -1044,7 +1047,7 @@ const ConfirmPage: React.FC = () => {
                 style: {
                   borderRadius: 14,
                   overflow: 'hidden',
-                  border: `1px solid ${open ? palette.accentLine : palette.hairline}`,
+                  border: `1px solid ${open ? palette.primaryLine : palette.hairline}`,
                   background: palette.card,
                 },
                 styles: { body: { padding: 0 } },
@@ -1061,7 +1064,7 @@ const ConfirmPage: React.FC = () => {
                       style={{
                         color:
                           g.key === NO_BRAND ? palette.orange : palette.ink,
-                        fontSize: 15,
+                        fontSize: 16,
                       }}
                     >
                       {g.brand}
@@ -1075,7 +1078,7 @@ const ConfirmPage: React.FC = () => {
                     </span>
                     {verify > 0 && (
                       <Pill tone="orange">
-                        <WarningOutlined /> {verify} 个待核实
+                        <TriangleAlert size="1em" /> {verify} 个待核实
                       </Pill>
                     )}
                   </span>
@@ -1155,9 +1158,9 @@ const ConfirmPage: React.FC = () => {
                         width: 30,
                         height: 30,
                         borderRadius: 8,
-                        background: palette.accentSoft,
-                        color: palette.link,
-                        fontWeight: 700,
+                        background: palette.neutralSoft,
+                        color: palette.sub,
+                        fontWeight: 600,
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -1177,7 +1180,7 @@ const ConfirmPage: React.FC = () => {
                   </div>
                 ))}
                 <div style={{ color: palette.mute, fontSize: 12 }}>
-                  <ApartmentOutlined /> 确认后进入询价分配，由采购负责人分配。
+                  <Network size="1em" /> 确认后进入询价分配，由采购负责人分配。
                 </div>
               </div>
             )}

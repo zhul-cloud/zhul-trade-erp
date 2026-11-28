@@ -1,14 +1,20 @@
-import {
-  ArrowRightOutlined,
-  EyeOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
-import { Link } from '@umijs/max';
+import { history, Link } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Button, Input, Segmented, Select, Table } from 'antd';
+import { Button, Input, Select, Table } from 'antd';
+import { Eye, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  SelectionCount,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
   type BrandOption,
@@ -18,7 +24,7 @@ import {
 } from '@/pages/product/service';
 import { auditColumns } from '@/pages/purchase/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { usePageSize } from '@/utils/pageSize';
+import { PAGER_STYLE, usePageSize } from '@/utils/pageSize';
 import { usePermission } from '@/utils/permission';
 import { tableScrollX } from '@/utils/tableScroll';
 import { PlatformTaskChip, TABS } from './components';
@@ -37,6 +43,11 @@ import {
   sitePublishApi,
   TASK_PUBLISHING,
 } from './site/service';
+
+/** 帮助文字：help-texts.md「发品任务」 */
+export const HELP = {
+  page: '一个商品一行，汇总各平台的发品状态。商品资料核对、某个平台的营销内容写完后自动生成这个平台的发品任务；进详情按平台复制内容、下载素材，到平台上发布后回填链接。流程：资料已核 + 平台营销写完 → 待发布 → 已发布。没有发品素材时先在素材库勾选「用于发品」，或在任务里选择参考素材；发布后营销内容重新导入，会提醒同步。独立站每个站点一个任务；「已取消」表示商品不在这个站点的商品范围内或站点已停用',
+} as const;
 
 /** 运营管理 → 发品任务：商品 × 平台，复制内容和素材到平台发布后回填链接 */
 const ListingTasksPage: React.FC = () => {
@@ -63,6 +74,7 @@ const ListingTasksPage: React.FC = () => {
   const [previewing, setPreviewing] = useState(false);
   const [releaseId, setReleaseId] = useState<number>();
   const target = targets.find((t) => t.id === targetId);
+  const selecting = canPublish && targets.length > 0 && selected.length > 0;
 
   useEffect(() => {
     if (!canPublish) return;
@@ -187,148 +199,151 @@ const ListingTasksPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 80,
+      width: rowActionsWidth(1),
       fixed: 'right',
       render: (_, r) => (
-        <Link to={`/operations/listings/${r.productId}`}>详情</Link>
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '详情',
+              icon: <Eye size={18} />,
+              onClick: () =>
+                history.push(`/operations/listings/${r.productId}`),
+            },
+          ]}
+        />
       ),
     },
   ];
+  const columnsSet = useColumnSettings('operations-listings', columns);
 
   return (
     <div>
-      <PageTitle description="一个商品一行，汇总各平台的发品状态。商品资料核对、某个平台的营销内容写完后自动生成这个平台的发品任务；进详情按平台复制内容、下载素材，到平台上发布后回填链接。" />
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          flexWrap: 'wrap',
-          padding: '10px 14px',
-          borderRadius: 10,
-          background: palette.inset,
-          marginBottom: 16,
-          fontSize: 12,
-          color: palette.mute,
+      <PageHeader help={HELP.page} />
+      <FilterCard
+        onSearch={apply}
+        onReset={() => {
+          setKeyword('');
+          setBrandId(undefined);
+          setCategoryId(undefined);
+          setQuery({});
+          setTab('pending');
+          setPage(1);
         }}
+        moreCount={
+          [query.brandId, query.categoryId].filter((v) => v != null).length
+        }
+        more={
+          <>
+            <FilterField label="品牌">
+              <Select
+                allowClear
+                showSearch={{ optionFilterProp: 'label' }}
+                value={brandId}
+                onChange={setBrandId}
+                placeholder="全部"
+                options={brands.map((b) => ({
+                  value: b.id,
+                  label: b.brandName,
+                }))}
+                aria-label="品牌"
+              />
+            </FilterField>
+            <FilterField label="品类">
+              <Select
+                allowClear
+                showSearch={{ optionFilterProp: 'label' }}
+                value={categoryId}
+                onChange={setCategoryId}
+                placeholder="全部"
+                options={categories.map((c) => ({
+                  value: c.id,
+                  label: c.categoryNameZh || c.categoryName,
+                }))}
+                aria-label="品类"
+              />
+            </FilterField>
+          </>
+        }
       >
-        <span style={{ fontWeight: 600 }}>流程</span>
-        <Pill tone="gray">资料已核 + 平台营销写完</Pill>
-        <ArrowRightOutlined style={{ fontSize: 10 }} />
-        <Pill tone="accent">待发布</Pill>
-        <ArrowRightOutlined style={{ fontSize: 10 }} />
-        <Pill tone="green">已发布</Pill>
-        <span style={{ marginLeft: 8 }}>
-          没有发品素材时先在素材库勾选「用于发品」，或在任务里选择参考素材；发布后营销内容重新导入，会提醒同步。
-        </span>
-      </div>
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          marginBottom: 16,
-        }}
-      >
-        <Segmented<ListingTab>
-          value={tab}
-          onChange={(t) => {
-            setTab(t);
-            setPage(1);
-          }}
-          options={TABS.map((t) => ({
-            value: t.key,
-            label:
-              counts[t.key] !== undefined
-                ? `${t.label} · ${counts[t.key]}`
-                : t.label,
-          }))}
-        />
-        <Input
-          allowClear
-          prefix={<SearchOutlined />}
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          onPressEnter={apply}
-          placeholder="型号、名称"
-          style={{ width: 200 }}
-          aria-label="关键词"
-        />
-        <Select
-          allowClear
-          showSearch={{ optionFilterProp: 'label' }}
-          value={brandId}
-          onChange={setBrandId}
-          placeholder="全部品牌"
-          options={brands.map((b) => ({ value: b.id, label: b.brandName }))}
-          style={{ width: 160 }}
-          aria-label="品牌"
-        />
-        <Select
-          allowClear
-          showSearch={{ optionFilterProp: 'label' }}
-          value={categoryId}
-          onChange={setCategoryId}
-          placeholder="全部品类"
-          options={categories.map((c) => ({
-            value: c.id,
-            label: c.categoryNameZh || c.categoryName,
-          }))}
-          style={{ width: 160 }}
-          aria-label="品类"
-        />
-        <span style={{ flex: 1 }} />
-        <Button type="primary" onClick={apply}>
-          查询
-        </Button>
-      </div>
-      {canPublish && targets.length > 0 && selected.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            flexWrap: 'wrap',
-            padding: '10px 14px',
-            borderRadius: 12,
-            border: `1px solid ${palette.accentLine}`,
-            background: palette.accentSoft,
-            marginBottom: 12,
-          }}
-        >
-          <b>已选 {selected.length} 个商品</b>
-          <span style={{ color: palette.sub }}>发布到</span>
-          <Select
-            value={targetId}
-            onChange={(v) => {
-              setTargetId(v);
-              setSelected([]);
-            }}
-            options={targets.map((t) => ({
-              value: t.id,
-              label: `独立站 · ${t.name}`,
-            }))}
-            style={{ width: 220 }}
-            aria-label="发布到"
+        <FilterField label="关键词" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={apply}
+            placeholder="型号、名称"
+            aria-label="关键词"
           />
-          <span style={{ flex: 1 }} />
-          <Button type="text" onClick={() => setSelected([])}>
-            取消选择
-          </Button>
-          <Button
-            type="primary"
-            icon={<EyeOutlined />}
-            onClick={() => setPreviewing(true)}
-          >
-            发布预览
-          </Button>
-        </div>
-      )}
+        </FilterField>
+        <FilterField label="状态">
+          {/* 原来的页签，选项带按商品计的数量，切换后立即查询 */}
+          <Select<ListingTab>
+            value={tab}
+            onChange={(t) => {
+              setTab(t);
+              setPage(1);
+            }}
+            options={TABS.map((t) => ({
+              value: t.key,
+              // 为 0 时只写名称；「全部」不是状态，不带数量
+              label:
+                counts[t.key] && t.key !== 'all'
+                  ? `${t.label} · ${counts[t.key]}`
+                  : t.label,
+            }))}
+            aria-label="状态"
+          />
+        </FilterField>
+      </FilterCard>
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 0 }}>
+        <MainCard
+          settings={columnsSet.settings}
+          count={selecting ? undefined : total}
+          loading={loading}
+          left={
+            selecting ? (
+              <SelectionCount
+                count={selected.length}
+                unit="个商品"
+                onClear={() => setSelected([])}
+                extra={
+                  <>
+                    <span style={{ color: palette.sub }}>发布到</span>
+                    <Select
+                      value={targetId}
+                      onChange={(v) => {
+                        setTargetId(v);
+                        setSelected([]);
+                      }}
+                      options={targets.map((t) => ({
+                        value: t.id,
+                        label: `独立站 · ${t.name}`,
+                      }))}
+                      style={{ width: 200 }}
+                      aria-label="发布到"
+                    />
+                  </>
+                }
+              />
+            ) : undefined
+          }
+          right={
+            selecting && (
+              <Button
+                type="primary"
+                icon={<Eye size="1em" />}
+                onClick={() => setPreviewing(true)}
+              >
+                发布预览
+              </Button>
+            )
+          }
+        >
           <Table<ListingProduct>
             rowKey="productId"
             rowSelection={
@@ -346,30 +361,29 @@ const ListingTasksPage: React.FC = () => {
                   }
                 : undefined
             }
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={rows}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             locale={{
-              emptyText: TABS.find((t) => t.key === tab)?.empty ?? '没有记录',
+              emptyText: tableEmpty(
+                TABS.find((t) => t.key === tab)?.empty ?? '没有记录',
+                loading,
+              ),
             }}
             pagination={{
+              ...PAGER_STYLE,
               current: page,
               pageSize,
               total,
-              showSizeChanger: true,
-              showTotal: (t: number) => `共 ${t} 条`,
               onChange: (p: number, s: number) => {
                 setPage(p);
                 setPageSize(s);
               },
             }}
           />
-        </Card>
+        </MainCard>
       )}
-      <div style={{ marginTop: 10, fontSize: 12, color: palette.mute }}>
-        独立站每个站点一个标签；「已取消」表示商品不在这个站点的商品范围内或站点已停用
-      </div>
       <BatchPreviewModal
         site={previewing ? target : undefined}
         taskIds={selected

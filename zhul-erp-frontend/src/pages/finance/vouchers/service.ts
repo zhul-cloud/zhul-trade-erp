@@ -11,10 +11,11 @@ const send = <T>(method: string, url: string, data?: unknown) =>
   request<{ data: T }>(url, { method, data, ...quiet }).then((r) => r.data);
 
 export const CATEGORIES = [
-  { value: 1, label: '采购入库', tone: 'accent' },
-  { value: 2, label: '销售成本结转', tone: 'violet' },
-  { value: 3, label: '其他出库', tone: 'orange' },
-  { value: 4, label: '成本调整', tone: 'green' },
+  // 类别是属性：属性色，同列不重复（D75；原 accent、violet 都是信息蓝，撞色）
+  { value: 1, label: '采购入库', tone: 'blue' },
+  { value: 2, label: '销售成本结转', tone: 'purple' },
+  { value: 3, label: '其他出库', tone: 'magenta' },
+  { value: 4, label: '成本调整', tone: 'indigo' },
 ] as const;
 
 export const voucherPath = (month: string) => `/finance/vouchers/${month}`;

@@ -1,13 +1,4 @@
 import {
-  CloudUploadOutlined,
-  DeleteOutlined,
-  DownloadOutlined,
-  FileTextOutlined,
-  MinusOutlined,
-  PlayCircleOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
-import {
   App,
   Button,
   Checkbox,
@@ -20,7 +11,17 @@ import {
   Tooltip,
   Upload,
 } from 'antd';
+import {
+  CirclePlay,
+  CloudUpload,
+  Download,
+  FileText,
+  Minus,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -103,12 +104,10 @@ export const MediaGrid: React.FC<{
         const thumb = i.kind === 1 ? previews[key] : undefined;
         return (
           <div
+            className="zhul-card"
             key={key}
             style={{
-              border: `1px solid ${palette.hairline}`,
-              borderRadius: 12,
               overflow: 'hidden',
-              background: palette.card,
               display: 'flex',
               flexDirection: 'column',
             }}
@@ -134,9 +133,9 @@ export const MediaGrid: React.FC<{
             >
               {!thumb &&
                 (i.kind === 2 ? (
-                  <PlayCircleOutlined style={{ fontSize: 28 }} />
+                  <CirclePlay size="1em" style={{ fontSize: 28 }} />
                 ) : (
-                  <FileTextOutlined style={{ fontSize: 26 }} />
+                  <FileText size="1em" style={{ fontSize: 26 }} />
                 ))}
               {onToggle && i.canSend && (
                 <span
@@ -160,9 +159,10 @@ export const MediaGrid: React.FC<{
                       bottom: 6,
                       padding: '0 4px',
                       borderRadius: 4,
-                      fontSize: 10,
+                      fontSize: 12,
                       lineHeight: '16px',
-                      color: '#fff',
+                      color:
+                        i.processingStatus === 1 ? palette.onPrimary : '#fff',
                       background:
                         i.processingStatus === 1
                           ? palette.link
@@ -250,7 +250,7 @@ export const MediaGrid: React.FC<{
                   style={{ color: palette.red }}
                   onClick={() => onDelete(i)}
                 >
-                  <DeleteOutlined /> 删除
+                  <Trash2 size="1em" /> 删除
                 </button>
               )}
             </div>
@@ -417,7 +417,7 @@ const ReferencePanel: React.FC<{ brand: string; model: string }> = ({
               <Button
                 size="small"
                 type="text"
-                icon={open ? <MinusOutlined /> : <PlusOutlined />}
+                icon={open ? <Minus size="1em" /> : <Plus size="1em" />}
                 aria-label={open ? '收起' : '展开'}
                 onClick={() => expand(r.brand, r.model)}
               />
@@ -437,7 +437,7 @@ const ReferencePanel: React.FC<{ brand: string; model: string }> = ({
               </span>
               <Button
                 size="small"
-                icon={<DownloadOutlined />}
+                icon={<Download size="1em" />}
                 onClick={() => downloadPack(r.brand, r.model)}
               >
                 下载素材包
@@ -474,7 +474,8 @@ export const MediaDrawer: React.FC<{
   onChanged?: () => void;
 }> = ({ brand, model, open, onClose, onChanged }) => {
   const { palette } = useAppTheme();
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { hasPerm } = usePermission();
   const canEdit = hasPerm(PERM_EDIT);
   const canUpload = hasPerm(PERM_UPLOAD);
@@ -537,10 +538,8 @@ export const MediaDrawer: React.FC<{
   };
 
   const remove = (i: MediaItem) =>
-    modal.confirm({
+    confirmDanger({
       title: '删除这张网络图片？',
-      okText: '删除',
-      okButtonProps: { danger: true },
       onOk: async () => {
         try {
           await mediaApi.deleteNetwork(i.itemId as number);
@@ -616,14 +615,14 @@ export const MediaDrawer: React.FC<{
                 return Upload.LIST_IGNORE;
               }}
             >
-              <Button icon={<CloudUploadOutlined />} loading={uploading > 0}>
+              <Button icon={<CloudUpload size="1em" />} loading={uploading > 0}>
                 上传网络图片
               </Button>
             </Upload>
           )}
           <Button
             type="primary"
-            icon={<DownloadOutlined />}
+            icon={<Download size="1em" />}
             disabled={selected.size === 0}
             onClick={downloadSelected}
           >

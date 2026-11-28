@@ -2,15 +2,27 @@ import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { App, Segmented, Select, Table } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { TriangleAlert } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CopyText } from '@/components/CopyText';
 import { CustomerCell } from '@/components/DocFields';
-import FitText from '@/components/FitText';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  HelpTip,
+  MainCard,
+  PageHeader,
+  QuickFilters,
+  SummaryBar,
+} from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import StatsRangeFilter, { presetRange } from '@/components/StatsRangeFilter';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { useUserOptions } from '@/pages/sales/orders/dialogs';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
+import { useDeltaColor } from '@/theme/delta';
 import { StatsUnitSwitch, useBusinessUnits } from '@/utils/businessUnit';
 import { formatAmount } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
@@ -27,10 +39,18 @@ const nowrap: React.CSSProperties = { whiteSpace: 'nowrap' };
 const cny = (v?: number | null) => formatAmount(v ?? 0, 'CNY');
 const rateText = (v?: number | null) => (v == null ? '—' : `${v}%`);
 
+/** 帮助文字：help-texts.md「利润统计」 */
+export const HELP = {
+  page: '按销售日期汇总订单收入、实际成本与毛利；收入按毛额 × 结汇汇率，平台手续费算成本，口径与订单的成本明细一致',
+  unsettled: '收款没结汇、没入库或运费没对账',
+  table: '毛利率 = 毛利合计 ÷ 收入合计；按客户时按收入从高到低；点一行展开订单',
+} as const;
+
 /** 财务管理 → 利润统计：按销售日期汇总订单的收入、实际成本与毛利（只读） */
 const ProfitStatsPage: React.FC = () => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
   const users = useUserOptions();
   const [range, setRange] = useState<[Dayjs, Dayjs]>(() => {
     // 经营统计跳转时 URL 带日期范围
@@ -86,43 +106,6 @@ const ProfitStatsPage: React.FC = () => {
   // 从其他页面返回时重新取数（audit UI-055）
 
   useOnReactivate(load);
-
-  const stat = (
-    label: string,
-    value: React.ReactNode,
-    sub?: React.ReactNode,
-    color?: string,
-  ) => (
-    <div
-      style={{
-        flex: '1 1 160px',
-        minWidth: 0,
-        padding: '16px 18px',
-        borderRadius: 14,
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
-      }}
-    >
-      <div style={{ fontSize: 13, color: palette.sub }}>{label}</div>
-      <FitText
-        size={22}
-        min={15}
-        style={{
-          ...num,
-          fontWeight: 800,
-          color: color ?? palette.ink,
-          marginTop: 4,
-        }}
-      >
-        {value}
-      </FitText>
-      {sub && (
-        <div style={{ fontSize: 12, color: palette.mute, marginTop: 2 }}>
-          {sub}
-        </div>
-      )}
-    </div>
-  );
 
   const groupTitle =
     groupBy === 'OWNER' ? '业务员' : groupBy === 'CUSTOMER' ? '客户' : '月份';
@@ -212,7 +195,7 @@ const ProfitStatsPage: React.FC = () => {
           <b
             style={{
               ...num,
-              color: g.totals.profit >= 0 ? palette.green : palette.red,
+              color: deltaOf(g.totals.profit),
             }}
           >
             {cny(g.totals.profit)}
@@ -250,13 +233,15 @@ const ProfitStatsPage: React.FC = () => {
       dataIndex: 'soNo',
       width: 170,
       render: (v: string, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => history.push(`/sales/orders/${r.soId}`)}
-        >
-          {v}
-        </button>
+        <CopyText text={v}>
+          <button
+            type="button"
+            className="zhul-link"
+            onClick={() => history.push(`/sales/orders/${r.soId}`)}
+          >
+            {v}
+          </button>
+        </CopyText>
       ),
     },
     {
@@ -294,9 +279,7 @@ const ProfitStatsPage: React.FC = () => {
       width: 120,
       align: 'right',
       render: (v: number) => (
-        <b style={{ ...num, color: v >= 0 ? palette.green : palette.red }}>
-          {cny(v)}
-        </b>
+        <b style={{ ...num, color: deltaOf(v) }}>{cny(v)}</b>
       ),
     },
     {
@@ -326,95 +309,103 @@ const ProfitStatsPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle description="按销售日期汇总订单收入、实际成本与毛利；收入按毛额 × 结汇汇率，平台手续费算成本，口径与订单的成本明细一致。" />
-      <div
-        style={{
-          display: 'flex',
-          gap: 10,
-          flexWrap: 'wrap',
-          marginBottom: 16,
-          alignItems: 'center',
-        }}
+      <PageHeader help={HELP.page} />
+      {/* 统计条件选了就生效 */}
+      <FilterCard
+        moreCount={customerType == null ? 0 : 1}
+        more={
+          <FilterField label="新 / 老客户">
+            <Select
+              allowClear
+              placeholder="全部"
+              aria-label="新 / 老客户"
+              value={customerType}
+              onChange={setCustomerType}
+              options={[
+                { value: 1, label: '新客户' },
+                { value: 2, label: '老客户' },
+              ]}
+            />
+          </FilterField>
+        }
       >
-        <StatsRangeFilter value={range} onChange={setRange} />
-        <StatsUnitSwitch info={bu} value={unit} onChange={setUnit} />
-        <Select
-          allowClear
-          placeholder="业务员"
-          style={{ width: 140 }}
-          value={ownerId}
-          onChange={setOwnerId}
-          options={users}
-          showSearch={{ optionFilterProp: 'label' }}
-        />
-        <Select
-          allowClear
-          placeholder="新 / 老客户"
-          style={{ width: 130 }}
-          value={customerType}
-          onChange={setCustomerType}
-          options={[
-            { value: 1, label: '新客户' },
-            { value: 2, label: '老客户' },
-          ]}
-        />
-        <Segmented<string>
-          value={settledOnly ? 'settled' : 'all'}
-          onChange={(v) => setSettledOnly(v === 'settled')}
-          options={[
-            { label: '包含未结算', value: 'all' },
-            { label: '只看已结算', value: 'settled' },
-          ]}
-        />
-      </div>
+        <FilterField label="统计期间" span="auto">
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <StatsRangeFilter value={range} onChange={setRange} />
+          </div>
+        </FilterField>
+        {bu.enabled && (
+          <FilterField label="事业部">
+            <StatsUnitSwitch info={bu} value={unit} onChange={setUnit} />
+          </FilterField>
+        )}
+        <FilterField label="业务员">
+          <Select
+            allowClear
+            placeholder="全部"
+            aria-label="业务员"
+            value={ownerId}
+            onChange={setOwnerId}
+            options={users}
+            showSearch={{ optionFilterProp: 'label' }}
+          />
+        </FilterField>
+      </FilterCard>
       {summary && (
-        <div
-          style={{
-            display: 'flex',
-            gap: 14,
-            flexWrap: 'wrap',
-            marginBottom: 16,
-          }}
-        >
-          {stat(
-            '订单数',
-            summary.orderCount,
-            `成交客户 ${summary.customerCount}`,
-          )}
-          {stat(
-            '收入',
-            cny(summary.revenue),
-            <>
-              <div style={nowrap}>线上 {cny(summary.onlineRevenue)}</div>
-              <div style={nowrap}>线下 {cny(summary.offlineRevenue)}</div>
-            </>,
-          )}
-          {stat('实际成本', cny(summary.cost))}
-          {stat(
-            '毛利',
-            cny(summary.profit),
-            `毛利率 ${rateText(summary.profitRate)}`,
-            summary.profit >= 0 ? palette.green : palette.red,
-          )}
-          {stat(
-            '未结算',
-            `${summary.unsettledCount} 单`,
-            '收款没结汇、没入库或运费没对账',
-            summary.unsettledCount ? palette.orange : undefined,
-          )}
-        </div>
+        <SummaryBar
+          items={[
+            {
+              key: 'orders',
+              label: '订单数',
+              value: summary.orderCount,
+              sub: `成交客户 ${summary.customerCount}`,
+            },
+            {
+              key: 'revenue',
+              label: '收入',
+              value: summary.revenue,
+              currency: 'CNY',
+              sub: `线上 ${cny(summary.onlineRevenue)} · 线下 ${cny(summary.offlineRevenue)}`,
+            },
+            {
+              key: 'cost',
+              label: '实际成本',
+              value: summary.cost,
+              currency: 'CNY',
+            },
+            {
+              key: 'profit',
+              label: '毛利',
+              value: (
+                <span style={{ color: deltaOf(summary.profit) }}>
+                  {cny(summary.profit)}
+                </span>
+              ),
+              sub: `毛利率 ${rateText(summary.profitRate)}`,
+            },
+            {
+              key: 'unsettled',
+              label: '未结算',
+              help: HELP.unsettled,
+              value: summary.unsettledCount ? (
+                <Pill tone="orange">
+                  <TriangleAlert size="1em" /> {summary.unsettledCount} 单
+                </Pill>
+              ) : (
+                '0 单'
+              ),
+            },
+          ]}
+        />
       )}
-      <Card>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            marginBottom: 14,
-            flexWrap: 'wrap',
-          }}
-        >
-          <b style={{ color: palette.ink }}>分组</b>
+      <MainCard
+        left={
+          <>
+            <span>分组</span>
+            <HelpTip title={HELP.table} />
+          </>
+        }
+        right={
           <Segmented<string>
             value={groupBy}
             onChange={(v) => setGroupBy(v as ProfitQuery['groupBy'])}
@@ -424,11 +415,15 @@ const ProfitStatsPage: React.FC = () => {
               { label: '按客户', value: 'CUSTOMER' },
             ]}
           />
-          <span style={{ flex: 1 }} />
-          <span style={{ fontSize: 12, color: palette.mute }}>
-            毛利率 = 毛利合计 ÷ 收入合计；按客户时按收入从高到低；点一行展开订单
-          </span>
-        </div>
+        }
+        quick={
+          <QuickFilters
+            options={[{ value: 'settled', label: '只看已结算' }]}
+            value={settledOnly ? ['settled'] : []}
+            onChange={(v) => setSettledOnly(v.length > 0)}
+          />
+        }
+      >
         <Table<ProfitGroup>
           rowKey="key"
           loading={loading}
@@ -436,7 +431,7 @@ const ProfitStatsPage: React.FC = () => {
           dataSource={groups}
           pagination={false}
           scroll={{ x: tableScrollX(columns) }}
-          locale={{ emptyText: '这段时间没有订单' }}
+          locale={{ emptyText: tableEmpty('这段时间没有订单', loading) }}
           expandable={{
             expandRowByClick: true,
             expandedRowRender: (g) => (
@@ -456,7 +451,7 @@ const ProfitStatsPage: React.FC = () => {
             ),
           }}
         />
-      </Card>
+      </MainCard>
     </div>
   );
 };

@@ -1017,7 +1017,7 @@ class QuotationContractTest extends InquiryContractSupport {
         assertEquals(List.of(small, big), ids.apply("{\"sortField\":\"itemCount\",\"sortOrder\":\"ascend\"}"));
         assertEquals(List.of(small, big), ids.apply("{\"sortField\":\"totalQuantity\",\"sortOrder\":\"descend\"}"), "9 件多于 2 件");
         assertEquals(List.of(big, small), ids.apply("{\"sortField\":\"totalAmount\",\"sortOrder\":\"descend\"}"));
-        assertEquals(List.of(big, small), ids.apply("{\"sortField\":\"id; drop table quotation\",\"sortOrder\":\"ascend\"}"), "不认识的字段按创建时间倒序");
+        assertEquals(List.of(big, small), ids.apply("{\"sortField\":\"id; drop table quotation\",\"sortOrder\":\"ascend\"}"), "不认识的字段按更新时间倒序");
     }
 
     @Test

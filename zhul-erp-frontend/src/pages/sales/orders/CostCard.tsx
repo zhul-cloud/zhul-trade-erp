@@ -2,6 +2,7 @@ import { history } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import { Popover, Table } from 'antd';
 import React from 'react';
+import { CardTitle, HelpTip } from '@/components/ListLayout';
 import type {
   CostLine,
   CostSource,
@@ -9,10 +10,14 @@ import type {
 } from '@/pages/finance/profit-stats/service';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount } from '@/utils/format';
+import { useDeltaColor } from '@/theme/delta';
+import { formatAmount, formatMoney } from '@/utils/format';
 import { tableScrollX } from '@/utils/tableScroll';
 
-const num: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
+const num: React.CSSProperties = {
+  fontVariantNumeric: 'tabular-nums',
+  whiteSpace: 'nowrap',
+};
 
 const SOURCE_PATH: Record<string, (id: number) => string | undefined> = {
   PO: (id) => `/purchase/orders/${id}`,
@@ -46,7 +51,7 @@ const Amount: React.FC<{
       }}
     >
       {negative ? '−' : ''}
-      {formatAmount(value, 'CNY')}
+      {formatMoney(value)}
     </span>
   );
   if (!sources?.length) return text;
@@ -71,7 +76,9 @@ const Amount: React.FC<{
                 )}
                 {s.amount != null && (
                   <span style={{ marginLeft: 8 }}>
-                    {formatAmount(s.amount, s.type === 'PO' ? '' : 'CNY')}
+                    {s.type === 'PO'
+                      ? formatMoney(s.amount)
+                      : formatAmount(s.amount, 'CNY')}
                   </span>
                 )}
                 {s.note && (
@@ -93,6 +100,7 @@ const Amount: React.FC<{
 /** 订单成本明细：按型号行列出各项成本、行收入与行毛利（spec finance/order-cost） */
 const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
   const { palette } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
   const money = (v: number, src?: CostSource[]) => (
     <Amount value={v} sources={src} />
   );
@@ -226,7 +234,7 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
       width: 110,
       align: 'right',
       render: (v: number) => (
-        <b style={{ ...num, color: palette.ink }}>{formatAmount(v, 'CNY')}</b>
+        <b style={{ ...num, color: palette.ink }}>{formatMoney(v)}</b>
       ),
     },
     {
@@ -237,7 +245,7 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
       render: (v: number) =>
         v ? (
           <span style={{ ...num, color: palette.orange }}>
-            −{formatAmount(v, 'CNY')}
+            −{formatMoney(v)}
           </span>
         ) : (
           <span style={{ color: palette.mute }}>—</span>
@@ -248,7 +256,7 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
       dataIndex: 'revenue',
       width: 110,
       align: 'right',
-      render: (v: number) => <span style={num}>{formatAmount(v, 'CNY')}</span>,
+      render: (v: number) => <span style={num}>{formatMoney(v)}</span>,
     },
     {
       title: '行毛利',
@@ -256,17 +264,13 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
       width: 140,
       align: 'right',
       render: (_, l) => (
-        <b
-          style={{ ...num, color: l.profit >= 0 ? palette.green : palette.red }}
-        >
-          {formatAmount(l.profit, 'CNY')}
+        // 毛利率另起一行：金额不折行，整段放一行时大额负毛利会超出列宽
+        <div style={{ color: deltaOf(l.profit) }}>
+          <b style={num}>{formatMoney(l.profit)}</b>
           {l.profitRate != null && (
-            <span style={{ fontWeight: 400, fontSize: 12 }}>
-              {' '}
-              · {l.profitRate}%
-            </span>
+            <div style={{ ...num, fontSize: 12 }}>{l.profitRate}%</div>
           )}
-        </b>
+        </div>
       ),
     },
   ];
@@ -298,7 +302,10 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
           marginBottom: 12,
         }}
       >
-        <b style={{ fontSize: 16, color: palette.ink }}>成本明细</b>
+        <CardTitle>成本明细</CardTitle>
+        <HelpTip title="浅色为还没确定的数字；虚线数字可以悬停查看来源单据" />
+        {/* 整表都是人民币：币种写在标题旁，单元格只写数字（S12） */}
+        <span style={{ fontSize: 12, color: palette.mute }}>金额单位 CNY</span>
         {own && <Pill tone="cyan">计入原订单 {cost.replacementOfNo}</Pill>}
         {cost.settled ? (
           <Pill tone="green">已结算</Pill>
@@ -306,14 +313,11 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
           <Pill tone="orange">未结算</Pill>
         )}
         {!cost.settled && (
-          <span style={{ fontSize: 12, color: palette.orange }}>
+          <span style={{ fontSize: 12, color: palette.mute }}>
             还差：{cost.pending.join(' · ')}
           </span>
         )}
         <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 12, color: palette.mute }}>
-          浅色为还没确定的数字；虚线数字可以悬停查看来源单据
-        </span>
       </div>
       <Table<CostLine>
         rowKey="soItemId"
@@ -328,33 +332,31 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
               <b>合计</b>
             </Table.Summary.Cell>
             <Table.Summary.Cell index={lead} align="right">
-              <b style={num}>{formatAmount(cost.cost, 'CNY')}</b>
+              <b style={num}>{formatMoney(cost.cost)}</b>
             </Table.Summary.Cell>
             {!own && (
               <>
                 <Table.Summary.Cell index={lead + 1} align="right">
                   {cost.refund ? (
                     <span style={{ ...num, color: palette.orange }}>
-                      −{formatAmount(cost.refund, 'CNY')}
+                      −{formatMoney(cost.refund)}
                     </span>
                   ) : (
                     <span style={{ color: palette.mute }}>—</span>
                   )}
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={lead + 2} align="right">
-                  <span style={num}>{formatAmount(cost.revenue, 'CNY')}</span>
+                  <span style={num}>{formatMoney(cost.revenue)}</span>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={lead + 3} align="right">
-                  <b
-                    style={{
-                      ...num,
-                      color:
-                        (cost.profit ?? 0) >= 0 ? palette.green : palette.red,
-                    }}
-                  >
-                    {formatAmount(cost.profit ?? 0, 'CNY')}
-                    {cost.profitRate != null ? ` · ${cost.profitRate}%` : ''}
-                  </b>
+                  <div style={{ color: deltaOf(cost.profit) }}>
+                    <b style={num}>{formatMoney(cost.profit ?? 0)}</b>
+                    {cost.profitRate != null && (
+                      <div style={{ ...num, fontSize: 12 }}>
+                        {cost.profitRate}%
+                      </div>
+                    )}
+                  </div>
                 </Table.Summary.Cell>
               </>
             )}
@@ -374,7 +376,7 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
                 fontSize: 13,
               }}
             >
-              <Pill tone="violet">售后补发</Pill>
+              <Pill tone="gray">售后补发</Pill>
               <button
                 type="button"
                 className="zhul-link"
@@ -452,6 +454,7 @@ const OrderCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
 /** 历史迁移订单的成本：取旧系统《成本核算》的快照，不随入库、付款、结汇、对账变化（spec finance/order-cost） */
 const SnapshotCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
   const { palette } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
   const s = cost.snapshot ?? {};
   const item = (label: string, value: React.ReactNode) => (
     <div key={label}>
@@ -486,7 +489,7 @@ const SnapshotCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
           marginBottom: 16,
         }}
       >
-        <b style={{ fontSize: 16, color: palette.ink }}>订单成本</b>
+        <CardTitle>订单成本</CardTitle>
         <Pill tone="orange">历史迁移：按旧系统成本核算</Pill>
         {(s.sourceCodes || s.accountingMonth) && (
           <span style={{ fontSize: 12, color: palette.mute }}>
@@ -503,7 +506,7 @@ const SnapshotCostCard: React.FC<{ cost: OrderCost }> = ({ cost }) => {
           '毛利',
           <span
             style={{
-              color: (cost.profit ?? 0) >= 0 ? palette.green : palette.red,
+              color: deltaOf(cost.profit),
             }}
           >
             {formatAmount(cost.profit ?? 0, 'CNY')}

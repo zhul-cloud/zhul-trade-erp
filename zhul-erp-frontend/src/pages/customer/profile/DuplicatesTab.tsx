@@ -1,10 +1,6 @@
-import {
-  CheckOutlined,
-  InfoCircleOutlined,
-  SwapOutlined,
-} from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { App, Button, Modal, Skeleton } from 'antd';
+import { ArrowLeftRight, Check, Info } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
 import { EmptyHint, ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -87,11 +83,11 @@ export const MergeModal: React.FC<{
         minWidth: 0,
         padding: 14,
         borderRadius: 14,
-        border: `1px solid ${keep ? palette.accentLine : palette.hairline}`,
+        border: `1px solid ${keep ? palette.primaryLine : palette.hairline}`,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Pill tone={keep ? 'accent' : 'gray'}>{keep ? '保留' : '被合并'}</Pill>
+        <Pill tone={keep ? 'info' : 'gray'}>{keep ? '保留' : '被合并'}</Pill>
         <span className="num" style={{ fontSize: 12, color: palette.mute }}>
           {m.customerCode}
         </span>
@@ -215,7 +211,7 @@ export const MergeModal: React.FC<{
           {card(pair[0], true)}
           <Button
             type="text"
-            icon={<SwapOutlined />}
+            icon={<ArrowLeftRight size="1em" />}
             aria-label="对调保留和被合并"
             title="对调保留和被合并"
             onClick={() => setPair([pair[1], pair[0]])}
@@ -276,14 +272,17 @@ export const MergeModal: React.FC<{
                 fontSize: 13,
               }}
             >
-              <CheckOutlined style={{ color: palette.green, marginTop: 4 }} />
+              <Check
+                size="1em"
+                style={{ color: palette.green, marginTop: 4 }}
+              />
               <span>{l}</span>
             </div>
           ))}
         </div>
       )}
       <div style={{ marginTop: 12, fontSize: 12, color: palette.mute }}>
-        <InfoCircleOutlined />{' '}
+        <Info size="1em" />{' '}
         被合并客户有客户余额流水或退款单时不能合并，要先找财务处理。
       </div>
     </Modal>
@@ -342,22 +341,16 @@ const DuplicatesTab: React.FC<{
       },
     });
 
-  if (error) return <ErrorHint message={error} onRetry={load} />;
+  if (error) return <ErrorHint page message={error} onRetry={load} />;
   if (!groups)
     return (
-      <div style={{ padding: 24, background: palette.card, borderRadius: 16 }}>
+      <div className="zhul-card" style={{ padding: 24 }}>
         <Skeleton active paragraph={{ rows: 6 }} />
       </div>
     );
   if (groups.length === 0)
     return (
-      <div
-        style={{
-          background: palette.card,
-          borderRadius: 16,
-          border: `1px solid ${palette.hairline}`,
-        }}
-      >
+      <div className="zhul-card">
         <EmptyHint
           title="没有疑似重复的客户"
           description="名称加国家、邮箱、WhatsApp 或电话相同的客户会出现在这里。"
@@ -369,13 +362,11 @@ const DuplicatesTab: React.FC<{
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {groups.map((g, i) => (
         <section
+          className="zhul-card"
           key={g.groupKey}
           aria-label={`第 ${i + 1} 组`}
           style={{
             padding: '14px 20px',
-            borderRadius: 16,
-            background: palette.card,
-            border: `1px solid ${palette.hairline}`,
           }}
         >
           <div

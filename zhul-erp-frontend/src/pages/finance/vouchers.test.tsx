@@ -206,8 +206,8 @@ it('月份详情：核对算式、未设科目提示、类别筛选、展开分�
   mockApi(() => detail());
   mount(VoucherDetail);
   expect(await screen.findByText('核对相符')).toBeTruthy();
-  expect(screen.getByText('¥54,289.88')).toBeTruthy();
-  expect(screen.getByText('¥57,315.88')).toBeTruthy();
+  expect(screen.getByText('CNY 54,289.88')).toBeTruthy();
+  expect(screen.getByText('CNY 57,315.88')).toBeTruthy();
   expect(screen.getByText(/不扣退货入库/)).toBeTruthy();
   expect(
     screen.getByText('「其他出库 · 货损」还没有设置科目，设置后才能导出'),

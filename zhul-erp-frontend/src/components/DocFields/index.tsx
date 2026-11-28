@@ -1,8 +1,9 @@
-import { ExpandOutlined, UserOutlined } from '@ant-design/icons';
 import { AutoComplete, Button, Drawer, Select, Space } from 'antd';
+import { Expand } from 'lucide-react';
 import React, { useState } from 'react';
+import { CountryText } from '@/components/CountryText';
+import EllipsisText from '@/components/EllipsisText';
 import { INCOTERMS } from '@/pages/customer/constants';
-import { CustomerTypePill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
 import { DICT_TRADE_TERM_PLACE, useDictTexts } from '@/utils/dict';
 
@@ -125,49 +126,60 @@ export const DictTextInput: React.FC<{
   );
 };
 
-/** 客户列名称下面的行：国家 / 地区一行、主联系人一行，缺哪个不显示哪行；都没有时为 empty */
-export const CustomerSub: React.FC<{
-  country?: string;
-  contact?: string;
-  empty?: React.ReactNode;
-}> = ({ country, contact, empty = '—' }) => {
-  if (!country && !contact) return <>{empty}</>;
-  return (
-    <>
-      {country && <div>{country}</div>}
-      {contact && (
-        <div>
-          <UserOutlined style={{ fontSize: 11, marginRight: 3 }} />
-          {contact}
-        </div>
-      )}
-    </>
-  );
-};
-
-/** 列表的客户列：名称 + 新 / 老客户、国家 / 地区、主联系人，分三行，缺哪行不显示哪行 */
+/**
+ * 列表的客户列：名称一行，下面一行「新 / 老客户 · 国家 / 地区 · 主联系人」（销售订单原型 A1），缺哪项不显示哪项。
+ * 新 / 老客户是客户的属性，不是状态，写成文字不用标签。全站列表的客户列都用它，最多两行（D21 行高）。
+ */
 export const CustomerCell: React.FC<{
   name?: string;
   country?: string;
   type?: number;
   contact?: string;
-}> = ({ name, country, type, contact }) => {
+  /** 接在第二行最后的补充，如「业务员 王五」 */
+  extra?: React.ReactNode;
+}> = ({ name, country, type, contact, extra }) => {
   const { palette } = useAppTheme();
   return (
     <div style={{ minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-        <span style={{ color: palette.ink, fontWeight: 600, minWidth: 0 }}>
-          {name || '—'}
-        </span>
-        {type ? (
-          <span style={{ flex: 'none' }}>
-            <CustomerTypePill type={type} />
-          </span>
-        ) : null}
-      </div>
-      <div style={{ color: palette.mute, fontSize: 12, lineHeight: '18px' }}>
-        <CustomerSub country={country} contact={contact} empty={null} />
-      </div>
+      {/* 长公司名单行省略，悬停看全名；不折行，行高一致 */}
+      <EllipsisText text={name} style={{ color: palette.ink }} />
+      <CustomerSubLine
+        type={type}
+        country={country}
+        contact={contact}
+        extra={extra}
+        style={{ color: palette.mute, fontSize: 12, lineHeight: '18px' }}
+      />
+    </div>
+  );
+};
+
+/** 客户名下面一行：「新 / 老客户 · 国旗 国家 · 主联系人」，缺哪项不显示哪项（列表客户列、单据详情客户卡共用） */
+export const CustomerSubLine: React.FC<{
+  country?: string;
+  type?: number;
+  contact?: string;
+  extra?: React.ReactNode;
+  style?: React.CSSProperties;
+}> = ({ country, type, contact, extra, style }) => {
+  const parts = [
+    type ? (type === 2 ? '老客户' : '新客户') : undefined,
+    country ? <CountryText key="c" value={country} /> : undefined,
+    contact,
+    extra,
+  ].filter(Boolean);
+  if (parts.length === 0) return null;
+  return (
+    <div
+      style={{
+        minWidth: 0,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        ...style,
+      }}
+    >
+      {parts.flatMap((p, i) => (i > 0 ? [` · `, p] : [p]))}
     </div>
   );
 };
@@ -216,7 +228,7 @@ export const PreviewPages: React.FC<{ pages: string[]; title: string }> = ({
         <Button
           size="small"
           type="link"
-          icon={<ExpandOutlined />}
+          icon={<Expand size="1em" />}
           style={{ marginLeft: 'auto' }}
           onClick={() => setOpen(true)}
         >

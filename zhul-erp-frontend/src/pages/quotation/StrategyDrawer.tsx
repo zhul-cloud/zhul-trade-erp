@@ -1,9 +1,3 @@
-import {
-  ArrowRightOutlined,
-  DeleteOutlined,
-  PlusOutlined,
-  SwapOutlined,
-} from '@ant-design/icons';
 import type { TableColumnsType } from 'antd';
 import {
   Alert,
@@ -17,10 +11,12 @@ import {
   Table,
   Tabs,
 } from 'antd';
+import { ArrowLeftRight, ArrowRight, Plus, Trash2 } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount } from '@/utils/format';
+import { useDeltaColor } from '@/theme/delta';
+import { formatAmount, formatMoney } from '@/utils/format';
 import { liveRequests } from '@/utils/liveRequests';
 import { calcLine, formatMargin, MODE_PRICE, round2 } from './calc';
 import { type PriceHistory, quotationApi, readBizError } from './service';
@@ -80,6 +76,7 @@ const StrategyDrawer: React.FC<{
 }) => {
   const { message } = App.useApp();
   const { palette } = useAppTheme();
+  const { of: deltaOf } = useDeltaColor();
   const [kind, setKind] = useState<Kind>('uniform');
   const [margin, setMargin] = useState<number | null>(15);
   const [profit, setProfit] = useState<number | null>(null);
@@ -252,7 +249,7 @@ const StrategyDrawer: React.FC<{
   );
   const reshuffle = spread > 0 && (
     <Button
-      icon={<SwapOutlined />}
+      icon={<ArrowLeftRight size="1em" />}
       onClick={() => setSeed((s) => s + 1)}
       style={{ marginLeft: 'auto' }}
     >
@@ -430,7 +427,7 @@ const StrategyDrawer: React.FC<{
                   {!last && tiers.length > 2 && (
                     <Button
                       type="text"
-                      icon={<DeleteOutlined />}
+                      icon={<Trash2 size="1em" />}
                       aria-label="删除这一档"
                       onClick={() => setTiers(tiers.filter((_, i) => i !== n))}
                     />
@@ -442,7 +439,7 @@ const StrategyDrawer: React.FC<{
               {tiers.length < 6 && (
                 <Button
                   type="link"
-                  icon={<PlusOutlined />}
+                  icon={<Plus size="1em" />}
                   style={{ paddingLeft: 0 }}
                   onClick={() => {
                     const bounded = tiers.slice(0, -1);
@@ -530,6 +527,7 @@ const StrategyDrawer: React.FC<{
     kind === 'history'
       ? {
           title: '上次价格',
+          align: 'right',
           key: 'history',
           width: 230,
           render: (_, r) => {
@@ -572,13 +570,13 @@ const StrategyDrawer: React.FC<{
           ),
         },
     {
-      title: '现售价',
+      title: `现售价（${currency}）`,
       key: 'old',
       width: 120,
       align: 'right',
       render: (_, r) => (
         <span style={{ ...num, color: palette.mute }}>
-          {formatAmount(r.unitPrice, currency)}
+          {formatMoney(r.unitPrice)}
         </span>
       ),
     },
@@ -586,10 +584,10 @@ const StrategyDrawer: React.FC<{
       title: '',
       key: 'arrow',
       width: 30,
-      render: () => <ArrowRightOutlined style={{ color: palette.mute }} />,
+      render: () => <ArrowRight size="1em" style={{ color: palette.mute }} />,
     },
     {
-      title: '新售价',
+      title: `新售价（${currency}）`,
       key: 'new',
       width: 120,
       align: 'right',
@@ -600,7 +598,7 @@ const StrategyDrawer: React.FC<{
             color: prices?.has(r.id) ? palette.ink : palette.mute,
           }}
         >
-          {formatAmount(newPrice(r), currency)}
+          {formatMoney(newPrice(r))}
         </b>
       ),
     },
@@ -641,8 +639,8 @@ const StrategyDrawer: React.FC<{
       <div style={{ fontSize: 12, color: palette.mute }}>{title}</div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
         <span style={{ ...num, color: palette.mute }}>{a}</span>
-        <ArrowRightOutlined style={{ color: palette.mute, fontSize: 11 }} />
-        <b style={{ ...num, fontSize: 17, color: color ?? palette.ink }}>{b}</b>
+        <ArrowRight size="1em" style={{ color: palette.mute, fontSize: 11 }} />
+        <b style={{ ...num, fontSize: 16, color: color ?? palette.ink }}>{b}</b>
       </div>
       {extra && (
         <div style={{ fontSize: 12, color: palette.mute }}>{extra}</div>
@@ -665,7 +663,7 @@ const StrategyDrawer: React.FC<{
       title={
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
           报价策略
-          <Pill tone="accent">
+          <Pill tone="selected">
             {selectedOnly
               ? `作用于已选 ${rows.length} 个型号`
               : `作用于全部 ${rows.length} 个有价型号`}
@@ -675,6 +673,7 @@ const StrategyDrawer: React.FC<{
       footer={
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 12, color: palette.mute }}>
+            {/* lint-ui-ignore filler-maybe: 应用后只改了草稿，提醒还要保存 */}
             应用后写入报价单，仍可逐行微调；保存后生效
           </span>
           <span style={{ marginLeft: 'auto' }} />
@@ -697,7 +696,7 @@ const StrategyDrawer: React.FC<{
         />
       ) : (
         <>
-          <Tabs
+          <Tabs // lint-ui-ignore page-tabs: 抽屉里的分区页签
             activeKey={kind}
             onChange={(k) => setKind(k as Kind)}
             items={[
@@ -765,7 +764,7 @@ const StrategyDrawer: React.FC<{
               '合计净利润',
               formatAmount(before.profit, 'CNY'),
               formatAmount(after.profit, 'CNY'),
-              after.profit >= 0 ? palette.green : palette.red,
+              deltaOf(after.profit),
               kind === 'profit'
                 ? diffNote(profit, after.profit, 'CNY')
                 : undefined,

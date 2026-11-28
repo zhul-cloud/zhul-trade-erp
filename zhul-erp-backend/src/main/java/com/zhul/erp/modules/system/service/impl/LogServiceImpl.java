@@ -20,9 +20,11 @@ import com.zhul.erp.modules.system.dto.OperateLogVO;
 import com.zhul.erp.modules.system.entity.AccountAccessTokenDO;
 import com.zhul.erp.modules.system.entity.AccountDO;
 import com.zhul.erp.modules.system.entity.SysLogDO;
+import com.zhul.erp.modules.system.entity.UserBasicDO;
 import com.zhul.erp.modules.system.repository.AccountAccessTokenMapper;
 import com.zhul.erp.modules.system.repository.AccountMapper;
 import com.zhul.erp.modules.system.repository.SysLogMapper;
+import com.zhul.erp.modules.system.repository.UserBasicMapper;
 import com.zhul.erp.modules.system.service.AccountSessionService;
 import com.zhul.erp.modules.system.service.LogService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -64,6 +66,7 @@ public class LogServiceImpl implements LogService {
 
     private final SysLogMapper sysLogMapper;
     private final AccountMapper accountMapper;
+    private final UserBasicMapper userBasicMapper;
     private final AccountAccessTokenMapper accountAccessTokenMapper;
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate redisTemplate;
@@ -174,7 +177,7 @@ public class LogServiceImpl implements LogService {
         wrapper.eq(SysLogDO::getType, TYPE_OPERATE);
         wrapper.isNull(SysLogDO::getDeletedAt);
         if (StringUtils.hasText(query.getOperatorName())) {
-            wrapper.like(SysLogDO::getOperatorName, query.getOperatorName().trim());
+            matchOperator(wrapper, query.getOperatorName().trim());
         }
         if (StringUtils.hasText(query.getMenu())) {
             wrapper.eq(SysLogDO::getMenu, query.getMenu());
@@ -508,6 +511,28 @@ public class LogServiceImpl implements LogService {
             return header.substring(7);
         }
         return null;
+    }
+
+    /**
+     * 操作人按姓名或账号搜：日志里记的是登录账号，界面显示姓名（BUS-100）。
+     * 姓名匹配到的账号最多取 200 个，再与账号本身的模糊匹配取并集。
+     */
+    private void matchOperator(LambdaQueryWrapper<SysLogDO> wrapper, String keyword) {
+        List<String> accounts = userBasicMapper.selectList(new LambdaQueryWrapper<UserBasicDO>()
+                        .select(UserBasicDO::getUsername)
+                        .eq(UserBasicDO::getTenantId, effectiveTenantId())
+                        .like(UserBasicDO::getName, keyword)
+                        .last("LIMIT 200"))
+                .stream()
+                .map(UserBasicDO::getUsername)
+                .filter(StringUtils::hasText)
+                .toList();
+        wrapper.and(w -> {
+            w.like(SysLogDO::getOperatorName, keyword);
+            if (!accounts.isEmpty()) {
+                w.or().in(SysLogDO::getOperatorName, accounts);
+            }
+        });
     }
 
     private Integer effectiveTenantId() {

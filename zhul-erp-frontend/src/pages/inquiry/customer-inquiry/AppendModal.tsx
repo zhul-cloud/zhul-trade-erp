@@ -1,6 +1,6 @@
-import { CloudUploadOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { App, Button, Input, Modal, Space, Upload } from 'antd';
+import { CloudUpload } from 'lucide-react';
 import React, { useState } from 'react';
 import ChunkUploadList, { useChunkUploads } from '@/components/ChunkUploadList';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -142,7 +142,7 @@ const AppendModal: React.FC<{
         beforeUpload={beforeUpload}
       >
         <p style={{ fontSize: 22, color: palette.link, margin: 0 }}>
-          <CloudUploadOutlined />
+          <CloudUpload size="1em" />
         </p>
         <p style={{ margin: '4px 0 0', color: palette.sub }}>
           把图片、Excel 或 PDF 拖到这里，或点击选择

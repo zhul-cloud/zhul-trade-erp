@@ -1,6 +1,6 @@
-import { TranslationOutlined } from '@ant-design/icons';
 import { request } from '@umijs/max';
 import { Alert, App, Button, Input } from 'antd';
+import { Languages } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { readBizError } from '@/pages/crm/opportunity/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -186,7 +186,7 @@ export const MissingEnglishBanner: React.FC<{
         <Button
           type="primary"
           size="small"
-          icon={<TranslationOutlined />}
+          icon={<Languages size="1em" />}
           loading={running}
           disabled={count === 0}
           onClick={onGenerate}

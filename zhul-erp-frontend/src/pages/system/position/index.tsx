@@ -8,10 +8,20 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { useAccess } from '@umijs/max';
-import { App, Badge, Button, Input, Popconfirm } from 'antd';
+import { App, Badge, Button, Input, Select } from 'antd';
+import { Ban, CircleCheck, Pencil, Search, Trash2 } from 'lucide-react';
 import React, { useRef, useState } from 'react';
-import { ellipsisRender } from '@/components/EllipsisText';
-import { useAppTheme } from '@/theme/AppTheme';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { EmptyState } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { proAuditColumns } from '@/components/UserName';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import type { PositionItem } from './service';
@@ -28,16 +38,21 @@ import {
 const CODE_PATTERN = /^[A-Za-z0-9_]{2,32}$/;
 
 const PositionPage: React.FC = () => {
-  const pager = usePagination(10);
-  const { palette: p } = useAppTheme();
+  const pager = usePagination(20);
   const actionRef = useRef<ActionType>(undefined);
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
   const access = useAccess();
   const [modalOpen, setModalOpen] = useState(false);
   const [editRecord, setEditRecord] = useState<PositionItem | undefined>();
-  const [disableConfirmText, setDisableConfirmText] = useState<
-    Record<number, string>
-  >({});
+  /** 搜索条件：状态切换后立即查询，岗位名称点「查询」才生效 */
+  const [filters, setFilters] = useState<{ name?: string; status?: number }>(
+    {},
+  );
+  const [keyword, setKeyword] = useState('');
+  // 首次查询返回前没有总数，主卡不显示「共 0 条」
+  const [total, setTotal] = useState<number>();
+  const search = () =>
+    setFilters({ ...filters, name: keyword.trim() || undefined });
 
   const canEdit = !!(access as Record<string, unknown>)['system:position:edit'];
   const canDelete = !!(access as Record<string, unknown>)[
@@ -52,11 +67,9 @@ const PositionPage: React.FC = () => {
       );
       return;
     }
-    modal.confirm({
-      title: '确认删除',
-      content: `确认删除岗位「${record.name}」（编码：${record.code}）？此操作不可撤销。`,
-      okText: '确认删除',
-      okButtonProps: { danger: true },
+    confirmDanger({
+      title: `删除岗位「${record.name}」（编码：${record.code}）？`,
+      content: '此操作不可撤销。',
       onOk: async () => {
         try {
           await deletePosition(record.id);
@@ -67,17 +80,6 @@ const PositionPage: React.FC = () => {
         }
       },
     });
-  };
-
-  const loadDisableWarning = async (record: PositionItem) => {
-    if (record.status !== 1) return;
-    const check = await getPositionDeleteCheck(record.id);
-    if (check.userCount > 0) {
-      setDisableConfirmText((prev) => ({
-        ...prev,
-        [record.id]: `当前有 ${check.userCount} 名用户持有此岗位，禁用后新建用户将无法选择此岗位，已分配用户不受影响。`,
-      }));
-    }
   };
 
   const handleToggleStatus = async (record: PositionItem) => {
@@ -121,15 +123,23 @@ const PositionPage: React.FC = () => {
     }
   };
 
+  const confirmDanger = useConfirmDanger();
+  const checking = useRef(false);
   const columns: ProColumns<PositionItem>[] = [
-    { title: '序号', valueType: 'index', width: 60, search: false },
-    { title: '岗位编码', dataIndex: 'code', width: 140, search: false },
-    { title: '岗位名称', dataIndex: 'name', width: 180 },
+    {
+      fixed: 'left',
+      title: '岗位编码',
+      dataIndex: 'code',
+      width: 140,
+      search: false,
+    },
+    { title: '岗位名称', dataIndex: 'name', width: 180, search: false },
     { title: '排序', dataIndex: 'sort', width: 80, search: false },
     {
       title: '状态',
       dataIndex: 'status',
       width: 100,
+      search: false,
       render: (_, record) =>
         record.status === 1 ? (
           <Badge status="success" text="启用" />
@@ -141,105 +151,82 @@ const PositionPage: React.FC = () => {
         1: { text: '启用', status: 'Success' },
       },
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      width: 160,
-      search: false,
-      valueType: 'dateTime',
-    },
-    {
-      title: '创建人',
-      dataIndex: 'createBy',
-      width: 150,
-      render: ellipsisRender,
-      search: false,
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      width: 160,
-      search: false,
-      valueType: 'dateTime',
-    },
-    {
-      title: '更新人',
-      dataIndex: 'updateBy',
-      width: 150,
-      render: ellipsisRender,
-      search: false,
-    },
+    ...proAuditColumns<PositionItem>(),
     {
       title: '操作',
       fixed: 'right',
       valueType: 'option',
-      width: 160,
-      render: (_, record) => [
-        canEdit && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="edit"
-            onClick={() => {
-              setEditRecord(record);
-              setModalOpen(true);
+      // 编辑放行内；启用/禁用、删除收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(2),
+      render: (_, record) => {
+        const enabled = record.status === 1;
+        return (
+          <RowActions
+            inline={[
+              canEdit && {
+                key: 'edit',
+                label: '编辑',
+                icon: <Pencil size={18} />,
+                onClick: () => {
+                  setEditRecord(record);
+                  setModalOpen(true);
+                },
+              },
+            ]}
+            more={[
+              canEdit && {
+                key: 'status',
+                label: enabled ? '禁用' : '启用',
+                icon: enabled ? <Ban size={16} /> : <CircleCheck size={16} />,
+                danger: enabled,
+              },
+              canDelete && {
+                key: 'delete',
+                label: '删除',
+                icon: <Trash2 size={16} />,
+                danger: true,
+              },
+            ]}
+            onMore={async (key) => {
+              if (key === 'status') {
+                if (!enabled) {
+                  handleToggleStatus(record);
+                  return;
+                }
+                // 禁用前查有多少用户持有此岗位，写进确认框；查询失败时按没有用户的说明继续
+                if (checking.current) return;
+                checking.current = true;
+                const userCount = await getPositionDeleteCheck(record.id)
+                  .then((c) => c.userCount)
+                  .catch(() => 0)
+                  .finally(() => {
+                    checking.current = false;
+                  });
+                confirmDanger({
+                  title: `禁用岗位「${record.name}」？`,
+                  content:
+                    userCount > 0
+                      ? `当前有 ${userCount} 名用户持有此岗位，禁用后新建用户将无法选择此岗位，已分配用户不受影响。`
+                      : '禁用后该岗位不可被分配给新用户。',
+                  okText: '禁用',
+                  onOk: () => handleToggleStatus(record),
+                });
+              }
+              if (key === 'delete') handleDeleteClick(record);
             }}
-          >
-            编辑
-          </button>
-        ),
-        canEdit && (
-          <Popconfirm
-            key="toggle"
-            title={
-              record.status === 1
-                ? `确认禁用岗位「${record.name}」？`
-                : `确认启用岗位「${record.name}」？`
-            }
-            description={
-              record.status === 1
-                ? (disableConfirmText[record.id] ??
-                  '禁用后该岗位不可被分配给新用户。')
-                : undefined
-            }
-            onOpenChange={(open) => open && loadDisableWarning(record)}
-            onConfirm={() => handleToggleStatus(record)}
-          >
-            <a style={{ color: record.status === 1 ? p.orange : p.green }}>
-              {record.status === 1 ? '禁用' : '启用'}
-            </a>
-          </Popconfirm>
-        ),
-        canDelete && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="delete"
-            style={{ color: p.red }}
-            onClick={() => handleDeleteClick(record)}
-          >
-            删除
-          </button>
-        ),
-      ],
+          />
+        );
+      },
     },
   ];
+  const columnsSet = useColumnSettings('system-position', columns);
 
   return (
     <>
-      <ProTable<PositionItem>
-        scroll={{ x: tableScrollX(columns) }}
-        headerTitle="岗位列表"
-        actionRef={actionRef}
-        rowKey="id"
-        columns={columns}
-        request={getPositionList}
-        pagination={pager}
-        search={{ labelWidth: 'auto' }}
-        toolBarRender={() => [
+      <PageHeader
+        extra={
           !!(access as Record<string, unknown>)['system:position:add'] && (
             <Button
-              key="add"
               type="primary"
               onClick={() => {
                 setEditRecord(undefined);
@@ -248,9 +235,74 @@ const PositionPage: React.FC = () => {
             >
               新增岗位
             </Button>
-          ),
-        ]}
+          )
+        }
       />
+      <FilterCard
+        onSearch={search}
+        onReset={() => {
+          setKeyword('');
+          setFilters({});
+          // 条件清空时 ProTable 不会自动回到第 1 页
+          actionRef.current?.setPageInfo?.({ current: 1 });
+        }}
+      >
+        <FilterField label="岗位名称" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="岗位名称"
+            aria-label="岗位名称"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={search}
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select<number>
+            allowClear
+            placeholder="全部"
+            aria-label="状态"
+            value={filters.status}
+            // 状态下拉切换后立即查询
+            onChange={(v) => setFilters({ ...filters, status: v })}
+            options={[
+              { value: 1, label: '启用' },
+              { value: 0, label: '禁用' },
+            ]}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard settings={columnsSet.settings} count={total}>
+        <ProTable<PositionItem>
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
+          actionRef={actionRef}
+          rowKey="id"
+          columns={columnsSet.columns}
+          params={filters}
+          request={async (params) => {
+            const res = await getPositionList(params);
+            setTotal(res.total);
+            return res;
+          }}
+          pagination={pager}
+          search={false}
+          options={false}
+          toolBarRender={false}
+          locale={{
+            // 首次为空给下一步，带条件为空给「清空筛选」（UI-117）
+            emptyText:
+              filters.name || filters.status !== undefined ? (
+                <EmptyState kind="noResult" title="没有符合条件的岗位" />
+              ) : (
+                <EmptyState
+                  title="还没有岗位"
+                  description="点右上角「新增岗位」"
+                />
+              ),
+          }}
+        />
+      </MainCard>
       <ModalForm
         name="positionEdit"
         title={editRecord ? '编辑岗位' : '新增岗位'}

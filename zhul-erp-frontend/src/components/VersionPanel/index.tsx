@@ -1,5 +1,5 @@
-import { BranchesOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { GitBranch } from 'lucide-react';
 import React from 'react';
 import { Card, Pill } from '@/pages/inquiry/shared/components';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -98,7 +98,7 @@ export const VersionPanel: React.FC<{
                 boxSizing: 'border-box',
                 padding: '8px 10px',
                 borderRadius: 10,
-                background: active ? palette.accentSoft : 'transparent',
+                background: active ? palette.primarySoft : 'transparent',
               }}
             >
               <b style={{ color: palette.ink }}>Rev.{x.versionNo}</b>
@@ -131,7 +131,7 @@ export const VersionPanel: React.FC<{
             marginBottom: 10,
           }}
         >
-          <BranchesOutlined style={{ color: palette.link }} />
+          <GitBranch size="1em" style={{ color: palette.link }} />
           <b style={{ color: palette.ink }}>
             {base
               ? `Rev.${base.versionNo} → Rev.${viewingVersionNo} 改了什么`

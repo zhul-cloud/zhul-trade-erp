@@ -1,9 +1,3 @@
-import {
-  CarOutlined,
-  InboxOutlined,
-  InfoCircleOutlined,
-  SendOutlined,
-} from '@ant-design/icons';
 import { Link, useAccess } from '@umijs/max';
 import type { SelectProps } from 'antd';
 import {
@@ -17,7 +11,9 @@ import {
   Skeleton,
 } from 'antd';
 import dayjs from 'dayjs';
+import { Car, Inbox, Info, Send } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { CardTitle } from '@/components/ListLayout';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { ObStatusPill } from '@/pages/logistics/components';
 import {
@@ -158,7 +154,7 @@ export const ShipNoticeModal: React.FC<{
   ) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <span style={{ color: palette.link }}>{icon}</span>
-      <b style={{ color: palette.ink, fontSize: 15 }}>{title}</b>
+      <b style={{ color: palette.ink, fontSize: 16 }}>{title}</b>
       {extra && (
         <span style={{ fontSize: 12, color: palette.mute }}>{extra}</span>
       )}
@@ -173,7 +169,7 @@ export const ShipNoticeModal: React.FC<{
       destroyOnHidden
       title={
         <span>
-          <SendOutlined />{' '}
+          <Send size="1em" />{' '}
           {outbound ? `修改发货通知 · ${outbound.obNo}` : '发货通知'}
           {form ? ` · ${form.soNo}` : ''}
         </span>
@@ -190,7 +186,7 @@ export const ShipNoticeModal: React.FC<{
           <Button onClick={onClose}>取消</Button>
           <Button
             type="primary"
-            icon={<SendOutlined />}
+            icon={<Send size="1em" />}
             loading={busy}
             disabled={!form || !!blocker}
             onClick={submit}
@@ -209,13 +205,12 @@ export const ShipNoticeModal: React.FC<{
           {form.customerName && (
             <div style={{ color: palette.sub }}>{form.customerName}</div>
           )}
-          {section(<CarOutlined />, '物流信息')}
+          {section(<Car size="1em" />, '物流信息')}
           <div
             style={{
               padding: '12px 14px',
               borderRadius: 12,
-              background: palette.accentSoft,
-              border: `1px solid ${palette.accentLine}`,
+              background: palette.inset,
             }}
           >
             <div style={{ color: palette.sub, marginBottom: 6 }}>
@@ -270,7 +265,7 @@ export const ShipNoticeModal: React.FC<{
                   color: palette.mute,
                 }}
               >
-                <Pill tone="violet">
+                <Pill tone="gray">
                   {pickupText(
                     chosenForwarder.courierCarrier,
                     chosenForwarder.courierAccount,
@@ -281,7 +276,7 @@ export const ShipNoticeModal: React.FC<{
             )}
           </div>
           {section(
-            <InboxOutlined />,
+            <Inbox size="1em" />,
             '发货明细',
             chosen.length
               ? `已选 ${chosen.length} 个型号 · ${pieces} 件`
@@ -370,12 +365,12 @@ export const ShipNoticeModal: React.FC<{
               value={note}
               onChange={(e) => setNote(e.target.value)}
               maxLength={200}
-              placeholder="给仓库的话，如 客户要求 DHL，周五前发出"
+              placeholder="如：客户要求 DHL，周五前发出"
               aria-label="备注"
             />
           </div>
           <div style={{ fontSize: 12, color: palette.mute }}>
-            <InfoCircleOutlined />{' '}
+            <Info size="1em" />{' '}
             确认后生成销售出库单（待打包），仓库在「销售出库」里看到；可以分批发，没到的型号以后再发。
           </div>
         </div>
@@ -394,7 +389,7 @@ export const OrderOutbounds: React.FC<{
   const { message } = App.useApp();
   const access = useAccess();
   const canNotice = !!access['sales:order:ship-notice'];
-  const [rows, setRows] = useState<Outbound[]>([]);
+  const [rows, setRows] = useState<Outbound[]>();
   const [editing, setEditing] = useState<Outbound>();
   const [withdrawing, setWithdrawing] = useState<Outbound>();
 
@@ -406,11 +401,20 @@ export const OrderOutbounds: React.FC<{
   }, [soId]);
   useEffect(load, [load, version]);
 
-  if (rows.length === 0) return null;
+  if (!rows) return null;
+  if (rows.length === 0)
+    return (
+      <Card style={{ padding: 20, marginBottom: 16 }}>
+        <CardTitle>销售出库单</CardTitle>
+        <div style={{ marginTop: 8, fontSize: 13, color: palette.mute }}>
+          发货通知后生成销售出库单
+        </div>
+      </Card>
+    );
   return (
     <Card style={{ padding: 20, marginBottom: 16 }}>
-      <b style={{ color: palette.ink }}>销售出库单</b>
-      <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+      <CardTitle>销售出库单</CardTitle>
+      <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
         {rows.map((r) => (
           <div
             key={r.id}
@@ -424,7 +428,12 @@ export const OrderOutbounds: React.FC<{
               background: palette.inset,
             }}
           >
-            <Link to={DOC_PATHS.outbound(r.id)}>{r.obNo}</Link>
+            <Link
+              to={DOC_PATHS.outbound(r.id)}
+              className="zhul-link zhul-link-doc"
+            >
+              {r.obNo}
+            </Link>
             <ObStatusPill value={r.status}>{r.statusName}</ObStatusPill>
             {r.source === 2 && (
               <span style={{ fontSize: 12, color: palette.orange }}>

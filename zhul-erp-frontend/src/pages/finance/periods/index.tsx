@@ -1,13 +1,18 @@
-import { Link, useAccess } from '@umijs/max';
+import { history, Link, useAccess } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
-import { Button, Space, Table, Tooltip } from 'antd';
+import { Table } from 'antd';
+import { Eye, Lock, LockOpen } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
+import { MainCard, PageHeader } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { Card, PageTitle, Pill } from '@/pages/inquiry/shared/components';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount, formatDateTime } from '@/utils/format';
+import { formatDateTime, formatMoney } from '@/utils/format';
+import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import { SignedMoney } from '../costingParts';
 import {
@@ -23,6 +28,7 @@ const PeriodsPage: React.FC = () => {
   const { palette } = useAppTheme();
   const access = useAccess() as Record<string, boolean>;
   const [rows, setRows] = useState<Period[]>([]);
+  const pager = usePagination(20, '', rows.length);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [closing, setClosing] = useState<string>();
@@ -74,21 +80,21 @@ const PeriodsPage: React.FC = () => {
       dataIndex: 'openingAmount',
       width: 140,
       align: 'right',
-      render: (v: number) => formatAmount(v, 'CNY'),
+      render: (v: number) => formatMoney(v),
     },
     {
       title: '+ 本月入库',
       dataIndex: 'inAmount',
       width: 140,
       align: 'right',
-      render: (v: number) => formatAmount(v, 'CNY'),
+      render: (v: number) => formatMoney(v),
     },
     {
       title: '− 本月出库',
       dataIndex: 'outAmount',
       width: 140,
       align: 'right',
-      render: (v: number) => formatAmount(v, 'CNY'),
+      render: (v: number) => formatMoney(v),
     },
     {
       title: '+ 在库成本调整',
@@ -102,7 +108,7 @@ const PeriodsPage: React.FC = () => {
       dataIndex: 'closingAmount',
       width: 150,
       align: 'right',
-      render: (v: number) => <b>{formatAmount(v, 'CNY')}</b>,
+      render: (v: number) => <b>{formatMoney(v)}</b>,
     },
     {
       title: '本月销售成本',
@@ -110,7 +116,7 @@ const PeriodsPage: React.FC = () => {
       width: 140,
       align: 'right',
       render: (v: number) => (
-        <span style={{ color: palette.sub }}>{formatAmount(v, 'CNY')}</span>
+        <span style={{ color: palette.sub }}>{formatMoney(v)}</span>
       ),
     },
     {
@@ -128,63 +134,71 @@ const PeriodsPage: React.FC = () => {
     {
       title: '操作',
       key: 'op',
-      width: 150,
+      // 查看、结账放行内（不能结账时悬停看原因），反结账收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(3),
       fixed: 'right',
       render: (_, r) => (
-        <Space size={4}>
-          {r.status !== PERIOD_CLOSED && canClose && (
-            <Tooltip title={r.closable ? undefined : r.closeBlock}>
-              <Button
-                type="link"
-                size="small"
-                disabled={!r.closable}
-                onClick={() => setClosing(r.month)}
-              >
-                结账
-              </Button>
-            </Tooltip>
-          )}
-          <Link to={periodPath(r.month)}>查看</Link>
-          {r.reopenable && canReopen && (
-            <Button
-              type="link"
-              size="small"
-              danger
-              onClick={() => setReopening(r.month)}
-            >
-              反结账
-            </Button>
-          )}
-        </Space>
+        <RowActions
+          inline={[
+            {
+              key: 'view',
+              label: '查看',
+              icon: <Eye size={18} />,
+              onClick: () => history.push(periodPath(r.month)),
+            },
+            r.status !== PERIOD_CLOSED &&
+              canClose && {
+                key: 'close',
+                label: '结账',
+                icon: <Lock size={18} />,
+                disabledReason: r.closable ? undefined : r.closeBlock,
+                onClick: () => setClosing(r.month),
+              },
+          ]}
+          more={[
+            r.reopenable &&
+              canReopen && {
+                key: 'reopen',
+                label: '反结账',
+                icon: <LockOpen size={16} />,
+                danger: true,
+              },
+          ]}
+          onMore={() => setReopening(r.month)}
+        />
       ),
     },
   ];
 
   return (
     <div>
-      <PageTitle />
+      <PageHeader help="按月份顺序结账；结账后，业务日期在这个月的入库、出库、出运不能再新建、作废或改日期" />
       {error ? (
         <ErrorHint message={error} onRetry={load} />
       ) : (
-        <Card style={{ padding: 16 }}>
-          <div style={{ color: palette.sub, fontSize: 13, marginBottom: 12 }}>
-            按月份顺序结账；结账后，业务日期在这个月的入库、出库、出运不能再新建、作废或改日期
-          </div>
+        <MainCard
+          count={rows.length}
+          loading={loading}
+          left={
+            // 整表都是人民币：币种写在工具栏，单元格只写数字（S12）
+            <span style={{ color: palette.mute }}>金额单位 CNY</span>
+          }
+        >
           <Table<Period>
             rowKey="month"
-            size="middle"
             loading={loading}
             columns={columns}
             dataSource={rows}
             scroll={{ x: tableScrollX(columns) }}
-            locale={{ emptyText: '还没有库存流水，没有可结账的月份' }}
-            pagination={
-              rows.length > 20
-                ? { pageSize: 20, showTotal: (t) => `共 ${t} 条` }
-                : false
-            }
+            locale={{
+              emptyText: tableEmpty(
+                '还没有库存流水，没有可结账的月份',
+                loading,
+              ),
+            }}
+            pagination={pager}
           />
-        </Card>
+        </MainCard>
       )}
       <CloseModal
         month={closing}

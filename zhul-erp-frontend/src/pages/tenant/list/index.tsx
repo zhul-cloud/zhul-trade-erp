@@ -1,12 +1,3 @@
-import {
-  CalendarOutlined,
-  CheckCircleFilled,
-  CopyOutlined,
-  InfoCircleOutlined,
-  PlusOutlined,
-  UserOutlined,
-  WarningFilled,
-} from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   DrawerForm,
@@ -23,19 +14,45 @@ import {
   Button,
   DatePicker,
   Divider,
+  Input,
   Modal,
   Radio,
+  Select,
   Space,
   Tag,
   Tooltip,
 } from 'antd';
-import dayjs from 'dayjs';
+import dayjs, { type Dayjs } from 'dayjs';
+import {
+  Ban,
+  Calendar,
+  CalendarPlus,
+  CircleCheck,
+  Copy,
+  DatabaseZap,
+  History,
+  Info,
+  KeyRound,
+  Pencil,
+  Plus,
+  Search,
+  TriangleAlert,
+  User,
+} from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
-import EllipsisText from '@/components/EllipsisText';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+} from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
+import { proAuditColumns } from '@/components/UserName';
 import { useAppTheme } from '@/theme/AppTheme';
 import { useIndustryOptions } from '@/utils/dict';
 import { formatDateTime } from '@/utils/format';
-import { useMenu } from '@/utils/menuName';
 import { usePagination } from '@/utils/pageSize';
 import { tableScrollX } from '@/utils/tableScroll';
 import type {
@@ -57,6 +74,13 @@ import {
   updateTenantStatus,
 } from './service';
 
+interface TenantFilters {
+  name?: string;
+  status?: number;
+  industryCode?: string;
+  expire?: [Dayjs, Dayjs];
+}
+
 const RENEW_MONTHS_OPTIONS = [
   { label: '1 个月', value: 1 },
   { label: '3 个月', value: 3 },
@@ -65,9 +89,9 @@ const RENEW_MONTHS_OPTIONS = [
 ];
 
 const TenantListPage: React.FC = () => {
-  const menu = useMenu();
   const pager = usePagination(20);
   const { message, modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const access = useAccess();
   const { palette } = useAppTheme();
   const actionRef = useRef<ActionType>(undefined);
@@ -227,13 +251,14 @@ const TenantListPage: React.FC = () => {
   // ---------- 启用 / 禁用 ----------
   const toggleStatus = (row: TenantItem) => {
     const disabling = row.status === 1;
-    modal.confirm({
-      title: disabling ? '确认禁用租户？' : '确认启用租户？',
+    // 停用用公共危险确认（错误色按钮、默认焦点在取消），启用用普通确认
+    (disabling ? confirmDanger : modal.confirm)({
+      // 危险确认：标题写明对象、按钮写动作（2026-11-26 用户确认，待定 D）；后果说明原样保留
+      title: disabling ? `禁用「${row.name}」？` : `启用「${row.name}」？`,
       content: disabling
         ? `禁用后，租户「${row.name}」下的所有用户将无法登录，已进行中的操作将被中断。确认继续？`
         : `启用后，租户「${row.name}」下的用户可正常登录使用。请确认该租户的到期时间仍有效。`,
-      okText: disabling ? '确认禁用' : '确认启用',
-      okButtonProps: disabling ? { danger: true } : undefined,
+      okText: disabling ? '禁用' : '启用',
       cancelText: '取消',
       onOk: async () => {
         await updateTenantStatus(row.id, disabling ? 0 : 1);
@@ -246,40 +271,21 @@ const TenantListPage: React.FC = () => {
   const { options: industryOptions, labelOf: industryLabel } =
     useIndustryOptions();
 
+  /** 搜索条件：状态切换后立即查询，其余点「查询」才生效 */
+  const [filters, setFilters] = useState<TenantFilters>({});
+  const [draft, setDraft] = useState<TenantFilters>({});
+  // 首次查询返回前没有总数，主卡不显示「共 0 条」
+  const [total, setTotal] = useState<number>();
+  const search = () =>
+    setFilters({
+      ...draft,
+      name: draft.name?.trim() || undefined,
+      status: filters.status,
+    });
+
   const columns: ProColumns<TenantItem>[] = [
     {
-      title: '租户名称',
-      dataIndex: 'name',
-      hideInTable: true,
-      fieldProps: { placeholder: '请输入租户名称' },
-    },
-    {
-      title: '行业',
-      dataIndex: 'industryCode',
-      hideInTable: true,
-      valueType: 'select',
-      fieldProps: { options: industryOptions },
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      hideInTable: true,
-      valueType: 'select',
-      valueEnum: { 1: { text: '启用' }, 0: { text: '禁用' } },
-    },
-    {
-      title: '到期时间',
-      dataIndex: 'expireRange',
-      hideInTable: true,
-      valueType: 'dateRange',
-      search: {
-        transform: (value) => ({
-          expireDateFrom: value?.[0],
-          expireDateTo: value?.[1],
-        }),
-      },
-    },
-    {
+      fixed: 'left',
       title: '租户编码',
       dataIndex: 'code',
       search: false,
@@ -343,7 +349,7 @@ const TenantListPage: React.FC = () => {
               <Tooltip
                 title={diffDays < 0 ? '已过期' : `距到期还有 ${diffDays} 天`}
               >
-                <WarningFilled style={{ color: palette.orange }} />
+                <TriangleAlert size="1em" style={{ color: palette.orange }} />
               </Tooltip>
             )}
             <span
@@ -356,112 +362,71 @@ const TenantListPage: React.FC = () => {
         );
       },
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      search: false,
-      width: 170,
-      render: (_, r) => (
-        <span className="num">{formatDateTime(r.createTime)}</span>
-      ),
-    },
-    {
-      title: '创建人',
-      dataIndex: 'createBy',
-      search: false,
-      width: 150,
-      render: (_, r) => <EllipsisText text={r.createBy} />,
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      search: false,
-      width: 170,
-      render: (_, r) => (
-        <span className="num">{formatDateTime(r.updateTime)}</span>
-      ),
-    },
-    {
-      title: '更新人',
-      dataIndex: 'updateBy',
-      search: false,
-      width: 150,
-      render: (_, r) => <EllipsisText text={r.updateBy} />,
-    },
+    ...proAuditColumns<TenantItem>(),
     {
       title: '操作',
       valueType: 'option',
       fixed: 'right',
-      width: 340,
-      render: (_, row) => [
-        access['tenant:list:edit'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="edit"
-            onClick={() => openEdit(row)}
-          >
-            编辑
-          </button>
-        ),
-        access['tenant:list:edit'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="renew"
-            onClick={() => openRenew(row)}
-          >
-            续期
-          </button>
-        ),
-        access['tenant:list:init'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="init"
-            onClick={() => openInit(row)}
-          >
-            数据初始化
-          </button>
-        ),
-        access['tenant:list:init'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="migrate"
-            onClick={() =>
-              history.push(
-                `/tenant/history-migration?tenantId=${row.id}&name=${encodeURIComponent(row.name)}`,
-              )
-            }
-          >
-            历史迁移
-          </button>
-        ),
-        access['tenant:list:resetPwd'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="reset"
-            onClick={() => openReset(row)}
-          >
-            重置密码
-          </button>
-        ),
-        access['tenant:list:status'] && (
-          <button
-            type="button"
-            className="zhul-link"
-            key="status"
-            style={{ color: row.status === 1 ? palette.red : palette.green }}
-            onClick={() => toggleStatus(row)}
-          >
-            {row.status === 1 ? '禁用' : '启用'}
-          </button>
-        ),
-      ],
+      // 编辑、续期放行内；初始化、迁移、重置密码、禁用收进「更多」（ui-redesign S6）
+      width: rowActionsWidth(3),
+      render: (_, row) => {
+        const enabled = row.status === 1;
+        return (
+          <RowActions
+            inline={[
+              access['tenant:list:edit'] && {
+                key: 'edit',
+                label: '编辑',
+                icon: <Pencil size={18} />,
+                onClick: () => openEdit(row),
+              },
+              access['tenant:list:edit'] && {
+                key: 'renew',
+                label: '续期',
+                icon: <CalendarPlus size={18} />,
+                onClick: () => openRenew(row),
+              },
+            ]}
+            more={[
+              access['tenant:list:init'] && {
+                key: 'init',
+                label: '数据初始化',
+                icon: <DatabaseZap size={16} />,
+              },
+              access['tenant:list:init'] && {
+                key: 'migrate',
+                label: '历史迁移',
+                icon: <History size={16} />,
+              },
+              access['tenant:list:resetPwd'] && {
+                key: 'reset',
+                label: '重置密码',
+                icon: <KeyRound size={16} />,
+              },
+              access['tenant:list:status'] && {
+                key: 'status',
+                label: enabled ? '禁用' : '启用',
+                icon: enabled ? <Ban size={16} /> : <CircleCheck size={16} />,
+                danger: enabled,
+              },
+            ]}
+            onMore={(key) => {
+              if (key === 'init') openInit(row);
+              if (key === 'migrate')
+                history.push(
+                  `/tenant/history-migration?tenantId=${row.id}&name=${encodeURIComponent(row.name)}`,
+                );
+              if (key === 'reset') openReset(row);
+              if (key === 'status') toggleStatus(row);
+            }}
+          />
+        );
+      },
     },
   ];
+  const columnsSet = useColumnSettings('tenant-list', columns, {
+    hidden: ['联系手机'],
+  });
 
   const sectionTitle = (icon: React.ReactNode, text: string) => (
     <Divider titlePlacement="start" style={{ margin: '8px 0 16px' }}>
@@ -474,40 +439,109 @@ const TenantListPage: React.FC = () => {
 
   return (
     <>
-      <ProTable<TenantItem>
-        headerTitle={menu?.name}
-        pagination={pager}
-        rowKey="id"
-        actionRef={actionRef}
-        columns={columns}
-        scroll={{ x: tableScrollX(columns) }}
-        search={{ labelWidth: 'auto', defaultCollapsed: false }}
-        options={false}
-        request={async (params) => {
-          const res = await getTenantList({
-            current: params.current,
-            pageSize: params.pageSize,
-            name: params.name,
-            status: params.status,
-            industryCode: params.industryCode,
-            expireDateFrom: (params as Record<string, string>).expireDateFrom,
-            expireDateTo: (params as Record<string, string>).expireDateTo,
-          });
-          return res;
-        }}
-        toolBarRender={() => [
+      <PageHeader
+        extra={
           access['tenant:list:add'] && (
             <Button
-              key="add"
               type="primary"
-              icon={<PlusOutlined />}
+              icon={<Plus size="1em" />}
               onClick={openCreate}
             >
               新增租户
             </Button>
-          ),
-        ]}
+          )
+        }
       />
+      <FilterCard
+        onSearch={search}
+        onReset={() => {
+          setDraft({});
+          setFilters({});
+          // 条件清空时 ProTable 不会自动回到第 1 页
+          actionRef.current?.setPageInfo?.({ current: 1 });
+        }}
+        moreCount={filters.expire ? 1 : 0}
+        more={
+          <FilterField label="到期时间" span={2}>
+            <DatePicker.RangePicker
+              style={{ width: '100%' }}
+              aria-label="到期时间"
+              value={draft.expire}
+              onChange={(v) =>
+                setDraft({
+                  ...draft,
+                  expire: v?.[0] && v[1] ? [v[0], v[1]] : undefined,
+                })
+              }
+            />
+          </FilterField>
+        }
+      >
+        <FilterField label="租户名称" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="租户名称"
+            aria-label="租户名称"
+            value={draft.name}
+            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+            onPressEnter={search}
+          />
+        </FilterField>
+        <FilterField label="状态">
+          <Select<number>
+            allowClear
+            placeholder="全部"
+            aria-label="状态"
+            value={filters.status}
+            // 状态下拉切换后立即查询
+            onChange={(v) => {
+              setFilters({ ...filters, status: v });
+              setDraft({ ...draft, status: v });
+            }}
+            options={[
+              { value: 1, label: '启用' },
+              { value: 0, label: '禁用' },
+            ]}
+          />
+        </FilterField>
+        <FilterField label="行业">
+          <Select
+            allowClear
+            placeholder="全部"
+            aria-label="行业"
+            value={draft.industryCode}
+            onChange={(v) => setDraft({ ...draft, industryCode: v })}
+            options={industryOptions}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard settings={columnsSet.settings} count={total}>
+        <ProTable<TenantItem>
+          pagination={pager}
+          rowKey="id"
+          actionRef={actionRef}
+          columns={columnsSet.columns}
+          scroll={{ x: tableScrollX(columnsSet.columns) }}
+          params={filters}
+          search={false}
+          options={false}
+          toolBarRender={false}
+          request={async (params) => {
+            const res = await getTenantList({
+              current: params.current,
+              pageSize: params.pageSize,
+              name: filters.name,
+              status: filters.status,
+              industryCode: filters.industryCode,
+              expireDateFrom: filters.expire?.[0].format('YYYY-MM-DD'),
+              expireDateTo: filters.expire?.[1].format('YYYY-MM-DD'),
+            });
+            setTotal(res.total ?? 0);
+            return res;
+          }}
+        />
+      </MainCard>
 
       {/* 新增 / 编辑租户 */}
       <DrawerForm
@@ -535,7 +569,7 @@ const TenantListPage: React.FC = () => {
         submitTimeout={2000}
       >
         {sectionTitle(
-          <InfoCircleOutlined style={{ color: palette.link }} />,
+          <Info size="1em" style={{ color: palette.link }} />,
           '基础信息',
         )}
         {editing && (
@@ -579,7 +613,7 @@ const TenantListPage: React.FC = () => {
         />
 
         {sectionTitle(
-          <UserOutlined style={{ color: palette.link }} />,
+          <User size="1em" style={{ color: palette.link }} />,
           '联系人信息',
         )}
         <div style={{ display: 'flex', gap: 16 }}>
@@ -619,7 +653,7 @@ const TenantListPage: React.FC = () => {
         />
 
         {sectionTitle(
-          <CalendarOutlined style={{ color: palette.link }} />,
+          <Calendar size="1em" style={{ color: palette.link }} />,
           '服务信息',
         )}
         <ProFormDatePicker
@@ -742,7 +776,8 @@ const TenantListPage: React.FC = () => {
         {resetResult ? (
           <Space orientation="vertical" size={16} style={{ width: '100%' }}>
             <div style={{ textAlign: 'center' }}>
-              <CheckCircleFilled
+              <CircleCheck
+                size="1em"
                 style={{ fontSize: 40, color: palette.green }}
               />
             </div>
@@ -757,19 +792,20 @@ const TenantListPage: React.FC = () => {
                 alignItems: 'center',
                 padding: 12,
                 borderRadius: 8,
-                background: palette.accentSoft,
+                background: palette.inset,
               }}
             >
               <span style={{ color: palette.sub }}>临时密码</span>
               <Space>
                 <span
                   className="num"
-                  style={{ color: palette.link, fontWeight: 600 }}
+                  style={{ color: palette.ink, fontWeight: 600 }}
                 >
                   {resetResult.tempPassword}
                 </span>
                 <Tooltip title={copied ? '已复制' : '复制'}>
-                  <CopyOutlined
+                  <Copy
+                    size="1em"
                     style={{ cursor: 'pointer' }}
                     onClick={copyTempPassword}
                   />
@@ -819,7 +855,7 @@ const TenantListPage: React.FC = () => {
         {initResult ? (
           <Space orientation="vertical" size={14} style={{ width: '100%' }}>
             <Space>
-              <CheckCircleFilled style={{ color: palette.green }} />
+              <CircleCheck size="1em" style={{ color: palette.green }} />
               <span style={{ fontWeight: 600 }}>初始化完成</span>
             </Space>
             <div
@@ -923,7 +959,8 @@ const TenantListPage: React.FC = () => {
                   key={title}
                   style={{ display: 'flex', gap: 10, padding: '8px 0' }}
                 >
-                  <CheckCircleFilled
+                  <CircleCheck
+                    size="1em"
                     style={{ color: palette.green, marginTop: 4 }}
                   />
                   <span style={{ width: 90, flex: 'none', fontWeight: 600 }}>
@@ -936,11 +973,11 @@ const TenantListPage: React.FC = () => {
               ))}
             </div>
             <div style={{ fontSize: 12, color: palette.mute }}>
-              <InfoCircleOutlined style={{ marginRight: 6 }} />
+              <Info size="1em" style={{ marginRight: 6 }} />
               可以重复执行，只补缺的：已有的部门、岗位、角色、汇率不改不删，角色的菜单权限不会被覆盖。
             </div>
             <div style={{ fontSize: 12, color: palette.orange }}>
-              <WarningFilled style={{ marginRight: 6 }} />
+              <TriangleAlert size="1em" style={{ marginRight: 6 }} />
               两个事业部的开始核算月份为本月（{dayjs().format('YYYY-MM')}
               ），导入历史数据后可在部门管理里修改。
             </div>

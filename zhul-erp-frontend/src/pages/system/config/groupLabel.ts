@@ -4,6 +4,7 @@
  * 新增分组时在这里补中文名；对照表里没有的代码原样显示。
  */
 const GROUP_LABELS: Record<string, string> = {
+  customer: '客户',
   inquiry: '询价',
   quotation: '报价',
   document: '单据',
@@ -12,6 +13,8 @@ const GROUP_LABELS: Record<string, string> = {
   supply: '供应',
   product: '商品',
   finance: '财务',
+  inventory: '库存',
+  video: '视频',
   sys: '系统',
   basic: '基础',
   security: '安全',

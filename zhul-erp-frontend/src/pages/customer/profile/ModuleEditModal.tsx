@@ -1,4 +1,3 @@
-import { ThunderboltOutlined } from '@ant-design/icons';
 import {
   App,
   Checkbox,
@@ -11,6 +10,7 @@ import {
   Segmented,
   Select,
 } from 'antd';
+import { Zap } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -408,8 +408,8 @@ const ModuleEditModal: React.FC<{
             required
             extra={
               derived.length > 0 && (
-                <span style={{ color: palette.cyan }}>
-                  <ThunderboltOutlined /> 询盘里常用：
+                <span style={{ color: palette.info }}>
+                  <Zap size="1em" /> 询盘里常用：
                   {derived.map((b) => `${b.name} ${b.count}`).join(' · ')}{' '}
                   <button
                     type="button"
@@ -451,7 +451,7 @@ const ModuleEditModal: React.FC<{
             required
             extra={
               cp?.voltages.length ? (
-                <span style={{ color: palette.cyan }}>
+                <span style={{ color: palette.info }}>
                   不填时用国家资料：{zhOf(p.country)}{' '}
                   {cp.voltages.map((v) => d.voltage.labelOf(v)).join(' · ')}
                 </span>

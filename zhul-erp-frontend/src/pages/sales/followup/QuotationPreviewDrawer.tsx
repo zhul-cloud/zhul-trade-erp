@@ -11,7 +11,7 @@ import {
 } from '@/pages/quotation/service';
 import { readBizError } from '@/pages/sales/service';
 import { useAppTheme } from '@/theme/AppTheme';
-import { formatAmount, formatDateTime } from '@/utils/format';
+import { formatAmount, formatDateTime, formatMoney } from '@/utils/format';
 import { Pill } from './components';
 
 /**
@@ -64,7 +64,7 @@ const QuotationPreviewDrawer: React.FC<{
     },
     { title: '数量', dataIndex: 'quantity', width: 70, align: 'right' },
     {
-      title: '单价',
+      title: `单价（${cur}）`,
       key: 'unitPrice',
       width: 120,
       align: 'right',
@@ -72,15 +72,15 @@ const QuotationPreviewDrawer: React.FC<{
         i.noStockLine ? (
           <span style={{ color: palette.mute }}>无货</span>
         ) : (
-          formatAmount(i.unitPrice, cur)
+          formatMoney(i.unitPrice)
         ),
     },
     {
-      title: '小计',
+      title: `小计（${cur}）`,
       key: 'amount',
       width: 130,
       align: 'right',
-      render: (_, i) => (i.noStockLine ? '—' : formatAmount(i.amount, cur)),
+      render: (_, i) => (i.noStockLine ? '—' : formatMoney(i.amount)),
     },
   ];
 
@@ -90,7 +90,7 @@ const QuotationPreviewDrawer: React.FC<{
       style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}
     >
       <span style={{ color: palette.sub }}>{label}</span>
-      <span style={{ fontWeight: strong ? 700 : 400 }}>{value}</span>
+      <span style={{ fontWeight: strong ? 600 : 400 }}>{value}</span>
     </div>
   );
 

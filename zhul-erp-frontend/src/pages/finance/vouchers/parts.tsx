@@ -1,6 +1,7 @@
-import { SearchOutlined } from '@ant-design/icons';
 import { App, Button, Drawer, Input, Skeleton, Table, Tabs } from 'antd';
+import { Search } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { tableEmpty } from '@/components/EmptyState';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { readBizError } from '@/pages/warehouse/service';
 import { useAppTheme } from '@/theme/AppTheme';
@@ -218,7 +219,7 @@ export const AccountDrawer: React.FC<{
       {loading ? (
         <Skeleton active paragraph={{ rows: 10 }} />
       ) : (
-        <Tabs
+        <Tabs // lint-ui-ignore page-tabs: 科目设置抽屉里的分区页签
           activeKey={tab}
           onChange={setTab}
           items={[
@@ -315,7 +316,7 @@ export const AccountDrawer: React.FC<{
                 <div>
                   <Input
                     allowClear
-                    prefix={<SearchOutlined />}
+                    prefix={<Search size="1em" />}
                     placeholder="搜索供应商"
                     value={keyword}
                     onChange={(e) => setKeyword(e.target.value)}
@@ -326,7 +327,13 @@ export const AccountDrawer: React.FC<{
                     size="small"
                     pagination={false}
                     dataSource={shownSuppliers}
-                    locale={{ emptyText: '凭证里还没有供应商' }}
+                    locale={{
+                      emptyText: tableEmpty(
+                        '凭证里还没有供应商',
+                        undefined,
+                        true,
+                      ),
+                    }}
                     columns={[
                       {
                         title: '供应商',

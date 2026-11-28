@@ -1,16 +1,3 @@
-import {
-  ApiOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  DeleteOutlined,
-  ExclamationCircleOutlined,
-  ImportOutlined,
-  LoadingOutlined,
-  LockOutlined,
-  PlusOutlined,
-  RightOutlined,
-  SwapOutlined,
-} from '@ant-design/icons';
 import { history, Link, useAccess, useModel, useParams } from '@umijs/max';
 import {
   App,
@@ -22,18 +9,28 @@ import {
   Skeleton,
   Switch,
 } from 'antd';
+import {
+  ArrowLeftRight,
+  ChevronRight,
+  CircleAlert,
+  CircleCheck,
+  CircleX,
+  Import,
+  LoaderCircle,
+  Lock,
+  Plug,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
+import { PageHeader } from '@/components/ListLayout';
 import {
   usePageTitle,
   useTabActive,
   useUnsavedGuard,
 } from '@/components/PageTabs/hooks';
-import {
-  Card,
-  PageTitle,
-  Pill,
-  useWide,
-} from '@/pages/inquiry/shared/components';
+import { Card, Pill, useWide } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import {
   type BrandOption,
@@ -184,7 +181,7 @@ const SecretTag: React.FC<{ secret?: Secret; cleared?: boolean }> = ({
   if (!secret?.configured) return <Pill tone="mute">未配置</Pill>;
   return (
     <Pill tone="green">
-      <LockOutlined /> 已配置 ····{secret.last4}
+      <Lock size="1em" /> 已配置 ····{secret.last4}
     </Pill>
   );
 };
@@ -264,7 +261,7 @@ const CheckCard: React.FC<{ site: Site; canEdit: boolean }> = ({
       title="检测连接"
       extra={
         canEdit && (
-          <Button icon={<ApiOutlined />} loading={running} onClick={run}>
+          <Button icon={<Plug size="1em" />} loading={running} onClick={run}>
             检测连接
           </Button>
         )
@@ -287,9 +284,9 @@ const CheckCard: React.FC<{ site: Site; canEdit: boolean }> = ({
               }}
             >
               {i.ok ? (
-                <CheckCircleOutlined style={{ color: palette.green }} />
+                <CircleCheck size="1em" style={{ color: palette.green }} />
               ) : (
-                <CloseCircleOutlined style={{ color: palette.red }} />
+                <CircleX size="1em" style={{ color: palette.red }} />
               )}
               <div style={{ minWidth: 0 }}>
                 <b>{i.name}</b>
@@ -458,7 +455,7 @@ const TakeoverCard: React.FC<{
               }}
             >
               <Button
-                icon={<ImportOutlined />}
+                icon={<Import size="1em" />}
                 loading={acting === 'import'}
                 disabled={running}
                 onClick={() => start('import')}
@@ -466,7 +463,7 @@ const TakeoverCard: React.FC<{
                 导入现有商品
               </Button>
               <Button
-                icon={<SwapOutlined />}
+                icon={<ArrowLeftRight size="1em" />}
                 loading={acting === 'compare'}
                 disabled={running}
                 onClick={() => start('compare')}
@@ -480,7 +477,8 @@ const TakeoverCard: React.FC<{
           )}
           {running && (
             <div style={{ fontSize: 12, color: palette.mute, marginTop: 10 }}>
-              <LoadingOutlined /> 执行中，完成后自动刷新
+              <LoaderCircle size="1em" className="zhul-spin" />{' '}
+              执行中，完成后自动刷新
             </div>
           )}
         </>
@@ -516,7 +514,7 @@ const CategoryCard: React.FC<{
           onClick={onOpen}
           aria-label={`设置${site.name}的品类对照`}
         >
-          设置 <RightOutlined />
+          设置 <ChevronRight size="1em" />
         </Button>
       }
     >
@@ -533,7 +531,7 @@ const CategoryCard: React.FC<{
               key={m.name}
               style={{ fontSize: 13, color: palette.orange, marginTop: 8 }}
             >
-              <ExclamationCircleOutlined /> 「{m.name}」还没有对照，{m.count}{' '}
+              <CircleAlert size="1em" /> 「{m.name}」还没有对照，{m.count}{' '}
               个商品不能发布
             </div>
           ))}
@@ -556,7 +554,8 @@ const WebsiteDetailPage: React.FC = () => {
   const id = isNew ? undefined : Number(idParam);
   const access = useAccess() as Record<string, boolean>;
   const canEdit = !!access[PERM_EDIT];
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const { palette } = useAppTheme();
   const wide = useWide();
 
@@ -679,11 +678,10 @@ const WebsiteDetailPage: React.FC = () => {
     };
     if (on) run();
     else
-      modal.confirm({
+      confirmDanger({
         title: `停用「${site.name}」？`,
         content: '停用后不能发布到这个站点；已发布的商品留在站点上。',
         okText: '停用',
-        okButtonProps: { danger: true },
         onOk: run,
       });
   };
@@ -757,7 +755,7 @@ const WebsiteDetailPage: React.FC = () => {
                 style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}
               >
                 <b>{languageLabel(l.code)}</b>
-                {i === 0 && <Pill tone="accent">默认</Pill>}
+                {i === 0 && <Pill tone="gray">默认</Pill>}
               </span>
               <Input
                 value={l.prefix}
@@ -789,7 +787,7 @@ const WebsiteDetailPage: React.FC = () => {
               {i > 0 && !readOnly ? (
                 <Button
                   type="text"
-                  icon={<DeleteOutlined />}
+                  icon={<Trash2 size="1em" />}
                   aria-label={`删除${languageLabel(l.code)}`}
                   onClick={() =>
                     set(
@@ -809,7 +807,7 @@ const WebsiteDetailPage: React.FC = () => {
             value={null}
             placeholder={
               <span>
-                <PlusOutlined /> 添加语言
+                <Plus size="1em" /> 添加语言
               </span>
             }
             variant="borderless"
@@ -1165,21 +1163,18 @@ const WebsiteDetailPage: React.FC = () => {
 
   return (
     <div>
-      <PageTitle
-        crumbs={['站点管理', isNew ? '新建站点' : (site?.name ?? '')]}
+      <PageHeader
         title={isNew ? '新建站点' : site?.name}
-        description={
-          site && <span style={{ fontFamily: MONO }}>{site.url}</span>
-        }
-        actions={
+        tags={
           site && (
-            <span style={{ display: 'inline-flex', gap: 8 }}>
+            <>
               <ModePill mode={site.publishMode} />
               {site.publishMode === MODE_AUTO && <TakeoverPill site={site} />}
               <StatusPill status={site.status} />
-            </span>
+            </>
           )
         }
+        sub={site && <span style={{ fontFamily: MONO }}>{site.url}</span>}
       />
       <div
         style={{

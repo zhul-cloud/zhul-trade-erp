@@ -233,11 +233,11 @@ POST /auth/logout  关闭对话框
 
 #### 5.1.1 整体布局
 
-页面全屏渐变背景（#1890ff → #0050b3），中心白色卡片，宽400px，padding 32px，圆角8px，box-shadow: 0 4px 24px rgba(0,0,0,0.15)。
+页面背景与卡片样式以 `.claude/context/ui-design-patterns.md` 为准（不用渐变），登录框居中，宽400px。
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  背景：渐变蓝（#1890ff → #0050b3）                          │
+│  背景：见界面规范                                           │
 │                                                             │
 │          [烛龙ERP Logo 居中，宽120px，高40px]               │
 │          烛龙外贸业财一体化中台（副标题，白色12px，mb24）    │
@@ -271,12 +271,12 @@ POST /auth/logout  关闭对话框
 |------|------|------|
 | Logo | Image | 宽120px 高40px，object-fit:contain；src从租户配置取；无租户配置时显示默认烛龙Logo |
 | 副标题 | Text | "烛龙外贸业财一体化中台"；颜色rgba(255,255,255,0.85)；font-size:12px；margin-bottom:24px |
-| 卡片标题 | Title | "欢迎登录"；font-size:24px；font-weight:600；color:#262626；text-align:center；margin-bottom:24px |
+| 卡片标题 | Title | "欢迎登录"；font-size:24px；font-weight:600；主文字色；text-align:center；margin-bottom:24px |
 | 用户名输入框 | Input | prefix=\<UserOutlined/>；placeholder="请输入用户名"；size="large"（高40px）；maxLength=50；autoFocus=true；autoComplete="username" |
 | 密码输入框 | Input.Password | prefix=\<LockOutlined/>；placeholder="请输入密码"；size="large"（高40px）；maxLength=32；autoComplete="current-password"；visibilityToggle=true |
-| 记住我 | Checkbox | label="记住我（30 天内免登录）"；默认checked；font-size:14px；color:#595959 |
-| 忘记密码 | Button(link) | 文字"忘记密码?"；color:#1890ff；float:right；font-size:14px；无下划线 |
-| 登录按钮 | Button | type="primary"；block=true；size="large"（高40px）；htmlType="submit"；文字"登  录"（两字中间加空格）；loading时文字"登录中..."；背景#1890ff；hover背景#40a9ff |
+| 记住我 | Checkbox | label="记住我（30 天内免登录）"；默认checked；font-size:14px；正文色 |
+| 忘记密码 | Button(link) | 文字"忘记密码?"；主题色；float:right；font-size:14px；无下划线 |
+| 登录按钮 | Button | type="primary"；block=true；size="large"（高40px）；htmlType="submit"；文字"登  录"（两字中间加空格）；loading时文字"登录中..."；主按钮样式见界面规范 |
 | 错误Alert | Alert | type="error"；showIcon=true；margin-bottom:16px；closable=false；在输入框上方、标题下方插入 |
 | 版权信息 | Text | "© 2026 烛龙科技  版本 {版本号}"，版本号构建时取前端 `package.json` 的 version，不在代码里写死；color:rgba(255,255,255,0.5)；font-size:12px；text-align:center；position:fixed；bottom:16px |
 
@@ -313,7 +313,7 @@ POST /auth/logout  关闭对话框
   - URL不含`redirect` → 跳转`/dashboard`。
 - `remember_me=true`：RefreshToken写入HttpOnly Cookie（名称`rft`；Secure；SameSite=Strict；MaxAge=604800秒）；AccessToken存内存变量（页面刷新后通过Cookie中的RefreshToken换取）。
 - `remember_me=false`：AccessToken存SessionStorage（`akt`键）；Tab关闭后失效；无RefreshToken。
-- URL含`reason=token_expired`时，卡片上方显示蓝色提示条："登录状态已过期，请重新登录"（可手动关闭）。
+- URL含`reason=token_expired`时，卡片上方显示信息提示条："登录状态已过期，请重新登录"（可手动关闭）。
 - URL含`reason=logout`时，不显示任何提示（静默）。
 
 ---
@@ -326,14 +326,14 @@ POST /auth/logout  关闭对话框
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│  背景：渐变蓝                                              │
+│  背景：见界面规范                                          │
 │  ┌──────────────────────────────────────────────────────┐  │
 │  │  ← 返回登录（左上，link按钮）                        │  │
 │  │                                                      │  │
 │  │               忘记密码（20px 加粗 居中）              │  │
 │  │                                                      │  │
 │  │  ①验证账号 ───── ②验证邮箱 ────── ③设置密码          │  │
-│  │  （步骤条，当前步骤高亮蓝色，mb24）                   │  │
+│  │  （步骤条，当前步骤高亮主题色，mb24）                 │  │
 │  │                                                      │  │
 │  │  用户名                                              │  │
 │  │  ┌────────────────────────────────────────────────┐ │  │
@@ -358,13 +358,13 @@ POST /auth/logout  关闭对话框
 
 | 组件 | 类型 | 规格 |
 |------|------|------|
-| 返回登录 | Button(link) | 图标=\<LeftOutlined/>；文字"返回登录"；color:#1890ff；position:absolute；top:16px left:16px |
+| 返回登录 | Button(link) | 图标=\<LeftOutlined/>；文字"返回登录"；主题色；position:absolute；top:16px left:16px |
 | 页面标题 | Title | "忘记密码"；font-size:20px；font-weight:600；text-align:center；margin-bottom:16px |
 | 步骤条 | Steps | size="small"；current=0；items=[{title:"验证账号"},{title:"验证邮箱"},{title:"设置密码"}]；margin-bottom:24px |
 | 用户名输入框 | Input | prefix=\<UserOutlined/>；placeholder="请输入用户名"；size="large"；maxLength=50 |
 | 邮箱输入框 | Input | prefix=\<MailOutlined/>；placeholder="请输入注册时绑定的邮箱地址"；size="large"；maxLength=100 |
 | 发送验证码按钮 | Button | type="primary"；block=true；size="large"；文字"发送验证码" |
-| 提示文案 | Text | "验证码将发送到注册邮箱，有效期10分钟"；color:#8c8c8c；font-size:12px；text-align:center；margin-top:8px |
+| 提示文案 | Text | "验证码将发送到注册邮箱，有效期10分钟"；次要文字色；font-size:12px；text-align:center；margin-top:8px |
 
 #### 5.2.3 表单验证
 
@@ -416,9 +416,9 @@ POST /auth/logout  关闭对话框
 
 | 组件 | 类型 | 规格 |
 |------|------|------|
-| 邮箱提示 | Text | 脱敏规则：取@前前2位+***+@及@后全部；color:#8c8c8c；font-size:12px；text-align:center |
+| 邮箱提示 | Text | 脱敏规则：取@前前2位+***+@及@后全部；次要文字色；font-size:12px；text-align:center |
 | OTP输入框 | Input.OTP | length=6；type="number"；每格宽48px高48px；font-size:20px；自动聚焦第1格；粘贴时自动分配 |
-| 重新发送 | Button(link)/Text | 倒计时期间显示"重新发送验证码（N秒后可重发）"，颜色#bfbfbf，cursor:not-allowed；倒计时结束后文字"重新发送验证码"，颜色#1890ff，可点击 |
+| 重新发送 | Button(link)/Text | 倒计时期间显示"重新发送验证码（N秒后可重发）"，禁用文字色，cursor:not-allowed；倒计时结束后文字"重新发送验证码"，主题色，可点击 |
 | 下一步按钮 | Button | type="primary"；block=true；size="large"；6格未填满时disabled=true |
 
 #### 5.3.3 交互细节
@@ -475,9 +475,9 @@ POST /auth/logout  关闭对话框
 
 | 等级 | 条件 | 进度条颜色 | 文字 |
 |------|------|------------|------|
-| 弱 | 纯数字或纯字母，或长度<8位 | #ff4d4f（红） | 弱 |
-| 一般 | 字母+数字，8-11位 | #faad14（橙） | 一般 |
-| 强 | 字母+数字，12位以上；或含特殊字符且>=8位 | #52c41a（绿） | 强 |
+| 弱 | 纯数字或纯字母，或长度<8位 | 错误色 | 弱 |
+| 一般 | 字母+数字，8-11位 | 警告色 | 一般 |
+| 强 | 字母+数字，12位以上；或含特殊字符且>=8位 | 成功色 | 强 |
 
 #### 5.4.4 表单验证
 
@@ -504,15 +504,15 @@ POST /auth/logout  关闭对话框
 ┌────────────────────────────────────────────────────────────┐
 │  ┌──────────────────────────────────────────────────────┐  │
 │  │                                                      │  │
-│  │     ✅（Result图标，color:#52c41a，fontSize:72px）   │  │
+│  │     ✅（Result图标，成功色，fontSize:72px）          │  │
 │  │                                                      │  │
-│  │         密码重置成功（20px 加粗 color:#262626）       │  │
+│  │         密码重置成功（20px 加粗 主文字色）            │  │
 │  │                                                      │  │
 │  │    您的密码已重置，请使用新密码重新登录              │  │
-│  │    （14px color:#595959 text-align:center）          │  │
+│  │    （14px 正文色 text-align:center）                 │  │
 │  │                                                      │  │
 │  │         3 秒后自动跳转至登录页...                    │  │
-│  │    （12px color:#8c8c8c text-align:center mb24）     │  │
+│  │    （12px 次要文字色 text-align:center mb24）        │  │
 │  │                                                      │  │
 │  │  ┌────────────────────────────────────────────────┐ │  │
 │  │  │                立即去登录                       │ │  │
@@ -534,7 +534,7 @@ POST /auth/logout  关闭对话框
 
 顶部全局Header右侧用户头像，点击展开下拉菜单，菜单项包含：
 - 个人设置（跳转 `/profile`）
-- **退出登录**（颜色 #ff4d4f，图标 \<LogoutOutlined/>，danger属性）
+- **退出登录**（错误色，图标 \<LogoutOutlined/>，danger属性）
 
 #### 5.6.2 确认弹窗规格
 
@@ -546,7 +546,7 @@ POST /auth/logout  关闭对话框
 | okText | "确定退出" |
 | okType | "danger" |
 | cancelText | "取消" |
-| icon | \<ExclamationCircleOutlined/> color=#faad14 |
+| icon | \<ExclamationCircleOutlined/> 警告色 |
 | 宽度 | 400px |
 
 #### 5.6.3 退出逻辑

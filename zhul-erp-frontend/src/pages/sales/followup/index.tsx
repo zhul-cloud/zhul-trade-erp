@@ -1,12 +1,12 @@
-import { EditOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useAccess } from '@umijs/max';
-import { Button, Input, Segmented, Select } from 'antd';
+import { Button, Input, type InputRef, Select } from 'antd';
+import { Pencil, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { PageHeader, ViewTabs } from '@/components/ListLayout';
 import { useOnReactivate } from '@/components/PageTabs/hooks';
-import { useWide } from '@/pages/inquiry/shared/components';
+import { useSidePanel } from '@/components/SidePanel';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { getUserOptions } from '@/services/zhul/users';
-import { SalesPageTitle } from '../components';
 import { AccountInquiryModal } from './AccountPanel';
 import {
   BatchBar,
@@ -49,13 +49,23 @@ import {
 import TeamView, { type TeamJump } from './TeamView';
 import { TodayList } from './TodayList';
 
+/** 帮助文字：help-texts.md「客户跟进」 */
+export const HELP = {
+  mine: '今天该跟谁、跟到哪一步、下一步做什么',
+  team: '哪里卡住了、谁需要帮一把',
+} as const;
+
 const PAGE_SIZE = 20;
 
 const FollowupPage: React.FC = () => {
   const access = useAccess() as Record<string, boolean>;
   const canRecord = !!access[PERM_RECORD];
   const canTeam = !!access[PERM_TEAM];
-  const wide = useWide();
+  const battle = useSidePanel('zhul_followup_battle', '作战卡');
+  // 「列」按钮渲染到阶段导航那一行末尾（D74）
+  const [settingsSlot, setSettingsSlot] = useState<HTMLSpanElement | null>(
+    null,
+  );
 
   const [view, setView] = useState<'mine' | 'team'>('mine');
   /** 下方显示什么：今日待办（默认）或某个板块 */
@@ -97,6 +107,14 @@ const FollowupPage: React.FC = () => {
   const [country, setCountry] = useState<string>();
   const { options: countryOptions } = useCountries();
   const reqRef = useRef(0);
+  /** 今日待办里搜索后切到商机成交：搜索框换了位置，切过去后让它接着获得焦点 */
+  const searchRef = useRef<InputRef>(null);
+  const refocusSearch = useRef(false);
+  useEffect(() => {
+    if (!refocusSearch.current || boardNo === VIEW_TODAY) return;
+    refocusSearch.current = false;
+    searchRef.current?.focus();
+  }, [boardNo]);
 
   useEffect(() => {
     if (!canTeam) return;
@@ -285,67 +303,73 @@ const FollowupPage: React.FC = () => {
     setView('mine');
   };
 
+  // 搜索、负责人放在列表工具栏（R10 方案 B），页头只留视图切换和主按钮
+  const tools = (
+    <>
+      <Input
+        ref={searchRef}
+        allowClear
+        prefix={<Search size="1em" />}
+        placeholder="搜索客户、单号"
+        aria-label="搜索客户、单号"
+        style={{ width: 220 }}
+        value={keywordInput}
+        onChange={(e) => setKeywordInput(e.target.value)}
+        onPressEnter={(e) => {
+          setKeyword(e.currentTarget.value);
+          // 在今日待办里搜索时切到商机成交列表
+          if (boardNo === VIEW_TODAY) {
+            refocusSearch.current = true;
+            switchBoard(BOARD_SALES);
+          }
+        }}
+        onClear={() => setKeyword('')}
+      />
+      {canTeam && (
+        <Select
+          style={{ width: 160 }}
+          aria-label="负责人"
+          value={ownerScope}
+          onChange={setOwnerScope}
+          showSearch={{ optionFilterProp: 'label' }}
+          options={[
+            { value: 'me', label: '负责人：我' },
+            { value: 'all', label: '负责人：全部' },
+            ...owners.map((o) => ({ ...o, label: `负责人：${o.label}` })),
+          ]}
+        />
+      )}
+    </>
+  );
+
   return (
     <div>
-      <SalesPageTitle
-        description={
-          view === 'team'
-            ? '哪里卡住了、谁需要帮一把'
-            : '今天该跟谁、跟到哪一步、下一步做什么'
-        }
-        actions={
-          <>
-            {canTeam && (
-              <Segmented
-                value={view}
-                onChange={(v) => setView(v as 'mine' | 'team')}
-                options={[
-                  { value: 'mine', label: '我的' },
-                  { value: 'team', label: '团队' },
-                ]}
-              />
-            )}
-            {view === 'mine' && (
-              <Input
-                allowClear
-                prefix={<SearchOutlined />}
-                placeholder="搜索客户、单号"
-                style={{ width: 220 }}
-                value={keywordInput}
-                onChange={(e) => setKeywordInput(e.target.value)}
-                onPressEnter={(e) => {
-                  setKeyword(e.currentTarget.value);
-                  // 在今日待办里搜索时切到商机成交列表
-                  if (boardNo === VIEW_TODAY) switchBoard(BOARD_SALES);
-                }}
-                onClear={() => setKeyword('')}
-              />
-            )}
-            {view === 'mine' && canTeam && (
-              <Select
-                style={{ width: 160 }}
-                value={ownerScope}
-                onChange={setOwnerScope}
-                showSearch={{ optionFilterProp: 'label' }}
-                options={[
-                  { value: 'me', label: '负责人：我' },
-                  { value: 'all', label: '负责人：全部' },
-                  ...owners.map((o) => ({ ...o, label: `负责人：${o.label}` })),
-                ]}
-              />
-            )}
-            {view === 'mine' && canRecord && (
-              <Button
-                type="primary"
-                icon={<EditOutlined />}
-                onClick={() => openRecord()}
-              >
-                记一次跟进
-              </Button>
-            )}
-          </>
+      <PageHeader
+        help={view === 'team' ? HELP.team : HELP.mine}
+        extra={
+          view === 'mine' &&
+          canRecord && (
+            <Button
+              type="primary"
+              icon={<Pencil size="1em" />}
+              onClick={() => openRecord()}
+            >
+              记一次跟进
+            </Button>
+          )
         }
       />
+      {/* 团队是另一张统计视图（不是同一列表看更多人），用视图页签（复审 S3） */}
+      {canTeam && (
+        <ViewTabs
+          activeKey={view}
+          onChange={(k) => setView(k as 'mine' | 'team')}
+          items={[
+            { key: 'mine', label: '我的' },
+            { key: 'team', label: '团队' },
+          ]}
+        />
+      )}
       {view === 'team' ? (
         <TeamView onJump={jump} />
       ) : (
@@ -366,18 +390,11 @@ const FollowupPage: React.FC = () => {
               onRecord={openTarget}
               onChanged={refresh}
               onBrowse={() => switchBoard(BOARD_SALES)}
+              tools={tools}
             />
           ) : (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: wide
-                  ? 'minmax(0, 1fr) 360px'
-                  : 'minmax(0, 1fr)',
-                gap: 16,
-                alignItems: 'start',
-              }}
-            >
+            <>
+              {/* 作战卡默认收起，表头右侧按钮打开，表格占满整行（D74，对比图 R33 方案 B） */}
               <Card style={{ padding: '16px 20px' }}>
                 <StageBar
                   boardNo={boardNo}
@@ -386,9 +403,34 @@ const FollowupPage: React.FC = () => {
                   onChange={setFilter}
                   blocker={blocker}
                   onBlocker={setBlocker}
+                  trailing={
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        gap: 8,
+                        marginLeft: 'auto',
+                      }}
+                    >
+                      {/* 新建放在右端，筛选留在左边（空状态提示「点右上角」） */}
+                      {boardNo === BOARD_DEVELOP && canRecord && (
+                        <Button
+                          icon={<Plus size="1em" />}
+                          onClick={() => setProspectOpen(true)}
+                        >
+                          新建开发对象
+                        </Button>
+                      )}
+                      <span
+                        ref={setSettingsSlot}
+                        style={{ display: 'contents' }}
+                      />
+                      {battle.button}
+                    </span>
+                  }
                   extra={
-                    boardNo === BOARD_DEVELOP && (
-                      <>
+                    <>
+                      {tools}
+                      {boardNo === BOARD_DEVELOP && (
                         <Select
                           allowClear
                           style={{ width: 170 }}
@@ -398,17 +440,8 @@ const FollowupPage: React.FC = () => {
                           showSearch={{ optionFilterProp: 'label' }}
                           options={countryOptions}
                         />
-                        {canRecord && (
-                          <Button
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            onClick={() => setProspectOpen(true)}
-                          >
-                            新建开发对象
-                          </Button>
-                        )}
-                      </>
-                    )
+                      )}
+                    </>
                   }
                 />
                 <FollowupTable
@@ -440,19 +473,21 @@ const FollowupPage: React.FC = () => {
                   onMore={() => loadList(page + 1)}
                   onNewInquiry={setInquiryCustomer}
                   onConvert={setConvertItem}
+                  settingsSlot={settingsSlot}
                 />
               </Card>
-              <div style={wide ? { position: 'sticky', top: 16 } : undefined}>
+              {battle.panel(
                 <BattleCard
+                  bare
                   item={selected}
                   canRecord={canRecord}
                   onNewInquiry={setInquiryCustomer}
                   onChanged={refresh}
                   onConvert={setConvertItem}
                   onStop={(item) => setStop({ item })}
-                />
-              </div>
-            </div>
+                />,
+              )}
+            </>
           )}
         </>
       )}

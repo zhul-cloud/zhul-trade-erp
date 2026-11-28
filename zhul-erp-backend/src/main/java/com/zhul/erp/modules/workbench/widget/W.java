@@ -66,6 +66,8 @@ final class W {
     /** 带较上月的变化：money 与 count 的变化用百分比，percent 的变化用百分点 */
     static WidgetData.Metric compare(String label, Number cur, Number prev, String format, boolean higherIsBetter) {
         WidgetData.Metric m = metric(label, cur, format, null);
+        m.setCompared(true);
+        m.setPrevious(prev == null ? null : num(prev));
         if ("percent".equals(format)) {
             if (cur != null && prev != null) {
                 m.setDelta(num(cur).subtract(num(prev)).setScale(1, RoundingMode.HALF_UP));
@@ -81,6 +83,13 @@ final class W {
 
     static WidgetData.Metric link(WidgetData.Metric m, String link) {
         m.setLink(link);
+        return m;
+    }
+
+    /** 数字卡的图标与家族色（ui-redesign D2）：随指标下发，前端不按名称查表 */
+    static WidgetData.Metric look(WidgetData.Metric m, String icon, String family) {
+        m.setIcon(icon);
+        m.setFamily(family);
         return m;
     }
 

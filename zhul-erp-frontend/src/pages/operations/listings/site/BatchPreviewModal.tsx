@@ -1,11 +1,5 @@
-import {
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  ExclamationCircleOutlined,
-  InfoCircleOutlined,
-  RocketOutlined,
-} from '@ant-design/icons';
 import { App, Button, Checkbox, Modal, Skeleton } from 'antd';
+import { CircleAlert, CircleCheck, CircleX, Info, Rocket } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Pill } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
@@ -31,12 +25,12 @@ export const PublishNotes: React.FC = () => {
       }}
     >
       <span>
-        <InfoCircleOutlined />{' '}
+        <Info size="1em" />{' '}
         同一站点同一时间只执行一张发布单，后来的排队；不受夜间时段限制
       </span>
       <span>
-        <InfoCircleOutlined /> 发布单依次：拉取仓库 → 写入数据 → 构建 → 本地检查
-        → 提交 → 部署 → 线上检查 → 推送仓库 → 推送收录
+        <Info size="1em" /> 发布单依次：拉取仓库 → 写入数据 → 构建 → 本地检查 →
+        提交 → 部署 → 线上检查 → 推送仓库 → 推送收录
       </span>
     </div>
   );
@@ -130,7 +124,7 @@ export const BatchPreviewModal: React.FC<{
           <Button onClick={onClose}>取消</Button>
           <Button
             type="primary"
-            icon={<RocketOutlined />}
+            icon={<Rocket size="1em" />}
             disabled={!checked.length}
             loading={sending}
             onClick={release}
@@ -189,7 +183,7 @@ export const BatchPreviewModal: React.FC<{
                         borderRadius: 10,
                         cursor: 'pointer',
                         border: `1px solid ${active ? palette.link : palette.hairline}`,
-                        background: active ? palette.accentSoft : palette.card,
+                        background: active ? palette.primarySoft : palette.card,
                         opacity: x.publishable ? 1 : 0.7,
                       }}
                     >
@@ -228,13 +222,17 @@ export const BatchPreviewModal: React.FC<{
                         )}
                       </div>
                       {x.blockers.length ? (
-                        <CloseCircleOutlined style={{ color: palette.red }} />
+                        <CircleX size="1em" style={{ color: palette.red }} />
                       ) : x.warnings.length ? (
-                        <ExclamationCircleOutlined
+                        <CircleAlert
+                          size="1em"
                           style={{ color: palette.orange }}
                         />
                       ) : (
-                        <CheckCircleOutlined style={{ color: palette.green }} />
+                        <CircleCheck
+                          size="1em"
+                          style={{ color: palette.green }}
+                        />
                       )}
                     </div>
                   );
@@ -252,7 +250,7 @@ export const BatchPreviewModal: React.FC<{
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <b style={{ flex: 1, fontFamily: MONO, fontSize: 15 }}>
+                  <b style={{ flex: 1, fontFamily: MONO, fontSize: 16 }}>
                     {p.model}
                   </b>
                   <LangSwitch

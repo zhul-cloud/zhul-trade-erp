@@ -1,4 +1,3 @@
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useSearchParams } from '@umijs/max';
 import type { TableColumnsType } from 'antd';
 import {
@@ -9,11 +8,21 @@ import {
   Input,
   Modal,
   Radio,
-  Segmented,
   Select,
   Table,
 } from 'antd';
+import { FilePlus2, Pencil, Plus, Search } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useColumnSettings } from '@/components/ColumnSettings';
+import { tableEmpty } from '@/components/EmptyState';
+import {
+  FilterCard,
+  FilterField,
+  MainCard,
+  PageHeader,
+  QuickFilters,
+} from '@/components/ListLayout';
+import { RowActions, rowActionsWidth } from '@/components/RowActions';
 import { Pill } from '@/pages/customer/components';
 import { labelOf } from '@/pages/customer/constants';
 import { useProfileDicts } from '@/pages/customer/profile/ProfileModules';
@@ -23,7 +32,6 @@ import {
   FX_OPTIONS,
 } from '@/pages/customer/profile/service';
 import { readBizError } from '@/pages/customer/service';
-import { PageTitle } from '@/pages/inquiry/shared/components';
 import { ErrorHint } from '@/pages/product/components/EmptyHint';
 import { useCountries } from '@/pages/product/components/useCountries';
 import { auditColumns } from '@/pages/purchase/components';
@@ -185,7 +193,7 @@ const EditModal: React.FC<{
 /** 业务设置 → 国家资料（spec master-data/country-profile）：未维护的国家按客户数排在前面 */
 const CountryProfilesPage: React.FC = () => {
   const { palette } = useAppTheme();
-  const pager = usePagination(50, 'country-profiles');
+  const pager = usePagination(20, 'country-profiles');
   const { zhOf } = useCountries();
   const d = useProfileDicts();
   const [search, setSearch] = useSearchParams();
@@ -238,6 +246,7 @@ const CountryProfilesPage: React.FC = () => {
 
   const columns: TableColumnsType<CountryProfile> = [
     {
+      fixed: 'left',
       title: '国家',
       dataIndex: 'country',
       width: 180,
@@ -305,92 +314,104 @@ const CountryProfilesPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 90,
+      width: rowActionsWidth(1),
       fixed: 'right',
       render: (_, r) => (
-        <button
-          type="button"
-          className="zhul-link"
-          onClick={() => setEditing(r)}
-        >
-          {r.id ? '编辑' : '去维护'}
-        </button>
+        <RowActions
+          inline={[
+            {
+              key: 'edit',
+              label: r.id ? '编辑' : '去维护',
+              icon: r.id ? <Pencil size={18} /> : <FilePlus2 size={18} />,
+              onClick: () => setEditing(r),
+            },
+          ]}
+        />
       ),
     },
   ];
+  const columnsSet = useColumnSettings('system-country-profiles', columns);
 
   return (
     <div>
-      <PageTitle
-        description="按国家维护一次，所有这个国家的客户都能看到。先补客户多的国家。"
-        actions={
+      <PageHeader
+        help="按国家维护一次，所有这个国家的客户都能看到。先补客户多的国家"
+        extra={
           <Button
             type="primary"
-            icon={<PlusOutlined />}
+            icon={<Plus size="1em" />}
             onClick={() => setEditing('new')}
           >
             新增国家
           </Button>
         }
       />
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          flexWrap: 'wrap',
-          marginBottom: 16,
+      <FilterCard
+        onSearch={() => setQuery(keyword.trim())}
+        onReset={() => {
+          setKeyword('');
+          setQuery('');
+          setFilter('all');
         }}
       >
-        <Input
-          allowClear
-          prefix={<SearchOutlined />}
-          placeholder="搜索国家"
-          style={{ width: 280 }}
-          value={keyword}
-          onChange={(e) => {
-            setKeyword(e.target.value);
-            if (!e.target.value) setQuery('');
-          }}
-          onPressEnter={() => setQuery(keyword.trim())}
-        />
-        <Segmented
-          value={filter}
-          onChange={(v) => setFilter(v as Filter)}
-          options={[
-            { value: 'all', label: '全部' },
-            { value: 'unmaintained', label: `未维护 ${unmaintained.length}` },
-            { value: 'strict', label: `外汇管制严格 ${strict.length}` },
-          ]}
-        />
-      </div>
-      <div
-        style={{
-          background: palette.card,
-          borderRadius: 16,
-          border: `1px solid ${palette.hairline}`,
-          overflow: 'hidden',
-        }}
+        <FilterField label="国家" span={2}>
+          <Input
+            allowClear
+            prefix={<Search size={16} />}
+            placeholder="国家名称"
+            aria-label="国家"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={() => setQuery(keyword.trim())}
+          />
+        </FilterField>
+      </FilterCard>
+      <MainCard
+        settings={columnsSet.settings}
+        left={
+          loading && !shown.length ? undefined : `共 ${shown.length} 个国家`
+        }
+        quick={
+          // 未维护、外汇管制严格是条件，改为快捷筛选（互斥，再点取消）
+          <QuickFilters
+            options={[
+              {
+                value: 'unmaintained',
+                label: '未维护',
+                count: unmaintained.length,
+              },
+              { value: 'strict', label: '外汇管制严格', count: strict.length },
+            ]}
+            value={filter === 'all' ? [] : [filter]}
+            onChange={(v) =>
+              setFilter(
+                (v.find((x) => x !== filter) as Filter | undefined) ?? 'all',
+              )
+            }
+          />
+        }
       >
         {error ? (
           <ErrorHint message={error} onRetry={load} />
         ) : (
           <Table<CountryProfile>
             rowKey="country"
-            columns={columns}
+            columns={columnsSet.columns}
             dataSource={shown}
             loading={loading}
-            scroll={{ x: tableScrollX(columns) }}
+            scroll={{ x: tableScrollX(columnsSet.columns) }}
             pagination={pager}
             locale={{
-              emptyText:
+              emptyText: tableEmpty(
                 filter === 'all'
                   ? '还没有客户，也没有维护过国家资料'
                   : '没有符合条件的国家',
+                loading,
+              ),
             }}
           />
         )}
-      </div>
+      </MainCard>
       <EditModal
         editing={editing}
         maintained={maintained}

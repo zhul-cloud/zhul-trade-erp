@@ -10,11 +10,9 @@ const CompletenessCard: React.FC<{ profile: Profile }> = ({ profile }) => {
   const c = profile.completeness;
   return (
     <section
+      className="zhul-card"
       aria-label="档案完整度"
       style={{
-        background: palette.card,
-        border: `1px solid ${palette.hairline}`,
-        borderRadius: 16,
         padding: '16px 20px',
         marginBottom: 16,
       }}
@@ -30,7 +28,7 @@ const CompletenessCard: React.FC<{ profile: Profile }> = ({ profile }) => {
         <h2
           style={{
             margin: 0,
-            fontSize: 15,
+            fontSize: 16,
             fontWeight: 600,
             color: palette.ink,
           }}
@@ -40,9 +38,10 @@ const CompletenessCard: React.FC<{ profile: Profile }> = ({ profile }) => {
         <span
           className="num"
           style={{
-            fontSize: 22,
-            fontWeight: 700,
-            color: c.complete ? palette.green : palette.orange,
+            // 完整度是程度：数字用正文色，进度条表示多少；状态由旁边的标签表达（UI-118）
+            fontSize: 20,
+            fontWeight: 600,
+            color: palette.ink,
           }}
         >
           {c.done} / 5
@@ -63,16 +62,17 @@ const CompletenessCard: React.FC<{ profile: Profile }> = ({ profile }) => {
             <span
               key={m.module}
               style={{
+                // 缺项是待办清单，用卡内凹格浅灰，不整片铺警告色（UI-118）
                 padding: '4px 10px',
-                borderRadius: 10,
+                borderRadius: 6,
                 fontSize: 12,
-                background: palette.orangeSoft,
-                color: palette.ink,
+                background: palette.inset,
+                color: palette.sub,
               }}
             >
               <span
                 style={{
-                  color: palette.orange,
+                  color: palette.ink,
                   fontWeight: 600,
                   marginRight: 6,
                 }}

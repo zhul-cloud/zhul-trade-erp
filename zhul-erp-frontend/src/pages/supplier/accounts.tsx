@@ -1,6 +1,7 @@
-import { BankOutlined, PlusOutlined, UserOutlined } from '@ant-design/icons';
-import { App, Button, Checkbox, Form, Input, Modal, Segmented } from 'antd';
+import { Button, Checkbox, Form, Input, Modal, Segmented } from 'antd';
+import { Landmark, Plus, User } from 'lucide-react';
 import React, { useState } from 'react';
+import { useConfirmDanger } from '@/components/ConfirmDanger';
 import { useAppTheme } from '@/theme/AppTheme';
 import {
   ACCOUNT_CORPORATE,
@@ -82,7 +83,7 @@ const TypePill: React.FC<{ type: number }> = ({ type }) => {
         fontSize: 12,
         fontWeight: 600,
         color: corporate ? palette.link : palette.orange,
-        background: corporate ? palette.accentSoft : palette.orangeSoft,
+        background: corporate ? palette.neutralSoft : palette.orangeSoft,
       }}
     >
       {corporate ? '对公' : '对私'}
@@ -115,7 +116,7 @@ export const AccountCard: React.FC<{
         padding: '14px 18px',
         borderRadius: 12,
         background: palette.inset,
-        border: `1px solid ${row.defaultAccount ? palette.accentLine : palette.hairline}`,
+        border: `1px solid ${row.defaultAccount ? palette.primaryLine : palette.hairline}`,
       }}
     >
       <span
@@ -130,10 +131,10 @@ export const AccountCard: React.FC<{
           borderRadius: 10,
           fontSize: 18,
           color: corporate ? palette.link : palette.orange,
-          background: corporate ? palette.accentSoft : palette.orangeSoft,
+          background: corporate ? palette.neutralSoft : palette.orangeSoft,
         }}
       >
-        {corporate ? <BankOutlined /> : <UserOutlined />}
+        {corporate ? <Landmark size="1em" /> : <User size="1em" />}
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
@@ -363,7 +364,7 @@ export const AccountListEditor: React.FC<{
   supplierName: string;
 }> = ({ value = [], onChange, supplierName }) => {
   const { palette } = useAppTheme();
-  const { modal } = App.useApp();
+  const confirmDanger = useConfirmDanger();
   const [editing, setEditing] = useState<AccountRow | null>(null);
   const [adding, setAdding] = useState(false);
 
@@ -403,14 +404,11 @@ export const AccountListEditor: React.FC<{
   };
 
   const remove = (row: AccountRow) =>
-    modal.confirm({
+    confirmDanger({
       title: `删除账户「${row.accountName}」？`,
       content: row.defaultAccount
         ? '这是默认收款账户，删除后第一个账户会成为默认。保存供应商后生效。'
         : '保存供应商后生效。',
-      okText: '删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
       onOk: () => commit(value.filter((r) => r.key !== row.key)),
     });
 
@@ -437,7 +435,7 @@ export const AccountListEditor: React.FC<{
         </span>
         {value.length > 0 && (
           <Button
-            icon={<PlusOutlined />}
+            icon={<Plus size="1em" />}
             disabled={full}
             onClick={() => setAdding(true)}
           >
@@ -461,7 +459,7 @@ export const AccountListEditor: React.FC<{
           <div style={{ margin: '6px 0 14px', fontSize: 13 }}>
             付款前需要先添加对公或对私账户。
           </div>
-          <Button icon={<PlusOutlined />} onClick={() => setAdding(true)}>
+          <Button icon={<Plus size="1em" />} onClick={() => setAdding(true)}>
             添加账户
           </Button>
         </div>
