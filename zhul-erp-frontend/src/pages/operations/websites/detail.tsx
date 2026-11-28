@@ -777,7 +777,9 @@ const WebsiteDetailPage: React.FC = () => {
                   wordBreak: 'break-all',
                 }}
               >
-                {liveUrl(form.url, l.prefix, form.pathTemplate)}
+                {/^https?:\/\/[^/\s]+/.test(form.url)
+                  ? liveUrl(form.url, l.prefix, form.pathTemplate)
+                  : '填好网址后显示'}
               </span>
               {i > 0 && !readOnly ? (
                 <Button
