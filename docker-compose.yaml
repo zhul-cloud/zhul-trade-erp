@@ -176,6 +176,13 @@ services:
     # 各站点仓库的克隆存在命名卷 site-publisher-work，下次增量拉取；构建和浏览器检查时才占资源
     volumes:
       - site-publisher-work:/work
+    # 部署脚本要求每个容器都是 healthy；镜像里没有 curl，用 node 自带的 fetch 访问 /health
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8910/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
     cpus: 1.5
     mem_limit: 1536m
 
