@@ -5,6 +5,7 @@ import { CircleX, Paperclip, Undo2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { CopyText } from '@/components/CopyText';
 import {
+  DocColumns,
   DocLogCard,
   InfoGrid,
   RelatedDocsCard,
@@ -339,23 +340,18 @@ const ReceiptDocDetail: React.FC = () => {
           )
         }
       />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: wide
-            ? 'minmax(0, 2.6fr) minmax(340px, 1fr)'
-            : '1fr',
-          gap: 16,
-          alignItems: 'start',
-        }}
+      <DocColumns
+        wide={wide}
+        side={
+          <>
+            <RelatedDocsCard docs={relatedRows(d.related)} />
+            <DocLogCard logs={d.logs} />
+          </>
+        }
       >
-        <div style={{ minWidth: 0 }}>{info}</div>
-        <div style={{ minWidth: 0 }}>
-          <RelatedDocsCard docs={relatedRows(d.related)} />
-          <DocLogCard logs={d.logs} />
-        </div>
-      </div>
-      {wideSections}
+        {info}
+        {wideSections}
+      </DocColumns>
       <ReasonModal
         open={!!dialog}
         title={

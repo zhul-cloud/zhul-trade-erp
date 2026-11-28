@@ -7,6 +7,7 @@ import DocModelCell, {
   docModelColumn,
 } from '@/components/DocFields/DocModelCell';
 import {
+  DocColumns,
   DocLogCard,
   InfoGrid,
   type RelatedDoc,
@@ -79,7 +80,7 @@ const ReceiptDetailPage: React.FC = () => {
       title: '#',
       fixed: 'left' as const,
       key: 'no',
-      width: 48,
+      width: 44,
       render: (_, __, i) => i + 1,
     },
     docModelColumn<ReceiptItem>((x) => x, {
@@ -110,7 +111,8 @@ const ReceiptDetailPage: React.FC = () => {
       title: '不良',
       align: 'right' as const,
       dataIndex: 'defectiveQty',
-      width: 120,
+      // 明细进主栏后 1366 下可见 664：各列合计 664，不横向滚动（D80）
+      width: 90,
       render: (v: number, x) => (
         <div>
           <span style={{ color: v ? palette.red : undefined }}>{v}</span>
@@ -211,107 +213,101 @@ const ReceiptDetailPage: React.FC = () => {
           )
         }
       />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: wide
-            ? 'minmax(0, 2.6fr) minmax(340px, 1fr)'
-            : '1fr',
-          gap: 16,
-          alignItems: 'start',
-        }}
+      <DocColumns
+        wide={wide}
+        side={
+          <>
+            <RelatedDocsCard docs={related} />
+            <DocLogCard logs={d.logs} />
+          </>
+        }
       >
-        <div style={{ minWidth: 0 }}>
-          <InfoGrid
-            items={[
-              {
-                label: '采购订单',
-                value: (
-                  <Link
-                    to={WAREHOUSE_PATHS.order(r.poId)}
-                    className="zhul-link zhul-link-doc"
-                  >
-                    {r.poNo}
-                  </Link>
-                ),
-              },
-              {
-                label: '发货单',
-                value: (
-                  <Link
-                    to={DOC_PATHS.shipment(r.shipmentId)}
-                    className="zhul-link zhul-link-doc"
-                  >
-                    {r.sdNo}
-                  </Link>
-                ),
-              },
-              { label: '收货日期', value: r.receivedDate },
-              { label: '收货人', value: r.receivedByName },
-              { label: '冲销原因', value: r.reverseReason, hidden: valid },
-            ]}
-          />
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <RelatedDocsCard docs={related} />
-          <DocLogCard logs={d.logs} />
-        </div>
-      </div>
-      {/* 明细等宽内容放两栏下方通栏，1366 宽下不被挤出（照销售订单，复审 P18） */}
-      <Card style={{ padding: 20, marginBottom: 16 }}>
-        <SectionTitle>
-          明细
-          <span
-            style={{
-              color: palette.mute,
-              fontSize: 13,
-              fontWeight: 400,
-              marginLeft: 8,
-            }}
-          >
-            发货 {sum('shippedQty')} · 实收 {sum('receivedQty')} · 合格{' '}
-            {sum('qualifiedQty')}
-          </span>
-        </SectionTitle>
-        <Table<ReceiptItem>
-          rowKey="id"
-          size="middle"
-          pagination={false}
-          columns={columns}
-          dataSource={d.items}
-          scroll={{ x: tableScrollX(columns) }}
+        <InfoGrid
+          items={[
+            {
+              label: '采购订单',
+              value: (
+                <Link
+                  to={WAREHOUSE_PATHS.order(r.poId)}
+                  className="zhul-link zhul-link-doc"
+                >
+                  {r.poNo}
+                </Link>
+              ),
+            },
+            {
+              label: '发货单',
+              value: (
+                <Link
+                  to={DOC_PATHS.shipment(r.shipmentId)}
+                  className="zhul-link zhul-link-doc"
+                >
+                  {r.sdNo}
+                </Link>
+              ),
+            },
+            { label: '收货日期', value: r.receivedDate },
+            { label: '收货人', value: r.receivedByName },
+            { label: '冲销原因', value: r.reverseReason, hidden: valid },
+          ]}
         />
-      </Card>
-      <DocFilesCard
-        remark={r.note}
-        editable={editable}
-        onRemark={(text) => receiptApi.remark(r.id, text)}
-        onChanged={load}
-        groups={[
-          {
-            label: '验收照片',
-            ownerType: 'RECEIPT',
-            files: d.attachments,
-            editable,
-            onAttach: (ids) => receiptApi.attach(r.id, ids),
-            onRemove: (fid) => receiptApi.removeAttachment(r.id, fid),
-          },
-          ...(hasDefect
-            ? [
-                {
-                  label: '不良照片',
-                  ownerType: 'RECEIPT_DEFECT' as const,
-                  files: d.defectAttachments ?? [],
-                  editable,
-                  onAttach: (ids: number[]) =>
-                    receiptApi.attach(r.id, ids, true),
-                  onRemove: (fid: number) =>
-                    receiptApi.removeAttachment(r.id, fid, true),
-                },
-              ]
-            : []),
-        ]}
-      />
+
+        {/* 明细放主栏（D80，R39 方案 B） */}
+        <Card style={{ padding: 20, marginBottom: 16 }}>
+          <SectionTitle>
+            明细
+            <span
+              style={{
+                color: palette.mute,
+                fontSize: 13,
+                fontWeight: 400,
+                marginLeft: 8,
+              }}
+            >
+              发货 {sum('shippedQty')} · 实收 {sum('receivedQty')} · 合格{' '}
+              {sum('qualifiedQty')}
+            </span>
+          </SectionTitle>
+          <Table<ReceiptItem>
+            rowKey="id"
+            size="middle"
+            pagination={false}
+            columns={columns}
+            dataSource={d.items}
+            scroll={{ x: tableScrollX(columns) }}
+          />
+        </Card>
+        <DocFilesCard
+          remark={r.note}
+          editable={editable}
+          onRemark={(text) => receiptApi.remark(r.id, text)}
+          onChanged={load}
+          groups={[
+            {
+              label: '验收照片',
+              ownerType: 'RECEIPT',
+              files: d.attachments,
+              editable,
+              onAttach: (ids) => receiptApi.attach(r.id, ids),
+              onRemove: (fid) => receiptApi.removeAttachment(r.id, fid),
+            },
+            ...(hasDefect
+              ? [
+                  {
+                    label: '不良照片',
+                    ownerType: 'RECEIPT_DEFECT' as const,
+                    files: d.defectAttachments ?? [],
+                    editable,
+                    onAttach: (ids: number[]) =>
+                      receiptApi.attach(r.id, ids, true),
+                    onRemove: (fid: number) =>
+                      receiptApi.removeAttachment(r.id, fid, true),
+                  },
+                ]
+              : []),
+          ]}
+        />
+      </DocColumns>
       <ReasonModal
         open={reversing}
         title={`冲销采购入库单 ${r.grNo}`}
